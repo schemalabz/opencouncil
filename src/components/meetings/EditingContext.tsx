@@ -1,6 +1,6 @@
 "use client";
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { useCouncilMeetingData } from './CouncilMeetingDataContext';
+import React, { createContext, useContext, useState, useCallback, useRef, ReactNode, useMemo } from 'react';
+import { useCouncilMeetingData, useCouncilMeetingTranscript } from './CouncilMeetingDataContext';
 import { ACTIONS, useKeyboardShortcut } from '@/contexts/KeyboardShortcutsContext';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
@@ -21,16 +21,19 @@ export function EditingProvider({ children }: { children: ReactNode }) {
     const [selectedUtteranceIds, setSelectedUtteranceIds] = useState<Set<string>>(new Set());
     const [lastClickedUtteranceId, setLastClickedUtteranceId] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
-    
-    const { transcript, extractSpeakerSegment, getSpeakerSegmentById } = useCouncilMeetingData();
+
+    // Subscribe to transcript context — EditingProvider re-renders on transcript changes (cheap,
+    // it's one component). We store transcript in a ref so callbacks can read the latest value
+    // without depending on it — this is the standard React pattern for stable event handlers.
+    const { transcript } = useCouncilMeetingTranscript();
+    const { extractSpeakerSegment } = useCouncilMeetingData();
     const { toast } = useToast();
     const t = useTranslations('editing.toasts');
 
-    // Flatten utterances for easy range index finding
-    // Memoizing this might be expensive if transcript changes often, but necessary for range selection
-    const allUtterances = React.useMemo(() => {
-        return transcript.flatMap(segment => segment.utterances);
-    }, [transcript]);
+    // Single internal ref: read latest transcript in callbacks without adding it as a dep.
+    // This prevents toggleSelection/extractSelectedSegment from changing on every transcript edit.
+    const transcriptRef = useRef(transcript);
+    transcriptRef.current = transcript;
 
     const clearSelection = useCallback(() => {
         setSelectedUtteranceIds(new Set());
@@ -42,11 +45,11 @@ export function EditingProvider({ children }: { children: ReactNode }) {
             const newSet = new Set(prev);
 
             if (modifiers.shift && lastClickedUtteranceId) {
-                // Range selection using shared utility
+                // Compute allUtterances lazily from ref
+                const allUtterances = transcriptRef.current.flatMap(segment => segment.utterances);
                 const rangeIds = calculateUtteranceRange(allUtterances, lastClickedUtteranceId, id);
                 rangeIds.forEach(rangeId => newSet.add(rangeId));
             } else if (modifiers.ctrl) {
-                // Toggle individual
                 if (newSet.has(id)) {
                     newSet.delete(id);
                 } else {
@@ -54,7 +57,6 @@ export function EditingProvider({ children }: { children: ReactNode }) {
                 }
                 setLastClickedUtteranceId(id);
             } else {
-                // Single select (clear others)
                 newSet.clear();
                 newSet.add(id);
                 setLastClickedUtteranceId(id);
@@ -62,20 +64,23 @@ export function EditingProvider({ children }: { children: ReactNode }) {
 
             return newSet;
         });
-    }, [allUtterances, lastClickedUtteranceId]);
+    // lastClickedUtteranceId changes on user clicks — that's fine because
+    // the context value already changes when lastClickedUtteranceId changes.
+    }, [lastClickedUtteranceId]);
 
     const extractSelectedSegment = useCallback(async () => {
-        if (selectedUtteranceIds.size === 0) return;
         if (isProcessing) return;
+        if (selectedUtteranceIds.size === 0) return;
 
         setIsProcessing(true);
         try {
+            const allUtterances = transcriptRef.current.flatMap(segment => segment.utterances);
             const selectedList = Array.from(selectedUtteranceIds);
             const firstUtterance = allUtterances.find(u => u.id === selectedList[0]);
             if (!firstUtterance) throw new Error("Selected utterance not found");
 
             const targetSegmentId = firstUtterance.speakerSegmentId;
-            
+
             // Validate all selected utterances belong to the same segment
             const allInSame = selectedList.every(id => {
                 const u = allUtterances.find(ut => ut.id === id);
@@ -95,12 +100,12 @@ export function EditingProvider({ children }: { children: ReactNode }) {
             const indices = selectedList
                 .map(id => allUtterances.findIndex(u => u.id === id))
                 .sort((a, b) => a - b);
-            
+
             const startUtteranceId = allUtterances[indices[0]].id;
             const endUtteranceId = allUtterances[indices[indices.length - 1]].id;
 
             // Validate extraction leaves utterances before and after (A-B-A pattern)
-            const originalSegment = getSpeakerSegmentById(targetSegmentId);
+            const originalSegment = transcriptRef.current.find(s => s.id === targetSegmentId);
             if (originalSegment) {
                 const totalUtterances = originalSegment.utterances.length;
                 const segmentStartIndex = originalSegment.utterances.findIndex(u => u.id === startUtteranceId);
@@ -127,7 +132,7 @@ export function EditingProvider({ children }: { children: ReactNode }) {
             }
 
             await extractSpeakerSegment(targetSegmentId, startUtteranceId, endUtteranceId);
-            
+
             clearSelection();
             toast({
                 description: t('extractionSuccess')
@@ -143,21 +148,25 @@ export function EditingProvider({ children }: { children: ReactNode }) {
         } finally {
             setIsProcessing(false);
         }
-    }, [selectedUtteranceIds, isProcessing, allUtterances, extractSpeakerSegment, getSpeakerSegmentById, clearSelection, toast, t]);
+    // These deps change on user actions (selection, processing) — not on transcript edits.
+    }, [selectedUtteranceIds, isProcessing, extractSpeakerSegment, clearSelection, toast, t]);
 
     // Register Shortcuts
     useKeyboardShortcut(ACTIONS.EXTRACT_SEGMENT.id, extractSelectedSegment, selectedUtteranceIds.size > 0);
     useKeyboardShortcut(ACTIONS.CLEAR_SELECTION.id, clearSelection, selectedUtteranceIds.size > 0);
 
+    // Memoize value — changes on user actions (selection, processing), NOT on transcript edits.
+    const value = useMemo(() => ({
+        selectedUtteranceIds,
+        lastClickedUtteranceId,
+        toggleSelection,
+        clearSelection,
+        extractSelectedSegment,
+        isProcessing,
+    }), [selectedUtteranceIds, lastClickedUtteranceId, toggleSelection, clearSelection, extractSelectedSegment, isProcessing]);
+
     return (
-        <EditingContext.Provider value={{
-            selectedUtteranceIds,
-            lastClickedUtteranceId,
-            toggleSelection,
-            clearSelection,
-            extractSelectedSegment,
-            isProcessing
-        }}>
+        <EditingContext.Provider value={value}>
             {children}
         </EditingContext.Provider>
     );
