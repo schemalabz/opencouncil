@@ -143,12 +143,10 @@ export default function Pricing() {
 }
 export function PricingCards({ setIsDialogOpen, t }: { setIsDialogOpen: (open: boolean) => void; t: ReturnType<typeof useTranslations> }) {
     const [card1Open, setCard1Open] = React.useState(false)
-    const [card2Open, setCard2Open] = React.useState(true)
     const processingPrice = getCombinedProcessingPrice()
     const tierLabels = useMemo(() => t.raw('tiers') as string[], [t])
     const sessionChecklist = useMemo(() => t.raw('sessionChecklist') as string[], [t])
     const sessionChecklistExtra = useMemo(() => t.raw('sessionChecklistExtra') as string[], [t])
-    const platformChecklist = useMemo(() => t.raw('platformChecklist') as string[], [t])
     const extrasItems = useMemo(() => t.raw('extras.items') as string[], [t])
     const additionalItems = useMemo(() => t.raw('extras.additionalItems') as string[], [t])
 
@@ -221,11 +219,6 @@ export function PricingCards({ setIsDialogOpen, t }: { setIsDialogOpen: (open: b
                         ))}
                     </div>
 
-                    <Collapsible open={card2Open}>
-                        <CollapsibleContent>
-                            <CheckList items={platformChecklist} className="mb-3" />
-                        </CollapsibleContent>
-                    </Collapsible>
                 </div>
             </div>
 
