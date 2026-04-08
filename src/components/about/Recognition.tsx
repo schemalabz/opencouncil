@@ -6,7 +6,8 @@ import { cn } from '@/lib/utils'
 import { RECOGNITION_ITEMS } from './config'
 
 export default function Recognition() {
-    const t = useTranslations('about.recognition')
+    const t = useTranslations('about')
+    const tq = useTranslations('about.quotes')
 
     return (
         <section className="py-16 md:py-24">
@@ -18,9 +19,26 @@ export default function Recognition() {
                 viewport={{ once: true }}
             >
                 <h2 className="text-2xl sm:text-3xl md:text-4xl font-light tracking-tight">
-                    {t('title')}
+                    {t('recognition.title')}
                 </h2>
             </motion.div>
+
+            {/* Pullquote */}
+            <motion.figure
+                className="text-center max-w-2xl mx-auto mb-12 md:mb-16"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7 }}
+                viewport={{ once: true }}
+            >
+                <blockquote className="text-lg sm:text-xl md:text-2xl font-light leading-relaxed tracking-tight text-foreground/80 italic">
+                    &ldquo;{tq('items.chania.quote')}&rdquo;
+                </blockquote>
+                <figcaption className="mt-4 flex flex-col items-center gap-0.5">
+                    <span className="text-sm font-medium text-foreground">{tq('items.chania.name')}</span>
+                    <span className="text-sm text-muted-foreground">{tq('items.chania.role')}</span>
+                </figcaption>
+            </motion.figure>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                 {RECOGNITION_ITEMS.map((item, index) => {
@@ -36,7 +54,7 @@ export default function Recognition() {
                                 {item.logoUrl ? (
                                     <Image
                                         src={item.logoUrl}
-                                        alt={t(`items.${item.id}.title`)}
+                                        alt={t(`recognition.items.${item.id}.title`)}
                                         width={120}
                                         height={40}
                                         className="h-8 w-auto max-w-[120px] object-contain object-left"
@@ -49,10 +67,10 @@ export default function Recognition() {
                             </div>
 
                             <h3 className="text-sm font-semibold text-foreground leading-snug">
-                                {t(`items.${item.id}.title`)}
+                                {t(`recognition.items.${item.id}.title`)}
                             </h3>
                             <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed flex-1">
-                                {t(`items.${item.id}.subtitle`)}
+                                {t(`recognition.items.${item.id}.subtitle`)}
                             </p>
 
                             {hasLink && (
