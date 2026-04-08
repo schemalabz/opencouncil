@@ -154,7 +154,7 @@ export const TEAM_MEMBERS: TeamMember[] = [
 
 export const ROADMAP_ITEM_IDS = ['diavgeia', 'bidirectional', 'fineTuned'] as const
 
-export const ROADMAP_TIMEFRAMES: Record<string, string> = {
+export const ROADMAP_TIMEFRAMES: Record<typeof ROADMAP_ITEM_IDS[number], string> = {
     diavgeia: 'Q2 2026',
     bidirectional: 'Q3 2026',
     fineTuned: 'Q3 2026',

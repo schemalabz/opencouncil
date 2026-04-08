@@ -85,10 +85,15 @@ function useSectionNav() {
     return { active, visible, scrollTo }
 }
 
+interface NavProps {
+    active: string | null
+    visible: boolean
+    scrollTo: (id: string) => void
+}
+
 /** Desktop: floating pill nav at top */
-function DesktopNav() {
+function DesktopNav({ active, visible, scrollTo }: NavProps) {
     const t = useTranslations('about.nav')
-    const { active, visible, scrollTo } = useSectionNav()
 
     if (!visible) return null
 
@@ -119,9 +124,8 @@ function DesktopNav() {
 }
 
 /** Mobile: bottom pill showing current section, expands to full list on tap */
-function MobileNav() {
+function MobileNav({ active, visible, scrollTo }: NavProps) {
     const t = useTranslations('about.nav')
-    const { active, visible, scrollTo } = useSectionNav()
     const [expanded, setExpanded] = useState(false)
 
     // Close when scrolling
@@ -181,12 +185,13 @@ interface AboutPageProps {
 
 export default function AboutPage({ citiesWithLogos = [], stats, githubStats }: AboutPageProps) {
     const [isContactFormOpen, setIsContactFormOpen] = useState(false)
+    const navProps = useSectionNav()
 
     return (
         <div className="min-h-screen">
             <ScrollProgressBar />
-            <DesktopNav />
-            <MobileNav />
+            <DesktopNav {...navProps} />
+            <MobileNav {...navProps} />
 
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 {/* 1. Hero */}
