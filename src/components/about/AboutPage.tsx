@@ -9,7 +9,6 @@ import Hero from './Hero'
 import SocialProof from './SocialProof'
 import OpennessFeatures from './OpennessFeatures'
 import InternalFeatures from './InternalFeatures'
-import Quotes from './Quotes'
 import Recognition from './Recognition'
 import HowItWorks from './HowItWorks'
 import Team from './Team'
@@ -150,11 +149,8 @@ export default function AboutPage({ citiesWithLogos = [], stats, githubStats }: 
                 <HowItWorks />
             </div>
 
-            {/* 6. Quotes (full-width warm bg) */}
-            <Quotes />
-
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-                {/* 7. Recognition */}
+                {/* 6. Recognition (includes quote) */}
                 <div id="recognition">
                     <Recognition />
                 </div>

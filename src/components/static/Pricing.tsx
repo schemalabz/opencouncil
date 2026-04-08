@@ -1,15 +1,14 @@
 'use client'
 
 import { useState, FormEvent, useEffect, useMemo } from 'react'
-import { motion, AnimatePresence, Variants } from 'framer-motion'
+import { Variants } from 'framer-motion'
 import { useTranslations } from 'next-intl'
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import { Slider } from "@/components/ui/slider"
-import { FileInput, LayoutTemplate, UsersIcon, PhoneIcon, PrinterIcon, ShieldCheckIcon, Users2Icon, ClockIcon, RocketIcon, CheckCircle2Icon, Cuboid, ChevronDownIcon, LayoutTemplateIcon, RotateCcw, Gem, FileBadge2, Megaphone, DollarSignIcon, BadgeEuro } from "lucide-react"
+import { FileInput, PhoneIcon, PrinterIcon, Users2Icon, ClockIcon, RocketIcon, CheckCircle2Icon, Cuboid, ChevronDownIcon, LayoutTemplateIcon, RotateCcw, Megaphone, BadgeEuro } from "lucide-react"
 import { inter } from '@/lib/fonts'
 import ContactFormPopup from './ContactFormPopup'
 import React from 'react';
@@ -58,9 +57,6 @@ export default function Pricing() {
         setIsContactFormOpen(true)
     }
 
-    const extrasItems = useMemo(() => t.raw('extras.items') as string[], [t])
-    const additionalItems = useMemo(() => t.raw('extras.additionalItems') as string[], [t])
-
     return (
         <div className={`py-16 ${inter.className}`}>
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-3">{t('title')}</h2>
@@ -69,38 +65,6 @@ export default function Pricing() {
             </p>
 
             <PricingCards setIsDialogOpen={setIsDialogOpen} t={t} />
-
-            <div className="mt-16">
-                <h2 className="text-2xl font-semibold mb-2 text-center">{t('extras.title')}</h2>
-                <p className="text-center text-muted-foreground mb-8">{t('extras.subtitle')}</p>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    {extrasItems.map((text, i) => {
-                        const Icon = EXTRAS_ICONS[i]
-                        return (
-                            <div key={i} className="flex items-start gap-3 rounded-xl border border-border/50 bg-card p-4">
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                                    <Icon className="h-4 w-4 text-primary" />
-                                </div>
-                                <span className="text-sm leading-snug text-muted-foreground">{text}</span>
-                            </div>
-                        )
-                    })}
-                </div>
-
-                <div className="mt-6 rounded-xl border border-dashed border-border/60 bg-muted/30 p-5">
-                    <h3 className="text-sm font-medium text-muted-foreground mb-3">{t('extras.additionalCharges')}</h3>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                        {additionalItems.map((text, i) => (
-                            <div key={i} className="flex items-start gap-3">
-                                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-muted-foreground/30 mt-0.5">
-                                    <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
-                                </div>
-                                <span className="text-sm text-muted-foreground">{text}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
 
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-[460px] p-0 overflow-hidden">
@@ -180,12 +144,13 @@ export default function Pricing() {
 export function PricingCards({ setIsDialogOpen, t }: { setIsDialogOpen: (open: boolean) => void; t: ReturnType<typeof useTranslations> }) {
     const [card1Open, setCard1Open] = React.useState(false)
     const [card2Open, setCard2Open] = React.useState(true)
-
     const processingPrice = getCombinedProcessingPrice()
     const tierLabels = useMemo(() => t.raw('tiers') as string[], [t])
     const sessionChecklist = useMemo(() => t.raw('sessionChecklist') as string[], [t])
     const sessionChecklistExtra = useMemo(() => t.raw('sessionChecklistExtra') as string[], [t])
     const platformChecklist = useMemo(() => t.raw('platformChecklist') as string[], [t])
+    const extrasItems = useMemo(() => t.raw('extras.items') as string[], [t])
+    const additionalItems = useMemo(() => t.raw('extras.additionalItems') as string[], [t])
 
     return (
         <div className="mt-10">
@@ -264,7 +229,34 @@ export function PricingCards({ setIsDialogOpen, t }: { setIsDialogOpen: (open: b
                 </div>
             </div>
 
-            <p className="text-center text-xs text-muted-foreground mt-4">
+            {/* Extras — compact grid below cards */}
+            <div className="mt-8">
+                <p className="text-sm font-medium text-muted-foreground mb-4">{t('extras.subtitle')}</p>
+                <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-4">
+                    {extrasItems.map((text, i) => {
+                        const Icon = EXTRAS_ICONS[i]
+                        return (
+                            <div key={i} className="flex items-start gap-2 py-1.5">
+                                <Icon className="h-3.5 w-3.5 text-primary/50 shrink-0 mt-0.5" />
+                                <span className="text-xs leading-snug text-muted-foreground">{text}</span>
+                            </div>
+                        )
+                    })}
+                </div>
+                <div className="mt-4 pt-3 border-t border-dashed border-border/40">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">{t('extras.additionalCharges')}</p>
+                    <div className="flex flex-wrap gap-x-6 gap-y-1">
+                        {additionalItems.map((text, i) => (
+                            <p key={i} className="text-xs text-muted-foreground/60 flex items-start gap-1">
+                                <span>+</span>
+                                {text}
+                            </p>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            <p className="text-center text-xs text-muted-foreground mt-6">
                 {t('vatNote')}
             </p>
 
