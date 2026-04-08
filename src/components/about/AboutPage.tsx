@@ -135,10 +135,10 @@ function MobileNav() {
     if (!visible) return null
 
     return (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 md:hidden">
-            {/* Expanded list */}
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 md:hidden flex flex-col items-center">
+            {/* Expanded list — positioned above the pill */}
             {expanded && (
-                <nav className="mb-2 bg-white/95 backdrop-blur-md border border-border/50 rounded-2xl shadow-lg p-2 flex flex-col gap-0.5 min-w-[180px]">
+                <nav className="absolute bottom-full mb-2 bg-white/95 backdrop-blur-md border border-border/50 rounded-2xl shadow-lg p-2 flex flex-col gap-0.5 min-w-[180px]">
                     {SECTION_IDS.map(id => (
                         <button
                             key={id}
@@ -158,12 +158,12 @@ function MobileNav() {
                 </nav>
             )}
 
-            {/* Collapsed pill */}
+            {/* Pill — always anchored at bottom */}
             <button
                 onClick={() => setExpanded(prev => !prev)}
                 className="flex items-center gap-2 bg-white/90 backdrop-blur-md border border-border/50 rounded-full pl-3 pr-2.5 py-1.5 shadow-md active:scale-95 transition-transform"
             >
-                <Image src="/logo.png" alt="" width={18} height={18} className="w-[18px] h-[18px] rounded-full" />
+                <Image src="/logo.png" alt="" width={18} height={18} className="w-[18px] h-[18px] shrink-0 rounded-full object-cover" />
                 <span className="text-xs font-medium text-foreground">
                     {active ? t(active) : 'OpenCouncil'}
                 </span>
