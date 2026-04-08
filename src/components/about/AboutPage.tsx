@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
+import Image from 'next/image'
 import ContactFormPopup from '@/components/static/ContactFormPopup'
 import Pricing from '@/components/static/Pricing'
 import Hero from './Hero'
@@ -88,6 +89,13 @@ function SectionNav() {
 
     return (
         <nav className="fixed top-3 left-1/2 -translate-x-1/2 z-40 hidden md:flex items-center gap-1 bg-white/80 backdrop-blur-md border border-border/50 rounded-full px-1.5 py-1 shadow-sm">
+            <button
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                className="flex-shrink-0 w-6 h-6 rounded-full overflow-hidden mr-0.5 hover:opacity-80 transition-opacity"
+                aria-label="Scroll to top"
+            >
+                <Image src="/logo.png" alt="" width={24} height={24} className="w-full h-full object-cover" />
+            </button>
             {SECTION_IDS.map(id => (
                 <button
                     key={id}
