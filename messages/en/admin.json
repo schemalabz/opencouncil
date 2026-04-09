@@ -214,7 +214,10 @@
       "viewPdf": "View PDF",
       "linked": "linked",
       "save": "Save",
+      "moreOptions": "More options",
+      "autoPdfHint": "PDF will be fetched from diavgeia.gov.gr/doc/{ada}",
       "validation": {
+        "adaRequired": "ADA is required",
         "pdfUrlRequired": "PDF URL is required",
         "pdfUrlInvalid": "Please enter a valid URL"
       },

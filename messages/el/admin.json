@@ -214,7 +214,10 @@
       "viewPdf": "Προβολή PDF",
       "linked": "συνδεδεμένα",
       "save": "Αποθήκευση",
+      "moreOptions": "Περισσότερες επιλογές",
+      "autoPdfHint": "Το PDF θα ληφθεί από diavgeia.gov.gr/doc/{ada}",
       "validation": {
+        "adaRequired": "Ο ΑΔΑ είναι υποχρεωτικός",
         "pdfUrlRequired": "Το URL PDF είναι υποχρεωτικό",
         "pdfUrlInvalid": "Παρακαλώ εισάγετε ένα έγκυρο URL"
       },
