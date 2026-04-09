@@ -105,14 +105,13 @@ With a plan from a PRD or a simple Issue, the next step is to translate it into 
 
 To maintain a clean and understandable project history, we follow best practices for creating commits. While our AI pair programmer assists in this process, the human contributor is the final reviewer responsible for the quality of each commit.
 
+-   **Follow [Conventional Commits](https://www.conventionalcommits.org/):** All commit messages must use the Conventional Commits format. Scope is optional but encouraged (e.g., `feat(search):`, `fix(map):`).
+
 -   **Keep Commits Atomic:** In general, commits should be atomic and diffs should be easy to read. For this reason, do not mix any formatting fixes or code moves with actual code changes.
 
 -   **Ensure Commits are Hygienic:** Make sure each individual commit is hygienic: that it builds successfully on its own without warnings, errors, regressions, or test failures. This means tests must be updated in the same commit that changes the behavior.
 
--   **Write Clear Commit Messages:** Good commit messages are crucial for future contributors, both human and AI. We utilize tools like Cursor's built-in generator as a starting point, but we ask contributors to ensure the final message is verbose by default and follows this structure:
-    -   A short subject line (50 characters max).
-    -   A blank line.
-    -   Detailed explanatory text as separate paragraph(s), explaining the reasoning for your decisions. A single title line is sufficient only if it is completely self-explanatory (e.g., "Correct typo in CONTRIBUTING.md").
+-   **Write Clear Commit Messages:** The subject line should be under 72 characters, imperative mood, lowercase, no period. The body should explain **why** the change was made — the diff shows what. A single subject line is sufficient only if it is completely self-explanatory (e.g., `docs: fix typo in CONTRIBUTING.md`). Reference issues in the footer: `Closes #123`.
 
 -   **No @mentions:** Please do not include any `@mentions` in commit messages.
 

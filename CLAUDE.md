@@ -161,7 +161,11 @@ Multi-channel delivery in `src/lib/notifications/`:
 | Discord | Admin alerts | `src/lib/discord.ts` |
 | Mapbox | Interactive maps | `src/components/map/` |
 
-## Git Commit Rules
+## Contributor Guidelines
+
+**[CONTRIBUTING.md](./CONTRIBUTING.md)** is the single source of truth for how to contribute — commit conventions, PR process, branching, and workflow. It applies equally to human contributors and AI agents. Read and follow it.
+
+Additional AI-specific rules:
 - Never add `Co-Authored-By` lines for AI in commit messages
 
 ## Code Guidelines
