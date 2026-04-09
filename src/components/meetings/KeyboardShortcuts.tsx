@@ -2,14 +2,14 @@
 
 import { useVideo, useVideoActions } from './VideoProvider';
 import { useTranscriptOptions } from './options/OptionsContext';
-import { useCouncilMeetingData } from './CouncilMeetingDataContext';
+import { useCouncilMeetingTranscript } from './CouncilMeetingDataContext';
 import { useKeyboardShortcut, ACTIONS } from '@/contexts/KeyboardShortcutsContext';
 
 export function KeyboardShortcuts() {
     const { seekTo, handleSpeedChange, togglePlayPause } = useVideo();
     const { currentTimeRef } = useVideoActions();
     const { options, updateOptions } = useTranscriptOptions();
-    const { transcript } = useCouncilMeetingData();
+    const { transcript } = useCouncilMeetingTranscript();
 
     // Play / Pause
     useKeyboardShortcut(ACTIONS.PLAY_PAUSE.id, () => {

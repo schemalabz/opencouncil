@@ -3,14 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { PersonBadge } from "@/components/persons/PersonBadge";
-import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
+import { useCouncilMeetingData, useCouncilMeetingTranscript } from "../CouncilMeetingDataContext";
 import { getPodcastSpecsForMeeting, PodcastSpecWithRelations } from "@/lib/db/podcasts";
 import { requestSplitMediaFileForPodcast } from "@/lib/tasks/splitMediaFile";
 import { useToast } from '@/hooks/use-toast';
 import { getPartyFromRoles } from "@/lib/utils";
 
 export default function PodcastSpecs() {
-    const { meeting, getSpeakerTag, getPerson, getParty, getSpeakerSegmentById } = useCouncilMeetingData();
+    const { meeting, getSpeakerTag, getPerson, getParty } = useCouncilMeetingData();
+    const { getSpeakerSegmentById } = useCouncilMeetingTranscript();
     const [podcastSpecs, setPodcastSpecs] = useState<PodcastSpecWithRelations[]>([]);
     const [expandedSpecs, setExpandedSpecs] = useState<string[]>([]);
     const [isGeneratingAudio, setIsGeneratingAudio] = useState<{ [key: string]: boolean }>({});

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useTranscriptOptions } from './options/OptionsContext';
 import { useVideo } from './VideoProvider';
-import { useCouncilMeetingData } from './CouncilMeetingDataContext';
+import { useCouncilMeetingData, useCouncilMeetingTranscript } from './CouncilMeetingDataContext';
 import { useHighlight } from './HighlightContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,7 +21,8 @@ import { useRouter } from 'next/navigation';
 export function EditingModeBar() {
     const { options, updateOptions } = useTranscriptOptions();
     const { playbackSpeed, handleSpeedChange, seekTo, currentTime } = useVideo();
-    const { transcript: speakerSegments, getSpeakerTag, meeting } = useCouncilMeetingData();
+    const { transcript: speakerSegments } = useCouncilMeetingTranscript();
+    const { getSpeakerTag, meeting } = useCouncilMeetingData();
     const { editingHighlight } = useHighlight(); // To check for exclusivity
     const t = useTranslations('editing');
     const [showCompleteDialog, setShowCompleteDialog] = useState(false);

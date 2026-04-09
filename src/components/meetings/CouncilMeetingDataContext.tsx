@@ -16,6 +16,7 @@ import type { HighlightWithUtterances } from '@/lib/db/highlights';
 
 interface CouncilMeetingTranscriptContextType {
     transcript: Transcript;
+    getSpeakerSegmentById: (id: string) => Transcript[number] | undefined;
 }
 
 const CouncilMeetingTranscriptContext = createContext<CouncilMeetingTranscriptContextType | undefined>(undefined);
@@ -60,11 +61,6 @@ export interface CouncilMeetingDataContext extends MeetingData {
     updateHighlight: (highlightId: string, updates: Partial<HighlightWithUtterances>) => void;
     removeHighlight: (highlightId: string) => void;
     extractSpeakerSegment: (segmentId: string, startUtteranceId: string, endUtteranceId: string) => Promise<void>;
-
-    // Backward compat — TEMPORARY, remove after all consumers migrate to useCouncilMeetingTranscript()
-    transcript: Transcript;
-    getSpeakerSegmentById: (id: string) => Transcript[number] | undefined;
-    getSpeakerSegmentCount: (tagId: string) => number;
 }
 
 const CouncilMeetingDataContext = createContext<CouncilMeetingDataContext | undefined>(undefined);
@@ -85,17 +81,6 @@ export function CouncilMeetingDataProvider({ children, data }: {
     // === DERIVED MAPS FROM MUTABLE STATE ===
     const speakerTagsMap = useMemo(() => new Map(speakerTags.map(tag => [tag.id, tag])), [speakerTags]);
     const highlightsMap = useMemo(() => new Map(highlights.map(h => [h.id, h])), [highlights]);
-
-    // These are transcript-derived and change on every edit, but needed for backward compat
-    const speakerSegmentsMap = useMemo(() => new Map(transcript.map(segment => [segment.id, segment])), [transcript]);
-    const speakerTagSegmentCounts = useMemo(() => {
-        const counts = new Map<string, number>();
-        transcript.forEach(segment => {
-            const count = counts.get(segment.speakerTag.id) || 0;
-            counts.set(segment.speakerTag.id, count + 1);
-        });
-        return counts;
-    }, [transcript]);
 
     // === HELPERS ===
     const recalculateSegmentTimestamps = useCallback((utterances: Array<{ startTimestamp: number; endTimestamp: number }>) => {
@@ -311,9 +296,11 @@ export function CouncilMeetingDataProvider({ children, data }: {
     }, [recalculateSegmentTimestamps]);
 
     // === TRANSCRIPT CONTEXT VALUE (volatile — changes on every edit) ===
+    const speakerSegmentsMap = useMemo(() => new Map(transcript.map(segment => [segment.id, segment])), [transcript]);
     const transcriptValue = useMemo(() => ({
         transcript,
-    }), [transcript]);
+        getSpeakerSegmentById: (id: string) => speakerSegmentsMap.get(id),
+    }), [transcript, speakerSegmentsMap]);
 
     // === MAIN CONTEXT VALUE (stable during normal utterance editing) ===
     // Deps: data, maps derived from speakerTags/highlights (rarely change), stable callbacks.
@@ -345,10 +332,6 @@ export function CouncilMeetingDataProvider({ children, data }: {
         updateHighlight: updateHighlightFn,
         removeHighlight,
         extractSpeakerSegment: extractSpeakerSegmentFn,
-        // TEMPORARY backward compat — remove after all consumers migrate to useCouncilMeetingTranscript()
-        transcript,
-        getSpeakerSegmentById: (id: string) => speakerSegmentsMap.get(id),
-        getSpeakerSegmentCount: (tagId: string) => speakerTagSegmentCounts.get(tagId) || 0,
     }), [
         data, peopleMap, partiesMap,
         speakerTags, speakerTagsMap,
@@ -361,8 +344,6 @@ export function CouncilMeetingDataProvider({ children, data }: {
         addUtteranceToSegmentFn, extractSpeakerSegmentFn,
         deleteUtteranceFn, updateUtteranceFn,
         addHighlight, updateHighlightFn, removeHighlight,
-        // TEMPORARY — these re-introduce transcript volatility until backward compat is removed
-        transcript, speakerSegmentsMap, speakerTagSegmentCounts,
     ]);
 
     return (

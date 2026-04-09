@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import PodcastSpecs from './PodcastSpecs';
 import { toggleMeetingRelease } from '@/lib/db/meetings';
-import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
+import { useCouncilMeetingData, useCouncilMeetingTranscript } from '../CouncilMeetingDataContext';
 import { requestProcessAgenda } from '@/lib/tasks/processAgenda';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
@@ -31,7 +31,8 @@ export default function AdminActions({
     }) {
     const { toast } = useToast();
     const t = useTranslations('admin.adminActions');
-    const { meeting, transcript, people, city, subjects } = useCouncilMeetingData();
+    const { transcript } = useCouncilMeetingTranscript();
+    const { meeting, people, city, subjects } = useCouncilMeetingData();
     const [isTranscribing, setIsTranscribing] = React.useState(false);
     const [isSummarizing, setIsSummarizing] = React.useState(false);
     const [isProcessingAgenda, setIsProcessingAgenda] = React.useState(false);

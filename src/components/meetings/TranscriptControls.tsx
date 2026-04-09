@@ -3,14 +3,14 @@ import { Play, Pause, Loader, ChevronLeft, ChevronRight, Youtube } from "lucide-
 import { useTranslations } from 'next-intl';
 import { useVideo } from "./VideoProvider"
 import { cn, formatTimestamp } from "@/lib/utils";
-import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
+import { useCouncilMeetingData, useCouncilMeetingTranscript } from "./CouncilMeetingDataContext";
 import { useTranscriptOptions } from "./options/OptionsContext";
 import { useHighlight } from "./HighlightContext";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Video } from "./Video";
 
 export default function TranscriptControls({ className }: { className?: string }) {
-    const { transcript: speakerSegments } = useCouncilMeetingData();
+    const { transcript: speakerSegments } = useCouncilMeetingTranscript();
     const { isPlaying, togglePlayPause, currentTime, duration, seekTo, isSeeking, currentScrollInterval } = useVideo();
     const { options } = useTranscriptOptions();
     const { editingHighlight, highlightUtterances, previewMode, currentHighlightIndex, goToPreviousHighlight, goToNextHighlight, isPreviewDialogOpen } = useHighlight();

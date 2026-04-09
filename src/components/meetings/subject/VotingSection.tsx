@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
+import { useCouncilMeetingData, useCouncilMeetingTranscript } from '../CouncilMeetingDataContext';
 import { UtteranceMiniTranscript } from './UtteranceMiniTranscript';
 
 interface VotingUtterance {
@@ -38,7 +38,8 @@ interface VotingSectionProps {
 export function VotingSection({ subjectId }: VotingSectionProps) {
     const [votingUtterances, setVotingUtterances] = useState<VotingUtterance[] | null>(null);
     const [loading, setLoading] = useState(true);
-    const { meeting, getSpeakerSegmentById } = useCouncilMeetingData();
+    const { meeting } = useCouncilMeetingData();
+    const { getSpeakerSegmentById } = useCouncilMeetingTranscript();
     const t = useTranslations('Subject');
 
     useEffect(() => {
