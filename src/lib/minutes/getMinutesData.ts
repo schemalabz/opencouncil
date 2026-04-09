@@ -3,7 +3,7 @@ import { getSubjectsForMeeting } from '@/lib/db/subject';
 import { getExtractedDataForMeeting, SubjectExtractedData } from '@/lib/db/decisions';
 import { getPeopleForCity } from '@/lib/db/people';
 import { getCity } from '@/lib/db/cities';
-import { getSpeakerDisplayInfo, isRoleActiveAt, isMayorRole } from '@/lib/utils/roles';
+import { getSpeakerDisplayInfo, isRoleActiveAt, isMayorRole, simplifyRoleName } from '@/lib/utils/roles';
 import { PersonWithRelations } from '@/lib/db/people';
 import { filterSubjectsForMinutes } from '@/lib/utils/subjects';
 import prisma from '@/lib/db/prisma';
@@ -189,7 +189,7 @@ export async function getMinutesData(
                 speakerName,
                 party: party?.name_short ?? null,
                 isPartyHead,
-                role: role?.name ?? null,
+                role: simplifyRoleName(role?.name ?? null),
             };
         }, {
             gapContentUtterances: gapContentBySubject.get(subjectId) ?? [],
@@ -233,7 +233,7 @@ export async function getMinutesData(
                 name: formatSurnameFirst(a.personName),
                 party: party?.name_short ?? null,
                 isPartyHead,
-                role: role?.name ?? null,
+                role: simplifyRoleName(role?.name ?? null),
             };
 
             if (a.status === 'PRESENT') {
@@ -272,7 +272,7 @@ export async function getMinutesData(
                 name: formatSurnameFirst(v.personName),
                 party: party?.name_short ?? null,
                 isPartyHead,
-                role: role?.name ?? null,
+                role: simplifyRoleName(role?.name ?? null),
             };
 
             switch (v.voteType) {
@@ -299,7 +299,7 @@ export async function getMinutesData(
                     name: formatSurnameFirst(a.personName),
                     party: party?.name_short ?? null,
                     isPartyHead,
-                    role: role?.name ?? null,
+                    role: simplifyRoleName(role?.name ?? null),
                 } as MinutesMember;
             });
 
@@ -433,7 +433,7 @@ export async function getMinutesData(
                 speakerName,
                 party: party?.name_short ?? null,
                 isPartyHead,
-                role: role?.name ?? null,
+                role: simplifyRoleName(role?.name ?? null),
             };
         }, { gapContentUtterances: [] });
     }

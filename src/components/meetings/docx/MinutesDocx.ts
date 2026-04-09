@@ -149,11 +149,8 @@ function createCouncilCompositionSection(composition: MinutesCouncilComposition)
             new TextRun({ text: member.name, size: FONT_SIZE.BODY }),
         ];
         if (member.party) {
-            const partyLabel = member.isPartyHead ? `${member.party}, Επικ.` : member.party;
+            const partyLabel = member.isPartyHead ? `${member.party}, Επικεφαλής` : member.party;
             children.push(new TextRun({ text: ` (${partyLabel})`, size: FONT_SIZE.BODY, color: '666666' }));
-        }
-        if (member.role) {
-            children.push(new TextRun({ text: ` — ${member.role}`, size: FONT_SIZE.SMALL, color: '666666', italics: true }));
         }
         paragraphs.push(new Paragraph({ bullet: { level: 0 }, spacing: { before: 40, after: 40 }, children }));
     }
@@ -273,7 +270,7 @@ function createTranscriptParagraphs(entries: MinutesTranscriptEntry[]): Paragrap
         }
 
         const partyLabel = entry.party
-            ? entry.isPartyHead ? `(${entry.party}, Επικ.) ` : `(${entry.party}) `
+            ? entry.isPartyHead ? `(${entry.party}, Επικεφαλής) ` : `(${entry.party}) `
             : '';
         const nameWithParty = `${entry.speakerName} ${partyLabel}`;
         const children: TextRun[] = [
@@ -376,7 +373,7 @@ function createSubjectSection(subject: MinutesSubject): (Paragraph | Table)[] {
         for (const { label, members } of voteCategories) {
             if (members.length === 0) continue;
             const names = members
-                .map(m => m.party ? `${m.name} (${m.party}${m.isPartyHead ? ', Επικ.' : ''})` : m.name).join(', ');
+                .map(m => m.party ? `${m.name} (${m.party}${m.isPartyHead ? ', Επικεφαλής' : ''})` : m.name).join(', ');
             paragraphs.push(new Paragraph({
                 spacing: { before: 60, after: 40 },
                 children: [
