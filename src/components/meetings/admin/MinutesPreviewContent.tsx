@@ -107,10 +107,7 @@ function CouncilCompositionSection({ composition }: { composition: MinutesCounci
                     <li key={member.personId}>
                         <span>{member.name}</span>
                         {member.party && (
-                            <span className="text-gray-500"> ({member.party}{member.isPartyHead ? ', Επικ.' : ''})</span>
-                        )}
-                        {member.role && (
-                            <span className="text-gray-500 italic text-xs"> — {member.role}</span>
+                            <span className="text-gray-500"> ({member.party}{member.isPartyHead ? ', Επικεφαλής' : ''})</span>
                         )}
                     </li>
                 ))}
@@ -228,7 +225,7 @@ function SubjectSection({ subject }: { subject: MinutesSubject }) {
 
 function formatMemberList(members: MinutesMember[]) {
     return members
-        .map(m => m.party ? `${m.name} (${m.party}${m.isPartyHead ? ', Επικ.' : ''})` : m.name)
+        .map(m => m.party ? `${m.name} (${m.party}${m.isPartyHead ? ', Επικεφαλής' : ''})` : m.name)
         .join(', ');
 }
 
@@ -300,7 +297,7 @@ function TranscriptSection({ entries }: { entries: MinutesTranscriptEntry[] }) {
                     ) : (
                         <div key={i}>
                             <span className="font-bold">
-                                {entry.speakerName} {entry.party ? `(${entry.party}${entry.isPartyHead ? ', Επικ.' : ''})` : ''}
+                                {entry.speakerName} {entry.party ? `(${entry.party}${entry.isPartyHead ? ', Επικεφαλής' : ''})` : ''}
                             </span>
                             {entry.role && (
                                 <span className="text-xs text-gray-500"> {entry.role}</span>

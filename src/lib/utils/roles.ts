@@ -378,6 +378,16 @@ export function isMayorRole(role: { isHead: boolean; cityId?: string | null; par
 }
 
 /**
+ * Simplify vice-mayor role names for document output.
+ * "Αντιδήμαρχος Τεχνικών Έργων" → "Αντιδήμαρχος"
+ */
+export function simplifyRoleName(name: string | null): string | null {
+  if (!name) return null;
+  if (name.startsWith('Αντιδήμαρχος')) return 'Αντιδήμαρχος';
+  return name;
+}
+
+/**
  * Checks if a person has a city-level role (mayor or deputy mayor).
  * City-level roles are identified by having cityId set but no partyId or administrativeBodyId.
  * @param roles Array of roles to check

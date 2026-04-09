@@ -30,6 +30,7 @@ export {
   getNonPartyRoles,
   getSingleCityRole,
   hasCityLevelRole,
+  simplifyRoleName,
   getActiveRoleCondition,
   getRoleNameForPerson,
   getSpeakerDisplayInfo,
