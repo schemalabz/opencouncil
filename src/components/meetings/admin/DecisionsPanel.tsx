@@ -28,6 +28,7 @@ interface ManualEntryState {
 }
 
 interface FormErrors {
+    ada?: string;
     pdfUrl?: string;
 }
 
@@ -96,6 +97,7 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
     const [expandedExtracted, setExpandedExtracted] = useState<string | null>(null);
     const [editState, setEditState] = useState<ManualEntryState>({ pdfUrl: '', ada: '', protocolNumber: '', title: '' });
     const [formErrors, setFormErrors] = useState<FormErrors>({});
+    const [showMoreOptions, setShowMoreOptions] = useState(false);
     const [savingSubjectId, setSavingSubjectId] = useState<string | null>(null);
     const [removingSubjectId, setRemovingSubjectId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -147,10 +149,19 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
     const validateForm = (): boolean => {
         const errors: FormErrors = {};
 
-        if (!editState.pdfUrl.trim()) {
-            errors.pdfUrl = t('decisions.validation.pdfUrlRequired');
-        } else if (!editState.pdfUrl.startsWith('http://') && !editState.pdfUrl.startsWith('https://')) {
-            errors.pdfUrl = t('decisions.validation.pdfUrlInvalid');
+        if (!showMoreOptions) {
+            // ADA-only mode: ADA is required, pdfUrl is auto-derived
+            if (!editState.ada.trim()) {
+                errors.ada = t('decisions.validation.adaRequired');
+            }
+        } else {
+            // More options mode: need ADA or a manual pdfUrl
+            if (!editState.ada.trim() && !editState.pdfUrl.trim()) {
+                errors.ada = t('decisions.validation.adaRequired');
+            }
+            if (editState.pdfUrl.trim() && !editState.pdfUrl.startsWith('http://') && !editState.pdfUrl.startsWith('https://')) {
+                errors.pdfUrl = t('decisions.validation.pdfUrlInvalid');
+            }
         }
 
         setFormErrors(errors);
@@ -160,6 +171,9 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
     const handleSave = async (subjectId: string) => {
         if (!validateForm()) return;
 
+        const ada = editState.ada.trim();
+        const effectivePdfUrl = editState.pdfUrl.trim() || `https://diavgeia.gov.gr/doc/${encodeURIComponent(ada)}`;
+
         setSavingSubjectId(subjectId);
         try {
             const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions`, {
@@ -167,8 +181,8 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     subjectId,
-                    pdfUrl: editState.pdfUrl,
-                    ada: editState.ada || undefined,
+                    pdfUrl: effectivePdfUrl,
+                    ada: ada || undefined,
                     protocolNumber: editState.protocolNumber || undefined,
                     title: editState.title || undefined,
                 }),
@@ -214,10 +228,12 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
             setExpandedManualEntry(null);
             setEditState({ pdfUrl: '', ada: '', protocolNumber: '', title: '' });
             setFormErrors({});
+            setShowMoreOptions(false);
         } else {
             setExpandedManualEntry(subjectId);
             setEditState({ pdfUrl: '', ada: '', protocolNumber: '', title: '' });
             setFormErrors({});
+            setShowMoreOptions(false);
         }
     };
 
@@ -230,6 +246,9 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
         // Clear error for this field when user starts typing
         if (field === 'pdfUrl' && formErrors.pdfUrl) {
             setFormErrors(prev => ({ ...prev, pdfUrl: undefined }));
+        }
+        if (field === 'ada' && formErrors.ada) {
+            setFormErrors(prev => ({ ...prev, ada: undefined }));
         }
     };
 
@@ -723,53 +742,74 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                         {/* Manual entry form - expandable */}
                                         {isManualExpanded && (
                                             <div className="mt-3 pl-4 border-l-2 border-muted space-y-3">
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <div className="space-y-1">
-                                                        <Label className="text-xs text-muted-foreground">{t('decisions.adaLabel')}</Label>
-                                                        <Input
-                                                            placeholder={t('decisions.adaPlaceholder')}
-                                                            value={editState.ada}
-                                                            onChange={e => updateEditState('ada', e.target.value)}
-                                                            className="text-sm h-8"
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <Label className="text-xs text-muted-foreground">{t('decisions.protocolNumberLabel')}</Label>
-                                                        <Input
-                                                            placeholder={t('decisions.protocolNumberPlaceholder')}
-                                                            value={editState.protocolNumber}
-                                                            onChange={e => updateEditState('protocolNumber', e.target.value)}
-                                                            className="text-sm h-8"
-                                                        />
-                                                    </div>
-                                                </div>
                                                 <div className="space-y-1">
-                                                    <Label className="text-xs text-muted-foreground">{t('decisions.titleLabel')}</Label>
+                                                    <Label className="text-xs text-muted-foreground">{t('decisions.adaLabel')} *</Label>
                                                     <Input
-                                                        placeholder={t('decisions.titlePlaceholder')}
-                                                        value={editState.title}
-                                                        onChange={e => updateEditState('title', e.target.value)}
-                                                        className="text-sm h-8"
+                                                        placeholder={t('decisions.adaPlaceholder')}
+                                                        value={editState.ada}
+                                                        onChange={e => updateEditState('ada', e.target.value)}
+                                                        className={`text-sm h-8 ${formErrors.ada ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                                                     />
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <Label className="text-xs text-muted-foreground">{t('decisions.pdfUrlLabel')} *</Label>
-                                                    <LinkOrDrop
-                                                        placeholder={t('decisions.pdfUrlPlaceholder')}
-                                                        value={editState.pdfUrl}
-                                                        onChange={e => updateEditState('pdfUrl', e.target.value)}
-                                                        onUrlChange={url => updateEditState('pdfUrl', url)}
-                                                        config={{
-                                                            cityId: meeting.cityId,
-                                                            identifier: `${meeting.id}_${subject.id}`,
-                                                            suffix: 'decision',
-                                                        }}
-                                                        className={`text-sm h-8 ${formErrors.pdfUrl ? 'border-destructive focus-visible:ring-destructive' : ''}`}
-                                                    />
-                                                    {formErrors.pdfUrl && (
-                                                        <p className="text-xs text-destructive">{formErrors.pdfUrl}</p>
+                                                    {formErrors.ada && (
+                                                        <p className="text-xs text-destructive">{formErrors.ada}</p>
+                                                    )}
+                                                    {!showMoreOptions && editState.ada.trim() && (
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {t('decisions.autoPdfHint', { ada: editState.ada.trim() })}
+                                                        </p>
                                                     )}
                                                 </div>
+
+                                                <button
+                                                    type="button"
+                                                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                                                    onClick={() => setShowMoreOptions(prev => !prev)}
+                                                >
+                                                    {showMoreOptions ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                                    {t('decisions.moreOptions')}
+                                                </button>
+
+                                                {showMoreOptions && (
+                                                    <div className="space-y-3">
+                                                        <div className="space-y-1">
+                                                            <Label className="text-xs text-muted-foreground">{t('decisions.pdfUrlLabel')}</Label>
+                                                            <LinkOrDrop
+                                                                placeholder={t('decisions.pdfUrlPlaceholder')}
+                                                                value={editState.pdfUrl}
+                                                                onChange={e => updateEditState('pdfUrl', e.target.value)}
+                                                                onUrlChange={url => updateEditState('pdfUrl', url)}
+                                                                config={{
+                                                                    cityId: meeting.cityId,
+                                                                    identifier: `${meeting.id}_${subject.id}`,
+                                                                    suffix: 'decision',
+                                                                }}
+                                                                className={`text-sm h-8 ${formErrors.pdfUrl ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                                                            />
+                                                            {formErrors.pdfUrl && (
+                                                                <p className="text-xs text-destructive">{formErrors.pdfUrl}</p>
+                                                            )}
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <Label className="text-xs text-muted-foreground">{t('decisions.titleLabel')}</Label>
+                                                            <Input
+                                                                placeholder={t('decisions.titlePlaceholder')}
+                                                                value={editState.title}
+                                                                onChange={e => updateEditState('title', e.target.value)}
+                                                                className="text-sm h-8"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <Label className="text-xs text-muted-foreground">{t('decisions.protocolNumberLabel')}</Label>
+                                                            <Input
+                                                                placeholder={t('decisions.protocolNumberPlaceholder')}
+                                                                value={editState.protocolNumber}
+                                                                onChange={e => updateEditState('protocolNumber', e.target.value)}
+                                                                className="text-sm h-8"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
+
                                                 <div className="flex justify-end">
                                                     <Button
                                                         size="sm"

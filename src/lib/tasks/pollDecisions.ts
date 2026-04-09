@@ -1164,19 +1164,22 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
                     // match may have been wrong (ADA conflict), so this data is unreliable.
                     const existingDecision = await tx.decision.findFirst({
                         where: { subjectId: decision.subjectId },
-                        select: { subjectId: true },
+                        select: { subjectId: true, title: true, protocolNumber: true, publishDate: true },
                     });
                     if (!existingDecision) {
                         console.log(`Skipping extraction for subject ${decision.subjectId} — no linked Decision`);
                         return;
                     }
 
-                    // 1. Update Decision excerpt and references
+                    // 1. Update Decision excerpt, references, and backfill metadata if missing
                     await tx.decision.updateMany({
                         where: { subjectId: decision.subjectId },
                         data: {
                             excerpt: decision.excerpt || null,
                             references: decision.references || null,
+                            ...(!existingDecision.title && decision.diavgeiaTitle ? { title: decision.diavgeiaTitle } : {}),
+                            ...(!existingDecision.protocolNumber && decision.protocolNumber ? { protocolNumber: decision.protocolNumber } : {}),
+                            ...(!existingDecision.publishDate && decision.diavgeiaPublishDate ? { publishDate: new Date(decision.diavgeiaPublishDate) } : {}),
                         },
                     });
 
