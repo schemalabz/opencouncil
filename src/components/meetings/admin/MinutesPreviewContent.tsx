@@ -384,8 +384,9 @@ function MarkdownContent({ text }: { text: string }) {
             continue;
         }
 
-        // Regular paragraph — center lines starting with "ΑΠΟΦΑΣΙΖΕΙ"
-        const isCentered = /^(\*\*)?ΑΠΟΦΑΣΙΖΕΙ/i.test(trimmed);
+        // Regular paragraph — center "decides" lines (various municipality styles)
+        // Note: Greek case-insensitive matching doesn't handle tonos (ί vs ι), so match both
+        const isCentered = /αποφασ[ιί]ζει/i.test(trimmed);
         elements.push(
             <p key={elements.length} className={`my-1 ${isCentered ? 'text-center' : ''}`}>
                 <BoldText text={trimmed} />

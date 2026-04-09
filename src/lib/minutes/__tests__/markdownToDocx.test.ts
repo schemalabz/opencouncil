@@ -58,6 +58,30 @@ function hasBoldRun(paragraph: DocxElement): boolean {
     return false;
 }
 
+/** Check if a paragraph has center alignment */
+function isCenterAligned(paragraph: DocxElement): boolean {
+    const root = (paragraph as unknown as Record<string, unknown>)['root'] as Array<Record<string, unknown>> | undefined;
+    if (!root) return false;
+    for (const item of root) {
+        if (item['rootKey'] === 'w:pPr') {
+            const prRoot = item['root'] as Array<Record<string, unknown>> | undefined;
+            if (!prRoot) continue;
+            for (const child of prRoot) {
+                if (child['rootKey'] === 'w:jc') {
+                    const attrs = child['root'] as Array<Record<string, unknown>> | undefined;
+                    if (attrs) {
+                        for (const attr of attrs) {
+                            const attrRoot = (attr as Record<string, unknown>)['root'] as Record<string, string> | undefined;
+                            if (attrRoot?.['val'] === 'center') return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
 describe('markdownToDocxParagraphs', () => {
     it('should return empty array for empty string', () => {
         expect(markdownToDocxParagraphs('')).toHaveLength(0);
@@ -131,6 +155,32 @@ Closing paragraph`;
         const result = markdownToDocxParagraphs('Test', { fontSize: 28 });
         expect(result).toHaveLength(1);
         // We verify it doesn't crash with custom fontSize — the actual size is in internal properties
+    });
+
+    it('should center-align ΑΠΟΦΑΣΙΖΕΙ lines', () => {
+        const result = markdownToDocxParagraphs('Λαμβάνοντας υπόψη τα ανωτέρω\n\nΑΠΟΦΑΣΙΖΕΙ\n\nΕγκρίνει την πρόταση');
+        expect(result).toHaveLength(3);
+        expect(isCenterAligned(result[0])).toBe(false);
+        expect(isCenterAligned(result[1])).toBe(true);
+        expect(isCenterAligned(result[2])).toBe(false);
+    });
+
+    it('should center-align bold **ΑΠΟΦΑΣΙΖΕΙ** lines', () => {
+        const result = markdownToDocxParagraphs('**ΑΠΟΦΑΣΙΖΕΙ**');
+        expect(result).toHaveLength(1);
+        expect(isCenterAligned(result[0])).toBe(true);
+    });
+
+    it('should center-align "αποφασίζει" municipality-style lines', () => {
+        const result = markdownToDocxParagraphs('Το Δημοτικό Συμβούλιο Χαλανδρίου αποφασίζει ομόφωνα');
+        expect(result).toHaveLength(1);
+        expect(isCenterAligned(result[0])).toBe(true);
+    });
+
+    it('should not center-align regular paragraphs', () => {
+        const result = markdownToDocxParagraphs('Εγκρίνει ομόφωνα την πρόταση');
+        expect(result).toHaveLength(1);
+        expect(isCenterAligned(result[0])).toBe(false);
     });
 
     it('should handle real-world Greek legal text', () => {

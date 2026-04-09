@@ -62,8 +62,10 @@ export function markdownToDocxParagraphs(
             continue;
         }
 
-        // Regular paragraph — center lines starting with "ΑΠΟΦΑΣΙΖΕΙ"
-        const isCentered = /^(\*\*)?ΑΠΟΦΑΣΙΖΕΙ/i.test(trimmed);
+        // Regular paragraph — center "decides" lines (various municipality styles)
+        // e.g. "ΑΠΟΦΑΣΙΖΕΙ", "**ΑΠΟΦΑΣΙΖΕΙ**", "Το Δ.Σ. … αποφασίζει ομόφωνα"
+        // Note: Greek case-insensitive matching doesn't handle tonos (ί vs ι), so match both
+        const isCentered = /αποφασ[ιί]ζει/i.test(trimmed);
         elements.push(new Paragraph({
             spacing: { before: 80, after: 80 },
             alignment: isCentered ? AlignmentType.CENTER : AlignmentType.JUSTIFIED,
