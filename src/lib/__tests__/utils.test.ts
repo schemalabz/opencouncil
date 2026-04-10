@@ -315,10 +315,10 @@ describe('subjectToMapFeature', () => {
 });
 
 describe('sortSubjectsByImportance', () => {
-  it('should sort by speaking time', () => {
+  it('should sort by contributions count (descending)', () => {
     const subjects = [
-      { name: 'Subject 1', statistics: { speakingSeconds: 100 } },
-      { name: 'Subject 2', statistics: { speakingSeconds: 200 } }
+      { name: 'Subject 1', _count: { contributions: 2 } },
+      { name: 'Subject 2', _count: { contributions: 5 } }
     ];
 
     const sorted = sortSubjectsByImportance(subjects as any);
@@ -326,10 +326,34 @@ describe('sortSubjectsByImportance', () => {
     expect(sorted[1].name).toBe('Subject 1');
   });
 
-  it('should handle subjects without statistics', () => {
+  it('should sort beforeAgenda subjects last', () => {
+    const subjects = [
+      { name: 'Before', nonAgendaReason: 'beforeAgenda', _count: { contributions: 10 } },
+      { name: 'Agenda', agendaItemIndex: 1, _count: { contributions: 1 } },
+      { name: 'OutOfAgenda', nonAgendaReason: 'outOfAgenda', _count: { contributions: 3 } }
+    ];
+
+    const sorted = sortSubjectsByImportance(subjects as any);
+    expect(sorted[0].name).toBe('OutOfAgenda');
+    expect(sorted[1].name).toBe('Agenda');
+    expect(sorted[2].name).toBe('Before');
+  });
+
+  it('should use agenda item index as tie-breaker', () => {
+    const subjects = [
+      { name: 'Item 3', agendaItemIndex: 3, _count: { contributions: 2 } },
+      { name: 'Item 1', agendaItemIndex: 1, _count: { contributions: 2 } }
+    ];
+
+    const sorted = sortSubjectsByImportance(subjects as any);
+    expect(sorted[0].name).toBe('Item 1');
+    expect(sorted[1].name).toBe('Item 3');
+  });
+
+  it('should handle subjects without _count gracefully', () => {
     const subjects = [
       { name: 'Subject 1' },
-      { name: 'Subject 2', statistics: { speakingSeconds: 200 } }
+      { name: 'Subject 2' }
     ];
 
     // Should not throw error

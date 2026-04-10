@@ -5,7 +5,7 @@ import Icon from '@/components/icon';
 import { CalendarIcon, Building, ChevronRight } from 'lucide-react';
 
 type MeetingWithRelations = CouncilMeeting & {
-    subjects: (Subject & { topic?: Topic | null })[];
+    subjects: (Subject & { topic?: Topic | null; _count?: { contributions: number } })[];
     administrativeBody?: AdministrativeBody | null;
 };
 
