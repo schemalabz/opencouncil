@@ -160,7 +160,39 @@
         "noItems": "Δεν υπάρχουν πόλεις στο OpenCouncil.",
         "allAdministrativeBodies": "Όλα τα όργανα",
         "filterByAdminBody": "Φιλτράρισμα ανά Διοικητικό Όργανο",
-        "citySections": "Ενότητες δήμου"
+        "citySections": "Ενότητες δήμου",
+        "widget": "Widget"
+    },
+    "EmbedConfigurator": {
+        "title": "Widget για την ιστοσελίδα σας",
+        "description": "Ενσωματώστε τις συνεδριάσεις του δήμου στο site σας. Ρυθμίστε την εμφάνιση, αντιγράψτε τον κώδικα iframe και επικολλήστε τον στο CMS σας (WordPress, Joomla κλπ).",
+        "accentColor": "Χρώμα",
+        "accentColorHint": "Το κύριο χρώμα του widget — χρησιμοποιείται σε τίτλους, links και badges. Βάλτε το χρώμα του δήμου σας για να ταιριάζει με το site.",
+        "darkMode": "Σκούρο φόντο",
+        "numberOfMeetings": "Πόσες συνεδριάσεις να εμφανίζονται",
+        "showSubjects": "Εμφάνιση θεμάτων συνεδρίασης",
+        "borderRadius": "Γωνίες καρτών",
+        "radiusSharp": "Ορθές",
+        "radiusRounded": "Στρογγυλές",
+        "radiusPill": "Πολύ στρογγυλές",
+        "administrativeBodies": "Όργανα",
+        "embedCode": "Κώδικας iframe",
+        "embedCodeHint": "Αντιγράψτε και επικολλήστε σε HTML block στο site σας.",
+        "copy": "Αντιγραφή",
+        "copied": "Αντιγράφηκε!",
+        "preview": "Προεπισκόπηση",
+        "previewTitle": "Προεπισκόπηση widget",
+        "troubleshootingTitle": "Σημειώσεις εγκατάστασης",
+        "troubleshootingCSP": "Αν το widget δεν εμφανίζεται, ελέγξτε ότι το Content Security Policy (CSP) του site σας επιτρέπει frame-src από opencouncil.gr.",
+        "troubleshootingWordPress": "Σε WordPress, χρησιμοποιήστε Custom HTML block. Σε Joomla, χρησιμοποιήστε module τύπου \"Custom / mod_custom\" με editor σε code view.",
+        "troubleshootingHeight": "Ρυθμίστε το height στον κώδικα ανάλογα με τον αριθμό συνεδριάσεων. Για 5 συνεδριάσεις, 600px είναι καλή αρχή."
+    },
+    "EmbedWidget": {
+        "subjects": "Θέματα",
+        "more": "ακόμη",
+        "noMeetings": "Δεν υπάρχουν διαθέσιμες συνεδριάσεις.",
+        "upcoming": "Επερχόμενες Συνεδριάσεις",
+        "recent": "Πρόσφατες Συνεδριάσεις"
     },
     "AddMeetingForm": {
         "meetingName": "Όνομα Συνεδρίασης",

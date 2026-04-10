@@ -1,3 +1,4 @@
+import { AdministrativeBodyType } from "@prisma/client";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import { getCity, getAllCitiesMinimal, getSupportedCitiesWithLogos, getAboutPageStats } from "@/lib/db/cities";
 import { getGitHubStats } from "@/lib/github";
@@ -42,10 +43,17 @@ export async function getCouncilMeetingsForCityCached(cityId: string, { limit, p
  * Public (no-auth) version of getCouncilMeetingsForCityCached.
  * Only returns released meetings. Safe for static pages (no headers() call).
  */
-export async function getCouncilMeetingsForCityPublicCached(cityId: string, { limit }: { limit?: number } = {}) {
+export async function getCouncilMeetingsForCityPublicCached(
+  cityId: string,
+  { limit, administrativeBodyTypes, timeFilter }: { limit?: number; administrativeBodyTypes?: AdministrativeBodyType[]; timeFilter?: 'upcoming' | 'past' } = {}
+) {
+  const typeKey = administrativeBodyTypes && administrativeBodyTypes.length > 0
+    ? `types:${[...administrativeBodyTypes].sort().join(',')}`
+    : 'types:all';
+  const timeKey = timeFilter ?? 'all';
   return createCache(
-    () => getCouncilMeetingsForCity(cityId, { includeUnreleased: false, limit }),
-    ['city', cityId, 'meetings', 'onlyReleased', limit ? `limit:${limit}` : 'all'],
+    () => getCouncilMeetingsForCity(cityId, { includeUnreleased: false, limit, administrativeBodyTypes, timeFilter }),
+    ['city', cityId, 'meetings', 'onlyReleased', limit ? `limit:${limit}` : 'all', typeKey, timeKey],
     { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
   )();
 }
