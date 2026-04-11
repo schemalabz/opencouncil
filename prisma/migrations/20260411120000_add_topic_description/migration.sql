@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Topic" ADD COLUMN "description" TEXT NOT NULL DEFAULT '';
+ALTER TABLE "Topic" ADD COLUMN "deprecated" BOOLEAN NOT NULL DEFAULT false;

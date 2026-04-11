@@ -376,11 +376,13 @@ model TopicLabel {
 }
 
 model Topic {
-  id        String   @id  @default(cuid())
-  name      String
-  name_en   String
-  colorHex  String
-  icon      String?
+  id          String   @id  @default(cuid())
+  name        String
+  name_en     String
+  colorHex    String
+  icon        String?
+  description String   @default("")
+  deprecated  Boolean  @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
