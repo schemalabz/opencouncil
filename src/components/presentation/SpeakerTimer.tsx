@@ -28,22 +28,17 @@ export default function SpeakerTimer() {
         return () => clearInterval(interval);
     }, [running, startedAt, pausedElapsed]);
 
-    // Auto-stop a countdown when it reaches zero.
-    useEffect(() => {
-        if (running && countdownFrom !== null && elapsed >= countdownFrom) {
-            setRunning(false);
-        }
-    }, [running, countdownFrom, elapsed]);
-
     const hasStarted = startedAt !== null;
-    const displayed = countdownFrom !== null
-        ? Math.max(0, countdownFrom - elapsed)
+    // During a countdown, show remaining time. Once it reaches zero the timer
+    // keeps running and the display flips to a count-up starting from the
+    // original countdown duration (e.g. a 1' countdown becomes 1:00, 1:01, …).
+    const displayed = countdownFrom !== null && elapsed < countdownFrom
+        ? countdownFrom - elapsed
         : elapsed;
-    const isCountdownFinished = countdownFrom !== null && elapsed >= countdownFrom;
-    const isCountdownWarning = countdownFrom !== null && displayed <= 30;
+    // Red once we enter the final 30s of the countdown and stays red after it ends.
+    const isCountdownWarning = countdownFrom !== null && elapsed >= countdownFrom - 30;
 
     const handleToggle = () => {
-        if (isCountdownFinished) return;
         if (running && startedAt !== null) {
             setPausedElapsed(pausedElapsed + Math.floor((Date.now() - startedAt) / 1000));
             setRunning(false);
@@ -80,8 +75,7 @@ export default function SpeakerTimer() {
             <button
                 type="button"
                 onClick={handleToggle}
-                disabled={isCountdownFinished}
-                className={`font-mono tabular-nums font-bold text-[16vh] leading-none tracking-tight hover:opacity-80 active:opacity-70 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg px-4 text-center min-w-[5ch] disabled:cursor-default disabled:hover:opacity-100 ${isCountdownWarning ? "text-red-600" : ""}`}
+                className={`font-mono tabular-nums font-bold text-[16vh] leading-none tracking-tight hover:opacity-80 active:opacity-70 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg px-4 text-center min-w-[5ch] ${isCountdownWarning ? "text-red-600" : ""}`}
                 aria-label={mainLabel}
             >
                 {formatTimerDisplay(displayed)}
@@ -92,7 +86,6 @@ export default function SpeakerTimer() {
                         size="sm"
                         variant="outline"
                         onClick={handleToggle}
-                        disabled={isCountdownFinished}
                         className="h-9 px-3 text-sm w-28 justify-start"
                     >
                         {running ? (
