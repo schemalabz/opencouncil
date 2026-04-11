@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { CacheRevalidationForm } from '@/components/admin/cache/CacheRevalidationForm';
-import { ErrorMessage } from '@/components/onboarding/ErrorMessage';
+import { CacheStats } from '@/components/admin/cache/CacheStats';
 import { Info } from 'lucide-react';
 
 export const metadata: Metadata = {
@@ -45,6 +45,8 @@ export default function CacheRevalidationPage() {
                     </div>
                 </div>
             </div>
+
+            <CacheStats />
 
             <div className="bg-white rounded-lg shadow p-6">
                 <CacheRevalidationForm />
