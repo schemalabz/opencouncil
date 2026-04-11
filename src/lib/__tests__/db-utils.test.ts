@@ -11,7 +11,6 @@ jest.mock('../db/transcript', () => ({ getTranscript: jest.fn() }));
 jest.mock('../db/people', () => ({ getPeopleForMeeting: jest.fn() }));
 jest.mock('../db/parties', () => ({ getPartiesForCity: jest.fn() }));
 jest.mock('../db/topics', () => ({
-    getAllTopics: jest.fn(),
     getActiveTopicsForTasks: jest.fn(),
 }));
 jest.mock('../db/cities', () => ({ getCity: jest.fn() }));
@@ -21,7 +20,7 @@ import prisma from '../db/prisma';
 import { getTranscript } from '../db/transcript';
 import { getPeopleForMeeting } from '../db/people';
 import { getPartiesForCity } from '../db/parties';
-import { getAllTopics, getActiveTopicsForTasks } from '../db/topics';
+import { getActiveTopicsForTasks } from '../db/topics';
 import { getCity } from '../db/cities';
 import { getCouncilMeeting } from '../db/meetings';
 import { getRequestOnTranscriptRequestBody } from '../db/utils';
@@ -31,7 +30,6 @@ const mockGetTranscript = getTranscript as jest.MockedFunction<typeof getTranscr
 const mockGetCouncilMeeting = getCouncilMeeting as jest.MockedFunction<typeof getCouncilMeeting>;
 const mockGetPeopleForMeeting = getPeopleForMeeting as jest.MockedFunction<typeof getPeopleForMeeting>;
 const mockGetPartiesForCity = getPartiesForCity as jest.MockedFunction<typeof getPartiesForCity>;
-const mockGetAllTopics = getAllTopics as jest.MockedFunction<typeof getAllTopics>;
 const mockGetActiveTopicsForTasks = getActiveTopicsForTasks as jest.MockedFunction<typeof getActiveTopicsForTasks>;
 const mockGetCity = getCity as jest.MockedFunction<typeof getCity>;
 const mockPrismaPersonFindMany = (prisma.person.findMany as jest.Mock);
@@ -53,10 +51,6 @@ function setupCommonMocks() {
     mockGetPartiesForCity.mockResolvedValue([
         { id: 'party-a', name: 'Party A', cityId: CITY_ID },
         { id: 'party-b', name: 'Party B', cityId: CITY_ID },
-    ] as any);
-
-    mockGetAllTopics.mockResolvedValue([
-        { id: 'topic-1', name: 'Environment' },
     ] as any);
 
     mockGetActiveTopicsForTasks.mockResolvedValue([
