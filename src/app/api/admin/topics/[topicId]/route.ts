@@ -6,6 +6,9 @@ import { handleApiError } from "@/lib/api/errors";
 
 const HEX_REGEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
+const badRequest = (error: string) =>
+    NextResponse.json({ error }, { status: 400 });
+
 export async function PUT(
     request: Request,
     { params }: { params: { topicId: string } }
@@ -20,22 +23,22 @@ export async function PUT(
         const { name, name_en, colorHex, icon, description, deprecated } = data;
 
         if (name !== undefined && (typeof name !== "string" || name.trim() === "")) {
-            return new NextResponse("name must be a non-empty string", { status: 400 });
+            return badRequest("name must be a non-empty string");
         }
         if (name_en !== undefined && (typeof name_en !== "string" || name_en.trim() === "")) {
-            return new NextResponse("name_en must be a non-empty string", { status: 400 });
+            return badRequest("name_en must be a non-empty string");
         }
         if (colorHex !== undefined && (typeof colorHex !== "string" || !HEX_REGEX.test(colorHex))) {
-            return new NextResponse("colorHex must be a valid hex color", { status: 400 });
+            return badRequest("colorHex must be a valid hex color");
         }
         if (description !== undefined && typeof description !== "string") {
-            return new NextResponse("description must be a string", { status: 400 });
+            return badRequest("description must be a string");
         }
         if (icon !== undefined && icon !== null && typeof icon !== "string") {
-            return new NextResponse("icon must be a string or null", { status: 400 });
+            return badRequest("icon must be a string or null");
         }
         if (deprecated !== undefined && typeof deprecated !== "boolean") {
-            return new NextResponse("deprecated must be a boolean", { status: 400 });
+            return badRequest("deprecated must be a boolean");
         }
 
         const topic = await updateTopic(params.topicId, {
