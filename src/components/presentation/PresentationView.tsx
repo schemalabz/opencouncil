@@ -95,7 +95,11 @@ export default function PresentationView({
 
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+            if (
+                e.key === "ArrowLeft" ||
+                e.key === "ArrowUp" ||
+                e.key === "PageUp"
+            ) {
                 e.preventDefault();
                 goPrev();
             } else if (

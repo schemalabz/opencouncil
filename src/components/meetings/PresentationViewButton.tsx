@@ -1,5 +1,3 @@
-"use client";
-
 import { Projector } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/routing";

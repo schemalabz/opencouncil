@@ -20,9 +20,11 @@ export default function MeetingInfoSlide({ meeting, city, agendaCount }: Meeting
                 {formatDateTime(new Date(meeting.dateTime), city.timezone)}
             </div>
             <div className="text-[3vh] text-muted-foreground">
-                {agendaCount > 0
-                    ? `${agendaCount} θέματα`
-                    : "Χωρίς θέματα"}
+                {agendaCount === 0
+                    ? "Χωρίς θέματα"
+                    : agendaCount === 1
+                        ? "1 θέμα"
+                        : `${agendaCount} θέματα`}
             </div>
         </div>
     );

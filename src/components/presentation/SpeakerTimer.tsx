@@ -29,12 +29,16 @@ export default function SpeakerTimer() {
     }, [running, startedAt, pausedElapsed]);
 
     const hasStarted = startedAt !== null;
-    // During a countdown, show remaining time. Once it reaches zero the timer
-    // keeps running and the display flips to a count-up starting from the
-    // original countdown duration (e.g. a 1' countdown becomes 1:00, 1:01, …).
-    const displayed = countdownFrom !== null && elapsed < countdownFrom
+    // During a countdown, show remaining time (inclusive of the 00:00 tick).
+    // Once it reaches zero the timer keeps running and the display flips to a
+    // count-up that resumes from the original countdown duration (e.g. a 1'
+    // countdown becomes 0:00 → 1:00 → 1:01 → …). The `- 1` offset makes the
+    // first count-up tick display `countdownFrom` itself rather than skipping it.
+    const displayed = countdownFrom !== null && elapsed <= countdownFrom
         ? countdownFrom - elapsed
-        : elapsed;
+        : countdownFrom !== null
+            ? elapsed - 1
+            : elapsed;
     // Red once we enter the final 30s of the countdown and stays red after it ends.
     const isCountdownWarning = countdownFrom !== null && elapsed >= countdownFrom - 30;
 
