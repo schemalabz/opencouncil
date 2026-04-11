@@ -92,6 +92,7 @@ describe('getRequestOnTranscriptRequestBody', () => {
         expect(result.transcript[0].speakerName).toBe('Maria K.');
         expect(result.transcript[0].speakerParty).toBe('Party A');
         expect(result.transcript[0].speakerId).toBe('person-1');
+        expect(result.topicLabels).toEqual([{ name: 'Environment', description: '' }]);
     });
 
     it('resolves speakers NOT in the meeting people list but identified in transcript', async () => {

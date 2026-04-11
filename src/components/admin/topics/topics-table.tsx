@@ -128,7 +128,8 @@ export function TopicsTable({ initialTopics: topics }: TopicsTableProps) {
                                 ) : (
                                     topics.map((topic) => {
                                         const subjectCount = topic._count.subjects;
-                                        const canDelete = subjectCount === 0;
+                                        const labelCount = topic._count.topicLabels;
+                                        const canDelete = subjectCount === 0 && labelCount === 0;
                                         return (
                                             <TableRow
                                                 key={topic.id}
@@ -205,9 +206,11 @@ export function TopicsTable({ initialTopics: topics }: TopicsTableProps) {
                                                                     </span>
                                                                 </TooltipTrigger>
                                                                 <TooltipContent>
-                                                                    Cannot delete: {subjectCount} subject
-                                                                    {subjectCount === 1 ? "" : "s"} still
-                                                                    assigned to this topic.
+                                                                    Cannot delete: still referenced by
+                                                                    {subjectCount > 0 && ` ${subjectCount} subject${subjectCount === 1 ? "" : "s"}`}
+                                                                    {subjectCount > 0 && labelCount > 0 && " and"}
+                                                                    {labelCount > 0 && ` ${labelCount} topic label${labelCount === 1 ? "" : "s"}`}
+                                                                    .
                                                                 </TooltipContent>
                                                             </Tooltip>
                                                         )}

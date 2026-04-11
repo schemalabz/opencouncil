@@ -7,6 +7,7 @@ import { ConflictError } from "../api/errors";
 export type TopicWithSubjectCount = Topic & {
     _count: {
         subjects: number;
+        topicLabels: number;
     };
 };
 
@@ -28,7 +29,7 @@ export async function getAllTopicsWithSubjectCount(): Promise<TopicWithSubjectCo
             orderBy: { name: 'asc' },
             include: {
                 _count: {
-                    select: { subjects: true },
+                    select: { subjects: true, topicLabels: true },
                 },
             },
         });
@@ -93,21 +94,23 @@ export async function updateTopic(id: string, data: Partial<TopicInput>): Promis
 export async function deleteTopic(id: string): Promise<void> {
     await withUserAuthorizedToEdit({});
 
-    const [subjectCount, labelCount, notificationCount] = await Promise.all([
-        prisma.subject.count({ where: { topicId: id } }),
-        prisma.topicLabel.count({ where: { topicId: id } }),
-        prisma.notificationPreference.count({ where: { interests: { some: { id } } } }),
-    ]);
+    await prisma.$transaction(async (tx) => {
+        const [subjectCount, labelCount, notificationCount] = await Promise.all([
+            tx.subject.count({ where: { topicId: id } }),
+            tx.topicLabel.count({ where: { topicId: id } }),
+            tx.notificationPreference.count({ where: { interests: { some: { id } } } }),
+        ]);
 
-    if (subjectCount > 0 || labelCount > 0 || notificationCount > 0) {
-        const parts: string[] = [];
-        if (subjectCount > 0) parts.push(`${subjectCount} subject(s)`);
-        if (labelCount > 0) parts.push(`${labelCount} topic label(s)`);
-        if (notificationCount > 0) parts.push(`${notificationCount} notification preference(s)`);
-        throw new ConflictError(
-            `Cannot delete topic: it is still referenced by ${parts.join(', ')}.`
-        );
-    }
+        if (subjectCount > 0 || labelCount > 0 || notificationCount > 0) {
+            const parts: string[] = [];
+            if (subjectCount > 0) parts.push(`${subjectCount} subject(s)`);
+            if (labelCount > 0) parts.push(`${labelCount} topic label(s)`);
+            if (notificationCount > 0) parts.push(`${notificationCount} notification preference(s)`);
+            throw new ConflictError(
+                `Cannot delete topic: it is still referenced by ${parts.join(', ')}.`
+            );
+        }
 
-    await prisma.topic.delete({ where: { id } });
+        await tx.topic.delete({ where: { id } });
+    });
 }
