@@ -49,6 +49,7 @@ export function TopicDialog({ open, onOpenChange, topic, existingColors, onSaved
     const [icon, setIcon] = useState<string>(NONE_ICON);
     const [description, setDescription] = useState("");
     const [deprecated, setDeprecated] = useState(false);
+    const [suggestedHistory, setSuggestedHistory] = useState<string[]>([]);
 
     useEffect(() => {
         if (open) {
@@ -58,8 +59,20 @@ export function TopicDialog({ open, onOpenChange, topic, existingColors, onSaved
             setIcon(topic?.icon ?? NONE_ICON);
             setDescription(topic?.description ?? "");
             setDeprecated(topic?.deprecated ?? false);
+            setSuggestedHistory([]);
         }
     }, [open, topic]);
+
+    function onManualColorChange(value: string) {
+        setColorHex(value);
+        setSuggestedHistory([]);
+    }
+
+    function onSuggestColor() {
+        const suggestion = suggestDistinctColor([...existingColors, ...suggestedHistory, colorHex]);
+        setColorHex(suggestion);
+        setSuggestedHistory((prev) => [...prev, suggestion]);
+    }
 
     async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
@@ -166,14 +179,14 @@ export function TopicDialog({ open, onOpenChange, topic, existingColors, onSaved
                                     id="colorHex"
                                     type="text"
                                     value={colorHex}
-                                    onChange={(e) => setColorHex(e.target.value)}
+                                    onChange={(e) => onManualColorChange(e.target.value)}
                                     placeholder="#4f46e5"
                                     required
                                 />
                                 <input
                                     type="color"
                                     value={HEX_REGEX.test(colorHex) ? colorHex : "#4f46e5"}
-                                    onChange={(e) => setColorHex(e.target.value)}
+                                    onChange={(e) => onManualColorChange(e.target.value)}
                                     className="h-9 w-9 cursor-pointer rounded border border-input"
                                     aria-label="Color picker"
                                 />
@@ -182,7 +195,7 @@ export function TopicDialog({ open, onOpenChange, topic, existingColors, onSaved
                                     variant="outline"
                                     size="icon"
                                     className="h-9 w-9 shrink-0"
-                                    onClick={() => setColorHex(suggestDistinctColor([...existingColors, colorHex]))}
+                                    onClick={onSuggestColor}
                                     title="Suggest a distinct color"
                                     aria-label="Suggest a distinct color"
                                 >
