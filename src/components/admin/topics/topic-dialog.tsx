@@ -182,7 +182,7 @@ export function TopicDialog({ open, onOpenChange, topic, existingColors, onSaved
                                     variant="outline"
                                     size="icon"
                                     className="h-9 w-9 shrink-0"
-                                    onClick={() => setColorHex(suggestDistinctColor(existingColors))}
+                                    onClick={() => setColorHex(suggestDistinctColor([...existingColors, colorHex]))}
                                     title="Suggest a distinct color"
                                     aria-label="Suggest a distinct color"
                                 >
