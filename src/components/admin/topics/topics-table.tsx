@@ -129,7 +129,8 @@ export function TopicsTable({ initialTopics: topics }: TopicsTableProps) {
                                     topics.map((topic) => {
                                         const subjectCount = topic._count.subjects;
                                         const labelCount = topic._count.topicLabels;
-                                        const canDelete = subjectCount === 0 && labelCount === 0;
+                                        const notificationCount = topic._count.notificationPreferences;
+                                        const canDelete = subjectCount === 0 && labelCount === 0 && notificationCount === 0;
                                         return (
                                             <TableRow
                                                 key={topic.id}
@@ -206,10 +207,14 @@ export function TopicsTable({ initialTopics: topics }: TopicsTableProps) {
                                                                     </span>
                                                                 </TooltipTrigger>
                                                                 <TooltipContent>
-                                                                    Cannot delete: still referenced by
-                                                                    {subjectCount > 0 && ` ${subjectCount} subject${subjectCount === 1 ? "" : "s"}`}
-                                                                    {subjectCount > 0 && labelCount > 0 && " and"}
-                                                                    {labelCount > 0 && ` ${labelCount} topic label${labelCount === 1 ? "" : "s"}`}
+                                                                    Cannot delete: still referenced by{" "}
+                                                                    {[
+                                                                        subjectCount > 0 && `${subjectCount} subject${subjectCount === 1 ? "" : "s"}`,
+                                                                        labelCount > 0 && `${labelCount} topic label${labelCount === 1 ? "" : "s"}`,
+                                                                        notificationCount > 0 && `${notificationCount} notification preference${notificationCount === 1 ? "" : "s"}`,
+                                                                    ]
+                                                                        .filter(Boolean)
+                                                                        .join(", ")}
                                                                     .
                                                                 </TooltipContent>
                                                             </Tooltip>

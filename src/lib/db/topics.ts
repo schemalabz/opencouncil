@@ -8,6 +8,7 @@ export type TopicWithSubjectCount = Topic & {
     _count: {
         subjects: number;
         topicLabels: number;
+        notificationPreferences: number;
     };
 };
 
@@ -29,7 +30,11 @@ export async function getAllTopicsWithSubjectCount(): Promise<TopicWithSubjectCo
             orderBy: { name: 'asc' },
             include: {
                 _count: {
-                    select: { subjects: true, topicLabels: true },
+                    select: {
+                        subjects: true,
+                        topicLabels: true,
+                        notificationPreferences: true,
+                    },
                 },
             },
         });
