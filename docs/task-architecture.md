@@ -198,7 +198,6 @@ export type TaskResultHandler = (taskId: string, result: any, options?: { force?
 export const taskHandlers: Record<string, TaskResultHandler> = {
     transcribe: handleTranscribeResult,
     summarize: handleSummarizeResult,
-    generatePodcastSpec: handleGeneratePodcastSpecResult,
     // ... other handlers
 };
 ```

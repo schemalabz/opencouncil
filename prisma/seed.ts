@@ -559,7 +559,6 @@ async function seedMeetings(meetings: any[]) {
   // 1. Subjects (needed by speaker segments, highlights)
   // 2. Speaker segments (needed by utterances, words, etc.)
   // 3. Highlights (references subjects and utterances)
-  // 4. Podcast specs (references utterances)
   for (const meeting of meetings) {
     try {
       // 1. Create subjects first (needed by speaker segments and highlights)
@@ -577,10 +576,6 @@ async function seedMeetings(meetings: any[]) {
         await seedHighlights(meeting.highlights, meeting)
       }
 
-      // 4. Create podcast specs and parts
-      if (meeting.podcastSpecs && meeting.podcastSpecs.length > 0) {
-        await seedPodcastSpecs(meeting.podcastSpecs, meeting)
-      }
     } catch (error) {
       console.error(`Error processing meeting ${meeting.id}:`, error)
       // Continue with next meeting
@@ -944,88 +939,6 @@ async function seedHighlights(highlights: any[], meeting: any) {
     }
   } catch (error) {
     console.error('Error creating highlights:', error)
-  }
-}
-
-/**
- * Seed podcast specs and parts
- */
-async function seedPodcastSpecs(podcastSpecs: any[], meeting: any) {
-  console.log(`Seeding ${podcastSpecs.length} podcast specs for meeting ${meeting.id}...`)
-
-  // Prepare podcast spec data for batch creation
-  const specData = podcastSpecs.map(spec => ({
-    id: spec.id,
-    councilMeetingId: meeting.id,
-    cityId: meeting.cityId,
-  }))
-
-  // Create all podcast specs at once
-  try {
-    await prisma.podcastSpec.createMany({
-      data: specData,
-      skipDuplicates: true,
-    })
-
-    // Collect all podcast parts from all specs
-    const allParts = podcastSpecs
-      .filter(spec => spec.parts && spec.parts.length > 0)
-      .flatMap(spec =>
-        spec.parts.map((part: any) => ({
-          id: part.id,
-          type: part.type,
-          text: part.text,
-          audioSegmentUrl: part.audioSegmentUrl,
-          duration: part.duration,
-          startTimestamp: part.startTimestamp,
-          endTimestamp: part.endTimestamp,
-          index: part.index,
-          podcastSpecId: spec.id,
-          _utterances: part.podcastPartAudioUtterances || [], // Temporary property to track utterances
-        }))
-      )
-
-    if (allParts.length > 0) {
-      console.log(`Creating ${allParts.length} podcast parts...`)
-
-      try {
-        // Create parts without the temporary _utterances property
-        await prisma.podcastPart.createMany({
-          data: allParts.map(p => {
-            const { _utterances, ...partData } = p;
-            return partData;
-          }),
-          skipDuplicates: true,
-        })
-
-        // Create podcast part audio utterances
-        const allUtteranceConnections = allParts
-          .filter(part => part._utterances && part._utterances.length > 0)
-          .flatMap(part =>
-            part._utterances.map((ppau: any) => ({
-              id: ppau.id,
-              podcastPartId: part.id,
-              utteranceId: ppau.utteranceId,
-            }))
-          )
-
-        if (allUtteranceConnections.length > 0) {
-          console.log(`Creating ${allUtteranceConnections.length} podcast part audio utterance connections...`)
-          try {
-            await prisma.podcastPartAudioUtterance.createMany({
-              data: allUtteranceConnections,
-              skipDuplicates: true,
-            })
-          } catch (error) {
-            console.error('Error creating podcast part audio utterance connections:', error)
-          }
-        }
-      } catch (error) {
-        console.error('Error creating podcast parts:', error)
-      }
-    }
-  } catch (error) {
-    console.error('Error creating podcast specs:', error)
   }
 }
 

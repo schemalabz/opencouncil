@@ -10,7 +10,7 @@ import DotPattern from "./magicui/dot-pattern";
 import NumberTicker from "./magicui/number-ticker";
 import { useState, useEffect } from "react";
 import { getPilotStats } from "@/lib/pilotStats";
-import { Info, Loader2, Podcast, Sparkles } from "lucide-react";
+import { Info, Loader2, Sparkles } from "lucide-react";
 import AnimatedGradientText from "./magicui/animated-gradient-text";
 
 export default function PilotPage({ cities }: { cities: (City & { councilMeetings: CouncilMeeting[] })[] }) {

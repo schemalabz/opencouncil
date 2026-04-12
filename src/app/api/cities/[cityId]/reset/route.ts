@@ -100,47 +100,12 @@ export async function POST(
                 where: { cityId: params.cityId }
             });
 
-            // 6. Delete podcast specs and parts
-            const meetings = await tx.councilMeeting.findMany({
-                where: { cityId: params.cityId },
-                select: { id: true }
-            });
-
-            if (meetings.length > 0) {
-                const meetingIds = meetings.map(m => m.id);
-
-                const podcastSpecs = await tx.podcastSpec.findMany({
-                    where: { councilMeetingId: { in: meetingIds } },
-                    select: { id: true }
-                });
-
-                if (podcastSpecs.length > 0) {
-                    const podcastSpecIds = podcastSpecs.map(p => p.id);
-
-                    await tx.podcastPartAudioUtterance.deleteMany({
-                        where: {
-                            podcastPart: {
-                                podcastSpecId: { in: podcastSpecIds }
-                            }
-                        }
-                    });
-
-                    await tx.podcastPart.deleteMany({
-                        where: { podcastSpecId: { in: podcastSpecIds } }
-                    });
-
-                    await tx.podcastSpec.deleteMany({
-                        where: { id: { in: podcastSpecIds } }
-                    });
-                }
-            }
-
-            // 7. Delete council meetings
+            // 6. Delete council meetings
             await tx.councilMeeting.deleteMany({
                 where: { cityId: params.cityId }
             });
 
-            // 8. Delete voice prints
+            // 7. Delete voice prints
             await tx.voicePrint.deleteMany({
                 where: {
                     person: {
@@ -149,7 +114,7 @@ export async function POST(
                 }
             });
 
-            // 9. Delete speaker tags
+            // 8. Delete speaker tags
             await tx.speakerTag.deleteMany({
                 where: {
                     person: {
@@ -158,22 +123,22 @@ export async function POST(
                 }
             });
 
-            // 10. Delete people
+            // 9. Delete people
             await tx.person.deleteMany({
                 where: { cityId: params.cityId }
             });
 
-            // 11. Delete parties
+            // 10. Delete parties
             await tx.party.deleteMany({
                 where: { cityId: params.cityId }
             });
 
-            // 12. Delete administrative bodies
+            // 11. Delete administrative bodies
             await tx.administrativeBody.deleteMany({
                 where: { cityId: params.cityId }
             });
 
-            // 13. Delete notifications and related data
+            // 12. Delete notifications and related data
             await tx.notificationPreference.deleteMany({
                 where: { cityId: params.cityId }
             });
@@ -182,7 +147,7 @@ export async function POST(
                 where: { cityId: params.cityId }
             });
 
-            // 14. Delete consultation related data
+            // 13. Delete consultation related data
             await tx.consultationCommentUpvote.deleteMany({
                 where: {
                     comment: {
@@ -199,17 +164,17 @@ export async function POST(
                 where: { cityId: params.cityId }
             });
 
-            // 15. Delete city message
+            // 14. Delete city message
             await tx.cityMessage.deleteMany({
                 where: { cityId: params.cityId }
             });
 
-            // 16. Delete administration relationships
+            // 15. Delete administration relationships
             await tx.administers.deleteMany({
                 where: { cityId: params.cityId }
             });
 
-            // 17. Finally, set the city back to pending
+            // 16. Finally, set the city back to pending
             await tx.city.update({
                 where: { id: params.cityId },
                 data: { status: 'pending' },

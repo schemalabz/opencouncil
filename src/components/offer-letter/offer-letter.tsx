@@ -5,7 +5,7 @@ import { Offer } from "@prisma/client";
 import { Button } from "../ui/button";
 import { monthsBetween, formatDate } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../ui/card";
-import { Building2, FileText, Smartphone, Mic, MessageCircle, Code, Mail, Phone, Copy, Check, Link, Database, CheckSquare, Badge, Eraser, Rocket, Package, Clock } from "lucide-react";
+import { Building2, FileText, Smartphone, MessageCircle, Code, Mail, Phone, Copy, Check, Link, Database, CheckSquare, Badge, Eraser, Rocket, Package, Clock } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 
@@ -405,24 +405,6 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                             <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
                             <span>Δυνατότητα απάντησης από τους {isRegion ? 'πολίτες' : 'δημότες'}, και σύνοψη των απαντήσεων για τον εισηγητή του θέματος.</span>
                         </li>
-                    </ModuleCard>
-                    <ModuleCard
-                        piloting
-                        title="Podcast"
-                        subtitle={`Αυτόματη παραγωγή και διανομή ενημερωτικών podcast για τους ${isRegion ? 'πολίτες' : 'δημότες'}`}
-                        icon={<Mic className="w-10 h-10 mb-2" />}
-                        restriction="Μέχρι 2 ώρες podcast το μήνα"
-                    >
-                        <ul className="space-y-2">
-                            <li className="flex items-start gap-2">
-                                <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
-                                <span>Αυτόματη παραγωγή podcast για κάθε συνεδρίαση (δείτε ένα <a href="https://open.spotify.com/show/1rustvetXr9Z5qxMh1TdL2?si=cb1c603897f04aa0" className="underline">παράδειγμα</a>), με τα σημαντικότερα θέματα της ημέρας.</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
-                                <span>Δημοσίευση και προώθηση στο Spotify, Apple Podcasts και άλλες πλατφόρμες.</span>
-                            </li>
-                        </ul>
                     </ModuleCard>
                     <ModuleCard
                         title="Υλικό για social media"

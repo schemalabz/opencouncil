@@ -125,7 +125,6 @@ OpenCouncil uses a **decoupled async job processing system**:
 - `transcribe.ts` - Audio transcription
 - `summarize.ts` - AI-generated summaries
 - `generateVoiceprint.ts` - Speaker voice recognition
-- `generatePodcast.ts` - Podcast generation
 - `tasks.ts` - Task orchestration
 
 **Discord Integration**: Admin alerts for task events via `DISCORD_WEBHOOK_URL`

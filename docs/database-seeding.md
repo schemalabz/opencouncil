@@ -74,7 +74,6 @@ The seeding process follows a specific order to respect entity dependencies:
    - Subjects
    - Speaker contributions
    - Highlights
-   - Podcast specs
 
 5. **Voiceprints** (depend on speaker segments and persons)
    - Voiceprints are seeded last since they require speaker segments to exist

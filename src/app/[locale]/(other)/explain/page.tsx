@@ -101,10 +101,6 @@ export default function ExplainPage() {
                                 emoji: '🔍'
                             },
                             {
-                                description: 'Δημιουργεί podcast',
-                                emoji: '🎙️'
-                            },
-                            {
                                 description: 'Μοντάρει σύντομα βίντεο',
                                 emoji: '📱'
                             },

@@ -292,38 +292,6 @@ export interface SummarizeResult {
 }
 
 /*
- * Produce Podcast
- */
-
-export interface GeneratePodcastSpecRequest extends RequestOnTranscript {
-    subjects: {
-        name: string;
-        description: string;
-        speakerSegmentIds: string[];
-        highlightedUtteranceIds: string[];
-        allocation: "onlyMention" | "skip" | "full";
-        allocatedMinutes: number;
-    }[];
-
-    audioUrl: string;
-    additionalInstructions?: string;
-}
-
-export type PodcastPart =
-    | {
-        type: "host";
-        text: string;
-    }
-    | {
-        type: "audio";
-        utteranceIds: string[];
-    };
-
-export interface GeneratePodcastSpecResult {
-    parts: PodcastPart[];
-}
-
-/*
  * Split Media File
  */
 

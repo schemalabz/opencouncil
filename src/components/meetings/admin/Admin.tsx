@@ -12,7 +12,6 @@ import TaskList from './TaskList';
 import { getTasksForMeeting } from '@/lib/db/tasks';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import PodcastSpecs from './PodcastSpecs';
 import { toggleMeetingRelease } from '@/lib/db/meetings';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { requestProcessAgenda } from '@/lib/tasks/processAgenda';
@@ -533,12 +532,6 @@ export default function AdminActions({
                     {t('buttons.refreshCityCache')}
                 </Button>
             </div>
-        </div>
-
-        <div className="mt-6">
-            <h3 className="text-lg font-semibold">{t('sections.podcastSpecs')}</h3>
-            <p className="text-sm text-muted-foreground mb-4">{t('sections.podcastSpecsSubtitle')}</p>
-            <PodcastSpecs />
         </div>
 
         <div className="mt-6">

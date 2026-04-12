@@ -2,7 +2,7 @@
 
 ## Concept
 
-A system for managing the complete lifecycle of council meetings, from the very beginning with the publishing of the agenda to the full digitization of the meeting through our AI processing pipeline, which includes transcription, summarization, agenda processing, highlight generation, podcast creation, and search indexing.
+A system for managing the complete lifecycle of council meetings, from the very beginning with the publishing of the agenda to the full digitization of the meeting through our AI processing pipeline, which includes transcription, summarization, agenda processing, highlight generation, and search indexing.
 
 ## Architectural Overview
 
@@ -15,7 +15,7 @@ The meeting lifecycle system operates across multiple layers:
 5. **Status Tracking Layer**: Real-time meeting processing status with stage derivation and UI indicators
 6. **Authentication Layer**: Role-based access control with city-level permissions
 7. **Search Layer**: Elasticsearch integration for content discovery and search
-8. **Media Processing Layer**: Video/audio processing for highlights and podcasts
+8. **Media Processing Layer**: Video/audio processing for highlights
 
 ## Meeting Processing Pipeline Overview
 
@@ -34,15 +34,12 @@ flowchart TD
     H --> I[✅ Meeting Ready<br/>Fully processed & searchable]
     
     I --> J[🎬 On-Demand: Highlights<br/>Video highlights from utterances]
-    I --> K[🎧 On-Demand: Podcasts<br/>Audio segments + host content]
     
     J --> L[📹 Video Highlights<br/>Social media ready clips]
-    K --> M[🎵 Podcast Specs<br/>Structured audio content]
     
     style A fill:#e1f5fe,stroke:#01579b,stroke-width:2px
     style I fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
     style J fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
-    style K fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
     style F fill:#ffebee,stroke:#c62828,stroke-width:2px
 ```
 
@@ -151,14 +148,6 @@ sequenceDiagram
     TaskServer->>API: Task completion callback
     API->>Cache: revalidateTag & revalidatePath
 
-    Note over User, Search: Podcast Generation
-    User->>Frontend: Triggers podcast generation
-    Frontend->>API: POST podcast generation request
-    API->>TaskServer: Queue podcast generation task
-    TaskServer->>TaskServer: Generate podcast specifications
-    TaskServer->>DB: Store podcast parts & audio segments
-    TaskServer->>API: Task completion callback
-    API->>Cache: revalidateTag & revalidatePath
 ```
 
 ## Key Component Pointers
@@ -189,7 +178,7 @@ sequenceDiagram
     *   `src/lib/auth.ts` (withUserAuthorizedToEdit, isUserAuthorizedToEdit, hierarchical permissions)
 *   **Task Processing Pipeline**:
     *   **Core Pipeline**: Process Agenda (optional) → Transcribe → Fix Transcript → Human Review → Summarize
-    *   **Post-Processing**: Search Sync, Highlight Generation, Podcast Generation, Voiceprint Generation, Media File Splitting
+    *   **Post-Processing**: Search Sync, Highlight Generation, Voiceprint Generation, Media File Splitting
 *   **Cache Management**:
     *   `src/lib/cache/queries.ts` (cache invalidation via Next.js API routes)
     *   `src/lib/cache/index.ts` (createCache utility with performance logging)

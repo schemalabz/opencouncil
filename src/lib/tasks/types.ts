@@ -34,9 +34,6 @@ export const TASK_CONFIG = {
   summarize: {
     requiredForPipeline: true,
   },
-  generatePodcastSpec: {
-    requiredForPipeline: false,
-  },
   generateHighlight: {
     requiredForPipeline: false,
   },

@@ -54,8 +54,6 @@
       "notificationsSubtitle": "Create notifications for users interested in this meeting's subjects.",
       "cacheManagement": "Cache Management",
       "cacheManagementSubtitle": "Force refresh of cached data to see latest changes immediately.",
-      "podcastSpecs": "Podcast Specs",
-      "podcastSpecsSubtitle": "Manage podcast generation specifications for this meeting.",
       "decisions": "Decisions",
       "decisionsSubtitle": "Link Diavgeia decisions to meeting subjects.",
       "export": "Export",

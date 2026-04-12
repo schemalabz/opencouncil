@@ -463,23 +463,6 @@ async function extractMeetings(prisma: PrismaClient, pairs: { cityId: string; me
               }
             }
           }
-        },
-        
-        // Podcast specs with their parts
-        podcastSpecs: {
-          include: {
-            parts: {
-              include: {
-                // Just include IDs for utterances
-                podcastPartAudioUtterances: {
-                  select: {
-                    id: true,
-                    utteranceId: true,
-                  }
-                }
-              }
-            }
-          }
         }
       }
     });
