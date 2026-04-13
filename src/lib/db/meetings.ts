@@ -79,16 +79,26 @@ export async function getCouncilMeeting(cityId: string, id: string): Promise<Cou
     }
 }
 
-export async function getCouncilMeetingsForCity(cityId: string, { includeUnreleased, limit, page, pageSize = 12 }: { includeUnreleased?: boolean; limit?: number; page?: number; pageSize?: number } = {}): Promise<CouncilMeetingWithAdminBodyAndSubjects[]> {
+export async function getCouncilMeetingsForCity(cityId: string, { includeUnreleased, limit, page, pageSize = 12, from, to }: { includeUnreleased?: boolean; limit?: number; page?: number; pageSize?: number; from?: Date; to?: Date } = {}): Promise<CouncilMeetingWithAdminBodyAndSubjects[]> {
 
     try {
         // Calculate pagination
         const skip = page ? (page - 1) * pageSize : undefined;
         const take = page ? pageSize : limit;
 
+        // Build dateTime filter
+        const dateTimeFilter = (from || to) ? {
+            ...(from && { gte: from }),
+            ...(to && { lte: to }),
+        } : undefined;
+
         // First, get meetings with subjects and basic relationships
         const meetings = await prisma.councilMeeting.findMany({
-            where: { cityId, released: includeUnreleased ? undefined : true },
+            where: {
+                cityId,
+                released: includeUnreleased ? undefined : true,
+                ...(dateTimeFilter && { dateTime: dateTimeFilter }),
+            },
             orderBy: [
                 { dateTime: 'desc' },
                 { createdAt: 'desc' }

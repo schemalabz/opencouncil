@@ -2,6 +2,9 @@
 import { type City, type Party, type Person, type CouncilMeeting, type User } from "@prisma/client";
 import { auth } from "@/auth";
 import prisma from "@/lib/db/prisma";
+import { validateServiceApiKey } from "@/lib/db/apiKeys";
+import { UnauthorizedError } from "@/lib/api/errors";
+import { type NextRequest } from "next/server";
 
 export async function getCurrentUser() {
     const session = await auth();
@@ -145,6 +148,43 @@ export async function isUserAuthorizedToEdit({
         personId,
         councilMeetingId
     });
+}
+
+export type ServiceAuthResult =
+    | { type: 'service'; keyName: string }
+    | { type: 'user'; userId: string };
+
+/**
+ * Authenticate a request via either a service API key (Bearer token)
+ * or a user session. Service keys get full access (equivalent to superadmin).
+ * User sessions are checked against the standard authorization hierarchy.
+ *
+ * Throws if neither auth method succeeds.
+ */
+export async function withServiceOrUserAuth(
+    request: NextRequest,
+    { cityId }: { cityId?: string } = {}
+): Promise<ServiceAuthResult> {
+    // Check for Bearer token first
+    const authHeader = request.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.slice(7);
+        const apiKey = await validateServiceApiKey(token);
+        if (apiKey) {
+            return { type: 'service', keyName: apiKey.name };
+        }
+        // Invalid bearer token — don't fall through to session auth
+        throw new UnauthorizedError("Invalid API key");
+    }
+
+    // Fall back to session auth
+    await withUserAuthorizedToEdit({ cityId });
+
+    const user = await getCurrentUser();
+    if (!user) {
+        throw new UnauthorizedError("Session expired");
+    }
+    return { type: 'user', userId: user.id };
 }
 
 export async function getOrCreateUserFromRequest(

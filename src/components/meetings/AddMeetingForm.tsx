@@ -17,6 +17,7 @@ import {
 import { Input } from "../ui/input"
 import { SheetClose } from "../ui/sheet"
 import { Loader2, ChevronDown, ChevronUp } from "lucide-react"
+import { Checkbox } from "../ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { useTranslations } from 'next-intl'
 import { Calendar } from "../ui/calendar"
@@ -53,6 +54,7 @@ const formSchema = z.object({
         message: "Meeting ID is required.",
     }),
     administrativeBodyId: z.string().optional(),
+    processAgenda: z.boolean().default(true),
 })
 
 interface AddMeetingFormProps {
@@ -87,6 +89,7 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
             agendaUrl: meeting?.agendaUrl || "",
             meetingId: meeting?.id || formatDateAsMeetingId(meeting ? new Date(meeting.dateTime) : new Date()),
             administrativeBodyId: meeting?.administrativeBodyId || "none",
+            processAgenda: true,
         },
     })
 
@@ -337,6 +340,35 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
                             )
                         }}
                     />
+                    {!meeting && (
+                        <FormField
+                            control={form.control}
+                            name="processAgenda"
+                            render={({ field }) => {
+                                const agendaUrl = form.watch('agendaUrl')
+                                const hasAgenda = !!agendaUrl && agendaUrl.length > 0
+                                return (
+                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                        <FormControl>
+                                            <Checkbox
+                                                checked={field.value && hasAgenda}
+                                                onCheckedChange={field.onChange}
+                                                disabled={!hasAgenda}
+                                            />
+                                        </FormControl>
+                                        <div className="space-y-1 leading-none">
+                                            <FormLabel className={!hasAgenda ? "text-muted-foreground" : ""}>
+                                                {t('processAgenda')}
+                                            </FormLabel>
+                                            <FormDescription>
+                                                {t('processAgendaDescription')}
+                                            </FormDescription>
+                                        </div>
+                                    </FormItem>
+                                )
+                            }}
+                        />
+                    )}
                     <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
                         <CollapsibleTrigger asChild>
                             <Button variant="ghost" className="flex w-full justify-between p-0">

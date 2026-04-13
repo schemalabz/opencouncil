@@ -9,12 +9,16 @@ import { getActiveTopicsForTasks } from "../db/topics";
 import { getPartyFromRoles, getRoleNameForPerson } from "../utils";
 import { getPeopleForMeeting } from "../db/people";
 
-export async function requestProcessAgenda(agendaUrl: string, councilMeetingId: string, cityId: string, {
+/**
+ * Core processAgenda logic without auth checks.
+ * Called by the route handler (which already authenticated the request)
+ * and by the user-facing wrapper below.
+ */
+export async function requestProcessAgendaInternal(agendaUrl: string, councilMeetingId: string, cityId: string, {
     force = false
 }: {
     force?: boolean;
 } = {}) {
-    await withUserAuthorizedToEdit({ cityId });
     console.log(`Requesting agenda processing for ${agendaUrl}`);
     const councilMeeting = await prisma.councilMeeting.findUnique({
         where: {
@@ -93,6 +97,18 @@ export async function requestProcessAgenda(agendaUrl: string, councilMeetingId: 
 
     console.log(`Process agenda body: ${JSON.stringify(body)}`);
     return startTask('processAgenda', body, councilMeetingId, cityId, { force });
+}
+
+/**
+ * User-facing wrapper that checks authorization before processing.
+ */
+export async function requestProcessAgenda(agendaUrl: string, councilMeetingId: string, cityId: string, {
+    force = false
+}: {
+    force?: boolean;
+} = {}) {
+    await withUserAuthorizedToEdit({ cityId });
+    return requestProcessAgendaInternal(agendaUrl, councilMeetingId, cityId, { force });
 }
 
 export async function handleProcessAgendaResult(taskId: string, response: ProcessAgendaResult) {

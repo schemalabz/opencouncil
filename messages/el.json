@@ -176,6 +176,8 @@
         "meetingAgenda": "Ημερήσια Διάταξη",
         "meetingAgendaPlaceholder": "https://... ή αποθέστε ένα αρχείο PDF",
         "meetingAgendaDescription": "Προσθέστε τον σύνδεσμο της ημερήσιας διάταξης ή ανεβάστε το αρχείο PDF.",
+        "processAgenda": "Εκτέλεση pipeline",
+        "processAgendaDescription": "Αυτόματη ανάλυση της ημερήσιας διάταξης σε θέματα μετά τη δημιουργία.",
         "submitting": "Υποβολή...",
         "addMeeting": "Προσθήκη Συνεδρίασης",
         "updateMeeting": "Ενημέρωση Συνεδρίασης",

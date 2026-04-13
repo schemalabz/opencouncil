@@ -4,7 +4,7 @@ import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { v4 as uuidv4 } from 'uuid'
 import { env } from '@/env.mjs'
-import { isUserAuthorizedToEdit } from '@/lib/auth'
+import { withServiceOrUserAuth } from '@/lib/auth'
 import { UploadConfig } from '@/types/upload'
 
 /**
@@ -92,15 +92,11 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Check user authorization
-        // If cityId is provided in config, check city-specific permissions
-        // Otherwise, check general upload permissions
+        // Check authorization via service API key or user session
         const cityId = config?.cityId
-        const authorizedToEdit = await isUserAuthorizedToEdit(
-            cityId ? { cityId } : {}
-        )
-
-        if (!authorizedToEdit) {
+        try {
+            await withServiceOrUserAuth(request, cityId ? { cityId } : {})
+        } catch {
             return NextResponse.json(
                 { error: 'Unauthorized to upload files' },
                 { status: 403 }

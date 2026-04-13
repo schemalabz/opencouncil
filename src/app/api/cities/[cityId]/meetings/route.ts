@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { z } from 'zod';
 import { createCouncilMeeting, getCouncilMeetingsForCity } from '@/lib/db/meetings';
-import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { withServiceOrUserAuth } from '@/lib/auth';
 import { sendMeetingCreatedAdminAlert } from '@/lib/discord';
 import { createMeetingCalendarEvent, calculateMeetingEndTime } from '@/lib/google-calendar';
+import { requestProcessAgendaInternal } from '@/lib/tasks/processAgenda';
+import { generateUniqueMeetingId } from '@/lib/utils/meetingId';
+import { handleApiError } from '@/lib/api/errors';
+import { env } from '@/env.mjs';
 import prisma from '@/lib/db/prisma';
 
 const meetingSchema = z.object({
@@ -25,10 +29,9 @@ const meetingSchema = z.object({
     agendaUrl: z.string().url({
         message: "Invalid Agenda URL.",
     }).optional().or(z.literal("")),
-    meetingId: z.string().min(1, {
-        message: "Meeting ID is required.",
-    }),
+    meetingId: z.string().min(1).optional(),
     administrativeBodyId: z.string().optional(),
+    processAgenda: z.boolean().optional().default(false),
 });
 
 const getMeetingsQuerySchema = z.object({
@@ -37,7 +40,18 @@ const getMeetingsQuerySchema = z.object({
         .transform((val) => val ? parseInt(val, 10) : undefined)
         .refine((val) => val === undefined || (!isNaN(val) && val >= 1 && val <= 100), {
             message: "Limit must be a number between 1 and 100"
-        })
+        }),
+    from: z.string()
+        .optional()
+        .refine((val) => !val || !isNaN(new Date(val).getTime()), { message: "Invalid 'from' date" })
+        .transform((val) => val ? new Date(val) : undefined),
+    to: z.string()
+        .optional()
+        .refine((val) => !val || !isNaN(new Date(val).getTime()), { message: "Invalid 'to' date" })
+        .transform((val) => val ? new Date(val) : undefined),
+    includeUnreleased: z.string()
+        .optional()
+        .transform((val) => val === 'true'),
 });
 
 export async function POST(
@@ -45,12 +59,15 @@ export async function POST(
     { params }: { params: { cityId: string } }
 ) {
     try {
-        await withUserAuthorizedToEdit({ cityId: params.cityId });
+        const authResult = await withServiceOrUserAuth(request, { cityId: params.cityId });
         const body = await request.json();
-        const { name, name_en, date, youtubeUrl, agendaUrl, meetingId, administrativeBodyId } = meetingSchema.parse(body);
+        const { name, name_en, date, youtubeUrl, agendaUrl, meetingId: providedMeetingId, administrativeBodyId, processAgenda } = meetingSchema.parse(body);
         const cityId = params.cityId;
 
-        const meeting = await createCouncilMeeting({
+        // Auto-generate meetingId if not provided
+        const meetingId = providedMeetingId || await generateUniqueMeetingId(cityId, date);
+
+        const meetingData = {
             name,
             name_en,
             id: meetingId,
@@ -58,10 +75,19 @@ export async function POST(
             cityId,
             youtubeUrl: youtubeUrl || null,
             agendaUrl: agendaUrl || null,
-            released: false, // Set as unpublished by default
+            released: false,
             muxPlaybackId: null,
             administrativeBodyId: administrativeBodyId || null,
-        });
+        };
+
+        // Service auth: route already verified the API key, so create directly.
+        // User auth: delegate to createCouncilMeeting which re-checks session auth.
+        const meeting = authResult.type === 'service'
+            ? await prisma.councilMeeting.create({
+                data: meetingData,
+                include: { administrativeBody: true },
+            })
+            : await createCouncilMeeting(meetingData);
 
         revalidateTag(`city:${cityId}:meetings`);
         revalidatePath(`/${cityId}`, "layout");
@@ -89,23 +115,23 @@ export async function POST(
             try {
                 // Build title in format: "city.name: administrative body.name" (using local names)
                 let calendarTitle = city.name;
-                
+
                 if (meeting.administrativeBody?.name) {
                     calendarTitle += `: ${meeting.administrativeBody.name}`;
                 }
 
                 // Build description with agenda URL and meeting link
-                const meetingUrl = `${process.env.NEXTAUTH_URL}/${cityId}/${meetingId}`;
+                const meetingUrl = `${env.NEXTAUTH_URL}/${cityId}/${meetingId}`;
                 const descriptionParts: string[] = [];
-                
+
                 if (meeting.agendaUrl) {
                     descriptionParts.push(`Ημερήσια Διάταξη: ${meeting.agendaUrl}`);
                 }
-                
+
                 descriptionParts.push(`${meetingUrl}`);
 
                 const endTime = calculateMeetingEndTime(date, 2); // Default 2 hour meetings
-                
+
                 await createMeetingCalendarEvent({
                     title: calendarTitle,
                     description: descriptionParts.join('\n\n'),
@@ -121,17 +147,28 @@ export async function POST(
             }
         }
 
-        return NextResponse.json(meeting, { status: 201 });
+        // Auto-trigger processAgenda if requested and agenda URL is present
+        let processAgendaStatus: string | undefined;
+        if (processAgenda && agendaUrl) {
+            try {
+                const task = await requestProcessAgendaInternal(agendaUrl, meetingId, cityId);
+                processAgendaStatus = task.status;
+                console.log(`processAgenda triggered for meeting ${meetingId}: ${task.status}`);
+            } catch (error) {
+                console.error('Failed to trigger processAgenda:', error);
+                processAgendaStatus = 'failed';
+            }
+        }
+
+        return NextResponse.json({
+            ...meeting,
+            ...(processAgenda && { processAgendaStatus: processAgendaStatus || 'skipped_no_agenda' }),
+        }, { status: 201 });
     } catch (error) {
         if (error instanceof z.ZodError) {
-            console.log(error.errors);
             return NextResponse.json({ error: error.errors }, { status: 400 });
         }
-        console.error('Failed to create meeting:', error);
-        return NextResponse.json(
-            { error: 'Failed to create meeting' },
-            { status: 500 }
-        );
+        return handleApiError(error, 'Failed to create meeting');
     }
 }
 
@@ -143,25 +180,25 @@ export async function GET(
         const { searchParams } = request.nextUrl;
         const queryParams = Object.fromEntries(searchParams.entries());
 
-        const { limit } = getMeetingsQuerySchema.parse(queryParams);
+        const { limit, from, to, includeUnreleased } = getMeetingsQuerySchema.parse(queryParams);
+
+        // includeUnreleased requires auth (service key or authorized user)
+        if (includeUnreleased) {
+            await withServiceOrUserAuth(request, { cityId: params.cityId });
+        }
 
         const meetings = await getCouncilMeetingsForCity(params.cityId, {
-            includeUnreleased: false,
-            limit
+            includeUnreleased,
+            limit,
+            from,
+            to,
         });
 
         return NextResponse.json(meetings);
     } catch (error) {
         if (error instanceof z.ZodError) {
-            return NextResponse.json(
-                { error: error.errors },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: error.errors }, { status: 400 });
         }
-        console.error('Error fetching meetings:', error);
-        return NextResponse.json(
-            { error: 'Failed to fetch meetings' },
-            { status: 500 }
-        );
+        return handleApiError(error, 'Failed to fetch meetings');
     }
 }

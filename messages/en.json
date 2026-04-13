@@ -179,7 +179,9 @@
         "administrativeBodyDescription": "Select the administrative body for this meeting.",
         "meetingAgenda": "Meeting Agenda",
         "meetingAgendaPlaceholder": "Agenda URL or file",
-        "meetingAgendaDescription": "Provide a URL or upload a file with the meeting agenda."
+        "meetingAgendaDescription": "Provide a URL or upload a file with the meeting agenda.",
+        "processAgenda": "Run pipeline",
+        "processAgendaDescription": "Automatically parse the agenda into structured items after creation."
     },
     "NotFoundPage": {
         "title": "Page Not Found",
