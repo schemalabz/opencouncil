@@ -9,7 +9,7 @@ import prisma from '@/lib/db/prisma';
  */
 export function formatDateAsMeetingId(date: Date): string {
     return date
-        .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Europe/Athens' })
         .toLowerCase()
         .replace(/\s/g, '')
         .replace(',', '_');

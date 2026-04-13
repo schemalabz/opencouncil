@@ -80,25 +80,27 @@ export async function POST(
             administrativeBodyId: administrativeBodyId || null,
         });
 
+        // Direct prisma create — used for service auth and for TOCTOU retry
+        const createMeetingDirect = (id: string) =>
+            prisma.councilMeeting.create({
+                data: buildMeetingData(id),
+                include: { administrativeBody: true },
+            });
+
         // Service auth: route already verified the API key, so create directly.
         // User auth: delegate to createCouncilMeeting which re-checks session auth.
-        const createMeeting = async (id: string) =>
-            authResult.type === 'service'
-                ? prisma.councilMeeting.create({
-                    data: buildMeetingData(id),
-                    include: { administrativeBody: true },
-                })
-                : createCouncilMeeting(buildMeetingData(id));
-
-        // Retry with a fresh ID on unique constraint violation (TOCTOU race)
         let meeting;
         try {
-            meeting = await createMeeting(meetingId);
+            meeting = authResult.type === 'service'
+                ? await createMeetingDirect(meetingId)
+                : await createCouncilMeeting(buildMeetingData(meetingId));
         } catch (error) {
+            // Retry with a fresh ID on unique constraint violation (TOCTOU race).
+            // Always use direct create for retry — auth was already verified above.
             const isUniqueViolation = error instanceof Error && 'code' in error && (error as { code: string }).code === 'P2002';
             if (!isUniqueViolation || providedMeetingId) throw error;
             meetingId = await generateUniqueMeetingId(cityId, date);
-            meeting = await createMeeting(meetingId);
+            meeting = await createMeetingDirect(meetingId);
         }
 
         revalidateTag(`city:${cityId}:meetings`);
