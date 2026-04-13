@@ -5,7 +5,7 @@ import { createCouncilMeeting, getCouncilMeetingsForCity } from '@/lib/db/meetin
 import { withServiceOrUserAuth } from '@/lib/auth';
 import { sendMeetingCreatedAdminAlert } from '@/lib/discord';
 import { createMeetingCalendarEvent, calculateMeetingEndTime } from '@/lib/google-calendar';
-import { requestProcessAgendaInternal } from '@/lib/tasks/processAgenda';
+import { requestProcessAgendaInternal } from '@/lib/tasks/processAgendaInternal';
 import { generateUniqueMeetingId } from '@/lib/utils/meetingId';
 import { handleApiError } from '@/lib/api/errors';
 import { env } from '@/env.mjs';
