@@ -65,7 +65,7 @@ export async function POST(
         const cityId = params.cityId;
 
         // Auto-generate meetingId if not provided
-        const meetingId = providedMeetingId || await generateUniqueMeetingId(cityId, date);
+        let meetingId = providedMeetingId || await generateUniqueMeetingId(cityId, date);
 
         const buildMeetingData = (id: string) => ({
             name,
@@ -97,8 +97,8 @@ export async function POST(
         } catch (error) {
             const isUniqueViolation = error instanceof Error && 'code' in error && (error as { code: string }).code === 'P2002';
             if (!isUniqueViolation || providedMeetingId) throw error;
-            const retryId = await generateUniqueMeetingId(cityId, date);
-            meeting = await createMeeting(retryId);
+            meetingId = await generateUniqueMeetingId(cityId, date);
+            meeting = await createMeeting(meetingId);
         }
 
         revalidateTag(`city:${cityId}:meetings`);

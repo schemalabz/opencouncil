@@ -5,6 +5,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { v4 as uuidv4 } from 'uuid'
 import { env } from '@/env.mjs'
 import { withServiceOrUserAuth } from '@/lib/auth'
+import { ApiError } from '@/lib/api/errors'
 import { UploadConfig } from '@/types/upload'
 
 /**
@@ -96,11 +97,11 @@ export async function POST(request: NextRequest) {
         const cityId = config?.cityId
         try {
             await withServiceOrUserAuth(request, cityId ? { cityId } : {})
-        } catch {
-            return NextResponse.json(
-                { error: 'Unauthorized to upload files' },
-                { status: 403 }
-            )
+        } catch (error) {
+            if (error instanceof ApiError) {
+                return NextResponse.json({ error: error.message }, { status: error.statusCode })
+            }
+            throw error
         }
 
         // Extract file extension
