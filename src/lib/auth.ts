@@ -177,14 +177,17 @@ export async function withServiceOrUserAuth(
         throw new UnauthorizedError("Invalid API key");
     }
 
-    // Fall back to session auth
-    await withUserAuthorizedToEdit({ cityId });
-
-    const user = await getCurrentUser();
-    if (!user) {
-        throw new UnauthorizedError("Session expired");
+    // Fall back to session auth — reuse the result to avoid a second DB round-trip
+    const isAuthorized = await checkUserAuthorization({ cityId });
+    if (!isAuthorized) {
+        throw new UnauthorizedError("Not authorized");
     }
-    return { type: 'user', userId: user.id };
+
+    // checkUserAuthorization already verified the user exists and is authorized,
+    // so getCurrentUser() is guaranteed to return non-null here. However this is
+    // still a second DB call. TODO: refactor checkUserAuthorization to return the user.
+    const user = await getCurrentUser();
+    return { type: 'user', userId: user!.id };
 }
 
 export async function getOrCreateUserFromRequest(

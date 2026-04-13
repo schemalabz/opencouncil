@@ -45,7 +45,13 @@ export async function createServiceApiKey(name: string, createdById: string) {
 export async function getServiceApiKeys() {
     return prisma.serviceApiKey.findMany({
         orderBy: { createdAt: 'desc' },
-        include: {
+        select: {
+            id: true,
+            name: true,
+            keyPrefix: true,
+            createdAt: true,
+            lastUsedAt: true,
+            revokedAt: true,
             createdBy: {
                 select: { name: true, email: true },
             },
