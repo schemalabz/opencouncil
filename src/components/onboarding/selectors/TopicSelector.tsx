@@ -56,7 +56,7 @@ export function TopicSelector({
                     throw new Error('Failed to fetch topics');
                 }
 
-                setTopics(topics);
+                setTopics(topics.filter(t => !t.deprecated));
             } catch (err) {
                 setError('Υπήρξε πρόβλημα στη φόρτωση των θεμάτων');
                 console.error(err);

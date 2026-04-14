@@ -1,44 +1,38 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/auth";
+import { withUserAuthorizedToEdit } from "@/lib/auth";
 import { deleteTopic, updateTopic } from "@/lib/db/topics";
-import { handleApiError } from "@/lib/api/errors";
+import { BadRequestError, handleApiError } from "@/lib/api/errors";
 
 const HEX_REGEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
-
-const badRequest = (error: string) =>
-    NextResponse.json({ error }, { status: 400 });
 
 export async function PUT(
     request: Request,
     { params }: { params: { topicId: string } }
 ) {
-    const user = await getCurrentUser();
-    if (!user?.isSuperAdmin) {
-        return new NextResponse("Unauthorized", { status: 401 });
-    }
+    await withUserAuthorizedToEdit({});
 
     try {
         const data = await request.json();
         const { name, name_en, colorHex, icon, description, deprecated } = data;
 
         if (name !== undefined && (typeof name !== "string" || name.trim() === "")) {
-            return badRequest("name must be a non-empty string");
+            throw new BadRequestError("name must be a non-empty string");
         }
         if (name_en !== undefined && (typeof name_en !== "string" || name_en.trim() === "")) {
-            return badRequest("name_en must be a non-empty string");
+            throw new BadRequestError("name_en must be a non-empty string");
         }
         if (colorHex !== undefined && (typeof colorHex !== "string" || !HEX_REGEX.test(colorHex))) {
-            return badRequest("colorHex must be a valid hex color");
+            throw new BadRequestError("colorHex must be a valid hex color");
         }
         if (description !== undefined && typeof description !== "string") {
-            return badRequest("description must be a string");
+            throw new BadRequestError("description must be a string");
         }
         if (icon !== undefined && icon !== null && typeof icon !== "string") {
-            return badRequest("icon must be a string or null");
+            throw new BadRequestError("icon must be a string or null");
         }
         if (deprecated !== undefined && typeof deprecated !== "boolean") {
-            return badRequest("deprecated must be a boolean");
+            throw new BadRequestError("deprecated must be a boolean");
         }
 
         const topic = await updateTopic(params.topicId, {
@@ -63,10 +57,7 @@ export async function DELETE(
     _request: Request,
     { params }: { params: { topicId: string } }
 ) {
-    const user = await getCurrentUser();
-    if (!user?.isSuperAdmin) {
-        return new NextResponse("Unauthorized", { status: 401 });
-    }
+    await withUserAuthorizedToEdit({});
 
     try {
         await deleteTopic(params.topicId);

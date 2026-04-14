@@ -153,7 +153,7 @@ export async function getAvailableSpeakerSegmentIds(councilMeetingId: string, ci
 // --- Internal helpers for saveSubjectsForMeeting ---
 
 async function validateSubjectPersons(subjects: Subject[], cityId: string) {
-    const topics = await prisma.topic.findMany();
+    const topics = await prisma.topic.findMany({ where: { deprecated: false } });
     const topicsByName = Object.fromEntries(topics.map(t => [t.name, t]));
 
     const speakerIds = subjects
