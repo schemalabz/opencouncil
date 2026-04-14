@@ -1813,10 +1813,14 @@ CADDYEOF
                   # Start PostgreSQL service for this PR
                   systemctl start "opencouncil-preview-db@$pr_num"
 
-                  # Wait for postgres to be ready
+                  # Wait for postgres AND the opencouncil database to be ready.
+                  # The DB service does a start→createdb→stop→start cycle, so pg_isready
+                  # alone can succeed on the first (temporary) start before the database
+                  # exists. Instead, probe the actual database to avoid the race.
                   echo "Waiting for PostgreSQL on port $db_port..."
                   for i in $(seq 1 30); do
-                    if ${postgresCompat}/bin/pg_isready -h 127.0.0.1 -p "$db_port" -U opencouncil >/dev/null 2>&1; then
+                    if ${postgresCompat}/bin/psql -h 127.0.0.1 -p "$db_port" -U opencouncil -d opencouncil \
+                         -c "SELECT 1" >/dev/null 2>&1; then
                       echo "PostgreSQL is ready"
                       break
                     fi
