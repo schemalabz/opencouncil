@@ -10,14 +10,18 @@ import prisma from '@/lib/db/prisma';
 import {
     MinutesData,
     MinutesSubject,
-    MinutesAttendance,
-    MinutesCouncilComposition,
-    MinutesVoteResult,
     MinutesMember,
     MinutesTranscriptEntry,
 } from './types';
-import { compareRanks } from '@/lib/sorting/people';
 import { formatSurnameFirst } from '@/lib/formatters/name';
+import {
+    buildAttendance,
+    buildVoteResult,
+    buildCouncilComposition,
+    sortSubjectsByDiscussionOrder,
+    MemberResolver,
+    ElectedOrderGetter,
+} from './builders';
 
 import { buildTranscriptEntriesFromUtterances, GAP_FILL_THRESHOLD_SECONDS, GapContentUtterance } from './transcriptEntries';
 
@@ -177,6 +181,28 @@ export async function getMinutesData(
         p.roles.some(r => isRoleActiveAt(r, meetingDate) && isMayorRole(r))
     )?.id ?? null;
 
+    // Shared member resolver: looks up person in peopleMap, resolves display info
+    const resolveMember: MemberResolver = (personId, fallbackName) => {
+        const person = peopleMap.get(personId);
+        const { party, role, isPartyHead } = person
+            ? getSpeakerDisplayInfo(person.roles || [], meetingDate)
+            : { party: null, role: null, isPartyHead: false };
+        return {
+            personId,
+            name: formatSurnameFirst(fallbackName),
+            party: party?.name_short ?? null,
+            isPartyHead,
+            role: simplifyRoleName(role?.name ?? null),
+        };
+    };
+
+    const getElectedOrder: ElectedOrderGetter = (personId) => {
+        const person = peopleMap.get(personId);
+        if (!person) return null;
+        const role = person.roles.find(r => r.electedOrder != null);
+        return role?.electedOrder ?? null;
+    };
+
     function buildTranscriptEntries(subjectId: string): MinutesTranscriptEntry[] {
         const utterances = utterancesBySubject.get(subjectId) || [];
         return buildTranscriptEntriesFromUtterances(utterances, (personId, label) => {
@@ -197,118 +223,6 @@ export async function getMinutesData(
         });
     }
 
-    function getElectedOrder(personId: string): number | null {
-        const person = peopleMap.get(personId);
-        if (!person) return null;
-        const role = person.roles.find(r => r.electedOrder != null);
-        return role?.electedOrder ?? null;
-    }
-
-    const sortByElectedOrder = (a: MinutesMember, b: MinutesMember) => {
-        const orderCompare = compareRanks(getElectedOrder(a.personId), getElectedOrder(b.personId));
-        if (orderCompare !== 0) return orderCompare;
-        return a.name.localeCompare(b.name);
-    };
-
-    function buildAttendance(ed: SubjectExtractedData): MinutesAttendance {
-        const present: MinutesMember[] = [];
-        const absent: MinutesMember[] = [];
-
-        // Exclude mayor (shown separately) and sort by elected order
-        const sortedAttendance = ed.attendance
-            .filter(a => a.personId !== mayorPersonId)
-            .sort((a, b) =>
-                compareRanks(getElectedOrder(a.personId), getElectedOrder(b.personId))
-                || a.personName.localeCompare(b.personName)
-            );
-
-        for (const a of sortedAttendance) {
-            const person = peopleMap.get(a.personId);
-            const { party, role, isPartyHead } = person
-                ? getSpeakerDisplayInfo(person.roles || [], meetingDate)
-                : { party: null, role: null, isPartyHead: false };
-
-            const member: MinutesMember = {
-                personId: a.personId,
-                name: formatSurnameFirst(a.personName),
-                party: party?.name_short ?? null,
-                isPartyHead,
-                role: simplifyRoleName(role?.name ?? null),
-            };
-
-            if (a.status === 'PRESENT') {
-                present.push(member);
-            } else {
-                absent.push(member);
-            }
-        }
-
-        return { present, absent };
-    }
-
-    function buildVoteResult(ed: SubjectExtractedData): MinutesVoteResult | null {
-        if (ed.votes.length === 0) return null;
-
-        // Sort all votes by elected order upfront — category arrays preserve this order
-        const sortedVotes = [...ed.votes].sort((a, b) =>
-            compareRanks(getElectedOrder(a.personId), getElectedOrder(b.personId))
-            || a.personName.localeCompare(b.personName)
-        );
-
-        const forMembers: MinutesMember[] = [];
-        const againstMembers: MinutesMember[] = [];
-        const abstainMembers: MinutesMember[] = [];
-
-        const voterIds = new Set<string>();
-        for (const v of sortedVotes) {
-            voterIds.add(v.personId);
-            const person = peopleMap.get(v.personId);
-            const { party, role, isPartyHead } = person
-                ? getSpeakerDisplayInfo(person.roles || [], meetingDate)
-                : { party: null, role: null, isPartyHead: false };
-
-            const member: MinutesMember = {
-                personId: v.personId,
-                name: formatSurnameFirst(v.personName),
-                party: party?.name_short ?? null,
-                isPartyHead,
-                role: simplifyRoleName(role?.name ?? null),
-            };
-
-            switch (v.voteType) {
-                case 'FOR': forMembers.push(member); break;
-                case 'AGAINST': againstMembers.push(member); break;
-                case 'ABSTAIN': abstainMembers.push(member); break;
-            }
-        }
-
-        // Absent members: those in attendance who are absent and didn't vote (excluding mayor)
-        const absentMembers = ed.attendance
-            .filter(a => a.status !== 'PRESENT' && !voterIds.has(a.personId) && a.personId !== mayorPersonId)
-            .sort((a, b) =>
-                compareRanks(getElectedOrder(a.personId), getElectedOrder(b.personId))
-                || a.personName.localeCompare(b.personName)
-            )
-            .map(a => {
-                const person = peopleMap.get(a.personId);
-                const { party, role, isPartyHead } = person
-                    ? getSpeakerDisplayInfo(person.roles || [], meetingDate)
-                    : { party: null, role: null, isPartyHead: false };
-                return {
-                    personId: a.personId,
-                    name: formatSurnameFirst(a.personName),
-                    party: party?.name_short ?? null,
-                    isPartyHead,
-                    role: simplifyRoleName(role?.name ?? null),
-                } as MinutesMember;
-            });
-
-        const passed = forMembers.length > againstMembers.length;
-        const isUnanimous = forMembers.length > 0 && againstMembers.length === 0 && abstainMembers.length === 0;
-
-        return { forMembers, againstMembers, abstainMembers, absentMembers, passed, isUnanimous };
-    }
-
     // Sort subjects by discussion order (first utterance timestamp)
     const firstUtteranceBySubject = new Map<string, number>();
     for (const [subjectId, utterances] of utterancesBySubject) {
@@ -317,39 +231,7 @@ export async function getMinutesData(
         }
     }
 
-    // For subjects discussed alongside another subject (discussedIn),
-    // use the parent subject's timestamp so they sort adjacent to their parent.
-    function getDiscussionTime(s: typeof filteredSubjects[number]): number | undefined {
-        const own = firstUtteranceBySubject.get(s.id);
-        if (own !== undefined) return own;
-        if (s.discussedIn) return firstUtteranceBySubject.get(s.discussedIn.id);
-        return undefined;
-    }
-
-    const sortedSubjects = [...filteredSubjects].sort((a, b) => {
-        const aTime = getDiscussionTime(a);
-        const bTime = getDiscussionTime(b);
-
-        // Both have discussion times: sort by time
-        if (aTime !== undefined && bTime !== undefined) {
-            if (aTime !== bTime) return aTime - bTime;
-            // Same timestamp (child inherits parent's time): parent comes first
-            const aIsChild = a.discussedIn != null;
-            const bIsChild = b.discussedIn != null;
-            if (aIsChild !== bIsChild) return aIsChild ? 1 : -1;
-            return (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0);
-        }
-        // Subjects with discussion time come before those without
-        if (aTime !== undefined) return -1;
-        if (bTime !== undefined) return 1;
-
-        // Fallback for subjects without transcript: agenda order
-        const aIsOOA = a.nonAgendaReason === 'outOfAgenda';
-        const bIsOOA = b.nonAgendaReason === 'outOfAgenda';
-        if (aIsOOA && !bIsOOA) return 1;
-        if (!aIsOOA && bIsOOA) return -1;
-        return (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0);
-    });
+    const sortedSubjects = sortSubjectsByDiscussionOrder(filteredSubjects, firstUtteranceBySubject);
 
     // --- Orphaned utterances (discussionSubjectId = null) ---
     const orphanedUtterances = await prisma.utterance.findMany({
@@ -444,8 +326,12 @@ export async function getMinutesData(
     // Build MinutesSubject for each
     const minutesSubjects: MinutesSubject[] = sortedSubjects.map((s, index) => {
         const ed = extractedDataMap.get(s.id);
-        const attendance = ed && ed.attendance.length > 0 ? buildAttendance(ed) : null;
-        const voteResult = ed ? buildVoteResult(ed) : null;
+        const attendance = ed && ed.attendance.length > 0
+            ? buildAttendance(ed.attendance, mayorPersonId, resolveMember, getElectedOrder)
+            : null;
+        const voteResult = ed
+            ? buildVoteResult(ed.votes, ed.attendance, mayorPersonId, resolveMember, getElectedOrder)
+            : null;
         const preDiscussionUtterances = preDiscussionByIndex.get(index) || [];
 
         return {
@@ -474,50 +360,38 @@ export async function getMinutesData(
     // plus mayor and president of the administrative body
     const firstSubjectWithAttendance = sortedSubjects.find(s => extractedDataMap.get(s.id)?.attendance?.length);
     const overallExtractedData = firstSubjectWithAttendance ? extractedDataMap.get(firstSubjectWithAttendance.id)! : null;
-    const overallAttendance = overallExtractedData ? buildAttendance(overallExtractedData) : null;
+    const overallAttendance = overallExtractedData
+        ? buildAttendance(overallExtractedData.attendance, mayorPersonId, resolveMember, getElectedOrder)
+        : null;
     const adminBodyId = meeting.administrativeBody?.id ?? null;
 
-    function buildCouncilComposition(attendance: MinutesAttendance, rawAttendance: SubjectExtractedData): MinutesCouncilComposition {
-        // Use raw extracted data for presence checks — buildAttendance filters out the mayor
-        const rawPresentIds = new Set(
-            rawAttendance.attendance.filter(a => a.status === 'PRESENT').map(a => a.personId)
-        );
+    // Find mayor and president for council composition
+    const mayorPerson = mayorPersonId ? people.find(p => p.id === mayorPersonId) : null;
+    const mayor = mayorPerson ? { personId: mayorPerson.id, name: mayorPerson.name } : null;
 
-        // Find mayor from all city people (not just attendance — mayor may not be a council member)
-        let mayor: MinutesCouncilComposition['mayor'] = null;
-        if (mayorPersonId) {
-            const mayorPerson = people.find(p => p.id === mayorPersonId);
-            if (mayorPerson) {
-                mayor = { name: formatSurnameFirst(mayorPerson.name), present: rawPresentIds.has(mayorPersonId) };
+    let president: { personId: string; name: string } | null = null;
+    if (adminBodyId) {
+        for (const person of people) {
+            const presidentRole = person.roles.find(r =>
+                isRoleActiveAt(r, meetingDate) &&
+                r.administrativeBodyId === adminBodyId && r.isHead
+            );
+            if (presidentRole) {
+                president = { personId: person.id, name: person.name };
+                break;
             }
         }
-
-        // Find president from all city people (head of the meeting's administrative body)
-        let president: MinutesCouncilComposition['president'] = null;
-        if (adminBodyId) {
-            for (const person of people) {
-                const presidentRole = person.roles.find(r =>
-                    isRoleActiveAt(r, meetingDate) &&
-                    r.administrativeBodyId === adminBodyId && r.isHead
-                );
-                if (presidentRole) {
-                    president = { name: formatSurnameFirst(person.name), present: rawPresentIds.has(person.id) };
-                    break;
-                }
-            }
-        }
-
-        // Exclude mayor from members list — they're shown separately on the ΔΗΜΑΡΧΟΣ line
-        const allMembers = [...attendance.present, ...attendance.absent]
-            .filter(m => m.personId !== mayorPersonId);
-        allMembers.sort(sortByElectedOrder);
-
-        return { mayor, president, members: allMembers };
     }
 
-    const councilComposition = overallAttendance && overallExtractedData
-        ? buildCouncilComposition(overallAttendance, overallExtractedData)
-        : null;
+    let councilCompositionResult = null;
+    if (overallAttendance && overallExtractedData) {
+        const rawPresentIds = new Set(
+            overallExtractedData.attendance.filter(a => a.status === 'PRESENT').map(a => a.personId)
+        );
+        councilCompositionResult = buildCouncilComposition(
+            overallAttendance, rawPresentIds, mayor, president, mayorPersonId, getElectedOrder,
+        );
+    }
 
     return {
         city: {
@@ -532,7 +406,7 @@ export async function getMinutesData(
             dateTime: meeting.dateTime.toISOString(),
         },
         administrativeBody: meeting.administrativeBody?.name ?? null,
-        councilComposition,
+        councilComposition: councilCompositionResult,
         preambleEntries,
         subjects: minutesSubjects,
         epilogueEntries,
