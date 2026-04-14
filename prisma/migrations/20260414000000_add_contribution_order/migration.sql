@@ -2,7 +2,7 @@
 ALTER TABLE "SpeakerContribution" ADD COLUMN "order" INTEGER;
 
 -- Backfill order for all existing contributions
--- Priority: introducer first (0), unlabeled speakers (1), identified speakers by first utterance time (2+)
+-- Priority: introducer first, unlabeled speakers next (by createdAt), identified speakers last (by first utterance time)
 WITH first_utterances AS (
     SELECT
         u."discussionSubjectId" AS subject_id,
