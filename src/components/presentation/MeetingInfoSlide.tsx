@@ -1,5 +1,3 @@
-"use client";
-
 import { CouncilMeetingWithAdminBody } from "@/lib/db/meetings";
 import { CityWithGeometry } from "@/lib/db/cities";
 import { formatDateTime } from "@/lib/formatters/time";

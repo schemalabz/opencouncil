@@ -1,5 +1,3 @@
-"use client";
-
 import { ImageOrInitials } from "@/components/ImageOrInitials";
 import { SubjectWithRelations } from "@/lib/db/subject";
 import { filterActiveRoles, getPartyFromRoles } from "@/lib/utils";

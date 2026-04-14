@@ -1,5 +1,3 @@
-"use client";
-
 import { Building2 } from "lucide-react";
 import { CityWithGeometry } from "@/lib/db/cities";
 
