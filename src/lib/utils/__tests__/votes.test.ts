@@ -76,4 +76,26 @@ describe('calculateVoteResult', () => {
         expect(result.againstCount).toBe(1);
         expect(result.passed).toBe(false);
     });
+
+    it('single FOR vote is unanimous and passed', () => {
+        const result = calculateVoteResult(makeVotes('FOR'));
+        expect(result.forCount).toBe(1);
+        expect(result.totalVotes).toBe(1);
+        expect(result.isUnanimous).toBe(true);
+        expect(result.passed).toBe(true);
+    });
+
+    it('single AGAINST vote does not pass and is not unanimous', () => {
+        const result = calculateVoteResult(makeVotes('AGAINST'));
+        expect(result.passed).toBe(false);
+        expect(result.isUnanimous).toBe(false);
+    });
+
+    it('all ABSTAIN does not pass and is not unanimous', () => {
+        const result = calculateVoteResult(makeVotes('ABSTAIN', 'ABSTAIN'));
+        expect(result.passed).toBe(false);
+        expect(result.isUnanimous).toBe(false);
+        expect(result.abstainCount).toBe(2);
+        expect(result.totalVotes).toBe(2);
+    });
 });

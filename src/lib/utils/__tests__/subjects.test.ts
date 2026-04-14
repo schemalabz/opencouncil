@@ -163,4 +163,15 @@ describe('filterSubjectsForMinutes', () => {
     it('returns empty array for empty input', () => {
         expect(filterSubjectsForMinutes([])).toEqual([]);
     });
+
+    // agendaItemIndex is always 1-indexed in practice, so 0 never occurs.
+    // This test documents the current behavior; if 0-indexing is ever needed,
+    // the filter should use `s.agendaItemIndex !== null` instead of truthiness.
+    it('treats agendaItemIndex 0 as falsy (excluded unless outOfAgenda)', () => {
+        const subjects = [
+            makeSubject({ id: 'zero', agendaItemIndex: 0 }),
+        ];
+        // Currently excluded because 0 is falsy — this is a known limitation
+        expect(filterSubjectsForMinutes(subjects)).toHaveLength(0);
+    });
 });
