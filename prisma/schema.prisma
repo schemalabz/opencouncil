@@ -531,6 +531,7 @@ model SpeakerContribution {
   speakerId   String?  // personId (nullable for unidentified speakers)
   speaker     Person?  @relation(fields: [speakerId], references: [id], onDelete: SetNull)
   speakerName String?  // Display name for speakers without a person record
+  order       Int?     // Display order within the subject (0-based)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

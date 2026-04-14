@@ -23,7 +23,7 @@ const contributionsInclude = {
             },
         },
     },
-    orderBy: { createdAt: 'asc' as const },
+    orderBy: [{ order: 'asc' as const }, { createdAt: 'asc' as const }],
 } satisfies Prisma.SpeakerContributionFindManyArgs;
 
 const introducedByInclude = {

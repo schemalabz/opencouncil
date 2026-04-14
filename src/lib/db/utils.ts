@@ -373,13 +373,14 @@ export async function saveSubjectsForMeeting(
 
             if (incoming.speakerContributions.length > 0) {
                 await tx.speakerContribution.createMany({
-                    data: incoming.speakerContributions.map(contrib => ({
+                    data: incoming.speakerContributions.map((contrib, index) => ({
                         subjectId: existingId,
                         speakerId: contrib.speakerId && validSpeakerIds.has(contrib.speakerId)
                             ? contrib.speakerId
                             : null,
                         speakerName: contrib.speakerName,
-                        text: contrib.text
+                        text: contrib.text,
+                        order: contrib.order ?? index,
                     }))
                 });
             }
@@ -438,12 +439,13 @@ export async function saveSubjectsForMeeting(
                     topicImportance: subject.topicImportance,
                     proximityImportance: subject.proximityImportance,
                     contributions: {
-                        create: subject.speakerContributions.map(contrib => ({
+                        create: subject.speakerContributions.map((contrib, index) => ({
                             speakerId: contrib.speakerId && validSpeakerIds.has(contrib.speakerId)
                                 ? contrib.speakerId
                                 : null,
                             speakerName: contrib.speakerName,
-                            text: contrib.text
+                            text: contrib.text,
+                            order: contrib.order ?? index,
                         }))
                     },
                     context: subject.context?.text,
