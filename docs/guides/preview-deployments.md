@@ -338,20 +338,32 @@ ssh root@<droplet-ip> "journalctl -u opencouncil-preview-db@9999 -n 50"
 ssh root@<droplet-ip> "sudo opencouncil-preview-destroy 9999"
 ```
 
-### Debugging
+### Development & Debugging
 
+SSH to the droplet (`ssh root@159.89.98.26`), then:
+
+**Service inspection:**
 ```bash
-# Check DB service status
+# Check app service
+systemctl status opencouncil-preview@$((3000 + PR_NUM))
+journalctl -u opencouncil-preview@$((3000 + PR_NUM)) -f
+
+# Check DB service (migration PRs only)
 systemctl status opencouncil-preview-db@<pr-num>
 
 # Check if isolated DB marker exists
 ls -la /var/lib/opencouncil-previews/pr-<num>/.has-local-db
 
-# Connect to isolated DB
-psql postgresql://opencouncil@127.0.0.1:$((5432 + PR_NUM))/opencouncil
-
 # View postgres data directory
 ls -la /var/lib/opencouncil-previews/pr-<num>/postgres/
+```
+
+**Direct database access (migration PRs with isolated DBs):**
+
+Each isolated DB runs on port `5432 + PR_NUMBER` (e.g., PR 288 → port 5720), user/db both `opencouncil`, trust auth (no password). `psql` is available on the system PATH.
+
+```bash
+psql -h 127.0.0.1 -p $((5432 + PR_NUM)) -U opencouncil -d opencouncil
 ```
 
 ## Troubleshooting

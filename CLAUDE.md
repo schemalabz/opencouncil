@@ -39,6 +39,14 @@ This allows testing the migration against a local database first before applying
 - `npm run import:people` - Import people data
 - `npm run generate-seed` - Generate seed data dump
 
+## Preview Server
+
+PR previews run on a NixOS droplet (`ssh root@159.89.98.26`), managed by [nix-openclaw](https://github.com/schemalabz/nix-openclaw). Each PR gets:
+- **App**: `https://pr-N.preview.opencouncil.gr` (port `3000 + N`)
+- **DB** (migration PRs): local PostgreSQL on port `5432 + N`, user/db both `opencouncil`, trust auth
+
+`psql` is on the system PATH. For debugging, direct DB manipulation, and deployment details see [docs/guides/preview-deployments.md](./docs/guides/preview-deployments.md).
+
 ## Documentation
 
 For deeper context on architecture, features, operations, and product specs, see **[docs/README.md](./docs/README.md)** — the documentation index. Consult it when you need background beyond what's covered here.

@@ -1668,6 +1668,7 @@ EOF
               pkgs.htop
               pkgs.curl
               pkgs.jq
+              postgresCompat  # psql for preview DB access
 
               # Caddy helper scripts
               (pkgs.writeShellScriptBin "caddy-add-preview" ''
