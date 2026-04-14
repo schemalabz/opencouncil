@@ -3,10 +3,12 @@
  * from a set of existing colors.
  */
 
+export const HEX_REGEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
 type Rgb = [number, number, number];
 
 function hexToRgb(hex: string): Rgb | null {
-    const match = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(hex);
+    const match = HEX_REGEX.exec(hex);
     if (!match) return null;
     const raw = match[1];
     const full = raw.length === 3 ? raw.split("").map((c) => c + c).join("") : raw;

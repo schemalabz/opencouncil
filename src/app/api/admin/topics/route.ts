@@ -3,8 +3,7 @@ import { revalidatePath } from "next/cache";
 import { withUserAuthorizedToEdit } from "@/lib/auth";
 import { createTopic, getAllTopicsWithSubjectCount } from "@/lib/db/topics";
 import { BadRequestError, handleApiError } from "@/lib/api/errors";
-
-const HEX_REGEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+import { HEX_REGEX } from "@/lib/utils/colorSuggestion";
 
 export async function GET() {
     await withUserAuthorizedToEdit({});

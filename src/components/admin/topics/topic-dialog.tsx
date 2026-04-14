@@ -25,7 +25,7 @@ import { Topic } from "@prisma/client";
 import { toast } from "@/hooks/use-toast";
 import { iconMap } from "@/components/icon";
 import { Sparkles } from "lucide-react";
-import { suggestDistinctColor } from "@/lib/utils/colorSuggestion";
+import { HEX_REGEX, suggestDistinctColor } from "@/lib/utils/colorSuggestion";
 
 interface TopicDialogProps {
     open: boolean;
@@ -34,8 +34,6 @@ interface TopicDialogProps {
     existingColors: string[];
     onSaved: () => void;
 }
-
-const HEX_REGEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 const NONE_ICON = "__none__";
 const ICON_NAMES = Object.keys(iconMap).sort();
 
