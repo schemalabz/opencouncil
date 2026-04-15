@@ -383,7 +383,7 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
                                             </div>
                                         </div>
                                     </div>
-                                    {summary && (
+                                    {summary?.text && (
                                         <div className='px-2.5 sm:px-4 space-y-2'>
                                             <div className='text-xs sm:text-sm'>
                                                 {stripMarkdown(summary.text)}
