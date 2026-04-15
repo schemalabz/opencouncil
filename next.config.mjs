@@ -18,6 +18,10 @@ const withNextIntl = createNextIntlPlugin();
 const nextConfig = {
     reactStrictMode: false,
     output: 'standalone',
+    cacheHandler: process.env.NODE_ENV === 'production'
+        ? new URL('./cache-handler.mjs', import.meta.url).pathname
+        : undefined,
+    cacheMaxMemorySize: process.env.NODE_ENV === 'production' ? 0 : undefined,
     images: {
         domains: ['townhalls-gr.fra1.digitaloceanspaces.com', 'data.opencouncil.gr', 'fra1.digitaloceanspaces.com'],
     },

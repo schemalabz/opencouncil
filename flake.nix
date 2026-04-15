@@ -59,7 +59,7 @@
       # Shared npm config (used by opencouncil-prod and CI checks)
       # Update this hash when package-lock.json changes:
       #   nix run nixpkgs#prefetch-npm-deps package-lock.json
-      npmDepsHash = "sha256-XEfvgFUaJQilp6kmJqNEp3f+Mb7Z+dOsGqd5eXv+z6w=";
+      npmDepsHash = "sha256-+UWyxhjh9TsdTJ+5iGpO+ITYpbSTYFgRdn6/wqUAyLQ=";
 
       # Single npm-deps derivation shared by all buildNpmPackage consumers.
       # Without this, each consumer (prod build + 3 checks) would create its
@@ -317,6 +317,30 @@ EOF
             '';
           };
 
+          oc-dev-cache = pkgs.writeShellApplication {
+            name = "oc-dev-cache";
+            runtimeInputs = with pkgs; [
+              coreutils
+              valkey
+            ];
+            text = ''
+              set -euo pipefail
+
+              repo_root="$(pwd)"
+              data_dir="''${OC_CACHE_DATA_DIR:-$repo_root/.data/valkey}"
+              port="''${OC_CACHE_PORT:-6379}"
+
+              mkdir -p "$data_dir"
+
+              exec valkey-server \
+                --port "$port" \
+                --dir "$data_dir" \
+                --save "60 1" \
+                --loglevel warning \
+                --daemonize no
+            '';
+          };
+
           oc-dev-app-local = pkgs.writeShellApplication {
             name = "oc-dev-app-local";
             runtimeInputs = with pkgs; [
@@ -519,6 +543,7 @@ USAGE
                 oc-dev-db-nix
                 oc-dev-db-nix-locked
                 oc-dev-db-docker
+                oc-dev-cache
                 oc-dev-app-local
               ]
               ++ (pkgs.lib.optionals pkgs.stdenv.isLinux [
@@ -546,6 +571,7 @@ Flags:
   --no-studio      Disable Prisma Studio process (enabled by default for local DB modes)
   --fast           Use pre-built PostGIS from binary cache (faster first build, but may not match production)
   --no-lan         Bind dev server to localhost only (default: binds to 0.0.0.0 for mobile preview)
+  --cache            Start a local Valkey instance for shared cache testing (sets CACHE_URL automatically)
   --preview-tasks=N  Connect to opencouncil-tasks preview for PR #N (starts ngrok tunnel for callbacks)
   --preview-db=N     Connect to the database used by opencouncil preview PR #N (requires OC_PREVIEW_SSH)
 USAGE
@@ -561,6 +587,7 @@ USAGE
               studio_enabled=""
               postgis_locked="''${OC_POSTGIS_LOCKED:-1}"
               lan_enabled="''${OC_LAN:-1}"
+              cache_enabled="''${OC_DEV_CACHE:-0}"
               tasks_preview_pr="''${OC_PREVIEW_TASKS:-}"
               preview_db_pr=""
 
@@ -571,6 +598,7 @@ USAGE
                   --direct-url=*) direct_url="''${arg#--direct-url=}" ;;
                   --migrate) migrate="1" ;;
                   --no-studio) studio_override="0" ;;
+                  --cache) cache_enabled="1" ;;
                   --fast) postgis_locked="0" ;;
                   --no-lan) lan_enabled="0" ;;
                   --preview-tasks=*) tasks_preview_pr="''${arg#--preview-tasks=}" ;;
@@ -638,6 +666,11 @@ USAGE
               studio_port="''${OC_PRISMA_STUDIO_PORT:-''${PRISMA_STUDIO_PORT:-}}"
               if [ "$studio_enabled" = "1" ] && [ -z "$studio_port" ]; then
                 studio_port="$(find_available_port 5555)"
+              fi
+
+              cache_port="''${OC_CACHE_PORT:-}"
+              if [ "$cache_enabled" = "1" ] && [ -z "$cache_port" ]; then
+                cache_port="$(find_available_port 6379)"
               fi
 
               # Check task API health and optionally validate API key.
@@ -938,6 +971,18 @@ EOF
                   ;;
               esac
 
+              # Append Valkey cache process when --cache is enabled
+              if [ "$cache_enabled" = "1" ]; then
+                cache_url="redis://127.0.0.1:$cache_port"
+                export CACHE_URL="$cache_url"
+                cat >>"$pc_file" <<EOF
+  cache:
+    working_dir: "$repo_root"
+    command: "bash -lc 'set -o pipefail; OC_CACHE_PORT=\"$cache_port\" oc-dev-cache 2>&1 | tee -a \"$logs_dir/cache.log\"'"
+EOF
+                echo "Cache: Valkey on port $cache_port (CACHE_URL=$cache_url)"
+              fi
+
               pc_port="$(find_available_port 8080)"
 
               # Determine if we need cleanup on exit (firewall rule and/or ngrok).
@@ -1223,7 +1268,7 @@ EOF
             '';
           };
         in {
-          inherit oc-dev oc-dev-db-nix oc-dev-db-nix-locked oc-dev-db-docker oc-dev-app-local oc-studio oc-cleanup oc-rss opencouncil-prod;
+          inherit oc-dev oc-dev-db-nix oc-dev-db-nix-locked oc-dev-db-docker oc-dev-cache oc-dev-app-local oc-studio oc-cleanup oc-rss opencouncil-prod;
         });
 
       checks = forAllSystems (_system: pkgs: _pkgs-unstable:
