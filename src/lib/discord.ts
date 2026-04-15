@@ -784,3 +784,30 @@ export async function sendTranscriptSendFailedAdminAlert(data: {
         ],
     });
 }
+
+/**
+ * Generic error alert for unexpected failures anywhere in the app.
+ * Context entries are rendered as inline fields for quick triage.
+ */
+export async function sendErrorAdminAlert(data: {
+    source: string;
+    error: string;
+    context?: Record<string, string | undefined>;
+}): Promise<void> {
+    const contextFields = data.context
+        ? Object.entries(data.context)
+            .filter((entry): entry is [string, string] => entry[1] !== undefined)
+            .map(([name, value]) => ({
+                name,
+                value: truncateField(value),
+                inline: true,
+            }))
+        : [];
+
+    await sendAdminAlert({
+        title: `🚨 Error - ${data.source}`,
+        description: truncateField(data.error),
+        color: 0xff0000,
+        fields: contextFields,
+    });
+}

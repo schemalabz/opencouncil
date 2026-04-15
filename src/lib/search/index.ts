@@ -2,9 +2,10 @@
 
 import { Client } from '@elastic/elasticsearch';
 import prisma from "@/lib/db/prisma";
-import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument } from './types';
+import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument, ExtractedFilters } from './types';
 import { buildSearchQuery } from './query';
 import { extractFilters, processFilters } from './filters';
+import { sendErrorAdminAlert } from '@/lib/discord';
 import { executeElasticsearchWithRetry } from './retry';
 import { getCities } from '@/lib/db/cities';
 import { env } from '@/env.mjs';
@@ -51,12 +52,32 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
             }
         });
 
-        // Extract filters from the query
-        const extractedFilters = await extractFilters(request.query);
-        logEssential('[Search] Extracted filters:', extractedFilters);
+        // Extract filters from the query using AI (non-fatal — search works without it)
+        const defaultFilters: ExtractedFilters = {
+            cityIds: null,
+            dateRange: null,
+            isLatest: null,
+            locationName: null,
+        };
+        let extractedFilters = defaultFilters;
+        try {
+            extractedFilters = await extractFilters(request.query);
+            logEssential('[Search] Extracted filters:', extractedFilters);
+        } catch (error) {
+            console.error('[Search] AI filter extraction failed, continuing without AI filters:', error);
+        }
 
-        // Process filters and resolve locations
-        const processedFilters = await processFilters(extractedFilters);
+        // Process filters and resolve locations (non-fatal)
+        let processedFilters: Awaited<ReturnType<typeof processFilters>> = {
+            cityIds: undefined,
+            dateRange: undefined,
+            locations: undefined,
+        };
+        try {
+            processedFilters = await processFilters(extractedFilters);
+        } catch (error) {
+            console.error('[Search] Filter processing failed, continuing without processed filters:', error);
+        }
 
         // Merge with explicit filters
         const mergedRequest: SearchRequest = {
@@ -274,10 +295,12 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
             total: totalHits
         };
     } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
         // Log search session failure
         logEssential('Search Session Failed', {
             query: request.query,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: errorMessage,
             filters: {
                 cityIds: request.cityIds,
                 personIds: request.personIds,
@@ -287,6 +310,19 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                 hasLocations: request.locations ? request.locations.length > 0 : false
             }
         });
+
+        // Notify team via Discord (fire-and-forget)
+        sendErrorAdminAlert({
+            source: 'Search',
+            error: errorMessage,
+            context: {
+                query: request.query,
+                cityIds: request.cityIds?.join(', '),
+                personIds: request.personIds?.join(', '),
+                partyIds: request.partyIds?.join(', '),
+            },
+        }).catch(() => {});
+
         throw new Error('Failed to execute search');
     }
 }

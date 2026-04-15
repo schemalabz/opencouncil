@@ -295,9 +295,18 @@ export default function SearchPage() {
 
                     {state.error ? (
                         <div className="flex justify-center items-center min-h-[400px]">
-                            <div className="text-center space-y-2">
+                            <div className="text-center space-y-3">
+                                <AlertTriangle className="w-10 h-10 text-destructive mx-auto" />
                                 <div className="text-destructive text-lg font-medium">Σφάλμα αναζήτησης</div>
-                                <span className="text-muted-foreground">{state.error instanceof Error ? state.error.message : 'An error occurred'}</span>
+                                <p className="text-muted-foreground text-sm max-w-md">
+                                    Η αναζήτηση αντιμετώπισε πρόβλημα. Η ομάδα μας έχει ήδη ενημερωθεί. Παρακαλούμε δοκιμάστε ξανά αργότερα.
+                                </p>
+                                <button
+                                    onClick={() => router.push('/search')}
+                                    className="px-4 py-2 rounded-md border bg-background hover:bg-accent transition-colors text-sm"
+                                >
+                                    Επιστροφή στην αναζήτηση
+                                </button>
                             </div>
                         </div>
                     ) : state.isLoading ? (
