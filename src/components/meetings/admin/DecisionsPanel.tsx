@@ -288,9 +288,12 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
         }
     };
 
-    // Subjects eligible for decisions: agenda items + outOfAgenda, in display order
+    // Subjects eligible for decisions: agenda items + outOfAgenda, in display order.
+    // Use nonAgendaReason as the primary discriminator — agendaItemIndex alone is not
+    // sufficient because outOfAgenda subjects may also have an agendaItemIndex from PDF data.
+    // beforeAgenda subjects are excluded (pre-agenda announcements without decisions).
     const agendaSubjects = subjects
-        .filter(s => s.agendaItemIndex != null)
+        .filter(s => s.agendaItemIndex != null && s.nonAgendaReason === null)
         .sort((a, b) => a.agendaItemIndex! - b.agendaItemIndex!);
     const outOfAgendaSubjects = subjects
         .filter(s => s.nonAgendaReason === 'outOfAgenda');
