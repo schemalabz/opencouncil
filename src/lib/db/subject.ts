@@ -264,7 +264,7 @@ export async function getUtterancesForSubject(subjectId: string) {
         where: {
             discussionSubjectId: subjectId,
             discussionStatus: {
-                in: ['SUBJECT_DISCUSSION', 'VOTE']
+                in: ['SUBJECT_DISCUSSION', 'PROCEDURAL_VOTE', 'VOTE']
             }
         },
         select: {

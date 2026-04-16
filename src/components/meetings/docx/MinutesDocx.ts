@@ -8,6 +8,7 @@ import {
 import { formatTimestamp } from '@/lib/utils';
 import { formatGapDuration } from '@/lib/formatters/time';
 import { markdownToDocxParagraphs } from '@/lib/minutes/markdownToDocx';
+import { getWithdrawnLabel } from '@/lib/utils/subjects';
 import {
     MinutesData,
     MinutesSubject,
@@ -183,18 +184,24 @@ function createTOCTable(subjects: MinutesSubject[], useSequentialNumbers: boolea
 
     const dataRows = subjects.map((subject, index) => {
         const seqNum = useSequentialNumbers ? `${index + 1}` : `${subject.agendaItemIndex ?? ''}`;
+        const decisionText = subject.withdrawn
+            ? getWithdrawnLabel(subject)
+            : (subject.decision?.protocolNumber ?? '');
 
         return new TableRow({
             children: [
                 tocCell(seqNum, false),
                 tocCell(subject.name, false),
-                tocCell(subject.decision?.protocolNumber ?? '', false),
-                new TableCell({
-                    children: [new Paragraph({
-                        spacing: { before: 40, after: 40 },
-                        children: [new PageReference(subjectBookmarkId(subject))],
-                    })],
-                }),
+                tocCell(decisionText, false),
+                // No page reference for withdrawn subjects (no subject block to link to)
+                subject.withdrawn
+                    ? tocCell('', false)
+                    : new TableCell({
+                        children: [new Paragraph({
+                            spacing: { before: 40, after: 40 },
+                            children: [new PageReference(subjectBookmarkId(subject))],
+                        })],
+                    }),
             ],
         });
     });
@@ -208,7 +215,9 @@ function createTOCTable(subjects: MinutesSubject[], useSequentialNumbers: boolea
 function createTOCSections(subjects: MinutesSubject[]): (Paragraph | Table)[] {
     const elements: (Paragraph | Table)[] = [];
 
-    const agenda = subjects.filter(s => s.nonAgendaReason !== 'outOfAgenda');
+    const agenda = subjects
+        .filter(s => s.nonAgendaReason !== 'outOfAgenda')
+        .sort((a, b) => (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0));
     const outOfAgenda = subjects.filter(s => s.nonAgendaReason === 'outOfAgenda');
 
     if (agenda.length > 0) {
@@ -417,8 +426,9 @@ export async function renderMinutesDocx(data: MinutesData): Promise<Blob> {
         children.push(...createTranscriptParagraphs(data.preambleEntries));
     }
 
-    // All subjects in discussion order (linear, no section headings)
+    // All subjects in discussion order (skip withdrawn — they appear in TOC only)
     for (const subject of data.subjects) {
+        if (subject.withdrawn) continue;
         children.push(...createSubjectSection(subject));
     }
 

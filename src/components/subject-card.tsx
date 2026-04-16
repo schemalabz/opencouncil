@@ -5,7 +5,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card"
 import Icon from "./icon";
 import { MapPin, ScrollText, Calendar, Loader2, Clock, MessageSquare } from "lucide-react";
 import { cn, getPartyFromRoles } from "@/lib/utils";
-import { getNonAgendaLabel } from "@/lib/utils/subjects";
+import { getNonAgendaLabel, getWithdrawnLabel } from "@/lib/utils/subjects";
 import { Link, useRouter } from "@/i18n/routing";
 import { PersonAvatarList } from "./persons/PersonAvatarList";
 import { PersonWithRelations } from '@/lib/db/people';
@@ -88,7 +88,8 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
         <Link {...linkProps} onClick={handleClick} onMouseEnter={() => setIsCardHovered(true)} onMouseLeave={() => setIsCardHovered(false)}>
             <Card disableHover={disableHover} className={cn(
                 "relative group/card hover:shadow-md transition-all duration-300 w-full h-full",
-                disableHover ? "hover:shadow-none" : ""
+                disableHover ? "hover:shadow-none" : "",
+                subject.withdrawn ? "opacity-60" : ""
             )}>
                 {isLoading && (
                     <div className="absolute inset-0 flex items-center justify-center bg-background/90 backdrop-blur-sm z-20 rounded-lg">
@@ -179,14 +180,20 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                             )}
                         </div>
                     )}
-                    {/* Speaker avatars */}
-                    <div onClick={(e) => e.stopPropagation()} className="w-full">
-                        <PersonAvatarList
-                            users={fullDisplayedSpeakers}
-                            autoScroll
-                            isHovered={isCardHovered}
-                        />
-                    </div>
+                    {/* Speaker avatars or withdrawn label */}
+                    {subject.withdrawn ? (
+                        <div className="w-full text-xs text-muted-foreground/70 italic">
+                            {getWithdrawnLabel(subject)}
+                        </div>
+                    ) : (
+                        <div onClick={(e) => e.stopPropagation()} className="w-full">
+                            <PersonAvatarList
+                                users={fullDisplayedSpeakers}
+                                autoScroll
+                                isHovered={isCardHovered}
+                            />
+                        </div>
+                    )}
                     {showContext && (
                         <div className="flex justify-end w-full mt-auto">
                             <span className="text-[10px] text-muted-foreground/70 flex items-center gap-1">

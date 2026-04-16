@@ -26,6 +26,7 @@ import { requestPollDecisionForSubject, getLastPollTimeForMeeting, getDecisionFo
 import { useSubjectHeader } from "@/contexts/SubjectHeaderContext";
 import { useSession } from "next-auth/react";
 import { DebugMetadataButton } from "@/components/ui/debug-metadata-button";
+import { getWithdrawnLabel } from "@/lib/utils/subjects";
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
     const { subjects, getSpeakerTag, getPerson, getParty, meeting } = useCouncilMeetingData();
@@ -106,10 +107,10 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
 
     // Fetch last poll time on mount when there's no decision
     useEffect(() => {
-        if (agendaItemIndex != null && !subject.decision) {
+        if (agendaItemIndex != null && !subject.decision && !subject.withdrawn) {
             getLastPollTimeForMeeting(meeting.id, meeting.cityId).then(setLastSearchedAt);
         }
-    }, [agendaItemIndex, subject.decision, meeting.id, meeting.cityId]);
+    }, [agendaItemIndex, subject.decision, subject.withdrawn, meeting.id, meeting.cityId]);
 
     const handleFetchDecision = useCallback(async () => {
         setIsFetchingDecision(true);
@@ -160,6 +161,13 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                         />
                     </div>
                 )}
+                {/* Withdrawn notice */}
+                {subject.withdrawn && (
+                    <div className="rounded-lg border border-muted bg-muted/30 px-4 py-3 text-sm text-muted-foreground italic">
+                        {getWithdrawnLabel(subject, 'long')}
+                    </div>
+                )}
+
                 {/* Quick Stats Section */}
                 <div className="flex flex-col md:flex-row gap-3 md:gap-4">
                     {/* Parties Card */}
@@ -377,8 +385,8 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                     )}
                 </CollapsibleCard>
 
-                {/* Voting Section */}
-                <CollapsibleCard
+                {/* Voting Section (skip for withdrawn subjects) */}
+                {!subject.withdrawn && <CollapsibleCard
                     icon={<CheckSquare className="w-4 h-4" />}
                     title={
                         voteResult && voteResult.totalVotes > 0 ? (
@@ -399,10 +407,10 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                     defaultOpen={false}
                 >
                     <VotingSection subjectId={subject.id} votes={subject.votes} />
-                </CollapsibleCard>
+                </CollapsibleCard>}
 
-                {/* Decision Section */}
-                {agendaItemIndex != null && (
+                {/* Decision Section (skip for withdrawn subjects) */}
+                {agendaItemIndex != null && !subject.withdrawn && (
                     <CollapsibleCard
                         id="decision"
                         icon={<Landmark className="w-4 h-4" />}

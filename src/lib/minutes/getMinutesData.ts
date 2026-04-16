@@ -5,7 +5,6 @@ import { getPeopleForCity } from '@/lib/db/people';
 import { getCity } from '@/lib/db/cities';
 import { getSpeakerDisplayInfo, isRoleActiveAt, isMayorRole, simplifyRoleName } from '@/lib/utils/roles';
 import { PersonWithRelations } from '@/lib/db/people';
-import { filterSubjectsForMinutes } from '@/lib/utils/subjects';
 import prisma from '@/lib/db/prisma';
 import {
     MinutesData,
@@ -51,10 +50,13 @@ export async function getMinutesData(
     );
 
     // Filter to agenda + outOfAgenda subjects (exclude beforeAgenda)
-    const filteredSubjects = filterSubjectsForMinutes(subjects);
+    // Includes withdrawn subjects — they appear in the TOC but get empty transcript entries
+    const filteredSubjects = subjects.filter(
+        s => s.agendaItemIndex || s.nonAgendaReason === 'outOfAgenda'
+    );
 
-    // Get transcript entries grouped by subject
-    const subjectIds = filteredSubjects.map(s => s.id);
+    // Get transcript entries grouped by non-withdrawn subjects only
+    const subjectIds = filteredSubjects.filter(s => !s.withdrawn).map(s => s.id);
     const utteranceSelect = {
         id: true,
         text: true,
@@ -233,11 +235,14 @@ export async function getMinutesData(
 
     const sortedSubjects = sortSubjectsByDiscussionOrder(filteredSubjects, firstUtteranceBySubject);
 
-    // --- Orphaned utterances (discussionSubjectId = null) ---
+    // --- Orphaned utterances (no subject, or PROCEDURAL_VOTE which flows into preamble/gaps) ---
     const orphanedUtterances = await prisma.utterance.findMany({
         where: {
             speakerSegment: { meetingId: meeting.id, cityId },
-            discussionSubjectId: null,
+            OR: [
+                { discussionSubjectId: null },
+                { discussionStatus: 'PROCEDURAL_VOTE' },
+            ],
         },
         select: utteranceSelect,
         orderBy: { startTimestamp: 'asc' },
@@ -338,6 +343,7 @@ export async function getMinutesData(
             subjectId: s.id,
             agendaItemIndex: s.agendaItemIndex,
             nonAgendaReason: s.nonAgendaReason as 'beforeAgenda' | 'outOfAgenda' | null,
+            withdrawn: s.withdrawn,
             name: s.name,
             discussedWith: s.discussedIn ? {
                 id: s.discussedIn.id,

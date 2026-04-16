@@ -3,7 +3,16 @@
 import { PollDecisionsRequest, PollDecisionsResult, ExtractedDecisionData } from "../apiTypes";
 import { startTask } from "./tasks";
 import prisma from "../db/prisma";
-import { AttendanceStatus, DataSource, VoteType } from "@prisma/client";
+import { AttendanceStatus, DataSource, Prisma, VoteType } from "@prisma/client";
+
+/** Subjects eligible for decision polling: agenda + out-of-agenda, excluding withdrawn */
+const POLL_ELIGIBLE_SUBJECT_WHERE = {
+    withdrawn: false,
+    OR: [
+        { agendaItemIndex: { not: null } },
+        { nonAgendaReason: 'outOfAgenda' },
+    ],
+} satisfies Prisma.SubjectWhereInput;
 import { upsertDecision, deleteDecision, getDecisionForSubject } from "../db/decisions";
 export { getDecisionForSubject };
 import { withUserAuthorizedToEdit } from "../auth";
@@ -61,12 +70,7 @@ export async function pollDecisionsForMeeting(
                     nonAgendaReason: true,
                     decision: { select: { ada: true, title: true, pdfUrl: true, excerpt: true } },
                 },
-                where: {
-                    OR: [
-                        { agendaItemIndex: { not: null } },
-                        { nonAgendaReason: 'outOfAgenda' },
-                    ],
-                },
+                where: POLL_ELIGIBLE_SUBJECT_WHERE,
             },
         },
     });
@@ -150,7 +154,7 @@ export async function pollDecisionsForRecentMeetings() {
             },
             subjects: {
                 some: {
-                    agendaItemIndex: { not: null },
+                    ...POLL_ELIGIBLE_SUBJECT_WHERE,
                     decision: null,
                 },
             },

@@ -143,6 +143,7 @@ export interface SpeakerContribution {
 export enum DiscussionStatus {
     ATTENDANCE = "ATTENDANCE",
     SUBJECT_DISCUSSION = "SUBJECT_DISCUSSION",
+    PROCEDURAL_VOTE = "PROCEDURAL_VOTE",
     VOTE = "VOTE",
     OTHER = "OTHER"
 }
@@ -176,6 +177,9 @@ export interface Subject {
 
     topicLabel: string | null;
     context: SubjectContext | null;
+
+    // Set to true when subject won't be discussed: withdrawal/postponement or rejected κατεπείγον
+    withdrawn?: boolean;
 
     // Reference to primary subject ID (API identifier, not DB ID)
     discussedIn?: string;

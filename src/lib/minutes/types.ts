@@ -58,6 +58,7 @@ export interface MinutesSubject {
     subjectId: string;
     agendaItemIndex: number | null;
     nonAgendaReason: 'beforeAgenda' | 'outOfAgenda' | null;
+    withdrawn: boolean;
     name: string;
 
     discussedWith: { id: string; name: string; agendaItemIndex: number | null } | null;
