@@ -11,6 +11,7 @@ import {
     MinutesCouncilComposition,
     MinutesTranscriptEntry,
 } from '@/lib/minutes/types';
+import { getWithdrawnLabel } from '@/lib/utils/subjects';
 
 interface MinutesPreviewContentProps {
     data: MinutesData;
@@ -19,7 +20,9 @@ interface MinutesPreviewContentProps {
 export function MinutesPreviewContent({ data }: MinutesPreviewContentProps) {
     const meetingDate = new Date(data.meeting.dateTime);
 
-    const agendaSubjects = data.subjects.filter(s => s.nonAgendaReason !== 'outOfAgenda');
+    const agendaSubjects = data.subjects
+        .filter(s => s.nonAgendaReason !== 'outOfAgenda')
+        .sort((a, b) => (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0));
     const outOfAgendaSubjects = data.subjects.filter(s => s.nonAgendaReason === 'outOfAgenda');
 
     return (
@@ -63,8 +66,8 @@ export function MinutesPreviewContent({ data }: MinutesPreviewContentProps) {
                 <TranscriptSection entries={data.preambleEntries} />
             )}
 
-            {/* All subjects in discussion order (linear, no section headings) */}
-            {data.subjects.map((subject) => (
+            {/* All subjects in discussion order (skip withdrawn — they appear in TOC only) */}
+            {data.subjects.filter(s => !s.withdrawn).map((subject) => (
                 <SubjectSection key={subject.subjectId} subject={subject} />
             ))}
 
@@ -156,17 +159,23 @@ function TOCTable({ subjects, useSequentialNumbers }: { subjects: MinutesSubject
             </thead>
             <tbody>
                 {subjects.map((subject, index) => (
-                    <tr key={subject.subjectId} className="border-b border-gray-200">
+                    <tr key={subject.subjectId} className={`border-b border-gray-200 ${subject.withdrawn ? 'text-gray-400 italic' : ''}`}>
                         <td className="py-1 pr-2 align-top">
                             {useSequentialNumbers ? index + 1 : subject.agendaItemIndex ?? ''}
                         </td>
                         <td className="py-1 pr-2">
-                            <a href={`#subject-${subject.subjectId}`} className="hover:underline text-blue-800">
-                                {subject.name}
-                            </a>
+                            {subject.withdrawn ? (
+                                <span>{subject.name}</span>
+                            ) : (
+                                <a href={`#subject-${subject.subjectId}`} className="hover:underline text-blue-800">
+                                    {subject.name}
+                                </a>
+                            )}
                         </td>
                         <td className="py-1 pr-2 text-gray-500">
-                            {subject.decision?.protocolNumber ?? ''}
+                            {subject.withdrawn
+                                ? getWithdrawnLabel(subject)
+                                : (subject.decision?.protocolNumber ?? '')}
                         </td>
                     </tr>
                 ))}

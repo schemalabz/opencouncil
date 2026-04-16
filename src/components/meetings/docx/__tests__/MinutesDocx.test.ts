@@ -28,6 +28,7 @@ function makeSubject(overrides: Partial<MinutesSubject> = {}): MinutesSubject {
         subjectId: 'subject-1',
         agendaItemIndex: 1,
         nonAgendaReason: null,
+        withdrawn: false,
         name: 'Έγκριση προϋπολογισμού',
         discussedWith: null,
         decision: null,

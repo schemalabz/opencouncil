@@ -361,6 +361,7 @@ export async function saveSubjectsForMeeting(
                     proximityImportance: incoming.proximityImportance,
                     context: incoming.context?.text ?? null,
                     contextCitationUrls: incoming.context?.citationUrls ?? [],
+                    withdrawn: incoming.withdrawn ?? false,
                     // Clear discussedIn — will be re-established in pass 2
                     discussedInId: null,
                 }
@@ -433,6 +434,7 @@ export async function saveSubjectsForMeeting(
                         : subject.agendaItemIndex === 'OUT_OF_AGENDA'
                             ? 'outOfAgenda'
                             : undefined,
+                    withdrawn: subject.withdrawn ?? false,
                     introducedBy: validIntroducedBy
                         ? { connect: { id: validIntroducedBy } }
                         : undefined,

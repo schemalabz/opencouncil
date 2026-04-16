@@ -16,6 +16,7 @@ import { DecisionWithSource, SubjectExtractedData } from '@/lib/db/decisions';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
 import { getPollingHistoryForMeeting, requestPollDecisions } from '@/lib/tasks/pollDecisions';
 import { calculateVoteResult } from '@/lib/utils/votes';
+import { getWithdrawnLabel } from '@/lib/utils/subjects';
 import ReactMarkdown from 'react-markdown';
 
 type FilterTab = 'all' | 'unlinked' | 'extracted';
@@ -297,7 +298,8 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
         .sort((a, b) => a.agendaItemIndex! - b.agendaItemIndex!);
     const outOfAgendaSubjects = subjects
         .filter(s => s.nonAgendaReason === 'outOfAgenda');
-    const eligibleSubjects = [...agendaSubjects, ...outOfAgendaSubjects];
+    const allDisplaySubjects = [...agendaSubjects, ...outOfAgendaSubjects];
+    const eligibleSubjects = allDisplaySubjects.filter(s => !s.withdrawn);
     const linkedCount = eligibleSubjects.filter(s => decisions[s.id]).length;
     const unlinkedSubjects = eligibleSubjects.filter(s => !decisions[s.id]);
     const extractedSubjects = eligibleSubjects.filter(s => {
@@ -310,7 +312,7 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
         ? unlinkedSubjects
         : filterTab === 'extracted'
             ? extractedSubjects
-            : eligibleSubjects;
+            : allDisplaySubjects;
 
     // Helper to get source info for a decision
     const getSourceInfo = (decision: DecisionWithSource) => {
@@ -438,7 +440,7 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                 : 'text-muted-foreground hover:text-foreground'
                         }`}
                     >
-                        {t('decisions.tabAll')} ({eligibleSubjects.length})
+                        {t('decisions.tabAll')} ({allDisplaySubjects.length})
                     </button>
                     <button
                         onClick={() => setFilterTab('unlinked')}
@@ -518,7 +520,7 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                                     <span className="w-4 shrink-0" />
                                                 )}
                                                 <div className="min-w-0">
-                                                    <div className="font-medium text-sm text-gray-900 break-words">
+                                                    <div className={`font-medium text-sm break-words ${subject.withdrawn ? 'text-muted-foreground' : 'text-gray-900'}`}>
                                                         {subject.agendaItemIndex != null && (
                                                             <span className="text-muted-foreground mr-1">#{subject.agendaItemIndex}</span>
                                                         )}
@@ -562,7 +564,11 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                             </div>
 
                                             <div className="flex items-center gap-2 shrink-0">
-                                                {decision ? (
+                                                {subject.withdrawn ? (
+                                                    <Badge variant="secondary" className="text-xs text-muted-foreground italic">
+                                                        {getWithdrawnLabel(subject)}
+                                                    </Badge>
+                                                ) : decision ? (
                                                     <>
                                                         {sourceInfo && (
                                                             <Tooltip>

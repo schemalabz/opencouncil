@@ -49,17 +49,14 @@ export function getNonAgendaLabel(reason: 'beforeAgenda' | 'outOfAgenda'): strin
 }
 
 /**
- * Filter subjects to only those included in meeting minutes:
- * agenda items (have agendaItemIndex) + outOfAgenda subjects.
- * Excludes beforeAgenda subjects (pre-agenda announcements without decisions).
- *
- * Used by the minutes data gatherer (getMinutesData) to ensure
- * consistent filtering.
+ * Returns the withdrawn label for a subject based on whether it's an IN_AGENDA
+ * item that was withdrawn/postponed, or an OUT_OF_AGENDA item that was rejected.
+ * "short" for compact UI (cards, TOC), "long" for detail pages with full sentence.
  */
-export function filterSubjectsForMinutes<T extends { agendaItemIndex: number | null; nonAgendaReason: string | null }>(
-    subjects: T[],
-): T[] {
-    return subjects.filter(
-        s => s.agendaItemIndex || s.nonAgendaReason === 'outOfAgenda'
-    );
+export function getWithdrawnLabel(subject: { nonAgendaReason: string | null }, mode: 'short' | 'long' = 'short'): string {
+    if (subject.nonAgendaReason === 'outOfAgenda') {
+        return mode === 'short' ? 'Δεν εγκρίθηκε' : 'Το θέμα δεν εγκρίθηκε ως έκτακτο.';
+    }
+    return mode === 'short' ? 'Αποσύρθηκε' : 'Το θέμα αποσύρθηκε και δεν συζητήθηκε.';
 }
+

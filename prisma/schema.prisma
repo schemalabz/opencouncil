@@ -340,6 +340,7 @@ model Utterance {
 enum DiscussionStatus {
   ATTENDANCE
   SUBJECT_DISCUSSION
+  PROCEDURAL_VOTE
   VOTE
   OTHER
 }
@@ -423,6 +424,7 @@ model Subject {
 
   agendaItemIndex Int?
   nonAgendaReason NonAgendaReason?
+  withdrawn       Boolean          @default(false)
   topicId String?
   locationId String?
 

@@ -12,7 +12,7 @@ type DebugUtterance = {
     text: string;
     startTimestamp: number;
     endTimestamp: number;
-    discussionStatus: 'SUBJECT_DISCUSSION' | 'VOTE' | null;
+    discussionStatus: 'SUBJECT_DISCUSSION' | 'PROCEDURAL_VOTE' | 'VOTE' | null;
     speakerSegment: {
         speakerTag: {
             label: string;
@@ -64,12 +64,14 @@ export function DebugUtterances({ subjectId }: DebugUtterancesProps) {
 
     // Calculate statistics (memoized to avoid redundant filtering)
     const statistics = useMemo(() => {
-        if (!utterances) return { discussionCount: 0, voteCount: 0, discussionTime: 0, voteTime: 0 };
+        if (!utterances) return { discussionCount: 0, voteCount: 0, proceduralCount: 0, discussionTime: 0, voteTime: 0, proceduralTime: 0 };
 
         let discussionCount = 0;
         let voteCount = 0;
+        let proceduralCount = 0;
         let discussionTime = 0;
         let voteTime = 0;
+        let proceduralTime = 0;
 
         for (const utterance of utterances) {
             const duration = utterance.endTimestamp - utterance.startTimestamp;
@@ -79,10 +81,13 @@ export function DebugUtterances({ subjectId }: DebugUtterancesProps) {
             } else if (utterance.discussionStatus === 'VOTE') {
                 voteCount++;
                 voteTime += duration;
+            } else if (utterance.discussionStatus === 'PROCEDURAL_VOTE') {
+                proceduralCount++;
+                proceduralTime += duration;
             }
         }
 
-        return { discussionCount, voteCount, discussionTime, voteTime };
+        return { discussionCount, voteCount, proceduralCount, discussionTime, voteTime, proceduralTime };
     }, [utterances]);
 
     // Don't render until authorization is checked or if user is not authorized
@@ -138,6 +143,14 @@ export function DebugUtterances({ subjectId }: DebugUtterancesProps) {
                                         {statistics.voteCount} ({(statistics.voteTime / 60).toFixed(1)}m)
                                     </Badge>
                                 </div>
+                                {statistics.proceduralCount > 0 && (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-muted-foreground">Procedural:</span>
+                                        <Badge variant="outline">
+                                            {statistics.proceduralCount} ({(statistics.proceduralTime / 60).toFixed(1)}m)
+                                        </Badge>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Utterance list */}
@@ -163,7 +176,7 @@ export function DebugUtterances({ subjectId }: DebugUtterancesProps) {
                                                     variant={utterance.discussionStatus === 'SUBJECT_DISCUSSION' ? 'default' : 'outline'}
                                                     className="shrink-0"
                                                 >
-                                                    {utterance.discussionStatus === 'SUBJECT_DISCUSSION' ? 'DISCUSSION' : 'VOTE'}
+                                                    {utterance.discussionStatus === 'SUBJECT_DISCUSSION' ? 'DISCUSSION' : utterance.discussionStatus === 'PROCEDURAL_VOTE' ? 'PROCEDURAL' : 'VOTE'}
                                                 </Badge>
                                             </div>
                                             <div className="flex items-center gap-2 text-muted-foreground mb-2">
