@@ -10,7 +10,9 @@ jest.mock('../db/prisma', () => ({
 jest.mock('../db/transcript', () => ({ getTranscript: jest.fn() }));
 jest.mock('../db/people', () => ({ getPeopleForMeeting: jest.fn() }));
 jest.mock('../db/parties', () => ({ getPartiesForCity: jest.fn() }));
-jest.mock('../db/topics', () => ({ getAllTopics: jest.fn() }));
+jest.mock('../db/topics', () => ({
+    getActiveTopicsForTasks: jest.fn(),
+}));
 jest.mock('../db/cities', () => ({ getCity: jest.fn() }));
 jest.mock('../db/meetings', () => ({ getCouncilMeeting: jest.fn() }));
 
@@ -18,7 +20,7 @@ import prisma from '../db/prisma';
 import { getTranscript } from '../db/transcript';
 import { getPeopleForMeeting } from '../db/people';
 import { getPartiesForCity } from '../db/parties';
-import { getAllTopics } from '../db/topics';
+import { getActiveTopicsForTasks } from '../db/topics';
 import { getCity } from '../db/cities';
 import { getCouncilMeeting } from '../db/meetings';
 import { getRequestOnTranscriptRequestBody } from '../db/utils';
@@ -28,7 +30,7 @@ const mockGetTranscript = getTranscript as jest.MockedFunction<typeof getTranscr
 const mockGetCouncilMeeting = getCouncilMeeting as jest.MockedFunction<typeof getCouncilMeeting>;
 const mockGetPeopleForMeeting = getPeopleForMeeting as jest.MockedFunction<typeof getPeopleForMeeting>;
 const mockGetPartiesForCity = getPartiesForCity as jest.MockedFunction<typeof getPartiesForCity>;
-const mockGetAllTopics = getAllTopics as jest.MockedFunction<typeof getAllTopics>;
+const mockGetActiveTopicsForTasks = getActiveTopicsForTasks as jest.MockedFunction<typeof getActiveTopicsForTasks>;
 const mockGetCity = getCity as jest.MockedFunction<typeof getCity>;
 const mockPrismaPersonFindMany = (prisma.person.findMany as jest.Mock);
 
@@ -51,8 +53,8 @@ function setupCommonMocks() {
         { id: 'party-b', name: 'Party B', cityId: CITY_ID },
     ] as any);
 
-    mockGetAllTopics.mockResolvedValue([
-        { id: 'topic-1', name: 'Environment' },
+    mockGetActiveTopicsForTasks.mockResolvedValue([
+        { id: 'topic-1', name: 'Environment', description: '' },
     ] as any);
 
     mockGetCity.mockResolvedValue({
@@ -84,6 +86,7 @@ describe('getRequestOnTranscriptRequestBody', () => {
         expect(result.transcript[0].speakerName).toBe('Maria K.');
         expect(result.transcript[0].speakerParty).toBe('Party A');
         expect(result.transcript[0].speakerId).toBe('person-1');
+        expect(result.topicLabels).toEqual([{ name: 'Environment', description: '' }]);
     });
 
     it('resolves speakers NOT in the meeting people list but identified in transcript', async () => {

@@ -3,7 +3,6 @@ import { CouncilMeeting, Prisma, SpeakerSegment } from "@prisma/client";
 import { Utterance as ApiUtterance, SummarizeRequest, SummarizeResult } from "../apiTypes";
 import { getTranscript } from "../db/transcript";
 import { getPartiesForCity } from "../db/parties";
-import { getAllTopics } from "../db/topics";
 import { startTask } from "./tasks";
 import { getCity } from "../db/cities";
 import { getCouncilMeeting } from "../db/meetings";
@@ -83,7 +82,7 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
     }
 
     const topics = await prisma.topic.findMany({
-        where: { name: { in: Array.from(allTopicNames) } }
+        where: { name: { in: Array.from(allTopicNames) }, deprecated: false }
     });
     const topicByName = new Map(topics.map(t => [t.name, t]));
 

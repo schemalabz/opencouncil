@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, FileText, Settings, Files, FileOutput, Rocket, UserRound, List, RefreshCw, Search, Bell, QrCode, ClipboardCheck, MessageSquareText, Landmark } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Settings, Files, FileOutput, Rocket, UserRound, List, RefreshCw, Search, Bell, QrCode, ClipboardCheck, MessageSquareText, Landmark, Tag } from "lucide-react";
 import Link from "next/link";
 import {
     Sidebar,
@@ -43,6 +43,11 @@ const menuItems = [
         title: "Notifications",
         icon: Bell,
         url: "/admin/notifications",
+    },
+    {
+        title: "Topics",
+        icon: Tag,
+        url: "/admin/topics",
     },
     {
         title: "Offers",

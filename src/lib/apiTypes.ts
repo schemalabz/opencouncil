@@ -105,6 +105,11 @@ export type Voiceprint = {
  * Task: Process Agenda
  */
 
+export interface TopicLabelInfo {
+    name: string;
+    description: string;
+}
+
 export interface ProcessAgendaRequest extends TaskRequest {
     agendaUrl: string;
     people: {
@@ -113,7 +118,7 @@ export interface ProcessAgendaRequest extends TaskRequest {
         role: string;
         party: string;
     }[];
-    topicLabels: string[];
+    topicLabels: TopicLabelInfo[];
     cityName: string;
     date: string;
 }
@@ -238,7 +243,7 @@ export interface RequestOnTranscript extends TaskRequest {
             endTimestamp: number;
         }[];
     }[];
-    topicLabels: string[];
+    topicLabels: TopicLabelInfo[];
     cityName: string;
     administrativeBodyName: string | null;
     partiesWithPeople: {
