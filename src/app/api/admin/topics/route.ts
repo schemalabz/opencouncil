@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { withUserAuthorizedToEdit } from "@/lib/auth";
 import { createTopic, getAllTopicsWithSubjectCount } from "@/lib/db/topics";
-import { BadRequestError, handleApiError } from "@/lib/api/errors";
-import { HEX_REGEX } from "@/lib/utils/colorSuggestion";
+import { handleApiError } from "@/lib/api/errors";
+import { createTopicSchema } from "@/lib/zod-schemas/topic";
 
 export async function GET() {
     await withUserAuthorizedToEdit({});
@@ -20,36 +20,9 @@ export async function POST(request: Request) {
     await withUserAuthorizedToEdit({});
 
     try {
-        const data = await request.json();
-        const { name, name_en, colorHex, icon, description, deprecated } = data;
+        const data = createTopicSchema.parse(await request.json());
 
-        if (typeof name !== "string" || name.trim() === "") {
-            throw new BadRequestError("name is required");
-        }
-        if (typeof name_en !== "string" || name_en.trim() === "") {
-            throw new BadRequestError("name_en is required");
-        }
-        if (typeof colorHex !== "string" || !HEX_REGEX.test(colorHex)) {
-            throw new BadRequestError("colorHex must be a valid hex color");
-        }
-        if (typeof description !== "string") {
-            throw new BadRequestError("description must be a string");
-        }
-        if (icon !== undefined && icon !== null && typeof icon !== "string") {
-            throw new BadRequestError("icon must be a string or null");
-        }
-        if (deprecated !== undefined && typeof deprecated !== "boolean") {
-            throw new BadRequestError("deprecated must be a boolean");
-        }
-
-        const topic = await createTopic({
-            name: name.trim(),
-            name_en: name_en.trim(),
-            colorHex,
-            icon: icon || null,
-            description,
-            deprecated: Boolean(deprecated),
-        });
+        const topic = await createTopic(data);
 
         revalidatePath("/admin/topics");
         revalidatePath("/api/topics");
