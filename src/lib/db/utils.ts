@@ -3,7 +3,7 @@
 import { getTranscript } from "./transcript";
 import { getPeopleForMeeting } from "./people";
 import { getPartiesForCity } from "./parties";
-import { getAllTopics } from "./topics";
+import { getActiveTopicsForTasks } from "./topics";
 import { getCity } from "./cities";
 import { getCouncilMeeting } from "./meetings";
 import { RequestOnTranscript, SummarizeRequest, TranscribeRequest, Subject } from "../apiTypes";
@@ -41,7 +41,7 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
     // People filtered by meeting's administrative body (for LLM context)
     const meetingPeople = await getPeopleForMeeting(cityId, councilMeeting.administrativeBodyId);
     const parties = await getPartiesForCity(cityId);
-    const topics = await getAllTopics();
+    const topics = await getActiveTopicsForTasks();
     const city = await getCity(cityId);
 
     if (!city) {
@@ -69,7 +69,7 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
                 }))
             };
         }),
-        topicLabels: topics.map(t => t.name),
+        topicLabels: topics.map(t => ({ name: t.name, description: t.description })),
         cityName: city.name,
         administrativeBodyName: councilMeeting.administrativeBody?.name || null,
         partiesWithPeople: parties.map(p => ({
@@ -153,7 +153,7 @@ export async function getAvailableSpeakerSegmentIds(councilMeetingId: string, ci
 // --- Internal helpers for saveSubjectsForMeeting ---
 
 async function validateSubjectPersons(subjects: Subject[], cityId: string) {
-    const topics = await prisma.topic.findMany();
+    const topics = await prisma.topic.findMany({ where: { deprecated: false } });
     const topicsByName = Object.fromEntries(topics.map(t => [t.name, t]));
 
     const speakerIds = subjects

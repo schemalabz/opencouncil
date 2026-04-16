@@ -5,7 +5,7 @@ import { startTask } from "./tasks";
 import prisma from "../db/prisma";
 import { saveSubjectsForMeeting } from "../db/utils";
 import { withUserAuthorizedToEdit } from "../auth";
-import { getAllTopics } from "../db/topics";
+import { getActiveTopicsForTasks } from "../db/topics";
 import { getPartyFromRoles, getRoleNameForPerson } from "../utils";
 import { getPeopleForMeeting } from "../db/people";
 
@@ -65,7 +65,7 @@ export async function requestProcessAgenda(agendaUrl: string, councilMeetingId: 
 
     // Get relevant people for the meeting (filtered by administrative body)
     const people = await getPeopleForMeeting(cityId, councilMeeting.administrativeBodyId);
-    const topicLabels = await getAllTopics();
+    const topicLabels = await getActiveTopicsForTasks();
 
     // Build people array with deduplication by ID (keep last entry)
     const peopleMap = new Map();
@@ -87,7 +87,7 @@ export async function requestProcessAgenda(agendaUrl: string, councilMeetingId: 
         agendaUrl,
         date: councilMeeting.dateTime.toISOString(),
         people: Array.from(peopleMap.values()),
-        topicLabels: topicLabels.map(t => t.name),
+        topicLabels: topicLabels.map(t => ({ name: t.name, description: t.description })),
         cityName: councilMeeting.city.name
     }
 

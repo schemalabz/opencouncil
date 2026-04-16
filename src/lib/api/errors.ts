@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ZodError } from "zod";
 
 /**
  * Base class for API errors with explicit status codes.
@@ -68,7 +69,12 @@ export function handleApiError(error: unknown, fallbackMessage: string = "An err
     if (error instanceof ApiError) {
         return NextResponse.json({ error: error.message }, { status: error.statusCode });
     }
-    
+
+    if (error instanceof ZodError) {
+        const message = error.errors.map(e => e.message).join(", ");
+        return NextResponse.json({ error: message }, { status: 400 });
+    }
+
     const message = error instanceof Error ? error.message : fallbackMessage;
     return NextResponse.json({ error: message }, { status: 500 });
 }
