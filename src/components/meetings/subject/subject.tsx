@@ -20,9 +20,12 @@ import { GroupedDiscussionNotice } from "./grouped-discussion-notice";
 import { ContributionCard } from "./ContributionCard";
 import { VotingSection } from "./VotingSection";
 import { formatDate, formatRelativeTime } from "@/lib/formatters/time";
+import { calculateVoteResult } from "@/lib/utils/votes";
 import { useTranslations, useLocale } from "next-intl";
 import { requestPollDecisionForSubject, getLastPollTimeForMeeting, getDecisionForSubject } from "@/lib/tasks/pollDecisions";
 import { useSubjectHeader } from "@/contexts/SubjectHeaderContext";
+import { useSession } from "next-auth/react";
+import { DebugMetadataButton } from "@/components/ui/debug-metadata-button";
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
     const { subjects, getSpeakerTag, getPerson, getParty, meeting } = useCouncilMeetingData();
@@ -30,6 +33,8 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     const t = useTranslations("Subject");
     const locale = useLocale();
     const { setSubjectHeader } = useSubjectHeader();
+    const { data: session } = useSession();
+    const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
     const [isFetchingDecision, setIsFetchingDecision] = useState(false);
     const [localDecision, setLocalDecision] = useState<{
         ada: string | null;
@@ -79,6 +84,12 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
         const feature = subjectToMapFeature(subject);
         return feature ? [feature] : [];
     }, [subject, location]);
+
+    // Calculate vote result from extracted data
+    const voteResult = useMemo(
+        () => subject.votes && subject.votes.length > 0 ? calculateVoteResult(subject.votes) : null,
+        [subject.votes]
+    );
 
     // The effective decision: local override (from polling) or server-rendered
     const decision = localDecision || subject.decision;
@@ -140,6 +151,15 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
         <div className="min-h-screen bg-background">
             {/* Main Content */}
             <div className="max-w-4xl mx-auto px-3 py-4 md:px-4 md:py-6 space-y-6">
+                {isSuperAdmin && (
+                    <div className="flex justify-end">
+                        <DebugMetadataButton
+                            data={subject}
+                            title="Subject Metadata"
+                            tooltip="View subject metadata"
+                        />
+                    </div>
+                )}
                 {/* Quick Stats Section */}
                 <div className="flex flex-col md:flex-row gap-3 md:gap-4">
                     {/* Parties Card */}
@@ -360,10 +380,25 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                 {/* Voting Section */}
                 <CollapsibleCard
                     icon={<CheckSquare className="w-4 h-4" />}
-                    title={t("voting")}
+                    title={
+                        voteResult && voteResult.totalVotes > 0 ? (
+                            <span className="flex items-center gap-2">
+                                {t("voting")}
+                                <Badge variant="secondary" className="text-xs">
+                                    {voteResult.isUnanimous
+                                        ? t("unanimous", { count: voteResult.forCount })
+                                        : voteResult.passed
+                                            ? t("majorityVote", { for: voteResult.forCount, against: voteResult.againstCount })
+                                            : t("rejected", { against: voteResult.againstCount, for: voteResult.forCount })}
+                                    {!voteResult.isUnanimous && voteResult.abstainCount > 0 &&
+                                        `, ${voteResult.abstainCount} ${t("voteAbstain")}`}
+                                </Badge>
+                            </span>
+                        ) : t("voting")
+                    }
                     defaultOpen={false}
                 >
-                    <VotingSection subjectId={subject.id} />
+                    <VotingSection subjectId={subject.id} votes={subject.votes} />
                 </CollapsibleCard>
 
                 {/* Decision Section */}

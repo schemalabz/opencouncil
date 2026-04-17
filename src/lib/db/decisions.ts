@@ -1,5 +1,5 @@
 import prisma from './prisma';
-import { Decision, TaskStatus, User } from '@prisma/client';
+import { AttendanceStatus, DataSource, Decision, TaskStatus, User, VoteType } from '@prisma/client';
 
 export type DecisionWithSource = Decision & {
     task: TaskStatus | null;
@@ -62,6 +62,40 @@ export async function deleteDecision(subjectId: string): Promise<void> {
     });
 }
 
+/**
+ * Clear extracted data for all decisions in a meeting, keeping the decision
+ * links (pdfUrl, ada, protocolNumber) intact. Removes:
+ * - Decision.excerpt and Decision.references (set to null)
+ * - Decision-sourced SubjectAttendance records
+ * - Decision-sourced SubjectVote records
+ */
+export async function clearExtractedDataForMeeting(cityId: string, meetingId: string): Promise<{ clearedCount: number }> {
+    // Get all subject IDs for this meeting
+    const subjects = await prisma.subject.findMany({
+        where: { cityId, councilMeetingId: meetingId },
+        select: { id: true },
+    });
+    const subjectIds = subjects.map(s => s.id);
+
+    if (subjectIds.length === 0) return { clearedCount: 0 };
+
+    // Clear all extracted data atomically to avoid partial state on failure
+    const [updated] = await prisma.$transaction([
+        prisma.decision.updateMany({
+            where: { subjectId: { in: subjectIds } },
+            data: { excerpt: null, references: null },
+        }),
+        prisma.subjectAttendance.deleteMany({
+            where: { subjectId: { in: subjectIds }, source: DataSource.decision },
+        }),
+        prisma.subjectVote.deleteMany({
+            where: { subjectId: { in: subjectIds }, source: DataSource.decision },
+        }),
+    ]);
+
+    return { clearedCount: updated.count };
+}
+
 export type MeetingDecisionCounts = Record<string, { linked: number; eligible: number }>;
 
 export async function getDecisionCountsForCity(cityId: string): Promise<MeetingDecisionCounts> {
@@ -89,6 +123,67 @@ export async function getDecisionCountsForCity(cityId: string): Promise<MeetingD
         };
     }
     return result;
+}
+
+export interface SubjectExtractedData {
+    subjectId: string;
+    attendance: { personId: string; personName: string; status: AttendanceStatus }[];
+    votes: { personId: string; personName: string; voteType: VoteType }[];
+}
+
+export async function getExtractedDataForMeeting(
+    cityId: string,
+    meetingId: string
+): Promise<SubjectExtractedData[]> {
+    // Fetch attendance and votes for all subjects in the meeting
+    // Include both agenda items AND outOfAgenda subjects (which have agendaItemIndex null
+    // but nonAgendaReason 'outOfAgenda'). The extraction pipeline writes attendance/vote data
+    // for outOfAgenda subjects too, so we need to read it back here.
+    const subjects = await prisma.subject.findMany({
+        where: {
+            cityId,
+            councilMeetingId: meetingId,
+            OR: [
+                { agendaItemIndex: { not: null } },
+                { nonAgendaReason: 'outOfAgenda' },
+            ],
+        },
+        select: {
+            id: true,
+            attendance: {
+                select: {
+                    personId: true,
+                    status: true,
+                    person: { select: { name: true } },
+                },
+                orderBy: { person: { name: 'asc' } },
+            },
+            votes: {
+                select: {
+                    personId: true,
+                    voteType: true,
+                    person: { select: { name: true } },
+                },
+                orderBy: { person: { name: 'asc' } },
+            },
+        },
+    });
+
+    return subjects
+        .filter(s => s.attendance.length > 0 || s.votes.length > 0)
+        .map(s => ({
+            subjectId: s.id,
+            attendance: s.attendance.map(a => ({
+                personId: a.personId,
+                personName: a.person.name,
+                status: a.status,
+            })),
+            votes: s.votes.map(v => ({
+                personId: v.personId,
+                personName: v.person.name,
+                voteType: v.voteType,
+            })),
+        }));
 }
 
 export async function getDecisionForSubject(subjectId: string): Promise<{

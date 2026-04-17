@@ -431,19 +431,56 @@ export interface GenerateVoiceprintResult {
 }
 
 /*
- * Task: Poll Decisions (Diavgeia)
+ * Extract Decisions (PDF → structured data)
+ */
+
+/** Per-decision warning from the extraction pipeline. See DecisionWarningCode in opencouncil-tasks for the full list of codes. */
+export interface DecisionWarning {
+    code: string;
+    severity: 'info' | 'warning' | 'error';
+    message: string;
+}
+
+export interface ExtractedDecisionData {
+    subjectId: string;
+    excerpt: string;
+    references: string;
+    presentMemberIds: string[];
+    absentMemberIds: string[];
+    mayorPresent?: boolean;
+    voteResult: string | null;
+    voteDetails: { personId: string; vote: 'FOR' | 'AGAINST' | 'ABSTAIN' }[];
+    unmatchedMembers: string[];
+    subjectInfo: { number: number; isOutOfAgenda: boolean } | null;
+    fromCache?: boolean;
+    warnings?: DecisionWarning[];
+    /** Protocol number — from Diavgeia API or PDF extraction */
+    protocolNumber?: string | null;
+    /** Metadata fetched from Diavgeia API for needsExtraction subjects */
+    diavgeiaTitle?: string;
+    diavgeiaPublishDate?: string;
+}
+
+/*
+ * Task: Poll Decisions (Diavgeia) — includes extraction
  */
 
 export interface PollDecisionsRequest extends TaskRequest {
     meetingDate: string; // ISO date "YYYY-MM-DD"
     diavgeiaUid: string; // City's Diavgeia org UID (e.g., "6104")
     diavgeiaUnitIds?: string[]; // AdministrativeBody's Diavgeia unit IDs (e.g., ["81689"])
+    mayorId?: string; // Person ID of the city mayor, for presence extraction
+    forceExtract?: boolean; // Skip extraction cache and reprocess all PDFs
+    people: { id: string; name: string }[];
     subjects: Array<{
         subjectId: string;
         name: string;
+        agendaItemIndex: number | null;
         existingDecision?: {
             ada: string;
             decisionTitle: string;
+            pdfUrl: string;
+            needsExtraction?: boolean;
         };
     }>;
 }
@@ -477,6 +514,16 @@ export interface PollDecisionsResult {
             similarity: number;
         }>;
     }>;
+    extractions: {
+        decisions: ExtractedDecisionData[];
+        warnings: string[];
+    } | null;
+    costs: {
+        input_tokens: number;
+        output_tokens: number;
+        cache_creation_input_tokens: number;
+        cache_read_input_tokens: number;
+    };
     metadata?: {
         diavgeiaUid: string;
         query: object;

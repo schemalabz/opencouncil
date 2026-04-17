@@ -1,21 +1,25 @@
 "use server";
 
-import { PollDecisionsRequest, PollDecisionsResult } from "../apiTypes";
+import { PollDecisionsRequest, PollDecisionsResult, ExtractedDecisionData } from "../apiTypes";
 import { startTask } from "./tasks";
 import prisma from "../db/prisma";
+import { AttendanceStatus, DataSource, VoteType } from "@prisma/client";
 import { upsertDecision, deleteDecision, getDecisionForSubject } from "../db/decisions";
 export { getDecisionForSubject };
 import { withUserAuthorizedToEdit } from "../auth";
+import { getPeopleForMeeting } from "../db/people";
+import { isRoleActiveAt, isMayorRole } from "../utils/roles";
 import { shouldSkipPolling, getBackoffState, BACKOFF_SCHEDULE, MAX_POLLING_DAYS, LOGODOSIA_NAME_PATTERN } from "./pollDecisionsBackoff";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "../discord";
 
 export async function requestPollDecisions(
     cityId: string,
     councilMeetingId: string,
+    options?: { forceExtract?: boolean },
 ) {
     await withUserAuthorizedToEdit({ cityId });
 
-    return pollDecisionsForMeeting(cityId, councilMeetingId);
+    return pollDecisionsForMeeting(cityId, councilMeetingId, options);
 }
 
 /**
@@ -23,11 +27,12 @@ export async function requestPollDecisions(
  * Does NOT check authorization — callers are responsible for auth.
  *
  * @param options.silent - When true, suppresses the per-task "started" Discord alert (used by cron batch)
+ * @param options.forceExtract - When true, skips extraction cache and reprocesses all PDFs
  */
 export async function pollDecisionsForMeeting(
     cityId: string,
     councilMeetingId: string,
-    options?: { silent?: boolean },
+    options?: { silent?: boolean; forceExtract?: boolean },
 ) {
     const councilMeeting = await prisma.councilMeeting.findUnique({
         where: {
@@ -44,6 +49,7 @@ export async function pollDecisionsForMeeting(
             },
             administrativeBody: {
                 select: {
+                    id: true,
                     diavgeiaUnitIds: true,
                 },
             },
@@ -52,10 +58,14 @@ export async function pollDecisionsForMeeting(
                     id: true,
                     name: true,
                     agendaItemIndex: true,
-                    decision: { select: { ada: true, title: true } },
+                    nonAgendaReason: true,
+                    decision: { select: { ada: true, title: true, pdfUrl: true, excerpt: true } },
                 },
                 where: {
-                    agendaItemIndex: { not: null },
+                    OR: [
+                        { agendaItemIndex: { not: null } },
+                        { nonAgendaReason: 'outOfAgenda' },
+                    ],
                 },
             },
         },
@@ -70,8 +80,17 @@ export async function pollDecisionsForMeeting(
     }
 
     if (councilMeeting.subjects.length === 0) {
-        throw new Error("No eligible subjects to poll (subjects must have agendaItemIndex)");
+        throw new Error("No eligible subjects to poll (subjects must have agendaItemIndex or be outOfAgenda)");
     }
+
+    // Fetch people for name matching during extraction
+    const people = await getPeopleForMeeting(cityId, councilMeeting.administrativeBody?.id ?? null);
+    const peopleForRequest = people.map(p => ({ id: p.id, name: p.name }));
+
+    // Find the city mayor for presence extraction from decision narrative
+    const mayorPerson = people.find(p =>
+        p.roles.some(r => isMayorRole(r) && isRoleActiveAt(r, councilMeeting.dateTime))
+    );
 
     const body: Omit<PollDecisionsRequest, 'callbackUrl'> = {
         meetingDate: councilMeeting.dateTime.toISOString().split('T')[0],
@@ -79,11 +98,20 @@ export async function pollDecisionsForMeeting(
         diavgeiaUnitIds: councilMeeting.administrativeBody?.diavgeiaUnitIds.length
             ? councilMeeting.administrativeBody.diavgeiaUnitIds
             : undefined,
+        mayorId: mayorPerson?.id,
+        forceExtract: options?.forceExtract || undefined,
+        people: peopleForRequest,
         subjects: councilMeeting.subjects.map(s => ({
             subjectId: s.id,
             name: s.name,
+            agendaItemIndex: s.agendaItemIndex,
             ...(s.decision?.ada ? {
-                existingDecision: { ada: s.decision.ada, decisionTitle: s.decision.title ?? '' },
+                existingDecision: {
+                    ada: s.decision.ada,
+                    decisionTitle: s.decision.title ?? '',
+                    pdfUrl: s.decision.pdfUrl,
+                    needsExtraction: !s.decision.excerpt, // linked but no extraction data
+                },
             } : {}),
         })),
     };
@@ -841,6 +869,7 @@ export interface PollDecisionsMeetingResult {
     matches: number;
     reassignments: number;
     conflicts: number;
+    extractions: number;
     status: 'succeeded' | 'failed';
     error?: string;
 }
@@ -907,6 +936,7 @@ export async function checkBatchCompletionAndAlert(
     let totalMatches = 0;
     let totalReassignments = 0;
     let totalConflicts = 0;
+    let totalExtractions = 0;
     let succeededCount = 0;
     let failedCount = 0;
     const meetingBreakdown: PollDecisionsMeetingResult[] = [];
@@ -923,6 +953,7 @@ export async function checkBatchCompletionAndAlert(
                 matches: 0,
                 reassignments: 0,
                 conflicts: 0,
+                extractions: 0,
                 status: 'failed',
                 error: sibling.responseBody?.substring(0, ERROR_PREVIEW_LENGTH) ?? undefined,
             });
@@ -937,6 +968,7 @@ export async function checkBatchCompletionAndAlert(
         let matches = 0;
         let reassignments = 0;
         let conflicts = 0;
+        let extractions = 0;
         if (sibling.responseBody) {
             try {
                 const parsed = JSON.parse(sibling.responseBody);
@@ -944,6 +976,7 @@ export async function checkBatchCompletionAndAlert(
                     matches = parsed._processedCounts.matches ?? 0;
                     reassignments = parsed._processedCounts.reassignments ?? 0;
                     conflicts = parsed._processedCounts.conflicts ?? 0;
+                    extractions = parsed._processedCounts.extractions ?? 0;
                 } else {
                     matches = Array.isArray(parsed.matches) ? parsed.matches.length : 0;
                     reassignments = Array.isArray(parsed.reassignments) ? parsed.reassignments.length : 0;
@@ -953,12 +986,14 @@ export async function checkBatchCompletionAndAlert(
         totalMatches += matches;
         totalReassignments += reassignments;
         totalConflicts += conflicts;
+        totalExtractions += extractions;
         meetingBreakdown.push({
             cityId,
             meetingId,
             matches,
             reassignments,
             conflicts,
+            extractions,
             status: 'succeeded',
         });
     }
@@ -969,6 +1004,7 @@ export async function checkBatchCompletionAndAlert(
         totalMatches,
         totalReassignments,
         totalConflicts,
+        totalExtractions,
         meetingBreakdown,
     }).catch(err => console.error('Failed to send pollDecisions batch completed alert:', err));
 }
@@ -981,6 +1017,9 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
     if (!task) {
         throw new Error("Task not found");
     }
+
+    const requestBody = JSON.parse(task.requestBody) as PollDecisionsRequest;
+    const mayorId = requestBody.mayorId;
 
     let reassignmentCount = 0;
     let processedCount = 0;
@@ -1112,6 +1151,139 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
         }
     });
 
+    // --- Process extraction results (excerpt, attendance, votes) ---
+    // Each subject is wrapped in its own transaction for atomicity:
+    // partial failures roll back individual subjects without blocking others.
+    // Uses deleteMany + createMany instead of N individual upserts.
+    let extractedCount = 0;
+    if (result.extractions) {
+        for (const decision of result.extractions.decisions) {
+            try {
+                await prisma.$transaction(async (tx) => {
+                    // Skip extraction for subjects without a linked Decision — the backend
+                    // match may have been wrong (ADA conflict), so this data is unreliable.
+                    const existingDecision = await tx.decision.findFirst({
+                        where: { subjectId: decision.subjectId },
+                        select: { subjectId: true, title: true, protocolNumber: true, publishDate: true },
+                    });
+                    if (!existingDecision) {
+                        console.log(`Skipping extraction for subject ${decision.subjectId} — no linked Decision`);
+                        return;
+                    }
+
+                    // 1. Update Decision excerpt, references, and backfill metadata if missing
+                    await tx.decision.updateMany({
+                        where: { subjectId: decision.subjectId },
+                        data: {
+                            excerpt: decision.excerpt || null,
+                            references: decision.references || null,
+                            ...(!existingDecision.title && decision.diavgeiaTitle ? { title: decision.diavgeiaTitle } : {}),
+                            ...(!existingDecision.protocolNumber && decision.protocolNumber ? { protocolNumber: decision.protocolNumber } : {}),
+                            ...(!existingDecision.publishDate && decision.diavgeiaPublishDate ? { publishDate: new Date(decision.diavgeiaPublishDate) } : {}),
+                        },
+                    });
+
+                    // 2. Create SubjectAttendance records (deduplicate by personId)
+                    const attendanceByPerson = new Map<string, AttendanceStatus>(
+                        [
+                            ...decision.presentMemberIds.map(id => [id, 'PRESENT' as const] as const),
+                            ...decision.absentMemberIds.map(id => [id, 'ABSENT' as const] as const),
+                        ]
+                    );
+
+                    // Include mayor attendance if extracted from decision narrative
+                    if (decision.mayorPresent != null && mayorId) {
+                        attendanceByPerson.set(mayorId, decision.mayorPresent ? 'PRESENT' : 'ABSENT');
+                    }
+
+                    if (attendanceByPerson.size > 0) {
+                        await tx.subjectAttendance.deleteMany({
+                            where: { subjectId: decision.subjectId, source: DataSource.decision },
+                        });
+                        await tx.subjectAttendance.createMany({
+                            data: [...attendanceByPerson].map(([personId, status]) => ({
+                                subjectId: decision.subjectId,
+                                personId,
+                                status,
+                                source: DataSource.decision,
+                                taskId,
+                            })),
+                        });
+                    }
+
+                    // 3. Create SubjectVote records (deduplicate by personId)
+                    // Vote inference (unanimous, majority) is handled by the backend —
+                    // voteDetails already includes inferred FOR votes.
+                    const voteByPerson = new Map<string, VoteType>();
+                    for (const d of decision.voteDetails) {
+                        voteByPerson.set(d.personId, d.vote);
+                    }
+
+                    if (voteByPerson.size > 0) {
+                        await tx.subjectVote.deleteMany({
+                            where: { subjectId: decision.subjectId, source: DataSource.decision },
+                        });
+                        await tx.subjectVote.createMany({
+                            data: [...voteByPerson].map(([personId, voteType]) => ({
+                                subjectId: decision.subjectId,
+                                personId,
+                                voteType,
+                                source: DataSource.decision,
+                                taskId,
+                            })),
+                        });
+                    }
+
+                    // TODO: Re-enable once the codebase stops using `agendaItemIndex !== null`
+                    // as a proxy for "is a regular agenda item". Currently, most display
+                    // and categorization logic (categorizeSubjects, sidebar, DecisionsPanel,
+                    // subject-card, MinutesPreviewContent, subject-helpers upsert matching,
+                    // etc.) assumes outOfAgenda subjects have agendaItemIndex === null.
+                    // Setting it here causes them to be miscategorized as regular agenda
+                    // items across the UI. To enable this, those checks need to use
+                    // nonAgendaReason as the primary discriminator instead.
+                    //
+                    // 4. Update agendaItemIndex from subjectInfo for outOfAgenda subjects
+                    // if (decision.subjectInfo?.number != null) {
+                    //     await tx.subject.updateMany({
+                    //         where: {
+                    //             id: decision.subjectId,
+                    //             agendaItemIndex: null,
+                    //             nonAgendaReason: 'outOfAgenda',
+                    //         },
+                    //         data: { agendaItemIndex: decision.subjectInfo.number },
+                    //     });
+                    // }
+                });
+
+                extractedCount++;
+            } catch (error) {
+                console.error(`Failed to write extraction data for subject ${decision.subjectId}:`, error);
+            }
+
+            // Log unmatched members (outside transaction — informational only)
+            if (decision.unmatchedMembers.length > 0) {
+                for (const name of decision.unmatchedMembers) {
+                    console.log(`  Unmatched member "${name}" in subject "${decision.subjectId}"`);
+                }
+            }
+
+            // Log per-decision warnings from validation
+            if (decision.warnings && decision.warnings.length > 0) {
+                for (const w of decision.warnings) {
+                    console.log(`  [${w.severity}] ${w.code}: ${w.message} (subject ${decision.subjectId})`);
+                }
+            }
+        }
+
+        if (result.extractions.warnings.length > 0) {
+            console.log(`Extraction warnings (${result.extractions.warnings.length}):`);
+            for (const w of result.extractions.warnings) {
+                console.log(`  - ${w}`);
+            }
+        }
+    }
+
     // Enrich responseBody with post-processing counts so the batch completion
     // hook (checkBatchCompletionAndAlert) can read accurate totals from DB.
     // Wrapped in try/catch because this runs after the main transaction committed —
@@ -1122,7 +1294,12 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
             data: {
                 responseBody: JSON.stringify({
                     ...result,
-                    _processedCounts: { matches: processedCount, reassignments: reassignmentCount, conflicts: conflictCount },
+                    _processedCounts: {
+                        matches: processedCount,
+                        reassignments: reassignmentCount,
+                        conflicts: conflictCount,
+                        extractions: extractedCount,
+                    },
                 }),
             },
         });
@@ -1130,5 +1307,5 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
         console.error(`Failed to enrich responseBody for task ${taskId} (decisions already persisted):`, enrichError);
     }
 
-    console.log(`Poll decisions completed: ${processedCount} processed, ${reassignmentCount} reassigned, ${conflictCount} conflicts, ${result.unmatchedSubjects.length} unmatched, ${result.ambiguousSubjects.length} ambiguous`);
+    console.log(`Poll decisions completed: ${processedCount} matched, ${extractedCount} extracted, ${reassignmentCount} reassigned, ${conflictCount} conflicts, ${result.unmatchedSubjects.length} unmatched, ${result.ambiguousSubjects.length} ambiguous`);
 }

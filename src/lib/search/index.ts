@@ -256,7 +256,8 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                     location: locationWithCoordinates,
                     score: hit._score || 0,
                     matchedSpeakerSegmentIds,
-                    councilMeeting: subject.councilMeeting
+                    councilMeeting: subject.councilMeeting,
+                    votes: []
                 };
 
                 // If detailed results are requested, add speaker segment text

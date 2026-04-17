@@ -47,3 +47,19 @@ export function categorizeSubjects<T extends CategorizableSubject>(subjects: T[]
 export function getNonAgendaLabel(reason: 'beforeAgenda' | 'outOfAgenda'): string {
     return SUBJECT_CATEGORIES[reason].shortLabel;
 }
+
+/**
+ * Filter subjects to only those included in meeting minutes:
+ * agenda items (have agendaItemIndex) + outOfAgenda subjects.
+ * Excludes beforeAgenda subjects (pre-agenda announcements without decisions).
+ *
+ * Used by the minutes data gatherer (getMinutesData) to ensure
+ * consistent filtering.
+ */
+export function filterSubjectsForMinutes<T extends { agendaItemIndex: number | null; nonAgendaReason: string | null }>(
+    subjects: T[],
+): T[] {
+    return subjects.filter(
+        s => s.agendaItemIndex || s.nonAgendaReason === 'outOfAgenda'
+    );
+}

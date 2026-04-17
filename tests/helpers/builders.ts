@@ -1,4 +1,4 @@
-import { Subject, ProcessAgendaResult, SummarizeResult, PollDecisionsResult, PollDecisionsMatch } from '@/lib/apiTypes'
+import { Subject, ProcessAgendaResult, SummarizeResult, PollDecisionsResult, PollDecisionsMatch, ExtractedDecisionData } from '@/lib/apiTypes'
 import { PersonWithRelations } from '@/lib/db/people'
 import { Transcript } from '@/lib/db/transcript'
 
@@ -114,6 +114,7 @@ export function makePersonWithRoles(overrides: {
             endDate: null,
             isHead: false,
             rank: null,
+            electedOrder: null,
             party: { id: overrides.partyId, name: overrides.partyName ?? 'Party', cityId, logo: null },
             administrativeBody: adminBodyId ? { id: adminBodyId, name: 'Body', name_en: 'Body', type: 'council', cityId } : null,
             city: null,
@@ -126,11 +127,29 @@ export function makePollDecisionsResult(params: {
     reassignments?: PollDecisionsResult['reassignments']
     unmatchedSubjects?: PollDecisionsResult['unmatchedSubjects']
     ambiguousSubjects?: PollDecisionsResult['ambiguousSubjects']
+    extractions?: PollDecisionsResult['extractions']
+    costs?: PollDecisionsResult['costs']
 }): PollDecisionsResult {
     return {
         matches: params.matches ?? [],
         reassignments: params.reassignments ?? [],
         unmatchedSubjects: params.unmatchedSubjects ?? [],
         ambiguousSubjects: params.ambiguousSubjects ?? [],
+        extractions: params.extractions ?? null,
+        costs: params.costs ?? { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
+    }
+}
+
+export function makeExtractedDecision(overrides: Partial<ExtractedDecisionData> & { subjectId: string }): ExtractedDecisionData {
+    return {
+        excerpt: '',
+        references: '',
+        presentMemberIds: [],
+        absentMemberIds: [],
+        voteResult: null,
+        voteDetails: [],
+        unmatchedMembers: [],
+        subjectInfo: null,
+        ...overrides,
     }
 }

@@ -1,6 +1,6 @@
 "use server";
 import prisma from "./prisma";
-import { RoleRanking } from "./types";
+import { RoleRanking, ElectedOrderRanking } from "./types";
 
 /**
  * Updates role rankings for roles belonging to a specific party and city.
@@ -62,6 +62,51 @@ export async function updateRoleRankings(
             prisma.role.update({
                 where: { id: roleId },
                 data: { rank }
+            })
+        )
+    );
+}
+
+/**
+ * Updates elected order for roles belonging to a specific city.
+ * Validates that all roles belong to people in the specified city before updating.
+ *
+ * @param cityId - The city ID that all roles must belong to
+ * @param rankings - Array of elected order rankings to update
+ * @throws Error if validation fails or update fails
+ */
+export async function updateElectedOrder(
+    cityId: string,
+    rankings: ElectedOrderRanking[]
+): Promise<void> {
+    const roleIds = rankings.map(r => r.roleId);
+
+    // Verify all roles exist and belong to people in the specified city
+    const roles = await prisma.role.findMany({
+        where: {
+            id: { in: roleIds }
+        },
+        select: {
+            id: true,
+            person: { select: { cityId: true } }
+        }
+    });
+
+    if (roles.length !== roleIds.length) {
+        throw new Error('One or more roles not found');
+    }
+
+    const invalidRoles = roles.filter(role => role.person.cityId !== cityId);
+    if (invalidRoles.length > 0) {
+        throw new Error('One or more roles do not belong to people in the specified city');
+    }
+
+    // Update roles in a transaction
+    await prisma.$transaction(
+        rankings.map(({ roleId, electedOrder }) =>
+            prisma.role.update({
+                where: { id: roleId },
+                data: { electedOrder }
             })
         )
     );

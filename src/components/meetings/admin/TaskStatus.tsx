@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { TaskStatus } from "@prisma/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Loader2, Trash2, XCircle, HelpCircle, ChevronDown, ChevronUp, Copy, RefreshCw } from "lucide-react";
+import { CheckCircle2, Loader2, Trash2, XCircle, HelpCircle, ChevronDown, ChevronUp, Code, RefreshCw } from "lucide-react";
 import { Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -18,6 +18,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { useTranslations } from "next-intl";
+import { JsonMetadataDialog } from "@/components/ui/json-metadata-dialog";
 
 const staleTimeMs = 10 * 60 * 1000; // 10 minutes
 interface TaskStatusComponentProps {
@@ -32,6 +33,7 @@ export function TaskStatusComponent({ task, onDelete }: TaskStatusComponentProps
     const [isExpanded, setIsExpanded] = useState(false);
     const [showReprocessDialog, setShowReprocessDialog] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [showJsonDialog, setShowJsonDialog] = useState(false);
     const [isReprocessing, setIsReprocessing] = useState(false);
     const [activeReprocessAction, setActiveReprocessAction] = useState<'reprocess' | 'delete' | null>(null);
     const [reprocessError, setReprocessError] = useState<string | null>(null);
@@ -93,9 +95,10 @@ export function TaskStatusComponent({ task, onDelete }: TaskStatusComponentProps
         }
     }
 
-    const copyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text);
-    }
+    const parseJson = (str: string | null) => {
+        if (!str) return null;
+        try { return JSON.parse(str); } catch { return str; }
+    };
 
     return (
         <Card className="mb-2 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
@@ -164,10 +167,10 @@ export function TaskStatusComponent({ task, onDelete }: TaskStatusComponentProps
                                             className="h-5 w-5 p-0"
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                copyToClipboard(task.responseBody || '');
+                                                setShowJsonDialog(true);
                                             }}
                                         >
-                                            <Copy className="h-3 w-3" />
+                                            <Code className="h-3 w-3" />
                                         </Button>
                                         <Button
                                             variant="ghost"
@@ -192,10 +195,10 @@ export function TaskStatusComponent({ task, onDelete }: TaskStatusComponentProps
                                             className="h-5 w-5 p-0"
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                copyToClipboard(task.responseBody || '');
+                                                setShowJsonDialog(true);
                                             }}
                                         >
-                                            <Copy className="h-3 w-3" />
+                                            <Code className="h-3 w-3" />
                                         </Button>
                                         <Button
                                             variant="ghost"
@@ -331,6 +334,18 @@ export function TaskStatusComponent({ task, onDelete }: TaskStatusComponentProps
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            <JsonMetadataDialog
+                open={showJsonDialog}
+                onOpenChange={setShowJsonDialog}
+                title={`${task.type} — ${task.status}`}
+                views={[
+                    { label: 'Request', data: parseJson(task.requestBody) },
+                    { label: 'Response', data: parseJson(task.responseBody) },
+                ]}
+                metadata={[
+                    { label: 'Task ID', value: task.id },
+                ]}
+            />
             <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
                 <DialogContent onClick={(e: React.MouseEvent) => e.stopPropagation()}>
                     <DialogHeader>

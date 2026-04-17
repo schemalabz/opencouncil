@@ -1,8 +1,11 @@
 import { useState, useCallback, useMemo } from 'react';
+import { DiscussionStatus } from '@prisma/client';
 import { Transcript as TranscriptType } from '@/lib/db/transcript';
 import { EditableSpeakerSegmentData } from '@/lib/db/speakerSegments';
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
 import { toast } from '@/hooks/use-toast';
+
+const DISCUSSION_STATUS_VALUES = Object.values(DiscussionStatus);
 
 export function useSpeakerSegmentEditor(segment: TranscriptType[number]) {
     const { updateSpeakerSegmentData } = useCouncilMeetingData();
@@ -18,7 +21,9 @@ export function useSpeakerSegmentEditor(segment: TranscriptType[number]) {
                 id: u.id,
                 text: u.text,
                 startTimestamp: u.startTimestamp,
-                endTimestamp: u.endTimestamp
+                endTimestamp: u.endTimestamp,
+                discussionStatus: u.discussionStatus,
+                discussionSubjectId: u.discussionSubjectId,
             })),
             summary: segment.summary ? {
                 text: segment.summary.text,
@@ -55,9 +60,6 @@ export function useSpeakerSegmentEditor(segment: TranscriptType[number]) {
                 if (!utterance.id || typeof utterance.id !== 'string') {
                     errors.push(`Utterance ${index + 1}: ID is required and must be a string`);
                 }
-                // if (!utterance.text || typeof utterance.text !== 'string') {
-                //     errors.push(`Utterance ${index + 1}: Text is required and must be a string`);
-                // }
                 if (typeof utterance.startTimestamp !== 'number') {
                     errors.push(`Utterance ${index + 1}: startTimestamp must be a number`);
                 }
@@ -66,6 +68,18 @@ export function useSpeakerSegmentEditor(segment: TranscriptType[number]) {
                 }
                 if (utterance.startTimestamp >= utterance.endTimestamp) {
                     errors.push(`Utterance ${index + 1}: startTimestamp must be less than endTimestamp`);
+                }
+                // Validate discussionStatus if provided
+                if (utterance.discussionStatus !== null && utterance.discussionStatus !== undefined) {
+                    if (!DISCUSSION_STATUS_VALUES.includes(utterance.discussionStatus)) {
+                        errors.push(`Utterance ${index + 1}: discussionStatus must be one of ${DISCUSSION_STATUS_VALUES.join(', ')} or null`);
+                    }
+                }
+                // Validate discussionSubjectId type if provided
+                if (utterance.discussionSubjectId !== null && utterance.discussionSubjectId !== undefined) {
+                    if (typeof utterance.discussionSubjectId !== 'string') {
+                        errors.push(`Utterance ${index + 1}: discussionSubjectId must be a string or null`);
+                    }
                 }
             });
 
@@ -126,7 +140,9 @@ export function useSpeakerSegmentEditor(segment: TranscriptType[number]) {
                 id: `temp_${Date.now()}`, // Temporary ID that will be replaced by database
                 text: "",
                 startTimestamp: newStartTimestamp,
-                endTimestamp: newEndTimestamp
+                endTimestamp: newEndTimestamp,
+                discussionStatus: null,
+                discussionSubjectId: null,
             };
             
             // Add to utterances array

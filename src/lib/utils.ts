@@ -30,10 +30,12 @@ export {
   getNonPartyRoles,
   getSingleCityRole,
   hasCityLevelRole,
+  simplifyRoleName,
   getActiveRoleCondition,
   getRoleNameForPerson,
   getSpeakerDisplayInfo,
-  sortRolesByPriority
+  sortRolesByPriority,
+  getPrimaryRole
 } from './utils/roles';
 
 export const IS_DEV = process.env.NODE_ENV === 'development';

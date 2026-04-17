@@ -7,8 +7,8 @@ import * as React from "react";
 
 interface Context {
   defaultValue: string;
-  hrefFor: (value: string) => string;
-  searchParam: string;
+  hrefFor: ((value: string) => string) | null;
+  onSelect: ((value: string) => void) | null;
   selected: string;
 }
 const TabsContext = React.createContext<Context>(null as any);
@@ -21,19 +21,31 @@ export function Tabs(props: {
    */
   defaultValue: string;
   /**
-   * Which search param to use
+   * Which search param to use (URL mode only)
    * @default "tab"
    */
   searchParam?: string;
+  /**
+   * When true, tab state is managed in-memory instead of via URL search params.
+   * Use this for tabs inside dialogs or other contexts where URL changes are undesirable.
+   */
+  local?: boolean;
 }) {
-  const { children, className, searchParam = "tab", ...other } = props;
+  const { children, className, searchParam = "tab", local, ...other } = props;
+
+  // Local (in-memory) state
+  const [localSelected, setLocalSelected] = React.useState(props.defaultValue);
+
+  // URL-based state
   const searchParams = useSearchParams()!;
-
-  const selected = searchParams.get(searchParam) || props.defaultValue;
-
   const pathname = usePathname();
-  const hrefFor: Context["hrefFor"] = React.useCallback(
-    (value) => {
+
+  const selected = local
+    ? localSelected
+    : searchParams.get(searchParam) || props.defaultValue;
+
+  const buildHref = React.useCallback(
+    (value: string) => {
       const params = new URLSearchParams(searchParams);
       if (value === props.defaultValue) {
         params.delete(searchParam);
@@ -48,8 +60,11 @@ export function Tabs(props: {
     [searchParams, searchParam, pathname, props.defaultValue],
   );
 
+  const hrefFor: Context["hrefFor"] = local ? null : buildHref;
+  const onSelect: Context["onSelect"] = local ? setLocalSelected : null;
+
   return (
-    <TabsContext.Provider value={{ ...other, hrefFor, searchParam, selected }}>
+    <TabsContext.Provider value={{ ...other, hrefFor, onSelect, selected }}>
       <div className={className}>{children}</div>
     </TabsContext.Provider>
   );
@@ -81,25 +96,40 @@ export function TabsList(props: {
   );
 }
 
+const triggerClassName =
+  "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm";
+
 export const TabsTrigger = (props: {
   children: React.ReactNode;
   className?: string;
   value: string;
 }) => {
   const context = useContext();
+  const state = context.selected === props.value ? "active" : "inactive";
+
+  if (context.onSelect) {
+    return (
+      <button
+        type="button"
+        className={cn(triggerClassName, props.className)}
+        data-state={state}
+        onClick={() => context.onSelect!(props.value)}
+      >
+        {props.children}
+      </button>
+    );
+  }
 
   return (
     <Link
-      {...props}
-      className={cn(
-        "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm",
-        props.className,
-      )}
-      data-state={context.selected === props.value ? "active" : "inactive"}
-      href={context.hrefFor(props.value)}
+      className={cn(triggerClassName, props.className)}
+      data-state={state}
+      href={context.hrefFor!(props.value)}
       scroll={false}
       shallow={true}
-    />
+    >
+      {props.children}
+    </Link>
   );
 };
 

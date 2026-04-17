@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { ImageOrInitials } from '../ImageOrInitials';
 import { PersonAvatarList } from '../persons/PersonAvatarList';
 import { cn, isRoleActive } from '@/lib/utils';
+import { isMayorRole } from '@/lib/utils/roles';
 import { PartyWithPersons } from '@/lib/db/parties';
 import { useMemo } from 'react';
 import { sortPartyMembers } from '@/lib/sorting/people';
@@ -68,12 +69,7 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
         }
 
         const mayorCount = activePeople.filter(person =>
-            person.roles.some(role =>
-                role.cityId &&
-                !role.partyId &&
-                !role.administrativeBodyId &&
-                role.isHead
-            )
+            person.roles.some(isMayorRole)
         ).length;
 
         const peopleWithoutAdminCount = activePeople.filter(person =>

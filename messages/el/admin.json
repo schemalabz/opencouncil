@@ -58,6 +58,8 @@
       "podcastSpecsSubtitle": "Διαχείριση προδιαγραφών δημιουργίας podcast για αυτή τη συνεδρίαση.",
       "decisions": "Αποφάσεις",
       "decisionsSubtitle": "Σύνδεση αποφάσεων Διαύγειας με θέματα συνεδρίασης.",
+      "minutes": "Προεπισκόπηση Πρακτικών",
+      "minutesSubtitle": "Προεπισκόπηση και εξαγωγή πρακτικών συνεδρίασης σε DOCX από τα δεδομένα της βάσης.",
       "export": "Εξαγωγή",
       "exportSubtitle": "Λήψη δεδομένων συνεδρίασης σε διάφορες μορφές."
     },
@@ -75,7 +77,10 @@
       "starting": "Ξεκινάει...",
       "syncing": "Συγχρονισμός...",
       "process": "Επεξεργασία",
-      "manageDecisions": "Διαχείριση Αποφάσεων"
+      "manageDecisions": "Διαχείριση Αποφάσεων",
+      "extractDecisions": "Εξαγωγή Αποφάσεων",
+      "previewMinutes": "Προεπισκόπηση Πρακτικών",
+      "exportMinutesDocx": "Εξαγωγή DOCX"
     },
     "forms": {
       "enterMediaUrl": "Εισάγετε URL Μέσου",
@@ -177,7 +182,21 @@
       },
       "errorRemovingDecision": {
         "title": "Σφάλμα αφαίρεσης απόφασης"
+      },
+      "extractDecisionsRequested": {
+        "title": "Ζητήθηκε εξαγωγή αποφάσεων",
+        "description": "Εξαγωγή δεδομένων από τα PDF αποφάσεων."
+      },
+      "errorExtractingDecisions": {
+        "title": "Σφάλμα εξαγωγής αποφάσεων"
       }
+    },
+    "minutes": {
+      "title": "Προεπισκόπηση Πρακτικών",
+      "loading": "Δημιουργία προεπισκόπησης πρακτικών...",
+      "noSubjects": "Δεν βρέθηκαν θέματα για αυτή τη συνεδρίαση.",
+      "exportSuccess": "Τα πρακτικά DOCX εξήχθησαν",
+      "exportError": "Σφάλμα εξαγωγής πρακτικών"
     },
     "decisions": {
       "title": "Διαχείριση Αποφάσεων (Διαύγεια)",
@@ -195,7 +214,10 @@
       "viewPdf": "Προβολή PDF",
       "linked": "συνδεδεμένα",
       "save": "Αποθήκευση",
+      "moreOptions": "Περισσότερες επιλογές",
+      "autoPdfHint": "Το PDF θα ληφθεί από diavgeia.gov.gr/doc/{ada}",
       "validation": {
+        "adaRequired": "Ο ΑΔΑ είναι υποχρεωτικός",
         "pdfUrlRequired": "Το URL PDF είναι υποχρεωτικό",
         "pdfUrlInvalid": "Παρακαλώ εισάγετε ένα έγκυρο URL"
       },
@@ -207,7 +229,25 @@
       "allLinked": "Όλα τα θέματα έχουν συνδεδεμένες αποφάσεις.",
       "pollButton": "Ανάκτηση από Διαύγεια",
       "pollRequested": "Ξεκίνησε η ανάκτηση αποφάσεων",
-      "pollError": "Αποτυχία εκκίνησης ανάκτησης"
+      "pollError": "Αποτυχία εκκίνησης ανάκτησης",
+      "tabExtracted": "Εξαγόμενα",
+      "excerpt": "Απόσπασμα",
+      "references": "Νομικές αναφορές",
+      "attendance": "Παρουσίες",
+      "votes": "Ψηφοφορία",
+      "present": "παρόντες",
+      "absent": "απόντες",
+      "showNames": "Εμφάνιση ονομάτων",
+      "hideNames": "Απόκρυψη ονομάτων",
+      "voteFor": "υπέρ",
+      "voteAgainst": "κατά",
+      "voteAbstain": "λευκό",
+      "showMore": "Περισσότερα",
+      "showLess": "Λιγότερα",
+      "unanimous": "Ομόφωνα ({count} υπέρ)",
+      "majorityVote": "Κατά πλειοψηφία ({for} υπέρ, {against} κατά)",
+      "rejected": "Απορρίφθηκε ({against} κατά, {for} υπέρ)",
+      "noExtractedData": "Δεν υπάρχουν θέματα με εξαγόμενα δεδομένα."
     }
   }
 }

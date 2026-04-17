@@ -1,7 +1,7 @@
 "use server";
 import prisma from './prisma';
 import { withUserAuthorizedToEdit } from '../auth';
-import { CouncilMeeting, City, Prisma, AdministrativeBodyType } from '@prisma/client';
+import { CouncilMeeting, City, Prisma, AdministrativeBodyType, DiscussionStatus } from '@prisma/client';
 import { PersonWithRelations } from './people';
 import { isRoleActiveAt } from '../utils';
 import { roleWithRelationsInclude } from './types';
@@ -46,12 +46,16 @@ export interface EditableSpeakerSegmentData {
         text: string;        // editable
         startTimestamp: number; // editable
         endTimestamp: number;   // editable
+        discussionStatus: DiscussionStatus | null; // editable
+        discussionSubjectId: string | null;        // editable - FK to Subject
     }>;
     summary?: {
         text: string;        // editable
         type: 'procedural' | 'substantive'; // editable
     } | null;
 }
+
+const DISCUSSION_STATUS_VALUES = Object.values(DiscussionStatus);
 
 /**
  * Calculate timestamps for a new utterance in an empty segment
@@ -745,6 +749,10 @@ export async function updateSpeakerSegmentData(
         if (utterance.startTimestamp >= utterance.endTimestamp) {
             throw new Error(`Invalid timestamps for utterance ${utterance.id}: start must be less than end`);
         }
+        if (utterance.discussionStatus !== null && utterance.discussionStatus !== undefined &&
+            !DISCUSSION_STATUS_VALUES.includes(utterance.discussionStatus)) {
+            throw new Error(`Invalid discussionStatus for utterance ${utterance.id}: must be one of ${DISCUSSION_STATUS_VALUES.join(', ')} or null`);
+        }
     }
 
     // Validate summary if provided
@@ -752,48 +760,84 @@ export async function updateSpeakerSegmentData(
         throw new Error('Summary text cannot be empty if summary is provided');
     }
 
+    // Validate that all referenced subject IDs exist
+    const subjectIds = [...new Set(
+        data.utterances
+            .map(u => u.discussionSubjectId)
+            .filter((id): id is string => id !== null && id !== undefined)
+    )];
+    if (subjectIds.length > 0) {
+        const existingSubjects = await prisma.subject.findMany({
+            where: { id: { in: subjectIds } },
+            select: { id: true }
+        });
+        const existingSubjectIds = new Set(existingSubjects.map(s => s.id));
+        for (const subjectId of subjectIds) {
+            if (!existingSubjectIds.has(subjectId)) {
+                throw new Error(`Subject with ID "${subjectId}" does not exist`);
+            }
+        }
+    }
+
     return await prisma.$transaction(async (prisma) => {
-        // Get existing utterance IDs for comparison
-        const existingUtteranceIds = new Set(currentSegment.utterances.map(u => u.id));
-        const newUtteranceIds = new Set(data.utterances.map(u => u.id));
+        const segmentUtteranceIds = new Set(currentSegment.utterances.map(u => u.id));
+        const incomingUtteranceIds = new Set(data.utterances.map(u => u.id));
 
-        // Find utterances to delete (in existing but not in new)
-        const utterancesToDelete = Array.from(existingUtteranceIds).filter(id => !newUtteranceIds.has(id));
-
-        // Delete removed utterances
+        // Delete utterances that were in this segment but removed from the data
+        const utterancesToDelete = [...segmentUtteranceIds].filter(id => !incomingUtteranceIds.has(id));
         if (utterancesToDelete.length > 0) {
             await prisma.utterance.deleteMany({
                 where: { id: { in: utterancesToDelete } }
             });
         }
 
+        // The merged transcript view can include utterances from adjacent segments.
+        // Verify which non-segment IDs actually exist in the DB so we can update them.
+        const unknownIds = data.utterances
+            .filter(u => !segmentUtteranceIds.has(u.id) && !u.id.startsWith('temp_'))
+            .map(u => u.id);
+        const verifiedOtherIds = unknownIds.length > 0
+            ? new Set((await prisma.utterance.findMany({
+                where: { id: { in: unknownIds } },
+                select: { id: true }
+            })).map(u => u.id))
+            : new Set<string>();
+
         // Update existing utterances and create new ones
         for (const utteranceData of data.utterances) {
-            if (existingUtteranceIds.has(utteranceData.id)) {
-                // Update existing utterance
+            const isExisting = segmentUtteranceIds.has(utteranceData.id) || verifiedOtherIds.has(utteranceData.id);
+
+            if (isExisting) {
                 await prisma.utterance.update({
                     where: { id: utteranceData.id },
                     data: {
                         text: utteranceData.text,
                         startTimestamp: utteranceData.startTimestamp,
-                        endTimestamp: utteranceData.endTimestamp
+                        endTimestamp: utteranceData.endTimestamp,
+                        discussionStatus: utteranceData.discussionStatus ?? null,
+                        discussionSubjectId: utteranceData.discussionSubjectId ?? null,
                     }
                 });
             } else if (utteranceData.id.startsWith('temp_')) {
-                // Create new utterance (temporary ID indicates a new utterance)
                 await prisma.utterance.create({
                     data: {
                         text: utteranceData.text || '',
                         startTimestamp: utteranceData.startTimestamp,
                         endTimestamp: utteranceData.endTimestamp,
-                        speakerSegmentId: segmentId
+                        speakerSegmentId: segmentId,
+                        discussionStatus: utteranceData.discussionStatus ?? null,
+                        discussionSubjectId: utteranceData.discussionSubjectId ?? null,
                     }
                 });
             }
         }
 
-        // Calculate new segment timestamps based on utterances
-        const allTimestamps = data.utterances.flatMap(u => [u.startTimestamp, u.endTimestamp]);
+        // Recalculate segment timestamps from this segment's utterances only
+        // (exclude cross-segment utterances from the merged view)
+        const segmentUtterances = data.utterances.filter(u =>
+            segmentUtteranceIds.has(u.id) || u.id.startsWith('temp_')
+        );
+        const allTimestamps = segmentUtterances.flatMap(u => [u.startTimestamp, u.endTimestamp]);
         const newSegmentStart = Math.min(...allTimestamps);
         const newSegmentEnd = Math.max(...allTimestamps);
 

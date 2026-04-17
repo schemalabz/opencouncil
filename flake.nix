@@ -861,6 +861,15 @@ USAGE
                 lan_host_flag="-H 127.0.0.1"
               fi
 
+              # NEXTAUTH_URL must match the actual app port so callback URLs are correct.
+              # --preview-tasks already sets NEXTAUTH_URL to the ngrok tunnel URL above;
+              # for all other modes, derive it from the resolved app port.
+              if [ -z "$ngrok_pid" ]; then
+                nextauth_url="http://localhost:$app_port"
+              else
+                nextauth_url="$NEXTAUTH_URL"
+              fi
+
               case "$db_mode" in
                 remote)
                   cat >"$pc_file" <<EOF
@@ -868,7 +877,7 @@ version: "0.5"
 processes:
   app:
     working_dir: "$repo_root"
-    command: "bash -lc 'set -o pipefail; export APP_PORT=\"$app_port\"; if [ \"$migrate\" = \"1\" ]; then npm run db:deploy; fi; npm run dev -- -p \"$app_port\" $lan_host_flag 2>&1 | tee -a \"$logs_dir/app.log\"'"
+    command: "bash -lc 'set -o pipefail; export APP_PORT=\"$app_port\"; export NEXTAUTH_URL=\"$nextauth_url\"; if [ \"$migrate\" = \"1\" ]; then npm run db:deploy; fi; npm run dev -- -p \"$app_port\" $lan_host_flag 2>&1 | tee -a \"$logs_dir/app.log\"'"
 EOF
                   if [ "$studio_enabled" = "1" ]; then
                     cat >>"$pc_file" <<EOF
@@ -888,7 +897,7 @@ version: "0.5"
 processes:
   app:
     working_dir: "$repo_root"
-    command: "bash -lc 'set -o pipefail; export APP_PORT=\"$app_port\"; export DATABASE_URL=\"$db_url\"; export DIRECT_URL=\"$direct_url\"; if [ \"$migrate\" = \"1\" ]; then npm run db:deploy; fi; npm run dev -- -p \"$app_port\" $lan_host_flag 2>&1 | tee -a \"$logs_dir/app.log\"'"
+    command: "bash -lc 'set -o pipefail; export APP_PORT=\"$app_port\"; export NEXTAUTH_URL=\"$nextauth_url\"; export DATABASE_URL=\"$db_url\"; export DIRECT_URL=\"$direct_url\"; if [ \"$migrate\" = \"1\" ]; then npm run db:deploy; fi; npm run dev -- -p \"$app_port\" $lan_host_flag 2>&1 | tee -a \"$logs_dir/app.log\"'"
 EOF
                   if [ "$studio_enabled" = "1" ]; then
                     cat >>"$pc_file" <<EOF
@@ -922,7 +931,7 @@ processes:
     command: "bash -lc 'set -o pipefail; OC_DB_DATA_DIR=\"$data_dir\" OC_DB_PORT=\"$db_port\" OC_DB_USER=\"$db_user\" OC_DB_NAME=\"$db_name\" $oc_db_cmd 2>&1 | tee -a \"$logs_dir/db.log\"'"
   app:
     working_dir: "$repo_root"
-    command: "bash -lc 'set -o pipefail; DATABASE_URL=\"$db_url_local\" DIRECT_URL=\"$db_url_local\" OC_APP_PORT=\"$app_port\" APP_PORT=\"$app_port\" OC_DB_PORT=\"$db_port\" OC_DB_USER=\"$db_user\" OC_DB_NAME=\"$db_name\" OC_DB_PASSWORD=\"$db_password\" OC_LAN=\"$lan_enabled\" oc-dev-app-local 2>&1 | tee -a \"$logs_dir/app.log\"'"
+    command: "bash -lc 'set -o pipefail; DATABASE_URL=\"$db_url_local\" DIRECT_URL=\"$db_url_local\" NEXTAUTH_URL=\"$nextauth_url\" OC_APP_PORT=\"$app_port\" APP_PORT=\"$app_port\" OC_DB_PORT=\"$db_port\" OC_DB_USER=\"$db_user\" OC_DB_NAME=\"$db_name\" OC_DB_PASSWORD=\"$db_password\" OC_LAN=\"$lan_enabled\" oc-dev-app-local 2>&1 | tee -a \"$logs_dir/app.log\"'"
 EOF
                   if [ "$studio_enabled" = "1" ]; then
                     cat >>"$pc_file" <<EOF
@@ -954,7 +963,7 @@ processes:
     command: "bash -lc 'set -o pipefail; OC_DB_PORT=\"$db_port\" oc-dev-db-docker 2>&1 | tee -a \"$logs_dir/db.log\"'"
   app:
     working_dir: "$repo_root"
-    command: "bash -lc 'set -o pipefail; DATABASE_URL=\"$db_url_local\" DIRECT_URL=\"$db_url_local\" OC_APP_PORT=\"$app_port\" APP_PORT=\"$app_port\" OC_DB_PORT=\"$db_port\" OC_DB_USER=\"$db_user\" OC_DB_NAME=\"$db_name\" OC_DB_PASSWORD=\"$db_password\" OC_LAN=\"$lan_enabled\" oc-dev-app-local 2>&1 | tee -a \"$logs_dir/app.log\"'"
+    command: "bash -lc 'set -o pipefail; DATABASE_URL=\"$db_url_local\" DIRECT_URL=\"$db_url_local\" NEXTAUTH_URL=\"$nextauth_url\" OC_APP_PORT=\"$app_port\" APP_PORT=\"$app_port\" OC_DB_PORT=\"$db_port\" OC_DB_USER=\"$db_user\" OC_DB_NAME=\"$db_name\" OC_DB_PASSWORD=\"$db_password\" OC_LAN=\"$lan_enabled\" oc-dev-app-local 2>&1 | tee -a \"$logs_dir/app.log\"'"
 EOF
                   if [ "$studio_enabled" = "1" ]; then
                     cat >>"$pc_file" <<EOF

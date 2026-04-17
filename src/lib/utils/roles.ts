@@ -284,8 +284,8 @@ export function getSingleCityRole(roles: (Role & { cityId?: string | null })[], 
  * This will require passing context (e.g. administrativeBodyId) to the sorting function.
  */
 function getRoleTypePriority(role: { isHead: boolean; cityId?: string | null; partyId?: string | null; administrativeBodyId?: string | null }): number {
+  if (isMayorRole(role)) return 0;             // mayor
   const isCityLevel = role.cityId && !role.partyId && !role.administrativeBodyId;
-  if (isCityLevel && role.isHead) return 0;  // mayor
   if (isCityLevel) return 1;                 // deputy mayor
   if (role.administrativeBodyId && role.isHead) return 2; // council president, committee chair
   if (role.partyId && role.isHead) return 3;  // party leader
@@ -310,29 +310,81 @@ export function sortRolesByPriority<T extends { isHead: boolean; cityId?: string
 }
 
 /**
+ * Returns the highest-priority role from a list.
+ * Wraps sortRolesByPriority to name the common "pick the most prominent role" concept.
+ * Generic so callers keep their concrete type (e.g. RoleWithRelations).
+ */
+export function getPrimaryRole<T extends {
+  isHead: boolean;
+  cityId?: string | null;
+  partyId?: string | null;
+  administrativeBodyId?: string | null;
+}>(roles: T[]): T | null {
+  const sorted = sortRolesByPriority(roles);
+  return sorted[0] ?? null;
+}
+
+/**
  * Derives speaker display information from roles at a specific date.
  * Centralizes the logic for determining what to show for a person:
- * - City-level role (mayor, deputy mayor) takes priority
- * - Party affiliation if no city-level role
- * - Independent if neither
+ * - Uses getPrimaryRole to find the most prominent non-party role
+ * - City-level roles (mayor, deputy mayor) have highest priority
+ * - Admin body head roles (council president) are included
+ * - Party affiliation is resolved separately
+ * - isPartyHead indicates the person leads their party (suppressed for
+ *   city-level heads like the mayor, where it's always implied)
+ * - Independent if neither party nor prominent role
  *
  * @param roles Array of roles with party relations
  * @param date Date to check for active roles (defaults to current date)
- * @returns Object with party, city role, and independent status
+ * @returns Object with party, role, party head status, and independent status
  */
 export function getSpeakerDisplayInfo(
   roles: (Role & { party?: Party | null; cityId?: string | null })[],
   date?: Date
 ): {
   party: Party | null;
-  cityRole: Role | null;
+  role: Role | null;
+  isPartyHead: boolean;
   isIndependent: boolean;
 } {
   const party = getPartyFromRoles(roles, date);
-  const cityRole = getSingleCityRole(roles, date);
-  const isIndependent = !party && !cityRole;
 
-  return { party, cityRole, isIndependent };
+  const checkDate = date || new Date();
+  const activeRoles = roles.filter(role => isRoleActiveAt(role, checkDate));
+  const primaryRole = getPrimaryRole(activeRoles);
+
+  // Use primary role only if it's a non-party role
+  // (party roles are shown separately via the party field)
+  const role = primaryRole && !primaryRole.partyId ? primaryRole : null;
+  const isIndependent = !party && !role;
+
+  // Party head status: true when the active party role has isHead,
+  // but suppressed when the displayed role is already city-level head (mayor)
+  // since the mayor is always the party leader — showing both is redundant.
+  const activePartyRole = activeRoles.find(r => r.partyId);
+  const isCityHead = role !== null && isMayorRole(role);
+  const isPartyHead = activePartyRole?.isHead === true && !isCityHead;
+
+  return { party, role, isPartyHead, isIndependent };
+}
+
+/**
+ * Checks if a single role is the city mayor role.
+ * Mayor = city-level role (cityId set, no partyId or administrativeBodyId) with isHead.
+ */
+export function isMayorRole(role: { isHead: boolean; cityId?: string | null; partyId?: string | null; administrativeBodyId?: string | null }): boolean {
+  return !!role.cityId && !role.partyId && !role.administrativeBodyId && role.isHead;
+}
+
+/**
+ * Simplify vice-mayor role names for document output.
+ * "Αντιδήμαρχος Τεχνικών Έργων" → "Αντιδήμαρχος"
+ */
+export function simplifyRoleName(name: string | null): string | null {
+  if (!name) return null;
+  if (name.startsWith('Αντιδήμαρχος')) return 'Αντιδήμαρχος';
+  return name;
 }
 
 /**

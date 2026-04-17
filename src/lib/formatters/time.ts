@@ -133,6 +133,19 @@ export function formatDateTime(date: Date, timezone?: string): string {
   }
 }
 
+/**
+ * Formats a gap duration in seconds to a Greek human-readable string
+ * @param seconds - Gap duration in seconds
+ * @returns Formatted string like "3 λεπτών" or "45 δευτ."
+ */
+export function formatGapDuration(seconds: number): string {
+    const minutes = Math.round(seconds / 60);
+    if (minutes >= 1) {
+        return `${minutes} λεπτ${minutes === 1 ? 'ού' : 'ών'}`;
+    }
+    return `${Math.round(seconds)} δευτ.`;
+}
+
 export function formatDateRange(startDate: Date | null, endDate: Date | null, t: any): string {
   if (startDate && endDate) {
     return `${t('from')} ${formatDate(startDate)} ${t('until')} ${formatDate(endDate)}`;
