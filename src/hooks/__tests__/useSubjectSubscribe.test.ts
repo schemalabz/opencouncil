@@ -35,8 +35,8 @@ const mockTopic = {
     name_en: 'Environment',
     colorHex: '#00ff00',
     icon: 'Leaf',
-    cityId: 'city-1',
-    order: 1,
+    description: '',
+    deprecated: false,
     createdAt: new Date(),
     updatedAt: new Date(),
 };
@@ -106,6 +106,7 @@ describe('useSubjectSubscribe - authenticated, no existing prefs', () => {
             cityId,
             topicIds: ['topic-1'],
             locationIds: ['loc-1'],
+            allowUnsubscribeAll: true,
         });
     });
 });
@@ -122,8 +123,8 @@ describe('useSubjectSubscribe - merge with existing prefs', () => {
             name_en: 'Roads',
             colorHex: '#aaaaaa',
             icon: 'Road',
-            cityId,
-            order: 2,
+            description: '',
+            deprecated: false,
             createdAt: new Date(),
             updatedAt: new Date(),
         };
@@ -156,6 +157,7 @@ describe('useSubjectSubscribe - merge with existing prefs', () => {
             cityId,
             topicIds: expect.arrayContaining(['topic-existing', 'topic-1']),
             locationIds: [],
+            allowUnsubscribeAll: true,
         });
     });
 
@@ -217,6 +219,7 @@ describe('useSubjectSubscribe - merge with existing prefs', () => {
             cityId,
             topicIds: ['other-topic'],
             locationIds: [],
+            allowUnsubscribeAll: true,
         });
     });
 });

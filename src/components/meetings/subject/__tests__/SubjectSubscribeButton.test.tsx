@@ -6,6 +6,8 @@
 
 // ---- Module mocks (must be before imports) ----
 
+const React = require('react');
+
 jest.mock('next-auth/react', () => ({
     useSession: jest.fn(() => ({ data: { user: {} }, status: 'authenticated' })),
 }));
@@ -26,9 +28,41 @@ jest.mock('@/lib/db/notifications', () => ({
 }));
 
 jest.mock('@/components/ui/popover', () => ({
-    Popover: ({ children, open }: any) => open ? <div data-testid="popover">{children}</div> : <>{children}</>,
-    PopoverTrigger: ({ children }: any) => <>{children}</>,
-    PopoverContent: ({ children }: any) => <div data-testid="popover-content">{children}</div>,
+    Popover: ({ children, open, onOpenChange }: any) => {
+        const triggerRef = React.useRef(null);
+        const contentRef = React.useRef(null);
+
+        React.Children.forEach(children, (child: any) => {
+            if (!React.isValidElement(child)) return;
+            if (child.type?.displayName === 'MockPopoverTrigger') triggerRef.current = child;
+            if (child.type?.displayName === 'MockPopoverContent') contentRef.current = child;
+        });
+
+        return (
+            <>
+                {triggerRef.current
+                    ? React.cloneElement(triggerRef.current, { onOpenChange })
+                    : null}
+                {open && contentRef.current
+                    ? React.cloneElement(contentRef.current)
+                    : null}
+            </>
+        );
+    },
+    PopoverTrigger: Object.assign(
+        ({ children, onOpenChange }: any) =>
+            React.cloneElement(children, {
+                onClick: (...args: any[]) => {
+                    children.props?.onClick?.(...args);
+                    onOpenChange?.(true);
+                },
+            }),
+        { displayName: 'MockPopoverTrigger' }
+    ),
+    PopoverContent: Object.assign(
+        ({ children }: any) => <div data-testid="popover-content">{children}</div>,
+        { displayName: 'MockPopoverContent' }
+    ),
 }));
 
 jest.mock('@/components/ui/button', () => ({
@@ -55,7 +89,6 @@ jest.mock('../SubjectSubscribeContext', () => ({
 
 // ---- Actual imports ----
 
-import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { useSubjectSubscribeContext } from '../SubjectSubscribeContext';
@@ -63,7 +96,6 @@ import { useSubjectSubscribeContext } from '../SubjectSubscribeContext';
 // This must be after jest.mock declarations
 const mockToast = jest.fn();
 const mockSave = jest.fn();
-const mockDismiss = jest.fn();
 
 const defaultHookResult = {
     isAuthenticated: true,
@@ -75,8 +107,6 @@ const defaultHookResult = {
     isSaving: false,
     save: mockSave,
     notificationsPageUrl: '/city-1/notifications',
-    isDismissed: false,
-    dismiss: mockDismiss,
 };
 
 const mockUseSubjectSubscribeContext = useSubjectSubscribeContext as jest.MockedFunction<typeof useSubjectSubscribeContext>;
@@ -131,6 +161,40 @@ describe('SubjectSubscribeButton', () => {
             expect(screen.getByTestId('popover-content')).toBeInTheDocument();
             const checkboxes = screen.getAllByRole('checkbox');
             expect(checkboxes).toHaveLength(2);
+        });
+    });
+
+    it('pre-selects topic and location checkboxes from existing preferences', async () => {
+        mockUseSubjectSubscribeContext.mockReturnValue({
+            ...defaultHookResult,
+            alreadySubscribed: true,
+            isTopicSubscribed: true,
+            isLocationSubscribed: true,
+        });
+
+        render(<SubjectSubscribeButton topic={mockTopic} location={mockLocation} />);
+        fireEvent.click(screen.getAllByRole('button')[0]);
+
+        await waitFor(() => {
+            const [topicCheckbox, locationCheckbox] = screen.getAllByRole('checkbox');
+            expect(topicCheckbox).toBeChecked();
+            expect(locationCheckbox).toBeChecked();
+        });
+    });
+
+    it('keeps confirm disabled when nothing changed from existing preferences', async () => {
+        mockUseSubjectSubscribeContext.mockReturnValue({
+            ...defaultHookResult,
+            alreadySubscribed: true,
+            isTopicSubscribed: true,
+            isLocationSubscribed: true,
+        });
+
+        render(<SubjectSubscribeButton topic={mockTopic} location={mockLocation} />);
+        fireEvent.click(screen.getAllByRole('button')[0]);
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: 'Confirm' })).toBeDisabled();
         });
     });
 

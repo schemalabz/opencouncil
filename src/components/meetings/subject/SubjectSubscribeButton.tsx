@@ -36,7 +36,7 @@ export function SubjectSubscribeButton({
     const locale = useLocale();
     const { toast } = useToast();
 
-    const { isAuthenticated, isTopicSubscribed, isLocationSubscribed, isLoading, isSaving, save, notificationsPageUrl, dismiss } =
+    const { isAuthenticated, isTopicSubscribed, isLocationSubscribed, isLoading, isSaving, save, notificationsPageUrl } =
         useSubjectSubscribeContext();
 
     const isSubscribed = isTopicSubscribed && (!location || isLocationSubscribed);
@@ -79,7 +79,6 @@ export function SubjectSubscribeButton({
         const success = await save(topicChecked, locationChecked);
 
         if (success) {
-            dismiss();
             setOpen(false);
             toast({
                 title: t("subscribeSuccess"),

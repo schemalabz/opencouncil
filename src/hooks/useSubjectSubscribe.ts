@@ -150,6 +150,9 @@ export function useSubjectSubscribe({
                     cityId,
                     topicIds: mergedTopicIds,
                     locationIds: mergedLocationIds,
+                    // This is the only caller allowed to wipe a user's preferences
+                    // (when the user deselects every topic and location in the popover).
+                    allowUnsubscribeAll: true,
                 });
 
                 if (result.success) {

@@ -259,8 +259,15 @@ type OnboardingData = {
 export async function saveNotificationPreferences(data: OnboardingData & {
     locationIds: string[];
     topicIds: string[];
+    /**
+     * Opt-in flag for the unsubscribe-all path. When true and both arrays are empty,
+     * the existing NotificationPreference row is deleted. Without this flag, empty
+     * arrays are rejected as an error to protect callers (e.g. onboarding) from
+     * accidentally wiping a user's preferences.
+     */
+    allowUnsubscribeAll?: boolean;
 }): Promise<Result<NotificationPreference | null>> {
-    const { cityId, locationIds, topicIds, phone, email, name, seedUser } = data;
+    const { cityId, locationIds, topicIds, phone, email, name, seedUser, allowUnsubscribeAll } = data;
     // Only call getServerSession if not in seed/CLI mode (avoids Next.js request context requirement)
     const session = seedUser ? null : await getServerSession();
 
@@ -381,18 +388,19 @@ export async function saveNotificationPreferences(data: OnboardingData & {
         });
 
         /**
-         * Unsubscribe-all path: triggered exclusively by `useSubjectSubscribe` when the
-         * user deselects every topic and location in the nudge dialog.
+         * Unsubscribe-all path: opt-in via `allowUnsubscribeAll`, used exclusively by
+         * `useSubjectSubscribe` when the user deselects every topic and location.
          *
          * WARNING: this path bypasses `sendWelcomeMessages` and
-         * `sendNotificationSignupAdminAlert`. Do NOT call `saveNotificationPreferences`
-         * with empty arrays from any flow that should trigger those side-effects.
+         * `sendNotificationSignupAdminAlert`. The preference row is deleted entirely,
+         * so a later re-subscribe will create a new row and re-trigger welcome messages
+         * and admin alerts.
          *
-         * NOTE: The preference row is deleted entirely. If the user later re-subscribes,
-         * a new row is created which will re-trigger welcome messages and admin alerts.
+         * Other callers (onboarding, seed-users) reach the default branch and get an
+         * error on empty arrays, protecting against accidental preference wipes.
          */
         if (validTopicIds.length === 0 && validLocationIds.length === 0) {
-            if (isNewlyCreatedUser) {
+            if (isNewlyCreatedUser || !allowUnsubscribeAll) {
                 return createError("No valid topics or locations provided");
             }
             if (existingPreference) {
