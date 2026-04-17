@@ -1,51 +1,70 @@
 /** @jest-environment node */
 
 /**
- * Tests for the force-summarize cleanup logic in requestSummarize.
+ * Tests for the summarize cleanup and force semantics.
  *
- * WHY cleanup is needed:
+ * The `force` flag on requestSummarize controls ONLY idempotency — whether
+ * the task is allowed to run again if it already succeeded. It does NOT
+ * control cleanup.
  *
- * handleSummarizeResult uses upserts to save data, but upserts only
- * create/update — they never delete. This creates stale data problems
- * on re-runs:
- *
- * - TopicLabels are upserted with composite key `${speakerSegmentId}_${topicId}`.
- *   If run 1 tags segment-A with ["economy", "environment"] and run 2 tags it
- *   with ["health"], the upsert creates the "health" label but the old "economy"
- *   and "environment" labels remain in the database.
- *
- * - Utterance discussion statuses are set via individual updates for each
- *   utterance in the response. If run 1 sets a status on utterance-X but run 2's
- *   response doesn't include utterance-X, its old status persists.
- *
- * - Summaries are upserted with a unique key on speakerSegmentId (1:1), so
- *   the old value is always overwritten. No cleanup needed.
- *
- * The force path in requestSummarize explicitly deletes topic labels and resets
- * utterance statuses before dispatching the task to ensure a clean slate.
+ * Cleanup of stale data (topic labels, utterance discussion statuses) always
+ * happens in handleSummarizeResult when a successful callback is received.
+ * This ensures the DB stays consistent: old data is only removed when we
+ * have new data to replace it with. If the task fails, old data is preserved.
  */
+
+const CITY_ID = 'city-1';
+const MEETING_ID = 'meeting-1';
+const TASK_ID = 'task-1';
 
 const mockTopicLabelDeleteMany = jest.fn().mockResolvedValue({ count: 0 });
 const mockUtteranceUpdateMany = jest.fn().mockResolvedValue({ count: 0 });
+const mockTransaction = jest.fn().mockResolvedValue([]);
+const mockTaskStatusFindUnique = jest.fn().mockResolvedValue({
+  id: TASK_ID,
+  councilMeeting: {
+    id: MEETING_ID,
+    cityId: CITY_ID,
+    city: { name_en: 'TestCity' },
+    name: 'Test Meeting',
+    administrativeBody: null,
+  },
+});
+const mockTopicFindMany = jest.fn().mockResolvedValue([]);
+const mockUtteranceFindMany = jest.fn().mockResolvedValue([]);
+const mockUtteranceUpdate = jest.fn().mockResolvedValue({});
 
 jest.mock('../../db/prisma', () => ({
   __esModule: true,
   default: {
+    taskStatus: {
+      findUnique: (...args: unknown[]) => mockTaskStatusFindUnique(...args),
+    },
     topicLabel: {
       deleteMany: (...args: unknown[]) => mockTopicLabelDeleteMany(...args),
     },
     utterance: {
       updateMany: (...args: unknown[]) => mockUtteranceUpdateMany(...args),
+      findMany: (...args: unknown[]) => mockUtteranceFindMany(...args),
+      update: (...args: unknown[]) => mockUtteranceUpdate(...args),
     },
+    topic: {
+      findMany: (...args: unknown[]) => mockTopicFindMany(...args),
+    },
+    $transaction: (...args: unknown[]) => mockTransaction(...args),
   },
 }));
 
+const mockGetAvailableSpeakerSegmentIds = jest.fn().mockResolvedValue([]);
+const mockSaveSubjectsForMeeting = jest.fn().mockResolvedValue(new Map());
 const mockGetSummarizeRequestBody = jest.fn().mockResolvedValue({ transcript: [] });
 jest.mock('../../db/utils', () => ({
+  getAvailableSpeakerSegmentIds: (...args: unknown[]) => mockGetAvailableSpeakerSegmentIds(...args),
+  saveSubjectsForMeeting: (...args: unknown[]) => mockSaveSubjectsForMeeting(...args),
   getSummarizeRequestBody: (...args: unknown[]) => mockGetSummarizeRequestBody(...args),
 }));
 
-const mockStartTask = jest.fn().mockResolvedValue({ id: 'task-1' });
+const mockStartTask = jest.fn().mockResolvedValue({ id: TASK_ID });
 jest.mock('../tasks', () => ({
   startTask: (...args: unknown[]) => mockStartTask(...args),
 }));
@@ -54,24 +73,21 @@ jest.mock('../../auth', () => ({
   withUserAuthorizedToEdit: jest.fn().mockResolvedValue(undefined),
 }));
 
-import { requestSummarize } from '../summarize';
+import { requestSummarize, handleSummarizeResult } from '../summarize';
+import { SummarizeResult } from '../../apiTypes';
 
-const CITY_ID = 'city-1';
-const MEETING_ID = 'meeting-1';
+const EMPTY_RESPONSE: SummarizeResult = {
+  speakerSegmentSummaries: [],
+  subjects: [],
+  utteranceDiscussionStatuses: [],
+};
 
-describe('requestSummarize — force cleanup', () => {
+describe('requestSummarize — force controls idempotency only', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('does NOT delete topic labels or reset utterance statuses when force is false', async () => {
-    await requestSummarize(CITY_ID, MEETING_ID);
-
-    expect(mockTopicLabelDeleteMany).not.toHaveBeenCalled();
-    expect(mockUtteranceUpdateMany).not.toHaveBeenCalled();
-  });
-
-  it('does NOT pass force to startTask when force is false', async () => {
+  it('passes force:false to startTask by default (idempotency enforced)', async () => {
     await requestSummarize(CITY_ID, MEETING_ID);
 
     expect(mockStartTask).toHaveBeenCalledWith(
@@ -83,8 +99,33 @@ describe('requestSummarize — force cleanup', () => {
     );
   });
 
-  it('deletes topic labels scoped to the meeting when force is true', async () => {
+  it('passes force:true to startTask when requested (idempotency bypassed)', async () => {
     await requestSummarize(CITY_ID, MEETING_ID, [], undefined, { force: true });
+
+    expect(mockStartTask).toHaveBeenCalledWith(
+      'summarize',
+      expect.anything(),
+      MEETING_ID,
+      CITY_ID,
+      { force: true },
+    );
+  });
+
+  it('never does cleanup, even with force:true', async () => {
+    await requestSummarize(CITY_ID, MEETING_ID, [], undefined, { force: true });
+
+    expect(mockTopicLabelDeleteMany).not.toHaveBeenCalled();
+    expect(mockUtteranceUpdateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('handleSummarizeResult — always cleans up stale data on success', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('deletes topic labels scoped to the meeting', async () => {
+    await handleSummarizeResult(TASK_ID, EMPTY_RESPONSE);
 
     expect(mockTopicLabelDeleteMany).toHaveBeenCalledWith({
       where: {
@@ -93,8 +134,8 @@ describe('requestSummarize — force cleanup', () => {
     });
   });
 
-  it('resets utterance discussion statuses scoped to the meeting when force is true', async () => {
-    await requestSummarize(CITY_ID, MEETING_ID, [], undefined, { force: true });
+  it('resets utterance discussion statuses scoped to the meeting', async () => {
+    await handleSummarizeResult(TASK_ID, EMPTY_RESPONSE);
 
     expect(mockUtteranceUpdateMany).toHaveBeenCalledWith({
       where: {
@@ -107,27 +148,18 @@ describe('requestSummarize — force cleanup', () => {
     });
   });
 
-  it('passes force:true to startTask to bypass idempotency', async () => {
-    await requestSummarize(CITY_ID, MEETING_ID, [], undefined, { force: true });
-
-    expect(mockStartTask).toHaveBeenCalledWith(
-      'summarize',
-      expect.anything(),
-      MEETING_ID,
-      CITY_ID,
-      { force: true },
-    );
-  });
-
-  it('cleans up before building the request body', async () => {
+  it('cleans up before saving new data', async () => {
     const callOrder: string[] = [];
     mockTopicLabelDeleteMany.mockImplementation(() => { callOrder.push('deleteTopicLabels'); return Promise.resolve({ count: 0 }); });
     mockUtteranceUpdateMany.mockImplementation(() => { callOrder.push('resetUtterances'); return Promise.resolve({ count: 0 }); });
-    mockGetSummarizeRequestBody.mockImplementation(() => { callOrder.push('getRequestBody'); return Promise.resolve({ transcript: [] }); });
+    mockTransaction.mockImplementation(() => { callOrder.push('saveTransaction'); return Promise.resolve([]); });
+    mockSaveSubjectsForMeeting.mockImplementation(() => { callOrder.push('saveSubjects'); return Promise.resolve(new Map()); });
 
-    await requestSummarize(CITY_ID, MEETING_ID, [], undefined, { force: true });
+    await handleSummarizeResult(TASK_ID, EMPTY_RESPONSE);
 
-    expect(callOrder.indexOf('deleteTopicLabels')).toBeLessThan(callOrder.indexOf('getRequestBody'));
-    expect(callOrder.indexOf('resetUtterances')).toBeLessThan(callOrder.indexOf('getRequestBody'));
+    expect(callOrder.indexOf('deleteTopicLabels')).toBeLessThan(callOrder.indexOf('saveTransaction'));
+    expect(callOrder.indexOf('resetUtterances')).toBeLessThan(callOrder.indexOf('saveTransaction'));
+    expect(callOrder.indexOf('deleteTopicLabels')).toBeLessThan(callOrder.indexOf('saveSubjects'));
+    expect(callOrder.indexOf('resetUtterances')).toBeLessThan(callOrder.indexOf('saveSubjects'));
   });
 });
