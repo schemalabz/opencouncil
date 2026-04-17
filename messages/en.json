@@ -540,11 +540,7 @@
         "subscribeSuccess": "Saved",
         "subscribeSuccessDescription": "Your notification preferences have been updated.",
         "manageNotifications": "Manage notifications",
-        "nudgeTitle": "Stay informed",
-        "nudgeDescription": "Sign up for notifications on topics and locations that matter to you in {cityName}.",
         "subscribeTo": "Get notified about:",
-        "notNow": "Not now",
-        "goToNotifications": "Go to notifications",
         "error": "Error",
         "subscribeErrorDescription": "An error occurred while saving your preferences. Please try again."
     },

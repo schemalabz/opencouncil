@@ -21,7 +21,6 @@ import { ContributionCard } from "./ContributionCard";
 import { VotingSection } from "./VotingSection";
 import { AutoScrollText } from "@/components/ui/auto-scroll-text";
 import { SubjectSubscribeButton } from "./SubjectSubscribeButton";
-import { SubjectNotificationNudge } from "./SubjectNotificationNudge";
 import { SubjectSubscribeProvider } from "./SubjectSubscribeContext";
 import { formatDate, formatRelativeTime } from "@/lib/formatters/time";
 import { useTranslations, useLocale } from "next-intl";
@@ -33,7 +32,7 @@ import { DebugMetadataButton } from "@/components/ui/debug-metadata-button";
 import { useSession } from "next-auth/react";
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
-    const { subjects, getSpeakerTag, getPerson, getParty, meeting, city } = useCouncilMeetingData();
+    const { subjects, getSpeakerTag, getPerson, getParty, meeting } = useCouncilMeetingData();
     const { seekToAndPlay } = useVideo();
     const t = useTranslations("Subject");
     const locale = useLocale();
@@ -156,7 +155,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                 <div className="max-w-4xl mx-auto px-3 py-3.5 md:px-4 md:py-4">
                     <div className="flex items-center gap-3">
                         <div className="p-2.5 rounded-full shrink-0" style={{ backgroundColor: topic?.colorHex ? topic.colorHex + "20" : "#e5e7eb" }}>
-                            <Icon name={topic?.icon as any || "Hash"} color={topic?.colorHex || "#9ca3af"} size={24} />
+                            <Icon name={topic?.icon || "Hash"} color={topic?.colorHex || "#9ca3af"} size={24} />
                         </div>
                         <div className="flex-grow min-w-0">
                             <AutoScrollText className="mb-1.5">
@@ -316,17 +315,6 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                         </div>
                     </CollapsibleCard>
                 ) : null}
-
-                {/* Notification nudge sentinel — placed at ~50% content depth (after summary) */}
-                <SubjectNotificationNudge
-                    topic={topic ?? null}
-                    location={subscribeLocation}
-                    // Greek: strip the nominative "Δήμος" prefix so the message reads naturally
-                    // in the accusative (e.g. "Αθηναίων" instead of "Δήμος Αθηναίων").
-                    // English names (name_municipality_en) do not include "Municipality of …"
-                    // and do not need any transformation.
-                    cityName={(locale === 'el' ? city.name_municipality : city.name_municipality_en).replace(/^Δήμος\s+/u, '')}
-                />
 
                 {/* Location & Map Section (Collapsible) */}
                 {location && (
