@@ -491,6 +491,8 @@
     },
     "Subject": {
         "agendaItem": "Subject #{index}",
+        "beforeAgenda": "Before Agenda",
+        "outsideAgenda": "Outside Agenda",
         "parties": "Parties",
         "minutes": "minutes",
         "speakers": "{count, plural, =1 {1 speaker} other {# speakers}}",
@@ -531,6 +533,16 @@
         "protocolNumber": "Protocol Number",
         "publishDate": "Publish Date",
         "viewDecision": "View decision on Diavgeia"
+    },
+    "SubjectSubscribe": {
+        "subscribe": "Subscribe",
+        "confirmSubscribe": "Save",
+        "subscribeSuccess": "Saved",
+        "subscribeSuccessDescription": "Your notification preferences have been updated.",
+        "manageNotifications": "Manage notifications",
+        "subscribeTo": "Get notified about:",
+        "error": "Error",
+        "subscribeErrorDescription": "An error occurred while saving your preferences. Please try again."
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {No meetings} =1 {1 meeting} other {# meetings}}",

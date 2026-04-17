@@ -19,10 +19,17 @@ import { AIGeneratedBadge } from "@/components/AIGeneratedBadge";
 import { GroupedDiscussionNotice } from "./grouped-discussion-notice";
 import { ContributionCard } from "./ContributionCard";
 import { VotingSection } from "./VotingSection";
+import { AutoScrollText } from "@/components/ui/auto-scroll-text";
+import { SubjectSubscribeButton } from "./SubjectSubscribeButton";
+import { SubjectSubscribeProvider } from "./SubjectSubscribeContext";
 import { formatDate, formatRelativeTime } from "@/lib/formatters/time";
 import { useTranslations, useLocale } from "next-intl";
 import { requestPollDecisionForSubject, getLastPollTimeForMeeting, getDecisionForSubject } from "@/lib/tasks/pollDecisions";
 import { useSubjectHeader } from "@/contexts/SubjectHeaderContext";
+import Icon from "@/components/icon";
+import TopicBadge from "../transcript/Topic";
+import { DebugMetadataButton } from "@/components/ui/debug-metadata-button";
+import { useSession } from "next-auth/react";
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
     const { subjects, getSpeakerTag, getPerson, getParty, meeting } = useCouncilMeetingData();
@@ -30,6 +37,8 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     const t = useTranslations("Subject");
     const locale = useLocale();
     const { setSubjectHeader } = useSubjectHeader();
+    const { data: session } = useSession();
+    const isSuperAdmin = session?.user?.isSuperAdmin;
     const [isFetchingDecision, setIsFetchingDecision] = useState(false);
     const [localDecision, setLocalDecision] = useState<{
         ada: string | null;
@@ -136,8 +145,71 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
         }
     }, [subject.id]);
 
+    const subscribeLocation = location ? { id: location.id, text: location.text, coordinates: location.coordinates } : null;
+
     return (
+        <SubjectSubscribeProvider topic={topic ?? null} location={subscribeLocation} cityId={meeting.cityId}>
         <div className="min-h-screen bg-background">
+            {/* Sticky Header */}
+            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+                <div className="max-w-4xl mx-auto px-3 py-3.5 md:px-4 md:py-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-full shrink-0" style={{ backgroundColor: topic?.colorHex ? topic.colorHex + "20" : "#e5e7eb" }}>
+                            <Icon name={topic?.icon || "Hash"} color={topic?.colorHex || "#9ca3af"} size={24} />
+                        </div>
+                        <div className="flex-grow min-w-0">
+                            <AutoScrollText className="mb-1.5">
+                                <h1 className="text-xl font-semibold leading-tight">{name}</h1>
+                            </AutoScrollText>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                {topic && <TopicBadge topic={topic} size="compact" />}
+                                {agendaItemIndex != null ? (
+                                    <>
+                                        <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
+                                        <span className="font-medium">{t("agendaItem", { index: agendaItemIndex })}</span>
+                                        {decision && (
+                                            <a
+                                                href="#decision"
+                                                className="inline-flex items-center gap-1 text-primary hover:underline"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    history.replaceState(null, '', '#decision');
+                                                    window.dispatchEvent(new HashChangeEvent('hashchange'));
+                                                }}
+                                            >
+                                                <Landmark className="w-3 h-3" />
+                                                {decision.protocolNumber && (
+                                                    <span className="font-medium">{decision.protocolNumber}</span>
+                                                )}
+                                            </a>
+                                        )}
+                                    </>
+                                ) : subject.nonAgendaReason && (
+                                    <>
+                                        <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
+                                        <span className="font-medium">
+                                            {subject.nonAgendaReason === 'beforeAgenda' ? t("beforeAgenda") : t("outsideAgenda")}
+                                        </span>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                            <SubjectSubscribeButton
+                                topic={topic ?? null}
+                                location={subscribeLocation}
+                            />
+                            {isSuperAdmin ? (
+                                <DebugMetadataButton
+                                    data={subject}
+                                    title="Subject Metadata"
+                                    tooltip="View subject metadata"
+                                />
+                            ) : null}
+                        </div>
+                    </div>
+                </div>
+            </div>
             {/* Main Content */}
             <div className="max-w-4xl mx-auto px-3 py-4 md:px-4 md:py-6 space-y-6">
                 {/* Quick Stats Section */}
@@ -222,7 +294,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                 )}
 
                 {/* Summary Section (Collapsible - Open by default) */}
-                {description && (
+                {description ? (
                     <CollapsibleCard
                         icon={<FileText className="w-4 h-4" />}
                         title={t("summary")}
@@ -242,7 +314,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                             </div>
                         </div>
                     </CollapsibleCard>
-                )}
+                ) : null}
 
                 {/* Location & Map Section (Collapsible) */}
                 {location && (
@@ -493,5 +565,6 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                 )}
             </div>
         </div>
+        </SubjectSubscribeProvider>
     );
 }
