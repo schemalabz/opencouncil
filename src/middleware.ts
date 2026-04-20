@@ -28,10 +28,23 @@ export default async function middleware(req: NextRequest) {
         return NextResponse.rewrite(url);
     }
 
+    // Pass pathname to Server Components so layouts can generate correct hreflang tags
+    const requestHeaders = new Headers(req.headers);
+    requestHeaders.set('x-pathname', pathname);
+
     // Handle i18n first (skip for /qr/* paths to allow direct route handler)
     if (/^\/(?!api|_next|_vercel|qr\/|\..+).*/.test(pathname)) {
         const response = await i18nMiddleware(req);
-        if (response) return response;
+        if (response) {
+            // Redirects pass through unchanged; for continue responses swap in our
+            // modified request headers so Server Components can read x-pathname
+            if (response.status >= 300 && response.status < 400) return response;
+            const next = NextResponse.next({ request: { headers: requestHeaders } });
+            for (const cookie of response.cookies.getAll()) {
+                next.cookies.set(cookie.name, cookie.value, cookie);
+            }
+            return next;
+        }
     }
 
     return auth(req as any);

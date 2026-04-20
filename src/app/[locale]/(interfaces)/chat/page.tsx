@@ -2,6 +2,7 @@ import { ChatInterface } from "@/components/chat/ChatInterface";
 import { Suspense } from "react";
 import { Metadata } from "next";
 import { env } from '@/env.mjs';
+import { buildHreflangAlternates } from "@/lib/utils/hreflang";
 
 export const metadata: Metadata = {
     title: "OpenCouncil AI | Συνομιλήστε για τα Δημοτικά Συμβούλια",
@@ -41,9 +42,7 @@ export const metadata: Metadata = {
         creator: '@opencouncil',
         site: '@opencouncil'
     },
-    alternates: {
-        canonical: '/chat',
-    },
+    alternates: buildHreflangAlternates('/chat'),
     other: {
         'chat:type': 'ai-assistant',
         'chat:domain': 'municipal-politics',
