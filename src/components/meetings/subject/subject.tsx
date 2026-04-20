@@ -25,8 +25,8 @@ import { useTranslations, useLocale } from "next-intl";
 import { requestPollDecisionForSubject, getLastPollTimeForMeeting, getDecisionForSubject } from "@/lib/tasks/pollDecisions";
 import { useSubjectHeader } from "@/contexts/SubjectHeaderContext";
 import { useSession } from "next-auth/react";
-import { DebugMetadataButton } from "@/components/ui/debug-metadata-button";
 import { getWithdrawnLabel } from "@/lib/utils/subjects";
+import { SubjectAdminControls } from "./SubjectAdminControls";
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
     const { subjects, getSpeakerTag, getPerson, getParty, meeting } = useCouncilMeetingData();
@@ -154,10 +154,10 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
             <div className="max-w-4xl mx-auto px-3 py-4 md:px-4 md:py-6 space-y-6">
                 {isSuperAdmin && (
                     <div className="flex justify-end">
-                        <DebugMetadataButton
-                            data={subject}
-                            title="Subject Metadata"
-                            tooltip="View subject metadata"
+                        <SubjectAdminControls
+                            subject={subject}
+                            cityId={meeting.cityId}
+                            meetingId={meeting.id}
                         />
                     </div>
                 )}
