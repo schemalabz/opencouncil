@@ -27,18 +27,21 @@ export async function deleteCouncilMeeting(cityId: string, id: string): Promise<
 
 export async function createCouncilMeeting(meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl'> & { audioUrl?: string, videoUrl?: string }): Promise<CouncilMeetingWithAdminBody> {
     await withUserAuthorizedToEdit({ cityId: meetingData.cityId });
-    try {
-        const newMeeting = await prisma.councilMeeting.create({
-            data: meetingData,
-            include: {
-                administrativeBody: true
-            }
-        });
-        return newMeeting;
-    } catch (error) {
-        console.error('Error creating council meeting:', error);
-        throw new Error('Failed to create council meeting');
-    }
+    return createCouncilMeetingDirect(meetingData);
+}
+
+/**
+ * Create a council meeting without auth checks.
+ * Use when authorization has already been verified by the caller
+ * (e.g., via withServiceOrUserAuth in API route handlers).
+ */
+export async function createCouncilMeetingDirect(meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl'> & { audioUrl?: string, videoUrl?: string }): Promise<CouncilMeetingWithAdminBody> {
+    return prisma.councilMeeting.create({
+        data: meetingData,
+        include: {
+            administrativeBody: true
+        }
+    });
 }
 
 export async function editCouncilMeeting(cityId: string, id: string, meetingData: Partial<Omit<CouncilMeeting, 'id' | 'cityId' | 'createdAt' | 'updatedAt'>>): Promise<CouncilMeetingWithAdminBody> {

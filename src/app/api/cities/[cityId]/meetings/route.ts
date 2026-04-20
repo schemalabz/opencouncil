@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { z } from 'zod';
-import { createCouncilMeeting, getCouncilMeetingsForCity } from '@/lib/db/meetings';
+import { createCouncilMeetingDirect, getCouncilMeetingsForCity } from '@/lib/db/meetings';
 import { withServiceOrUserAuth } from '@/lib/auth';
 import { sendMeetingCreatedAdminAlert } from '@/lib/discord';
 import { createMeetingCalendarEvent, calculateMeetingEndTime } from '@/lib/google-calendar';
@@ -10,6 +10,8 @@ import { generateUniqueMeetingId } from '@/lib/utils/meetingId';
 import { handleApiError } from '@/lib/api/errors';
 import { env } from '@/env.mjs';
 import prisma from '@/lib/db/prisma';
+import { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 const meetingSchema = z.object({
     name: z.string().min(2, {
@@ -80,27 +82,17 @@ export async function POST(
             administrativeBodyId: administrativeBodyId || null,
         });
 
-        // Direct prisma create — used for service auth and for TOCTOU retry
-        const createMeetingDirect = (id: string) =>
-            prisma.councilMeeting.create({
-                data: buildMeetingData(id),
-                include: { administrativeBody: true },
-            });
-
-        // Service auth: route already verified the API key, so create directly.
-        // User auth: delegate to createCouncilMeeting which re-checks session auth.
+        // Auth was already verified by withServiceOrUserAuth above,
+        // so use createCouncilMeetingDirect which skips the internal session check.
         let meeting;
         try {
-            meeting = authResult.type === 'service'
-                ? await createMeetingDirect(meetingId)
-                : await createCouncilMeeting(buildMeetingData(meetingId));
+            meeting = await createCouncilMeetingDirect(buildMeetingData(meetingId));
         } catch (error) {
             // Retry with a fresh ID on unique constraint violation (TOCTOU race).
-            // Always use direct create for retry — auth was already verified above.
-            const isUniqueViolation = error instanceof Error && 'code' in error && (error as { code: string }).code === 'P2002';
-            if (!isUniqueViolation || providedMeetingId) throw error;
+            if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')) throw error;
+            if (providedMeetingId) throw error;
             meetingId = await generateUniqueMeetingId(cityId, date);
-            meeting = await createMeetingDirect(meetingId);
+            meeting = await createCouncilMeetingDirect(buildMeetingData(meetingId));
         }
 
         revalidateTag(`city:${cityId}:meetings`);
