@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { z } from 'zod';
-import { createCouncilMeetingDirect, getCouncilMeetingsForCity } from '@/lib/db/meetings';
+import { createCouncilMeetingDirect, getCouncilMeetingsForCity, generateUniqueMeetingId } from '@/lib/db/meetings';
 import { withServiceOrUserAuth } from '@/lib/auth';
 import { sendMeetingCreatedAdminAlert } from '@/lib/discord';
 import { createMeetingCalendarEvent, calculateMeetingEndTime } from '@/lib/google-calendar';
 import { requestProcessAgendaInternal } from '@/lib/tasks/processAgendaInternal';
-import { generateUniqueMeetingId } from '@/lib/utils/meetingId';
 import { handleApiError } from '@/lib/api/errors';
 import { env } from '@/env.mjs';
 import prisma from '@/lib/db/prisma';
-import { Prisma } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 
 const meetingSchema = z.object({

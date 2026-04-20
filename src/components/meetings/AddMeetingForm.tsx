@@ -28,6 +28,7 @@ import InputWithDerivatives from "../InputWithDerivatives"
 import { LinkOrDrop } from "../ui/link-or-drop"
 import { YouTubePreview } from "./YouTubePreview"
 import { CouncilMeeting } from '@prisma/client'
+import { formatDateAsMeetingId } from '@/lib/utils/meetingId'
 import { useToast } from "@/hooks/use-toast"
 // @ts-ignore
 import { toPhoneticLatin as toGreeklish } from 'greek-utils'
@@ -71,12 +72,6 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
     const [isDetailsOpen, setIsDetailsOpen] = useState(false)
     const [administrativeBodies, setAdministrativeBodies] = useState<Array<{ id: string, name: string, type: string }>>([])
     const t = useTranslations('AddMeetingForm')
-
-    // Helper function to format date as meeting ID
-    const formatDateAsMeetingId = (date: Date) => {
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-            .toLowerCase().replace(/\s/g, '').replace(',', '_');
-    }
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),

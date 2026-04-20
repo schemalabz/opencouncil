@@ -4,6 +4,7 @@ import { revalidateTag, revalidatePath } from 'next/cache';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit, isUserAuthorizedToEdit } from '../auth';
 import { buildDateFilter } from './reviews/dateFilters';
+import { formatDateAsMeetingId } from '../utils/meetingId';
 
 export type CouncilMeetingWithAdminBody = CouncilMeeting & {
     administrativeBody: AdministrativeBody | null
@@ -42,6 +43,38 @@ export async function createCouncilMeetingDirect(meetingData: Omit<CouncilMeetin
             administrativeBody: true
         }
     });
+}
+
+/**
+ * Generate a unique meeting ID for a city, handling collisions
+ * by appending _2, _3, etc. (matches existing convention).
+ */
+export async function generateUniqueMeetingId(cityId: string, date: Date): Promise<string> {
+    const baseId = formatDateAsMeetingId(date);
+
+    // Fetch all existing meeting IDs with this base prefix in one query
+    const existing = await prisma.councilMeeting.findMany({
+        where: {
+            cityId,
+            id: { startsWith: baseId },
+        },
+        select: { id: true },
+    });
+
+    const existingIds = new Set(existing.map(m => m.id));
+
+    if (!existingIds.has(baseId)) {
+        return baseId;
+    }
+
+    for (let suffix = 2; suffix <= 20; suffix++) {
+        const candidateId = `${baseId}_${suffix}`;
+        if (!existingIds.has(candidateId)) {
+            return candidateId;
+        }
+    }
+
+    throw new Error(`Could not generate unique meeting ID for ${cityId} on ${baseId} — too many meetings on this date`);
 }
 
 export async function editCouncilMeeting(cityId: string, id: string, meetingData: Partial<Omit<CouncilMeeting, 'id' | 'cityId' | 'createdAt' | 'updatedAt'>>): Promise<CouncilMeetingWithAdminBody> {
