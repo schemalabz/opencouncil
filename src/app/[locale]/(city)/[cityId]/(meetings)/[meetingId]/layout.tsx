@@ -8,6 +8,7 @@ import TranscriptControls from '@/components/meetings/TranscriptControls';
 import { Suspense } from 'react'
 import Header from '@/components/layout/Header';
 import EditButton from '@/components/meetings/EditButton';
+import PresentationViewButton from '@/components/meetings/PresentationViewButton';
 import ShareDropdown from '@/components/meetings/ShareDropdown';
 import { getMeetingDataCached } from '@/lib/getMeetingData';
 import { getNotificationPreferenceForCity } from '@/lib/db/notifications';
@@ -171,6 +172,7 @@ export default async function CouncilMeetingPage({
                                     <div className="flex items-center space-x-2">
                                         <EditButton />
                                         <CreateHighlightButton />
+                                        {editable && <PresentationViewButton cityId={cityId} meetingId={meetingId} />}
                                         <ShareDropdown meetingId={meetingId} cityId={cityId} />
                                     </div>
                                 </Header>
