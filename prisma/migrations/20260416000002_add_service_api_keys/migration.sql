@@ -15,8 +15,5 @@ CREATE TABLE "ServiceApiKey" (
 -- CreateIndex
 CREATE UNIQUE INDEX "ServiceApiKey_hashedKey_key" ON "ServiceApiKey"("hashedKey");
 
--- CreateIndex
-CREATE INDEX "ServiceApiKey_hashedKey_idx" ON "ServiceApiKey"("hashedKey");
-
 -- AddForeignKey
 ALTER TABLE "ServiceApiKey" ADD CONSTRAINT "ServiceApiKey_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

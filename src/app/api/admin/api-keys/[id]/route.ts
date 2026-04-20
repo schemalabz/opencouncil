@@ -8,8 +8,11 @@ export async function DELETE(
     { params }: { params: { id: string } }
 ) {
     const user = await getCurrentUser();
-    if (!user?.isSuperAdmin) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user) {
+        return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+    if (!user.isSuperAdmin) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     try {

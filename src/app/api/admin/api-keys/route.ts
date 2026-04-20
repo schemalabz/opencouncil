@@ -2,11 +2,19 @@ import { getCurrentUser } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { createServiceApiKey, getServiceApiKeys } from "@/lib/db/apiKeys";
 import { handleApiError } from "@/lib/api/errors";
+import { z } from "zod";
+
+const createKeySchema = z.object({
+    name: z.string().min(1).max(100).trim(),
+});
 
 export async function GET() {
     const user = await getCurrentUser();
-    if (!user?.isSuperAdmin) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user) {
+        return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+    if (!user.isSuperAdmin) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     try {
@@ -19,17 +27,18 @@ export async function GET() {
 
 export async function POST(request: Request) {
     const user = await getCurrentUser();
-    if (!user?.isSuperAdmin) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user) {
+        return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+    if (!user.isSuperAdmin) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     try {
-        const { name } = await request.json();
-        if (!name || typeof name !== 'string' || name.trim().length === 0) {
-            return NextResponse.json({ error: "Name is required" }, { status: 400 });
-        }
+        const body = await request.json();
+        const { name } = createKeySchema.parse(body);
 
-        const result = await createServiceApiKey(name.trim(), user.id);
+        const result = await createServiceApiKey(name, user.id);
 
         // Return the raw key in the response — this is the only time it's visible
         return NextResponse.json({
@@ -40,6 +49,9 @@ export async function POST(request: Request) {
             createdAt: result.createdAt,
         }, { status: 201 });
     } catch (error) {
+        if (error instanceof z.ZodError) {
+            return NextResponse.json({ error: error.errors }, { status: 400 });
+        }
         return handleApiError(error, "Failed to create API key");
     }
 }

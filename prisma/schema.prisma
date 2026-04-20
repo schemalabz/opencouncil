@@ -850,15 +850,13 @@ model ServiceApiKey {
   id          String    @id @default(cuid())
   name        String    // Display name (e.g. "Sentinel")
   hashedKey   String    @unique // SHA-256 hash of the API key
-  keyPrefix   String    // First 8 chars for display (e.g. "sk_a1b2c3")
+  keyPrefix   String    // First 10 chars for display (e.g. "sk_a1b2c3d")
   createdAt   DateTime  @default(now())
   lastUsedAt  DateTime?
   revokedAt   DateTime?
 
   createdBy   User      @relation(fields: [createdById], references: [id])
   createdById String
-
-  @@index([hashedKey])
 }
 
 model UtteranceEdit {
