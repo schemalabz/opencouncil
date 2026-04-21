@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 
 interface ShareContextValue {
     isOpen: boolean;
@@ -41,7 +41,7 @@ export function ShareProvider({ children }: { children: React.ReactNode }) {
         setShouldTriggerCopy(false);
     }, []);
 
-    const value: ShareContextValue = {
+    const value = useMemo(() => ({
         isOpen,
         targetTimestamp,
         shouldTriggerCopy,
@@ -49,7 +49,7 @@ export function ShareProvider({ children }: { children: React.ReactNode }) {
         openShareDropdownAndCopy,
         closeShareDropdown,
         resetCopyTrigger
-    };
+    }), [isOpen, targetTimestamp, shouldTriggerCopy, openShareDropdown, openShareDropdownAndCopy, closeShareDropdown, resetCopyTrigger]);
 
     return (
         <ShareContext.Provider value={value}>

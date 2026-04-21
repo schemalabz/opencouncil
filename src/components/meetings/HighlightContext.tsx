@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useCall
 import { useRouter, usePathname } from 'next/navigation';
 import type { HighlightWithUtterances } from '@/lib/db/highlights';
 import { useCouncilMeetingData, useCouncilMeetingTranscript } from './CouncilMeetingDataContext';
-import { useVideo } from './VideoProvider';
+import { useVideo, useVideoActions } from './VideoProvider';
 import { Utterance } from '@prisma/client';
 import { calculateUtteranceRange } from '@/lib/selection-utils';
 
@@ -82,9 +82,18 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   // Store in ref so callbacks read latest value without depending on it.
   const { transcript } = useCouncilMeetingTranscript();
   const { getSpeakerTag, getPerson, meeting, addHighlight, updateHighlight } = useCouncilMeetingData();
-  const { currentTime, seekTo, isPlaying, setIsPlaying, seekToAndPlay } = useVideo();
+  const { seekTo, seekToWithoutScroll } = useVideoActions(); // stable refs — won't trigger re-renders
+  const { currentTime, isPlaying, setIsPlaying } = useVideo(); // reactive state — only for effects/conditions
   const router = useRouter();
   const pathname = usePathname();
+
+  // Stable seekToAndPlay built from stable actions — prevents cascading re-renders
+  // when VideoContext value changes (seekTo from useVideoActions is stable,
+  // setIsPlaying is a useState setter which React guarantees stable identity)
+  const seekToAndPlay = useCallback((time: number) => {
+      seekTo(time);
+      setIsPlaying(true);
+  }, [seekTo, setIsPlaying]);
 
   // Single internal ref for stable callback access to transcript
   const transcriptRef = useRef(transcript);

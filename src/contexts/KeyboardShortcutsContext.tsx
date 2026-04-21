@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, ReactNode, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, ReactNode, useCallback, useEffect, useMemo } from 'react';
 
 export type KeyboardActionHandler = () => void;
 
@@ -133,8 +133,12 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
+    const value = useMemo(() => ({
+        registerShortcut, unregisterShortcut, getShortcutLabel
+    }), [registerShortcut, unregisterShortcut, getShortcutLabel]);
+
     return (
-        <KeyboardShortcutsContext.Provider value={{ registerShortcut, unregisterShortcut, getShortcutLabel }}>
+        <KeyboardShortcutsContext.Provider value={value}>
             {children}
         </KeyboardShortcutsContext.Provider>
     );
