@@ -13,17 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { useEffect, useState } from "react";
 import { Topic } from "@prisma/client";
 import { toast } from "@/hooks/use-toast";
-import { iconMap } from "@/components/icon";
+import { IconInput, isValidIconName } from "@/components/admin/icon-input";
 import { Sparkles } from "lucide-react";
 import { HEX_REGEX, suggestDistinctColor } from "@/lib/utils/colorSuggestion";
 
@@ -35,7 +28,6 @@ interface TopicDialogProps {
     onSaved: () => void;
 }
 const NONE_ICON = "__none__";
-const ICON_NAMES = Object.keys(iconMap).sort();
 
 export function TopicDialog({ open, onOpenChange, topic, existingColors, onSaved }: TopicDialogProps) {
     const isEditing = !!topic;
@@ -45,6 +37,7 @@ export function TopicDialog({ open, onOpenChange, topic, existingColors, onSaved
     const [nameEn, setNameEn] = useState("");
     const [colorHex, setColorHex] = useState("#4f46e5");
     const [icon, setIcon] = useState<string>(NONE_ICON);
+    const [iconInput, setIconInput] = useState("");
     const [description, setDescription] = useState("");
     const [deprecated, setDeprecated] = useState(false);
     const [suggestedHistory, setSuggestedHistory] = useState<string[]>([]);
@@ -54,7 +47,9 @@ export function TopicDialog({ open, onOpenChange, topic, existingColors, onSaved
             setName(topic?.name ?? "");
             setNameEn(topic?.name_en ?? "");
             setColorHex(topic?.colorHex ?? "#4f46e5");
-            setIcon(topic?.icon ?? NONE_ICON);
+            const topicIcon = topic?.icon ?? NONE_ICON;
+            setIcon(topicIcon);
+            setIconInput(topicIcon === NONE_ICON ? "" : topicIcon);
             setDescription(topic?.description ?? "");
             setDeprecated(topic?.deprecated ?? false);
             setSuggestedHistory([]);
@@ -70,6 +65,15 @@ export function TopicDialog({ open, onOpenChange, topic, existingColors, onSaved
         const suggestion = suggestDistinctColor([...existingColors, ...suggestedHistory, colorHex]);
         setColorHex(suggestion);
         setSuggestedHistory((prev) => [...prev, suggestion]);
+    }
+
+    function onIconInputChange(value: string) {
+        setIconInput(value);
+        if (isValidIconName(value)) {
+            setIcon(value);
+        } else if (value === "") {
+            setIcon(NONE_ICON);
+        }
     }
 
     async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -88,6 +92,15 @@ export function TopicDialog({ open, onOpenChange, topic, existingColors, onSaved
             toast({
                 title: "Validation error",
                 description: "Color must be a valid hex code, e.g. #4f46e5.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        if (iconInput && !isValidIconName(iconInput)) {
+            toast({
+                title: "Validation error",
+                description: `"${iconInput}" is not a valid Lucide icon name.`,
                 variant: "destructive",
             });
             return;
@@ -134,8 +147,6 @@ export function TopicDialog({ open, onOpenChange, topic, existingColors, onSaved
             setLoading(false);
         }
     }
-
-    const SelectedIcon = icon !== NONE_ICON ? iconMap[icon] : null;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -203,41 +214,11 @@ export function TopicDialog({ open, onOpenChange, topic, existingColors, onSaved
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="icon">Icon</Label>
-                            <Select value={icon} onValueChange={setIcon}>
-                                <SelectTrigger id="icon">
-                                    <SelectValue placeholder="Select an icon">
-                                        <div className="flex items-center gap-2">
-                                            {SelectedIcon ? (
-                                                <>
-                                                    <SelectedIcon className="h-4 w-4" style={{ color: colorHex }} />
-                                                    <span>{icon}</span>
-                                                </>
-                                            ) : (
-                                                <span className="text-muted-foreground">None</span>
-                                            )}
-                                        </div>
-                                    </SelectValue>
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={NONE_ICON}>
-                                        <span className="text-muted-foreground">None</span>
-                                    </SelectItem>
-                                    {ICON_NAMES.map((iconName) => {
-                                        const IconComponent = iconMap[iconName];
-                                        return (
-                                            <SelectItem key={iconName} value={iconName}>
-                                                <div className="flex items-center gap-2">
-                                                    <IconComponent
-                                                        className="h-4 w-4"
-                                                        style={{ color: colorHex }}
-                                                    />
-                                                    <span>{iconName}</span>
-                                                </div>
-                                            </SelectItem>
-                                        );
-                                    })}
-                                </SelectContent>
-                            </Select>
+                            <IconInput
+                                value={iconInput}
+                                onChange={onIconInputChange}
+                                color={colorHex}
+                            />
                         </div>
                     </div>
 

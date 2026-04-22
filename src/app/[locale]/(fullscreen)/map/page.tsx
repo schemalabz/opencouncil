@@ -3,7 +3,7 @@ import Map, { MapFeature } from "@/components/map/map";
 import { CityWithGeometry } from "@/lib/db/cities";
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import Icon, { iconMap } from "@/components/icon";
+import Icon from "@/components/icon";
 import { MapFilters, MapFiltersState } from "@/components/map/MapFilters";
 import { CitySheet } from "@/components/map/CitySheet";
 import { SubjectInfoSheet } from "@/components/map/SubjectInfoSheet";
@@ -300,9 +300,9 @@ export default function MapPage() {
                                 className="p-3 rounded-lg flex-shrink-0 shadow-sm flex items-center justify-center min-h-[80px] w-[60px]"
                                 style={{ backgroundColor: topicColor ? topicColor + "15" : "#f3f4f6" }}
                             >
-                                {topicIcon && (topicIcon in iconMap) ? (
+                                {topicIcon ? (
                                     <Icon
-                                        name={topicIcon as keyof typeof iconMap}
+                                        name={topicIcon}
                                         color={topicColor || "#6b7280"}
                                         size={24}
                                     />
@@ -329,7 +329,7 @@ export default function MapPage() {
                                     <p className="text-xs text-muted-foreground flex items-center gap-1 line-clamp-1">
                                         {cityName && (
                                             <>
-                                                <Icon name="Building2" size={10} color="#9ca3af" />
+                                                <Icon name="building-2" size={10} color="#9ca3af" />
                                                 <span>{cityName}</span>
                                             </>
                                         )}
@@ -338,7 +338,7 @@ export default function MapPage() {
                                         )}
                                         {locationText && (
                                             <>
-                                                <Icon name="MapPin" size={10} color="#9ca3af" />
+                                                <Icon name="map-pin" size={10} color="#9ca3af" />
                                                 <span>{locationText}</span>
                                             </>
                                         )}
@@ -350,28 +350,28 @@ export default function MapPage() {
                         <div className="grid grid-cols-2 gap-3 text-xs">
                             {formattedDate && (
                                 <div className="flex items-center gap-1.5 text-muted-foreground">
-                                    <Icon name="Calendar" size={12} color="#9ca3af" />
+                                    <Icon name="calendar" size={12} color="#9ca3af" />
                                     <span className="line-clamp-1">{formattedDate}</span>
                                 </div>
                             )}
 
                             {formattedTime && (
                                 <div className="flex items-center gap-1.5 text-muted-foreground">
-                                    <Icon name="Clock" size={12} color="#9ca3af" />
+                                    <Icon name="clock" size={12} color="#9ca3af" />
                                     <span>{formattedTime}</span>
                                 </div>
                             )}
 
                             {speakerCount !== undefined && speakerCount > 0 && (
                                 <div className="flex items-center gap-1.5 text-muted-foreground">
-                                    <Icon name="Users" size={12} color="#9ca3af" />
+                                    <Icon name="users" size={12} color="#9ca3af" />
                                     <span>{speakerCount} {speakerCount === 1 ? 'ομιλητής' : 'ομιλητές'}</span>
                                 </div>
                             )}
 
                             {meetingName && (
                                 <div className="flex items-center gap-1.5 text-muted-foreground col-span-2">
-                                    <Icon name="FileText" size={12} color="#9ca3af" />
+                                    <Icon name="file-text" size={12} color="#9ca3af" />
                                     <span className="line-clamp-1">{meetingName}</span>
                                 </div>
                             )}
@@ -408,19 +408,19 @@ export default function MapPage() {
                                     unoptimized
                                 />
                             ) : (
-                                <Icon name="Building2" size={48} color="#9ca3af" />
+                                <Icon name="building-2" size={48} color="#9ca3af" />
                             )}
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="text-base font-semibold text-foreground leading-tight truncate">{name}</p>
                             {isSupported ? (
                                 <div className="flex items-center gap-1 mt-1">
-                                    <Icon name="BadgeCheck" size={12} color="#16a34a" />
+                                    <Icon name="badge-check" size={12} color="#16a34a" />
                                     <span className="text-xs text-green-700">Υποστηριζόμενος Δήμος</span>
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-1 mt-1">
-                                    <Icon name="BadgeX" size={12} color="#9ca3af" />
+                                    <Icon name="badge-x" size={12} color="#9ca3af" />
                                     <span className="text-xs text-muted-foreground">Χωρίς επίσημη υποστήριξη</span>
                                 </div>
                             )}
@@ -430,7 +430,7 @@ export default function MapPage() {
                     {isSupported && meetingsCount > 0 && (
                         <div className="pt-2 border-t border-border/30 text-xs">
                             <div className="flex items-center gap-2 text-muted-foreground">
-                                <Icon name="Calendar" size={12} color="#9ca3af" />
+                                <Icon name="calendar" size={12} color="#9ca3af" />
                                 <span>Συνεδριάσεις: <span className="font-medium text-foreground">{meetingsCount}</span></span>
                             </div>
                         </div>

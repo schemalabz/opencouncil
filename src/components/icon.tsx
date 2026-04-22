@@ -1,56 +1,39 @@
-import type { LucideProps } from 'lucide-react';
-import {
-    BadgeCheck,
-    BadgeX,
-    Building,
-    Building2,
-    Bus,
-    Calendar,
-    Clock,
-    FileText,
-    GraduationCap,
-    Hash,
-    Heart,
-    Leaf,
-    MapPin,
-    Music2,
-    Recycle,
-    Shield,
-    Users,
-    Wallet,
-} from 'lucide-react';
-import type { ForwardRefExoticComponent, RefAttributes } from 'react';
+'use client';
 
-type LucideIcon = ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>;
+import dynamicIconImports from 'lucide-react/dynamicIconImports';
+import dynamic from 'next/dynamic';
 
-export const iconMap: Record<string, LucideIcon> = {
-    BadgeCheck,
-    BadgeX,
-    Building,
-    Building2,
-    Bus,
-    Calendar,
-    Clock,
-    FileText,
-    GraduationCap,
-    Hash,
-    Heart,
-    Leaf,
-    MapPin,
-    Music2,
-    Recycle,
-    Shield,
-    Users,
-    Wallet,
-};
+/** kebab-case icon names from lucide (e.g. "badge-check", "building") */
+export const ICON_NAMES: string[] = Object.keys(dynamicIconImports).sort();
 
-const Icon = ({ name, color, size }: { name: string, color: string, size: number }) => {
-    const LucideIcon = iconMap[name];
-    if (!LucideIcon) {
-        return null;
+const validNames = new Set(ICON_NAMES);
+
+// Cache so we only call dynamic() once per icon name
+const dynamicCache = new Map<string, React.ComponentType<{ color?: string; size?: number }>>();
+
+function getDynamicIcon(name: string) {
+    if (!validNames.has(name)) return null;
+
+    let component = dynamicCache.get(name);
+    if (!component) {
+        // Direct path import — avoids Turbopack HMR bug with dynamicIconImports' import() expressions
+        component = dynamic(
+            () => import(`lucide-react/dist/esm/icons/${name}.js`),
+            { ssr: false }
+        );
+        dynamicCache.set(name, component);
     }
+    return component;
+}
 
-    return <LucideIcon color={color} size={size} />;
+/**
+ * Renders a Lucide icon by kebab-case name (e.g. "badge-check", "building").
+ */
+const Icon = ({ name, color, size }: { name: string; color: string; size: number }) => {
+    const DynamicIcon = getDynamicIcon(name);
+    if (!DynamicIcon) return null;
+
+    return <DynamicIcon color={color} size={size} />;
 };
 
 export default Icon;

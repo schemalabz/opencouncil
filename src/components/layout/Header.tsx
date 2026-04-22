@@ -89,7 +89,7 @@ function TopicIconBadge({ subjectInfo }: {
             style={{ backgroundColor: subjectInfo.topicColor ? subjectInfo.topicColor + "20" : "#e5e7eb" }}
         >
             <Icon
-                name={subjectInfo.topicIcon || "Hash"}
+                name={subjectInfo.topicIcon || "hash"}
                 color={subjectInfo.topicColor || "#9ca3af"}
                 size={18}
             />

@@ -5,7 +5,7 @@ import { ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import * as LucideIcons from 'lucide-react';
+import Icon from '@/components/icon';
 
 interface CityMessageProps {
   message: CityMessageType;
@@ -14,9 +14,6 @@ interface CityMessageProps {
 
 export function CityMessage({ message, className }: CityMessageProps) {
   const router = useRouter();
-
-  // Dynamically get the icon from lucide-react
-  const IconComponent = (LucideIcons as any)[message.emoji] || LucideIcons.Info;
 
   const handleCallToAction = () => {
     if (message.callToActionUrl) {
@@ -44,10 +41,9 @@ export function CityMessage({ message, className }: CityMessageProps) {
         }}
       >
         <div className="flex items-start gap-3">
-          <IconComponent 
-            className="h-4 w-4 mt-0.5 flex-shrink-0" 
-            style={{ color: 'rgb(59, 130, 246)' }} // Darker blue for better contrast
-          />
+          <div className="mt-0.5 flex-shrink-0">
+            <Icon name={message.emoji || "info"} color="rgb(59, 130, 246)" size={16} />
+          </div>
           <div className="flex-1 min-w-0">
             <div className="font-medium mb-1">
               {message.title}

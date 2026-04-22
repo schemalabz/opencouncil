@@ -109,7 +109,7 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                     )}
                     <div className="flex flex-row items-center gap-1.5">
                         <div className="p-1.5 rounded-full shrink-0 transition-colors duration-300" style={{ backgroundColor: subject.topic?.colorHex ? subject.topic.colorHex + "20" : "#e5e7eb" }}>
-                            <Icon name={subject.topic?.icon as any || "Hash"} color={subject.topic?.colorHex || "#9ca3af"} size={16} />
+                            <Icon name={subject.topic?.icon || "hash"} color={subject.topic?.colorHex || "#9ca3af"} size={16} />
                         </div>
                         <CardTitle className="text-sm sm:text-base line-clamp-2 flex-1 group-hover/card:text-accent-foreground transition-colors duration-300">{subject.name}</CardTitle>
                     </div>

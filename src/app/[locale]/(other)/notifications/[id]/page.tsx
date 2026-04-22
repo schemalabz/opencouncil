@@ -122,7 +122,7 @@ export default async function NotificationPage({ params }: { params: { id: strin
                                                     style={{ backgroundColor: subject.topic?.colorHex ? subject.topic.colorHex + "20" : "#e5e7eb" }}
                                                 >
                                                     <Icon
-                                                        name={subject.topic?.icon as any || "Hash"}
+                                                        name={subject.topic?.icon || "hash"}
                                                         color={subject.topic?.colorHex || "#9ca3af"}
                                                         size={14}
                                                     />

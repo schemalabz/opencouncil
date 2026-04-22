@@ -34,7 +34,7 @@ export default function SubjectBadge({ subject, className }: SubjectBadgeProps) 
             )}
         >
             <div className="p-1 rounded-full" style={{ backgroundColor: subject.topic?.colorHex ? subject.topic.colorHex + "20" : "#e5e7eb" }}>
-                <Icon name={subject.topic?.icon as any || "Hash"} color={subject.topic?.colorHex || "#9ca3af"} size={16} />
+                <Icon name={subject.topic?.icon || "hash"} color={subject.topic?.colorHex || "#9ca3af"} size={16} />
             </div>
             <span className="text-sm" >{subject.name}</span>
         </div>
@@ -55,7 +55,7 @@ export default function SubjectBadge({ subject, className }: SubjectBadgeProps) 
                 <div className="flex flex-col gap-4">
                     <div className="flex items-center gap-2">
                         <div className="p-2 rounded-full" style={{ backgroundColor: subject.topic?.colorHex ? subject.topic.colorHex + "20" : "#e5e7eb" }}>
-                            <Icon name={subject.topic?.icon as any || "Hash"} color={subject.topic?.colorHex || "#9ca3af"} size={24} />
+                            <Icon name={subject.topic?.icon || "hash"} color={subject.topic?.colorHex || "#9ca3af"} size={24} />
                         </div>
                         <div>
                             <div className="font-semibold">{subject.name}</div>

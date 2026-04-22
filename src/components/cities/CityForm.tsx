@@ -151,8 +151,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         if (isSuperAdmin && messageData) {
             formData.append('hasMessage', messageData.hasMessage.toString())
             if (messageData.hasMessage) {
-                const selectedEmoji = messageData.emoji === 'custom' ? messageData.customEmoji : messageData.emoji
-                formData.append('messageEmoji', selectedEmoji)
+                formData.append('messageEmoji', messageData.emoji)
                 formData.append('messageTitle', messageData.title)
                 formData.append('messageDescription', messageData.description)
                 formData.append('messageCallToActionText', messageData.callToActionText || '')
