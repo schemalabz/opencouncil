@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, FileText, Settings, Files, FileOutput, Rocket, UserRound, List, RefreshCw, Search, Bell, QrCode, ClipboardCheck, MessageSquareText, Landmark, Tag } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Settings, Files, FileOutput, Rocket, UserRound, List, RefreshCw, Search, Bell, QrCode, ClipboardCheck, MessageSquareText, Landmark, Tag, KeyRound } from "lucide-react";
 import Link from "next/link";
 import {
     Sidebar,
@@ -88,6 +88,11 @@ const menuItems = [
         title: "Cache",
         icon: RefreshCw,
         url: "/admin/cache",
+    },
+    {
+        title: "API Keys",
+        icon: KeyRound,
+        url: "/admin/settings/api-keys",
     },
     {
         title: "Settings",
