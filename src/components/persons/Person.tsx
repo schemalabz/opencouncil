@@ -242,6 +242,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                         layout="inline"
                                         showIcons
                                         borderless={true}
+                                        fullText
                                         className="items-start"
                                     />
 
