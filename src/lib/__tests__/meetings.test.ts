@@ -14,7 +14,7 @@ jest.mock('../db/prisma', () => ({
   }
 }));
 
-import { getCouncilMeetingsForCity } from '../db/meetings';
+import { getCouncilMeetingsForCity, generateUniqueMeetingId } from '../db/meetings';
 import prisma from '../db/prisma';
 
 const mockFindMany = prisma.councilMeeting.findMany as jest.MockedFunction<typeof prisma.councilMeeting.findMany>;
@@ -92,5 +92,67 @@ describe('getCouncilMeetingsForCity - Pagination', () => {
         skip: expect.anything()
       })
     );
+  });
+});
+
+describe('generateUniqueMeetingId', () => {
+  const april20 = new Date('2026-04-20T12:00:00+03:00');
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('returns base ID when no collisions exist', async () => {
+    mockFindMany.mockResolvedValue([]);
+    const id = await generateUniqueMeetingId('city-1', april20);
+    expect(id).toBe('apr20_2026');
+  });
+
+  it('returns _2 suffix when base ID exists', async () => {
+    mockFindMany.mockResolvedValue([{ id: 'apr20_2026' }] as never);
+    const id = await generateUniqueMeetingId('city-1', april20);
+    expect(id).toBe('apr20_2026_2');
+  });
+
+  it('skips over existing suffixes', async () => {
+    mockFindMany.mockResolvedValue([
+      { id: 'apr20_2026' },
+      { id: 'apr20_2026_2' },
+      { id: 'apr20_2026_3' },
+    ] as never);
+    const id = await generateUniqueMeetingId('city-1', april20);
+    expect(id).toBe('apr20_2026_4');
+  });
+
+  it('handles gaps in suffixes', async () => {
+    mockFindMany.mockResolvedValue([
+      { id: 'apr20_2026' },
+      { id: 'apr20_2026_3' },
+    ] as never);
+    const id = await generateUniqueMeetingId('city-1', april20);
+    expect(id).toBe('apr20_2026_2');
+  });
+
+  it('throws when all 20 suffixes are exhausted', async () => {
+    const existing = [{ id: 'apr20_2026' }];
+    for (let i = 2; i <= 20; i++) {
+      existing.push({ id: `apr20_2026_${i}` });
+    }
+    mockFindMany.mockResolvedValue(existing as never);
+    await expect(generateUniqueMeetingId('city-1', april20)).rejects.toThrow(
+      'Could not generate unique meeting ID'
+    );
+  });
+
+  it('queries with the correct cityId and startsWith filter', async () => {
+    mockFindMany.mockResolvedValue([]);
+    await generateUniqueMeetingId('chania', april20);
+    expect(mockFindMany).toHaveBeenCalledWith({
+      where: {
+        cityId: 'chania',
+        id: { startsWith: 'apr20_2026' },
+      },
+      select: { id: true },
+    });
   });
 });

@@ -70,3 +70,4 @@ result
 result-*
 
 CLAUDE.local.md
+.claude/scheduled_tasks.lock

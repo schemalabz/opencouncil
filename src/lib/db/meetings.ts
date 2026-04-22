@@ -4,6 +4,7 @@ import { revalidateTag, revalidatePath } from 'next/cache';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit, isUserAuthorizedToEdit } from '../auth';
 import { buildDateFilter } from './reviews/dateFilters';
+import { formatDateAsMeetingId } from '../utils/meetingId';
 
 export type CouncilMeetingWithAdminBody = CouncilMeeting & {
     administrativeBody: AdministrativeBody | null
@@ -27,18 +28,53 @@ export async function deleteCouncilMeeting(cityId: string, id: string): Promise<
 
 export async function createCouncilMeeting(meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl'> & { audioUrl?: string, videoUrl?: string }): Promise<CouncilMeetingWithAdminBody> {
     await withUserAuthorizedToEdit({ cityId: meetingData.cityId });
-    try {
-        const newMeeting = await prisma.councilMeeting.create({
-            data: meetingData,
-            include: {
-                administrativeBody: true
-            }
-        });
-        return newMeeting;
-    } catch (error) {
-        console.error('Error creating council meeting:', error);
-        throw new Error('Failed to create council meeting');
+    return createCouncilMeetingDirect(meetingData);
+}
+
+/**
+ * Create a council meeting without auth checks.
+ * Use when authorization has already been verified by the caller
+ * (e.g., via withServiceOrUserAuth in API route handlers).
+ */
+export async function createCouncilMeetingDirect(meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl'> & { audioUrl?: string, videoUrl?: string }): Promise<CouncilMeetingWithAdminBody> {
+    return prisma.councilMeeting.create({
+        data: meetingData,
+        include: {
+            administrativeBody: true
+        }
+    });
+}
+
+/**
+ * Generate a unique meeting ID for a city, handling collisions
+ * by appending _2, _3, etc. (matches existing convention).
+ */
+export async function generateUniqueMeetingId(cityId: string, date: Date): Promise<string> {
+    const baseId = formatDateAsMeetingId(date);
+
+    // Fetch all existing meeting IDs with this base prefix in one query
+    const existing = await prisma.councilMeeting.findMany({
+        where: {
+            cityId,
+            id: { startsWith: baseId },
+        },
+        select: { id: true },
+    });
+
+    const existingIds = new Set(existing.map(m => m.id));
+
+    if (!existingIds.has(baseId)) {
+        return baseId;
     }
+
+    for (let suffix = 2; suffix <= 20; suffix++) {
+        const candidateId = `${baseId}_${suffix}`;
+        if (!existingIds.has(candidateId)) {
+            return candidateId;
+        }
+    }
+
+    throw new Error(`Could not generate unique meeting ID for ${cityId} on ${baseId} — too many meetings on this date`);
 }
 
 export async function editCouncilMeeting(cityId: string, id: string, meetingData: Partial<Omit<CouncilMeeting, 'id' | 'cityId' | 'createdAt' | 'updatedAt'>>): Promise<CouncilMeetingWithAdminBody> {
@@ -79,16 +115,26 @@ export async function getCouncilMeeting(cityId: string, id: string): Promise<Cou
     }
 }
 
-export async function getCouncilMeetingsForCity(cityId: string, { includeUnreleased, limit, page, pageSize = 12 }: { includeUnreleased?: boolean; limit?: number; page?: number; pageSize?: number } = {}): Promise<CouncilMeetingWithAdminBodyAndSubjects[]> {
+export async function getCouncilMeetingsForCity(cityId: string, { includeUnreleased, limit, page, pageSize = 12, from, to }: { includeUnreleased?: boolean; limit?: number; page?: number; pageSize?: number; from?: Date; to?: Date } = {}): Promise<CouncilMeetingWithAdminBodyAndSubjects[]> {
 
     try {
         // Calculate pagination
         const skip = page ? (page - 1) * pageSize : undefined;
         const take = page ? pageSize : limit;
 
+        // Build dateTime filter
+        const dateTimeFilter = (from || to) ? {
+            ...(from && { gte: from }),
+            ...(to && { lte: to }),
+        } : undefined;
+
         // First, get meetings with subjects and basic relationships
         const meetings = await prisma.councilMeeting.findMany({
-            where: { cityId, released: includeUnreleased ? undefined : true },
+            where: {
+                cityId,
+                released: includeUnreleased ? undefined : true,
+                ...(dateTimeFilter && { dateTime: dateTimeFilter }),
+            },
             orderBy: [
                 { dateTime: 'desc' },
                 { createdAt: 'desc' }
