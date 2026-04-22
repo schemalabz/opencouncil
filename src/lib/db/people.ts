@@ -2,7 +2,7 @@
 import { Person, Role, VoicePrint } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
-import { getActiveRoleCondition, hasCityLevelRole } from "../utils";
+import { getActiveRoleCondition, hasCityLevelRole, getRoleTypePriority } from "../utils";
 import { RoleWithRelations, roleWithRelationsInclude } from "./types";
 
 export type PersonWithRelations = Person & {
@@ -201,7 +201,8 @@ export async function getPeopleForMeeting(cityId: string, administrativeBodyId: 
     // Filter based on administrative body type
     if (adminBody.type === 'council') {
         // Council meetings: Include council members, people with no admin body, community heads, and mayors
-        return allPeople.filter(person => {
+        // Sort by role priority so the most important members come first (used for voiceprint prioritization)
+        const filtered = allPeople.filter(person => {
             // Always include mayors (people with city-level roles)
             if (hasCityLevelRole(person.roles)) {
                 return true;
@@ -218,6 +219,12 @@ export async function getPeopleForMeeting(cityId: string, administrativeBodyId: 
             );
 
             return hasCouncilRole || hasNoAdminBody || isCommunityHead;
+        });
+
+        return filtered.sort((a, b) => {
+            const bestRoleA = Math.min(...a.roles.map(getRoleTypePriority));
+            const bestRoleB = Math.min(...b.roles.map(getRoleTypePriority));
+            return bestRoleA - bestRoleB;
         });
     } else if (adminBody.type === 'committee') {
         // Committee meetings: Only members of this specific committee

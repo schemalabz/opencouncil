@@ -6,7 +6,8 @@ import { Utterance as ApiUtterance } from "../apiTypes";
 import prisma from "../db/prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { getPeopleForMeeting } from "@/lib/db/people";
-import { buildUnknownSpeakerLabel } from "../utils";
+import { buildUnknownSpeakerLabel, getRoleTypePriority } from "../utils";
+import { getStatisticsFor } from "../statistics";
 
 async function deleteExistingSpeakerData(
     meetingId: string,
@@ -90,14 +91,39 @@ export async function requestTranscribe(youtubeUrl: string, councilMeetingId: st
 
     // Get voiceprints for relevant people based on meeting's administrative body
     const people = await getPeopleForMeeting(cityId, councilMeeting.administrativeBodyId);
-    const voiceprints: Voiceprint[] = people
-        .filter(person => person.voicePrints && person.voicePrints.length > 0)
+    const peopleWithVoiceprints = people
+        .filter(person => person.voicePrints && person.voicePrints.length > 0);
+
+    // Pyannote.ai supports max 50 voiceprints per request.
+    // When over the limit, people are already sorted by role priority from getPeopleForMeeting
+    // (mayors, deputy mayors, council heads, etc.). Use speaking time as tiebreaker within
+    // the same role priority tier.
+    const MAX_VOICEPRINTS = 50;
+    if (peopleWithVoiceprints.length > MAX_VOICEPRINTS) {
+        const stats = await getStatisticsFor({ cityId }, ["person"]);
+        const speakingByPerson = new Map(
+            (stats.people ?? []).map(s => [s.item.id, s.speakingSeconds])
+        );
+        peopleWithVoiceprints.sort((a, b) => {
+            const priorityA = Math.min(...a.roles.map(getRoleTypePriority));
+            const priorityB = Math.min(...b.roles.map(getRoleTypePriority));
+            if (priorityA !== priorityB) return priorityA - priorityB;
+            return (speakingByPerson.get(b.id) ?? 0) - (speakingByPerson.get(a.id) ?? 0);
+        });
+        console.warn(
+            `Found ${peopleWithVoiceprints.length} voiceprints but pyannote.ai supports max ${MAX_VOICEPRINTS}, ` +
+            `sending top by role priority + speaking time`
+        );
+    }
+
+    const voiceprints: Voiceprint[] = peopleWithVoiceprints
+        .slice(0, MAX_VOICEPRINTS)
         .map(person => ({
             personId: person.id,
             voiceprint: person.voicePrints![0].embedding
         }));
 
-    console.log(`Found ${voiceprints.length} voiceprints for people relevant to this meeting`);
+    console.log(`Sending ${voiceprints.length} voiceprints for meeting (${peopleWithVoiceprints.length} total with voiceprints)`);
 
     const body: Omit<TranscribeRequest, 'callbackUrl'> = {
         youtubeUrl,

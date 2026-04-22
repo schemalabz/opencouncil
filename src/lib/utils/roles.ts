@@ -283,7 +283,7 @@ export function getSingleCityRole(roles: (Role & { cityId?: string | null })[], 
  * (e.g. a council member role should rank above a party role when viewing a council meeting).
  * This will require passing context (e.g. administrativeBodyId) to the sorting function.
  */
-function getRoleTypePriority(role: { isHead: boolean; cityId?: string | null; partyId?: string | null; administrativeBodyId?: string | null }): number {
+export function getRoleTypePriority(role: { isHead: boolean; cityId?: string | null; partyId?: string | null; administrativeBodyId?: string | null }): number {
   const isCityLevel = role.cityId && !role.partyId && !role.administrativeBodyId;
   if (isCityLevel && role.isHead) return 0;  // mayor
   if (isCityLevel) return 1;                 // deputy mayor
