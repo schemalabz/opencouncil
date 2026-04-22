@@ -4,6 +4,11 @@ import { Badge } from '../ui/badge';
 import { cn, sortRolesByPriority, getPrimaryRole } from '@/lib/utils';
 import { Star, Building, Users } from 'lucide-react';
 import { RoleWithRelations } from '@/lib/db/types';
+const BADGE_MAX_CHARS_SMALL = 40;
+const BADGE_MAX_CHARS_LG = 70;
+
+const truncateWithEllipsis = (text: string, max: number) =>
+    text.length > max ? `${text.slice(0, max)}…` : text;
 
 interface RoleDisplayProps {
     roles: RoleWithRelations[];
@@ -12,6 +17,12 @@ interface RoleDisplayProps {
     maxDisplay?: number;
     showIcons?: boolean;
     borderless?: boolean;
+    /**
+     * When true, the badge shows the full role text (no char cap), wraps long text,
+     * and renders with rounded corners instead of the pill shape. Use on detail pages
+     * where there's room for the full label.
+     */
+    fullText?: boolean;
     className?: string;
 }
 
@@ -75,6 +86,7 @@ export function RoleDisplay({
     maxDisplay,
     showIcons = false,
     borderless = false,
+    fullText = false,
     className
 }: RoleDisplayProps) {
     if (!roles.length) return null;
@@ -152,6 +164,20 @@ export function RoleDisplay({
         <div className={cn(layoutClasses[layout], sizeClasses[size], className)}>
             {displayRoles.map((role, index) => {
                 const RoleIcon = showIcons ? getRoleIcon(role) : null;
+                const roleText = getRoleText(role);
+                const textSmall = truncateWithEllipsis(roleText, BADGE_MAX_CHARS_SMALL);
+                const textLg = truncateWithEllipsis(roleText, BADGE_MAX_CHARS_LG);
+                const displayText = fullText ? (
+                    roleText
+                ) : (
+                    <>
+                        <span className="lg:hidden" aria-hidden="true">{textSmall}</span>
+                        <span className="hidden lg:inline" aria-hidden="true">{textLg}</span>
+                    </>
+                );
+                const displayAsBox = fullText && roleText.length > BADGE_MAX_CHARS_LG;
+                const badgeShapeClass = displayAsBox ? "!rounded-md text-left" : "";
+                const textSpanClass = "break-words whitespace-normal";
 
                 return (
                     <React.Fragment key={role.id}>
@@ -192,20 +218,25 @@ export function RoleDisplay({
                         ) : (
                             <Badge
                                 variant={getRoleVariant(role)}
+                                title={roleText}
+                                aria-label={roleText}
                                 className={cn(
-                                    "flex items-center gap-1.5 text-muted-foreground relative overflow-hidden hover:bg-accent font-normal",
+                                    "flex items-center gap-1.5 text-muted-foreground relative overflow-hidden hover:bg-accent font-normal max-w-full",
                                     borderless && "border-0 bg-muted/50 hover:bg-muted",
-                                    (role.isHead || role.cityId) && "bg-gradient-to-r from-[#fc550a]/10 to-[#a4c0e1]/10"
+                                    (role.isHead || role.cityId) && "bg-gradient-to-r from-[#fc550a]/10 to-[#a4c0e1]/10",
+                                    badgeShapeClass
                                 )}
                             >
                                 {(role.isHead || role.cityId) && (
                                     <span className="absolute inset-0 bg-gradient-to-r from-[#fc550a]/5 to-[#a4c0e1]/5"></span>
                                 )}
-                                <span className="relative z-10 flex items-center gap-1.5">
-                                    <div className="w-3 h-3 flex items-center justify-center flex-shrink-0">
-                                        {RoleIcon && <RoleIcon className={cn("w-3 h-3", getRoleIconColor(role))} />}
-                                    </div>
-                                    {getRoleText(role)}
+                                <span className="relative z-10 flex items-center gap-1.5 min-w-0">
+                                    {!displayAsBox && (
+                                        <div className="w-3 h-3 flex items-center justify-center flex-shrink-0">
+                                            {RoleIcon && <RoleIcon className={cn("w-3 h-3", getRoleIconColor(role))} />}
+                                        </div>
+                                    )}
+                                    <span className={textSpanClass}>{displayText}</span>
                                 </span>
                             </Badge>
                         )}
