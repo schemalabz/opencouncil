@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Tag, BookOpen, Home, ShieldAlert, Truck, Palette, School, Bike, Trees, AlertCircle, Loader2, X, Check } from 'lucide-react';
+import { Tag, AlertCircle, Loader2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { getAllTopics } from '@/lib/db/topics';
 import { Topic } from '@prisma/client';
+import Icon from '@/components/icon';
 
 interface TopicSelectorProps {
     selectedTopics: Topic[];
@@ -14,27 +15,6 @@ interface TopicSelectorProps {
     onRemove: (topicId: string) => void;
     onRemoveAll?: () => void;
 }
-
-// Icons for common topics - you can expand this if needed
-const TOPIC_ICONS: Record<string, React.ReactNode> = {
-    'Καθαριότητα': <Trees className="h-4 w-4" />,
-    'Cleanliness': <Trees className="h-4 w-4" />,
-    'Ασφάλεια': <ShieldAlert className="h-4 w-4" />,
-    'Safety': <ShieldAlert className="h-4 w-4" />,
-    'Πολιτισμός': <Palette className="h-4 w-4" />,
-    'Culture': <Palette className="h-4 w-4" />,
-    'Αθλητισμός': <Bike className="h-4 w-4" />,
-    'Sports': <Bike className="h-4 w-4" />,
-    'Παιδεία': <School className="h-4 w-4" />,
-    'Education': <School className="h-4 w-4" />,
-    'Συγκοινωνίες': <Truck className="h-4 w-4" />,
-    'Transportation': <Truck className="h-4 w-4" />,
-    'Δημόσιοι χώροι': <Home className="h-4 w-4" />,
-    'Public spaces': <Home className="h-4 w-4" />,
-};
-
-// Default icon for topics without a specific icon
-const DEFAULT_ICON = <BookOpen className="h-4 w-4" />;
 
 export function TopicSelector({
     selectedTopics,
@@ -72,11 +52,6 @@ export function TopicSelector({
     if (topics.length === 0 && !isLoading && !error) {
         setError('Δεν βρέθηκαν διαθέσιμα θέματα');
     }
-
-    // Get topic icon based on name or fall back to default
-    const getTopicIcon = (topic: Topic) => {
-        return TOPIC_ICONS[topic.name] || TOPIC_ICONS[topic.name_en || ''] || DEFAULT_ICON;
-    };
 
     // Check if a topic is selected
     const isTopicSelected = (topic: Topic) => {
@@ -177,9 +152,11 @@ export function TopicSelector({
                                                 className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
                                                 style={{ backgroundColor: topic.colorHex }}
                                             >
-                                                <span className="text-white">
-                                                    {getTopicIcon(topic)}
-                                                </span>
+                                                <Icon
+                                                    name={topic.icon || "hash"}
+                                                    color="#ffffff"
+                                                    size={16}
+                                                />
                                             </div>
                                             <div className="flex flex-col items-start overflow-hidden flex-1">
                                                 <span className="font-medium truncate w-full">{topic.name}</span>

@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Tag, BookOpen, Home, ShieldAlert, Truck, Palette, School, Bike, Trees, AlertCircle, Loader2, Check } from 'lucide-react';
+import { AlertCircle, Loader2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { Topic } from '@prisma/client';
+import Icon from '@/components/icon';
 
 interface TopicFilterProps {
     selectedTopics: Topic[];
@@ -14,26 +15,6 @@ interface TopicFilterProps {
     onSelectAll?: () => void;
     onRemoveAll?: () => void;
 }
-
-// Icons for common topics
-const TOPIC_ICONS: Record<string, React.ReactNode> = {
-    'Καθαριότητα': <Trees className="h-4 w-4" />,
-    'Cleanliness': <Trees className="h-4 w-4" />,
-    'Ασφάλεια': <ShieldAlert className="h-4 w-4" />,
-    'Safety': <ShieldAlert className="h-4 w-4" />,
-    'Πολιτισμός': <Palette className="h-4 w-4" />,
-    'Culture': <Palette className="h-4 w-4" />,
-    'Αθλητισμός': <Bike className="h-4 w-4" />,
-    'Sports': <Bike className="h-4 w-4" />,
-    'Παιδεία': <School className="h-4 w-4" />,
-    'Education': <School className="h-4 w-4" />,
-    'Συγκοινωνίες': <Truck className="h-4 w-4" />,
-    'Transportation': <Truck className="h-4 w-4" />,
-    'Δημόσιοι χώροι': <Home className="h-4 w-4" />,
-    'Public spaces': <Home className="h-4 w-4" />,
-};
-
-const DEFAULT_ICON = <BookOpen className="h-4 w-4" />;
 
 export function TopicFilter({
     selectedTopics,
@@ -66,10 +47,6 @@ export function TopicFilter({
 
         fetchTopics();
     }, []);
-
-    const getTopicIcon = (topic: Topic) => {
-        return TOPIC_ICONS[topic.name] || TOPIC_ICONS[topic.name_en || ''] || DEFAULT_ICON;
-    };
 
     const isTopicSelected = (topic: Topic) => {
         return selectedTopics.some(selected => selected.id === topic.id);
@@ -160,9 +137,11 @@ export function TopicFilter({
                                     className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
                                     style={{ backgroundColor: topic.colorHex }}
                                 >
-                                    <span className="text-white">
-                                        {getTopicIcon(topic)}
-                                    </span>
+                                    <Icon
+                                        name={topic.icon || "hash"}
+                                        color="#ffffff"
+                                        size={16}
+                                    />
                                 </div>
                                 <div className="flex flex-col items-start overflow-hidden flex-1">
                                     <span className="font-medium truncate w-full text-sm">{topic.name}</span>
