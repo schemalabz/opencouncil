@@ -44,7 +44,7 @@ export type UserWithAdministers = Prisma.UserGetPayload<{ include: typeof userWi
 export type UserWithRelations = Prisma.UserGetPayload<{ include: typeof userWithRelationsInclude }>;
 
 export type AdminUserData = Partial<Pick<User, 'email' | 'name' | 'isSuperAdmin' | 'onboarded'>> & {
-    administers?: Prisma.AdministersCreateWithoutUserInput[]
+    administers?: Prisma.AdministersUncheckedCreateWithoutUserInput[]
 }
 
 function normalizeEmail(email: string): string {

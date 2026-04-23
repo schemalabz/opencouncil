@@ -4,6 +4,7 @@ import { createUser, getUsers, updateUser } from "@/lib/db/users"
 import { sendUserOnboardedAdminAlert } from "@/lib/discord"
 import { handleApiError } from "@/lib/api/errors"
 import { sendInviteEmail } from "@/lib/auth/invite"
+import { createAdminUserSchema, updateAdminUserSchema } from "@/lib/zod-schemas/user"
 
 export async function GET() {
     const user = await getCurrentUser()
@@ -25,8 +26,12 @@ export async function POST(request: Request) {
         return new NextResponse("Unauthorized", { status: 401 })
     }
 
-    const data = await request.json()
-    const { email, name, isSuperAdmin, administers } = data
+    const raw = await request.json()
+    const parsed = createAdminUserSchema.safeParse(raw)
+    if (!parsed.success) {
+        return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+    }
+    const { email, name, isSuperAdmin, administers } = parsed.data
 
     try {
         const newUser = await createUser({ email, name, isSuperAdmin, administers })
@@ -57,8 +62,12 @@ export async function PUT(request: Request) {
         return new NextResponse("Unauthorized", { status: 401 })
     }
 
-    const data = await request.json()
-    const { id, email, name, isSuperAdmin, administers } = data
+    const raw = await request.json()
+    const parsed = updateAdminUserSchema.safeParse(raw)
+    if (!parsed.success) {
+        return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+    }
+    const { id, email, name, isSuperAdmin, administers } = parsed.data
 
     try {
         const updatedUser = await updateUser(id, { email, name, isSuperAdmin, administers })

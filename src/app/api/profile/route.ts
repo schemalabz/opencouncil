@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { updateUserProfile } from "@/lib/db/users";
 import { sendUserOnboardedAdminAlert } from "@/lib/discord";
+import { updateProfileSchema } from "@/lib/zod-schemas/user";
 
 export async function POST(request: Request) {
     try {
@@ -10,10 +11,12 @@ export async function POST(request: Request) {
             return new NextResponse("Unauthorized", { status: 401 });
         }
 
-        const data = await request.json();
-
-        // Remove email if present in data to prevent email updates
-        const { email, ...updateData } = data;
+        const raw = await request.json();
+        const parsed = updateProfileSchema.safeParse(raw);
+        if (!parsed.success) {
+            return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+        }
+        const updateData = parsed.data;
 
         // Track if this is the user completing onboarding for the first time
         const isCompletingOnboarding = !user.onboarded && updateData.onboarded === true;

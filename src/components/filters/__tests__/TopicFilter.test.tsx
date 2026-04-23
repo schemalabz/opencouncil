@@ -21,7 +21,8 @@ jest.mock('framer-motion', () => ({
 const makeTopic = (overrides: Partial<Topic> & { id: string; name: string }): Topic => ({
     colorHex: '#3b82f6',
     icon: 'hash',
-    name_en: null,
+    name_en: '',
+    description: '',
     deprecated: false,
     createdAt: new Date(),
     updatedAt: new Date(),

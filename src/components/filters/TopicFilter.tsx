@@ -8,7 +8,7 @@ import { Topic } from '@prisma/client';
 import Icon from '@/components/icon';
 
 interface TopicFilterProps {
-    /** All available (non-deprecated) topics. */
+    /** All available topics. */
     topics: Topic[];
     /** Currently selected topics. */
     selectedTopics: Topic[];

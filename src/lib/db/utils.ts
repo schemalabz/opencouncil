@@ -3,7 +3,7 @@
 import { getTranscript } from "./transcript";
 import { getPeopleForMeeting } from "./people";
 import { getPartiesForCity } from "./parties";
-import { getActiveTopicsForTasks } from "./topics";
+import { getTopics } from "./topics";
 import { getCity } from "./cities";
 import { getCouncilMeeting } from "./meetings";
 import { RequestOnTranscript, SummarizeRequest, TranscribeRequest, Subject } from "../apiTypes";
@@ -41,7 +41,7 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
     // People filtered by meeting's administrative body (for LLM context)
     const meetingPeople = await getPeopleForMeeting(cityId, councilMeeting.administrativeBodyId);
     const parties = await getPartiesForCity(cityId);
-    const topics = await getActiveTopicsForTasks();
+    const topics = await getTopics();
     const city = await getCity(cityId);
 
     if (!city) {

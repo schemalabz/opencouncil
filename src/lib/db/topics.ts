@@ -1,20 +1,29 @@
 "use server";
-import { Topic } from '@prisma/client';
+import { Prisma, Topic } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { ConflictError } from "../api/errors";
 
-export type TopicWithSubjectCount = Topic & {
+const topicWithSubjectCountInclude = {
     _count: {
-        subjects: number;
-        topicLabels: number;
-        notificationPreferences: number;
-    };
-};
+        select: {
+            subjects: true,
+            topicLabels: true,
+            notificationPreferences: true,
+        },
+    },
+} satisfies Prisma.TopicInclude;
 
-export async function getAllTopics(): Promise<Topic[]> {
+export type TopicWithSubjectCount = Prisma.TopicGetPayload<{ include: typeof topicWithSubjectCountInclude }>;
+
+/**
+ * Returns all active (non-deprecated) topics.
+ * For admin views that need deprecated topics too, use getAllTopicsWithSubjectCount.
+ */
+export async function getTopics(): Promise<Topic[]> {
     try {
         const topics = await prisma.topic.findMany({
+            where: { deprecated: false },
             orderBy: { name: 'asc' }
         });
         return topics;
@@ -28,15 +37,7 @@ export async function getAllTopicsWithSubjectCount(): Promise<TopicWithSubjectCo
     try {
         const topics = await prisma.topic.findMany({
             orderBy: { name: 'asc' },
-            include: {
-                _count: {
-                    select: {
-                        subjects: true,
-                        topicLabels: true,
-                        notificationPreferences: true,
-                    },
-                },
-            },
+            include: topicWithSubjectCountInclude,
         });
         return topics;
     } catch (error) {
@@ -45,55 +46,17 @@ export async function getAllTopicsWithSubjectCount(): Promise<TopicWithSubjectCo
     }
 }
 
-export type TopicInput = {
-    name: string;
-    name_en: string;
-    colorHex: string;
-    icon?: string | null;
-    description: string;
-    deprecated?: boolean;
-};
+export type TopicInput = Pick<Prisma.TopicCreateInput, 'name' | 'name_en' | 'colorHex' | 'icon' | 'description' | 'deprecated'>;
 
-export async function getActiveTopicsForTasks(): Promise<Topic[]> {
-    try {
-        const topics = await prisma.topic.findMany({
-            where: { deprecated: false },
-            orderBy: { name: 'asc' },
-        });
-        return topics;
-    } catch (error) {
-        console.error('Error fetching active topics:', error);
-        throw new Error('Failed to fetch active topics');
-    }
-}
 
 export async function createTopic(data: TopicInput): Promise<Topic> {
     await withUserAuthorizedToEdit({});
-    return prisma.topic.create({
-        data: {
-            name: data.name,
-            name_en: data.name_en,
-            colorHex: data.colorHex,
-            icon: data.icon ?? null,
-            description: data.description,
-            deprecated: data.deprecated ?? false,
-        },
-    });
+    return prisma.topic.create({ data });
 }
 
 export async function updateTopic(id: string, data: Partial<TopicInput>): Promise<Topic> {
     await withUserAuthorizedToEdit({});
-    return prisma.topic.update({
-        where: { id },
-        data: {
-            ...(data.name !== undefined && { name: data.name }),
-            ...(data.name_en !== undefined && { name_en: data.name_en }),
-            ...(data.colorHex !== undefined && { colorHex: data.colorHex }),
-            ...(data.icon !== undefined && { icon: data.icon }),
-            ...(data.description !== undefined && { description: data.description }),
-            ...(data.deprecated !== undefined && { deprecated: data.deprecated }),
-        },
-    });
+    return prisma.topic.update({ where: { id }, data });
 }
 
 export async function deleteTopic(id: string): Promise<void> {

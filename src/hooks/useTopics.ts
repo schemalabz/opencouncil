@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Topic } from '@prisma/client';
 
 /**
- * Fetches non-deprecated topics from the API.
+ * Fetches topics from the API.
  * Returns the topics list, loading state, and any error message.
  */
 export function useTopics() {
