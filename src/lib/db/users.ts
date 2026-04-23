@@ -2,8 +2,8 @@
 
 import { Prisma, User } from "@prisma/client";
 import prisma from "./prisma";
-import { withUserAuthorizedToEdit } from "../auth";
 import { BadRequestError, ConflictError, NotFoundError } from "@/lib/api/errors";
+import { withUserAuthorizedToEdit, getCurrentUser } from "../auth";
 
 const userWithAdministersInclude = {
     administers: {
@@ -194,7 +194,13 @@ export async function deleteUser(id: string): Promise<void> {
     }
 }
 
-export type UserProfileUpdateData = Partial<Pick<User, 'name' | 'phone' | 'allowContact' | 'onboarded'>>;
+export async function deleteCurrentUser(): Promise<void> {
+    const user = await getCurrentUser();
+    if (!user) throw new Error('Not authenticated');
+    await prisma.user.delete({ where: { id: user.id } });
+}
+
+export type UserProfileUpdateData = Partial<Pick<User, 'name' | 'phone' | 'allowProductUpdates' | 'allowPetitionUpdates' | 'onboarded'>>;
 
 export async function updateUserProfile(id: string, data: UserProfileUpdateData): Promise<User> {
     try {

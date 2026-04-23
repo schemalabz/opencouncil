@@ -748,7 +748,8 @@ model User {
   emailVerified DateTime?
   phone         String?
   onboarded     Boolean         @default(false)
-  allowContact  Boolean         @default(false)
+  allowProductUpdates  Boolean  @default(true)
+  allowPetitionUpdates Boolean  @default(false)
   isSuperAdmin  Boolean         @default(false)
   accounts      Account[]
   sessions      Session[]
@@ -948,6 +949,10 @@ model NotificationPreference {
   city      City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
   cityId    String
   
+  // Channel preferences
+  notifyByEmail Boolean @default(true)
+  notifyByPhone Boolean @default(true)
+
   // Many-to-many relations with locations and topics/interests
   locations Location[] @relation("NotificationLocation")
   interests Topic[]    @relation("NotificationTopic")

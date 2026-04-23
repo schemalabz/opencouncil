@@ -28,7 +28,7 @@ export default function UsersPage() {
     // Calculate enhanced stats
     const totalUsers = users.length
     const onboardedUsers = users.filter(user => user.onboarded).length
-    const contactableUsers = users.filter(user => user.allowContact).length
+    const contactableUsers = users.filter(user => user.allowProductUpdates).length
     const usersWithNotifications = users.filter(user => user.notificationPreferences.length > 0).length
     const usersWithPetitions = users.filter(user => user.petitions.length > 0).length
     

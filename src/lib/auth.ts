@@ -208,7 +208,7 @@ export async function getOrCreateUserFromRequest(
                 email,
                 name,
                 phone,
-                allowContact: true,
+                allowProductUpdates: true,
                 onboarded: true,
             },
         })

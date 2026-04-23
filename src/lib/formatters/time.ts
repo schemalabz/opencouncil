@@ -1,5 +1,13 @@
 import { formatDistanceToNow } from 'date-fns';
-import { el } from 'date-fns/locale';
+import { el, enUS, type Locale } from 'date-fns/locale';
+
+/**
+ * Map a next-intl locale string ('el' | 'en') to the corresponding
+ * date-fns Locale object. Defaults to Greek to match the app's default locale.
+ */
+export function getDateFnsLocale(locale: string): Locale {
+    return locale === 'en' ? enUS : el;
+}
 
 /**
  * Formats time in seconds to a human-readable string
