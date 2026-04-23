@@ -5,6 +5,7 @@ import { auth, signIn } from "@/auth";
 import { attachGeometryToCities } from "./cities";
 import prisma from "@/lib/db/prisma";
 import { Result, createSuccess, createError } from "@/lib/result";
+import { NotFoundError } from "@/lib/api/errors";
 import { sendPetitionReceivedAdminAlert, sendUserOnboardedAdminAlert, sendNotificationSignupAdminAlert } from "@/lib/discord";
 import { matchUsersToSubjects } from "@/lib/notifications/matching";
 import { generateEmailContent, generateSmsContent } from "@/lib/notifications/content";
@@ -311,7 +312,7 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                         email,
                         name: name || '',
                         phone,
-                        allowContact: true,
+                        allowProductUpdates: true,
                         onboarded: true,
                         ...seedUser
                     }
@@ -499,13 +500,15 @@ export async function savePetition(data: OnboardingData & {
 
             userId = user.id;
 
-            // Update phone if provided
-            if (phone) {
-                await prisma.user.update({
-                    where: { id: user.id },
-                    data: { phone }
-                });
-            }
+            // Always set allowPetitionUpdates (submitting a petition is implicit
+            // consent for petition updates); merge phone in if provided.
+            await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    allowPetitionUpdates: true,
+                    ...(phone ? { phone } : {}),
+                },
+            });
         } else if (email) {
             // Non-authenticated user
             // Check if this email already exists
@@ -523,7 +526,8 @@ export async function savePetition(data: OnboardingData & {
                         email,
                         name: name || '',
                         phone,
-                        allowContact: true,
+                        allowProductUpdates: true,
+                        allowPetitionUpdates: true,
                         onboarded: true,
                         ...seedUser
                     }
@@ -817,6 +821,10 @@ export async function createNotificationsForMeeting(
             const userPref = userPrefMap.get(userId)!;
             const user = userPref.user;
 
+            if (!userPref.notifyByEmail && !userPref.notifyByPhone) {
+                continue;
+            }
+
             try {
                 // Create the notification
                 const notification = await prisma.notification.create({
@@ -850,8 +858,10 @@ export async function createNotificationsForMeeting(
                 totalSubjects += notification.subjects.length;
 
                 // Generate email and SMS content
-                const emailContent = await generateEmailContent({
+                const notificationData = {
                     id: notification.id,
+                    userId,
+                    cityId,
                     type,
                     subjects: notification.subjects.map(ns => ({
                         id: ns.subject.id,
@@ -869,43 +879,26 @@ export async function createNotificationsForMeeting(
                     city: {
                         name_municipality: meeting.city.name_municipality
                     }
-                });
+                };
 
-                const smsBody = await generateSmsContent({
-                    id: notification.id,
-                    type,
-                    subjects: notification.subjects.map(ns => ({
-                        id: ns.subject.id,
-                        name: ns.subject.name,
-                        description: ns.subject.description,
-                        topic: ns.subject.topic ? {
-                            name: ns.subject.topic.name,
-                            colorHex: ns.subject.topic.colorHex
-                        } : null
-                    })),
-                    meeting: {
-                        dateTime: meeting.dateTime,
-                        administrativeBody: meeting.administrativeBody
-                    },
-                    city: {
-                        name_municipality: meeting.city.name_municipality
-                    }
-                });
+                // Create email delivery if user wants to be notified by email
+                if (userPref.notifyByEmail) {
+                    const emailContent = await generateEmailContent(notificationData);
+                    await prisma.notificationDelivery.create({
+                        data: {
+                            notificationId: notification.id,
+                            medium: 'email',
+                            status: 'pending',
+                            email: user.email,
+                            title: emailContent.title,
+                            body: emailContent.body
+                        }
+                    });
+                }
 
-                // Create email delivery (always)
-                await prisma.notificationDelivery.create({
-                    data: {
-                        notificationId: notification.id,
-                        medium: 'email',
-                        status: 'pending',
-                        email: user.email,
-                        title: emailContent.title,
-                        body: emailContent.body
-                    }
-                });
-
-                // Create message delivery if user has phone
-                if (user.phone) {
+                // Create message delivery if user has phone and wants to be notified by phone
+                if (userPref.notifyByPhone && user.phone) {
+                    const smsBody = await generateSmsContent(notificationData);
                     await prisma.notificationDelivery.create({
                         data: {
                             notificationId: notification.id,
@@ -1418,6 +1411,28 @@ export async function getUserNotificationPreferences(userId: string) {
 }
 
 /**
+ * Update notification channel preferences (email/phone) for a preference
+ */
+export async function updateNotificationPreferenceChannels(
+    preferenceId: string,
+    userId: string,
+    channels: { notifyByEmail?: boolean; notifyByPhone?: boolean }
+) {
+    const preference = await prisma.notificationPreference.findUnique({
+        where: { id: preferenceId }
+    });
+
+    if (!preference || preference.userId !== userId) {
+        throw new NotFoundError('Notification preference not found');
+    }
+
+    return prisma.notificationPreference.update({
+        where: { id: preferenceId },
+        data: channels,
+    });
+}
+
+/**
  * Delete a notification preference
  */
 export async function deleteNotificationPreference(preferenceId: string, userId: string) {
@@ -1428,7 +1443,7 @@ export async function deleteNotificationPreference(preferenceId: string, userId:
         });
 
         if (!preference || preference.userId !== userId) {
-            throw new Error('Notification preference not found');
+            throw new NotFoundError('Notification preference not found');
         }
 
         // Delete the preference
@@ -1443,17 +1458,43 @@ export async function deleteNotificationPreference(preferenceId: string, userId:
     }
 }
 
+export async function disableAllNotificationPreferences(userId: string) {
+    await prisma.notificationPreference.updateMany({
+        where: { userId },
+        data: { notifyByEmail: false, notifyByPhone: false },
+    });
+}
+
+export async function disableNotificationPreferenceByCityId(userId: string, cityId: string) {
+    const preference = await prisma.notificationPreference.findUnique({
+        where: { userId_cityId: { userId, cityId } },
+    });
+
+    if (!preference) throw new NotFoundError('Notification preference not found');
+
+    return prisma.notificationPreference.update({
+        where: { id: preference.id },
+        data: { notifyByEmail: false, notifyByPhone: false },
+    });
+}
+
 /**
  * Get notifications for a user in a specific city
  */
-export async function getUserNotifications(userId: string, cityId: string, limit: number = 50) {
+export async function getUserNotifications(userId: string, cityId?: string, limit: number = 50) {
     try {
         const notifications = await prisma.notification.findMany({
             where: {
                 userId,
-                cityId
+                ...(cityId ? { cityId } : {}),
             },
             include: {
+                city: {
+                    select: {
+                        name: true,
+                        name_municipality: true,
+                    }
+                },
                 meeting: {
                     select: {
                         id: true,
