@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { AlertCircle, Loader2, Check } from 'lucide-react';
+import { Tag, AlertCircle, Loader2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -9,63 +8,44 @@ import { Topic } from '@prisma/client';
 import Icon from '@/components/icon';
 
 interface TopicFilterProps {
+    /** All available (non-deprecated) topics. */
+    topics: Topic[];
+    /** Currently selected topics. */
     selectedTopics: Topic[];
-    onSelect: (topic: Topic) => void;
-    onRemove: (topicId: string) => void;
-    onSelectAll?: () => void;
-    onRemoveAll?: () => void;
+    /** Called with the new selection whenever it changes. */
+    onChange: (topics: Topic[]) => void;
+    /** Loading state — shows a spinner when true. */
+    isLoading?: boolean;
+    /** Error message — shown instead of the topic list. */
+    error?: string | null;
+    /** Number of grid columns. Defaults to 1. */
+    columns?: 1 | 2;
 }
 
 export function TopicFilter({
+    topics,
     selectedTopics,
-    onSelect,
-    onRemove,
-    onSelectAll,
-    onRemoveAll
+    onChange,
+    isLoading = false,
+    error = null,
+    columns = 1,
 }: TopicFilterProps) {
-    const [topics, setTopics] = useState<Topic[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
-    // Fetch topics from API
-    useEffect(() => {
-        async function fetchTopics() {
-            try {
-                const response = await fetch('/api/topics');
-                if (!response.ok) {
-                    throw new Error('Failed to fetch topics');
-                }
-                const data = await response.json();
-                setTopics(data);
-            } catch (err) {
-                setError('Υπήρξε πρόβλημα στη φόρτωση των θεμάτων');
-                console.error(err);
-            } finally {
-                setIsLoading(false);
-            }
-        }
-
-        fetchTopics();
-    }, []);
-
     const isTopicSelected = (topic: Topic) => {
         return selectedTopics.some(selected => selected.id === topic.id);
     };
 
     const handleTopicClick = (topic: Topic) => {
         if (isTopicSelected(topic)) {
-            onRemove(topic.id);
+            onChange(selectedTopics.filter(t => t.id !== topic.id));
         } else {
-            onSelect(topic);
+            onChange([...selectedTopics, topic]);
         }
     };
 
+    const allSelected = topics.length > 0 && selectedTopics.length === topics.length;
+
     const handleToggleAll = () => {
-        if (selectedTopics.length === topics.length && onRemoveAll) {
-            onRemoveAll();
-        } else if (onSelectAll) {
-            onSelectAll();
-        }
+        onChange(allSelected ? [] : [...topics]);
     };
 
     if (isLoading) {
@@ -87,7 +67,14 @@ export function TopicFilter({
         );
     }
 
-    const allSelected = selectedTopics.length === topics.length;
+    if (topics.length === 0) {
+        return (
+            <div className="text-center p-6 border border-dashed border-gray-300 rounded-lg bg-gray-50">
+                <Tag className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+                <p className="text-gray-500 text-sm">Δεν βρέθηκαν διαθέσιμα θέματα</p>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-4">
@@ -95,19 +82,20 @@ export function TopicFilter({
                 <div className="text-sm font-medium">
                     Θέματα ({selectedTopics.length}/{topics.length})
                 </div>
-                {(onSelectAll || onRemoveAll) && (
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-xs"
-                        onClick={handleToggleAll}
-                    >
-                        {allSelected ? 'Καθαρισμός όλων' : 'Επιλογή όλων'}
-                    </Button>
-                )}
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={handleToggleAll}
+                >
+                    {allSelected ? 'Καθαρισμός όλων' : 'Επιλογή όλων'}
+                </Button>
             </div>
-            <div className="grid grid-cols-1 gap-2 overflow-y-auto pr-2">
+            <div className={cn(
+                "grid gap-2 overflow-y-auto pr-2",
+                columns === 2 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"
+            )}>
                 {topics.map(topic => {
                     const isSelected = isTopicSelected(topic);
                     return (
@@ -171,4 +159,3 @@ export function TopicFilter({
         </div>
     );
 }
-

@@ -8,7 +8,7 @@ import { MapFilters, MapFiltersState } from "@/components/map/MapFilters";
 import { CitySheet } from "@/components/map/CitySheet";
 import { SubjectInfoSheet } from "@/components/map/SubjectInfoSheet";
 import { MapExplainer } from "@/components/map/MapExplainer";
-import { Topic } from '@prisma/client';
+import { useTopics } from '@/hooks/useTopics';
 
 interface SubjectWithGeometry {
     id: string;
@@ -31,7 +31,7 @@ interface SubjectWithGeometry {
 export default function MapPage() {
     const [features, setFeatures] = useState<MapFeature[]>([]);
     const [isUpdating, setIsUpdating] = useState(false);
-    const [allTopics, setAllTopics] = useState<Topic[]>([]);
+    const { topics } = useTopics();
     const [filters, setFilters] = useState<MapFiltersState>({
         monthsBack: 6,
         selectedTopics: []
@@ -78,32 +78,26 @@ export default function MapPage() {
         councilMeetingId: ''
     });
 
-    // Fetch all topics on mount
+    // Initialize selection with all topics once they load
     useEffect(() => {
-        async function loadTopics() {
-            try {
-                const response = await fetch('/api/topics');
-                const topics: Topic[] = await response.json();
-                setAllTopics(topics);
-                // Initialize with all topics selected
-                setFilters(prev => ({ ...prev, selectedTopics: topics }));
-            } catch (error) {
-                console.error('Error loading topics:', error);
-            }
+        if (topics.length > 0) {
+            setFilters(prev => prev.selectedTopics.length === 0
+                ? { ...prev, selectedTopics: topics }
+                : prev
+            );
         }
-        loadTopics();
-    }, []);
+    }, [topics]);
 
     // Fetch subjects based on filters
     useEffect(() => {
         console.log('🔄 useEffect triggered with filters:', {
             monthsBack: filters.monthsBack,
             selectedTopicsCount: filters.selectedTopics.length,
-            allTopicsCount: allTopics.length
+            totalTopics: topics.length
         });
 
         // Don't fetch until topics are loaded
-        if (allTopics.length === 0) {
+        if (topics.length === 0) {
             console.log('⏸️ Skipping fetch - topics not loaded yet');
             return;
         }
@@ -257,7 +251,7 @@ export default function MapPage() {
             isStale = true;
             abortController.abort();
         };
-    }, [filters, allTopics.length]);
+    }, [filters, topics.length]);
 
     const renderPopup = (feature: GeoJSON.Feature) => {
         const featureType = feature.properties?.featureType;
@@ -506,49 +500,47 @@ export default function MapPage() {
                 </div>
             )}
 
-            {allTopics.length > 0 && (
-                <>
-                    <MapFilters
-                        filters={filters}
-                        allTopics={allTopics}
-                        onFiltersChange={setFilters}
-                    />
-                    <MapExplainer />
+            <MapFilters
+                filters={filters}
+                topics={topics}
+                onFiltersChange={setFilters}
+            />
+            <MapExplainer />
 
-                    {/* Map Summary - Subjects count, topics and timeframe info */}
-                    <div className="absolute bottom-4 right-4 z-20 pointer-events-none hidden sm:block">
-                        <div className="text-white bg-black/70 backdrop-blur-sm px-3 py-2 rounded-full text-xs font-medium">
-                            <div className="flex items-center gap-2">
-                                {/* Subjects count */}
-                                <span>
-                                    {features.filter(f => f.properties?.featureType === 'subject').length} θέματα
-                                </span>
-                                <span className="text-white/60">•</span>
+            {/* Map Summary - Subjects count, topics and timeframe info */}
+            {topics.length > 0 && (
+                <div className="absolute bottom-4 right-4 z-20 pointer-events-none hidden sm:block">
+                    <div className="text-white bg-black/70 backdrop-blur-sm px-3 py-2 rounded-full text-xs font-medium">
+                        <div className="flex items-center gap-2">
+                            {/* Subjects count */}
+                            <span>
+                                {features.filter(f => f.properties?.featureType === 'subject').length} θέματα
+                            </span>
+                            <span className="text-white/60">•</span>
 
-                                {/* Topics selection */}
-                                <span className={filters.selectedTopics.length === 0 ? "text-red-400" : ""}>
-                                    {filters.selectedTopics.length === 0
-                                        ? `καμία θεματική`
-                                        : filters.selectedTopics.length === 1
-                                            ? filters.selectedTopics[0].name
-                                            : filters.selectedTopics.length === allTopics.length
-                                                ? `όλες οι θεματικές`
-                                                : `${filters.selectedTopics.length}/${allTopics.length} θεματικές`
-                                    }
-                                </span>
-                                <span className="text-white/60">•</span>
+                            {/* Topics selection */}
+                            <span className={filters.selectedTopics.length === 0 ? "text-red-400" : ""}>
+                                {filters.selectedTopics.length === 0
+                                    ? `καμία θεματική`
+                                    : filters.selectedTopics.length === 1
+                                        ? filters.selectedTopics[0].name
+                                        : filters.selectedTopics.length === topics.length
+                                            ? `όλες οι θεματικές`
+                                            : `${filters.selectedTopics.length}/${topics.length} θεματικές`
+                                }
+                            </span>
+                            <span className="text-white/60">•</span>
 
-                                {/* Time period */}
-                                <span>
-                                    {filters.monthsBack === 1
-                                        ? `1 μήνας`
-                                        : `${filters.monthsBack} μήνες`
-                                    }
-                                </span>
-                            </div>
+                            {/* Time period */}
+                            <span>
+                                {filters.monthsBack === 1
+                                    ? `1 μήνας`
+                                    : `${filters.monthsBack} μήνες`
+                                }
+                            </span>
                         </div>
                     </div>
-                </>
+                </div>
             )}
 
             <CitySheet

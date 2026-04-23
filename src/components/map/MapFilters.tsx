@@ -22,11 +22,11 @@ export interface MapFiltersState {
 
 interface MapFiltersProps {
     filters: MapFiltersState;
-    allTopics: Topic[];
+    topics: Topic[];
     onFiltersChange: (filters: MapFiltersState) => void;
 }
 
-export function MapFilters({ filters, allTopics, onFiltersChange }: MapFiltersProps) {
+export function MapFilters({ filters, topics, onFiltersChange }: MapFiltersProps) {
     const [open, setOpen] = useState(false);
     const [localMonthsBack, setLocalMonthsBack] = useState(filters.monthsBack);
     const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -36,32 +36,8 @@ export function MapFilters({ filters, allTopics, onFiltersChange }: MapFiltersPr
         setLocalMonthsBack(filters.monthsBack);
     }, [filters.monthsBack]);
 
-    const handleTopicSelect = (topic: Topic) => {
-        onFiltersChange({
-            ...filters,
-            selectedTopics: [...filters.selectedTopics, topic]
-        });
-    };
-
-    const handleTopicRemove = (topicId: string) => {
-        onFiltersChange({
-            ...filters,
-            selectedTopics: filters.selectedTopics.filter(t => t.id !== topicId)
-        });
-    };
-
-    const handleSelectAllTopics = () => {
-        onFiltersChange({
-            ...filters,
-            selectedTopics: allTopics
-        });
-    };
-
-    const handleRemoveAllTopics = () => {
-        onFiltersChange({
-            ...filters,
-            selectedTopics: []
-        });
+    const handleTopicsChange = (selected: Topic[]) => {
+        onFiltersChange({ ...filters, selectedTopics: selected });
     };
 
     // Debounced months change handler
@@ -87,7 +63,7 @@ export function MapFilters({ filters, allTopics, onFiltersChange }: MapFiltersPr
     // Generate filter summary in Greek
     const getFilterSummary = () => {
         const topicCount = filters.selectedTopics.length;
-        const totalTopics = allTopics.length;
+        const totalTopics = topics.length;
         const months = filters.monthsBack;
 
         let topicPart = '';
@@ -176,11 +152,9 @@ export function MapFilters({ filters, allTopics, onFiltersChange }: MapFiltersPr
                             Θεματικές κατηγορίες
                         </label>
                         <TopicFilter
+                            topics={topics}
                             selectedTopics={filters.selectedTopics}
-                            onSelect={handleTopicSelect}
-                            onRemove={handleTopicRemove}
-                            onSelectAll={handleSelectAllTopics}
-                            onRemoveAll={handleRemoveAllTopics}
+                            onChange={handleTopicsChange}
                         />
                     </div>
                 </div>
@@ -188,4 +162,3 @@ export function MapFilters({ filters, allTopics, onFiltersChange }: MapFiltersPr
         </Sheet>
     );
 }
-

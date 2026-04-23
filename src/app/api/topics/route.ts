@@ -7,6 +7,7 @@ export const revalidate = 86400;
 export async function GET() {
     try {
         const topics = await prisma.topic.findMany({
+            where: { deprecated: false },
             orderBy: {
                 name: 'asc'
             }

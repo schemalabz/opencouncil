@@ -1,9 +1,9 @@
 import React from 'react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
-import { TopicSelector } from '@/components/onboarding/selectors/TopicSelector';
+import { TopicFilter } from '@/components/filters/TopicFilter';
+import { useTopics } from '@/hooks/useTopics';
 import { OnboardingStepTemplate } from '@/components/onboarding/OnboardingStepTemplate';
 import { OnboardingFooter } from '@/components/onboarding/OnboardingFooter';
-import { Topic } from '@prisma/client';
 
 interface NotificationTopicStepProps {
   currentStep: number;
@@ -13,22 +13,8 @@ interface NotificationTopicStepProps {
 }
 
 export function NotificationTopicStep({ currentStep, totalSteps, onBack, onContinue }: NotificationTopicStepProps) {
-  const {
-    selectedTopics,
-    setSelectedTopics,
-  } = useOnboarding();
-
-  const handleTopicSelect = (topic: Topic) => {
-    setSelectedTopics([...selectedTopics, topic]);
-  };
-
-  const handleTopicRemove = (topicId: string) => {
-    setSelectedTopics(selectedTopics.filter(topic => topic.id !== topicId));
-  };
-
-  const handleRemoveAll = () => {
-    setSelectedTopics([]);
-  };
+  const { selectedTopics, setSelectedTopics } = useOnboarding();
+  const { topics, isLoading, error } = useTopics();
 
   return (
     <OnboardingStepTemplate
@@ -45,13 +31,15 @@ export function NotificationTopicStep({ currentStep, totalSteps, onBack, onConti
       }
     >
       <div className="flex flex-col gap-6 w-full max-w-md">
-        <TopicSelector
+        <TopicFilter
+          topics={topics}
           selectedTopics={selectedTopics}
-          onSelect={handleTopicSelect}
-          onRemove={handleTopicRemove}
-          onRemoveAll={handleRemoveAll}
+          onChange={setSelectedTopics}
+          isLoading={isLoading}
+          error={error}
+          columns={2}
         />
       </div>
     </OnboardingStepTemplate>
   );
-} 
+}
