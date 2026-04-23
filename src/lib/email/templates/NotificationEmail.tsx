@@ -19,6 +19,7 @@ interface NotificationEmailProps {
     cityName: string;
     subjects: NotificationSubject[];
     notificationUrl: string;
+    unsubscribeUrl: string;
 }
 
 export const NotificationEmail = ({
@@ -27,7 +28,8 @@ export const NotificationEmail = ({
     administrativeBodyName,
     cityName,
     subjects,
-    notificationUrl
+    notificationUrl,
+    unsubscribeUrl,
 }: NotificationEmailProps): React.ReactElement => {
     const typeLabel = type === 'beforeMeeting'
         ? 'Ειδοποίηση επερχόμενης συνεδρίασης'
@@ -163,10 +165,10 @@ export const NotificationEmail = ({
                 >
                     Δεν θέλετε να λαμβάνετε ειδοποιήσεις;{' '}
                     <a
-                        href={`${process.env.NEXTAUTH_URL || 'https://opencouncil.gr'}/el/profile`}
+                        href={unsubscribeUrl}
                         style={{ color: '#2563eb', textDecoration: 'underline' }}
                     >
-                        Διαχειριστείτε τις προτιμήσεις σας
+                        Απεγγραφή
                     </a>
                 </Text>
             </Section>

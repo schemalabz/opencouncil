@@ -1458,6 +1458,46 @@ export async function deleteNotificationPreference(preferenceId: string, userId:
     }
 }
 
+/**
+ * Fetch the data the unsubscribe page needs to render for a (userId, cityId)
+ * pair extracted from an unsubscribe token. Returns null if the user no
+ * longer exists.
+ */
+export async function getUnsubscribeContext(userId: string, cityId: string): Promise<{
+    cityName: string | null;
+    userEmail: string;
+    allowProductUpdates: boolean;
+    allowPetitionUpdates: boolean;
+    citySubscribed: boolean;
+} | null> {
+    const [city, user, cityPreference] = await Promise.all([
+        prisma.city.findUnique({
+            where: { id: cityId },
+            select: { name_municipality: true },
+        }),
+        prisma.user.findUnique({
+            where: { id: userId },
+            select: { email: true, allowProductUpdates: true, allowPetitionUpdates: true },
+        }),
+        prisma.notificationPreference.findUnique({
+            where: { userId_cityId: { userId, cityId } },
+            select: { notifyByEmail: true, notifyByPhone: true },
+        }),
+    ]);
+
+    if (!user) return null;
+
+    return {
+        cityName: city?.name_municipality ?? null,
+        userEmail: user.email,
+        allowProductUpdates: user.allowProductUpdates,
+        allowPetitionUpdates: user.allowPetitionUpdates,
+        citySubscribed: Boolean(
+            cityPreference && (cityPreference.notifyByEmail || cityPreference.notifyByPhone),
+        ),
+    };
+}
+
 export async function disableAllNotificationPreferences(userId: string) {
     await prisma.notificationPreference.updateMany({
         where: { userId },

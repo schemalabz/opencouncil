@@ -1,71 +1,56 @@
-// Not yet used - will be used to unsubscribe from notifications
 "use server";
-
-import { createHmac } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { env } from '@/env.mjs';
 
 interface UnsubscribeTokenData {
     userId: string;
     cityId: string;
-    timestamp: number;
+    exp: number;
 }
 
-/**
- * Generate a signed token for unsubscribe links
- */
-export function generateUnsubscribeToken(userId: string, cityId: string): string {
+const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+export async function generateUnsubscribeToken(userId: string, cityId: string): Promise<string> {
     const data: UnsubscribeTokenData = {
         userId,
         cityId,
-        timestamp: Date.now()
+        exp: Date.now() + TOKEN_TTL_MS,
     };
 
-    const payload = Buffer.from(JSON.stringify(data)).toString('base64');
+    const payload = Buffer.from(JSON.stringify(data)).toString('base64url');
     const signature = createHmac('sha256', env.NEXTAUTH_SECRET)
         .update(payload)
-        .digest('base64');
+        .digest('base64url');
 
     return `${payload}.${signature}`;
 }
 
-/**
- * Verify and extract data from unsubscribe token
- */
-export function verifyUnsubscribeToken(token: string): UnsubscribeTokenData | null {
+export async function verifyUnsubscribeToken(token: string): Promise<UnsubscribeTokenData | null> {
     try {
         const [payload, signature] = token.split('.');
+        if (!payload || !signature) return null;
 
-        if (!payload || !signature) {
-            return null;
-        }
-
-        // Verify signature
         const expectedSignature = createHmac('sha256', env.NEXTAUTH_SECRET)
             .update(payload)
-            .digest('base64');
+            .digest('base64url');
 
-        if (signature !== expectedSignature) {
-            console.error('Invalid token signature');
-            return null;
-        }
+        const sigBuf = new Uint8Array(Buffer.from(signature, 'base64url'));
+        const expectedBuf = new Uint8Array(Buffer.from(expectedSignature, 'base64url'));
+        if (sigBuf.length !== expectedBuf.length || !timingSafeEqual(sigBuf, expectedBuf)) return null;
 
-        // Decode payload
         const data: UnsubscribeTokenData = JSON.parse(
-            Buffer.from(payload, 'base64').toString('utf-8')
+            Buffer.from(payload, 'base64url').toString('utf-8')
         );
 
-        // Check if token is expired (30 days)
-        const maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
-        if (Date.now() - data.timestamp > maxAge) {
-            console.error('Token expired');
-            return null;
-        }
+        if (Date.now() > data.exp) return null;
 
         return data;
-
-    } catch (error) {
-        console.error('Error verifying unsubscribe token:', error);
+    } catch {
         return null;
     }
 }
 
+export async function buildUnsubscribeUrl(userId: string, cityId: string, locale: string = 'el'): Promise<string> {
+    const token = await generateUnsubscribeToken(userId, cityId);
+    return `${env.NEXTAUTH_URL}/${locale}/unsubscribe?token=${encodeURIComponent(token)}`;
+}
