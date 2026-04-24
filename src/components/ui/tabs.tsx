@@ -89,7 +89,7 @@ export function TabsList(props: {
     <div
       {...props}
       className={cn(
-        "inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground",
+        "flex h-10 items-center justify-start rounded-md bg-muted p-1 text-muted-foreground overflow-x-auto scrollbar-none",
         props.className,
       )}
     />
@@ -103,30 +103,61 @@ export const TabsTrigger = (props: {
   children: React.ReactNode;
   className?: string;
   value: string;
+  style?: React.CSSProperties;
+  disabled?: boolean;
 }) => {
   const context = useContext();
-  const state = context.selected === props.value ? "active" : "inactive";
+  const isActive = context.selected === props.value;
+  const ref = React.useRef<HTMLAnchorElement & HTMLSpanElement>(null);
+
+  React.useEffect(() => {
+    if (isActive && ref.current) {
+      ref.current.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" });
+    }
+  }, [isActive]);
+
+  const sharedClassName = cn(
+    "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm",
+    props.disabled && "pointer-events-none opacity-50 cursor-not-allowed",
+    props.className,
+  );
 
   if (context.onSelect) {
     return (
       <button
         type="button"
-        className={cn(triggerClassName, props.className)}
-        data-state={state}
-        onClick={() => context.onSelect!(props.value)}
+        className={cn(triggerClassName, props.className, props.disabled && "pointer-events-none opacity-50 cursor-not-allowed")}
+        data-state={isActive ? "active" : "inactive"}
+        disabled={props.disabled}
+        onClick={() => !props.disabled && context.onSelect!(props.value)}
       >
         {props.children}
       </button>
     );
   }
 
+  if (props.disabled) {
+    return (
+      <span
+        ref={ref}
+        className={sharedClassName}
+        data-state={isActive ? "active" : "inactive"}
+        style={props.style}
+      >
+        {props.children}
+      </span>
+    );
+  }
+
   return (
     <Link
-      className={cn(triggerClassName, props.className)}
-      data-state={state}
-      href={context.hrefFor!(props.value)}
+      ref={ref}
+      className={sharedClassName}
+      data-state={isActive ? "active" : "inactive"}
+      href={context.hrefFor?.(props.value) || "#"}
       scroll={false}
       shallow={true}
+      style={props.style}
     >
       {props.children}
     </Link>

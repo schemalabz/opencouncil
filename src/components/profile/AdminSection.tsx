@@ -1,10 +1,7 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ContactBadge } from "../layout/contact-badge";
-import { Flag, User } from "lucide-react";
-import { Users } from "lucide-react";
-import { Building } from "lucide-react";
+import { Flag, User, Building } from "lucide-react";
 
 type AdminSectionProps = {
     user: {
@@ -35,22 +32,11 @@ export function AdminSection({ user, t }: AdminSectionProps) {
                             <Link href="/admin">{t("goToAdmin")}</Link>
                         </Button>
                     </div>
-                ) : user.administers.length > 0 ? (
+                ) : user.administers.length > 0 && (
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         {user.administers.map((admin) => (
                             <AdminCard key={admin.id} admin={admin} t={t} />
                         ))}
-                    </div>
-                ) : (
-                    <div className="text-gray-600">
-                        <p className="text-md">{t("noAdminAccess")}</p>
-                        <p className="mt-16 text-sm">
-                            {t("contactForAccess")}
-                        </p>
-                        <div className="mt-4">
-                            <ContactBadge type="Email" size="md" className="mr-4" />
-                            <ContactBadge type="Phone" size="md" />
-                        </div>
                     </div>
                 )}
             </CardContent>

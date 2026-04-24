@@ -6,9 +6,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, Loader2, Info, CheckCircle, XCircle, Bell, FileText, Mail, Calendar } from "lucide-react"
+import { Users, Loader2, Info, CheckCircle, XCircle } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 
@@ -30,7 +29,7 @@ const PERSONAS = [
             onboarded: true,
             notifications: true,
             petitions: false,
-            allowContact: true
+            allowProductUpdates: true
         },
         expectedData: "Notification preferences for 1 city with 3-6 topics",
         defaultQuantity: 15,
@@ -49,7 +48,8 @@ const PERSONAS = [
             onboarded: true,
             notifications: false,
             petitions: true,
-            allowContact: true
+            allowProductUpdates: true,
+            allowPetitionUpdates: true
         },
         expectedData: "Petition for 1 unsupported city, resident/citizen status varies",
         defaultQuantity: 8,
@@ -68,7 +68,8 @@ const PERSONAS = [
             onboarded: false,
             notifications: false,
             petitions: false,
-            allowContact: false
+            allowProductUpdates: false,
+            allowPetitionUpdates: false
         },
         expectedData: "Only basic account information, no onboarding",
         defaultQuantity: 12,
@@ -87,7 +88,8 @@ const PERSONAS = [
             onboarded: true,
             notifications: false,
             petitions: false,
-            allowContact: "varies"
+            allowProductUpdates: false,
+            allowPetitionUpdates: false
         },
         expectedData: "Complete onboarding, no activity data",
         defaultQuantity: 5,
@@ -146,10 +148,10 @@ export function SeedUsersDialog({ onUsersCreated }: SeedUsersDialogProps) {
             }
 
             const result = await response.json()
-            
+
             // Create detailed success message
             let successMessage = `Successfully created ${result.count} ${result.persona.replace('-', ' ')} users`
-            
+
             if (result.details) {
                 const details = []
                 if (result.details.notificationPreferences > 0) {
@@ -163,7 +165,7 @@ export function SeedUsersDialog({ onUsersCreated }: SeedUsersDialogProps) {
                 }
                 successMessage += `\n\nData sources: ${result.details.supportedCities} supported cities, ${result.details.unsupportedCities} unsupported cities, ${result.details.availableTopics} topics`
             }
-            
+
             toast({
                 title: "Test Users Created Successfully! 🎉",
                 description: successMessage,
@@ -213,14 +215,24 @@ export function SeedUsersDialog({ onUsersCreated }: SeedUsersDialogProps) {
                 <span>Petitions</span>
             </div>
             <div className="flex items-center gap-1">
-                {pattern.allowContact === true ? (
+                {pattern.allowProductUpdates === true ? (
                     <CheckCircle className="h-3 w-3 text-green-600" />
-                ) : pattern.allowContact === false ? (
+                ) : pattern.allowProductUpdates === false ? (
                     <XCircle className="h-3 w-3 text-red-600" />
                 ) : (
                     <div className="h-3 w-3 rounded-full bg-yellow-400" />
                 )}
-                <span>Contactable</span>
+                <span>Product Updates</span>
+            </div>
+            <div className="flex items-center gap-1">
+                {pattern.allowPetitionUpdates === true ? (
+                    <CheckCircle className="h-3 w-3 text-green-600" />
+                ) : pattern.allowPetitionUpdates === false ? (
+                    <XCircle className="h-3 w-3 text-red-600" />
+                ) : (
+                    <div className="h-3 w-3 rounded-full bg-yellow-400" />
+                )}
+                <span>Petition Updates</span>
             </div>
         </div>
     )
@@ -250,10 +262,10 @@ export function SeedUsersDialog({ onUsersCreated }: SeedUsersDialogProps) {
                             {PERSONAS.map((persona) => {
                                 const isSelected = selectedPersona === persona.id
                                 const isExpanded = expandedPersona === persona.id
-                                
+
                                 return (
-                                    <Card 
-                                        key={persona.id} 
+                                    <Card
+                                        key={persona.id}
                                         className={cn(
                                             "cursor-pointer transition-all duration-200",
                                             isSelected ? persona.selectedTheme : persona.theme
@@ -289,7 +301,7 @@ export function SeedUsersDialog({ onUsersCreated }: SeedUsersDialogProps) {
                                                 </Button>
                                             </div>
                                         </CardHeader>
-                                        
+
                                         {!isExpanded && (
                                             <CardContent className="pt-0">
                                                 {renderDataPatternIndicator(persona.dataPattern)}
@@ -304,27 +316,27 @@ export function SeedUsersDialog({ onUsersCreated }: SeedUsersDialogProps) {
                                                         {persona.detailedDescription}
                                                     </p>
                                                 </div>
-                                                
+
                                                 <div className="space-y-2">
                                                     <h4 className="text-sm font-medium">Data Pattern</h4>
                                                     {renderDataPatternIndicator(persona.dataPattern)}
                                                 </div>
-                                                
+
                                                 <div className="space-y-2">
                                                     <h4 className="text-sm font-medium">Expected Data</h4>
                                                     <p className="text-sm text-muted-foreground">
                                                         {persona.expectedData}
                                                     </p>
-                                        </div>
-                                                
+                                                </div>
+
                                                 <div className="space-y-2">
                                                     <h4 className="text-sm font-medium">Testing Use</h4>
-                            <p className="text-sm text-muted-foreground">
+                                                    <p className="text-sm text-muted-foreground">
                                                         {persona.testingUse}
-                            </p>
+                                                    </p>
                                                 </div>
                                             </CardContent>
-                        )}
+                                        )}
                                     </Card>
                                 )
                             })}
@@ -340,40 +352,40 @@ export function SeedUsersDialog({ onUsersCreated }: SeedUsersDialogProps) {
                                     {selectedPersonaData?.name} Options
                                 </Label>
                             </div>
-                            
+
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div className="space-y-2">
-                        <Label htmlFor="quantity">Number of Users</Label>
-                        <Input
-                            id="quantity"
-                            type="number"
-                            min="1"
-                            max="50"
-                            value={quantity}
-                            onChange={(e) => setQuantity(e.target.value)}
-                        />
+                                    <Label htmlFor="quantity">Number of Users</Label>
+                                    <Input
+                                        id="quantity"
+                                        type="number"
+                                        min="1"
+                                        max="50"
+                                        value={quantity}
+                                        onChange={(e) => setQuantity(e.target.value)}
+                                    />
                                     <p className="text-xs text-muted-foreground">
                                         Recommended: {selectedPersonaData?.defaultQuantity} • Maximum: 50
-                        </p>
-                    </div>
+                                    </p>
+                                </div>
 
                                 <div className="space-y-2">
                                     <Label htmlFor="dateRange">Registration Date Range</Label>
-                        <Select value={dateRange} onValueChange={setDateRange}>
-                            <SelectTrigger>
+                                    <Select value={dateRange} onValueChange={setDateRange}>
+                                        <SelectTrigger>
                                             <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="7">Last 7 days</SelectItem>
-                                <SelectItem value="30">Last 30 days</SelectItem>
-                                <SelectItem value="90">Last 90 days</SelectItem>
-                                <SelectItem value="365">Last year</SelectItem>
-                            </SelectContent>
-                        </Select>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="7">Last 7 days</SelectItem>
+                                            <SelectItem value="30">Last 30 days</SelectItem>
+                                            <SelectItem value="90">Last 90 days</SelectItem>
+                                            <SelectItem value="365">Last year</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                     <p className="text-xs text-muted-foreground">
                                         Users will have random registration dates within this range
-                        </p>
-                    </div>
+                                    </p>
+                                </div>
                             </div>
 
                             {/* Preview Summary */}

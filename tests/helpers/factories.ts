@@ -51,7 +51,7 @@ export async function createUser(email: string, data?: Partial<Prisma.UserCreate
             name: data?.name ?? email,
             phone: data?.phone ?? null,
             onboarded: true,
-            allowContact: true,
+            allowProductUpdates: true,
             ...data,
         },
     })

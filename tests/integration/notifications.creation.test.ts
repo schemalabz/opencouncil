@@ -107,6 +107,45 @@ describe('createNotificationsForMeeting - end-to-end', () => {
         expect(nInterested.subjects.some((s) => s.subjectId === subjectA.id && s.reason === 'topic')).toBeTruthy()
         expect(nInterested.subjects.some((s) => s.subjectId === subjectB.id && s.reason === 'generalInterest')).toBeTruthy()
     })
+
+    test('respects notifyByEmail / notifyByPhone channel preferences', async () => {
+        const city = await createCity({ id: 'c4', name_municipality: 'X', name_municipality_en: 'X' })
+        const body = await createAdministrativeBody(city.id)
+        const meeting = await createMeeting(city.id, { id: 'm2', administrativeBodyId: body.id })
+        await createSubject(meeting.id, city.id, { id: 'sh', topicId: null, locationId: null, name: 'High' })
+
+        const uEmail = await createUser('email@example.com', { phone: '+306900000001' })
+        await createNotificationPreference({ userId: uEmail.id, cityId: city.id })
+        const uSms = await createUser('sms@example.com', { phone: '+306900000002' })
+        await createNotificationPreference({ userId: uSms.id, cityId: city.id })
+        const uNone = await createUser('none@example.com', { phone: '+306900000003' })
+        await createNotificationPreference({ userId: uNone.id, cityId: city.id })
+
+        await prisma.notificationPreference.update({
+            where: { userId_cityId: { userId: uEmail.id, cityId: city.id } },
+            data: { notifyByEmail: true, notifyByPhone: false },
+        })
+        await prisma.notificationPreference.update({
+            where: { userId_cityId: { userId: uSms.id, cityId: city.id } },
+            data: { notifyByEmail: false, notifyByPhone: true },
+        })
+        await prisma.notificationPreference.update({
+            where: { userId_cityId: { userId: uNone.id, cityId: city.id } },
+            data: { notifyByEmail: false, notifyByPhone: false },
+        })
+
+        await createNotificationsForMeeting(city.id, meeting.id, 'beforeMeeting', {
+            sh: { topicImportance: 'high', proximityImportance: 'none' },
+        })
+
+        const notifs = await prisma.notification.findMany({
+            where: { cityId: city.id, meetingId: meeting.id },
+            include: { deliveries: true, user: true },
+        })
+        const byEmail = (e: string) => notifs.find(n => n.user.email === e)!
+
+        expect(byEmail('email@example.com').deliveries.map(d => d.medium).sort()).toEqual(['email'])
+        expect(byEmail('sms@example.com').deliveries.map(d => d.medium).sort()).toEqual(['message'])
+        expect(notifs.find(n => n.user.email === 'none@example.com')).toBeUndefined()
+    })
 })
-
-

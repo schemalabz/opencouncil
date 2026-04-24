@@ -12,14 +12,7 @@ export async function GET(request: NextRequest) {
         );
     }
 
-    const cityId = request.nextUrl.searchParams.get('cityId');
-
-    if (!cityId) {
-        return NextResponse.json(
-            { error: 'cityId is required' },
-            { status: 400 }
-        );
-    }
+    const cityId = request.nextUrl.searchParams.get('cityId') ?? undefined;
 
     const notifications = await getUserNotifications(currentUser.id, cityId);
 

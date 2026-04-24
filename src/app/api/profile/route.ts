@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { updateUserProfile } from "@/lib/db/users";
+import { updateUserProfile, deleteCurrentUser, UserProfileUpdateData } from "@/lib/db/users";
 import { sendUserOnboardedAdminAlert } from "@/lib/discord";
 import { updateProfileSchema } from "@/lib/zod-schemas/user";
 
@@ -35,6 +35,20 @@ export async function POST(request: Request) {
         return NextResponse.json(updatedUser);
     } catch (error) {
         console.error("Failed to update profile:", error);
+        return new NextResponse("Internal Server Error", { status: 500 });
+    }
+}
+
+export async function DELETE() {
+    const user = await getCurrentUser();
+    if (!user) {
+        return new NextResponse("Unauthorized", { status: 401 });
+    }
+    try {
+        await deleteCurrentUser();
+        return new NextResponse(null, { status: 204 });
+    } catch (error) {
+        console.error("Failed to delete account:", error);
         return new NextResponse("Internal Server Error", { status: 500 });
     }
 }

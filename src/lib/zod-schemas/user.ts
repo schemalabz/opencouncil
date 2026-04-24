@@ -5,7 +5,8 @@ import { z } from 'zod';
 const profileFields = {
     name: z.string().trim().min(1, "Name cannot be empty").nullable(),
     phone: z.string().nullable(),
-    allowContact: z.boolean(),
+    allowProductUpdates: z.boolean(),
+    allowPetitionUpdates: z.boolean(),
     onboarded: z.boolean(),
 };
 

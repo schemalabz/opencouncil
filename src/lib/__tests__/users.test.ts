@@ -219,7 +219,7 @@ describe('users db layer - normalization and duplicate handling', () => {
       await expect(
         updateUser('user-1', {
           email: 'duplicate@example.com',
-          administers: [{ city: { connect: { id: 'city-1' } } }],
+          administers: [{ cityId: 'city-1' }],
         })
       ).rejects.toThrow('A user with this email already exists.');
     });
@@ -230,7 +230,7 @@ describe('users db layer - normalization and duplicate handling', () => {
       await expect(
         updateUser('user-1', {
           email: 'test@example.com',
-          administers: [{ city: { connect: { id: 'city-1' } } }],
+          administers: [{ cityId: 'city-1' }],
         })
       ).rejects.toThrow('Failed to update user');
     });

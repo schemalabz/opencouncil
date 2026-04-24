@@ -214,9 +214,9 @@ export default async function NotificationPage({ params }: { params: { id: strin
                                     Αυτή η συνεδρίαση είναι προγραμματισμένη για τις {format(meetingDate, 'PPP', { locale: el })}.
                                     {meeting.administrativeBody?.youtubeChannelUrl ? (
                                         <> Μπορείτε να τη δείτε{' '}
-                                            <a 
-                                                href={meeting.administrativeBody.youtubeChannelUrl} 
-                                                target="_blank" 
+                                            <a
+                                                href={meeting.administrativeBody.youtubeChannelUrl}
+                                                target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="inline-flex items-baseline gap-1 text-primary hover:text-primary/80 underline"
                                             >
@@ -240,12 +240,6 @@ export default async function NotificationPage({ params }: { params: { id: strin
                         <ChevronRight className="ml-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     </Link>
 
-                    <p className="text-center text-[10px] sm:text-xs text-muted-foreground leading-relaxed">
-                        Δεν θέλετε να λαμβάνετε ειδοποιήσεις;{' '}
-                        <Link href={`/${params.locale}/profile`} className="text-primary hover:text-primary/80 underline">
-                            Διαχειριστείτε τις προτιμήσεις σας
-                        </Link>
-                    </p>
                 </div>
             </div>
         </div>

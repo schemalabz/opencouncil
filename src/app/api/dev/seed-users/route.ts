@@ -111,7 +111,8 @@ export async function POST(request: Request) {
             const userData: any = {
                 createdAt,
                 onboarded: persona === 'engaged-citizen' || persona === 'activist' || persona === 'lurker',
-                allowContact: persona === 'engaged-citizen' || persona === 'activist' || (persona === 'lurker' && Math.random() > 0.5),
+                allowProductUpdates: persona === 'engaged-citizen' || persona === 'activist' || (persona === 'lurker' && Math.random() > 0.5),
+                allowPetitionUpdates: persona === 'engaged-citizen' || persona === 'activist' || (persona === 'lurker' && Math.random() > 0.5),
             }
             
             // Add persona-specific relations with enhanced logic
