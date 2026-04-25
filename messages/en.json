@@ -5,6 +5,8 @@
         "collapse": "Collapse",
         "filter": "Filter: {label}",
         "municipalityMap": "Municipality map",
+        "webglNotSupported": "Interactive map unavailable",
+        "webglFallbackMessage": "Your browser or device does not support WebGL, which is required for the interactive map. You can still access all other content on this page.",
         "transcript": "Transcript",
         "meetingNavigation": "Meeting navigation",
         "searchAddressInMunicipality": "Search address in {cityName}",
