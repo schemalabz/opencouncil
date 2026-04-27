@@ -41,37 +41,10 @@ if [ "$CONFIRMATION" != "$CONFIRMATION_CODE" ]; then
     exit 1
 fi
 
-# Array of tables -- we only copy tables that don't have user data or tasks.
-TABLES=(
-    "City"
-    "Topic"
-    "Location"
-    "Party"
-    "AdministrativeBody"
-    "Person"
-    "Role"
-    "CouncilMeeting"
-    "SpeakerTag"
-    "Subject"
-    "Decision"
-    "SpeakerSegment"
-    "SubjectSpeakerSegment"
-    "SpeakerContribution"
-    "Utterance"
-    "Word"
-    "TopicLabel"
-    "Summary"
-    "Highlight"
-    "HighlightedUtterance"
-    "PodcastSpec"
-    "PodcastPart"
-    "PodcastPartAudioUtterance"
-    "Offer"
-    "VoicePrint"
-    "CityMessage"
-    "Consultation"
-    "QrCampaign"
-)
+# Source the shared content tables list (also used by setup_db_role.sh)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/content_tables.sh"
+TABLES=("${CONTENT_TABLES[@]}")
 
 # Verify the target database has all migrations that the source has.
 # The target may have extra migrations (e.g. feature branch), but must not be
