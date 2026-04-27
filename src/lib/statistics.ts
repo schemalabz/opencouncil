@@ -174,7 +174,8 @@ export async function getStatisticsFor(
  */
 export async function getBatchStatisticsForSubjects(
     subjectIds: string[],
-    meetingDate?: Date
+    meetingDate?: Date,
+    { includeUnreleased }: { includeUnreleased?: boolean } = {}
 ): Promise<Map<string, Statistics>> {
     const result = new Map<string, Statistics>();
     if (subjectIds.length === 0) return result;
@@ -276,7 +277,7 @@ export async function getBatchStatisticsForSubjects(
     const segments = await prisma.speakerSegment.findMany({
         where: {
             id: { in: [...allSegmentIds] },
-            meeting: { released: true },
+            meeting: includeUnreleased ? {} : { released: true },
             NOT: { summary: { type: "procedural" as const } }
         },
         include: { speakerTag: speakerTagInclude }

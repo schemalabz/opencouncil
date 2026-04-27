@@ -150,15 +150,18 @@ export async function getSubjectStatisticsCached(
   subjects: SubjectWithRelations[],
   meetingDateTime: Date | string,
 ): Promise<Record<string, Statistics>> {
+  const includeUnreleased = await isUserAuthorizedToEdit({ cityId });
+
   return createCache(
     async () => {
       const map = await getBatchStatisticsForSubjects(
         subjects.map(s => s.id),
-        new Date(meetingDateTime)
+        new Date(meetingDateTime),
+        { includeUnreleased }
       );
       return Object.fromEntries(map);
     },
-    ['city', cityId, 'meeting', meetingId, 'subjectStatistics'],
+    ['city', cityId, 'meeting', meetingId, 'subjectStatistics', ...(includeUnreleased ? ['withUnreleased'] : ['onlyReleased'])],
     { tags: [`city:${cityId}`, `city:${cityId}:meetings`, `city:${cityId}:meeting:${meetingId}`] }
   )();
 }
