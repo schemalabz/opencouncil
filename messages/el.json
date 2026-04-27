@@ -5,6 +5,8 @@
         "collapse": "Σύμπτυξη",
         "filter": "Φίλτρο: {label}",
         "municipalityMap": "Χάρτης δήμου",
+        "webglNotSupported": "Ο διαδραστικός χάρτης δεν είναι διαθέσιμος",
+        "webglFallbackMessage": "Ο browser σας δεν υποστηρίζει WebGL, που απαιτείται για τον διαδραστικό χάρτη. Βλέπετε μια στατική εκδοχή του χάρτη.",
         "transcript": "Απομαγνητοφώνηση",
         "meetingNavigation": "Πλοήγηση συνεδρίασης",
         "searchAddressInMunicipality": "Αναζητήστε διεύθυνση στον δήμο {cityName}",
