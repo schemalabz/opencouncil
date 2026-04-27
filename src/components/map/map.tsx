@@ -9,6 +9,9 @@ import { cn } from '@/lib/utils'
 import { calculateGeometryBounds } from '@/lib/geo'
 import { createRoot } from 'react-dom/client'
 import { env } from '@/env.mjs'
+import { isWebGLSupported } from '@/lib/webgl'
+import MapFallback from './MapFallback'
+import MapErrorBoundary from './MapErrorBoundary'
 
 mapboxgl.accessToken = env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
@@ -998,4 +1001,31 @@ const Map = memo(function Map({
     );
 })
 
-export default Map;
+/**
+ * Wrapper component that checks for WebGL support before rendering the interactive map.
+ * Falls back to a static map image with an explanatory message when WebGL is unavailable.
+ * Also wraps with an error boundary to catch any runtime Mapbox GL failures.
+ */
+function MapWithFallback(props: MapProps) {
+    const [webglSupported, setWebglSupported] = useState<boolean | null>(null)
+
+    useEffect(() => {
+        setWebglSupported(isWebGLSupported())
+    }, [])
+
+    if (webglSupported === null) {
+        return <div className={props.className} />
+    }
+
+    if (!webglSupported) {
+        return <MapFallback className={props.className} center={props.center} features={props.features} />
+    }
+
+    return (
+        <MapErrorBoundary className={props.className} center={props.center} features={props.features}>
+            <Map {...props} />
+        </MapErrorBoundary>
+    )
+}
+
+export default MapWithFallback;
