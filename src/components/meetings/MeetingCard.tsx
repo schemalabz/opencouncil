@@ -25,7 +25,8 @@ interface MeetingCardProps {
     item: CouncilMeeting & {
         subjects: (Subject & {
             topic?: Topic | null,
-            speakerSegments?: any[] // Using any for flexibility with the structure
+            speakerSegments?: unknown[],
+            _count?: { contributions: number }
         })[],
         administrativeBody?: AdministrativeBody | null
     };

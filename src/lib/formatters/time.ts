@@ -100,17 +100,18 @@ export function formatRelativeTime(date: Date, locale: string = 'el'): string {
  * @param timezone - Optional timezone
  * @returns Formatted date string
  */
-export function formatDate(date: Date, timezone?: string): string {
+export function formatDate(date: Date, timezone?: string, locale: string = 'el'): string {
   const options: Intl.DateTimeFormatOptions = { dateStyle: 'long' };
 
   if (timezone) {
     options.timeZone = timezone;
   }
 
+  const intlLocale = locale === 'en' ? 'en-US' : 'el-GR';
   if (date instanceof Date) {
-    return new Intl.DateTimeFormat('el-GR', options).format(date);
+    return new Intl.DateTimeFormat(intlLocale, options).format(date);
   } else if (typeof date === 'string') {
-    return new Intl.DateTimeFormat('el-GR', options).format(new Date(date));
+    return new Intl.DateTimeFormat(intlLocale, options).format(new Date(date));
   } else {
     throw new Error(`Invalid date: ${date}`);
   }

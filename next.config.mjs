@@ -30,6 +30,18 @@ const nextConfig = {
     swcMinify: true,
     // Enable custom domains - we'll handle this entirely in middleware
     // Removing the invalid rewrite configuration
+    async headers() {
+        return [
+            {
+                // Allow embed pages to be loaded in iframes on any domain
+                source: '/:locale/embed/:path*',
+                headers: [
+                    { key: 'Content-Security-Policy', value: 'frame-ancestors *' },
+                    { key: 'Cache-Control', value: 'public, s-maxage=300, stale-while-revalidate=3600' },
+                ],
+            },
+        ];
+    },
     async redirects() {
         return [
             {

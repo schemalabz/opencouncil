@@ -1,5 +1,5 @@
 "use server";
-import { CouncilMeeting, Subject, AdministrativeBody } from '@prisma/client';
+import { CouncilMeeting, Subject, AdministrativeBody, AdministrativeBodyType } from '@prisma/client';
 import { revalidateTag, revalidatePath } from 'next/cache';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit, isUserAuthorizedToEdit } from '../auth';
@@ -11,7 +11,7 @@ export type CouncilMeetingWithAdminBody = CouncilMeeting & {
 }
 
 export type CouncilMeetingWithAdminBodyAndSubjects = CouncilMeetingWithAdminBody & {
-    subjects: Subject[]
+    subjects: (Subject & { _count?: { contributions: number } })[]
 }
 
 export async function deleteCouncilMeeting(cityId: string, id: string): Promise<void> {
@@ -115,7 +115,7 @@ export async function getCouncilMeeting(cityId: string, id: string): Promise<Cou
     }
 }
 
-export async function getCouncilMeetingsForCity(cityId: string, { includeUnreleased, limit, page, pageSize = 12, from, to }: { includeUnreleased?: boolean; limit?: number; page?: number; pageSize?: number; from?: Date; to?: Date } = {}): Promise<CouncilMeetingWithAdminBodyAndSubjects[]> {
+export async function getCouncilMeetingsForCity(cityId: string, { includeUnreleased, limit, page, pageSize = 12, from, to, administrativeBodyTypes, timeFilter }: { includeUnreleased?: boolean; limit?: number; page?: number; pageSize?: number; from?: Date; to?: Date; administrativeBodyTypes?: AdministrativeBodyType[]; timeFilter?: 'upcoming' | 'past' } = {}): Promise<CouncilMeetingWithAdminBodyAndSubjects[]> {
 
     try {
         // Calculate pagination
@@ -123,10 +123,18 @@ export async function getCouncilMeetingsForCity(cityId: string, { includeUnrelea
         const take = page ? pageSize : limit;
 
         // Build dateTime filter
-        const dateTimeFilter = (from || to) ? {
-            ...(from && { gte: from }),
-            ...(to && { lte: to }),
-        } : undefined;
+        const now = new Date();
+        const timeFilterValue = timeFilter === 'upcoming'
+            ? { gt: now }
+            : timeFilter === 'past'
+                ? { lte: now }
+                : undefined;
+        const dateTimeFilter = (from || to)
+            ? {
+                ...(from && { gte: from }),
+                ...(to && { lte: to }),
+            }
+            : timeFilterValue;
 
         // First, get meetings with subjects and basic relationships
         const meetings = await prisma.councilMeeting.findMany({
@@ -134,11 +142,13 @@ export async function getCouncilMeetingsForCity(cityId: string, { includeUnrelea
                 cityId,
                 released: includeUnreleased ? undefined : true,
                 ...(dateTimeFilter && { dateTime: dateTimeFilter }),
+                ...(administrativeBodyTypes && administrativeBodyTypes.length > 0 && {
+                    administrativeBody: { type: { in: administrativeBodyTypes } }
+                }),
             },
-            orderBy: [
-                { dateTime: 'desc' },
-                { createdAt: 'desc' }
-            ],
+            orderBy: timeFilter === 'upcoming'
+                ? [{ dateTime: 'asc' }, { createdAt: 'asc' }]
+                : [{ dateTime: 'desc' }, { createdAt: 'desc' }],
             ...(skip !== undefined && { skip }),
             ...(take && { take }),
             include: {
@@ -150,7 +160,8 @@ export async function getCouncilMeetingsForCity(cityId: string, { includeUnrelea
                     include: {
                         topic: true,
                         // Include speaker segments through the junction table
-                        speakerSegments: true // This gets all SubjectSpeakerSegment records
+                        speakerSegments: true, // This gets all SubjectSpeakerSegment records
+                        _count: { select: { contributions: true } }
                     }
                 },
                 administrativeBody: true

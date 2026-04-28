@@ -4,9 +4,10 @@ import { useTranslations } from 'next-intl';
 import { useState, useEffect } from 'react';
 import FormSheet from '@/components/FormSheet';
 import CityForm from '@/components/cities/CityForm';
-import { Building2, Bell, Database, BadgeCheck } from 'lucide-react';
+import { Building2, Bell, Database, BadgeCheck, Code } from 'lucide-react';
 import { Search } from "lucide-react";
 import { useRouter } from 'next/navigation';
+import { Link } from '@/i18n/routing';
 import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
@@ -171,12 +172,20 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage, hasNoData 
                 >
                     <div className="flex gap-2">
                         {canEdit && (
-                            <FormSheet
-                                FormComponent={CityForm}
-                                formProps={{ city, cityMessage, onSuccess: () => setIsSheetOpen(false) }}
-                                title={t('editCity')}
-                                type="edit"
-                            />
+                            <>
+                                <FormSheet
+                                    FormComponent={CityForm}
+                                    formProps={{ city, cityMessage, onSuccess: () => setIsSheetOpen(false) }}
+                                    title={t('editCity')}
+                                    type="edit"
+                                />
+                                <Button asChild variant="outline" size="sm">
+                                    <Link href={`/${city.id}/widget`}>
+                                        <Code className="w-4 h-4 mr-2" />
+                                        {t('widget')}
+                                    </Link>
+                                </Button>
+                            </>
                         )}
                         {isSuperAdmin && (city.status === 'pending' || hasNoData) && (
                             <Sheet open={isCityCreatorOpen} onOpenChange={setIsCityCreatorOpen}>

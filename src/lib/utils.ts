@@ -138,8 +138,10 @@ interface SortableSubject {
   name: string;
   // Optional fields used for advanced sorting
   statistics?: Statistics;
-  speakerSegments?: any[];
+  speakerSegments?: unknown[];
   agendaItemIndex?: number | null;
+  nonAgendaReason?: string | null;
+  _count?: { contributions?: number };
 }
 
 export function sortSubjectsByImportance<T extends SortableSubject>(
@@ -148,95 +150,47 @@ export function sortSubjectsByImportance<T extends SortableSubject>(
 ) {
   return [...subjects].sort((a, b) => {
     if (orderBy === 'importance') {
-      // First priority: speaking time from statistics
-      if (a.statistics && b.statistics) {
-        const timeComparison = b.statistics.speakingSeconds - a.statistics.speakingSeconds;
-        // Add tie breaker for equal statistics
-        if (timeComparison === 0) {
-          // If agenda items exist, use them as first tie breaker
-          if (a.agendaItemIndex !== null && b.agendaItemIndex !== null) {
-            return (a.agendaItemIndex ?? Infinity) - (b.agendaItemIndex ?? Infinity);
-          }
-          // If names exist, use alphabetical order as second tie breaker
-          return a.name.localeCompare(b.name);
-        }
-        return timeComparison;
-      }
+      // 1. Agenda status: beforeAgenda sorts last;
+      //    outOfAgenda and regular agenda items are treated equally
+      const aIsBeforeAgenda = a.nonAgendaReason === 'beforeAgenda' ? 1 : 0;
+      const bIsBeforeAgenda = b.nonAgendaReason === 'beforeAgenda' ? 1 : 0;
+      if (aIsBeforeAgenda !== bIsBeforeAgenda) return aIsBeforeAgenda - bIsBeforeAgenda;
 
-      // Alternative for importance: number of speaker segments
-      if (a.speakerSegments && b.speakerSegments) {
-        const segmentComparison = b.speakerSegments.length - a.speakerSegments.length;
-        // Add tie breaker for equal segment counts
-        if (segmentComparison === 0) {
-          // If agenda items exist, use them as first tie breaker
-          if (a.agendaItemIndex !== null && b.agendaItemIndex !== null) {
-            return (a.agendaItemIndex ?? Infinity) - (b.agendaItemIndex ?? Infinity);
-          }
-          // If names exist, use alphabetical order as second tie breaker
-          return a.name.localeCompare(b.name);
-        }
-        return segmentComparison;
-      }
+      // 2. Number of speaker contributions (descending)
+      const aContributions = a._count?.contributions ?? 0;
+      const bContributions = b._count?.contributions ?? 0;
+      if (aContributions !== bContributions) return bContributions - aContributions;
 
-      // If no statistics or segments, use agenda item index
-      if (a.agendaItemIndex !== null && b.agendaItemIndex !== null) {
-        return (a.agendaItemIndex ?? Infinity) - (b.agendaItemIndex ?? Infinity);
-      }
+      // 3. Agenda item index (ascending), non-agenda items sort after agenda items
+      const aIndex = a.agendaItemIndex ?? Infinity;
+      const bIndex = b.agendaItemIndex ?? Infinity;
+      if (aIndex !== bIndex) return aIndex - bIndex;
 
-      // Last resort: alphabetical sort by name
+      // Final tie-breaker: alphabetical by name
       return a.name.localeCompare(b.name);
     } else if (orderBy === 'appearance') {
-      // For appearance order, we need a different approach based on data available
+      // For appearance order, use speaker segment timestamps
 
-      // If we have full speaker segments with timestamps
       if (a.speakerSegments?.length && b.speakerSegments?.length) {
-        // Try to extract timestamps if the structure has them
-        const aHasTimestamps = a.speakerSegments.some(s =>
-          s.startTimestamp || (s.speakerSegment && s.speakerSegment.startTimestamp));
+        const getTimestamp = (s: Record<string, unknown>) =>
+          (s.startTimestamp as number) || ((s.speakerSegment as Record<string, unknown>)?.startTimestamp as number) || 0;
+        const aHasTimestamps = a.speakerSegments.some(s => getTimestamp(s as Record<string, unknown>));
 
         if (aHasTimestamps) {
-          try {
-            // Try to extract timestamps from various possible structures
-            const aTimestamps = a.speakerSegments.map(s =>
-              s.startTimestamp || (s.speakerSegment && s.speakerSegment.startTimestamp) || 0);
-            const bTimestamps = b.speakerSegments.map(s =>
-              s.startTimestamp || (s.speakerSegment && s.speakerSegment.startTimestamp) || 0);
-
-            if (aTimestamps.length && bTimestamps.length) {
-              const timestampComparison = Math.min(...aTimestamps) - Math.min(...bTimestamps);
-              // If timestamps are equal, fall back to agenda item
-              if (timestampComparison === 0) {
-                // If agenda items exist, use them as tie breaker
-                if (a.agendaItemIndex !== null && b.agendaItemIndex !== null) {
-                  return (a.agendaItemIndex ?? Infinity) - (b.agendaItemIndex ?? Infinity);
-                }
-                // Last resort: alphabetical sort by name
-                return a.name.localeCompare(b.name);
-              }
-              return timestampComparison;
-            }
-          } catch (error) {
-            // Fallback silently if timestamp extraction fails
-            console.error("Error extracting timestamps:", error);
-          }
+          const aMin = Math.min(...a.speakerSegments.map(s => getTimestamp(s as Record<string, unknown>)));
+          const bMin = Math.min(...b.speakerSegments.map(s => getTimestamp(s as Record<string, unknown>)));
+          if (aMin !== bMin) return aMin - bMin;
         }
       }
 
-      // Fallback to agenda item index for appearance order
-      if (a.agendaItemIndex !== null && b.agendaItemIndex !== null) {
-        const indexComparison = (a.agendaItemIndex ?? Infinity) - (b.agendaItemIndex ?? Infinity);
-        // If agenda items are equal, sort alphabetically by name
-        if (indexComparison === 0) {
-          return a.name.localeCompare(b.name);
-        }
-        return indexComparison;
-      }
+      // Fallback to agenda item index
+      const aIndex = a.agendaItemIndex ?? Infinity;
+      const bIndex = b.agendaItemIndex ?? Infinity;
+      if (aIndex !== bIndex) return aIndex - bIndex;
 
-      // Last resort: alphabetical sort by name
       return a.name.localeCompare(b.name);
     }
 
-    // Default fallback - alphabetical order
     return a.name.localeCompare(b.name);
   });
 }

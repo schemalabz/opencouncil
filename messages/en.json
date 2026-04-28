@@ -146,7 +146,39 @@
         "noItems": "There are no cities in OpenCouncil.",
         "allAdministrativeBodies": "All Bodies",
         "filterByAdminBody": "Filter by Administrative Body",
-        "citySections": "City sections"
+        "citySections": "City sections",
+        "widget": "Widget"
+    },
+    "EmbedConfigurator": {
+        "title": "Widget for your website",
+        "description": "Embed council meetings on your municipality website. Customize the appearance, copy the iframe code and paste it into your CMS (WordPress, Joomla, etc.).",
+        "accentColor": "Color",
+        "accentColorHint": "The main widget color — used for titles, links and badges. Match it to your site's brand color.",
+        "darkMode": "Dark background",
+        "numberOfMeetings": "Meetings to show",
+        "showSubjects": "Show meeting subjects",
+        "borderRadius": "Card corners",
+        "radiusSharp": "Square",
+        "radiusRounded": "Rounded",
+        "radiusPill": "Extra rounded",
+        "administrativeBodies": "Bodies",
+        "embedCode": "Iframe code",
+        "embedCodeHint": "Copy and paste into an HTML block on your site.",
+        "copy": "Copy",
+        "copied": "Copied!",
+        "preview": "Preview",
+        "previewTitle": "Widget preview",
+        "troubleshootingTitle": "Installation notes",
+        "troubleshootingCSP": "If the widget doesn't load, check that your site's Content Security Policy (CSP) allows frame-src from opencouncil.gr.",
+        "troubleshootingWordPress": "In WordPress, use a Custom HTML block. In Joomla, use a \"Custom / mod_custom\" module with the editor in code view.",
+        "troubleshootingHeight": "Adjust the height value in the code based on the number of meetings. For 5 meetings, 600px is a good starting point."
+    },
+    "EmbedWidget": {
+        "subjects": "Subjects",
+        "more": "more",
+        "noMeetings": "No meetings available.",
+        "upcoming": "Upcoming Meetings",
+        "recent": "Recent Meetings"
     },
     "AddMeetingForm": {
         "meetingName": "Meeting Name",
