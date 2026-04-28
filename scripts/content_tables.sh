@@ -1,0 +1,33 @@
+# Shared list of content tables — sourced by copy_db.sh and setup_db_role.sh.
+# These are public content tables (no user data, no auth, no task state).
+# When adding a new content table, add it here and both scripts pick it up.
+CONTENT_TABLES=(
+    "City"
+    "Topic"
+    "Location"
+    "Party"
+    "AdministrativeBody"
+    "Person"
+    "Role"
+    "CouncilMeeting"
+    "SpeakerTag"
+    "Subject"
+    "Decision"
+    "SpeakerSegment"
+    "SubjectSpeakerSegment"
+    "SpeakerContribution"
+    "Utterance"
+    "Word"
+    "TopicLabel"
+    "Summary"
+    "Highlight"
+    "HighlightedUtterance"
+    "PodcastSpec"
+    "PodcastPart"
+    "PodcastPartAudioUtterance"
+    "Offer"
+    "VoicePrint"
+    "CityMessage"
+    "Consultation"
+    "QrCampaign"
+)
