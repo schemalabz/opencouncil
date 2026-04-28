@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
+import { useCouncilMeetingData, useCouncilMeetingTranscript } from '../CouncilMeetingDataContext';
 import { UtteranceMiniTranscript } from './UtteranceMiniTranscript';
 import { calculateVoteResult } from '@/lib/utils/votes';
 import { compareRanks } from '@/lib/sorting/people';
@@ -144,7 +144,8 @@ function VotingUtterancesDisplay({ utterancesBySegment, getSpeakerSegmentById, c
 export function VotingSection({ subjectId, votes }: VotingSectionProps) {
     const [votingUtterances, setVotingUtterances] = useState<VotingUtterance[] | null>(null);
     const [loading, setLoading] = useState(true);
-    const { meeting, getSpeakerSegmentById } = useCouncilMeetingData();
+    const { meeting } = useCouncilMeetingData();
+    const { getSpeakerSegmentById } = useCouncilMeetingTranscript();
     const t = useTranslations('Subject');
 
     const hasExtractedVotes = votes && votes.length > 0;

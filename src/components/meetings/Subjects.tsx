@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { SubjectWithRelations } from "@/lib/db/subject";
-import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
+import { useCouncilMeetingData, useCouncilMeetingTranscript } from "./CouncilMeetingDataContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp } from "lucide-react";
@@ -17,7 +17,8 @@ import { formatTimestamp } from "@/lib/utils";
 type AllocationOption = 'onlyMention' | 'skip' | 1 | 2 | 3 | 5;
 
 export default function Subjects() {
-    const { subjects, getSpeakerTag, getPerson, getParty, getSpeakerSegmentById } = useCouncilMeetingData();
+    const { subjects, getSpeakerTag, getPerson, getParty } = useCouncilMeetingData();
+    const { getSpeakerSegmentById } = useCouncilMeetingTranscript();
     const [expandedSubjects, setExpandedSubjects] = useState<string[]>([]);
     const { seekTo } = useVideo();
     const { options } = useTranscriptOptions();

@@ -1,6 +1,6 @@
 "use client";
 import { Utterance } from "@prisma/client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useTranslations } from 'next-intl';
 import { useVideoActions } from "../VideoProvider";
 import { useTranscriptOptions } from "../options/OptionsContext";
@@ -39,7 +39,7 @@ const UtteranceC: React.FC<{
     
     const [isEditing, setIsEditing] = useState(false);
     const [localUtterance, setLocalUtterance] = useState(utterance);
-    const [editedText, setEditedText] = useState(utterance.text);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
     const [editedStartTime, setEditedStartTime] = useState(utterance.startTimestamp);
     const [editedEndTime, setEditedEndTime] = useState(utterance.endTimestamp);
     const [pendingShareAction, setPendingShareAction] = useState<number | null>(null);
@@ -57,7 +57,6 @@ const UtteranceC: React.FC<{
     // Update local state when prop changes
     useEffect(() => {
         setLocalUtterance(utterance);
-        setEditedText(utterance.text);
         setEditedStartTime(utterance.startTimestamp);
         setEditedEndTime(utterance.endTimestamp);
     }, [utterance]);
@@ -116,10 +115,11 @@ const UtteranceC: React.FC<{
 
     const handleEdit = async (e: React.FormEvent | React.MouseEvent) => {
         e.preventDefault();
+        const editedText = textareaRef.current?.value ?? localUtterance.text;
         const originalText = localUtterance.text;
         const originalStart = localUtterance.startTimestamp;
         const originalEnd = localUtterance.endTimestamp;
-        
+
         // Check what changed
         const textChanged = editedText !== originalText;
         const timestampsChanged = editedStartTime !== originalStart || editedEndTime !== originalEnd;
@@ -131,28 +131,28 @@ const UtteranceC: React.FC<{
         }
 
         // Optimistic update - immediate
-        setLocalUtterance({ 
-            ...localUtterance, 
+        setLocalUtterance({
+            ...localUtterance,
             text: editedText,
             startTimestamp: editedStartTime,
             endTimestamp: editedEndTime
         });
         setIsEditing(false);
-        
+
         // Background save
         try {
             // Update text first
             const updatedUtterance = await editUtterance(localUtterance.id, editedText);
-            
+
             // Then update timestamps if they changed
             if (timestampsChanged) {
                 const { utterance: finalUtterance } = await updateUtteranceTimestamps(
-                    localUtterance.id, 
-                    editedStartTime, 
+                    localUtterance.id,
+                    editedStartTime,
                     editedEndTime
                 );
                 setLocalUtterance(finalUtterance);
-                
+
                 // Update everything in context in one call
                 // This will automatically recalculate and update segment timestamps
                 updateUtterance(localUtterance.speakerSegmentId, localUtterance.id, {
@@ -161,28 +161,27 @@ const UtteranceC: React.FC<{
                     endTimestamp: editedEndTime,
                     lastModifiedBy: finalUtterance.lastModifiedBy
                 });
-                
+
                 // Call onUpdate if provided (for future extensibility)
                 onUpdate?.(finalUtterance);
             } else {
                 setLocalUtterance(updatedUtterance);
-                
+
                 // Update just the text in context
                 updateUtterance(localUtterance.speakerSegmentId, localUtterance.id, { text: editedText, lastModifiedBy: updatedUtterance.lastModifiedBy });
-                
+
                 // Call onUpdate if provided (for future extensibility)
                 onUpdate?.(updatedUtterance);
             }
         } catch (error) {
             console.error('Failed to edit utterance:', error);
             // Silent revert
-            setLocalUtterance({ 
-                ...localUtterance, 
+            setLocalUtterance({
+                ...localUtterance,
                 text: originalText,
                 startTimestamp: originalStart,
                 endTimestamp: originalEnd
             });
-            setEditedText(originalText);
             setEditedStartTime(originalStart);
             setEditedEndTime(originalEnd);
             toast({
@@ -195,7 +194,6 @@ const UtteranceC: React.FC<{
 
     const handleCancel = () => {
         setIsEditing(false);
-        setEditedText(localUtterance.text);
         setEditedStartTime(localUtterance.startTimestamp);
         setEditedEndTime(localUtterance.endTimestamp);
     };
@@ -305,6 +303,25 @@ const UtteranceC: React.FC<{
         }
     };
 
+    const handleContextMenuOpenChange = useCallback((open: boolean) => {
+        if (open) {
+            if (!isSelected) {
+                toggleSelection(localUtterance.id, { shift: false, ctrl: false });
+            }
+            if (pendingShareAction) {
+                setPendingShareAction(null);
+            }
+        } else {
+            if (pendingShareAction) {
+                openShareDropdownAndCopy(pendingShareAction);
+                setPendingShareAction(null);
+            }
+            if (selectedUtteranceIds.size === 1) {
+                clearSelection();
+            }
+        }
+    }, [isSelected, toggleSelection, localUtterance.id, pendingShareAction, openShareDropdownAndCopy, selectedUtteranceIds.size, clearSelection]);
+
     if (localUtterance.drift > options.maxUtteranceDrift) {
         return <span id={localUtterance.id} className="hover:bg-accent utterance transcript-text" />;
     }
@@ -315,10 +332,10 @@ const UtteranceC: React.FC<{
                 {/* Text Editor */}
                 <form onSubmit={handleEdit} className="relative">
                     <textarea
+                        ref={textareaRef}
                         spellCheck={true}
                         lang="el"
-                        value={editedText}
-                        onChange={(e) => setEditedText(e.target.value)}
+                        defaultValue={localUtterance.text}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' && !e.shiftKey) {
                                 e.preventDefault();
@@ -345,7 +362,7 @@ const UtteranceC: React.FC<{
                         }}
                         className="w-full resize-none border border-gray-300 rounded px-2 py-1 pr-16 text-sm min-h-[2.5em] transcript-text"
                         autoFocus
-                        rows={Math.max(1, editedText.split('\n').length)}
+                        rows={Math.max(1, localUtterance.text.split('\n').length)}
                         style={{
                             height: 'auto',
                             overflow: 'hidden'
@@ -488,31 +505,7 @@ const UtteranceC: React.FC<{
     }
 
     return (
-        <ContextMenu onOpenChange={(open) => {
-            if (open) {
-                // Context menu opened - select this utterance if not already selected
-                // This provides visual feedback for what will be operated on
-                if (!isSelected) {
-                    toggleSelection(localUtterance.id, { shift: false, ctrl: false });
-                }
-                // Clear any stale pending share action
-                if (pendingShareAction) {
-                    setPendingShareAction(null);
-                }
-            } else {
-                // Context menu closed
-                if (pendingShareAction) {
-                    // Execute pending share action first
-                    openShareDropdownAndCopy(pendingShareAction);
-                    setPendingShareAction(null);
-                }
-                // Only clear selection if there's just one selected (the temporary right-click selection)
-                // If multiple utterances are selected, preserve the user's deliberate selection
-                if (selectedUtteranceIds.size === 1) {
-                    clearSelection();
-                }
-            }
-        }}>
+        <ContextMenu onOpenChange={handleContextMenuOpenChange}>
             <ContextMenuTrigger>
                 <span className={cn(className, emptyUtteranceClass)} id={localUtterance.id} onClick={handleClick}>
                     {displayText}

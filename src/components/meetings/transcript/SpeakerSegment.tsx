@@ -168,11 +168,12 @@ const AddUtteranceButton = ({ segmentId }: { segmentId: string }) => {
     );
 };
 
-const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
+const SpeakerSegment = React.memo(({ segment, isFirstSegment, segmentCount }: {
     segment: TranscriptType[number],
-    isFirstSegment?: boolean
+    isFirstSegment?: boolean,
+    segmentCount: number
 }) => {
-    const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, speakerTags, updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingData();
+    const { getPerson, getSpeakerTag, people, speakerTags, updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingData();
     const { options } = useTranscriptOptions();
     const { data: session } = useSession();
     const { toast } = useToast();
@@ -227,9 +228,8 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
         const party = person ? getPartyFromRoles(person.roles) : null;
         const borderColor = party?.colorHex || '#D3D3D3';
 
-        const segmentCount = speakerTag ? getSpeakerSegmentCount(speakerTag.id) : 0;
         return { speakerTag, person, party, borderColor, segmentCount };
-    }, [segment.speakerTagId, getPerson, getSpeakerTag, getSpeakerSegmentCount]);
+    }, [segment.speakerTagId, segmentCount, getPerson, getSpeakerTag]);
 
     const utterances = segment.utterances;
     if (!utterances) {

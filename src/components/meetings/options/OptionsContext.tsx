@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { SpeakerTag } from '@prisma/client';
 
 export interface TranscriptOptions {
@@ -34,9 +34,9 @@ const defaultOptions: TranscriptOptions = {
 function useTranscriptOptionsProvider(initialOptions: TranscriptOptions) {
     const [options, setOptions] = useState<TranscriptOptions>(initialOptions);
 
-    const updateOptions = (newOptions: Partial<TranscriptOptions>) => {
+    const updateOptions = useCallback((newOptions: Partial<TranscriptOptions>) => {
         setOptions(prev => ({ ...prev, ...newOptions }));
-    };
+    }, []);
 
     return { options, updateOptions };
 }
@@ -45,7 +45,7 @@ export function TranscriptOptionsProvider({ children, editable, canCreateHighlig
     const { options, updateOptions } = useTranscriptOptionsProvider({ ...defaultOptions, editsAllowed: editable, canCreateHighlights });
 
     return (
-        <TranscriptOptionsContext.Provider value={{ options, updateOptions }}>
+        <TranscriptOptionsContext.Provider value={useMemo(() => ({ options, updateOptions }), [options, updateOptions])}>
             {children}
         </TranscriptOptionsContext.Provider>
     );

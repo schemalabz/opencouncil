@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
+import { useCouncilMeetingData, useCouncilMeetingTranscript } from '../CouncilMeetingDataContext';
 import { useVideo } from '../VideoProvider';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,8 @@ interface SpeakerStat {
 }
 
 function SpeakerStatsContent() {
-    const { transcript, getSpeakerTag, getPerson } = useCouncilMeetingData();
+    const { transcript } = useCouncilMeetingTranscript();
+    const { getSpeakerTag, getPerson } = useCouncilMeetingData();
     const { seekTo } = useVideo();
     const t = useTranslations('editing');
     const [expandedSpeakerId, setExpandedSpeakerId] = useState<string | null>(null);

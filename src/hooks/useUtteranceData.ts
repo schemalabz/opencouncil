@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataContext";
+import { useCouncilMeetingTranscript } from "@/components/meetings/CouncilMeetingDataContext";
 import { Transcript } from "@/lib/db/transcript";
 import { Utterance } from "@prisma/client";
 
@@ -17,7 +17,7 @@ export interface UtteranceLookupResult {
  * Returns null if the utterance is not found.
  */
 export function useUtteranceData(utteranceId: string | null): UtteranceLookupResult | null {
-    const { transcript } = useCouncilMeetingData();
+    const { transcript } = useCouncilMeetingTranscript();
 
     return useMemo(() => {
         if (!utteranceId) return null;
