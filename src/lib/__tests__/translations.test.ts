@@ -1,34 +1,59 @@
+import fs from 'fs';
+import path from 'path';
 import en from '../../../messages/en.json';
 import el from '../../../messages/el.json';
 
-// TODO: Translation files are currently out of sync.
-// Enable this test once el.json and en.json have matching keys.
-describe.skip('translations sync', () => {
-    it('should have matching top-level keys', () => {
-        const enKeys = Object.keys(en).sort();
-        const elKeys = Object.keys(el).sort();
+function getAllKeys(obj: object, prefix = ''): string[] {
+    return Object.entries(obj).flatMap(([k, v]) => {
+        const full = prefix ? `${prefix}.${k}` : k;
+        return typeof v === 'object' && v !== null
+            ? [full, ...getAllKeys(v as object, full)]
+            : [full];
+    });
+}
 
-        const missingInEn = elKeys.filter(k => !enKeys.includes(k));
-        const missingInEl = enKeys.filter(k => !elKeys.includes(k));
+const messagesDir = path.join(__dirname, '..', '..', '..', 'messages');
+
+function getModularFiles(): string[] {
+    const enDir = path.join(messagesDir, 'en');
+    const elDir = path.join(messagesDir, 'el');
+    const enFiles = fs.existsSync(enDir) ? fs.readdirSync(enDir).filter(f => f.endsWith('.json')) : [];
+    const elFiles = fs.existsSync(elDir) ? fs.readdirSync(elDir).filter(f => f.endsWith('.json')) : [];
+    return [...new Set([...enFiles, ...elFiles])].sort();
+}
+
+function loadJson(filePath: string): object {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+describe('translations sync', () => {
+    it('en.json and el.json should have matching keys (bidirectional, deep)', () => {
+        const enKeys = new Set(getAllKeys(en));
+        const elKeys = new Set(getAllKeys(el));
+
+        const missingInEn = [...elKeys].filter(k => !enKeys.has(k));
+        const missingInEl = [...enKeys].filter(k => !elKeys.has(k));
 
         expect(missingInEn).toEqual([]);
         expect(missingInEl).toEqual([]);
     });
 
-    it('should have matching nested keys for each section', () => {
-        const enSections = Object.keys(en) as (keyof typeof en)[];
-        const elSections = Object.keys(el) as (keyof typeof el)[];
-        const commonSections = enSections.filter(s => elSections.includes(s as keyof typeof el));
+    const modularFiles = getModularFiles();
 
-        for (const section of commonSections) {
-            const enNested = Object.keys(en[section]).sort();
-            const elNested = Object.keys(el[section as keyof typeof el]).sort();
+    it.each(modularFiles)('modular file %s should have matching keys (bidirectional, deep)', (file) => {
+        const enPath = path.join(messagesDir, 'en', file);
+        const elPath = path.join(messagesDir, 'el', file);
 
-            const missingInEn = elNested.filter(k => !enNested.includes(k));
-            const missingInEl = enNested.filter(k => !elNested.includes(k));
+        const enObj = fs.existsSync(enPath) ? loadJson(enPath) : {};
+        const elObj = fs.existsSync(elPath) ? loadJson(elPath) : {};
 
-            expect(missingInEn).toEqual([]);
-            expect(missingInEl).toEqual([]);
-        }
+        const enKeys = new Set(getAllKeys(enObj));
+        const elKeys = new Set(getAllKeys(elObj));
+
+        const missingInEn = [...elKeys].filter(k => !enKeys.has(k));
+        const missingInEl = [...enKeys].filter(k => !elKeys.has(k));
+
+        expect(missingInEn).toEqual([]);
+        expect(missingInEl).toEqual([]);
     });
 });

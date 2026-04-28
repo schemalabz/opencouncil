@@ -58,7 +58,8 @@
     "trackProgressDescription": "View this highlight",
     "viewAll": "View All Highlights", 
     "viewAllDescription": "Browse highlights",
-    "returnToTranscript": "Return to Transcript"
+    "returnToTranscript": "Return to Transcript",
+    "returnToTranscriptDescription": "Continue reading"
   },
   "details": {
     "name": "Name",
