@@ -180,7 +180,7 @@ export default async function CouncilMeetingPage({
                                 <EditingModeBar />
                                 <div className="flex-1 flex min-h-0">
                                     <MeetingSidebar />
-                                    <div className="flex-1 overflow-auto" data-scroll-container>
+                                    <div className="relative flex-1 overflow-auto" data-scroll-container>
                                         <div className='pb-20'>
                                             <Suspense>
                                                 {children}
