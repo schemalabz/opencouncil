@@ -59,7 +59,7 @@
       # Shared npm config (used by opencouncil-prod and CI checks)
       # Update this hash when package-lock.json changes:
       #   nix run nixpkgs#prefetch-npm-deps package-lock.json
-      npmDepsHash = "sha256-+UWyxhjh9TsdTJ+5iGpO+ITYpbSTYFgRdn6/wqUAyLQ=";
+      npmDepsHash = "sha256-CfuCr9j4zQAT7M/4VxF3K8YoPVA3sUkq5IwawtNwv/A=";
 
       # Single npm-deps derivation shared by all buildNpmPackage consumers.
       # Without this, each consumer (prod build + 3 checks) would create its
