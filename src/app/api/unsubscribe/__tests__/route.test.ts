@@ -23,7 +23,6 @@ import {
     disableAllNotificationPreferences,
 } from '@/lib/db/notifications';
 import { updateUserProfile } from '@/lib/db/users';
-import { NotFoundError } from '@/lib/api/errors';
 
 const mockVerify = verifyUnsubscribeToken as jest.MockedFunction<typeof verifyUnsubscribeToken>;
 const mockDisableCity = disableNotificationPreferenceByCityId as jest.MockedFunction<typeof disableNotificationPreferenceByCityId>;
@@ -91,14 +90,6 @@ describe('POST /api/unsubscribe', () => {
         expect(mockDisableAll).not.toHaveBeenCalled();
     });
 
-    it('maps NotFoundError from the DAL to 404', async () => {
-        mockVerify.mockResolvedValue({ userId: 'u1', cityId: 'c1', exp: Date.now() + 1000 });
-        mockDisableCity.mockRejectedValue(new NotFoundError('Notification preference not found'));
-
-        const res = await POST(makeRequest({ token: 'ok', action: 'city' }) as any);
-        expect(res.status).toBe(404);
-    });
-
     it('updates communication preferences when action is "preferences"', async () => {
         mockVerify.mockResolvedValue({ userId: 'u1', cityId: 'c1', exp: Date.now() + 1000 });
         mockUpdateProfile.mockResolvedValue({} as any);
@@ -162,6 +153,47 @@ describe('POST /api/unsubscribe', () => {
         }) as any);
         expect(res.status).toBe(400);
         expect(mockUpdateProfile).not.toHaveBeenCalled();
+    });
+
+    it('returns 400 for "city" action when token has no cityId', async () => {
+        mockVerify.mockResolvedValue({ userId: 'u1', exp: Date.now() + 1000 });
+
+        const res = await POST(makeRequest({ token: 'ok', action: 'city' }) as any);
+        expect(res.status).toBe(400);
+        expect(mockDisableCity).not.toHaveBeenCalled();
+    });
+
+    it('returns 400 for "preferences" with unsubscribeCity=true when token has no cityId', async () => {
+        mockVerify.mockResolvedValue({ userId: 'u1', exp: Date.now() + 1000 });
+
+        const res = await POST(makeRequest({
+            token: 'ok',
+            action: 'preferences',
+            allowProductUpdates: false,
+            allowPetitionUpdates: false,
+            unsubscribeCity: true,
+        }) as any);
+        expect(res.status).toBe(400);
+        expect(mockUpdateProfile).not.toHaveBeenCalled();
+        expect(mockDisableCity).not.toHaveBeenCalled();
+    });
+
+    it('handles "preferences" without unsubscribeCity for a city-less token', async () => {
+        mockVerify.mockResolvedValue({ userId: 'u1', exp: Date.now() + 1000 });
+        mockUpdateProfile.mockResolvedValue({} as any);
+
+        const res = await POST(makeRequest({
+            token: 'ok',
+            action: 'preferences',
+            allowProductUpdates: false,
+            allowPetitionUpdates: true,
+        }) as any);
+        expect(res.status).toBe(200);
+        expect(mockUpdateProfile).toHaveBeenCalledWith('u1', {
+            allowProductUpdates: false,
+            allowPetitionUpdates: true,
+        });
+        expect(mockDisableCity).not.toHaveBeenCalled();
     });
 
     it('returns 500 for an unexpected DB error', async () => {

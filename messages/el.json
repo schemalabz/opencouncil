@@ -821,5 +821,27 @@
         "searchItems": "Αναζήτηση προσφορών",
         "noItems": "Καμία προσφορά",
         "item": "Προσφορά"
+    },
+    "ProductUpdates": {
+        "triggerButton": "Αποστολή ενημέρωσης",
+        "dialogTitle": "Αποστολή email για τις ενημερώσεις του OpenCouncil",
+        "dialogDescription": "Συνθέστε το μήνυμα παρακάτω, στείλτε πρώτα δοκιμαστικό στον εαυτό σας και μετά χρησιμοποιήστε «Αποστολή σε όλους» για την πλήρη λίστα.",
+        "subjectLabel": "Θέμα",
+        "subjectPlaceholder": "Νέα από το OpenCouncil",
+        "bodyLabel": "Περιεχόμενο",
+        "testEmailLabel": "Δοκιμαστικό email",
+        "testEmailPlaceholder": "you@example.com",
+        "testEmailHelp": "Αφήστε κενό και χρησιμοποιήστε «Αποστολή σε όλους» για αποστολή στην πραγματική λίστα παραληπτών.",
+        "sendTestButton": "Αποστολή δοκιμαστικού",
+        "sendAllButton": "Αποστολή σε όλους",
+        "sendAllButtonWithCount": "Αποστολή σε όλους ({optedIn})",
+        "confirmSendDescription": "Αποστολή σε {optedIn} από {total} εγγεγραμμένους χρήστες.",
+        "confirmSendButton": "Επιβεβαίωση αποστολής",
+        "cancelButton": "Ακύρωση",
+        "missingContent": "Το θέμα και το περιεχόμενο είναι υποχρεωτικά.",
+        "successTitle": "Η αποστολή ολοκληρώθηκε",
+        "successSummary": "Εστάλησαν: {sent}, απέτυχαν: {failed}.",
+        "failedListWithCount": "Διευθύνσεις που απέτυχαν ({count})",
+        "errorTitle": "Η αποστολή απέτυχε"
     }
 }

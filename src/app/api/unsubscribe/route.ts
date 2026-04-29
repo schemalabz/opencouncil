@@ -33,6 +33,9 @@ export async function POST(request: NextRequest) {
                 disableAllNotificationPreferences(data.userId),
             ]);
         } else if (action === 'city') {
+            if (!data.cityId) {
+                return NextResponse.json({ error: 'Token has no city scope' }, { status: 400 });
+            }
             await disableNotificationPreferenceByCityId(data.userId, data.cityId);
         } else {
             const { allowProductUpdates, allowPetitionUpdates, unsubscribeCity } = (body ?? {}) as {
@@ -43,10 +46,13 @@ export async function POST(request: NextRequest) {
             if (typeof allowProductUpdates !== 'boolean' || typeof allowPetitionUpdates !== 'boolean') {
                 return NextResponse.json({ error: 'Invalid preferences' }, { status: 400 });
             }
+            if (unsubscribeCity === true && !data.cityId) {
+                return NextResponse.json({ error: 'Token has no city scope' }, { status: 400 });
+            }
             const operations: Promise<unknown>[] = [
                 updateUserProfile(data.userId, { allowProductUpdates, allowPetitionUpdates }),
             ];
-            if (unsubscribeCity === true) {
+            if (unsubscribeCity === true && data.cityId) {
                 operations.push(disableNotificationPreferenceByCityId(data.userId, data.cityId));
             }
             await Promise.all(operations);

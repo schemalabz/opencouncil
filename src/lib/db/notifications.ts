@@ -1463,7 +1463,7 @@ export async function deleteNotificationPreference(preferenceId: string, userId:
  * pair extracted from an unsubscribe token. Returns null if the user no
  * longer exists.
  */
-export async function getUnsubscribeContext(userId: string, cityId: string): Promise<{
+export async function getUnsubscribeContext(userId: string, cityId?: string): Promise<{
     cityName: string | null;
     userEmail: string;
     allowProductUpdates: boolean;
@@ -1471,18 +1471,22 @@ export async function getUnsubscribeContext(userId: string, cityId: string): Pro
     citySubscribed: boolean;
 } | null> {
     const [city, user, cityPreference] = await Promise.all([
-        prisma.city.findUnique({
-            where: { id: cityId },
-            select: { name_municipality: true },
-        }),
+        cityId
+            ? prisma.city.findUnique({
+                where: { id: cityId },
+                select: { name_municipality: true },
+            })
+            : Promise.resolve(null),
         prisma.user.findUnique({
             where: { id: userId },
             select: { email: true, allowProductUpdates: true, allowPetitionUpdates: true },
         }),
-        prisma.notificationPreference.findUnique({
-            where: { userId_cityId: { userId, cityId } },
-            select: { notifyByEmail: true, notifyByPhone: true },
-        }),
+        cityId
+            ? prisma.notificationPreference.findUnique({
+                where: { userId_cityId: { userId, cityId } },
+                select: { notifyByEmail: true, notifyByPhone: true },
+            })
+            : Promise.resolve(null),
     ]);
 
     if (!user) return null;
@@ -1506,17 +1510,14 @@ export async function disableAllNotificationPreferences(userId: string) {
 }
 
 export async function disableNotificationPreferenceByCityId(userId: string, cityId: string) {
-    const preference = await prisma.notificationPreference.findUnique({
-        where: { userId_cityId: { userId, cityId } },
-    });
-
-    if (!preference) throw new NotFoundError('Notification preference not found');
-
-    return prisma.notificationPreference.update({
-        where: { id: preference.id },
+    // No-op when no row matches: a user clicking the unsubscribe link a second
+    // time (or whose city preference was already removed) shouldn't see an error.
+    await prisma.notificationPreference.updateMany({
+        where: { userId, cityId },
         data: { notifyByEmail: false, notifyByPhone: false },
     });
 }
+
 
 /**
  * Get notifications for a user in a specific city

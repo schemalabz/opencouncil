@@ -4,18 +4,23 @@ import { env } from '@/env.mjs';
 
 interface UnsubscribeTokenData {
     userId: string;
-    cityId: string;
+    /**
+     * The city the unsubscribe link is scoped to. Optional: meeting-notification
+     * emails populate it (so the recipient can flip a per-city preference);
+     * product-update emails leave it out (no city context).
+     */
+    cityId?: string;
     exp: number;
 }
 
 const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
-export async function generateUnsubscribeToken(userId: string, cityId: string): Promise<string> {
+export async function generateUnsubscribeToken(userId: string, cityId?: string): Promise<string> {
     const data: UnsubscribeTokenData = {
         userId,
-        cityId,
         exp: Date.now() + TOKEN_TTL_MS,
     };
+    if (cityId) data.cityId = cityId;
 
     const payload = Buffer.from(JSON.stringify(data)).toString('base64url');
     const signature = createHmac('sha256', env.NEXTAUTH_SECRET)
@@ -50,7 +55,7 @@ export async function verifyUnsubscribeToken(token: string): Promise<Unsubscribe
     }
 }
 
-export async function buildUnsubscribeUrl(userId: string, cityId: string, locale: string = 'el'): Promise<string> {
+export async function buildUnsubscribeUrl(userId: string, cityId?: string, locale: string = 'el'): Promise<string> {
     const token = await generateUnsubscribeToken(userId, cityId);
     return `${env.NEXTAUTH_URL}/${locale}/unsubscribe?token=${encodeURIComponent(token)}`;
 }

@@ -11,6 +11,7 @@ import { NotificationBulkActions } from '@/components/admin/notifications/Notifi
 import { releaseNotificationsForMeeting, createMeetingKey } from '@/components/admin/notifications/utils';
 import { MeetingNotificationStats } from '@/lib/db/notifications';
 import { useToast } from '@/hooks/use-toast';
+import { SendProductUpdateDialog } from '@/components/admin/product-updates/SendProductUpdateDialog';
 
 type DateRangeOption = '7days' | '30days' | '90days' | 'all';
 
@@ -206,14 +207,17 @@ export default function AdminNotificationsPage() {
                         Manage notification delivery for all cities
                     </p>
                 </div>
-                <Button
-                    onClick={() => fetchNotifications(pagination.page)}
-                    variant="outline"
-                    disabled={loading}
-                >
-                    <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                    Refresh
-                </Button>
+                <div className="flex items-center gap-2">
+                    <SendProductUpdateDialog />
+                    <Button
+                        onClick={() => fetchNotifications(pagination.page)}
+                        variant="outline"
+                        disabled={loading}
+                    >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                        Refresh
+                    </Button>
+                </div>
             </div>
 
             {/* Filters */}
