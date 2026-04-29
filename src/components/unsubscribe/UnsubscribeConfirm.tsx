@@ -12,7 +12,7 @@ type Status = 'idle' | 'loading' | 'success-all' | 'success-preferences' | 'erro
 
 interface Props {
     token: string;
-    cityName: string;
+    cityName: string | null;
     userEmail: string;
     allowProductUpdates: boolean;
     allowPetitionUpdates: boolean;
@@ -35,7 +35,7 @@ export function UnsubscribeConfirm({
     const [petitionUpdates, setPetitionUpdates] = useState(allowPetitionUpdates);
     const [unsubscribeAll, setUnsubscribeAll] = useState(false);
 
-    const cityChanged = citySubscribed && !citySubscribedState;
+    const cityChanged = cityName !== null && citySubscribed && !citySubscribedState;
     const preferencesChanged =
         productUpdates !== allowProductUpdates ||
         petitionUpdates !== allowPetitionUpdates ||
@@ -132,24 +132,26 @@ export function UnsubscribeConfirm({
                 </div>
 
                 <div className="flex flex-col gap-4 mb-6">
-                    <div className="flex items-start gap-3">
-                        <Checkbox
-                            id="citySubscribed"
-                            checked={displayCity}
-                            onCheckedChange={(checked) => setCitySubscribedState(checked === true)}
-                            disabled={isLoading || !citySubscribed || unsubscribeAll}
-                        />
-                        <div className="flex flex-col gap-1 leading-none">
-                            <Label htmlFor="citySubscribed">
-                                {t('cityCheckboxLabel', { cityName })}
-                            </Label>
-                            <p className="text-sm text-muted-foreground">
-                                {citySubscribed
-                                    ? t('cityCheckboxDescription')
-                                    : t('cityAlreadyUnsubscribed')}
-                            </p>
+                    {cityName !== null && (
+                        <div className="flex items-start gap-3">
+                            <Checkbox
+                                id="citySubscribed"
+                                checked={displayCity}
+                                onCheckedChange={(checked) => setCitySubscribedState(checked === true)}
+                                disabled={isLoading || !citySubscribed || unsubscribeAll}
+                            />
+                            <div className="flex flex-col gap-1 leading-none">
+                                <Label htmlFor="citySubscribed">
+                                    {t('cityCheckboxLabel', { cityName })}
+                                </Label>
+                                <p className="text-sm text-muted-foreground">
+                                    {citySubscribed
+                                        ? t('cityCheckboxDescription')
+                                        : t('cityAlreadyUnsubscribed')}
+                                </p>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     <div className="flex items-start gap-3">
                         <Checkbox

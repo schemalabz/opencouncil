@@ -44,7 +44,7 @@ export default async function UnsubscribePage({ searchParams }: Props) {
         <div className="container max-w-md py-24">
             <UnsubscribeConfirm
                 token={token!}
-                cityName={context.cityName ?? data.cityId}
+                cityName={data.cityId ? (context.cityName ?? data.cityId) : null}
                 userEmail={context.userEmail}
                 allowProductUpdates={context.allowProductUpdates}
                 allowPetitionUpdates={context.allowPetitionUpdates}

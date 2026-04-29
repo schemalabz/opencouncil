@@ -23,6 +23,23 @@ describe('generateUnsubscribeToken / verifyUnsubscribeToken', () => {
         expect(data!.exp).toBeGreaterThan(Date.now());
     });
 
+    it('round-trips a token without cityId', async () => {
+        const token = await generateUnsubscribeToken('user-1');
+        const data = await verifyUnsubscribeToken(token);
+
+        expect(data).not.toBeNull();
+        expect(data!.userId).toBe('user-1');
+        expect(data!.cityId).toBeUndefined();
+    });
+
+    it('omits cityId from the payload when not provided', async () => {
+        const token = await generateUnsubscribeToken('user-1');
+        const [payload] = token.split('.');
+        const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf-8'));
+
+        expect(decoded).not.toHaveProperty('cityId');
+    });
+
     it('produces tokens in the form payload.signature', async () => {
         const token = await generateUnsubscribeToken('u', 'c');
         expect(token.split('.')).toHaveLength(2);
@@ -83,5 +100,15 @@ describe('buildUnsubscribeUrl', () => {
         expect(data).not.toBeNull();
         expect(data!.userId).toBe('user-1');
         expect(data!.cityId).toBe('city-1');
+    });
+
+    it('builds a city-less URL whose token verifies with no cityId', async () => {
+        const url = await buildUnsubscribeUrl('user-1');
+        const token = decodeURIComponent(url.split('token=')[1]);
+
+        const data = await verifyUnsubscribeToken(token);
+        expect(data).not.toBeNull();
+        expect(data!.userId).toBe('user-1');
+        expect(data!.cityId).toBeUndefined();
     });
 });
