@@ -789,7 +789,11 @@
         "startDate": "Start Date",
         "startDateDescription": "The contract start date",
         "endDate": "End Date",
-        "endDateDescription": "The contract end date"
+        "endDateDescription": "The contract end date",
+        "agreed": "Agreed",
+        "agreedDescription": "Offer has been accepted (officially or unofficially). When set, the offer counts as a signed contract.",
+        "adam": "ΑΔΑΜ",
+        "adamDescription": "Diavgeia public-procurement identifier (e.g. 24ΑΩΡΔ123456). Setting this marks the offer as formally signed."
     },
     "Offer": {
         "title": "Offers",

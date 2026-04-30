@@ -78,6 +78,7 @@ export async function POST(request: Request) {
             diavgeiaUid: data.diavgeiaUid || null,
             language: data.language,
             realm: data.realm,
+            population: null,
         });
 
         // Bust the all-cities caches so the new city is immediately visible —

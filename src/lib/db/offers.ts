@@ -2,9 +2,12 @@
 import { Offer } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
+import { validateAdam } from "../zod-schemas/offer";
+import { isSigned } from "../offers/state";
 
 export async function createOffer(offerData: Omit<Offer, 'id' | 'createdAt' | 'updatedAt'>): Promise<Offer> {
     await withUserAuthorizedToEdit({});
+    validateAdam(offerData.adam);
     try {
         const newOffer = await prisma.offer.create({
             data: offerData,
@@ -18,6 +21,7 @@ export async function createOffer(offerData: Omit<Offer, 'id' | 'createdAt' | 'u
 
 export async function updateOffer(id: string, offerData: Partial<Omit<Offer, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Offer> {
     await withUserAuthorizedToEdit({});
+    if ('adam' in offerData) validateAdam(offerData.adam);
     try {
         const updatedOffer = await prisma.offer.update({
             where: { id },
@@ -56,8 +60,10 @@ export async function getOffer(id: string): Promise<Offer | OfferSupersededBy | 
             return null;
         }
 
-        // If this offer has a cityId, check for more recent offers for the same city
-        if (offer.cityId) {
+        // Supersession only applies between *pending* offers for the same city.
+        // Once an offer is signed (agreed or has ΑΔΑΜ), it's a permanent record;
+        // newer offers for the same city are renewals, not supersessions.
+        if (offer.cityId && !isSigned(offer)) {
             const newerOffer = await prisma.offer.findFirst({
                 where: {
                     cityId: offer.cityId,
@@ -70,7 +76,7 @@ export async function getOffer(id: string): Promise<Offer | OfferSupersededBy | 
                 }
             });
 
-            if (newerOffer) {
+            if (newerOffer && !isSigned(newerOffer)) {
                 return {
                     oldId: offer.id,
                     newId: newerOffer.id
