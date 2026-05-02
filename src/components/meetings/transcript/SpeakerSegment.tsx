@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
+import { useCouncilMeetingActions, useCouncilMeetingMeta } from "../CouncilMeetingDataContext";
 import { Transcript as TranscriptType } from '@/lib/db/transcript';
 import TopicBadge from './Topic';
 import { PersonBadge } from '@/components/persons/PersonBadge';
@@ -18,7 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useMediaQuery } from '@/hooks/use-media-query';
 
 const AddSegmentButton = ({ segmentId }: { segmentId: string }) => {
-    const { createEmptySegmentAfter } = useCouncilMeetingData();
+    const { createEmptySegmentAfter } = useCouncilMeetingActions();
     const { options } = useTranscriptOptions();
 
     if (!options.editable) return null;
@@ -51,7 +51,7 @@ const AddSegmentBeforeButton = ({ segmentId, isFirstSegment }: {
     segmentId: string, 
     isFirstSegment: boolean 
 }) => {
-    const { createEmptySegmentBefore } = useCouncilMeetingData();
+    const { createEmptySegmentBefore } = useCouncilMeetingActions();
     const { options } = useTranscriptOptions();
 
     // Only show for the first segment
@@ -82,7 +82,7 @@ const AddSegmentBeforeButton = ({ segmentId, isFirstSegment }: {
 };
 
 const EmptySegmentState = ({ segmentId }: { segmentId: string }) => {
-    const { addUtteranceToSegment } = useCouncilMeetingData();
+    const { addUtteranceToSegment } = useCouncilMeetingActions();
     const [isLoading, setIsLoading] = useState(false);
     const t = useTranslations('transcript.emptySegment');
 
@@ -124,7 +124,7 @@ const EmptySegmentState = ({ segmentId }: { segmentId: string }) => {
 };
 
 const AddUtteranceButton = ({ segmentId }: { segmentId: string }) => {
-    const { addUtteranceToSegment } = useCouncilMeetingData();
+    const { addUtteranceToSegment } = useCouncilMeetingActions();
     const { options } = useTranscriptOptions();
     const t = useTranslations('transcript.addUtterance');
 
@@ -172,7 +172,10 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
     segment: TranscriptType[number],
     isFirstSegment?: boolean
 }) => {
-    const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, speakerTags, updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingData();
+    // useCouncilMeetingMeta() — not useCouncilMeetingData() — so this
+    // component bails on transcript-only edits.
+    const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, speakerTags } = useCouncilMeetingMeta();
+    const { updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingActions();
     const { options } = useTranscriptOptions();
     const { data: session } = useSession();
     const { toast } = useToast();
@@ -220,16 +223,15 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
         return buildUnknownSpeakerLabel(maxIndex + 1);
     }, [speakerTags]);
 
-    const memoizedData = useMemo(() => {
-        const speakerTag = getSpeakerTag(segment.speakerTagId);
-        const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
-
-        const party = person ? getPartyFromRoles(person.roles) : null;
-        const borderColor = party?.colorHex || '#D3D3D3';
-
-        const segmentCount = speakerTag ? getSpeakerSegmentCount(speakerTag.id) : 0;
-        return { speakerTag, person, party, borderColor, segmentCount };
-    }, [segment.speakerTagId, getPerson, getSpeakerTag, getSpeakerSegmentCount]);
+    // Not memoized: the getter refs are stable for the provider's lifetime,
+    // so a useMemo over them would never recompute when underlying speaker
+    // tags / segment counts change.
+    const speakerTag = getSpeakerTag(segment.speakerTagId);
+    const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
+    const party = person ? getPartyFromRoles(person.roles) : null;
+    const borderColor = party?.colorHex || '#D3D3D3';
+    const segmentCount = speakerTag ? getSpeakerSegmentCount(speakerTag.id) : 0;
+    const memoizedData = { speakerTag, person, party, borderColor, segmentCount };
 
     const utterances = segment.utterances;
     if (!utterances) {

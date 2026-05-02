@@ -6,25 +6,17 @@ import { useVideoActions } from "../VideoProvider";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { useHighlight } from "../HighlightContext";
 import { editUtterance, updateUtteranceTimestamps } from "@/lib/db/utterance";
-import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
+import { useCouncilMeetingActions } from "../CouncilMeetingDataContext";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftToLine, ArrowRightToLine, Copy, Star, Scissors, Loader2, Check, X, Trash2, Clock } from "lucide-react";
+import { Check, X, Trash2, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import {
-    ContextMenu,
-    ContextMenuContent,
-    ContextMenuItem,
-    ContextMenuTrigger,
-    ContextMenuSeparator,
-} from "@/components/ui/context-menu";
 import {
     Tooltip,
     TooltipContent,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { useShare } from "@/contexts/ShareContext";
-import { useEditing } from "../EditingContext";import { ACTIONS, useKeyboardShortcut } from "@/contexts/KeyboardShortcutsContext";
+import { useEditing } from "../EditingContext";
 import { formatTimestamp } from "@/lib/formatters/time";
 
 const UtteranceC: React.FC<{
@@ -33,23 +25,19 @@ const UtteranceC: React.FC<{
 }> = React.memo(({ utterance, onUpdate }) => {
     const { currentTimeRef, seekToWithoutScroll, togglePlayPause, seekTo } = useVideoActions();
     const { options } = useTranscriptOptions();
-    const { editingHighlight, updateHighlightUtterances, createHighlight } = useHighlight();
-    const { moveUtterancesToPrevious, moveUtterancesToNext, deleteUtterance, updateUtterance } = useCouncilMeetingData();
-    const { selectedUtteranceIds, toggleSelection, clearSelection, extractSelectedSegment, isProcessing } = useEditing();
-    
+    const { editingHighlight, updateHighlightUtterances } = useHighlight();
+    // Stable actions context — see CouncilMeetingDataContext. With ~9K
+    // utterances, anything that re-renders all of them defeats memoization.
+    const { deleteUtterance, updateUtterance } = useCouncilMeetingActions();
+    const { selectedUtteranceIds, toggleSelection } = useEditing();
+
     const [isEditing, setIsEditing] = useState(false);
     const [localUtterance, setLocalUtterance] = useState(utterance);
     const [editedText, setEditedText] = useState(utterance.text);
     const [editedStartTime, setEditedStartTime] = useState(utterance.startTimestamp);
     const [editedEndTime, setEditedEndTime] = useState(utterance.endTimestamp);
-    const [pendingShareAction, setPendingShareAction] = useState<number | null>(null);
     const { toast } = useToast();
-    const { openShareDropdownAndCopy } = useShare();
     const t = useTranslations('transcript.utterance');
-
-    const canStartHighlight = options.canCreateHighlights && !editingHighlight && !options.editable;
-    const canShare = !editingHighlight && !options.editable;
-    const hasContextMenuOptions = canStartHighlight || options.editable || canShare;
 
     // Check if selected in Editing Context
     const isSelected = selectedUtteranceIds.has(localUtterance.id);
@@ -206,85 +194,6 @@ const UtteranceC: React.FC<{
 
     const setEndTimeToCurrentVideo = () => {
         setEditedEndTime(currentTimeRef.current);
-    };
-
-    const handleMoveUtterancesToPrevious = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        toast({
-            title: t('toasts.moveUtterances'),
-            description: t('toasts.moveToPreviousDescription'),
-            action: (
-                <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => {
-                        moveUtterancesToPrevious(localUtterance.id, localUtterance.speakerSegmentId);
-                        toast({
-                            description: t('toasts.utterancesMovedSuccessfully'),
-                        });
-                    }}
-                >
-                    {t('toasts.confirm')}
-                </Button>
-            ),
-        });
-    };
-
-    const handleMoveUtterancesToNext = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        toast({
-            title: t('toasts.moveUtterances'),
-            description: t('toasts.moveToNextDescription'),
-            action: (
-                <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => {
-                        moveUtterancesToNext(localUtterance.id, localUtterance.speakerSegmentId);
-                        toast({
-                            description: t('toasts.utterancesMovedSuccessfully'),
-                        });
-                    }}
-                >
-                    {t('toasts.confirm')}
-                </Button>
-            ),
-        });
-    };
-
-    const handleShareFromHere = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        // Set pending action - will be executed when context menu closes
-        setPendingShareAction(localUtterance.startTimestamp);
-    };
-
-    const handleStartHighlightHere = async (e: React.MouseEvent) => {
-        e.stopPropagation();
-
-        await createHighlight({
-            preSelectedUtteranceId: localUtterance.id,
-            onSuccess: (highlight) => {
-                toast({
-                    title: t('toasts.highlightCreated'),
-                    description: t('toasts.highlightCreatedDescription'),
-                    variant: "default",
-                });
-            },
-            onError: (error) => {
-                toast({
-                    title: t('common.error'),
-                    description: t('toasts.createHighlightError'),
-                    variant: "destructive",
-                });
-            }
-        });
-    };
-    
-    const handleExtractSegment = async (e: React.MouseEvent) => {
-        e.stopPropagation();
-        
-        // Extract the current selection (state is already updated from context menu open)
-        await extractSelectedSegment();
     };
 
     const handleDeleteUtterance = async (e: React.MouseEvent) => {
@@ -446,28 +355,34 @@ const UtteranceC: React.FC<{
     // Show placeholder for empty utterances in editing mode
     const isEmptyUtterance = !localUtterance.text.trim();
     const displayText = options.editable && isEmptyUtterance
-        ? '[Empty utterance - click to edit]' 
+        ? '[Empty utterance - click to edit]'
         : localUtterance.text + ' ';
-    
+
     const emptyUtteranceClass = options.editable && isEmptyUtterance
         ? 'text-muted-foreground italic'
         : '';
 
-    if (!hasContextMenuOptions) {
-        return (
-            <span className={cn(className, emptyUtteranceClass)} id={localUtterance.id} onClick={handleClick}>
-                {displayText}
-            </span>
-        );
-    }
+    // Right-click is handled by the single shared <UtteranceContextMenu> at
+    // the Transcript level — it locates the target via these data-attributes
+    // and renders one set of items instead of one Radix Menu per utterance.
+    const utteranceSpan = (
+        <span
+            className={cn(className, emptyUtteranceClass)}
+            id={localUtterance.id}
+            data-utterance-id={localUtterance.id}
+            data-segment-id={localUtterance.speakerSegmentId}
+            data-start-timestamp={localUtterance.startTimestamp}
+            onClick={handleClick}
+        >
+            {displayText}
+        </span>
+    );
 
-    // Show inline delete button for empty utterances in editing mode
+    // Inline delete button for empty utterances in editing mode.
     if (options.editable && isEmptyUtterance && !isEditing) {
         return (
             <span className="inline-flex items-center gap-1 group">
-                <span className={cn(className, emptyUtteranceClass)} id={localUtterance.id} onClick={handleClick}>
-                    {displayText}
-                </span>
+                {utteranceSpan}
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <Button
@@ -487,75 +402,7 @@ const UtteranceC: React.FC<{
         );
     }
 
-    return (
-        <ContextMenu onOpenChange={(open) => {
-            if (open) {
-                // Context menu opened - select this utterance if not already selected
-                // This provides visual feedback for what will be operated on
-                if (!isSelected) {
-                    toggleSelection(localUtterance.id, { shift: false, ctrl: false });
-                }
-                // Clear any stale pending share action
-                if (pendingShareAction) {
-                    setPendingShareAction(null);
-                }
-            } else {
-                // Context menu closed
-                if (pendingShareAction) {
-                    // Execute pending share action first
-                    openShareDropdownAndCopy(pendingShareAction);
-                    setPendingShareAction(null);
-                }
-                // Only clear selection if there's just one selected (the temporary right-click selection)
-                // If multiple utterances are selected, preserve the user's deliberate selection
-                if (selectedUtteranceIds.size === 1) {
-                    clearSelection();
-                }
-            }
-        }}>
-            <ContextMenuTrigger>
-                <span className={cn(className, emptyUtteranceClass)} id={localUtterance.id} onClick={handleClick}>
-                    {displayText}
-                </span>
-            </ContextMenuTrigger>
-            <ContextMenuContent>
-                {canStartHighlight && (
-                    <ContextMenuItem onClick={handleStartHighlightHere}>
-                        <Star className="h-4 w-4 mr-2" />
-                        {t('contextMenu.startHighlightFromHere')}
-                    </ContextMenuItem>
-                )}
-                {options.editable && (
-                    <>
-                        <ContextMenuSeparator />
-                        <ContextMenuItem 
-                            onClick={handleExtractSegment} 
-                            disabled={isProcessing || (!isSelected && selectedUtteranceIds.size > 0)}
-                        >
-                            {isProcessing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Scissors className="h-4 w-4 mr-2" />}
-                            {t('contextMenu.extractSegment', { defaultValue: 'Extract Segment' })}
-                            {isSelected && <span className="ml-auto text-xs text-muted-foreground pl-4">e</span>}
-                        </ContextMenuItem>
-                        <ContextMenuSeparator />
-                        <ContextMenuItem onClick={handleMoveUtterancesToPrevious}>
-                            <ArrowLeftToLine className="h-4 w-4 mr-2" />
-                            {t('contextMenu.moveToPreviousSegment')}
-                        </ContextMenuItem>
-                        <ContextMenuItem onClick={handleMoveUtterancesToNext}>
-                            <ArrowRightToLine className="h-4 w-4 mr-2" />
-                            {t('contextMenu.moveToNextSegment')}
-                        </ContextMenuItem>
-                    </>
-                )}
-                {canShare && (
-                    <ContextMenuItem onClick={handleShareFromHere}>
-                        <Copy className="h-4 w-4 mr-2" />
-                        {t('contextMenu.shareFromHere')}
-                    </ContextMenuItem>
-                )}
-            </ContextMenuContent>
-        </ContextMenu>
-    );
+    return utteranceSpan;
 });
 
 UtteranceC.displayName = 'UtteranceC';

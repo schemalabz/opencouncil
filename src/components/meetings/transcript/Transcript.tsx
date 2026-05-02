@@ -10,6 +10,7 @@ import { useSearchParams } from "next/navigation";
 import { useHighlight } from "../HighlightContext";
 import { useTranslations } from 'next-intl';
 import { UnverifiedTranscriptBanner, BANNER_HEIGHT_FULL } from "./UnverifiedTranscriptBanner";
+import { UtteranceContextMenu } from "./UtteranceContextMenu";
 
 // Helper functions for speaker segment identification and parsing
 const SPEAKER_SEGMENT_PREFIX = 'speaker-segment-';
@@ -164,21 +165,23 @@ export default function Transcript() {
                     onBannerHeightChange={setBannerHeight}
                 />
             )}
-            <div ref={containerRef} role="list" aria-label={t('transcript')}>
-            {displayedSegments.map((segment, index: number) => (
-                <div
-                    key={index}
-                    id={createSegmentId(index)}
-                    className="content-visibility-auto"
-                    role="listitem"
-                >
-                    <SpeakerSegment
-                        segment={segment}
-                        isFirstSegment={index === 0}
-                    />
+            <UtteranceContextMenu>
+                <div ref={containerRef} role="list" aria-label={t('transcript')}>
+                {displayedSegments.map((segment, index: number) => (
+                    <div
+                        key={index}
+                        id={createSegmentId(index)}
+                        className="content-visibility-auto"
+                        role="listitem"
+                    >
+                        <SpeakerSegment
+                            segment={segment}
+                            isFirstSegment={index === 0}
+                        />
+                    </div>
+                ))}
                 </div>
-            ))}
-            </div>
+            </UtteranceContextMenu>
         </div>
     );
 }

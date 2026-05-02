@@ -2,13 +2,13 @@ import { useState, useCallback, useMemo } from 'react';
 import { DiscussionStatus } from '@prisma/client';
 import { Transcript as TranscriptType } from '@/lib/db/transcript';
 import { EditableSpeakerSegmentData } from '@/lib/db/speakerSegments';
-import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
+import { useCouncilMeetingActions } from '@/components/meetings/CouncilMeetingDataContext';
 import { toast } from '@/hooks/use-toast';
 
 const DISCUSSION_STATUS_VALUES = Object.values(DiscussionStatus);
 
 export function useSpeakerSegmentEditor(segment: TranscriptType[number]) {
-    const { updateSpeakerSegmentData } = useCouncilMeetingData();
+    const { updateSpeakerSegmentData } = useCouncilMeetingActions();
     const [isEditMode, setIsEditMode] = useState(false);
     const [editedData, setEditedData] = useState<string>('');
     const [validationErrors, setValidationErrors] = useState<string[]>([]);

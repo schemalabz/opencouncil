@@ -433,24 +433,59 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         return () => cancelAnimationFrame(rafId);
     }, [isPlaying, updateHighlightOnce]);
 
-    // === STABLE ACTIONS CONTEXT ===
-    // Store action functions in refs so the memoized actions value never changes.
-    // This prevents Utterance components from re-rendering during playback.
+    // Stable wrappers around the action functions. `value` invalidates
+    // ~every 2s during playback (currentTime updates), and HighlightProvider
+    // consumes useVideo() — if these refs churned, HighlightProvider's
+    // callbacks would get new identities, invalidate HighlightContext.value,
+    // and re-render every Utterance.
     const seekToRef = useRef(seekTo);
     seekToRef.current = seekTo;
     const seekToWithoutScrollRef = useRef(seekToWithoutScroll);
     seekToWithoutScrollRef.current = seekToWithoutScroll;
     const togglePlayPauseRef = useRef(togglePlayPause);
     togglePlayPauseRef.current = togglePlayPause;
+    const seekToAndPlayRef = useRef(seekToAndPlay);
+    seekToAndPlayRef.current = seekToAndPlay;
+    const handleSpeedChangeRef = useRef(handleSpeedChange);
+    handleSpeedChangeRef.current = handleSpeedChange;
+    const scrollToUtteranceRef = useRef(scrollToUtterance);
+    scrollToUtteranceRef.current = scrollToUtterance;
+    const handleSeekedRef = useRef(handleSeeked);
+    handleSeekedRef.current = handleSeeked;
+    const handleSeekingRef = useRef(handleSeeking);
+    handleSeekingRef.current = handleSeeking;
+    const playVideoRef = useRef(playVideo);
+    playVideoRef.current = playVideo;
+    const pauseVideoRef = useRef(pauseVideo);
+    pauseVideoRef.current = pauseVideo;
+
+    const stableSeekTo = useCallback((time: number) => seekToRef.current(time), []);
+    const stableSeekToWithoutScroll = useCallback((time: number) => seekToWithoutScrollRef.current(time), []);
+    const stableTogglePlayPause = useCallback(() => togglePlayPauseRef.current(), []);
+    const stableSeekToAndPlay = useCallback((time: number) => seekToAndPlayRef.current(time), []);
+    const stableHandleSpeedChange = useCallback((v: string) => handleSpeedChangeRef.current(v), []);
+    const stableScrollToUtterance = useCallback((time: number) => scrollToUtteranceRef.current(time), []);
+    const stableHandleSeeked = useCallback(() => handleSeekedRef.current(), []);
+    const stableHandleSeeking = useCallback(() => handleSeekingRef.current(), []);
+    const stableSetIsPlaying = useCallback(async (shouldPlay: boolean) => {
+        if (shouldPlay) {
+            await playVideoRef.current();
+        } else {
+            await pauseVideoRef.current();
+        }
+    }, []);
 
     const actionsValue = useMemo<VideoActionsContextType>(() => ({
         currentTimeRef,
-        seekTo: (time: number) => seekToRef.current(time),
-        seekToWithoutScroll: (time: number) => seekToWithoutScrollRef.current(time),
-        togglePlayPause: () => togglePlayPauseRef.current(),
-    }), []); // eslint-disable-line react-hooks/exhaustive-deps
+        seekTo: stableSeekTo,
+        seekToWithoutScroll: stableSeekToWithoutScroll,
+        togglePlayPause: stableTogglePlayPause,
+    }), [stableSeekTo, stableSeekToWithoutScroll, stableTogglePlayPause]);
 
-    const value = {
+    // Memoize the value so it only invalidates when the reactive fields it
+    // exposes actually change. The function fields are now all stable refs,
+    // so they don't churn the memoization.
+    const value = useMemo(() => ({
         isPlaying,
         currentTime: currentTimeRef.current,
         currentTimeRef,
@@ -458,26 +493,38 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         playbackSpeed,
         currentScrollInterval,
         setCurrentScrollInterval,
-        togglePlayPause,
-        handleSpeedChange,
-        seekTo,
-        seekToWithoutScroll,
-        scrollToUtterance,
+        togglePlayPause: stableTogglePlayPause,
+        handleSpeedChange: stableHandleSpeedChange,
+        seekTo: stableSeekTo,
+        seekToWithoutScroll: stableSeekToWithoutScroll,
+        scrollToUtterance: stableScrollToUtterance,
         playerRef,
-        seekToAndPlay,
+        seekToAndPlay: stableSeekToAndPlay,
         isSeeking,
         onTimeUpdate: handleTimeUpdate,
-        onSeeked: handleSeeked,
-        onSeeking: handleSeeking,
-        setIsPlaying: async (shouldPlay: boolean) => {
-            if (shouldPlay) {
-                await playVideo();
-            } else {
-                await pauseVideo();
-            }
-        },
+        onSeeked: stableHandleSeeked,
+        onSeeking: stableHandleSeeking,
+        setIsPlaying: stableSetIsPlaying,
         meeting,
-    };
+    }), [
+        isPlaying,
+        currentTime, // state-driven (throttled to ~2s); ensures consumers see updated time
+        duration,
+        playbackSpeed,
+        currentScrollInterval,
+        isSeeking,
+        handleTimeUpdate,
+        meeting,
+        stableTogglePlayPause,
+        stableHandleSpeedChange,
+        stableSeekTo,
+        stableSeekToWithoutScroll,
+        stableScrollToUtterance,
+        stableSeekToAndPlay,
+        stableHandleSeeked,
+        stableHandleSeeking,
+        stableSetIsPlaying,
+    ]);
 
     return (
         <VideoActionsContext.Provider value={actionsValue}>
