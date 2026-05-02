@@ -188,20 +188,30 @@ export function CouncilMeetingDataProvider({ children, data }: {
 
     const deleteEmptySegment = useCallback(async (segmentId: string) => {
         await deleteEmptySpeakerSegment(segmentId, cityId);
-        // Read the deleted tag id from `prev` so this callback doesn't need
-        // speakerSegmentsMap as a dep.
-        setTranscript(prev => {
-            const segment = prev.find(s => s.id === segmentId);
-            const deletedSpeakerTagId = segment?.speakerTagId;
-            const updated = prev.filter(s => s.id !== segmentId);
-            if (deletedSpeakerTagId) {
-                const isTagStillInUse = updated.some(s => s.speakerTagId === deletedSpeakerTagId);
-                if (!isTagStillInUse) {
-                    setSpeakerTags(prevTags => prevTags.filter(t => t.id !== deletedSpeakerTagId));
-                }
-            }
-            return updated;
-        });
+
+        // Decide tag-state changes outside `setTranscript`'s updater to keep
+        // it pure. Refs always hold the latest committed state.
+        const segmentsMap = speakerSegmentsMapRef.current;
+        const deletedSpeakerTagId = segmentsMap.get(segmentId)?.speakerTagId;
+        let tagUsageCount = 0;
+        if (deletedSpeakerTagId) {
+            segmentsMap.forEach(s => {
+                if (s.speakerTagId === deletedSpeakerTagId) tagUsageCount++;
+            });
+        }
+
+        setTranscript(prev => prev.filter(s => s.id !== segmentId));
+
+        if (deletedSpeakerTagId) {
+            // If we're removing the last segment for this tag, drop the tag.
+            // Otherwise still bump speakerTags' identity so SpeakerSegment
+            // (subscribed to meta context) re-renders with the updated
+            // segment count for the shared tag.
+            setSpeakerTags(prev => tagUsageCount === 1
+                ? prev.filter(t => t.id !== deletedSpeakerTagId)
+                : [...prev]
+            );
+        }
     }, [cityId]);
 
     const updateSpeakerSegmentDataAction = useCallback(async (segmentId: string, editData: EditableSpeakerSegmentData) => {

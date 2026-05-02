@@ -79,7 +79,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   const [lastClickedAction, setLastClickedAction] = useState<'add' | 'remove' | null>(null);
 
   // Get transcript and speaker data from CouncilMeetingDataContext
-  const { transcript, getSpeakerTag, getPerson, getSpeakerSegmentById, meeting } = useCouncilMeetingData();
+  const { transcript, speakerTags, getSpeakerTag, getPerson, getSpeakerSegmentById, meeting } = useCouncilMeetingData();
   // Mutations come from the stable actions context — they never change identity.
   const { addHighlight, updateHighlight } = useCouncilMeetingActions();
   const { currentTime, seekTo, isPlaying, setIsPlaying, seekToAndPlay } = useVideo();
@@ -172,14 +172,14 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     return { statistics, highlightUtterances: utterances };
   }, [getSpeakerSegmentById, getSpeakerTag, getPerson]);
 
-  // Calculate data for the currently editing highlight. Recompute when
-  // editingHighlight identity changes OR when the transcript changes (the
-  // utteranceMap dep covers transcript identity changes).
+  // Recompute when the highlight changes, when the transcript changes
+  // (`utteranceMap` proxies transcript identity, refreshing utterance text and
+  // timestamps), or when speaker tags change (refreshes speaker names — the
+  // ref-backed `getSpeakerTag` getter has stable identity, so its returned
+  // data alone wouldn't trigger a recompute).
   const editingHighlightData = useMemo(() => {
     return calculateHighlightData(editingHighlight);
-    // utteranceMap is the proxy for transcript identity; including it ensures
-    // we recompute speaker labels/timestamps when underlying utterances change.
-  }, [calculateHighlightData, editingHighlight, utteranceMap]);
+  }, [calculateHighlightData, editingHighlight, utteranceMap, speakerTags]);
 
   const statistics = editingHighlightData?.statistics || null;
   const highlightUtterances = editingHighlightData?.highlightUtterances || null;

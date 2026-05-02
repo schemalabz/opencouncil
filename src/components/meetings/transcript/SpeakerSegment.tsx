@@ -231,7 +231,7 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
     const party = person ? getPartyFromRoles(person.roles) : null;
     const borderColor = party?.colorHex || '#D3D3D3';
     const segmentCount = speakerTag ? getSpeakerSegmentCount(speakerTag.id) : 0;
-    const memoizedData = { speakerTag, person, party, borderColor, segmentCount };
+    const headerData = { speakerTag, person, party, borderColor, segmentCount };
 
     const utterances = segment.utterances;
     if (!utterances) {
@@ -243,14 +243,14 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
     const summary = segment.summary;
 
     const handlePersonChange = (personId: string | null) => {
-        if (memoizedData.speakerTag) {
-            updateSpeakerTagPerson(memoizedData.speakerTag.id, personId);
+        if (headerData.speakerTag) {
+            updateSpeakerTagPerson(headerData.speakerTag.id, personId);
         }
     };
 
     const handleLabelChange = (label: string) => {
-        if (memoizedData.speakerTag) {
-            updateSpeakerTagLabel(memoizedData.speakerTag.id, label);
+        if (headerData.speakerTag) {
+            updateSpeakerTagLabel(headerData.speakerTag.id, label);
         }
     };
 
@@ -270,7 +270,7 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
                 <AddSegmentBeforeButton segmentId={segment.id} isFirstSegment={true} />
             )}
             
-            <div className='mb-2 sm:mb-6 flex flex-col items-start w-full rounded-r-lg hover:bg-accent/5 transition-colors border-l-[3px] sm:border-l-4' style={{ borderLeftColor: memoizedData.borderColor }}>
+            <div className='mb-2 sm:mb-6 flex flex-col items-start w-full rounded-r-lg hover:bg-accent/5 transition-colors border-l-[3px] sm:border-l-4' style={{ borderLeftColor: headerData.borderColor }}>
                 <div className='w-full'>
                     <div 
                         className='sticky flex flex-row items-center justify-between w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-30 transition-all duration-200'
@@ -284,8 +284,8 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
                                         className='flex md:hidden items-center justify-between w-full px-2.5 py-1.5 hover:bg-accent/20 transition-colors bg-background border-b border-border/40'
                                     >
                                         <PersonBadge
-                                            person={memoizedData.person}
-                                            speakerTag={memoizedData.speakerTag}
+                                            person={headerData.person}
+                                            speakerTag={headerData.speakerTag}
                                             variant="inline"
                                             className="flex-1 min-w-0"
                                         />
@@ -302,11 +302,11 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
                                 <div className={`${isCollapsed ? 'hidden md:flex' : 'flex'} flex-col w-full space-y-2 py-2`}>
                                     <div className='flex items-center justify-between w-full px-2.5 sm:px-4 gap-2'>
                                         <div className='flex-grow overflow-hidden min-w-0'>
-                                            {memoizedData.speakerTag && (
+                                            {headerData.speakerTag && (
                                                 <PersonBadge
-                                                    person={memoizedData.person}
-                                                    speakerTag={memoizedData.speakerTag}
-                                                    segmentCount={memoizedData.segmentCount}
+                                                    person={headerData.person}
+                                                    speakerTag={headerData.speakerTag}
+                                                    segmentCount={headerData.segmentCount}
                                                     editable={options.editable}
                                                     onPersonChange={handlePersonChange}
                                                     onLabelChange={handleLabelChange}
