@@ -89,7 +89,11 @@ export function UtteranceContextMenu({ children }: { children: React.ReactNode }
         if (selectedUtteranceIds.size === 1) {
             clearSelection();
         }
-    }, [clearSelection, openShareDropdownAndCopy, selectedUtteranceIds.size]);
+        // Depend on the full Set, not just `.size`. Each selection change
+        // produces a new Set identity, so we recreate this callback even when
+        // size stays the same (e.g., right-clicking utterance B while A was
+        // the lone selection swaps the contents but keeps size = 1).
+    }, [clearSelection, openShareDropdownAndCopy, selectedUtteranceIds]);
 
     const targetSelected = target ? selectedUtteranceIds.has(target.id) : false;
 

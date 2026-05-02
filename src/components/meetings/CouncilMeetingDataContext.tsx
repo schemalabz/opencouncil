@@ -360,19 +360,25 @@ export function CouncilMeetingDataProvider({ children, data }: {
     // transcript edits — invalidates only when speakerTags / highlights /
     // static data change. SpeakerSegment et al. subscribe via this hook to
     // bail on transcript-only edits.
-    const metaValue = useMemo<CouncilMeetingMeta>(() => ({
-        ...data,
-        speakerTags,
-        highlights,
-        getPerson,
-        getParty,
-        getSpeakerTag,
-        getSpeakerSegmentCount,
-        getSpeakerSegmentById,
-        getPersonsForParty,
-        getHighlight,
-        ...actionsValue,
-    }), [
+    const metaValue = useMemo<CouncilMeetingMeta>(() => {
+        // Drop the initial transcript prop from the spread so consumers can't
+        // read a stale snapshot through this context (the live transcript
+        // lives on `contextValue` only).
+        const { transcript: _initialTranscript, ...staticData } = data;
+        return {
+            ...staticData,
+            speakerTags,
+            highlights,
+            getPerson,
+            getParty,
+            getSpeakerTag,
+            getSpeakerSegmentCount,
+            getSpeakerSegmentById,
+            getPersonsForParty,
+            getHighlight,
+            ...actionsValue,
+        };
+    }, [
         data,
         speakerTags,
         highlights,
