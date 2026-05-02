@@ -174,11 +174,12 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
 
   // Recompute when the highlight changes, when the transcript changes
   // (`utteranceMap` proxies transcript identity, refreshing utterance text and
-  // timestamps), or when speaker tags change (refreshes speaker names — the
-  // ref-backed `getSpeakerTag` getter has stable identity, so its returned
-  // data alone wouldn't trigger a recompute).
+  // timestamps), or when speaker tags change (refreshes speaker names —
+  // `calculateHighlightData` reads them through stable ref-backed getters, so
+  // ESLint can't see them as deps).
   const editingHighlightData = useMemo(() => {
     return calculateHighlightData(editingHighlight);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [calculateHighlightData, editingHighlight, utteranceMap, speakerTags]);
 
   const statistics = editingHighlightData?.statistics || null;

@@ -506,9 +506,14 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         onSeeking: stableHandleSeeking,
         setIsPlaying: stableSetIsPlaying,
         meeting,
+        // `currentTime` (state, throttled to ~2s) is intentionally a dep so
+        // useVideo() consumers get a fresh value object when playback time
+        // advances. ESLint can't see it because the body reads
+        // `currentTimeRef.current` (the higher-frequency ref) instead.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }), [
         isPlaying,
-        currentTime, // state-driven (throttled to ~2s); ensures consumers see updated time
+        currentTime,
         duration,
         playbackSpeed,
         currentScrollInterval,

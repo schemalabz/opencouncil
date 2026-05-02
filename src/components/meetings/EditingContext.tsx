@@ -42,27 +42,30 @@ export function EditingProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const toggleSelection = useCallback((id: string, modifiers: { shift: boolean, ctrl: boolean }) => {
+        const isShiftRange = modifiers.shift && lastClickedRef.current;
+
         setSelectedUtteranceIds(prev => {
             const newSet = new Set(prev);
-
-            if (modifiers.shift && lastClickedRef.current) {
-                const rangeIds = calculateUtteranceRange(allUtterancesRef.current, lastClickedRef.current, id);
+            if (isShiftRange) {
+                const rangeIds = calculateUtteranceRange(allUtterancesRef.current, lastClickedRef.current!, id);
                 rangeIds.forEach(rangeId => newSet.add(rangeId));
             } else if (modifiers.ctrl) {
-                if (newSet.has(id)) {
-                    newSet.delete(id);
-                } else {
-                    newSet.add(id);
-                }
-                setLastClickedUtteranceId(id);
+                if (newSet.has(id)) newSet.delete(id);
+                else newSet.add(id);
             } else {
                 newSet.clear();
                 newSet.add(id);
-                setLastClickedUtteranceId(id);
             }
-
             return newSet;
         });
+
+        // Anchor moves on plain or ctrl click; shift-range click leaves it
+        // alone (so subsequent shift-clicks keep extending from the same
+        // anchor). Calling this outside the updater avoids the StrictMode
+        // double-fire pitfall.
+        if (!isShiftRange) {
+            setLastClickedUtteranceId(id);
+        }
     }, []);
 
     const extractSelectedSegment = useCallback(async () => {

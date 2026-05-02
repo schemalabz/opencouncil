@@ -1,5 +1,5 @@
 "use client"
-import React, { createContext, useContext, ReactNode, useMemo, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, ReactNode, useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { Party, SpeakerTag, LastModifiedBy } from '@prisma/client';
 import { updateSpeakerTag } from '@/lib/db/speakerTags';
 import { createEmptySpeakerSegmentAfter, createEmptySpeakerSegmentBefore, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment, updateSpeakerSegmentData, EditableSpeakerSegmentData, extractSpeakerSegment, addUtteranceToSegment } from '@/lib/db/speakerSegments';
@@ -188,30 +188,14 @@ export function CouncilMeetingDataProvider({ children, data }: {
 
     const deleteEmptySegment = useCallback(async (segmentId: string) => {
         await deleteEmptySpeakerSegment(segmentId, cityId);
-
-        // Decide tag-state changes outside `setTranscript`'s updater to keep
-        // it pure. Refs always hold the latest committed state.
-        const segmentsMap = speakerSegmentsMapRef.current;
-        const deletedSpeakerTagId = segmentsMap.get(segmentId)?.speakerTagId;
-        let tagUsageCount = 0;
-        if (deletedSpeakerTagId) {
-            segmentsMap.forEach(s => {
-                if (s.speakerTagId === deletedSpeakerTagId) tagUsageCount++;
-            });
-        }
-
         setTranscript(prev => prev.filter(s => s.id !== segmentId));
-
-        if (deletedSpeakerTagId) {
-            // If we're removing the last segment for this tag, drop the tag.
-            // Otherwise still bump speakerTags' identity so SpeakerSegment
-            // (subscribed to meta context) re-renders with the updated
-            // segment count for the shared tag.
-            setSpeakerTags(prev => tagUsageCount === 1
-                ? prev.filter(t => t.id !== deletedSpeakerTagId)
-                : [...prev]
-            );
-        }
+        // Bump speakerTags' identity so SpeakerSegment (subscribed to meta
+        // context) re-renders with the updated segment count for any shared
+        // tag. The auto-prune effect below drops the tag entirely if the
+        // deletion leaves it orphaned — that derivation is robust under
+        // batched deletes that a manual ref-check inside the action wouldn't
+        // get right.
+        setSpeakerTags(prev => [...prev]);
     }, [cityId]);
 
     const updateSpeakerSegmentDataAction = useCallback(async (segmentId: string, editData: EditableSpeakerSegmentData) => {
@@ -326,6 +310,19 @@ export function CouncilMeetingDataProvider({ children, data }: {
             counts.set(segment.speakerTag.id, count + 1);
         });
         return counts;
+    }, [transcript]);
+
+    // Auto-prune speakerTags whose segments are gone. Deriving this from the
+    // committed transcript is robust under batched deletes (a synchronous
+    // ref-check inside `deleteEmptySegment` would race when two segments with
+    // the same tag are deleted before React re-renders).
+    useEffect(() => {
+        setSpeakerTags(prev => {
+            const usedTagIds = new Set<string>();
+            for (const segment of transcript) usedTagIds.add(segment.speakerTagId);
+            const filtered = prev.filter(tag => usedTagIds.has(tag.id));
+            return filtered.length === prev.length ? prev : filtered;
+        });
     }, [transcript]);
 
     // Stable-identity getters: read the latest Map via a ref so the function
