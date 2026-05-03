@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     const raw = await request.json()
     const parsed = createAdminUserSchema.safeParse(raw)
     if (!parsed.success) {
-        return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+        return handleApiError(parsed.error, "Validation failed")
     }
     const { email, name, isSuperAdmin, administers } = parsed.data
 
@@ -65,7 +65,7 @@ export async function PUT(request: Request) {
     const raw = await request.json()
     const parsed = updateAdminUserSchema.safeParse(raw)
     if (!parsed.success) {
-        return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+        return handleApiError(parsed.error, "Validation failed")
     }
     const { id, email, name, isSuperAdmin, administers } = parsed.data
 
