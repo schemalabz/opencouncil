@@ -120,7 +120,9 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
             name: name || null,
             isSuperAdmin: formData.get("isSuperAdmin") === "on",
             administers: selectedEntities.map(entity => ({
-                [entity.type]: { connect: { id: entity.id } }
+                cityId: entity.type === 'city' ? entity.id : null,
+                partyId: entity.type === 'party' ? entity.id : null,
+                personId: entity.type === 'person' ? entity.id : null,
             }))
         }
 
