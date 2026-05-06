@@ -89,6 +89,8 @@ describe('renderMinutesDocx', () => {
                         ],
                         againstMembers: [],
                         abstainMembers: [],
+                        presentMembers: [],
+                        didNotVoteMembers: [],
                         absentMembers: [
                             { personId: 'p3', name: 'Νίκος Δημητρίου', party: 'ΠΑΣΟΚ', isPartyHead: false, role: null },
                         ],

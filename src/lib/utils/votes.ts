@@ -4,6 +4,10 @@ export interface VoteResultSummary {
     forCount: number;
     againstCount: number;
     abstainCount: number;
+    /** Members who declared ΠΑΡΩΝ — present but not participating (not counted in totalVotes) */
+    presentCount: number;
+    /** Members who declared ΑΠΟΧΗ — declined to participate (not counted in totalVotes) */
+    didNotVoteCount: number;
     totalVotes: number;
     isUnanimous: boolean;
     passed: boolean;
@@ -13,6 +17,8 @@ export function calculateVoteResult(votes: { voteType: VoteType }[]): VoteResult
     let forCount = 0;
     let againstCount = 0;
     let abstainCount = 0;
+    let presentCount = 0;
+    let didNotVoteCount = 0;
 
     for (const vote of votes) {
         switch (vote.voteType) {
@@ -25,12 +31,19 @@ export function calculateVoteResult(votes: { voteType: VoteType }[]): VoteResult
             case 'ABSTAIN':
                 abstainCount++;
                 break;
+            case 'PRESENT':
+                presentCount++;
+                break;
+            case 'DID_NOT_VOTE':
+                didNotVoteCount++;
+                break;
         }
     }
 
+    // PRESENT and DID_NOT_VOTE are declarations, not votes — excluded from totalVotes
     const totalVotes = forCount + againstCount + abstainCount;
     const passed = forCount > againstCount;
     const isUnanimous = totalVotes > 0 && againstCount === 0 && abstainCount === 0;
 
-    return { forCount, againstCount, abstainCount, totalVotes, isUnanimous, passed };
+    return { forCount, againstCount, abstainCount, presentCount, didNotVoteCount, totalVotes, isUnanimous, passed };
 }

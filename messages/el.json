@@ -824,7 +824,9 @@
         "rejectedVerdict": "Απορρίφθηκε",
         "voteFor": "Υπέρ",
         "voteAgainst": "Κατά",
-        "voteAbstain": "Λευκό"
+        "voteAbstain": "Λευκό",
+        "votePresent": "Παρών",
+        "voteDidNotVote": "Αποχή"
     },
     "PersonCard": {
         "party": "Παράταξη",

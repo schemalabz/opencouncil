@@ -87,6 +87,8 @@ export function buildVoteResult(
     const forMembers: MinutesMember[] = [];
     const againstMembers: MinutesMember[] = [];
     const abstainMembers: MinutesMember[] = [];
+    const presentMembers: MinutesMember[] = [];
+    const didNotVoteMembers: MinutesMember[] = [];
 
     const voterIds = new Set<string>();
     for (const v of sortedVotes) {
@@ -97,6 +99,8 @@ export function buildVoteResult(
             case 'FOR': forMembers.push(member); break;
             case 'AGAINST': againstMembers.push(member); break;
             case 'ABSTAIN': abstainMembers.push(member); break;
+            case 'PRESENT': presentMembers.push(member); break;
+            case 'DID_NOT_VOTE': didNotVoteMembers.push(member); break;
         }
     }
 
@@ -111,7 +115,7 @@ export function buildVoteResult(
 
     const { passed, isUnanimous } = calculateVoteResult(votes);
 
-    return { forMembers, againstMembers, abstainMembers, absentMembers, passed, isUnanimous };
+    return { forMembers, againstMembers, abstainMembers, presentMembers, didNotVoteMembers, absentMembers, passed, isUnanimous };
 }
 
 /**

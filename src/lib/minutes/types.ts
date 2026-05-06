@@ -26,6 +26,10 @@ export interface MinutesVoteResult {
     forMembers: MinutesMember[];
     againstMembers: MinutesMember[];
     abstainMembers: MinutesMember[];
+    /** Members who declared physical presence but did not participate in the vote (ΠΑΡΩΝ) */
+    presentMembers: MinutesMember[];
+    /** Members who declined to participate (ΑΠΟΧΗ) */
+    didNotVoteMembers: MinutesMember[];
     absentMembers: MinutesMember[];
     passed: boolean;
     isUnanimous: boolean;

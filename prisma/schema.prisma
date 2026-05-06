@@ -161,6 +161,7 @@ model Person {
   speakerContributions SpeakerContribution[]
   subjectAttendance SubjectAttendance[]
   subjectVotes SubjectVote[]
+  meetingAttendance MeetingAttendance[]
 
   @@index([cityId])
 }
@@ -190,6 +191,7 @@ model CouncilMeeting {
   highlights Highlight[]
   subjects Subject[]
   podcastSpecs PodcastSpec[]
+  meetingAttendance MeetingAttendance[]
 
   notifications Notification[]
   meetingOperator MeetingOperator?
@@ -238,6 +240,7 @@ model TaskStatus {
   decisions Decision[]
   subjectAttendance SubjectAttendance[]
   subjectVotes SubjectVote[]
+  meetingAttendance MeetingAttendance[]
 
   @@index([councilMeetingId, cityId])
 }
@@ -533,6 +536,32 @@ enum AttendanceStatus {
   ABSENT
 }
 
+model MeetingAttendance {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  councilMeeting   CouncilMeeting @relation(fields: [cityId, councilMeetingId], references: [cityId, id], onDelete: Cascade)
+  councilMeetingId String
+  cityId           String
+
+  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  personId String
+
+  status AttendanceStatus // PRESENT | ABSENT at session start (initial roll call)
+  source DataSource       // decision | transcript | manual
+
+  // Track whether added by task or manually by user
+  task      TaskStatus? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  taskId    String?
+  createdBy User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String?
+
+  @@unique([councilMeetingId, cityId, personId, source])
+  @@index([councilMeetingId, cityId])
+  @@index([personId])
+}
+
 model SubjectVote {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -559,9 +588,11 @@ model SubjectVote {
 }
 
 enum VoteType {
-  FOR      // ΥΠΕΡ
-  AGAINST  // ΚΑΤΑ
-  ABSTAIN  // ΛΕΥΚΟ
+  FOR           // ΥΠΕΡ — vote in favor
+  AGAINST       // ΚΑΤΑ — vote against
+  ABSTAIN       // ΛΕΥΚΟ — vote with no position (counts as a vote)
+  PRESENT       // ΠΑΡΩΝ — physically present but not participating in the vote (declaration, not a vote)
+  DID_NOT_VOTE  // ΑΠΟΧΗ — declined to participate (declaration, not a vote)
 }
 
 enum DataSource {
@@ -772,6 +803,7 @@ model User {
   meetingOperatorAssignments MeetingOperator[]
   subjectAttendance SubjectAttendance[]
   subjectVotes SubjectVote[]
+  meetingAttendance MeetingAttendance[]
   serviceApiKeys ServiceApiKey[]
 }
  

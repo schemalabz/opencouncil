@@ -265,6 +265,18 @@ function SubjectFooter({ subject }: { subject: MinutesSubject }) {
                             {formatMemberList(subject.voteResult.abstainMembers)}
                         </p>
                     )}
+                    {subject.voteResult.presentMembers.length > 0 && (
+                        <p className="my-0.5">
+                            <span className="font-bold">ΠΑΡΟΝΤΕΣ ({subject.voteResult.presentMembers.length}): </span>
+                            {formatMemberList(subject.voteResult.presentMembers)}
+                        </p>
+                    )}
+                    {subject.voteResult.didNotVoteMembers.length > 0 && (
+                        <p className="my-0.5">
+                            <span className="font-bold">ΑΠΟΧΗ ({subject.voteResult.didNotVoteMembers.length}): </span>
+                            {formatMemberList(subject.voteResult.didNotVoteMembers)}
+                        </p>
+                    )}
                     {subject.voteResult.absentMembers.length > 0 && (
                         <p className="my-0.5">
                             <span className="font-bold">ΑΠΟΝΤΕΣ ({subject.voteResult.absentMembers.length}): </span>

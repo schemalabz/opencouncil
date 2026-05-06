@@ -377,6 +377,8 @@ function createSubjectSection(subject: MinutesSubject): (Paragraph | Table)[] {
             { label: 'ΥΠΕΡ', members: subject.voteResult.forMembers },
             { label: 'ΚΑΤΑ', members: subject.voteResult.againstMembers },
             { label: 'ΛΕΥΚΑ', members: subject.voteResult.abstainMembers },
+            { label: 'ΠΑΡΟΝΤΕΣ', members: subject.voteResult.presentMembers },
+            { label: 'ΑΠΟΧΗ', members: subject.voteResult.didNotVoteMembers },
             { label: 'ΑΠΟΝΤΕΣ', members: subject.voteResult.absentMembers },
         ];
         for (const { label, members } of voteCategories) {

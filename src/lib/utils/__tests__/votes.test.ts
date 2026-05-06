@@ -12,6 +12,8 @@ describe('calculateVoteResult', () => {
             forCount: 0,
             againstCount: 0,
             abstainCount: 0,
+            presentCount: 0,
+            didNotVoteCount: 0,
             totalVotes: 0,
             isUnanimous: false,
             passed: false,
