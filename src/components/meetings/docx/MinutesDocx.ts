@@ -7,6 +7,7 @@ import {
 } from 'docx';
 import { formatTimestamp } from '@/lib/utils';
 import { formatGapDuration } from '@/lib/formatters/time';
+import { getAbsentLabel, extractFirstName } from '@/lib/formatters/name';
 import { markdownToDocxParagraphs } from '@/lib/minutes/markdownToDocx';
 import { getWithdrawnLabel } from '@/lib/utils/subjects';
 import {
@@ -135,7 +136,7 @@ function createCouncilCompositionSection(
             children: [
                 new TextRun({ text: 'ΔΗΜΑΡΧΟΣ: ', bold: true, size: FONT_SIZE.BODY }),
                 new TextRun({ text: composition.mayor.name, size: FONT_SIZE.BODY }),
-                ...(isAbsent ? [new TextRun({ text: ' (ΑΠΩΝ)', size: FONT_SIZE.BODY, color: '666666' })] : []),
+                ...(isAbsent ? [new TextRun({ text: ` (${getAbsentLabel(extractFirstName(composition.mayor.name, 'surnameFirst'))})`, size: FONT_SIZE.BODY, color: '666666' })] : []),
             ],
         }));
     }
@@ -147,7 +148,7 @@ function createCouncilCompositionSection(
             children: [
                 new TextRun({ text: 'ΠΡΟΕΔΡΟΣ: ', bold: true, size: FONT_SIZE.BODY }),
                 new TextRun({ text: composition.president.name, size: FONT_SIZE.BODY }),
-                ...(isAbsent ? [new TextRun({ text: ' (ΑΠΩΝ)', size: FONT_SIZE.BODY, color: '666666' })] : []),
+                ...(isAbsent ? [new TextRun({ text: ` (${getAbsentLabel(extractFirstName(composition.president.name, 'surnameFirst'))})`, size: FONT_SIZE.BODY, color: '666666' })] : []),
             ],
         }));
     }

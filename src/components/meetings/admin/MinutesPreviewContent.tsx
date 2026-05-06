@@ -2,6 +2,7 @@
 
 import { formatTimestamp } from '@/lib/utils';
 import { formatGapDuration } from '@/lib/formatters/time';
+import { getAbsentLabel, extractFirstName } from '@/lib/formatters/name';
 import { el } from 'date-fns/locale';
 import { formatInTimeZone } from 'date-fns-tz';
 import {
@@ -92,7 +93,7 @@ function CouncilCompositionSection({ composition, absentMembers }: {
                     <span className="font-bold">ΔΗΜΑΡΧΟΣ: </span>
                     {composition.mayor.name}
                     {absentPersonIds.has(composition.mayor.personId) && (
-                        <span className="text-gray-500"> (ΑΠΩΝ)</span>
+                        <span className="text-gray-500"> ({getAbsentLabel(extractFirstName(composition.mayor.name, 'surnameFirst'))})</span>
                     )}
                 </p>
             )}
@@ -102,7 +103,7 @@ function CouncilCompositionSection({ composition, absentMembers }: {
                     <span className="font-bold">ΠΡΟΕΔΡΟΣ: </span>
                     {composition.president.name}
                     {absentPersonIds.has(composition.president.personId) && (
-                        <span className="text-gray-500"> (ΑΠΩΝ)</span>
+                        <span className="text-gray-500"> ({getAbsentLabel(extractFirstName(composition.president.name, 'surnameFirst'))})</span>
                     )}
                 </p>
             )}
