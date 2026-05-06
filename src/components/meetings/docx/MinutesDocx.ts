@@ -110,27 +110,44 @@ function createTitlePage(data: MinutesData): Paragraph[] {
     ];
 }
 
-function createCouncilCompositionSection(composition: MinutesCouncilComposition): Paragraph[] {
+/**
+ * Renders the council composition section (ΣΥΝΘΕΣΗ ΔΗΜΟΤΙΚΟΥ ΣΥΜΒΟΥΛΙΟΥ)
+ * and the absent members section (ΑΠΟΝΤΕΣ) if initial roll call data is available.
+ *
+ * Mayor/president absence is derived from the absent members list rather than
+ * being stored on the composition itself — attendance and composition are
+ * independent concerns.
+ *
+ * @param composition - Council members, mayor, and president (structural, no attendance)
+ * @param absentMembers - Members absent at session start (from MeetingAttendance), or null if no roll call data
+ */
+function createCouncilCompositionSection(
+    composition: MinutesCouncilComposition,
+    absentMembers: MinutesMember[] | null,
+): Paragraph[] {
     const paragraphs: Paragraph[] = [];
+    const absentPersonIds = new Set(absentMembers?.map(m => m.personId) ?? []);
 
     if (composition.mayor) {
+        const isAbsent = absentPersonIds.has(composition.mayor.personId);
         paragraphs.push(new Paragraph({
             spacing: { before: 200, after: 80 },
             children: [
                 new TextRun({ text: 'ΔΗΜΑΡΧΟΣ: ', bold: true, size: FONT_SIZE.BODY }),
                 new TextRun({ text: composition.mayor.name, size: FONT_SIZE.BODY }),
-                ...(!composition.mayor.present ? [new TextRun({ text: ' (ΑΠΩΝ)', size: FONT_SIZE.BODY, color: '666666' })] : []),
+                ...(isAbsent ? [new TextRun({ text: ' (ΑΠΩΝ)', size: FONT_SIZE.BODY, color: '666666' })] : []),
             ],
         }));
     }
 
     if (composition.president) {
+        const isAbsent = absentPersonIds.has(composition.president.personId);
         paragraphs.push(new Paragraph({
             spacing: { before: 80, after: 200 },
             children: [
                 new TextRun({ text: 'ΠΡΟΕΔΡΟΣ: ', bold: true, size: FONT_SIZE.BODY }),
                 new TextRun({ text: composition.president.name, size: FONT_SIZE.BODY }),
-                ...(!composition.president.present ? [new TextRun({ text: ' (ΑΠΩΝ)', size: FONT_SIZE.BODY, color: '666666' })] : []),
+                ...(isAbsent ? [new TextRun({ text: ' (ΑΠΩΝ)', size: FONT_SIZE.BODY, color: '666666' })] : []),
             ],
         }));
     }
@@ -154,6 +171,21 @@ function createCouncilCompositionSection(composition: MinutesCouncilComposition)
             children.push(new TextRun({ text: ` (${partyLabel})`, size: FONT_SIZE.BODY, color: '666666' }));
         }
         paragraphs.push(new Paragraph({ bullet: { level: 0 }, spacing: { before: 40, after: 40 }, children }));
+    }
+
+    // Absent members — inline list, only shown when we have initial roll call data.
+    // Mayor is excluded from the list (shown with (ΑΠΩΝ/ΑΠΟΥΣΑ) tag on their own line above).
+    const absentListMembers = absentMembers?.filter(m =>
+        !composition.mayor || m.personId !== composition.mayor.personId
+    );
+    if (absentListMembers && absentListMembers.length > 0) {
+        paragraphs.push(new Paragraph({
+            spacing: { before: 200, after: 80 },
+            children: [
+                new TextRun({ text: `ΑΠΟΝΤΕΣ (${absentListMembers.length}): `, bold: true, size: FONT_SIZE.BODY }),
+                new TextRun({ text: absentListMembers.map(m => m.name).join(', '), size: FONT_SIZE.BODY }),
+            ],
+        }));
     }
 
     paragraphs.push(new Paragraph({ pageBreakBefore: true }));
@@ -413,9 +445,9 @@ export async function renderMinutesDocx(data: MinutesData): Promise<Blob> {
     // Title page
     children.push(...createTitlePage(data));
 
-    // Council composition
+    // Council composition + absent members
     if (data.councilComposition) {
-        children.push(...createCouncilCompositionSection(data.councilComposition));
+        children.push(...createCouncilCompositionSection(data.councilComposition, data.absentMembers));
     }
 
     // Table of contents (split into ΕΚΤΟΣ ΗΔ + ΗΔ tables)

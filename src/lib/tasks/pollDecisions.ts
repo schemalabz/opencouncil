@@ -1282,24 +1282,28 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
 
         // --- Store meeting-level initial attendance (roll call) ---
         if (result.extractions.initialAttendance && result.extractions.initialAttendance.length > 0) {
-            const cityId = task.cityId!;
-            const meetingId = task.councilMeetingId!;
-            await prisma.$transaction(async (tx) => {
-                await tx.meetingAttendance.deleteMany({
-                    where: { cityId, councilMeetingId: meetingId, source: DataSource.decision },
+            try {
+                const cityId = task.cityId!;
+                const meetingId = task.councilMeetingId!;
+                await prisma.$transaction(async (tx) => {
+                    await tx.meetingAttendance.deleteMany({
+                        where: { cityId, councilMeetingId: meetingId, source: DataSource.decision },
+                    });
+                    await tx.meetingAttendance.createMany({
+                        data: result.extractions!.initialAttendance!.map(a => ({
+                            cityId,
+                            councilMeetingId: meetingId,
+                            personId: a.personId,
+                            status: a.status,
+                            source: DataSource.decision,
+                            taskId,
+                        })),
+                    });
                 });
-                await tx.meetingAttendance.createMany({
-                    data: result.extractions!.initialAttendance!.map(a => ({
-                        cityId,
-                        councilMeetingId: meetingId,
-                        personId: a.personId,
-                        status: a.status,
-                        source: DataSource.decision,
-                        taskId,
-                    })),
-                });
-            });
-            console.log(`Stored ${result.extractions.initialAttendance.length} meeting-level attendance records`);
+                console.log(`Stored ${result.extractions.initialAttendance.length} meeting-level attendance records`);
+            } catch (error) {
+                console.error('Failed to store meeting-level attendance:', error);
+            }
         }
 
         if (result.extractions.warnings.length > 0) {

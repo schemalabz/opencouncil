@@ -120,36 +120,39 @@ export function buildVoteResult(
 
 /**
  * Builds the overall council composition for the meeting.
+ * Pure structural data — no attendance dependency. Lists all council members
+ * sorted by elected order, plus mayor and president.
  *
- * @param attendance - The attendance split (already excludes mayor)
- * @param rawPresentIds - Set of person IDs marked present (from raw extracted data, includes mayor)
+ * @param members - All council members resolved as MinutesMember
  * @param mayor - Mayor info, or null if not found
  * @param president - Council president info, or null if not found
  * @param mayorPersonId - Mayor's person ID (to exclude from members list)
+ * @param getElectedOrder - Resolver for council election order
  */
 export function buildCouncilComposition(
-    attendance: MinutesAttendance,
-    rawPresentIds: Set<string>,
+    members: MinutesMember[],
     mayor: { name: string; personId: string } | null,
     president: { name: string; personId: string } | null,
     mayorPersonId: string | null,
     getElectedOrder: ElectedOrderGetter,
 ): MinutesCouncilComposition {
     const mayorResult: MinutesCouncilComposition['mayor'] = mayor
-        ? { name: formatSurnameFirst(mayor.name), present: rawPresentIds.has(mayor.personId) }
+        ? { name: formatSurnameFirst(mayor.name), personId: mayor.personId }
         : null;
 
     const presidentResult: MinutesCouncilComposition['president'] = president
-        ? { name: formatSurnameFirst(president.name), present: rawPresentIds.has(president.personId) }
+        ? { name: formatSurnameFirst(president.name), personId: president.personId }
         : null;
 
     // Exclude mayor from members list — they're shown separately
-    const allMembers = [...attendance.present, ...attendance.absent]
-        .filter(m => m.personId !== mayorPersonId);
-    allMembers.sort((a, b) => sortByElectedOrder(a, b, getElectedOrder));
+    const sortedMembers = members
+        .filter(m => m.personId !== mayorPersonId)
+        .sort((a, b) => sortByElectedOrder(a, b, getElectedOrder));
 
-    return { mayor: mayorResult, president: presidentResult, members: allMembers };
+    return { mayor: mayorResult, president: presidentResult, members: sortedMembers };
 }
+
+
 
 interface SortableSubject {
     id: string;

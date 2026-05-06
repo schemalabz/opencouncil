@@ -1,6 +1,6 @@
 import { getCouncilMeeting } from '@/lib/db/meetings';
 import { getSubjectsForMeeting } from '@/lib/db/subject';
-import { getExtractedDataForMeeting, SubjectExtractedData } from '@/lib/db/decisions';
+import { getExtractedDataForMeeting, getMeetingAttendance, SubjectExtractedData } from '@/lib/db/decisions';
 import { getPeopleForCity } from '@/lib/db/people';
 import { getCity } from '@/lib/db/cities';
 import { getSpeakerDisplayInfo, isRoleActiveAt, isMayorRole, simplifyRoleName } from '@/lib/utils/roles';
@@ -18,6 +18,7 @@ import {
     buildVoteResult,
     buildCouncilComposition,
     sortSubjectsByDiscussionOrder,
+    sortByElectedOrder,
     MemberResolver,
     ElectedOrderGetter,
 } from './builders';
@@ -28,12 +29,13 @@ export async function getMinutesData(
     cityId: string,
     meetingId: string,
 ): Promise<MinutesData> {
-    const [meeting, city, subjects, extractedData, people] = await Promise.all([
+    const [meeting, city, subjects, extractedData, people, meetingAttendance] = await Promise.all([
         getCouncilMeeting(cityId, meetingId),
         getCity(cityId),
         getSubjectsForMeeting(cityId, meetingId),
         getExtractedDataForMeeting(cityId, meetingId),
         getPeopleForCity(cityId),
+        getMeetingAttendance(cityId, meetingId),
     ]);
 
     if (!meeting) {
@@ -363,15 +365,10 @@ export async function getMinutesData(
     });
 
     // Council composition: all members sorted by elected order,
-    // plus mayor and president of the administrative body
-    const firstSubjectWithAttendance = sortedSubjects.find(s => extractedDataMap.get(s.id)?.attendance?.length);
-    const overallExtractedData = firstSubjectWithAttendance ? extractedDataMap.get(firstSubjectWithAttendance.id)! : null;
-    const overallAttendance = overallExtractedData
-        ? buildAttendance(overallExtractedData.attendance, mayorPersonId, resolveMember, getElectedOrder)
-        : null;
+    // plus mayor and president of the administrative body.
+    // Built from roles — no attendance dependency.
     const adminBodyId = meeting.administrativeBody?.id ?? null;
 
-    // Find mayor and president for council composition
     const mayorPerson = mayorPersonId ? people.find(p => p.id === mayorPersonId) : null;
     const mayor = mayorPerson ? { personId: mayorPerson.id, name: mayorPerson.name } : null;
 
@@ -389,15 +386,26 @@ export async function getMinutesData(
         }
     }
 
+    // Council composition and absent members both come from the initial roll call
+    // (MeetingAttendance). The composition IS present + absent — the full council
+    // as recorded at the start of the meeting.
     let councilCompositionResult = null;
-    if (overallAttendance && overallExtractedData) {
-        const rawPresentIds = new Set(
-            overallExtractedData.attendance.filter(a => a.status === 'PRESENT').map(a => a.personId)
-        );
+    let absentMembers: MinutesMember[] | null = null;
+
+    if (meetingAttendance.length > 0) {
+        const allMembers = meetingAttendance
+            .map(a => resolveMember(a.personId, a.person.name));
+
         councilCompositionResult = buildCouncilComposition(
-            overallAttendance, rawPresentIds, mayor, president, mayorPersonId, getElectedOrder,
+            allMembers, mayor, president, mayorPersonId, getElectedOrder,
         );
+
+        absentMembers = meetingAttendance
+            .filter(a => a.status === 'ABSENT')
+            .map(a => resolveMember(a.personId, a.person.name))
+            .sort((a, b) => sortByElectedOrder(a, b, getElectedOrder));
     }
+
 
     return {
         city: {
@@ -413,6 +421,7 @@ export async function getMinutesData(
         },
         administrativeBody: meeting.administrativeBody?.name ?? null,
         councilComposition: councilCompositionResult,
+        absentMembers,
         preambleEntries,
         subjects: minutesSubjects,
         epilogueEntries,

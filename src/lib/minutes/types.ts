@@ -11,14 +11,9 @@ export interface MinutesAttendance {
     absent: MinutesMember[];
 }
 
-export interface MinutesOfficialRole {
-    name: string;
-    present: boolean;
-}
-
 export interface MinutesCouncilComposition {
-    mayor: MinutesOfficialRole | null;
-    president: MinutesOfficialRole | null;
+    mayor: { name: string; personId: string } | null;
+    president: { name: string; personId: string } | null;
     members: MinutesMember[];
 }
 
@@ -94,6 +89,8 @@ export interface MinutesData {
     };
     administrativeBody: string | null;
     councilComposition: MinutesCouncilComposition | null;
+    /** Members absent at the start of the meeting (initial roll call) */
+    absentMembers: MinutesMember[] | null;
     /** Orphaned utterances before the first subject (opening remarks, procedural content) */
     preambleEntries: MinutesTranscriptEntry[];
     subjects: MinutesSubject[];

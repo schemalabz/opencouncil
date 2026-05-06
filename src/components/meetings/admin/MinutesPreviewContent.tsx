@@ -48,9 +48,9 @@ export function MinutesPreviewContent({ data }: MinutesPreviewContentProps) {
 
             <hr className="my-8 border-gray-300" />
 
-            {/* Council Composition */}
+            {/* Council Composition + Absent Members */}
             {data.councilComposition && (
-                <CouncilCompositionSection composition={data.councilComposition} />
+                <CouncilCompositionSection composition={data.councilComposition} absentMembers={data.absentMembers} />
             )}
 
             {/* Table of Contents */}
@@ -79,14 +79,19 @@ export function MinutesPreviewContent({ data }: MinutesPreviewContentProps) {
     );
 }
 
-function CouncilCompositionSection({ composition }: { composition: MinutesCouncilComposition }) {
+function CouncilCompositionSection({ composition, absentMembers }: {
+    composition: MinutesCouncilComposition;
+    absentMembers: MinutesMember[] | null;
+}) {
+    const absentPersonIds = new Set(absentMembers?.map(m => m.personId) ?? []);
+
     return (
         <div className="mb-8">
             {composition.mayor && (
                 <p className="text-sm mb-1">
                     <span className="font-bold">ΔΗΜΑΡΧΟΣ: </span>
                     {composition.mayor.name}
-                    {!composition.mayor.present && (
+                    {absentPersonIds.has(composition.mayor.personId) && (
                         <span className="text-gray-500"> (ΑΠΩΝ)</span>
                     )}
                 </p>
@@ -96,7 +101,7 @@ function CouncilCompositionSection({ composition }: { composition: MinutesCounci
                 <p className="text-sm mb-4">
                     <span className="font-bold">ΠΡΟΕΔΡΟΣ: </span>
                     {composition.president.name}
-                    {!composition.president.present && (
+                    {absentPersonIds.has(composition.president.personId) && (
                         <span className="text-gray-500"> (ΑΠΩΝ)</span>
                     )}
                 </p>
@@ -115,6 +120,19 @@ function CouncilCompositionSection({ composition }: { composition: MinutesCounci
                     </li>
                 ))}
             </ul>
+
+            {absentMembers && absentMembers.length > 0 && (() => {
+                const absentListMembers = absentMembers.filter(m =>
+                    !composition.mayor || m.personId !== composition.mayor.personId
+                );
+                return absentListMembers.length > 0 ? (
+                    <p className="text-sm mt-4">
+                        <span className="font-bold">ΑΠΟΝΤΕΣ ({absentListMembers.length}): </span>
+                        {absentListMembers.map(m => m.name).join(', ')}
+                    </p>
+                ) : null;
+            })()}
+
 
             <hr className="my-8 border-gray-300" />
         </div>
