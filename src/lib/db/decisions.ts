@@ -1,5 +1,5 @@
 import prisma from './prisma';
-import { AttendanceStatus, DataSource, Decision, TaskStatus, User, VoteType } from '@prisma/client';
+import { AttendanceStatus, DataSource, Decision, Prisma, TaskStatus, User, VoteType } from '@prisma/client';
 
 export type DecisionWithSource = Decision & {
     task: TaskStatus | null;
@@ -90,6 +90,9 @@ export async function clearExtractedDataForMeeting(cityId: string, meetingId: st
         }),
         prisma.subjectVote.deleteMany({
             where: { subjectId: { in: subjectIds }, source: DataSource.decision },
+        }),
+        prisma.meetingAttendance.deleteMany({
+            where: { cityId, councilMeetingId: meetingId, source: DataSource.decision },
         }),
     ]);
 
@@ -184,6 +187,25 @@ export async function getExtractedDataForMeeting(
                 voteType: v.voteType,
             })),
         }));
+}
+
+const meetingAttendanceSelect = {
+    personId: true,
+    status: true,
+    person: { select: { name: true } },
+} satisfies Prisma.MeetingAttendanceSelect;
+
+export type MeetingAttendanceRecord = Prisma.MeetingAttendanceGetPayload<{ select: typeof meetingAttendanceSelect }>;
+
+export async function getMeetingAttendance(
+    cityId: string,
+    meetingId: string,
+): Promise<MeetingAttendanceRecord[]> {
+    return prisma.meetingAttendance.findMany({
+        where: { cityId, councilMeetingId: meetingId },
+        select: meetingAttendanceSelect,
+        orderBy: { person: { name: 'asc' } },
+    });
 }
 
 export async function getDecisionForSubject(subjectId: string): Promise<{

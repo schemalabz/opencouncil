@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { useTranslations } from 'next-intl';
 import { ExternalLink, Trash2, FileCheck, FileX, Loader2, Bot, UserIcon, Plus, X, Clock, ChevronRight, ChevronDown, Users, Vote, Eraser, Search } from 'lucide-react';
-import { DecisionWithSource, SubjectExtractedData } from '@/lib/db/decisions';
+import { DecisionWithSource, MeetingAttendanceRecord, SubjectExtractedData } from '@/lib/db/decisions';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
 import { getPollingHistoryForMeeting, requestPollDecisions } from '@/lib/tasks/pollDecisions';
 import { calculateVoteResult } from '@/lib/utils/votes';
@@ -88,12 +88,51 @@ function NameList({ names, label }: { names: string[]; label: string }) {
     );
 }
 
+function MeetingAttendanceSummary({ attendance }: { attendance: MeetingAttendanceRecord[] }) {
+    const [expanded, setExpanded] = useState(false);
+    const present = attendance.filter(a => a.status === 'PRESENT');
+    const absent = attendance.filter(a => a.status === 'ABSENT');
+
+    return (
+        <div className="border rounded-lg p-2.5 bg-muted/30">
+            <button
+                onClick={() => setExpanded(!expanded)}
+                className="flex items-center gap-1.5 w-full text-left"
+            >
+                {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                <Users className="h-3.5 w-3.5" />
+                <span className="text-xs font-medium">
+                    Initial roll call
+                </span>
+                <span className="text-xs text-muted-foreground ml-1">
+                    {present.length} present, {absent.length} absent ({attendance.length} total)
+                </span>
+            </button>
+            {expanded && (
+                <div className="mt-2 ml-5 space-y-1.5">
+                    <div>
+                        <span className="text-[11px] font-medium text-green-700">Present ({present.length})</span>
+                        <p className="text-[11px] text-muted-foreground">{present.map(a => a.person.name).join(', ')}</p>
+                    </div>
+                    {absent.length > 0 && (
+                        <div>
+                            <span className="text-[11px] font-medium text-red-700">Absent ({absent.length})</span>
+                            <p className="text-[11px] text-muted-foreground">{absent.map(a => a.person.name).join(', ')}</p>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
 export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
     const { toast } = useToast();
     const { subjects, meeting } = useCouncilMeetingData();
     const t = useTranslations('admin.adminActions');
     const [decisions, setDecisions] = useState<Record<string, DecisionWithSource>>({});
     const [extractedData, setExtractedData] = useState<Record<string, SubjectExtractedData>>({});
+    const [meetingAttendance, setMeetingAttendance] = useState<MeetingAttendanceRecord[]>([]);
     const [expandedManualEntry, setExpandedManualEntry] = useState<string | null>(null);
     const [expandedExtracted, setExpandedExtracted] = useState<string | null>(null);
     const [editState, setEditState] = useState<ManualEntryState>({ pdfUrl: '', ada: '', protocolNumber: '', title: '' });
@@ -113,7 +152,7 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
         try {
             const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions`);
             if (!response.ok) return;
-            const data: { decisions: DecisionWithSource[]; extractedData: SubjectExtractedData[] } = await response.json();
+            const data: { decisions: DecisionWithSource[]; extractedData: SubjectExtractedData[]; meetingAttendance: MeetingAttendanceRecord[] } = await response.json();
             const decisionMap: Record<string, DecisionWithSource> = {};
             for (const d of data.decisions) {
                 decisionMap[d.subjectId] = d;
@@ -124,6 +163,7 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                 extractedMap[e.subjectId] = e;
             }
             setExtractedData(extractedMap);
+            setMeetingAttendance(data.meetingAttendance || []);
         } catch {
             // silent
         } finally {
@@ -429,6 +469,11 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                         </div>
                     )}
                 </div>
+
+                {/* Meeting-level attendance (initial roll call) */}
+                {meetingAttendance.length > 0 && (
+                    <MeetingAttendanceSummary attendance={meetingAttendance} />
+                )}
 
                 {/* Filter tabs */}
                 <div className="flex rounded-lg border p-0.5 bg-muted/50 self-start">
