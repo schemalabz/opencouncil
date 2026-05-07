@@ -1,12 +1,18 @@
 import { SignIn } from "@/components/user/sign-in"
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
+import { safeRedirectPath } from "@/lib/safeRedirect"
 
-export default async function SignInPage() {
+export default async function SignInPage({
+    searchParams,
+}: {
+    searchParams: { callbackUrl?: string | string[] }
+}) {
     const session = await auth()
 
     if (session) {
-        redirect("/profile")
+        const raw = Array.isArray(searchParams.callbackUrl) ? searchParams.callbackUrl[0] : searchParams.callbackUrl
+        redirect(safeRedirectPath(raw))
     }
 
     return (
