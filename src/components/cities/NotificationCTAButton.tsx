@@ -2,6 +2,7 @@
 
 import { Fragment } from 'react';
 import { Bell, Mail, MessageCircle, MessageSquare, type LucideIcon } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 
 interface NotificationCTAButtonProps {
@@ -23,10 +24,9 @@ export function NotificationCTAButton({
     fullWidth = false,
     className,
 }: NotificationCTAButtonProps) {
-    const title = isSubscribed ? 'Διαχείριση ειδοποιήσεων' : 'Μείνε ενημερωμένος';
-    const subtitle = isSubscribed
-        ? 'Αλλάξτε τις προτιμήσεις σας'
-        : 'Μπορούμε να σας στέλνουμε ένα μήνυμα όποτε ο δήμος συζητάει κάτι για την γειτονιά σας!';
+    const t = useTranslations('City.notificationsCta');
+    const title = isSubscribed ? t('manageTitle') : t('title');
+    const subtitle = isSubscribed ? t('manageSubtitle') : t('subtitle');
 
     return (
         <button

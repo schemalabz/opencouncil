@@ -163,7 +163,13 @@
         "allAdministrativeBodies": "Όλα τα όργανα",
         "filterByAdminBody": "Φιλτράρισμα ανά Διοικητικό Όργανο",
         "citySections": "Ενότητες δήμου",
-        "widget": "Widget"
+        "widget": "Widget",
+        "notificationsCta": {
+            "title": "Μείνε ενημερωμένος",
+            "subtitle": "Μπορούμε να σας στέλνουμε ένα μήνυμα όποτε ο δήμος συζητάει κάτι για την γειτονιά σας!",
+            "manageTitle": "Διαχείριση ειδοποιήσεων",
+            "manageSubtitle": "Αλλάξτε τις προτιμήσεις σας"
+        }
     },
     "EmbedConfigurator": {
         "title": "Widget για την ιστοσελίδα σας",

@@ -149,7 +149,13 @@
         "allAdministrativeBodies": "All Bodies",
         "filterByAdminBody": "Filter by Administrative Body",
         "citySections": "City sections",
-        "widget": "Widget"
+        "widget": "Widget",
+        "notificationsCta": {
+            "title": "Stay informed",
+            "subtitle": "We can send you a message whenever the council discusses something about your neighborhood!",
+            "manageTitle": "Manage notifications",
+            "manageSubtitle": "Update your preferences"
+        }
     },
     "EmbedConfigurator": {
         "title": "Widget for your website",

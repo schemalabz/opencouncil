@@ -1,3 +1,5 @@
+'use client';
+
 import { AlertCircle, LogIn } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { usePathname } from 'next/navigation';
