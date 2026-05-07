@@ -32,7 +32,7 @@ export function NotificationLocationStep({ currentStep, totalSteps, onBack, onCo
   return (
     <OnboardingStepTemplate
       title="Τοποθεσίες ενδιαφέροντος"
-      description={`Επιλέξτε τοποθεσίες στον δήμο για τις οποίες θέλετε να λαμβάνετε ενημερώσεις`}
+      description={`Προσθέστε διευθύνσεις ή περιοχές που σας ενδιαφέρουν — π.χ. το σπίτι, το γραφείο, μια γειτονιά ή περιοχή του δήμου.`}
       footer={
         <OnboardingFooter
           currentStep={currentStep}

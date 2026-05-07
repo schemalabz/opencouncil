@@ -19,12 +19,12 @@ import {
     X,
     BadgeCheck,
     BadgeX,
-    Bell,
     CheckCircle2
 } from 'lucide-react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { NotificationCTAButton } from '@/components/cities/NotificationCTAButton';
 
 interface CitySheetProps {
     open: boolean;
@@ -358,17 +358,10 @@ export function CitySheet({
                         </Button>
 
                         {supportsNotifications && (
-                            <Button
+                            <NotificationCTAButton
                                 onClick={() => router.push(`/${cityId}/notifications`)}
-                                variant="outline"
-                                size="lg"
-                                className="w-full group transition-all duration-300"
-                            >
-                                <div className="relative z-10 flex items-center gap-2">
-                                    <Bell className="w-4 h-4" />
-                                    <span>Ενεργοποίηση ειδοποιήσεων</span>
-                                </div>
-                            </Button>
+                                fullWidth
+                            />
                         )}
                     </div>
                 </div>

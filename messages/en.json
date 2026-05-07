@@ -356,7 +356,8 @@
     },
     "Onboarding": {
         "errors": {
-            "emailExists": "The email {email} is already in use. Please use a different email or sign in.",
+            "emailExists": "The email {email} is already in use. Sign in to continue, or use a different email.",
+            "signInCta": "Sign in with this email",
             "genericError": "An error occurred. Please try again.",
             "loadingError": "An error occurred while loading preferences. Please try again."
         },
