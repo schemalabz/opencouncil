@@ -14,7 +14,7 @@ export function ErrorMessage({ error, emailExistsError }: ErrorMessageProps) {
 
   if (!error && !emailExistsError) return null;
 
-  const signInHref = `/sign-in?callbackUrl=${encodeURIComponent(pathname || '/')}`;
+  const signInHref = `/sign-in?callbackUrl=${encodeURIComponent(pathname)}`;
 
   return (
     <div className="rounded-md bg-red-50 p-4 mb-4 border border-red-100">
