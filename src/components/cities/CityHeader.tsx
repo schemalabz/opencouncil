@@ -4,7 +4,8 @@ import { useTranslations } from 'next-intl';
 import { useState, useEffect } from 'react';
 import FormSheet from '@/components/FormSheet';
 import CityForm from '@/components/cities/CityForm';
-import { Building2, Bell, Database, BadgeCheck, Code } from 'lucide-react';
+import { Building2, Database, BadgeCheck, Code } from 'lucide-react';
+import { NotificationCTAButton } from '@/components/cities/NotificationCTAButton';
 import { Search } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import { Link } from '@/i18n/routing';
@@ -226,24 +227,10 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage, hasNoData 
                         )}
                     </div>
                     {city.supportsNotifications && (
-                        <Button
+                        <NotificationCTAButton
                             onClick={handleNotificationSignup}
-                            size="xl"
-                            className="group transition-all duration-300"
-                        >
-                            <div className="relative z-10 flex items-center gap-2">
-                                <Bell className="w-5 h-5" />
-                                <span className="font-medium">
-                                    {hasNotifications ? 'Διαχείριση ειδοποιήσεων' : 'Ενεργοποίηση ειδοποιήσεων'}
-                                </span>
-                            </div>
-                            <motion.div
-                                className="absolute inset-0 rounded-xl bg-[hsl(var(--orange))] opacity-0 group-hover:opacity-10 transition-opacity"
-                                whileHover={{
-                                    boxShadow: "0 0 30px rgba(var(--orange), 0.5)"
-                                }}
-                            />
-                        </Button>
+                            isSubscribed={hasNotifications}
+                        />
                     )}
                     {city.status !== 'pending' && !city.officialSupport && (
                         <Button
