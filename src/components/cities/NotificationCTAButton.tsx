@@ -3,6 +3,7 @@
 import { Fragment } from 'react';
 import { Bell, Mail, MessageCircle, MessageSquare, type LucideIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface NotificationCTAButtonProps {
@@ -29,33 +30,26 @@ export function NotificationCTAButton({
     const subtitle = isSubscribed ? t('manageSubtitle') : t('subtitle');
 
     return (
-        <button
-            type="button"
-            onClick={onClick}
-            aria-label={title}
+        <div
             className={cn(
-                'group relative flex flex-col gap-2 rounded-xl border border-[hsl(var(--orange))]/30 bg-[hsl(var(--orange))]/5 px-4 py-3 text-left',
-                'transition-all hover:-translate-y-px hover:border-[hsl(var(--orange))]/60 hover:bg-[hsl(var(--orange))]/10 active:scale-[0.98]',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--orange))] focus-visible:ring-offset-2',
-                fullWidth ? 'w-full' : 'w-full sm:w-auto sm:max-w-md',
+                'flex flex-col gap-2',
+                fullWidth ? 'w-full' : 'w-full sm:max-w-sm',
                 className,
             )}
         >
-            <div className="flex items-start gap-3">
-                <div className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[hsl(var(--orange))]/15 text-[hsl(var(--orange))]">
-                    <Bell className="h-5 w-5" />
-                </div>
-                <div className="flex min-w-0 flex-col gap-0.5">
-                    <span className="text-sm font-medium leading-tight text-foreground sm:text-base">
-                        {title}
-                    </span>
-                    <span className="text-xs leading-snug text-muted-foreground">
-                        {subtitle}
-                    </span>
-                </div>
-            </div>
+            <Button
+                onClick={onClick}
+                size="lg"
+                className={fullWidth ? 'w-full' : 'w-full sm:w-auto'}
+            >
+                <Bell className="w-4 h-4 mr-2" />
+                {title}
+            </Button>
+            <p className="text-xs leading-snug text-muted-foreground">
+                {subtitle}
+            </p>
             {!isSubscribed && (
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pl-12 text-[11px] text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
                     {CHANNELS.map(({ label, Icon }, i) => (
                         <Fragment key={label}>
                             {i > 0 && <span className="opacity-40" aria-hidden="true">·</span>}
@@ -67,6 +61,6 @@ export function NotificationCTAButton({
                     ))}
                 </div>
             )}
-        </button>
+        </div>
     );
 }
