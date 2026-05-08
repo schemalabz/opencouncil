@@ -284,19 +284,16 @@ export async function getMinutesData(
             continue;
         }
 
-        // Find which subject this orphan falls before: it belongs to the first subject
-        // whose first utterance starts after this orphan
+        // Assign orphan to the next subject that starts after it. This handles both:
+        // - Orphans in the gap between subjects (the common case)
+        // - Orphans interleaved within a subject's range (e.g. OTHER utterances
+        //   between VOTE and SUBJECT_DISCUSSION of the next subject)
         let assigned = false;
         for (let i = 0; i < sortedSubjects.length; i++) {
             const bounds = subjectBounds[i];
             if (bounds.firstTs === Infinity) continue;
 
-            // Check if orphan falls between previous subject's end and this subject's start
-            const prevEnd = i > 0
-                ? Math.max(...subjectBounds.slice(0, i).filter(b => b.lastTs !== -Infinity).map(b => b.lastTs))
-                : firstSubjectTs;
-
-            if (u.startTimestamp >= prevEnd && u.startTimestamp < bounds.firstTs) {
+            if (u.startTimestamp < bounds.firstTs) {
                 const list = preDiscussionByIndex.get(i) || [];
                 list.push(u);
                 preDiscussionByIndex.set(i, list);
@@ -305,9 +302,9 @@ export async function getMinutesData(
             }
         }
 
-        // Orphans within a subject's range that weren't assigned — append to preamble
+        // Orphans after the last subject's start but before lastSubjectTs — append to epilogue
         if (!assigned) {
-            preambleUtterances.push(u);
+            epilogueUtterances.push(u);
         }
     }
 
