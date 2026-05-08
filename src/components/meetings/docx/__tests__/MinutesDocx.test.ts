@@ -7,6 +7,7 @@ function makeMinutesData(overrides: Partial<MinutesData> = {}): MinutesData {
             name: 'Ζωγράφου',
             name_municipality: 'Δήμος Ζωγράφου',
             timezone: 'Europe/Athens',
+            logoImage: null,
         },
         meeting: {
             id: 'meeting-1',

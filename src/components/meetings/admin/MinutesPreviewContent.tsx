@@ -128,8 +128,8 @@ function CouncilCompositionSection({ composition, absentMembers }: {
                 );
                 return absentListMembers.length > 0 ? (
                     <p className="text-sm mt-4">
-                        <span className="font-bold">ΑΠΟΝΤΕΣ ({absentListMembers.length}): </span>
-                        {absentListMembers.map(m => m.name).join(', ')}
+                        Κατά την έναρξη της συνεδρίασης απουσίαζαν οι {absentListMembers.map(m => m.name).join(', ')}
+                        <span className="text-gray-500"> ({absentListMembers.length})</span>
                     </p>
                 ) : null;
             })()}

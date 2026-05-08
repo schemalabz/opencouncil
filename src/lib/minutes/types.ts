@@ -80,6 +80,7 @@ export interface MinutesData {
         name: string;
         name_municipality: string;
         timezone: string;
+        logoImage: string | null;
     };
     meeting: {
         id: string;
