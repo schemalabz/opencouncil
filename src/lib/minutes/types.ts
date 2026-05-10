@@ -15,6 +15,8 @@ export interface MinutesCouncilComposition {
     mayor: { name: string; personId: string } | null;
     president: { name: string; personId: string } | null;
     members: MinutesMember[];
+    /** Substitute members (αναπληρωματικά μέλη) — only for committees */
+    substituteMembers: MinutesMember[];
 }
 
 export interface MinutesVoteResult {
@@ -88,7 +90,7 @@ export interface MinutesData {
         name: string;
         dateTime: string; // ISO string for JSON serialization
     };
-    administrativeBody: string | null;
+    administrativeBody: { name: string; type: string } | null;
     councilComposition: MinutesCouncilComposition | null;
     /** Members absent at the start of the meeting (initial roll call) */
     absentMembers: MinutesMember[] | null;

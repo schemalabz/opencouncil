@@ -119,11 +119,15 @@ export function buildVoteResult(
 }
 
 /**
- * Builds the overall council composition for the meeting.
- * Pure structural data — no attendance dependency. Lists all council members
+ * Builds the overall composition for the meeting body.
+ * Pure structural data — no attendance dependency. Lists all members
  * sorted by elected order, plus mayor and president.
  *
- * @param members - All council members resolved as MinutesMember
+ * For committees, members are split into regular (τακτικά) and substitute
+ * (αναπληρωματικά) — the caller provides them pre-split.
+ *
+ * @param members - Regular members resolved as MinutesMember
+ * @param substituteMembers - Substitute members (αναπληρωματικά μέλη)
  * @param mayor - Mayor info, or null if not found
  * @param president - Council president info, or null if not found
  * @param mayorPersonId - Mayor's person ID (to exclude from members list)
@@ -131,6 +135,7 @@ export function buildVoteResult(
  */
 export function buildCouncilComposition(
     members: MinutesMember[],
+    substituteMembers: MinutesMember[],
     mayor: { name: string; personId: string } | null,
     president: { name: string; personId: string } | null,
     mayorPersonId: string | null,
@@ -149,7 +154,11 @@ export function buildCouncilComposition(
         .filter(m => m.personId !== mayorPersonId)
         .sort((a, b) => sortByElectedOrder(a, b, getElectedOrder));
 
-    return { mayor: mayorResult, president: presidentResult, members: sortedMembers };
+    const sortedSubstitutes = substituteMembers
+        .filter(m => m.personId !== mayorPersonId)
+        .sort((a, b) => sortByElectedOrder(a, b, getElectedOrder));
+
+    return { mayor: mayorResult, president: presidentResult, members: sortedMembers, substituteMembers: sortedSubstitutes };
 }
 
 

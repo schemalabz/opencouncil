@@ -15,7 +15,7 @@ function makeMinutesData(overrides: Partial<MinutesData> = {}): MinutesData {
             name: 'Τακτική Συνεδρίαση',
             dateTime: '2024-06-15T18:00:00.000Z',
         },
-        administrativeBody: 'Δημοτικό Συμβούλιο',
+        administrativeBody: { name: 'Δημοτικό Συμβούλιο', type: 'council' },
         councilComposition: null,
         absentMembers: null,
         preambleEntries: [],
@@ -72,6 +72,8 @@ describe('renderMinutesDocx', () => {
                     { personId: 'p1', name: 'Γιώργος Παπαδόπουλος', party: 'ΝΔ', isPartyHead: false, role: 'Πρόεδρος' },
                     { personId: 'p2', name: 'Μαρία Ιωάννου', party: 'ΣΥΡΙΖΑ', isPartyHead: false, role: null },
                     { personId: 'p3', name: 'Νίκος Δημητρίου', party: 'ΠΑΣΟΚ', isPartyHead: false, role: null },
+                ],
+                substituteMembers: [
                 ],
             },
             subjects: [

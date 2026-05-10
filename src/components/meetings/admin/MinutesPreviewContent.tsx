@@ -32,7 +32,7 @@ export function MinutesPreviewContent({ data }: MinutesPreviewContentProps) {
             <div className="text-center mb-12 pt-16">
                 <p className="text-base mb-2">{data.city.name_municipality}</p>
                 {data.administrativeBody && (
-                    <p className="text-base mb-2">{data.administrativeBody}</p>
+                    <p className="text-base mb-2">{data.administrativeBody.name}</p>
                 )}
                 <h1 className="text-xl font-bold mt-6 mb-3">ΠΡΑΚΤΙΚΑ ΣΥΝΕΔΡΙΑΣΗΣ</h1>
                 <p className="text-base font-bold mb-3">{data.meeting.name}</p>
@@ -51,7 +51,7 @@ export function MinutesPreviewContent({ data }: MinutesPreviewContentProps) {
 
             {/* Council Composition + Absent Members */}
             {data.councilComposition && (
-                <CouncilCompositionSection composition={data.councilComposition} absentMembers={data.absentMembers} />
+                <CouncilCompositionSection composition={data.councilComposition} absentMembers={data.absentMembers} adminBody={data.administrativeBody} />
             )}
 
             {/* Table of Contents */}
@@ -80,15 +80,17 @@ export function MinutesPreviewContent({ data }: MinutesPreviewContentProps) {
     );
 }
 
-function CouncilCompositionSection({ composition, absentMembers }: {
+function CouncilCompositionSection({ composition, absentMembers, adminBody }: {
     composition: MinutesCouncilComposition;
     absentMembers: MinutesMember[] | null;
+    adminBody: { name: string; type: string } | null;
 }) {
     const absentPersonIds = new Set(absentMembers?.map(m => m.personId) ?? []);
+    const isCommittee = adminBody?.type === 'committee';
 
     return (
         <div className="mb-8">
-            {composition.mayor && (
+            {!isCommittee && composition.mayor && (
                 <p className="text-sm mb-1">
                     <span className="font-bold">ΔΗΜΑΡΧΟΣ: </span>
                     {composition.mayor.name}
@@ -102,41 +104,108 @@ function CouncilCompositionSection({ composition, absentMembers }: {
                 <p className="text-sm mb-4">
                     <span className="font-bold">ΠΡΟΕΔΡΟΣ: </span>
                     {composition.president.name}
+                    {isCommittee && ' (ΔΗΜΑΡΧΟΣ)'}
                     {absentPersonIds.has(composition.president.personId) && (
                         <span className="text-gray-500"> ({getAbsentLabel(extractFirstName(composition.president.name, 'surnameFirst'))})</span>
                     )}
                 </p>
             )}
 
-            <h2 className="text-base font-bold mb-3">
-                ΣΥΝΘΕΣΗ ΔΗΜΟΤΙΚΟΥ ΣΥΜΒΟΥΛΙΟΥ ({composition.members.length})
-            </h2>
-            <ul className="list-disc pl-6 space-y-1">
-                {composition.members.map((member) => (
-                    <li key={member.personId}>
-                        <span>{member.name}</span>
-                        {member.party && (
-                            <span className="text-gray-500"> ({member.party}{member.isPartyHead ? ', Επικεφαλής' : ''})</span>
-                        )}
-                    </li>
-                ))}
-            </ul>
+            {!isCommittee && (
+                <h2 className="text-base font-bold mb-3">
+                    ΣΥΝΘΕΣΗ ΔΗΜΟΤΙΚΟΥ ΣΥΜΒΟΥΛΙΟΥ ({composition.members.length})
+                </h2>
+            )}
 
-            {absentMembers && absentMembers.length > 0 && (() => {
-                const absentListMembers = absentMembers.filter(m =>
-                    !composition.mayor || m.personId !== composition.mayor.personId
-                );
-                return absentListMembers.length > 0 ? (
-                    <p className="text-sm mt-4">
-                        Κατά την έναρξη της συνεδρίασης απουσίαζαν οι {absentListMembers.map(m => m.name).join(', ')}
-                        <span className="text-gray-500"> ({absentListMembers.length})</span>
-                    </p>
-                ) : null;
-            })()}
+            {isCommittee ? (
+                <CommitteeAttendanceSection composition={composition} absentMembers={absentMembers} />
+            ) : (
+                <>
+                    <ul className="list-disc pl-6 space-y-1">
+                        {composition.members.map((member) => (
+                            <li key={member.personId}>
+                                <span>{member.name}</span>
+                                {member.party && (
+                                    <span className="text-gray-500"> ({member.party}{member.isPartyHead ? ', Επικεφαλής' : ''})</span>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
 
+                    {absentMembers && absentMembers.length > 0 && (() => {
+                        const absentListMembers = absentMembers.filter(m =>
+                            (!composition.mayor || m.personId !== composition.mayor.personId) &&
+                            (!composition.president || m.personId !== composition.president.personId)
+                        );
+                        return absentListMembers.length > 0 ? (
+                            <p className="text-sm mt-4">
+                                Κατά την έναρξη της συνεδρίασης απουσίαζαν οι {absentListMembers.map(m => m.name).join(', ')}
+                                <span className="text-gray-500"> ({absentListMembers.length})</span>
+                            </p>
+                        ) : null;
+                    })()}
+                </>
+            )}
 
             <hr className="my-8 border-gray-300" />
         </div>
+    );
+}
+
+/** Strip Greek diacritics — uppercase Greek convention omits accents (τόνοι). */
+function stripDiacritics(text: string): string {
+    return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+/**
+ * Committee-specific attendance: ΠΑΡΟΝΤΑ ΜΕΛΗ and ΑΠΟΝΤΑ ΜΕΛΗ as bullet lists,
+ * with (αναπλ. μέλος) notation for substitute members.
+ */
+function CommitteeAttendanceSection({ composition, absentMembers }: {
+    composition: MinutesCouncilComposition;
+    absentMembers: MinutesMember[] | null;
+}) {
+    const substituteIds = new Set(composition.substituteMembers.map(m => m.personId));
+    const absentPersonIds = new Set(absentMembers?.map(m => m.personId) ?? []);
+
+    const allMembers = [...composition.members, ...composition.substituteMembers];
+    const presentMembers = allMembers.filter(m => !absentPersonIds.has(m.personId));
+    const absentMembersList = allMembers.filter(m => absentPersonIds.has(m.personId));
+
+    const renderMember = (m: MinutesMember) => {
+        const labels: string[] = [];
+        if (substituteIds.has(m.personId)) labels.push('αναπλ. μέλος');
+        if (m.party) labels.push(m.isPartyHead ? `${m.party}, Επικεφαλής` : m.party);
+        return (
+            <li key={m.personId}>
+                <span>{m.name}</span>
+                {labels.length > 0 && (
+                    <span className="text-gray-500"> ({labels.join(', ')})</span>
+                )}
+            </li>
+        );
+    };
+
+    return (
+        <>
+            {presentMembers.length > 0 && (
+                <>
+                    <p className="text-sm font-bold mt-2 mb-1">ΠΑΡΟΝΤΑ ΜΕΛΗ ({presentMembers.length})</p>
+                    <ul className="list-disc pl-6 space-y-1">
+                        {presentMembers.map(renderMember)}
+                    </ul>
+                </>
+            )}
+
+            {absentMembersList.length > 0 && (
+                <>
+                    <p className="text-sm font-bold mt-4 mb-1">ΑΠΟΝΤΑ ΜΕΛΗ ({absentMembersList.length})</p>
+                    <ul className="list-disc pl-6 space-y-1">
+                        {absentMembersList.map(renderMember)}
+                    </ul>
+                </>
+            )}
+        </>
     );
 }
 

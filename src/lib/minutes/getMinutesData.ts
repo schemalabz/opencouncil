@@ -383,18 +383,37 @@ export async function getMinutesData(
         }
     }
 
-    // Council composition and absent members both come from the initial roll call
-    // (MeetingAttendance). The composition IS present + absent — the full council
-    // as recorded at the start of the meeting.
+    // Council/committee composition and absent members both come from the initial
+    // roll call (MeetingAttendance). The composition IS present + absent — the full
+    // body as recorded at the start of the meeting.
+    //
+    // For committees, members are split into regular (τακτικά) and substitute
+    // (αναπληρωματικά) based on their Role.name in the administrative body.
     let councilCompositionResult = null;
     let absentMembers: MinutesMember[] | null = null;
+
+    // Build a set of substitute member IDs (those with "Αναπληρωματικό Μέλος" role)
+    const substitutePersonIds = new Set<string>();
+    if (adminBodyId) {
+        for (const person of people) {
+            const substituteRole = person.roles.find(r =>
+                isRoleActiveAt(r, meetingDate) &&
+                r.administrativeBodyId === adminBodyId &&
+                r.name === 'Αναπληρωματικό Μέλος'
+            );
+            if (substituteRole) substitutePersonIds.add(person.id);
+        }
+    }
 
     if (meetingAttendance.length > 0) {
         const allMembers = meetingAttendance
             .map(a => resolveMember(a.personId, a.person.name));
 
+        const regularMembers = allMembers.filter(m => !substitutePersonIds.has(m.personId));
+        const substituteMembers = allMembers.filter(m => substitutePersonIds.has(m.personId));
+
         councilCompositionResult = buildCouncilComposition(
-            allMembers, mayor, president, mayorPersonId, getElectedOrder,
+            regularMembers, substituteMembers, mayor, president, mayorPersonId, getElectedOrder,
         );
 
         absentMembers = meetingAttendance
@@ -417,7 +436,9 @@ export async function getMinutesData(
             name: meeting.name,
             dateTime: meeting.dateTime.toISOString(),
         },
-        administrativeBody: meeting.administrativeBody?.name ?? null,
+        administrativeBody: meeting.administrativeBody
+            ? { name: meeting.administrativeBody.name, type: meeting.administrativeBody.type }
+            : null,
         councilComposition: councilCompositionResult,
         absentMembers,
         preambleEntries,

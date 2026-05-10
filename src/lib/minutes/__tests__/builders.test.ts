@@ -307,7 +307,7 @@ describe('buildCouncilComposition', () => {
         const mayor = { personId: 'mayor-1', name: 'Dimitris Antoniou' };
 
         const result = buildCouncilComposition(
-            members, mayor, null, 'mayor-1', noElectedOrder,
+            members, [], mayor, null, 'mayor-1', noElectedOrder,
         );
 
         expect(result.mayor).toEqual({ name: 'Antoniou Dimitris', personId: 'mayor-1' });
@@ -318,7 +318,7 @@ describe('buildCouncilComposition', () => {
         const president = { personId: 'pres-1', name: 'Giorgos Papadopoulos' };
 
         const result = buildCouncilComposition(
-            members, null, president, null, noElectedOrder,
+            members, [], null, president, null, noElectedOrder,
         );
 
         expect(result.president).toEqual({ name: 'Papadopoulos Giorgos', personId: 'pres-1' });
@@ -332,7 +332,7 @@ describe('buildCouncilComposition', () => {
         ];
 
         const result = buildCouncilComposition(
-            members, null, null, 'mayor-1', noElectedOrder,
+            members, [], null, null, 'mayor-1', noElectedOrder,
         );
 
         expect(result.members.map(m => m.personId)).toEqual(['p1', 'p2']);
@@ -347,7 +347,7 @@ describe('buildCouncilComposition', () => {
         const electedOrder = makeElectedOrder({ p1: 3, p2: 1, p3: 2 });
 
         const result = buildCouncilComposition(
-            members, null, null, null, electedOrder,
+            members, [], null, null, null, electedOrder,
         );
 
         expect(result.members.map(m => m.personId)).toEqual(['p2', 'p3', 'p1']);
@@ -357,7 +357,7 @@ describe('buildCouncilComposition', () => {
         const members = [makeMember('p1', 'Alice')];
 
         const result = buildCouncilComposition(
-            members, null, null, null, noElectedOrder,
+            members, [], null, null, null, noElectedOrder,
         );
 
         expect(result.mayor).toBeNull();
