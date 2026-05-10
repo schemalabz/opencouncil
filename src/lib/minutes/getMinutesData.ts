@@ -1,6 +1,6 @@
 import { getCouncilMeeting } from '@/lib/db/meetings';
 import { getSubjectsForMeeting } from '@/lib/db/subject';
-import { getExtractedDataForMeeting, SubjectExtractedData } from '@/lib/db/decisions';
+import { getExtractedDataForMeeting, getMeetingAttendance, SubjectExtractedData } from '@/lib/db/decisions';
 import { getPeopleForCity } from '@/lib/db/people';
 import { getCity } from '@/lib/db/cities';
 import { getSpeakerDisplayInfo, isRoleActiveAt, isMayorRole, simplifyRoleName } from '@/lib/utils/roles';
@@ -18,6 +18,7 @@ import {
     buildVoteResult,
     buildCouncilComposition,
     sortSubjectsByDiscussionOrder,
+    sortByElectedOrder,
     MemberResolver,
     ElectedOrderGetter,
 } from './builders';
@@ -28,12 +29,13 @@ export async function getMinutesData(
     cityId: string,
     meetingId: string,
 ): Promise<MinutesData> {
-    const [meeting, city, subjects, extractedData, people] = await Promise.all([
+    const [meeting, city, subjects, extractedData, people, meetingAttendance] = await Promise.all([
         getCouncilMeeting(cityId, meetingId),
         getCity(cityId),
         getSubjectsForMeeting(cityId, meetingId),
         getExtractedDataForMeeting(cityId, meetingId),
         getPeopleForCity(cityId),
+        getMeetingAttendance(cityId, meetingId),
     ]);
 
     if (!meeting) {
@@ -282,19 +284,16 @@ export async function getMinutesData(
             continue;
         }
 
-        // Find which subject this orphan falls before: it belongs to the first subject
-        // whose first utterance starts after this orphan
+        // Assign orphan to the next subject that starts after it. This handles both:
+        // - Orphans in the gap between subjects (the common case)
+        // - Orphans interleaved within a subject's range (e.g. OTHER utterances
+        //   between VOTE and SUBJECT_DISCUSSION of the next subject)
         let assigned = false;
         for (let i = 0; i < sortedSubjects.length; i++) {
             const bounds = subjectBounds[i];
             if (bounds.firstTs === Infinity) continue;
 
-            // Check if orphan falls between previous subject's end and this subject's start
-            const prevEnd = i > 0
-                ? Math.max(...subjectBounds.slice(0, i).filter(b => b.lastTs !== -Infinity).map(b => b.lastTs))
-                : firstSubjectTs;
-
-            if (u.startTimestamp >= prevEnd && u.startTimestamp < bounds.firstTs) {
+            if (u.startTimestamp < bounds.firstTs) {
                 const list = preDiscussionByIndex.get(i) || [];
                 list.push(u);
                 preDiscussionByIndex.set(i, list);
@@ -303,9 +302,9 @@ export async function getMinutesData(
             }
         }
 
-        // Orphans within a subject's range that weren't assigned — append to preamble
+        // Orphans after the last subject's start but before lastSubjectTs — append to epilogue
         if (!assigned) {
-            preambleUtterances.push(u);
+            epilogueUtterances.push(u);
         }
     }
 
@@ -363,15 +362,10 @@ export async function getMinutesData(
     });
 
     // Council composition: all members sorted by elected order,
-    // plus mayor and president of the administrative body
-    const firstSubjectWithAttendance = sortedSubjects.find(s => extractedDataMap.get(s.id)?.attendance?.length);
-    const overallExtractedData = firstSubjectWithAttendance ? extractedDataMap.get(firstSubjectWithAttendance.id)! : null;
-    const overallAttendance = overallExtractedData
-        ? buildAttendance(overallExtractedData.attendance, mayorPersonId, resolveMember, getElectedOrder)
-        : null;
+    // plus mayor and president of the administrative body.
+    // Built from roles — no attendance dependency.
     const adminBodyId = meeting.administrativeBody?.id ?? null;
 
-    // Find mayor and president for council composition
     const mayorPerson = mayorPersonId ? people.find(p => p.id === mayorPersonId) : null;
     const mayor = mayorPerson ? { personId: mayorPerson.id, name: mayorPerson.name } : null;
 
@@ -389,21 +383,52 @@ export async function getMinutesData(
         }
     }
 
+    // Council/committee composition and absent members both come from the initial
+    // roll call (MeetingAttendance). The composition IS present + absent — the full
+    // body as recorded at the start of the meeting.
+    //
+    // For committees, members are split into regular (τακτικά) and substitute
+    // (αναπληρωματικά) based on their Role.name in the administrative body.
     let councilCompositionResult = null;
-    if (overallAttendance && overallExtractedData) {
-        const rawPresentIds = new Set(
-            overallExtractedData.attendance.filter(a => a.status === 'PRESENT').map(a => a.personId)
-        );
-        councilCompositionResult = buildCouncilComposition(
-            overallAttendance, rawPresentIds, mayor, president, mayorPersonId, getElectedOrder,
-        );
+    let absentMembers: MinutesMember[] | null = null;
+
+    // Build a set of substitute member IDs (those with "Αναπληρωματικό Μέλος" role)
+    const substitutePersonIds = new Set<string>();
+    if (adminBodyId) {
+        for (const person of people) {
+            const substituteRole = person.roles.find(r =>
+                isRoleActiveAt(r, meetingDate) &&
+                r.administrativeBodyId === adminBodyId &&
+                r.name === 'Αναπληρωματικό Μέλος'
+            );
+            if (substituteRole) substitutePersonIds.add(person.id);
+        }
     }
+
+    if (meetingAttendance.length > 0) {
+        const allMembers = meetingAttendance
+            .map(a => resolveMember(a.personId, a.person.name));
+
+        const regularMembers = allMembers.filter(m => !substitutePersonIds.has(m.personId));
+        const substituteMembers = allMembers.filter(m => substitutePersonIds.has(m.personId));
+
+        councilCompositionResult = buildCouncilComposition(
+            regularMembers, substituteMembers, mayor, president, mayorPersonId, getElectedOrder,
+        );
+
+        absentMembers = meetingAttendance
+            .filter(a => a.status === 'ABSENT')
+            .map(a => resolveMember(a.personId, a.person.name))
+            .sort((a, b) => sortByElectedOrder(a, b, getElectedOrder));
+    }
+
 
     return {
         city: {
             name: city.name,
             name_municipality: city.name_municipality,
             timezone: city.timezone,
+            logoImage: city.logoImage,
         },
         meeting: {
             id: meeting.id,
@@ -411,8 +436,11 @@ export async function getMinutesData(
             name: meeting.name,
             dateTime: meeting.dateTime.toISOString(),
         },
-        administrativeBody: meeting.administrativeBody?.name ?? null,
+        administrativeBody: meeting.administrativeBody
+            ? { name: meeting.administrativeBody.name, type: meeting.administrativeBody.type }
+            : null,
         councilComposition: councilCompositionResult,
+        absentMembers,
         preambleEntries,
         subjects: minutesSubjects,
         epilogueEntries,

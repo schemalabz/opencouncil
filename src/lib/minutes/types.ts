@@ -11,21 +11,22 @@ export interface MinutesAttendance {
     absent: MinutesMember[];
 }
 
-export interface MinutesOfficialRole {
-    name: string;
-    present: boolean;
-}
-
 export interface MinutesCouncilComposition {
-    mayor: MinutesOfficialRole | null;
-    president: MinutesOfficialRole | null;
+    mayor: { name: string; personId: string } | null;
+    president: { name: string; personId: string } | null;
     members: MinutesMember[];
+    /** Substitute members (αναπληρωματικά μέλη) — only for committees */
+    substituteMembers: MinutesMember[];
 }
 
 export interface MinutesVoteResult {
     forMembers: MinutesMember[];
     againstMembers: MinutesMember[];
     abstainMembers: MinutesMember[];
+    /** Members who declared physical presence but did not participate in the vote (ΠΑΡΩΝ) */
+    presentMembers: MinutesMember[];
+    /** Members who declined to participate (ΑΠΟΧΗ) */
+    didNotVoteMembers: MinutesMember[];
     absentMembers: MinutesMember[];
     passed: boolean;
     isUnanimous: boolean;
@@ -81,6 +82,7 @@ export interface MinutesData {
         name: string;
         name_municipality: string;
         timezone: string;
+        logoImage: string | null;
     };
     meeting: {
         id: string;
@@ -88,8 +90,10 @@ export interface MinutesData {
         name: string;
         dateTime: string; // ISO string for JSON serialization
     };
-    administrativeBody: string | null;
+    administrativeBody: { name: string; type: string } | null;
     councilComposition: MinutesCouncilComposition | null;
+    /** Members absent at the start of the meeting (initial roll call) */
+    absentMembers: MinutesMember[] | null;
     /** Orphaned utterances before the first subject (opening remarks, procedural content) */
     preambleEntries: MinutesTranscriptEntry[];
     subjects: MinutesSubject[];

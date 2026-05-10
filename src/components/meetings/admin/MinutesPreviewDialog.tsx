@@ -85,7 +85,7 @@ export function MinutesPreviewDialog({ open, onOpenChange }: MinutesPreviewDialo
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
+            <DialogContent align="start" className="max-w-5xl max-h-[90vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle>{t('minutes.title')}</DialogTitle>
                     <DialogDescription>{meeting.name}</DialogDescription>

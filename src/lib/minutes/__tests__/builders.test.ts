@@ -302,102 +302,67 @@ describe('buildCouncilComposition', () => {
         role: null,
     });
 
-    it('includes mayor with presence status', () => {
-        const attendance = { present: [makeMember('p1', 'Alice')], absent: [] };
-        const rawPresentIds = new Set(['p1', 'mayor-1']);
+    it('includes mayor with personId', () => {
+        const members = [makeMember('p1', 'Alice')];
         const mayor = { personId: 'mayor-1', name: 'Dimitris Antoniou' };
 
         const result = buildCouncilComposition(
-            attendance, rawPresentIds, mayor, null, 'mayor-1', noElectedOrder,
+            members, [], mayor, null, 'mayor-1', noElectedOrder,
         );
 
-        expect(result.mayor).toEqual({ name: 'Antoniou Dimitris', present: true });
+        expect(result.mayor).toEqual({ name: 'Antoniou Dimitris', personId: 'mayor-1' });
     });
 
-    it('marks mayor as absent when not in rawPresentIds', () => {
-        const attendance = { present: [makeMember('p1', 'Alice')], absent: [] };
-        const rawPresentIds = new Set(['p1']);
-        const mayor = { personId: 'mayor-1', name: 'Dimitris Antoniou' };
-
-        const result = buildCouncilComposition(
-            attendance, rawPresentIds, mayor, null, 'mayor-1', noElectedOrder,
-        );
-
-        expect(result.mayor!.present).toBe(false);
-    });
-
-    it('includes president with presence status', () => {
-        const attendance = { present: [makeMember('p1', 'Alice')], absent: [] };
-        const rawPresentIds = new Set(['p1', 'pres-1']);
+    it('includes president with personId', () => {
+        const members = [makeMember('p1', 'Alice')];
         const president = { personId: 'pres-1', name: 'Giorgos Papadopoulos' };
 
         const result = buildCouncilComposition(
-            attendance, rawPresentIds, null, president, null, noElectedOrder,
+            members, [], null, president, null, noElectedOrder,
         );
 
-        expect(result.president).toEqual({ name: 'Papadopoulos Giorgos', present: true });
+        expect(result.president).toEqual({ name: 'Papadopoulos Giorgos', personId: 'pres-1' });
     });
 
     it('excludes mayor from members list', () => {
-        const attendance = {
-            present: [makeMember('mayor-1', 'Mayor'), makeMember('p1', 'Alice')],
-            absent: [makeMember('p2', 'Bob')],
-        };
-        const rawPresentIds = new Set(['mayor-1', 'p1']);
+        const members = [
+            makeMember('mayor-1', 'Mayor'),
+            makeMember('p1', 'Alice'),
+            makeMember('p2', 'Bob'),
+        ];
 
         const result = buildCouncilComposition(
-            attendance, rawPresentIds, null, null, 'mayor-1', noElectedOrder,
+            members, [], null, null, 'mayor-1', noElectedOrder,
         );
 
         expect(result.members.map(m => m.personId)).toEqual(['p1', 'p2']);
     });
 
     it('sorts members by elected order', () => {
-        const attendance = {
-            present: [
-                makeMember('p3', 'Charlie'),
-                makeMember('p1', 'Alice'),
-                makeMember('p2', 'Bob'),
-            ],
-            absent: [],
-        };
-        const rawPresentIds = new Set(['p1', 'p2', 'p3']);
+        const members = [
+            makeMember('p3', 'Charlie'),
+            makeMember('p1', 'Alice'),
+            makeMember('p2', 'Bob'),
+        ];
         const electedOrder = makeElectedOrder({ p1: 3, p2: 1, p3: 2 });
 
         const result = buildCouncilComposition(
-            attendance, rawPresentIds, null, null, null, electedOrder,
+            members, [], null, null, null, electedOrder,
         );
 
         expect(result.members.map(m => m.personId)).toEqual(['p2', 'p3', 'p1']);
     });
 
     it('handles null mayor and president', () => {
-        const attendance = { present: [makeMember('p1', 'Alice')], absent: [] };
-        const rawPresentIds = new Set(['p1']);
+        const members = [makeMember('p1', 'Alice')];
 
         const result = buildCouncilComposition(
-            attendance, rawPresentIds, null, null, null, noElectedOrder,
+            members, [], null, null, null, noElectedOrder,
         );
 
         expect(result.mayor).toBeNull();
         expect(result.president).toBeNull();
         expect(result.members).toHaveLength(1);
-    });
-
-    it('combines present and absent in members list', () => {
-        const attendance = {
-            present: [makeMember('p1', 'Alice')],
-            absent: [makeMember('p2', 'Bob')],
-        };
-        const rawPresentIds = new Set(['p1']);
-
-        const result = buildCouncilComposition(
-            attendance, rawPresentIds, null, null, null, noElectedOrder,
-        );
-
-        expect(result.members).toHaveLength(2);
-        expect(result.members.map(m => m.personId)).toContain('p1');
-        expect(result.members.map(m => m.personId)).toContain('p2');
     });
 });
 

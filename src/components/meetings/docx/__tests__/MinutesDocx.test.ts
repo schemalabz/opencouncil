@@ -7,6 +7,7 @@ function makeMinutesData(overrides: Partial<MinutesData> = {}): MinutesData {
             name: 'Ζωγράφου',
             name_municipality: 'Δήμος Ζωγράφου',
             timezone: 'Europe/Athens',
+            logoImage: null,
         },
         meeting: {
             id: 'meeting-1',
@@ -14,8 +15,9 @@ function makeMinutesData(overrides: Partial<MinutesData> = {}): MinutesData {
             name: 'Τακτική Συνεδρίαση',
             dateTime: '2024-06-15T18:00:00.000Z',
         },
-        administrativeBody: 'Δημοτικό Συμβούλιο',
+        administrativeBody: { name: 'Δημοτικό Συμβούλιο', type: 'council' },
         councilComposition: null,
+        absentMembers: null,
         preambleEntries: [],
         subjects: [],
         epilogueEntries: [],
@@ -64,12 +66,14 @@ describe('renderMinutesDocx', () => {
     it('should handle subjects with full data', async () => {
         const data = makeMinutesData({
             councilComposition: {
-                mayor: { name: 'Δημήτρης Αντωνίου', present: true },
-                president: { name: 'Γιώργος Παπαδόπουλος', present: true },
+                mayor: { name: 'Δημήτρης Αντωνίου', personId: 'mayor-1' },
+                president: { name: 'Γιώργος Παπαδόπουλος', personId: 'p1' },
                 members: [
                     { personId: 'p1', name: 'Γιώργος Παπαδόπουλος', party: 'ΝΔ', isPartyHead: false, role: 'Πρόεδρος' },
                     { personId: 'p2', name: 'Μαρία Ιωάννου', party: 'ΣΥΡΙΖΑ', isPartyHead: false, role: null },
                     { personId: 'p3', name: 'Νίκος Δημητρίου', party: 'ΠΑΣΟΚ', isPartyHead: false, role: null },
+                ],
+                substituteMembers: [
                 ],
             },
             subjects: [
@@ -89,6 +93,8 @@ describe('renderMinutesDocx', () => {
                         ],
                         againstMembers: [],
                         abstainMembers: [],
+                        presentMembers: [],
+                        didNotVoteMembers: [],
                         absentMembers: [
                             { personId: 'p3', name: 'Νίκος Δημητρίου', party: 'ΠΑΣΟΚ', isPartyHead: false, role: null },
                         ],

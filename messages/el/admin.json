@@ -242,6 +242,8 @@
       "voteFor": "υπέρ",
       "voteAgainst": "κατά",
       "voteAbstain": "λευκό",
+      "votePresent": "παρών",
+      "voteDidNotVote": "αποχή",
       "showMore": "Περισσότερα",
       "showLess": "Λιγότερα",
       "unanimous": "Ομόφωνα ({count} υπέρ)",

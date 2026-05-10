@@ -844,6 +844,8 @@
         "voteFor": "For",
         "voteAgainst": "Against",
         "voteAbstain": "Abstain",
+        "votePresent": "Present",
+        "voteDidNotVote": "Did not vote",
         "groupedDiscussion": "Discussion grouped with other subjects",
         "groupedDiscussionDescription": "This subject appears to have been discussed and voted on together with other subjects. See the discussion at:"
     },

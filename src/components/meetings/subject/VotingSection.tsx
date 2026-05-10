@@ -63,6 +63,8 @@ function VoteBreakdown({ votes }: { votes: Vote[] }) {
     const forVoters = useMemo(() => sortVotesByElectedOrder(votes.filter(v => v.voteType === 'FOR')), [votes]);
     const againstVoters = useMemo(() => sortVotesByElectedOrder(votes.filter(v => v.voteType === 'AGAINST')), [votes]);
     const abstainVoters = useMemo(() => sortVotesByElectedOrder(votes.filter(v => v.voteType === 'ABSTAIN')), [votes]);
+    const presentVoters = useMemo(() => sortVotesByElectedOrder(votes.filter(v => v.voteType === 'PRESENT')), [votes]);
+    const didNotVoteVoters = useMemo(() => sortVotesByElectedOrder(votes.filter(v => v.voteType === 'DID_NOT_VOTE')), [votes]);
 
     return (
         <div className="p-4 space-y-3">
@@ -107,6 +109,26 @@ function VoteBreakdown({ votes }: { votes: Vote[] }) {
                             </td>
                             <td className="py-1.5">
                                 {abstainVoters.map(v => formatSurnameFirst(v.person.name)).join(', ')}
+                            </td>
+                        </tr>
+                    )}
+                    {presentVoters.length > 0 && (
+                        <tr>
+                            <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap align-top">
+                                {t('votePresent')} ({presentVoters.length})
+                            </td>
+                            <td className="py-1.5">
+                                {presentVoters.map(v => formatSurnameFirst(v.person.name)).join(', ')}
+                            </td>
+                        </tr>
+                    )}
+                    {didNotVoteVoters.length > 0 && (
+                        <tr>
+                            <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap align-top">
+                                {t('voteDidNotVote')} ({didNotVoteVoters.length})
+                            </td>
+                            <td className="py-1.5">
+                                {didNotVoteVoters.map(v => formatSurnameFirst(v.person.name)).join(', ')}
                             </td>
                         </tr>
                     )}

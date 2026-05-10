@@ -242,6 +242,8 @@
       "voteFor": "for",
       "voteAgainst": "against",
       "voteAbstain": "abstain",
+      "votePresent": "present",
+      "voteDidNotVote": "did not vote",
       "showMore": "Show more",
       "showLess": "Show less",
       "unanimous": "Unanimous ({count} for)",
