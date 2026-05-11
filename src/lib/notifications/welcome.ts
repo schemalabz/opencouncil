@@ -3,7 +3,9 @@
 import { sendEmail } from '@/lib/email/resend';
 import { renderReactEmailToHtml } from '@/lib/email/render';
 import { WelcomeEmail } from '@/lib/email/templates/WelcomeEmail';
-import { sendWelcomeWhatsAppMessage, sendWelcomeSMS } from './bird';
+import { createOrUpdateConversation, sendSMSMessage } from './bird';
+import { sendAndPersistOutbound } from './outbound';
+import { renderWelcomeSms } from './sms-templates';
 import { klitiki } from '@/lib/utils';
 
 interface City {
@@ -44,17 +46,32 @@ export async function sendWelcomeMessages(userId: string, city: City, phone?: st
 
         // Send welcome WhatsApp/SMS if phone provided
         if (phone) {
-            // Try WhatsApp first
-            const whatsappResult = await sendWelcomeWhatsAppMessage(
+            const waResult = await sendAndPersistOutbound({
+                channel: 'whatsapp',
                 phone,
-                userName,
-                city.name
-            );
+                body: '[welcome template]',
+                send: () => createOrUpdateConversation({
+                    phone,
+                    notificationType: 'welcome',
+                    params: { userName, cityName: city.name },
+                }),
+            });
 
-            // Fallback to SMS if WhatsApp fails
-            if (!whatsappResult.success) {
-                console.log('WhatsApp welcome failed, falling back to SMS');
-                await sendWelcomeSMS(phone, userName, city.name);
+            // Fall back to SMS when the send failed, OR when reconciliation
+            // later flagged the WhatsApp message as failed (24h window,
+            // blocked recipient, etc.)
+            if (!waResult.success || waResult.finalStatus === 'failed') {
+                console.log(
+                    'WhatsApp welcome failed, falling back to SMS:',
+                    waResult.finalReason ?? waResult.error,
+                );
+                const smsBody = renderWelcomeSms({ userName, cityName: city.name });
+                await sendAndPersistOutbound({
+                    channel: 'sms',
+                    phone,
+                    body: smsBody,
+                    send: () => sendSMSMessage(phone, smsBody),
+                });
             }
         }
 
