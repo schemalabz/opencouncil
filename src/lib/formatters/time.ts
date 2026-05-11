@@ -118,6 +118,31 @@ export function formatDate(date: Date, timezone?: string, locale: string = 'el')
 }
 
 /**
+ * Numeric date-time, compact for tables/logs: `DD/MM/YYYY HH:mm:ss` (24h).
+ * Useful where `formatDateTime`'s long month names are too verbose.
+ *
+ * @param date - The date to format
+ * @param timezone - Optional timezone
+ * @param locale - 'el' (default) or 'en'; both produce day-first numeric output
+ * @returns e.g. "04/05/2026 10:07:30"
+ */
+export function formatNumericDateTime(date: Date, timezone?: string, locale: string = 'el'): string {
+    const options: Intl.DateTimeFormatOptions = {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+    };
+    if (timezone) options.timeZone = timezone;
+
+    const intlLocale = locale === 'en' ? 'en-GB' : 'el-GR';
+    return new Intl.DateTimeFormat(intlLocale, options).format(date).replace(', ', ' ');
+}
+
+/**
  * Formats a date and time to a standard string representation
  * @param date - The date to format
  * @param timezone - Optional timezone
