@@ -1,9 +1,12 @@
 "use server";
 
-import { NotificationDelivery } from '@prisma/client';
 import { sendEmail } from '@/lib/email/resend';
 import { getPendingDeliveries, updateDeliveryStatus } from '@/lib/db/notifications';
-import { sendWhatsAppMessage, sendSMSMessage } from './bird';
+import {
+    createOrUpdateConversation,
+    sendSMSMessage,
+} from './bird';
+import { sendAndPersistOutbound } from './outbound';
 import { env } from '@/env.mjs';
 
 /**
@@ -109,7 +112,10 @@ async function sendEmailDelivery(delivery: any): Promise<boolean> {
 }
 
 /**
- * Send message delivery via Bird (WhatsApp with SMS fallback)
+ * Send message delivery via Bird (WhatsApp template → SMS fallback).
+ *
+ * First send creates a Bird conversation via the Conversations API so every
+ * subsequent inbound + outbound message lands in the same conversation.
  */
 async function sendMessageDelivery(delivery: any): Promise<boolean> {
     try {
@@ -138,24 +144,41 @@ async function sendMessageDelivery(delivery: any): Promise<boolean> {
             notificationId: notification.id
         };
 
-        // Try WhatsApp first
-        const whatsappResult = await sendWhatsAppMessage(
-            delivery.phone,
-            notification.type,
-            templateParams
-        );
+        const waResult = await sendAndPersistOutbound({
+            notificationDeliveryId: delivery.id,
+            channel: 'whatsapp',
+            phone: delivery.phone,
+            body: delivery.body || '[template]',
+            send: () => createOrUpdateConversation({
+                phone: delivery.phone,
+                notificationType: notification.type,
+                params: templateParams,
+                notificationDeliveryId: delivery.id,
+            }),
+        });
 
-        if (whatsappResult.success) {
+        if (waResult.success && waResult.finalStatus !== 'failed') {
             await updateDeliveryStatus(delivery.id, 'sent', 'whatsapp');
-            console.log(`WhatsApp message sent successfully to ${delivery.phone}`);
+            console.log(`WhatsApp conversation seeded for ${delivery.phone}`);
             return true;
         }
+        
+        console.log(
+            waResult.success
+                ? `WhatsApp delivery failed post-send for ${delivery.phone}, falling back to SMS`
+                : `WhatsApp create-conversation failed for ${delivery.phone}: ${waResult.error}`,
+        );
 
-        // Fallback to SMS
-        console.log(`WhatsApp failed, falling back to SMS for ${delivery.phone}`);
-        const smsResult = await sendSMSMessage(delivery.phone, delivery.body || '');
+        const smsBody = delivery.body;
+        const smsResult = await sendAndPersistOutbound({
+            notificationDeliveryId: delivery.id,
+            channel: 'sms',
+            phone: delivery.phone,
+            body: smsBody,
+            send: () => sendSMSMessage(delivery.phone, smsBody),
+        });
 
-        if (smsResult.success) {
+        if (smsResult.success && smsResult.finalStatus !== 'failed') {
             await updateDeliveryStatus(delivery.id, 'sent', 'sms');
             console.log(`SMS sent successfully to ${delivery.phone}`);
             return true;
