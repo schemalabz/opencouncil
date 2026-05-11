@@ -1150,6 +1150,11 @@ model NotificationDelivery {
   messageSentVia NotificationMessageType? // only filled in if status is sent
   sentAt DateTime?
 
+  // Both outbound (test sends, real notification messages) and inbound replies
+  // are recorded in Message; this back-relation lets us trace a delivery to
+  // the message rows it produced (or the user reply that came back).
+  messages Message[]
+
   @@index([status])
   @@index([createdAt])
   @@unique([notificationId, medium])
@@ -1168,6 +1173,49 @@ enum NotificationMessageType {
 enum NotificationDeliveryStatus {
   pending
   sent
+  failed
+}
+
+model Message {
+  id                     String   @id @default(cuid())
+  channel                MessageChannel
+  direction              MessageDirection
+  birdMessageId          String?  @unique
+  conversationId         String?
+  phone                  String
+  body                   String   @db.Text
+  status                 MessageStatus @default(pending)
+  // Bird's failure description when status transitions to `failed`. Null on
+  // success and on rows still in flight.
+  failureReason          String?  @db.Text
+
+  // Set when the message is the inbound reply to (or outbound delivery of)
+  // an existing notification. Null for free-form admin test sends.
+  notificationDeliveryId String?
+  notificationDelivery   NotificationDelivery? @relation(fields: [notificationDeliveryId], references: [id])
+
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([phone])
+  @@index([conversationId, createdAt])
+  @@index([createdAt])
+}
+
+enum MessageChannel {
+  whatsapp
+  sms
+}
+
+enum MessageDirection {
+  inbound
+  outbound
+}
+
+enum MessageStatus {
+  pending
+  sent
+  delivered
   failed
 }
 
