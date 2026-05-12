@@ -11,6 +11,12 @@
 \echo '========================================='
 \echo ''
 
+-- Drop the legacy SubjectSearchView. schema.json no longer references it,
+-- and CREATE OR REPLACE below does not remove old views.
+DROP VIEW IF EXISTS "SubjectSearchView";
+\echo '✓ Dropped legacy SubjectSearchView (if present)'
+\echo ''
+
 -- View 1: Location geometry to GeoJSON
 -- Why this view? Converts PostGIS geometry to GeoJSON format that Elasticsearch can index.
 --   - PostgreSQL stores coordinates as PostGIS geometry type
@@ -93,26 +99,14 @@ LEFT JOIN LATERAL (
 \echo '✓ SubjectSpeakerSegmentSearchView created'
 \echo ''
 
--- View 4: Subject with stripped markdown references for description
--- Why this view? Subject.description now contains markdown with REF:TYPE:ID links
--- that should be stripped before indexing in Elasticsearch for cleaner search.
---   - Strips [text](REF:TYPE:ID) patterns, keeping only the display text
---   - This allows semantic search on the description without reference noise
-\echo 'Creating SubjectSearchView...'
-CREATE OR REPLACE VIEW "SubjectSearchView" AS
-SELECT 
-  id,
-  -- Strip [text](REF:TYPE:ID) -> text
-  regexp_replace(description, '\[([^\]]+)\]\(REF:[^)]+\)', '\1', 'g') AS description
-FROM "Subject";
-\echo '✓ SubjectSearchView created'
-\echo ''
-
--- View 5: Speaker contributions with party details via Role
+-- View 4: Speaker contributions with party details via Role
 -- Why this view? This view:
---   - Strips markdown reference links from contribution text
 --   - Resolves speaker party through active roles (same logic as other views)
 --   - Provides denormalized speaker/party info for Elasticsearch indexing
+--
+-- NOTE: REF links ([text](REF:TYPE:ID)) in contribution text are indexed as-is.
+-- The views do not strip text. See the README FAQ on REF links for the
+-- measured search impact and for the planned ingest-pipeline stripping.
 --
 -- IMPORTANT: Primary key column keeps original name (`id` not `contribution_id`)
 -- PGSync live sync receives WAL events with base table column names. If we alias
@@ -124,8 +118,7 @@ CREATE OR REPLACE VIEW "SpeakerContributionSearchView" AS
 SELECT
   sc.id,  -- Keep as `id` for WAL compatibility; renamed to contribution_id in schema.json
   sc."subjectId" AS subject_id,
-  -- Strip [text](REF:TYPE:ID) -> text
-  regexp_replace(sc.text, '\[([^\]]+)\]\(REF:[^)]+\)', '\1', 'g') AS text,
+  sc.text,
   sp.id AS speaker_person_id,
   sp.name AS speaker_person_name,
   sp.name_en AS speaker_person_name_en,
@@ -162,12 +155,12 @@ LEFT JOIN LATERAL (
 \echo '1. Checking if all views exist...'
 SELECT 
   CASE 
-    WHEN COUNT(*) = 5 THEN '   ✓ All 5 views exist'
-    ELSE '   ✗ Missing views! Expected 5, found ' || COUNT(*)::text
+    WHEN COUNT(*) = 4 THEN '   ✓ All 4 views exist'
+    ELSE '   ✗ Missing views! Expected 4, found ' || COUNT(*)::text
   END AS result
-FROM pg_views 
-WHERE schemaname = 'public' 
-  AND viewname IN ('LocationSearchView', 'IntroducedByPartyView', 'SubjectSpeakerSegmentSearchView', 'SubjectSearchView', 'SpeakerContributionSearchView');
+FROM pg_views
+WHERE schemaname = 'public'
+  AND viewname IN ('LocationSearchView', 'IntroducedByPartyView', 'SubjectSpeakerSegmentSearchView', 'SpeakerContributionSearchView');
 \echo ''
 
 -- Check 2: LocationSearchView - verify it returns data
@@ -235,25 +228,8 @@ LEFT JOIN "IntroducedByPartyView" ibp ON ibp.person_id = s."personId" AND ibp.ci
 WHERE s."personId" IS NOT NULL;
 \echo ''
 
--- Check 6: SubjectSearchView - verify description stripping works
-\echo '6. Checking SubjectSearchView data...'
-SELECT 
-  COUNT(*) AS total_subjects,
-  COUNT(description) AS subjects_with_description
-FROM "SubjectSearchView";
-\echo ''
-
-\echo '   Sample data from SubjectSearchView (showing stripped descriptions):'
-SELECT 
-  id,
-  LEFT(description, 100) || '...' AS description_preview
-FROM "SubjectSearchView"
-WHERE description IS NOT NULL AND description != ''
-LIMIT 3;
-\echo ''
-
--- Check 7: SpeakerContributionSearchView - verify contributions
-\echo '7. Checking SpeakerContributionSearchView data...'
+-- Check 6: SpeakerContributionSearchView - verify contributions
+\echo '6. Checking SpeakerContributionSearchView data...'
 SELECT 
   COUNT(*) AS total_contributions,
   COUNT(speaker_person_id) AS contributions_with_speaker,
@@ -263,8 +239,8 @@ FROM "SpeakerContributionSearchView";
 \echo ''
 
 \echo '   Sample data from SpeakerContributionSearchView:'
-SELECT 
-  contribution_id,
+SELECT
+  id,
   subject_id,
   speaker_person_name,
   speaker_party_name,

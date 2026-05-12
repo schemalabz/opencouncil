@@ -160,6 +160,7 @@ PGSync requires helper views to denormalize complex relationships and handle Pos
 1. **LocationSearchView** - Converts PostGIS geometry to GeoJSON format
 2. **IntroducedByPartyView** - Resolves party affiliation through the `Role` table
 3. **SubjectSpeakerSegmentSearchView** - Denormalizes speaker segments with concatenated utterances
+4. **SpeakerContributionSearchView** - Denormalizes speaker contributions with party resolution
 
 ### Create the Views
 
@@ -170,7 +171,7 @@ psql "$DATABASE_URL" < elasticsearch/views.sql
 ```
 
 The script will:
-- Create all three required views
+- Create all four required views
 - Run verification checks on each view
 - Display sample data to confirm everything works
 - Show statistics about data coverage
@@ -737,7 +738,20 @@ A: PGSync tracks its position in the WAL stream using Redis. When it restarts, i
 **Q: How do I update the schema?**  
 A: See <https://pgsync.com/advanced/re-indexing>
 
-**Q: Why use views instead of direct table joins in PGSync?**  
+**Q: Why are REF links (`[text](REF:TYPE:ID)`) indexed in Elasticsearch instead of being stripped?**
+A: The old SubjectSearchView stripped REF links, but it declared `base_tables: ["Subject"]` and broke deletion propagation (see the next question). We now read `description` directly from the root table, so REF links reach the index. The measured impact (`_analyze` and the e5 inference endpoint on the production cluster):
+- **Keyword (BM25) search: unaffected.** The Greek analyzer keeps each `(REF:TYPE:ID)` target as one token (for example `ref:person:abc123`). The app queries use term-based `multi_match` and `match` with no phrase matching, so the extra token is noise that no user searches for.
+- **Semantic search: a small, systematic cost.** `semantic_text` embeds the raw field value, so REF markup enters the embeddings. Measured on 300 staging subjects: markup-heavy documents gain similarity against every query, and clean documents lose the top result in ~4% of self-retrieval queries. A follow-up strips REF links with an Elasticsearch ingest pipeline (PGSync supports a `pipeline` key in schema.json), which cleans both the tokens and the embeddings in one place.
+
+The frontend is unaffected either way: it renders REF links via `FormattedTextDisplay` and `stripMarkdown()`, and search results are hydrated from PostgreSQL, not from `_source`.
+
+**Q: Why must views never list the root table in `base_tables`?**
+A: PGSync builds an internal `base_table_to_node` mapping from all views' `base_tables`. If a view declares `base_tables: ["Subject"]` (the root table), PGSync treats Subject WAL events as child-node changes for that view, instead of root-table operations. This means DELETE events on Subject are never processed as document deletions — PGSync tries to "re-sync" the parent document instead, which fails silently because the row is already gone. **Rule: only use `base_tables` for tables that are NOT the root node.**
+
+**Q: The schema is correct, but deletes still do not propagate. Why?**
+A: Check the pgsync version that installed the `table_notify()` trigger function in the database. pgsync versions before 7.x have a bug: the DELETE branch of the function does not include the `indices` field in the notification, and the daemon drops every root DELETE notification. A bootstrap with pgsync >= 7.x re-creates the function and fixes this. To check, inspect the function: `SELECT prosrc FROM pg_proc WHERE proname = 'table_notify'` — the `TG_OP = 'DELETE'` branch must select `primary_keys, indices`, not only `primary_keys`.
+
+**Q: Why use views instead of direct table joins in PGSync?**
 A: Views handle complex logic (PostGIS conversion, role-based party resolution, utterance concatenation) in PostgreSQL where it's more efficient. PGSync sees views as simple tables, keeping the sync configuration clean.
 
 **Q: Can I combine semantic search with traditional text search?**  
