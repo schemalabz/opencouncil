@@ -41,9 +41,8 @@ const votesInclude = {
                 id: true,
                 name: true,
                 roles: {
-                    select: { electedOrder: true },
+                    select: { electedOrder: true, administrativeBodyId: true },
                     where: { electedOrder: { not: null } },
-                    take: 1,
                 },
             },
         },
@@ -73,7 +72,7 @@ export type SubjectWithRelations = Subject & {
     introducedBy: PersonWithRelations | null;
     discussedIn: (Subject & { topic: Topic | null }) | null;
     decision: Decision | null;
-    votes: { voteType: VoteType; person: { id: string; name: string; roles: { electedOrder: number | null }[] } }[];
+    votes: { voteType: VoteType; person: { id: string; name: string; roles: { electedOrder: number | null; administrativeBodyId: string | null }[] } }[];
 };
 
 export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
