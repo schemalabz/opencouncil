@@ -24,7 +24,6 @@ import { PersonWithRelations } from '@/lib/db/people';
 import { GripVertical, Loader2, Download, Upload } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
-import { isRoleActive } from '@/lib/utils';
 import { compareRanks } from '@/lib/sorting/people';
 import { downloadFile } from '@/lib/export/meetings';
 
@@ -33,6 +32,7 @@ interface ElectedOrderSheetProps {
     onOpenChange: (open: boolean) => void;
     people: PersonWithRelations[];
     cityId: string;
+    administrativeBodyId: string;
 }
 
 interface SortableMember {
@@ -83,21 +83,12 @@ function SortableMemberRow({ member, index }: { member: SortableMember; index: n
     );
 }
 
-/**
- * Find the best representative role for a person to store electedOrder on.
- * Prefers a role that already has electedOrder, otherwise first active role in the city.
- */
-function getRepresentativeRole(person: PersonWithRelations, cityId: string) {
-    return person.roles.find(r => r.electedOrder != null)
-        ?? person.roles.find(r => r.cityId === cityId && isRoleActive(r))
-        ?? person.roles[0];
-}
-
 export default function ElectedOrderSheet({
     open,
     onOpenChange,
     people,
     cityId,
+    administrativeBodyId,
 }: ElectedOrderSheetProps) {
     const router = useRouter();
     const [isSaving, setIsSaving] = useState(false);
@@ -105,11 +96,11 @@ export default function ElectedOrderSheet({
     const [members, setMembers] = useState<SortableMember[]>([]);
     const t = useTranslations('ElectedOrderSheet');
 
-    // Initialize members from people data
+    // Initialize members: only people who have a role in this administrative body
     useEffect(() => {
         const membersData: SortableMember[] = people
             .flatMap(person => {
-                const role = getRepresentativeRole(person, cityId);
+                const role = person.roles.find(r => r.administrativeBodyId === administrativeBodyId);
                 if (!role) return [];
                 return [{
                     personId: person.id,
@@ -125,7 +116,7 @@ export default function ElectedOrderSheet({
             });
 
         setMembers(membersData);
-    }, [people, cityId]);
+    }, [people, administrativeBodyId]);
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -160,7 +151,7 @@ export default function ElectedOrderSheet({
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ rankings }),
+                    body: JSON.stringify({ administrativeBodyId, rankings }),
                 }
             );
 
@@ -201,7 +192,7 @@ export default function ElectedOrderSheet({
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ rankings }),
+                    body: JSON.stringify({ administrativeBodyId, rankings }),
                 }
             );
 
@@ -231,6 +222,7 @@ export default function ElectedOrderSheet({
     const handleExport = () => {
         const data = {
             cityId,
+            administrativeBodyId,
             exportedAt: new Date().toISOString(),
             members: members.map((m, index) => ({
                 roleId: m.roleId,
@@ -240,7 +232,7 @@ export default function ElectedOrderSheet({
             })),
         };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        downloadFile(blob, `elected-order-${cityId}.json`);
+        downloadFile(blob, `elected-order-${cityId}-${administrativeBodyId}.json`);
     };
 
     const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -264,7 +256,7 @@ export default function ElectedOrderSheet({
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ rankings }),
+                    body: JSON.stringify({ administrativeBodyId, rankings }),
                 }
             );
 
