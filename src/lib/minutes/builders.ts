@@ -30,6 +30,51 @@ export function sortByElectedOrder(
     return a.name.localeCompare(b.name);
 }
 
+/**
+ * Merge regular and substitute members so each substitute appears right after
+ * the last regular member of the same party. Substitutes whose party doesn't
+ * match any regular member are appended at the end.
+ */
+export function interleaveSubstitutes(
+    members: MinutesMember[],
+    substituteMembers: MinutesMember[],
+): MinutesMember[] {
+    if (substituteMembers.length === 0) return members;
+
+    const result: MinutesMember[] = [];
+    // Group substitutes by party
+    const subsByParty = new Map<string | null, MinutesMember[]>();
+    for (const sub of substituteMembers) {
+        const key = sub.party;
+        const list = subsByParty.get(key) || [];
+        list.push(sub);
+        subsByParty.set(key, list);
+    }
+
+    // Track which parties we've already flushed substitutes for
+    const flushed = new Set<string | null>();
+
+    for (let i = 0; i < members.length; i++) {
+        result.push(members[i]);
+        const party = members[i].party;
+        // Check if next member has a different party (or this is the last member)
+        const isLastOfParty = i === members.length - 1 || members[i + 1].party !== party;
+        if (isLastOfParty && subsByParty.has(party) && !flushed.has(party)) {
+            result.push(...subsByParty.get(party)!);
+            flushed.add(party);
+        }
+    }
+
+    // Append any substitutes whose party didn't match any regular member
+    for (const [party, subs] of subsByParty) {
+        if (!flushed.has(party)) {
+            result.push(...subs);
+        }
+    }
+
+    return result;
+}
+
 // --- Builders ---
 
 /**
