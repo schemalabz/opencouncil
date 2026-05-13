@@ -17,6 +17,7 @@ import {
     buildAttendance,
     buildVoteResult,
     buildCouncilComposition,
+    buildAttendanceChanges,
     sortSubjectsByDiscussionOrder,
     sortByElectedOrder,
     MemberResolver,
@@ -426,6 +427,11 @@ export async function getMinutesData(
     }
 
 
+    // Compute mid-meeting attendance changes from per-subject attendance diffs
+    const attendanceChanges = buildAttendanceChanges(
+        minutesSubjects.filter(s => !s.withdrawn),
+    );
+
     return {
         city: {
             name: city.name,
@@ -445,6 +451,7 @@ export async function getMinutesData(
         councilComposition: councilCompositionResult,
         absentMembers,
         preambleEntries,
+        attendanceChanges,
         subjects: minutesSubjects,
         epilogueEntries,
     };
