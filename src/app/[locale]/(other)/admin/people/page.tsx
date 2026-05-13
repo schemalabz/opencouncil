@@ -1,8 +1,10 @@
 import { getCities } from "@/lib/db/cities";
 import { getPeopleForCity, PersonWithRelations } from "@/lib/db/people";
+import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
 import { sortPersonsByLastName } from "@/lib/sorting/people";
 import CitySelector from "@/components/admin/people/city-selector";
 import People from "@/components/admin/people/people";
+import { AdministrativeBody } from "@prisma/client";
 
 interface PageProps {
     searchParams: { cityId?: string };
@@ -14,9 +16,14 @@ export default async function PeoplePage({ searchParams }: PageProps) {
     const selectedCityId = searchParams.cityId || (cities.length > 0 ? cities[0].id : "");
 
     let people: PersonWithRelations[] = [];
+    let administrativeBodies: AdministrativeBody[] = [];
     if (selectedCityId) {
-        const peopleData = await getPeopleForCity(selectedCityId);
+        const [peopleData, bodies] = await Promise.all([
+            getPeopleForCity(selectedCityId),
+            getAdministrativeBodiesForCity(selectedCityId),
+        ]);
         people = sortPersonsByLastName(peopleData);
+        administrativeBodies = bodies;
     }
 
     const currentCityName = cities.find(c => c.id === selectedCityId)?.name || "Select City";
@@ -33,7 +40,11 @@ export default async function PeoplePage({ searchParams }: PageProps) {
                 </div>
             </div>
 
-            <People people={people} currentCityName={currentCityName} />
+            <People
+                people={people}
+                currentCityName={currentCityName}
+                administrativeBodies={administrativeBodies}
+            />
         </div>
     );
 }
