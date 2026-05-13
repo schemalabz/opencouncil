@@ -1306,6 +1306,58 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
             }
         }
 
+        // --- Store SubjectAttendance for subjects without decisions ---
+        // These subjects have no PDF but their effective attendance was computed
+        // using the complete discussion order and aggregated attendance changes.
+        if (result.extractions.nonDecisionSubjectAttendance && result.extractions.nonDecisionSubjectAttendance.length > 0) {
+            let storedCount = 0;
+            for (const subjectAttendance of result.extractions.nonDecisionSubjectAttendance) {
+                if (!validSubjectIdSet.has(subjectAttendance.subjectId)) {
+                    console.warn(`Poll decisions: skipping invalid subjectId ${subjectAttendance.subjectId} in nonDecisionSubjectAttendance for task ${taskId}`);
+                    continue;
+                }
+                if (subjectAttendance.presentMemberIds.length === 0 && subjectAttendance.absentMemberIds.length === 0) continue;
+
+                try {
+                    await prisma.$transaction(async (tx) => {
+                        const attendanceByPerson = new Map<string, AttendanceStatus>(
+                            [
+                                ...subjectAttendance.presentMemberIds.map(id => [id, 'PRESENT' as const] as const),
+                                ...subjectAttendance.absentMemberIds.map(id => [id, 'ABSENT' as const] as const),
+                            ]
+                        );
+
+                        // Include mayor attendance if known
+                        if (mayorId && result.extractions!.initialAttendance) {
+                            const mayorInitial = result.extractions!.initialAttendance.find(a => a.personId === mayorId);
+                            if (mayorInitial && !attendanceByPerson.has(mayorId)) {
+                                attendanceByPerson.set(mayorId, mayorInitial.status);
+                            }
+                        }
+
+                        await tx.subjectAttendance.deleteMany({
+                            where: { subjectId: subjectAttendance.subjectId, source: DataSource.decision },
+                        });
+                        await tx.subjectAttendance.createMany({
+                            data: [...attendanceByPerson].map(([personId, status]) => ({
+                                subjectId: subjectAttendance.subjectId,
+                                personId,
+                                status,
+                                source: DataSource.decision,
+                                taskId,
+                            })),
+                        });
+                    });
+                    storedCount++;
+                } catch (error) {
+                    console.error(`Failed to store attendance for subject ${subjectAttendance.subjectId}:`, error);
+                }
+            }
+            if (storedCount > 0) {
+                console.log(`Stored effective attendance for ${storedCount} non-decision subjects`);
+            }
+        }
+
         if (result.extractions.warnings.length > 0) {
             console.log(`Extraction warnings (${result.extractions.warnings.length}):`);
             for (const w of result.extractions.warnings) {

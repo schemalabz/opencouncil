@@ -525,6 +525,12 @@ export interface PollDecisionsResult {
         initialAttendance?: { personId: string; status: 'PRESENT' | 'ABSENT' }[];
         /** Names from the initial roll call that couldn't be matched to any person in the database */
         unmatchedInitialAttendance?: string[];
+        /** Effective attendance for subjects WITHOUT linked decisions */
+        nonDecisionSubjectAttendance?: Array<{
+            subjectId: string;
+            presentMemberIds: string[];
+            absentMemberIds: string[];
+        }>;
     } | null;
     costs: {
         input_tokens: number;
