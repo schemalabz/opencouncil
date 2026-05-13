@@ -11,6 +11,7 @@ import {
     MinutesMember,
     MinutesCouncilComposition,
     MinutesTranscriptEntry,
+    MinutesAttendanceChange,
 } from '@/lib/minutes/types';
 import { interleaveSubstitutes } from '@/lib/minutes/builders';
 import { getWithdrawnLabel } from '@/lib/utils/subjects';
@@ -53,6 +54,11 @@ export function MinutesPreviewContent({ data }: MinutesPreviewContentProps) {
             {/* Council Composition + Absent Members */}
             {data.councilComposition && (
                 <CouncilCompositionSection composition={data.councilComposition} absentMembers={data.absentMembers} adminBody={data.administrativeBody} />
+            )}
+
+            {/* Arrivals/departures */}
+            {data.attendanceChanges.length > 0 && (
+                <AttendanceChangesSection changes={data.attendanceChanges} />
             )}
 
             {/* Table of Contents */}
@@ -149,6 +155,52 @@ function CouncilCompositionSection({ composition, absentMembers, adminBody }: {
             )}
 
             <hr className="my-8 border-gray-300" />
+        </div>
+    );
+}
+
+function AttendanceChangesSection({ changes }: { changes: MinutesAttendanceChange[] }) {
+    const arrivals = changes.filter(c => c.type === 'arrival');
+    const departures = changes.filter(c => c.type === 'departure');
+
+    return (
+        <div className="mt-4 space-y-2">
+            {arrivals.length > 0 && (
+                <div>
+                    <p className="font-bold text-sm">ΑΦΙΞΕΙΣ</p>
+                    <ul className="list-disc pl-5 text-sm">
+                        {arrivals.map((change, i) => (
+                            <li key={i}>
+                                {change.name}
+                                <span className="text-muted-foreground">
+                                    {' — παρών/παρούσα από το '}
+                                    {change.atSubject.agendaItemIndex
+                                        ? `${change.atSubject.agendaItemIndex}ο θέμα`
+                                        : change.atSubject.name}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+            {departures.length > 0 && (
+                <div>
+                    <p className="font-bold text-sm">ΑΝΑΧΩΡΗΣΕΙΣ</p>
+                    <ul className="list-disc pl-5 text-sm">
+                        {departures.map((change, i) => (
+                            <li key={i}>
+                                {change.name}
+                                <span className="text-muted-foreground">
+                                    {' — απουσίαζε από το '}
+                                    {change.atSubject.agendaItemIndex
+                                        ? `${change.atSubject.agendaItemIndex}ο θέμα`
+                                        : change.atSubject.name}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
         </div>
     );
 }
