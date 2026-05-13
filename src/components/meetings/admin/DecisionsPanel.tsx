@@ -594,8 +594,8 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                         {/* Main row */}
                                         <div className="flex items-start justify-between gap-3">
                                             <div className="flex-1 min-w-0 flex items-start gap-2">
-                                                {/* Expand chevron for linked decisions with extracted data */}
-                                                {decision && hasExtractedContent ? (
+                                                {/* Expand chevron for subjects with extracted data (decisions or attendance) */}
+                                                {hasExtractedContent ? (
                                                     <button
                                                         onClick={() => toggleExtracted(subject.id)}
                                                         className="mt-0.5 text-muted-foreground hover:text-foreground shrink-0"
@@ -731,7 +731,7 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                             </div>
                                         </div>
 
-                                        {/* Extracted data panel - expandable for linked decisions */}
+                                        {/* Extracted data panel - expandable for subjects with attendance/vote data */}
                                         {isExtractedExpanded && hasExtractedContent && (
                                             <div className="mt-3 ml-6 pl-4 border-l-2 border-muted space-y-3">
                                                 {/* Excerpt */}
