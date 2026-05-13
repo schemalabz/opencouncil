@@ -12,6 +12,7 @@ import {
     MinutesCouncilComposition,
     MinutesTranscriptEntry,
 } from '@/lib/minutes/types';
+import { interleaveSubstitutes } from '@/lib/minutes/builders';
 import { getWithdrawnLabel } from '@/lib/utils/subjects';
 
 interface MinutesPreviewContentProps {
@@ -168,7 +169,7 @@ function CommitteeAttendanceSection({ composition, absentMembers }: {
     const substituteIds = new Set(composition.substituteMembers.map(m => m.personId));
     const absentPersonIds = new Set(absentMembers?.map(m => m.personId) ?? []);
 
-    const allMembers = [...composition.members, ...composition.substituteMembers];
+    const allMembers = interleaveSubstitutes(composition.members, composition.substituteMembers);
     const presentMembers = allMembers.filter(m => !absentPersonIds.has(m.personId));
     const absentMembersList = allMembers.filter(m => absentPersonIds.has(m.personId));
 

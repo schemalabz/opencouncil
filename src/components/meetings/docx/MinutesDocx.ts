@@ -13,6 +13,7 @@ import { formatGapDuration } from '@/lib/formatters/time';
 import { getAbsentLabel, extractFirstName } from '@/lib/formatters/name';
 import { markdownToDocxParagraphs } from '@/lib/minutes/markdownToDocx';
 import { getWithdrawnLabel } from '@/lib/utils/subjects';
+import { interleaveSubstitutes } from '@/lib/minutes/builders';
 import {
     MinutesData,
     MinutesSubject,
@@ -413,7 +414,7 @@ function createCouncilCompositionSection(
         // Committee: ΠΑΡΟΝΤΑ ΜΕΛΗ and ΑΠΟΝΤΑ ΜΕΛΗ as bullet lists
         const substituteIds = new Set(composition.substituteMembers.map(m => m.personId));
         const absentPersonIds = new Set(absentMembers.map(m => m.personId));
-        const allMembers = [...composition.members, ...composition.substituteMembers];
+        const allMembers = interleaveSubstitutes(composition.members, composition.substituteMembers);
 
         const presentList = allMembers.filter(m => !absentPersonIds.has(m.personId));
         const absentList = allMembers.filter(m => absentPersonIds.has(m.personId));
