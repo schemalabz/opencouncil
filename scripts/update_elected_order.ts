@@ -283,13 +283,25 @@ async function main() {
     console.log(`City: ${city.name_municipality} (${city.id})\n`);
 
     // Resolve DHM_ID
-    let dhmId = argv.dhmId;
+    let dhmId: string | undefined = argv.dhmId;
     if (!dhmId) {
-        dhmId = await findDhmId(city.name_municipality);
+        dhmId = await findDhmId(city.name_municipality) ?? undefined;
         if (!dhmId) {
             process.exit(1);
         }
     }
+
+    // Find the council administrative body for this city
+    const councilBody = await prisma.administrativeBody.findFirst({
+        where: { cityId, type: 'council' },
+        select: { id: true, name: true },
+    });
+
+    if (!councilBody) {
+        console.error(`No council administrative body found for city ${cityId}`);
+        process.exit(1);
+    }
+    console.log(`Administrative body: ${councilBody.name} (${councilBody.id})\n`);
 
     // Load people from database (council members with active roles)
     const people = await prisma.person.findMany({
@@ -304,14 +316,24 @@ async function main() {
         },
     });
 
-    // Find the representative role for each person (same logic as ElectedOrderSheet)
+    // Find each person's council body role
     const dbMembers: DbMember[] = people.flatMap(person => {
-        const role = person.roles.find(r => r.electedOrder != null)
-            ?? person.roles.find(r => r.cityId === cityId)
-            ?? person.roles[0];
+        const role = person.roles.find(r => r.administrativeBodyId === councilBody.id);
         if (!role) return [];
         return [{ roleId: role.id, personId: person.id, name: person.name }];
     });
+
+    // Warn about people with no council role
+    const peopleWithoutCouncilRole = people.filter(
+        p => p.roles.length > 0 && !p.roles.some(r => r.administrativeBodyId === councilBody.id)
+    );
+    if (peopleWithoutCouncilRole.length > 0) {
+        console.log(`Warning: ${peopleWithoutCouncilRole.length} people have roles but no council body role:`);
+        for (const p of peopleWithoutCouncilRole) {
+            console.log(`  - ${p.name}`);
+        }
+        console.log();
+    }
 
     console.log(`Loaded ${dbMembers.length} council members from database\n`);
 
