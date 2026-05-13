@@ -20,6 +20,7 @@ import {
     MinutesMember,
     MinutesCouncilComposition,
     MinutesTranscriptEntry,
+    MinutesAttendanceChange,
 } from '@/lib/minutes/types';
 
 const FONT_SIZE = {
@@ -466,6 +467,62 @@ function createCouncilCompositionSection(
     return paragraphs;
 }
 
+/**
+ * Creates the ΑΦΙΞΕΙΣ / ΑΝΑΧΩΡΗΣΕΙΣ section listing mid-meeting attendance changes.
+ */
+function createAttendanceChangesSection(
+    changes: MinutesAttendanceChange[],
+): Paragraph[] {
+    if (changes.length === 0) return [];
+
+    const paragraphs: Paragraph[] = [];
+
+    const arrivals = changes.filter(c => c.type === 'arrival');
+    const departures = changes.filter(c => c.type === 'departure');
+
+    if (arrivals.length > 0) {
+        paragraphs.push(new Paragraph({
+            spacing: { before: 200, after: 100 },
+            children: [new TextRun({ text: 'ΑΦΙΞΕΙΣ', bold: true, size: FONT_SIZE.BODY })],
+        }));
+        for (const change of arrivals) {
+            const subjectLabel = change.atSubject.agendaItemIndex
+                ? `${change.atSubject.agendaItemIndex}ο θέμα`
+                : change.atSubject.name;
+            paragraphs.push(new Paragraph({
+                bullet: { level: 0 },
+                spacing: { before: 40, after: 40 },
+                children: [
+                    new TextRun({ text: `${change.name}`, size: FONT_SIZE.BODY }),
+                    new TextRun({ text: ` — παρών/παρούσα από το ${subjectLabel}`, size: FONT_SIZE.BODY, color: '666666' }),
+                ],
+            }));
+        }
+    }
+
+    if (departures.length > 0) {
+        paragraphs.push(new Paragraph({
+            spacing: { before: 200, after: 100 },
+            children: [new TextRun({ text: 'ΑΝΑΧΩΡΗΣΕΙΣ', bold: true, size: FONT_SIZE.BODY })],
+        }));
+        for (const change of departures) {
+            const subjectLabel = change.atSubject.agendaItemIndex
+                ? `${change.atSubject.agendaItemIndex}ο θέμα`
+                : change.atSubject.name;
+            paragraphs.push(new Paragraph({
+                bullet: { level: 0 },
+                spacing: { before: 40, after: 40 },
+                children: [
+                    new TextRun({ text: `${change.name}`, size: FONT_SIZE.BODY }),
+                    new TextRun({ text: ` — απουσίαζε από το ${subjectLabel}`, size: FONT_SIZE.BODY, color: '666666' }),
+                ],
+            }));
+        }
+    }
+
+    return paragraphs;
+}
+
 // --- TOC ---
 
 function tocCell(text: string, bold: boolean): TableCell {
@@ -728,6 +785,11 @@ export async function renderMinutesDocx(data: MinutesData): Promise<Blob> {
     // Council composition + absent members
     if (data.councilComposition) {
         children.push(...createCouncilCompositionSection(data.councilComposition, data.absentMembers, data.administrativeBody));
+    }
+
+    // Arrivals/departures
+    if (data.attendanceChanges.length > 0) {
+        children.push(...createAttendanceChangesSection(data.attendanceChanges));
     }
 
     // Table of contents (split into ΕΚΤΟΣ ΗΔ + ΗΔ tables)
