@@ -38,7 +38,7 @@ interface VotingUtterance {
 
 interface Vote {
     voteType: VoteType;
-    person: { id: string; name: string; roles: { electedOrder: number | null }[] };
+    person: { id: string; name: string; roles: { electedOrder: number | null; administrativeBodyId: string | null }[] };
 }
 
 interface VotingSectionProps {
@@ -46,10 +46,12 @@ interface VotingSectionProps {
     votes: Vote[];
 }
 
-function sortVotesByElectedOrder(votes: Vote[]): Vote[] {
+function sortVotesByElectedOrder(votes: Vote[], administrativeBodyId: string | null): Vote[] {
     return [...votes].sort((a, b) => {
-        const aOrder = a.person.roles[0]?.electedOrder ?? null;
-        const bOrder = b.person.roles[0]?.electedOrder ?? null;
+        const aRole = a.person.roles.find(r => r.administrativeBodyId === administrativeBodyId);
+        const bRole = b.person.roles.find(r => r.administrativeBodyId === administrativeBodyId);
+        const aOrder = aRole?.electedOrder ?? null;
+        const bOrder = bRole?.electedOrder ?? null;
         const orderCompare = compareRanks(aOrder, bOrder);
         if (orderCompare !== 0) return orderCompare;
         return a.person.name.localeCompare(b.person.name);
@@ -58,13 +60,15 @@ function sortVotesByElectedOrder(votes: Vote[]): Vote[] {
 
 function VoteBreakdown({ votes }: { votes: Vote[] }) {
     const t = useTranslations('Subject');
+    const { meeting } = useCouncilMeetingData();
+    const administrativeBodyId = meeting.administrativeBodyId ?? null;
     const result = useMemo(() => calculateVoteResult(votes), [votes]);
 
-    const forVoters = useMemo(() => sortVotesByElectedOrder(votes.filter(v => v.voteType === 'FOR')), [votes]);
-    const againstVoters = useMemo(() => sortVotesByElectedOrder(votes.filter(v => v.voteType === 'AGAINST')), [votes]);
-    const abstainVoters = useMemo(() => sortVotesByElectedOrder(votes.filter(v => v.voteType === 'ABSTAIN')), [votes]);
-    const presentVoters = useMemo(() => sortVotesByElectedOrder(votes.filter(v => v.voteType === 'PRESENT')), [votes]);
-    const didNotVoteVoters = useMemo(() => sortVotesByElectedOrder(votes.filter(v => v.voteType === 'DID_NOT_VOTE')), [votes]);
+    const forVoters = useMemo(() => sortVotesByElectedOrder(votes.filter(v => v.voteType === 'FOR'), administrativeBodyId), [votes, administrativeBodyId]);
+    const againstVoters = useMemo(() => sortVotesByElectedOrder(votes.filter(v => v.voteType === 'AGAINST'), administrativeBodyId), [votes, administrativeBodyId]);
+    const abstainVoters = useMemo(() => sortVotesByElectedOrder(votes.filter(v => v.voteType === 'ABSTAIN'), administrativeBodyId), [votes, administrativeBodyId]);
+    const presentVoters = useMemo(() => sortVotesByElectedOrder(votes.filter(v => v.voteType === 'PRESENT'), administrativeBodyId), [votes, administrativeBodyId]);
+    const didNotVoteVoters = useMemo(() => sortVotesByElectedOrder(votes.filter(v => v.voteType === 'DID_NOT_VOTE'), administrativeBodyId), [votes, administrativeBodyId]);
 
     return (
         <div className="p-4 space-y-3">
