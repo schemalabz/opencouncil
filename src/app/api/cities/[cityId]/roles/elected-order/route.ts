@@ -5,6 +5,7 @@ import { updateElectedOrder } from '@/lib/db/roles'
 import { z } from 'zod'
 
 const electedOrderSchema = z.object({
+    administrativeBodyId: z.string().min(1),
     rankings: z.array(z.object({
         roleId: z.string().min(1),
         electedOrder: z.number().int().nonnegative().nullable(),
@@ -19,9 +20,9 @@ export async function POST(
         await withUserAuthorizedToEdit({ cityId: params.cityId });
 
         const body = await request.json();
-        const { rankings } = electedOrderSchema.parse(body);
+        const { administrativeBodyId, rankings } = electedOrderSchema.parse(body);
 
-        await updateElectedOrder(params.cityId, rankings);
+        await updateElectedOrder(params.cityId, administrativeBodyId, rankings);
 
         revalidateTag(`city:${params.cityId}:people`);
 
