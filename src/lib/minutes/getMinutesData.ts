@@ -200,10 +200,15 @@ export async function getMinutesData(
         };
     };
 
+    const adminBodyId = meeting.administrativeBody?.id ?? null;
+
     const getElectedOrder: ElectedOrderGetter = (personId) => {
         const person = peopleMap.get(personId);
         if (!person) return null;
-        const role = person.roles.find(r => r.electedOrder != null);
+        if (!adminBodyId) return null;
+        const role = person.roles.find(
+            r => r.administrativeBodyId === adminBodyId && r.electedOrder != null
+        );
         return role?.electedOrder ?? null;
     };
 
@@ -364,8 +369,6 @@ export async function getMinutesData(
     // Council composition: all members sorted by elected order,
     // plus mayor and president of the administrative body.
     // Built from roles — no attendance dependency.
-    const adminBodyId = meeting.administrativeBody?.id ?? null;
-
     const mayorPerson = mayorPersonId ? people.find(p => p.id === mayorPersonId) : null;
     const mayor = mayorPerson ? { personId: mayorPerson.id, name: mayorPerson.name } : null;
 
