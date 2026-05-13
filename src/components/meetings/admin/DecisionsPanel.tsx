@@ -18,7 +18,7 @@ import { getPollingHistoryForMeeting, requestPollDecisions } from '@/lib/tasks/p
 import { calculateVoteResult } from '@/lib/utils/votes';
 import { getWithdrawnLabel } from '@/lib/utils/subjects';
 import { isMayorRole, isRoleActiveAt } from '@/lib/utils/roles';
-import { compareRanks } from '@/lib/sorting/people';
+import { compareRanks, getElectedOrderForBody } from '@/lib/sorting/people';
 import { PersonWithRelations } from '@/lib/db/people';
 import ReactMarkdown from 'react-markdown';
 
@@ -89,15 +89,6 @@ function NameList({ names, label }: { names: string[]; label: string }) {
             )}
         </span>
     );
-}
-
-/** Get elected order for a person in the meeting's administrative body. */
-function getElectedOrderForBody(person: PersonWithRelations | undefined, administrativeBodyId: string | null): number | null {
-    if (!person || !administrativeBodyId) return null;
-    const role = person.roles.find(
-        r => r.administrativeBodyId === administrativeBodyId && r.electedOrder != null
-    );
-    return role?.electedOrder ?? null;
 }
 
 /** Sort names by elected order, falling back to alphabetical. */

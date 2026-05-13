@@ -4,6 +4,21 @@ import { PeopleOrdering } from '@prisma/client';
 import { getActivePartyRole } from '@/lib/utils';
 
 /**
+ * Get the elected order for a person within a specific administrative body.
+ * Returns null if the person has no role with elected order in that body.
+ */
+export function getElectedOrderForBody(
+    person: PersonWithRelations | undefined,
+    administrativeBodyId: string | null,
+): number | null {
+    if (!person || !administrativeBodyId) return null;
+    const role = person.roles.find(
+        r => r.administrativeBodyId === administrativeBodyId && r.electedOrder != null
+    );
+    return role?.electedOrder ?? null;
+}
+
+/**
  * Sorts an array of Person objects by the last word in their name (typically last name)
  */
 export const sortPersonsByLastName = (persons: PersonWithRelations[]): PersonWithRelations[] => {

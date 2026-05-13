@@ -3,6 +3,7 @@ import { getSubjectsForMeeting } from '@/lib/db/subject';
 import { getExtractedDataForMeeting, getMeetingAttendance, SubjectExtractedData } from '@/lib/db/decisions';
 import { getPeopleForCity } from '@/lib/db/people';
 import { getCity } from '@/lib/db/cities';
+import { getElectedOrderForBody } from '@/lib/sorting/people';
 import { getSpeakerDisplayInfo, isRoleActiveAt, isMayorRole, simplifyRoleName } from '@/lib/utils/roles';
 import { PersonWithRelations } from '@/lib/db/people';
 import prisma from '@/lib/db/prisma';
@@ -205,12 +206,7 @@ export async function getMinutesData(
 
     const getElectedOrder: ElectedOrderGetter = (personId) => {
         const person = peopleMap.get(personId);
-        if (!person) return null;
-        if (!adminBodyId) return null;
-        const role = person.roles.find(
-            r => r.administrativeBodyId === adminBodyId && r.electedOrder != null
-        );
-        return role?.electedOrder ?? null;
+        return getElectedOrderForBody(person, adminBodyId);
     };
 
     function buildTranscriptEntries(subjectId: string): MinutesTranscriptEntry[] {
