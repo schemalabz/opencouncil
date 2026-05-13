@@ -746,8 +746,7 @@ function createSubjectSection(subject: MinutesSubject): (Paragraph | Table)[] {
         ];
         for (const { label, members } of voteCategories) {
             if (members.length === 0) continue;
-            const names = members
-                .map(m => m.party ? `${m.name} (${m.party}${m.isPartyHead ? ', Επικεφαλής' : ''})` : m.name).join(', ');
+            const names = members.map(m => m.name).join(', ');
             paragraphs.push(new Paragraph({
                 spacing: { before: 60, after: 40 },
                 children: [

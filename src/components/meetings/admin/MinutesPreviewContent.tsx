@@ -374,9 +374,7 @@ function SubjectSection({ subject }: { subject: MinutesSubject }) {
 }
 
 function formatMemberList(members: MinutesMember[]) {
-    return members
-        .map(m => m.party ? `${m.name} (${m.party}${m.isPartyHead ? ', Επικεφαλής' : ''})` : m.name)
-        .join(', ');
+    return members.map(m => m.name).join(', ');
 }
 
 function SubjectFooter({ subject }: { subject: MinutesSubject }) {
