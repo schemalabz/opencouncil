@@ -26,6 +26,7 @@ export function HighlightPreviewDialog() {
     saveHighlight,
     exitEditModeAndRedirectToHighlight,
     exitEditMode,
+    commitPendingCreation,
   } = useHighlight();
 
   const { isPlaying, togglePlayPause } = useVideo();
@@ -71,6 +72,10 @@ export function HighlightPreviewDialog() {
         })
       });
       if (!res.ok) throw new Error('Failed to start generation');
+
+      // Generation implies commit — even if the user never explicitly saved,
+      // they've committed to this highlight by generating a video for it.
+      commitPendingCreation();
 
       toast({
         title: t('previewDialog.generationStarted'),

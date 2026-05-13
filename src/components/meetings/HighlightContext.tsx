@@ -62,6 +62,7 @@ interface HighlightContextType {
     onSuccess?: (highlight: HighlightWithUtterances) => void;
     onError?: (error: Error) => void;
   }) => Promise<{ success: boolean; error?: any }>;
+  commitPendingCreation: () => void;
 }
 
 const HighlightContext = createContext<HighlightContextType | undefined>(undefined);
@@ -78,10 +79,15 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   const [lastClickedUtteranceId, setLastClickedUtteranceId] = useState<string | null>(null);
   const [lastClickedAction, setLastClickedAction] = useState<'add' | 'remove' | null>(null);
 
+  // Tracks a highlight that was created via createHighlight() but not yet
+  // committed (no save, no generation). If the user exits edit mode while
+  // this is set, the orphan is cleaned up so it doesn't appear in the list.
+  const [pendingCreationId, setPendingCreationId] = useState<string | null>(null);
+
   // Get transcript and speaker data from CouncilMeetingDataContext
   const { transcript, speakerTags, getSpeakerTag, getPerson, getSpeakerSegmentById, meeting } = useCouncilMeetingData();
   // Mutations come from the stable actions context — they never change identity.
-  const { addHighlight, updateHighlight } = useCouncilMeetingActions();
+  const { addHighlight, updateHighlight, removeHighlight } = useCouncilMeetingActions();
   const { currentTime, seekTo, isPlaying, setIsPlaying, seekToAndPlay } = useVideo();
   const router = useRouter();
   const pathname = usePathname();
@@ -117,6 +123,8 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   lastClickedIdRef.current = lastClickedUtteranceId;
   const lastClickedActionRef = useRef(lastClickedAction);
   lastClickedActionRef.current = lastClickedAction;
+  const pendingCreationIdRef = useRef(pendingCreationId);
+  pendingCreationIdRef.current = pendingCreationId;
 
   const calculateHighlightData = useCallback((highlight: HighlightWithUtterances | null): HighlightCalculationResult | null => {
     if (!highlight) {
@@ -440,14 +448,27 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   const exitEditMode = useCallback(() => {
     if (!editingHighlight) return;
     setIsPlaying(false);
-    router.push(`/${editingHighlight.cityId}/${editingHighlight.meetingId}/highlights`);
-  }, [editingHighlight, router, setIsPlaying]);
+    const { id: highlightId, cityId, meetingId } = editingHighlight;
+    if (pendingCreationIdRef.current === highlightId) {
+      setPendingCreationId(null);
+      removeHighlight(highlightId);
+      fetch(`/api/highlights/${highlightId}`, { method: 'DELETE' }).catch(err => {
+        console.error('Failed to delete uncommitted highlight:', err);
+      });
+    }
+    router.push(`/${cityId}/${meetingId}/highlights`);
+  }, [editingHighlight, router, setIsPlaying, removeHighlight]);
 
   const exitEditModeAndRedirectToHighlight = useCallback(() => {
     if (!editingHighlight) return;
     setIsPlaying(false);
+    setPendingCreationId(null);
     router.push(`/${editingHighlight.cityId}/${editingHighlight.meetingId}/highlights/${editingHighlight.id}`);
   }, [editingHighlight, router, setIsPlaying]);
+
+  const commitPendingCreation = useCallback(() => {
+    setPendingCreationId(null);
+  }, []);
 
   const saveHighlight = useCallback(async (options?: {
     name?: string;
@@ -494,6 +515,9 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
       updateHighlight(editingHighlight.id, updatedHighlight);
 
       setIsDirty(false);
+      if (pendingCreationIdRef.current === editingHighlight.id) {
+        setPendingCreationId(null);
+      }
       options?.onSuccess?.();
 
       return { success: true };
@@ -536,6 +560,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
       const highlight = await res.json();
 
       addHighlight(highlight);
+      setPendingCreationId(highlight.id);
       enterEditMode(highlight);
 
       if (preSelectedUtteranceId) {
@@ -586,6 +611,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     calculateHighlightData,
     saveHighlight,
     createHighlight,
+    commitPendingCreation,
   }), [
     editingHighlight,
     previewMode,
@@ -612,6 +638,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     calculateHighlightData,
     saveHighlight,
     createHighlight,
+    commitPendingCreation,
   ]);
 
   return (
