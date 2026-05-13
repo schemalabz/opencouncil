@@ -7,6 +7,7 @@ import {
     MinutesAttendance,
     MinutesVoteResult,
     MinutesCouncilComposition,
+    MinutesAttendanceChange,
 } from './types';
 
 // --- Dependency types for testability ---
@@ -207,6 +208,67 @@ export function buildCouncilComposition(
 }
 
 
+
+/**
+ * Computes mid-meeting attendance changes by diffing per-subject attendance
+ * across consecutive subjects in discussion order.
+ *
+ * A person who is present in subject N but absent in subject N+1 is a departure
+ * (detected at subject N+1). A person absent in N but present in N+1 is an arrival.
+ */
+export function buildAttendanceChanges(
+    subjects: Array<{
+        subjectId: string;
+        name: string;
+        agendaItemIndex: number | null;
+        attendance: MinutesAttendance | null;
+    }>,
+): MinutesAttendanceChange[] {
+    const changes: MinutesAttendanceChange[] = [];
+
+    for (let i = 1; i < subjects.length; i++) {
+        const prev = subjects[i - 1];
+        const curr = subjects[i];
+        if (!prev.attendance || !curr.attendance) continue;
+
+        const currAbsentIds = new Set(curr.attendance.absent.map(m => m.personId));
+        const currPresentIds = new Set(curr.attendance.present.map(m => m.personId));
+
+        // Departures: present in prev, absent in curr
+        for (const member of prev.attendance.present) {
+            if (currAbsentIds.has(member.personId)) {
+                changes.push({
+                    personId: member.personId,
+                    name: member.name,
+                    type: 'departure',
+                    atSubject: {
+                        id: curr.subjectId,
+                        name: curr.name,
+                        agendaItemIndex: curr.agendaItemIndex,
+                    },
+                });
+            }
+        }
+
+        // Arrivals: absent in prev, present in curr
+        for (const member of prev.attendance.absent) {
+            if (currPresentIds.has(member.personId)) {
+                changes.push({
+                    personId: member.personId,
+                    name: member.name,
+                    type: 'arrival',
+                    atSubject: {
+                        id: curr.subjectId,
+                        name: curr.name,
+                        agendaItemIndex: curr.agendaItemIndex,
+                    },
+                });
+            }
+        }
+    }
+
+    return changes;
+}
 
 interface SortableSubject {
     id: string;
