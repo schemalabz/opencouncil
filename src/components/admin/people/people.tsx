@@ -58,7 +58,10 @@ export default function People({ people, currentCityName, administrativeBodies }
 
     const handleBodySelect = (bodyId: string) => {
         setSelectedBodyId(bodyId);
-        setElectedOrderOpen(true);
+        // Delay opening the Sheet to let the DropdownMenu (also a Radix Dialog)
+        // fully close first — otherwise two dialogs transitioning simultaneously
+        // can leave pointer-events: none stuck on the body.
+        requestAnimationFrame(() => setElectedOrderOpen(true));
     };
 
     return (
@@ -133,13 +136,13 @@ export default function People({ people, currentCityName, administrativeBodies }
                 </CardContent>
             </Card>
 
-            {cityId && selectedBodyId && (
+            {cityId && (
                 <ElectedOrderSheet
-                    open={electedOrderOpen}
+                    open={electedOrderOpen && selectedBodyId !== null}
                     onOpenChange={setElectedOrderOpen}
                     people={people}
                     cityId={cityId}
-                    administrativeBodyId={selectedBodyId}
+                    administrativeBodyId={selectedBodyId ?? ""}
                 />
             )}
         </>
