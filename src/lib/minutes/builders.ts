@@ -213,6 +213,10 @@ export function buildCouncilComposition(
  * Computes mid-meeting attendance changes by diffing per-subject attendance
  * across consecutive subjects in discussion order.
  *
+ * Also compares the initial roll call against the first subject's attendance
+ * to catch arrivals/departures that happen during the first discussed subject
+ * (which have no preceding subject to diff against).
+ *
  * A person who is present in subject N but absent in subject N+1 is a departure
  * (detected at subject N+1). A person absent in N but present in N+1 is an arrival.
  */
@@ -221,48 +225,81 @@ export function buildAttendanceChanges(
         subjectId: string;
         name: string;
         agendaItemIndex: number | null;
+        nonAgendaReason: 'beforeAgenda' | 'outOfAgenda' | null;
         attendance: MinutesAttendance | null;
     }>,
+    /** Initial roll call — absent members at session start. Used to detect changes at the first discussed subject. */
+    initialAbsentMembers: MinutesMember[] | null,
 ): MinutesAttendanceChange[] {
     const changes: MinutesAttendanceChange[] = [];
 
+    // Pre-compute OA sequential indices (1-based)
+    const oaIndexMap = new Map<string, number>();
+    let oaCounter = 0;
+    for (const s of subjects) {
+        if (s.nonAgendaReason === 'outOfAgenda') {
+            oaCounter++;
+            oaIndexMap.set(s.subjectId, oaCounter);
+        }
+    }
+
+    const buildAtSubject = (s: typeof subjects[number]) => ({
+        id: s.subjectId,
+        name: s.name,
+        agendaItemIndex: s.agendaItemIndex,
+        nonAgendaReason: s.nonAgendaReason,
+        outOfAgendaIndex: oaIndexMap.get(s.subjectId) ?? null,
+    });
+
+    // Compare initial roll call against first subject's attendance.
+    // Catches arrivals (initially absent → present) and departures
+    // (initially present → absent) during the first discussed subject.
+    const firstWithAttendance = subjects.find(s => s.attendance);
+    if (firstWithAttendance?.attendance && initialAbsentMembers) {
+        const initialAbsentIds = new Set(initialAbsentMembers.map(m => m.personId));
+        const atSubject = buildAtSubject(firstWithAttendance);
+
+        // Arrivals: initially absent → present at first subject
+        for (const member of firstWithAttendance.attendance.present) {
+            if (initialAbsentIds.has(member.personId)) {
+                changes.push({ personId: member.personId, name: member.name, type: 'arrival', atSubject });
+            }
+        }
+
+        // Departures: initially present (not in absent list) → absent at first subject
+        for (const member of firstWithAttendance.attendance.absent) {
+            if (!initialAbsentIds.has(member.personId)) {
+                changes.push({ personId: member.personId, name: member.name, type: 'departure', atSubject });
+            }
+        }
+    }
+
+    // Diff consecutive subjects
     for (let i = 1; i < subjects.length; i++) {
         const prev = subjects[i - 1];
         const curr = subjects[i];
-        if (!prev.attendance || !curr.attendance) continue;
+        if (!prev.attendance || !curr.attendance) {
+            if (prev.attendance || curr.attendance) {
+                console.warn(`[buildAttendanceChanges] Gap in attendance data at subject "${curr.name}"`);
+            }
+            continue;
+        }
 
         const currAbsentIds = new Set(curr.attendance.absent.map(m => m.personId));
         const currPresentIds = new Set(curr.attendance.present.map(m => m.personId));
+        const atSubject = buildAtSubject(curr);
 
         // Departures: present in prev, absent in curr
         for (const member of prev.attendance.present) {
             if (currAbsentIds.has(member.personId)) {
-                changes.push({
-                    personId: member.personId,
-                    name: member.name,
-                    type: 'departure',
-                    atSubject: {
-                        id: curr.subjectId,
-                        name: curr.name,
-                        agendaItemIndex: curr.agendaItemIndex,
-                    },
-                });
+                changes.push({ personId: member.personId, name: member.name, type: 'departure', atSubject });
             }
         }
 
         // Arrivals: absent in prev, present in curr
         for (const member of prev.attendance.absent) {
             if (currPresentIds.has(member.personId)) {
-                changes.push({
-                    personId: member.personId,
-                    name: member.name,
-                    type: 'arrival',
-                    atSubject: {
-                        id: curr.subjectId,
-                        name: curr.name,
-                        agendaItemIndex: curr.agendaItemIndex,
-                    },
-                });
+                changes.push({ personId: member.personId, name: member.name, type: 'arrival', atSubject });
             }
         }
     }

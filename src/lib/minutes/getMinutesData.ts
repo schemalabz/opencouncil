@@ -229,11 +229,32 @@ export async function getMinutesData(
         });
     }
 
-    // Sort subjects by discussion order (first utterance timestamp)
+    // Sort subjects by discussion order (first utterance timestamp).
+    // Include PROCEDURAL_VOTE utterances for timestamp computation so subjects
+    // with only procedural votes (e.g., OA κατεπείγον votes) get sorted correctly,
+    // even though their content is rendered as orphaned/preamble text.
     const firstUtteranceBySubject = new Map<string, number>();
     for (const [subjectId, utterances] of utterancesBySubject) {
         if (utterances.length > 0) {
             firstUtteranceBySubject.set(subjectId, utterances[0].startTimestamp);
+        }
+    }
+
+    // Check for subjects missing a timestamp — they may have PROCEDURAL_VOTE utterances only
+    const subjectsWithoutTimestamp = subjectIds.filter(id => !firstUtteranceBySubject.has(id));
+    if (subjectsWithoutTimestamp.length > 0) {
+        const proceduralUtterances = await prisma.utterance.findMany({
+            where: {
+                discussionSubjectId: { in: subjectsWithoutTimestamp },
+                discussionStatus: 'PROCEDURAL_VOTE',
+            },
+            select: { discussionSubjectId: true, startTimestamp: true },
+            orderBy: { startTimestamp: 'asc' },
+        });
+        for (const u of proceduralUtterances) {
+            if (u.discussionSubjectId && !firstUtteranceBySubject.has(u.discussionSubjectId)) {
+                firstUtteranceBySubject.set(u.discussionSubjectId, u.startTimestamp);
+            }
         }
     }
 
@@ -426,7 +447,34 @@ export async function getMinutesData(
     // Compute mid-meeting attendance changes from per-subject attendance diffs
     const attendanceChanges = buildAttendanceChanges(
         minutesSubjects.filter(s => !s.withdrawn),
+        absentMembers,
     );
+
+    // Build discussion order label if subjects were discussed out of natural order.
+    // Natural order: OA subjects first (sorted), then regular subjects (sorted by agendaItemIndex).
+    const nonWithdrawn = minutesSubjects.filter(s => !s.withdrawn);
+    const naturalOrder = [
+        ...nonWithdrawn.filter(s => s.nonAgendaReason === 'outOfAgenda'),
+        ...nonWithdrawn.filter(s => s.nonAgendaReason !== 'outOfAgenda'),
+    ].sort((a, b) => {
+        const aIsOA = a.nonAgendaReason === 'outOfAgenda';
+        const bIsOA = b.nonAgendaReason === 'outOfAgenda';
+        if (aIsOA !== bIsOA) return aIsOA ? -1 : 1;
+        return (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0);
+    });
+    const isNaturalOrder = nonWithdrawn.every((s, i) => s.subjectId === naturalOrder[i]?.subjectId);
+
+    let discussionOrderLabel: string | null = null;
+    if (!isNaturalOrder && nonWithdrawn.length > 0) {
+        let oaCounter = 0;
+        discussionOrderLabel = nonWithdrawn.map(s => {
+            if (s.nonAgendaReason === 'outOfAgenda') {
+                oaCounter++;
+                return `ΕΗΔ${oaCounter}`;
+            }
+            return `${s.agendaItemIndex}ο`;
+        }).join(', ');
+    }
 
     return {
         city: {
@@ -448,6 +496,7 @@ export async function getMinutesData(
         absentMembers,
         preambleEntries,
         attendanceChanges,
+        discussionOrderLabel,
         subjects: minutesSubjects,
         epilogueEntries,
     };
