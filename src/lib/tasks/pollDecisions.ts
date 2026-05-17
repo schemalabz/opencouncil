@@ -109,6 +109,7 @@ export async function pollDecisionsForMeeting(
             subjectId: s.id,
             name: s.name,
             agendaItemIndex: s.agendaItemIndex,
+            nonAgendaReason: s.nonAgendaReason,
             ...(s.decision?.ada ? {
                 existingDecision: {
                     ada: s.decision.ada,
