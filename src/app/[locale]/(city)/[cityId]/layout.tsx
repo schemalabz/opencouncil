@@ -1,6 +1,8 @@
 import { getCityCached } from "@/lib/cache";
 import { notFound } from "next/navigation";
 
+const VALID_CITY_ID = /^[a-z][a-z0-9_-]*$/;
+
 export default async function CityLayout({
     children,
     params: { locale, cityId }
@@ -8,6 +10,10 @@ export default async function CityLayout({
     children: React.ReactNode,
     params: { locale: string, cityId: string }
 }) {
+
+    if (!VALID_CITY_ID.test(cityId)) {
+        notFound();
+    }
 
     const city = await getCityCached(cityId);
     if (!city) {
