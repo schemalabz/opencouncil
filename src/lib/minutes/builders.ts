@@ -357,3 +357,14 @@ export function sortSubjectsByDiscussionOrder<T extends SortableSubject>(
         return (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0);
     });
 }
+
+/** Formats a subject reference for display in attendance change sections. */
+export function formatSubjectLabel(atSubject: MinutesAttendanceChange['atSubject']): string {
+    if (atSubject.nonAgendaReason === 'outOfAgenda' && atSubject.outOfAgendaIndex != null) {
+        return `${atSubject.outOfAgendaIndex}ο εκτός ημερήσιας`;
+    }
+    if (atSubject.agendaItemIndex != null) {
+        return `${atSubject.agendaItemIndex}ο θέμα`;
+    }
+    return atSubject.name;
+}
