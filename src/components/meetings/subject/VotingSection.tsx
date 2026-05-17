@@ -3,9 +3,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { UtteranceMiniTranscript } from './UtteranceMiniTranscript';
-import { calculateVoteResult } from '@/lib/utils/votes';
+import { calculateVoteResult, getAbsentNonVoterIds } from '@/lib/utils/votes';
 import { compareRanks } from '@/lib/sorting/people';
 import { formatSurnameFirst } from '@/lib/formatters/name';
+import { isMayorRole, isRoleActiveAt } from '@/lib/utils/roles';
 import { VoteType } from '@prisma/client';
 import { Loader2 } from 'lucide-react';
 
@@ -41,34 +42,62 @@ interface Vote {
     person: { id: string; name: string; roles: { electedOrder: number | null; administrativeBodyId: string | null }[] };
 }
 
+interface AttendanceRecord {
+    status: 'PRESENT' | 'ABSENT';
+    person: { id: string; name: string; roles: { electedOrder: number | null; administrativeBodyId: string | null }[] };
+}
+
 interface VotingSectionProps {
     subjectId: string;
     votes: Vote[];
+    attendance?: AttendanceRecord[];
 }
 
-function sortVotesByElectedOrder(votes: Vote[], administrativeBodyId: string | null): Vote[] {
-    return [...votes].sort((a, b) => {
+function sortByElectedOrder<T extends { person: { name: string; roles: { electedOrder: number | null; administrativeBodyId: string | null }[] } }>(
+    items: T[], administrativeBodyId: string | null,
+): T[] {
+    return [...items].sort((a, b) => {
         const aRole = a.person.roles.find(r => r.administrativeBodyId === administrativeBodyId);
         const bRole = b.person.roles.find(r => r.administrativeBodyId === administrativeBodyId);
-        const aOrder = aRole?.electedOrder ?? null;
-        const bOrder = bRole?.electedOrder ?? null;
-        const orderCompare = compareRanks(aOrder, bOrder);
+        const orderCompare = compareRanks(aRole?.electedOrder ?? null, bRole?.electedOrder ?? null);
         if (orderCompare !== 0) return orderCompare;
         return a.person.name.localeCompare(b.person.name);
     });
 }
 
-function VoteBreakdown({ votes }: { votes: Vote[] }) {
+function VoteBreakdown({ votes, attendance }: { votes: Vote[]; attendance: AttendanceRecord[] }) {
     const t = useTranslations('Subject');
-    const { meeting } = useCouncilMeetingData();
+    const { meeting, people } = useCouncilMeetingData();
     const administrativeBodyId = meeting.administrativeBodyId ?? null;
     const result = useMemo(() => calculateVoteResult(votes), [votes]);
 
-    const forVoters = useMemo(() => sortVotesByElectedOrder(votes.filter(v => v.voteType === 'FOR'), administrativeBodyId), [votes, administrativeBodyId]);
-    const againstVoters = useMemo(() => sortVotesByElectedOrder(votes.filter(v => v.voteType === 'AGAINST'), administrativeBodyId), [votes, administrativeBodyId]);
-    const abstainVoters = useMemo(() => sortVotesByElectedOrder(votes.filter(v => v.voteType === 'ABSTAIN'), administrativeBodyId), [votes, administrativeBodyId]);
-    const presentVoters = useMemo(() => sortVotesByElectedOrder(votes.filter(v => v.voteType === 'PRESENT'), administrativeBodyId), [votes, administrativeBodyId]);
-    const didNotVoteVoters = useMemo(() => sortVotesByElectedOrder(votes.filter(v => v.voteType === 'DID_NOT_VOTE'), administrativeBodyId), [votes, administrativeBodyId]);
+    const mayorPersonId = useMemo(() => {
+        const meetingDate = new Date(meeting.dateTime);
+        return people.find(p =>
+            p.roles.some(r => isRoleActiveAt(r, meetingDate) && isMayorRole(r))
+        )?.id ?? null;
+    }, [people, meeting.dateTime]);
+
+    const forVoters = useMemo(() => sortByElectedOrder(votes.filter(v => v.voteType === 'FOR'), administrativeBodyId), [votes, administrativeBodyId]);
+    const againstVoters = useMemo(() => sortByElectedOrder(votes.filter(v => v.voteType === 'AGAINST'), administrativeBodyId), [votes, administrativeBodyId]);
+    const abstainVoters = useMemo(() => sortByElectedOrder(votes.filter(v => v.voteType === 'ABSTAIN'), administrativeBodyId), [votes, administrativeBodyId]);
+    const presentVoters = useMemo(() => sortByElectedOrder(votes.filter(v => v.voteType === 'PRESENT'), administrativeBodyId), [votes, administrativeBodyId]);
+    const didNotVoteVoters = useMemo(() => sortByElectedOrder(votes.filter(v => v.voteType === 'DID_NOT_VOTE'), administrativeBodyId), [votes, administrativeBodyId]);
+
+    // Absent members: those in attendance with ABSENT status who didn't vote (excluding mayor)
+    const absentMembers = useMemo(() => {
+        if (!attendance || attendance.length === 0) return [];
+        const voterIds = new Set(votes.map(v => v.person.id));
+        const absentIds = getAbsentNonVoterIds(
+            attendance.map(a => ({ personId: a.person.id, status: a.status })),
+            voterIds,
+            mayorPersonId,
+        );
+        return sortByElectedOrder(
+            attendance.filter(a => absentIds.has(a.person.id)),
+            administrativeBodyId,
+        );
+    }, [attendance, votes, administrativeBodyId, mayorPersonId]);
 
     return (
         <div className="p-4 space-y-3">
@@ -136,6 +165,16 @@ function VoteBreakdown({ votes }: { votes: Vote[] }) {
                             </td>
                         </tr>
                     )}
+                    {absentMembers.length > 0 && (
+                        <tr>
+                            <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap align-top">
+                                {t('voteAbsent')} ({absentMembers.length})
+                            </td>
+                            <td className="py-1.5">
+                                {absentMembers.map(a => formatSurnameFirst(a.person.name)).join(', ')}
+                            </td>
+                        </tr>
+                    )}
                 </tbody>
             </table>
         </div>
@@ -167,7 +206,7 @@ function VotingUtterancesDisplay({ utterancesBySegment, getSpeakerSegmentById, c
     );
 }
 
-export function VotingSection({ subjectId, votes }: VotingSectionProps) {
+export function VotingSection({ subjectId, votes, attendance }: VotingSectionProps) {
     const [votingUtterances, setVotingUtterances] = useState<VotingUtterance[] | null>(null);
     const [loading, setLoading] = useState(true);
     const { meeting, getSpeakerSegmentById } = useCouncilMeetingData();
@@ -219,7 +258,7 @@ export function VotingSection({ subjectId, votes }: VotingSectionProps) {
     if (hasExtractedVotes) {
         return (
             <div>
-                <VoteBreakdown votes={votes} />
+                <VoteBreakdown votes={votes} attendance={attendance ?? []} />
                 {hasUtterances && (
                     <div className="border-t border-border p-4 space-y-3">
                         <p className="text-xs text-muted-foreground">

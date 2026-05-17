@@ -1,7 +1,7 @@
 import { AttendanceStatus, VoteType } from '@prisma/client';
 import { compareRanks } from '@/lib/sorting/people';
 import { formatSurnameFirst } from '@/lib/formatters/name';
-import { calculateVoteResult } from '@/lib/utils/votes';
+import { calculateVoteResult, getAbsentNonVoterIds } from '@/lib/utils/votes';
 import {
     MinutesMember,
     MinutesAttendance,
@@ -151,8 +151,9 @@ export function buildVoteResult(
     }
 
     // Absent members: those in attendance who are absent and didn't vote (excluding mayor)
+    const absentIds = getAbsentNonVoterIds(attendance, voterIds, mayorPersonId);
     const absentMembers = attendance
-        .filter(a => a.status !== 'PRESENT' && !voterIds.has(a.personId) && a.personId !== mayorPersonId)
+        .filter(a => absentIds.has(a.personId))
         .sort((a, b) =>
             compareRanks(getElectedOrder(a.personId), getElectedOrder(b.personId))
             || a.personName.localeCompare(b.personName)

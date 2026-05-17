@@ -826,7 +826,8 @@
         "voteAgainst": "Κατά",
         "voteAbstain": "Λευκό",
         "votePresent": "Παρών",
-        "voteDidNotVote": "Αποχή"
+        "voteDidNotVote": "Αποχή",
+        "voteAbsent": "Απόντες"
     },
     "PersonCard": {
         "party": "Παράταξη",

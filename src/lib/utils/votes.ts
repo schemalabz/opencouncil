@@ -1,4 +1,4 @@
-import { VoteType } from '@prisma/client';
+import { AttendanceStatus, VoteType } from '@prisma/client';
 
 export interface VoteResultSummary {
     forCount: number;
@@ -46,4 +46,23 @@ export function calculateVoteResult(votes: { voteType: VoteType }[]): VoteResult
     const isUnanimous = totalVotes > 0 && againstCount === 0 && abstainCount === 0;
 
     return { forCount, againstCount, abstainCount, presentCount, didNotVoteCount, totalVotes, isUnanimous, passed };
+}
+
+/**
+ * Get person IDs of members who were absent during a vote.
+ * Absent = marked ABSENT in attendance AND didn't cast a vote AND not the mayor.
+ * The mayor is excluded because they're displayed separately in the composition.
+ */
+export function getAbsentNonVoterIds(
+    attendance: Array<{ personId: string; status: AttendanceStatus }>,
+    voterIds: Set<string>,
+    mayorPersonId: string | null,
+): Set<string> {
+    const result = new Set<string>();
+    for (const a of attendance) {
+        if (a.status === 'ABSENT' && !voterIds.has(a.personId) && a.personId !== mayorPersonId) {
+            result.add(a.personId);
+        }
+    }
+    return result;
 }
