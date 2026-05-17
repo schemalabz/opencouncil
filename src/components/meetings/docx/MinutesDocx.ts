@@ -13,7 +13,7 @@ import { formatGapDuration } from '@/lib/formatters/time';
 import { getAbsentLabel, extractFirstName } from '@/lib/formatters/name';
 import { markdownToDocxParagraphs } from '@/lib/minutes/markdownToDocx';
 import { getWithdrawnLabel } from '@/lib/utils/subjects';
-import { interleaveSubstitutes } from '@/lib/minutes/builders';
+import { interleaveSubstitutes, formatSubjectLabel } from '@/lib/minutes/builders';
 import {
     MinutesData,
     MinutesSubject,
@@ -468,7 +468,7 @@ function createCouncilCompositionSection(
 }
 
 /**
- * Creates the ΑΦΙΞΕΙΣ / ΑΝΑΧΩΡΗΣΕΙΣ section listing mid-meeting attendance changes.
+ * Creates the Προσελεύσεις / Αποχωρήσεις section listing mid-meeting attendance changes.
  */
 function createAttendanceChangesSection(
     changes: MinutesAttendanceChange[],
@@ -483,18 +483,15 @@ function createAttendanceChangesSection(
     if (arrivals.length > 0) {
         paragraphs.push(new Paragraph({
             spacing: { before: 200, after: 100 },
-            children: [new TextRun({ text: 'ΑΦΙΞΕΙΣ', bold: true, size: FONT_SIZE.BODY })],
+            children: [new TextRun({ text: 'Προσελεύσεις', bold: true, size: FONT_SIZE.BODY })],
         }));
         for (const change of arrivals) {
-            const subjectLabel = change.atSubject.agendaItemIndex
-                ? `${change.atSubject.agendaItemIndex}ο θέμα`
-                : change.atSubject.name;
             paragraphs.push(new Paragraph({
                 bullet: { level: 0 },
                 spacing: { before: 40, after: 40 },
                 children: [
-                    new TextRun({ text: `${change.name}`, size: FONT_SIZE.BODY }),
-                    new TextRun({ text: ` — παρών/παρούσα από το ${subjectLabel}`, size: FONT_SIZE.BODY, color: '666666' }),
+                    new TextRun({ text: change.name, size: FONT_SIZE.BODY }),
+                    new TextRun({ text: ` — από το ${formatSubjectLabel(change.atSubject)}`, size: FONT_SIZE.BODY, color: '666666' }),
                 ],
             }));
         }
@@ -503,18 +500,15 @@ function createAttendanceChangesSection(
     if (departures.length > 0) {
         paragraphs.push(new Paragraph({
             spacing: { before: 200, after: 100 },
-            children: [new TextRun({ text: 'ΑΝΑΧΩΡΗΣΕΙΣ', bold: true, size: FONT_SIZE.BODY })],
+            children: [new TextRun({ text: 'Αποχωρήσεις', bold: true, size: FONT_SIZE.BODY })],
         }));
         for (const change of departures) {
-            const subjectLabel = change.atSubject.agendaItemIndex
-                ? `${change.atSubject.agendaItemIndex}ο θέμα`
-                : change.atSubject.name;
             paragraphs.push(new Paragraph({
                 bullet: { level: 0 },
                 spacing: { before: 40, after: 40 },
                 children: [
-                    new TextRun({ text: `${change.name}`, size: FONT_SIZE.BODY }),
-                    new TextRun({ text: ` — απουσίαζε από το ${subjectLabel}`, size: FONT_SIZE.BODY, color: '666666' }),
+                    new TextRun({ text: change.name, size: FONT_SIZE.BODY }),
+                    new TextRun({ text: ` — από το ${formatSubjectLabel(change.atSubject)}`, size: FONT_SIZE.BODY, color: '666666' }),
                 ],
             }));
         }
@@ -789,6 +783,17 @@ export async function renderMinutesDocx(data: MinutesData): Promise<Blob> {
     // Arrivals/departures
     if (data.attendanceChanges.length > 0) {
         children.push(...createAttendanceChangesSection(data.attendanceChanges));
+    }
+
+    // Discussion order (only when subjects were discussed out of natural order)
+    if (data.discussionOrderLabel) {
+        children.push(new Paragraph({
+            spacing: { before: 200, after: 200 },
+            children: [
+                new TextRun({ text: 'Σειρά συζήτησης: ', bold: true, size: FONT_SIZE.BODY }),
+                new TextRun({ text: data.discussionOrderLabel, size: FONT_SIZE.BODY }),
+            ],
+        }));
     }
 
     // Table of contents (split into ΕΚΤΟΣ ΗΔ + ΗΔ tables)

@@ -13,7 +13,7 @@ import {
     MinutesTranscriptEntry,
     MinutesAttendanceChange,
 } from '@/lib/minutes/types';
-import { interleaveSubstitutes } from '@/lib/minutes/builders';
+import { interleaveSubstitutes, formatSubjectLabel } from '@/lib/minutes/builders';
 import { getWithdrawnLabel } from '@/lib/utils/subjects';
 
 interface MinutesPreviewContentProps {
@@ -59,6 +59,14 @@ export function MinutesPreviewContent({ data }: MinutesPreviewContentProps) {
             {/* Arrivals/departures */}
             {data.attendanceChanges.length > 0 && (
                 <AttendanceChangesSection changes={data.attendanceChanges} />
+            )}
+
+            {/* Discussion order (only when non-natural) */}
+            {data.discussionOrderLabel && (
+                <p className="text-sm mt-2">
+                    <span className="font-bold">Σειρά συζήτησης: </span>
+                    {data.discussionOrderLabel}
+                </p>
             )}
 
             {/* Table of Contents */}
@@ -167,16 +175,13 @@ function AttendanceChangesSection({ changes }: { changes: MinutesAttendanceChang
         <div className="mt-4 space-y-2">
             {arrivals.length > 0 && (
                 <div>
-                    <p className="font-bold text-sm">ΑΦΙΞΕΙΣ</p>
+                    <p className="font-bold text-sm">Προσελεύσεις</p>
                     <ul className="list-disc pl-5 text-sm">
                         {arrivals.map((change, i) => (
                             <li key={i}>
                                 {change.name}
                                 <span className="text-muted-foreground">
-                                    {' — παρών/παρούσα από το '}
-                                    {change.atSubject.agendaItemIndex
-                                        ? `${change.atSubject.agendaItemIndex}ο θέμα`
-                                        : change.atSubject.name}
+                                    {` — από το ${formatSubjectLabel(change.atSubject)}`}
                                 </span>
                             </li>
                         ))}
@@ -185,16 +190,13 @@ function AttendanceChangesSection({ changes }: { changes: MinutesAttendanceChang
             )}
             {departures.length > 0 && (
                 <div>
-                    <p className="font-bold text-sm">ΑΝΑΧΩΡΗΣΕΙΣ</p>
+                    <p className="font-bold text-sm">Αποχωρήσεις</p>
                     <ul className="list-disc pl-5 text-sm">
                         {departures.map((change, i) => (
                             <li key={i}>
                                 {change.name}
                                 <span className="text-muted-foreground">
-                                    {' — απουσίαζε από το '}
-                                    {change.atSubject.agendaItemIndex
-                                        ? `${change.atSubject.agendaItemIndex}ο θέμα`
-                                        : change.atSubject.name}
+                                    {` — από το ${formatSubjectLabel(change.atSubject)}`}
                                 </span>
                             </li>
                         ))}

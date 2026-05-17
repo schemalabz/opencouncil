@@ -20,6 +20,7 @@ function makeMinutesData(overrides: Partial<MinutesData> = {}): MinutesData {
         absentMembers: null,
         preambleEntries: [],
         attendanceChanges: [],
+        discussionOrderLabel: null,
         subjects: [],
         epilogueEntries: [],
         ...overrides,
