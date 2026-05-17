@@ -755,9 +755,9 @@ export async function updateSpeakerSegmentData(
         }
     }
 
-    // Validate summary if provided
+    // Normalize summary: treat empty text as no summary
     if (data.summary && (!data.summary.text || data.summary.text.trim().length === 0)) {
-        throw new Error('Summary text cannot be empty if summary is provided');
+        data.summary = null;
     }
 
     // Validate that all referenced subject IDs exist

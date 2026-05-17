@@ -83,11 +83,8 @@ export function useSpeakerSegmentEditor(segment: TranscriptType[number]) {
                 }
             });
 
-            // Validate summary if provided
-            if (data.summary) {
-                if (!data.summary.text || typeof data.summary.text !== 'string' || data.summary.text.trim().length === 0) {
-                    errors.push('Summary text cannot be empty if summary is provided');
-                }
+            // Validate summary if provided (treat empty text as null/no summary)
+            if (data.summary && data.summary.text && data.summary.text.trim().length > 0) {
                 if (!['procedural', 'substantive'].includes(data.summary.type)) {
                     errors.push('Summary type must be either "procedural" or "substantive"');
                 }
