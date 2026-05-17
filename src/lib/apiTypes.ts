@@ -480,6 +480,7 @@ export interface PollDecisionsRequest extends TaskRequest {
         subjectId: string;
         name: string;
         agendaItemIndex: number | null;
+        nonAgendaReason: string | null;
         existingDecision?: {
             ada: string;
             decisionTitle: string;
