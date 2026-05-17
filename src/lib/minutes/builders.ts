@@ -327,10 +327,10 @@ export function sortSubjectsByDiscussionOrder<T extends SortableSubject>(
     firstUtteranceBySubject: Map<string, number>,
 ): T[] {
     function getDiscussionTime(s: T): number | undefined {
-        const own = firstUtteranceBySubject.get(s.id);
-        if (own !== undefined) return own;
+        // Child subjects always inherit their parent's timestamp — their own
+        // utterances (e.g., procedural votes) don't determine discussion position.
         if (s.discussedIn) return firstUtteranceBySubject.get(s.discussedIn.id);
-        return undefined;
+        return firstUtteranceBySubject.get(s.id);
     }
 
     return [...subjects].sort((a, b) => {
