@@ -474,19 +474,19 @@ describe('sortSubjectsByDiscussionOrder', () => {
         expect(result).toEqual([]);
     });
 
-    it('child with own transcript uses own timestamp over parent', () => {
+    it('child always inherits parent timestamp, sorted after parent', () => {
         const subjects = [
             makeSubject('child', 2, { discussedIn: { id: 'parent' } }),
             makeSubject('parent', 1),
             makeSubject('other', 3),
         ];
-        // child has its own timestamp (discussed separately even though linked)
+        // child has its own timestamp at 50, but inherits parent's (100)
         const timestamps = new Map([['parent', 100], ['child', 50], ['other', 200]]);
 
         const result = sortSubjectsByDiscussionOrder(subjects, timestamps);
 
-        // child at 50, parent at 100, other at 200
-        expect(result.map(s => s.id)).toEqual(['child', 'parent', 'other']);
+        // child inherits parent's timestamp (100), sorts after parent, then other at 200
+        expect(result.map(s => s.id)).toEqual(['parent', 'child', 'other']);
     });
 });
 
