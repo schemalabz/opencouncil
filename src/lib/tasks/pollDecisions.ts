@@ -4,6 +4,7 @@ import { PollDecisionsRequest, PollDecisionsResult, ExtractedDecisionData } from
 import { startTask } from "./tasks";
 import prisma from "../db/prisma";
 import { AttendanceStatus, DataSource, Prisma, VoteType } from "@prisma/client";
+import { sortSubjectsByDiscussionOrder } from "../minutes/builders";
 
 /** Subjects eligible for decision polling: agenda + out-of-agenda, excluding withdrawn */
 const POLL_ELIGIBLE_SUBJECT_WHERE = {
@@ -68,6 +69,7 @@ export async function pollDecisionsForMeeting(
                     name: true,
                     agendaItemIndex: true,
                     nonAgendaReason: true,
+                    discussedIn: { select: { id: true } },
                     decision: { select: { ada: true, title: true, pdfUrl: true, excerpt: true } },
                 },
                 where: POLL_ELIGIBLE_SUBJECT_WHERE,
@@ -96,6 +98,25 @@ export async function pollDecisionsForMeeting(
         p.roles.some(r => isMayorRole(r) && isRoleActiveAt(r, councilMeeting.dateTime))
     );
 
+    // Sort subjects by discussion order (transcript timestamps) so OA subjects
+    // are in the correct sequence. Uses the same sortSubjectsByDiscussionOrder
+    // used by the minutes renderer.
+    const subjectIds = councilMeeting.subjects.map(s => s.id);
+    const firstUtteranceBySubject = new Map<string, number>();
+    if (subjectIds.length > 0) {
+        const firstUtterances = await prisma.utterance.groupBy({
+            by: ['discussionSubjectId'],
+            where: { discussionSubjectId: { in: subjectIds } },
+            _min: { startTimestamp: true },
+        });
+        for (const u of firstUtterances) {
+            if (u.discussionSubjectId && u._min.startTimestamp != null) {
+                firstUtteranceBySubject.set(u.discussionSubjectId, u._min.startTimestamp);
+            }
+        }
+    }
+    const sortedSubjects = sortSubjectsByDiscussionOrder(councilMeeting.subjects, firstUtteranceBySubject);
+
     const body: Omit<PollDecisionsRequest, 'callbackUrl'> = {
         meetingDate: councilMeeting.dateTime.toISOString().split('T')[0],
         diavgeiaUid: councilMeeting.city.diavgeiaUid,
@@ -105,7 +126,7 @@ export async function pollDecisionsForMeeting(
         mayorId: mayorPerson?.id,
         forceExtract: options?.forceExtract || undefined,
         people: peopleForRequest,
-        subjects: councilMeeting.subjects.map(s => ({
+        subjects: sortedSubjects.map(s => ({
             subjectId: s.id,
             name: s.name,
             agendaItemIndex: s.agendaItemIndex,
