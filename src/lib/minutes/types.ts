@@ -86,6 +86,9 @@ export interface MinutesAttendanceChange {
         id: string;
         name: string;
         agendaItemIndex: number | null;
+        nonAgendaReason: 'beforeAgenda' | 'outOfAgenda' | null;
+        /** Sequential number among out-of-agenda subjects (1-based), null for regular items */
+        outOfAgendaIndex: number | null;
     };
 }
 
@@ -110,6 +113,8 @@ export interface MinutesData {
     preambleEntries: MinutesTranscriptEntry[];
     /** Mid-meeting arrivals and departures derived from per-subject attendance diffs */
     attendanceChanges: MinutesAttendanceChange[];
+    /** Discussion order summary, only set when subjects were discussed out of natural order */
+    discussionOrderLabel: string | null;
     subjects: MinutesSubject[];
     /** Orphaned utterances after the last subject (closing remarks) */
     epilogueEntries: MinutesTranscriptEntry[];
