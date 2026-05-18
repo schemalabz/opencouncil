@@ -231,6 +231,32 @@ export async function getSubject(subjectId: string): Promise<SubjectWithRelation
     }
 }
 
+export type SubjectSearchHit = {
+    id: string;
+    name: string;
+    cityId: string;
+    councilMeetingId: string;
+};
+
+/**
+ * Case-insensitive partial-name lookup. Used by admin / script surfaces that
+ * need to find a subject without knowing its id.
+ */
+export async function searchSubjectsByName(
+    query: string,
+    limit = 20
+): Promise<SubjectSearchHit[]> {
+    const trimmed = query.trim();
+    if (!trimmed) return [];
+
+    return prisma.subject.findMany({
+        where: { name: { contains: trimmed, mode: 'insensitive' } },
+        select: { id: true, name: true, cityId: true, councilMeetingId: true },
+        orderBy: { name: 'asc' },
+        take: limit,
+    });
+}
+
 /**
  * Extract utterance IDs from contribution references for highlight creation
  * @param contributions - Array of speaker contributions
