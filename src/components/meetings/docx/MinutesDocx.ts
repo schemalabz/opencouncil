@@ -13,12 +13,14 @@ import { formatGapDuration } from '@/lib/formatters/time';
 import { getAbsentLabel, extractFirstName } from '@/lib/formatters/name';
 import { markdownToDocxParagraphs } from '@/lib/minutes/markdownToDocx';
 import { getWithdrawnLabel } from '@/lib/utils/subjects';
+import { interleaveSubstitutes, formatSubjectLabel } from '@/lib/minutes/builders';
 import {
     MinutesData,
     MinutesSubject,
     MinutesMember,
     MinutesCouncilComposition,
     MinutesTranscriptEntry,
+    MinutesAttendanceChange,
 } from '@/lib/minutes/types';
 
 const FONT_SIZE = {
@@ -413,7 +415,7 @@ function createCouncilCompositionSection(
         // Committee: ΠΑΡΟΝΤΑ ΜΕΛΗ and ΑΠΟΝΤΑ ΜΕΛΗ as bullet lists
         const substituteIds = new Set(composition.substituteMembers.map(m => m.personId));
         const absentPersonIds = new Set(absentMembers.map(m => m.personId));
-        const allMembers = [...composition.members, ...composition.substituteMembers];
+        const allMembers = interleaveSubstitutes(composition.members, composition.substituteMembers);
 
         const presentList = allMembers.filter(m => !absentPersonIds.has(m.personId));
         const absentList = allMembers.filter(m => absentPersonIds.has(m.personId));
@@ -462,6 +464,56 @@ function createCouncilCompositionSection(
     }
 
     paragraphs.push(new Paragraph({ pageBreakBefore: true }));
+    return paragraphs;
+}
+
+/**
+ * Creates the Προσελεύσεις / Αποχωρήσεις section listing mid-meeting attendance changes.
+ */
+function createAttendanceChangesSection(
+    changes: MinutesAttendanceChange[],
+): Paragraph[] {
+    if (changes.length === 0) return [];
+
+    const paragraphs: Paragraph[] = [];
+
+    const arrivals = changes.filter(c => c.type === 'arrival');
+    const departures = changes.filter(c => c.type === 'departure');
+
+    if (arrivals.length > 0) {
+        paragraphs.push(new Paragraph({
+            spacing: { before: 200, after: 100 },
+            children: [new TextRun({ text: 'Προσελεύσεις', bold: true, size: FONT_SIZE.BODY })],
+        }));
+        for (const change of arrivals) {
+            paragraphs.push(new Paragraph({
+                bullet: { level: 0 },
+                spacing: { before: 40, after: 40 },
+                children: [
+                    new TextRun({ text: change.name, size: FONT_SIZE.BODY }),
+                    new TextRun({ text: ` — από το ${formatSubjectLabel(change.atSubject)}`, size: FONT_SIZE.BODY, color: '666666' }),
+                ],
+            }));
+        }
+    }
+
+    if (departures.length > 0) {
+        paragraphs.push(new Paragraph({
+            spacing: { before: 200, after: 100 },
+            children: [new TextRun({ text: 'Αποχωρήσεις', bold: true, size: FONT_SIZE.BODY })],
+        }));
+        for (const change of departures) {
+            paragraphs.push(new Paragraph({
+                bullet: { level: 0 },
+                spacing: { before: 40, after: 40 },
+                children: [
+                    new TextRun({ text: change.name, size: FONT_SIZE.BODY }),
+                    new TextRun({ text: ` — από το ${formatSubjectLabel(change.atSubject)}`, size: FONT_SIZE.BODY, color: '666666' }),
+                ],
+            }));
+        }
+    }
+
     return paragraphs;
 }
 
@@ -688,8 +740,7 @@ function createSubjectSection(subject: MinutesSubject): (Paragraph | Table)[] {
         ];
         for (const { label, members } of voteCategories) {
             if (members.length === 0) continue;
-            const names = members
-                .map(m => m.party ? `${m.name} (${m.party}${m.isPartyHead ? ', Επικεφαλής' : ''})` : m.name).join(', ');
+            const names = members.map(m => m.name).join(', ');
             paragraphs.push(new Paragraph({
                 spacing: { before: 60, after: 40 },
                 children: [
@@ -727,6 +778,22 @@ export async function renderMinutesDocx(data: MinutesData): Promise<Blob> {
     // Council composition + absent members
     if (data.councilComposition) {
         children.push(...createCouncilCompositionSection(data.councilComposition, data.absentMembers, data.administrativeBody));
+    }
+
+    // Arrivals/departures
+    if (data.attendanceChanges.length > 0) {
+        children.push(...createAttendanceChangesSection(data.attendanceChanges));
+    }
+
+    // Discussion order (only when subjects were discussed out of natural order)
+    if (data.discussionOrderLabel) {
+        children.push(new Paragraph({
+            spacing: { before: 200, after: 200 },
+            children: [
+                new TextRun({ text: 'Σειρά συζήτησης: ', bold: true, size: FONT_SIZE.BODY }),
+                new TextRun({ text: data.discussionOrderLabel, size: FONT_SIZE.BODY }),
+            ],
+        }));
     }
 
     // Table of contents (split into ΕΚΤΟΣ ΗΔ + ΗΔ tables)

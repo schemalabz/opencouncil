@@ -17,6 +17,9 @@ import { LinkOrDrop } from '@/components/ui/link-or-drop';
 import { getPollingHistoryForMeeting, requestPollDecisions } from '@/lib/tasks/pollDecisions';
 import { calculateVoteResult } from '@/lib/utils/votes';
 import { getWithdrawnLabel } from '@/lib/utils/subjects';
+import { isMayorRole, isRoleActiveAt } from '@/lib/utils/roles';
+import { compareRanks, getElectedOrderForBody } from '@/lib/sorting/people';
+import { PersonWithRelations } from '@/lib/db/people';
 import ReactMarkdown from 'react-markdown';
 
 type FilterTab = 'all' | 'unlinked' | 'extracted';
@@ -88,10 +91,40 @@ function NameList({ names, label }: { names: string[]; label: string }) {
     );
 }
 
-function MeetingAttendanceSummary({ attendance }: { attendance: MeetingAttendanceRecord[] }) {
+/** Sort names by elected order, falling back to alphabetical. */
+function sortNamesByElectedOrder(
+    items: { personId: string; personName: string }[],
+    getPerson: (id: string) => PersonWithRelations | undefined,
+    administrativeBodyId: string | null,
+): { personId: string; personName: string }[] {
+    return [...items].sort((a, b) => {
+        const aOrder = getElectedOrderForBody(getPerson(a.personId), administrativeBodyId);
+        const bOrder = getElectedOrderForBody(getPerson(b.personId), administrativeBodyId);
+        const orderCompare = compareRanks(aOrder, bOrder);
+        if (orderCompare !== 0) return orderCompare;
+        return a.personName.localeCompare(b.personName);
+    });
+}
+
+function MeetingAttendanceSummary({ attendance, getPerson, administrativeBodyId, mayorPersonId }: {
+    attendance: MeetingAttendanceRecord[];
+    getPerson: (id: string) => PersonWithRelations | undefined;
+    administrativeBodyId: string | null;
+    mayorPersonId: string | null;
+}) {
     const [expanded, setExpanded] = useState(false);
-    const present = attendance.filter(a => a.status === 'PRESENT');
-    const absent = attendance.filter(a => a.status === 'ABSENT');
+    const filtered = attendance.filter(a => a.personId !== mayorPersonId);
+    const present = filtered.filter(a => a.status === 'PRESENT');
+    const absent = filtered.filter(a => a.status === 'ABSENT');
+
+    const sortedPresent = sortNamesByElectedOrder(
+        present.map(a => ({ personId: a.personId, personName: a.person.name })),
+        getPerson, administrativeBodyId,
+    );
+    const sortedAbsent = sortNamesByElectedOrder(
+        absent.map(a => ({ personId: a.personId, personName: a.person.name })),
+        getPerson, administrativeBodyId,
+    );
 
     return (
         <div className="border rounded-lg p-2.5 bg-muted/30">
@@ -105,19 +138,19 @@ function MeetingAttendanceSummary({ attendance }: { attendance: MeetingAttendanc
                     Initial roll call
                 </span>
                 <span className="text-xs text-muted-foreground ml-1">
-                    {present.length} present, {absent.length} absent ({attendance.length} total)
+                    {present.length} present, {absent.length} absent ({filtered.length} total)
                 </span>
             </button>
             {expanded && (
                 <div className="mt-2 ml-5 space-y-1.5">
                     <div>
-                        <span className="text-[11px] font-medium text-green-700">Present ({present.length})</span>
-                        <p className="text-[11px] text-muted-foreground">{present.map(a => a.person.name).join(', ')}</p>
+                        <span className="text-[11px] font-medium text-green-700">Present ({sortedPresent.length})</span>
+                        <p className="text-[11px] text-muted-foreground">{sortedPresent.map(a => a.personName).join(', ')}</p>
                     </div>
-                    {absent.length > 0 && (
+                    {sortedAbsent.length > 0 && (
                         <div>
-                            <span className="text-[11px] font-medium text-red-700">Absent ({absent.length})</span>
-                            <p className="text-[11px] text-muted-foreground">{absent.map(a => a.person.name).join(', ')}</p>
+                            <span className="text-[11px] font-medium text-red-700">Absent ({sortedAbsent.length})</span>
+                            <p className="text-[11px] text-muted-foreground">{sortedAbsent.map(a => a.personName).join(', ')}</p>
                         </div>
                     )}
                 </div>
@@ -128,8 +161,13 @@ function MeetingAttendanceSummary({ attendance }: { attendance: MeetingAttendanc
 
 export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
     const { toast } = useToast();
-    const { subjects, meeting } = useCouncilMeetingData();
+    const { subjects, meeting, people, getPerson } = useCouncilMeetingData();
     const t = useTranslations('admin.adminActions');
+    const administrativeBodyId = meeting.administrativeBodyId ?? null;
+    const meetingDate = new Date(meeting.dateTime);
+    const mayorPersonId = people.find(p =>
+        p.roles.some(r => isRoleActiveAt(r, meetingDate) && isMayorRole(r))
+    )?.id ?? null;
     const [decisions, setDecisions] = useState<Record<string, DecisionWithSource>>({});
     const [extractedData, setExtractedData] = useState<Record<string, SubjectExtractedData>>({});
     const [meetingAttendance, setMeetingAttendance] = useState<MeetingAttendanceRecord[]>([]);
@@ -472,7 +510,12 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
 
                 {/* Meeting-level attendance (initial roll call) */}
                 {meetingAttendance.length > 0 && (
-                    <MeetingAttendanceSummary attendance={meetingAttendance} />
+                    <MeetingAttendanceSummary
+                        attendance={meetingAttendance}
+                        getPerson={getPerson}
+                        administrativeBodyId={administrativeBodyId}
+                        mayorPersonId={mayorPersonId}
+                    />
                 )}
 
                 {/* Filter tabs */}
@@ -551,8 +594,8 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                         {/* Main row */}
                                         <div className="flex items-start justify-between gap-3">
                                             <div className="flex-1 min-w-0 flex items-start gap-2">
-                                                {/* Expand chevron for linked decisions with extracted data */}
-                                                {decision && hasExtractedContent ? (
+                                                {/* Expand chevron for subjects with extracted data (decisions or attendance) */}
+                                                {hasExtractedContent ? (
                                                     <button
                                                         onClick={() => toggleExtracted(subject.id)}
                                                         className="mt-0.5 text-muted-foreground hover:text-foreground shrink-0"
@@ -579,8 +622,9 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                                     )}
                                                     {/* Inline attendance & vote summary */}
                                                     {extracted && (extracted.attendance.length > 0 || extracted.votes.length > 0) && (() => {
-                                                        const present = extracted.attendance.filter(a => a.status === 'PRESENT');
-                                                        const absent = extracted.attendance.filter(a => a.status === 'ABSENT');
+                                                        const filteredInline = extracted.attendance.filter(a => a.personId !== mayorPersonId);
+                                                        const present = filteredInline.filter(a => a.status === 'PRESENT');
+                                                        const absent = filteredInline.filter(a => a.status === 'ABSENT');
                                                         const voteResult = extracted.votes.length > 0 ? calculateVoteResult(extracted.votes) : null;
                                                         return (
                                                             <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
@@ -687,7 +731,7 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                             </div>
                                         </div>
 
-                                        {/* Extracted data panel - expandable for linked decisions */}
+                                        {/* Extracted data panel - expandable for subjects with attendance/vote data */}
                                         {isExtractedExpanded && hasExtractedContent && (
                                             <div className="mt-3 ml-6 pl-4 border-l-2 border-muted space-y-3">
                                                 {/* Excerpt */}
@@ -720,8 +764,15 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
 
                                                 {/* Attendance */}
                                                 {extracted && extracted.attendance.length > 0 && (() => {
-                                                    const present = extracted.attendance.filter(a => a.status === 'PRESENT');
-                                                    const absent = extracted.attendance.filter(a => a.status === 'ABSENT');
+                                                    const filteredAttendance = extracted.attendance.filter(a => a.personId !== mayorPersonId);
+                                                    const present = sortNamesByElectedOrder(
+                                                        filteredAttendance.filter(a => a.status === 'PRESENT'),
+                                                        getPerson, administrativeBodyId,
+                                                    );
+                                                    const absent = sortNamesByElectedOrder(
+                                                        filteredAttendance.filter(a => a.status === 'ABSENT'),
+                                                        getPerson, administrativeBodyId,
+                                                    );
                                                     return (
                                                         <div>
                                                             <div className="text-xs font-medium text-muted-foreground mb-1">

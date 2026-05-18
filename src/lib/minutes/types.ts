@@ -77,6 +77,21 @@ export interface MinutesSubject {
     transcriptEntries: MinutesTranscriptEntry[];
 }
 
+export interface MinutesAttendanceChange {
+    personId: string;
+    name: string;
+    type: 'arrival' | 'departure';
+    /** The agenda item where this change is first observed (subject immediately after the change) */
+    atSubject: {
+        id: string;
+        name: string;
+        agendaItemIndex: number | null;
+        nonAgendaReason: 'beforeAgenda' | 'outOfAgenda' | null;
+        /** Sequential number among out-of-agenda subjects (1-based), null for regular items */
+        outOfAgendaIndex: number | null;
+    };
+}
+
 export interface MinutesData {
     city: {
         name: string;
@@ -96,6 +111,10 @@ export interface MinutesData {
     absentMembers: MinutesMember[] | null;
     /** Orphaned utterances before the first subject (opening remarks, procedural content) */
     preambleEntries: MinutesTranscriptEntry[];
+    /** Mid-meeting arrivals and departures derived from per-subject attendance diffs */
+    attendanceChanges: MinutesAttendanceChange[];
+    /** Discussion order summary, only set when subjects were discussed out of natural order */
+    discussionOrderLabel: string | null;
     subjects: MinutesSubject[];
     /** Orphaned utterances after the last subject (closing remarks) */
     epilogueEntries: MinutesTranscriptEntry[];

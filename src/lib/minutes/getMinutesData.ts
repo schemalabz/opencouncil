@@ -3,6 +3,7 @@ import { getSubjectsForMeeting } from '@/lib/db/subject';
 import { getExtractedDataForMeeting, getMeetingAttendance, SubjectExtractedData } from '@/lib/db/decisions';
 import { getPeopleForCity } from '@/lib/db/people';
 import { getCity } from '@/lib/db/cities';
+import { getElectedOrderForBody } from '@/lib/sorting/people';
 import { getSpeakerDisplayInfo, isRoleActiveAt, isMayorRole, simplifyRoleName } from '@/lib/utils/roles';
 import { PersonWithRelations } from '@/lib/db/people';
 import prisma from '@/lib/db/prisma';
@@ -17,6 +18,7 @@ import {
     buildAttendance,
     buildVoteResult,
     buildCouncilComposition,
+    buildAttendanceChanges,
     sortSubjectsByDiscussionOrder,
     sortByElectedOrder,
     MemberResolver,
@@ -200,11 +202,11 @@ export async function getMinutesData(
         };
     };
 
+    const adminBodyId = meeting.administrativeBody?.id ?? null;
+
     const getElectedOrder: ElectedOrderGetter = (personId) => {
         const person = peopleMap.get(personId);
-        if (!person) return null;
-        const role = person.roles.find(r => r.electedOrder != null);
-        return role?.electedOrder ?? null;
+        return getElectedOrderForBody(person, adminBodyId);
     };
 
     function buildTranscriptEntries(subjectId: string): MinutesTranscriptEntry[] {
@@ -227,11 +229,32 @@ export async function getMinutesData(
         });
     }
 
-    // Sort subjects by discussion order (first utterance timestamp)
+    // Sort subjects by discussion order (first utterance timestamp).
+    // Include PROCEDURAL_VOTE utterances for timestamp computation so subjects
+    // with only procedural votes (e.g., OA κατεπείγον votes) get sorted correctly,
+    // even though their content is rendered as orphaned/preamble text.
     const firstUtteranceBySubject = new Map<string, number>();
     for (const [subjectId, utterances] of utterancesBySubject) {
         if (utterances.length > 0) {
             firstUtteranceBySubject.set(subjectId, utterances[0].startTimestamp);
+        }
+    }
+
+    // Check for subjects missing a timestamp — they may have PROCEDURAL_VOTE utterances only
+    const subjectsWithoutTimestamp = subjectIds.filter(id => !firstUtteranceBySubject.has(id));
+    if (subjectsWithoutTimestamp.length > 0) {
+        const proceduralUtterances = await prisma.utterance.findMany({
+            where: {
+                discussionSubjectId: { in: subjectsWithoutTimestamp },
+                discussionStatus: 'PROCEDURAL_VOTE',
+            },
+            select: { discussionSubjectId: true, startTimestamp: true },
+            orderBy: { startTimestamp: 'asc' },
+        });
+        for (const u of proceduralUtterances) {
+            if (u.discussionSubjectId && !firstUtteranceBySubject.has(u.discussionSubjectId)) {
+                firstUtteranceBySubject.set(u.discussionSubjectId, u.startTimestamp);
+            }
         }
     }
 
@@ -364,8 +387,6 @@ export async function getMinutesData(
     // Council composition: all members sorted by elected order,
     // plus mayor and president of the administrative body.
     // Built from roles — no attendance dependency.
-    const adminBodyId = meeting.administrativeBody?.id ?? null;
-
     const mayorPerson = mayorPersonId ? people.find(p => p.id === mayorPersonId) : null;
     const mayor = mayorPerson ? { personId: mayorPerson.id, name: mayorPerson.name } : null;
 
@@ -423,6 +444,38 @@ export async function getMinutesData(
     }
 
 
+    // Compute mid-meeting attendance changes from per-subject attendance diffs
+    const attendanceChanges = buildAttendanceChanges(
+        minutesSubjects.filter(s => !s.withdrawn),
+        absentMembers,
+    );
+
+    // Build discussion order label if subjects were discussed out of natural order.
+    // Natural order: OA subjects first (sorted), then regular subjects (sorted by agendaItemIndex).
+    const nonWithdrawn = minutesSubjects.filter(s => !s.withdrawn);
+    const naturalOrder = [
+        ...nonWithdrawn.filter(s => s.nonAgendaReason === 'outOfAgenda'),
+        ...nonWithdrawn.filter(s => s.nonAgendaReason !== 'outOfAgenda'),
+    ].sort((a, b) => {
+        const aIsOA = a.nonAgendaReason === 'outOfAgenda';
+        const bIsOA = b.nonAgendaReason === 'outOfAgenda';
+        if (aIsOA !== bIsOA) return aIsOA ? -1 : 1;
+        return (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0);
+    });
+    const isNaturalOrder = nonWithdrawn.every((s, i) => s.subjectId === naturalOrder[i]?.subjectId);
+
+    let discussionOrderLabel: string | null = null;
+    if (!isNaturalOrder && nonWithdrawn.length > 0) {
+        let oaCounter = 0;
+        discussionOrderLabel = nonWithdrawn.map(s => {
+            if (s.nonAgendaReason === 'outOfAgenda') {
+                oaCounter++;
+                return `ΕΗΔ${oaCounter}`;
+            }
+            return `${s.agendaItemIndex}ο`;
+        }).join(', ');
+    }
+
     return {
         city: {
             name: city.name,
@@ -442,6 +495,8 @@ export async function getMinutesData(
         councilComposition: councilCompositionResult,
         absentMembers,
         preambleEntries,
+        attendanceChanges,
+        discussionOrderLabel,
         subjects: minutesSubjects,
         epilogueEntries,
     };

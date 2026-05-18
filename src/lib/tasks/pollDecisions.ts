@@ -4,6 +4,7 @@ import { PollDecisionsRequest, PollDecisionsResult, ExtractedDecisionData } from
 import { startTask } from "./tasks";
 import prisma from "../db/prisma";
 import { AttendanceStatus, DataSource, Prisma, VoteType } from "@prisma/client";
+import { sortSubjectsByDiscussionOrder } from "../minutes/builders";
 
 /** Subjects eligible for decision polling: agenda + out-of-agenda, excluding withdrawn */
 const POLL_ELIGIBLE_SUBJECT_WHERE = {
@@ -68,6 +69,7 @@ export async function pollDecisionsForMeeting(
                     name: true,
                     agendaItemIndex: true,
                     nonAgendaReason: true,
+                    discussedIn: { select: { id: true } },
                     decision: { select: { ada: true, title: true, pdfUrl: true, excerpt: true } },
                 },
                 where: POLL_ELIGIBLE_SUBJECT_WHERE,
@@ -96,6 +98,25 @@ export async function pollDecisionsForMeeting(
         p.roles.some(r => isMayorRole(r) && isRoleActiveAt(r, councilMeeting.dateTime))
     );
 
+    // Sort subjects by discussion order (transcript timestamps) so OA subjects
+    // are in the correct sequence. Uses the same sortSubjectsByDiscussionOrder
+    // used by the minutes renderer.
+    const subjectIds = councilMeeting.subjects.map(s => s.id);
+    const firstUtteranceBySubject = new Map<string, number>();
+    if (subjectIds.length > 0) {
+        const firstUtterances = await prisma.utterance.groupBy({
+            by: ['discussionSubjectId'],
+            where: { discussionSubjectId: { in: subjectIds } },
+            _min: { startTimestamp: true },
+        });
+        for (const u of firstUtterances) {
+            if (u.discussionSubjectId && u._min.startTimestamp != null) {
+                firstUtteranceBySubject.set(u.discussionSubjectId, u._min.startTimestamp);
+            }
+        }
+    }
+    const sortedSubjects = sortSubjectsByDiscussionOrder(councilMeeting.subjects, firstUtteranceBySubject);
+
     const body: Omit<PollDecisionsRequest, 'callbackUrl'> = {
         meetingDate: councilMeeting.dateTime.toISOString().split('T')[0],
         diavgeiaUid: councilMeeting.city.diavgeiaUid,
@@ -105,10 +126,11 @@ export async function pollDecisionsForMeeting(
         mayorId: mayorPerson?.id,
         forceExtract: options?.forceExtract || undefined,
         people: peopleForRequest,
-        subjects: councilMeeting.subjects.map(s => ({
+        subjects: sortedSubjects.map(s => ({
             subjectId: s.id,
             name: s.name,
             agendaItemIndex: s.agendaItemIndex,
+            nonAgendaReason: s.nonAgendaReason,
             ...(s.decision?.ada ? {
                 existingDecision: {
                     ada: s.decision.ada,
@@ -1303,6 +1325,58 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
                 console.log(`Stored ${result.extractions.initialAttendance.length} meeting-level attendance records`);
             } catch (error) {
                 console.error('Failed to store meeting-level attendance:', error);
+            }
+        }
+
+        // --- Store SubjectAttendance for subjects without decisions ---
+        // These subjects have no PDF but their effective attendance was computed
+        // using the complete discussion order and aggregated attendance changes.
+        if (result.extractions.nonDecisionSubjectAttendance && result.extractions.nonDecisionSubjectAttendance.length > 0) {
+            let storedCount = 0;
+            for (const subjectAttendance of result.extractions.nonDecisionSubjectAttendance) {
+                if (!validSubjectIdSet.has(subjectAttendance.subjectId)) {
+                    console.warn(`Poll decisions: skipping invalid subjectId ${subjectAttendance.subjectId} in nonDecisionSubjectAttendance for task ${taskId}`);
+                    continue;
+                }
+                if (subjectAttendance.presentMemberIds.length === 0 && subjectAttendance.absentMemberIds.length === 0) continue;
+
+                try {
+                    await prisma.$transaction(async (tx) => {
+                        const attendanceByPerson = new Map<string, AttendanceStatus>(
+                            [
+                                ...subjectAttendance.presentMemberIds.map(id => [id, 'PRESENT' as const] as const),
+                                ...subjectAttendance.absentMemberIds.map(id => [id, 'ABSENT' as const] as const),
+                            ]
+                        );
+
+                        // Include mayor attendance if known
+                        if (mayorId && result.extractions!.initialAttendance) {
+                            const mayorInitial = result.extractions!.initialAttendance.find(a => a.personId === mayorId);
+                            if (mayorInitial && !attendanceByPerson.has(mayorId)) {
+                                attendanceByPerson.set(mayorId, mayorInitial.status);
+                            }
+                        }
+
+                        await tx.subjectAttendance.deleteMany({
+                            where: { subjectId: subjectAttendance.subjectId, source: DataSource.decision },
+                        });
+                        await tx.subjectAttendance.createMany({
+                            data: [...attendanceByPerson].map(([personId, status]) => ({
+                                subjectId: subjectAttendance.subjectId,
+                                personId,
+                                status,
+                                source: DataSource.decision,
+                                taskId,
+                            })),
+                        });
+                    });
+                    storedCount++;
+                } catch (error) {
+                    console.error(`Failed to store attendance for subject ${subjectAttendance.subjectId}:`, error);
+                }
+            }
+            if (storedCount > 0) {
+                console.log(`Stored effective attendance for ${storedCount} non-decision subjects`);
             }
         }
 

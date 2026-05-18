@@ -406,11 +406,11 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                     }
                     defaultOpen={false}
                 >
-                    <VotingSection subjectId={subject.id} votes={subject.votes} />
+                    <VotingSection subjectId={subject.id} votes={subject.votes} attendance={subject.attendance} />
                 </CollapsibleCard>}
 
-                {/* Decision Section (skip for withdrawn subjects) */}
-                {agendaItemIndex != null && !subject.withdrawn && (
+                {/* Decision Section (skip for beforeAgenda and withdrawn subjects) */}
+                {subject.nonAgendaReason !== 'beforeAgenda' && !subject.withdrawn && (
                     <CollapsibleCard
                         id="decision"
                         icon={<Landmark className="w-4 h-4" />}

@@ -11,7 +11,9 @@ import {
     MinutesMember,
     MinutesCouncilComposition,
     MinutesTranscriptEntry,
+    MinutesAttendanceChange,
 } from '@/lib/minutes/types';
+import { interleaveSubstitutes, formatSubjectLabel } from '@/lib/minutes/builders';
 import { getWithdrawnLabel } from '@/lib/utils/subjects';
 
 interface MinutesPreviewContentProps {
@@ -52,6 +54,19 @@ export function MinutesPreviewContent({ data }: MinutesPreviewContentProps) {
             {/* Council Composition + Absent Members */}
             {data.councilComposition && (
                 <CouncilCompositionSection composition={data.councilComposition} absentMembers={data.absentMembers} adminBody={data.administrativeBody} />
+            )}
+
+            {/* Arrivals/departures */}
+            {data.attendanceChanges.length > 0 && (
+                <AttendanceChangesSection changes={data.attendanceChanges} />
+            )}
+
+            {/* Discussion order (only when non-natural) */}
+            {data.discussionOrderLabel && (
+                <p className="text-sm mt-2">
+                    <span className="font-bold">Σειρά συζήτησης: </span>
+                    {data.discussionOrderLabel}
+                </p>
             )}
 
             {/* Table of Contents */}
@@ -152,6 +167,46 @@ function CouncilCompositionSection({ composition, absentMembers, adminBody }: {
     );
 }
 
+function AttendanceChangesSection({ changes }: { changes: MinutesAttendanceChange[] }) {
+    const arrivals = changes.filter(c => c.type === 'arrival');
+    const departures = changes.filter(c => c.type === 'departure');
+
+    return (
+        <div className="mt-4 space-y-2">
+            {arrivals.length > 0 && (
+                <div>
+                    <p className="font-bold text-sm">Προσελεύσεις</p>
+                    <ul className="list-disc pl-5 text-sm">
+                        {arrivals.map((change, i) => (
+                            <li key={i}>
+                                {change.name}
+                                <span className="text-muted-foreground">
+                                    {` — από το ${formatSubjectLabel(change.atSubject)}`}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+            {departures.length > 0 && (
+                <div>
+                    <p className="font-bold text-sm">Αποχωρήσεις</p>
+                    <ul className="list-disc pl-5 text-sm">
+                        {departures.map((change, i) => (
+                            <li key={i}>
+                                {change.name}
+                                <span className="text-muted-foreground">
+                                    {` — από το ${formatSubjectLabel(change.atSubject)}`}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+        </div>
+    );
+}
+
 /** Strip Greek diacritics — uppercase Greek convention omits accents (τόνοι). */
 function stripDiacritics(text: string): string {
     return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -168,7 +223,7 @@ function CommitteeAttendanceSection({ composition, absentMembers }: {
     const substituteIds = new Set(composition.substituteMembers.map(m => m.personId));
     const absentPersonIds = new Set(absentMembers?.map(m => m.personId) ?? []);
 
-    const allMembers = [...composition.members, ...composition.substituteMembers];
+    const allMembers = interleaveSubstitutes(composition.members, composition.substituteMembers);
     const presentMembers = allMembers.filter(m => !absentPersonIds.has(m.personId));
     const absentMembersList = allMembers.filter(m => absentPersonIds.has(m.personId));
 
@@ -321,9 +376,7 @@ function SubjectSection({ subject }: { subject: MinutesSubject }) {
 }
 
 function formatMemberList(members: MinutesMember[]) {
-    return members
-        .map(m => m.party ? `${m.name} (${m.party}${m.isPartyHead ? ', Επικεφαλής' : ''})` : m.name)
-        .join(', ');
+    return members.map(m => m.name).join(', ');
 }
 
 function SubjectFooter({ subject }: { subject: MinutesSubject }) {

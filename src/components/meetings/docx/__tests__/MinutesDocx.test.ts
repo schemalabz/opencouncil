@@ -19,6 +19,8 @@ function makeMinutesData(overrides: Partial<MinutesData> = {}): MinutesData {
         councilComposition: null,
         absentMembers: null,
         preambleEntries: [],
+        attendanceChanges: [],
+        discussionOrderLabel: null,
         subjects: [],
         epilogueEntries: [],
         ...overrides,
