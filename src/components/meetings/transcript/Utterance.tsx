@@ -93,11 +93,18 @@ const UtteranceC: React.FC<{
             "underline decoration-blue-500 decoration-2": isTaskModified,
             "decoration-green-500 underline decoration-2": isUserModified,
             "text-red-500 font-bold": isUncertain,
-            "select-none": options.editable || editingHighlight, // Prevent text selection in modes with range selection
         }
     );
 
     const handleClick = (e: React.MouseEvent) => {
+        // Shift-click extends the browser's native text selection in
+        // addition to firing onClick. In modes where shift/ctrl/meta mean
+        // "extend the utterance range", clear that parallel text selection
+        // so the user only sees the app's selection state.
+        const isModifiedClick = e.shiftKey || e.ctrlKey || e.metaKey;
+        if (isModifiedClick && (editingHighlight || options.editable)) {
+            window.getSelection()?.removeAllRanges();
+        }
         // If we're in highlight editing mode, handle highlight toggling and seek to utterance
         if (editingHighlight) {
             // Pass shift modifier for range selection
