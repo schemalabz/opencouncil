@@ -188,7 +188,7 @@ describe('findRelatedSubjects', () => {
         });
     });
 
-    it('builds topic boost clause in both BM25 and semantic arms when topicId is provided', async () => {
+    it('applies topic boost only to the BM25 arm, keeping the semantic arm clean', async () => {
         // Arrange: execute the thunk directly so we can inspect the ES query
         mockExecuteES.mockImplementationOnce((thunk) => thunk());
         mockSearch.mockResolvedValueOnce({ hits: { hits: [] } });
@@ -197,7 +197,7 @@ describe('findRelatedSubjects', () => {
         await findRelatedSubjects({
             subjectId: 'sub123',
             subjectName: 'Test Subject',
-            subjectDescription: null,
+            subjectDescription: 'Some description',
             topicId: 'topic456'
         });
 
@@ -206,23 +206,41 @@ describe('findRelatedSubjects', () => {
         const searchParams = mockSearch.mock.calls[0][0];
         const retrievers = searchParams.retriever.rrf.retrievers;
 
-        // Arm 1 (BM25): topic boost in bool.should
+        // Arm 1 (BM25): topic boost present in bool.should
         const arm1Bool = retrievers[0].standard.query.bool;
-        expect(arm1Bool.should).toEqual(
-            expect.arrayContaining([
-                { term: { topic_id: { value: 'topic456', boost: 2.0 } } }
-            ])
-        );
+        expect(arm1Bool.should).toEqual([
+            { term: { topic_id: { value: 'topic456', boost: 2.0 } } }
+        ]);
 
-        // Arm 2 (semantic): topic boost merged into should array (not overwriting semantic clauses)
+        // Arm 2 (semantic): MUST NOT include a term match on topic_id, otherwise a
+        // pure topic match (zero semantic similarity) could satisfy
+        // minimum_should_match: 1 and contaminate RRF.
         const arm2Bool = retrievers[1].standard.query.bool;
-        expect(arm2Bool.should).toEqual(
-            expect.arrayContaining([
-                expect.objectContaining({ semantic: expect.objectContaining({ field: 'name.semantic' }) }),
-                { term: { topic_id: { value: 'topic456', boost: 2.0 } } }
-            ])
+        const hasTopicTerm = (arm2Bool.should as any[]).some(
+            clause => clause?.term?.topic_id !== undefined
         );
+        expect(hasTopicTerm).toBe(false);
+        expect(arm2Bool.should).toEqual([
+            expect.objectContaining({ semantic: expect.objectContaining({ field: 'name.semantic' }) }),
+            expect.objectContaining({ semantic: expect.objectContaining({ field: 'description.semantic' }) })
+        ]);
         // minimum_should_match must still be present (semantic search not silently disabled)
         expect(arm2Bool.minimum_should_match).toBe(1);
+    });
+
+    it('omits the topic boost from the BM25 arm when topicId is null', async () => {
+        mockExecuteES.mockImplementationOnce((thunk) => thunk());
+        mockSearch.mockResolvedValueOnce({ hits: { hits: [] } });
+
+        await findRelatedSubjects({
+            subjectId: 'sub123',
+            subjectName: 'Test Subject',
+            subjectDescription: null,
+            topicId: null
+        });
+
+        const searchParams = mockSearch.mock.calls[0][0];
+        const arm1Bool = searchParams.retriever.rrf.retrievers[0].standard.query.bool;
+        expect(arm1Bool.should).toBeUndefined();
     });
 });

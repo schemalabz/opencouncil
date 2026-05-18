@@ -81,7 +81,6 @@ export interface SubjectDocument {
 export interface RelatedSubjectResult {
     id: string;
     name: string;
-    name_en: string | null;
     description: string | null;
     topicId: string | null;
     topicName: string | null;

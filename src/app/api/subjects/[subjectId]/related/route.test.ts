@@ -13,6 +13,7 @@ import { GET } from './route';
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/db/prisma';
 import { findRelatedSubjects } from '@/lib/search/related';
+import { errors } from '@elastic/elasticsearch';
 
 // Mock dependencies
 jest.mock('@/lib/db/prisma', () => ({
@@ -137,5 +138,50 @@ describe('GET /api/subjects/[subjectId]/related', () => {
         expect(data.elsewhere).toHaveLength(2);
         expect(data.elsewhere[0].id).toBe('res1');
         expect(data.elsewhere[1].id).toBe('res2');
+    });
+
+    it('returns 503 when Elasticsearch is unavailable', async () => {
+        // Arrange: subject exists, but the ES call throws a ConnectionError
+        mockPrismaFindUnique.mockResolvedValueOnce({
+            id: 'source1',
+            name: 'Source Subject',
+            description: null,
+            cityId: 'cityA',
+            topicId: null,
+            councilMeeting: null
+        });
+
+        const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
+        mockFindRelatedSubjects.mockRejectedValueOnce(
+            new errors.ConnectionError('ECONNREFUSED', {} as any)
+        );
+
+        try {
+            // Act
+            const response = await GET(mockRequest, { params: Promise.resolve({ subjectId: 'source1' }) });
+
+            // Assert
+            expect(response.status).toBe(503);
+            expect(await response.json()).toEqual({ error: 'Search service temporarily unavailable' });
+        } finally {
+            consoleErrorSpy.mockRestore();
+        }
+    });
+
+    it('re-throws non-Elasticsearch errors', async () => {
+        mockPrismaFindUnique.mockResolvedValueOnce({
+            id: 'source1',
+            name: 'Source Subject',
+            description: null,
+            cityId: 'cityA',
+            topicId: null,
+            councilMeeting: null
+        });
+
+        mockFindRelatedSubjects.mockRejectedValueOnce(new Error('unrelated boom'));
+
+        await expect(
+            GET(mockRequest, { params: Promise.resolve({ subjectId: 'source1' }) })
+        ).rejects.toThrow('unrelated boom');
     });
 });

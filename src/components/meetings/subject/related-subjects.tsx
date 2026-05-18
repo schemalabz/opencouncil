@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { CollapsibleCard } from '@/components/ui/collapsible-card';
 import { Badge } from '@/components/ui/badge';
@@ -19,10 +19,8 @@ interface RelatedSubjectsData {
 }
 
 function RelatedSubjectItem({ subject, locale }: { subject: RelatedSubjectResult, locale: string }) {
-    const t = useTranslations('Subject.relatedSubjects');
-    
     // Date formatting using native Intl if we have a valid date string
-    const formattedDate = subject.meetingDate 
+    const formattedDate = subject.meetingDate
         ? new Intl.DateTimeFormat(locale, { dateStyle: 'long' }).format(new Date(subject.meetingDate))
         : null;
 

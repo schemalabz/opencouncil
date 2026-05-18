@@ -31,7 +31,10 @@ export interface FindRelatedSubjectsInput {
 export async function findRelatedSubjects(input: FindRelatedSubjectsInput): Promise<RelatedSubjectResult[]> {
     const { subjectId, subjectName, subjectDescription, topicId } = input;
 
-    // Build the topic boost clause for BM25 arm (used in should when topicId is present)
+    // Topic boost clause: applied ONLY to the BM25 arm to nudge same-topic lexical
+    // matches up. We deliberately keep it out of the semantic arm — combined with the
+    // semantic arm's `minimum_should_match: 1`, a topic-only match (zero semantic
+    // similarity) would otherwise satisfy that arm and contaminate the RRF fusion.
     const topicBoostClause = topicId
         ? [{ term: { topic_id: { value: topicId, boost: 2.0 } } }]
         : [];
@@ -89,8 +92,7 @@ export async function findRelatedSubjects(input: FindRelatedSubjectsInput): Prom
                                                         boost: 1.0
                                                     }
                                                 }]
-                                                : []),
-                                            ...topicBoostClause
+                                                : [])
                                         ],
                                         minimum_should_match: 1,
                                         filter: [
@@ -175,7 +177,6 @@ export async function findRelatedSubjects(input: FindRelatedSubjectsInput): Prom
         return {
             id: src.id ?? hit._id,
             name: src.name ?? '',
-            name_en: null, // not indexed in ES schema
             description: null, // avoid returning full description in list view
             topicId: src.topic_id ?? null,
             topicName: src.topic_name ?? null,
