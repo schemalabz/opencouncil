@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { RelatedSubjectResult } from '@/lib/search/types';
@@ -43,6 +43,11 @@ export function RelatedSubjectsDebug({
     const router = useRouter();
     const [idInput, setIdInput] = useState(subjectId);
     const [nameInput, setNameInput] = useState(nameQuery);
+
+    // Re-sync inputs when the page re-renders for a different query (e.g.
+    // browser back/forward, or clicking a name-match link).
+    useEffect(() => { setIdInput(subjectId); }, [subjectId]);
+    useEffect(() => { setNameInput(nameQuery); }, [nameQuery]);
 
     const submitById = (e: React.FormEvent) => {
         e.preventDefault();
