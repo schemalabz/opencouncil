@@ -1,10 +1,12 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { z } from 'zod'
 import { createCity, getCities } from '@/lib/db/cities'
+import { getAllCitiesAsServiceKey } from '@/lib/db/citiesAdmin'
 import { uploadFile } from '@/lib/s3'
-import { isUserAuthorizedToEdit } from '@/lib/auth'
+import { isUserAuthorizedToEdit, validateBearerAuth } from '@/lib/auth'
 import { createCityFormDataSchema } from '@/lib/zod-schemas/city'
 import { parseFormData } from '@/lib/api/form-data-parser'
+import { handleApiError } from '@/lib/api/errors'
 
 const getCitiesQuerySchema = z.object({
     includeUnlisted: z.string()
@@ -16,29 +18,27 @@ const getCitiesQuerySchema = z.object({
 export async function GET(req: NextRequest) {
     try {
         const { searchParams } = req.nextUrl;
-        const queryParams = Object.fromEntries(searchParams.entries());
+        const { includeUnlisted } = getCitiesQuerySchema.parse(
+            Object.fromEntries(searchParams.entries())
+        );
 
-        const { includeUnlisted } = getCitiesQuerySchema.parse(queryParams);
+        // Bearer auth: validate up front and dispatch to a non-server-action helper
+        // for the superadmin-equivalent view. NEVER pass an "asSuperAdmin"-style flag
+        // into a "use server" function — clients could call the server action directly.
+        const bearer = await validateBearerAuth(req);
 
-        const cities = await getCities({
-            includeUnlisted,
-            includePending: false
-        });
+        const cities = bearer && includeUnlisted
+            ? await getAllCitiesAsServiceKey()
+            : await getCities({ includeUnlisted, includePending: false });
 
         return NextResponse.json(cities);
     } catch (error) {
+        // Preserve the legacy `{ error: ZodIssue[] }` shape for ZodError specifically;
+        // every other error goes through the standard handler.
         if (error instanceof z.ZodError) {
-            return NextResponse.json(
-                { error: error.errors },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: error.errors }, { status: 400 });
         }
-        console.error('Error fetching cities:', error);
-
-        return NextResponse.json(
-            { error: 'An unexpected error occurred' },
-            { status: 500 }
-        );
+        return handleApiError(error, 'An unexpected error occurred');
     }
 }
 

@@ -2,6 +2,7 @@
 import { City, CouncilMeeting, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getCurrentUser } from "../auth";
+import { UnauthorizedError } from "../api/errors";
 
 export type CityGeometryOptions = {
     includeGeometry?: boolean;
@@ -215,7 +216,7 @@ export async function getCities({ includeUnlisted = false, includePending = fals
 
     // Validate permissions
     if (includeUnlisted && !currentUser) {
-        throw new Error("Not authorized to view unlisted cities");
+        throw new UnauthorizedError("Not authorized to view unlisted cities");
     }
 
     // Build where clause based on user permissions
