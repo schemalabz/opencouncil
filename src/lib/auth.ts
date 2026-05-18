@@ -155,6 +155,24 @@ export type ServiceAuthResult =
     | { type: 'user'; userId: string };
 
 /**
+ * Validate a service API key from the `Authorization: Bearer …` header.
+ * Returns `null` if no Bearer header is present (caller may fall back to session auth).
+ * Throws `UnauthorizedError` if the Bearer token is invalid or revoked — never falls through.
+ */
+export async function validateBearerAuth(
+    request: NextRequest
+): Promise<{ keyName: string } | null> {
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) return null;
+
+    const token = authHeader.slice(7);
+    const apiKey = await validateServiceApiKey(token);
+    if (!apiKey) throw new UnauthorizedError("Invalid API key");
+
+    return { keyName: apiKey.name };
+}
+
+/**
  * Authenticate a request via either a service API key (Bearer token)
  * or a user session. Service keys get full access (equivalent to superadmin).
  * User sessions are checked against the standard authorization hierarchy.
@@ -165,16 +183,9 @@ export async function withServiceOrUserAuth(
     request: NextRequest,
     { cityId }: { cityId?: string } = {}
 ): Promise<ServiceAuthResult> {
-    // Check for Bearer token first
-    const authHeader = request.headers.get('authorization');
-    if (authHeader?.startsWith('Bearer ')) {
-        const token = authHeader.slice(7);
-        const apiKey = await validateServiceApiKey(token);
-        if (apiKey) {
-            return { type: 'service', keyName: apiKey.name };
-        }
-        // Invalid bearer token — don't fall through to session auth
-        throw new UnauthorizedError("Invalid API key");
+    const bearer = await validateBearerAuth(request);
+    if (bearer) {
+        return { type: 'service', keyName: bearer.keyName };
     }
 
     // Fall back to session auth — reuse the result to avoid a second DB round-trip
