@@ -1051,10 +1051,11 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
     let processedCount = 0;
     let conflictCount = 0;
 
-    // Collect all subjectIds from matches and reassignments for validation
+    // Collect all subjectIds from matches, reassignments, and non-decision attendance for validation
     const allSubjectIds = [
         ...result.matches.map(m => m.subjectId),
         ...result.reassignments.flatMap(r => [r.fromSubjectId, r.toSubjectId]),
+        ...(result.extractions?.nonDecisionSubjectAttendance?.map(a => a.subjectId) ?? []),
     ];
 
     const validSubjectIds = await prisma.subject.findMany({
