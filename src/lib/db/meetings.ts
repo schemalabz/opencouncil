@@ -211,7 +211,9 @@ export async function getMeetingDataForOG(cityId: string, meetingId: string) {
                         _count: { select: { contributions: true } },
                         topic: {
                             select: {
-                                colorHex: true
+                                name: true,
+                                colorHex: true,
+                                icon: true
                             }
                         }
                     }

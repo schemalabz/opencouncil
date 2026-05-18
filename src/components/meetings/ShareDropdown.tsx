@@ -19,6 +19,7 @@ import { useTranslations } from 'next-intl';
 import { useShare } from '@/contexts/ShareContext';
 import { formatTimestamp } from '@/lib/utils';
 import { downloadFile } from '@/lib/export/meetings';
+import StoryTemplatePickerDialog from './StoryTemplatePickerDialog';
 
 
 interface ShareDropdownProps {
@@ -40,6 +41,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const pathname = usePathname();
     const t = useTranslations();
     const [internalOpen, setInternalOpen] = useState(false);
+    const [storyPickerOpen, setStoryPickerOpen] = useState(false);
 
     useEffect(() => {
         setUrl(window.location.href);
@@ -332,32 +334,43 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                                 Εξαγωγή Προεπισκόπησης ως Εικόνα
                             </label>
                             <div className="grid grid-cols-2 gap-2">
-                                {[
-                                    { type: 'story' as const, icon: Instagram, label: 'Story', ratio: '9:16' },
-                                    { type: 'feed' as const, icon: FileDown, label: 'Post', ratio: '1:1' }
-                                ].map(({ type, icon: Icon, label, ratio }) => (
-                                    <Button
-                                        key={type}
-                                        onClick={() => downloadImage(type)}
-                                        disabled={downloading !== null}
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-8 flex items-center gap-1.5"
-                                    >
-                                        {downloading === type ? (
-                                            <Loader2 className="w-3 h-3 animate-spin" />
-                                        ) : (
-                                            <Icon className="w-3 h-3" />
-                                        )}
-                                        <span className="text-xs">{label}</span>
-                                        <span className="text-[10px] text-muted-foreground">({ratio})</span>
-                                    </Button>
-                                ))}
+                                <Button
+                                    onClick={() => setStoryPickerOpen(true)}
+                                    disabled={downloading !== null}
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 flex items-center gap-1.5"
+                                >
+                                    <Instagram className="w-3 h-3" />
+                                    <span className="text-xs">Story…</span>
+                                    <span className="text-[10px] text-muted-foreground">(9:16)</span>
+                                </Button>
+                                <Button
+                                    onClick={() => downloadImage('feed')}
+                                    disabled={downloading !== null}
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 flex items-center gap-1.5"
+                                >
+                                    {downloading === 'feed' ? (
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                        <FileDown className="w-3 h-3" />
+                                    )}
+                                    <span className="text-xs">Post</span>
+                                    <span className="text-[10px] text-muted-foreground">(1:1)</span>
+                                </Button>
                             </div>
                         </div>
                     </>
                 )}
             </DropdownMenuContent>
+            <StoryTemplatePickerDialog
+                open={storyPickerOpen}
+                onOpenChange={setStoryPickerOpen}
+                cityId={cityId}
+                meetingId={meetingId}
+            />
         </DropdownMenu>
     );
 }
