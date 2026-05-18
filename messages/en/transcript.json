@@ -10,6 +10,8 @@
     },
     "contextMenu": {
       "copyText": "Copy text",
+      "selectFromHere": "Select from here",
+      "selectUntilHere": "Select until here",
       "startHighlightFromHere": "Start Highlight from here",
       "moveToPreviousSegment": "Move to previous segment",
       "moveToNextSegment": "Move to next segment",

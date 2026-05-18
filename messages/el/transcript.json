@@ -10,6 +10,8 @@
     },
     "contextMenu": {
       "copyText": "Αντιγραφή κειμένου",
+      "selectFromHere": "Επιλογή από εδώ",
+      "selectUntilHere": "Επιλογή έως εδώ",
       "startHighlightFromHere": "Ξεκινήστε Στιγμιότυπο από εδώ",
       "moveToPreviousSegment": "Μετακίνηση στο προηγούμενο τμήμα",
       "moveToNextSegment": "Μετακίνηση στο επόμενο τμήμα",
