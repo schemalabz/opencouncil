@@ -30,76 +30,115 @@ type IconShape =
     | ["rect", { width: string; height: string; x: string; y: string; rx?: string; ry?: string }]
     | ["line", { x1: string; x2: string; y1: string; y2: string }];
 
-const TOPIC_ICON_PATHS: Record<string, IconShape[]> = {
-    Shield: [
-        ["path", { d: "M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" }],
-    ],
-    Building2: [
-        ["path", { d: "M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" }],
-        ["path", { d: "M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" }],
-        ["path", { d: "M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" }],
-        ["path", { d: "M10 6h4" }],
-        ["path", { d: "M10 10h4" }],
-        ["path", { d: "M10 14h4" }],
-        ["path", { d: "M10 18h4" }],
-    ],
-    Recycle: [
-        ["path", { d: "M7 19H4.815a1.83 1.83 0 0 1-1.57-.881 1.785 1.785 0 0 1-.004-1.784L7.196 9.5" }],
-        ["path", { d: "M11 19h8.203a1.83 1.83 0 0 0 1.556-.89 1.784 1.784 0 0 0 0-1.775l-1.226-2.12" }],
-        ["path", { d: "m14 16-3 3 3 3" }],
-        ["path", { d: "M8.293 13.596 7.196 9.5 3.1 10.598" }],
-        ["path", { d: "m9.344 5.811 1.093-1.892A1.83 1.83 0 0 1 11.985 3a1.784 1.784 0 0 1 1.546.888l3.943 6.843" }],
-        ["path", { d: "m13.378 9.633 4.096 1.098 1.097-4.096" }],
-    ],
-    GraduationCap: [
-        ["path", { d: "M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" }],
-        ["path", { d: "M22 10v6" }],
-        ["path", { d: "M6 12.5V16a6 3 0 0 0 12 0v-3.5" }],
-    ],
-    Leaf: [
-        ["path", { d: "M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" }],
-        ["path", { d: "M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" }],
-    ],
-    Building: [
-        ["rect", { width: "16", height: "20", x: "4", y: "2", rx: "2", ry: "2" }],
-        ["path", { d: "M9 22v-4h6v4" }],
-        ["path", { d: "M8 6h.01" }],
-        ["path", { d: "M16 6h.01" }],
-        ["path", { d: "M12 6h.01" }],
-        ["path", { d: "M12 10h.01" }],
-        ["path", { d: "M12 14h.01" }],
-        ["path", { d: "M16 10h.01" }],
-        ["path", { d: "M16 14h.01" }],
-        ["path", { d: "M8 10h.01" }],
-        ["path", { d: "M8 14h.01" }],
-    ],
-    Music2: [
-        ["circle", { cx: "8", cy: "18", r: "4" }],
-        ["path", { d: "M12 18V2l7 4" }],
-    ],
-    Heart: [
-        ["path", { d: "M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" }],
-    ],
-    Wallet: [
-        ["path", { d: "M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" }],
-        ["path", { d: "M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" }],
-    ],
-    Bus: [
-        ["path", { d: "M8 6v6" }],
-        ["path", { d: "M15 6v6" }],
-        ["path", { d: "M2 12h19.6" }],
-        ["path", { d: "M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3" }],
-        ["circle", { cx: "7", cy: "18", r: "2" }],
-        ["path", { d: "M9 18h5" }],
-        ["circle", { cx: "16", cy: "18", r: "2" }],
-    ],
-    Users: [
-        ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" }],
-        ["circle", { cx: "9", cy: "7", r: "4" }],
-        ["path", { d: "M22 21v-2a4 4 0 0 0-3-3.87" }],
-        ["path", { d: "M16 3.13a4 4 0 0 1 0 7.75" }],
-    ],
-};
+interface TopicIconEntry {
+    /** Kebab-case lucide icon name (matches Topic.icon in the DB and lucide's keys). */
+    name: string;
+    shapes: IconShape[];
+}
+
+const TOPIC_ICONS: TopicIconEntry[] = [
+    {
+        name: "shield",
+        shapes: [
+            ["path", { d: "M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" }],
+        ],
+    },
+    {
+        name: "building-2",
+        shapes: [
+            ["path", { d: "M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" }],
+            ["path", { d: "M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" }],
+            ["path", { d: "M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" }],
+            ["path", { d: "M10 6h4" }],
+            ["path", { d: "M10 10h4" }],
+            ["path", { d: "M10 14h4" }],
+            ["path", { d: "M10 18h4" }],
+        ],
+    },
+    {
+        name: "recycle",
+        shapes: [
+            ["path", { d: "M7 19H4.815a1.83 1.83 0 0 1-1.57-.881 1.785 1.785 0 0 1-.004-1.784L7.196 9.5" }],
+            ["path", { d: "M11 19h8.203a1.83 1.83 0 0 0 1.556-.89 1.784 1.784 0 0 0 0-1.775l-1.226-2.12" }],
+            ["path", { d: "m14 16-3 3 3 3" }],
+            ["path", { d: "M8.293 13.596 7.196 9.5 3.1 10.598" }],
+            ["path", { d: "m9.344 5.811 1.093-1.892A1.83 1.83 0 0 1 11.985 3a1.784 1.784 0 0 1 1.546.888l3.943 6.843" }],
+            ["path", { d: "m13.378 9.633 4.096 1.098 1.097-4.096" }],
+        ],
+    },
+    {
+        name: "graduation-cap",
+        shapes: [
+            ["path", { d: "M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" }],
+            ["path", { d: "M22 10v6" }],
+            ["path", { d: "M6 12.5V16a6 3 0 0 0 12 0v-3.5" }],
+        ],
+    },
+    {
+        name: "leaf",
+        shapes: [
+            ["path", { d: "M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" }],
+            ["path", { d: "M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" }],
+        ],
+    },
+    {
+        name: "building",
+        shapes: [
+            ["rect", { width: "16", height: "20", x: "4", y: "2", rx: "2", ry: "2" }],
+            ["path", { d: "M9 22v-4h6v4" }],
+            ["path", { d: "M8 6h.01" }],
+            ["path", { d: "M16 6h.01" }],
+            ["path", { d: "M12 6h.01" }],
+            ["path", { d: "M12 10h.01" }],
+            ["path", { d: "M12 14h.01" }],
+            ["path", { d: "M16 10h.01" }],
+            ["path", { d: "M16 14h.01" }],
+            ["path", { d: "M8 10h.01" }],
+            ["path", { d: "M8 14h.01" }],
+        ],
+    },
+    {
+        name: "music-2",
+        shapes: [
+            ["circle", { cx: "8", cy: "18", r: "4" }],
+            ["path", { d: "M12 18V2l7 4" }],
+        ],
+    },
+    {
+        name: "heart",
+        shapes: [
+            ["path", { d: "M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" }],
+        ],
+    },
+    {
+        name: "wallet",
+        shapes: [
+            ["path", { d: "M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" }],
+            ["path", { d: "M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" }],
+        ],
+    },
+    {
+        name: "bus",
+        shapes: [
+            ["path", { d: "M8 6v6" }],
+            ["path", { d: "M15 6v6" }],
+            ["path", { d: "M2 12h19.6" }],
+            ["path", { d: "M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3" }],
+            ["circle", { cx: "7", cy: "18", r: "2" }],
+            ["path", { d: "M9 18h5" }],
+            ["circle", { cx: "16", cy: "18", r: "2" }],
+        ],
+    },
+    {
+        name: "users",
+        shapes: [
+            ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" }],
+            ["circle", { cx: "9", cy: "7", r: "4" }],
+            ["path", { d: "M22 21v-2a4 4 0 0 0-3-3.87" }],
+            ["path", { d: "M16 3.13a4 4 0 0 1 0 7.75" }],
+        ],
+    },
+];
 
 const FALLBACK_ICON_SHAPES: IconShape[] = [
     ["circle", { cx: "12", cy: "12", r: "4" }],
@@ -114,7 +153,8 @@ const TopicIcon = ({
     color: string;
     size: number;
 }) => {
-    const shapes = (name && TOPIC_ICON_PATHS[name]) || FALLBACK_ICON_SHAPES;
+    const entry = name ? TOPIC_ICONS.find((i) => i.name === name) : null;
+    const shapes = entry?.shapes ?? FALLBACK_ICON_SHAPES;
     return (
         <svg
             width={size}
@@ -204,11 +244,6 @@ function splitSubjects(subjects: StorySubject[]) {
     return { preAgenda, outOfAgenda, agenda };
 }
 
-function topicLetter(topicName?: string | null): string {
-    if (!topicName) return "·";
-    return topicName.trim().charAt(0).toUpperCase();
-}
-
 function pad2(n: number): string {
     return String(n).padStart(2, "0");
 }
@@ -225,13 +260,6 @@ function formatMonthEl(d: Date, casing: "long" | "longCapitalized" = "long"): st
     const month = d.toLocaleDateString("el-GR", { month: "long" });
     if (casing === "longCapitalized") return month.charAt(0).toUpperCase() + month.slice(1);
     return month;
-}
-
-function issueNumberFromDate(d: Date): string {
-    const dayOfYear = Math.floor(
-        (d.getTime() - new Date(d.getFullYear(), 0, 0).getTime()) / 86_400_000,
-    );
-    return pad2(dayOfYear).padStart(3, "0");
 }
 
 // ---------- Building blocks ----------
@@ -738,7 +766,7 @@ const Template3WithCards = (data: StoryTemplateData) => {
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "center",
-                background: "#ffffff0b",
+                background: "#FAFAF8",
                 padding: "64px 56px",
                 position: "relative",
             }}
@@ -841,7 +869,6 @@ const SubjectSticker = ({
     tilt,
 }: {
     subject: StorySubject;
-    index: number;
     tilt: number;
 }) => {
     const color = subject.topic?.colorHex || PRIMARY_PILL_FALLBACK;
@@ -1117,13 +1144,13 @@ const Template4Colorful = (data: StoryTemplateData) => {
                         ΠΡΟ ΗΜΕΡΗΣΙΑΣ · {preAgenda.length}
                     </StickerSectionLabel>
                     {preAgendaShown.map((s, i) => (
-                        <SubjectSticker key={s.id} subject={s} index={i + 1} tilt={stickerTilt(i)} />
+                        <SubjectSticker key={s.id} subject={s} tilt={stickerTilt(i)} />
                     ))}
 
                 </div>
             )}
 
-            {preAgendaShown.length > 0 && (
+            {preAgendaRemaining > 0 && (
                 <div style={{
                     display: "flex",
                     alignItems: "center",
@@ -1151,7 +1178,6 @@ const Template4Colorful = (data: StoryTemplateData) => {
                         <SubjectSticker
                             key={s.id}
                             subject={s}
-                            index={preAgendaShown.length + i + 1}
                             tilt={stickerTilt(i + 1)}
                         />
                     ))}
