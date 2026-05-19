@@ -220,6 +220,11 @@ export interface StorySubject {
         colorHex?: string | null;
         icon?: string | null;
     } | null;
+    /** Optional aggregated speaking stats; when present, the route handler has pre-sorted
+     *  subjects by `statistics.speakingSeconds` descending. */
+    statistics?: {
+        speakingSeconds: number;
+    };
 }
 
 export interface StoryTemplateData {
@@ -238,9 +243,7 @@ const PRIMARY_PILL_FALLBACK = "#9CA3AF";
 function splitSubjects(subjects: StorySubject[]) {
     const preAgenda = subjects.filter((s) => s.nonAgendaReason === "beforeAgenda");
     const outOfAgenda = subjects.filter((s) => s.nonAgendaReason === "outOfAgenda");
-    const agenda = subjects
-        .filter((s) => s.nonAgendaReason === null)
-        .sort((a, b) => (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0));
+    const agenda = subjects.filter((s) => s.nonAgendaReason === null);
     return { preAgenda, outOfAgenda, agenda };
 }
 
@@ -261,6 +264,21 @@ function formatMonthEl(d: Date, casing: "long" | "longCapitalized" = "long"): st
     if (casing === "longCapitalized") return month.charAt(0).toUpperCase() + month.slice(1);
     return month;
 }
+
+const GREEK_MONTH_SHORT = [
+    "Ιαν",
+    "Φεβ",
+    "Μάρ",
+    "Απρ",
+    "Μαΐου",
+    "Ιούν",
+    "Ιούλ",
+    "Αύγ",
+    "Σεπ",
+    "Οκτ",
+    "Νοέ",
+    "Δεκ",
+] as const;
 
 // ---------- Building blocks ----------
 
@@ -982,12 +1000,10 @@ const Template4Colorful = (data: StoryTemplateData) => {
     const preAgendaRemaining = Math.max(0, preAgenda.length - preAgendaShown.length);
     const agendaRemaining = Math.max(0, agenda.length - agendaShown.length);
 
-    // Short Greek date for the date pill (e.g. "14 Ιαν" / "2026"). The el-GR short month
-    // sometimes returns a trailing period — strip it for a cleaner look.
+    // Short Greek date for the date pill (e.g. "14 Ιαν" / "2026"). Uses the custom
+    // GREEK_MONTH_SHORT table — not toLocaleDateString — for consistent rendering.
     const day = data.meetingDate.getDate();
-    const monthShort = data.meetingDate
-        .toLocaleDateString("el-GR", { month: "short" })
-        .replace(/\.$/, "");
+    const monthShort = GREEK_MONTH_SHORT[data.meetingDate.getMonth()];
     const year = data.meetingDate.getFullYear();
 
     // Alternate tilt direction across stickers for the collage feel.
