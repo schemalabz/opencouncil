@@ -6,7 +6,8 @@ import { RegulationData } from '@/components/consultations/types';
 import prisma from '@/lib/db/prisma';
 import { getPartiesForCity } from '@/lib/db/parties';
 import { getPeopleForCity, getPerson } from '@/lib/db/people';
-import { sortSubjectsByImportance } from '@/lib/utils';
+import { sortSubjectsByImportance, sortSubjectsBySpeakingTime } from '@/lib/utils';
+import { getBatchStatisticsForSubjects } from '@/lib/statistics';
 import { Container, MeetingMetaRow, OgHeader, OpenCouncilWatermark, SubjectPills, formatCityDisplayName } from '@/components/og/shared-components';
 import { renderStoryTemplate, isValidStoryTemplate, type StoryTemplateNumber } from '@/components/og/story-templates';
 // Import the native subject OG image generator for reuse
@@ -169,7 +170,15 @@ const MeetingStoryOGImage = async (cityId: string, meetingId: string, template: 
     const data = await getMeetingDataForOG(cityId, meetingId);
     if (!data) return null;
 
-    const sortedSubjects = sortSubjectsByImportance(data.subjects);
+    const statsMap = await getBatchStatisticsForSubjects(
+        data.subjects.map((s) => s.id),
+        new Date(data.dateTime),
+    );
+    const subjectsWithStats = data.subjects.map((s) => ({
+        ...s,
+        statistics: statsMap.get(s.id),
+    }));
+    const sortedSubjects = sortSubjectsBySpeakingTime(subjectsWithStats);
 
     return renderStoryTemplate(template, {
         meetingName: data.name,
