@@ -10,9 +10,9 @@ export const STORY_TEMPLATES: ReadonlyArray<{
     description: string;
 }> = [
     { id: 1, name: "Κλασικό", description: "Φωτεινό, καθαρό" },
-    { id: 2, name: "Editorial", description: "Σκούρο, με έμφαση στην ημερομηνία" },
-    { id: 3, name: "Riso", description: "Αφίσα τυπογραφείου" },
-    { id: 4, name: "Civic Board", description: "Πίνακας ελέγχου" },
+    { id: 2, name: "Σκούρο", description: "Σκούρο, με έμφαση στην ημερομηνία" },
+    { id: 3, name: "Με κάρτες", description: "Με ανοιχτό φόντο και κάρτες με εικονίδια" },
+    { id: 4, name: "Χρωματιστό", description: "Παιχνιδιάρικο με χρωματιστά στοιχεία" },
 ];
 
 export function isValidStoryTemplate(value: unknown): value is StoryTemplateNumber {
