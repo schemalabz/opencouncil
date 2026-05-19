@@ -49,15 +49,15 @@ export default function StoryTemplatePickerDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-3xl">
+            <DialogContent className="max-w-7xl">
                 <DialogHeader>
-                    <DialogTitle>Επιλέξτε στυλ Story</DialogTitle>
-                    <DialogDescription>
-                        4 διαφορετικά εικαστικά για την ίδια πληροφορία. Επιλέξτε αυτό που ταιριάζει.
+                    <DialogTitle className="text-2xl">Επιλέξτε το θέμα του story</DialogTitle>
+                    <DialogDescription className="text-base">
+                        Υπάρχουν 4 διαθέσιμα θέματα από τα οποία μπορείτε να επιλέξετε.
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5">
                     {STORY_TEMPLATES.map(({ id, name, description }) => {
                         const previewUrl = buildStoryUrl(cityId, meetingId, id);
                         const isDownloading = downloading === id;
@@ -67,7 +67,7 @@ export default function StoryTemplatePickerDialog({
                                 type="button"
                                 onClick={() => handleDownload(id)}
                                 disabled={downloading !== null}
-                                className="group relative flex flex-col rounded-lg border bg-card text-left overflow-hidden transition-all hover:shadow-md hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60 disabled:cursor-not-allowed"
+                                className="group relative flex flex-col rounded-xl border bg-card text-left overflow-hidden transition-all hover:shadow-lg hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                                 <div className="relative aspect-[9/16] bg-muted">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -79,17 +79,17 @@ export default function StoryTemplatePickerDialog({
                                     />
                                     {isDownloading && (
                                         <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm">
-                                            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                                            <Loader2 className="w-10 h-10 animate-spin text-primary" />
                                         </div>
                                     )}
-                                    <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1.5 py-1.5 bg-gradient-to-t from-black/60 to-transparent text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Download className="w-3 h-3" />
+                                    <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 py-3 bg-gradient-to-t from-black/70 to-transparent text-white text-base opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Download className="w-5 h-5" />
                                         <span>Λήψη</span>
                                     </div>
                                 </div>
-                                <div className="p-2.5">
-                                    <div className="text-sm font-medium leading-tight">{name}</div>
-                                    <div className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                                <div className="p-4">
+                                    <div className="text-lg font-semibold leading-tight">{name}</div>
+                                    <div className="text-sm text-muted-foreground leading-tight mt-1">
                                         {description}
                                     </div>
                                 </div>
@@ -98,8 +98,8 @@ export default function StoryTemplatePickerDialog({
                     })}
                 </div>
 
-                <div className="flex justify-end pt-2">
-                    <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+                <div className="flex justify-end pt-3">
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>
                         Κλείσιμο
                     </Button>
                 </div>
