@@ -288,84 +288,73 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                         )}
                     </div>
 
-                    {ogImageUrl && (
-                        <>
-                            <DropdownMenuSeparator />
-                            <div className="p-3">
-                                <div className="rounded-lg border overflow-hidden bg-muted/50">
-                                    <div className="aspect-[1200/630] relative bg-muted/30">
-                                        {imageLoading && (
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                                <div className="flex flex-col items-center gap-2">
-                                                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                                                    <span className="text-xs text-muted-foreground">Φόρτωση προεπισκόπησης...</span>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {!imageError && (
-                                            // eslint-disable-next-line @next/next/no-img-element
-                                            <img
-                                                src={ogImageUrl}
-                                                alt="Preview"
-                                                className={`w-full h-full object-cover transition-opacity duration-200 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
-                                                onLoad={handleImageLoad}
-                                                onError={handleImageError}
-                                            />
-                                        )}
-                                        {imageError && !imageLoading && (
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                                <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                                    <Eye className="w-6 h-6" />
-                                                    <span className="text-xs">Προεπισκόπηση μη διαθέσιμη</span>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="p-2 bg-background">
-                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                            <Eye className="w-3 h-3" />
-                                            <span>Προεπισκόπηση κοινοποίησης</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </>
-                    )}
-
                     {ogImageUrl && !pathname.includes('/subjects/') && (
                         <>
                             <DropdownMenuSeparator />
-                            <div className="p-3">
-                                <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                            <div className="p-3 space-y-3">
+                                <label className="text-xs font-medium text-muted-foreground block">
                                     Εξαγωγή Προεπισκόπησης ως Εικόνα
                                 </label>
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-2 gap-2 items-stretch">
+                                    {/* Column 1 — tall Story picker button (replaces the small "Story…" button). */}
                                     <Button
                                         onClick={openStoryPicker}
                                         disabled={downloading !== null}
                                         variant="outline"
-                                        size="sm"
-                                        className="h-8 flex items-center gap-1.5"
+                                        className="h-auto self-stretch flex flex-col items-center justify-center gap-2 p-3 text-center"
                                     >
-                                        <Instagram className="w-3 h-3" />
-                                        <span className="text-xs">Story…</span>
+                                        <Instagram className="w-6 h-6" />
+                                        <span className="text-xs font-medium leading-tight">
+                                            Επιλογή θέματος για Story
+                                        </span>
                                         <span className="text-[10px] text-muted-foreground">(9:16)</span>
                                     </Button>
-                                    <Button
-                                        onClick={() => downloadImage('feed')}
-                                        disabled={downloading !== null}
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-8 flex items-center gap-1.5"
-                                    >
-                                        {downloading === 'feed' ? (
-                                            <Loader2 className="w-3 h-3 animate-spin" />
-                                        ) : (
-                                            <FileDown className="w-3 h-3" />
-                                        )}
-                                        <span className="text-xs">Post</span>
-                                        <span className="text-[10px] text-muted-foreground">(1:1)</span>
-                                    </Button>
+                                    {/* Column 2 — single card: square preview on top, Post 1:1 button as the card's bottom row. */}
+                                    <div className="rounded-lg border overflow-hidden bg-muted/50 flex flex-col">
+                                        <div className="aspect-square relative bg-muted/30">
+                                            {imageLoading && (
+                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                    <div className="flex flex-col items-center gap-2">
+                                                        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                                                        <span className="text-xs text-muted-foreground">Φόρτωση προεπισκόπησης...</span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {!imageError && (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img
+                                                    src={`${ogImageUrl}&variant=feed`}
+                                                    alt="Preview"
+                                                    className={`w-full h-full object-cover transition-opacity duration-200 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+                                                    onLoad={handleImageLoad}
+                                                    onError={handleImageError}
+                                                />
+                                            )}
+                                            {imageError && !imageLoading && (
+                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                                        <Eye className="w-6 h-6" />
+                                                        <span className="text-xs">Προεπισκόπηση μη διαθέσιμη</span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <Button
+                                            onClick={() => downloadImage('feed')}
+                                            disabled={downloading !== null}
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-9 w-full rounded-none rounded-b-lg border-t flex items-center justify-center gap-1.5"
+                                        >
+                                            {downloading === 'feed' ? (
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                            ) : (
+                                                <FileDown className="w-3 h-3" />
+                                            )}
+                                            <span className="text-xs">Λήψη Post</span>
+                                            <span className="text-[10px] text-muted-foreground">(1:1)</span>
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
                         </>
