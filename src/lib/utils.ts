@@ -195,11 +195,11 @@ export function sortSubjectsByImportance<T extends SortableSubject>(
   });
 }
 
-export function sortSubjectsBySpeakingTime<T extends SortableSubject>(subjects: T[]): T[] {
+export function sortSubjectsBySpeakerContributionCount<T extends SortableSubject>(subjects: T[]): T[] {
   return [...subjects].sort((a, b) => {
-    const aSeconds = a.statistics?.speakingSeconds ?? 0;
-    const bSeconds = b.statistics?.speakingSeconds ?? 0;
-    if (bSeconds !== aSeconds) return bSeconds - aSeconds;
+    const aCount = a._count?.contributions ?? 0;
+    const bCount = b._count?.contributions ?? 0;
+    if (bCount !== aCount) return bCount - aCount;
     return a.name.localeCompare(b.name);
   });
 }

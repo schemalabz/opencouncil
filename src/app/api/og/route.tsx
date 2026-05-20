@@ -6,8 +6,9 @@ import { RegulationData } from '@/components/consultations/types';
 import prisma from '@/lib/db/prisma';
 import { getPartiesForCity } from '@/lib/db/parties';
 import { getPeopleForCity, getPerson } from '@/lib/db/people';
-import { sortSubjectsByImportance } from '@/lib/utils';
+import { sortSubjectsByImportance, sortSubjectsBySpeakerContributionCount } from '@/lib/utils';
 import { Container, MeetingMetaRow, OgHeader, OpenCouncilWatermark, SubjectPills, formatCityDisplayName } from '@/components/og/shared-components';
+import { renderStoryTemplate, isValidStoryTemplate, type StoryTemplateId } from '@/components/og/story-templates';
 // Import the native subject OG image generator for reuse
 import SubjectOgImage from '@/app/[locale]/(city)/[cityId]/(meetings)/[meetingId]/subjects/[subjectId]/opengraph-image';
 
@@ -163,85 +164,23 @@ const MeetingFeedOGImage = async (cityId: string, meetingId: string) => {
 };
 
 // Meeting Story OG Image (Vertical - 1080x1920 for Instagram Stories)
-const MeetingStoryOGImage = async (cityId: string, meetingId: string) => {
+// Renders one of 4 templates selected via the `template` query param.
+const MeetingStoryOGImage = async (cityId: string, meetingId: string, template: StoryTemplateId) => {
     const data = await getMeetingDataForOG(cityId, meetingId);
     if (!data) return null;
 
-    const meetingDate = new Date(data.dateTime);
-    const formattedDate = meetingDate.toLocaleDateString('el-GR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
+    // Sort subjects so the most-discussed appear first in each section. Contribution
+    // count comes pre-aggregated on `_count.contributions`, so no extra stats query is needed.
+    const sortedSubjects = sortSubjectsBySpeakerContributionCount(data.subjects);
+
+    return renderStoryTemplate(template, {
+        meetingName: data.name,
+        meetingDate: new Date(data.dateTime),
+        cityName: data.city.name_municipality,
+        cityLogoImage: data.city.logoImage,
+        adminBodyName: data.administrativeBody?.name,
+        subjects: sortedSubjects,
     });
-
-    const sortedSubjects = sortSubjectsByImportance(data.subjects);
-
-    const cityDisplayName = formatCityDisplayName(data.city.name_municipality, data.administrativeBody?.name);
-
-    return (
-        <Container
-            watermarkProps={{ logoOnly: true, size: 120, bottom: 52, right: 52 }}
-            containerPadding="64px 48px"
-        >
-            <OgHeader
-                city={{
-                    name: cityDisplayName,
-                    logoImage: data.city.logoImage
-                }}
-                logoHeight={100}
-                nameSize={36}
-                marginBottom="48px"
-            />
-
-            <div style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '32px',
-            }}>
-                <h1 style={{
-                    fontSize: 88,
-                    fontWeight: 800,
-                    color: '#111827',
-                    lineHeight: 1.14,
-                    margin: 0,
-                    maxWidth: '100%',
-                }}>
-                    {data.name}
-                </h1>
-
-                <MeetingMetaRow
-                    formattedDate={formattedDate}
-                    subjectsCount={data.subjects?.length || 0}
-                    fontSize={36}
-                    stacked
-                    stackGap={18}
-                    iconGap={12}
-                    separator={false}
-                />
-
-                {sortedSubjects.length > 0 && (
-                    <SubjectPills
-                        subjects={sortedSubjects}
-                        limit={9}
-                        styles={{
-                            containerGap: 20,
-                            containerMarginTop: 36,
-                            pillPadding: [24, 34],
-                            pillRadius: 22,
-                            pillFontSize: 38,
-                            pillFontWeight: 800,
-                            pillBoxShadow: '0 4px 12px rgba(0, 0, 0, 0.14)',
-                            pillWidth: '100%',
-                            remainingFontSize: 26,
-                            remainingMarginTop: 8,
-                            remainingColor: '#6b7280',
-                        }}
-                    />
-                )}
-            </div>
-        </Container>
-    );
 };
 
 // City OG Image
@@ -962,6 +901,7 @@ export async function GET(request: Request) {
     const subjectId = searchParams.get('subjectId');
     const pageType = searchParams.get('pageType'); // 'people', 'about', 'search', 'chat'
     const variant = searchParams.get('variant'); // 'story' for 9:16, 'feed' for 1:1, default is landscape
+    const templateParam = searchParams.get('template'); // 'CLASSIC' | 'DARK' | 'CARDS' | 'COLORFUL' for story templates
 
     try {
         let element;
@@ -977,7 +917,8 @@ export async function GET(request: Request) {
         } else if (meetingId && cityId) {
             // Handle variant for meeting images
             if (variant === 'story') {
-                element = await MeetingStoryOGImage(cityId, meetingId);
+                const template: StoryTemplateId = isValidStoryTemplate(templateParam) ? templateParam : 'CLASSIC';
+                element = await MeetingStoryOGImage(cityId, meetingId, template);
                 width = 1080;
                 height = 1920;
             } else if (variant === 'feed') {
