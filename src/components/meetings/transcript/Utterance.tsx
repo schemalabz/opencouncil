@@ -18,32 +18,59 @@ import {
 import { cn } from "@/lib/utils";
 import { useEditing } from "../EditingContext";
 import { formatTimestamp } from "@/lib/formatters/time";
+import { useUtteranceMatches } from "./FindReplaceContext";
 
 /**
  * Resolve the character offset of a click within a text span.
  * The span has `user-select: none` (for range-selection UX), which can
  * block caret hit-testing. We temporarily lift it, measure, then restore.
+ *
+ * The hit-test APIs return an offset relative to the deepest text node at
+ * the click coordinates. When find-and-replace highlights split the span
+ * into interleaved text nodes and <mark> children, that node-relative
+ * offset needs to be converted to an absolute offset by summing the
+ * lengths of all preceding text nodes inside the span.
  */
 function getCaretOffsetFromClick(e: React.MouseEvent, maxOffset: number): number {
     const target = e.currentTarget as HTMLElement;
     const prev = target.style.userSelect;
     target.style.userSelect = 'text';
 
-    let offset = 0;
+    let node: Node | null = null;
+    let nodeOffset = 0;
     // Firefox: caretPositionFromPoint, Chrome/Safari: caretRangeFromPoint
     // TODO: remove the `unknown` cast once we upgrade to TS 5.6+ (adds caretPositionFromPoint to DOM lib)
     if ('caretPositionFromPoint' in document) {
-        const pos = (document as unknown as { caretPositionFromPoint(x: number, y: number): { offset: number } | null })
+        const pos = (document as unknown as { caretPositionFromPoint(x: number, y: number): { offsetNode: Node; offset: number } | null })
             .caretPositionFromPoint(e.clientX, e.clientY);
-        if (pos) offset = pos.offset;
+        if (pos) { node = pos.offsetNode; nodeOffset = pos.offset; }
     } else if ('caretRangeFromPoint' in document) {
         const range = (document as unknown as { caretRangeFromPoint(x: number, y: number): Range | null })
             .caretRangeFromPoint(e.clientX, e.clientY);
-        if (range) offset = range.startOffset;
+        if (range) { node = range.startContainer; nodeOffset = range.startOffset; }
     }
 
     target.style.userSelect = prev;
-    return Math.min(offset, maxOffset);
+
+    if (!node) return 0;
+
+    // Sum the lengths of text nodes preceding the clicked one. When there
+    // are no <mark> children, the only text node is the span's own and
+    // this loop adds 0 — same behaviour as before.
+    let absoluteOffset = nodeOffset;
+    if (node !== target && target.contains(node)) {
+        const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
+        let cumulative = 0;
+        for (let current = walker.nextNode(); current; current = walker.nextNode()) {
+            if (current === node) {
+                absoluteOffset = cumulative + nodeOffset;
+                break;
+            }
+            cumulative += (current as Text).length;
+        }
+    }
+
+    return Math.min(absoluteOffset, maxOffset);
 }
 
 const UtteranceC: React.FC<{
@@ -69,6 +96,10 @@ const UtteranceC: React.FC<{
 
     // Check if selected in Editing Context
     const isSelected = selectedUtteranceIds.has(localUtterance.id);
+
+    // Find & Replace highlights. Subscribed per-utterance so unrelated
+    // utterances don't re-render on every keystroke in the search box.
+    const { matches: findMatches, activeIndex: activeMatchIndex } = useUtteranceMatches(localUtterance.id);
 
     // Update local state when prop changes
     useEffect(() => {
@@ -400,6 +431,40 @@ const UtteranceC: React.FC<{
         ? 'text-muted-foreground italic'
         : '';
 
+    // Split the utterance text into alternating plain and highlighted spans
+    // when find-and-replace has matches inside this utterance. We keep the
+    // trailing space (added in `displayText`) outside the marks so the cursor
+    // hit-testing math in `getCaretOffsetFromClick` still resolves against
+    // contiguous text.
+    const renderedDisplay = (() => {
+        if (findMatches.length === 0 || (options.editable && isEmptyUtterance)) {
+            return displayText;
+        }
+        const baseText = localUtterance.text;
+        const parts: React.ReactNode[] = [];
+        let cursor = 0;
+        for (const m of findMatches) {
+            if (m.start > cursor) parts.push(baseText.slice(cursor, m.start));
+            const isActive = m.globalIndex === activeMatchIndex;
+            parts.push(
+                <mark
+                    key={`${m.start}-${m.end}`}
+                    className={cn(
+                        'rounded-sm',
+                        isActive ? 'bg-orange-400 text-black' : 'bg-yellow-200 text-black',
+                    )}
+                >
+                    {baseText.slice(m.start, m.end)}
+                </mark>,
+            );
+            cursor = m.end;
+        }
+        if (cursor < baseText.length) parts.push(baseText.slice(cursor));
+        // trailing space (matches `displayText` semantics)
+        parts.push(' ');
+        return parts;
+    })();
+
     // Right-click is handled by the single shared <UtteranceContextMenu> at
     // the Transcript level — it locates the target via these data-attributes
     // and renders one set of items instead of one Radix Menu per utterance.
@@ -412,7 +477,7 @@ const UtteranceC: React.FC<{
             data-start-timestamp={localUtterance.startTimestamp}
             onClick={handleClick}
         >
-            {displayText}
+            {renderedDisplay}
         </span>
     );
 
