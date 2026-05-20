@@ -6,12 +6,6 @@ export type IconShape =
     | ["rect", { width: string; height: string; x: string; y: string; rx?: string; ry?: string }]
     | ["line", { x1: string; x2: string; y1: string; y2: string }];
 
-export interface TopicIconEntry {
-    /** Kebab-case lucide icon name (matches Topic.icon in the DB and lucide's keys). */
-    name: string;
-    shapes: IconShape[];
-}
-
 export interface StorySubject {
     id: string;
     name: string;
