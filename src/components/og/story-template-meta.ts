@@ -2,19 +2,15 @@
 // template file (`story-templates.tsx`) and the client-side picker dialog. Keep this file
 // free of React / Node-only imports.
 
-export type StoryTemplateNumber = 1 | 2 | 3 | 4;
+export type StoryTemplateId = "CLASSIC" | "DARK" | "CARDS" | "COLORFUL";
 
-export const STORY_TEMPLATES: ReadonlyArray<{
-    id: StoryTemplateNumber;
-    name: string;
-    description: string;
-}> = [
-    { id: 1, name: "Κλασικό", description: "Φωτεινό, καθαρό" },
-    { id: 2, name: "Σκούρο", description: "Σκούρο, με έμφαση στην ημερομηνία" },
-    { id: 3, name: "Με κάρτες", description: "Με ανοιχτό φόντο και κάρτες με εικονίδια" },
-    { id: 4, name: "Χρωματιστό", description: "Παιχνιδιάρικο με χρωματιστά στοιχεία" },
-];
+export const STORY_TEMPLATES: Record<StoryTemplateId, { name: string; description: string }> = {
+    CLASSIC: { name: "Κλασικό", description: "Φωτεινό, καθαρό" },
+    DARK: { name: "Σκούρο", description: "Σκούρο, με έμφαση στην ημερομηνία" },
+    CARDS: { name: "Με κάρτες", description: "Με ανοιχτό φόντο και κάρτες με εικονίδια" },
+    COLORFUL: { name: "Χρωματιστό", description: "Παιχνιδιάρικο με χρωματιστά στοιχεία" },
+};
 
-export function isValidStoryTemplate(value: unknown): value is StoryTemplateNumber {
-    return value === 1 || value === 2 || value === 3 || value === 4;
+export function isValidStoryTemplate(value: unknown): value is StoryTemplateId {
+    return typeof value === "string" && value in STORY_TEMPLATES;
 }

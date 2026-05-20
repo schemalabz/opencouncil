@@ -1,4 +1,4 @@
-import { sortSubjectsBySpeakingTime } from "@/lib/utils";
+import { sortSubjectsBySpeakerContributionCount } from "@/lib/utils";
 import type { Statistics } from "@/lib/statistics";
 
 interface CategorizableSubject {
@@ -7,6 +7,7 @@ interface CategorizableSubject {
     agendaItemIndex: number | null;
     statistics?: Statistics;
     speakerSegments?: unknown[];
+    _count?: { contributions?: number };
 }
 
 export const SUBJECT_CATEGORIES = {
@@ -29,15 +30,15 @@ export const SUBJECT_CATEGORIES = {
 
 /**
  * Categorize subjects into their three agenda groups.
- * beforeAgenda and outOfAgenda are sorted by speaking time.
- * agenda is returned unsorted — the consumer decides (agenda index vs speaking time).
+ * beforeAgenda and outOfAgenda are sorted by speaker contribution count.
+ * agenda is returned unsorted — the consumer decides (agenda index vs contribution count).
  */
 export function categorizeSubjects<T extends CategorizableSubject>(subjects: T[]) {
     return {
-        beforeAgenda: sortSubjectsBySpeakingTime(
+        beforeAgenda: sortSubjectsBySpeakerContributionCount(
             subjects.filter(s => s.nonAgendaReason === 'beforeAgenda' && s.agendaItemIndex === null)
         ),
-        outOfAgenda: sortSubjectsBySpeakingTime(
+        outOfAgenda: sortSubjectsBySpeakerContributionCount(
             subjects.filter(s => s.nonAgendaReason === 'outOfAgenda' && s.agendaItemIndex === null)
         ),
         agenda: subjects.filter(s => s.agendaItemIndex !== null),

@@ -6,10 +6,9 @@ import { RegulationData } from '@/components/consultations/types';
 import prisma from '@/lib/db/prisma';
 import { getPartiesForCity } from '@/lib/db/parties';
 import { getPeopleForCity, getPerson } from '@/lib/db/people';
-import { sortSubjectsByImportance, sortSubjectsBySpeakingTime } from '@/lib/utils';
-import { getBatchStatisticsForSubjects } from '@/lib/statistics';
+import { sortSubjectsByImportance, sortSubjectsBySpeakerContributionCount } from '@/lib/utils';
 import { Container, MeetingMetaRow, OgHeader, OpenCouncilWatermark, SubjectPills, formatCityDisplayName } from '@/components/og/shared-components';
-import { renderStoryTemplate, isValidStoryTemplate, type StoryTemplateNumber } from '@/components/og/story-templates';
+import { renderStoryTemplate, isValidStoryTemplate, type StoryTemplateId } from '@/components/og/story-templates';
 // Import the native subject OG image generator for reuse
 import SubjectOgImage from '@/app/[locale]/(city)/[cityId]/(meetings)/[meetingId]/subjects/[subjectId]/opengraph-image';
 
@@ -166,19 +165,13 @@ const MeetingFeedOGImage = async (cityId: string, meetingId: string) => {
 
 // Meeting Story OG Image (Vertical - 1080x1920 for Instagram Stories)
 // Renders one of 4 templates selected via the `template` query param.
-const MeetingStoryOGImage = async (cityId: string, meetingId: string, template: StoryTemplateNumber) => {
+const MeetingStoryOGImage = async (cityId: string, meetingId: string, template: StoryTemplateId) => {
     const data = await getMeetingDataForOG(cityId, meetingId);
     if (!data) return null;
 
-    const statsMap = await getBatchStatisticsForSubjects(
-        data.subjects.map((s) => s.id),
-        new Date(data.dateTime),
-    );
-    const subjectsWithStats = data.subjects.map((s) => ({
-        ...s,
-        statistics: statsMap.get(s.id),
-    }));
-    const sortedSubjects = sortSubjectsBySpeakingTime(subjectsWithStats);
+    // Sort subjects so the most-discussed appear first in each section. Contribution
+    // count comes pre-aggregated on `_count.contributions`, so no extra stats query is needed.
+    const sortedSubjects = sortSubjectsBySpeakerContributionCount(data.subjects);
 
     return renderStoryTemplate(template, {
         meetingName: data.name,
@@ -908,7 +901,7 @@ export async function GET(request: Request) {
     const subjectId = searchParams.get('subjectId');
     const pageType = searchParams.get('pageType'); // 'people', 'about', 'search', 'chat'
     const variant = searchParams.get('variant'); // 'story' for 9:16, 'feed' for 1:1, default is landscape
-    const templateParam = searchParams.get('template'); // '1' | '2' | '3' | '4' for story templates
+    const templateParam = searchParams.get('template'); // 'CLASSIC' | 'DARK' | 'CARDS' | 'COLORFUL' for story templates
 
     try {
         let element;
@@ -924,8 +917,7 @@ export async function GET(request: Request) {
         } else if (meetingId && cityId) {
             // Handle variant for meeting images
             if (variant === 'story') {
-                const parsed = templateParam !== null ? Number.parseInt(templateParam, 10) : 1;
-                const template: StoryTemplateNumber = isValidStoryTemplate(parsed) ? parsed : 1;
+                const template: StoryTemplateId = isValidStoryTemplate(templateParam) ? templateParam : 'CLASSIC';
                 element = await MeetingStoryOGImage(cityId, meetingId, template);
                 width = 1080;
                 height = 1920;
