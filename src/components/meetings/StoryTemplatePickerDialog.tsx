@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { downloadFile } from "@/lib/export/meetings";
-import { STORY_TEMPLATES, type StoryTemplateNumber } from "@/components/og/story-template-meta";
+import { STORY_TEMPLATES, type StoryTemplateId } from "@/components/og/story-template-meta";
 
 interface StoryTemplatePickerDialogProps {
     open: boolean;
@@ -20,7 +20,7 @@ interface StoryTemplatePickerDialogProps {
     meetingId: string;
 }
 
-function buildStoryUrl(cityId: string, meetingId: string, template: StoryTemplateNumber): string {
+function buildStoryUrl(cityId: string, meetingId: string, template: StoryTemplateId): string {
     const base = typeof window !== "undefined" ? window.location.origin : "";
     return `${base}/api/og?cityId=${encodeURIComponent(cityId)}&meetingId=${encodeURIComponent(meetingId)}&variant=story&template=${template}`;
 }
@@ -31,15 +31,26 @@ export default function StoryTemplatePickerDialog({
     cityId,
     meetingId,
 }: StoryTemplatePickerDialogProps) {
-    const [downloading, setDownloading] = useState<StoryTemplateNumber | null>(null);
+    const [downloading, setDownloading] = useState<StoryTemplateId | null>(null);
+    // Per-template flag: true once the preview <img> has finished loading (or errored).
+    // Drives the "constructing preview" loader on each card.
+    const [previewLoaded, setPreviewLoaded] = useState<Record<StoryTemplateId, boolean>>({
+        CLASSIC: false,
+        DARK: false,
+        CARDS: false,
+        COLORFUL: false,
+    });
 
-    const handleDownload = async (template: StoryTemplateNumber) => {
+    const markPreviewSettled = (id: StoryTemplateId) =>
+        setPreviewLoaded((prev) => (prev[id] ? prev : { ...prev, [id]: true }));
+
+    const handleDownload = async (template: StoryTemplateId) => {
         setDownloading(template);
         try {
             const response = await fetch(buildStoryUrl(cityId, meetingId, template));
             if (!response.ok) throw new Error(`Failed to fetch story image (${response.status})`);
             const blob = await response.blob();
-            downloadFile(blob, `meeting-story-${meetingId}-t${template}.png`);
+            downloadFile(blob, `meeting-story-${meetingId}-${template.toLowerCase()}.png`);
         } catch (error) {
             console.error("Error downloading story image:", error);
         } finally {
@@ -58,7 +69,7 @@ export default function StoryTemplatePickerDialog({
                 </DialogHeader>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5">
-                    {STORY_TEMPLATES.map(({ id, name, description }) => {
+                    {(Object.entries(STORY_TEMPLATES) as [StoryTemplateId, typeof STORY_TEMPLATES[StoryTemplateId]][]).map(([id, { name, description }]) => {
                         const previewUrl = buildStoryUrl(cityId, meetingId, id);
                         const isDownloading = downloading === id;
                         return (
@@ -67,7 +78,9 @@ export default function StoryTemplatePickerDialog({
                                 type="button"
                                 onClick={() => handleDownload(id)}
                                 disabled={downloading !== null}
-                                className="group relative flex flex-col rounded-xl border bg-card text-left overflow-hidden transition-all hover:shadow-lg hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60 disabled:cursor-not-allowed"
+                                // Note: only fade non-active buttons. The button being downloaded keeps
+                                // opacity 1 so its overlay stays fully visible.
+                                className={`group relative flex flex-col rounded-xl border bg-card text-left overflow-hidden transition-all hover:shadow-lg hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed ${downloading !== null && !isDownloading ? "opacity-60" : ""}`}
                             >
                                 <div className="relative aspect-[9/16] bg-muted">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -75,11 +88,24 @@ export default function StoryTemplatePickerDialog({
                                         src={previewUrl}
                                         alt={`${name} preview`}
                                         loading="lazy"
-                                        className="absolute inset-0 w-full h-full object-cover"
+                                        onLoad={() => markPreviewSettled(id)}
+                                        onError={() => markPreviewSettled(id)}
+                                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-200 ${previewLoaded[id] ? "opacity-100" : "opacity-0"}`}
                                     />
+                                    {!previewLoaded[id] && !isDownloading && (
+                                        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-muted px-4 text-center text-muted-foreground">
+                                            <Loader2 className="w-10 h-10 animate-spin" />
+                                            <span className="text-sm">
+                                                Φόρτωση προεπισκόπησης...
+                                            </span>
+                                        </div>
+                                    )}
                                     {isDownloading && (
-                                        <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm">
-                                            <Loader2 className="w-10 h-10 animate-spin text-primary" />
+                                        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/70 backdrop-blur-sm px-4 text-center text-white">
+                                            <Loader2 className="w-12 h-12 animate-spin" />
+                                            <span className="text-sm font-medium">
+                                                Downloading...
+                                            </span>
                                         </div>
                                     )}
                                     <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 py-3 bg-gradient-to-t from-black/70 to-transparent text-white text-base opacity-0 group-hover:opacity-100 transition-opacity">
