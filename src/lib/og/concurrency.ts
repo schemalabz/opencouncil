@@ -1,18 +1,13 @@
 // In-process concurrency cap for /api/og image rendering.
 //
 // This is a process-local guard. On a clustered/multi-instance deploy the effective cap
-// is `OG_MAX_CONCURRENT_RENDERS × instances`, which is fine for sizing capacity.
+// is `MAX_CONCURRENT × instances`, which is fine for sizing capacity.
 //
-// Tune with the OG_MAX_CONCURRENT_RENDERS env var (positive integer). Default: 2.
-
-const DEFAULT_MAX = 2;
-
-const MAX_CONCURRENT: number = (() => {
-    const raw = process.env.OG_MAX_CONCURRENT_RENDERS;
-    if (!raw) return DEFAULT_MAX;
-    const n = parseInt(raw, 10);
-    return Number.isFinite(n) && n > 0 ? n : DEFAULT_MAX;
-})();
+// The value is intentionally hardcoded — current staging/production load doesn't need a
+// runtime tuning knob. If observation later shows we need per-environment tuning, lift
+// MAX_CONCURRENT into an env var (e.g. OG_MAX_CONCURRENT_RENDERS) at that point. Until
+// then, change the constant and redeploy.
+const MAX_CONCURRENT = 2;
 
 let active = 0;
 
