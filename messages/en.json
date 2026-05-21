@@ -149,7 +149,13 @@
         "allAdministrativeBodies": "All Bodies",
         "filterByAdminBody": "Filter by Administrative Body",
         "citySections": "City sections",
-        "widget": "Widget"
+        "widget": "Widget",
+        "notificationsCta": {
+            "title": "Stay informed",
+            "subtitle": "We can send you a message whenever the council discusses something about your neighborhood!",
+            "manageTitle": "Manage notifications",
+            "manageSubtitle": "You're already receiving notifications from this council. You can update your preferences or stop notifications anytime."
+        }
     },
     "EmbedConfigurator": {
         "title": "Widget for your website",
@@ -356,7 +362,8 @@
     },
     "Onboarding": {
         "errors": {
-            "emailExists": "The email {email} is already in use. Please use a different email or sign in.",
+            "emailExists": "The email {email} is already in use. Sign in to continue, or use a different email.",
+            "signInCta": "Sign in with this email",
             "genericError": "An error occurred. Please try again.",
             "loadingError": "An error occurred while loading preferences. Please try again."
         },

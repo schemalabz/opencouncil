@@ -127,7 +127,12 @@ export function MapContainer() {
 
             {/* Mobile controls */}
             {!isDesktop && (
-                <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
+                <div
+                    className={cn(
+                        "fixed right-4 z-50 flex flex-col gap-3 transition-[bottom] duration-300",
+                        isFormVisible ? "bottom-28" : "bottom-6",
+                    )}
+                >
                     <Button
                         variant="default"
                         size="icon"
