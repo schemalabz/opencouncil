@@ -6,7 +6,7 @@ export type IconShape =
     | ["rect", { width: string; height: string; x: string; y: string; rx?: string; ry?: string }]
     | ["line", { x1: string; x2: string; y1: string; y2: string }];
 
-export interface StorySubject {
+export interface PreviewSubject {
     id: string;
     name: string;
     agendaItemIndex: number | null;
@@ -16,21 +16,18 @@ export interface StorySubject {
         colorHex?: string | null;
         icon?: string | null;
     } | null;
-    /** Speaker contribution count; the route handler pre-sorts subjects by this descending
-     *  via `sortSubjectsBySpeakerContributionCount`. */
-    _count?: { contributions?: number };
 }
 
-export interface StoryTemplateData {
+export interface PreviewData {
     meetingName: string;
     meetingDate: Date;
     cityName: string;
     cityLogoImage: string | null;
     adminBodyName?: string | null;
-    subjects: StorySubject[];
+    subjects: PreviewSubject[];
 }
 
 export interface PillProps {
-    subject: StorySubject;
+    subject: PreviewSubject;
     palette: "light" | "dark";
 }
