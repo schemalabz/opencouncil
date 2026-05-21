@@ -6,6 +6,7 @@ import { ConsultationViewer } from "@/components/consultations";
 import { auth } from "@/auth";
 import { env } from "@/env.mjs";
 import { Suspense } from "react";
+import { buildHreflangAlternates } from "@/lib/utils/hreflang";
 
 interface PageProps {
     params: { cityId: string; id: string };
@@ -77,9 +78,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
             description,
             images: [ogImageUrl],
         },
-        alternates: {
-            canonical: `/${params.cityId}/consultation/${params.id}`,
-        },
+        alternates: buildHreflangAlternates(`/${params.cityId}/consultation/${params.id}`),
         other: {
             'consultation:status': isActive ? 'active' : 'expired',
             'consultation:endDate': consultation.endDate.toISOString(),

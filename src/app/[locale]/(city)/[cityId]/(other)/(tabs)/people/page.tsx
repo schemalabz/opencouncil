@@ -4,6 +4,7 @@ import CityPeople from "@/components/cities/CityPeople";
 import { getPartiesForCityCached, getPeopleForCityCached, getAdministrativeBodiesForCityCached, getCityCached } from "@/lib/cache";
 import { Metadata } from "next";
 import { env } from '@/env.mjs';
+import { buildHreflangAlternates } from "@/lib/utils/hreflang";
 
 export async function generateMetadata({ params }: { params: { cityId: string } }): Promise<Metadata> {
     const [city, people, parties] = await Promise.all([
@@ -65,9 +66,7 @@ export async function generateMetadata({ params }: { params: { cityId: string } 
             description,
             images: [ogImageUrl],
         },
-        alternates: {
-            canonical: `/${params.cityId}/people`,
-        },
+        alternates: buildHreflangAlternates(`/${params.cityId}/people`),
         other: {
             'people:count': peopleCount.toString(),
             'people:parties': partiesCount.toString(),

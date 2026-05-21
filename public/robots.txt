@@ -4,4 +4,4 @@ Allow: /
 # Prevent indexing of transcript pages
 Disallow: */meetings/*/transcript
 
-Sitemap: https://opencouncil.co/sitemap.xml
+Sitemap: https://opencouncil.gr/sitemap.xml
