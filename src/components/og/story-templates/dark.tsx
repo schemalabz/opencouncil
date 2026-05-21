@@ -159,7 +159,7 @@ export const Template2Dark = (data: PreviewData) => {
             {preAgendaShown.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", marginBottom: 64 }}>
                     {preAgendaRemaining > 0 && (
-                        <RemainderLine count={preAgendaRemaining} color="#9CA3AF" label="ακόμα θέματα στην προ ημερησίας συζήτησης" />
+                        <RemainderLine count={preAgendaRemaining} color="#9CA3AF" label="ακόμα θέματα προ ημερησίας συζήτησης" />
                     )}
                 </div>
             )}
