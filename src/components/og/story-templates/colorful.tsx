@@ -299,11 +299,9 @@ export const Template4Colorful = (data: PreviewData) => {
                     marginLeft: 52,
                     marginBottom: 56
                 }}>
-                    {preAgendaRemaining > 0 && (
-                        <span style={{ display: "flex", fontSize: 26, fontWeight: 700, color: "#FFFFFF" }}>
-                            + {preAgendaRemaining} ακόμα
-                        </span>
-                    )}
+                    <span style={{ display: "flex", fontSize: 26, fontWeight: 700, color: "#FFFFFF" }}>
+                        + {preAgendaRemaining} ακόμα
+                    </span>
                 </div>
             )}
 

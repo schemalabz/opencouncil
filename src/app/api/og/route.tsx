@@ -15,7 +15,6 @@ import SubjectOgImage from '@/app/[locale]/(city)/[cityId]/(meetings)/[meetingId
 // Hard ceiling on each render. Pairs with the in-process concurrency cap in
 // `@/lib/og/concurrency` to keep a single hung satori call from blocking a slot forever.
 export const maxDuration = 60;
-export const dynamic = 'force-dynamic';
 
 // Meeting OG Image (Landscape - 1200x630)
 const MeetingOGImage = async (cityId: string, meetingId: string) => {
@@ -934,7 +933,7 @@ export async function GET(request: Request) {
                 })),
             });
         } catch (e) {
-            console.error('[og] preview json failed:', e);
+            console.error(`[og] preview json failed for cityId=${cityId} meetingId=${meetingId}:`, e);
             return new Response('Failed to fetch preview data', { status: 500 });
         }
     }

@@ -65,6 +65,16 @@ export default function StoryTemplatePickerDialog({
     const [downloading, setDownloading] = useState<StoryTemplateId | null>(null);
     const [downloadError, setDownloadError] = useState<string | null>(null);
 
+    // Reset meeting-scoped state when the meeting identity changes. Without this, a parent
+    // that re-uses the same dialog instance for a different meeting (re-render without
+    // unmount) would leave the fetch effect's `if (data) return` guard short-circuiting on
+    // the previous meeting's data.
+    useEffect(() => {
+        setData(null);
+        setError(null);
+        setDownloadError(null);
+    }, [cityId, meetingId]);
+
     useEffect(() => {
         if (!open || data) return;
         let cancelled = false;
@@ -72,7 +82,10 @@ export default function StoryTemplatePickerDialog({
         setError(null);
         fetch(buildStoryUrl(cityId, meetingId))
             .then(async (r) => {
-                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                if (!r.ok) {
+                    if (r.status === 429) throw new Error("Υπήρξε πρόβλημα, δοκιμάστε ξανά σε λίγο.");
+                    throw new Error(`Αποτυχία φόρτωσης (${r.status}).`);
+                }
                 const json = (await r.json()) as PreviewDataJson;
                 return { ...json, meetingDate: new Date(json.meetingDate) } satisfies PreviewData;
             })
