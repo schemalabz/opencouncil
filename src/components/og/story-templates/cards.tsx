@@ -1,11 +1,12 @@
 import { format } from "date-fns";
 import { OpenCouncilWatermark } from "../shared-components";
-import type { StorySubject, StoryTemplateData } from "./types";
-import { splitSubjects, SectionLabel, RemainderLine, TopicIcon, PRIMARY_PILL_FALLBACK } from "./shared";
+import type { PreviewSubject, PreviewData } from "./types";
+import { SectionLabel, RemainderLine, TopicIcon, PRIMARY_PILL_FALLBACK } from "./shared";
+import { getSubjectSections } from "./sections";
 
 // Card showing one subject with its topic icon + color + name.
 // Topic color drives the border + a very light tint of the background; icon sits on the right.
-const SubjectCard = ({ subject }: { subject: StorySubject }) => {
+const SubjectCard = ({ subject }: { subject: PreviewSubject }) => {
     const color = subject.topic?.colorHex || PRIMARY_PILL_FALLBACK;
     return (
         <div
@@ -67,7 +68,7 @@ const SubjectCard = ({ subject }: { subject: StorySubject }) => {
     );
 };
 
-const SubjectCardGrid = ({ subjects }: { subjects: StorySubject[] }) => (
+const SubjectCardGrid = ({ subjects }: { subjects: PreviewSubject[] }) => (
     <div
         style={{
             display: "flex",
@@ -83,12 +84,9 @@ const SubjectCardGrid = ({ subjects }: { subjects: StorySubject[] }) => (
 );
 
 // T3 — With Cards (cream / clean, T1 base with subject cards)
-export const Template3WithCards = (data: StoryTemplateData) => {
-    const { preAgenda, agenda } = splitSubjects(data.subjects);
-    const preAgendaShown = preAgenda.slice(0, 2);
-    const agendaShown = agenda.slice(0, 4);
-    const agendaRemaining = Math.max(0, agenda.length - agendaShown.length);
-    const preAgendaRemaining = Math.max(0, preAgenda.length - preAgendaShown.length);
+export const Template3WithCards = (data: PreviewData) => {
+    const { preAgenda, agenda, preAgendaShown, agendaShown, preAgendaRemaining, agendaRemaining } =
+        getSubjectSections(data.subjects, { preAgenda: 2, agenda: 4 });
 
     return (
         <div

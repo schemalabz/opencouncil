@@ -15,7 +15,7 @@ import {
     Wallet,
     type LucideIcon,
 } from "lucide-react";
-import type { IconShape, StorySubject, PillProps } from "./types";
+import type { IconShape, PillProps } from "./types";
 
 // Background assets — read once at module load and inlined as data URIs.
 // @vercel/og's <img> can fetch URLs, but inlining avoids any same-origin/fetch concerns.
@@ -128,13 +128,6 @@ export const TopicIcon = ({
 // ---------- Helpers ----------
 
 export const PRIMARY_PILL_FALLBACK = "#9CA3AF";
-
-export function splitSubjects(subjects: StorySubject[]) {
-    const preAgenda = subjects.filter((s) => s.nonAgendaReason === "beforeAgenda");
-    const outOfAgenda = subjects.filter((s) => s.nonAgendaReason === "outOfAgenda");
-    const agenda = subjects.filter((s) => s.nonAgendaReason === null);
-    return { preAgenda, outOfAgenda, agenda };
-}
 
 // ---------- Building blocks shared between templates ----------
 

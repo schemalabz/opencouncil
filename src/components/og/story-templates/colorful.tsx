@@ -2,15 +2,16 @@ import type React from "react";
 import { format } from "date-fns";
 import { el } from "date-fns/locale";
 import { OpenCouncilWatermark } from "../shared-components";
-import type { StorySubject, StoryTemplateData } from "./types";
-import { splitSubjects, TopicIcon, PRIMARY_PILL_FALLBACK, bgPeachDotsDataUri } from "./shared";
+import type { PreviewSubject, PreviewData } from "./types";
+import { TopicIcon, PRIMARY_PILL_FALLBACK, bgPeachDotsDataUri } from "./shared";
+import { getSubjectSections } from "./sections";
 
 // One subject rendered as a tilted, full-color sticker with letter circle, number, and name.
 const SubjectSticker = ({
     subject,
     tilt,
 }: {
-    subject: StorySubject;
+    subject: PreviewSubject;
     tilt: number;
 }) => {
     const color = subject.topic?.colorHex || PRIMARY_PILL_FALLBACK;
@@ -118,12 +119,9 @@ const StickerSectionLabel = ({
 );
 
 // T4 — Colorful (tilted stickers on a peach pad)
-export const Template4Colorful = (data: StoryTemplateData) => {
-    const { preAgenda, agenda } = splitSubjects(data.subjects);
-    const preAgendaShown = preAgenda.slice(0, 2);
-    const agendaShown = agenda.slice(0, 3);
-    const preAgendaRemaining = Math.max(0, preAgenda.length - preAgendaShown.length);
-    const agendaRemaining = Math.max(0, agenda.length - agendaShown.length);
+export const Template4Colorful = (data: PreviewData) => {
+    const { preAgenda, agenda, preAgendaShown, agendaShown, preAgendaRemaining, agendaRemaining } =
+        getSubjectSections(data.subjects, { preAgenda: 2, agenda: 3 });
 
     // Short Greek date for the date pill (e.g. "14 Ιαν" / "2026").
     const day = data.meetingDate.getDate();
