@@ -74,7 +74,7 @@ export const Template2Dark = (data: PreviewData) => {
                     <span
                         style={{
                             display: "flex",
-                            fontSize: 32,
+                            fontSize: 36,
                             fontWeight: 600,
                             color: "#1f2937ad",
                             letterSpacing: "0.18em",
@@ -83,7 +83,7 @@ export const Template2Dark = (data: PreviewData) => {
                     >
                         {data.adminBodyName}
                     </span>
-                    <span style={{ display: "flex", fontSize: 36, fontWeight: 700, color: "#1F2937", marginTop: 4 }}>
+                    <span style={{ display: "flex", fontSize: 40, fontWeight: 700, color: "#1F2937", marginTop: 4 }}>
                         {data.cityName}
                     </span>
                 </div>
@@ -107,7 +107,7 @@ export const Template2Dark = (data: PreviewData) => {
                     <span
                         style={{
                             display: "flex",
-                            fontSize: 56,
+                            fontSize: 60,
                             fontWeight: 700,
                             color: "#FFFFFF",
                             lineHeight: 1,
@@ -118,7 +118,7 @@ export const Template2Dark = (data: PreviewData) => {
                     <span
                         style={{
                             display: "flex",
-                            fontSize: 56,
+                            fontSize: 60,
                             fontWeight: 700,
                             color: "#FFFFFF",
                             lineHeight: 1,
@@ -126,7 +126,7 @@ export const Template2Dark = (data: PreviewData) => {
                     >
                         {month}
                     </span>
-                    <span style={{ display: "flex", fontSize: 32, color: "#9CA3AF", marginTop: 8 }}>
+                    <span style={{ display: "flex", fontSize: 36, color: "#9CA3AF", marginTop: 8 }}>
                         {data.meetingDate.getFullYear()}
                     </span>
                 </div>
