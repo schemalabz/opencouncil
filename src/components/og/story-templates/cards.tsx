@@ -28,7 +28,7 @@ const SubjectCard = ({ subject }: { subject: PreviewSubject }) => {
                     <span
                         style={{
                             display: "flex",
-                            fontSize: 20,
+                            fontSize: 24,
                             fontWeight: 700,
                             color,
                             letterSpacing: "0.14em",
@@ -42,7 +42,7 @@ const SubjectCard = ({ subject }: { subject: PreviewSubject }) => {
                 <span
                     style={{
                         display: "flex",
-                        fontSize: 26,
+                        fontSize: 30,
                         fontWeight: 700,
                         color: "#1F2937",
                         lineHeight: 1.25,
@@ -127,7 +127,7 @@ export const Template3WithCards = (data: PreviewData) => {
                     <span style={{ display: "flex", fontSize: 42, fontWeight: 700, color: "#1F2937" }}>
                         {data.cityName}
                     </span>
-                    <span style={{ display: "flex", fontSize: 28, color: "#6B7280", marginTop: 4 }}>
+                    <span style={{ display: "flex", fontSize: 32, color: "#6B7280", marginTop: 4 }}>
                         {data.adminBodyName}
                     </span>
                 </div>
@@ -149,11 +149,11 @@ export const Template3WithCards = (data: PreviewData) => {
                     display: "flex",
                     alignItems: "center",
                     color: "#4B5563",
-                    fontSize: 28,
+                    fontSize: 32,
                     marginBottom: 36,
                 }}
             >
-                <span style={{ display: "flex", fontSize: 32, fontWeight: 800 }}>Συζητήθηκαν {data.subjects.length} θέματα</span>
+                <span style={{ display: "flex", fontSize: 36, fontWeight: 800 }}>Συζητήθηκαν {data.subjects.length} θέματα</span>
             </div>
 
             {/* Pre-agenda cards */}
