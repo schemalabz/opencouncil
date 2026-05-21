@@ -1,7 +1,8 @@
 "use client"
 import Map, { MapFeature } from "@/components/map/map";
 import { CityWithGeometry } from "@/lib/db/cities";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import Image from "next/image";
 import Icon from "@/components/icon";
 import { MapFilters, MapFiltersState } from "@/components/map/MapFilters";
@@ -52,6 +53,30 @@ export default function MapPage() {
         officialSupport: false,
         supportsNotifications: false
     });
+
+    const { status: sessionStatus } = useSession();
+    const [subscribedCityIds, setSubscribedCityIds] = useState<Set<string>>(new Set());
+
+    useEffect(() => {
+        if (sessionStatus !== 'authenticated') {
+            setSubscribedCityIds(new Set());
+            return;
+        }
+        let cancelled = false;
+        fetch('/api/user/notification-preferences')
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (cancelled || !data?.preferences) return;
+                setSubscribedCityIds(new Set(data.preferences.map((p: { city: { id: string } }) => p.city.id)));
+            })
+            .catch(() => { /* non-fatal */ });
+        return () => { cancelled = true; };
+    }, [sessionStatus]);
+
+    const hasNotificationsForOpenCity = useMemo(
+        () => subscribedCityIds.has(citySheet.cityId),
+        [subscribedCityIds, citySheet.cityId],
+    );
 
     const [subjectSheet, setSubjectSheet] = useState<{
         open: boolean;
@@ -552,6 +577,7 @@ export default function MapPage() {
                 meetingsCount={citySheet.meetingsCount}
                 officialSupport={citySheet.officialSupport}
                 supportsNotifications={citySheet.supportsNotifications}
+                hasNotifications={hasNotificationsForOpenCity}
             />
 
             <SubjectInfoSheet

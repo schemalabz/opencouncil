@@ -49,6 +49,7 @@ export function NotificationCTAButton({
             <Button
                 onClick={onClick}
                 size="lg"
+                variant={isSubscribed ? 'outline' : 'default'}
                 className={fullWidth ? 'w-full' : 'w-full sm:w-auto'}
             >
                 <Bell className="w-4 h-4 mr-2" />

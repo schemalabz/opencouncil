@@ -35,6 +35,7 @@ interface CitySheetProps {
     meetingsCount: number;
     officialSupport: boolean;
     supportsNotifications: boolean;
+    hasNotifications?: boolean;
 }
 
 type PetitionStep = 'info' | 'form' | 'registration' | 'success';
@@ -50,7 +51,8 @@ export function CitySheet({
     logoImage,
     meetingsCount,
     officialSupport,
-    supportsNotifications
+    supportsNotifications,
+    hasNotifications = false,
 }: CitySheetProps) {
     const router = useRouter();
 
@@ -360,6 +362,7 @@ export function CitySheet({
                         {supportsNotifications && (
                             <NotificationCTAButton
                                 onClick={() => router.push(`/${cityId}/notifications`)}
+                                isSubscribed={hasNotifications}
                                 fullWidth
                             />
                         )}
