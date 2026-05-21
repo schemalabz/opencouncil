@@ -19,6 +19,15 @@ const CHANNELS: ReadonlyArray<{ label: string; Icon: LucideIcon }> = [
     { label: 'SMS', Icon: MessageSquare },
 ];
 
+function ChannelChip({ label, Icon }: { label: string; Icon: LucideIcon }) {
+    return (
+        <span className="inline-flex items-center gap-1 align-middle">
+            <Icon className="h-3 w-3" />
+            {label}
+        </span>
+    );
+}
+
 export function NotificationCTAButton({
     onClick,
     isSubscribed = false,
@@ -47,17 +56,21 @@ export function NotificationCTAButton({
             </Button>
             <p className="text-xs leading-snug text-muted-foreground">
                 {subtitle}
+                {!isSubscribed && (
+                    <span className="sm:hidden">
+                        {CHANNELS.map((channel) => (
+                            <Fragment key={`m-${channel.label}`}>
+                                <span className="mx-1.5 opacity-40" aria-hidden="true">·</span>
+                                <ChannelChip {...channel} />
+                            </Fragment>
+                        ))}
+                    </span>
+                )}
             </p>
             {!isSubscribed && (
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
-                    {CHANNELS.map(({ label, Icon }, i) => (
-                        <Fragment key={label}>
-                            {i > 0 && <span className="opacity-40" aria-hidden="true">·</span>}
-                            <span className="inline-flex items-center gap-1">
-                                <Icon className="h-3 w-3" />
-                                {label}
-                            </span>
-                        </Fragment>
+                <div className="hidden sm:flex sm:justify-between text-[11px] text-muted-foreground">
+                    {CHANNELS.map((channel) => (
+                        <ChannelChip key={`d-${channel.label}`} {...channel} />
                     ))}
                 </div>
             )}
