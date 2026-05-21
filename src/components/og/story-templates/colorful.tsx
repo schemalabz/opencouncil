@@ -48,13 +48,12 @@ const SubjectSticker = ({
             >
                 <TopicIcon name={subject.topic?.icon} color="#FFFFFF" size={28} />
             </div>
-            {/* Number + name */}
-            <div style={{ display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
                 {subject.agendaItemIndex && (
                     <span
                         style={{
                             display: "flex",
-                            fontSize: 24,
+                            fontSize: 28,
                             fontWeight: 700,
                             color: "rgba(255,255,255,0.72)",
                             letterSpacing: "0.18em",
@@ -66,11 +65,12 @@ const SubjectSticker = ({
                 <span
                     style={{
                         display: "flex",
-                        fontSize: 28,
+                        fontSize: 32,
                         fontWeight: 800,
                         color: "#FFFFFF",
                         lineHeight: 1.2,
                         marginTop: 2,
+                        wordBreak: "break-word",
                     }}
                 >
                     {subject.name}
@@ -106,7 +106,7 @@ const StickerSectionLabel = ({
         <span
             style={{
                 display: "flex",
-                fontSize: 20,
+                fontSize: 24,
                 fontWeight: 800,
                 color: "#FFFFFF",
                 letterSpacing: "0.22em",
@@ -186,10 +186,10 @@ export const Template4Colorful = (data: PreviewData) => {
                     />
                 )}
                 <div style={{ display: "flex", flexDirection: "column" }}>
-                    <span style={{ display: "flex", fontSize: 42, fontWeight: 700, color: "#1F2937" }}>
+                    <span style={{ display: "flex", fontSize: 46, fontWeight: 700, color: "#1F2937" }}>
                         {data.cityName}
                     </span>
-                    <span style={{ display: "flex", fontSize: 28, color: "#1f2937e4", marginTop: 4 }}>
+                    <span style={{ display: "flex", fontSize: 32, color: "#1f2937e4", marginTop: 4 }}>
                         {data.adminBodyName}
                     </span>
                 </div>
@@ -207,7 +207,7 @@ export const Template4Colorful = (data: PreviewData) => {
                         boxShadow: "10px 10px 0 0 #F4C430",
                     }}
                 >
-                    <span style={{ display: "flex", fontSize: 72, fontWeight: 900, color: "#FFFFFF", lineHeight: 1 }}>
+                    <span style={{ display: "flex", fontSize: 76, fontWeight: 900, color: "#FFFFFF", lineHeight: 1 }}>
                         Συνεδρίαση
                     </span>
                 </div>
@@ -226,7 +226,7 @@ export const Template4Colorful = (data: PreviewData) => {
                         boxShadow: "6px 6px 0 0 #1A1A1A",
                     }}
                 >
-                    <span style={{ display: "flex", fontSize: 40, fontWeight: 900, color: "#FFFFFF", lineHeight: 1 }}>
+                    <span style={{ display: "flex", fontSize: 44, fontWeight: 900, color: "#FFFFFF", lineHeight: 1 }}>
                         {day} {monthShort}
                     </span>
                     <span
@@ -260,13 +260,13 @@ export const Template4Colorful = (data: PreviewData) => {
                     boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
                 }}
             >
-                <span style={{ display: "flex", fontSize: 32, fontWeight: 900, color: "#FFFFFF", marginRight: 10 }}>
+                <span style={{ display: "flex", fontSize: 36, fontWeight: 900, color: "#FFFFFF", marginRight: 10 }}>
                     {data.subjects.length}
                 </span>
                 <span
                     style={{
                         display: "flex",
-                        fontSize: 18,
+                        fontSize: 24,
                         color: "#FFFFFF",
                         letterSpacing: "0.22em",
                         fontWeight: 700,
@@ -300,7 +300,7 @@ export const Template4Colorful = (data: PreviewData) => {
                     marginBottom: 56
                 }}>
                     {preAgendaRemaining > 0 && (
-                        <span style={{ display: "flex", fontSize: 22, fontWeight: 700, color: "#FFFFFF" }}>
+                        <span style={{ display: "flex", fontSize: 26, fontWeight: 700, color: "#FFFFFF" }}>
                             + {preAgendaRemaining} ακόμα
                         </span>
                     )}
@@ -335,7 +335,7 @@ export const Template4Colorful = (data: PreviewData) => {
                         marginTop: 8,
                     }}
                 >
-                    <span style={{ display: "flex", fontSize: 22, fontWeight: 700, color: "#FFFFFF" }}>
+                    <span style={{ display: "flex", fontSize: 26, fontWeight: 700, color: "#FFFFFF" }}>
                         + {agendaRemaining} ακόμα
                     </span>
                 </div>
