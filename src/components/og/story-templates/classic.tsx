@@ -1,16 +1,15 @@
+// T1 — Classic: cream background, large header, big date title, simple subject list with topic-color circles.
+
 import { format } from "date-fns";
 import { OpenCouncilWatermark } from "../shared-components";
-import { formatDate } from "@/lib/formatters/time";
-import type { PreviewData } from "./types";
-import { SectionLabel, SubjectRow, RemainderLine } from "./shared";
-import { getSubjectSections } from "./sections";
+import { TopicIcon } from "./topic-icon";
+import type { StoryTemplateProps } from "./types";
 
-// T1 — Classic (cream / clean)
-export const Template1Classic = (data: PreviewData) => {
-    const { preAgenda, agenda, preAgendaShown, agendaShown, preAgendaRemaining, agendaRemaining } =
-        getSubjectSections(data.subjects, { preAgenda: 2, agenda: 3 });
-    // Greek long-form weekday name, e.g. "Δευτέρα", "Τρίτη", ...
-    const weekday = data.meetingDate.toLocaleDateString("el-GR", { weekday: "long" });
+const FALLBACK_COLOR = "#9CA3AF";
+
+export function renderClassicStory(props: StoryTemplateProps) {
+    const remaining = Math.max(0, props.totalSubjectsCount - props.subjects.length);
+    const weekday = props.meetingDate.toLocaleDateString("el-GR", { weekday: "long" });
 
     return (
         <div
@@ -27,33 +26,24 @@ export const Template1Classic = (data: PreviewData) => {
         >
             {/* Header */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 56 }}>
-                {data.cityLogoImage ? (
+                {props.cityLogoImage && (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
-                        src={data.cityLogoImage}
+                        src={props.cityLogoImage}
                         height={130}
-                        alt="City Logo"
+                        alt=""
                         style={{ objectFit: "contain", marginRight: 40 }}
-                    />
-                ) : (
-                    <div
-                        style={{
-                            display: "flex",
-                            width: 110,
-                            height: 110,
-                            background: "#E7DDC9",
-                            borderRadius: 16,
-                            marginRight: 40,
-                        }}
                     />
                 )}
                 <div style={{ display: "flex", flexDirection: "column" }}>
-                    <span style={{ display: "flex", fontSize: 46, fontWeight: 700, color: "#1F2937" }}>
-                        {data.cityName}
+                    <span style={{ display: "flex", fontSize: 42, fontWeight: 700, color: "#1F2937" }}>
+                        {props.cityName}
                     </span>
-                    <span style={{ display: "flex", fontSize: 32, color: "#6B7280", marginTop: 4 }}>
-                        {data.adminBodyName}
-                    </span>
+                    {props.adminBodyName && (
+                        <span style={{ display: "flex", fontSize: 28, color: "#6B7280", marginTop: 4 }}>
+                            {props.adminBodyName}
+                        </span>
+                    )}
                 </div>
             </div>
 
@@ -63,66 +53,83 @@ export const Template1Classic = (data: PreviewData) => {
                     Συνεδρίαση
                 </span>
                 <span style={{ display: "flex", fontSize: 92, fontWeight: 800, color: "#111827", lineHeight: 1.05 }}>
-                    {format(data.meetingDate, "dd.MM.yy")}
+                    {format(props.meetingDate, "dd.MM.yy")}
                 </span>
             </div>
 
-            {/* Meta row */}
-            <div
-                style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    color: "#4B5563",
-                    fontSize: 44,
-                    marginBottom: 56,
-                }}
-            >
+            {/* Meta */}
+            <div style={{ display: "flex", flexDirection: "column", color: "#4B5563", fontSize: 40, marginBottom: 56 }}>
                 <div style={{ display: "flex", alignItems: "center", marginBottom: 12 }}>
                     <span style={{ display: "flex", marginRight: 10 }}>📅</span>
-                    <span style={{ display: "flex" }}>{weekday}, {formatDate(data.meetingDate)}</span>
+                    <span style={{ display: "flex" }}>{weekday}, {props.formattedDate}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center" }}>
                     <span style={{ display: "flex", marginRight: 10 }}>📋</span>
-                    <span style={{ display: "flex" }}>{data.subjects.length} θέματα</span>
+                    <span style={{ display: "flex" }}>{props.totalSubjectsCount} θέματα</span>
                 </div>
             </div>
 
-            {/* Pre-agenda section */}
-            {preAgendaShown.length > 0 && (
+            {/* Subjects (top 3) */}
+            {props.subjects.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column" }}>
-                    <SectionLabel count={preAgenda.length} color="#6B7280">
-                        Προ ημερησίας συζήτηση
-                    </SectionLabel>
-                    {preAgendaShown.map((s) => (
-                        <SubjectRow key={s.id} subject={s} palette="light" />
-                    ))}
-                </div>
-            )}
-
-            {preAgendaShown.length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", marginBottom: 56 }}>
-                    {preAgendaRemaining > 0 && (
-                        <RemainderLine count={preAgendaRemaining} color="#6B7280" label="ακόμα θέματα προ ημερησίας συζήτησης" />
+                    {props.subjects.map((s) => {
+                        const color = s.topic?.colorHex || FALLBACK_COLOR;
+                        return (
+                            <div
+                                key={s.id}
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    padding: "16px 20px",
+                                    background: "#FFFFFF",
+                                    border: "1px solid rgba(0,0,0,0.05)",
+                                    borderRadius: 16,
+                                    marginBottom: 12,
+                                    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        width: 48,
+                                        height: 48,
+                                        borderRadius: 24,
+                                        background: color,
+                                        marginRight: 16,
+                                        flexShrink: 0,
+                                    }}
+                                >
+                                    <TopicIcon name={s.topic?.icon} color="#FFFFFF" size={28} />
+                                </div>
+                                {/* flex: 1 + minWidth: 0 lets long subject names wrap inside the card. */}
+                                <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+                                    <span
+                                        style={{
+                                            display: "flex",
+                                            color: "#1F2937",
+                                            fontSize: 32,
+                                            fontWeight: 600,
+                                            lineHeight: 1.2,
+                                            wordBreak: "break-word",
+                                        }}
+                                    >
+                                        {s.name}
+                                    </span>
+                                </div>
+                            </div>
+                        );
+                    })}
+                    {remaining > 0 && (
+                        <div style={{ display: "flex", color: "#6B7280", fontSize: 28, marginTop: 18 }}>
+                            <span style={{ display: "flex" }}>+ {remaining} ακόμα θέματα</span>
+                        </div>
                     )}
                 </div>
             )}
 
-            {/* Agenda section */}
-            {agendaShown.length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column" }}>
-                    <SectionLabel count={agenda.length} color="#6B7280">
-                        Ημερήσια διάταξη
-                    </SectionLabel>
-                    {agendaShown.map((s) => (
-                        <SubjectRow key={s.id} subject={s} palette="light" />
-                    ))}
-                </div>
-            )}
-
-            {/* Remainder */}
-            {agendaRemaining > 0 && <RemainderLine count={agendaRemaining} color="#6B7280" label="ακόμα θέματα στην ημερήσια διάταξη" />}
-
             <OpenCouncilWatermark logoOnly size={96} bottom={48} right={48} />
         </div>
     );
-};
+}

@@ -1,20 +1,15 @@
-import type React from "react";
+// T4 — Colorful: peach background, rotated "Συνεδρίαση" sticker, date pill, tilted subject stickers.
+
 import { format } from "date-fns";
 import { el } from "date-fns/locale";
 import { OpenCouncilWatermark } from "../shared-components";
-import type { PreviewSubject, PreviewData } from "./types";
-import { TopicIcon, PRIMARY_PILL_FALLBACK, bgPeachDotsDataUri } from "./shared";
-import { getSubjectSections } from "./sections";
+import { TopicIcon } from "./topic-icon";
+import type { StorySubject, StoryTemplateProps } from "./types";
 
-// One subject rendered as a tilted, full-color sticker with letter circle, number, and name.
-const SubjectSticker = ({
-    subject,
-    tilt,
-}: {
-    subject: PreviewSubject;
-    tilt: number;
-}) => {
-    const color = subject.topic?.colorHex || PRIMARY_PILL_FALLBACK;
+const FALLBACK_COLOR = "#9CA3AF";
+
+function SubjectSticker({ subject, tilt }: { subject: StorySubject; tilt: number }) {
+    const color = subject.topic?.colorHex || FALLBACK_COLOR;
     return (
         <div
             style={{
@@ -32,7 +27,7 @@ const SubjectSticker = ({
                 boxShadow: "0 4px 10px rgba(0,0,0,0.18)",
             }}
         >
-            {/* Icon circle */}
+            {/* Icon circle on a translucent-white disc for contrast against the sticker color. */}
             <div
                 style={{
                     display: "flex",
@@ -48,28 +43,15 @@ const SubjectSticker = ({
             >
                 <TopicIcon name={subject.topic?.icon} color="#FFFFFF" size={28} />
             </div>
+            {/* flex: 1 + minWidth: 0 lets long subject names wrap inside the 880px sticker. */}
             <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
-                {subject.agendaItemIndex && (
-                    <span
-                        style={{
-                            display: "flex",
-                            fontSize: 28,
-                            fontWeight: 700,
-                            color: "rgba(255,255,255,0.72)",
-                            letterSpacing: "0.18em",
-                        }}
-                    >
-                        #{String(subject.agendaItemIndex ?? 0).padStart(2, "0")}
-                    </span>
-                )}
                 <span
                     style={{
                         display: "flex",
-                        fontSize: 32,
+                        fontSize: 28,
                         fontWeight: 800,
                         color: "#FFFFFF",
                         lineHeight: 1.2,
-                        marginTop: 2,
                         wordBreak: "break-word",
                     }}
                 >
@@ -78,58 +60,14 @@ const SubjectSticker = ({
             </div>
         </div>
     );
-};
+}
 
-// Tilted dark label used for section headings. Sharp corners + hard-offset gray block
-// behind it, mirroring the 3D look of the "Συνεδρίαση" sticker.
-const StickerSectionLabel = ({
-    children,
-    background = "#1A1A1A",
-    tilt = -1,
-}: {
-    children: React.ReactNode;
-    background?: string;
-    tilt?: number;
-}) => (
-    <div
-        style={{
-            display: "flex",
-            alignItems: "center",
-            alignSelf: "center",
-            background,
-            padding: "12px 22px",
-            marginBottom: 24,
-            transform: `rotate(${tilt}deg)`,
-            boxShadow: "8px 8px 0 0 #6B7280",
-        }}
-    >
-        <span
-            style={{
-                display: "flex",
-                fontSize: 24,
-                fontWeight: 800,
-                color: "#FFFFFF",
-                letterSpacing: "0.22em",
-                textTransform: "uppercase",
-            }}
-        >
-            {children}
-        </span>
-    </div>
-);
-
-// T4 — Colorful (tilted stickers on a peach pad)
-export const Template4Colorful = (data: PreviewData) => {
-    const { preAgenda, agenda, preAgendaShown, agendaShown, preAgendaRemaining, agendaRemaining } =
-        getSubjectSections(data.subjects, { preAgenda: 2, agenda: 3 });
-
-    // Short Greek date for the date pill (e.g. "14 Ιαν" / "2026").
-    const day = data.meetingDate.getDate();
-    const monthShort = format(data.meetingDate, "MMM", { locale: el });
-    const year = data.meetingDate.getFullYear();
-
-    // Alternate tilt direction across stickers for the collage feel.
-    const stickerTilt = (i: number): number => (i % 2 === 0 ? -1.2 : 1.2);
+export function renderColorfulStory(props: StoryTemplateProps) {
+    const remaining = Math.max(0, props.totalSubjectsCount - props.subjects.length);
+    const day = props.meetingDate.getDate();
+    const monthShort = format(props.meetingDate, "MMM", { locale: el });
+    const year = props.meetingDate.getFullYear();
+    const tiltFor = (i: number): number => (i % 2 === 0 ? -1.2 : 1.2);
 
     return (
         <div
@@ -144,58 +82,30 @@ export const Template4Colorful = (data: PreviewData) => {
                 position: "relative",
             }}
         >
-            {bgPeachDotsDataUri && (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                    src={bgPeachDotsDataUri}
-                    alt=""
-                    width={1080}
-                    height={1920}
-                    style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        width: 1080,
-                        height: 1920,
-                        objectFit: "cover",
-                    }}
-                />
-            )}
-            {/* Header (mirrors Template 3) */}
+            {/* Header */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 120 }}>
-                {data.cityLogoImage ? (
+                {props.cityLogoImage && (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
-                        src={data.cityLogoImage}
+                        src={props.cityLogoImage}
                         height={130}
-                        alt="City Logo"
+                        alt=""
                         style={{ objectFit: "contain", marginRight: 40 }}
-                    />
-                ) : (
-                    <div
-                        style={{
-                            display: "flex",
-                            width: 110,
-                            height: 110,
-                            background: "#E7DDC9",
-                            borderRadius: 16,
-                            marginRight: 40,
-                        }}
                     />
                 )}
                 <div style={{ display: "flex", flexDirection: "column" }}>
-                    <span style={{ display: "flex", fontSize: 46, fontWeight: 700, color: "#1F2937" }}>
-                        {data.cityName}
+                    <span style={{ display: "flex", fontSize: 42, fontWeight: 700, color: "#1F2937" }}>
+                        {props.cityName}
                     </span>
-                    <span style={{ display: "flex", fontSize: 32, color: "#1f2937e4", marginTop: 4 }}>
-                        {data.adminBodyName}
-                    </span>
+                    {props.adminBodyName && (
+                        <span style={{ display: "flex", fontSize: 28, color: "#1f2937e4", marginTop: 4 }}>
+                            {props.adminBodyName}
+                        </span>
+                    )}
                 </div>
             </div>
 
-            {/* "Συνεδρίαση" title sticker + date pill */}
+            {/* "Συνεδρίαση" sticker + date pill */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 52 }}>
                 <div
                     style={{
@@ -207,11 +117,10 @@ export const Template4Colorful = (data: PreviewData) => {
                         boxShadow: "10px 10px 0 0 #F4C430",
                     }}
                 >
-                    <span style={{ display: "flex", fontSize: 76, fontWeight: 900, color: "#FFFFFF", lineHeight: 1 }}>
+                    <span style={{ display: "flex", fontSize: 72, fontWeight: 900, color: "#FFFFFF", lineHeight: 1 }}>
                         Συνεδρίαση
                     </span>
                 </div>
-                {/* Date pill */}
                 <div
                     style={{
                         display: "flex",
@@ -226,7 +135,7 @@ export const Template4Colorful = (data: PreviewData) => {
                         boxShadow: "6px 6px 0 0 #1A1A1A",
                     }}
                 >
-                    <span style={{ display: "flex", fontSize: 44, fontWeight: 900, color: "#FFFFFF", lineHeight: 1 }}>
+                    <span style={{ display: "flex", fontSize: 40, fontWeight: 900, color: "#FFFFFF", lineHeight: 1 }}>
                         {day} {monthShort}
                     </span>
                     <span
@@ -260,13 +169,13 @@ export const Template4Colorful = (data: PreviewData) => {
                     boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
                 }}
             >
-                <span style={{ display: "flex", fontSize: 36, fontWeight: 900, color: "#FFFFFF", marginRight: 10 }}>
-                    {data.subjects.length}
+                <span style={{ display: "flex", fontSize: 32, fontWeight: 900, color: "#FFFFFF", marginRight: 10 }}>
+                    {props.totalSubjectsCount}
                 </span>
                 <span
                     style={{
                         display: "flex",
-                        fontSize: 24,
+                        fontSize: 18,
                         color: "#FFFFFF",
                         letterSpacing: "0.22em",
                         fontWeight: 700,
@@ -276,70 +185,34 @@ export const Template4Colorful = (data: PreviewData) => {
                 </span>
             </div>
 
-            {preAgendaShown.length > 0 && (
+            {/* Subject stickers (top 3) */}
+            {props.subjects.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                    <StickerSectionLabel background="#2A4A3E" tilt={-1.5}>
-                        ΠΡΟ ΗΜΕΡΗΣΙΑΣ ΣΥΖΗΤΗΣΗ · {preAgenda.length}
-                    </StickerSectionLabel>
-                    {preAgendaShown.map((s, i) => (
-                        <SubjectSticker key={s.id} subject={s} tilt={stickerTilt(i)} />
+                    {props.subjects.map((s, i) => (
+                        <SubjectSticker key={s.id} subject={s} tilt={tiltFor(i)} />
                     ))}
-
-                </div>
-            )}
-
-            {preAgendaRemaining > 0 && (
-                <div style={{
-                    display: "flex",
-                    alignItems: "center",
-                    alignSelf: "flex-start",
-                    background: "#ff6600",
-                    borderRadius: 100,
-                    padding: "10px 22px",
-                    marginLeft: 52,
-                    marginBottom: 56
-                }}>
-                    <span style={{ display: "flex", fontSize: 26, fontWeight: 700, color: "#FFFFFF" }}>
-                        + {preAgendaRemaining} ακόμα
-                    </span>
-                </div>
-            )}
-
-            {agendaShown.length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                    <StickerSectionLabel background="#1A1A1A" tilt={-1}>
-                        ΗΜΕΡΗΣΙΑ ΔΙΑΤΑΞΗ · {agenda.length}
-                    </StickerSectionLabel>
-                    {agendaShown.map((s, i) => (
-                        <SubjectSticker
-                            key={s.id}
-                            subject={s}
-                            tilt={stickerTilt(i + 1)}
-                        />
-                    ))}
-                </div>
-            )}
-
-            {agendaRemaining > 0 && (
-                <div
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        alignSelf: "flex-start",
-                        background: "#ff6600",
-                        borderRadius: 100,
-                        padding: "10px 22px",
-                        marginLeft: 52,
-                        marginTop: 8,
-                    }}
-                >
-                    <span style={{ display: "flex", fontSize: 26, fontWeight: 700, color: "#FFFFFF" }}>
-                        + {agendaRemaining} ακόμα
-                    </span>
+                    {remaining > 0 && (
+                        <div
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                alignSelf: "flex-start",
+                                background: "#ff6600",
+                                borderRadius: 100,
+                                padding: "10px 22px",
+                                marginLeft: 52,
+                                marginTop: 8,
+                            }}
+                        >
+                            <span style={{ display: "flex", fontSize: 22, fontWeight: 700, color: "#FFFFFF" }}>
+                                + {remaining} ακόμα
+                            </span>
+                        </div>
+                    )}
                 </div>
             )}
 
             <OpenCouncilWatermark logoOnly size={96} bottom={48} right={48} />
         </div>
     );
-};
+}

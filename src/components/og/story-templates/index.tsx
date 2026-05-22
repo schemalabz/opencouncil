@@ -1,29 +1,31 @@
-// Entry point for the story templates: re-exports types/metadata and provides the
-// dispatcher used by the OG route. Each template lives in its own file (classic, dark,
-// cards, colorful). Shared building blocks live in `shared.tsx`.
+// Dispatcher for the 4 story OG templates. The route handler calls renderStoryTemplate
+// after slicing subjects to the top N — templates themselves do no filtering or splitting.
 
 import type React from "react";
-import type { StoryTemplateId } from "../story-template-meta";
-import type { PreviewData } from "./types";
-import { Template1Classic } from "./classic";
-import { Template2Dark } from "./dark";
-import { Template3WithCards } from "./cards";
-import { Template4Colorful } from "./colorful";
+import type { StoryTemplate, StoryTemplateProps } from "./types";
+import { renderClassicStory } from "./classic";
+import { renderDarkStory } from "./dark";
+import { renderCardsStory } from "./cards";
+import { renderColorfulStory } from "./colorful";
 
-export type { StoryTemplateId } from "../story-template-meta";
-export { STORY_TEMPLATES, isValidStoryTemplate } from "../story-template-meta";
-export type { PreviewSubject, PreviewData } from "./types";
+export type { StoryTemplate, StoryTemplateProps, StorySubject } from "./types";
 
-export function renderStoryTemplate(template: StoryTemplateId, data: PreviewData): React.ReactElement {
+export const STORY_TEMPLATE_IDS: readonly StoryTemplate[] = ["classic", "dark", "cards", "colorful"] as const;
+
+export function isValidStoryTemplate(value: unknown): value is StoryTemplate {
+    return typeof value === "string" && (STORY_TEMPLATE_IDS as readonly string[]).includes(value);
+}
+
+export function renderStoryTemplate(template: StoryTemplate, props: StoryTemplateProps): React.ReactElement {
     switch (template) {
-        case "DARK":
-            return Template2Dark(data);
-        case "CARDS":
-            return Template3WithCards(data);
-        case "COLORFUL":
-            return Template4Colorful(data);
-        case "CLASSIC":
+        case "dark":
+            return renderDarkStory(props);
+        case "cards":
+            return renderCardsStory(props);
+        case "colorful":
+            return renderColorfulStory(props);
+        case "classic":
         default:
-            return Template1Classic(data);
+            return renderClassicStory(props);
     }
 }

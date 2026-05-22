@@ -2,9 +2,6 @@ import type React from "react";
 import fs from "fs";
 import path from "path";
 
-// Load both logo variants into base64 at module load — picked at render time via the
-// watermark's `color` prop. Empty string fallback if either file is unreadable so the
-// component still renders (just without the logo).
 function loadLogoAsDataUri(filename: string): string {
     try {
         const buf = fs.readFileSync(path.join(process.cwd(), "public", filename));
@@ -31,7 +28,6 @@ interface OpenCouncilWatermarkProps {
     bottom?: number;
     right?: number;
     logoOnly?: boolean;
-    /** Which logo variant to use. "black" → logo.png (default), "white" → white-logo.png. */
     color?: "black" | "white";
 }
 
@@ -247,11 +243,11 @@ export const SubjectPills = ({
                     boxShadow: pillBoxShadow,
                     maxWidth: pillMaxWidth,
                 };
-                
+
                 if (pillWidth) {
                     pillStyle.width = pillWidth;
                 }
-                
+
                 if (index < topSubjects.length - 1) {
                     pillStyle.marginBottom = `${containerGap}px`;
                 }

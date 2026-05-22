@@ -8,13 +8,8 @@ import { getPartiesForCity } from '@/lib/db/parties';
 import { getPeopleForCity, getPerson } from '@/lib/db/people';
 import { sortSubjectsByImportance, sortSubjectsBySpeakerContributionCount } from '@/lib/utils';
 import { Container, MeetingMetaRow, OgHeader, OpenCouncilWatermark, SubjectPills, formatCityDisplayName } from '@/components/og/shared-components';
-import { renderStoryTemplate, isValidStoryTemplate, type StoryTemplateId } from '@/components/og/story-templates';
-import { tryAcquireOgSlot, getOgConcurrencyStats } from '@/lib/og/concurrency';
+import { renderStoryTemplate, isValidStoryTemplate, type StoryTemplate } from '@/components/og/story-templates';
 import SubjectOgImage from '@/app/[locale]/(city)/[cityId]/(meetings)/[meetingId]/subjects/[subjectId]/opengraph-image';
-
-// Hard ceiling on each render. Pairs with the in-process concurrency cap in
-// `@/lib/og/concurrency` to keep a single hung satori call from blocking a slot forever.
-export const maxDuration = 60;
 
 // Meeting OG Image (Landscape - 1200x630)
 const MeetingOGImage = async (cityId: string, meetingId: string) => {
@@ -167,23 +162,29 @@ const MeetingFeedOGImage = async (cityId: string, meetingId: string) => {
     );
 };
 
-// Meeting Story OG Image (Vertical - 1080x1920 for Instagram Stories)
-// Renders one of 4 templates selected via the `template` query param.
-const MeetingStoryOGImage = async (cityId: string, meetingId: string, template: StoryTemplateId) => {
+
+const MeetingStoryOGImage = async (cityId: string, meetingId: string, template: StoryTemplate = 'classic') => {
     const data = await getMeetingDataForOG(cityId, meetingId);
     if (!data) return null;
 
-    // Sort subjects so the most-discussed appear first in each section. Contribution
-    // count comes pre-aggregated on `_count.contributions`, so no extra stats query is needed.
-    const sortedSubjects = sortSubjectsBySpeakerContributionCount(data.subjects);
+    const meetingDate = new Date(data.dateTime);
+    const formattedDate = meetingDate.toLocaleDateString('el-GR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    });
+
+    const sortedSubjects = sortSubjectsBySpeakerContributionCount(data.subjects).slice(0, 6);
 
     return renderStoryTemplate(template, {
         meetingName: data.name,
-        meetingDate: new Date(data.dateTime),
+        meetingDate,
+        formattedDate,
         cityName: data.city.name_municipality,
+        adminBodyName: data.administrativeBody?.name ?? null,
         cityLogoImage: data.city.logoImage,
-        adminBodyName: data.administrativeBody?.name,
         subjects: sortedSubjects,
+        totalSubjectsCount: data.subjects?.length || 0,
     });
 };
 
@@ -905,50 +906,8 @@ export async function GET(request: Request) {
     const subjectId = searchParams.get('subjectId');
     const pageType = searchParams.get('pageType'); // 'people', 'about', 'search', 'chat'
     const variant = searchParams.get('variant'); // 'story' for 9:16, 'feed' for 1:1, default is landscape
-    const templateParam = searchParams.get('template'); // 'CLASSIC' | 'DARK' | 'CARDS' | 'COLORFUL' for story templates
-    const format = searchParams.get('format'); // 'json' returns the underlying data instead of a rendered image
+    const templateParam = searchParams.get('template'); // 'classic' | 'dark' | 'cards' | 'colorful' for story variant
 
-    // Lightweight JSON branch: lets the story-template picker show what will be on the image
-    // without paying the cost of four parallel satori renders. Bypasses the render concurrency
-    // cap below because it's just a DB read.
-    if (format === 'json' && variant === 'story' && cityId && meetingId) {
-        try {
-            const data = await getMeetingDataForOG(cityId, meetingId);
-            if (!data) return new Response('Not found', { status: 404 });
-            const sorted = sortSubjectsBySpeakerContributionCount(data.subjects);
-            return Response.json({
-                meetingName: data.name,
-                meetingDate: data.dateTime.toISOString(),
-                cityName: data.city.name_municipality,
-                cityLogoImage: data.city.logoImage,
-                adminBodyName: data.administrativeBody?.name ?? null,
-                subjects: sorted.map((s) => ({
-                    id: s.id,
-                    name: s.name,
-                    agendaItemIndex: s.agendaItemIndex,
-                    nonAgendaReason: s.nonAgendaReason,
-                    topic: s.topic
-                        ? { name: s.topic.name, colorHex: s.topic.colorHex, icon: s.topic.icon }
-                        : null,
-                })),
-            });
-        } catch (e) {
-            console.error(`[og] preview json failed for cityId=${cityId} meetingId=${meetingId}:`, e);
-            return new Response('Failed to fetch preview data', { status: 500 });
-        }
-    }
-
-    const slot = tryAcquireOgSlot();
-    if (!slot) {
-        const stats = getOgConcurrencyStats();
-        console.warn(`[og] 429 — render capacity reached (${stats.active}/${stats.max}) variant=${variant ?? 'default'} template=${templateParam ?? '-'}`);
-        return new Response('OG image generator at capacity — try again shortly.', {
-            status: 429,
-            headers: { 'Retry-After': '5' },
-        });
-    }
-
-    const t0 = Date.now();
     try {
         let element;
         let width = 1200;
@@ -963,7 +922,7 @@ export async function GET(request: Request) {
         } else if (meetingId && cityId) {
             // Handle variant for meeting images
             if (variant === 'story') {
-                const template: StoryTemplateId = isValidStoryTemplate(templateParam) ? templateParam : 'CLASSIC';
+                const template = isValidStoryTemplate(templateParam) ? templateParam : 'classic';
                 element = await MeetingStoryOGImage(cityId, meetingId, template);
                 width = 1080;
                 height = 1920;
@@ -1003,9 +962,5 @@ export async function GET(request: Request) {
     } catch (e) {
         console.error(e);
         return new Response('Failed to generate image', { status: 500 });
-    } finally {
-        slot.release();
-        const stats = getOgConcurrencyStats();
-        console.log(`[og] render variant=${variant ?? 'default'} template=${templateParam ?? '-'} ${Date.now() - t0}ms (now ${stats.active}/${stats.max})`);
     }
 }

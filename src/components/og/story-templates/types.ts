@@ -1,16 +1,8 @@
-// Types shared by all story templates.
+export type StoryTemplate = "classic" | "dark" | "cards" | "colorful";
 
-export type IconShape =
-    | ["path", { d: string }]
-    | ["circle", { cx: string; cy: string; r: string }]
-    | ["rect", { width: string; height: string; x: string; y: string; rx?: string; ry?: string }]
-    | ["line", { x1: string; x2: string; y1: string; y2: string }];
-
-export interface PreviewSubject {
+export interface StorySubject {
     id: string;
     name: string;
-    agendaItemIndex: number | null;
-    nonAgendaReason: "beforeAgenda" | "outOfAgenda" | null;
     topic?: {
         name?: string | null;
         colorHex?: string | null;
@@ -18,16 +10,13 @@ export interface PreviewSubject {
     } | null;
 }
 
-export interface PreviewData {
+export interface StoryTemplateProps {
     meetingName: string;
     meetingDate: Date;
+    formattedDate: string;
     cityName: string;
+    adminBodyName: string | null;
     cityLogoImage: string | null;
-    adminBodyName?: string | null;
-    subjects: PreviewSubject[];
-}
-
-export interface PillProps {
-    subject: PreviewSubject;
-    palette: "light" | "dark";
+    subjects: StorySubject[];
+    totalSubjectsCount: number;
 }
