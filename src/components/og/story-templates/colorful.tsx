@@ -4,7 +4,6 @@ import { el } from "date-fns/locale";
 import { OpenCouncilWatermark } from "../shared-components";
 import type { PreviewSubject, PreviewData } from "./types";
 import { TopicIcon, PRIMARY_PILL_FALLBACK, bgPeachDotsDataUri } from "./shared";
-import { getSubjectSections } from "./sections";
 
 // One subject rendered as a tilted, full-color sticker with letter circle, number, and name.
 const SubjectSticker = ({
@@ -120,8 +119,7 @@ const StickerSectionLabel = ({
 
 // T4 — Colorful (tilted stickers on a peach pad)
 export const Template4Colorful = (data: PreviewData) => {
-    const { preAgenda, agenda, preAgendaShown, agendaShown, preAgendaRemaining, agendaRemaining } =
-        getSubjectSections(data.subjects, { preAgenda: 2, agenda: 3 });
+    const { preAgenda, agenda, preAgendaShown, agendaShown, preAgendaRemaining, agendaRemaining } = data;
 
     // Short Greek date for the date pill (e.g. "14 Ιαν" / "2026").
     const day = data.meetingDate.getDate();
@@ -261,7 +259,7 @@ export const Template4Colorful = (data: PreviewData) => {
                 }}
             >
                 <span style={{ display: "flex", fontSize: 36, fontWeight: 900, color: "#FFFFFF", marginRight: 10 }}>
-                    {data.subjects.length}
+                    {data.totalSubjects}
                 </span>
                 <span
                     style={{

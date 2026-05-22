@@ -2,7 +2,6 @@ import { format } from "date-fns";
 import { OpenCouncilWatermark } from "../shared-components";
 import type { PreviewSubject, PreviewData } from "./types";
 import { SectionLabel, RemainderLine, TopicIcon, PRIMARY_PILL_FALLBACK } from "./shared";
-import { getSubjectSections } from "./sections";
 
 // Card showing one subject with its topic icon + color + name.
 // Topic color drives the border + a very light tint of the background; icon sits on the right.
@@ -85,8 +84,7 @@ const SubjectCardGrid = ({ subjects }: { subjects: PreviewSubject[] }) => (
 
 // T3 — With Cards (cream / clean, T1 base with subject cards)
 export const Template3WithCards = (data: PreviewData) => {
-    const { preAgenda, agenda, preAgendaShown, agendaShown, preAgendaRemaining, agendaRemaining } =
-        getSubjectSections(data.subjects, { preAgenda: 2, agenda: 4 });
+    const { preAgenda, agenda, preAgendaShown, agendaShown, preAgendaRemaining, agendaRemaining } = data;
 
     return (
         <div
@@ -153,7 +151,7 @@ export const Template3WithCards = (data: PreviewData) => {
                     marginBottom: 36,
                 }}
             >
-                <span style={{ display: "flex", fontSize: 36, fontWeight: 800 }}>Συζητήθηκαν {data.subjects.length} θέματα</span>
+                <span style={{ display: "flex", fontSize: 36, fontWeight: 800 }}>Συζητήθηκαν {data.totalSubjects} θέματα</span>
             </div>
 
             {/* Pre-agenda cards */}
