@@ -18,6 +18,7 @@ import { useTranslations } from 'next-intl';
 import { useShare } from '@/contexts/ShareContext';
 import { formatTimestamp } from '@/lib/utils';
 import { downloadFile } from '@/lib/export/meetings';
+import { useToast } from '@/hooks/use-toast';
 // Import directly from story-template-meta (client-safe by design) to avoid pulling
 // the server-only story-templates barrel — which transitively imports shared.tsx and
 // its top-level `fs.readFileSync` calls — into the client bundle.
@@ -45,6 +46,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const { isOpen, targetTimestamp, shouldTriggerCopy, closeShareDropdown, resetCopyTrigger } = useShare();
     const pathname = usePathname();
     const t = useTranslations();
+    const { toast } = useToast();
     const [internalOpen, setInternalOpen] = useState(false);
 
     useEffect(() => {
@@ -155,7 +157,20 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
         try {
             const response = await fetch(imageUrl);
             if (!response.ok) {
-                throw new Error('Failed to fetch image');
+                if (response.status === 429) {
+                    toast({
+                        title: 'Αποτυχία δημιουργίας εικόνας',
+                        description: 'Δεν είναι διαθέσιμη αυτή τη στιγμή η δημιουργία εικόνων. Δοκίμασε ξανά αργότερα.',
+                        variant: 'destructive',
+                    });
+                } else {
+                    toast({
+                        title: 'Αποτυχία λήψης',
+                        description: 'Δεν ήταν δυνατή η δημιουργία της εικόνας. Δοκίμασε ξανά.',
+                        variant: 'destructive',
+                    });
+                }
+                return;
             }
 
             const blob = await response.blob();
@@ -168,6 +183,11 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
             downloadFile(blob, fileName);
         } catch (error) {
             console.error('Error downloading image:', error);
+            toast({
+                title: 'Αποτυχία λήψης',
+                description: 'Δεν ήταν δυνατή η δημιουργία της εικόνας. Δοκιμάστε ξανά.',
+                variant: 'destructive',
+            });
         } finally {
             setDownloading(null);
         }
@@ -230,168 +250,168 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-80 sm:w-96" align="end">
-                    <DropdownMenuLabel className="font-normal">
-                        <div className="flex flex-col space-y-1">
-                            <p className="text-sm font-medium leading-none">Κοινοποίηση</p>
-                            <p className="text-xs leading-none text-muted-foreground">
-                                Μοιραστείτε {shareContext}
-                            </p>
-                        </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
+                <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">Κοινοποίηση</p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                            Μοιραστείτε {shareContext}
+                        </p>
+                    </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
 
-                    <div className="p-3 space-y-4">
-                        {/* URL Input and Copy Button */}
-                        <div className="space-y-2">
-                            <label className="text-xs font-medium text-muted-foreground">
-                                Σύνδεσμος
-                            </label>
-                            <div className="flex gap-2">
-                                <Input
-                                    value={getShareableUrl()}
-                                    readOnly
-                                    className="flex-grow text-xs font-mono h-9"
-                                    onClick={(e) => (e.target as HTMLInputElement).select()}
-                                />
-                                <Button
-                                    onClick={copyToClipboard}
-                                    variant={copySuccess ? "default" : "outline"}
-                                    disabled={copySuccess}
-                                    className="flex-shrink-0 min-w-[80px] h-9"
-                                >
-                                    {copySuccess ? (
-                                        <>
-                                            <CheckCircle className="w-3 h-3 mr-1" />
-                                            <span className="text-xs">Αντιγράφηκε</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <CopyIcon className="w-3 h-3 mr-1" />
-                                            <span className="text-xs">Αντιγραφή</span>
-                                        </>
-                                    )}
-                                </Button>
-                            </div>
+                <div className="p-3 space-y-4">
+                    {/* URL Input and Copy Button */}
+                    <div className="space-y-2">
+                        <label className="text-xs font-medium text-muted-foreground">
+                            Σύνδεσμος
+                        </label>
+                        <div className="flex gap-2">
+                            <Input
+                                value={getShareableUrl()}
+                                readOnly
+                                className="flex-grow text-xs font-mono h-9"
+                                onClick={(e) => (e.target as HTMLInputElement).select()}
+                            />
+                            <Button
+                                onClick={copyToClipboard}
+                                variant={copySuccess ? "default" : "outline"}
+                                disabled={copySuccess}
+                                className="flex-shrink-0 min-w-[80px] h-9"
+                            >
+                                {copySuccess ? (
+                                    <>
+                                        <CheckCircle className="w-3 h-3 mr-1" />
+                                        <span className="text-xs">Αντιγράφηκε</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <CopyIcon className="w-3 h-3 mr-1" />
+                                        <span className="text-xs">Αντιγραφή</span>
+                                    </>
+                                )}
+                            </Button>
                         </div>
-
-                        {/* Timestamp Checkbox */}
-                        {(currentTime > 0 || targetTimestamp !== null) && (
-                            <div className="flex items-center space-x-2 p-2 rounded-md">
-                                <Checkbox
-                                    id="timestamp"
-                                    checked={includeTimestamp}
-                                    onCheckedChange={(checked) => setIncludeTimestamp(checked as boolean)}
-                                />
-                                <label
-                                    htmlFor="timestamp"
-                                    className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-1"
-                                >
-                                    <span>Ξεκίνημα από το {formatTimestamp(targetTimestamp !== null ? targetTimestamp : currentTime)}</span>
-                                </label>
-                            </div>
-                        )}
                     </div>
 
-                    {ogImageUrl && (
-                        <>
-                            <DropdownMenuSeparator />
-                            <div className="p-3">
-                                <div className="rounded-lg border overflow-hidden bg-muted/50">
-                                    <div className="aspect-[1200/630] relative bg-muted/30">
-                                        {imageLoading && (
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                                <div className="flex flex-col items-center gap-2">
-                                                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                                                    <span className="text-xs text-muted-foreground">Φόρτωση προεπισκόπησης...</span>
-                                                </div>
+                    {/* Timestamp Checkbox */}
+                    {(currentTime > 0 || targetTimestamp !== null) && (
+                        <div className="flex items-center space-x-2 p-2 rounded-md">
+                            <Checkbox
+                                id="timestamp"
+                                checked={includeTimestamp}
+                                onCheckedChange={(checked) => setIncludeTimestamp(checked as boolean)}
+                            />
+                            <label
+                                htmlFor="timestamp"
+                                className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-1"
+                            >
+                                <span>Ξεκίνημα από το {formatTimestamp(targetTimestamp !== null ? targetTimestamp : currentTime)}</span>
+                            </label>
+                        </div>
+                    )}
+                </div>
+
+                {ogImageUrl && (
+                    <>
+                        <DropdownMenuSeparator />
+                        <div className="p-3">
+                            <div className="rounded-lg border overflow-hidden bg-muted/50">
+                                <div className="aspect-[1200/630] relative bg-muted/30">
+                                    {imageLoading && (
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="flex flex-col items-center gap-2">
+                                                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                                                <span className="text-xs text-muted-foreground">Φόρτωση προεπισκόπησης...</span>
                                             </div>
-                                        )}
-                                        {!imageError && (
-                                            // eslint-disable-next-line @next/next/no-img-element
-                                            <img
-                                                src={ogImageUrl}
-                                                alt="Preview"
-                                                className={`w-full h-full object-cover transition-opacity duration-200 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
-                                                onLoad={handleImageLoad}
-                                                onError={handleImageError}
-                                            />
-                                        )}
-                                        {imageError && !imageLoading && (
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                                <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                                    <Eye className="w-6 h-6" />
-                                                    <span className="text-xs">Προεπισκόπηση μη διαθέσιμη</span>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="p-2 bg-background">
-                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                            <Eye className="w-3 h-3" />
-                                            <span>Προεπισκόπηση κοινοποίησης</span>
                                         </div>
+                                    )}
+                                    {!imageError && (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            src={ogImageUrl}
+                                            alt="Preview"
+                                            className={`w-full h-full object-cover transition-opacity duration-200 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+                                            onLoad={handleImageLoad}
+                                            onError={handleImageError}
+                                        />
+                                    )}
+                                    {imageError && !imageLoading && (
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                                <Eye className="w-6 h-6" />
+                                                <span className="text-xs">Προεπισκόπηση μη διαθέσιμη</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="p-2 bg-background">
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <Eye className="w-3 h-3" />
+                                        <span>Προεπισκόπηση κοινοποίησης</span>
                                     </div>
                                 </div>
                             </div>
-                        </>
-                    )}
+                        </div>
+                    </>
+                )}
 
-                    {ogImageUrl && !pathname.includes('/subjects/') && (
-                        <>
-                            <DropdownMenuSeparator />
-                            <div className="p-3 space-y-2">
-                                <label className="text-xs font-medium text-muted-foreground block">
-                                    Εξαγωγή Προεπισκόπησης ως Εικόνα
-                                </label>
+                {ogImageUrl && !pathname.includes('/subjects/') && (
+                    <>
+                        <DropdownMenuSeparator />
+                        <div className="p-3 space-y-2">
+                            <label className="text-xs font-medium text-muted-foreground block">
+                                Εξαγωγή Προεπισκόπησης ως Εικόνα
+                            </label>
 
-                                {/* Four Story variants (9:16) — one render per click. */}
-                                <div className="text-[10px] uppercase tracking-wider text-muted-foreground pt-1">
-                                    Story (9:16)
-                                </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {STORY_VARIANTS.map((template) => {
-                                        const key = `story-${template}`;
-                                        const isDownloading = downloading === key;
-                                        return (
-                                            <Button
-                                                key={template}
-                                                onClick={() => downloadImage('story', template)}
-                                                disabled={downloading !== null}
-                                                variant="outline"
-                                                size="sm"
-                                                className="h-8 flex items-center gap-1.5"
-                                            >
-                                                {isDownloading ? (
-                                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                                ) : (
-                                                    <Instagram className="w-3 h-3" />
-                                                )}
-                                                <span className="text-xs">{STORY_TEMPLATES[template].name}</span>
-                                            </Button>
-                                        );
-                                    })}
-                                </div>
-
-                                {/* Post (1:1) — single click, single render. */}
-                                <Button
-                                    onClick={() => downloadImage('feed')}
-                                    disabled={downloading !== null}
-                                    variant="outline"
-                                    size="sm"
-                                    className="w-full h-8 flex items-center gap-1.5"
-                                >
-                                    {downloading === 'feed' ? (
-                                        <Loader2 className="w-3 h-3 animate-spin" />
-                                    ) : (
-                                        <FileDown className="w-3 h-3" />
-                                    )}
-                                    <span className="text-xs">Post</span>
-                                    <span className="text-[10px] text-muted-foreground">(1:1)</span>
-                                </Button>
+                            {/* Four Story variants (9:16) — one render per click. */}
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground pt-1">
+                                Story (9:16)
                             </div>
-                        </>
-                    )}
-                </DropdownMenuContent>
-            </DropdownMenu>
+                            <div className="grid grid-cols-2 gap-2">
+                                {STORY_VARIANTS.map((template) => {
+                                    const key = `story-${template}`;
+                                    const isDownloading = downloading === key;
+                                    return (
+                                        <Button
+                                            key={template}
+                                            onClick={() => downloadImage('story', template)}
+                                            disabled={downloading !== null}
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-8 flex items-center gap-1.5"
+                                        >
+                                            {isDownloading ? (
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                            ) : (
+                                                <Instagram className="w-3 h-3" />
+                                            )}
+                                            <span className="text-xs">{STORY_TEMPLATES[template].name}</span>
+                                        </Button>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Post (1:1) — single click, single render. */}
+                            <Button
+                                onClick={() => downloadImage('feed')}
+                                disabled={downloading !== null}
+                                variant="outline"
+                                size="sm"
+                                className="w-full h-8 flex items-center gap-1.5"
+                            >
+                                {downloading === 'feed' ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                    <FileDown className="w-3 h-3" />
+                                )}
+                                <span className="text-xs">Post</span>
+                                <span className="text-[10px] text-muted-foreground">(1:1)</span>
+                            </Button>
+                        </div>
+                    </>
+                )}
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 }

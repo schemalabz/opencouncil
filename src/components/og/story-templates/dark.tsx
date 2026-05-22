@@ -3,12 +3,10 @@ import { el } from "date-fns/locale";
 import { OpenCouncilWatermark } from "../shared-components";
 import type { PreviewData } from "./types";
 import { SectionLabel, SubjectRow, RemainderLine, bgDarkDotsDataUri } from "./shared";
-import { getSubjectSections } from "./sections";
 
 // T2 — Dark (dark with hero date)
 export const Template2Dark = (data: PreviewData) => {
-    const { preAgenda, agenda, preAgendaShown, agendaShown, preAgendaRemaining, agendaRemaining } =
-        getSubjectSections(data.subjects, { preAgenda: 2, agenda: 3 });
+    const { preAgenda, agenda, preAgendaShown, agendaShown, preAgendaRemaining, agendaRemaining } = data;
 
     const month = format(data.meetingDate, "LLLL", { locale: el });
     // Greek long-form weekday name, e.g. "Δευτέρα", "Τρίτη", ...
@@ -142,7 +140,7 @@ export const Template2Dark = (data: PreviewData) => {
                     marginBottom: 48,
                 }}
             >
-                <span style={{ display: "flex" }}>Συζητήθηκαν {data.subjects.length} θέματα</span>
+                <span style={{ display: "flex" }}>Συζητήθηκαν {data.totalSubjects} θέματα</span>
             </div>
 
             {preAgendaShown.length > 0 && (

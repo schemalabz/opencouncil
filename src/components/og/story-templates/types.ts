@@ -24,7 +24,14 @@ export interface PreviewData {
     cityName: string;
     cityLogoImage: string | null;
     adminBodyName?: string | null;
-    subjects: PreviewSubject[];
+    totalSubjects: number;
+    preAgenda: PreviewSubject[];
+    outOfAgenda: PreviewSubject[];
+    agenda: PreviewSubject[];
+    preAgendaShown: PreviewSubject[];
+    agendaShown: PreviewSubject[];
+    preAgendaRemaining: number;
+    agendaRemaining: number;
 }
 
 export interface PillProps {

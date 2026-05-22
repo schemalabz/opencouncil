@@ -3,12 +3,10 @@ import { OpenCouncilWatermark } from "../shared-components";
 import { formatDate } from "@/lib/formatters/time";
 import type { PreviewData } from "./types";
 import { SectionLabel, SubjectRow, RemainderLine } from "./shared";
-import { getSubjectSections } from "./sections";
 
 // T1 — Classic (cream / clean)
 export const Template1Classic = (data: PreviewData) => {
-    const { preAgenda, agenda, preAgendaShown, agendaShown, preAgendaRemaining, agendaRemaining } =
-        getSubjectSections(data.subjects, { preAgenda: 2, agenda: 3 });
+    const { preAgenda, agenda, preAgendaShown, agendaShown, preAgendaRemaining, agendaRemaining } = data;
     // Greek long-form weekday name, e.g. "Δευτέρα", "Τρίτη", ...
     const weekday = data.meetingDate.toLocaleDateString("el-GR", { weekday: "long" });
 
@@ -83,7 +81,7 @@ export const Template1Classic = (data: PreviewData) => {
                 </div>
                 <div style={{ display: "flex", alignItems: "center" }}>
                     <span style={{ display: "flex", marginRight: 10 }}>📋</span>
-                    <span style={{ display: "flex" }}>{data.subjects.length} θέματα</span>
+                    <span style={{ display: "flex" }}>{data.totalSubjects} θέματα</span>
                 </div>
             </div>
 
