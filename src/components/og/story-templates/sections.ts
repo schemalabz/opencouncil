@@ -1,5 +1,9 @@
 import type { PreviewSubject } from "./types";
 
+// Uniform per-section visible limits across all 4 story templates. Owned next to the
+// helper that consumes them; the route imports both when sectioning data for the templates.
+export const SECTION_LIMITS = { preAgenda: 2, agenda: 4 } as const;
+
 export function splitSubjects(subjects: PreviewSubject[]) {
     const preAgenda = subjects.filter((s) => s.nonAgendaReason === "beforeAgenda");
     const outOfAgenda = subjects.filter((s) => s.nonAgendaReason === "outOfAgenda");

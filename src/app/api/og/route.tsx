@@ -9,6 +9,7 @@ import { getPeopleForCity, getPerson } from '@/lib/db/people';
 import { sortSubjectsByImportance, sortSubjectsBySpeakerContributionCount } from '@/lib/utils';
 import { Container, MeetingMetaRow, OgHeader, OpenCouncilWatermark, SubjectPills, formatCityDisplayName } from '@/components/og/shared-components';
 import { renderStoryTemplate, isValidStoryTemplate, type StoryTemplateId } from '@/components/og/story-templates';
+import { getSubjectSections, SECTION_LIMITS } from '@/components/og/story-templates/sections';
 import { tryAcquireOgSlot, getOgConcurrencyStats } from '@/lib/og/concurrency';
 import SubjectOgImage from '@/app/[locale]/(city)/[cityId]/(meetings)/[meetingId]/subjects/[subjectId]/opengraph-image';
 
@@ -177,13 +178,16 @@ const MeetingStoryOGImage = async (cityId: string, meetingId: string, template: 
     // count comes pre-aggregated on `_count.contributions`, so no extra stats query is needed.
     const sortedSubjects = sortSubjectsBySpeakerContributionCount(data.subjects);
 
+    // Section + slice the subjects here so the dispatcher and templates receive
+    // pre-shaped data and stay pure render functions.
     return renderStoryTemplate(template, {
         meetingName: data.name,
         meetingDate: new Date(data.dateTime),
         cityName: data.city.name_municipality,
         cityLogoImage: data.city.logoImage,
         adminBodyName: data.administrativeBody?.name,
-        subjects: sortedSubjects,
+        totalSubjects: sortedSubjects.length,
+        ...getSubjectSections(sortedSubjects, SECTION_LIMITS),
     });
 };
 
@@ -965,9 +969,23 @@ export async function GET(request: Request) {
             return new Response('Not found', { status: 404 });
         }
 
-        return new ImageResponse(element, {
-            width,
-            height,
+        // ImageResponse construction is cheap but the satori render is lazy — it runs
+        // when the body is consumed. Force it to complete here (inside the slot) by
+        // awaiting arrayBuffer(), so the concurrency cap actually caps satori work
+        // instead of just capping handler invocations.
+        const imageResponse = new ImageResponse(element, { width, height });
+        const buffer = await imageResponse.arrayBuffer();
+        // Restore the Cache-Control that next/og's ImageResponse sets by default —
+        // dropping it would make every crawler unfurl re-render, defeating the cap.
+        // Matches next/og's exact defaults including the dev no-cache branch.
+        return new Response(buffer, {
+            status: 200,
+            headers: {
+                'content-type': 'image/png',
+                'cache-control': process.env.NODE_ENV === 'development'
+                    ? 'no-cache, no-store'
+                    : 'public, immutable, no-transform, max-age=31536000',
+            },
         });
     } catch (e) {
         console.error(e);
