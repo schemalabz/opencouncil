@@ -33,7 +33,7 @@ export const ImageOrInitials: React.FC<ImageOrInitialsProps> = ({ imageUrl, widt
                 overflow: 'hidden',
                 fontWeight: 'bold',
                 color: '#fff',
-                backgroundColor: '#ccc',
+                backgroundColor: square ? '#fff' : '#ccc',
                 position: 'relative',
                 containerType: 'size',
             }}
@@ -44,7 +44,7 @@ export const ImageOrInitials: React.FC<ImageOrInitialsProps> = ({ imageUrl, widt
                     alt={name ?? ''}
                     fill
                     sizes={`${Math.max(width, height)}px`}
-                    className={`object-cover ${square ? 'rounded' : 'rounded-full'}`}
+                    className={`${square ? 'object-contain rounded' : 'object-cover rounded-full'}`}
                     style={{ objectPosition: 'center center' }}
                 />
             ) : (
