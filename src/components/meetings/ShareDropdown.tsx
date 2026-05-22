@@ -11,7 +11,7 @@ import {
 } from "../ui/dropdown-menu";
 import { Input } from "../ui/input";
 import { Checkbox } from "../ui/checkbox";
-import { CheckCircle, CopyIcon, Share, FileDown, Eye, Loader2, Instagram } from "lucide-react";
+import { CheckCircle, CopyIcon, Share, FileDown, Loader2, Instagram } from "lucide-react";
 import { useVideo } from './VideoProvider';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -38,9 +38,6 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const [url, setUrl] = useState('');
     const [includeTimestamp, setIncludeTimestamp] = useState(false);
     const [copySuccess, setCopySuccess] = useState(false);
-    const [ogImageUrl, setOgImageUrl] = useState('');
-    const [imageLoading, setImageLoading] = useState(true);
-    const [imageError, setImageError] = useState(false);
     const [downloading, setDownloading] = useState<string | null>(null);
     const { currentTime } = useVideo();
     const { isOpen, targetTimestamp, shouldTriggerCopy, closeShareDropdown, resetCopyTrigger } = useShare();
@@ -51,30 +48,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
 
     useEffect(() => {
         setUrl(window.location.href);
-
-        // Reset loading states when URL changes
-        setImageLoading(true);
-        setImageError(false);
-
-        // Generate OG image URL based on current path
-        const baseUrl = window.location.origin;
-        let ogUrl: string;
-
-        // For subject pages, include subjectId in the API request
-        if (pathname.includes('/subjects/')) {
-            const subjectId = pathname.split('/subjects/')[1]?.split('/')[0];
-            if (subjectId) {
-                ogUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}&subjectId=${subjectId}`;
-            } else {
-                ogUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}`;
-            }
-        } else {
-            // For meeting pages, use the API route
-            ogUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}`;
-        }
-
-        setOgImageUrl(ogUrl);
-    }, [pathname, cityId, meetingId]);
+    }, [pathname]);
 
     // Handle opening with a specific timestamp from context
     useEffect(() => {
@@ -101,16 +75,6 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
             resetCopyTrigger();
         }
     }, [shouldTriggerCopy, isOpen, targetTimestamp, resetCopyTrigger]);
-
-    const handleImageLoad = () => {
-        setImageLoading(false);
-        setImageError(false);
-    };
-
-    const handleImageError = () => {
-        setImageLoading(false);
-        setImageError(true);
-    };
 
     const getShareableUrl = () => {
         const effectiveTime = targetTimestamp !== null ? targetTimestamp : currentTime;
@@ -312,51 +276,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                     )}
                 </div>
 
-                {ogImageUrl && (
-                    <>
-                        <DropdownMenuSeparator />
-                        <div className="p-3">
-                            <div className="rounded-lg border overflow-hidden bg-muted/50">
-                                <div className="aspect-[1200/630] relative bg-muted/30">
-                                    {imageLoading && (
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                            <div className="flex flex-col items-center gap-2">
-                                                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                                                <span className="text-xs text-muted-foreground">Φόρτωση προεπισκόπησης...</span>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {!imageError && (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img
-                                            src={ogImageUrl}
-                                            alt="Preview"
-                                            className={`w-full h-full object-cover transition-opacity duration-200 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
-                                            onLoad={handleImageLoad}
-                                            onError={handleImageError}
-                                        />
-                                    )}
-                                    {imageError && !imageLoading && (
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                            <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                                <Eye className="w-6 h-6" />
-                                                <span className="text-xs">Προεπισκόπηση μη διαθέσιμη</span>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="p-2 bg-background">
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <Eye className="w-3 h-3" />
-                                        <span>Προεπισκόπηση κοινοποίησης</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </>
-                )}
-
-                {ogImageUrl && !pathname.includes('/subjects/') && (
+                {!pathname.includes('/subjects/') && (
                     <>
                         <DropdownMenuSeparator />
                         <div className="p-3 space-y-2">
