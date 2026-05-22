@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import { el } from "date-fns/locale";
 import { OpenCouncilWatermark } from "../shared-components";
 import type { PreviewData } from "./types";
-import { SectionLabel, SubjectRow, RemainderLine, bgDarkDotsDataUri } from "./shared";
+import { SectionLabel, SubjectRow, RemainderLine } from "./shared";
 
 // T2 — Dark (dark with hero date)
 export const Template2Dark = (data: PreviewData) => {
@@ -26,25 +26,6 @@ export const Template2Dark = (data: PreviewData) => {
                 position: "relative",
             }}
         >
-            {bgDarkDotsDataUri && (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                    src={bgDarkDotsDataUri}
-                    alt=""
-                    width={1080}
-                    height={1920}
-                    style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        width: 1080,
-                        height: 1920,
-                        objectFit: "cover",
-                    }}
-                />
-            )}
             {/* Top strip in a full-width light-tinted wrapper */}
             <div
                 style={{
