@@ -906,37 +906,6 @@ export async function GET(request: Request) {
     const pageType = searchParams.get('pageType'); // 'people', 'about', 'search', 'chat'
     const variant = searchParams.get('variant'); // 'story' for 9:16, 'feed' for 1:1, default is landscape
     const templateParam = searchParams.get('template'); // 'CLASSIC' | 'DARK' | 'CARDS' | 'COLORFUL' for story templates
-    const format = searchParams.get('format'); // 'json' returns the underlying data instead of a rendered image
-
-    // Lightweight JSON branch: lets the story-template picker show what will be on the image
-    // without paying the cost of four parallel satori renders. Bypasses the render concurrency
-    // cap below because it's just a DB read.
-    if (format === 'json' && variant === 'story' && cityId && meetingId) {
-        try {
-            const data = await getMeetingDataForOG(cityId, meetingId);
-            if (!data) return new Response('Not found', { status: 404 });
-            const sorted = sortSubjectsBySpeakerContributionCount(data.subjects);
-            return Response.json({
-                meetingName: data.name,
-                meetingDate: data.dateTime.toISOString(),
-                cityName: data.city.name_municipality,
-                cityLogoImage: data.city.logoImage,
-                adminBodyName: data.administrativeBody?.name ?? null,
-                subjects: sorted.map((s) => ({
-                    id: s.id,
-                    name: s.name,
-                    agendaItemIndex: s.agendaItemIndex,
-                    nonAgendaReason: s.nonAgendaReason,
-                    topic: s.topic
-                        ? { name: s.topic.name, colorHex: s.topic.colorHex, icon: s.topic.icon }
-                        : null,
-                })),
-            });
-        } catch (e) {
-            console.error(`[og] preview json failed for cityId=${cityId} meetingId=${meetingId}:`, e);
-            return new Response('Failed to fetch preview data', { status: 500 });
-        }
-    }
 
     const slot = tryAcquireOgSlot();
     if (!slot) {
