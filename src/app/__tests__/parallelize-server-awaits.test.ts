@@ -152,6 +152,59 @@ describe('PR1: server-side awaits run concurrently', () => {
         await pending;
     });
 
+    it('meeting layout.tsx: notification preference starts in parallel with auth/data once user resolves', async () => {
+        const auth = require('@/lib/auth');
+        const meetingData = require('@/lib/getMeetingData');
+        const notifications = require('@/lib/db/notifications');
+
+        const userD = deferred<any>();
+        const authD = deferred<boolean>();
+        const dataD = deferred<any>();
+        const notifD = deferred<any>();
+
+        auth.getCurrentUser.mockReturnValue(userD.promise);
+        auth.isUserAuthorizedToEdit.mockReturnValue(authD.promise);
+        meetingData.getMeetingDataCached.mockReturnValue(dataD.promise);
+        notifications.getNotificationPreferenceForCity.mockReturnValue(notifD.promise);
+
+        const mod = require('@/app/[locale]/(city)/[cityId]/(meetings)/[meetingId]/layout');
+        const Layout = mod.default;
+
+        const pending = Layout({
+            params: { meetingId: 'm1', cityId: 'athens', locale: 'el' },
+            children: null,
+        });
+
+        await flushMicrotasks();
+
+        // Top-level awaits started, but notification cannot fire until the user resolves.
+        expect(auth.getCurrentUser).toHaveBeenCalledTimes(1);
+        expect(auth.isUserAuthorizedToEdit).toHaveBeenCalledTimes(1);
+        expect(meetingData.getMeetingDataCached).toHaveBeenCalledTimes(1);
+        expect(notifications.getNotificationPreferenceForCity).not.toHaveBeenCalled();
+
+        // Resolve the user; the .then() handler should fire and kick off the notification fetch
+        // while authD and dataD are still pending.
+        userD.resolve({ id: 'user-42' });
+        await flushMicrotasks();
+
+        expect(notifications.getNotificationPreferenceForCity).toHaveBeenCalledTimes(1);
+        expect(notifications.getNotificationPreferenceForCity).toHaveBeenCalledWith('user-42', 'athens');
+
+        // Now resolve the remaining promises so the layout can finish.
+        authD.resolve(false);
+        dataD.resolve({
+            city: { id: 'athens', name: 'Athens', highlightCreationPermission: 'ADMIN' },
+            meeting: { name: 'm', updatedAt: new Date(), administrativeBody: null, muxPlaybackId: null },
+            transcriptHiddenForReview: false,
+            transcript: [],
+            speakerTags: [],
+        });
+        notifD.resolve(null);
+
+        await pending;
+    });
+
     it('people/page.tsx folds isUserAuthorizedToEdit into the Promise.all batch', async () => {
         const cache = require('@/lib/cache');
         const auth = require('@/lib/auth');
