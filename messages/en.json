@@ -895,5 +895,6 @@
         "successSummary": "Sent: {sent}, failed: {failed}.",
         "failedListWithCount": "Failed addresses ({count})",
         "errorTitle": "Send failed"
-    }
+    },
+    "transcript": {}
 }

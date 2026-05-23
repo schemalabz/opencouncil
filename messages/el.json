@@ -895,5 +895,6 @@
         "successSummary": "Εστάλησαν: {sent}, απέτυχαν: {failed}.",
         "failedListWithCount": "Διευθύνσεις που απέτυχαν ({count})",
         "errorTitle": "Η αποστολή απέτυχε"
-    }
+    },
+    "transcript": {}
 }

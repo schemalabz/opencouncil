@@ -76,5 +76,15 @@
     "button": "Copy segment",
     "segmentCopied": "Segment copied",
     "copySourceAttribution": "Copied from OpenCouncil · opencouncil.gr"
+  },
+  "viewModes": {
+    "toggleLabel": "Toggle fish-eye view",
+    "default": "Default view",
+    "fisheye": "Fish-eye view",
+    "expand": "Expand segment",
+    "collapse": "Collapse",
+    "seekHere": "Play from here",
+    "seekHereDetailed": "Play from {speaker} at {time}",
+    "aiSummary": "AI-generated summary"
   }
 }

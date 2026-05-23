@@ -122,6 +122,8 @@ interface PersonBadgeProps extends PersonDisplayProps {
     variant?: 'default' | 'inline';
     /** When true, the badge does not navigate or behave like a button (useful on the person's own page). */
     disableNavigation?: boolean;
+    /** When true with variant="inline", show only the surname. */
+    lastNameOnly?: boolean;
 }
 
 function PersonBadge({
@@ -141,6 +143,7 @@ function PersonBadge({
     size = 'md',
     variant = 'default',
     disableNavigation = false,
+    lastNameOnly = false,
 }: PersonBadgeProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -182,7 +185,9 @@ function PersonBadge({
                 )}
                 <span className="text-sm font-medium truncate">
                     {person ? (
-                        preferFullName ? person.name : formatSurnameFirst(person.name)
+                        lastNameOnly
+                            ? formatSurnameFirst(person.name).split(/\s+/)[0]
+                            : preferFullName ? person.name : formatSurnameFirst(person.name)
                     ) : (
                         speakerTag?.label
                     )}
