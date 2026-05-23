@@ -128,20 +128,21 @@ export default async function CouncilMeetingPage(
         children
     } = props;
 
-    const currentUser = await getCurrentUser();
-    const editable = await isUserAuthorizedToEdit({ cityId });
-
-    const data = await getMeetingDataCached(cityId, meetingId);
+    const currentUserPromise = getCurrentUser();
+    const [currentUser, editable, data, notificationPreference] = await Promise.all([
+        currentUserPromise,
+        isUserAuthorizedToEdit({ cityId }),
+        getMeetingDataCached(cityId, meetingId),
+        currentUserPromise.then(user =>
+            user ? getNotificationPreferenceForCity(user.id, cityId) : null
+        ),
+    ]);
 
     if (!data || !data.city) {
         notFound();
     }
 
     console.log(`Got meeting data for ${cityId} ${meetingId}: ${data.meeting.updatedAt}`);
-
-    const notificationPreference = currentUser
-        ? await getNotificationPreferenceForCity(currentUser.id, cityId)
-        : null;
 
     const meetingData = (data.transcriptHiddenForReview && !editable)
         ? { ...data, transcript: [], speakerTags: [] }

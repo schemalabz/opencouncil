@@ -87,18 +87,17 @@ export default async function PeoplePage(
         cityId
     } = params;
 
-    const [partiesWithPersons, administrativeBodies, allPeople, city] = await Promise.all([
+    const [partiesWithPersons, administrativeBodies, allPeople, city, canEdit] = await Promise.all([
         getPartiesForCityCached(cityId),
         getAdministrativeBodiesForCityCached(cityId),
         getPeopleForCityCached(cityId),
-        getCityCached(cityId)
+        getCityCached(cityId),
+        isUserAuthorizedToEdit({ cityId })
     ]);
 
     if (!partiesWithPersons) {
         notFound();
     }
-
-    const canEdit = await isUserAuthorizedToEdit({ cityId });
 
     return (
         <CityPeople
