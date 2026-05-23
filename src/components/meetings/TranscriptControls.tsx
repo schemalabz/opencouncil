@@ -6,8 +6,9 @@ import { cn, formatTimestamp } from "@/lib/utils";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import { useTranscriptOptions } from "./options/OptionsContext";
 import { useHighlight } from "./HighlightContext";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Video } from "./Video";
+import { useLayout } from "./CouncilMeetingWrapper";
 
 export default function TranscriptControls({ className }: { className?: string }) {
     const { transcript: speakerSegments } = useCouncilMeetingData();
@@ -18,26 +19,9 @@ export default function TranscriptControls({ className }: { className?: string }
     const [isSliderHovered, setIsSliderHovered] = useState(false);
     const [isTouchActive, setIsTouchActive] = useState(false);
     const sliderRef = useRef<HTMLDivElement>(null);
-    const [isWide, setIsWide] = useState(false);
-    const [isControlsVisible, setIsControlsVisible] = useState(false);
+    const { isWide, isControlsVisible, setIsControlsVisible } = useLayout();
     const [hoveredSpeaker, setHoveredSpeaker] = useState<{ name: string, color: string } | null>(null);
     const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 }); // Track cursor position
-
-    useEffect(() => {
-        const checkSize = () => {
-            const wide = window.innerWidth > window.innerHeight;
-            setIsWide(wide);
-            // If it's desktop (wide), make controls visible by default
-            if (wide) {
-                setIsControlsVisible(true);
-            }
-        }
-
-        checkSize()
-        window.addEventListener('resize', checkSize)
-
-        return () => window.removeEventListener('resize', checkSize)
-    }, [])
 
 
     const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {

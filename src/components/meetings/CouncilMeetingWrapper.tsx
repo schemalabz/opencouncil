@@ -21,11 +21,22 @@ type CouncilMeetingWrapperProps = {
     children: React.ReactNode
 }
 
-const LayoutContext = createContext<{ isWide: boolean }>({ isWide: false });
+const LayoutContext = createContext<{
+    isWide: boolean;
+    isControlsVisible: boolean;
+    setIsControlsVisible: (next: boolean | ((prev: boolean) => boolean)) => void;
+}>({
+    isWide: false,
+    isControlsVisible: true,
+    setIsControlsVisible: () => { },
+});
 export const useLayout = () => useContext(LayoutContext);
 
 export default function CouncilMeetingWrapper({ meetingData, editable, canCreateHighlights, children }: CouncilMeetingWrapperProps) {
     const [isWide, setIsWide] = useState(false);
+    // Lifted from TranscriptControls so other floating buttons (e.g. FisheyeToggle)
+    // can position themselves relative to the show/hide-bar toggle on mobile.
+    const [isControlsVisible, setIsControlsVisible] = useState(false);
     const [loading, setLoading] = useState(true);
 
     const memoizedUtterances = useMemo(() => {
@@ -36,7 +47,13 @@ export default function CouncilMeetingWrapper({ meetingData, editable, canCreate
 
     useEffect(() => {
         const checkSize = () => {
-            setIsWide(window.innerWidth > window.innerHeight)
+            const wide = window.innerWidth > window.innerHeight;
+            setIsWide(wide);
+            // Wide (landscape) viewports show the controls; narrow viewports
+            // keep the user's current choice (default `false` on first mount).
+            // Resize never force-collapses — incidental height changes (soft
+            // keyboard, DevTools) would otherwise hide a bar the user opened.
+            if (wide) setIsControlsVisible(true);
         }
 
         checkSize()
@@ -58,7 +75,7 @@ export default function CouncilMeetingWrapper({ meetingData, editable, canCreate
     )
 
     return (
-        <LayoutContext.Provider value={{ isWide }}>
+        <LayoutContext.Provider value={{ isWide, isControlsVisible, setIsControlsVisible }}>
             <CouncilMeetingDataProvider data={meetingData}>
                 <TranscriptOptionsProvider editable={editable} canCreateHighlights={canCreateHighlights}>
                     <VideoProvider meeting={memoizedMeeting} utterances={memoizedUtterances}>
