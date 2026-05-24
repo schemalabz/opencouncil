@@ -230,4 +230,4 @@ export async function updateUtteranceTimestamps(
         console.error('Error updating utterance timestamps:', error);
         throw new Error('Failed to update utterance timestamps');
     }
-} 
+}
