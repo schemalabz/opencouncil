@@ -1,4 +1,4 @@
-import { applyUtteranceDeletions } from "@/lib/utils/utterance-deletion";
+import { applyUtteranceDeletions, restoreUtteranceDeletions } from "@/lib/utils/utterance-deletion";
 
 type TestUtterance = {
   id: string;
@@ -75,5 +75,63 @@ describe("applyUtteranceDeletions", () => {
     const transcript = makeTranscript();
     const updated = applyUtteranceDeletions(transcript, new Map());
     expect(updated).toEqual(transcript);
+  });
+});
+
+describe("restoreUtteranceDeletions", () => {
+  const segment = {
+    id: "s-1",
+    startTimestamp: 10,
+    endTimestamp: 40,
+    label: "segment",
+    utterances: [
+      { id: "u-1", startTimestamp: 10, endTimestamp: 15 },
+      { id: "u-2", startTimestamp: 20, endTimestamp: 25 },
+      { id: "u-3", startTimestamp: 30, endTimestamp: 40 },
+    ],
+  };
+
+  it("puts removed utterances back in time order and recalculates the bounds", () => {
+    const removed = new Map([["s-1", [segment.utterances[0], segment.utterances[2]]]]);
+    const deleted = applyUtteranceDeletions([segment], new Map([["s-1", new Set(["u-1", "u-3"])]]));
+
+    const [restored] = restoreUtteranceDeletions(deleted, removed);
+
+    expect(restored.utterances.map((u) => u.id)).toEqual(["u-1", "u-2", "u-3"]);
+    expect(restored.startTimestamp).toBe(10);
+    expect(restored.endTimestamp).toBe(40);
+  });
+
+  it("keeps changes made to the other utterances after the deletion", () => {
+    const deleted = applyUtteranceDeletions([segment], new Map([["s-1", new Set(["u-1"])]]));
+    const edited = deleted.map((s) => ({
+      ...s,
+      utterances: s.utterances.map((u) => (u.id === "u-2" ? { ...u, endTimestamp: 26 } : u)),
+    }));
+
+    const [restored] = restoreUtteranceDeletions(edited, new Map([["s-1", [segment.utterances[0]]]]));
+
+    expect(restored.utterances.find((u) => u.id === "u-2")?.endTimestamp).toBe(26);
+    expect(restored.utterances.map((u) => u.id)).toEqual(["u-1", "u-2", "u-3"]);
+  });
+
+  it("orders utterances with the same start time by id, like the transcript query", () => {
+    const tied = {
+      ...segment,
+      utterances: [
+        { id: "u-a", startTimestamp: 10, endTimestamp: 12 },
+        { id: "u-b", startTimestamp: 10, endTimestamp: 14 },
+      ],
+    };
+    const deleted = applyUtteranceDeletions([tied], new Map([["s-1", new Set(["u-a"])]]));
+
+    const [restored] = restoreUtteranceDeletions(deleted, new Map([["s-1", [tied.utterances[0]]]]));
+
+    expect(restored.utterances.map((u) => u.id)).toEqual(["u-a", "u-b"]);
+  });
+
+  it("does not add an utterance twice", () => {
+    const [restored] = restoreUtteranceDeletions([segment], new Map([["s-1", [segment.utterances[0]]]]));
+    expect(restored.utterances).toHaveLength(3);
   });
 });
