@@ -56,7 +56,7 @@ const UtteranceC: React.FC<{
     // Stable actions context — see CouncilMeetingDataContext. With ~9K
     // utterances, anything that re-renders all of them defeats memoization.
     const { deleteUtterance, updateUtterance } = useCouncilMeetingActions();
-    const { selectedUtteranceIds, toggleSelection } = useEditing();
+    const { selectedUtteranceIds, toggleSelection, deselectUtterance } = useEditing();
 
     const clickOffsetRef = useRef<number | null>(null);
     const [isEditing, setIsEditing] = useState(false);
@@ -235,19 +235,12 @@ const UtteranceC: React.FC<{
 
     const handleDeleteUtterance = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        
-        // Delete immediately without confirmation since utterance is empty
         try {
             await deleteUtterance(localUtterance.id);
-            toast({
-                description: t('toasts.utteranceDeletedSuccessfully', { defaultValue: 'Utterance deleted successfully' }),
-            });
-        } catch (error) {
-            toast({
-                title: t('common.error'),
-                description: t('toasts.deleteError', { defaultValue: 'Failed to delete utterance' }),
-                variant: 'destructive'
-            });
+            if (isSelected) deselectUtterance(localUtterance.id);
+            toast({ description: t('toasts.utteranceDeletedSuccessfully', { defaultValue: 'Utterance deleted successfully' }) });
+        } catch {
+            toast({ title: t('common.error'), description: t('toasts.deleteError', { defaultValue: 'Failed to delete utterance' }), variant: 'destructive' });
         }
     };
 
