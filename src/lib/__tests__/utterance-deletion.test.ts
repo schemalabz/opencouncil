@@ -1,4 +1,4 @@
-import { applyUtteranceDeletions, restoreUtteranceDeletions } from "@/lib/utils/utterance-deletion";
+import { applyUtteranceDeletions, deletionTargetIds, restoreUtteranceDeletions } from "@/lib/utils/utterance-deletion";
 
 type TestUtterance = {
   id: string;
@@ -75,6 +75,22 @@ describe("applyUtteranceDeletions", () => {
     const transcript = makeTranscript();
     const updated = applyUtteranceDeletions(transcript, new Map());
     expect(updated).toEqual(transcript);
+  });
+});
+
+describe("deletionTargetIds", () => {
+  it("deletes the whole selection when the clicked utterance is part of it", () => {
+    expect(deletionTargetIds(new Set(["u-1", "u-2"]), "u-2").sort()).toEqual(["u-1", "u-2"]);
+  });
+
+  it("deletes only the clicked utterance when the selection does not include it", () => {
+    // A text highlight inside B skips the temp-selection, so an earlier
+    // selection of A is still there when B is right-clicked.
+    expect(deletionTargetIds(new Set(["u-1"]), "u-2")).toEqual(["u-2"]);
+  });
+
+  it("deletes the clicked utterance when nothing is selected", () => {
+    expect(deletionTargetIds(new Set(), "u-2")).toEqual(["u-2"]);
   });
 });
 
