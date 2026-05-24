@@ -98,3 +98,11 @@ export function restoreUtteranceDeletions<
     });
 }
 
+/**
+ * The utterances a context-menu delete on `targetId` removes: the whole
+ * selection when the right-clicked utterance is part of it, otherwise just
+ * that utterance. A selection elsewhere in the transcript is never the target.
+ */
+export function deletionTargetIds(selectedIds: ReadonlySet<string>, targetId: string): string[] {
+    return selectedIds.has(targetId) ? Array.from(selectedIds) : [targetId];
+}
