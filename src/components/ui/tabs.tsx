@@ -30,8 +30,12 @@ export function Tabs(props: {
    * Use this for tabs inside dialogs or other contexts where URL changes are undesirable.
    */
   local?: boolean;
+  /**
+   * Called when the user selects a different tab.
+   */
+  onValueChange?: (value: string) => void;
 }) {
-  const { children, className, searchParam = "tab", local, ...other } = props;
+  const { children, className, searchParam = "tab", local, onValueChange, ...other } = props;
 
   // Local (in-memory) state
   const [localSelected, setLocalSelected] = React.useState(props.defaultValue);
@@ -61,7 +65,12 @@ export function Tabs(props: {
   );
 
   const hrefFor: Context["hrefFor"] = local ? null : buildHref;
-  const onSelect: Context["onSelect"] = local ? setLocalSelected : null;
+  const onSelect: Context["onSelect"] = local
+    ? (value) => {
+      setLocalSelected(value);
+      onValueChange?.(value);
+    }
+    : null;
 
   return (
     <TabsContext.Provider value={{ ...other, hrefFor, onSelect, selected }}>
