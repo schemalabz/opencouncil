@@ -19,6 +19,7 @@ import { useTranslations } from 'next-intl';
 import { useShare } from '@/contexts/ShareContext';
 import { formatTimestamp } from '@/lib/utils';
 import { downloadFile } from '@/lib/export/meetings';
+import StoryTemplatePickerDialog from './StoryTemplatePickerDialog';
 
 
 interface ShareDropdownProps {
@@ -40,6 +41,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const pathname = usePathname();
     const t = useTranslations();
     const [internalOpen, setInternalOpen] = useState(false);
+    const [storyPickerOpen, setStoryPickerOpen] = useState(false);
 
     useEffect(() => {
         setUrl(window.location.href);
@@ -125,7 +127,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const downloadImage = async (variant: 'story' | 'feed' | 'default') => {
         const baseUrl = window.location.origin;
         let imageUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}`;
-        
+
         // Add subjectId if on a subject page
         if (pathname.includes('/subjects/')) {
             const subjectId = pathname.split('/subjects/')[1]?.split('/')[0];
@@ -133,26 +135,26 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                 imageUrl += `&subjectId=${subjectId}`;
             }
         }
-        
+
         // Add variant parameter if not default
         if (variant !== 'default') {
             imageUrl += `&variant=${variant}`;
         }
 
         setDownloading(variant);
-        
+
         try {
             const response = await fetch(imageUrl);
             if (!response.ok) {
                 throw new Error('Failed to fetch image');
             }
-            
+
             const blob = await response.blob();
-            
+
             // Set filename based on variant
             const variantName = variant === 'story' ? 'story' : variant === 'feed' ? 'feed' : 'og';
             const fileName = `meeting-${variantName}-${meetingId}.png`;
-            
+
             downloadFile(blob, fileName);
         } catch (error) {
             console.error('Error downloading image:', error);
@@ -205,159 +207,166 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
         }
     };
 
+    const openStoryPicker = () => {
+        handleOpenChange(false);
+        setStoryPickerOpen(true);
+    };
+
     return (
-        <DropdownMenu open={dropdownOpen} onOpenChange={handleOpenChange}>
-            <DropdownMenuTrigger asChild>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className={`w-9 h-9 rounded-full hover:bg-accent transition-colors shrink-0 ${className || ''}`}
-                    title="Κοινοποίηση"
-                >
-                    <Share className="h-4 w-4" />
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-80 sm:w-96" align="end">
-                <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">Κοινοποίηση</p>
-                        <p className="text-xs leading-none text-muted-foreground">
-                            Μοιραστείτε {shareContext}
-                        </p>
-                    </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-
-                <div className="p-3 space-y-4">
-                    {/* URL Input and Copy Button */}
-                    <div className="space-y-2">
-                        <label className="text-xs font-medium text-muted-foreground">
-                            Σύνδεσμος
-                        </label>
-                        <div className="flex gap-2">
-                            <Input
-                                value={getShareableUrl()}
-                                readOnly
-                                className="flex-grow text-xs font-mono h-9"
-                                onClick={(e) => (e.target as HTMLInputElement).select()}
-                            />
-                            <Button
-                                onClick={copyToClipboard}
-                                variant={copySuccess ? "default" : "outline"}
-                                disabled={copySuccess}
-                                className="flex-shrink-0 min-w-[80px] h-9"
-                            >
-                                {copySuccess ? (
-                                    <>
-                                        <CheckCircle className="w-3 h-3 mr-1" />
-                                        <span className="text-xs">Αντιγράφηκε</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <CopyIcon className="w-3 h-3 mr-1" />
-                                        <span className="text-xs">Αντιγραφή</span>
-                                    </>
-                                )}
-                            </Button>
+        <>
+            <DropdownMenu open={dropdownOpen} onOpenChange={handleOpenChange}>
+                <DropdownMenuTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`w-9 h-9 rounded-full hover:bg-accent transition-colors shrink-0 ${className || ''}`}
+                        title="Κοινοποίηση"
+                    >
+                        <Share className="h-4 w-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-80 sm:w-96" align="end">
+                    <DropdownMenuLabel className="font-normal">
+                        <div className="flex flex-col space-y-1">
+                            <p className="text-sm font-medium leading-none">Κοινοποίηση</p>
+                            <p className="text-xs leading-none text-muted-foreground">
+                                Μοιραστείτε {shareContext}
+                            </p>
                         </div>
-                    </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
 
-                    {/* Timestamp Checkbox */}
-                    {(currentTime > 0 || targetTimestamp !== null) && (
-                        <div className="flex items-center space-x-2 p-2 rounded-md">
-                            <Checkbox
-                                id="timestamp"
-                                checked={includeTimestamp}
-                                onCheckedChange={(checked) => setIncludeTimestamp(checked as boolean)}
-                            />
-                            <label
-                                htmlFor="timestamp"
-                                className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-1"
-                            >
-                                <span>Ξεκίνημα από το {formatTimestamp(targetTimestamp !== null ? targetTimestamp : currentTime)}</span>
+                    <div className="p-3 space-y-4">
+                        {/* URL Input and Copy Button */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-medium text-muted-foreground">
+                                Σύνδεσμος
                             </label>
+                            <div className="flex gap-2">
+                                <Input
+                                    value={getShareableUrl()}
+                                    readOnly
+                                    className="flex-grow text-xs font-mono h-9"
+                                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                                />
+                                <Button
+                                    onClick={copyToClipboard}
+                                    variant={copySuccess ? "default" : "outline"}
+                                    disabled={copySuccess}
+                                    className="flex-shrink-0 min-w-[80px] h-9"
+                                >
+                                    {copySuccess ? (
+                                        <>
+                                            <CheckCircle className="w-3 h-3 mr-1" />
+                                            <span className="text-xs">Αντιγράφηκε</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <CopyIcon className="w-3 h-3 mr-1" />
+                                            <span className="text-xs">Αντιγραφή</span>
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
                         </div>
-                    )}
-                </div>
 
-                {ogImageUrl && (
-                    <>
-                        <DropdownMenuSeparator />
-                        <div className="p-3">
-                            <div className="rounded-lg border overflow-hidden bg-muted/50">
-                                <div className="aspect-[1200/630] relative bg-muted/30">
-                                    {imageLoading && (
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                            <div className="flex flex-col items-center gap-2">
-                                                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                                                <span className="text-xs text-muted-foreground">Φόρτωση προεπισκόπησης...</span>
-                                            </div>
+                        {/* Timestamp Checkbox */}
+                        {(currentTime > 0 || targetTimestamp !== null) && (
+                            <div className="flex items-center space-x-2 p-2 rounded-md">
+                                <Checkbox
+                                    id="timestamp"
+                                    checked={includeTimestamp}
+                                    onCheckedChange={(checked) => setIncludeTimestamp(checked as boolean)}
+                                />
+                                <label
+                                    htmlFor="timestamp"
+                                    className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-1"
+                                >
+                                    <span>Ξεκίνημα από το {formatTimestamp(targetTimestamp !== null ? targetTimestamp : currentTime)}</span>
+                                </label>
+                            </div>
+                        )}
+                    </div>
+
+                    {ogImageUrl && !pathname.includes('/subjects/') && (
+                        <>
+                            <DropdownMenuSeparator />
+                            <div className="p-3 space-y-3">
+                                <label className="text-xs font-medium text-muted-foreground block">
+                                    Εξαγωγή Προεπισκόπησης ως Εικόνα
+                                </label>
+                                <div className="grid grid-cols-2 gap-2 items-stretch">
+                                    {/* Column 1 — tall Story picker button (replaces the small "Story…" button). */}
+                                    <Button
+                                        onClick={openStoryPicker}
+                                        disabled={downloading !== null}
+                                        variant="outline"
+                                        className="h-auto self-stretch flex flex-col items-center justify-center gap-2 p-3 text-center"
+                                    >
+                                        <Instagram className="w-6 h-6" />
+                                        <span className="text-xs font-medium leading-tight">
+                                            Επιλογή θέματος για Story
+                                        </span>
+                                        <span className="text-[10px] text-muted-foreground">(9:16)</span>
+                                    </Button>
+                                    {/* Column 2 — single card: square preview on top, Post 1:1 button as the card's bottom row. */}
+                                    <div className="rounded-lg border overflow-hidden bg-muted/50 flex flex-col">
+                                        <div className="aspect-square relative bg-muted/30">
+                                            {imageLoading && (
+                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                    <div className="flex flex-col items-center gap-2">
+                                                        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                                                        <span className="text-xs text-muted-foreground">Φόρτωση προεπισκόπησης...</span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {!imageError && (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img
+                                                    src={`${ogImageUrl}&variant=feed`}
+                                                    alt="Preview"
+                                                    className={`w-full h-full object-cover transition-opacity duration-200 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+                                                    onLoad={handleImageLoad}
+                                                    onError={handleImageError}
+                                                />
+                                            )}
+                                            {imageError && !imageLoading && (
+                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                                        <Eye className="w-6 h-6" />
+                                                        <span className="text-xs">Προεπισκόπηση μη διαθέσιμη</span>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-                                    {!imageError && (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img
-                                            src={ogImageUrl}
-                                            alt="Preview"
-                                            className={`w-full h-full object-cover transition-opacity duration-200 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
-                                            onLoad={handleImageLoad}
-                                            onError={handleImageError}
-                                        />
-                                    )}
-                                    {imageError && !imageLoading && (
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                            <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                                <Eye className="w-6 h-6" />
-                                                <span className="text-xs">Προεπισκόπηση μη διαθέσιμη</span>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="p-2 bg-background">
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <Eye className="w-3 h-3" />
-                                        <span>Προεπισκόπηση κοινοποίησης</span>
+                                        <Button
+                                            onClick={() => downloadImage('feed')}
+                                            disabled={downloading !== null}
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-9 w-full rounded-none rounded-b-lg border-t flex items-center justify-center gap-1.5"
+                                        >
+                                            {downloading === 'feed' ? (
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                            ) : (
+                                                <FileDown className="w-3 h-3" />
+                                            )}
+                                            <span className="text-xs">Λήψη Post</span>
+                                            <span className="text-[10px] text-muted-foreground">(1:1)</span>
+                                        </Button>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </>
-                )}
-
-                {ogImageUrl && !pathname.includes('/subjects/') && (
-                    <>
-                        <DropdownMenuSeparator />
-                        <div className="p-3">
-                            <label className="text-xs font-medium text-muted-foreground mb-2 block">
-                                Εξαγωγή Προεπισκόπησης ως Εικόνα
-                            </label>
-                            <div className="grid grid-cols-2 gap-2">
-                                {[
-                                    { type: 'story' as const, icon: Instagram, label: 'Story', ratio: '9:16' },
-                                    { type: 'feed' as const, icon: FileDown, label: 'Post', ratio: '1:1' }
-                                ].map(({ type, icon: Icon, label, ratio }) => (
-                                    <Button
-                                        key={type}
-                                        onClick={() => downloadImage(type)}
-                                        disabled={downloading !== null}
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-8 flex items-center gap-1.5"
-                                    >
-                                        {downloading === type ? (
-                                            <Loader2 className="w-3 h-3 animate-spin" />
-                                        ) : (
-                                            <Icon className="w-3 h-3" />
-                                        )}
-                                        <span className="text-xs">{label}</span>
-                                        <span className="text-[10px] text-muted-foreground">({ratio})</span>
-                                    </Button>
-                                ))}
-                            </div>
-                        </div>
-                    </>
-                )}
-            </DropdownMenuContent>
-        </DropdownMenu>
+                        </>
+                    )}
+                </DropdownMenuContent>
+            </DropdownMenu>
+            <StoryTemplatePickerDialog
+                open={storyPickerOpen}
+                onOpenChange={setStoryPickerOpen}
+                cityId={cityId}
+                meetingId={meetingId}
+            />
+        </>
     );
 }

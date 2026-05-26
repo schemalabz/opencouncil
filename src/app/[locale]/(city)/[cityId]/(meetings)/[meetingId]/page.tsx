@@ -7,7 +7,7 @@ import { formatDate } from "date-fns";
 import { CalendarIcon, ExternalLink, FileIcon, FileText, Youtube } from "lucide-react";
 import { useNotificationPreference } from "@/contexts/NotificationPreferenceContext";
 import { formatDateTime, formatRelativeTime } from "@/lib/formatters/time";
-import { sortSubjectsBySpeakingTime, sortSubjectsByAgendaIndex, subjectToMapFeature } from "@/lib/utils";
+import { sortSubjectsBySpeakerContributionCount, sortSubjectsByAgendaIndex, subjectToMapFeature } from "@/lib/utils";
 import { categorizeSubjects, SUBJECT_CATEGORIES } from "@/lib/utils/subjects";
 import { calculateGeometryBounds } from "@/lib/geo";
 import { Link } from "@/i18n/routing";
@@ -60,7 +60,7 @@ export default function MeetingPage() {
     const agendaSubjects = useMemo(() =>
         agendaSortMode === 'agendaIndex'
             ? sortSubjectsByAgendaIndex(categorizedAgenda)
-            : sortSubjectsBySpeakingTime(categorizedAgenda),
+            : sortSubjectsBySpeakerContributionCount(categorizedAgenda),
         [categorizedAgenda, agendaSortMode]
     );
 
