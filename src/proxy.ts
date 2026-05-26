@@ -6,7 +6,7 @@ import { env } from '@/env.mjs';
 
 const i18nMiddleware = createIntlMiddleware(routing, { localeDetection: false });
 
-export default async function middleware(req: NextRequest) {
+export default async function proxy(req: NextRequest) {
     // Basic auth check
     if (!isHttpBasicAuthAuthenticated(req)) {
         return new NextResponse('Authentication required', {

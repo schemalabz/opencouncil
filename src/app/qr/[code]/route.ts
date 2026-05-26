@@ -3,7 +3,8 @@ import prisma from '@/lib/db/prisma';
 import { env } from '@/env.mjs';
 import { appendUtmParams } from '@/lib/utils/qr';
 
-export async function GET(req: NextRequest, { params }: { params: { code: string } }) {
+export async function GET(req: NextRequest, props: { params: Promise<{ code: string }> }) {
+    const params = await props.params;
     const code = params.code;
     if (!code) {
         return NextResponse.redirect(new URL('/', env.NEXTAUTH_URL), 302);

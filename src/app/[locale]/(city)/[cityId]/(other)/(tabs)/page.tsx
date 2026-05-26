@@ -60,13 +60,19 @@ export async function generateMetadata({
     };
 }
 
-export default async function MeetingsPage({
-    params: { cityId },
-    searchParams
-}: {
-    params: { cityId: string };
-    searchParams: { page?: string };
-}) {
+export default async function MeetingsPage(
+    props: {
+        params: Promise<{ cityId: string }>;
+        searchParams: Promise<{ page?: string }>;
+    }
+) {
+    const searchParams = await props.searchParams;
+    const params = await props.params;
+
+    const {
+        cityId
+    } = params;
+
     const pageNumber = parseInt(searchParams.page || '1', 10);
     const currentPage = isNaN(pageNumber) || pageNumber < 1 ? 1 : pageNumber;
     const pageSize = 12;

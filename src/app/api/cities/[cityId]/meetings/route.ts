@@ -54,10 +54,8 @@ const getMeetingsQuerySchema = z.object({
         .transform((val) => val === 'true'),
 });
 
-export async function POST(
-    request: NextRequest,
-    { params }: { params: { cityId: string } }
-) {
+export async function POST(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {
+    const params = await props.params;
     try {
         const authResult = await withServiceOrUserAuth(request, { cityId: params.cityId });
         const body = await request.json();
@@ -65,7 +63,7 @@ export async function POST(
         const cityId = params.cityId;
 
         // Auto-generate meetingId if not provided
-        let meetingId = providedMeetingId || await generateUniqueMeetingId(cityId, date);
+        let meetingId = providedMeetingId || (await generateUniqueMeetingId(cityId, date));
 
         const buildMeetingData = (id: string) => ({
             name,
@@ -176,10 +174,8 @@ export async function POST(
     }
 }
 
-export async function GET(
-    request: NextRequest,
-    { params }: { params: { cityId: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {
+    const params = await props.params;
     try {
         const { searchParams } = request.nextUrl;
         const queryParams = Object.fromEntries(searchParams.entries());

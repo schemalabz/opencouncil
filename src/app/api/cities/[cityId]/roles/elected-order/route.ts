@@ -12,10 +12,8 @@ const electedOrderSchema = z.object({
     })),
 });
 
-export async function POST(
-    request: Request,
-    { params }: { params: { cityId: string } }
-) {
+export async function POST(request: Request, props: { params: Promise<{ cityId: string }> }) {
+    const params = await props.params;
     try {
         await withUserAuthorizedToEdit({ cityId: params.cityId });
 

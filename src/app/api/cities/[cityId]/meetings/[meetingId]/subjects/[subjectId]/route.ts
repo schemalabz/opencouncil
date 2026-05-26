@@ -12,8 +12,9 @@ const patchSchema = z.object({
 
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { cityId: string; meetingId: string; subjectId: string } }
+    props: { params: Promise<{ cityId: string; meetingId: string; subjectId: string }> }
 ) {
+    const params = await props.params;
     try {
         const user = await getCurrentUser();
         if (!user?.isSuperAdmin) {

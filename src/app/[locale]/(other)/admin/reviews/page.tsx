@@ -9,11 +9,11 @@ import { formatDurationMs } from '@/lib/formatters/time';
 import { Card, CardContent } from '@/components/ui/card';
 
 interface PageProps {
-  searchParams: {
+  searchParams: Promise<{
     show?: 'needsAttention' | 'all' | 'completed';
     reviewerId?: string;
     last30Days?: string;
-  };
+  }>;
 }
 
 function filterReviewsByShow(reviews: ReviewListItem[], show: 'needsAttention' | 'all' | 'completed'): ReviewListItem[] {
@@ -49,7 +49,8 @@ function calculateReviewMetrics(reviews: ReviewListItem[]) {
   };
 }
 
-export default async function ReviewsPage({ searchParams }: PageProps) {
+export default async function ReviewsPage(props: PageProps) {
+  const searchParams = await props.searchParams;
   const { show = 'needsAttention', reviewerId, last30Days } = searchParams;
   const last30DaysBool = last30Days !== 'false';
 

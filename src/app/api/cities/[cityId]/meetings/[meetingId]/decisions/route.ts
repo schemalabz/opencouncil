@@ -8,8 +8,9 @@ import { z } from 'zod';
 
 export async function GET(
     request: Request,
-    { params }: { params: { cityId: string; meetingId: string } }
+    props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
+    const params = await props.params;
     await withUserAuthorizedToEdit({ cityId: params.cityId });
 
     const [decisions, extractedData, meetingAttendance] = await Promise.all([
@@ -31,8 +32,9 @@ const upsertSchema = z.object({
 
 export async function PUT(
     request: Request,
-    { params }: { params: { cityId: string; meetingId: string } }
+    props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
+    const params = await props.params;
     await withUserAuthorizedToEdit({ cityId: params.cityId });
 
     const session = await auth();
@@ -72,8 +74,9 @@ export async function PUT(
 
 export async function DELETE(
     request: Request,
-    { params }: { params: { cityId: string; meetingId: string } }
+    props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
+    const params = await props.params;
     await withUserAuthorizedToEdit({ cityId: params.cityId });
 
     const { searchParams } = new URL(request.url);
@@ -111,8 +114,9 @@ const postSchema = z.discriminatedUnion('action', [
 
 export async function POST(
     request: Request,
-    { params }: { params: { cityId: string; meetingId: string } }
+    props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
+    const params = await props.params;
     await withUserAuthorizedToEdit({ cityId: params.cityId });
 
     const body = await request.json();

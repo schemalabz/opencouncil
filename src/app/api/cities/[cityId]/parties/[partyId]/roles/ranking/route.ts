@@ -5,8 +5,9 @@ import { updateRoleRankings } from '@/lib/db/roles'
 
 export async function POST(
     request: Request,
-    { params }: { params: { cityId: string, partyId: string } }
+    props: { params: Promise<{ cityId: string, partyId: string }> }
 ) {
+    const params = await props.params;
     try {
         await withUserAuthorizedToEdit({ partyId: params.partyId });
 

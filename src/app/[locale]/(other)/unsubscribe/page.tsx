@@ -5,10 +5,11 @@ import { XCircle } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 
 interface Props {
-    searchParams: { token?: string };
+    searchParams: Promise<{ token?: string }>;
 }
 
-export default async function UnsubscribePage({ searchParams }: Props) {
+export default async function UnsubscribePage(props: Props) {
+    const searchParams = await props.searchParams;
     const t = await getTranslations('Unsubscribe');
     const token = searchParams.token;
 

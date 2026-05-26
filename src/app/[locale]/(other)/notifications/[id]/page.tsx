@@ -11,7 +11,8 @@ import { ColorPercentageRing } from '@/components/ui/color-percentage-ring';
 import { getNotificationForView } from '@/lib/db/notifications';
 import { stripMarkdown } from '@/lib/formatters/markdown';
 
-export default async function NotificationPage({ params }: { params: { id: string; locale: string } }) {
+export default async function NotificationPage(props: { params: Promise<{ id: string; locale: string }> }) {
+    const params = await props.params;
     const notification = await getNotificationForView(params.id);
 
     if (!notification) {

@@ -3,10 +3,8 @@ import { deleteUser } from "@/lib/db/users"
 import { NextResponse } from "next/server"
 import { handleApiError } from "@/lib/api/errors"
 
-export async function DELETE(
-    request: Request,
-    { params }: { params: { userId: string } }
-) {
+export async function DELETE(request: Request, props: { params: Promise<{ userId: string }> }) {
+    const params = await props.params;
     try {
         const currentUser = await getCurrentUser()
 

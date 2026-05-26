@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db/prisma';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
     await withUserAuthorizedToEdit({});
     const id = params.id;
     const body = await req.json();
@@ -26,7 +27,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
     await withUserAuthorizedToEdit({});
     const id = params.id;
     try {

@@ -29,8 +29,9 @@ const bodySchema = z.object({
 
 export async function PUT(
     request: NextRequest,
-    { params }: { params: { cityId: string, bodyId: string } }
+    props: { params: Promise<{ cityId: string, bodyId: string }> }
 ) {
+    const params = await props.params;
     try {
         await withUserAuthorizedToEdit({ cityId: params.cityId });
         const body = await request.json();
@@ -66,8 +67,9 @@ export async function PUT(
 
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { cityId: string, bodyId: string } }
+    props: { params: Promise<{ cityId: string, bodyId: string }> }
 ) {
+    const params = await props.params;
     try {
         await withUserAuthorizedToEdit({ cityId: params.cityId });
         await deleteAdministrativeBody(params.bodyId);

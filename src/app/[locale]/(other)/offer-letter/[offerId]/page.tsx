@@ -5,11 +5,12 @@ import OfferLetter from '@/components/offer-letter/offer-letter'
 import SupersededOffer from '@/components/offer-letter/superseded-offer'
 
 interface Props {
-    params: {
+    params: Promise<{
         offerId: string
-    }
+    }>
 }
-export default async function OfferLetterPage({ params }: Props) {
+export default async function OfferLetterPage(props: Props) {
+    const params = await props.params;
     const offer = await getOffer(params.offerId)
 
     if (!offer) {

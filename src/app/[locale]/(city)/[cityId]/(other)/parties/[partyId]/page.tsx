@@ -78,7 +78,11 @@ export async function generateMetadata({
     };
 }
 
-export default async function PartyPage({ params }: { params: { locale: string, partyId: string, cityId: string } }) {
+export default async function PartyPage(
+    props: { params: Promise<{ locale: string, partyId: string, cityId: string }> }
+) {
+    const params = await props.params;
+
     const [party, city, administrativeBodies] = await Promise.all([
         getPartyCached(params.partyId),
         getCityCached(params.cityId),

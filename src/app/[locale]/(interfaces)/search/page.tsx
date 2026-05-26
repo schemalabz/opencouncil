@@ -61,7 +61,13 @@ export async function generateMetadata({
     };
 }
 
-export default async function SearchPage({ params: { locale } }: { params: { locale: string } }) {
+export default async function SearchPage(props: { params: Promise<{ locale: string }> }) {
+    const params = await props.params;
+
+    const {
+        locale
+    } = params;
+
     return <Suspense fallback={<div>Loading...</div>}>
         <SearchPageComponent />
     </Suspense>

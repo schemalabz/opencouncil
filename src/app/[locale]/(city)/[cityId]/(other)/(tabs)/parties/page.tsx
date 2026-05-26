@@ -3,11 +3,17 @@ import { isUserAuthorizedToEdit } from "@/lib/auth";
 import CityParties from "@/components/cities/CityParties";
 import { getPartiesForCityCached } from "@/lib/cache";
 import { getPeopleForCityCached } from "@/lib/cache";
-export default async function PartiesPage({
-    params: { cityId }
-}: {
-    params: { cityId: string }
-}) {
+export default async function PartiesPage(
+    props: {
+        params: Promise<{ cityId: string }>
+    }
+) {
+    const params = await props.params;
+
+    const {
+        cityId
+    } = params;
+
     const people = await getPeopleForCityCached(cityId);
     const partiesWithPersons = await getPartiesForCityCached(cityId);
 

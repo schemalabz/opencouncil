@@ -3,13 +3,22 @@ import { notFound } from "next/navigation";
 
 const VALID_CITY_ID = /^[a-z][a-z0-9_-]*$/;
 
-export default async function CityLayout({
-    children,
-    params: { locale, cityId }
-}: {
-    children: React.ReactNode,
-    params: { locale: string, cityId: string }
-}) {
+export default async function CityLayout(
+    props: {
+        children: React.ReactNode,
+        params: Promise<{ locale: string, cityId: string }>
+    }
+) {
+    const params = await props.params;
+
+    const {
+        locale,
+        cityId
+    } = params;
+
+    const {
+        children
+    } = props;
 
     if (!VALID_CITY_ID.test(cityId)) {
         notFound();

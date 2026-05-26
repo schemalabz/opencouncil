@@ -4,7 +4,11 @@ import { uploadFile } from '@/lib/s3'
 import { getParty, editParty, deleteParty } from '@/lib/db/parties'
 import { withUserAuthorizedToEdit } from '@/lib/auth'
 
-export async function GET(request: Request, { params }: { params: { cityId: string, partyId: string } }) {
+export async function GET(
+    request: Request,
+    props: { params: Promise<{ cityId: string, partyId: string }> }
+) {
+    const params = await props.params;
     try {
         const party = await getParty(params.partyId)
         if (!party) {
@@ -17,7 +21,11 @@ export async function GET(request: Request, { params }: { params: { cityId: stri
     }
 }
 
-export async function PUT(request: Request, { params }: { params: { cityId: string, partyId: string } }) {
+export async function PUT(
+    request: Request,
+    props: { params: Promise<{ cityId: string, partyId: string }> }
+) {
+    const params = await props.params;
     try {
         await withUserAuthorizedToEdit({ partyId: params.partyId });
         const formData = await request.formData()
@@ -61,7 +69,11 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     }
 }
 
-export async function DELETE(request: Request, { params }: { params: { cityId: string, partyId: string } }) {
+export async function DELETE(
+    request: Request,
+    props: { params: Promise<{ cityId: string, partyId: string }> }
+) {
+    const params = await props.params;
     try {
         await withUserAuthorizedToEdit({ partyId: params.partyId });
         await deleteParty(params.partyId)

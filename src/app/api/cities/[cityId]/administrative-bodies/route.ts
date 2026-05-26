@@ -28,10 +28,8 @@ const bodySchema = z.object({
     }),
 });
 
-export async function GET(
-    request: NextRequest,
-    { params }: { params: { cityId: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {
+    const params = await props.params;
     try {
         const { cityId } = params;
 
@@ -54,10 +52,8 @@ export async function GET(
     }
 }
 
-export async function POST(
-    request: NextRequest,
-    { params }: { params: { cityId: string } }
-) {
+export async function POST(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {
+    const params = await props.params;
     try {
         await withUserAuthorizedToEdit({ cityId: params.cityId });
         const cityId = params.cityId;
