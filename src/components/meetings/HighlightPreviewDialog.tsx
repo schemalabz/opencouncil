@@ -1,15 +1,21 @@
 "use client";
-import React, { useMemo, useState } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Video as VideoIcon, Play, Pause, Monitor, Smartphone, CheckCircle, Clock, List, FileText } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Video as VideoIcon, Play, Pause, Monitor, Smartphone, CheckCircle, Clock, List, FileText } from 'lucide-react';
 import { useHighlight } from './HighlightContext';
 import { useVideo } from './VideoProvider';
+import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { HighlightPreview } from './HighlightPreview';
 import { Video } from './Video';
 import { toast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
 
 export function HighlightPreviewDialog() {
   const {
@@ -29,16 +35,23 @@ export function HighlightPreviewDialog() {
   } = useHighlight();
 
   const { isPlaying, togglePlayPause } = useVideo();
+  const { taskStatus } = useCouncilMeetingData();
+  const isTranscriptVerified = Boolean(taskStatus.humanReview);
   const [isVideoHovered, setIsVideoHovered] = useState(false);
   const [view, setView] = useState<'preview' | 'status'>('preview');
   const [isGenerating, setIsGenerating] = useState(false);
   const router = useRouter();
   const t = useTranslations('highlights');
 
+  const captionsId = useId();
+  const speakersId = useId();
+  const aspectSwitchId = useId();
+
   // Render settings (session-scoped only)
   const [includeCaptions, setIncludeCaptions] = useState(true);
   const [overlaySpeakerNames, setOverlaySpeakerNames] = useState(true);
   const [aspectRatio, setAspectRatio] = useState<'default' | 'social-9x16'>('default');
+  const isSocial = aspectRatio === 'social-9x16';
 
   const hasExistingVideo = useMemo(() => Boolean(editingHighlight?.videoUrl || editingHighlight?.muxPlaybackId), [editingHighlight]);
   const generateCtaLabel = hasExistingVideo ? t('previewDialog.regenerateVideo') : t('previewDialog.generateVideo');
@@ -175,43 +188,83 @@ export function HighlightPreviewDialog() {
             <div className="flex items-center gap-4 flex-wrap">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">{t('previewDialog.format')}</span>
-                <Button
-                  variant={aspectRatio === 'default' ? 'secondary' : 'outline'}
-                  size="sm"
+                <button
+                  type="button"
                   onClick={() => setAspectRatio('default')}
-                  className="h-7 px-2"
+                  className={cn(
+                    "flex items-center gap-1 text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded",
+                    isSocial ? "text-muted-foreground" : "font-medium"
+                  )}
                 >
-                  <Monitor className="h-3 w-3 mr-1" />
+                  <Monitor className="h-3.5 w-3.5" />
                   16:9
-                </Button>
-                <Button
-                  variant={aspectRatio === 'social-9x16' ? 'secondary' : 'outline'}
-                  size="sm"
+                </button>
+                <Switch
+                  id={aspectSwitchId}
+                  checked={isSocial}
+                  onCheckedChange={(checked) => setAspectRatio(checked ? 'social-9x16' : 'default')}
+                  aria-label={t('previewDialog.format')}
+                />
+                <button
+                  type="button"
                   onClick={() => setAspectRatio('social-9x16')}
-                  className="h-7 px-2"
+                  className={cn(
+                    "flex items-center gap-1 text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded",
+                    isSocial ? "font-medium" : "text-muted-foreground"
+                  )}
                 >
-                  <Smartphone className="h-3 w-3 mr-1" />
+                  <Smartphone className="h-3.5 w-3.5" />
                   9:16
-                </Button>
+                </button>
               </div>
 
               <div className="flex items-center gap-2">
-                <Button
-                  variant={includeCaptions ? 'secondary' : 'outline'}
-                  size="sm"
-                  onClick={() => setIncludeCaptions(!includeCaptions)}
-                  className="h-7 px-2 text-xs"
+                <Checkbox
+                  id={captionsId}
+                  checked={includeCaptions}
+                  onCheckedChange={(checked) => setIncludeCaptions(checked === true)}
+                />
+                <Label
+                  htmlFor={captionsId}
+                  className={cn(
+                    "text-xs cursor-pointer",
+                    includeCaptions && (isTranscriptVerified ? "text-green-700 dark:text-green-400" : "text-yellow-700 dark:text-yellow-500")
+                  )}
                 >
                   {t('previewDialog.captions')}
-                </Button>
-                <Button
-                  variant={overlaySpeakerNames ? 'secondary' : 'outline'}
-                  size="sm"
-                  onClick={() => setOverlaySpeakerNames(!overlaySpeakerNames)}
-                  className="h-7 px-2 text-xs"
-                >
+                </Label>
+                {includeCaptions && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label={isTranscriptVerified ? t('previewDialog.captionsVerified') : t('previewDialog.captionsUnverified')}
+                        className={cn(
+                          "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          isTranscriptVerified ? "text-green-600 dark:text-green-400" : "text-yellow-600 dark:text-yellow-500"
+                        )}
+                      >
+                        {isTranscriptVerified
+                          ? <CheckCircle2 className="h-3.5 w-3.5" />
+                          : <AlertTriangle className="h-3.5 w-3.5" />}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" align="center" className="max-w-[260px] text-xs whitespace-normal break-words">
+                      {isTranscriptVerified ? t('previewDialog.captionsVerified') : t('previewDialog.captionsUnverified')}
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id={speakersId}
+                  checked={overlaySpeakerNames}
+                  onCheckedChange={(checked) => setOverlaySpeakerNames(checked === true)}
+                />
+                <Label htmlFor={speakersId} className="text-xs cursor-pointer">
                   {t('previewDialog.speakerOverlays')}
-                </Button>
+                </Label>
               </div>
             </div>
           </div>
@@ -314,10 +367,12 @@ export function HighlightPreviewDialog() {
   );
 
   return (
-    <Dialog open={isPreviewDialogOpen} onOpenChange={(open) => (open ? undefined : closePreviewDialog())}>
-      <DialogContent className={view === 'preview' ? 'max-w-5xl' : 'sm:max-w-md'}>
-        {view === 'preview' ? renderPreviewContent() : renderStatusContent()}
-      </DialogContent>
-    </Dialog>
+    <TooltipProvider delayDuration={150}>
+      <Dialog open={isPreviewDialogOpen} onOpenChange={(open) => (open ? undefined : closePreviewDialog())}>
+        <DialogContent className={view === 'preview' ? 'max-w-5xl' : 'sm:max-w-md'}>
+          {view === 'preview' ? renderPreviewContent() : renderStatusContent()}
+        </DialogContent>
+      </Dialog>
+    </TooltipProvider>
   );
 }

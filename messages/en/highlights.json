@@ -162,6 +162,8 @@
     "socialAspectRatio": "Social Media (9:16)",
     "contentOptions": "Content Options:",
     "captions": "Captions",
+    "captionsVerified": "Transcript has been reviewed — captions will be accurate",
+    "captionsUnverified": "Transcript not yet reviewed — some captions may be inaccurate",
     "speakerOverlays": "Speakers",
     "generateVideo": "Generate Video",
     "regenerateVideo": "Re-generate Video",
