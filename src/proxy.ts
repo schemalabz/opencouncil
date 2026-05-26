@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { auth } from './auth'
 import { env } from '@/env.mjs';
 
-const i18nMiddleware = createIntlMiddleware(routing, { localeDetection: false });
+const i18nMiddleware = createIntlMiddleware(routing);
 
 export default async function proxy(req: NextRequest) {
     // Basic auth check

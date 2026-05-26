@@ -45,7 +45,7 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
             cityId: params.cityId,
         })
 
-        revalidateTag(`city:${params.cityId}:parties`);
+        revalidateTag(`city:${params.cityId}:parties`, 'max');
         revalidatePath(`/${params.cityId}/parties`);
 
         return NextResponse.json(party)

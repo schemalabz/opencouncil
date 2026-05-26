@@ -58,7 +58,7 @@ export async function PUT(
             ...(logoUrl && { logo: logoUrl }),
         })
 
-        revalidateTag(`city:${params.cityId}:parties`);
+        revalidateTag(`city:${params.cityId}:parties`, 'max');
         revalidatePath(`/${params.cityId}/people`);
         revalidatePath(`/${params.cityId}/parties`);
 
@@ -77,7 +77,7 @@ export async function DELETE(
     try {
         await withUserAuthorizedToEdit({ partyId: params.partyId });
         await deleteParty(params.partyId)
-        revalidateTag(`city:${params.cityId}:parties`);
+        revalidateTag(`city:${params.cityId}:parties`, 'max');
         revalidatePath(`/${params.cityId}/people`);
         revalidatePath(`/${params.cityId}/parties`);
         return NextResponse.json({ message: 'Party deleted successfully' })

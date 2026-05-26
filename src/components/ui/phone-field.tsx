@@ -54,7 +54,7 @@ export function PhoneField({
     // passes an unmemoized callback: track the last emitted state via a ref.
     const onValidityChangeRef = useRef(onValidityChange);
     onValidityChangeRef.current = onValidityChange;
-    const lastEmittedRef = useRef<string>();
+    const lastEmittedRef = useRef<string | undefined>(undefined);
     useEffect(() => {
         const key = `${active}|${isEmpty}|${isValid}`;
         if (lastEmittedRef.current !== key) {

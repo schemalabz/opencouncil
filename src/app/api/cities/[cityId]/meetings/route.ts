@@ -91,7 +91,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
             meeting = await createCouncilMeetingDirect(buildMeetingData(meetingId));
         }
 
-        revalidateTag(`city:${cityId}:meetings`);
+        revalidateTag(`city:${cityId}:meetings`, 'max');
         revalidatePath(`/${cityId}`, "layout");
 
         // Fetch city data (should exist since meeting was created successfully)

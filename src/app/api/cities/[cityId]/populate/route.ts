@@ -211,7 +211,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
         });
 
         try {
-            revalidateTag(`city:${params.cityId}`);
+            revalidateTag(`city:${params.cityId}`, 'max');
         } catch (error) {
             console.error('Error revalidating city:', error);
         }

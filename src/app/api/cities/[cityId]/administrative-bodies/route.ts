@@ -73,7 +73,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
             diavgeiaUnitIds: diavgeiaUnitIds || [],
         });
 
-        revalidateTag(`city:${cityId}:administrativeBodies`);
+        revalidateTag(`city:${cityId}:administrativeBodies`, 'max');
         revalidatePath(`/${cityId}/people`);
 
         return NextResponse.json(newBody, { status: 201 });

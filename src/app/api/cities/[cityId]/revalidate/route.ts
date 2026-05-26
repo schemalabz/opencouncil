@@ -12,7 +12,7 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
     console.log('Revalidating cache for city', cityId);
 
     // Revalidate the main city tag - this will invalidate all cached entries for this city
-    revalidateTag(`city:${cityId}`);
+    revalidateTag(`city:${cityId}`, 'max');
     revalidatePath(`/${cityId}`, "layout");
 
     return NextResponse.json({ 

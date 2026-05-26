@@ -68,7 +68,7 @@ export async function PUT(
         publishDate: parsed.publishDate ? new Date(parsed.publishDate) : undefined,
         createdById: userId, // Track who manually added this decision
     });
-    revalidateTag(`city:${params.cityId}:meetings`);
+    revalidateTag(`city:${params.cityId}:meetings`, 'max');
     return NextResponse.json(decision);
 }
 
@@ -103,7 +103,7 @@ export async function DELETE(
     }
 
     await deleteDecision(subjectId);
-    revalidateTag(`city:${params.cityId}:meetings`);
+    revalidateTag(`city:${params.cityId}:meetings`, 'max');
     return NextResponse.json({ success: true });
 }
 
@@ -128,7 +128,7 @@ export async function POST(
 
     if (parsed.data.action === 'clearExtractedData') {
         const result = await clearExtractedDataForMeeting(params.cityId, params.meetingId);
-        revalidateTag(`city:${params.cityId}:meetings`);
+        revalidateTag(`city:${params.cityId}:meetings`, 'max');
         return NextResponse.json(result);
     }
 
@@ -149,6 +149,6 @@ export async function POST(
     }
 
     await resetExtractionForSubject(parsed.data.subjectId);
-    revalidateTag(`city:${params.cityId}:meetings`);
+    revalidateTag(`city:${params.cityId}:meetings`, 'max');
     return NextResponse.json({ success: true });
 }

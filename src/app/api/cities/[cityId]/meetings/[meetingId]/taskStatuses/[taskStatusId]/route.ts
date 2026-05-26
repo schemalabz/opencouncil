@@ -40,7 +40,7 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ ta
 
     await deleteTaskStatus(params.taskStatusId);
 
-    revalidateTag(`city:${taskStatus.cityId}:meeting:${taskStatus.councilMeetingId}:derived`);
+    revalidateTag(`city:${taskStatus.cityId}:meeting:${taskStatus.councilMeetingId}:derived`, 'max');
 
     return NextResponse.json({ message: 'Task status deleted successfully' });
 }

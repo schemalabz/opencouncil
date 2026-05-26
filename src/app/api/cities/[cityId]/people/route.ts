@@ -78,8 +78,8 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
             roles
         });
 
-        revalidateTag(`city:${params.cityId}:people`);
-        revalidateTag(`city:${params.cityId}:parties`);
+        revalidateTag(`city:${params.cityId}:people`, 'max');
+        revalidateTag(`city:${params.cityId}:parties`, 'max');
         revalidatePath(`/${params.cityId}/people`);
         revalidatePath(`/${params.cityId}/parties`);
 

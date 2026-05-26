@@ -220,7 +220,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                 // Revalidate cache only for successful tasks that affect meeting data
                 if (updatedTask.cityId && shouldRevalidateForTaskType(updatedTask.type as MeetingTaskType)) {
                     try {
-                        revalidateTag(`city:${updatedTask.cityId}:meetings`);
+                        revalidateTag(`city:${updatedTask.cityId}:meetings`, 'max');
                     } catch (revalidateError) {
                         console.error(`Error revalidating cache for task ${taskId}:`, revalidateError);
                     }

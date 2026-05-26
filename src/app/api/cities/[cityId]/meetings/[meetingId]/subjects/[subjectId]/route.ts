@@ -45,7 +45,7 @@ export async function PATCH(
             data: parsed,
         });
 
-        revalidateTag(`city:${params.cityId}:meeting:${params.meetingId}`);
+        revalidateTag(`city:${params.cityId}:meeting:${params.meetingId}`, 'max');
         revalidatePath(`/${params.cityId}/${params.meetingId}`, 'layout');
 
         return NextResponse.json({

@@ -22,7 +22,7 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
 
         await updateElectedOrder(params.cityId, administrativeBodyId, rankings);
 
-        revalidateTag(`city:${params.cityId}:people`);
+        revalidateTag(`city:${params.cityId}:people`, 'max');
 
         return NextResponse.json({ success: true });
     } catch (error) {

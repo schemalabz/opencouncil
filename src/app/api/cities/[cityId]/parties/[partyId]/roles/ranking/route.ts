@@ -21,8 +21,8 @@ export async function POST(
         await updateRoleRankings(params.cityId, params.partyId, rankings);
 
         // Revalidate cache
-        revalidateTag(`city:${params.cityId}:parties`);
-        revalidateTag(`city:${params.cityId}:people`);
+        revalidateTag(`city:${params.cityId}:parties`, 'max');
+        revalidateTag(`city:${params.cityId}:people`, 'max');
         revalidatePath(`/${params.cityId}/parties/${params.partyId}`);
         revalidatePath(`/${params.cityId}/people`);
 

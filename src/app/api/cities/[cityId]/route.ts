@@ -112,9 +112,9 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
 
         // Revalidate cache after successful operations
         try {
-            revalidateTag(`city:${params.cityId}:basic`);
-            revalidateTag(`city:${params.cityId}:message`);
-            revalidateTag('cities:all');
+            revalidateTag(`city:${params.cityId}:basic`, 'max');
+            revalidateTag(`city:${params.cityId}:message`, 'max');
+            revalidateTag('cities:all', 'max');
             revalidatePath(`/${params.cityId}`, "layout");
         } catch (error) {
             console.error('Error revalidating cache:', error);

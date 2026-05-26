@@ -10,9 +10,9 @@ interface MessageListProps {
     messages: ChatMessage[];
     currentMessage: ChatMessage | null;
     isLoading: boolean;
-    messagesEndRef: React.RefObject<HTMLDivElement>;
-    subjectScrollRef: React.RefObject<HTMLDivElement>;
-    chatContainerRef: React.RefObject<HTMLDivElement>;
+    messagesEndRef: React.RefObject<HTMLDivElement | null>;
+    subjectScrollRef: React.RefObject<HTMLDivElement | null>;
+    chatContainerRef: React.RefObject<HTMLDivElement | null>;
     onSuggestedPromptClick: (text: string) => void;
 }
 

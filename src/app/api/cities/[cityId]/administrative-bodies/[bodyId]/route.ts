@@ -49,7 +49,7 @@ export async function PUT(
             diavgeiaUnitIds: diavgeiaUnitIds || [],
         });
 
-        revalidateTag(`city:${params.cityId}:administrativeBodies`);
+        revalidateTag(`city:${params.cityId}:administrativeBodies`, 'max');
         revalidatePath(`/${params.cityId}/people`);
 
         return NextResponse.json(updatedBody);
@@ -73,7 +73,7 @@ export async function DELETE(
     try {
         await withUserAuthorizedToEdit({ cityId: params.cityId });
         await deleteAdministrativeBody(params.bodyId);
-        revalidateTag(`city:${params.cityId}:administrativeBodies`);
+        revalidateTag(`city:${params.cityId}:administrativeBodies`, 'max');
         revalidatePath(`/${params.cityId}/people`);
         return new NextResponse(null, { status: 204 });
     } catch (error) {

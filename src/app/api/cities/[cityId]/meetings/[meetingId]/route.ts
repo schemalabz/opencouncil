@@ -76,7 +76,7 @@ export async function PUT(
             administrativeBodyId: administrativeBodyId || null,
         });
 
-        revalidateTag(`city:${params.cityId}:meetings`);
+        revalidateTag(`city:${params.cityId}:meetings`, 'max');
         revalidatePath(`/${params.cityId}`, "layout");
 
         return NextResponse.json(meeting);
