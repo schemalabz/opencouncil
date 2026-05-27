@@ -7,8 +7,14 @@
 // webfont loading and image decode, which we depend on before screenshot.
 // The container is wrapped with the next/font class names so html-to-image's
 // @font-face inlining picks up the hashed font family.
+//
+// We use renderToStaticMarkup + innerHTML rather than React's createRoot to
+// mount the tree synchronously. createRoot schedules a render that commits
+// asynchronously; without a strict flushSync, html-to-image can race and
+// capture an empty container. Templates are pure render functions with no
+// hooks or refs, so the static-markup path is a faithful equivalent.
 
-import { createRoot, type Root } from "react-dom/client";
+import { renderToStaticMarkup } from "react-dom/server";
 import { toBlob } from "html-to-image";
 import { inter, roboto } from "@/lib/fonts";
 
@@ -61,7 +67,6 @@ async function rasterize(container: HTMLElement, width: number, height: number):
         // retina screens (default multiplies by window.devicePixelRatio).
         pixelRatio: 1,
         cacheBust: true,
-        style: { transform: "none" },
     });
 }
 
@@ -72,9 +77,6 @@ export async function renderStoryToBlob(
 ): Promise<Blob> {
     const container = document.createElement("div");
     container.className = `${inter.className} ${roboto.className}`;
-    // position: absolute (not fixed) + top: 0/left: -10000px is the well-trodden
-    // off-screen pattern for html-to-image. position: fixed has been observed to
-    // produce blank captures when the source is outside the viewport.
     Object.assign(container.style, {
         position: "absolute",
         top: "0",
@@ -82,15 +84,13 @@ export async function renderStoryToBlob(
         width: `${width}px`,
         height: `${height}px`,
     } satisfies Partial<CSSStyleDeclaration>);
+    container.innerHTML = renderToStaticMarkup(element);
     document.body.appendChild(container);
 
-    let root: Root | null = null;
     try {
-        root = createRoot(container);
-        root.render(element);
-
-        // Two animation frames: one for React to commit, one for the browser to lay out.
-        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        // One animation frame so the browser has a chance to lay out and paint
+        // the freshly-mounted tree before we ask html-to-image to serialize it.
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
         if (typeof document.fonts?.ready?.then === "function") {
             await document.fonts.ready;
@@ -101,12 +101,13 @@ export async function renderStoryToBlob(
         // where webfonts/images aren't yet hot in the canvas pipeline.
         let blob = await rasterize(container, width, height);
         if (!blob || blob.size < 1024) {
+            console.warn(`[story-export] first toBlob attempt returned ${blob ? `${blob.size}b` : "null"}; retrying`);
             blob = await rasterize(container, width, height);
         }
         if (!blob) throw new Error("Failed to rasterize story template (empty blob)");
+        console.log(`[story-export] rendered ${width}×${height} → ${blob.size}b`);
         return blob;
     } finally {
-        if (root) root.unmount();
         container.remove();
     }
 }

@@ -22,7 +22,7 @@ const STORY_HEIGHT = 1920;
 // transform so the dialog stays fast even on slow devices. Layout dimensions are still
 // the native 1080×1920 — only the paint is scaled — so the download path produces a
 // 1:1 pixel-faithful PNG without re-laying anything out.
-const PREVIEW_SCALE = 0.22;
+const PREVIEW_SCALE = 0.28;
 
 interface StoryTemplatePickerDialogProps {
     open: boolean;
@@ -81,7 +81,7 @@ export default function StoryTemplatePickerDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-3xl">
                 <DialogHeader>
                     <DialogTitle>Επιλογή Story</DialogTitle>
                     <DialogDescription>
@@ -97,7 +97,7 @@ export default function StoryTemplatePickerDialog({
                         const meta = STORY_TEMPLATES[template];
                         const isDownloading = downloading === template;
                         return (
-                            <div key={template} className="flex flex-col w-full max-w-[240px]">
+                            <div key={template} className="flex flex-col w-full max-w-[320px]">
                                 <div
                                     className="relative overflow-hidden rounded-md border bg-muted shadow-sm mx-auto"
                                     style={{
