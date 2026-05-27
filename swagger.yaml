@@ -197,6 +197,51 @@ paths:
         '500':
           description: Failed to fetch person
 
+  # Utterances
+  /api/utterance/{utteranceId}/context:
+    get:
+      summary: Get utterance context (neighbors)
+      description: |
+        Returns N utterances immediately before and after the target utterance within
+        the same meeting, crossing speaker segments. Designed for transcript review
+        tools that already have the target utterance locally and only need surrounding
+        context to judge the flow of speech.
+      parameters:
+        - name: utteranceId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: before
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 50
+            default: 10
+        - name: after
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 50
+            default: 10
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UtteranceContext'
+        '400':
+          description: Invalid before/after parameter
+        '404':
+          description: Utterance not found
+        '500':
+          description: Internal server error
+
   # Search
   /api/search:
     post:
@@ -418,6 +463,47 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Word'
+
+    UtteranceContextNeighbor:
+      type: object
+      required: [id, text, start, end, speakerTagId]
+      properties:
+        id:
+          type: string
+        text:
+          type: string
+        start:
+          type: number
+        end:
+          type: number
+        speakerTagId:
+          type: string
+
+    UtteranceContext:
+      type: object
+      required: [meeting, before, after]
+      properties:
+        meeting:
+          type: object
+          required: [id, cityId, name, dateTime]
+          properties:
+            id:
+              type: string
+            cityId:
+              type: string
+            name:
+              type: string
+            dateTime:
+              type: string
+              format: date-time
+        before:
+          type: array
+          items:
+            $ref: '#/components/schemas/UtteranceContextNeighbor'
+        after:
+          type: array
+          items:
+            $ref: '#/components/schemas/UtteranceContextNeighbor'
 
     Word:
       type: object
