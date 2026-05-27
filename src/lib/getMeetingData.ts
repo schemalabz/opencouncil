@@ -36,9 +36,27 @@ export type MeetingData = MeetingDataCore & {
 }
 
 /**
+ * Process-local inflight map for getMeetingDataCore. Coalesces concurrent
+ * calls for the same (cityId, meetingId) onto a single Promise.
+ *
+ * Fills the gap between React.cache() (intra-request only) and unstable_cache
+ * (which deliberately bypasses the transcript fetch because it's >2MB). Under
+ * RSC <Link prefetch> cascades the same meeting was being fetched 20+ times
+ * in <6s — each refetch a multi-MB transcript pull from PG over the Atlantic
+ * plus an O(n_segments) JS walk — eventually pegging CPU and freezing the
+ * event loop on the single-vCPU container.
+ *
+ * Entries are removed when the underlying Promise settles, so this is bounded
+ * to whatever's actually in-flight; it's not a long-lived cache.
+ */
+const coreInflight = new Map<string, Promise<MeetingDataCore>>();
+
+/**
  * Fetches all meeting data except user-specific highlights.
  * Individual sub-queries are cached with unstable_cache where possible.
  * The meeting query and transcript are NOT cached (auth + size constraints).
+ * Concurrent callers for the same (cityId, meetingId) are coalesced via
+ * coreInflight above.
  */
 export const getMeetingDataCore = async (cityId: string, meetingId: string): Promise<MeetingDataCore> => {
     // PROBE: top 3 caller frames so we can see who's invoking Core during freeze.
@@ -48,7 +66,24 @@ export const getMeetingDataCore = async (cityId: string, meetingId: string): Pro
         .slice(2, 5)
         .map(l => l.trim())
         .join(' ← ') ?? 'unknown';
-    console.log(`getMeetingDataCore ${cityId}/${meetingId} from: ${callerHint}`);
+    const key = `${cityId}/${meetingId}`;
+
+    const existing = coreInflight.get(key);
+    if (existing) {
+        console.log(`getMeetingDataCore ${key} DEDUPED from: ${callerHint}`);
+        return existing;
+    }
+
+    console.log(`getMeetingDataCore ${key} LEADER from: ${callerHint}`);
+    const promise = fetchMeetingDataCore(cityId, meetingId);
+    coreInflight.set(key, promise);
+    // Discard the .finally() return — we only need the side effect, and
+    // followers still resolve/reject through the original `promise` ref.
+    promise.finally(() => coreInflight.delete(key));
+    return promise;
+};
+
+async function fetchMeetingDataCore(cityId: string, meetingId: string): Promise<MeetingDataCore> {
     const meetingTags = { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`, `city:${cityId}:meeting:${meetingId}`] };
     const cityTags = { tags: ['city', `city:${cityId}`, `city:${cityId}:basic`] };
 
