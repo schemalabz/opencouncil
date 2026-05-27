@@ -15,8 +15,23 @@
 // hooks or refs, so the static-markup path is a faithful equivalent.
 
 import { renderToStaticMarkup } from "react-dom/server";
-import { toBlob } from "html-to-image";
+import { toBlob, getFontEmbedCSS } from "html-to-image";
 import { inter, roboto } from "@/lib/fonts";
+
+// Cached on first call — the @font-face rules are static for the session and
+// re-fetching woff2 files on every export is wasteful.
+let cachedFontEmbedCSS: string | null = null;
+
+async function getCachedFontEmbedCSS(probe: HTMLElement): Promise<string> {
+    if (cachedFontEmbedCSS !== null) return cachedFontEmbedCSS;
+    try {
+        cachedFontEmbedCSS = await getFontEmbedCSS(probe);
+    } catch (e) {
+        console.error("[story-export] getFontEmbedCSS threw, exporting without webfonts:", e);
+        cachedFontEmbedCSS = "";
+    }
+    return cachedFontEmbedCSS;
+}
 
 export interface RenderStoryToBlobOptions {
     width: number;
@@ -59,7 +74,12 @@ async function waitForImages(container: HTMLElement): Promise<void> {
     await Promise.all(imgs.map((img) => img.decode().catch(() => {})));
 }
 
-async function rasterize(container: HTMLElement, width: number, height: number): Promise<Blob | null> {
+async function rasterize(
+    container: HTMLElement,
+    width: number,
+    height: number,
+    fontEmbedCSS: string,
+): Promise<Blob | null> {
     return toBlob(container, {
         width,
         height,
@@ -78,6 +98,11 @@ async function rasterize(container: HTMLElement, width: number, height: number):
             opacity: "1",
             visibility: "visible",
         },
+        // Pre-computed @font-face block (Inter, Roboto) with woff2 data URIs.
+        // Without this, the SVG foreignObject doesn't have access to the page's
+        // next/font stylesheet and falls back to serif — breaking layout because
+        // serif Greek glyphs are ~40% wider than Inter.
+        fontEmbedCSS,
     });
 }
 
@@ -94,6 +119,11 @@ export async function renderStoryToBlob(
         left: "-10000px",
         width: `${width}px`,
         height: `${height}px`,
+        // Pin the font-family directly so the cloned root carries it as inline
+        // style, independent of whether the document's font stylesheets get
+        // inlined cleanly into the SVG. End the chain in a system sans-serif
+        // so any miss falls back to something close to Inter, not Times.
+        fontFamily: `${inter.style.fontFamily}, system-ui, -apple-system, sans-serif`,
     } satisfies Partial<CSSStyleDeclaration>);
     container.innerHTML = renderToStaticMarkup(element);
     document.body.appendChild(container);
@@ -108,23 +138,25 @@ export async function renderStoryToBlob(
         }
         await waitForImages(container);
 
+        const fontEmbedCSS = await getCachedFontEmbedCSS(container);
         console.log(
             `[story-export] container ready: ${container.children.length} children, ` +
-                `markup=${container.innerHTML.length}b, imgs=${container.querySelectorAll("img").length}`,
+                `markup=${container.innerHTML.length}b, imgs=${container.querySelectorAll("img").length}, ` +
+                `fontEmbedCSS=${fontEmbedCSS.length}b`,
         );
 
         // Retry once on null/tiny blob — known iOS Safari first-call race
         // where webfonts/images aren't yet hot in the canvas pipeline.
         let blob: Blob | null = null;
         try {
-            blob = await rasterize(container, width, height);
+            blob = await rasterize(container, width, height, fontEmbedCSS);
         } catch (e) {
             console.error("[story-export] first toBlob threw:", e);
         }
         if (!blob || blob.size < 1024) {
             console.warn(`[story-export] first toBlob returned ${blob ? `${blob.size}b` : "null"}; retrying`);
             try {
-                blob = await rasterize(container, width, height);
+                blob = await rasterize(container, width, height, fontEmbedCSS);
             } catch (e) {
                 console.error("[story-export] retry toBlob threw:", e);
             }
