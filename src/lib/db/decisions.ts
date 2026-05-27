@@ -57,9 +57,17 @@ export async function upsertDecision(data: UpsertDecisionData): Promise<Decision
 }
 
 export async function deleteDecision(subjectId: string): Promise<void> {
-    await prisma.decision.deleteMany({
-        where: { subjectId },
-    });
+    await prisma.$transaction([
+        prisma.subjectAttendance.deleteMany({
+            where: { subjectId, source: DataSource.decision },
+        }),
+        prisma.subjectVote.deleteMany({
+            where: { subjectId, source: DataSource.decision },
+        }),
+        prisma.decision.deleteMany({
+            where: { subjectId },
+        }),
+    ]);
 }
 
 /**
