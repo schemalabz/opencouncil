@@ -23,6 +23,7 @@ jest.mock('../../discord', () => ({ sendTaskAdminAlert: jest.fn() }));
 jest.mock('../registry', () => ({ taskHandlers: {}, taskTerminalHooks: {} }));
 
 import { handleTaskUpdate } from '../tasks';
+import type { TaskUpdate } from '../../apiTypes';
 
 const TASK_ID = 'task-1';
 
@@ -48,7 +49,8 @@ describe('handleTaskUpdate — persist raw payload before processing', () => {
     const processorErr = new Error('boom');
     const processResult = jest.fn().mockRejectedValue(processorErr);
 
-    await handleTaskUpdate(TASK_ID, { status: 'success', result, version: 7 } as any, processResult);
+    const update: TaskUpdate<typeof result> = { status: 'success', stage: '', progressPercent: 100, result, version: 7 };
+    await handleTaskUpdate(TASK_ID, update, processResult);
 
     // First update: success branch persists raw payload BEFORE processing.
     expect(mockUpdate).toHaveBeenNthCalledWith(1, {
@@ -71,15 +73,16 @@ describe('handleTaskUpdate — persist raw payload before processing', () => {
         version: 7,
       }),
     });
-    const secondCallData = (mockUpdate.mock.calls[1][0] as any).data;
-    expect(secondCallData).not.toHaveProperty('responseBody');
+    const secondCallArg = mockUpdate.mock.calls[1][0] as { data: Record<string, unknown> };
+    expect(secondCallArg.data).not.toHaveProperty('responseBody');
 
     expect(processResult).toHaveBeenCalledWith(TASK_ID, result, undefined);
   });
 
   it('clears processingError on a clean success', async () => {
     const processResult = jest.fn().mockResolvedValue(undefined);
-    await handleTaskUpdate(TASK_ID, { status: 'success', result: { ok: 1 }, version: 3 } as any, processResult);
+    const update: TaskUpdate<{ ok: number }> = { status: 'success', stage: '', progressPercent: 100, result: { ok: 1 }, version: 3 };
+    await handleTaskUpdate(TASK_ID, update, processResult);
 
     expect(mockUpdate).toHaveBeenCalledTimes(1);
     expect(mockUpdate).toHaveBeenCalledWith({
