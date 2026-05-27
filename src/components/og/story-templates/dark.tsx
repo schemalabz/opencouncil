@@ -26,6 +26,22 @@ export const Template2Dark = (data: PreviewData) => {
                 position: "relative",
             }}
         >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+                src="/og/bg-dark-dots.png"
+                alt=""
+                width={1080}
+                height={1920}
+                style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: 1080,
+                    height: 1920,
+                    objectFit: "cover",
+                }}
+            />
+
             {/* Top strip in a full-width light-tinted wrapper */}
             <div
                 style={{

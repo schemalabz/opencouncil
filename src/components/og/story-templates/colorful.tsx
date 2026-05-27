@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { el } from "date-fns/locale";
 import { OpenCouncilWatermark } from "../shared-components";
 import type { PreviewSubject, PreviewData } from "./types";
-import { PRIMARY_PILL_FALLBACK } from "./shared";
+import { PRIMARY_PILL_FALLBACK, TopicIcon } from "./shared";
 
 // One subject rendered as a tilted, full-color sticker with letter circle, number, and name.
 const SubjectSticker = ({
@@ -31,6 +31,21 @@ const SubjectSticker = ({
                 boxShadow: "0 4px 10px rgba(0,0,0,0.18)",
             }}
         >
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 48,
+                    height: 48,
+                    borderRadius: 24,
+                    background: "rgba(255,255,255,0.22)",
+                    marginRight: 18,
+                    flexShrink: 0,
+                }}
+            >
+                <TopicIcon name={subject.topic?.icon} color="#FFFFFF" size={28} />
+            </div>
             <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
                 {subject.agendaItemIndex && (
                     <span
@@ -126,6 +141,22 @@ export const Template4Colorful = (data: PreviewData) => {
                 position: "relative",
             }}
         >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+                src="/og/bg-peach-dots.png"
+                alt=""
+                width={1080}
+                height={1920}
+                style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: 1080,
+                    height: 1920,
+                    objectFit: "cover",
+                }}
+            />
+
             {/* Header (mirrors Template 3) */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 120 }}>
                 {data.cityLogoImage ? (

@@ -16,19 +16,10 @@ import { useVideo } from './VideoProvider';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useShare } from '@/contexts/ShareContext';
-import { formatTimestamp, sortSubjectsBySpeakerContributionCount } from '@/lib/utils';
+import { formatTimestamp } from '@/lib/utils';
 import { downloadFile } from '@/lib/export/meetings';
 import { useToast } from '@/hooks/use-toast';
-import { useCouncilMeetingData } from './CouncilMeetingDataContext';
-import { STORY_TEMPLATES, type StoryTemplateId } from '@/components/og/story-template-meta';
-import { renderStoryTemplate } from '@/components/og/story-templates';
-import { getSubjectSections, SECTION_LIMITS } from '@/components/og/story-templates/sections';
-import { renderStoryToBlob, resolveImageToDataUri } from '@/lib/export/storyImage';
-
-// One UI button per story template. Order = STORY_TEMPLATES iteration order.
-// Derived (not hand-listed) so adding a template to STORY_TEMPLATES surfaces it
-// automatically without a parallel-array drift risk.
-const STORY_VARIANTS: ReadonlyArray<StoryTemplateId> = Object.keys(STORY_TEMPLATES) as StoryTemplateId[];
+import StoryTemplatePickerDialog from './StoryTemplatePickerDialog';
 
 
 interface ShareDropdownProps {
@@ -48,7 +39,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const t = useTranslations();
     const { toast } = useToast();
     const [internalOpen, setInternalOpen] = useState(false);
-    const { meeting, subjects, city } = useCouncilMeetingData();
+    const [storyPickerOpen, setStoryPickerOpen] = useState(false);
 
     useEffect(() => {
         setUrl(window.location.href);
@@ -106,32 +97,14 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
         });
     };
 
-    const downloadStory = async (template: StoryTemplateId) => {
-        setDownloading(`story-${template}`);
-        try {
-            // Pre-resolve the city logo so the off-screen canvas isn't tainted by a
-            // cross-origin DO Spaces fetch. Watermark uses same-origin paths.
-            const cityLogoImage = await resolveImageToDataUri(city.logoImage);
-            const sortedSubjects = sortSubjectsBySpeakerContributionCount(subjects);
-            const element = renderStoryTemplate(template, {
-                meetingName: meeting.name,
-                meetingDate: new Date(meeting.dateTime),
-                cityName: city.name_municipality,
-                cityLogoImage,
-                adminBodyName: meeting.administrativeBody?.name,
-                totalSubjects: sortedSubjects.length,
-                blackLogoSrc: '/logo.png',
-                whiteLogoSrc: '/white-logo.png',
-                ...getSubjectSections(sortedSubjects, SECTION_LIMITS),
-            });
-            const blob = await renderStoryToBlob(element, { width: 1080, height: 1920 });
-            downloadFile(blob, `meeting-story-${template}-${meetingId}.png`);
-        } catch (error) {
-            console.error('Error generating story image:', error);
-            errorToast();
-        } finally {
-            setDownloading(null);
+    const openStoryPicker = () => {
+        // Close the dropdown when opening the dialog so they don't stack.
+        if (isOpen) {
+            closeShareDropdown();
+        } else {
+            setInternalOpen(false);
         }
+        setStoryPickerOpen(true);
     };
 
     const downloadFeed = async () => {
@@ -288,35 +261,18 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                                 Εξαγωγή Προεπισκόπησης ως Εικόνα
                             </label>
 
-                            {/* Four Story variants (9:16) — one render per click. */}
-                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground pt-1">
-                                Story (9:16)
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                                {STORY_VARIANTS.map((template) => {
-                                    const key = `story-${template}`;
-                                    const isDownloading = downloading === key;
-                                    return (
-                                        <Button
-                                            key={template}
-                                            onClick={() => downloadStory(template)}
-                                            disabled={downloading !== null}
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-8 flex items-center gap-1.5"
-                                        >
-                                            {isDownloading ? (
-                                                <Loader2 className="w-3 h-3 animate-spin" />
-                                            ) : (
-                                                <Instagram className="w-3 h-3" />
-                                            )}
-                                            <span className="text-xs">{STORY_TEMPLATES[template].name}</span>
-                                        </Button>
-                                    );
-                                })}
-                            </div>
+                            <Button
+                                onClick={openStoryPicker}
+                                disabled={downloading !== null}
+                                variant="outline"
+                                size="sm"
+                                className="w-full h-8 flex items-center gap-1.5"
+                            >
+                                <Instagram className="w-3 h-3" />
+                                <span className="text-xs">Story</span>
+                                <span className="text-[10px] text-muted-foreground">(9:16)</span>
+                            </Button>
 
-                            {/* Post (1:1) — single click, single render. */}
                             <Button
                                 onClick={() => downloadFeed()}
                                 disabled={downloading !== null}
@@ -336,6 +292,12 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                     </>
                 )}
             </DropdownMenuContent>
+
+            <StoryTemplatePickerDialog
+                open={storyPickerOpen}
+                onOpenChange={setStoryPickerOpen}
+                meetingId={meetingId}
+            />
         </DropdownMenu>
     );
 }

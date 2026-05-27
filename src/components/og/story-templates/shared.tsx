@@ -1,9 +1,56 @@
 import type React from "react";
+import {
+    Building,
+    Building2,
+    Bus,
+    Circle,
+    Dumbbell,
+    GraduationCap,
+    Heart,
+    Leaf,
+    Music2,
+    Recycle,
+    Shield,
+    Users,
+    Wallet,
+    type LucideIcon,
+} from "lucide-react";
 import type { PillProps } from "./types";
 
 // ---------- Helpers ----------
 
 export const PRIMARY_PILL_FALLBACK = "#9CA3AF";
+
+// Topic.icon strings in the DB are kebab-case lucide icon names. Map them to
+// their components here so templates can render a per-subject icon. Falls
+// back to a circle for unknown / absent names.
+const TOPIC_ICONS: Record<string, LucideIcon> = {
+    "building": Building,
+    "building-2": Building2,
+    "bus": Bus,
+    "dumbbell": Dumbbell,
+    "graduation-cap": GraduationCap,
+    "heart": Heart,
+    "leaf": Leaf,
+    "music-2": Music2,
+    "recycle": Recycle,
+    "shield": Shield,
+    "users": Users,
+    "wallet": Wallet,
+};
+
+export function TopicIcon({
+    name,
+    color,
+    size,
+}: {
+    name?: string | null;
+    color: string;
+    size: number;
+}) {
+    const Icon = (name && TOPIC_ICONS[name]) || Circle;
+    return <Icon color={color} size={size} strokeWidth={2} />;
+}
 
 // ---------- Building blocks shared between templates ----------
 
@@ -53,10 +100,11 @@ export const SubjectRow = ({ subject, palette }: PillProps) => {
                 boxShadow: palette === "dark" ? "none" : "0 1px 2px rgba(0,0,0,0.04)",
             }}
         >
-            {/* Solid colored marker — icon SVG removed to keep satori render cheap. */}
             <div
                 style={{
                     display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                     width: 48,
                     height: 48,
                     borderRadius: 24,
@@ -64,7 +112,9 @@ export const SubjectRow = ({ subject, palette }: PillProps) => {
                     marginRight: 16,
                     flexShrink: 0,
                 }}
-            />
+            >
+                <TopicIcon name={subject.topic?.icon} color="#FFFFFF" size={28} />
+            </div>
             <span
                 style={{
                     display: "flex",
