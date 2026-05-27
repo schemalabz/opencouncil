@@ -68,7 +68,7 @@ export default async function EmbedMeetingsPage({ params, searchParams }: EmbedM
     const t = await getTranslations('EmbedWidget');
     const themeVars = generateThemeVars(accent, mode, radius);
     const baseUrl = env.NEXTAUTH_URL.replace(/\/$/, '');
-    const cardTranslations = { subjects: t('subjects'), more: t('more') };
+    const cardTranslations = { subjects: t('subjects'), more: t('more'), watchLive: t('watchLive') };
 
     const renderCards = (items: typeof upcoming) =>
         items.map((meeting) => (

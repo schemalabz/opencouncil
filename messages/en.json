@@ -187,7 +187,8 @@
         "more": "more",
         "noMeetings": "No meetings available.",
         "upcoming": "Upcoming Meetings",
-        "recent": "Recent Meetings"
+        "recent": "Recent Meetings",
+        "watchLive": "Watch live"
     },
     "AddMeetingForm": {
         "meetingName": "Meeting Name",
