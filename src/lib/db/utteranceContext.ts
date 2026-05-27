@@ -1,6 +1,7 @@
+import { NextRequest } from 'next/server';
 import { Prisma } from '@prisma/client';
 import prisma from './prisma';
-import { isUserAuthorizedToEdit } from '../auth';
+import { isUserAuthorizedToEdit, validateBearerAuth } from '../auth';
 
 const neighborSelect = {
     id: true,
@@ -35,6 +36,7 @@ const toNeighbor = (u: NeighborRow): UtteranceContextNeighbor => ({
 });
 
 export async function getUtteranceContext(
+    request: NextRequest,
     utteranceId: string,
     before: number,
     after: number
@@ -60,8 +62,11 @@ export async function getUtteranceContext(
 
     const { meetingId, cityId, meeting } = target.speakerSegment;
 
-    if (!meeting.released && !(await isUserAuthorizedToEdit({ cityId }))) {
-        return null;
+    if (!meeting.released) {
+        const bearer = await validateBearerAuth(request);
+        if (!bearer && !(await isUserAuthorizedToEdit({ cityId }))) {
+            return null;
+        }
     }
 
     const segmentFilter = {

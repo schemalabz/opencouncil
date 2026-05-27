@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUtteranceContext } from '@/lib/db/utteranceContext';
+import { handleApiError } from '@/lib/api/errors';
 
 const DEFAULT_WINDOW = 10;
 const MAX_WINDOW = 50;
@@ -29,16 +30,12 @@ export async function GET(
     }
 
     try {
-        const result = await getUtteranceContext(params.utteranceId, before, after);
+        const result = await getUtteranceContext(request, params.utteranceId, before, after);
         if (!result) {
             return NextResponse.json({ error: 'Utterance not found' }, { status: 404 });
         }
         return NextResponse.json(result);
     } catch (error) {
-        console.error('Error fetching utterance context:', error);
-        return NextResponse.json(
-            { error: 'Internal server error' },
-            { status: 500 }
-        );
+        return handleApiError(error, 'Internal server error');
     }
 }
