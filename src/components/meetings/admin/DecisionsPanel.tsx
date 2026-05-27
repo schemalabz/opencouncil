@@ -679,8 +679,11 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                                         )}
                                                         <Badge variant="default" className="bg-green-600 text-xs">
                                                             <FileCheck className="h-3 w-3 mr-1" />
-                                                            {decision.ada || decision.protocolNumber || t('decisions.linked')}
+                                                            {decision.protocolNumber || decision.ada || t('decisions.linked')}
                                                         </Badge>
+                                                        {decision.protocolNumber && decision.ada && (
+                                                            <span className="text-xs text-muted-foreground">{decision.ada}</span>
+                                                        )}
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
                                                                 <a

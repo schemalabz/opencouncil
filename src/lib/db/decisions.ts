@@ -1,6 +1,16 @@
 import prisma from './prisma';
 import { AttendanceStatus, DataSource, Decision, Prisma, TaskStatus, User, VoteType } from '@prisma/client';
 
+/** Subjects eligible for decisions: agenda + out-of-agenda, excluding withdrawn.
+ *  Shared between decision count queries and the polling pipeline. */
+export const DECISION_ELIGIBLE_SUBJECT_WHERE = {
+    withdrawn: false,
+    OR: [
+        { agendaItemIndex: { not: null } },
+        { nonAgendaReason: 'outOfAgenda' as const },
+    ],
+} satisfies Prisma.SubjectWhereInput;
+
 export type DecisionWithSource = Decision & {
     task: TaskStatus | null;
     createdBy: User | null;
@@ -125,17 +135,17 @@ export async function clearExtractedDataForMeeting(cityId: string, meetingId: st
 export type MeetingDecisionCounts = Record<string, { linked: number; eligible: number }>;
 
 export async function getDecisionCountsForCity(cityId: string): Promise<MeetingDecisionCounts> {
-    // Count subjects eligible for decisions (have agendaItemIndex)
+    // Count subjects eligible for decisions (agenda + out-of-agenda, not withdrawn)
     const eligible = await prisma.subject.groupBy({
         by: ['councilMeetingId'],
-        where: { cityId, agendaItemIndex: { not: null } },
+        where: { cityId, ...DECISION_ELIGIBLE_SUBJECT_WHERE },
         _count: true,
     });
 
     // Count subjects that have a linked decision
     const linked = await prisma.subject.groupBy({
         by: ['councilMeetingId'],
-        where: { cityId, agendaItemIndex: { not: null }, decision: { isNot: null } },
+        where: { cityId, ...DECISION_ELIGIBLE_SUBJECT_WHERE, decision: { isNot: null } },
         _count: true,
     });
 
@@ -162,17 +172,11 @@ export async function getExtractedDataForMeeting(
     meetingId: string
 ): Promise<SubjectExtractedData[]> {
     // Fetch attendance and votes for all subjects in the meeting
-    // Include both agenda items AND outOfAgenda subjects (which have agendaItemIndex null
-    // but nonAgendaReason 'outOfAgenda'). The extraction pipeline writes attendance/vote data
-    // for outOfAgenda subjects too, so we need to read it back here.
     const subjects = await prisma.subject.findMany({
         where: {
             cityId,
             councilMeetingId: meetingId,
-            OR: [
-                { agendaItemIndex: { not: null } },
-                { nonAgendaReason: 'outOfAgenda' },
-            ],
+            ...DECISION_ELIGIBLE_SUBJECT_WHERE,
         },
         select: {
             id: true,
