@@ -148,7 +148,9 @@
     "confirmExit": "You have unsaved changes. Are you sure you want to cancel?",
     "exitedEditMode": "Exited edit mode",
     "noChangesSaved": "No changes were saved.",
-    "returningToHighlights": "Returning to highlights."
+    "returningToHighlights": "Returning to highlights.",
+    "deleteErrorTitle": "Could not discard highlight",
+    "deleteErrorDescription": "The unsaved highlight may still appear in your list. Please refresh."
   },
   "previewDialog": {
     "title": "Preview highlight",

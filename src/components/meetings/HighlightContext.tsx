@@ -1,11 +1,13 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import type { HighlightWithUtterances } from '@/lib/db/highlights';
 import { useCouncilMeetingActions, useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { useVideo } from './VideoProvider';
 import { Utterance } from '@prisma/client';
 import { calculateUtteranceRange } from '@/lib/selection-utils';
+import { toast } from '@/hooks/use-toast';
 
 export interface HighlightUtterance {
   id: string;
@@ -82,10 +84,11 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   // Get transcript and speaker data from CouncilMeetingDataContext
   const { transcript, speakerTags, getSpeakerTag, getPerson, getSpeakerSegmentById, meeting } = useCouncilMeetingData();
   // Mutations come from the stable actions context — they never change identity.
-  const { addHighlight, updateHighlight } = useCouncilMeetingActions();
+  const { addHighlight, updateHighlight, removeHighlight } = useCouncilMeetingActions();
   const { currentTime, seekTo, isPlaying, setIsPlaying, seekToAndPlay } = useVideo();
   const router = useRouter();
   const pathname = usePathname();
+  const t = useTranslations('highlights');
 
   // Build utterance map and flat list once per transcript change. These are
   // accessed only inside callbacks (not in render output), so we mirror them
@@ -118,6 +121,10 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   lastClickedIdRef.current = lastClickedUtteranceId;
   const lastClickedActionRef = useRef(lastClickedAction);
   lastClickedActionRef.current = lastClickedAction;
+
+  // Tracks an unsaved, freshly-created highlight so we can DELETE it if the
+  // user exits without saving. Set by createHighlight, cleared by saveHighlight.
+  const unsavedNewHighlightIdRef = useRef<string | null>(null);
 
   const calculateHighlightData = useCallback((highlight: HighlightWithUtterances | null): HighlightCalculationResult | null => {
     if (!highlight) {
@@ -325,6 +332,31 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     setIsPlaying(false);
   }, [isPreviewDialogOpen, setIsPlaying]);
 
+  // Deletes a freshly-created highlight if the user exits without saving.
+  // Clears the ref synchronously so the navigate-away effect cannot fire a
+  // second DELETE during the route change. The local list is only updated
+  // after the server confirms — on failure we surface a toast so the user
+  // knows the orphan may still appear on the next reload.
+  const deleteUnsavedHighlightIfNeeded = useCallback((highlightId: string) => {
+    const unsavedId = unsavedNewHighlightIdRef.current;
+    if (!unsavedId || unsavedId !== highlightId) return;
+    unsavedNewHighlightIdRef.current = null;
+
+    fetch(`/api/highlights/${unsavedId}`, { method: 'DELETE' })
+      .then(res => {
+        if (!res.ok) throw new Error(`DELETE failed with status ${res.status}`);
+        removeHighlight(unsavedId);
+      })
+      .catch(err => {
+        console.error('Failed to delete unsaved highlight:', err);
+        toast({
+          title: t('exit.deleteErrorTitle'),
+          description: t('exit.deleteErrorDescription'),
+          variant: 'destructive',
+        });
+      });
+  }, [removeHighlight, t]);
+
   // Enter edit mode - called when switching to edit mode (from URL parameter)
   const enterEditMode = useCallback((highlight: HighlightWithUtterances) => {
     setEditingHighlight(highlight);
@@ -346,6 +378,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   // Clean up highlight editing state when navigating away from transcript.
   useEffect(() => {
     if (editingHighlight && !pathname.includes('/transcript')) {
+      deleteUnsavedHighlightIfNeeded(editingHighlight.id);
       setEditingHighlight(null);
       setOriginalHighlight(null);
       setIsDirty(false);
@@ -354,7 +387,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
       setLastClickedUtteranceId(null);
       setLastClickedAction(null);
     }
-  }, [pathname, editingHighlight, setIsPlaying]);
+  }, [pathname, editingHighlight, setIsPlaying, deleteUnsavedHighlightIfNeeded]);
 
   // Mirrored to a ref so updateHighlightUtterances can read it without
   // having isSaving as a callback dep.
@@ -483,14 +516,20 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   const exitEditMode = useCallback(() => {
     if (!editingHighlight) return;
     setIsPlaying(false);
+    deleteUnsavedHighlightIfNeeded(editingHighlight.id);
     router.push(`/${editingHighlight.cityId}/${editingHighlight.meetingId}/highlights`);
-  }, [editingHighlight, router, setIsPlaying]);
+  }, [editingHighlight, router, setIsPlaying, deleteUnsavedHighlightIfNeeded]);
 
   const exitEditModeAndRedirectToHighlight = useCallback(() => {
     if (!editingHighlight) return;
     setIsPlaying(false);
+    // Defensive: today this is only called after a save (so the ref is
+    // already null), but mirroring the guard here keeps the function safe
+    // for future callers without relying on the post-navigation cleanup
+    // effect to do it for us.
+    deleteUnsavedHighlightIfNeeded(editingHighlight.id);
     router.push(`/${editingHighlight.cityId}/${editingHighlight.meetingId}/highlights/${editingHighlight.id}`);
-  }, [editingHighlight, router, setIsPlaying]);
+  }, [editingHighlight, router, setIsPlaying, deleteUnsavedHighlightIfNeeded]);
 
   const saveHighlight = useCallback(async (options?: {
     name?: string;
@@ -536,6 +575,10 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
       setOriginalHighlight(updatedHighlight);
       updateHighlight(editingHighlight.id, updatedHighlight);
 
+      if (unsavedNewHighlightIdRef.current === editingHighlight.id) {
+        unsavedNewHighlightIdRef.current = null;
+      }
+
       setIsDirty(false);
       options?.onSuccess?.();
 
@@ -577,6 +620,8 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
       }
 
       const highlight = await res.json();
+
+      unsavedNewHighlightIdRef.current = highlight.id;
 
       addHighlight(highlight);
       enterEditMode(highlight);
