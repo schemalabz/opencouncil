@@ -41,7 +41,14 @@ export type MeetingData = MeetingDataCore & {
  * The meeting query and transcript are NOT cached (auth + size constraints).
  */
 export const getMeetingDataCore = async (cityId: string, meetingId: string): Promise<MeetingDataCore> => {
-    console.log(`getMeetingDataCore ${cityId}/${meetingId}`);
+    // PROBE: top 3 caller frames so we can see who's invoking Core during freeze.
+    // Skip [0] "Error", [1] "at getMeetingDataCore" — we want the actual caller.
+    const callerHint = new Error().stack
+        ?.split('\n')
+        .slice(2, 5)
+        .map(l => l.trim())
+        .join(' ← ') ?? 'unknown';
+    console.log(`getMeetingDataCore ${cityId}/${meetingId} from: ${callerHint}`);
     const meetingTags = { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`, `city:${cityId}:meeting:${meetingId}`] };
     const cityTags = { tags: ['city', `city:${cityId}`, `city:${cityId}:basic`] };
 
@@ -114,7 +121,13 @@ export const getMeetingDataCached = cache(async (
   cityId: string,
   meetingId: string
 ): Promise<MeetingData | null> => {
+  // PROBE: per-request id. React.cache() is request-scoped, so the same reqId
+  // appears across all Cached calls within one request; a new reqId per
+  // separate request. Distinct ids on the same meeting in <5s = request
+  // stampede (likely from RSC <Link prefetch> on subject links).
+  const reqId = crypto.randomUUID().slice(0, 8);
   const startTime = performance.now();
+  console.log(`getMeetingDataCached[${reqId}] ENTER ${cityId}/${meetingId}`);
 
   try {
     const [core, highlights] = await Promise.all([
@@ -122,10 +135,10 @@ export const getMeetingDataCached = cache(async (
       getHighlightsForMeeting(cityId, meetingId)
     ]);
     const ms = (performance.now() - startTime).toFixed(0);
-    console.log(`getMeetingDataCached ${cityId}/${meetingId} done in ${ms}ms (${highlights.length} highlights)`);
+    console.log(`getMeetingDataCached[${reqId}] DONE ${cityId}/${meetingId} in ${ms}ms (${highlights.length} highlights)`);
     return { ...core, highlights };
   } catch (error) {
-    console.error(`getMeetingDataCached ${cityId}/${meetingId} ERROR:`, error);
+    console.error(`getMeetingDataCached[${reqId}] ERROR ${cityId}/${meetingId}:`, error);
     return null;
   }
 });
