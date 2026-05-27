@@ -15,8 +15,9 @@ function parseWindow(raw: string | null, fallback: number): number | null {
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { utteranceId: string } }
+    { params }: { params: Promise<{ utteranceId: string }> }
 ) {
+    const { utteranceId } = await params;
     const { searchParams } = new URL(request.url);
 
     const before = parseWindow(searchParams.get('before'), DEFAULT_WINDOW);
@@ -30,7 +31,7 @@ export async function GET(
     }
 
     try {
-        const result = await getUtteranceContext(request, params.utteranceId, before, after);
+        const result = await getUtteranceContext(request, utteranceId, before, after);
         if (!result) {
             return NextResponse.json({ error: 'Utterance not found' }, { status: 404 });
         }

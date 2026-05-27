@@ -1,10 +1,7 @@
 import React from "react"
 import Header from "@/components/layout/Header"
 import Footer from "@/components/layout/Footer"
-import dynamic from 'next/dynamic';
-
-// Import Aurora with dynamic loading to prevent SSR issues with canvas
-const Aurora = dynamic(() => import('@/components/landing/aurora'), { ssr: false });
+import Aurora from "@/components/landing/AuroraClient"
 
 export default async function Layout(
   props: {
