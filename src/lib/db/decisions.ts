@@ -70,6 +70,21 @@ export async function deleteDecision(subjectId: string): Promise<void> {
     ]);
 }
 
+export async function resetExtractionForSubject(subjectId: string): Promise<void> {
+    await prisma.$transaction([
+        prisma.decision.updateMany({
+            where: { subjectId },
+            data: { excerpt: null, references: null },
+        }),
+        prisma.subjectAttendance.deleteMany({
+            where: { subjectId, source: DataSource.decision },
+        }),
+        prisma.subjectVote.deleteMany({
+            where: { subjectId, source: DataSource.decision },
+        }),
+    ]);
+}
+
 /**
  * Clear extracted data for all decisions in a meeting, keeping the decision
  * links (pdfUrl, ada, protocolNumber) intact. Removes:
