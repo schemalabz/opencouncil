@@ -23,12 +23,6 @@
 }
 
 /* ── Card ── */
-.embed-card,
-.embed-card:hover,
-.embed-card:visited {
-    text-decoration: none;
-    color: inherit;
-}
 .embed-card {
     display: block;
     padding: 16px;
@@ -40,6 +34,37 @@
     background: var(--embed-card-hover);
     border-color: var(--embed-accent);
     box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+.embed-card-link,
+.embed-card-link:hover,
+.embed-card-link:visited {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+/* ── Live broadcast link ── */
+.embed-card-live {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    padding: 6px 10px;
+    border: 1px solid var(--embed-border);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--embed-text);
+    text-decoration: none;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.embed-card-live:hover {
+    background: var(--embed-card-hover);
+    border-color: var(--embed-accent);
+    color: var(--embed-accent);
+}
+.embed-card-live svg {
+    color: #ff0000;
 }
 
 /* ── Card title ── */
