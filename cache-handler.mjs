@@ -66,9 +66,13 @@ CacheHandler.onCreation(async ({ buildId }) => {
       console.warn('[cache-handler] Deploy flush check failed:', error.message);
     }
 
+    // Namespace by buildId so old-build instances during a rolling deploy can't
+    // pollute the new build's cache (and vice-versa). Without this, an old
+    // instance writes HTML referencing its own chunk hashes into the shared
+    // cache, then new instances serve it and 404 on the chunks they don't have.
     const handler = createRedisHandler({
       client,
-      keyPrefix: 'oc:',
+      keyPrefix: `oc:${buildId ?? 'nobuild'}:`,
       timeoutMs: 1000,
       keyExpirationStrategy: 'EXAT',
       sharedTagsKey: '__oc_tags__',
