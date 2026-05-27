@@ -101,22 +101,19 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
 
                 {/* Header: topic icon + title + meta */}
                 <CardHeader className="flex flex-col gap-1.5 pb-2">
-                    {showContext && (
-                        <div className="flex flex-col gap-0.5 text-[10px] text-muted-foreground/70 -mt-1 -mb-1 min-w-0">
-                            <span className="truncate min-w-0">
-                                {[city.name, meeting.administrativeBody?.name, meeting.name]
-                                    .filter(Boolean)
-                                    .join(" › ")}
-                            </span>
-                            <span className="truncate">{formatDate(new Date(meeting.dateTime))}</span>
-                        </div>
-                    )}
                     <div className="flex flex-row items-center gap-1.5">
                         <div className="p-1.5 rounded-full shrink-0 transition-colors duration-300" style={{ backgroundColor: subject.topic?.colorHex ? subject.topic.colorHex + "20" : "#e5e7eb" }}>
                             <Icon name={subject.topic?.icon || "hash"} color={subject.topic?.colorHex || "#9ca3af"} size={16} />
                         </div>
                         <CardTitle className="text-sm sm:text-base line-clamp-2 flex-1 group-hover/card:text-accent-foreground transition-colors duration-300">{subject.name}</CardTitle>
                     </div>
+                    {showContext && (
+                        <div className="text-[10px] text-muted-foreground/70">
+                            {[city.name, meeting.administrativeBody?.name, formatDate(new Date(meeting.dateTime))]
+                                .filter(Boolean)
+                                .join(" · ")}
+                        </div>
+                    )}
                     <div className="flex flex-row justify-between gap-2 text-xs text-muted-foreground">
                         <div className="flex items-center gap-1 min-w-0 flex-1">
                             <MapPin className="w-3.5 h-3.5 shrink-0" />
