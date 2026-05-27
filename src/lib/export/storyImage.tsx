@@ -67,6 +67,17 @@ async function rasterize(container: HTMLElement, width: number, height: number):
         // retina screens (default multiplies by window.devicePixelRatio).
         pixelRatio: 1,
         cacheBust: true,
+        // CRITICAL: override the off-screen positioning on the cloned root so the
+        // captured SVG paints content at the origin instead of at left: -10000px
+        // (which would put everything outside the canvas bounds → blank PNG).
+        style: {
+            position: "static",
+            left: "0",
+            top: "0",
+            transform: "none",
+            opacity: "1",
+            visibility: "visible",
+        },
     });
 }
 
@@ -97,12 +108,26 @@ export async function renderStoryToBlob(
         }
         await waitForImages(container);
 
+        console.log(
+            `[story-export] container ready: ${container.children.length} children, ` +
+                `markup=${container.innerHTML.length}b, imgs=${container.querySelectorAll("img").length}`,
+        );
+
         // Retry once on null/tiny blob — known iOS Safari first-call race
         // where webfonts/images aren't yet hot in the canvas pipeline.
-        let blob = await rasterize(container, width, height);
-        if (!blob || blob.size < 1024) {
-            console.warn(`[story-export] first toBlob attempt returned ${blob ? `${blob.size}b` : "null"}; retrying`);
+        let blob: Blob | null = null;
+        try {
             blob = await rasterize(container, width, height);
+        } catch (e) {
+            console.error("[story-export] first toBlob threw:", e);
+        }
+        if (!blob || blob.size < 1024) {
+            console.warn(`[story-export] first toBlob returned ${blob ? `${blob.size}b` : "null"}; retrying`);
+            try {
+                blob = await rasterize(container, width, height);
+            } catch (e) {
+                console.error("[story-export] retry toBlob threw:", e);
+            }
         }
         if (!blob) throw new Error("Failed to rasterize story template (empty blob)");
         console.log(`[story-export] rendered ${width}×${height} → ${blob.size}b`);
