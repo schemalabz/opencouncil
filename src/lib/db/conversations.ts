@@ -22,10 +22,22 @@ export interface ConversationSummary {
  * conversations than fit in that window. Once the message volume justifies
  * it, swap this for a SQL `DISTINCT ON (phone, channel) ...` so we're not
  * pulling unbounded rows into the app process.
+ *
+ * `onlyWithInbound` (default true) hides threads that have no reply from the
+ * participant. Outbound-only threads (e.g. broadcasts no one answered, failed
+ * deliveries) are noise for the admin view whose purpose is triaging replies.
+ * Pass false to include every thread.
  */
 export async function getConversationSummaries(
-    limit = 50,
-    recentMessageWindow = 1000,
+    {
+        limit = 50,
+        recentMessageWindow = 1000,
+        onlyWithInbound = true,
+    }: {
+        limit?: number;
+        recentMessageWindow?: number;
+        onlyWithInbound?: boolean;
+    } = {},
 ): Promise<ConversationSummary[]> {
     // Fetch newest-first so the window is the *recent* slice, not the oldest;
     // otherwise once the table exceeds `recentMessageWindow` rows, fresh
@@ -58,11 +70,13 @@ export async function getConversationSummaries(
     }
 
     // Sort conversations by most recent message first.
-    return Array.from(byKey.values())
+    const ordered = Array.from(byKey.values())
+        .filter((conv) => !onlyWithInbound || conv.messages.some((m) => m.direction === 'inbound'))
         .sort((a, b) => {
             const aLast = a.messages[a.messages.length - 1].createdAt.getTime();
             const bLast = b.messages[b.messages.length - 1].createdAt.getTime();
             return bLast - aLast;
-        })
-        .slice(0, limit);
+        });
+
+    return ordered.slice(0, limit);
 }

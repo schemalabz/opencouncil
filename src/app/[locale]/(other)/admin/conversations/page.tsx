@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import Link from 'next/link';
 import type { Message } from '@prisma/client';
 import { getConversationSummaries } from '@/lib/db/conversations';
 import { formatNumericDateTime } from '@/lib/formatters/time';
@@ -264,8 +265,16 @@ function ThreadDetail({
     );
 }
 
-export default async function ConversationsPage() {
-    const conversations = await getConversationSummaries();
+interface PageProps {
+    searchParams: { all?: string };
+}
+
+export default async function ConversationsPage({ searchParams }: PageProps) {
+    // Default view hides outbound-only threads (broadcasts no one answered,
+    // failed deliveries) so the admin can focus on conversations that need
+    // attention. `?all=1` opts back into the full unfiltered list.
+    const showAll = searchParams.all === '1';
+    const conversations = await getConversationSummaries({ onlyWithInbound: !showAll });
 
     return (
         <div className="container mx-auto py-8">
@@ -274,9 +283,16 @@ export default async function ConversationsPage() {
                     <h1 className="text-3xl font-bold">Conversations</h1>
                     <p className="text-sm text-muted-foreground">
                         {conversations.length} {conversations.length === 1 ? 'thread' : 'threads'}
+                        {!showAll && ' with replies'}
                     </p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
+                    <Link
+                        href={showAll ? '?' : '?all=1'}
+                        className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+                    >
+                        {showAll ? 'Only with replies' : 'Show all threads'}
+                    </Link>
                     <SendTemplateDialog />
                 </div>
             </div>
@@ -289,9 +305,13 @@ export default async function ConversationsPage() {
                     {conversations.length === 0 ? (
                         <div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-muted-foreground">
                             <MessageCircle className="h-10 w-10" />
-                            <p className="font-medium">No conversations yet</p>
+                            <p className="font-medium">
+                                {showAll ? 'No conversations yet' : 'No replies yet'}
+                            </p>
                             <p className="text-sm">
-                                Send a test WhatsApp from the trigger above to see it land here.
+                                {showAll
+                                    ? 'Send a test WhatsApp from the trigger above to see it land here.'
+                                    : 'No participant has replied yet. Switch to "Show all threads" to see outbound-only messages.'}
                             </p>
                         </div>
                     ) : (
