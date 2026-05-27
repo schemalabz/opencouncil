@@ -22,7 +22,7 @@ const STORY_HEIGHT = 1920;
 // transform so the dialog stays fast even on slow devices. Layout dimensions are still
 // the native 1080×1920 — only the paint is scaled — so the download path produces a
 // 1:1 pixel-faithful PNG without re-laying anything out.
-const PREVIEW_SCALE = 0.18;
+const PREVIEW_SCALE = 0.22;
 
 interface StoryTemplatePickerDialogProps {
     open: boolean;
@@ -81,7 +81,7 @@ export default function StoryTemplatePickerDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-3xl">
+            <DialogContent className="max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>Επιλογή Story</DialogTitle>
                     <DialogDescription>
@@ -89,14 +89,17 @@ export default function StoryTemplatePickerDialog({
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+                {/* 2×2 grid: each tile is preview + label + description + button.
+                    Tiles use flex-col so the button gets pushed to the bottom via mt-auto
+                    regardless of how many lines the description wraps to. */}
+                <div className="grid grid-cols-2 gap-x-8 gap-y-6 pt-2 justify-items-center">
                     {templates.map((template) => {
                         const meta = STORY_TEMPLATES[template];
                         const isDownloading = downloading === template;
                         return (
-                            <div key={template} className="flex flex-col gap-2">
+                            <div key={template} className="flex flex-col w-full max-w-[240px]">
                                 <div
-                                    className="relative overflow-hidden rounded-md border bg-muted shadow-sm"
+                                    className="relative overflow-hidden rounded-md border bg-muted shadow-sm mx-auto"
                                     style={{
                                         width: STORY_WIDTH * PREVIEW_SCALE,
                                         height: STORY_HEIGHT * PREVIEW_SCALE,
@@ -113,7 +116,7 @@ export default function StoryTemplatePickerDialog({
                                         {renderStoryTemplate(template, previewData)}
                                     </div>
                                 </div>
-                                <div className="flex flex-col gap-0.5">
+                                <div className="flex flex-col gap-0.5 mt-3">
                                     <span className="text-sm font-medium">{meta.name}</span>
                                     <span className="text-xs text-muted-foreground">{meta.description}</span>
                                 </div>
@@ -121,7 +124,8 @@ export default function StoryTemplatePickerDialog({
                                     onClick={() => handleDownload(template)}
                                     disabled={downloading !== null}
                                     size="sm"
-                                    className="w-full"
+                                    className="w-full mt-auto pt-0"
+                                    style={{ marginTop: "auto" }}
                                 >
                                     {isDownloading ? (
                                         <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />

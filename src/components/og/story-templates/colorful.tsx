@@ -136,27 +136,16 @@ export const Template4Colorful = (data: PreviewData) => {
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "center",
-                background: "#ffbd9c",
+                // Background dots layered over the peach via CSS so in-flow content
+                // paints on top (see comment in dark.tsx for the painting-order rationale).
+                backgroundColor: "#ffbd9c",
+                backgroundImage: "url(/og/bg-peach-dots.png)",
+                backgroundSize: "1080px 1920px",
+                backgroundRepeat: "no-repeat",
                 padding: "56px 48px",
                 position: "relative",
             }}
         >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-                src="/og/bg-peach-dots.png"
-                alt=""
-                width={1080}
-                height={1920}
-                style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: 1080,
-                    height: 1920,
-                    objectFit: "cover",
-                }}
-            />
-
             {/* Header (mirrors Template 3) */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 120 }}>
                 {data.cityLogoImage ? (

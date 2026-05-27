@@ -21,27 +21,17 @@ export const Template2Dark = (data: PreviewData) => {
                 flexDirection: "column",
                 justifyContent: "center",
                 backgroundColor: "#0B0B0B",
+                // CSS background-image paints at stage 1 of the painting order (the element's
+                // own background), so in-flow content always paints on top of it. Using an
+                // <img position: absolute> instead would paint at stage 6 and cover content.
+                backgroundImage: "url(/og/bg-dark-dots.png)",
+                backgroundSize: "1080px 1920px",
+                backgroundRepeat: "no-repeat",
                 color: "#F5F5F5",
                 padding: "64px 56px",
                 position: "relative",
             }}
         >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-                src="/og/bg-dark-dots.png"
-                alt=""
-                width={1080}
-                height={1920}
-                style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: 1080,
-                    height: 1920,
-                    objectFit: "cover",
-                }}
-            />
-
             {/* Top strip in a full-width light-tinted wrapper */}
             <div
                 style={{

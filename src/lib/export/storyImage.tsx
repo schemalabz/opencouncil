@@ -72,13 +72,15 @@ export async function renderStoryToBlob(
 ): Promise<Blob> {
     const container = document.createElement("div");
     container.className = `${inter.className} ${roboto.className}`;
+    // position: absolute (not fixed) + top: 0/left: -10000px is the well-trodden
+    // off-screen pattern for html-to-image. position: fixed has been observed to
+    // produce blank captures when the source is outside the viewport.
     Object.assign(container.style, {
-        position: "fixed",
+        position: "absolute",
         top: "0",
         left: "-10000px",
         width: `${width}px`,
         height: `${height}px`,
-        pointerEvents: "none",
     } satisfies Partial<CSSStyleDeclaration>);
     document.body.appendChild(container);
 

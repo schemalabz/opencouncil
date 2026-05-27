@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import { OpenCouncilWatermark } from "../shared-components";
 import type { PreviewSubject, PreviewData } from "./types";
-import { SectionLabel, RemainderLine, PRIMARY_PILL_FALLBACK } from "./shared";
+import { SectionLabel, RemainderLine, PRIMARY_PILL_FALLBACK, TopicIcon } from "./shared";
 
 // Card showing one subject with its topic icon + color + name.
 // Topic color drives the border + a very light tint of the background; icon sits on the right.
@@ -50,17 +50,21 @@ const SubjectCard = ({ subject }: { subject: PreviewSubject }) => {
                     {subject.name}
                 </span>
             </div>
-            {/* Right: solid colored marker (icon SVG removed for perf) */}
+            {/* Right: icon disc */}
             <div
                 style={{
                     display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                     width: 64,
                     height: 64,
                     borderRadius: 32,
                     background: color,
                     flexShrink: 0,
                 }}
-            />
+            >
+                <TopicIcon name={subject.topic?.icon} color="#FFFFFF" size={36} />
+            </div>
         </div>
     );
 };
