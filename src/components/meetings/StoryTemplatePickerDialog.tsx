@@ -24,6 +24,8 @@ const STORY_HEIGHT = 1920;
 // 1:1 pixel-faithful PNG without re-laying anything out.
 const PREVIEW_SCALE = 0.28;
 
+const TEMPLATE_IDS = Object.keys(STORY_TEMPLATES) as StoryTemplateId[];
+
 interface StoryTemplatePickerDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -56,8 +58,6 @@ export default function StoryTemplatePickerDialog({
             ...getSubjectSections(sorted, SECTION_LIMITS),
         };
     }, [meeting, subjects, city]);
-
-    const templates = Object.keys(STORY_TEMPLATES) as StoryTemplateId[];
 
     const handleDownload = async (template: StoryTemplateId) => {
         setDownloading(template);
@@ -93,7 +93,7 @@ export default function StoryTemplatePickerDialog({
                     Tiles use flex-col so the button gets pushed to the bottom via mt-auto
                     regardless of how many lines the description wraps to. */}
                 <div className="grid grid-cols-2 gap-x-8 gap-y-6 pt-2 justify-items-center">
-                    {templates.map((template) => {
+                    {TEMPLATE_IDS.map((template) => {
                         const meta = STORY_TEMPLATES[template];
                         const isDownloading = downloading === template;
                         return (
