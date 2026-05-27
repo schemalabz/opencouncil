@@ -20,6 +20,10 @@ CacheHandler.onCreation(async ({ buildId }) => {
 
     client = createClient({
       url: normalizedUrl,
+      // Keep the connection warm — DO managed Valkey closes idle TCP sockets
+      // around the 300s mark, producing periodic "Socket closed unexpectedly"
+      // errors and adding reconnect latency to the first request after each.
+      pingInterval: 60_000,
     });
 
     client.on('error', (error) => {
