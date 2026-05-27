@@ -30,6 +30,34 @@ function logSubjectCounts(reqId: string, variant: string, subjects: { nonAgendaR
     console.log(`[og:${reqId}] fetched variant=${variant} total=${subjects.length} agenda=${agenda} beforeAgenda=${beforeAgenda} outOfAgenda=${outOfAgenda} in ${fetchMs}ms`);
 }
 
+// Pre-resolve an external image URL to a base64 data URI so satori never does its own
+// network fetch during render. Eliminates one variable from the hang-debug: if satori's
+// internal undici fetch was the culprit (chunked-encoding / abort-signal stalls), passing
+// a data URI sidesteps it entirely. AbortController bounds the resolve at 5s; on failure
+// we fall back to null so the template degrades gracefully (no logo) instead of hanging.
+async function resolveImageToDataUri(url: string | null | undefined, reqId: string, timeoutMs = 5000): Promise<string | null> {
+    if (!url) return null;
+    const t0 = Date.now();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const res = await fetch(url, { signal: controller.signal });
+        if (!res.ok) {
+            console.warn(`[og:${reqId}] logo-fetch non-ok status=${res.status} url=${url} in ${Date.now() - t0}ms`);
+            return null;
+        }
+        const buf = Buffer.from(await res.arrayBuffer());
+        const mime = res.headers.get('content-type') || 'image/png';
+        console.log(`[og:${reqId}] logo-fetch ok bytes=${buf.byteLength} mime=${mime} in ${Date.now() - t0}ms`);
+        return `data:${mime};base64,${buf.toString('base64')}`;
+    } catch (e) {
+        console.warn(`[og:${reqId}] logo-fetch failed (${(e as Error).message}) in ${Date.now() - t0}ms`);
+        return null;
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 // Meeting OG Image (Landscape - 1200x630)
 const MeetingOGImage = async (cityId: string, meetingId: string, reqId: string) => {
     const fetchT0 = Date.now();
@@ -215,13 +243,17 @@ const MeetingStoryOGImage = async (cityId: string, meetingId: string, template: 
     const sortedSubjects = sortSubjectsBySpeakerContributionCount(data.subjects);
     console.log(`[og:${reqId}] sorted variant=story template=${template} in ${Date.now() - sortT0}ms`);
 
+    // Pre-resolve the city logo to a data URI so satori never does its own fetch
+    // (debugging an Athens-specific render hang — see resolveImageToDataUri).
+    const cityLogoImage = await resolveImageToDataUri(data.city.logoImage, reqId);
+
     // Section + slice the subjects here so the dispatcher and templates receive
     // pre-shaped data and stay pure render functions.
     return renderStoryTemplate(template, {
         meetingName: data.name,
         meetingDate: new Date(data.dateTime),
         cityName: data.city.name_municipality,
-        cityLogoImage: data.city.logoImage,
+        cityLogoImage,
         adminBodyName: data.administrativeBody?.name,
         totalSubjects: sortedSubjects.length,
         ...getSubjectSections(sortedSubjects, SECTION_LIMITS),
@@ -1018,7 +1050,19 @@ export async function GET(request: Request) {
         console.log(`[og:${reqId}] image-construct variant=${variant ?? 'default'} template=${templateParam ?? '-'} dim=${width}x${height} t=${Date.now() - t0}ms`);
         const satoriT0 = Date.now();
         const imageResponse = new ImageResponse(element, { width, height });
-        const buffer = await imageResponse.arrayBuffer();
+        // Heartbeat while waiting for satori. If these logs FIRE during a hang, the
+        // event loop is alive and satori is in an async wait (probably a fetch). If they
+        // do NOT fire, satori is sync-blocked in WASM and no JS code can run on this
+        // thread until it returns. That's the binary diagnostic we need.
+        const heartbeat = setInterval(() => {
+            console.log(`[og:${reqId}] still rendering at ${Date.now() - satoriT0}ms`);
+        }, 2000);
+        let buffer: ArrayBuffer;
+        try {
+            buffer = await imageResponse.arrayBuffer();
+        } finally {
+            clearInterval(heartbeat);
+        }
         console.log(`[og:${reqId}] rendered variant=${variant ?? 'default'} template=${templateParam ?? '-'} bytes=${buffer.byteLength} satori=${Date.now() - satoriT0}ms`);
         // Restore the Cache-Control that next/og's ImageResponse sets by default —
         // dropping it would make every crawler unfurl re-render, defeating the cap.
