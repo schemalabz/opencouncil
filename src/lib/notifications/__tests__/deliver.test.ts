@@ -31,7 +31,7 @@ jest.mock('../outbound', () => ({
     sendAndPersistOutbound: jest.fn(),
 }));
 
-import { releaseNotifications, sendEmailDeliveriesBatched } from '../deliver';
+import { releaseNotifications } from '../deliver';
 
 function emailDelivery(id: string, to: string) {
     return {
@@ -150,22 +150,54 @@ describe('releaseNotifications — email batching (issue #380)', () => {
         expect(sendEmailBatchMock).not.toHaveBeenCalled();
         expect(result).toEqual({ success: true, emailsSent: 0, messagesSent: 0, failed: 0 });
     });
-});
 
-describe('sendEmailDeliveriesBatched', () => {
-    beforeEach(() => jest.clearAllMocks());
+    it('attributes per-recipient failures correctly when two deliveries share an email', async () => {
+        // Same `to` appears twice; Resend reports the address once in failedTos
+        // when only one of the two sends fails. Must mark exactly one as failed.
+        const deliveries = [
+            emailDelivery('d1', 'dup@x.com'),
+            emailDelivery('d2', 'dup@x.com'),
+            emailDelivery('d3', 'other@x.com'),
+        ];
+        getPendingDeliveriesMock.mockResolvedValue(deliveries);
+        sendEmailBatchMock.mockResolvedValue({
+            success: false,
+            failedTos: ['dup@x.com'],
+        });
 
-    it('is callable directly for unit testing the chunking', async () => {
-        const deliveries = Array.from({ length: 101 }, (_, i) =>
-            emailDelivery(`d${i}`, `u${i}@x.com`),
-        );
-        sendEmailBatchMock.mockResolvedValue({ success: true, failedTos: [] });
+        const result = await releaseNotifications(['n1']);
 
-        const result = await sendEmailDeliveriesBatched(deliveries);
+        expect(result.emailsSent).toBe(2);
+        expect(result.failed).toBe(1);
 
-        expect(sendEmailBatchMock).toHaveBeenCalledTimes(2);
-        expect(sendEmailBatchMock.mock.calls[0][0]).toHaveLength(100);
-        expect(sendEmailBatchMock.mock.calls[1][0]).toHaveLength(1);
-        expect(result).toEqual({ sent: 101, failed: 0 });
+        const statuses = updateDeliveryStatusMock.mock.calls
+            .filter((c) => ['d1', 'd2'].includes(c[0]))
+            .map((c) => c[1])
+            .sort();
+        expect(statuses).toEqual(['failed', 'sent']);
+    });
+
+    it('marks both shared-email deliveries failed when the whole batch fails', async () => {
+        // Whole-batch failure (non-2xx / network throw) returns every `to`,
+        // so a duplicate recipient appears twice and both rows must fail.
+        const deliveries = [
+            emailDelivery('d1', 'dup@x.com'),
+            emailDelivery('d2', 'dup@x.com'),
+        ];
+        getPendingDeliveriesMock.mockResolvedValue(deliveries);
+        sendEmailBatchMock.mockResolvedValue({
+            success: false,
+            failedTos: ['dup@x.com', 'dup@x.com'],
+        });
+
+        const result = await releaseNotifications(['n1']);
+
+        expect(result.emailsSent).toBe(0);
+        expect(result.failed).toBe(2);
+
+        const statuses = updateDeliveryStatusMock.mock.calls
+            .filter((c) => ['d1', 'd2'].includes(c[0]))
+            .map((c) => c[1]);
+        expect(statuses).toEqual(['failed', 'failed']);
     });
 });
