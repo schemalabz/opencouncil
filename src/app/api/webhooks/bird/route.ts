@@ -19,7 +19,12 @@ import type { Prisma } from '@prisma/client';
 
 const SIGNATURE_HEADER = 'messagebird-signature';
 const TIMESTAMP_HEADER = 'messagebird-request-timestamp';
-const REPLAY_WINDOW_SECONDS = 300;
+// Wide sanity ceiling, not the primary replay defense. Bird's retry queue
+// re-delivers webhooks with the original event timestamp (observed: 3–4h
+// stale), which the previous 300s window was silently rejecting and losing
+// real user messages. Proper replay protection should come from id-based
+// dedupe — see follow-up ticket.
+const REPLAY_WINDOW_SECONDS = 24 * 60 * 60;
 
 function verifyBirdSignature(opts: {
     rawBody: string;
@@ -34,9 +39,10 @@ function verifyBirdSignature(opts: {
 
     const ts = Number(timestampHeader);
     if (!Number.isFinite(ts)) return { ok: false, reason: 'invalid timestamp' };
-    const skew = Math.abs(Math.floor(Date.now() / 1000) - ts);
-    if (skew > REPLAY_WINDOW_SECONDS) return { ok: false, reason: `timestamp skew ${skew}s` };
 
+    // Verify HMAC first. The signature binds timestamp + url + body, so a
+    // passing check already proves the request came from Bird untampered;
+    // the freshness check below is only a sanity ceiling.
     const bodyHash = createHash('sha256').update(rawBody, 'utf8').digest();
     const expected = createHmac('sha256', secret)
         .update(`${timestampHeader}\n${url}\n`, 'utf8')
@@ -48,6 +54,10 @@ function verifyBirdSignature(opts: {
     if (!timingSafeEqual(new Uint8Array(provided), new Uint8Array(expected))) {
         return { ok: false, reason: 'signature mismatch' };
     }
+
+    const skew = Math.abs(Math.floor(Date.now() / 1000) - ts);
+    if (skew > REPLAY_WINDOW_SECONDS) return { ok: false, reason: `timestamp skew ${skew}s` };
+
     return { ok: true };
 }
 
