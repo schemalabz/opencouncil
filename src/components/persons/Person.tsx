@@ -1,6 +1,6 @@
 "use client";
 import { useTranslations } from 'next-intl';
-import { City, Party, AdministrativeBody, AdministrativeBodyType } from '@prisma/client';
+import { City, Party, AdministrativeBody, Topic } from '@prisma/client';
 import { Button } from '../ui/button';
 import FormSheet from '../FormSheet';
 import PersonForm from './PersonForm';
@@ -12,53 +12,42 @@ import { useState, useEffect, useMemo } from 'react';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from '@/i18n/routing';
 import { Statistics } from "@/lib/statistics";
-import { getLatestSegmentsForSpeaker, SegmentWithRelations } from '@/lib/db/speakerSegments';
-import { Result } from '@/components/search/Result';
+import { getLatestContributionsForSpeaker } from '@/lib/db/contributions';
+import { ContributionForPerson } from '@/lib/db/types';
+import { ContributionCard } from '@/components/meetings/subject/ContributionCard';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { motion } from 'framer-motion';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
 import { PersonWithRelations } from '@/lib/db/people';
 import { filterActiveRoles, filterInactiveRoles, formatDateRange } from '@/lib/utils';
-import { getAdministrativeBodyTypesForPeople } from '@/lib/utils/administrativeBodies';
-import { BadgePicker } from '../ui/badge-picker';
 import { RoleDisplay } from './RoleDisplay';
 import { TopicFilter } from '@/components/TopicFilter';
 import { RoleWithRelations } from '@/lib/db/types';
 import { useSession } from 'next-auth/react';
 import { DebugMetadataButton } from '../ui/debug-metadata-button';
 
-export default function PersonC({ city, person, parties, administrativeBodies, statistics, includeUnreleased }: {
+export default function PersonC({ city, person, parties, administrativeBodies, statistics, contributionTopics }: {
     city: City,
     person: PersonWithRelations,
     parties: Party[],
     administrativeBodies: AdministrativeBody[],
     statistics: Statistics,
-    includeUnreleased?: boolean
+    contributionTopics: Topic[],
 }) {
     const t = useTranslations('Person');
-    const tCommon = useTranslations('Common');
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
-    const [latestSegments, setLatestSegments] = useState<SegmentWithRelations[]>([]);
+    const [contributions, setContributions] = useState<ContributionForPerson[]>([]);
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [canEdit, setCanEdit] = useState(false);
-    const [selectedAdminBodyType, setSelectedAdminBodyType] = useState<AdministrativeBodyType | null>(null);
     const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
-    const [isLoadingSegments, setIsLoadingSegments] = useState(false);
+    const [isLoadingContributions, setIsLoadingContributions] = useState(false);
     const { data: session } = useSession();
     const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
 
-    // Get admin body type options from person's roles
-    const typeOptions = useMemo(() =>
-        getAdministrativeBodyTypesForPeople([person], tCommon),
-        [person, tCommon]);
-
-    // Filter topics to only show ones relevant to this person based on statistics
-    const relevantTopics = useMemo(() => {
-        if (!statistics?.topics) return [];
-        return statistics.topics.map(t => t.item).sort((a, b) => a.name.localeCompare(b.name));
-    }, [statistics?.topics]);
+    // Topic chips reflect the actual contributions list (already sorted server-side).
+    const relevantTopics = contributionTopics;
 
     // Check if person is an independent council member
     const isIndependentCouncilMember = useMemo(() => {
@@ -81,52 +70,48 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
     }, [person.id]);
 
     useEffect(() => {
-        const fetchLatestSegments = async () => {
+        const fetchLatestContributions = async () => {
             try {
-                setIsLoadingSegments(true);
-                setLatestSegments([]);
-                const { results, totalCount } = await getLatestSegmentsForSpeaker(
+                setIsLoadingContributions(true);
+                setContributions([]);
+                const { results, totalCount } = await getLatestContributionsForSpeaker(
                     person.id,
                     1,
                     5,
                     selectedTopicId,
-                    includeUnreleased,
-                    selectedAdminBodyType
                 );
-                setLatestSegments(results);
+                setContributions(results);
                 setTotalCount(totalCount);
                 setPage(1);
             } catch (error) {
-                console.error('Error fetching segments:', error);
+                console.error('Error fetching contributions:', error);
             } finally {
-                setIsLoadingSegments(false);
+                setIsLoadingContributions(false);
             }
         };
-        fetchLatestSegments();
-    }, [person.id, selectedAdminBodyType, selectedTopicId, includeUnreleased]);
+        fetchLatestContributions();
+    }, [person.id, selectedTopicId]);
 
     useEffect(() => {
-        const loadMoreSegments = async () => {
+        const loadMoreContributions = async () => {
             if (page === 1) return;
             try {
-                setIsLoadingSegments(true);
-                const { results } = await getLatestSegmentsForSpeaker(
+                setIsLoadingContributions(true);
+                const { results } = await getLatestContributionsForSpeaker(
                     person.id,
                     page,
                     5,
                     selectedTopicId,
-                    includeUnreleased,
-                    selectedAdminBodyType
                 );
-                setLatestSegments(prevSegments => [...prevSegments, ...results]);
+                setContributions(prev => [...prev, ...results]);
             } catch (error) {
-                console.error('Error loading more segments:', error);
+                console.error('Error loading more contributions:', error);
             } finally {
-                setIsLoadingSegments(false);
+                setIsLoadingContributions(false);
             }
         };
-        loadMoreSegments();
-    }, [person.id, page, selectedAdminBodyType, selectedTopicId, includeUnreleased]);
+        loadMoreContributions();
+    }, [person.id, page, selectedTopicId]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -159,11 +144,6 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
             });
         }
     }
-
-    // Handler for admin body type selection
-    const handleAdminBodyTypeChange = (values: AdministrativeBodyType[]) => {
-        setSelectedAdminBodyType(values.length > 0 ? values[0] : null);
-    };
 
     // Handler for topic selection
     const handleTopicSelect = (topicId: string | null) => {
@@ -323,17 +303,6 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                         />
                     </motion.form>
 
-                    {/* Administrative Body Type Filter - only show if there's more than one type */}
-                    {typeOptions.length > 1 && (
-                        <BadgePicker
-                            options={typeOptions}
-                            selectedValues={selectedAdminBodyType ? [selectedAdminBodyType] : []}
-                            onSelectionChange={handleAdminBodyTypeChange}
-                            allLabel={tCommon('allMeetings')}
-                            className="items-center my-6 sm:my-8 px-2 sm:px-6"
-                        />
-                    )}
-
                     {/* History Section - only show if there are inactive roles */}
                     {filterInactiveRoles(person.roles).length > 0 && (
                         <motion.div
@@ -384,7 +353,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                         transition={{ delay: 0.8 }}
                         className="relative"
                     >
-                        <h2 className="text-lg sm:text-xl font-semibold mb-4">{t('recentSegments', { fallback: 'Πρόσφατες τοποθετήσεις' })}</h2>
+                        <h2 className="text-lg sm:text-xl font-semibold mb-4">{t('recentContributions')}</h2>
 
                         {/* Topic Filter */}
                         {relevantTopics.length > 0 && (
@@ -395,7 +364,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                             />
                         )}
 
-                        {isLoadingSegments && latestSegments.length === 0 ? (
+                        {isLoadingContributions && contributions.length === 0 ? (
                             <div className="flex justify-center items-center py-12 border rounded-lg bg-card/50">
                                 <div className="flex flex-col items-center space-y-4">
                                     <div className="h-6 w-6 sm:h-8 sm:w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
@@ -404,18 +373,40 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                             </div>
                         ) : (
                             <div className="space-y-3 sm:space-y-4">
-                                {latestSegments.map((segment, index) => (
+                                {contributions.map((contribution, index) => (
                                     <motion.div
-                                        key={index}
+                                        key={contribution.id}
                                         initial={{ opacity: 0, y: 20 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: 0.1 * index }}
                                     >
-                                        <Result result={segment} />
+                                        <ContributionCard
+                                            contribution={contribution}
+                                            subjectId={contribution.subject.id}
+                                            meeting={{
+                                                id: contribution.subject.councilMeetingId,
+                                                cityId: contribution.subject.cityId,
+                                            }}
+                                            speaker={contribution.speaker}
+                                            contextHeader={{
+                                                meetingName: contribution.subject.councilMeeting.name,
+                                                adminBodyName: contribution.subject.councilMeeting.administrativeBody?.name ?? null,
+                                                meetingDate: contribution.subject.councilMeeting.dateTime,
+                                                subjectName: contribution.subject.name,
+                                                topic: contribution.subject.topic
+                                                    ? {
+                                                        name: contribution.subject.topic.name,
+                                                        colorHex: contribution.subject.topic.colorHex,
+                                                        icon: contribution.subject.topic.icon,
+                                                    }
+                                                    : null,
+                                            }}
+                                            showPlayButton={false}
+                                        />
                                     </motion.div>
                                 ))}
 
-                                {latestSegments.length === 0 && !isLoadingSegments && (
+                                {contributions.length === 0 && !isLoadingContributions && (
                                     <div className="flex flex-col items-center justify-center py-12 px-4 border rounded-lg bg-card/50">
                                         <FileText className="w-8 h-8 sm:w-12 sm:h-12 text-muted-foreground mb-4" />
                                         <div className="text-muted-foreground text-center space-y-2">
@@ -427,20 +418,20 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                             </div>
                         )}
 
-                        {isLoadingSegments && latestSegments.length > 0 && (
+                        {isLoadingContributions && contributions.length > 0 && (
                             <div className="flex justify-center items-center py-4">
                                 <div className="h-6 w-6 sm:h-8 sm:w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
                             </div>
                         )}
 
-                        {!isLoadingSegments && latestSegments.length < totalCount && (
+                        {!isLoadingContributions && contributions.length < totalCount && (
                             <Button
                                 onClick={() => setPage(prevPage => prevPage + 1)}
                                 variant="outline"
                                 className="mt-6 w-full sm:w-auto"
-                                disabled={isLoadingSegments}
+                                disabled={isLoadingContributions}
                             >
-                                {isLoadingSegments ? (
+                                {isLoadingContributions ? (
                                     <>
                                         <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
                                         {t('loading')}

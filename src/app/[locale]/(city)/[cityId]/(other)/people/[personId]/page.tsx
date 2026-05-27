@@ -2,6 +2,7 @@
 import { getPerson } from "@/lib/db/people";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
+import { getDistinctTopicsForSpeakerContributions } from "@/lib/db/contributions";
 import { notFound } from "next/navigation";
 import Person from "@/components/persons/Person";
 import { getCity } from "@/lib/db/cities";
@@ -89,12 +90,13 @@ export async function generateMetadata({ params }: { params: { locale: string, p
 export default async function PersonPage({ params }: { params: { locale: string, personId: string, cityId: string } }) {
     const includeUnreleased = await isUserAuthorizedToEdit({ cityId: params.cityId });
 
-    const [person, city, parties, administrativeBodies, statistics] = await Promise.all([
+    const [person, city, parties, administrativeBodies, statistics, contributionTopics] = await Promise.all([
         getPerson(params.personId),
         getCity(params.cityId),
         getPartiesForCity(params.cityId),
         getAdministrativeBodiesForCity(params.cityId),
-        getStatisticsFor({ personId: params.personId, cityId: params.cityId, includeUnreleased }, ['topic'])
+        getStatisticsFor({ personId: params.personId, cityId: params.cityId, includeUnreleased }, ['topic']),
+        getDistinctTopicsForSpeakerContributions(params.personId),
     ]);
 
     if (!person || !city) {
@@ -107,6 +109,6 @@ export default async function PersonPage({ params }: { params: { locale: string,
         parties={parties}
         administrativeBodies={administrativeBodies}
         statistics={statistics}
-        includeUnreleased={includeUnreleased}
+        contributionTopics={contributionTopics}
     />;
 }

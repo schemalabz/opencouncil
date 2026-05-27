@@ -313,7 +313,12 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                 {contributions.map((contribution, index) => (
                                     <div key={contribution.id}>
                                         {index > 0 && <div className="border-t border-border" />}
-                                        <ContributionCard contribution={contribution} subjectId={subject.id} />
+                                        <ContributionCard
+                                            contribution={contribution}
+                                            subjectId={subject.id}
+                                            meeting={meeting}
+                                            speaker={contribution.speakerId ? getPerson(contribution.speakerId) ?? null : null}
+                                        />
                                     </div>
                                 ))}
                             </>
