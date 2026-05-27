@@ -40,20 +40,20 @@ export interface MinutesSpeakerEntry {
     role: string | null;
     text: string;
     timestamp: number;
+    /** Debug: DiscussionStatus of the first utterance in this block */
+    debugStatus?: string | null;
+    /** Debug: discussionSubjectId of the first utterance in this block */
+    debugSubjectId?: string | null;
 }
 
-export interface MinutesGapSubject {
-    id: string;
-    name: string;
+export interface MinutesCrossSubjectEntry {
+    type: 'cross-subject';
+    /** 'start' = beginning of cross-subject block, 'end' = return to original subject */
+    direction: 'start' | 'end';
+    subject: { id: string; name: string };
 }
 
-export interface MinutesGapEntry {
-    type: 'gap';
-    durationSeconds: number;
-    subjects: MinutesGapSubject[];
-}
-
-export type MinutesTranscriptEntry = MinutesSpeakerEntry | MinutesGapEntry;
+export type MinutesTranscriptEntry = MinutesSpeakerEntry | MinutesCrossSubjectEntry;
 
 export interface MinutesSubject {
     subjectId: string;
@@ -63,6 +63,13 @@ export interface MinutesSubject {
     name: string;
 
     discussedWith: { id: string; name: string; agendaItemIndex: number | null } | null;
+
+    /** Subjects whose discussion partially occurred within another subject's section */
+    discussedElsewhere: Array<{
+        subjectId: string;
+        name: string;
+        agendaItemIndex: number | null;
+    }> | null;
 
     decision: {
         protocolNumber: string | null;

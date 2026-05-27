@@ -9,7 +9,7 @@ import {
     TabStopPosition,
 } from 'docx';
 import { formatTimestamp } from '@/lib/utils';
-import { formatGapDuration } from '@/lib/formatters/time';
+
 import { getAbsentLabel, extractFirstName } from '@/lib/formatters/name';
 import { markdownToDocxParagraphs } from '@/lib/minutes/markdownToDocx';
 import { getWithdrawnLabel } from '@/lib/utils/subjects';
@@ -605,32 +605,21 @@ function createTranscriptParagraphs(entries: MinutesTranscriptEntry[]): Paragrap
     const paragraphs: Paragraph[] = [];
 
     for (const entry of entries) {
-        if (entry.type === 'gap') {
-            const gapChildren: (TextRun | InternalHyperlink)[] = [
-                new TextRun({
-                    text: `[Άλλη συζήτηση ${formatGapDuration(entry.durationSeconds)}`,
-                    italics: true,
-                    color: '999999',
-                    size: FONT_SIZE.SMALL,
-                }),
-            ];
-            if (entry.subjects.length > 0) {
-                gapChildren.push(new TextRun({ text: ' — ', italics: true, color: '999999', size: FONT_SIZE.SMALL }));
-                entry.subjects.forEach((s, j) => {
-                    if (j > 0) gapChildren.push(new TextRun({ text: ', ', italics: true, color: '999999', size: FONT_SIZE.SMALL }));
-                    gapChildren.push(new TextRun({ text: '«', italics: true, color: '999999', size: FONT_SIZE.SMALL }));
-                    gapChildren.push(new InternalHyperlink({
-                        anchor: subjectBookmarkId({ subjectId: s.id } as MinutesSubject),
-                        children: [new TextRun({ text: s.name, italics: true, color: '4472C4', size: FONT_SIZE.SMALL })],
-                    }));
-                    gapChildren.push(new TextRun({ text: '»', italics: true, color: '999999', size: FONT_SIZE.SMALL }));
-                });
-            }
-            gapChildren.push(new TextRun({ text: ']', italics: true, color: '999999', size: FONT_SIZE.SMALL }));
+        if (entry.type === 'cross-subject') {
+            const text = entry.direction === 'start'
+                ? `[ Σχετικά με: «${entry.subject.name}» ]`
+                : '[ Συνέχεια συζήτησης ]';
             paragraphs.push(new Paragraph({
                 alignment: AlignmentType.CENTER,
                 spacing: { before: 120, after: 120 },
-                children: gapChildren,
+                children: [
+                    new TextRun({
+                        text,
+                        italics: true,
+                        color: '999999',
+                        size: FONT_SIZE.SMALL,
+                    }),
+                ],
             }));
             continue;
         }
@@ -712,6 +701,25 @@ function createSubjectSection(subject: MinutesSubject): (Paragraph | Table)[] {
                         color: '4472C4',
                         size: FONT_SIZE.SMALL,
                     })],
+                }),
+            ],
+        }));
+    }
+
+    // "Discussed elsewhere" note
+    if (subject.discussedElsewhere && subject.discussedElsewhere.length > 0) {
+        const refs = subject.discussedElsewhere.map(d => {
+            const prefix = d.agendaItemIndex != null ? `του ${d.agendaItemIndex}ου θέματος ` : '';
+            return `${prefix}«${d.name}»`;
+        }).join(', ');
+        paragraphs.push(new Paragraph({
+            spacing: { before: 80, after: 160 },
+            children: [
+                new TextRun({
+                    text: `Μέρος της συζήτησης πραγματοποιήθηκε κατά τη συζήτηση ${refs}`,
+                    italics: true,
+                    color: '666666',
+                    size: FONT_SIZE.SMALL,
                 }),
             ],
         }));
@@ -806,9 +814,11 @@ export async function renderMinutesDocx(data: MinutesData): Promise<Blob> {
         children.push(...createTranscriptParagraphs(data.preambleEntries));
     }
 
-    // All subjects in discussion order (skip withdrawn — they appear in TOC only)
+    // All subjects in discussion order (skip withdrawn and empty — they appear in TOC only)
     for (const subject of data.subjects) {
         if (subject.withdrawn) continue;
+        const hasContent = subject.transcriptEntries.length > 0 || subject.preDiscussionEntries.length > 0 || subject.decision || subject.voteResult;
+        if (!hasContent) continue;
         children.push(...createSubjectSection(subject));
     }
 
