@@ -1,4 +1,8 @@
-import { ImageResponse } from 'next/og';
+// Import directly from @vercel/og rather than next/og: Next 14.2 ships an older
+// vendored @vercel/og@0.6.3 (satori@0.10.9) which has known runaway-CPU + memory
+// leaks (vercel/next.js#65451, satori#393/#532). The standalone package at 0.11.1
+// ships satori@0.25 with those fixes.
+import { ImageResponse } from '@vercel/og';
 import { getMeetingDataForOG } from '@/lib/db/meetings';
 import { getCity } from '@/lib/db/cities';
 import { getConsultationDataForOG } from '@/lib/db/consultations';

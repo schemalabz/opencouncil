@@ -1,4 +1,5 @@
-import { ImageResponse } from "next/og";
+// See src/app/api/og/route.tsx for why we use @vercel/og directly instead of next/og.
+import { ImageResponse } from "@vercel/og";
 import { Container, OgHeader, formatCityDisplayName } from "@/components/og/shared-components";
 import { getMeetingDataForOG } from "@/lib/db/meetings";
 import { getPeopleForCityCached, getSubjectsForMeetingCached, getSubjectStatisticsCached } from "@/lib/cache/queries";
