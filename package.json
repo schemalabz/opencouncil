@@ -19,7 +19,7 @@
     "db:deploy": "prisma migrate deploy && prisma generate",
     "db:deploy:seed": "npm run db:deploy && prisma db seed",
     "production:build": "patch-package && next build",
-    "production:start": "next start",
+    "production:start": "NODE_OPTIONS='--max-old-space-size=6144' next start",
     "email": "tsx scripts/email_municipality.ts",
     "import:people": "tsx scripts/insert_people.ts",
     "import:fill": "tsx prisma/import_administrations.ts --mode fill",
