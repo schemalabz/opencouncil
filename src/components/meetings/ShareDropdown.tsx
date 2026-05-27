@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "../ui/button";
 import {
     DropdownMenu,
@@ -48,11 +48,6 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const t = useTranslations();
     const { toast } = useToast();
     const [internalOpen, setInternalOpen] = useState(false);
-    // Single in-flight render guard. Aborts a previous render if the user mashes buttons.
-    const renderAbortRef = useRef<AbortController | null>(null);
-    // Meeting + subjects + city are already on the client via this context — no extra fetch
-    // is needed to build PreviewData for the story renderer. Note: ShareDropdown is rendered
-    // inside CouncilMeetingDataProvider for both subject and meeting pages.
     const { meeting, subjects, city } = useCouncilMeetingData();
 
     useEffect(() => {
@@ -111,26 +106,12 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
         });
     };
 
-    // Story export: render the chosen template entirely in the user's browser via
-    // html-to-image. Replaces the satori /api/og?variant=story path, which hung on
-    // Athens-scale data because of a non-converging yoga measurement loop in WASM.
     const downloadStory = async (template: StoryTemplateId) => {
-        const downloadKey = `story-${template}`;
-
-        // Abort any in-flight render before starting a new one — if the user clicks
-        // multiple story buttons in quick succession we want only the latest to win.
-        renderAbortRef.current?.abort();
-        const controller = new AbortController();
-        renderAbortRef.current = controller;
-        setDownloading(downloadKey);
-
+        setDownloading(`story-${template}`);
         try {
-            // Pre-resolve the city logo to a data URI so the off-screen canvas isn't
-            // tainted by a cross-origin DO Spaces fetch. Watermark uses same-origin
-            // /logo.png / /white-logo.png so it doesn't need this.
+            // Pre-resolve the city logo so the off-screen canvas isn't tainted by a
+            // cross-origin DO Spaces fetch. Watermark uses same-origin paths.
             const cityLogoImage = await resolveImageToDataUri(city.logoImage);
-            if (controller.signal.aborted) return;
-
             const sortedSubjects = sortSubjectsBySpeakerContributionCount(subjects);
             const element = renderStoryTemplate(template, {
                 meetingName: meeting.name,
@@ -143,29 +124,16 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                 whiteLogoSrc: '/white-logo.png',
                 ...getSubjectSections(sortedSubjects, SECTION_LIMITS),
             });
-
-            const blob = await renderStoryToBlob(element, {
-                width: 1080,
-                height: 1920,
-                signal: controller.signal,
-            });
-
+            const blob = await renderStoryToBlob(element, { width: 1080, height: 1920 });
             downloadFile(blob, `meeting-story-${template}-${meetingId}.png`);
         } catch (error) {
-            if ((error as DOMException)?.name === 'AbortError') return;
             console.error('Error generating story image:', error);
             errorToast();
         } finally {
-            if (renderAbortRef.current === controller) {
-                renderAbortRef.current = null;
-            }
-            setDownloading((current) => (current === downloadKey ? null : current));
+            setDownloading(null);
         }
     };
 
-    // Feed (1:1) export: still server-rendered via /api/og?variant=feed. The feed
-    // layout is simple (landscape-style adapted to square) and does not reproduce
-    // the satori hang seen with the four complex story templates.
     const downloadFeed = async () => {
         setDownloading('feed');
         const imageUrl = `${window.location.origin}/api/og?cityId=${cityId}&meetingId=${meetingId}&variant=feed`;
@@ -189,7 +157,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
             console.error('Error downloading feed image:', error);
             errorToast();
         } finally {
-            setDownloading((current) => (current === 'feed' ? null : current));
+            setDownloading(null);
         }
     };
 
