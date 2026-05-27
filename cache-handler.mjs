@@ -74,12 +74,15 @@ CacheHandler.onCreation(async ({ buildId }) => {
     // pollute the new build's cache (and vice-versa). Without this, an old
     // instance writes HTML referencing its own chunk hashes into the shared
     // cache, then new instances serve it and 404 on the chunks they don't have.
+    // sharedTagsKey is also namespaced so a revalidateTag from an old-build
+    // instance doesn't delete the new build's entries through the shared tag map.
+    const namespace = buildId || 'nobuild';
     const handler = createRedisHandler({
       client,
-      keyPrefix: `oc:${buildId ?? 'nobuild'}:`,
+      keyPrefix: `oc:${namespace}:`,
       timeoutMs: 1000,
       keyExpirationStrategy: 'EXAT',
-      sharedTagsKey: '__oc_tags__',
+      sharedTagsKey: `__oc_tags__:${namespace}`,
       revalidateTagQuerySize: 100,
     });
 
