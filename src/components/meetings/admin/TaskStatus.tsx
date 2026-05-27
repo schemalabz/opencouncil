@@ -170,10 +170,10 @@ export function TaskStatusComponent({ task, onDelete, showMeetingInfo }: TaskSta
                                     </div>
                                 </div>
                             )}
-                            {task.status === 'failed' && task.responseBody && (
+                            {task.status === 'failed' && (task.processingError || task.responseBody) && (
                                 <div className="flex items-center justify-between">
                                     <code className="font-mono truncate block max-w-[300px]">
-                                        {task.responseBody || tStatus('unknownError')}
+                                        {task.processingError || task.responseBody || tStatus('unknownError')}
                                     </code>
                                     <div className="flex space-x-1">
                                         <Button
