@@ -1,7 +1,7 @@
 import "./globals.css"
 import { cn } from "../lib/utils"
 import React from "react"
-import PlausibleProvider from 'next-plausible'
+import PlausibleAnalytics from "@/components/analytics/PlausibleAnalytics"
 import { SessionProvider } from "next-auth/react"
 import { Toaster } from "@/components/ui/toaster";
 import { routing } from "@/i18n/routing";
@@ -77,10 +77,10 @@ export default async function RootLayout({
                     {t("skipToContent")}
                 </a>
                 <SessionProvider>
-                    <PlausibleProvider domain="opencouncil.gr">
+                    <PlausibleAnalytics>
                         {children}
                         <Toaster />
-                    </PlausibleProvider>
+                    </PlausibleAnalytics>
                 </SessionProvider>
             </body>
         </html>
