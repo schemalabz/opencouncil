@@ -18,6 +18,10 @@ const MESSAGE_DELAY_MS = 500;
 // would drop ~100 notifications at once, so this is cheap insurance.
 const BATCH_DELAY_MS = 500;
 
+// Derive the delivery row shape from the DB function — keeps us honest if the
+// include shape ever changes, without redeclaring the type.
+type PendingDelivery = Awaited<ReturnType<typeof getPendingDeliveries>>[number];
+
 interface EmailPayload {
     from: string;
     to: string;
@@ -55,8 +59,8 @@ export async function releaseNotifications(notificationIds: string[]): Promise<{
 
         // Partition by medium up front so emails can be batched and messages
         // can keep their per-delivery loop.
-        const emailDeliveries = pendingDeliveries.filter((d: any) => d.medium === 'email');
-        const messageDeliveries = pendingDeliveries.filter((d: any) => d.medium === 'message');
+        const emailDeliveries = pendingDeliveries.filter((d) => d.medium === 'email');
+        const messageDeliveries = pendingDeliveries.filter((d) => d.medium === 'message');
 
         // ---- Emails: batch send via Resend ----
         const emailResult = await sendEmailDeliveriesBatched(emailDeliveries);
@@ -105,7 +109,7 @@ export async function releaseNotifications(notificationIds: string[]): Promise<{
  * delivery is missing required fields (in which case the delivery is marked
  * failed as a side effect, matching the pre-batch behaviour).
  */
-async function buildEmailPayload(delivery: any): Promise<EmailPayload | null> {
+async function buildEmailPayload(delivery: PendingDelivery): Promise<EmailPayload | null> {
     if (!delivery.email || !delivery.title || !delivery.body) {
         console.error('Missing email, title, or body for delivery', delivery.id);
         await updateDeliveryStatus(delivery.id, 'failed');
@@ -125,7 +129,7 @@ async function buildEmailPayload(delivery: any): Promise<EmailPayload | null> {
  * the old sequential loop: any address Resend reports as failed (permissive
  * mode `errors[]`) is marked `failed`, the rest are marked `sent`.
  */
-export async function sendEmailDeliveriesBatched(deliveries: any[]): Promise<{
+async function sendEmailDeliveriesBatched(deliveries: PendingDelivery[]): Promise<{
     sent: number;
     failed: number;
 }> {
@@ -135,7 +139,7 @@ export async function sendEmailDeliveriesBatched(deliveries: any[]): Promise<{
     // Pair each successfully-built payload with its delivery so we can map
     // batch results back to delivery ids. Deliveries that fail validation
     // here are already marked failed inside buildEmailPayload.
-    const prepared: Array<{ delivery: any; payload: EmailPayload }> = [];
+    const prepared: Array<{ delivery: PendingDelivery; payload: EmailPayload }> = [];
     for (const delivery of deliveries) {
         const payload = await buildEmailPayload(delivery);
         if (payload) {
@@ -157,10 +161,20 @@ export async function sendEmailDeliveriesBatched(deliveries: any[]): Promise<{
         const idempotencyKey = makeBatchIdempotencyKey(chunk.map((p) => p.delivery.id));
 
         const result = await sendEmailBatch(payloads, { idempotencyKey });
-        const failedTos = new Set(result.failedTos);
+
+        // Resend reports failures as a list of `to` addresses (count == #fails).
+        // If two deliveries target the same address and only one fails, the
+        // address appears once. Consume the list as a multiset so we mark the
+        // right number of rows failed instead of every match.
+        const failureBudget = new Map<string, number>();
+        for (const to of result.failedTos) {
+            failureBudget.set(to, (failureBudget.get(to) ?? 0) + 1);
+        }
 
         for (const { delivery, payload } of chunk) {
-            if (failedTos.has(payload.to)) {
+            const remaining = failureBudget.get(payload.to) ?? 0;
+            if (remaining > 0) {
+                failureBudget.set(payload.to, remaining - 1);
                 await updateDeliveryStatus(delivery.id, 'failed');
                 console.error(`Failed to send email to ${payload.to}`);
                 failed++;
