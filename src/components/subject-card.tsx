@@ -108,10 +108,13 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                         <CardTitle className="text-sm sm:text-base line-clamp-2 flex-1 group-hover/card:text-accent-foreground transition-colors duration-300">{subject.name}</CardTitle>
                     </div>
                     {showContext && (
-                        <div className="text-[10px] text-muted-foreground/70">
-                            {[city.name, meeting.administrativeBody?.name, formatDate(new Date(meeting.dateTime))]
-                                .filter(Boolean)
-                                .join(" · ")}
+                        <div className="flex flex-col gap-0.5">
+                            <span className="text-[10px] text-muted-foreground/70">
+                                {[city.name, meeting.administrativeBody?.name, formatDate(new Date(meeting.dateTime))]
+                                    .filter(Boolean)
+                                    .join(" · ")}
+                            </span>
+                            <span className="text-xs font-medium text-foreground/90">{meeting.name}</span>
                         </div>
                     )}
                     <div className="flex flex-row justify-between gap-2 text-xs text-muted-foreground">
