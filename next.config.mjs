@@ -26,10 +26,7 @@ const nextConfig = {
         domains: ['townhalls-gr.fra1.digitaloceanspaces.com', 'data.opencouncil.gr', 'fra1.digitaloceanspaces.com'],
     },
     transpilePackages: ['@'],
-    // Development optimizations
-    swcMinify: true,
-    // Enable custom domains - we'll handle this entirely in middleware
-    // Removing the invalid rewrite configuration
+    // Enable custom domains - we'll handle this entirely in proxy.ts
     async headers() {
         return [
             {
