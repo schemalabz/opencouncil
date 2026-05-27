@@ -11,10 +11,11 @@ import prisma from '@/lib/db/prisma';
 import { getPartiesForCity } from '@/lib/db/parties';
 import { getPeopleForCity, getPerson } from '@/lib/db/people';
 import { sortSubjectsByImportance, sortSubjectsBySpeakerContributionCount } from '@/lib/utils';
-import { Container, MeetingMetaRow, OgHeader, OpenCouncilWatermark, SubjectPills, formatCityDisplayName } from '@/components/og/shared-components';
+import { Container, MeetingMetaRow, OgHeader, SubjectPills, formatCityDisplayName } from '@/components/og/shared-components';
 import { renderStoryTemplate, isValidStoryTemplate, type StoryTemplateId } from '@/components/og/story-templates';
 import { getSubjectSections, SECTION_LIMITS } from '@/components/og/story-templates/sections';
 import { tryAcquireOgSlot, getOgConcurrencyStats } from '@/lib/og/concurrency';
+import { LOGO_BLACK_DATA_URI, LOGO_WHITE_DATA_URI } from '@/lib/og/serverAssets';
 import SubjectOgImage from '@/app/[locale]/(city)/[cityId]/(meetings)/[meetingId]/subjects/[subjectId]/opengraph-image';
 
 // Hard ceiling on each render. Pairs with the in-process concurrency cap in
@@ -83,7 +84,7 @@ const MeetingOGImage = async (cityId: string, meetingId: string, reqId: string) 
     const cityDisplayName = formatCityDisplayName(data.city.name_municipality, data.administrativeBody?.name);
 
     return (
-        <Container watermarkProps={{ logoOnly: true, size: 80 }}>
+        <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI} watermarkProps={{ logoOnly: true, size: 80 }}>
             <OgHeader
                 city={{
                     name: cityDisplayName,
@@ -167,7 +168,7 @@ const MeetingFeedOGImage = async (cityId: string, meetingId: string, reqId: stri
     const cityDisplayName = formatCityDisplayName(data.city.name_municipality, data.administrativeBody?.name);
 
     return (
-        <Container watermarkProps={{ logoOnly: true, size: 120 }}>
+        <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI} watermarkProps={{ logoOnly: true, size: 120 }}>
             <OgHeader
                 city={{
                     name: cityDisplayName,
@@ -256,6 +257,8 @@ const MeetingStoryOGImage = async (cityId: string, meetingId: string, template: 
         cityLogoImage,
         adminBodyName: data.administrativeBody?.name,
         totalSubjects: sortedSubjects.length,
+        blackLogoSrc: LOGO_BLACK_DATA_URI,
+        whiteLogoSrc: LOGO_WHITE_DATA_URI,
         ...getSubjectSections(sortedSubjects, SECTION_LIMITS),
     });
 };
@@ -277,7 +280,7 @@ const CityOGImage = async (cityId: string) => {
     const meetingsCount = city._count.councilMeetings;
 
     return (
-        <Container>
+        <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI}>
             <div style={{
                 flex: 1,
                 display: 'flex',
@@ -447,7 +450,7 @@ const ConsultationOGImage = async (cityId: string, consultationId: string) => {
     // Note: Removed date display to keep the layout clean
 
     return (
-        <Container watermarkProps={{ logoOnly: true, size: 80 }}>
+        <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI} watermarkProps={{ logoOnly: true, size: 80 }}>
             <OgHeader
                 city={{
                     name: consultationData.city.name_municipality,
@@ -569,7 +572,7 @@ const PersonOGImage = async (cityId: string, personId: string) => {
     const currentParty = currentRole?.party;
 
     return (
-        <Container>
+        <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI}>
             <div style={{
                 flex: 1,
                 display: 'flex',
@@ -664,7 +667,7 @@ const PeopleOGImage = async (cityId: string) => {
     const displayPeople = people.slice(0, 6);
 
     return (
-        <Container>
+        <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI}>
             <div style={{
                 flex: 1,
                 display: 'flex',
@@ -864,7 +867,7 @@ const AboutOGImage = () => {
 // Search Page OG Image
 const SearchOGImage = () => {
     return (
-        <Container>
+        <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI}>
             <div style={{
                 flex: 1,
                 display: 'flex',
@@ -918,7 +921,7 @@ const SearchOGImage = () => {
 // Chat Page OG Image
 const ChatOGImage = () => {
     return (
-        <Container>
+        <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI}>
             <div style={{
                 flex: 1,
                 display: 'flex',

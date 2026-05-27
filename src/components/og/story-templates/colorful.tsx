@@ -302,7 +302,7 @@ export const Template4Colorful = (data: PreviewData) => {
                 </div>
             )}
 
-            <OpenCouncilWatermark logoOnly size={96} bottom={48} right={48} />
+            <OpenCouncilWatermark logoSrc={data.blackLogoSrc} logoOnly size={96} bottom={48} right={48} />
         </div>
     );
 };

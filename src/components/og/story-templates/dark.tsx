@@ -155,7 +155,7 @@ export const Template2Dark = (data: PreviewData) => {
 
             {agendaRemaining > 0 && <RemainderLine count={agendaRemaining} color="#9CA3AF" label="ακόμα θέματα στην ημερήσια διάταξη" />}
 
-            <OpenCouncilWatermark logoOnly color="white" size={96} bottom={48} right={48} />
+            <OpenCouncilWatermark logoSrc={data.whiteLogoSrc} logoOnly size={96} bottom={48} right={48} />
         </div>
     );
 };

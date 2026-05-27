@@ -118,7 +118,7 @@ export const Template1Classic = (data: PreviewData) => {
             {/* Remainder */}
             {agendaRemaining > 0 && <RemainderLine count={agendaRemaining} color="#6B7280" label="ακόμα θέματα στην ημερήσια διάταξη" />}
 
-            <OpenCouncilWatermark logoOnly size={96} bottom={48} right={48} />
+            <OpenCouncilWatermark logoSrc={data.blackLogoSrc} logoOnly size={96} bottom={48} right={48} />
         </div>
     );
 };

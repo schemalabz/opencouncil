@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from "../ui/button";
 import {
     DropdownMenu,
@@ -16,13 +16,14 @@ import { useVideo } from './VideoProvider';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useShare } from '@/contexts/ShareContext';
-import { formatTimestamp } from '@/lib/utils';
+import { formatTimestamp, sortSubjectsBySpeakerContributionCount } from '@/lib/utils';
 import { downloadFile } from '@/lib/export/meetings';
 import { useToast } from '@/hooks/use-toast';
-// Import directly from story-template-meta (client-safe by design) to avoid pulling
-// the server-only story-templates barrel — which transitively imports shared.tsx and
-// its top-level `fs.readFileSync` calls — into the client bundle.
+import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { STORY_TEMPLATES, type StoryTemplateId } from '@/components/og/story-template-meta';
+import { renderStoryTemplate } from '@/components/og/story-templates';
+import { getSubjectSections, SECTION_LIMITS } from '@/components/og/story-templates/sections';
+import { renderStoryToBlob, resolveImageToDataUri } from '@/lib/export/storyImage';
 
 // One UI button per story template. Order = STORY_TEMPLATES iteration order.
 // Derived (not hand-listed) so adding a template to STORY_TEMPLATES surfaces it
@@ -47,6 +48,12 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const t = useTranslations();
     const { toast } = useToast();
     const [internalOpen, setInternalOpen] = useState(false);
+    // Single in-flight render guard. Aborts a previous render if the user mashes buttons.
+    const renderAbortRef = useRef<AbortController | null>(null);
+    // Meeting + subjects + city are already on the client via this context — no extra fetch
+    // is needed to build PreviewData for the story renderer. Note: ShareDropdown is rendered
+    // inside CouncilMeetingDataProvider for both subject and meeting pages.
+    const { meeting, subjects, city } = useCouncilMeetingData();
 
     useEffect(() => {
         setUrl(window.location.href);
@@ -96,30 +103,72 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
         setTimeout(() => setCopySuccess(false), 3000);
     };
 
-    const downloadImage = async (variant: 'story' | 'feed' | 'default', template?: StoryTemplateId) => {
-        const baseUrl = window.location.origin;
-        let imageUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}`;
+    const errorToast = () => {
+        toast({
+            title: 'Αποτυχία λήψης',
+            description: 'Δεν ήταν δυνατή η δημιουργία της εικόνας. Δοκίμασε ξανά.',
+            variant: 'destructive',
+        });
+    };
 
-        // Add subjectId if on a subject page
-        if (pathname.includes('/subjects/')) {
-            const subjectId = pathname.split('/subjects/')[1]?.split('/')[0];
-            if (subjectId) {
-                imageUrl += `&subjectId=${subjectId}`;
-            }
-        }
+    // Story export: render the chosen template entirely in the user's browser via
+    // html-to-image. Replaces the satori /api/og?variant=story path, which hung on
+    // Athens-scale data because of a non-converging yoga measurement loop in WASM.
+    const downloadStory = async (template: StoryTemplateId) => {
+        const downloadKey = `story-${template}`;
 
-        // Add variant + (for story) template parameters
-        if (variant !== 'default') {
-            imageUrl += `&variant=${variant}`;
-            if (variant === 'story' && template) {
-                imageUrl += `&template=${template}`;
-            }
-        }
-
-        // Composite key so each of the four story buttons shows its own loading state independently.
-        const downloadKey = variant === 'story' && template ? `story-${template}` : variant;
+        // Abort any in-flight render before starting a new one — if the user clicks
+        // multiple story buttons in quick succession we want only the latest to win.
+        renderAbortRef.current?.abort();
+        const controller = new AbortController();
+        renderAbortRef.current = controller;
         setDownloading(downloadKey);
 
+        try {
+            // Pre-resolve the city logo to a data URI so the off-screen canvas isn't
+            // tainted by a cross-origin DO Spaces fetch. Watermark uses same-origin
+            // /logo.png / /white-logo.png so it doesn't need this.
+            const cityLogoImage = await resolveImageToDataUri(city.logoImage);
+            if (controller.signal.aborted) return;
+
+            const sortedSubjects = sortSubjectsBySpeakerContributionCount(subjects);
+            const element = renderStoryTemplate(template, {
+                meetingName: meeting.name,
+                meetingDate: new Date(meeting.dateTime),
+                cityName: city.name_municipality,
+                cityLogoImage,
+                adminBodyName: meeting.administrativeBody?.name,
+                totalSubjects: sortedSubjects.length,
+                blackLogoSrc: '/logo.png',
+                whiteLogoSrc: '/white-logo.png',
+                ...getSubjectSections(sortedSubjects, SECTION_LIMITS),
+            });
+
+            const blob = await renderStoryToBlob(element, {
+                width: 1080,
+                height: 1920,
+                signal: controller.signal,
+            });
+
+            downloadFile(blob, `meeting-story-${template}-${meetingId}.png`);
+        } catch (error) {
+            if ((error as DOMException)?.name === 'AbortError') return;
+            console.error('Error generating story image:', error);
+            errorToast();
+        } finally {
+            if (renderAbortRef.current === controller) {
+                renderAbortRef.current = null;
+            }
+            setDownloading((current) => (current === downloadKey ? null : current));
+        }
+    };
+
+    // Feed (1:1) export: still server-rendered via /api/og?variant=feed. The feed
+    // layout is simple (landscape-style adapted to square) and does not reproduce
+    // the satori hang seen with the four complex story templates.
+    const downloadFeed = async () => {
+        setDownloading('feed');
+        const imageUrl = `${window.location.origin}/api/og?cityId=${cityId}&meetingId=${meetingId}&variant=feed`;
         try {
             const response = await fetch(imageUrl);
             if (!response.ok) {
@@ -130,32 +179,17 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                         variant: 'destructive',
                     });
                 } else {
-                    toast({
-                        title: 'Αποτυχία λήψης',
-                        description: 'Δεν ήταν δυνατή η δημιουργία της εικόνας. Δοκίμασε ξανά.',
-                        variant: 'destructive',
-                    });
+                    errorToast();
                 }
                 return;
             }
-
             const blob = await response.blob();
-
-            const variantName = variant === 'story'
-                ? (template ? `story-${template}` : 'story')
-                : variant === 'feed' ? 'feed' : 'og';
-            const fileName = `meeting-${variantName}-${meetingId}.png`;
-
-            downloadFile(blob, fileName);
+            downloadFile(blob, `meeting-feed-${meetingId}.png`);
         } catch (error) {
-            console.error('Error downloading image:', error);
-            toast({
-                title: 'Αποτυχία λήψης',
-                description: 'Δεν ήταν δυνατή η δημιουργία της εικόνας. Δοκιμάστε ξανά.',
-                variant: 'destructive',
-            });
+            console.error('Error downloading feed image:', error);
+            errorToast();
         } finally {
-            setDownloading(null);
+            setDownloading((current) => (current === 'feed' ? null : current));
         }
     };
 
@@ -297,7 +331,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                                     return (
                                         <Button
                                             key={template}
-                                            onClick={() => downloadImage('story', template)}
+                                            onClick={() => downloadStory(template)}
                                             disabled={downloading !== null}
                                             variant="outline"
                                             size="sm"
@@ -316,7 +350,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
 
                             {/* Post (1:1) — single click, single render. */}
                             <Button
-                                onClick={() => downloadImage('feed')}
+                                onClick={() => downloadFeed()}
                                 disabled={downloading !== null}
                                 variant="outline"
                                 size="sm"

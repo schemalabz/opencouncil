@@ -141,7 +141,11 @@ interface SortableSubject {
   speakerSegments?: unknown[];
   agendaItemIndex?: number | null;
   nonAgendaReason?: string | null;
+  // Server queries surface contribution count via the aggregated _count.contributions;
+  // client-loaded data (CouncilMeetingDataContext) carries the full contributions array.
+  // Sorters accept either shape.
   _count?: { contributions?: number };
+  contributions?: unknown[];
 }
 
 export function sortSubjectsByImportance<T extends SortableSubject>(
@@ -156,9 +160,11 @@ export function sortSubjectsByImportance<T extends SortableSubject>(
       const bIsBeforeAgenda = b.nonAgendaReason === 'beforeAgenda' ? 1 : 0;
       if (aIsBeforeAgenda !== bIsBeforeAgenda) return aIsBeforeAgenda - bIsBeforeAgenda;
 
-      // 2. Number of speaker contributions (descending)
-      const aContributions = a._count?.contributions ?? 0;
-      const bContributions = b._count?.contributions ?? 0;
+      // 2. Number of speaker contributions (descending). Prefer the aggregated
+      //    _count.contributions (server shape); fall back to the full contributions
+      //    array length (client shape from CouncilMeetingDataContext).
+      const aContributions = a._count?.contributions ?? a.contributions?.length ?? 0;
+      const bContributions = b._count?.contributions ?? b.contributions?.length ?? 0;
       if (aContributions !== bContributions) return bContributions - aContributions;
 
       // 3. Agenda item index (ascending), non-agenda items sort after agenda items
@@ -197,8 +203,9 @@ export function sortSubjectsByImportance<T extends SortableSubject>(
 
 export function sortSubjectsBySpeakerContributionCount<T extends SortableSubject>(subjects: T[]): T[] {
   return [...subjects].sort((a, b) => {
-    const aCount = a._count?.contributions ?? 0;
-    const bCount = b._count?.contributions ?? 0;
+    // Accept either server (_count.contributions) or client (contributions[]) shape.
+    const aCount = a._count?.contributions ?? a.contributions?.length ?? 0;
+    const bCount = b._count?.contributions ?? b.contributions?.length ?? 0;
     if (bCount !== aCount) return bCount - aCount;
     return a.name.localeCompare(b.name);
   });

@@ -32,6 +32,14 @@ export interface PreviewData {
     agendaShown: PreviewSubject[];
     preAgendaRemaining: number;
     agendaRemaining: number;
+    /**
+     * OpenCouncil watermark logo sources. Server-side renders pass data URIs
+     * (from src/lib/og/serverAssets.ts); client-side renders pass URL paths
+     * ("/logo.png", "/white-logo.png"). Each template picks the variant it
+     * needs — CLASSIC/CARDS/COLORFUL use black, DARK uses white.
+     */
+    blackLogoSrc: string;
+    whiteLogoSrc: string;
 }
 
 export interface PillProps {

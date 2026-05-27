@@ -3,6 +3,7 @@ import { ImageResponse } from "@vercel/og";
 import { Container, OgHeader, formatCityDisplayName } from "@/components/og/shared-components";
 import { getMeetingDataForOG } from "@/lib/db/meetings";
 import { getPeopleForCityCached, getSubjectsForMeetingCached, getSubjectStatisticsCached } from "@/lib/cache/queries";
+import { LOGO_BLACK_DATA_URI } from "@/lib/og/serverAssets";
 import { PersonWithRelations } from '@/lib/db/people';
 import { ColorPercentageRingProps } from "@/components/ui/color-percentage-ring";
 
@@ -217,7 +218,7 @@ export default async function SubjectOgImage({
 
     return new ImageResponse(
         (
-            <Container watermarkProps={{ logoOnly: true, size: 80 }}>
+            <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI} watermarkProps={{ logoOnly: true, size: 80 }}>
                 {/* Color Percentage Ring in the absolute top right corner */}
                 <div
                     style={{

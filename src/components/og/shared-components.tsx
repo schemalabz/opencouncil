@@ -1,22 +1,9 @@
 import type React from "react";
-import fs from "fs";
-import path from "path";
 
-// Load both logo variants into base64 at module load — picked at render time via the
-// watermark's `color` prop. Empty string fallback if either file is unreadable so the
-// component still renders (just without the logo).
-function loadLogoAsDataUri(filename: string): string {
-    try {
-        const buf = fs.readFileSync(path.join(process.cwd(), "public", filename));
-        return `data:image/png;base64,${buf.toString("base64")}`;
-    } catch (error) {
-        console.error(`Failed to load ${filename}:`, error);
-        return "";
-    }
-}
-
-const LOGO_BLACK_BASE64 = loadLogoAsDataUri("logo.png");
-const LOGO_WHITE_BASE64 = loadLogoAsDataUri("white-logo.png");
+// Note: this file is imported from BOTH server (next/og render) and client
+// (html-to-image rasterization) contexts. Keep it free of Node-only imports.
+// Logo data is supplied by callers via the `logoSrc` prop — server callers pass
+// data URIs (see src/lib/og/serverAssets.ts), client callers pass URL paths.
 
 export function formatCityDisplayName(cityName: string, adminBodyName?: string | null): string {
     return adminBodyName ? `${cityName} · ${adminBodyName}` : cityName;
@@ -26,26 +13,29 @@ export function formatCityDisplayName(cityName: string, adminBodyName?: string |
 const LOGO_ASPECT_RATIO = 1606 / 1354;
 
 interface OpenCouncilWatermarkProps {
+    /**
+     * Image source for the OpenCouncil logo. Server callers should pass a data URI
+     * loaded via src/lib/og/serverAssets.ts (so satori doesn't network-fetch).
+     * Client callers should pass a same-origin URL like "/logo.png" or "/white-logo.png".
+     */
+    logoSrc: string;
     size?: number;
     fontSize?: number;
     bottom?: number;
     right?: number;
     logoOnly?: boolean;
-    /** Which logo variant to use. "black" → logo.png (default), "white" → white-logo.png. */
-    color?: "black" | "white";
 }
 
 // Shared watermark component
 export const OpenCouncilWatermark = ({
+    logoSrc,
     size = 40,
     fontSize = 21,
     bottom = 40,
     right = 40,
     logoOnly = false,
-    color = "black",
-}: OpenCouncilWatermarkProps = {}) => {
+}: OpenCouncilWatermarkProps) => {
     const logoWidth = Math.round(size * LOGO_ASPECT_RATIO);
-    const logoSrc = color === "white" ? LOGO_WHITE_BASE64 : LOGO_BLACK_BASE64;
 
     return (
         <div
@@ -78,11 +68,18 @@ export const OpenCouncilWatermark = ({
 // Shared container component
 interface ContainerProps {
     children: React.ReactNode;
-    watermarkProps?: OpenCouncilWatermarkProps;
+    /** Image source for the watermark logo. See OpenCouncilWatermark.logoSrc. */
+    watermarkLogoSrc: string;
+    watermarkProps?: Omit<OpenCouncilWatermarkProps, "logoSrc">;
     containerPadding?: string;
 }
 
-export const Container = ({ children, watermarkProps, containerPadding = "48px" }: ContainerProps) => (
+export const Container = ({
+    children,
+    watermarkLogoSrc,
+    watermarkProps,
+    containerPadding = "48px",
+}: ContainerProps) => (
     <div
         style={{
             height: "100%",
@@ -95,7 +92,7 @@ export const Container = ({ children, watermarkProps, containerPadding = "48px" 
         }}
     >
         {children}
-        <OpenCouncilWatermark {...watermarkProps} />
+        <OpenCouncilWatermark {...watermarkProps} logoSrc={watermarkLogoSrc} />
     </div>
 );
 
