@@ -124,8 +124,7 @@ export default function StoryTemplatePickerDialog({
                                     onClick={() => handleDownload(template)}
                                     disabled={downloading !== null}
                                     size="sm"
-                                    className="w-full mt-auto pt-0"
-                                    style={{ marginTop: "auto" }}
+                                    className="w-full mt-auto"
                                 >
                                     {isDownloading ? (
                                         <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
