@@ -157,7 +157,8 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                 topic: true,
                 councilMeeting: {
                     include: {
-                        city: true
+                        city: true,
+                        administrativeBody: true
                     }
                 },
                 introducedBy: {

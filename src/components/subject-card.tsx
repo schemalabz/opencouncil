@@ -1,9 +1,9 @@
-import { City, CouncilMeeting, Party } from "@prisma/client";
+import { AdministrativeBody, City, CouncilMeeting, Party } from "@prisma/client";
 import { Statistics } from "@/lib/statistics";
 import { SubjectWithRelations } from "@/lib/db/subject";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import Icon from "./icon";
-import { MapPin, ScrollText, Calendar, Loader2, Clock, MessageSquare } from "lucide-react";
+import { MapPin, ScrollText, Calendar, Loader2, Clock, MessageSquare, Landmark } from "lucide-react";
 import { cn, getPartyFromRoles } from "@/lib/utils";
 import { getNonAgendaLabel, getWithdrawnLabel } from "@/lib/utils/subjects";
 import { Link, useRouter } from "@/i18n/routing";
@@ -18,7 +18,7 @@ import { usePathname } from "next/navigation";
 interface SubjectCardProps {
     subject: SubjectWithRelations & { statistics?: Statistics };
     city: City;
-    meeting: CouncilMeeting;
+    meeting: CouncilMeeting & { administrativeBody?: AdministrativeBody | null };
     parties: Party[];
     persons: PersonWithRelations[];
     fullWidth?: boolean;
@@ -101,10 +101,16 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                 {/* Header: topic icon + title + meta */}
                 <CardHeader className="flex flex-col gap-1.5 pb-2">
                     {showContext && (
-                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70 -mt-1 -mb-1">
-                            <span className="truncate">
+                        <div className="flex flex-col gap-0.5 -mt-1 -mb-1">
+                            <span className="text-[10px] text-muted-foreground/70 truncate">
                                 {city.name} • {meeting.name}
                             </span>
+                            {meeting.administrativeBody && (
+                                <span className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground min-w-0">
+                                    <Landmark className="w-3 h-3 shrink-0" />
+                                    <span className="truncate">{meeting.administrativeBody.name}</span>
+                                </span>
+                            )}
                         </div>
                     )}
                     <div className="flex flex-row items-center gap-1.5">
