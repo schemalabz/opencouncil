@@ -1,10 +1,13 @@
 /** @jest-environment node */
 
+import { handleTaskUpdate } from '@/lib/tasks/tasks';
+import type { TaskUpdate } from '@/lib/apiTypes';
+
 const mockFindUnique = jest.fn();
 const mockUpdate = jest.fn();
 const mockUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
 
-jest.mock('../../db/prisma', () => ({
+jest.mock('@/lib/db/prisma', () => ({
   __esModule: true,
   default: {
     taskStatus: {
@@ -18,11 +21,9 @@ jest.mock('../../db/prisma', () => ({
 }));
 jest.mock('@/env.mjs', () => ({ env: { NEXTAUTH_URL: 'http://test', TASK_API_URL: 'http://test', TASK_API_KEY: 'key' } }));
 jest.mock('next/cache', () => ({ revalidateTag: jest.fn() }));
-jest.mock('../../auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
-jest.mock('../../discord', () => ({ sendTaskAdminAlert: jest.fn() }));
-jest.mock('../registry', () => ({ taskHandlers: {}, taskTerminalHooks: {} }));
-
-import { handleTaskUpdate } from '../tasks';
+jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
+jest.mock('@/lib/discord', () => ({ sendTaskAdminAlert: jest.fn() }));
+jest.mock('@/lib/tasks/registry', () => ({ taskHandlers: {}, taskTerminalHooks: {} }));
 
 const TASK_ID = 'task-1';
 
@@ -48,7 +49,8 @@ describe('handleTaskUpdate — persist raw payload before processing', () => {
     const processorErr = new Error('boom');
     const processResult = jest.fn().mockRejectedValue(processorErr);
 
-    await handleTaskUpdate(TASK_ID, { status: 'success', result, version: 7 } as any, processResult);
+    const update: TaskUpdate<typeof result> = { status: 'success', stage: '', progressPercent: 100, result, version: 7 };
+    await handleTaskUpdate(TASK_ID, update, processResult);
 
     // First update: success branch persists raw payload BEFORE processing.
     expect(mockUpdate).toHaveBeenNthCalledWith(1, {
@@ -71,15 +73,16 @@ describe('handleTaskUpdate — persist raw payload before processing', () => {
         version: 7,
       }),
     });
-    const secondCallData = (mockUpdate.mock.calls[1][0] as any).data;
-    expect(secondCallData).not.toHaveProperty('responseBody');
+    const secondCallArg = mockUpdate.mock.calls[1][0] as { data: Record<string, unknown> };
+    expect(secondCallArg.data).not.toHaveProperty('responseBody');
 
     expect(processResult).toHaveBeenCalledWith(TASK_ID, result, undefined);
   });
 
   it('clears processingError on a clean success', async () => {
     const processResult = jest.fn().mockResolvedValue(undefined);
-    await handleTaskUpdate(TASK_ID, { status: 'success', result: { ok: 1 }, version: 3 } as any, processResult);
+    const update: TaskUpdate<{ ok: number }> = { status: 'success', stage: '', progressPercent: 100, result: { ok: 1 }, version: 3 };
+    await handleTaskUpdate(TASK_ID, update, processResult);
 
     expect(mockUpdate).toHaveBeenCalledTimes(1);
     expect(mockUpdate).toHaveBeenCalledWith({
@@ -91,5 +94,40 @@ describe('handleTaskUpdate — persist raw payload before processing', () => {
         version: 3,
       },
     });
+  });
+
+  it('stores processor stack without duplicating the error message', async () => {
+    const result = { foo: 'bar' };
+    const processorErr = new Error('boom');
+    processorErr.stack = 'Error: boom\n    at processor';
+    const processResult = jest.fn().mockRejectedValue(processorErr);
+
+    const update: TaskUpdate<typeof result> = { status: 'success', stage: '', progressPercent: 100, result, version: 9 };
+    await handleTaskUpdate(TASK_ID, update, processResult);
+
+    expect(mockUpdate).toHaveBeenNthCalledWith(2, {
+      where: { id: TASK_ID },
+      data: expect.objectContaining({
+        processingError: 'Error: boom\n    at processor',
+      }),
+    });
+  });
+
+  it('clears stale processingError when backend reports an error', async () => {
+    const processResult = jest.fn();
+    const update: TaskUpdate<never> = { status: 'error', stage: '', progressPercent: 100, error: 'backend failed', version: 11 };
+
+    await handleTaskUpdate(TASK_ID, update, processResult);
+
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: TASK_ID },
+      data: {
+        status: 'failed',
+        responseBody: 'backend failed',
+        processingError: null,
+        version: 11,
+      },
+    });
+    expect(processResult).not.toHaveBeenCalled();
   });
 });
