@@ -653,7 +653,7 @@
         "noSegmentsFound": "No statements found",
         "loading": "Loading...",
         "loadMore": "Load more",
-        "recentSegments": "Recent Statements",
+        "recentContributions": "Recent contributions",
         "tryDifferentFilter": "Try changing the filters"
     },
     "Party": {
