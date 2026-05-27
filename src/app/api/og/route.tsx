@@ -6,11 +6,25 @@ import { RegulationData } from '@/components/consultations/types';
 import prisma from '@/lib/db/prisma';
 import { getPartiesForCity } from '@/lib/db/parties';
 import { getPeopleForCity, getPerson } from '@/lib/db/people';
-import { sortSubjectsByImportance } from '@/lib/utils';
-import { Container, MeetingMetaRow, OgHeader, SubjectPills, formatCityDisplayName } from '@/components/og/shared-components';
-// Import the native subject OG image generator for reuse
+import { sortSubjectsByImportance, sortSubjectsBySpeakerContributionCount } from '@/lib/utils';
+import { Container, MeetingMetaRow, OgHeader, OpenCouncilWatermark, SubjectPills, formatCityDisplayName } from '@/components/og/shared-components';
+import { renderStoryTemplate, isValidStoryTemplate, type StoryTemplateId } from '@/components/og/story-templates';
+import { getSubjectSections, SECTION_LIMITS } from '@/components/og/story-templates/sections';
+import { tryAcquireOgSlot, getOgConcurrencyStats } from '@/lib/og/concurrency';
 import SubjectOgImage from '@/app/[locale]/(city)/[cityId]/(meetings)/[meetingId]/subjects/[subjectId]/opengraph-image';
 
+// Hard ceiling on each render. Pairs with the in-process concurrency cap in
+// `@/lib/og/concurrency` to keep a single hung satori call from blocking a slot forever.
+export const maxDuration = 60;
+
+// Logs subject counts split by agenda status so we can see whether "many subjects"
+// (especially many beforeAgenda) is amplifying the work in a given render.
+function logSubjectCounts(reqId: string, variant: string, subjects: { nonAgendaReason?: string | null }[], fetchMs: number) {
+    const beforeAgenda = subjects.filter(s => s.nonAgendaReason === 'beforeAgenda').length;
+    const outOfAgenda = subjects.filter(s => s.nonAgendaReason && s.nonAgendaReason !== 'beforeAgenda').length;
+    const agenda = subjects.length - beforeAgenda - outOfAgenda;
+    console.log(`[og:${reqId}] fetched variant=${variant} total=${subjects.length} agenda=${agenda} beforeAgenda=${beforeAgenda} outOfAgenda=${outOfAgenda} in ${fetchMs}ms`);
+}
 
 // Meeting OG Image (Landscape - 1200x630)
 const MeetingOGImage = async (cityId: string, meetingId: string, reqId: string) => {
@@ -21,6 +35,7 @@ const MeetingOGImage = async (cityId: string, meetingId: string, reqId: string) 
         console.log(`[og:${reqId}] not-found variant=default city=${cityId} meeting=${meetingId}`);
         return null;
     }
+    logSubjectCounts(reqId, 'default', data.subjects ?? [], Date.now() - fetchT0);
 
     const meetingDate = new Date(data.dateTime);
     const formattedDate = meetingDate.toLocaleDateString('el-GR', {
@@ -104,6 +119,7 @@ const MeetingFeedOGImage = async (cityId: string, meetingId: string, reqId: stri
         console.log(`[og:${reqId}] not-found variant=feed city=${cityId} meeting=${meetingId}`);
         return null;
     }
+    logSubjectCounts(reqId, 'feed', data.subjects ?? [], Date.now() - fetchT0);
 
     const meetingDate = new Date(data.dateTime);
     const formattedDate = meetingDate.toLocaleDateString('el-GR', {
@@ -178,92 +194,34 @@ const MeetingFeedOGImage = async (cityId: string, meetingId: string, reqId: stri
 };
 
 // Meeting Story OG Image (Vertical - 1080x1920 for Instagram Stories)
-const MeetingStoryOGImage = async (cityId: string, meetingId: string, reqId: string) => {
+// Renders one of 4 templates selected via the `template` query param.
+const MeetingStoryOGImage = async (cityId: string, meetingId: string, template: StoryTemplateId, reqId: string) => {
     const fetchT0 = Date.now();
-    console.log(`[og:${reqId}] fetching variant=story city=${cityId} meeting=${meetingId}`);
+    console.log(`[og:${reqId}] fetching variant=story template=${template} city=${cityId} meeting=${meetingId}`);
     const data = await getMeetingDataForOG(cityId, meetingId);
     if (!data) {
-        console.log(`[og:${reqId}] not-found variant=story city=${cityId} meeting=${meetingId}`);
+        console.log(`[og:${reqId}] not-found variant=story template=${template} city=${cityId} meeting=${meetingId}`);
         return null;
     }
+    logSubjectCounts(reqId, `story/${template}`, data.subjects ?? [], Date.now() - fetchT0);
 
-    const meetingDate = new Date(data.dateTime);
-    const formattedDate = meetingDate.toLocaleDateString('el-GR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-    });
-
+    // Sort subjects so the most-discussed appear first in each section. Contribution
+    // count comes pre-aggregated on `_count.contributions`, so no extra stats query is needed.
     const sortT0 = Date.now();
-    const sortedSubjects = sortSubjectsByImportance(data.subjects);
-    console.log(`[og:${reqId}] sorted variant=story in ${Date.now() - sortT0}ms`);
+    const sortedSubjects = sortSubjectsBySpeakerContributionCount(data.subjects);
+    console.log(`[og:${reqId}] sorted variant=story template=${template} in ${Date.now() - sortT0}ms`);
 
-    const cityDisplayName = formatCityDisplayName(data.city.name_municipality, data.administrativeBody?.name);
-
-    return (
-        <Container
-            watermarkProps={{ logoOnly: true, size: 120, bottom: 52, right: 52 }}
-            containerPadding="64px 48px"
-        >
-            <OgHeader
-                city={{
-                    name: cityDisplayName,
-                    logoImage: data.city.logoImage
-                }}
-                logoHeight={100}
-                nameSize={36}
-                marginBottom="48px"
-            />
-
-            <div style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '32px',
-            }}>
-                <h1 style={{
-                    fontSize: 88,
-                    fontWeight: 800,
-                    color: '#111827',
-                    lineHeight: 1.14,
-                    margin: 0,
-                    maxWidth: '100%',
-                }}>
-                    {data.name}
-                </h1>
-
-                <MeetingMetaRow
-                    formattedDate={formattedDate}
-                    subjectsCount={data.subjects?.length || 0}
-                    fontSize={36}
-                    stacked
-                    stackGap={18}
-                    iconGap={12}
-                    separator={false}
-                />
-
-                {sortedSubjects.length > 0 && (
-                    <SubjectPills
-                        subjects={sortedSubjects}
-                        limit={9}
-                        styles={{
-                            containerGap: 20,
-                            containerMarginTop: 36,
-                            pillPadding: [24, 34],
-                            pillRadius: 22,
-                            pillFontSize: 38,
-                            pillFontWeight: 800,
-                            pillBoxShadow: '0 4px 12px rgba(0, 0, 0, 0.14)',
-                            pillWidth: '100%',
-                            remainingFontSize: 26,
-                            remainingMarginTop: 8,
-                            remainingColor: '#6b7280',
-                        }}
-                    />
-                )}
-            </div>
-        </Container>
-    );
+    // Section + slice the subjects here so the dispatcher and templates receive
+    // pre-shaped data and stay pure render functions.
+    return renderStoryTemplate(template, {
+        meetingName: data.name,
+        meetingDate: new Date(data.dateTime),
+        cityName: data.city.name_municipality,
+        cityLogoImage: data.city.logoImage,
+        adminBodyName: data.administrativeBody?.name,
+        totalSubjects: sortedSubjects.length,
+        ...getSubjectSections(sortedSubjects, SECTION_LIMITS),
+    });
 };
 
 // City OG Image
@@ -984,10 +942,21 @@ export async function GET(request: Request) {
     const subjectId = searchParams.get('subjectId');
     const pageType = searchParams.get('pageType'); // 'people', 'about', 'search', 'chat'
     const variant = searchParams.get('variant'); // 'story' for 9:16, 'feed' for 1:1, default is landscape
+    const templateParam = searchParams.get('template'); // 'CLASSIC' | 'DARK' | 'CARDS' | 'COLORFUL' for story templates
 
     // Short per-request id so concurrent requests' logs can be untangled by grepping a tag.
     const reqId = crypto.randomUUID().slice(0, 8);
-    console.log(`[og:${reqId}] enter variant=${variant ?? 'default'} city=${cityId ?? '-'} meeting=${meetingId ?? '-'} subject=${subjectId ?? '-'} pageType=${pageType ?? '-'}`);
+    console.log(`[og:${reqId}] enter variant=${variant ?? 'default'} template=${templateParam ?? '-'} city=${cityId ?? '-'} meeting=${meetingId ?? '-'} subject=${subjectId ?? '-'} pageType=${pageType ?? '-'}`);
+
+    const slot = tryAcquireOgSlot();
+    if (!slot) {
+        const stats = getOgConcurrencyStats();
+        console.warn(`[og:${reqId}] 429 capacity ${stats.active}/${stats.max} variant=${variant ?? 'default'} template=${templateParam ?? '-'}`);
+        return new Response('OG image generator at capacity — try again shortly.', {
+            status: 429,
+            headers: { 'Retry-After': '5' },
+        });
+    }
 
     const t0 = Date.now();
     try {
@@ -1004,7 +973,8 @@ export async function GET(request: Request) {
         } else if (meetingId && cityId) {
             // Handle variant for meeting images
             if (variant === 'story') {
-                element = await MeetingStoryOGImage(cityId, meetingId, reqId);
+                const template: StoryTemplateId = isValidStoryTemplate(templateParam) ? templateParam : 'CLASSIC';
+                element = await MeetingStoryOGImage(cityId, meetingId, template, reqId);
                 width = 1080;
                 height = 1920;
             } else if (variant === 'feed') {
@@ -1037,18 +1007,34 @@ export async function GET(request: Request) {
             return new Response('Not found', { status: 404 });
         }
 
-        // NOTE: ImageResponse construction is fast; the satori render runs later when
-        // the response body is streamed. The exit log below measures only up to here —
-        // actual satori CPU work happens AFTER the handler returns.
-        console.log(`[og:${reqId}] image-construct variant=${variant ?? 'default'} dim=${width}x${height} t=${Date.now() - t0}ms`);
-        return new ImageResponse(element, {
-            width,
-            height,
+        // ImageResponse construction is cheap but the satori render is lazy — it runs
+        // when the body is consumed. Force it to complete here (inside the slot) by
+        // awaiting arrayBuffer(), so the concurrency cap actually caps satori work
+        // instead of just capping handler invocations.
+        console.log(`[og:${reqId}] image-construct variant=${variant ?? 'default'} template=${templateParam ?? '-'} dim=${width}x${height} t=${Date.now() - t0}ms`);
+        const satoriT0 = Date.now();
+        const imageResponse = new ImageResponse(element, { width, height });
+        const buffer = await imageResponse.arrayBuffer();
+        console.log(`[og:${reqId}] rendered variant=${variant ?? 'default'} template=${templateParam ?? '-'} bytes=${buffer.byteLength} satori=${Date.now() - satoriT0}ms`);
+        // Restore the Cache-Control that next/og's ImageResponse sets by default —
+        // dropping it would make every crawler unfurl re-render, defeating the cap.
+        // Matches next/og's exact defaults including the dev no-cache branch.
+        return new Response(buffer, {
+            status: 200,
+            headers: {
+                'content-type': 'image/png',
+                'cache-control': process.env.NODE_ENV === 'development'
+                    ? 'no-cache, no-store'
+                    : 'public, immutable, no-transform, max-age=31536000',
+            },
         });
     } catch (e) {
         console.error(`[og:${reqId}] error:`, e);
         return new Response('Failed to generate image', { status: 500 });
     } finally {
-        console.log(`[og:${reqId}] exit variant=${variant ?? 'default'} t=${Date.now() - t0}ms`);
+        slot.release();
+        const stats = getOgConcurrencyStats();
+        // Now includes the satori render itself (we awaited arrayBuffer() above).
+        console.log(`[og:${reqId}] exit variant=${variant ?? 'default'} template=${templateParam ?? '-'} t=${Date.now() - t0}ms slots=${stats.active}/${stats.max}`);
     }
 }

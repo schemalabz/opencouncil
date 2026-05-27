@@ -2,17 +2,21 @@ import type React from "react";
 import fs from "fs";
 import path from "path";
 
-// Load and convert the logo to base64
-let logoBase64: string;
-try {
-    const logoPath = path.join(process.cwd(), "public", "logo.png");
-    const logo = fs.readFileSync(logoPath);
-    logoBase64 = `data:image/png;base64,${logo.toString("base64")}`;
-} catch (error) {
-    console.error("Failed to load logo:", error);
-    // Fallback to empty string if logo can't be loaded
-    logoBase64 = "";
+// Load both logo variants into base64 at module load — picked at render time via the
+// watermark's `color` prop. Empty string fallback if either file is unreadable so the
+// component still renders (just without the logo).
+function loadLogoAsDataUri(filename: string): string {
+    try {
+        const buf = fs.readFileSync(path.join(process.cwd(), "public", filename));
+        return `data:image/png;base64,${buf.toString("base64")}`;
+    } catch (error) {
+        console.error(`Failed to load ${filename}:`, error);
+        return "";
+    }
 }
+
+const LOGO_BLACK_BASE64 = loadLogoAsDataUri("logo.png");
+const LOGO_WHITE_BASE64 = loadLogoAsDataUri("white-logo.png");
 
 export function formatCityDisplayName(cityName: string, adminBodyName?: string | null): string {
     return adminBodyName ? `${cityName} · ${adminBodyName}` : cityName;
@@ -27,6 +31,8 @@ interface OpenCouncilWatermarkProps {
     bottom?: number;
     right?: number;
     logoOnly?: boolean;
+    /** Which logo variant to use. "black" → logo.png (default), "white" → white-logo.png. */
+    color?: "black" | "white";
 }
 
 // Shared watermark component
@@ -36,8 +42,10 @@ export const OpenCouncilWatermark = ({
     bottom = 40,
     right = 40,
     logoOnly = false,
+    color = "black",
 }: OpenCouncilWatermarkProps = {}) => {
     const logoWidth = Math.round(size * LOGO_ASPECT_RATIO);
+    const logoSrc = color === "white" ? LOGO_WHITE_BASE64 : LOGO_BLACK_BASE64;
 
     return (
         <div
@@ -51,7 +59,7 @@ export const OpenCouncilWatermark = ({
             }}
         >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={logoBase64} width={logoWidth} height={size} alt='OpenCouncil' style={{ marginRight: logoOnly ? "0" : "8px" }} />
+            <img src={logoSrc} width={logoWidth} height={size} alt='OpenCouncil' style={{ marginRight: logoOnly ? "0" : "8px" }} />
             {!logoOnly && (
                 <span
                     style={{

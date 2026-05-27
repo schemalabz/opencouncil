@@ -5,20 +5,29 @@ import { Button } from "../ui/button";
 import {
     DropdownMenu,
     DropdownMenuContent,
-    DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger
 } from "../ui/dropdown-menu";
 import { Input } from "../ui/input";
 import { Checkbox } from "../ui/checkbox";
-import { CheckCircle, CopyIcon, Share, ExternalLink, FileDown, LinkIcon, Eye, Loader2, Instagram } from "lucide-react";
+import { CheckCircle, CopyIcon, Share, FileDown, Loader2, Instagram } from "lucide-react";
 import { useVideo } from './VideoProvider';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useShare } from '@/contexts/ShareContext';
 import { formatTimestamp } from '@/lib/utils';
 import { downloadFile } from '@/lib/export/meetings';
+import { useToast } from '@/hooks/use-toast';
+// Import directly from story-template-meta (client-safe by design) to avoid pulling
+// the server-only story-templates barrel — which transitively imports shared.tsx and
+// its top-level `fs.readFileSync` calls — into the client bundle.
+import { STORY_TEMPLATES, type StoryTemplateId } from '@/components/og/story-template-meta';
+
+// One UI button per story template. Order = STORY_TEMPLATES iteration order.
+// Derived (not hand-listed) so adding a template to STORY_TEMPLATES surfaces it
+// automatically without a parallel-array drift risk.
+const STORY_VARIANTS: ReadonlyArray<StoryTemplateId> = Object.keys(STORY_TEMPLATES) as StoryTemplateId[];
 
 
 interface ShareDropdownProps {
@@ -31,42 +40,17 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const [url, setUrl] = useState('');
     const [includeTimestamp, setIncludeTimestamp] = useState(false);
     const [copySuccess, setCopySuccess] = useState(false);
-    const [ogImageUrl, setOgImageUrl] = useState('');
-    const [imageLoading, setImageLoading] = useState(true);
-    const [imageError, setImageError] = useState(false);
     const [downloading, setDownloading] = useState<string | null>(null);
     const { currentTime } = useVideo();
     const { isOpen, targetTimestamp, shouldTriggerCopy, closeShareDropdown, resetCopyTrigger } = useShare();
     const pathname = usePathname();
     const t = useTranslations();
+    const { toast } = useToast();
     const [internalOpen, setInternalOpen] = useState(false);
 
     useEffect(() => {
         setUrl(window.location.href);
-
-        // Reset loading states when URL changes
-        setImageLoading(true);
-        setImageError(false);
-
-        // Generate OG image URL based on current path
-        const baseUrl = window.location.origin;
-        let ogUrl: string;
-
-        // For subject pages, include subjectId in the API request
-        if (pathname.includes('/subjects/')) {
-            const subjectId = pathname.split('/subjects/')[1]?.split('/')[0];
-            if (subjectId) {
-                ogUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}&subjectId=${subjectId}`;
-            } else {
-                ogUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}`;
-            }
-        } else {
-            // For meeting pages, use the API route
-            ogUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}`;
-        }
-
-        setOgImageUrl(ogUrl);
-    }, [pathname, cityId, meetingId]);
+    }, [pathname]);
 
     // Handle opening with a specific timestamp from context
     useEffect(() => {
@@ -94,16 +78,6 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
         }
     }, [shouldTriggerCopy, isOpen, targetTimestamp, resetCopyTrigger]);
 
-    const handleImageLoad = () => {
-        setImageLoading(false);
-        setImageError(false);
-    };
-
-    const handleImageError = () => {
-        setImageLoading(false);
-        setImageError(true);
-    };
-
     const getShareableUrl = () => {
         const effectiveTime = targetTimestamp !== null ? targetTimestamp : currentTime;
         if (includeTimestamp && effectiveTime > 0) {
@@ -122,10 +96,10 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
         setTimeout(() => setCopySuccess(false), 3000);
     };
 
-    const downloadImage = async (variant: 'story' | 'feed' | 'default') => {
+    const downloadImage = async (variant: 'story' | 'feed' | 'default', template?: StoryTemplateId) => {
         const baseUrl = window.location.origin;
         let imageUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}`;
-        
+
         // Add subjectId if on a subject page
         if (pathname.includes('/subjects/')) {
             const subjectId = pathname.split('/subjects/')[1]?.split('/')[0];
@@ -133,29 +107,53 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                 imageUrl += `&subjectId=${subjectId}`;
             }
         }
-        
-        // Add variant parameter if not default
+
+        // Add variant + (for story) template parameters
         if (variant !== 'default') {
             imageUrl += `&variant=${variant}`;
+            if (variant === 'story' && template) {
+                imageUrl += `&template=${template}`;
+            }
         }
 
-        setDownloading(variant);
-        
+        // Composite key so each of the four story buttons shows its own loading state independently.
+        const downloadKey = variant === 'story' && template ? `story-${template}` : variant;
+        setDownloading(downloadKey);
+
         try {
             const response = await fetch(imageUrl);
             if (!response.ok) {
-                throw new Error('Failed to fetch image');
+                if (response.status === 429) {
+                    toast({
+                        title: 'Αποτυχία δημιουργίας εικόνας',
+                        description: 'Δεν είναι διαθέσιμη αυτή τη στιγμή η δημιουργία εικόνων. Δοκίμασε ξανά αργότερα.',
+                        variant: 'destructive',
+                    });
+                } else {
+                    toast({
+                        title: 'Αποτυχία λήψης',
+                        description: 'Δεν ήταν δυνατή η δημιουργία της εικόνας. Δοκίμασε ξανά.',
+                        variant: 'destructive',
+                    });
+                }
+                return;
             }
-            
+
             const blob = await response.blob();
-            
-            // Set filename based on variant
-            const variantName = variant === 'story' ? 'story' : variant === 'feed' ? 'feed' : 'og';
+
+            const variantName = variant === 'story'
+                ? (template ? `story-${template}` : 'story')
+                : variant === 'feed' ? 'feed' : 'og';
             const fileName = `meeting-${variantName}-${meetingId}.png`;
-            
+
             downloadFile(blob, fileName);
         } catch (error) {
             console.error('Error downloading image:', error);
+            toast({
+                title: 'Αποτυχία λήψης',
+                description: 'Δεν ήταν δυνατή η δημιουργία της εικόνας. Δοκιμάστε ξανά.',
+                variant: 'destructive',
+            });
         } finally {
             setDownloading(null);
         }
@@ -280,80 +278,58 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                     )}
                 </div>
 
-                {ogImageUrl && (
+                {!pathname.includes('/subjects/') && (
                     <>
                         <DropdownMenuSeparator />
-                        <div className="p-3">
-                            <div className="rounded-lg border overflow-hidden bg-muted/50">
-                                <div className="aspect-[1200/630] relative bg-muted/30">
-                                    {imageLoading && (
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                            <div className="flex flex-col items-center gap-2">
-                                                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                                                <span className="text-xs text-muted-foreground">Φόρτωση προεπισκόπησης...</span>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {!imageError && (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img
-                                            src={ogImageUrl}
-                                            alt="Preview"
-                                            className={`w-full h-full object-cover transition-opacity duration-200 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
-                                            onLoad={handleImageLoad}
-                                            onError={handleImageError}
-                                        />
-                                    )}
-                                    {imageError && !imageLoading && (
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                            <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                                <Eye className="w-6 h-6" />
-                                                <span className="text-xs">Προεπισκόπηση μη διαθέσιμη</span>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="p-2 bg-background">
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <Eye className="w-3 h-3" />
-                                        <span>Προεπισκόπηση κοινοποίησης</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </>
-                )}
-
-                {ogImageUrl && !pathname.includes('/subjects/') && (
-                    <>
-                        <DropdownMenuSeparator />
-                        <div className="p-3">
-                            <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                        <div className="p-3 space-y-2">
+                            <label className="text-xs font-medium text-muted-foreground block">
                                 Εξαγωγή Προεπισκόπησης ως Εικόνα
                             </label>
-                            <div className="grid grid-cols-2 gap-2">
-                                {[
-                                    { type: 'story' as const, icon: Instagram, label: 'Story', ratio: '9:16' },
-                                    { type: 'feed' as const, icon: FileDown, label: 'Post', ratio: '1:1' }
-                                ].map(({ type, icon: Icon, label, ratio }) => (
-                                    <Button
-                                        key={type}
-                                        onClick={() => downloadImage(type)}
-                                        disabled={downloading !== null}
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-8 flex items-center gap-1.5"
-                                    >
-                                        {downloading === type ? (
-                                            <Loader2 className="w-3 h-3 animate-spin" />
-                                        ) : (
-                                            <Icon className="w-3 h-3" />
-                                        )}
-                                        <span className="text-xs">{label}</span>
-                                        <span className="text-[10px] text-muted-foreground">({ratio})</span>
-                                    </Button>
-                                ))}
+
+                            {/* Four Story variants (9:16) — one render per click. */}
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground pt-1">
+                                Story (9:16)
                             </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                {STORY_VARIANTS.map((template) => {
+                                    const key = `story-${template}`;
+                                    const isDownloading = downloading === key;
+                                    return (
+                                        <Button
+                                            key={template}
+                                            onClick={() => downloadImage('story', template)}
+                                            disabled={downloading !== null}
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-8 flex items-center gap-1.5"
+                                        >
+                                            {isDownloading ? (
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                            ) : (
+                                                <Instagram className="w-3 h-3" />
+                                            )}
+                                            <span className="text-xs">{STORY_TEMPLATES[template].name}</span>
+                                        </Button>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Post (1:1) — single click, single render. */}
+                            <Button
+                                onClick={() => downloadImage('feed')}
+                                disabled={downloading !== null}
+                                variant="outline"
+                                size="sm"
+                                className="w-full h-8 flex items-center gap-1.5"
+                            >
+                                {downloading === 'feed' ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                    <FileDown className="w-3 h-3" />
+                                )}
+                                <span className="text-xs">Post</span>
+                                <span className="text-[10px] text-muted-foreground">(1:1)</span>
+                            </Button>
                         </div>
                     </>
                 )}
