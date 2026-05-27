@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { el } from "date-fns/locale";
 import { OpenCouncilWatermark } from "../shared-components";
 import type { PreviewSubject, PreviewData } from "./types";
-import { PRIMARY_PILL_FALLBACK, TopicIcon } from "./shared";
+import { PRIMARY_PILL_FALLBACK, STORY_FONT_FAMILY, TopicIcon, uppercaseGreek } from "./shared";
 
 // One subject rendered as a tilted, full-color sticker with letter circle, number, and name.
 const SubjectSticker = ({
@@ -81,11 +81,11 @@ const SubjectSticker = ({
 // Tilted dark label used for section headings. Sharp corners + hard-offset gray block
 // behind it, mirroring the 3D look of the "Συνεδρίαση" sticker.
 const StickerSectionLabel = ({
-    children,
+    label,
     background = "#1A1A1A",
     tilt = -1,
 }: {
-    children: React.ReactNode;
+    label: string;
     background?: string;
     tilt?: number;
 }) => (
@@ -108,10 +108,10 @@ const StickerSectionLabel = ({
                 fontWeight: 800,
                 color: "#FFFFFF",
                 letterSpacing: "0.22em",
-                textTransform: "uppercase",
+                whiteSpace: "nowrap",
             }}
         >
-            {children}
+            {uppercaseGreek(label)}
         </span>
     </div>
 );
@@ -144,6 +144,7 @@ export const Template4Colorful = (data: PreviewData) => {
                 backgroundRepeat: "no-repeat",
                 padding: "56px 48px",
                 position: "relative",
+                fontFamily: STORY_FONT_FAMILY,
             }}
         >
             {/* Header (mirrors Template 3) */}
@@ -261,9 +262,11 @@ export const Template4Colorful = (data: PreviewData) => {
 
             {preAgendaShown.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                    <StickerSectionLabel background="#2A4A3E" tilt={-1.5}>
-                        ΠΡΟ ΗΜΕΡΗΣΙΑΣ ΣΥΖΗΤΗΣΗ · {preAgenda.length}
-                    </StickerSectionLabel>
+                    <StickerSectionLabel
+                        label={`Προ ημερησίας συζήτηση · ${preAgenda.length}`}
+                        background="#2A4A3E"
+                        tilt={-1.5}
+                    />
                     {preAgendaShown.map((s, i) => (
                         <SubjectSticker key={s.id} subject={s} tilt={stickerTilt(i)} />
                     ))}
@@ -290,9 +293,11 @@ export const Template4Colorful = (data: PreviewData) => {
 
             {agendaShown.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                    <StickerSectionLabel background="#1A1A1A" tilt={-1}>
-                        ΗΜΕΡΗΣΙΑ ΔΙΑΤΑΞΗ · {agenda.length}
-                    </StickerSectionLabel>
+                    <StickerSectionLabel
+                        label={`Ημερήσια διάταξη · ${agenda.length}`}
+                        background="#1A1A1A"
+                        tilt={-1}
+                    />
                     {agendaShown.map((s, i) => (
                         <SubjectSticker
                             key={s.id}

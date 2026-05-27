@@ -21,6 +21,24 @@ import type { PillProps } from "./types";
 
 export const PRIMARY_PILL_FALLBACK = "#9CA3AF";
 
+// OpenCouncil's signature font, declared via @font-face in globals.css. We apply
+// it on each template's outer div via inline style so the cascade picks it up in
+// both the live preview and the html-to-image export. Fallback to system sans so
+// font-weights Relative Book Pro doesn't ship (it's a single 400-weight face)
+// render in a clean sans rather than synthesizing-bold the brand font.
+export const STORY_FONT_FAMILY = "'Relative Book Pro', system-ui, -apple-system, sans-serif";
+
+/**
+ * Greek uppercase with τόνοι (accents) stripped — the typographic convention for
+ * Greek uppercase. JS `.toLocaleUpperCase("el")` does this on modern engines, but
+ * we belt-and-suspenders with an explicit combining-mark strip so the export
+ * (rasterized SVG, where locale-aware text-transform doesn't always apply)
+ * matches the live preview exactly.
+ */
+export function uppercaseGreek(s: string): string {
+    return s.toLocaleUpperCase("el").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 // Topic.icon strings in the DB are kebab-case lucide icon names. Map them to
 // their components here so templates can render a per-subject icon. Falls
 // back to a circle for unknown / absent names.
@@ -55,11 +73,11 @@ export function TopicIcon({
 // ---------- Building blocks shared between templates ----------
 
 export const SectionLabel = ({
-    children,
+    label,
     count,
     color,
 }: {
-    children: React.ReactNode;
+    label: string;
     count: number;
     color: string;
 }) => (
@@ -72,12 +90,11 @@ export const SectionLabel = ({
             fontSize: 26,
             fontWeight: 700,
             letterSpacing: "0.18em",
-            textTransform: "uppercase",
             marginBottom: 16,
         }}
     >
         <div style={{ display: "flex", width: 24, height: 2, background: color, marginRight: 14 }} />
-        <span style={{ display: "flex", whiteSpace: "nowrap" }}>{children}</span>
+        <span style={{ display: "flex", whiteSpace: "nowrap" }}>{uppercaseGreek(label)}</span>
         <span style={{ display: "flex", marginLeft: 10, opacity: 0.6, whiteSpace: "nowrap" }}>({count})</span>
     </div>
 );

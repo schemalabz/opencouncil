@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import { el } from "date-fns/locale";
 import { OpenCouncilWatermark } from "../shared-components";
 import type { PreviewData } from "./types";
-import { SectionLabel, SubjectRow, RemainderLine } from "./shared";
+import { SectionLabel, SubjectRow, RemainderLine, STORY_FONT_FAMILY, uppercaseGreek } from "./shared";
 
 // T2 — Dark (dark with hero date)
 export const Template2Dark = (data: PreviewData) => {
@@ -30,6 +30,7 @@ export const Template2Dark = (data: PreviewData) => {
                 color: "#F5F5F5",
                 padding: "64px 56px",
                 position: "relative",
+                fontFamily: STORY_FONT_FAMILY,
             }}
         >
             {/* Top strip in a full-width light-tinted wrapper */}
@@ -63,11 +64,10 @@ export const Template2Dark = (data: PreviewData) => {
                             fontWeight: 600,
                             color: "#1f2937ad",
                             letterSpacing: "0.18em",
-                            textTransform: "uppercase",
                             whiteSpace: "nowrap",
                         }}
                     >
-                        {data.adminBodyName}
+                        {data.adminBodyName ? uppercaseGreek(data.adminBodyName) : ""}
                     </span>
                     <span style={{ display: "flex", fontSize: 40, fontWeight: 700, color: "#1F2937", marginTop: 4, whiteSpace: "nowrap" }}>
                         {data.cityName}
@@ -135,9 +135,7 @@ export const Template2Dark = (data: PreviewData) => {
 
             {preAgendaShown.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column" }}>
-                    <SectionLabel count={preAgenda.length} color="#9CA3AF">
-                        Προ ημερησίας συζήτηση
-                    </SectionLabel>
+                    <SectionLabel label="Προ ημερησίας συζήτηση" count={preAgenda.length} color="#9CA3AF" />
                     {preAgendaShown.map((s) => (
                         <SubjectRow key={s.id} subject={s} palette="dark" />
                     ))}
@@ -153,9 +151,7 @@ export const Template2Dark = (data: PreviewData) => {
             {/* Agenda section */}
             {agendaShown.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column" }}>
-                    <SectionLabel count={agenda.length} color="#9CA3AF">
-                        Ημερήσια διάταξη
-                    </SectionLabel>
+                    <SectionLabel label="Ημερήσια διάταξη" count={agenda.length} color="#9CA3AF" />
                     {agendaShown.map((s) => (
                         <SubjectRow key={s.id} subject={s} palette="dark" />
                     ))}

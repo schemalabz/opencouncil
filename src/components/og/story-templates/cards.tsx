@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import { OpenCouncilWatermark } from "../shared-components";
 import type { PreviewSubject, PreviewData } from "./types";
-import { SectionLabel, RemainderLine, PRIMARY_PILL_FALLBACK, TopicIcon } from "./shared";
+import { SectionLabel, RemainderLine, PRIMARY_PILL_FALLBACK, STORY_FONT_FAMILY, TopicIcon, uppercaseGreek } from "./shared";
 
 // Card showing one subject with its topic icon + color + name.
 // Topic color drives the border + a very light tint of the background; icon sits on the right.
@@ -21,8 +21,24 @@ const SubjectCard = ({ subject }: { subject: PreviewSubject }) => {
                 border: `2px solid ${color}`,
             }}
         >
-            {/* Left: text */}
-            <div style={{ display: "flex", flexDirection: "column", flex: 1, marginRight: 16 }}>
+            {/* Left: icon disc */}
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 64,
+                    height: 64,
+                    borderRadius: 32,
+                    background: color,
+                    flexShrink: 0,
+                    marginRight: 18,
+                }}
+            >
+                <TopicIcon name={subject.topic?.icon} color="#FFFFFF" size={36} />
+            </div>
+            {/* Right: text */}
+            <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
                 {subject.topic?.name && (
                     <span
                         style={{
@@ -31,11 +47,10 @@ const SubjectCard = ({ subject }: { subject: PreviewSubject }) => {
                             fontWeight: 700,
                             color,
                             letterSpacing: "0.14em",
-                            textTransform: "uppercase",
                             marginBottom: 10,
                         }}
                     >
-                        {subject.topic.name}
+                        {uppercaseGreek(subject.topic.name)}
                     </span>
                 )}
                 <span
@@ -49,21 +64,6 @@ const SubjectCard = ({ subject }: { subject: PreviewSubject }) => {
                 >
                     {subject.name}
                 </span>
-            </div>
-            {/* Right: icon disc */}
-            <div
-                style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 64,
-                    height: 64,
-                    borderRadius: 32,
-                    background: color,
-                    flexShrink: 0,
-                }}
-            >
-                <TopicIcon name={subject.topic?.icon} color="#FFFFFF" size={36} />
             </div>
         </div>
     );
@@ -99,6 +99,7 @@ export const Template3WithCards = (data: PreviewData) => {
                 background: "#FAFAF8",
                 padding: "64px 56px",
                 position: "relative",
+                fontFamily: STORY_FONT_FAMILY,
             }}
         >
             {/* Header (mirrors T1) */}
@@ -159,9 +160,7 @@ export const Template3WithCards = (data: PreviewData) => {
             {/* Pre-agenda cards */}
             {preAgendaShown.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", marginBottom: 8 }}>
-                    <SectionLabel count={preAgenda.length} color="#6B7280">
-                        Προ ημερησίας συζήτηση
-                    </SectionLabel>
+                    <SectionLabel label="Προ ημερησίας συζήτηση" count={preAgenda.length} color="#6B7280" />
                     <SubjectCardGrid subjects={preAgendaShown} />
                 </div>
             )}
@@ -175,9 +174,7 @@ export const Template3WithCards = (data: PreviewData) => {
             {/* Agenda cards */}
             {agendaShown.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column" }}>
-                    <SectionLabel count={agenda.length} color="#6B7280">
-                        Ημερήσια διάταξη
-                    </SectionLabel>
+                    <SectionLabel label="Ημερήσια διάταξη" count={agenda.length} color="#6B7280" />
                     <SubjectCardGrid subjects={agendaShown} />
                 </div>
             )}

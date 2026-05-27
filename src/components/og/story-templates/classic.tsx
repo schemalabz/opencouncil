@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import { OpenCouncilWatermark } from "../shared-components";
 import { formatDate } from "@/lib/formatters/time";
 import type { PreviewData } from "./types";
-import { SectionLabel, SubjectRow, RemainderLine } from "./shared";
+import { SectionLabel, SubjectRow, RemainderLine, STORY_FONT_FAMILY } from "./shared";
 
 // T1 — Classic (cream / clean)
 export const Template1Classic = (data: PreviewData) => {
@@ -21,6 +21,7 @@ export const Template1Classic = (data: PreviewData) => {
                 background: "#F5EFE6",
                 padding: "64px 56px",
                 position: "relative",
+                fontFamily: STORY_FONT_FAMILY,
             }}
         >
             {/* Header */}
@@ -88,9 +89,7 @@ export const Template1Classic = (data: PreviewData) => {
             {/* Pre-agenda section */}
             {preAgendaShown.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column" }}>
-                    <SectionLabel count={preAgenda.length} color="#6B7280">
-                        Προ ημερησίας συζήτηση
-                    </SectionLabel>
+                    <SectionLabel label="Προ ημερησίας συζήτηση" count={preAgenda.length} color="#6B7280" />
                     {preAgendaShown.map((s) => (
                         <SubjectRow key={s.id} subject={s} palette="light" />
                     ))}
@@ -106,9 +105,7 @@ export const Template1Classic = (data: PreviewData) => {
             {/* Agenda section */}
             {agendaShown.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column" }}>
-                    <SectionLabel count={agenda.length} color="#6B7280">
-                        Ημερήσια διάταξη
-                    </SectionLabel>
+                    <SectionLabel label="Ημερήσια διάταξη" count={agenda.length} color="#6B7280" />
                     {agendaShown.map((s) => (
                         <SubjectRow key={s.id} subject={s} palette="light" />
                     ))}
