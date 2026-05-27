@@ -7,14 +7,20 @@ import prisma from '@/lib/db/prisma';
 import { getPartiesForCity } from '@/lib/db/parties';
 import { getPeopleForCity, getPerson } from '@/lib/db/people';
 import { sortSubjectsByImportance } from '@/lib/utils';
-import { Container, MeetingMetaRow, OgHeader, OpenCouncilWatermark, SubjectPills, formatCityDisplayName } from '@/components/og/shared-components';
+import { Container, MeetingMetaRow, OgHeader, SubjectPills, formatCityDisplayName } from '@/components/og/shared-components';
 // Import the native subject OG image generator for reuse
 import SubjectOgImage from '@/app/[locale]/(city)/[cityId]/(meetings)/[meetingId]/subjects/[subjectId]/opengraph-image';
 
+
 // Meeting OG Image (Landscape - 1200x630)
-const MeetingOGImage = async (cityId: string, meetingId: string) => {
+const MeetingOGImage = async (cityId: string, meetingId: string, reqId: string) => {
+    const fetchT0 = Date.now();
+    console.log(`[og:${reqId}] fetching variant=default city=${cityId} meeting=${meetingId}`);
     const data = await getMeetingDataForOG(cityId, meetingId);
-    if (!data) return null;
+    if (!data) {
+        console.log(`[og:${reqId}] not-found variant=default city=${cityId} meeting=${meetingId}`);
+        return null;
+    }
 
     const meetingDate = new Date(data.dateTime);
     const formattedDate = meetingDate.toLocaleDateString('el-GR', {
@@ -23,7 +29,9 @@ const MeetingOGImage = async (cityId: string, meetingId: string) => {
         day: 'numeric',
     });
 
+    const sortT0 = Date.now();
     const sortedSubjects = sortSubjectsByImportance(data.subjects);
+    console.log(`[og:${reqId}] sorted variant=default in ${Date.now() - sortT0}ms`);
 
     const cityDisplayName = formatCityDisplayName(data.city.name_municipality, data.administrativeBody?.name);
 
@@ -88,9 +96,14 @@ const MeetingOGImage = async (cityId: string, meetingId: string) => {
 };
 
 // Meeting Feed OG Image (Square - 1080x1080)
-const MeetingFeedOGImage = async (cityId: string, meetingId: string) => {
+const MeetingFeedOGImage = async (cityId: string, meetingId: string, reqId: string) => {
+    const fetchT0 = Date.now();
+    console.log(`[og:${reqId}] fetching variant=feed city=${cityId} meeting=${meetingId}`);
     const data = await getMeetingDataForOG(cityId, meetingId);
-    if (!data) return null;
+    if (!data) {
+        console.log(`[og:${reqId}] not-found variant=feed city=${cityId} meeting=${meetingId}`);
+        return null;
+    }
 
     const meetingDate = new Date(data.dateTime);
     const formattedDate = meetingDate.toLocaleDateString('el-GR', {
@@ -99,7 +112,9 @@ const MeetingFeedOGImage = async (cityId: string, meetingId: string) => {
         day: 'numeric',
     });
 
+    const sortT0 = Date.now();
     const sortedSubjects = sortSubjectsByImportance(data.subjects);
+    console.log(`[og:${reqId}] sorted variant=feed in ${Date.now() - sortT0}ms`);
 
     const cityDisplayName = formatCityDisplayName(data.city.name_municipality, data.administrativeBody?.name);
 
@@ -163,9 +178,14 @@ const MeetingFeedOGImage = async (cityId: string, meetingId: string) => {
 };
 
 // Meeting Story OG Image (Vertical - 1080x1920 for Instagram Stories)
-const MeetingStoryOGImage = async (cityId: string, meetingId: string) => {
+const MeetingStoryOGImage = async (cityId: string, meetingId: string, reqId: string) => {
+    const fetchT0 = Date.now();
+    console.log(`[og:${reqId}] fetching variant=story city=${cityId} meeting=${meetingId}`);
     const data = await getMeetingDataForOG(cityId, meetingId);
-    if (!data) return null;
+    if (!data) {
+        console.log(`[og:${reqId}] not-found variant=story city=${cityId} meeting=${meetingId}`);
+        return null;
+    }
 
     const meetingDate = new Date(data.dateTime);
     const formattedDate = meetingDate.toLocaleDateString('el-GR', {
@@ -174,7 +194,9 @@ const MeetingStoryOGImage = async (cityId: string, meetingId: string) => {
         day: 'numeric',
     });
 
+    const sortT0 = Date.now();
     const sortedSubjects = sortSubjectsByImportance(data.subjects);
+    console.log(`[og:${reqId}] sorted variant=story in ${Date.now() - sortT0}ms`);
 
     const cityDisplayName = formatCityDisplayName(data.city.name_municipality, data.administrativeBody?.name);
 
@@ -963,6 +985,11 @@ export async function GET(request: Request) {
     const pageType = searchParams.get('pageType'); // 'people', 'about', 'search', 'chat'
     const variant = searchParams.get('variant'); // 'story' for 9:16, 'feed' for 1:1, default is landscape
 
+    // Short per-request id so concurrent requests' logs can be untangled by grepping a tag.
+    const reqId = crypto.randomUUID().slice(0, 8);
+    console.log(`[og:${reqId}] enter variant=${variant ?? 'default'} city=${cityId ?? '-'} meeting=${meetingId ?? '-'} subject=${subjectId ?? '-'} pageType=${pageType ?? '-'}`);
+
+    const t0 = Date.now();
     try {
         let element;
         let width = 1200;
@@ -977,17 +1004,17 @@ export async function GET(request: Request) {
         } else if (meetingId && cityId) {
             // Handle variant for meeting images
             if (variant === 'story') {
-                element = await MeetingStoryOGImage(cityId, meetingId);
+                element = await MeetingStoryOGImage(cityId, meetingId, reqId);
                 width = 1080;
                 height = 1920;
             } else if (variant === 'feed') {
                 // Square format for feed posts
-                element = await MeetingFeedOGImage(cityId, meetingId);
+                element = await MeetingFeedOGImage(cityId, meetingId, reqId);
                 width = 1080;
                 height = 1080;
             } else {
                 // Default landscape format
-                element = await MeetingOGImage(cityId, meetingId);
+                element = await MeetingOGImage(cityId, meetingId, reqId);
             }
         } else if (personId && cityId) {
             element = await PersonOGImage(cityId, personId);
@@ -1006,15 +1033,22 @@ export async function GET(request: Request) {
         }
 
         if (!element) {
+            console.log(`[og:${reqId}] not-found before-image-construction t=${Date.now() - t0}ms`);
             return new Response('Not found', { status: 404 });
         }
 
+        // NOTE: ImageResponse construction is fast; the satori render runs later when
+        // the response body is streamed. The exit log below measures only up to here —
+        // actual satori CPU work happens AFTER the handler returns.
+        console.log(`[og:${reqId}] image-construct variant=${variant ?? 'default'} dim=${width}x${height} t=${Date.now() - t0}ms`);
         return new ImageResponse(element, {
             width,
             height,
         });
     } catch (e) {
-        console.error(e);
+        console.error(`[og:${reqId}] error:`, e);
         return new Response('Failed to generate image', { status: 500 });
+    } finally {
+        console.log(`[og:${reqId}] exit variant=${variant ?? 'default'} t=${Date.now() - t0}ms`);
     }
 }
