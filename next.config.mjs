@@ -40,6 +40,14 @@ const nextConfig = {
                     { key: 'Cache-Control', value: 'public, s-maxage=300, stale-while-revalidate=3600' },
                 ],
             },
+            {
+                // Cap edge cache on HTML so a broken deploy can't be served by Cloudflare for a year.
+                // Excludes _next/* (immutable hashed assets), api/*, files with extensions, and the embed rule above.
+                source: '/((?!_next/|api/|.*\\..*|[^/]+/embed/).*)',
+                headers: [
+                    { key: 'Cache-Control', value: 'public, max-age=0, s-maxage=30, stale-while-revalidate=60' },
+                ],
+            },
         ];
     },
     async redirects() {
