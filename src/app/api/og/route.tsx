@@ -10,12 +10,10 @@ import { RegulationData } from '@/components/consultations/types';
 import prisma from '@/lib/db/prisma';
 import { getPartiesForCity } from '@/lib/db/parties';
 import { getPeopleForCity, getPerson } from '@/lib/db/people';
-import { sortSubjectsByImportance, sortSubjectsBySpeakerContributionCount } from '@/lib/utils';
+import { sortSubjectsByImportance } from '@/lib/utils';
 import { Container, MeetingMetaRow, OgHeader, SubjectPills, formatCityDisplayName } from '@/components/og/shared-components';
-import { renderStoryTemplate, isValidStoryTemplate, type StoryTemplateId } from '@/components/og/story-templates';
-import { getSubjectSections, SECTION_LIMITS } from '@/components/og/story-templates/sections';
 import { tryAcquireOgSlot, getOgConcurrencyStats } from '@/lib/og/concurrency';
-import { LOGO_BLACK_DATA_URI, LOGO_WHITE_DATA_URI } from '@/lib/og/serverAssets';
+import { LOGO_BLACK_DATA_URI } from '@/lib/og/serverAssets';
 import SubjectOgImage from '@/app/[locale]/(city)/[cityId]/(meetings)/[meetingId]/subjects/[subjectId]/opengraph-image';
 
 // Hard ceiling on each render. Pairs with the in-process concurrency cap in
@@ -29,34 +27,6 @@ function logSubjectCounts(reqId: string, variant: string, subjects: { nonAgendaR
     const outOfAgenda = subjects.filter(s => s.nonAgendaReason && s.nonAgendaReason !== 'beforeAgenda').length;
     const agenda = subjects.length - beforeAgenda - outOfAgenda;
     console.log(`[og:${reqId}] fetched variant=${variant} total=${subjects.length} agenda=${agenda} beforeAgenda=${beforeAgenda} outOfAgenda=${outOfAgenda} in ${fetchMs}ms`);
-}
-
-// Pre-resolve an external image URL to a base64 data URI so satori never does its own
-// network fetch during render. Eliminates one variable from the hang-debug: if satori's
-// internal undici fetch was the culprit (chunked-encoding / abort-signal stalls), passing
-// a data URI sidesteps it entirely. AbortController bounds the resolve at 5s; on failure
-// we fall back to null so the template degrades gracefully (no logo) instead of hanging.
-async function resolveImageToDataUri(url: string | null | undefined, reqId: string, timeoutMs = 5000): Promise<string | null> {
-    if (!url) return null;
-    const t0 = Date.now();
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-        const res = await fetch(url, { signal: controller.signal });
-        if (!res.ok) {
-            console.warn(`[og:${reqId}] logo-fetch non-ok status=${res.status} url=${url} in ${Date.now() - t0}ms`);
-            return null;
-        }
-        const buf = Buffer.from(await res.arrayBuffer());
-        const mime = res.headers.get('content-type') || 'image/png';
-        console.log(`[og:${reqId}] logo-fetch ok bytes=${buf.byteLength} mime=${mime} in ${Date.now() - t0}ms`);
-        return `data:${mime};base64,${buf.toString('base64')}`;
-    } catch (e) {
-        console.warn(`[og:${reqId}] logo-fetch failed (${(e as Error).message}) in ${Date.now() - t0}ms`);
-        return null;
-    } finally {
-        clearTimeout(timer);
-    }
 }
 
 // Meeting OG Image (Landscape - 1200x630)
@@ -226,42 +196,10 @@ const MeetingFeedOGImage = async (cityId: string, meetingId: string, reqId: stri
     );
 };
 
-// Meeting Story OG Image (Vertical - 1080x1920 for Instagram Stories)
-// Renders one of 4 templates selected via the `template` query param.
-const MeetingStoryOGImage = async (cityId: string, meetingId: string, template: StoryTemplateId, reqId: string) => {
-    const fetchT0 = Date.now();
-    console.log(`[og:${reqId}] fetching variant=story template=${template} city=${cityId} meeting=${meetingId}`);
-    const data = await getMeetingDataForOG(cityId, meetingId);
-    if (!data) {
-        console.log(`[og:${reqId}] not-found variant=story template=${template} city=${cityId} meeting=${meetingId}`);
-        return null;
-    }
-    logSubjectCounts(reqId, `story/${template}`, data.subjects ?? [], Date.now() - fetchT0);
-
-    // Sort subjects so the most-discussed appear first in each section. Contribution
-    // count comes pre-aggregated on `_count.contributions`, so no extra stats query is needed.
-    const sortT0 = Date.now();
-    const sortedSubjects = sortSubjectsBySpeakerContributionCount(data.subjects);
-    console.log(`[og:${reqId}] sorted variant=story template=${template} in ${Date.now() - sortT0}ms`);
-
-    // Pre-resolve the city logo to a data URI so satori never does its own fetch
-    // (debugging an Athens-specific render hang — see resolveImageToDataUri).
-    const cityLogoImage = await resolveImageToDataUri(data.city.logoImage, reqId);
-
-    // Section + slice the subjects here so the dispatcher and templates receive
-    // pre-shaped data and stay pure render functions.
-    return renderStoryTemplate(template, {
-        meetingName: data.name,
-        meetingDate: new Date(data.dateTime),
-        cityName: data.city.name_municipality,
-        cityLogoImage,
-        adminBodyName: data.administrativeBody?.name,
-        totalSubjects: sortedSubjects.length,
-        blackLogoSrc: LOGO_BLACK_DATA_URI,
-        whiteLogoSrc: LOGO_WHITE_DATA_URI,
-        ...getSubjectSections(sortedSubjects, SECTION_LIMITS),
-    });
-};
+// Meeting Story OG Image (1080×1920) is now rendered client-side via
+// src/lib/export/storyImage.tsx + ShareDropdown to avoid the satori/yoga
+// hang on Athens-scale data. The four templates are only invoked from the
+// browser — `?variant=story` is no longer handled by this route.
 
 // City OG Image
 const CityOGImage = async (cityId: string) => {
@@ -980,17 +918,16 @@ export async function GET(request: Request) {
     const personId = searchParams.get('personId');
     const subjectId = searchParams.get('subjectId');
     const pageType = searchParams.get('pageType'); // 'people', 'about', 'search', 'chat'
-    const variant = searchParams.get('variant'); // 'story' for 9:16, 'feed' for 1:1, default is landscape
-    const templateParam = searchParams.get('template'); // 'CLASSIC' | 'DARK' | 'CARDS' | 'COLORFUL' for story templates
+    const variant = searchParams.get('variant'); // 'feed' for 1:1, default is landscape (story is client-side now)
 
     // Short per-request id so concurrent requests' logs can be untangled by grepping a tag.
     const reqId = crypto.randomUUID().slice(0, 8);
-    console.log(`[og:${reqId}] enter variant=${variant ?? 'default'} template=${templateParam ?? '-'} city=${cityId ?? '-'} meeting=${meetingId ?? '-'} subject=${subjectId ?? '-'} pageType=${pageType ?? '-'}`);
+    console.log(`[og:${reqId}] enter variant=${variant ?? 'default'} city=${cityId ?? '-'} meeting=${meetingId ?? '-'} subject=${subjectId ?? '-'} pageType=${pageType ?? '-'}`);
 
     const slot = tryAcquireOgSlot();
     if (!slot) {
         const stats = getOgConcurrencyStats();
-        console.warn(`[og:${reqId}] 429 capacity ${stats.active}/${stats.max} variant=${variant ?? 'default'} template=${templateParam ?? '-'}`);
+        console.warn(`[og:${reqId}] 429 capacity ${stats.active}/${stats.max} variant=${variant ?? 'default'}`);
         return new Response('OG image generator at capacity — try again shortly.', {
             status: 429,
             headers: { 'Retry-After': '5' },
@@ -1010,13 +947,11 @@ export async function GET(request: Request) {
             // Note: locale doesn't affect the image content, so we use 'el' as default
             return await SubjectOgImage({ params: { locale: 'el', cityId, meetingId, subjectId } });
         } else if (meetingId && cityId) {
-            // Handle variant for meeting images
-            if (variant === 'story') {
-                const template: StoryTemplateId = isValidStoryTemplate(templateParam) ? templateParam : 'CLASSIC';
-                element = await MeetingStoryOGImage(cityId, meetingId, template, reqId);
-                width = 1080;
-                height = 1920;
-            } else if (variant === 'feed') {
+            // Handle variant for meeting images. ?variant=story is no longer served here —
+            // story exports render client-side via src/lib/export/storyImage.tsx. A stray
+            // story request falls through to the default landscape, which is a reasonable
+            // fallback for any external caller still on the old URL shape.
+            if (variant === 'feed') {
                 // Square format for feed posts
                 element = await MeetingFeedOGImage(cityId, meetingId, reqId);
                 width = 1080;
@@ -1050,7 +985,7 @@ export async function GET(request: Request) {
         // when the body is consumed. Force it to complete here (inside the slot) by
         // awaiting arrayBuffer(), so the concurrency cap actually caps satori work
         // instead of just capping handler invocations.
-        console.log(`[og:${reqId}] image-construct variant=${variant ?? 'default'} template=${templateParam ?? '-'} dim=${width}x${height} t=${Date.now() - t0}ms`);
+        console.log(`[og:${reqId}] image-construct variant=${variant ?? 'default'} dim=${width}x${height} t=${Date.now() - t0}ms`);
         const satoriT0 = Date.now();
         const imageResponse = new ImageResponse(element, { width, height });
         // Heartbeat while waiting for satori. If these logs FIRE during a hang, the
@@ -1066,7 +1001,7 @@ export async function GET(request: Request) {
         } finally {
             clearInterval(heartbeat);
         }
-        console.log(`[og:${reqId}] rendered variant=${variant ?? 'default'} template=${templateParam ?? '-'} bytes=${buffer.byteLength} satori=${Date.now() - satoriT0}ms`);
+        console.log(`[og:${reqId}] rendered variant=${variant ?? 'default'} bytes=${buffer.byteLength} satori=${Date.now() - satoriT0}ms`);
         // Restore the Cache-Control that next/og's ImageResponse sets by default —
         // dropping it would make every crawler unfurl re-render, defeating the cap.
         // Matches next/og's exact defaults including the dev no-cache branch.
@@ -1086,6 +1021,6 @@ export async function GET(request: Request) {
         slot.release();
         const stats = getOgConcurrencyStats();
         // Now includes the satori render itself (we awaited arrayBuffer() above).
-        console.log(`[og:${reqId}] exit variant=${variant ?? 'default'} template=${templateParam ?? '-'} t=${Date.now() - t0}ms slots=${stats.active}/${stats.max}`);
+        console.log(`[og:${reqId}] exit variant=${variant ?? 'default'} t=${Date.now() - t0}ms slots=${stats.active}/${stats.max}`);
     }
 }
