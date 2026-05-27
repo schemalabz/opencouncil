@@ -77,8 +77,8 @@ export const SectionLabel = ({
         }}
     >
         <div style={{ display: "flex", width: 24, height: 2, background: color, marginRight: 14 }} />
-        <span style={{ display: "flex" }}>{children}</span>
-        <span style={{ display: "flex", marginLeft: 10, opacity: 0.6 }}>({count})</span>
+        <span style={{ display: "flex", whiteSpace: "nowrap" }}>{children}</span>
+        <span style={{ display: "flex", marginLeft: 10, opacity: 0.6, whiteSpace: "nowrap" }}>({count})</span>
     </div>
 );
 

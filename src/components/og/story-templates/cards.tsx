@@ -124,10 +124,10 @@ export const Template3WithCards = (data: PreviewData) => {
                     />
                 )}
                 <div style={{ display: "flex", flexDirection: "column" }}>
-                    <span style={{ display: "flex", fontSize: 42, fontWeight: 700, color: "#1F2937" }}>
+                    <span style={{ display: "flex", fontSize: 42, fontWeight: 700, color: "#1F2937", whiteSpace: "nowrap" }}>
                         {data.cityName}
                     </span>
-                    <span style={{ display: "flex", fontSize: 32, color: "#6B7280", marginTop: 4 }}>
+                    <span style={{ display: "flex", fontSize: 32, color: "#6B7280", marginTop: 4, whiteSpace: "nowrap" }}>
                         {data.adminBodyName}
                     </span>
                 </div>
