@@ -3,6 +3,12 @@ export async function register() {
     return;
   }
 
+  const { registerInitialCache } = await import(
+    '@fortedigital/nextjs-cache-handler/instrumentation'
+  );
+  const CacheHandler = (await import('../cache-handler.mjs')).default;
+  await registerInitialCache(CacheHandler);
+
   // Prisma boot probe.
   //
   // We've seen DO Apps instances come up with no logs and 100% CPU until

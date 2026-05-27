@@ -1,6 +1,6 @@
-import { CacheHandler } from '@neshca/cache-handler';
-import createRedisHandler from '@neshca/cache-handler/redis-strings';
-import createLruHandler from '@neshca/cache-handler/local-lru';
+import { CacheHandler } from '@fortedigital/nextjs-cache-handler';
+import createRedisHandler from '@fortedigital/nextjs-cache-handler/redis-strings';
+import createLruHandler from '@fortedigital/nextjs-cache-handler/local-lru';
 import { createClient } from 'redis';
 
 CacheHandler.onCreation(async ({ buildId }) => {
@@ -77,13 +77,19 @@ CacheHandler.onCreation(async ({ buildId }) => {
     // sharedTagsKey is also namespaced so a revalidateTag from an old-build
     // instance doesn't delete the new build's entries through the shared tag map.
     const namespace = buildId || 'nobuild';
+
+    // Forte's redis-strings handler fixes the @neshca issues that drove #358:
+    //   • TTL-bound tag hashmap (sharedTagsTtlKey) — no unbounded growth from bot pollution
+    //   • Higher default revalidateTagQuerySize (10_000 vs the old 100) — fewer round-trips per scan
+    //   • Tag revalidation is no longer O(n) over a single hash
     const handler = createRedisHandler({
       client,
       keyPrefix: `oc:${namespace}:`,
       timeoutMs: 1000,
       keyExpirationStrategy: 'EXAT',
+      // Namespaced by buildId for the same rolling-deploy isolation as keyPrefix.
       sharedTagsKey: `__oc_tags__:${namespace}`,
-      revalidateTagQuerySize: 100,
+      sharedTagsTtlKey: `__oc_tags_ttl__:${namespace}`,
     });
 
     return {
