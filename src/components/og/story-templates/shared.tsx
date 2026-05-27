@@ -160,6 +160,6 @@ export const RemainderLine = ({
     label: string;
 }) => (
     <div style={{ display: "flex", color, fontSize: 28, marginTop: 18 }}>
-        <span style={{ display: "flex" }}>+ {count} {label}</span>
+        <span style={{ display: "flex", whiteSpace: "nowrap" }}>{`+ ${count} ${label}`}</span>
     </div>
 );

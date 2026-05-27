@@ -244,7 +244,7 @@ export const Template4Colorful = (data: PreviewData) => {
                     boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
                 }}
             >
-                <span style={{ display: "flex", fontSize: 36, fontWeight: 900, color: "#FFFFFF", marginRight: 10 }}>
+                <span style={{ display: "flex", fontSize: 36, fontWeight: 900, color: "#FFFFFF", marginRight: 10, whiteSpace: "nowrap" }}>
                     {data.totalSubjects}
                 </span>
                 <span
@@ -254,6 +254,7 @@ export const Template4Colorful = (data: PreviewData) => {
                         color: "#FFFFFF",
                         letterSpacing: "0.22em",
                         fontWeight: 700,
+                        whiteSpace: "nowrap",
                     }}
                 >
                     ΘΕΜΑΤΑ ΣΥΝΟΛΙΚΑ
@@ -285,8 +286,8 @@ export const Template4Colorful = (data: PreviewData) => {
                     marginLeft: 52,
                     marginBottom: 56
                 }}>
-                    <span style={{ display: "flex", fontSize: 26, fontWeight: 700, color: "#FFFFFF" }}>
-                        + {preAgendaRemaining} ακόμα
+                    <span style={{ display: "flex", fontSize: 26, fontWeight: 700, color: "#FFFFFF", whiteSpace: "nowrap" }}>
+                        {`+ ${preAgendaRemaining} ακόμα`}
                     </span>
                 </div>
             )}
@@ -321,8 +322,8 @@ export const Template4Colorful = (data: PreviewData) => {
                         marginTop: 8,
                     }}
                 >
-                    <span style={{ display: "flex", fontSize: 26, fontWeight: 700, color: "#FFFFFF" }}>
-                        + {agendaRemaining} ακόμα
+                    <span style={{ display: "flex", fontSize: 26, fontWeight: 700, color: "#FFFFFF", whiteSpace: "nowrap" }}>
+                        {`+ ${agendaRemaining} ακόμα`}
                     </span>
                 </div>
             )}

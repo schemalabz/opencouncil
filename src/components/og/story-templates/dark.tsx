@@ -130,7 +130,7 @@ export const Template2Dark = (data: PreviewData) => {
                     marginBottom: 48,
                 }}
             >
-                <span style={{ display: "flex" }}>Συζητήθηκαν {data.totalSubjects} θέματα</span>
+                <span style={{ display: "flex", whiteSpace: "nowrap" }}>{`Συζητήθηκαν ${data.totalSubjects} θέματα`}</span>
             </div>
 
             {preAgendaShown.length > 0 && (

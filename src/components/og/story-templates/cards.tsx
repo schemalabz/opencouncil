@@ -154,7 +154,7 @@ export const Template3WithCards = (data: PreviewData) => {
                     marginBottom: 36,
                 }}
             >
-                <span style={{ display: "flex", fontSize: 36, fontWeight: 800 }}>Συζητήθηκαν {data.totalSubjects} θέματα</span>
+                <span style={{ display: "flex", fontSize: 36, fontWeight: 800, whiteSpace: "nowrap" }}>{`Συζητήθηκαν ${data.totalSubjects} θέματα`}</span>
             </div>
 
             {/* Pre-agenda cards */}
