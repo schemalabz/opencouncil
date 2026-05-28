@@ -402,6 +402,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                                     : null,
                                             }}
                                             showPlayButton={false}
+                                            disableSpeakerNavigation
                                         />
                                     </motion.div>
                                 ))}

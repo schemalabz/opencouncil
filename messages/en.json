@@ -653,7 +653,7 @@
         "noSegmentsFound": "No statements found",
         "loading": "Loading...",
         "loadMore": "Load more",
-        "recentContributions": "Recent contributions",
+        "recentContributions": "Recent Contributions",
         "tryDifferentFilter": "Try changing the filters"
     },
     "Party": {
@@ -675,7 +675,7 @@
         "loading": "Loading...",
         "loadMore": "Load more",
         "changeMemberOrdering": "Change Member Ordering",
-        "recentSegments": "Recent Segments",
+        "recentContributions": "Recent Contributions",
         "leaderLabel": "Leader: ",
         "breadcrumbHome": "Home",
         "tabPeople": "People",
