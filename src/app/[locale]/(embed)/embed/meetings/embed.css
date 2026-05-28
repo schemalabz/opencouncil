@@ -75,7 +75,7 @@
     color: var(--embed-text);
     transition: color 0.15s;
 }
-.embed-card:hover .embed-card-title {
+.embed-card-link:hover .embed-card-title {
     color: var(--embed-accent);
 }
 
