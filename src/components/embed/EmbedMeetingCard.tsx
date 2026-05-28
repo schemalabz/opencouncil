@@ -11,6 +11,7 @@ interface EmbedMeetingCardProps {
     baseUrl: string;
     cityTimezone?: string;
     translations: EmbedTranslations;
+    isUpcoming: boolean;
 }
 
 export interface EmbedTranslations {
@@ -23,13 +24,15 @@ function localize<T extends { name: string; name_en: string }>(obj: T, locale: s
     return locale === 'en' ? obj.name_en : obj.name;
 }
 
-export function EmbedMeetingCard({ meeting, locale, showSubjects, baseUrl, cityTimezone, translations: t }: EmbedMeetingCardProps) {
+export function EmbedMeetingCard({ meeting, locale, showSubjects, baseUrl, cityTimezone, translations: t, isUpcoming }: EmbedMeetingCardProps) {
     const meetingUrl = `${baseUrl}/${meeting.cityId}/${meeting.id}`;
     const sortedSubjects = sortSubjectsByImportance(meeting.subjects, 'importance');
     const topSubjects = sortedSubjects.slice(0, 3);
     const remainingCount = Math.max(0, meeting.subjects.length - 3);
 
-    const liveUrl = !meeting.youtubeUrl ? meeting.administrativeBody?.youtubeChannelUrl : null;
+    const liveUrl = isUpcoming && !meeting.youtubeUrl
+        ? meeting.administrativeBody?.youtubeChannelUrl
+        : null;
 
     return (
         <div

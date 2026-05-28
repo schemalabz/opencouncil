@@ -70,7 +70,7 @@ export default async function EmbedMeetingsPage({ params, searchParams }: EmbedM
     const baseUrl = env.NEXTAUTH_URL.replace(/\/$/, '');
     const cardTranslations = { subjects: t('subjects'), more: t('more'), watchLive: t('watchLive') };
 
-    const renderCards = (items: typeof upcoming) =>
+    const renderCards = (items: typeof upcoming, isUpcoming: boolean) =>
         items.map((meeting) => (
             <EmbedMeetingCard
                 key={meeting.id}
@@ -80,6 +80,7 @@ export default async function EmbedMeetingsPage({ params, searchParams }: EmbedM
                 baseUrl={baseUrl}
                 cityTimezone={city.timezone}
                 translations={cardTranslations}
+                isUpcoming={isUpcoming}
             />
         ));
 
@@ -92,7 +93,7 @@ export default async function EmbedMeetingsPage({ params, searchParams }: EmbedM
                     {upcoming.length > 0 && (
                         <>
                             <div className="embed-section-label">{t('upcoming')}</div>
-                            {renderCards(upcoming)}
+                            {renderCards(upcoming, true)}
                         </>
                     )}
                     {past.length > 0 && (
@@ -100,7 +101,7 @@ export default async function EmbedMeetingsPage({ params, searchParams }: EmbedM
                             {upcoming.length > 0 && (
                                 <div className="embed-section-label">{t('recent')}</div>
                             )}
-                            {renderCards(past)}
+                            {renderCards(past, false)}
                         </>
                     )}
                 </div>
