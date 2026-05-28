@@ -39,6 +39,10 @@ interface ContributionCardProps {
     };
     /** Render the in-page play button. Disable on pages without a VideoProvider (e.g. Person page). */
     showPlayButton?: boolean;
+    /**
+     * Suppress navigation on the speaker badge.
+     */
+    disableSpeakerNavigation?: boolean;
 }
 
 export const ContributionCard = memo(function ContributionCard({
@@ -48,6 +52,7 @@ export const ContributionCard = memo(function ContributionCard({
     speaker,
     contextHeader,
     showPlayButton = true,
+    disableSpeakerNavigation = false,
 }: ContributionCardProps) {
     const t = useTranslations("Subject");
 
@@ -126,7 +131,7 @@ export const ContributionCard = memo(function ContributionCard({
                 <div className="flex flex-col md:flex-row md:items-center gap-4">
                     {/* Speaker Badge */}
                     {speaker ? (
-                        <PersonBadge person={speaker} disableNavigation={!!contextHeader} />
+                        <PersonBadge person={speaker} disableNavigation={disableSpeakerNavigation} />
                     ) : contribution.speakerName ? (
                         <span className="text-sm font-medium">
                             {contribution.speakerName}
