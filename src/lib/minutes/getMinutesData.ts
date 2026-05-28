@@ -304,15 +304,6 @@ export async function getMinutesData(
         }
     }
 
-    // Council/committee composition and absent members both come from the initial
-    // roll call (MeetingAttendance). The composition IS present + absent — the full
-    // body as recorded at the start of the meeting.
-    //
-    // For committees, members are split into regular (τακτικά) and substitute
-    // (αναπληρωματικά) based on their Role.name in the administrative body.
-    let councilCompositionResult = null;
-    let absentMembers: MinutesMember[] | null = null;
-
     // Build a set of substitute member IDs (those with "Αναπληρωματικό Μέλος" role)
     const substitutePersonIds = new Set<string>();
     if (adminBodyId) {
@@ -325,6 +316,14 @@ export async function getMinutesData(
             if (substituteRole) substitutePersonIds.add(person.id);
         }
     }
+
+    // Council/committee composition and absent members.
+    // When MeetingAttendance records exist (from decision extraction), use those
+    // for both composition and present/absent status.
+    // When they don't exist, build composition from roles — we know who the members
+    // are, just not who was present/absent.
+    let councilCompositionResult = null;
+    let absentMembers: MinutesMember[] | null = null;
 
     if (meetingAttendance.length > 0) {
         const allMembers = meetingAttendance
@@ -341,6 +340,18 @@ export async function getMinutesData(
             .filter(a => a.status === 'ABSENT')
             .map(a => resolveMember(a.personId, a.person.name))
             .sort((a, b) => sortByElectedOrder(a, b, getElectedOrder));
+    } else if (adminBodyId) {
+        // Fallback: build composition from roles (no present/absent info)
+        const roleMembers = people.filter(p =>
+            p.roles.some(r => isRoleActiveAt(r, meetingDate) && r.administrativeBodyId === adminBodyId)
+        );
+        const allMembers = roleMembers.map(p => resolveMember(p.id, p.name));
+        const regularMembers = allMembers.filter(m => !substitutePersonIds.has(m.personId));
+        const substituteMembers = allMembers.filter(m => substitutePersonIds.has(m.personId));
+
+        councilCompositionResult = buildCouncilComposition(
+            regularMembers, substituteMembers, mayor, president, mayorPersonId, getElectedOrder,
+        );
     }
 
 
