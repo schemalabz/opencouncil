@@ -15,7 +15,7 @@ const baseUrl = env.NEXTAUTH_URL;
  * @param locale current request locale (`'el'` | `'en'`)
  */
 export function buildHreflangAlternates(path: string, locale: string): Metadata['alternates'] {
-    const elUrl = `${baseUrl}${path || '/'}`;
+    const elUrl = `${baseUrl}${path}`;
     const enUrl = `${baseUrl}/en${path}`;
 
     return {
