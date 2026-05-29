@@ -59,6 +59,7 @@ scripts/clear_advisory_locks.sh
 
 *.csv
 *.txt
+!public/llms.txt
 *.swp
 
 # Logs
