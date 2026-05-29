@@ -19,6 +19,7 @@ import { FaWhatsapp } from 'react-icons/fa';
 import { ReplyForm } from '@/components/admin/conversations/ReplyForm';
 import { SendTemplateDialog } from '@/components/admin/conversations/SendTemplateDialog';
 import { ScrollableThread } from '@/components/admin/conversations/ScrollableThread';
+import { ConversationsPagination } from '@/components/admin/conversations/ConversationsPagination';
 
 export const metadata: Metadata = {
     title: 'Conversations - Admin',
@@ -26,6 +27,7 @@ export const metadata: Metadata = {
 };
 
 const PREVIEW_MAX = 120;
+const PAGE_SIZE = 50;
 
 function truncate(s: string, max = PREVIEW_MAX) {
     return s.length <= max ? s : `${s.slice(0, max).trimEnd()}…`;
@@ -266,7 +268,7 @@ function ThreadDetail({
 }
 
 interface PageProps {
-    searchParams: { all?: string };
+    searchParams: { all?: string; page?: string };
 }
 
 export default async function ConversationsPage({ searchParams }: PageProps) {
@@ -274,7 +276,14 @@ export default async function ConversationsPage({ searchParams }: PageProps) {
     // failed deliveries) so the admin can focus on conversations that need
     // attention. `?all=1` opts back into the full unfiltered list.
     const showAll = searchParams.all === '1';
-    const conversations = await getConversationSummaries({ onlyWithInbound: !showAll });
+    const requestedPage = Number.parseInt(searchParams.page ?? '', 10);
+    const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+    const { conversations, total } = await getConversationSummaries({
+        onlyWithInbound: !showAll,
+        page,
+        pageSize: PAGE_SIZE,
+    });
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
     return (
         <div className="container mx-auto py-8">
@@ -282,7 +291,7 @@ export default async function ConversationsPage({ searchParams }: PageProps) {
                 <div className="flex items-baseline gap-3">
                     <h1 className="text-3xl font-bold">Conversations</h1>
                     <p className="text-sm text-muted-foreground">
-                        {conversations.length} {conversations.length === 1 ? 'thread' : 'threads'}
+                        {total} {total === 1 ? 'thread' : 'threads'}
                         {!showAll && ' with replies'}
                     </p>
                 </div>
@@ -400,6 +409,7 @@ export default async function ConversationsPage({ searchParams }: PageProps) {
                                     </TableBody>
                                 </Table>
                             </div>
+                            <ConversationsPagination currentPage={page} totalPages={totalPages} pageSize={PAGE_SIZE} />
                         </>
                     )}
                 </CardContent>
