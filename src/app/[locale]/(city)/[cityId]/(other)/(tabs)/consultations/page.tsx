@@ -5,9 +5,10 @@ import CityConsultations from "@/components/cities/CityConsultations";
 import { getCityCached } from "@/lib/cache";
 import { getAllConsultationsForCity, isConsultationActive } from "@/lib/db/consultations";
 import { env } from "@/env.mjs";
+import { buildHreflangAlternates } from '@/lib/utils/hreflang';
 
 interface PageProps {
-    params: { cityId: string };
+    params: { cityId: string; locale: string };
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -75,9 +76,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
             description,
             images: [ogImageUrl],
         },
-        alternates: {
-            canonical: `/${params.cityId}/consultations`,
-        },
+        alternates: buildHreflangAlternates(`/${params.cityId}/consultations`, params.locale),
         other: {
             'consultations:total': totalConsultationsCount.toString(),
             'consultations:active': activeConsultationsCount.toString(),

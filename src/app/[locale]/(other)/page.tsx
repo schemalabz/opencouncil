@@ -1,6 +1,18 @@
+import { Metadata } from "next";
 import { Landing } from "@/components/landing/landing";
 import { LandingCity } from "@/lib/db/landing";
 import { fetchLatestSubstackPostCached, getAllCitiesMinimalCached, getCouncilMeetingsForCityPublicCached } from "@/lib/cache/queries";
+import { buildHreflangAlternates } from "@/lib/utils/hreflang";
+
+export async function generateMetadata({
+    params: { locale }
+}: {
+    params: { locale: string }
+}): Promise<Metadata> {
+    return {
+        alternates: buildHreflangAlternates('', locale),
+    };
+}
 
 export default async function HomePage({
     params: { locale }

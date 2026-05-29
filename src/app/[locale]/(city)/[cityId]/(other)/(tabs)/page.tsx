@@ -1,7 +1,19 @@
 import { notFound } from "next/navigation";
+import { Metadata } from "next";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import CityMeetings from "@/components/cities/CityMeetings";
 import { getCityCached, getCouncilMeetingsForCityCached } from "@/lib/cache";
+import { buildHreflangAlternates } from "@/lib/utils/hreflang";
+
+export async function generateMetadata({
+    params: { cityId, locale }
+}: {
+    params: { cityId: string; locale: string }
+}): Promise<Metadata> {
+    return {
+        alternates: buildHreflangAlternates(`/${cityId}`, locale),
+    };
+}
 
 export default async function MeetingsPage({
     params: { cityId },
