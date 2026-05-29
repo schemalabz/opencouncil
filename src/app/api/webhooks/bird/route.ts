@@ -15,7 +15,7 @@ import {
 import { normalizePhone } from '@/lib/notifications/phone';
 import type { VerifyRequestResult, VerifySignatureResult } from '@/lib/notifications/types';
 import { extractMessageFields, type ExtractedMessageFields } from './extract';
-import type { Prisma } from '@prisma/client';
+import type { MessageStatus, Prisma } from '@prisma/client';
 
 const SIGNATURE_HEADER = 'messagebird-signature';
 const TIMESTAMP_HEADER = 'messagebird-request-timestamp';
@@ -110,6 +110,22 @@ async function verifyRequest(request: Request): Promise<VerifyRequestResult> {
 }
 
 
+// Lifecycle rank: pending → sent → {delivered | failed}. Terminal statuses
+// (delivered, failed) absorb. Used to reject replayed webhooks that would
+// otherwise regress a message's status — see PR #389 / issue #391. Also
+// makes the handler tolerant of out-of-order webhook delivery.
+const STATUS_RANK: Record<MessageStatus, number> = {
+    pending: 0,
+    sent: 1,
+    delivered: 2,
+    failed: 2,
+};
+
+function isForwardProgression(current: MessageStatus, next: MessageStatus): boolean {
+    if (current === 'delivered' || current === 'failed') return false;
+    return STATUS_RANK[next] > STATUS_RANK[current];
+}
+
 async function updateOutboundMessage(fields: ExtractedMessageFields): Promise<boolean> {
     if (!fields.birdMessageId) return false;
     const existing = await prisma.message.findUnique({
@@ -117,7 +133,7 @@ async function updateOutboundMessage(fields: ExtractedMessageFields): Promise<bo
     });
     if (!existing) return false;
 
-    if (existing.status !== fields.status) {
+    if (existing.status !== fields.status && isForwardProgression(existing.status, fields.status)) {
         await prisma.message.update({
             where: { id: existing.id },
             data: {
