@@ -2,12 +2,12 @@
 
 import React from "react";
 import PlausibleProvider from "next-plausible";
-import { usePathname } from "next/navigation";
+import { usePathname } from "@/i18n/routing";
 
-// Matches embed routes with or without a locale prefix, e.g.
-// /embed/meetings, /en/embed/meetings. These are loaded inside iframes
-// on third-party sites and must not be counted as pageviews.
-const EMBED_PATH = /^\/(?:en\/|el\/)?embed(?:\/|$)/;
+// Matches embed routes (locale prefix already stripped by next-intl), e.g.
+// /embed/meetings. These are loaded inside iframes on third-party sites
+// and must not be counted as pageviews.
+const EMBED_PATH = /^\/embed(?:\/|$)/;
 
 export default function PlausibleAnalytics({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
