@@ -394,16 +394,17 @@ describe('sortSubjectsByDiscussionOrder', () => {
         expect(result.map(s => s.id)).toEqual(['s2', 's3', 's1']);
     });
 
-    it('subjects with transcript come before those without', () => {
+    it('subjects without transcript interleave by agenda position (not pushed to end)', () => {
         const subjects = [
-            makeSubject('s1', 1), // no transcript
+            makeSubject('s1', 1), // no transcript, lower agenda index
             makeSubject('s2', 2), // has transcript
         ];
         const timestamps = new Map([['s2', 100]]);
 
         const result = sortSubjectsByDiscussionOrder(subjects, timestamps);
 
-        expect(result.map(s => s.id)).toEqual(['s2', 's1']);
+        // s1 has lower agenda index, so it goes first despite having no transcript
+        expect(result.map(s => s.id)).toEqual(['s1', 's2']);
     });
 
     it('discussedIn child inherits parent timestamp and sorts after parent', () => {
@@ -487,6 +488,78 @@ describe('sortSubjectsByDiscussionOrder', () => {
 
         // child inherits parent's timestamp (100), sorts after parent, then other at 200
         expect(result.map(s => s.id)).toEqual(['parent', 'child', 'other']);
+    });
+
+    it('interleaves no-timestamp subjects by agenda position instead of pushing to end', () => {
+        const subjects = [
+            makeSubject('s1', 1),
+            makeSubject('s2', 2),
+            makeSubject('s3', 3),
+            makeSubject('s4', 4),
+        ];
+        const timestamps = new Map([['s1', 100], ['s3', 200]]);
+
+        const sorted = sortSubjectsByDiscussionOrder(subjects, timestamps);
+
+        expect(sorted.map(s => s.id)).toEqual(['s1', 's2', 's3', 's4']);
+    });
+
+    it('places no-timestamp subject with lowest agenda index at the beginning', () => {
+        const subjects = [
+            makeSubject('s1', 1),  // no timestamp, lowest index
+            makeSubject('s3', 3),  // has timestamp
+            makeSubject('s5', 5),  // has timestamp
+        ];
+        const timestamps = new Map([['s3', 100], ['s5', 200]]);
+
+        const sorted = sortSubjectsByDiscussionOrder(subjects, timestamps);
+
+        // s1 has the lowest agenda index — should be first, not last
+        expect(sorted.map(s => s.id)).toEqual(['s1', 's3', 's5']);
+    });
+
+    it('places no-timestamp regular subject after preceding OOA subjects', () => {
+        // ΕΗΔ1 discussed first, then regular items 2-14. Subject 1 has no utterances.
+        const subjects = [
+            makeSubject('s1', 1),  // no timestamp
+            makeSubject('oa1', null, { nonAgendaReason: 'outOfAgenda' }),  // has timestamp (discussed first)
+            makeSubject('s2', 2),  // has timestamp
+            makeSubject('s3', 3),  // has timestamp
+        ];
+        const timestamps = new Map([['oa1', 50], ['s2', 100], ['s3', 200]]);
+
+        const sorted = sortSubjectsByDiscussionOrder(subjects, timestamps);
+
+        // s1 should go after oa1 (which was discussed), not before it
+        expect(sorted.map(s => s.id)).toEqual(['oa1', 's1', 's2', 's3']);
+    });
+
+    it('no-timestamp regular subject does not jump before OOA items between regulars', () => {
+        // Discussion order: 1ο, ΕΗΔ1, 5ο. Subject 3ο has no utterances.
+        const subjects = [
+            makeSubject('s1', 1),
+            makeSubject('s3', 3),  // no timestamp
+            makeSubject('oa1', null, { nonAgendaReason: 'outOfAgenda' }),
+            makeSubject('s5', 5),
+        ];
+        const timestamps = new Map([['s1', 50], ['oa1', 80], ['s5', 200]]);
+
+        const sorted = sortSubjectsByDiscussionOrder(subjects, timestamps);
+
+        // s3 goes after oa1 (which was discussed between s1 and s5), not before it
+        expect(sorted.map(s => s.id)).toEqual(['s1', 'oa1', 's3', 's5']);
+    });
+
+    it('places no-timestamp OA subjects after regular subjects', () => {
+        const subjects = [
+            makeSubject('s1', 1),
+            makeSubject('oa1', null, { nonAgendaReason: 'outOfAgenda' }),
+        ];
+        const timestamps = new Map([['s1', 100]]);
+
+        const sorted = sortSubjectsByDiscussionOrder(subjects, timestamps);
+
+        expect(sorted.map(s => s.id)).toEqual(['s1', 'oa1']);
     });
 });
 

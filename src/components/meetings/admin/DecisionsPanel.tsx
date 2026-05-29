@@ -11,7 +11,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useToast } from '@/hooks/use-toast';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { useTranslations } from 'next-intl';
-import { ExternalLink, Trash2, FileCheck, FileX, Loader2, Bot, UserIcon, Plus, X, Clock, ChevronRight, ChevronDown, Users, Vote, Eraser, Search } from 'lucide-react';
+import { ExternalLink, FileCheck, FileX, Loader2, Bot, UserIcon, Plus, X, Clock, ChevronRight, ChevronDown, Users, Vote, Search, MoreHorizontal, RotateCcw } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { DecisionWithSource, MeetingAttendanceRecord, SubjectExtractedData } from '@/lib/db/decisions';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
 import { getPollingHistoryForMeeting, requestPollDecisions } from '@/lib/tasks/pollDecisions';
@@ -178,12 +179,13 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
     const [showMoreOptions, setShowMoreOptions] = useState(false);
     const [savingSubjectId, setSavingSubjectId] = useState<string | null>(null);
     const [removingSubjectId, setRemovingSubjectId] = useState<string | null>(null);
+    const [resettingSubjectId, setResettingSubjectId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [filterTab, setFilterTab] = useState<FilterTab>('all');
     const [pollingStatus, setPollingStatus] = useState<Awaited<ReturnType<typeof getPollingHistoryForMeeting>> | null>(null);
     const [isPolling, setIsPolling] = useState(false);
     const [isClearing, setIsClearing] = useState(false);
-    const [forceExtract, setForceExtract] = useState(false);
+    const [skipCache, setSkipCache] = useState(false);
 
     const fetchDecisions = useCallback(async () => {
         setIsLoading(true);
@@ -288,17 +290,30 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                 { method: 'DELETE' }
             );
             if (!response.ok) throw new Error('Failed to remove decision');
-
-            setDecisions(prev => {
-                const next = { ...prev };
-                delete next[subjectId];
-                return next;
-            });
-            toast({ title: t('toasts.decisionUnlinked.title') });
+            toast({ title: t('decisions.decisionRemoved') });
+            await fetchDecisions();
         } catch (error) {
             toast({ title: t('toasts.errorRemovingDecision.title'), description: `${error}`, variant: 'destructive' });
         } finally {
             setRemovingSubjectId(null);
+        }
+    };
+
+    const handleResetExtraction = async (subjectId: string) => {
+        setResettingSubjectId(subjectId);
+        try {
+            const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'resetExtraction', subjectId }),
+            });
+            if (!response.ok) throw new Error('Failed to reset extraction');
+            toast({ title: t('decisions.extractionReset') });
+            await fetchDecisions();
+        } catch (error) {
+            toast({ title: 'Error resetting extraction', description: `${error}`, variant: 'destructive' });
+        } finally {
+            setResettingSubjectId(null);
         }
     };
 
@@ -334,7 +349,7 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
     const handlePollDecisions = async () => {
         setIsPolling(true);
         try {
-            await requestPollDecisions(meeting.cityId, meeting.id, forceExtract ? { forceExtract: true } : undefined);
+            await requestPollDecisions(meeting.cityId, meeting.id, skipCache ? { forceExtract: true } : undefined);
             toast({ title: t('decisions.pollRequested') });
         } catch (error) {
             toast({
@@ -348,7 +363,7 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
     };
 
     const handleClearExtractedData = async () => {
-        if (!confirm('Clear all extracted data (excerpts, attendance, votes) for this meeting? Decision links will be kept.')) return;
+        if (!confirm(t('decisions.resetExtractionsConfirm'))) return;
         setIsClearing(true);
         try {
             const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions`, {
@@ -356,12 +371,12 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'clearExtractedData' }),
             });
-            if (!response.ok) throw new Error('Failed to clear extracted data');
+            if (!response.ok) throw new Error('Failed to reset extractions');
             const result = await response.json();
-            toast({ title: `Cleared extracted data for ${result.clearedCount} decisions` });
+            toast({ title: `${t('decisions.resetExtractions')}: ${result.clearedCount}` });
             await fetchDecisions();
         } catch (error) {
-            toast({ title: 'Error clearing extracted data', description: `${error}`, variant: 'destructive' });
+            toast({ title: 'Error resetting extractions', description: `${error}`, variant: 'destructive' });
         } finally {
             setIsClearing(false);
         }
@@ -416,51 +431,31 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
 
                 {/* Actions */}
                 <div className="space-y-3 border-b pb-3">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <div>
-                                <div className="text-xs font-medium">Poll &amp; extract decisions</div>
-                                <div className="text-[11px] text-muted-foreground">
-                                    Poll Diavgeia, match decisions to subjects, and extract data from PDFs.
-                                </div>
-                            </div>
+                    {/* Primary action row */}
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="text-xs font-medium shrink-0">
+                            {t('decisions.pollTitle')}
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-3 shrink-0">
                             <span className="text-xs text-muted-foreground">
                                 <FileCheck className="h-3.5 w-3.5 inline mr-1" />
                                 {linkedCount}/{eligibleSubjects.length}
                             </span>
-                            {extractedSubjects.length > 0 && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 text-xs"
-                                    disabled={isClearing}
-                                    onClick={handleClearExtractedData}
-                                >
-                                    {isClearing ? (
-                                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                    ) : (
-                                        <Eraser className="h-3 w-3 mr-1" />
-                                    )}
-                                    Clear
-                                </Button>
-                            )}
-                            <div className="flex items-center gap-1.5">
+                            <label className="flex items-center gap-1.5 cursor-pointer">
                                 <Checkbox
-                                    id="force-extract"
-                                    checked={forceExtract}
-                                    onCheckedChange={(checked) => setForceExtract(checked === true)}
+                                    id="skip-cache"
+                                    checked={skipCache}
+                                    onCheckedChange={(checked) => setSkipCache(checked === true)}
                                     className="h-3.5 w-3.5"
                                 />
-                                <Label htmlFor="force-extract" className="text-[11px] text-muted-foreground cursor-pointer">
-                                    Force extract
-                                </Label>
-                            </div>
+                                <span className="text-[11px] text-muted-foreground">
+                                    {t('decisions.skipCacheLabel')}
+                                </span>
+                            </label>
                             <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-7 text-xs"
+                                className={`h-7 text-xs ${skipCache ? 'border-amber-400 bg-amber-50 text-amber-700 hover:bg-amber-100' : ''}`}
                                 disabled={isPolling}
                                 onClick={handlePollDecisions}
                             >
@@ -469,10 +464,17 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                 ) : (
                                     <Search className="h-3 w-3 mr-1" />
                                 )}
-                                {t('decisions.pollButton')}
+                                {skipCache ? t('decisions.pollButtonSkipCache') : t('decisions.pollButton')}
                             </Button>
                         </div>
                     </div>
+
+                    {/* Skip cache explanation — shown when toggled */}
+                    {skipCache && (
+                        <div className="text-[11px] text-muted-foreground bg-amber-50 border border-amber-200 rounded px-2.5 py-1.5">
+                            {t('decisions.skipCacheHint')}
+                        </div>
+                    )}
 
                     {/* Polling Status */}
                     {pollingStatus && pollingStatus.totalPolls > 0 && (
@@ -677,8 +679,11 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                                         )}
                                                         <Badge variant="default" className="bg-green-600 text-xs">
                                                             <FileCheck className="h-3 w-3 mr-1" />
-                                                            {decision.ada || decision.protocolNumber || t('decisions.linked')}
+                                                            {decision.protocolNumber || decision.ada || t('decisions.linked')}
                                                         </Badge>
+                                                        {decision.protocolNumber && decision.ada && (
+                                                            <span className="text-xs text-muted-foreground">{decision.ada}</span>
+                                                        )}
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
                                                                 <a
@@ -692,22 +697,42 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                                             </TooltipTrigger>
                                                             <TooltipContent>{t('decisions.viewPdf')}</TooltipContent>
                                                         </Tooltip>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
                                                                 <button
-                                                                    onClick={() => handleRemove(subject.id)}
-                                                                    disabled={isRemoving}
-                                                                    className="text-muted-foreground hover:text-destructive disabled:opacity-50"
+                                                                    disabled={isRemoving || resettingSubjectId === subject.id}
+                                                                    className="text-muted-foreground hover:text-foreground disabled:opacity-50"
                                                                 >
-                                                                    {isRemoving ? (
+                                                                    {(isRemoving || resettingSubjectId === subject.id) ? (
                                                                         <Loader2 className="h-4 w-4 animate-spin" />
                                                                     ) : (
-                                                                        <Trash2 className="h-4 w-4" />
+                                                                        <MoreHorizontal className="h-4 w-4" />
                                                                     )}
                                                                 </button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>{t('decisions.remove')}</TooltipContent>
-                                                        </Tooltip>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end" className="w-72">
+                                                                <DropdownMenuItem
+                                                                    onClick={() => handleResetExtraction(subject.id)}
+                                                                    disabled={resettingSubjectId === subject.id}
+                                                                >
+                                                                    <div>
+                                                                        <div className="text-sm font-medium">{t('decisions.resetExtraction')}</div>
+                                                                        <div className="text-xs text-muted-foreground mt-0.5">{t('decisions.resetExtractionDescription')}</div>
+                                                                    </div>
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem
+                                                                    onClick={() => handleRemove(subject.id)}
+                                                                    disabled={isRemoving}
+                                                                    className="text-destructive focus:text-destructive"
+                                                                >
+                                                                    <div>
+                                                                        <div className="text-sm font-medium">{t('decisions.removeDecision')}</div>
+                                                                        <div className="text-xs text-muted-foreground mt-0.5">{t('decisions.removeDecisionDescription')}</div>
+                                                                    </div>
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
                                                     </>
                                                 ) : (
                                                     <>
@@ -937,6 +962,31 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                         </TooltipProvider>
                     )}
                 </div>
+
+                {/* Danger zone — Delete extractions (bottom of dialog) */}
+                {extractedSubjects.length > 0 && (
+                    <div className="pt-2 border-t border-dashed">
+                        <div className="flex items-center justify-between gap-4">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs shrink-0 border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10"
+                                disabled={isClearing}
+                                onClick={handleClearExtractedData}
+                            >
+                                {isClearing ? (
+                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                ) : (
+                                    <RotateCcw className="h-3 w-3 mr-1" />
+                                )}
+                                {t('decisions.resetExtractions')}
+                            </Button>
+                            <span className="text-[11px] text-muted-foreground text-right">
+                                {t('decisions.resetExtractionsDescription')}
+                            </span>
+                        </div>
+                    </div>
+                )}
             </DialogContent>
         </Dialog>
     );

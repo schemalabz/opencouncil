@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
-import { getDecisionsForMeeting, getExtractedDataForMeeting, getMeetingAttendance, upsertDecision, deleteDecision, clearExtractedDataForMeeting } from '@/lib/db/decisions';
+import { getDecisionsForMeeting, getExtractedDataForMeeting, getMeetingAttendance, upsertDecision, deleteDecision, clearExtractedDataForMeeting, resetExtractionForSubject } from '@/lib/db/decisions';
 import prisma from '@/lib/db/prisma';
 import { revalidateTag } from 'next/cache';
 import { z } from 'zod';
@@ -104,9 +104,10 @@ export async function DELETE(
     return NextResponse.json({ success: true });
 }
 
-const postSchema = z.object({
-    action: z.literal('clearExtractedData'),
-});
+const postSchema = z.discriminatedUnion('action', [
+    z.object({ action: z.literal('clearExtractedData') }),
+    z.object({ action: z.literal('resetExtraction'), subjectId: z.string().min(1) }),
+]);
 
 export async function POST(
     request: Request,
@@ -121,7 +122,29 @@ export async function POST(
         return NextResponse.json({ error: 'Invalid action', details: parsed.error.errors }, { status: 400 });
     }
 
-    const result = await clearExtractedDataForMeeting(params.cityId, params.meetingId);
+    if (parsed.data.action === 'clearExtractedData') {
+        const result = await clearExtractedDataForMeeting(params.cityId, params.meetingId);
+        revalidateTag(`city:${params.cityId}:meetings`);
+        return NextResponse.json(result);
+    }
+
+    // action === 'resetExtraction'
+    const subject = await prisma.subject.findFirst({
+        where: {
+            id: parsed.data.subjectId,
+            cityId: params.cityId,
+            councilMeetingId: params.meetingId,
+        },
+    });
+
+    if (!subject) {
+        return NextResponse.json(
+            { error: 'Subject not found in this meeting' },
+            { status: 404 }
+        );
+    }
+
+    await resetExtractionForSubject(parsed.data.subjectId);
     revalidateTag(`city:${params.cityId}:meetings`);
-    return NextResponse.json(result);
+    return NextResponse.json({ success: true });
 }

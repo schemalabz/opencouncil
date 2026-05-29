@@ -37,6 +37,11 @@ export default function AdminActions({
     const [isSummarizing, setIsSummarizing] = React.useState(false);
     const [isProcessingAgenda, setIsProcessingAgenda] = React.useState(false);
     const [decisionsDialogOpen, setDecisionsDialogOpen] = React.useState(false);
+    React.useEffect(() => {
+        if (window.location.hash === '#decisions') {
+            setDecisionsDialogOpen(true);
+        }
+    }, []);
     const [minutesPreviewOpen, setMinutesPreviewOpen] = React.useState(false);
     const [mediaUrl, setMediaUrl] = React.useState('');
     const [agendaUrl, setAgendaUrl] = React.useState(meeting.agendaUrl || '');
