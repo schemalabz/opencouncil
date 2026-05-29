@@ -20,6 +20,7 @@ import { ReplyForm } from '@/components/admin/conversations/ReplyForm';
 import { SendTemplateDialog } from '@/components/admin/conversations/SendTemplateDialog';
 import { ScrollableThread } from '@/components/admin/conversations/ScrollableThread';
 import { ConversationsPagination } from '@/components/admin/conversations/ConversationsPagination';
+import { RefreshButton } from '@/components/admin/conversations/RefreshButton';
 
 export const metadata: Metadata = {
     title: 'Conversations - Admin',
@@ -302,6 +303,7 @@ export default async function ConversationsPage({ searchParams }: PageProps) {
                     >
                         {showAll ? 'Only with replies' : 'Show all threads'}
                     </Link>
+                    <RefreshButton />
                     <SendTemplateDialog />
                 </div>
             </div>
