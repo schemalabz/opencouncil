@@ -23,6 +23,7 @@ import { HighlightCreationPermission } from '@prisma/client';
 import { SubjectHeaderProvider } from '@/contexts/SubjectHeaderContext';
 import { NotificationPreferenceProvider } from '@/contexts/NotificationPreferenceContext';
 import { getTranslations } from 'next-intl/server';
+import { buildHreflangAlternates } from '@/lib/utils/hreflang';
 
 export async function generateImageMetadata({
     params: { meetingId, cityId }
@@ -54,9 +55,9 @@ export async function generateImageMetadata({
 }
 
 export async function generateMetadata({
-    params: { meetingId, cityId }
+    params: { meetingId, cityId, locale }
 }: {
-    params: { meetingId: string; cityId: string }
+    params: { meetingId: string; cityId: string; locale: string }
 }) {
     const data = await getMeetingDataCached(cityId, meetingId);
 
@@ -77,6 +78,7 @@ export async function generateMetadata({
     return {
         title: optimizedTitle,
         description,
+        alternates: buildHreflangAlternates(`/${cityId}/${meetingId}`, locale),
         openGraph: {
             title: optimizedTitle,
             description,
