@@ -945,7 +945,7 @@ export async function GET(request: Request) {
         } else if (subjectId && meetingId && cityId) {
             // Subject-specific OG image - reuse the native opengraph-image.tsx logic
             // Note: locale doesn't affect the image content, so we use 'el' as default
-            return await SubjectOgImage({ params: { locale: 'el', cityId, meetingId, subjectId } });
+            return await SubjectOgImage({ params: Promise.resolve({ locale: 'el', cityId, meetingId, subjectId }) });
         } else if (meetingId && cityId) {
             // Handle variant for meeting images. ?variant=story is no longer served here —
             // story exports render client-side via src/lib/export/storyImage.tsx. A stray

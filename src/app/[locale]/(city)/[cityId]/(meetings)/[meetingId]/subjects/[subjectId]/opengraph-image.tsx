@@ -151,14 +151,14 @@ function ColorPercentageRing({
 export default async function SubjectOgImage({
     params,
 }: {
-    params: {
+    params: Promise<{
         locale: string;
         cityId: string;
         meetingId: string;
         subjectId: string;
-    };
+    }>;
 }) {
-    const { cityId, meetingId, subjectId } = params;
+    const { cityId, meetingId, subjectId } = await params;
 
     const [meeting, subjects, people] = await Promise.all([
         getMeetingDataForOG(cityId, meetingId),

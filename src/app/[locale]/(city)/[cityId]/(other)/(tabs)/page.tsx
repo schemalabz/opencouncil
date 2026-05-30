@@ -6,11 +6,18 @@ import { getCityCached, getCouncilMeetingsForCityCached } from "@/lib/cache";
 import { buildHreflangAlternates } from "@/lib/utils/hreflang";
 import { env } from "@/env.mjs";
 
-export async function generateMetadata({
-    params: { cityId, locale }
-}: {
-    params: { cityId: string; locale: string }
-}): Promise<Metadata> {
+export async function generateMetadata(
+    props: {
+        params: Promise<{ cityId: string; locale: string }>
+    }
+): Promise<Metadata> {
+    const params = await props.params;
+
+    const {
+        cityId,
+        locale
+    } = params;
+
     const city = await getCityCached(cityId);
 
     if (!city) {

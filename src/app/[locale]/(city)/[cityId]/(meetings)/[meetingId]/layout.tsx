@@ -25,11 +25,13 @@ import { NotificationPreferenceProvider } from '@/contexts/NotificationPreferenc
 import { getTranslations } from 'next-intl/server';
 import { buildHreflangAlternates } from '@/lib/utils/hreflang';
 
-export async function generateImageMetadata({
-    params: { meetingId, cityId }
-}: {
-    params: { meetingId: string; cityId: string }
-}) {
+export async function generateImageMetadata(
+    props: {
+        params: Promise<{ meetingId: string; cityId: string }>
+    }
+) {
+    const { meetingId, cityId } = await props.params;
+
     const data = await getMeetingDataCached(cityId, meetingId);
 
     if (!data || !data.city) {

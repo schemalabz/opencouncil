@@ -5,11 +5,17 @@ import { Metadata } from "next";
 import { env } from '@/env.mjs';
 import { buildHreflangAlternates } from '@/lib/utils/hreflang';
 
-export async function generateMetadata({
-    params: { locale }
-}: {
-    params: { locale: string }
-}): Promise<Metadata> {
+export async function generateMetadata(
+    props: {
+        params: Promise<{ locale: string }>
+    }
+): Promise<Metadata> {
+    const params = await props.params;
+
+    const {
+        locale
+    } = params;
+
     const description = "Αναζητήστε στα δημοτικά συμβούλια του OpenCouncil. Βρείτε αναφορές σε θέματα, τοποθετήσεις συμβούλων, στατιστικά και πολλά άλλα χρησιμοποιώντας την έξυπνη αναζήτηση του OpenCouncil.";
 
     const ogImageUrl = `${env.NEXTAUTH_URL}/api/og?pageType=search`;

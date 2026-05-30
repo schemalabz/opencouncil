@@ -12,11 +12,12 @@ import { buildHreflangAlternates } from "@/lib/utils/hreflang";
 // Request-scoped dedup so generateMetadata and PartyPage share a single fetch.
 const getPartyCached = cache(getParty);
 
-export async function generateMetadata({
-    params,
-}: {
-    params: { locale: string; partyId: string; cityId: string };
-}): Promise<Metadata> {
+export async function generateMetadata(
+    props: {
+        params: Promise<{ locale: string; partyId: string; cityId: string }>;
+    }
+): Promise<Metadata> {
+    const params = await props.params;
     const [party, city] = await Promise.all([
         getPartyCached(params.partyId),
         getCityCached(params.cityId),
