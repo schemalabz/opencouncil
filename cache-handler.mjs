@@ -85,7 +85,12 @@ CacheHandler.onCreation(async ({ buildId }) => {
     const handler = createRedisHandler({
       client,
       keyPrefix: `oc:${namespace}:`,
-      timeoutMs: 1000,
+      // The old @neshca config used 1000ms, which (combined with the O(n) scan)
+      // was a #358 failure mode: revalidation commands aborted under load. The
+      // new handler removes the O(n) scan, but keep a generous ceiling so a
+      // transient Valkey latency spike (e.g. a rolling-deploy flush) doesn't
+      // abort revalidation. 5s matches the library default.
+      timeoutMs: 5000,
       keyExpirationStrategy: 'EXAT',
       // Namespaced by buildId for the same rolling-deploy isolation as keyPrefix.
       sharedTagsKey: `__oc_tags__:${namespace}`,
