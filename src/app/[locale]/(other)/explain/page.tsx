@@ -1,166 +1,267 @@
-'use client'
-
-import { motion } from 'framer-motion'
-import { Bot, Database, ExternalLink, Share2 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { WordRotator } from '@/components/ui/word-rotator'
-import { Button } from '@/components/ui/button'
+import { Metadata } from "next";
+import { ArrowRight } from "lucide-react";
+import { env } from "@/env.mjs";
+import { buildHreflangAlternates } from "@/lib/utils/hreflang";
 import { Link } from "@/i18n/routing";
+import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+    CATEGORY_LABELS,
+    CLUSTERS,
+    ExplainTopic,
+    FEATURED_SIDE_SLUGS,
+    FEATURED_SLUG,
+    POPULAR_CHIPS,
+    TOPICS,
+    TOPIC_COUNT,
+    getTopic,
+} from "@/lib/explain/content";
+import { ImagePlaceholder } from "./ImagePlaceholder";
+import { ExplainSearch } from "./ExplainSearch";
 
-export default function ExplainPage() {
+const PAGE_TITLE = "Λεξικό της αυτοδιοίκησης — Εξήγησε | OpenCouncil";
+const PAGE_DESCRIPTION =
+    "Απλές, ξεκάθαρες εξηγήσεις για τους όρους της τοπικής αυτοδιοίκησης: δημοτικά συμβούλια, αρμοδιότητες, δια περιφοράς, δημοτικές εκλογές και προϋπολογισμός δήμων.";
+
+export async function generateMetadata({
+    params: { locale },
+}: {
+    params: { locale: string };
+}): Promise<Metadata> {
+    const ogImageUrl = `${env.NEXTAUTH_URL}/api/og?pageType=search`;
+
+    return {
+        title: PAGE_TITLE,
+        description: PAGE_DESCRIPTION,
+        keywords: [
+            "δημοτικά συμβούλια",
+            "αρμοδιότητες δημοτικού συμβουλίου",
+            "δια περιφοράς",
+            "δημοτικές εκλογές 2028",
+            "προϋπολογισμός δήμων",
+            "τοπική αυτοδιοίκηση",
+            "OpenCouncil",
+        ],
+        authors: [{ name: "OpenCouncil" }],
+        openGraph: {
+            title: "Λεξικό της αυτοδιοίκησης — OpenCouncil",
+            description: PAGE_DESCRIPTION,
+            type: "website",
+            siteName: "OpenCouncil",
+            images: [{ url: ogImageUrl, width: 1200, height: 630, alt: "Λεξικό της αυτοδιοίκησης" }],
+            locale: locale === "en" ? "en_US" : "el_GR",
+        },
+        twitter: {
+            card: "summary_large_image",
+            title: "Λεξικό της αυτοδιοίκησης — OpenCouncil",
+            description: PAGE_DESCRIPTION,
+            images: [ogImageUrl],
+        },
+        alternates: buildHreflangAlternates("/explain", locale),
+    };
+}
+
+const chipClass =
+    "unstyled rounded-full border border-border bg-card px-3 py-1 text-sm text-muted-foreground transition-colors hover:border-orange hover:text-orange";
+
+/** Internal link for a topic — real article route if published, else placeholder. */
+function TopicLink({
+    topic,
+    className,
+    children,
+}: {
+    topic: ExplainTopic;
+    className?: string;
+    children: React.ReactNode;
+}) {
+    if (topic.published) {
+        return (
+            <Link href={`/explain/${topic.slug}`} className={cn("unstyled", className)}>
+                {children}
+            </Link>
+        );
+    }
     return (
-        <div className="min-h-screen">
-            <div className="container mx-auto px-2 sm:px-4">
-                {/* Hero Section */}
-                <motion.section
-                    className="relative py-8 sm:py-16 flex flex-col justify-center items-center"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.8 }}
-                >
-                    <div className="flex flex-col items-center justify-center space-y-4 sm:space-y-6">
-                        <h1 className="text-xl sm:text-2xl text-muted-foreground">
-                            Η αυτοδιοίκηση λύνει καθημερινά προβλήματα.
-                        </h1>
-                        <div className="text-3xl sm:text-4xl md:text-6xl font-light my-6 sm:my-8 md:my-12">
-                            <WordRotator words={['🛣️ Τους δρόμους μας', '🏘️ Τις γειτονιές μας', '🏫 Τα σχολεία μας', '🌳 Τα πάρκα μας', '🕒 Ωράρια κατασημάτων', '🚦 Κυκλοφοριακές ρυθμίσεις', '🧹 Καθαριότητα']} />
-                        </div>
-                        <motion.p
-                            className="text-lg sm:text-xl text-muted-foreground max-w-3xl text-center leading-relaxed"
-                            initial={{ y: 20, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: 0.5, duration: 0.8 }}
-                        >
-                            Το OpenCouncil κάνει τις δημόσιες συνεδριάσεις της αυτοδιοίκησης απλές και πιο συμμετοχικές.
-                        </motion.p>
+        <a href="#" className={cn("unstyled", className)}>
+            {children}
+        </a>
+    );
+}
+
+function SectionHead({ title, count }: { title: string; count?: string }) {
+    return (
+        <div className="mb-5 mt-12 flex items-baseline justify-between gap-4">
+            <h2 className="text-xl font-bold tracking-tight sm:text-2xl">{title}</h2>
+            {count && <span className="shrink-0 text-sm text-muted-foreground">{count}</span>}
+        </div>
+    );
+}
+
+function KbCard({ topic }: { topic: ExplainTopic }) {
+    return (
+        <TopicLink topic={topic} className="block h-full">
+            <Card className="h-full">
+                <CardContent className="flex h-full flex-col p-4">
+                    <ImagePlaceholder src={topic.image} alt={topic.title} className="mb-4 h-32 w-full" />
+                    <h3 className="px-1 text-lg font-semibold leading-tight">{topic.title}</h3>
+                    <p className="mt-2 line-clamp-3 px-1 text-sm text-muted-foreground">{topic.snippet}</p>
+                    <div className="mt-auto flex items-center justify-between px-1 pt-4 text-sm">
+                        <Badge variant={topic.accentTag ? "default" : "secondary"}>
+                            {CATEGORY_LABELS[topic.category]}
+                        </Badge>
+                        <span className="inline-flex items-center gap-1 font-semibold text-orange">
+                            Άνοιγμα
+                            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                        </span>
                     </div>
-                </motion.section>
+                </CardContent>
+            </Card>
+        </TopicLink>
+    );
+}
 
-                <motion.section
-                    className="flex justify-center py-8 sm:py-16"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.8, duration: 0.5 }}
-                >
-                    <Button
-                        asChild
-                        size="lg"
-                        className="relative group text-base sm:text-lg px-8 py-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 bg-primary hover:bg-primary/90"
-                    >
-                        <Link href="/athens">
-                            <span className="relative z-10">Εξερεύνησε τα δημοτικά συμβούλια της Αθήνας</span>
-                            <motion.div
-                                className="absolute inset-0 rounded-xl bg-primary opacity-0 group-hover:opacity-100 transition-opacity"
-                                whileHover={{
-                                    boxShadow: "0 0 30px rgba(var(--primary), 0.5)"
-                                }}
-                            />
+export default function ExplainHubPage() {
+    const featured = getTopic(FEATURED_SLUG)!;
+    const sideTopics = FEATURED_SIDE_SLUGS.map((slug) => getTopic(slug)!);
+
+    const structuredData = {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        name: "Λεξικό της αυτοδιοίκησης — OpenCouncil",
+        description: "Εξηγήσεις βασικών όρων της τοπικής αυτοδιοίκησης.",
+        url: `${env.NEXTAUTH_URL}/explain`,
+        hasPart: Object.values(TOPICS).map((t) => ({
+            "@type": "Article",
+            headline: t.title,
+            ...(t.published ? { url: `${env.NEXTAUTH_URL}/explain/${t.slug}` } : {}),
+        })),
+    };
+
+    return (
+        <div className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+            />
+
+            {/* hero */}
+            <section className="pt-8 sm:pt-12">
+                <nav className="mb-5 flex items-center gap-2 text-sm text-muted-foreground" aria-label="breadcrumb">
+                    <Link href="/" className="hover:text-orange">
+                        Αρχική
+                    </Link>
+                    <span className="text-border">/</span>
+                    <span>Εξήγησε</span>
+                </nav>
+                <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-orange">
+                    <span className="h-1.5 w-1.5 rounded-full bg-orange" />
+                    Λεξικό της αυτοδιοίκησης
+                </p>
+                <h1 className="mt-4 max-w-[16ch] text-4xl font-bold tracking-tight sm:text-5xl">
+                    Η τοπική αυτοδιοίκηση, <em>απλά</em>
+                </h1>
+                <p className="mt-4 max-w-2xl text-lg leading-relaxed text-muted-foreground">
+                    Τι είναι ένα δημοτικό συμβούλιο; Τι σημαίνει «δια περιφοράς»; Πώς διαβάζεται ο προϋπολογισμός
+                    ενός δήμου; Σύντομες, τεκμηριωμένες απαντήσεις — και ο τρόπος να τις δεις να συμβαίνουν στον
+                    δήμο σου.
+                </p>
+                <ExplainSearch placeholder="Αναζήτησε έναν όρο — π.χ. «δια περιφοράς», «αρμοδιότητες»…" />
+                <div className="mt-4 flex flex-wrap items-center gap-2.5 text-sm text-muted-foreground">
+                    <span>Δημοφιλή:</span>
+                    {POPULAR_CHIPS.map((chip) => (
+                        <Link key={chip} href={`/search?query=${encodeURIComponent(chip)}`} className={chipClass}>
+                            {chip}
                         </Link>
-                    </Button>
-                </motion.section>
+                    ))}
+                </div>
+            </section>
 
-                {/* Features Section */}
-                <motion.section
-                    className="py-8 sm:py-16"
-                    initial={{ opacity: 0, y: 50 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8 }}
-                    viewport={{ once: true }}
-                >
-                    <h2 className="text-xl sm:text-2xl text-center mb-8 text-muted-foreground">
-                        Η τεχνητή νοημοσύνη του OpenCouncil...
-                    </h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-                        {[
-                            {
-                                description: 'Διαβάζει την ημερήσια διάταξη',
-                                emoji: '📜'
-                            },
-                            {
-                                description: 'Βλέπει τη συνεδρίαση',
-                                emoji: '📹'
-                            },
-                            {
-                                description: 'Αναγνωρίζει τους ομιλητές',
-                                emoji: '🗣️'
-                            },
-                            {
-                                description: 'Καταγράφει τα πρακτικά',
-                                emoji: '📚'
-                            },
-                            {
-                                description: 'Εντοπίζει θέματα και τοποθεσίες',
-                                emoji: '📍'
-                            },
-                            {
-                                description: 'Οργανώνει τα δεδομένα',
-                                emoji: '🗄️'
-                            },
-                            {
-                                description: 'Κάνει την πληροφορία προσβάσιμη',
-                                emoji: '🔍'
-                            },
-                            {
-                                description: 'Δημιουργεί podcast',
-                                emoji: '🎙️'
-                            },
-                            {
-                                description: 'Μοντάρει σύντομα βίντεο',
-                                emoji: '📱'
-                            },
-                            {
-                                description: 'Ενημερώνει τους δημότες',
-                                emoji: '💬'
-                            }
-                        ].map((step, index) => (
-                            <motion.div
-                                key={index}
-                                initial={{ opacity: 0, y: 20 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.1, duration: 0.5 }}
-                                viewport={{ once: true }}
-                            >
-                                <Card className="h-full hover:shadow-lg hover:scale-[1.01] transition-all duration-300">
-                                    <CardContent className="p-4 sm:p-6 flex items-center gap-4">
-                                        <span className="text-2xl sm:text-3xl">{step.emoji}</span>
-                                        <p className="text-sm sm:text-base text-muted-foreground">{step.description}</p>
+            {/* featured strip */}
+            <section>
+                <SectionHead title="Οι πιο αναζητούμενες απαντήσεις" count={`${TOPIC_COUNT} άρθρα`} />
+                <div className="grid gap-4 md:grid-cols-2">
+                    <TopicLink topic={featured} className="block h-full">
+                        <Card className="h-full">
+                            <CardContent className="flex h-full flex-col bg-orange/5 p-6 sm:p-8">
+                                <ImagePlaceholder
+                                    src={featured.image}
+                                    alt={featured.title}
+                                    className="mb-5 h-36 w-full"
+                                />
+                                <span className="text-sm font-semibold uppercase tracking-wider text-orange">
+                                    Ξεκίνα από εδώ
+                                </span>
+                                <h3 className="mt-3 text-2xl font-bold leading-tight">{featured.title}</h3>
+                                <p className="mt-3 text-muted-foreground">
+                                    Το ανώτατο αποφασιστικό όργανο κάθε δήμου. Αποτελείται από αιρετούς δημοτικούς
+                                    συμβούλους και αποφασίζει για τα σημαντικότερα ζητήματα — από τον προϋπολογισμό
+                                    μέχρι τα τοπικά έργα.
+                                </p>
+                                <span className="mt-auto inline-flex items-center gap-2 pt-6 font-semibold text-orange">
+                                    Διάβασε την απάντηση
+                                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                                </span>
+                            </CardContent>
+                        </Card>
+                    </TopicLink>
+
+                    <div className="flex flex-col gap-4">
+                        {sideTopics.map((topic, i) => (
+                            <TopicLink key={topic.slug} topic={topic} className="block">
+                                <Card>
+                                    <CardContent className="flex items-center gap-4 p-4">
+                                        <ImagePlaceholder
+                                            src={topic.image}
+                                            alt={topic.title}
+                                            className="h-12 w-12 shrink-0 rounded-lg"
+                                        />
+                                        <span className="w-5 shrink-0 text-lg font-bold text-orange">
+                                            {String(i + 2).padStart(2, "0")}
+                                        </span>
+                                        <div>
+                                            <h4 className="font-semibold leading-tight">{topic.title}</h4>
+                                            <p className="mt-0.5 text-sm text-muted-foreground">
+                                                {topic.subtitle ?? CATEGORY_LABELS[topic.category]}
+                                            </p>
+                                        </div>
                                     </CardContent>
                                 </Card>
-                            </motion.div>
+                            </TopicLink>
                         ))}
                     </div>
-                </motion.section>
+                </div>
+            </section>
 
-                <motion.section
-                    className="flex flex-col items-center gap-6 py-8 sm:py-16"
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
-                    viewport={{ once: true }}
-                >
-                    <Button
-                        size="lg"
-                        asChild
-                        className="gap-2 text-base sm:text-lg px-8 py-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-                    >
-                        <Link href="https://schemalabs.substack.com/p/pencouncil" target="_blank">
-                            <ExternalLink className="w-4 h-4" />
-                            Διάβασε περισσότερα για το πως δουλεύει
-                        </Link>
-                    </Button>
+            {/* topic clusters */}
+            {CLUSTERS.map((cluster) => (
+                <section key={cluster.title}>
+                    <SectionHead title={cluster.title} />
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {cluster.slugs.map((slug) => (
+                            <KbCard key={slug} topic={getTopic(slug)!} />
+                        ))}
+                    </div>
+                </section>
+            ))}
 
-                    <Button
-                        size="lg"
-                        asChild
-                        variant="outline"
-                        className="gap-2 text-base sm:text-lg"
-                    >
-                        <Link href="/about">
-                            Αν είστε στην αυτοδιοίκηση, πατήστε εδώ
-                        </Link>
-                    </Button>
-                </motion.section>
-            </div>
+            {/* product tie-in */}
+            <section className="mt-14 flex flex-col items-start justify-between gap-6 rounded-2xl bg-primary p-8 text-primary-foreground sm:flex-row sm:items-center sm:p-11">
+                <div>
+                    <h2 className="max-w-[22ch] text-2xl font-bold">Από τη θεωρία, στον δήμο σου.</h2>
+                    <p className="mt-2 max-w-[46ch] text-primary-foreground/70">
+                        Διάβασες τι είναι ένα δημοτικό συμβούλιο. Τώρα δες το πραγματικό: συνεδριάσεις, αποφάσεις
+                        και θέματα του δήμου σου, με βίντεο και πρακτικά.
+                    </p>
+                </div>
+                <Button asChild size="lg" className="shrink-0">
+                    <Link href="/athens" className="unstyled">
+                        Εξερεύνησε τα συμβούλια
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                </Button>
+            </section>
         </div>
     );
 }

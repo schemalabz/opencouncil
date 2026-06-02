@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260" fill="none" role="img" aria-label="Πρόεδρος — σφυρί">
+  <rect width="400" height="260" fill="#F2EFEA"/>
+  <g transform="rotate(-32 200 124)">
+    <rect x="146" y="116" width="118" height="14" rx="7" fill="#26251F"/>
+    <rect x="228" y="94" width="48" height="50" rx="13" fill="#fc550a"/>
+  </g>
+  <rect x="148" y="198" width="104" height="15" rx="7" fill="#26251F"/>
+</svg>

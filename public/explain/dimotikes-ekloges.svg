@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260" fill="none" role="img" aria-label="Δημοτικές εκλογές — ψηφοδέλτιο">
+  <rect width="400" height="260" fill="#F2EFEA"/>
+  <rect x="150" y="62" width="100" height="136" rx="11" fill="#FFFFFF" stroke="#26251F" stroke-width="7"/>
+  <circle cx="200" cy="118" r="30" fill="#fc550a"/>
+  <path d="M186 118 l9 10 l19 -23" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="170" y="162" width="60" height="8" rx="4" fill="#C9C3B8"/>
+  <rect x="180" y="178" width="40" height="8" rx="4" fill="#C9C3B8"/>
+</svg>

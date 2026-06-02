@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260" fill="none" role="img" aria-label="Δημοτικός σύμβουλος">
+  <rect width="400" height="260" fill="#F2EFEA"/>
+  <circle cx="200" cy="108" r="30" fill="#26251F"/>
+  <path d="M142 206 a58 58 0 0 1 116 0 Z" fill="#26251F"/>
+  <circle cx="200" cy="178" r="13" fill="#fc550a"/>
+  <path d="M193 178 l5 6 l10 -12" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
