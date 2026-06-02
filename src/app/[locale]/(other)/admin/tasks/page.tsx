@@ -53,6 +53,10 @@ export default async function TasksPage({ searchParams }: PageProps) {
         getAvailableCities(),
     ]);
 
+    // Derive max version across all task types for the version filter dropdowns
+    const maxVersion = Math.max(0, ...Object.values(highestVersions).map(v => v ?? 0));
+
+
     return (
         <div className="container mx-auto py-8 px-4">
             <h1 className="text-2xl font-bold mb-6">Task Versions Admin</h1>
@@ -65,6 +69,7 @@ export default async function TasksPage({ searchParams }: PageProps) {
                     taskTypes={taskTypes}
                     versionMin={searchParams.versionMin}
                     versionMax={searchParams.versionMax}
+                    maxVersion={maxVersion}
                     availableCities={availableCities}
                 />
             </div>

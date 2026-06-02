@@ -393,13 +393,31 @@ export const getTaskVersionsForMeetings = async (filters: TaskVersionsFilter): P
     };
 
     if (filters.versionMin !== undefined || filters.versionMax !== undefined) {
-        taskStatusWhere.version = {};
-        if (filters.versionMin !== undefined) {
-            taskStatusWhere.version.gte = filters.versionMin;
+        // versionMin=0 or versionMax=0 means "include unversioned (null) tasks"
+        const includeUnversioned = filters.versionMin === 0 || filters.versionMax === 0;
+
+        if (includeUnversioned) {
+            // null OR within range
+            const rangeCondition: Prisma.IntNullableFilter = { gte: 0 };
+            if (filters.versionMax !== undefined) {
+                rangeCondition.lte = filters.versionMax;
+            }
+            taskStatusWhere.OR = [
+                { version: null },
+                { version: rangeCondition }
+            ];
+        } else {
+            taskStatusWhere.version = {};
+            if (filters.versionMin !== undefined) {
+                taskStatusWhere.version.gte = filters.versionMin;
+            }
+            if (filters.versionMax !== undefined) {
+                taskStatusWhere.version.lte = filters.versionMax;
+            }
         }
-        if (filters.versionMax !== undefined) {
-            taskStatusWhere.version.lte = filters.versionMax;
-        }
+
+        // Only return meetings that have at least one task matching the version range
+        meetingWhere.taskStatuses = { some: taskStatusWhere };
     }
 
     const meetings = await prisma.councilMeeting.findMany({
