@@ -17,7 +17,7 @@ export async function requestSummarize(cityId: string, councilMeetingId: string,
 } = {}) {
     await withUserAuthorizedToEdit({ cityId });
 
-    const body = await getSummarizeRequestBody(councilMeetingId, cityId, requestedSubjects, additionalInstructions);
+    const body = await getSummarizeRequestBody(councilMeetingId, cityId, requestedSubjects, additionalInstructions, { force });
 
     return startTask('summarize', body, councilMeetingId, cityId, { force });
 }

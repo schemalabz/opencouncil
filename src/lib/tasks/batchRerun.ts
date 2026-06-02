@@ -34,7 +34,7 @@ export async function batchRerunTask(
 
             await requestProcessAgendaInternal(meeting.agendaUrl, meetingId, cityId, { force: true });
         } else {
-            const body = await getSummarizeRequestBody(meetingId, cityId, []);
+            const body = await getSummarizeRequestBody(meetingId, cityId, [], undefined, { force: true });
             await startTask('summarize', body, meetingId, cityId, { force: true });
         }
 
