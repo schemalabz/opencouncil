@@ -45,25 +45,9 @@ export async function requestProcessAgendaInternal(agendaUrl: string, councilMee
         throw new Error("Council meeting not found");
     }
 
-    if (councilMeeting.subjects.length > 0) {
-        if (force) {
-            console.log(`Deleting existing subjects for meeting ${councilMeetingId}`);
-            // Delete auto-generated subject-linked highlights before subjects to avoid orphans.
-            // User-created highlights (createdById is set) are preserved — their subjectId
-            // will be set to null by the onDelete: SetNull cascade when subjects are deleted.
-            await prisma.highlight.deleteMany({
-                where: { meetingId: councilMeetingId, cityId, subjectId: { not: null }, createdById: null }
-            });
-            await prisma.subject.deleteMany({
-                where: {
-                    councilMeetingId,
-                    cityId
-                }
-            });
-        } else {
-            console.log(`Meeting already has subjects`);
-            throw new Error('Meeting already has subjects');
-        }
+    if (!force && councilMeeting.subjects.length > 0) {
+        console.log(`Meeting already has subjects`);
+        throw new Error('Meeting already has subjects');
     }
 
     // Get relevant people for the meeting (filtered by administrative body)
