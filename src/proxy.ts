@@ -51,7 +51,28 @@ function isHttpBasicAuthAuthenticated(req: Request) {
         return false;
     }
 
-    const [username, password] = atob(authHeader.split(' ')[1]).split(':');
+    // Must be a well-formed `Basic <base64>` header. Anything else (missing
+    // payload, wrong scheme, invalid base64) is unauthenticated, not a 500.
+    const [scheme, encoded] = authHeader.split(' ');
+    if (scheme !== 'Basic' || !encoded) {
+        return false;
+    }
+
+    let decoded: string;
+    try {
+        decoded = atob(encoded);
+    } catch {
+        return false;
+    }
+
+    // Per RFC 7617 the credentials are `username:password`; only the username
+    // is colon-free, so split on the first colon to preserve colons in passwords.
+    const sep = decoded.indexOf(':');
+    if (sep === -1) {
+        return false;
+    }
+    const username = decoded.slice(0, sep);
+    const password = decoded.slice(sep + 1);
     return username === env.BASIC_AUTH_USERNAME && password === env.BASIC_AUTH_PASSWORD;
 }
 
