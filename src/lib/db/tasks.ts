@@ -10,6 +10,16 @@ export type MeetingTaskStatus = {
     [K in MeetingTaskType]: boolean;
 };
 
+export async function getActiveTasks(): Promise<TaskStatus[]> {
+    await withUserAuthorizedToEdit({});
+    return prisma.taskStatus.findMany({
+        where: {
+            status: { notIn: ['succeeded', 'failed'] },
+        },
+        orderBy: { updatedAt: 'desc' },
+    });
+}
+
 export async function getTasksForMeeting(cityId: string, meetingId: string): Promise<TaskStatus[]> {
     await withUserAuthorizedToEdit({ councilMeetingId: meetingId, cityId: cityId })
     try {

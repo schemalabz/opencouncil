@@ -3,6 +3,7 @@ import type { TaskVersionsFilter } from "@/lib/tasks/tasks";
 import TaskVersionsTable from "@/components/admin/tasks/TaskVersionsTable";
 import { TaskFilters } from "@/components/admin/tasks/TaskFilters";
 import { BatchRerunActions, type BatchMeeting } from "@/components/admin/tasks/BatchRerunActions";
+import { ActiveTasks } from "@/components/admin/tasks/ActiveTasks";
 import { MeetingTaskType } from "@/lib/tasks/types";
 
 const DEFAULT_TASK_TYPES: MeetingTaskType[] = ['transcribe', 'processAgenda', 'summarize'];
@@ -76,6 +77,10 @@ export default async function TasksPage({ searchParams }: PageProps) {
     return (
         <div className="container mx-auto py-8 px-4">
             <h1 className="text-2xl font-bold mb-6">Task Versions Admin</h1>
+
+            <div className="mb-6">
+                <ActiveTasks />
+            </div>
 
             <div className="flex flex-col md:flex-row flex-wrap gap-4 mb-6">
                 <TaskFilters
