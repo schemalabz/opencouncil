@@ -386,39 +386,12 @@ export const getTaskVersionsForMeetings = async (filters: TaskVersionsFilter): P
         meetingWhere.cityId = { in: filters.cityIds };
     }
 
-    // Build task status where clause
+    // Fetch all succeeded tasks — version filtering happens in JS against the
+    // latest succeeded task per type (by updatedAt), not any matching task
     const taskStatusWhere: Prisma.TaskStatusWhereInput = {
         type: { in: filters.taskTypes },
         status: "succeeded"
     };
-
-    if (filters.versionMin !== undefined || filters.versionMax !== undefined) {
-        // versionMin=0 or versionMax=0 means "include unversioned (null) tasks"
-        const includeUnversioned = filters.versionMin === 0 || filters.versionMax === 0;
-
-        if (includeUnversioned) {
-            // null OR within range
-            const rangeCondition: Prisma.IntNullableFilter = { gte: 0 };
-            if (filters.versionMax !== undefined) {
-                rangeCondition.lte = filters.versionMax;
-            }
-            taskStatusWhere.OR = [
-                { version: null },
-                { version: rangeCondition }
-            ];
-        } else {
-            taskStatusWhere.version = {};
-            if (filters.versionMin !== undefined) {
-                taskStatusWhere.version.gte = filters.versionMin;
-            }
-            if (filters.versionMax !== undefined) {
-                taskStatusWhere.version.lte = filters.versionMax;
-            }
-        }
-
-        // Only return meetings that have at least one task matching the version range
-        meetingWhere.taskStatuses = { some: taskStatusWhere };
-    }
 
     const meetings = await prisma.councilMeeting.findMany({
         select: {
@@ -429,10 +402,11 @@ export const getTaskVersionsForMeetings = async (filters: TaskVersionsFilter): P
                 where: taskStatusWhere,
                 select: {
                     type: true,
-                    version: true
+                    version: true,
+                    updatedAt: true
                 },
                 orderBy: {
-                    version: 'desc'
+                    updatedAt: 'desc'
                 }
             }
         },
@@ -440,22 +414,60 @@ export const getTaskVersionsForMeetings = async (filters: TaskVersionsFilter): P
         orderBy: { dateTime: 'desc' }
     });
 
-    // Transform into desired format
-    return meetings.map(meeting => {
-        const result: Record<string, any> = {
-            cityId: meeting.cityId,
-            meetingId: meeting.id,
-            dateTime: meeting.dateTime
-        };
+    // For each meeting, pick the latest succeeded task per type (first in updatedAt desc order)
+    const hasVersionFilter = filters.versionMin !== undefined || filters.versionMax !== undefined;
+    const includeUnversioned = filters.versionMin === 0 || filters.versionMax === 0;
 
-        // Add version for each task type
-        filters.taskTypes.forEach(taskType => {
-            const taskStatus = meeting.taskStatuses.find(t => t.type === taskType);
-            result[taskType] = taskStatus?.version ?? null;
+    const versionInRange = (version: number | null): boolean => {
+        // null = unversioned, treated as below any numeric version
+        if (version === null) return includeUnversioned;
+        // For versioned tasks: 0 in the dropdown means "unversioned", not a numeric bound.
+        // versionMin=0 → no lower bound on versioned tasks (unversioned is the floor)
+        // versionMax=0 → upper bound is "unversioned only", so no versioned task can match
+        if (filters.versionMax === 0) return false;
+        if (filters.versionMin !== undefined && filters.versionMin > 0 && version < filters.versionMin) return false;
+        if (filters.versionMax !== undefined && version > filters.versionMax) return false;
+        return true;
+    };
+
+    return meetings
+        .map(meeting => {
+            const result: Record<string, any> = {
+                cityId: meeting.cityId,
+                meetingId: meeting.id,
+                dateTime: meeting.dateTime
+            };
+
+            filters.taskTypes.forEach(taskType => {
+                const latest = meeting.taskStatuses.find(t => t.type === taskType);
+                // Distinguish "never ran" (no task found → null for display) from
+                // "ran but unversioned" (task exists with version=null)
+                result[taskType] = latest ? (latest.version ?? null) : null;
+                result[`_has_${taskType}`] = !!latest;
+            });
+
+            return result;
+        })
+        .filter(meeting => {
+            // Only show meetings where at least one selected task type has run
+            const hasAnyTask = filters.taskTypes.some(taskType => meeting[`_has_${taskType}`]);
+            if (!hasAnyTask) return false;
+
+            if (!hasVersionFilter) return true;
+
+            // Additionally filter by version range when active
+            return filters.taskTypes.some(taskType => {
+                if (!meeting[`_has_${taskType}`]) return false;
+                return versionInRange(meeting[taskType] as number | null);
+            });
+        })
+        .map(meeting => {
+            // Strip internal flags before returning
+            filters.taskTypes.forEach(taskType => {
+                delete meeting[`_has_${taskType}`];
+            });
+            return meeting;
         });
-
-        return result;
-    });
 };
 
 export const getTaskVersionsGroupedByCity = async (filters: TaskVersionsFilter): Promise<Record<string, any>> => {
