@@ -49,6 +49,7 @@ export function NotificationLocationStep({ currentStep, totalSteps, onBack, onCo
           onSelect={handleLocationSelect}
           onRemove={handleLocationRemove}
           city={city}
+          collapseAfterAdd
         />
       </div>
     </OnboardingStepTemplate>
