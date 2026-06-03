@@ -260,6 +260,10 @@ export function NotificationPreferencesSection() {
                 <p className="text-sm text-muted-foreground">
                     {t('noPreferencesDescription')}
                 </p>
+                <p className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <Bell className="h-4 w-4 flex-none mt-0.5" />
+                    <span>{t('sendTiming')}</span>
+                </p>
                 <CitySelector label={t('selectCityButton')} {...citySelectorProps} />
             </div>
         );
@@ -293,6 +297,10 @@ export function NotificationPreferencesSection() {
                         {allDisabled ? t('enableAll') : t('disableAll')}
                     </Button>
                 </div>
+                <p className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <Bell className="h-4 w-4 flex-none mt-0.5" />
+                    <span>{t('sendTiming')}</span>
+                </p>
                 {/* Mobile: stacked cards */}
                 <div className="sm:hidden space-y-2">
                     {preferences.map(pref => (

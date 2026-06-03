@@ -3,7 +3,8 @@ import { OnboardingStepTemplate } from '../../OnboardingStepTemplate';
 import { OnboardingFooter } from '../../OnboardingFooter';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { PreferencesOverview } from '../../PreferencesOverview';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Bell } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface NotificationInfoStepProps {
     currentStep: number;
@@ -19,7 +20,8 @@ export function NotificationInfoStep({
     onContinue
 }: NotificationInfoStepProps) {
     const { userPreferences, city } = useOnboarding();
-    const existingPreference = userPreferences.notifications.find(pref => 
+    const t = useTranslations('Onboarding');
+    const existingPreference = userPreferences.notifications.find(pref =>
         pref.cityId === city?.id
     );
 
@@ -36,6 +38,10 @@ export function NotificationInfoStep({
                             Στα επόμενα βήματα, θα επιλέξεις τις περιοχές και τα θέματα που σε ενδιαφέρουν. Με βάση αυτές τις επιλογές, θα λαμβάνεις ενημερώσεις στο email ή το κινητό σου, με όσα πραγματικά έχουν σημασία για εσένα.
                         </p>
                     )}
+                    <p className="flex items-start gap-2 text-sm">
+                        <Bell className="h-4 w-4 flex-none mt-0.5" />
+                        <span>{t('sendTiming')}</span>
+                    </p>
                 </div>
             }
             footer={
