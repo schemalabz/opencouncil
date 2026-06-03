@@ -144,10 +144,10 @@ export const TEAM_MEMBERS: TeamMember[] = [
         },
     },
     {
-        id: 'klea',
-        image: '/people/klea.png',
+        id: 'myrto',
+        image: '/people/myrto.jpg',
         socials: {
-            linkedin: 'https://www.linkedin.com/in/klea-meshi-0980b2370/',
+            linkedin: 'https://www.linkedin.com/in/myrto-plemmenou/',
         },
     },
 ]
