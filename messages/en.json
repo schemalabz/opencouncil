@@ -16,7 +16,8 @@
         "adminBodyType_committee": "Committees",
         "adminBodyType_community": "Communities",
         "allPeople": "All",
-        "allBodies": "All"
+        "allBodies": "All",
+        "backToHome": "Back to home"
     },
     "PilotPage": {
         "title": "OpenCouncil is running a pilot with some of the latest city council meetings of the Municipality of Athens.",
@@ -799,6 +800,9 @@
     },
     "Subject": {
         "agendaItem": "Subject #{index}",
+        "backToMeeting": "Back to meeting",
+        "backToMeetingNamed": "Back to meeting: {meeting}",
+        "partOf": "Part of the meeting",
         "parties": "Parties",
         "minutes": "minutes",
         "speakers": "{count, plural, =1 {1 speaker} other {# speakers}}",

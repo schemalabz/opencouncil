@@ -16,7 +16,8 @@
         "adminBodyType_committee": "Επιτροπές",
         "adminBodyType_community": "Κοινότητες",
         "allPeople": "Όλα",
-        "allBodies": "Όλες"
+        "allBodies": "Όλες",
+        "backToHome": "Πίσω στην αρχική σελίδα"
     },
     "MeetingCard": {
         "noVideo": "Χωρίς μέσα",
@@ -778,6 +779,9 @@
     },
     "Subject": {
         "agendaItem": "Θέμα #{index}",
+        "backToMeeting": "Πίσω στη συνεδρίαση",
+        "backToMeetingNamed": "Πίσω στη συνεδρίαση: {meeting}",
+        "partOf": "Μέρος της συνεδρίασης",
         "parties": "Παρατάξεις",
         "minutes": "λεπτά",
         "speakers": "{count, plural, =1 {1 ομιλητής} other {# ομιλητές}}",
