@@ -27,6 +27,7 @@ import { useSubjectHeader } from "@/contexts/SubjectHeaderContext";
 import { useSession } from "next-auth/react";
 import { getWithdrawnLabel } from "@/lib/utils/subjects";
 import { SubjectAdminControls } from "./SubjectAdminControls";
+import { useTranscriptOptions } from "../options/OptionsContext";
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
     const { subjects, getSpeakerTag, getPerson, getParty, meeting } = useCouncilMeetingData();
@@ -36,6 +37,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     const { setSubjectHeader } = useSubjectHeader();
     const { data: session } = useSession();
     const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
+    const { options } = useTranscriptOptions();
     const [isFetchingDecision, setIsFetchingDecision] = useState(false);
     const [localDecision, setLocalDecision] = useState<{
         ada: string | null;
@@ -507,8 +509,8 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                     </CollapsibleCard>
                 )}
 
-                {/* Admin Section */}
-                {(topicImportance || proximityImportance) && (
+                {/* Admin Section - internal signals, only for users authorized to edit */}
+                {options.editsAllowed && (topicImportance || proximityImportance) && (
                     <CollapsibleCard
                         icon={<ScrollText className="w-4 h-4" />}
                         title={t("adminDetails")}
