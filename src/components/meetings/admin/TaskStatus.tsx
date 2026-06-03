@@ -356,6 +356,9 @@ export function TaskStatusComponent({ task, onDelete, showMeetingInfo }: TaskSta
                 views={[
                     { label: 'Request', data: parseJson(task.requestBody) },
                     { label: 'Response', data: parseJson(task.responseBody) },
+                    ...(task.processingError
+                        ? [{ label: 'Processing Error', data: task.processingError }]
+                        : []),
                 ]}
                 metadata={[
                     { label: 'Task ID', value: task.id },

@@ -244,7 +244,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                     where: { id: taskId },
                     data: {
                         status: 'failed',
-                        processingError: `${err.message}\n${err.stack ?? ''}`.trim(),
+                        processingError: (err.stack ?? err.message).trim(),
                         version: update.version,
                     }
                 });
@@ -282,7 +282,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
     } else if (update.status === 'error') {
         await prisma.taskStatus.update({
             where: { id: taskId },
-            data: { status: 'failed', responseBody: update.error, version: update.version }
+            data: { status: 'failed', responseBody: update.error, processingError: null, version: update.version }
         });
 
         // Send Discord admin alert for task failure
