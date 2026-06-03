@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { useHighlight } from './HighlightContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Clock, Users, Eye, X, Edit, Save } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { formatTime } from '@/lib/utils';
@@ -23,6 +24,7 @@ export function HighlightModeBar() {
     totalHighlights,
     hasUnsavedChanges,
     isSaving,
+    hasUnsavedNewHighlight,
     resetToOriginal,
     exitEditMode,
     openPreviewDialog,
@@ -32,6 +34,10 @@ export function HighlightModeBar() {
   const { options } = useTranscriptOptions();
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
+  // Whether confirming exit deletes the whole highlight (new, never saved) or
+  // merely discards unsaved edits to an existing one — drives the dialog copy.
+  const [exitDiscardsHighlight, setExitDiscardsHighlight] = useState(false);
   const t = useTranslations('highlights');
 
   if (!editingHighlight || options.editable) {
@@ -76,15 +82,22 @@ export function HighlightModeBar() {
   };
 
   const handleCancel = () => {
-    if (hasUnsavedChanges) {
-      const confirmed = confirm(t('exit.confirmExit'));
-      if (!confirmed) {
-        return;
-      }
-      toast({ title: t('exit.exitedEditMode'), description: t('exit.noChangesSaved') });
-    } else {
-      toast({ title: t('exit.exitedEditMode'), description: t('exit.returningToHighlights') });
+    // Confirm only when exiting would actually lose work: an in-progress new
+    // highlight (created but not yet saved) or unsaved edits to an existing one.
+    // Exiting an unchanged existing highlight discards nothing, so skip the prompt.
+    const isNew = hasUnsavedNewHighlight();
+    if (hasUnsavedChanges || isNew) {
+      setExitDiscardsHighlight(isNew);
+      setIsExitDialogOpen(true);
+      return;
     }
+    toast({ title: t('exit.exitedEditMode'), description: t('exit.returningToHighlights') });
+    exitEditMode();
+  };
+
+  const handleConfirmExit = () => {
+    setIsExitDialogOpen(false);
+    toast({ title: t('exit.exitedEditMode'), description: t('exit.noChangesSaved') });
     exitEditMode();
   };
 
@@ -274,6 +287,28 @@ export function HighlightModeBar() {
         mode="edit"
       />
     )}
+
+    {/* Exit confirmation: warns the in-progress highlight (and chosen utterances) is lost */}
+    <Dialog open={isExitDialogOpen} onOpenChange={setIsExitDialogOpen}>
+      <DialogContent align="start" className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {exitDiscardsHighlight ? t('exit.confirmExitTitle') : t('exit.confirmExitEditsTitle')}
+          </DialogTitle>
+          <DialogDescription>
+            {exitDiscardsHighlight ? t('exit.confirmExitDescription') : t('exit.confirmExitEditsDescription')}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setIsExitDialogOpen(false)}>
+            {t('exit.keepEditing')}
+          </Button>
+          <Button variant="destructive" onClick={handleConfirmExit}>
+            {t('exit.confirmDiscard')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </>
   );
 } 

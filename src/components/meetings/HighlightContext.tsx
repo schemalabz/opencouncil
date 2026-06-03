@@ -41,6 +41,7 @@ interface HighlightContextType {
   isSaving: boolean;
   isCreating: boolean;
   isEditingDisabled: boolean;
+  hasUnsavedNewHighlight: () => boolean;
   enterEditMode: (highlight: HighlightWithUtterances) => void;
   updateHighlightUtterances: (utteranceId: string, action: 'add' | 'remove', modifiers?: { shift: boolean }) => void;
   addUtteranceRangeToHighlight: (fromUtteranceId: string, toUtteranceId: string) => boolean;
@@ -66,6 +67,11 @@ interface HighlightContextType {
     onError?: (error: Error) => void;
   }) => Promise<{ success: boolean; error?: any }>;
 }
+
+// Segment-aware check so paths that merely contain the word (hypothetical
+// `/transcript-notes`) are not misclassified as the transcript route.
+const isTranscriptPath = (pathname: string): boolean =>
+  pathname.split('/').includes('transcript');
 
 const HighlightContext = createContext<HighlightContextType | undefined>(undefined);
 
@@ -357,6 +363,14 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
       });
   }, [removeHighlight, t]);
 
+  // True when the highlight being edited is a freshly-created one not yet
+  // persisted via save — exiting would delete it. Reads refs so it is always
+  // current at event-handler call time and never goes stale in a closure.
+  const hasUnsavedNewHighlight = useCallback(() => {
+    const current = editingHighlightRef.current;
+    return !!current && unsavedNewHighlightIdRef.current === current.id;
+  }, []);
+
   // Enter edit mode - called when switching to edit mode (from URL parameter)
   const enterEditMode = useCallback((highlight: HighlightWithUtterances) => {
     setEditingHighlight(highlight);
@@ -375,9 +389,20 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     }
   }, [router, pathname]);
 
-  // Clean up highlight editing state when navigating away from transcript.
+  // Discard an in-progress highlight only on a *real* navigation away from the
+  // transcript (browser back, switching to another meeting tab, etc.). We track
+  // the previous pathname so we can tell a genuine "left the transcript"
+  // transition apart from the brief window during enterEditMode where
+  // editingHighlight is set while the router is still on the originating route
+  // (e.g. /highlights). Without this, the cleanup fired mid-navigation and tore
+  // edit mode down before the transcript route landed — the "two clicks to
+  // edit" bug. The ref is updated unconditionally every run so it always
+  // reflects the last observed pathname.
+  const prevPathnameRef = useRef(pathname);
   useEffect(() => {
-    if (editingHighlight && !pathname.includes('/transcript')) {
+    const leftTranscript =
+      isTranscriptPath(prevPathnameRef.current) && !isTranscriptPath(pathname);
+    if (editingHighlight && leftTranscript) {
       deleteUnsavedHighlightIfNeeded(editingHighlight.id);
       setEditingHighlight(null);
       setOriginalHighlight(null);
@@ -387,6 +412,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
       setLastClickedUtteranceId(null);
       setLastClickedAction(null);
     }
+    prevPathnameRef.current = pathname;
   }, [pathname, editingHighlight, setIsPlaying, deleteUnsavedHighlightIfNeeded]);
 
   // Mirrored to a ref so updateHighlightUtterances can read it without
@@ -660,6 +686,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     isSaving,
     isCreating,
     isEditingDisabled,
+    hasUnsavedNewHighlight,
     enterEditMode,
     updateHighlightUtterances,
     addUtteranceRangeToHighlight,
@@ -687,6 +714,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     isSaving,
     isCreating,
     isEditingDisabled,
+    hasUnsavedNewHighlight,
     enterEditMode,
     updateHighlightUtterances,
     addUtteranceRangeToHighlight,
