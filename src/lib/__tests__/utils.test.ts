@@ -14,7 +14,8 @@ import {
   isRoleActive,
   filterActiveRoles,
   filterInactiveRoles,
-  normalizeText
+  normalizeText,
+  relevanceScore
 } from '../utils';
 import { calculateOfferTotals } from '../pricing';
 
@@ -661,6 +662,43 @@ describe('normalizeText', () => {
     expect(normalizeText('')).toBe('');
     // @ts-ignore - Testing invalid input
     expect(normalizeText(null)).toBe('');
+  });
+});
+
+describe('relevanceScore', () => {
+  it('returns 1 for an empty query (everything matches)', () => {
+    expect(relevanceScore('Παπάς Παναγιώτης', '')).toBe(1);
+    expect(relevanceScore('anything', '   ')).toBe(1);
+  });
+
+  it('ranks accent-insensitive prefix matches highest', () => {
+    // "παπ" should match "Παπάς Παναγιώτης" despite stress marks
+    expect(relevanceScore('Παπάς Παναγιώτης', 'παπ')).toBe(1);
+  });
+
+  it('boosts word-start matches above plain substring matches', () => {
+    // Query matches the start of the second word, not the first
+    expect(relevanceScore('Παπάς Παναγιώτης', 'παν')).toBe(0.9);
+    // Query is only a mid-word substring
+    expect(relevanceScore('Σαλαμανή Τριανταφυλλιά', 'λαμ')).toBe(0.5);
+  });
+
+  it('returns 0 for unrelated names', () => {
+    // The regression: "παπ" must NOT match "Σαλαμανή Τριανταφυλλιά"
+    expect(relevanceScore('Σαλαμανή Τριανταφυλλιά', 'παπ')).toBe(0);
+  });
+
+  it('orders a list with prefix matches first', () => {
+    const people = ['Σαλαμανή Τριανταφυλλιά', 'Παπαδόπουλος Δημήτρης', 'Παπάς Παναγιώτης'];
+    const ranked = [...people]
+      .map((name) => ({ name, score: relevanceScore(name, 'παπ') }))
+      .filter((p) => p.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map((p) => p.name);
+
+    expect(ranked).toContain('Παπάς Παναγιώτης');
+    expect(ranked).toContain('Παπαδόπουλος Δημήτρης');
+    expect(ranked).not.toContain('Σαλαμανή Τριανταφυλλιά');
   });
 });
 

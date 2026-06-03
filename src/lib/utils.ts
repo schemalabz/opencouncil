@@ -320,6 +320,33 @@ export function normalizeText(text: string): string {
 }
 
 /**
+ * Scores how well a search query matches a target string, biased towards
+ * prefix and word-start matches so the most relevant result ranks first.
+ *
+ * Both inputs are normalized with {@link normalizeText} (lowercased,
+ * accent-insensitive) so Greek queries like "παπ" match "Παπάς".
+ *
+ * Returns a value in [0, 1]:
+ * - 1   when the query is empty (everything matches equally)
+ * - 1   when the target starts with the query ("παπ" → "παπας παναγιωτης")
+ * - 0.9 when any word in the target starts with the query
+ * - 0.5 when the query appears anywhere as a substring
+ * - 0   when there is no match
+ *
+ * Designed for use as a `cmdk` `<Command filter>` callback.
+ */
+export function relevanceScore(target: string, query: string): number {
+  const q = normalizeText(query).trim();
+  if (!q) return 1;
+
+  const t = normalizeText(target);
+  if (t.startsWith(q)) return 1;
+  if (t.split(/\s+/).some((word) => word.startsWith(q))) return 0.9;
+  if (t.includes(q)) return 0.5;
+  return 0;
+}
+
+/**
  * Get media type information for a meeting
  * Returns the type of media available with label and icon component
  */
