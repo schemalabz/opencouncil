@@ -2,8 +2,9 @@ import { ArrowUpRight, TrendingUp, CalendarClock, Bell } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import { trendingSubjects, upcomingMeetings } from './mockData';
-import { TopicChipBadge, formatMeetingDate } from './shared';
+import { TopicChipBadge, formatMeetingDate, LiveDot } from './shared';
 import { HeroCarousel } from './HeroCarousel';
+import { NotifyDialog } from './NotifyDialog';
 
 /**
  * Hero as a bento (à la the Atacama reference): the brand carousel beside a
@@ -25,11 +26,14 @@ export function HeroBento() {
 function TrendingCard() {
     return (
         <section className="rounded-3xl border border-border bg-card p-5 sm:p-6">
-            <header className="mb-4 flex items-center gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--orange))]/10 text-[hsl(var(--orange))]">
-                    <TrendingUp className="h-4 w-4" />
-                </span>
-                <h2 className="text-lg font-semibold">Συζητιούνται τώρα</h2>
+            <header className="mb-4 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--orange))]/10 text-[hsl(var(--orange))]">
+                        <TrendingUp className="h-4 w-4" />
+                    </span>
+                    <h2 className="text-lg font-semibold">Συζητιούνται τώρα</h2>
+                </div>
+                <LiveDot label="Live" />
             </header>
             <ul className="space-y-1">
                 {trendingSubjects.slice(0, 4).map((s) => (
@@ -87,16 +91,18 @@ function UpcomingCard() {
                     );
                 })}
             </ul>
-            <Link
-                href="/sign-up"
-                className={cn(
-                    'mt-4 flex items-center justify-center gap-2 rounded-full border border-border py-2 text-sm font-medium',
-                    'text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-                )}
-            >
-                <Bell className="h-4 w-4" />
-                Ειδοποίησέ με για τα θέματά μου
-            </Link>
+            <NotifyDialog>
+                <button
+                    type="button"
+                    className={cn(
+                        'mt-4 flex w-full items-center justify-center gap-2 rounded-full border border-border py-2 text-sm font-medium',
+                        'text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                    )}
+                >
+                    <Bell className="h-4 w-4" />
+                    Ειδοποίησέ με για τα θέματά μου
+                </button>
+            </NotifyDialog>
         </section>
     );
 }

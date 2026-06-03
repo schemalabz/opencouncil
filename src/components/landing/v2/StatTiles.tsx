@@ -1,6 +1,7 @@
-import { ArrowUpRight, ImageIcon } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { platformStats } from './mockData';
+import { StripedPlaceholder, Eyebrow } from './shared';
 
 /**
  * Platform-proof bento, copying the reference "About Us" deck:
@@ -25,7 +26,10 @@ const NOTCH_MASK =
 export function StatTiles() {
     return (
         <section className="space-y-6">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl !text-left">Με μια ματιά</h2>
+            <div className="space-y-1.5">
+                <Eyebrow>Με αριθμούς</Eyebrow>
+                <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Με μια ματιά</h2>
+            </div>
 
             <div className="grid auto-rows-[minmax(168px,1fr)] grid-cols-2 gap-4 lg:grid-cols-12">
                 <StatCard
@@ -33,7 +37,7 @@ export function StatTiles() {
                     label="ώρες συζητήσεων, με αναζήτηση σε δευτερόλεπτα"
                     className="lg:col-span-3"
                 />
-                <ImagePlaceholder className="hidden lg:flex lg:col-span-6" />
+                <StripedPlaceholder label="Φωτογραφία πόλης" className="hidden lg:flex lg:col-span-6" />
                 <StatCard
                     value={formatCount(platformStats.meetingsCount)}
                     label="συνεδριάσεις καταγεγραμμένες"
@@ -45,7 +49,7 @@ export function StatTiles() {
                     label="δήμοι & περιφέρειες"
                     className="lg:col-span-3"
                 />
-                <ImagePlaceholder className="hidden lg:flex lg:col-span-6" />
+                <StripedPlaceholder label="Στιγμιότυπο προϊόντος" accent className="hidden lg:flex lg:col-span-6" />
             </div>
         </section>
     );
@@ -67,21 +71,6 @@ function StatCard({ value, label, className }: { value: string; label: string; c
             <span className="absolute bottom-[-2px] right-[-2px] flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground">
                 <ArrowUpRight className="h-4 w-4" />
             </span>
-        </div>
-    );
-}
-
-function ImagePlaceholder({ className }: { className?: string }) {
-    return (
-        <div
-            aria-hidden
-            className={cn(
-                'relative items-center justify-center overflow-hidden rounded-3xl border border-border bg-muted',
-                className,
-            )}
-        >
-            <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-accent/20 blur-2xl" />
-            <ImageIcon className="h-8 w-8 text-muted-foreground/50" />
         </div>
     );
 }

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import Marquee from '@/components/ui/marquee';
 import { cn } from '@/lib/utils';
 import { municipalityLogos, explainQA, timelineSegments, platformStats } from './mockData';
+import { SignupDialog } from './SignupDialog';
 
 /**
  * Hero carousel (issue #208). Three slides, framer-motion transitions, autoplay
@@ -37,7 +38,11 @@ export function HeroCarousel() {
 
     useEffect(() => {
         if (paused) return;
-        const t = setInterval(() => paginate(1), AUTOPLAY_MS);
+        const t = setInterval(() => {
+            // Don't advance (and tear down an open modal) while a dialog is open.
+            if (typeof document !== 'undefined' && document.querySelector('[role="dialog"][data-state="open"]')) return;
+            paginate(1);
+        }, AUTOPLAY_MS);
         return () => clearInterval(t);
     }, [paused, paginate, index]);
 
@@ -153,9 +158,11 @@ function ProductSlide() {
                     παρακολουθήσεις ολόκληρη τη συνεδρίαση.
                 </p>
                 <div className="flex flex-col gap-3 pt-1 sm:flex-row">
-                    <Button asChild size="lg" className="rounded-full bg-[#fc550a] text-white hover:bg-[#fc550a]/90">
-                        <Link href="/sign-up">Εγγραφή για ειδοποιήσεις</Link>
-                    </Button>
+                    <SignupDialog>
+                        <Button size="lg" className="rounded-full bg-[#fc550a] text-white hover:bg-[#fc550a]/90">
+                            Εγγραφή για ειδοποιήσεις
+                        </Button>
+                    </SignupDialog>
                     <Button
                         asChild
                         size="lg"

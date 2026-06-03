@@ -56,6 +56,10 @@ export type CityCard = {
     id: string;
     name: string;
     logo?: string;
+    /** geographic region, e.g. "Αττική" */
+    region: string;
+    /** next scheduled meeting label, e.g. "Δημ. Συμβούλιο · 09/06" */
+    nextMeeting: string;
     stats: {
         meetings: number;
         /** hours of deliberation for this city */
@@ -177,6 +181,8 @@ export const cityCards: CityCard[] = [
     {
         id: 'thessaloniki',
         name: 'Δήμος Θεσσαλονίκης',
+        region: 'Μακεδονία',
+        nextMeeting: 'Δημ. Συμβούλιο · 09/06',
         stats: { meetings: 84, hours: 240, persons: 49, parties: 8 },
         topTopic: T.budget,
         recentSubjects: [
@@ -188,6 +194,8 @@ export const cityCards: CityCard[] = [
     {
         id: 'chania',
         name: 'Δήμος Χανίων',
+        region: 'Κρήτη',
+        nextMeeting: 'Δημ. Συμβούλιο · 12/06',
         stats: { meetings: 61, hours: 173, persons: 33, parties: 6 },
         topTopic: T.urbanism,
         recentSubjects: [
@@ -199,6 +207,8 @@ export const cityCards: CityCard[] = [
     {
         id: 'kalamaria',
         name: 'Δήμος Καλαμαριάς',
+        region: 'Μακεδονία',
+        nextMeeting: 'Οικ. Επιτροπή · 11/06',
         stats: { meetings: 47, hours: 138, persons: 27, parties: 5 },
         topTopic: T.transport,
         recentSubjects: [
@@ -210,6 +220,8 @@ export const cityCards: CityCard[] = [
     {
         id: 'athens',
         name: 'Δήμος Αθηναίων',
+        region: 'Αττική',
+        nextMeeting: 'Δημ. Συμβούλιο · 10/06',
         stats: { meetings: 92, hours: 268, persons: 49, parties: 9 },
         topTopic: T.urbanism,
         recentSubjects: [
@@ -221,6 +233,8 @@ export const cityCards: CityCard[] = [
     {
         id: 'patras',
         name: 'Δήμος Πατρέων',
+        region: 'Δυτική Ελλάδα',
+        nextMeeting: 'Δημ. Συμβούλιο · 13/06',
         stats: { meetings: 54, hours: 151, persons: 31, parties: 6 },
         topTopic: T.environment,
         recentSubjects: [
@@ -232,6 +246,8 @@ export const cityCards: CityCard[] = [
     {
         id: 'heraklion',
         name: 'Δήμος Ηρακλείου',
+        region: 'Κρήτη',
+        nextMeeting: 'Δημ. Συμβούλιο · 12/06',
         stats: { meetings: 49, hours: 142, persons: 29, parties: 6 },
         topTopic: T.culture,
         recentSubjects: [
@@ -243,6 +259,8 @@ export const cityCards: CityCard[] = [
     {
         id: 'larissa',
         name: 'Δήμος Λαρισαίων',
+        region: 'Θεσσαλία',
+        nextMeeting: 'Δημ. Συμβούλιο · 11/06',
         stats: { meetings: 43, hours: 124, persons: 28, parties: 5 },
         topTopic: T.budget,
         recentSubjects: [
@@ -254,6 +272,8 @@ export const cityCards: CityCard[] = [
     {
         id: 'volos',
         name: 'Δήμος Βόλου',
+        region: 'Θεσσαλία',
+        nextMeeting: 'Οικ. Επιτροπή · 10/06',
         stats: { meetings: 41, hours: 119, persons: 26, parties: 5 },
         topTopic: T.transport,
         recentSubjects: [
@@ -265,6 +285,8 @@ export const cityCards: CityCard[] = [
     {
         id: 'ioannina',
         name: 'Δήμος Ιωαννιτών',
+        region: 'Ήπειρος',
+        nextMeeting: 'Δημ. Συμβούλιο · 14/06',
         stats: { meetings: 38, hours: 108, persons: 25, parties: 5 },
         topTopic: T.health,
         recentSubjects: [
@@ -309,6 +331,18 @@ export const timelineSegments: TimelineSegment[] = [
     { color: '#db2777', width: 8 },
     { color: '#0d9488', width: 9 },
     { color: '#f59e0b', width: 16 },
+];
+
+// Topic chips for the notifications modal.
+export const topicChips: string[] = [
+    'Καθαριότητα',
+    'Κυκλοφοριακό',
+    'Πράσινο',
+    'Πολεοδομία',
+    'Παιδεία',
+    'Προϋπολογισμός',
+    'Αθλητισμός',
+    'Ύδρευση',
 ];
 
 // --- Hero carousel: slide 3 (explain Q&A CTA) ---

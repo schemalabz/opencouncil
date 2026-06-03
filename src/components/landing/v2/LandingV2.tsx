@@ -3,6 +3,7 @@ import { StatTiles } from './StatTiles';
 import { CityBrowse } from './CityBrowse';
 import { CoverageBand } from './CoverageBand';
 import { HowItWorks } from './HowItWorks';
+import { FooterBand } from './FooterBand';
 
 /**
  * Landing redesign — iteration 1 (issue #208).
@@ -19,6 +20,7 @@ export function LandingV2() {
             <CityBrowse />
             <CoverageBand />
             <HowItWorks />
+            <FooterBand />
         </div>
     );
 }
