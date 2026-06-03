@@ -58,6 +58,24 @@ async function sendDiscordMessage(payload: DiscordWebhookPayload): Promise<void>
 }
 
 /**
+ * Identifies which deployment produced an alert: the preview PR (parsed from
+ * NEXTAUTH_URL), the build commit, and the instance URL.
+ */
+function buildIdentityFooter(): DiscordEmbed['footer'] {
+    const instance = env.NEXTAUTH_URL;
+    const pr = instance.match(/pr-(\d+)\./)?.[1];
+    const commit = env.NEXT_PUBLIC_BUILD_COMMIT_SHA;
+
+    const parts = [
+        pr ? `pr-${pr}` : undefined,
+        commit ? `commit ${commit.slice(0, 7)}` : undefined,
+        instance,
+    ].filter((part): part is string => Boolean(part));
+
+    return parts.length > 0 ? { text: parts.join(' · ') } : undefined;
+}
+
+/**
  * Thin wrapper around sendDiscordMessage that adds the embed boilerplate.
  */
 async function sendAdminAlert(embed: {
@@ -70,6 +88,7 @@ async function sendAdminAlert(embed: {
     await sendDiscordMessage({
         embeds: [{
             ...embed,
+            footer: embed.footer ?? buildIdentityFooter(),
             timestamp: new Date().toISOString(),
         }],
     });

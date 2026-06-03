@@ -168,6 +168,7 @@ jobs:
           NEXT_PUBLIC_CONTACT_PHONE: ${{ secrets.NEXT_PUBLIC_CONTACT_PHONE }}
           NEXT_PUBLIC_CONTACT_EMAIL: ${{ secrets.NEXT_PUBLIC_CONTACT_EMAIL }}
           NEXT_PUBLIC_CONTACT_ADDRESS: ${{ secrets.NEXT_PUBLIC_CONTACT_ADDRESS }}
+          NEXT_PUBLIC_BUILD_COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           echo "Building OpenCouncil production package..."
           nix build --impure .#opencouncil-prod --print-build-logs
