@@ -540,10 +540,22 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   }, [originalHighlight]);
 
   const exitEditMode = useCallback(() => {
-    if (!editingHighlight) return;
+    const current = editingHighlight;
+    if (!current) return;
     setIsPlaying(false);
-    deleteUnsavedHighlightIfNeeded(editingHighlight.id);
-    router.push(`/${editingHighlight.cityId}/${editingHighlight.meetingId}/highlights`);
+    deleteUnsavedHighlightIfNeeded(current.id);
+    // Leave edit mode in place: clear state synchronously so the banner hides
+    // immediately (no dependence on a navigation round-trip), and drop the
+    // ?highlight param so neither a refresh nor the transcript URL-sync effect
+    // re-enters edit mode. We stay on the transcript — exiting must not redirect
+    // to the highlights list.
+    setEditingHighlight(null);
+    setOriginalHighlight(null);
+    setIsDirty(false);
+    setPreviewMode(false);
+    setLastClickedUtteranceId(null);
+    setLastClickedAction(null);
+    router.replace(`/${current.cityId}/${current.meetingId}/transcript`, { scroll: false });
   }, [editingHighlight, router, setIsPlaying, deleteUnsavedHighlightIfNeeded]);
 
   const exitEditModeAndRedirectToHighlight = useCallback(() => {

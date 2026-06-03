@@ -91,7 +91,7 @@ export function HighlightModeBar() {
       setIsExitDialogOpen(true);
       return;
     }
-    toast({ title: t('exit.exitedEditMode'), description: t('exit.returningToHighlights') });
+    toast({ title: t('exit.exitedEditMode') });
     exitEditMode();
   };
 
