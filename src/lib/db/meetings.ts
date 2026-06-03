@@ -128,6 +128,33 @@ export async function getCouncilMeeting(cityId: string, id: string): Promise<Cou
     }
 }
 
+/**
+ * Finds a released council meeting whose stored youtubeUrl contains the given
+ * YouTube video id. Matching by substring handles the various YouTube URL
+ * formats (watch, live, shorts, youtu.be). When several meetings share the same
+ * video (e.g. re-uploads), the most recent one is returned.
+ */
+export async function findCouncilMeetingByYouTubeVideoId(
+    videoId: string
+): Promise<{ cityId: string; id: string } | null> {
+    if (!videoId) return null;
+
+    try {
+        const meeting = await prisma.councilMeeting.findFirst({
+            where: {
+                released: true,
+                youtubeUrl: { contains: videoId },
+            },
+            orderBy: [{ dateTime: 'desc' }, { createdAt: 'desc' }],
+            select: { cityId: true, id: true },
+        });
+        return meeting;
+    } catch (error) {
+        console.error('Error finding council meeting by YouTube video id:', error);
+        throw new Error('Failed to find council meeting by YouTube video id');
+    }
+}
+
 export async function getCouncilMeetingsForCity(cityId: string, { includeUnreleased, limit, page, pageSize = 12, from, to, administrativeBodyTypes, timeFilter }: { includeUnreleased?: boolean; limit?: number; page?: number; pageSize?: number; from?: Date; to?: Date; administrativeBodyTypes?: AdministrativeBodyType[]; timeFilter?: 'upcoming' | 'past' } = {}): Promise<CouncilMeetingWithAdminBodyAndSubjects[]> {
 
     try {
