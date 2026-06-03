@@ -18,10 +18,10 @@ const i18nMiddleware = createIntlMiddleware(routing);
 // without touching per-city caches.
 const JUNK_PATH = /^\/(wp-admin|wp-login|wp-content|wp-includes|wordpress|xmlrpc|administrator|phpmyadmin|cgi-bin)(\/|$)/i;
 
-// Page paths that go through i18n routing (i.e. not api/_next/_vercel/qr or
+// Page paths that go through i18n routing (i.e. not api/_next/_vercel/qr/yt or
 // dotted asset paths). Both the realm-locale rewrite and the i18n handoff
 // gate on this.
-const APP_PATH = /^\/(?!api|_next|_vercel|qr\/|\..+).*/;
+const APP_PATH = /^\/(?!api|_next|_vercel|qr\/|yt\/|\..+).*/;
 
 
 export default async function proxy(req: NextRequest) {
@@ -204,7 +204,7 @@ async function proxyInner(req: NextRequest): Promise<Response | undefined> {
         return NextResponse.rewrite(localeUrl, { request: { headers: requestHeaders } });
     }
 
-    // Handle i18n first (skip for /qr/* paths to allow direct route handler)
+    // Handle i18n first (skip for /qr/* and /yt/* paths to allow direct route handler)
     if (APP_PATH.test(pathname)) {
         const response = await i18nMiddleware(req);
         if (response) {
