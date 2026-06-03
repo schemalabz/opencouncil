@@ -95,4 +95,39 @@ describe('handleTaskUpdate — persist raw payload before processing', () => {
       },
     });
   });
+
+  it('stores processor stack without duplicating the error message', async () => {
+    const result = { foo: 'bar' };
+    const processorErr = new Error('boom');
+    processorErr.stack = 'Error: boom\n    at processor';
+    const processResult = jest.fn().mockRejectedValue(processorErr);
+
+    const update: TaskUpdate<typeof result> = { status: 'success', stage: '', progressPercent: 100, result, version: 9 };
+    await handleTaskUpdate(TASK_ID, update, processResult);
+
+    expect(mockUpdate).toHaveBeenNthCalledWith(2, {
+      where: { id: TASK_ID },
+      data: expect.objectContaining({
+        processingError: 'Error: boom\n    at processor',
+      }),
+    });
+  });
+
+  it('clears stale processingError when backend reports an error', async () => {
+    const processResult = jest.fn();
+    const update: TaskUpdate<never> = { status: 'error', stage: '', progressPercent: 100, error: 'backend failed', version: 11 };
+
+    await handleTaskUpdate(TASK_ID, update, processResult);
+
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: TASK_ID },
+      data: {
+        status: 'failed',
+        responseBody: 'backend failed',
+        processingError: null,
+        version: 11,
+      },
+    });
+    expect(processResult).not.toHaveBeenCalled();
+  });
 });
