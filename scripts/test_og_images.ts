@@ -409,8 +409,8 @@ async function fetchOgImages(): Promise<void> {
 
                 // Check if we got an image back
                 const contentType = response.headers["content-type"];
-                if (!contentType || !contentType.includes("image")) {
-                    throw new Error(`Not an image! Got content-type: ${contentType}`);
+                if (typeof contentType !== "string" || !contentType.includes("image")) {
+                    throw new Error(`Not an image! Got content-type: ${String(contentType)}`);
                 }
 
                 // Save image to file
