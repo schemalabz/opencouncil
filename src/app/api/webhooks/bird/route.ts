@@ -15,18 +15,27 @@ import {
 import { sendUnsupportedReply } from '@/lib/notifications/autoReply';
 import { isNotisServedPhone } from '@/lib/notifications/notis-gate';
 import { normalizePhone } from '@/lib/notifications/phone';
+import { markWebhookSeen, clearWebhookSeen } from '@/lib/notifications/webhookDedupe';
 import type { VerifyRequestResult, VerifySignatureResult } from '@/lib/notifications/types';
 import { extractMessageFields, type ExtractedMessageFields } from './extract';
 import type { MessageStatus, Prisma } from '@prisma/client';
 
+// Replay protection model (issue #391):
+//   1. Verify the HMAC signature — proves the request came from Bird untampered.
+//   2. Atomic id-based dedupe — record the event's stable id in Valkey
+//      (`SET NX EX`); an exact replay/retry of the same event is dropped with
+//      200 OK so Bird stops retrying. This is the PRIMARY replay defense.
+//   3. Process (extract → persist → unsubscribe) only first-seen events.
+// Time is no longer part of the security model. Bird's retry queue re-delivers
+// webhooks with the original event timestamp (observed 3–4h stale), so a tight
+// timestamp window dropped legitimate retries; the window below is now only a
+// residual sanity ceiling against absurdly skewed clocks/signatures. It MUST
+// stay well above Bird's retry staleness so legitimate retries pass signature
+// verification and reach the id-dedupe layer (which returns 200 OK for true
+// replays). Replay rejection is the dedupe layer's job, not this window's.
 const SIGNATURE_HEADER = 'messagebird-signature';
 const TIMESTAMP_HEADER = 'messagebird-request-timestamp';
-// Wide sanity ceiling, not the primary replay defense. Bird's retry queue
-// re-delivers webhooks with the original event timestamp (observed: 3–4h
-// stale), which the previous 300s window was silently rejecting and losing
-// real user messages. Proper replay protection should come from id-based
-// dedupe — see follow-up ticket.
-const REPLAY_WINDOW_SECONDS = 24 * 60 * 60;
+const REPLAY_WINDOW_SECONDS = 24 * 60 * 60; // 24h sanity ceiling; id dedupe is primary
 
 function verifyBirdSignature(opts: {
     rawBody: string;
@@ -292,6 +301,23 @@ async function sendUnsupportedReplyIfApplicable(
     });
 }
 
+/**
+ * Build the replay-dedupe id for an event. Bird emits multiple lifecycle
+ * status webhooks for the same message id (sent → delivered → failed), so the
+ * message id alone is too coarse — it would drop legitimate progressions. The
+ * key composes every stable identifier we have: the top-level event/payload id
+ * (when present), the message id, and the normalized status. A duplicate then
+ * requires the exact same event — i.e. a true replay/retry — while status
+ * progressions remain distinct keys.
+ */
+function buildDedupeId(event: unknown, fields: ExtractedMessageFields): string {
+    const payloadId =
+        (event as { payload?: { id?: string }; data?: { id?: string } } | null)?.payload?.id ??
+        (event as { data?: { id?: string } } | null)?.data?.id ??
+        '-';
+    return `${payloadId}:${fields.birdMessageId ?? '-'}:${fields.status}`;
+}
+
 export async function POST(request: Request) {
     const verified = await verifyRequest(request);
     if (!verified.ok) return verified.response;
@@ -305,35 +331,43 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: true });
     }
 
-    if (fields.direction === 'outbound' && await updateOutboundMessage(fields)) {
+    // Id-based replay protection (primary defense — see header). Atomic
+    // check-and-set: a duplicate is dropped here so Bird stops retrying.
+    const dedupeId = buildDedupeId(verified.event, fields);
+    const seen = await markWebhookSeen(dedupeId);
+    if (seen === 'duplicate') {
+        console.log(`Bird webhook: webhook id ${dedupeId} already processed — skipping`);
         return NextResponse.json({ ok: true });
     }
-
-    // Notis-served users belong to the notis webhook subscription: no reply,
-    // no unsubscribe handling, no Message row (notis's database is the record
-    // of those conversations). Legacy outbound reconciliation stays above —
-    // a Message row that exists here is this app's send regardless of flag.
-    //
-    // KNOWN GAP, deliberately deferred to the rollout PRs: a ΣΤΟΠ from a
-    // notis-served reader is therefore recorded in notis alone, and this
-    // app's NotificationPreference.notifyByPhone keeps its old value. That is
-    // the intended end state (PRD §2.1 — notis holds the only copy), and it
-    // is safe while the flag is set, because the matching engine skips these
-    // users. It stops being safe if someone clears notisEnabledAt: the old
-    // path then sees notifyByPhone: true and resumes messaging a reader who
-    // asked to be left alone, and the release panel shows no sign they ever
-    // sent ΣΤΟΠ. PRD §9 promises narrowing never unsubscribes anyone; this is
-    // the mirror case, and it is answered where the profile checkbox becomes
-    // a notis API client (PR 5) rather than by adding a second copy of the
-    // opt-out here.
-    if (await isNotisServedPhone(fields.phone)) {
-        console.log(`Bird webhook: ${fields.direction} event for a notis-served phone — skipping`);
-        return NextResponse.json({ ok: true });
-    }
-
-    const notificationDeliveryId = await getNotificationDeliveryForMessage(fields);
 
     try {
+        if (fields.direction === 'outbound' && await updateOutboundMessage(fields)) {
+            return NextResponse.json({ ok: true });
+        }
+
+        // Notis-served users belong to the notis webhook subscription: no reply,
+        // no unsubscribe handling, no Message row (notis's database is the record
+        // of those conversations). Legacy outbound reconciliation stays above —
+        // a Message row that exists here is this app's send regardless of flag.
+        //
+        // KNOWN GAP, deliberately deferred to the rollout PRs: a ΣΤΟΠ from a
+        // notis-served reader is therefore recorded in notis alone, and this
+        // app's NotificationPreference.notifyByPhone keeps its old value. That is
+        // the intended end state (PRD §2.1 — notis holds the only copy), and it
+        // is safe while the flag is set, because the matching engine skips these
+        // users. It stops being safe if someone clears notisEnabledAt: the old
+        // path then sees notifyByPhone: true and resumes messaging a reader who
+        // asked to be left alone, and the release panel shows no sign they ever
+        // sent ΣΤΟΠ. PRD §9 promises narrowing never unsubscribes anyone; this is
+        // the mirror case, and it is answered where the profile checkbox becomes
+        // a notis API client (PR 5) rather than by adding a second copy of the
+        // opt-out here.
+        if (await isNotisServedPhone(fields.phone)) {
+            console.log(`Bird webhook: ${fields.direction} event for a notis-served phone — skipping`);
+            return NextResponse.json({ ok: true });
+        }
+
+        const notificationDeliveryId = await getNotificationDeliveryForMessage(fields);
         await persistMessageRow(fields, notificationDeliveryId);
         const handledAsUnsubscribe = await handleUnsubscribeIfApplicable(fields, notificationDeliveryId);
         if (!handledAsUnsubscribe) {
@@ -343,7 +377,10 @@ export async function POST(request: Request) {
         const code = (error as Prisma.PrismaClientKnownRequestError | undefined)?.code;
         if (code !== 'P2002') {
             console.error('Bird webhook: persist error', error);
-            // Returning 500 makes Bird retry — appropriate for transient DB issues.
+            // Transient failure → return 500 so Bird retries. Roll back the
+            // dedupe marker first; otherwise the retry would be dropped as a
+            // duplicate and the event lost permanently.
+            await clearWebhookSeen(dedupeId);
             return NextResponse.json({ error: 'persist failed' }, { status: 500 });
         }
     }
