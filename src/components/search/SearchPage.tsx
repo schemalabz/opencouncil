@@ -1,6 +1,7 @@
 "use client";
 
-import { Search, Sparkles, AlertTriangle } from "lucide-react";
+import { Search, Sparkles, AlertTriangle, ArrowLeft } from "lucide-react";
+import { Link } from "@/i18n/routing";
 import { Input } from "../ui/input";
 import MetadataFilters from "./MetadataFilters";
 import { useEffect, useState, useCallback, useMemo } from "react";
@@ -213,6 +214,21 @@ export default function SearchPage() {
 
     return (
         <div className="flex flex-col gap-6 max-w-7xl mx-auto px-4 py-8">
+            {/* Home affordance — the search page otherwise has no obvious way
+                back; a user resorted to hand-editing the URL (#405). Real
+                navigational <Link>, keyboard-focusable with a visible focus
+                ring (#293). */}
+            <div>
+                <Link
+                    href="/"
+                    aria-label={t('backToHome')}
+                    className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                    <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span>{t('backToHome')}</span>
+                </Link>
+            </div>
+
             {/* Temporary maintenance message */}
             {SEARCH_TEMPORARILY_DISABLED && (
                 <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
