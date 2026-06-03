@@ -251,12 +251,18 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                     .map((innerHit: { _source?: { segment_id?: string } }) => innerHit._source?.segment_id)
                     .filter((id: string | undefined): id is string => id !== undefined);
 
+                // Highlight fragments (matched terms wrapped in sentinel tags)
+                const nameHighlight: string | undefined = hit.highlight?.name?.[0];
+                const descriptionHighlight: string | undefined = hit.highlight?.description?.[0];
+
                 // Base result with common fields
                 const baseResult: SearchResultLight = {
                     ...subject,
                     location: locationWithCoordinates,
                     score: hit._score || 0,
                     matchedSpeakerSegmentIds,
+                    nameHighlight,
+                    descriptionHighlight,
                     councilMeeting: subject.councilMeeting,
                     votes: [],
                     attendance: []

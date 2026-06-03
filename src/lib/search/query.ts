@@ -1,6 +1,7 @@
 import { estypes } from '@elastic/elasticsearch';
 import { SearchRequest, ExtractedFilters } from './types';
 import { env } from '@/env.mjs';
+import { HIGHLIGHT_START, HIGHLIGHT_END } from './constants';
 
 // Build filters for the search query
 export function buildFilters(request: SearchRequest): estypes.QueryDslQueryContainer[] {
@@ -149,7 +150,35 @@ export function buildSearchQuery(
                                                     ...(extractedFilters.locationName ? ['location_text^3'] : []), // Add location text with high boost when location is extracted
                                                 ],
                                                 type: 'best_fields',
-                                                operator: 'or'
+                                                operator: 'or',
+                                                // Typo tolerance for citizen-style queries (often misspelled).
+                                                // prefix_length:2 avoids noisy 1-char-prefix expansions on Greek morphology.
+                                                fuzziness: 'AUTO',
+                                                prefix_length: 2,
+                                                // Leave 1- and 2-term queries at full recall (nothing required);
+                                                // for 3+ term queries require 75% of terms so a single stray
+                                                // matching term no longer surfaces a low-relevance hit.
+                                                minimum_should_match: '3<75%'
+                                            }
+                                        },
+                                        {
+                                            // Phrase match on the title: a contiguous phrase match in the
+                                            // most important field should clearly outrank scattered terms.
+                                            match_phrase: {
+                                                'name': {
+                                                    query: mergedRequest.query,
+                                                    boost: 6
+                                                }
+                                            }
+                                        },
+                                        {
+                                            // Phrase match on the description, with a lower boost than the
+                                            // title so long descriptions don't overweight phrase proximity.
+                                            match_phrase: {
+                                                'description': {
+                                                    query: mergedRequest.query,
+                                                    boost: 4
+                                                }
                                             }
                                         },
                                         {
@@ -240,6 +269,20 @@ export function buildSearchQuery(
                 rank_window_size: request.config?.rankWindowSize || 100,
                 rank_constant: request.config?.rankConstant || 60
             }
-        }
+        },
+        // Request highlight fragments so the UI can emphasize the matched terms.
+        // number_of_fragments:0 returns the whole field (with markers) as a single
+        // fragment, keeping titles/descriptions intact rather than snippeted.
+        ...(request.config?.enableHighlights ? {
+            highlight: {
+                pre_tags: [HIGHLIGHT_START],
+                post_tags: [HIGHLIGHT_END],
+                number_of_fragments: 0,
+                fields: {
+                    name: {},
+                    description: {}
+                }
+            }
+        } : {})
     };
 }
