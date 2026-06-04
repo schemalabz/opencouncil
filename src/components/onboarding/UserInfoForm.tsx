@@ -12,6 +12,10 @@ export interface UserInfoFormData {
     phone?: string;
 }
 
+// Module-level so the reference is stable across renders (no exhaustive-deps
+// churn when used inside effects). Pure: depends only on its argument.
+const validateEmail = (email: string) => /.+@.+\..+/.test(email);
+
 interface UserInfoFormProps {
     onSubmit: (data: UserInfoFormData) => void;
     initialData?: UserInfoFormData;
@@ -74,10 +78,6 @@ export function UserInfoForm({
         }
     }, [initialData, isSubmitting]);
 
-    const validateEmail = (email: string) => {
-        return /.+@.+\..+/.test(email);
-    };
-
     // Fields locked to the session value cannot be edited here, so they are
     // never reported as "missing" even if somehow empty.
     const nameLocked = isLoggedIn && !!session?.user?.name;
@@ -87,6 +87,13 @@ export function UserInfoForm({
     // them above the fold. Mirrors the submit validation below.
     useEffect(() => {
         if (!onMissingRequiredChange) return;
+        // While the session is still resolving, report nothing. Otherwise a
+        // logged-in user would see a brief "still needed" flash before the
+        // session loads and locks the prefilled name/email fields.
+        if (sessionStatus === 'loading') {
+            onMissingRequiredChange([]);
+            return;
+        }
         const missing: Array<'name' | 'email'> = [];
         if (showName && requireName && !nameLocked && !name.trim()) {
             missing.push('name');
@@ -95,7 +102,7 @@ export function UserInfoForm({
             missing.push('email');
         }
         onMissingRequiredChange(missing);
-    }, [name, email, showName, showEmail, requireName, requireEmail, nameLocked, emailLocked, onMissingRequiredChange]);
+    }, [name, email, showName, showEmail, requireName, requireEmail, nameLocked, emailLocked, onMissingRequiredChange, sessionStatus]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
