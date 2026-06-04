@@ -15,6 +15,7 @@ import { UtteranceContextMenu } from "./UtteranceContextMenu";
 import { useViewMode } from "@/hooks/useViewMode";
 import { useFisheyeCenter } from "@/hooks/useFisheyeCenter";
 import { fisheyeModeForDistance } from "@/lib/utils/fisheye";
+import FisheyeToggle from "./FisheyeToggle";
 
 // Helper functions for speaker segment identification and parsing
 const SPEAKER_SEGMENT_PREFIX = 'speaker-segment-';
@@ -210,6 +211,11 @@ export default function Transcript() {
                     isScrolled={isScrolled}
                     onBannerHeightChange={setBannerHeight}
                 />
+            )}
+            {!options.editable && (
+                <div className="flex justify-end pt-2 pb-1">
+                    <FisheyeToggle />
+                </div>
             )}
             <UtteranceContextMenu>
                 <div ref={containerRef} role="list" aria-label={t('transcript')}>

@@ -34,8 +34,8 @@ export const useLayout = () => useContext(LayoutContext);
 
 export default function CouncilMeetingWrapper({ meetingData, editable, canCreateHighlights, children }: CouncilMeetingWrapperProps) {
     const [isWide, setIsWide] = useState(false);
-    // Lifted from TranscriptControls so other floating buttons (e.g. FisheyeToggle)
-    // can position themselves relative to the show/hide-bar toggle on mobile.
+    // Lifted from TranscriptControls so other floating buttons can position
+    // themselves relative to the show/hide-bar toggle on mobile.
     const [isControlsVisible, setIsControlsVisible] = useState(false);
     const [loading, setLoading] = useState(true);
 

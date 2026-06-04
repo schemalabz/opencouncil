@@ -83,8 +83,8 @@
     "fisheye": "Fish-eye view",
     "expand": "Expand segment",
     "collapse": "Collapse",
-    "seekHere": "Play from here",
-    "seekHereDetailed": "Play from {speaker} at {time}",
+    "seekHere": "Go to here",
+    "seekHereDetailed": "Go to {speaker} at {time}",
     "aiSummary": "AI-generated summary"
   }
 }

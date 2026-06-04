@@ -83,8 +83,8 @@
         "fisheye": "Προβολή fish-eye",
         "expand": "Επέκταση τμήματος",
         "collapse": "Σύμπτυξη",
-        "seekHere": "Αναπαραγωγή από εδώ",
-        "seekHereDetailed": "Αναπαραγωγή από {speaker} στις {time}",
+        "seekHere": "Μετάβαση εδώ",
+        "seekHereDetailed": "Μετάβαση σε {speaker} στις {time}",
         "aiSummary": "Περίληψη από ΤΝ"
     }
 }

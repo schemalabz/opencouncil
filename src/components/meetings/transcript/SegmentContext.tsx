@@ -47,12 +47,12 @@ function buildPreview(segment: TranscriptType[number]): Preview {
 
 /**
  * Compact one-line view used for every segment outside the active 3-item
- * focus window. Click the whole row to seek+play that segment — playback
- * advance is the only way to change which segments are in focus.
+ * focus window. Click the row to move the playhead there — playback advance
+ * is what changes which segments are in focus.
  */
 const SegmentContext = React.memo(({ segment }: SegmentContextProps) => {
     const { getPerson, getSpeakerTag } = useCouncilMeetingMeta();
-    const { seekToWithoutScroll, setIsPlaying } = useVideoActions();
+    const { seekToWithoutScroll } = useVideoActions();
     const t = useTranslations('transcript.viewModes');
 
     const speakerTag = getSpeakerTag(segment.speakerTagId);
@@ -63,13 +63,11 @@ const SegmentContext = React.memo(({ segment }: SegmentContextProps) => {
     const preview = useMemo(() => buildPreview(segment), [segment]);
 
     const handleActivate = () => {
+        // Move the playhead only — never force playback. The 4Hz poll in
+        // Transcript picks up the new position and expands this row within
+        // ~250ms. If the user was already playing they continue from here;
+        // if paused, they stay paused. Expanding a row must not start audio.
         seekToWithoutScroll(segment.startTimestamp);
-        // setIsPlaying is typed as void-returning but internally awaits
-        // playerRef.current.play(), which can reject (autoplay policy, media
-        // not ready). Surface those so the user-visible "seeked but not
-        // playing" state at least leaves a console trail.
-        Promise.resolve(setIsPlaying(true) as unknown as void | Promise<void>)
-            .catch(err => console.error('Fish-eye seek: failed to start playback', err));
     };
 
     const speakerName = person?.name ?? speakerTag?.label ?? null;
