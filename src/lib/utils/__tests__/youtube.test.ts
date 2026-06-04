@@ -75,4 +75,16 @@ describe('extractYouTubeTimestamp', () => {
   it('returns null for an unparseable timestamp value', () => {
     expect(extractYouTubeTimestamp('https://www.youtube.com/watch?v=abc&t=garbage')).toBeNull();
   });
+
+  it('accepts a timestamp at the 24h upper bound', () => {
+    expect(extractYouTubeTimestamp('https://www.youtube.com/watch?v=abc&t=86400')).toBe(86400);
+  });
+
+  it('returns null for an out-of-range timestamp', () => {
+    expect(extractYouTubeTimestamp('https://www.youtube.com/watch?v=abc&t=99999999999')).toBeNull();
+  });
+
+  it('returns null for a composite timestamp beyond the upper bound', () => {
+    expect(extractYouTubeTimestamp('https://www.youtube.com/watch?v=abc&t=25h')).toBeNull();
+  });
 });
