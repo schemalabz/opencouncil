@@ -158,7 +158,9 @@ export function buildSearchQuery(
                                                 // Leave 1- and 2-term queries at full recall (nothing required);
                                                 // for 3+ term queries require 75% of terms so a single stray
                                                 // matching term no longer surfaces a low-relevance hit.
-                                                minimum_should_match: '3<75%'
+                                                // ES notation: "2<75%" = full recall when <=2 terms, 75%
+                                                // required once the term count exceeds 2 (i.e. 3 or more).
+                                                minimum_should_match: '2<75%'
                                             }
                                         },
                                         {
