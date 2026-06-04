@@ -180,7 +180,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                         {city.name}
                     </Link>
                     <span className="text-muted-foreground">
-                        {formatDate(new Date(meeting.dateTime))}
+                        {formatDate(new Date(meeting.dateTime), undefined, locale)}
                     </span>
                 </nav>
                 {isSuperAdmin && (
