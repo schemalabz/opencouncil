@@ -16,7 +16,7 @@ import { sendUnsupportedReply } from '@/lib/notifications/autoReply';
 import { normalizePhone } from '@/lib/notifications/phone';
 import { markWebhookSeen, clearWebhookSeen } from '@/lib/notifications/webhookDedupe';
 import type { VerifyRequestResult, VerifySignatureResult } from '@/lib/notifications/types';
-import { extractMessageFields, type ExtractedMessageFields } from './extract';
+import { extractMessageFields, buildDedupeId, type ExtractedMessageFields } from './extract';
 import type { MessageStatus, Prisma } from '@prisma/client';
 
 // Replay protection model (issue #391):
@@ -298,23 +298,6 @@ async function sendUnsupportedReplyIfApplicable(
         phone: normalizePhone(fields.phone),
         notificationDeliveryId,
     });
-}
-
-/**
- * Build the replay-dedupe id for an event. Bird emits multiple lifecycle
- * status webhooks for the same message id (sent → delivered → failed), so the
- * message id alone is too coarse — it would drop legitimate progressions. The
- * key composes every stable identifier we have: the top-level event/payload id
- * (when present), the message id, and the normalized status. A duplicate then
- * requires the exact same event — i.e. a true replay/retry — while status
- * progressions remain distinct keys.
- */
-function buildDedupeId(event: unknown, fields: ExtractedMessageFields): string {
-    const payloadId =
-        (event as { payload?: { id?: string }; data?: { id?: string } } | null)?.payload?.id ??
-        (event as { data?: { id?: string } } | null)?.data?.id ??
-        '-';
-    return `${payloadId}:${fields.birdMessageId ?? '-'}:${fields.status}`;
 }
 
 export async function POST(request: Request) {
