@@ -92,6 +92,15 @@ function hydrate(): void {
     }
 }
 
+// Seed the store eagerly at module evaluation so getSnapshot() already returns
+// the right mode on the very first render. hydrate() is SSR-safe (no-ops while
+// window is undefined), and useSyncExternalStore applies a client snapshot that
+// differs from the server snapshot before paint — so a ?mode=fisheye link no
+// longer renders every segment full-height and then collapses (a visible layout
+// shift on long transcripts). The mount effect below stays as the
+// cross-navigation refresh; setCurrent is a no-op when the value is unchanged.
+hydrate();
+
 /**
  * Test-only: reset module state between tests. Keep it gated to NODE_ENV
  * !== 'production' so it isn't reachable from production bundles.
