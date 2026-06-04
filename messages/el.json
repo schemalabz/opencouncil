@@ -779,7 +779,6 @@
     },
     "Subject": {
         "agendaItem": "Θέμα #{index}",
-        "backToMeeting": "Πίσω στη συνεδρίαση",
         "backToMeetingNamed": "Πίσω στη συνεδρίαση: {meeting}",
         "partOf": "Μέρος της συνεδρίασης",
         "parties": "Παρατάξεις",

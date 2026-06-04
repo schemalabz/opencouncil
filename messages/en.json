@@ -800,7 +800,6 @@
     },
     "Subject": {
         "agendaItem": "Subject #{index}",
-        "backToMeeting": "Back to meeting",
         "backToMeetingNamed": "Back to meeting: {meeting}",
         "partOf": "Part of the meeting",
         "parties": "Parties",
