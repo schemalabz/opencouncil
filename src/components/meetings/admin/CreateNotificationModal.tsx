@@ -10,21 +10,7 @@ import { Loader2, Users, Ban, Star, AlertCircle, Download } from 'lucide-react';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { TripleToggle } from '@/components/ui/triple-toggle';
 import { stripMarkdown } from '@/lib/formatters/markdown';
-
-interface Subject {
-    id: string;
-    name: string;
-    description: string;
-    topic: {
-        id: string;
-        name: string;
-        colorHex: string;
-    } | null;
-    location: {
-        id: string;
-        text: string;
-    } | null;
-}
+import { SubjectWithRelations } from '@/lib/db/subject';
 
 interface SubjectImportance {
     topicImportance: 'doNotNotify' | 'normal' | 'high';
@@ -34,7 +20,7 @@ interface SubjectImportance {
 interface CreateNotificationModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    subjects: Subject[];
+    subjects: SubjectWithRelations[];
     notificationType: 'beforeMeeting' | 'afterMeeting';
     onCreateNotifications: (
         type: 'beforeMeeting' | 'afterMeeting',
@@ -54,18 +40,32 @@ export function CreateNotificationModal({
     const [sendImmediately, setSendImmediately] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [subjectImportances, setSubjectImportances] = useState<Record<string, SubjectImportance>>(() => {
-        // Initialize all subjects with default values
         const initial: Record<string, SubjectImportance> = {};
         subjects.forEach(subject => {
             initial[subject.id] = {
-                topicImportance: 'doNotNotify',
-                proximityImportance: 'none'
+                topicImportance: (subject.topicImportance as SubjectImportance['topicImportance']) || 'doNotNotify',
+                proximityImportance: (subject.proximityImportance as SubjectImportance['proximityImportance']) || 'none'
             };
         });
         return initial;
     });
     const [impactPreview, setImpactPreview] = useState<{ totalUsers: number; subjectImpact: Record<string, number> } | null>(null);
     const [isLoadingImpact, setIsLoadingImpact] = useState(false);
+
+    // Reset importance values from current subject data each time the modal opens,
+    // so values are fresh if subjects changed since the component mounted
+    useEffect(() => {
+        if (open) {
+            const fresh: Record<string, SubjectImportance> = {};
+            subjects.forEach(subject => {
+                fresh[subject.id] = {
+                    topicImportance: (subject.topicImportance as SubjectImportance['topicImportance']) || 'doNotNotify',
+                    proximityImportance: (subject.proximityImportance as SubjectImportance['proximityImportance']) || 'none'
+                };
+            });
+            setSubjectImportances(fresh);
+        }
+    }, [open, subjects]);
 
     const updateSubjectImportance = (
         subjectId: string,
@@ -207,7 +207,7 @@ export function CreateNotificationModal({
                         Create {notificationType === 'beforeMeeting' ? 'Before Meeting' : 'After Meeting'} Notifications
                     </DialogTitle>
                     <DialogDescription>
-                        Configure which subjects to include and their importance levels. Users will be notified based on their topic interests and location preferences.
+                        Importance levels are pre-filled from the last processing run. Adjust as needed before creating notifications. Users will be matched based on their topic interests and location preferences.
                     </DialogDescription>
                 </DialogHeader>
 
