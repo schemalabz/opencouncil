@@ -609,10 +609,13 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     if (!editingHighlight) return;
     setIsPlaying(false);
     // Defensive: today this is only called after a save (so the ref is
-    // already null), but mirroring the guard here keeps the function safe
-    // for future callers without relying on the post-navigation cleanup
-    // effect to do it for us.
-    deleteUnsavedHighlightIfNeeded(editingHighlight.id);
+    // already null). If it is ever called with this highlight still unsaved,
+    // delete it and bail out — navigating to a just-deleted highlight's page
+    // would land the user on a 404.
+    if (unsavedNewHighlightIdRef.current === editingHighlight.id) {
+      deleteUnsavedHighlightIfNeeded(editingHighlight.id);
+      return;
+    }
     router.push(`/${editingHighlight.cityId}/${editingHighlight.meetingId}/highlights/${editingHighlight.id}`);
   }, [editingHighlight, router, setIsPlaying, deleteUnsavedHighlightIfNeeded]);
 
