@@ -82,23 +82,34 @@ export type Topic = {
     where: string;
     /** short AI summary line */
     summary: string;
+    /** link to the subject's page */
     href: string;
+
+    // --- richer subject metadata (maps to the Subject schema) ---
+    /** went to a vote / has a Decision → "Με ψηφοφορία" badge (Subject.decision / votes) */
+    hasVote?: boolean;
+    /** a related subject/theme → "Σχετίζεται με …" */
+    relatedTo?: string;
+    /** name of the primary subject it was grouped under (Subject.discussedIn) */
+    discussedIn?: string;
+    /** external context blurb (Subject.context) */
+    context?: string;
 };
 
 // Topics — geo-located, June 2026.
 export const TOPICS: Topic[] = [
-    { id: 't1', title: 'Δάνειο 75 εκατ. € από την ΕΤΕπ για αντιπλημμυρικά', cat: 'budget', muni: 'athens', lat: 37.9836, lng: 23.727, date: '10 Ιουν 2026', hot: true, count: 48, durationMin: 38, where: 'Δήμος Αθηναίων', summary: 'Έγκριση δανείου για έργα διαχείρισης ομβρίων σε Κυψέλη και Πατήσια.', href: '/athens' },
-    { id: 't2', title: 'Κατάργηση στάθμευσης στην οδό Γυθείου', cat: 'transport', muni: 'athens', lat: 37.9748, lng: 23.7402, date: '10 Ιουν 2026', hot: false, count: 12, durationMin: 9, where: 'Γυθείου, Αμπελόκηποι', summary: 'Νέα διπλή κίτρινη γραμμή για να περνούν τα απορριμματοφόρα.', href: '/athens' },
-    { id: 't3', title: 'Διακοπή κυκλοφορίας στην οδό Καλαίσχρου', cat: 'transport', muni: 'athens', lat: 37.9881, lng: 23.7361, date: '10 Ιουν 2026', hot: false, count: 7, durationMin: 6, where: 'Καλαίσχρου, Κυψέλη', summary: 'Προσωρινή διακοπή λόγω αποκατάστασης δικτύου ύδρευσης.', href: '/athens' },
-    { id: 't4', title: 'Οριοθέτηση Λαϊκής Αγοράς Αγίας Λαύρας', cat: 'daily', muni: 'zografou', lat: 37.9792, lng: 23.7651, date: '04 Ιουν 2026', hot: false, count: 19, durationMin: 14, where: 'Αγ. Λαύρας, Ζωγράφου', summary: 'Επαναχωροθέτηση πάγκων μετά από παράπονα κατοίκων για πρόσβαση.', href: '/zografou' },
-    { id: 't5', title: '3η Αναμόρφωση Προϋπολογισμού Δήμου', cat: 'budget', muni: 'zografou', lat: 37.9748, lng: 23.7726, date: '04 Ιουν 2026', hot: false, count: 9, durationMin: 11, where: 'Δήμος Ζωγράφου', summary: 'Ενίσχυση κονδυλίων για σχολικές επισκευές και πράσινο.', href: '/zografou' },
-    { id: 't6', title: 'Κυκλοφοριακές ρυθμίσεις σε τέσσερις οδούς', cat: 'transport', muni: 'zografou', lat: 37.9719, lng: 23.7689, date: '04 Ιουν 2026', hot: true, count: 33, durationMin: 27, where: 'Γουδή / Ζωγράφου', summary: 'Μονοδρομήσεις & νέοι ποδηλατόδρομοι κοντά στην Πανεπιστημιούπολη.', href: '/zografou' },
-    { id: 't7', title: 'Κοπή πεύκων στην οδό Ανδρούτσου', cat: 'env', muni: 'chalandri', lat: 38.0227, lng: 23.7984, date: '25 Μαΐ 2026', hot: true, count: 41, durationMin: 44, where: 'Ανδρούτσου, Χαλάνδρι', summary: 'Έντονη αντιπαράθεση για την υλοτόμηση 6 πεύκων λόγω ασφάλειας.', href: '/chalandri' },
-    { id: 't8', title: 'Τραπεζοκαθίσματα καταστήματος υγ. ενδιαφέροντος', cat: 'daily', muni: 'chalandri', lat: 38.0201, lng: 23.8016, date: '25 Μαΐ 2026', hot: false, count: 6, durationMin: 7, where: 'Πλ. Δούρου, Χαλάνδρι', summary: 'Άδεια ανάπτυξης τραπεζοκαθισμάτων σε πεζόδρομο.', href: '/chalandri' },
-    { id: 't9', title: 'Αναβάθμιση οδοφωτισμού σε LED', cat: 'works', muni: 'vrilissia', lat: 38.0341, lng: 23.8312, date: '03 Ιουν 2026', hot: false, count: 14, durationMin: 12, where: 'Δήμος Βριλησσίων', summary: 'Αντικατάσταση 2.400 λαμπτήρων — εξοικονόμηση 38% ενέργειας.', href: '/vrilissia' },
-    { id: 't10', title: 'Ανάπλαση πλατείας Αναλήψεως & νέο πράσινο', cat: 'env', muni: 'chalandri', lat: 38.0186, lng: 23.7949, date: '25 Μαΐ 2026', hot: false, count: 22, durationMin: 18, where: 'Πλ. Αναλήψεως, Χαλάνδρι', summary: 'Νέες δενδροφυτεύσεις και αστικός εξοπλισμός με σκίαστρα.', href: '/chalandri' },
-    { id: 't11', title: 'Νέος βρεφονηπιακός σταθμός — προγραμματισμός 2026', cat: 'social', muni: 'zografou', lat: 37.9779, lng: 23.7771, date: '04 Ιουν 2026', hot: false, count: 17, durationMin: 21, where: 'Άνω Ιλίσια, Ζωγράφου', summary: 'Χωροθέτηση και χρηματοδότηση 80 νέων θέσεων φιλοξενίας.', href: '/zografou' },
-    { id: 't12', title: 'Πεζοδρόμηση τμήματος εμπορικού κέντρου', cat: 'works', muni: 'vrilissia', lat: 38.0312, lng: 23.8358, date: '03 Ιουν 2026', hot: true, count: 36, durationMin: 31, where: 'Λ. Πεντέλης, Βριλήσσια', summary: 'Πιλοτική πεζοδρόμηση Σαββατοκύριακα — δοκιμή τριών μηνών.', href: '/vrilissia' },
+    { id: 't1', title: 'Δάνειο 75 εκατ. € από την ΕΤΕπ για αντιπλημμυρικά', cat: 'budget', muni: 'athens', lat: 37.9836, lng: 23.727, date: '10 Ιουν 2026', hot: true, count: 48, durationMin: 38, where: 'Δήμος Αθηναίων', summary: 'Έγκριση δανείου για έργα διαχείρισης ομβρίων σε Κυψέλη και Πατήσια.', href: '/athens', hasVote: true, relatedTo: 'Αντιπλημμυρική θωράκιση Αττικής', context: 'Η ΕΤΕπ ενέκρινε δανειοδότηση 75 εκατ. € για αντιπλημμυρικά έργα στην Αθήνα, μετά τις πλημμύρες του 2024.' },
+    { id: 't2', title: 'Κατάργηση στάθμευσης στην οδό Γυθείου', cat: 'transport', muni: 'athens', lat: 37.9748, lng: 23.7402, date: '10 Ιουν 2026', hot: false, count: 12, durationMin: 9, where: 'Γυθείου, Αμπελόκηποι', summary: 'Νέα διπλή κίτρινη γραμμή για να περνούν τα απορριμματοφόρα.', href: '/athens', hasVote: true },
+    { id: 't3', title: 'Διακοπή κυκλοφορίας στην οδό Καλαίσχρου', cat: 'transport', muni: 'athens', lat: 37.9881, lng: 23.7361, date: '10 Ιουν 2026', hot: false, count: 7, durationMin: 6, where: 'Καλαίσχρου, Κυψέλη', summary: 'Προσωρινή διακοπή λόγω αποκατάστασης δικτύου ύδρευσης.', href: '/athens', discussedIn: 'Έργα ύδρευσης Κυψέλης' },
+    { id: 't4', title: 'Οριοθέτηση Λαϊκής Αγοράς Αγίας Λαύρας', cat: 'daily', muni: 'zografou', lat: 37.9792, lng: 23.7651, date: '04 Ιουν 2026', hot: false, count: 19, durationMin: 14, where: 'Αγ. Λαύρας, Ζωγράφου', summary: 'Επαναχωροθέτηση πάγκων μετά από παράπονα κατοίκων για πρόσβαση.', href: '/zografou', hasVote: true },
+    { id: 't5', title: '3η Αναμόρφωση Προϋπολογισμού Δήμου', cat: 'budget', muni: 'zografou', lat: 37.9748, lng: 23.7726, date: '04 Ιουν 2026', hot: false, count: 9, durationMin: 11, where: 'Δήμος Ζωγράφου', summary: 'Ενίσχυση κονδυλίων για σχολικές επισκευές και πράσινο.', href: '/zografou', hasVote: true },
+    { id: 't6', title: 'Κυκλοφοριακές ρυθμίσεις σε τέσσερις οδούς', cat: 'transport', muni: 'zografou', lat: 37.9719, lng: 23.7689, date: '04 Ιουν 2026', hot: true, count: 33, durationMin: 27, where: 'Γουδή / Ζωγράφου', summary: 'Μονοδρομήσεις & νέοι ποδηλατόδρομοι κοντά στην Πανεπιστημιούπολη.', href: '/zografou', hasVote: true, relatedTo: 'Ποδηλατικό δίκτυο Ζωγράφου' },
+    { id: 't7', title: 'Κοπή πεύκων στην οδό Ανδρούτσου', cat: 'env', muni: 'chalandri', lat: 38.0227, lng: 23.7984, date: '25 Μαΐ 2026', hot: true, count: 41, durationMin: 44, where: 'Ανδρούτσου, Χαλάνδρι', summary: 'Έντονη αντιπαράθεση για την υλοτόμηση 6 πεύκων λόγω ασφάλειας.', href: '/chalandri', hasVote: true, relatedTo: 'Διαχείριση πρασίνου Χαλανδρίου', context: 'Η κοπή των έξι πεύκων στην οδό Ανδρούτσου προκάλεσε αντιδράσεις κατοίκων και περιβαλλοντικών οργανώσεων.' },
+    { id: 't8', title: 'Τραπεζοκαθίσματα καταστήματος υγ. ενδιαφέροντος', cat: 'daily', muni: 'chalandri', lat: 38.0201, lng: 23.8016, date: '25 Μαΐ 2026', hot: false, count: 6, durationMin: 7, where: 'Πλ. Δούρου, Χαλάνδρι', summary: 'Άδεια ανάπτυξης τραπεζοκαθισμάτων σε πεζόδρομο.', href: '/chalandri', discussedIn: 'Καταστήματα υγειονομικού ενδιαφέροντος' },
+    { id: 't9', title: 'Αναβάθμιση οδοφωτισμού σε LED', cat: 'works', muni: 'vrilissia', lat: 38.0341, lng: 23.8312, date: '03 Ιουν 2026', hot: false, count: 14, durationMin: 12, where: 'Δήμος Βριλησσίων', summary: 'Αντικατάσταση 2.400 λαμπτήρων — εξοικονόμηση 38% ενέργειας.', href: '/vrilissia', hasVote: true },
+    { id: 't10', title: 'Ανάπλαση πλατείας Αναλήψεως & νέο πράσινο', cat: 'env', muni: 'chalandri', lat: 38.0186, lng: 23.7949, date: '25 Μαΐ 2026', hot: false, count: 22, durationMin: 18, where: 'Πλ. Αναλήψεως, Χαλάνδρι', summary: 'Νέες δενδροφυτεύσεις και αστικός εξοπλισμός με σκίαστρα.', href: '/chalandri', relatedTo: 'Πράσινο & κοινόχρηστοι χώροι' },
+    { id: 't11', title: 'Νέος βρεφονηπιακός σταθμός — προγραμματισμός 2026', cat: 'social', muni: 'zografou', lat: 37.9779, lng: 23.7771, date: '04 Ιουν 2026', hot: false, count: 17, durationMin: 21, where: 'Άνω Ιλίσια, Ζωγράφου', summary: 'Χωροθέτηση και χρηματοδότηση 80 νέων θέσεων φιλοξενίας.', href: '/zografou', hasVote: true },
+    { id: 't12', title: 'Πεζοδρόμηση τμήματος εμπορικού κέντρου', cat: 'works', muni: 'vrilissia', lat: 38.0312, lng: 23.8358, date: '03 Ιουν 2026', hot: true, count: 36, durationMin: 31, where: 'Λ. Πεντέλης, Βριλήσσια', summary: 'Πιλοτική πεζοδρόμηση Σαββατοκύριακα — δοκιμή τριών μηνών.', href: '/vrilissia', hasVote: true, context: 'Πιλοτική πεζοδρόμηση τα Σαββατοκύριακα στο εμπορικό κέντρο Βριλησσίων, κατά το πρότυπο άλλων δήμων της Αττικής.' },
 ];
 
 export type Meeting = {

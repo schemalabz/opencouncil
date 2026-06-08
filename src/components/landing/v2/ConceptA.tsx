@@ -16,13 +16,9 @@ import {
     ChevronDown,
     Bell,
     Layers,
-    Flame,
     ArrowRight,
     ArrowLeft,
-    Plus,
-    Minus,
     LocateFixed,
-    MessageSquare,
     Clock,
     X,
 } from 'lucide-react';
@@ -33,6 +29,19 @@ import { useMediaQuery } from '@/hooks/use-media-query';
 import { Button } from '@/components/ui/button';
 import Map, { type MapFeature } from '@/components/map/map';
 import { Eyebrow } from './shared';
+import {
+    BrandMark,
+    SearchField,
+    CatChip,
+    HotTag,
+    VoteBadge,
+    SubjectExtras,
+    FilterBar,
+    ControlButton,
+    ZoomGroup,
+    CompactTopicCard,
+    type CatValue,
+} from './conceptShared';
 import {
     CATEGORIES,
     categoryList,
@@ -53,7 +62,6 @@ const DEFAULT_VIEW: { center: [number, number]; zoom: number } = {
 };
 
 type FlyTarget = GeoJSON.Point | null;
-type CatValue = CategoryKey | 'all';
 
 /** Props shared by the desktop and mobile layouts. */
 type LayoutProps = {
@@ -321,7 +329,7 @@ function DesktopLayout({
                         }}
                     >
                         {trending.map((t) => (
-                            <TopicMiniCard
+                            <CompactTopicCard
                                 key={t.id}
                                 topic={t}
                                 selected={t.id === selectedId}
@@ -484,13 +492,10 @@ function MobileSubjectPreview({ topic, onClose }: { topic: Topic; onClose: () =>
                         style={{ backgroundColor: topic.hot ? HOT_COLOR : CATEGORIES[topic.cat].color }}
                     />
                     <span className="flex min-w-0 flex-1 flex-col gap-1.5">
-                        <span className="flex items-center gap-2">
+                        <span className="flex flex-wrap items-center gap-2">
                             <CatChip cat={topic.cat} small />
-                            {topic.hot && (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--orange))]/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[hsl(var(--orange))]">
-                                    <Flame className="h-3 w-3" /> {topic.count}
-                                </span>
-                            )}
+                            {topic.hasVote && <VoteBadge />}
+                            {topic.hot && <HotTag count={topic.count} />}
                         </span>
                         <span className="line-clamp-2 text-[15px] font-semibold leading-snug text-foreground">
                             {topic.title}
@@ -637,38 +642,10 @@ function MobileTrendingSheet({
                 }}
             >
                 {trending.map((t) => (
-                    <TopicMiniCard key={t.id} topic={t} selected={t.id === selectedId} onClick={() => onSelect(t.id)} />
+                    <CompactTopicCard key={t.id} topic={t} selected={t.id === selectedId} onClick={() => onSelect(t.id)} />
                 ))}
             </div>
         </div>
-    );
-}
-
-/* brand mark (app logo + wordmark) */
-function BrandMark() {
-    return (
-        <Link href="/" className="flex shrink-0 items-center gap-2">
-            <Image src="/logo.png" alt="OpenCouncil" width={120} height={120} className="h-8 w-auto object-contain" priority />
-            <span className="hidden text-base font-bold tracking-tight text-foreground sm:inline">
-                Open<span className="text-primary">Council</span>
-            </span>
-        </Link>
-    );
-}
-
-/* search field (visual) */
-function SearchField({ placeholder = 'Αναζήτηση θέματος, δρόμου ή απόφασης…' }: { placeholder?: string }) {
-    return (
-        <label className="flex h-11 items-center gap-2.5 rounded-lg border border-border bg-background px-3 shadow-sm focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20">
-            <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <input
-                className="w-full bg-transparent text-[15px] text-foreground outline-none placeholder:text-muted-foreground/70"
-                placeholder={placeholder}
-            />
-            <kbd className="hidden shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground sm:inline">
-                ⌘K
-            </kbd>
-        </label>
     );
 }
 
@@ -767,120 +744,6 @@ function MobileSearchOverlay({
     );
 }
 
-/* category filter pills */
-function FilterBar({ value, onChange }: { value: CatValue; onChange: (v: CatValue) => void }) {
-    return (
-        <div className="flex w-max items-center gap-2">
-            <FilterPill active={value === 'all'} onClick={() => onChange('all')}>
-                Όλα
-            </FilterPill>
-            {categoryList.map((c) => (
-                <FilterPill key={c.key} active={value === c.key} onClick={() => onChange(c.key)}>
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: c.color }} />
-                    {c.short}
-                </FilterPill>
-            ))}
-        </div>
-    );
-}
-
-function FilterPill({
-    active,
-    onClick,
-    children,
-}: {
-    active: boolean;
-    onClick: () => void;
-    children: ReactNode;
-}) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            className={cn(
-                'inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-[13px] font-medium transition-colors',
-                active
-                    ? 'border-foreground bg-foreground text-background'
-                    : 'border-border bg-background text-muted-foreground hover:border-foreground/30',
-            )}
-        >
-            {children}
-        </button>
-    );
-}
-
-/* category chip */
-function CatChip({ cat, small }: { cat: CategoryKey; small?: boolean }) {
-    const c = CATEGORIES[cat];
-    return (
-        <span
-            className={cn(
-                'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border font-medium',
-                small ? 'px-2 py-1 text-[11px]' : 'px-2.5 py-1 text-xs',
-            )}
-            style={{ color: c.color, backgroundColor: `${c.color}1a`, borderColor: `${c.color}38` }}
-        >
-            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: c.color }} />
-            {small ? c.short : c.label}
-        </span>
-    );
-}
-
-/* meta row (location · date · count) */
-function MetaRow({ topic }: { topic: Topic }) {
-    const m = municipalityOf(topic.muni);
-    return (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1 font-medium text-foreground/80">
-                <MapPin className="h-3 w-3" /> {m.name}
-            </span>
-            <span aria-hidden className="opacity-40">·</span>
-            <span className="font-mono tabular-nums">{topic.date}</span>
-            <span aria-hidden className="opacity-40">·</span>
-            <span className="inline-flex items-center gap-1">
-                <MessageSquare className="h-3 w-3" />
-                <b className="font-mono tabular-nums text-foreground/80">{topic.count}</b> τοποθετήσεις
-            </span>
-        </div>
-    );
-}
-
-/* compact topic card (rail + sheet) */
-function TopicMiniCard({
-    topic,
-    selected,
-    onClick,
-}: {
-    topic: Topic;
-    selected: boolean;
-    onClick: () => void;
-}) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            className={cn(
-                'flex shrink-0 overflow-hidden rounded-xl border bg-card text-left shadow-sm transition-colors',
-                selected ? 'border-primary ring-2 ring-primary/15' : 'border-border hover:border-foreground/20',
-            )}
-        >
-            <span className="w-1 shrink-0" style={{ backgroundColor: CATEGORIES[topic.cat].color }} />
-            <span className="flex min-w-0 flex-1 flex-col gap-1.5 px-3.5 py-3">
-                <span className="flex items-center gap-2">
-                    <CatChip cat={topic.cat} small />
-                    {topic.hot && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--orange))]/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[hsl(var(--orange))]">
-                            <Flame className="h-3 w-3" /> {topic.count}
-                        </span>
-                    )}
-                </span>
-                <span className="line-clamp-2 text-[15px] font-semibold leading-snug text-foreground">{topic.title}</span>
-                <MetaRow topic={topic} />
-            </span>
-        </button>
-    );
-}
-
 /* selected-topic detail card */
 function TopicDetailCard({ topic, onClose }: { topic: Topic; onClose: () => void }) {
     const m = municipalityOf(topic.muni);
@@ -896,13 +759,10 @@ function TopicDetailCard({ topic, onClose }: { topic: Topic; onClose: () => void
             </button>
             <div className="flex items-start gap-3 pr-7">
                 <div className="flex min-w-0 flex-1 flex-col gap-2">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         <CatChip cat={topic.cat} />
-                        {topic.hot && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--orange))]/10 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-[hsl(var(--orange))]">
-                                <Flame className="h-3 w-3" /> {topic.count} τοποθετήσεις
-                            </span>
-                        )}
+                        {topic.hasVote && <VoteBadge />}
+                        {topic.hot && <HotTag count={topic.count} suffix="τοποθετήσεις" />}
                     </div>
                     <h3 className="text-xl font-bold leading-snug tracking-tight text-foreground">{topic.title}</h3>
                 </div>
@@ -916,6 +776,7 @@ function TopicDetailCard({ topic, onClose }: { topic: Topic; onClose: () => void
                 )}
             </div>
             <p className="text-sm leading-relaxed text-foreground/80">{topic.summary}</p>
+            <SubjectExtras topic={topic} />
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5 font-medium text-foreground/80">
                     <MapPin className="h-3.5 w-3.5" /> {topic.where}
@@ -963,21 +824,6 @@ function MuniRow({ slug }: { slug: string }) {
     );
 }
 
-/* zoom +/- group */
-function ZoomGroup({ onZoomIn, onZoomOut }: { onZoomIn: () => void; onZoomOut: () => void }) {
-    return (
-        <div className="flex flex-col overflow-hidden rounded-xl border border-border shadow-md">
-            <ControlButton onClick={onZoomIn} label="Μεγέθυνση" flush>
-                <Plus className="h-4 w-4" />
-            </ControlButton>
-            <div className="h-px bg-border" />
-            <ControlButton onClick={onZoomOut} label="Σμίκρυνση" flush>
-                <Minus className="h-4 w-4" />
-            </ControlButton>
-        </div>
-    );
-}
-
 /* map controls (geo + zoom), bottom-right */
 function MapControls({
     onLocate,
@@ -995,36 +841,6 @@ function MapControls({
             </ControlButton>
             <ZoomGroup onZoomIn={onZoomIn} onZoomOut={onZoomOut} />
         </div>
-    );
-}
-
-function ControlButton({
-    onClick,
-    label,
-    children,
-    accent,
-    flush,
-}: {
-    onClick: () => void;
-    label: string;
-    children: ReactNode;
-    accent?: boolean;
-    flush?: boolean;
-}) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            aria-label={label}
-            title={label}
-            className={cn(
-                'flex h-10 w-10 items-center justify-center bg-card/95 backdrop-blur transition-colors hover:bg-muted',
-                flush ? 'text-foreground/70' : 'rounded-xl border border-border shadow-md',
-                accent && 'text-primary',
-            )}
-        >
-            {children}
-        </button>
     );
 }
 
