@@ -374,7 +374,7 @@
     },
     "PersonForm": {
         "personNamePlaceholder": "Member Name",
-        "personNameDescription": "Enter the member's name.",
+        "personNameDescription": "Enter the full name (Firstname Lastname). For double names or surnames, use a hyphen (e.g. Maria-Eleni, Papadopoulou-Konstantinou).",
         "personNameEnPlaceholder": "Member Name (English)",
         "personNameEnDescription": "Enter the member's name in English.",
         "personShortNamePlaceholder": "Member Short Name",

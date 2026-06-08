@@ -419,7 +419,7 @@
     },
     "PersonForm": {
         "personNamePlaceholder": "Όνομα Μέλους",
-        "personNameDescription": "Εισάγετε το όνομα του μέλους.",
+        "personNameDescription": "Εισάγετε το πλήρες όνομα (Όνομα Επώνυμο). Για διπλά ονόματα ή επώνυμα χρησιμοποιήστε παύλα (π.χ. Μαρία-Ελένη, Παπαδοπούλου-Κωνσταντίνου).",
         "personNameEnPlaceholder": "Όνομα Μέλους (Αγγλικά)",
         "personNameEnDescription": "Εισάγετε το όνομα του μέλους στα Αγγλικά.",
         "personShortNamePlaceholder": "Σύντομο Όνομα Μέλους",
