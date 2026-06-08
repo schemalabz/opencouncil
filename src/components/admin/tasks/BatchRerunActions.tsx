@@ -163,6 +163,17 @@ export function BatchRerunActions({ meetings }: BatchRerunActionsProps) {
                                 </DialogDescription>
                             </DialogHeader>
 
+                            {(selectedTask === 'processAgenda' || selectedTask === 'summarize') && (
+                                <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm">
+                                    <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                                    <p className="text-amber-800">
+                                        {selectedTask === 'processAgenda' ? 'Before meeting' : 'After meeting'} notifications
+                                        will be created for meetings whose administrative body has notifications enabled.
+                                        Check each body&apos;s notification behavior setting if this is not intended.
+                                    </p>
+                                </div>
+                            )}
+
                             <ScrollArea className="max-h-80 border rounded-md">
                                 <table className="w-full text-sm">
                                     <thead className="sticky top-0 bg-background border-b">

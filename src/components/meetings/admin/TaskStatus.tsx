@@ -110,6 +110,9 @@ export function TaskStatusComponent({ task, onDelete, showMeetingInfo }: TaskSta
                         <Badge variant="outline" className="text-xs font-normal">
                             {task.type}
                         </Badge>
+                        {task.status === 'succeeded' && task.version !== null && (
+                            <span className="text-xs text-muted-foreground font-mono">v{task.version}</span>
+                        )}
                         {showMeetingInfo && (
                             <a
                                 href={`/${task.cityId}/${task.councilMeetingId}`}
