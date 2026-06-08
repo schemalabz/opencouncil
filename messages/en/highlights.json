@@ -145,7 +145,6 @@
     "changesResetDescription": "All unsaved changes were discarded."
   },
   "exit": {
-    "confirmExit": "You have unsaved changes. Are you sure you want to cancel?",
     "confirmExitTitle": "Discard this highlight?",
     "confirmExitDescription": "If you exit now, the highlight you're building will be canceled and the utterances you've chosen will be lost. This can't be undone.",
     "confirmExitEditsTitle": "Discard unsaved changes?",

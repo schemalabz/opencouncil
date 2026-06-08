@@ -257,6 +257,7 @@ export function HighlightModeBar() {
                       variant="ghost"
                       size="sm"
                       onClick={handleCancel}
+                      disabled={isSaving}
                       className="flex items-center space-x-1"
                       title={t('modeBar.exitEditingMode')}
                       aria-label={t('modeBar.exitEditingMode')}

@@ -127,6 +127,10 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   lastClickedIdRef.current = lastClickedUtteranceId;
   const lastClickedActionRef = useRef(lastClickedAction);
   lastClickedActionRef.current = lastClickedAction;
+  // Mirrored so the hard-exit beforeunload handler can read unsaved-edit state
+  // without re-subscribing the listener on every keystroke.
+  const isDirtyRef = useRef(isDirty);
+  isDirtyRef.current = isDirty;
 
   // Tracks an unsaved, freshly-created highlight so we can DELETE it if the
   // user exits without saving. Set by createHighlight, cleared by saveHighlight.
@@ -414,6 +418,49 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     }
     prevPathnameRef.current = pathname;
   }, [pathname, editingHighlight, setIsPlaying, deleteUnsavedHighlightIfNeeded]);
+
+  // Hard exits (page refresh, tab close, navigating to an external URL) bypass
+  // the SPA cleanup above and cannot use our custom Dialog: `beforeunload` is
+  // synchronous while the Dialog is async (set state → re-render → wait for a
+  // click), and browsers block custom UI here for security. The best we can do
+  // is (1) ask the browser to show its own native "unsaved changes" alert, and
+  // (2) on an actual unload, fire a best-effort cleanup DELETE for a
+  // freshly-created highlight that was never saved.
+  //
+  // Listeners are attached only while editing so they don't penalise bfcache on
+  // normal pages.
+  const isEditing = !!editingHighlight;
+  useEffect(() => {
+    if (!isEditing) return;
+
+    // Warn whenever leaving would lose work — an unsaved new highlight or
+    // unsaved edits to an existing one — mirroring the in-app cancel guard.
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!unsavedNewHighlightIdRef.current && !isDirtyRef.current) return;
+      e.preventDefault();
+      e.returnValue = ''; // required to trigger the native alert in most browsers
+    };
+
+    // `pagehide` fires only on a real unload (not when the user clicks "Stay" in
+    // the native prompt), so it is the safe place to delete. We only remove a
+    // freshly-created highlight — an existing dirty highlight must persist as
+    // its last saved version. Capture the id, clear the ref so the SPA cleanup
+    // can't also fire a DELETE, then send a `keepalive` request that outlives
+    // the document (we call DELETE directly since sendBeacon can only POST).
+    const onPageHide = () => {
+      const id = unsavedNewHighlightIdRef.current;
+      if (!id) return;
+      unsavedNewHighlightIdRef.current = null;
+      fetch(`/api/highlights/${id}`, { method: 'DELETE', keepalive: true });
+    };
+
+    window.addEventListener('beforeunload', onBeforeUnload);
+    window.addEventListener('pagehide', onPageHide);
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      window.removeEventListener('pagehide', onPageHide);
+    };
+  }, [isEditing]);
 
   // Mirrored to a ref so updateHighlightUtterances can read it without
   // having isSaving as a callback dep.
