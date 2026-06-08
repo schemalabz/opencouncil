@@ -1094,6 +1094,7 @@ EOF
               ${let v = builtins.getEnv "NEXT_PUBLIC_CONTACT_PHONE"; in if v != "" then "export NEXT_PUBLIC_CONTACT_PHONE=\"${v}\"" else "# NEXT_PUBLIC_CONTACT_PHONE not set"}
               ${let v = builtins.getEnv "NEXT_PUBLIC_CONTACT_EMAIL"; in if v != "" then "export NEXT_PUBLIC_CONTACT_EMAIL=\"${v}\"" else "# NEXT_PUBLIC_CONTACT_EMAIL not set"}
               ${let v = builtins.getEnv "NEXT_PUBLIC_CONTACT_ADDRESS"; in if v != "" then "export NEXT_PUBLIC_CONTACT_ADDRESS=\"${v}\"" else "# NEXT_PUBLIC_CONTACT_ADDRESS not set"}
+              ${let v = builtins.getEnv "NEXT_PUBLIC_BUILD_COMMIT_SHA"; in if v != "" then "export NEXT_PUBLIC_BUILD_COMMIT_SHA=\"${v}\"" else "# NEXT_PUBLIC_BUILD_COMMIT_SHA not set"}
 
               # Run patch-package
               npm run postinstall
