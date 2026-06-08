@@ -12,6 +12,7 @@ import {
     unsubscribeUserPhoneFromAllCities,
     verifyUnsubscribeIntent,
 } from '@/lib/notifications/unsubscribe';
+import { sendUnsupportedReply } from '@/lib/notifications/autoReply';
 import { normalizePhone } from '@/lib/notifications/phone';
 import type { VerifyRequestResult, VerifySignatureResult } from '@/lib/notifications/types';
 import { extractMessageFields, type ExtractedMessageFields } from './extract';
@@ -187,31 +188,36 @@ async function persistMessageRow(
  * resolved delivery link:
  *   1. Regex keyword match (STOP / ΣΤΟΠ / απεγγραφή / etc.)
  *   2. LLM intent verification (rules out e.g. "stop the meeting")
+ *
+ * Returns true when the message was handled as an unsubscribe (action taken
+ * or an unsubscribe-related reply sent), so the caller can skip the generic
+ * "replies not supported" auto-reply. A keyword match that the LLM rejects
+ * (e.g. "stop the meeting") is NOT an unsubscribe and returns false.
  */
 async function handleUnsubscribeIfApplicable(
     fields: ExtractedMessageFields,
     notificationDeliveryId: string | null,
-): Promise<void> {
+): Promise<boolean> {
     if (
         fields.direction !== 'inbound' ||
         fields.channel !== 'whatsapp' ||
         !notificationDeliveryId ||
         !isUnsubscribeMessage(fields.body)
-    ) return;
+    ) return false;
 
     const user = await findUserByNotificationDeliveryId(notificationDeliveryId);
     if (!user) {
         console.warn(
             `Bird webhook: unsubscribe keyword matched but no user resolved (delivery ${notificationDeliveryId})`,
         );
-        return;
+        return false;
     }
 
     if (normalizePhone(user.phone) !== normalizePhone(fields.phone)) {
         console.warn(
             `Bird webhook: unsubscribe phone mismatch — inbound from ${fields.phone}, user.phone ${user.phone} (user ${user.id}, delivery ${notificationDeliveryId}); ignoring`,
         );
-        return;
+        return false;
     }
 
     const intent = await verifyUnsubscribeIntent(fields.body);
@@ -220,7 +226,7 @@ async function handleUnsubscribeIfApplicable(
         console.log(
             `Bird webhook: unsubscribe keyword matched but LLM rejected intent (user ${user.id}, delivery ${notificationDeliveryId})`,
         );
-        return;
+        return false;
     }
 
     if (intent === 'failed') {
@@ -235,7 +241,7 @@ async function handleUnsubscribeIfApplicable(
                 text: UNSUBSCRIBE_RETRY_TEXT,
             });
         }
-        return;
+        return true;
     }
 
     const { changedCount } = await unsubscribeUserPhoneFromAllCities(user.id);
@@ -253,6 +259,36 @@ async function handleUnsubscribeIfApplicable(
             text: replyText,
         });
     }
+    return true;
+}
+
+/**
+ * For inbound WhatsApp messages we didn't otherwise act on, reply that we
+ * don't support conversational replies yet (and how to unsubscribe).
+ *
+ * Unsubscribe-keyword messages are excluded even when `handleUnsubscribeIf-
+ * Applicable` returned false (null delivery link, unresolved user, phone
+ * mismatch). Telling someone who just sent "STOP" that replies aren't
+ * supported would be the wrong message; those edge cases get no reply, as
+ * before this feature.
+ */
+async function sendUnsupportedReplyIfApplicable(
+    fields: ExtractedMessageFields,
+    notificationDeliveryId: string | null,
+): Promise<void> {
+    if (
+        fields.direction !== 'inbound' ||
+        fields.channel !== 'whatsapp' ||
+        !fields.conversationId ||
+        isUnsubscribeMessage(fields.body)
+    ) return;
+
+    await sendUnsupportedReply({
+        conversationId: fields.conversationId,
+        channel: fields.channel,
+        phone: normalizePhone(fields.phone),
+        notificationDeliveryId,
+    });
 }
 
 export async function POST(request: Request) {
@@ -276,7 +312,10 @@ export async function POST(request: Request) {
 
     try {
         await persistMessageRow(fields, notificationDeliveryId);
-        await handleUnsubscribeIfApplicable(fields, notificationDeliveryId);
+        const handledAsUnsubscribe = await handleUnsubscribeIfApplicable(fields, notificationDeliveryId);
+        if (!handledAsUnsubscribe) {
+            await sendUnsupportedReplyIfApplicable(fields, notificationDeliveryId);
+        }
     } catch (error) {
         const code = (error as Prisma.PrismaClientKnownRequestError | undefined)?.code;
         if (code !== 'P2002') {

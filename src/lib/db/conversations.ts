@@ -15,6 +15,15 @@ export interface ConversationSummary {
 }
 
 /**
+ * A page of conversation summaries plus the total number of conversations
+ * matching the filter, so the admin page can render pagination controls.
+ */
+export interface ConversationSummariesPage {
+    conversations: ConversationSummary[];
+    total: number;
+}
+
+/**
  * v0 implementation: fetch a recent window of messages, then group by
  * (phone, channel) in JS. Sorted by latest message first.
  *
@@ -27,18 +36,24 @@ export interface ConversationSummary {
  * participant. Outbound-only threads (e.g. broadcasts no one answered, failed
  * deliveries) are noise for the admin view whose purpose is triaging replies.
  * Pass false to include every thread.
+ *
+ * Pagination (`page`/`pageSize`) is applied over the grouped, filtered, and
+ * sorted conversation list — not over raw messages — so a page always holds
+ * whole threads. `total` is the full count before slicing, for page controls.
  */
 export async function getConversationSummaries(
     {
-        limit = 50,
+        page = 1,
+        pageSize = 50,
         recentMessageWindow = 1000,
         onlyWithInbound = true,
     }: {
-        limit?: number;
+        page?: number;
+        pageSize?: number;
         recentMessageWindow?: number;
         onlyWithInbound?: boolean;
     } = {},
-): Promise<ConversationSummary[]> {
+): Promise<ConversationSummariesPage> {
     // Fetch newest-first so the window is the *recent* slice, not the oldest;
     // otherwise once the table exceeds `recentMessageWindow` rows, fresh
     // conversations would silently drop off the admin view. We reverse each
@@ -78,5 +93,9 @@ export async function getConversationSummaries(
             return bLast - aLast;
         });
 
-    return ordered.slice(0, limit);
+    const start = Math.max(0, (page - 1) * pageSize);
+    return {
+        conversations: ordered.slice(start, start + pageSize),
+        total: ordered.length,
+    };
 }
