@@ -37,6 +37,8 @@ interface MapProps {
     pitch?: number
     features?: MapFeature[]
     onFeatureClick?: (feature: GeoJSON.Feature) => void
+    /** Called once with the Mapbox instance after load — e.g. to project coordinates to screen space. */
+    onMapReady?: (map: mapboxgl.Map) => void
     renderPopup?: (feature: GeoJSON.Feature) => React.ReactNode
     editingMode?: boolean
     showStreetLabels?: boolean
@@ -63,6 +65,7 @@ const Map = memo(function Map({
     pitch = 45,
     features = [],
     onFeatureClick,
+    onMapReady,
     renderPopup,
     editingMode = false,
     showStreetLabels = false,
@@ -409,6 +412,7 @@ const Map = memo(function Map({
         map.current.on('load', () => {
             isInitialized.current = true;
             setMapReady(true);
+            if (map.current) onMapReady?.(map.current);
 
             if (animateRotation) {
                 animationFrame.current = requestAnimationFrame(rotateCamera);
