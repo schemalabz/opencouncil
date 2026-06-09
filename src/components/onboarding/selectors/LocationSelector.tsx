@@ -184,7 +184,13 @@ export function LocationSelector({
             {showAddButton ? (
                 <Button
                     variant="outline"
-                    onClick={() => setIsSearchVisible(true)}
+                    onClick={() => {
+                        setIsSearchVisible(true);
+                        // Focus the input once React has rendered the search box,
+                        // so the user can type without an extra tap. Safe here
+                        // because revealing is a deliberate user action.
+                        setTimeout(() => inputRef.current?.focus(), 0);
+                    }}
                     className="w-full justify-center py-5 text-base md:text-sm touch-manipulation"
                 >
                     <Plus className="h-5 w-5 md:h-4 md:w-4 mr-2" />
