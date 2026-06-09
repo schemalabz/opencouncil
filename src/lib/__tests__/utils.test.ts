@@ -9,6 +9,7 @@ import {
   klitiki,
   subjectToMapFeature,
   sortSubjectsByImportance,
+  sortSubjectsBySpeakerContributionCount,
   joinTranscriptSegments,
   isRoleActive,
   filterActiveRoles,
@@ -359,6 +360,80 @@ describe('sortSubjectsByImportance', () => {
 
     const sorted = sortSubjectsByImportance(subjects as any);
     expect(sorted.map(s => s.name)).toEqual(['Alpha', 'Middle', 'Zebra']);
+  });
+});
+
+describe('sortSubjectsBySpeakerContributionCount', () => {
+  it('should sort by contributions count (descending)', () => {
+    const subjects = [
+      { name: 'Subject 1', _count: { contributions: 2 } },
+      { name: 'Subject 2', _count: { contributions: 5 } },
+    ];
+
+    const sorted = sortSubjectsBySpeakerContributionCount(subjects as any);
+    expect(sorted.map(s => s.name)).toEqual(['Subject 2', 'Subject 1']);
+  });
+
+  it('should break contribution-count ties by topicImportance (high > normal > doNotNotify)', () => {
+    const subjects = [
+      { name: 'Low', topicImportance: 'doNotNotify' },
+      { name: 'High', topicImportance: 'high' },
+      { name: 'Normal', topicImportance: 'normal' },
+    ];
+
+    const sorted = sortSubjectsBySpeakerContributionCount(subjects as any);
+    expect(sorted.map(s => s.name)).toEqual(['High', 'Normal', 'Low']);
+  });
+
+  it('should treat missing topicImportance as lowest priority', () => {
+    const subjects = [
+      { name: 'Unset' },
+      { name: 'High', topicImportance: 'high' },
+    ];
+
+    const sorted = sortSubjectsBySpeakerContributionCount(subjects as any);
+    expect(sorted.map(s => s.name)).toEqual(['High', 'Unset']);
+  });
+
+  it('should fall back to agendaItemIndex when contributions and topicImportance tie', () => {
+    const subjects = [
+      { name: 'Item 3', agendaItemIndex: 3, topicImportance: 'normal' },
+      { name: 'Item 1', agendaItemIndex: 1, topicImportance: 'normal' },
+      { name: 'Item 2', agendaItemIndex: 2, topicImportance: 'normal' },
+    ];
+
+    const sorted = sortSubjectsBySpeakerContributionCount(subjects as any);
+    expect(sorted.map(s => s.name)).toEqual(['Item 1', 'Item 2', 'Item 3']);
+  });
+
+  it('should prefer topicImportance over agendaItemIndex', () => {
+    const subjects = [
+      { name: 'First in agenda, low', agendaItemIndex: 1, topicImportance: 'doNotNotify' },
+      { name: 'Last in agenda, high', agendaItemIndex: 9, topicImportance: 'high' },
+    ];
+
+    const sorted = sortSubjectsBySpeakerContributionCount(subjects as any);
+    expect(sorted.map(s => s.name)).toEqual(['Last in agenda, high', 'First in agenda, low']);
+  });
+
+  it('should fall back to alphabetical name as the final tie-breaker', () => {
+    const subjects = [
+      { name: 'Zebra', topicImportance: 'normal', agendaItemIndex: 1 },
+      { name: 'Alpha', topicImportance: 'normal', agendaItemIndex: 1 },
+    ];
+
+    const sorted = sortSubjectsBySpeakerContributionCount(subjects as any);
+    expect(sorted.map(s => s.name)).toEqual(['Alpha', 'Zebra']);
+  });
+
+  it('should keep contribution count as the dominant signal over topicImportance', () => {
+    const subjects = [
+      { name: 'Many contributions, low importance', _count: { contributions: 10 }, topicImportance: 'doNotNotify' },
+      { name: 'No contributions, high importance', _count: { contributions: 0 }, topicImportance: 'high' },
+    ];
+
+    const sorted = sortSubjectsBySpeakerContributionCount(subjects as any);
+    expect(sorted[0].name).toBe('Many contributions, low importance');
   });
 });
 

@@ -141,6 +141,10 @@ interface SortableSubject {
   speakerSegments?: unknown[];
   agendaItemIndex?: number | null;
   nonAgendaReason?: string | null;
+  // Notification importance assigned during agenda processing ('high' | 'normal' |
+  // 'doNotNotify'). Available before summarization, so it is a meaningful tie-breaker
+  // when contribution counts are still zero.
+  topicImportance?: string | null;
   // Server queries surface contribution count via the aggregated _count.contributions;
   // client-loaded data (CouncilMeetingDataContext) carries the full contributions array.
   // Sorters accept either shape.
@@ -201,12 +205,34 @@ export function sortSubjectsByImportance<T extends SortableSubject>(
   });
 }
 
+// Ordering rank for topicImportance: lower sorts first. Unset/unknown values are
+// treated as 'doNotNotify' (lowest), matching the notification matcher's default.
+const TOPIC_IMPORTANCE_RANK: Record<string, number> = { high: 0, normal: 1, doNotNotify: 2 };
+
+function topicImportanceRank(value?: string | null): number {
+  return value != null && value in TOPIC_IMPORTANCE_RANK
+    ? TOPIC_IMPORTANCE_RANK[value]
+    : TOPIC_IMPORTANCE_RANK.doNotNotify;
+}
+
 export function sortSubjectsBySpeakerContributionCount<T extends SortableSubject>(subjects: T[]): T[] {
   return [...subjects].sort((a, b) => {
     // Accept either server (_count.contributions) or client (contributions[]) shape.
     const aCount = a._count?.contributions ?? a.contributions?.length ?? 0;
     const bCount = b._count?.contributions ?? b.contributions?.length ?? 0;
     if (bCount !== aCount) return bCount - aCount;
+
+    // Tie-breakers when contribution counts are equal — notably before summarization,
+    // when every subject has zero contributions. Fall back to meaningful agenda signals
+    // (notification importance, then agenda order) instead of alphabetical name.
+    const aRank = topicImportanceRank(a.topicImportance);
+    const bRank = topicImportanceRank(b.topicImportance);
+    if (aRank !== bRank) return aRank - bRank;
+
+    const aIndex = a.agendaItemIndex ?? Infinity;
+    const bIndex = b.agendaItemIndex ?? Infinity;
+    if (aIndex !== bIndex) return aIndex - bIndex;
+
     return a.name.localeCompare(b.name);
   });
 }
