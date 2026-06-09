@@ -1,5 +1,5 @@
 import { Role, Party } from '@prisma/client';
-import { getSpeakerDisplayInfo, isRoleActiveAt, sortRolesByPriority, getPrimaryRole } from '../roles';
+import { getSpeakerDisplayInfo, isRoleActiveAt, sortRolesByPriority, getPrimaryRole, simplifyRoleName } from '../roles';
 
 function makeRole(overrides: Partial<Role> & { party?: Party | null } = {}): Role & { party?: Party | null; cityId?: string | null } {
   return {
@@ -478,5 +478,35 @@ describe('getPrimaryRole', () => {
     // getPrimaryRole should return the same object reference
     const primary = getPrimaryRole(roles);
     expect(primary).toBe(roles[0]);
+  });
+});
+
+describe('simplifyRoleName', () => {
+  it('returns null for null input', () => {
+    expect(simplifyRoleName(null)).toBeNull();
+  });
+
+  it('simplifies standard deputy mayor title', () => {
+    expect(simplifyRoleName('Αντιδήμαρχος Παιδείας, Νεολαίας και Επικοινωνίας'))
+      .toBe('Αντιδήμαρχος');
+  });
+
+  it('preserves prefix before Αντιδήμαρχος', () => {
+    expect(simplifyRoleName('Αναπληρωτής Δήμαρχος και Αντιδήμαρχος Οικονομικών Υπηρεσιών'))
+      .toBe('Αναπληρωτής Δήμαρχος και Αντιδήμαρχος');
+  });
+
+  it('preserves prefix with dash separator', () => {
+    expect(simplifyRoleName('Αναπληρωτής Δήμαρχος - Αντιδήμαρχος Οικονομικών Υπηρεσιών'))
+      .toBe('Αναπληρωτής Δήμαρχος - Αντιδήμαρχος');
+  });
+
+  it('returns exact match when name is just Αντιδήμαρχος', () => {
+    expect(simplifyRoleName('Αντιδήμαρχος')).toBe('Αντιδήμαρχος');
+  });
+
+  it('passes through unrelated role names unchanged', () => {
+    expect(simplifyRoleName('Δήμαρχος')).toBe('Δήμαρχος');
+    expect(simplifyRoleName('Πρόεδρος')).toBe('Πρόεδρος');
   });
 });

@@ -379,11 +379,16 @@ export function isMayorRole(role: { isHead: boolean; cityId?: string | null; par
 
 /**
  * Simplify vice-mayor role names for document output.
+ * Keeps everything up to and including "Αντιδήμαρχος", dropping portfolio details.
+ *
  * "Αντιδήμαρχος Τεχνικών Έργων" → "Αντιδήμαρχος"
+ * "Αναπληρωτής Δήμαρχος και Αντιδήμαρχος Οικονομικών..." → "Αναπληρωτής Δήμαρχος και Αντιδήμαρχος"
  */
 export function simplifyRoleName(name: string | null): string | null {
   if (!name) return null;
-  if (name.startsWith('Αντιδήμαρχος')) return 'Αντιδήμαρχος';
+  const keyword = 'Αντιδήμαρχος';
+  const idx = name.indexOf(keyword);
+  if (idx !== -1) return name.slice(0, idx + keyword.length);
   return name;
 }
 
