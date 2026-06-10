@@ -4,9 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useMemo, useState } from "react"
 import { UserWithRelations } from "@/lib/db/users"
+import { CityRankingTable } from "./city-ranking-table"
 import { subDays, format, startOfWeek } from 'date-fns'
 
 interface AnalyticsDashboardProps {
@@ -112,28 +113,6 @@ export function AnalyticsDashboard({ users, dateRange, onDateRangeChange }: Anal
             return dateRange_array
         })()
 
-        const cityDistribution = filteredUsers.reduce((acc, user) => {
-            user.notificationPreferences.forEach(pref => {
-                const city = pref.city.name
-                let entry = acc.find(e => e.city === city)
-                if (!entry) {
-                    entry = { city, notifications: 0, petitions: 0 }
-                    acc.push(entry)
-                }
-                entry.notifications++
-            })
-            user.petitions.forEach(petition => {
-                const city = petition.city.name
-                let entry = acc.find(e => e.city === city)
-                if (!entry) {
-                    entry = { city, notifications: 0, petitions: 0 }
-                    acc.push(entry)
-                }
-                entry.petitions++
-            })
-            return acc
-        }, [] as Array<{ city: string; notifications: number; petitions: number }>)
-
         const topicPopularity = filteredUsers.reduce((acc, user) => {
             user.notificationPreferences.forEach(pref => {
                 pref.interests.forEach(interest => {
@@ -159,7 +138,6 @@ export function AnalyticsDashboard({ users, dateRange, onDateRangeChange }: Anal
             usersWithPetitions: filteredUsers.filter(u => u.petitions.length > 0).length,
             growthPercentage,
             registrationTimeline,
-            cityDistribution,
             topicPopularity,
             totalUsersOverall
         }
@@ -219,25 +197,8 @@ export function AnalyticsDashboard({ users, dateRange, onDateRangeChange }: Anal
                     </CardContent>
                 </Card>
 
-                {/* City Distribution */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>City Distribution</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <ResponsiveContainer width="100%" height={300}>
-                            <BarChart data={analytics.cityDistribution}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="city" />
-                                <YAxis />
-                                <Tooltip />
-                                <Legend />
-                                <Bar dataKey="notifications" fill="#8884d8" name="Notifications" />
-                                <Bar dataKey="petitions" fill="#82ca9d" name="Petitions" />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </CardContent>
-                </Card>
+                {/* City Demand */}
+                <CityRankingTable users={users} />
 
                 {/* Topic Popularity */}
                 <Card className="md:col-span-3">
