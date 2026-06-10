@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260" fill="none" role="img" aria-label="Αποφάσεις — εύρεση εγγράφου">
+  <rect width="400" height="260" fill="#F2EFEA"/>
+  <rect x="138" y="60" width="106" height="134" rx="11" fill="#FFFFFF" stroke="#26251F" stroke-width="7"/>
+  <rect x="158" y="86" width="66" height="8" rx="4" fill="#C9C3B8"/>
+  <rect x="158" y="106" width="66" height="8" rx="4" fill="#C9C3B8"/>
+  <rect x="158" y="126" width="40" height="8" rx="4" fill="#C9C3B8"/>
+  <circle cx="232" cy="160" r="30" fill="#F2EFEA" stroke="#fc550a" stroke-width="9"/>
+  <path d="M254 182 l22 22" stroke="#fc550a" stroke-width="11" stroke-linecap="round"/>
+</svg>

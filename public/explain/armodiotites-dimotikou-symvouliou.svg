@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260" fill="none" role="img" aria-label="Αρμοδιότητες — λίστα">
+  <rect width="400" height="260" fill="#F2EFEA"/>
+  <rect x="146" y="60" width="108" height="140" rx="12" fill="#FFFFFF" stroke="#26251F" stroke-width="7"/>
+  <g>
+    <rect x="162" y="89" width="20" height="20" rx="5" fill="#fc550a"/>
+    <path d="M167 99 l4 4 l7 -8" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="192" y="95" width="46" height="8" rx="4" fill="#C9C3B8"/>
+  </g>
+  <g>
+    <rect x="162" y="120" width="20" height="20" rx="5" fill="#fc550a"/>
+    <path d="M167 130 l4 4 l7 -8" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="192" y="126" width="46" height="8" rx="4" fill="#C9C3B8"/>
+  </g>
+  <g>
+    <rect x="162" y="151" width="20" height="20" rx="5" fill="#fc550a"/>
+    <path d="M167 161 l4 4 l7 -8" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="192" y="157" width="32" height="8" rx="4" fill="#C9C3B8"/>
+  </g>
+</svg>

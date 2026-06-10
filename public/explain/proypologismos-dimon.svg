@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260" fill="none" role="img" aria-label="Προϋπολογισμός δήμων">
+  <rect width="400" height="260" fill="#F2EFEA"/>
+  <rect x="176" y="146" width="30" height="48" rx="4" fill="#26251F"/>
+  <rect x="214" y="116" width="30" height="78" rx="4" fill="#26251F"/>
+  <rect x="252" y="86" width="30" height="108" rx="4" fill="#fc550a"/>
+  <rect x="150" y="198" width="140" height="9" rx="3" fill="#26251F"/>
+  <text x="120" y="138" font-family="system-ui, -apple-system, Arial, sans-serif" font-weight="800" font-size="62" fill="#fc550a">€</text>
+</svg>

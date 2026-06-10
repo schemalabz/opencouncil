@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260" fill="none" role="img" aria-label="Δημοτικό διαμέρισμα">
+  <rect width="400" height="260" fill="#F2EFEA"/>
+  <rect x="128" y="64" width="144" height="132" rx="16" fill="#FFFFFF" stroke="#26251F" stroke-width="7"/>
+  <path d="M186 64 V196" stroke="#26251F" stroke-width="6"/>
+  <path d="M128 134 H186" stroke="#26251F" stroke-width="6"/>
+  <path d="M222 110 c-15 0 -27 12 -27 27 c0 20 27 44 27 44 c0 0 27 -24 27 -44 c0 -15 -12 -27 -27 -27 Z" fill="#fc550a"/>
+  <circle cx="222" cy="136" r="9" fill="#FFFFFF"/>
+</svg>

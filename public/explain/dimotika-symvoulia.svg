@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260" fill="none" role="img" aria-label="Δημαρχείο">
+  <rect width="400" height="260" fill="#F2EFEA"/>
+  <polygon points="200,82 136,126 264,126" fill="#fc550a"/>
+  <rect x="136" y="126" width="128" height="9" fill="#26251F"/>
+  <rect x="156" y="143" width="13" height="51" fill="#26251F"/>
+  <rect x="193" y="143" width="13" height="51" fill="#26251F"/>
+  <rect x="231" y="143" width="13" height="51" fill="#26251F"/>
+  <rect x="126" y="197" width="148" height="11" rx="2" fill="#26251F"/>
+</svg>
