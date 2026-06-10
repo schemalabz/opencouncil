@@ -89,7 +89,7 @@ jobs:
     steps:
       - name: Comment on PR (building)
         id: pr-comment
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const prNumber = context.payload.pull_request.number;
@@ -186,7 +186,7 @@ jobs:
           echo "Store path: $STORE_PATH"
 
       - name: Update PR comment (deploying)
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const commentId = ${{ steps.pr-comment.outputs.comment-id }};
@@ -218,7 +218,7 @@ jobs:
 
       - name: Parse preview links from PR body
         id: preview-links
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const prBody = context.payload.pull_request.body || '';
@@ -303,7 +303,7 @@ jobs:
           echo "Preview did not return HTTP 200 after 10 attempts"
 
       - name: Update PR comment (result)
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const commentId = ${{ steps.pr-comment.outputs.comment-id }};
