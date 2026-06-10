@@ -6,7 +6,7 @@ import type { MessageChannel } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Send, CheckCircle, XCircle } from 'lucide-react';
-import { sendTestReply } from '@/app/[locale]/(other)/admin/conversations/actions';
+import { sendTestReply } from '@/app/[locale]/(admin)/admin/conversations/actions';
 import type { SendStatus } from './types';
 
 /**
