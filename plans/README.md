@@ -15,8 +15,8 @@ verification command, and update your row when done.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| 001  | Authenticate and tenant-scope the task-status callback endpoint | P1 | M | — | TODO |
-| 002  | Remove confirmed-dead dependencies | P2 | S | — | TODO |
+| 001  | Authenticate and tenant-scope the task-status callback endpoint | P1 | M | — | TODO — tracked as [#445](https://github.com/schemalabz/opencouncil/issues/445) |
+| 002  | Remove confirmed-dead dependencies | P2 | S | — | IN PROGRESS — PR [#447](https://github.com/schemalabz/opencouncil/pull/447) open; `npmDepsHash` refresh pending |
 | 003  | Authenticate, rate-limit, and validate the chat endpoint | P1 | M | — | TODO |
 | 004  | Add authorization decision-tree tests for `checkUserAuthorization` | P2 | M | — | TODO |
 
