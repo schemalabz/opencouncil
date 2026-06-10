@@ -6,13 +6,13 @@ import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Settings, Eye, EyeOff } from "lucide-react"
 import { useQuickLoginVisibility } from "@/hooks/useQuickLoginVisibility"
-import { IS_DEV } from "@/lib/utils"
+import { DEV_TOOLS_ALLOWED, IS_PREVIEW } from "@/lib/utils"
 
 export function DevelopmentSection() {
   const { isVisible, isLoaded, toggle } = useQuickLoginVisibility()
 
-  // Only show in development
-  if (!IS_DEV) {
+  // Only show in development or on preview deployments
+  if (!DEV_TOOLS_ALLOWED) {
     return null
   }
 
@@ -28,7 +28,7 @@ export function DevelopmentSection() {
           <Settings className="h-5 w-5 text-red-600" />
           Development Tools
           <Badge variant="secondary" className="bg-red-100 text-red-800 text-xs">
-            DEV ONLY
+            {IS_PREVIEW ? 'PREVIEW ONLY' : 'DEV ONLY'}
           </Badge>
         </CardTitle>
       </CardHeader>

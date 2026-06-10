@@ -41,6 +41,12 @@ export {
 
 export const IS_DEV = process.env.NODE_ENV === 'development';
 
+// Preview deployments run with NODE_ENV=production but set IS_PREVIEW=true
+// (see flake.nix opencouncil-preview@ service). Dev tooling such as Quick Login
+// is allowed in local dev OR on previews, but never on real production.
+export const IS_PREVIEW = process.env.IS_PREVIEW === 'true';
+export const DEV_TOOLS_ALLOWED = IS_DEV || IS_PREVIEW;
+
 export const SUBJECT_POINT_COLOR = '#E57373'; // A nice red color that contrasts with the blue city polygons
 
 export const UNKNOWN_SPEAKER_LABEL = "Άγνωστος Ομιλητής";

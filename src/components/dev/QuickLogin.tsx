@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { LogOut, Settings, User, Crown, EyeOff } from 'lucide-react'
 import { getTestUsersForDisplay } from '@/lib/dev/test-users'
 import { useQuickLoginVisibility } from '@/hooks/useQuickLoginVisibility'
-import { IS_DEV } from '@/lib/utils'
+import { DEV_TOOLS_ALLOWED, IS_PREVIEW } from '@/lib/utils'
 import MobilePreviewButton from '@/components/dev/MobilePreviewButton'
 
 // Get predefined test users from shared definition
@@ -153,8 +153,8 @@ export default function QuickLogin() {
     setMessage('') // Clear any messages
   }
 
-  // Only show in development
-  if (!IS_DEV) {
+  // Only show in development or on preview deployments
+  if (!DEV_TOOLS_ALLOWED) {
     return null
   }
 
@@ -176,7 +176,9 @@ export default function QuickLogin() {
           <div className="w-px bg-red-400/40 my-1.5" />
           <DialogTrigger asChild>
             <button className="flex items-center gap-2 px-3 py-1.5 hover:bg-red-700/50 transition-colors rounded-r-md">
-              <span className="text-[10px] font-bold bg-red-800 px-1.5 py-0.5 rounded">DEV</span>
+              <span className="text-[10px] font-bold bg-red-800 px-1.5 py-0.5 rounded">
+                {IS_PREVIEW ? 'PREVIEW' : 'DEV'}
+              </span>
               <span className="text-xs">Quick Login</span>
             </button>
           </DialogTrigger>
@@ -194,7 +196,7 @@ export default function QuickLogin() {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5 text-red-600" />
-            Development Quick Login
+            {IS_PREVIEW ? 'Preview Quick Login' : 'Development Quick Login'}
           </DialogTitle>
           <DialogDescription>
             Quickly switch between different user accounts for testing authorization scenarios. 
