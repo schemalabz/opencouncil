@@ -805,6 +805,7 @@ model User {
   subjectVotes SubjectVote[]
   meetingAttendance MeetingAttendance[]
   serviceApiKeys ServiceApiKey[]
+  searchQueries SearchQuery[]
 }
  
 model Account {
@@ -1217,6 +1218,20 @@ enum MessageStatus {
   sent
   delivered
   failed
+}
+
+// User search queries, logged for usage analytics
+model SearchQuery {
+  id        String   @id @default(cuid())
+  query     String
+  createdAt DateTime @default(now())
+
+  // Relations
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId String?
+
+  @@index([createdAt])
+  @@index([userId])
 }
 
 // QR Campaigns for short redirects

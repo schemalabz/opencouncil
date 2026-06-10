@@ -8,6 +8,7 @@ import { extractFilters, processFilters } from './filters';
 import { sendErrorAdminAlert } from '@/lib/discord';
 import { executeElasticsearchWithRetry } from './retry';
 import { getCities } from '@/lib/db/cities';
+import { logSearchQuery } from '@/lib/db/searchQueries';
 import { env } from '@/env.mjs';
 
 // Re-export types
@@ -30,8 +31,17 @@ const logEssential = (message: string, data?: any) => {
     console.log(`[Search Analytics] ${message}`, data || '');
 };
 
-export async function search(request: SearchRequest): Promise<SearchResponse> {
+export async function search(
+    request: SearchRequest,
+    options?: { skipQueryLog?: boolean }
+): Promise<SearchResponse> {
     try {
+        // Persist the query for usage analytics. Skipped for paginated requests
+        // (same query, next page) and for internal callers like the AI chat.
+        if (!options?.skipQueryLog && (request.config?.from ?? 0) === 0) {
+            void logSearchQuery(request.query);
+        }
+
         // Get default city IDs if none provided
         let cityIds = request.cityIds;
         if (!cityIds || cityIds.length === 0) {

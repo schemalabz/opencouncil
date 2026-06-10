@@ -4,7 +4,7 @@ import { Search, Sparkles, AlertTriangle, ArrowLeft } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import { Input } from "../ui/input";
 import MetadataFilters from "./MetadataFilters";
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { SearchResultLight, search as searchFn } from "@/lib/search";
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getCity } from "@/lib/db/cities";
@@ -26,6 +26,9 @@ export default function SearchPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { toast } = useToast();
+    // The last query persisted to the search log, so that filter and page
+    // changes re-executing the same query don't log the same intent again.
+    const lastLoggedQueryRef = useRef<string | null>(null);
     const t = useTranslations('Common');
 
     // Get all search parameters from URL
@@ -108,6 +111,9 @@ export default function SearchPage() {
         }
 
         if (!query) {
+            // Clearing the search box ends the intent: re-submitting the same
+            // query afterwards should be logged as a new search.
+            lastLoggedQueryRef.current = null;
             setState(prev => ({ ...prev, results: [], total: 0 }));
             return;
         }
@@ -115,6 +121,9 @@ export default function SearchPage() {
         setState(prev => ({ ...prev, isLoading: true, error: null }));
 
         try {
+            const skipQueryLog = lastLoggedQueryRef.current === query;
+            lastLoggedQueryRef.current = query;
+
             const response = await searchFn({
                 query,
                 cityIds: cityId ? [cityId] : undefined,
@@ -126,7 +135,7 @@ export default function SearchPage() {
                     from: (page - 1) * PAGE_SIZE,
                     detailed: false
                 }
-            });
+            }, { skipQueryLog });
 
             setState({
                 results: response.results,
