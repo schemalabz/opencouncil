@@ -18,13 +18,17 @@ import { Badge } from "@/components/ui/badge"
 import { LogOut, Settings, User, Crown, EyeOff } from 'lucide-react'
 import { getTestUsersForDisplay } from '@/lib/dev/test-users'
 import { useQuickLoginVisibility } from '@/hooks/useQuickLoginVisibility'
-import { DEV_TOOLS_ALLOWED, IS_PREVIEW } from '@/lib/utils'
+import { IS_DEV } from '@/lib/utils'
 import MobilePreviewButton from '@/components/dev/MobilePreviewButton'
 
 // Get predefined test users from shared definition
 const PREDEFINED_USERS = getTestUsersForDisplay()
 
-export default function QuickLogin() {
+// `isPreview` is passed from the server (layout.tsx reads process.env.IS_PREVIEW
+// at runtime). It can't be read here directly: IS_PREVIEW is not a NEXT_PUBLIC_
+// var and is only set at runtime by the preview systemd unit, so it's undefined
+// in the client bundle.
+export default function QuickLogin({ isPreview = false }: { isPreview?: boolean }) {
   const [isOpen, setIsOpen] = useState(false)
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -154,7 +158,7 @@ export default function QuickLogin() {
   }
 
   // Only show in development or on preview deployments
-  if (!DEV_TOOLS_ALLOWED) {
+  if (!(IS_DEV || isPreview)) {
     return null
   }
 
@@ -177,7 +181,7 @@ export default function QuickLogin() {
           <DialogTrigger asChild>
             <button className="flex items-center gap-2 px-3 py-1.5 hover:bg-red-700/50 transition-colors rounded-r-md">
               <span className="text-[10px] font-bold bg-red-800 px-1.5 py-0.5 rounded">
-                {IS_PREVIEW ? 'PREVIEW' : 'DEV'}
+                {isPreview ? 'PREVIEW' : 'DEV'}
               </span>
               <span className="text-xs">Quick Login</span>
             </button>
@@ -196,7 +200,7 @@ export default function QuickLogin() {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5 text-red-600" />
-            {IS_PREVIEW ? 'Preview Quick Login' : 'Development Quick Login'}
+            {isPreview ? 'Preview Quick Login' : 'Development Quick Login'}
           </DialogTitle>
           <DialogDescription>
             Quickly switch between different user accounts for testing authorization scenarios. 

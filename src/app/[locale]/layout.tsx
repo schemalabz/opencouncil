@@ -40,7 +40,7 @@ export default async function LocaleLayout({
             {children}
 
             <Toaster />
-            {QuickLogin && <QuickLogin />}
+            {QuickLogin && <QuickLogin isPreview={process.env.IS_PREVIEW === 'true'} />}
             {MobilePreviewReporter && <MobilePreviewReporter />}
         </NextIntlClientProvider>
     );
