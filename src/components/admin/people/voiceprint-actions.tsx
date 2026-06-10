@@ -12,13 +12,20 @@ import {
 } from "@/components/ui/dialog";
 import { VoicePrint, TaskStatus } from "@prisma/client";
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Play, Trash, Volume2 } from "lucide-react";
+import { ChevronDown, ListMusic, Loader2, Play, Trash, Volume2 } from "lucide-react";
 import { deleteVoicePrint } from "@/lib/db/voiceprints";
-import { requestGenerateVoiceprint } from "@/lib/tasks/generateVoiceprint";
+import {
+    requestGenerateVoiceprint,
+    requestGenerateVoiceprintForSegment,
+    getCandidateSegmentsForVoiceprint,
+    type VoiceprintCandidateSegment,
+} from "@/lib/tasks/generateVoiceprint";
 import { deleteTaskStatus, getVoiceprintTasksForPerson } from "@/lib/db/tasks";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import TaskList from "@/components/meetings/admin/TaskList";
+import { formatDuration, formatTimestamp } from "@/lib/formatters/time";
+import { cn } from "@/lib/utils";
 
 interface VoiceprintActionsProps {
     personId: string;
@@ -35,6 +42,11 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
     const [isLoadingTasks, setIsLoadingTasks] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
     const [latestPendingTask, setLatestPendingTask] = useState<TaskStatus | null>(null);
+    const [isManualOpen, setIsManualOpen] = useState(false);
+    const [candidates, setCandidates] = useState<VoiceprintCandidateSegment[]>([]);
+    const [isLoadingCandidates, setIsLoadingCandidates] = useState(false);
+    const [candidatesLoaded, setCandidatesLoaded] = useState(false);
+    const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
     const { toast } = useToast();
 
     const fetchTaskStatuses = useCallback(async () => {
@@ -104,6 +116,63 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
             });
         } catch (error) {
             console.error("Error generating voiceprint:", error);
+            toast({
+                title: "Error",
+                description:
+                    typeof error === "object" && error !== null && "message" in error
+                        ? String(error.message)
+                        : "Failed to generate voiceprint. Please try again.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const loadCandidates = useCallback(async () => {
+        setIsLoadingCandidates(true);
+        try {
+            const segments = await getCandidateSegmentsForVoiceprint(personId);
+            setCandidates(segments);
+            setCandidatesLoaded(true);
+        } catch (error) {
+            console.error("Error loading candidate segments:", error);
+            toast({
+                title: "Error",
+                description: error instanceof Error ? error.message : "Failed to load candidate segments.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsLoadingCandidates(false);
+        }
+    }, [personId, toast]);
+
+    const handleToggleManual = () => {
+        const next = !isManualOpen;
+        setIsManualOpen(next);
+        if (next && !candidatesLoaded && !isLoadingCandidates) {
+            loadCandidates();
+        }
+    };
+
+    const handleGenerateFromSegment = async () => {
+        if (!selectedSegmentId) return;
+        setIsLoading(true);
+        try {
+            const task = await requestGenerateVoiceprintForSegment(personId, selectedSegmentId);
+
+            setLatestPendingTask(task);
+            setTasks(prev => [task, ...prev]);
+            setIsManualOpen(false);
+            setSelectedSegmentId(null);
+
+            toast({
+                title: "Voiceprint generation requested",
+                description:
+                    "Voiceprint generation from the selected segment is now processing. You can track progress in this dialog.",
+            });
+        } catch (error) {
+            console.error("Error generating voiceprint from segment:", error);
             toast({
                 title: "Error",
                 description:
@@ -220,10 +289,108 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
 
                             <div className='flex flex-col space-y-2 mt-4'>
                                 {canGenerateVoiceprint && (
-                                    <Button onClick={handleGenerateVoiceprint} disabled={isLoading} className='w-full'>
-                                        <Volume2 className='mr-2 h-4 w-4' />
-                                        Generate Voiceprint
-                                    </Button>
+                                    <>
+                                        <Button
+                                            onClick={handleGenerateVoiceprint}
+                                            disabled={isLoading}
+                                            className='w-full'
+                                        >
+                                            <Volume2 className='mr-2 h-4 w-4' />
+                                            Generate Voiceprint (auto-select)
+                                        </Button>
+
+                                        <Button
+                                            variant='outline'
+                                            onClick={handleToggleManual}
+                                            disabled={isLoading}
+                                            className='w-full justify-between'
+                                        >
+                                            <span className='flex items-center'>
+                                                <ListMusic className='mr-2 h-4 w-4' />
+                                                Choose segment manually
+                                            </span>
+                                            <ChevronDown
+                                                className={cn(
+                                                    "h-4 w-4 transition-transform",
+                                                    isManualOpen && "rotate-180",
+                                                )}
+                                            />
+                                        </Button>
+
+                                        {isManualOpen && (
+                                            <div className='space-y-2 rounded-md border p-3'>
+                                                {isLoadingCandidates ? (
+                                                    <div className='flex justify-center py-4'>
+                                                        <Loader2 className='h-5 w-5 animate-spin text-slate-400' />
+                                                    </div>
+                                                ) : candidates.length === 0 ? (
+                                                    <p className='text-sm text-slate-600'>
+                                                        No segments of at least 30 seconds are available for this person.
+                                                    </p>
+                                                ) : (
+                                                    <>
+                                                        <p className='text-xs text-slate-500'>
+                                                            Pick the segment with the clearest audio. A 30-second window
+                                                            centered on the segment will be used.
+                                                        </p>
+                                                        <ul className='space-y-2'>
+                                                            {candidates.map(candidate => {
+                                                                const isSelected =
+                                                                    selectedSegmentId === candidate.segmentId;
+                                                                return (
+                                                                    <li key={candidate.segmentId}>
+                                                                        <button
+                                                                            type='button'
+                                                                            onClick={() =>
+                                                                                setSelectedSegmentId(candidate.segmentId)
+                                                                            }
+                                                                            className={cn(
+                                                                                "w-full rounded-md border p-2 text-left text-sm transition-colors",
+                                                                                isSelected
+                                                                                    ? "border-blue-400 bg-blue-50"
+                                                                                    : "hover:bg-slate-50",
+                                                                            )}
+                                                                        >
+                                                                            <div className='flex items-center justify-between gap-2'>
+                                                                                <span className='font-medium'>
+                                                                                    {candidate.meetingName}
+                                                                                </span>
+                                                                                <span className='whitespace-nowrap text-xs text-slate-500'>
+                                                                                    {formatDuration(candidate.duration)}
+                                                                                </span>
+                                                                            </div>
+                                                                            <div className='text-xs text-slate-500'>
+                                                                                {new Date(
+                                                                                    candidate.meetingDate,
+                                                                                ).toLocaleDateString()}{" "}
+                                                                                ·{" "}
+                                                                                {formatTimestamp(
+                                                                                    candidate.startTimestamp,
+                                                                                )}
+                                                                            </div>
+                                                                            {candidate.textPreview && (
+                                                                                <p className='mt-1 line-clamp-2 text-xs text-slate-600'>
+                                                                                    {candidate.textPreview}
+                                                                                </p>
+                                                                            )}
+                                                                        </button>
+                                                                    </li>
+                                                                );
+                                                            })}
+                                                        </ul>
+                                                        <Button
+                                                            onClick={handleGenerateFromSegment}
+                                                            disabled={isLoading || !selectedSegmentId}
+                                                            className='w-full'
+                                                        >
+                                                            <Volume2 className='mr-2 h-4 w-4' />
+                                                            Generate from selected segment
+                                                        </Button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        )}
+                                    </>
                                 )}
 
                                 {voicePrint && (
