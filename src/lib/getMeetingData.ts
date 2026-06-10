@@ -77,9 +77,11 @@ export const getMeetingDataCore = async (cityId: string, meetingId: string): Pro
     console.log(`getMeetingDataCore ${key} LEADER from: ${callerHint}`);
     const promise = fetchMeetingDataCore(cityId, meetingId);
     coreInflight.set(key, promise);
-    // Discard the .finally() return — we only need the side effect, and
-    // followers still resolve/reject through the original `promise` ref.
-    promise.finally(() => coreInflight.delete(key));
+    // The cleanup fork: .finally() returns a NEW promise that also rejects
+    // when the fetch fails. Callers handle the original `promise`; nothing
+    // handles the fork, so without the .catch() a failed fetch surfaces as
+    // an unhandledRejection on the Node runtime.
+    promise.finally(() => coreInflight.delete(key)).catch(() => {});
     return promise;
 };
 
