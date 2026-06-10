@@ -1,105 +1,115 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, FileText, Settings, Search, ClipboardCheck, Landmark } from 'lucide-react';
-import Link from 'next/link';
+import { Bell, Clock, FileText, Landmark, MessageCircle, Send, Users } from 'lucide-react';
+import { StatsCard } from '@/components/ui/stats-card';
 import { ReviewsOverviewWidget } from '@/components/admin/reviews/ReviewsOverviewWidget';
+import { getAdminDashboardStats } from '@/lib/db/adminStats';
 
-export default function Page() {
+export default async function Page() {
+    const stats = await getAdminDashboardStats();
+
+    const round1 = (n: number) => Math.round(n * 10) / 10;
+
     return (
-        <div className="p-4">
-            <h1 className="text-2xl font-bold mb-4">Admin Dashboard</h1>
-            <p className="text-muted-foreground mb-6">
-                Welcome to the OpenCouncil admin panel. Manage users, content, and system settings.
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Link href="/admin/users">
-                    <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Users</CardTitle>
-                            <Users className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-xs text-muted-foreground">
-                                Manage user accounts and permissions
-                            </p>
-                        </CardContent>
-                    </Card>
-                </Link>
-                
-                <Link href="/admin/meetings">
-                    <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Meetings</CardTitle>
-                            <FileText className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-xs text-muted-foreground">
-                                Review council meetings and transcripts
-                            </p>
-                        </CardContent>
-                    </Card>
-                </Link>
-                
-                <Link href="/admin/diavgeia">
-                    <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Diavgeia</CardTitle>
-                            <Landmark className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-xs text-muted-foreground">
-                                Diavgeia polling stats and decision tracking
-                            </p>
-                        </CardContent>
-                    </Card>
-                </Link>
+        <div className="container mx-auto px-4 py-8 space-y-10">
+            <div>
+                <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+                <p className="text-muted-foreground mt-1">
+                    An overview of users, content, and engagement across OpenCouncil.
+                </p>
+            </div>
 
-                <Link href="/admin/elasticsearch">
-                    <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Elasticsearch</CardTitle>
-                            <Search className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-xs text-muted-foreground">
-                                Configure search indexing and sync
-                            </p>
-                        </CardContent>
-                    </Card>
-                </Link>
-                
-                <Link href="/admin/reviews">
-                    <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Reviews</CardTitle>
-                            <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-xs text-muted-foreground">
-                                Track human review progress on transcripts
-                            </p>
-                        </CardContent>
-                    </Card>
-                </Link>
-                
-                <Link href="/admin/settings">
-                    <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Settings</CardTitle>
-                            <Settings className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-xs text-muted-foreground">
-                                System configuration and preferences
-                            </p>
-                        </CardContent>
-                    </Card>
-                </Link>
-            </div>
-            
-            <div className="mt-8">
+            {/* w-fit shrinks each heading box so the global centered-h2 rule
+                can't visually center it within the page column. */}
+            <section>
+                <h2 className="w-fit mb-3">Community</h2>
+                <StatsCard
+                    columns={3}
+                    items={[
+                        {
+                            title: 'Total Users',
+                            value: stats.users.total,
+                            icon: <Users className="h-4 w-4" />,
+                            description: `+${stats.users.newLast7Days} in last 7 days`,
+                            trend: {
+                                value: round1(stats.users.percentChange),
+                                isPositive: stats.users.percentChange >= 0,
+                            },
+                        },
+                        {
+                            title: 'Notification Signups',
+                            value: stats.notifications.usersWithPreferences,
+                            icon: <Bell className="h-4 w-4" />,
+                            description: `+${stats.notifications.newPreferencesThisWeek} preferences this week`,
+                        },
+                        {
+                            title: 'Petitions',
+                            value: stats.petitions.total,
+                            icon: <FileText className="h-4 w-4" />,
+                            description: `+${stats.petitions.newThisWeek} this week`,
+                        },
+                    ]}
+                />
+            </section>
+
+            <section>
+                <h2 className="w-fit mb-3">This Week</h2>
+                <StatsCard
+                    columns={4}
+                    items={[
+                        {
+                            title: 'Notifications Sent',
+                            value: stats.notifications.sentThisWeek,
+                            icon: <Send className="h-4 w-4" />,
+                            description: 'deliveries in the last 7 days',
+                        },
+                        {
+                            title: 'Meetings Added',
+                            value: stats.content.meetingsAddedThisWeek,
+                            icon: <FileText className="h-4 w-4" />,
+                            description: `${stats.content.releasedOfThose} of which released`,
+                        },
+                        {
+                            title: 'Meeting Hours Processed',
+                            value: stats.content.meetingHoursThisWeek,
+                            icon: <Clock className="h-4 w-4" />,
+                            description: 'released meetings added this week',
+                        },
+                        {
+                            title: 'Supported Cities',
+                            value: stats.content.supportedCities,
+                            icon: <Landmark className="h-4 w-4" />,
+                            description: 'officially supported, all time',
+                        },
+                    ]}
+                />
+            </section>
+
+            <section>
+                <h2 className="w-fit">Engagement This Week</h2>
+                <p className="text-sm text-muted-foreground mt-1 mb-3">
+                    WhatsApp and SMS messages. AI chat and search queries are not persisted, so they cannot be shown.
+                </p>
+                <StatsCard
+                    columns={4}
+                    items={[
+                        {
+                            title: 'Inbound Messages',
+                            value: stats.engagement.inbound.total,
+                            icon: <MessageCircle className="h-4 w-4" />,
+                            description: `${stats.engagement.inbound.whatsapp} WhatsApp · ${stats.engagement.inbound.sms} SMS`,
+                        },
+                        {
+                            title: 'Outbound Messages',
+                            value: stats.engagement.outbound.total,
+                            icon: <Send className="h-4 w-4" />,
+                            description: `${stats.engagement.outbound.whatsapp} WhatsApp · ${stats.engagement.outbound.sms} SMS`,
+                        },
+                    ]}
+                />
+            </section>
+
+            <section>
                 <ReviewsOverviewWidget />
-            </div>
+            </section>
         </div>
     );
 }
