@@ -208,6 +208,16 @@ export async function getAllCitiesMinimal(): Promise<CityMinimalWithCounts[]> {
 }
 
 /**
+ * All city ids regardless of status. Used to validate route cityId params
+ * against the known set before any per-city cached query runs, so junk slugs
+ * (bot probes) never create per-city cache entries.
+ */
+export async function getAllCityIds(): Promise<string[]> {
+    const cities = await prisma.city.findMany({ select: { id: true } });
+    return cities.map(c => c.id);
+}
+
+/**
  * Retrieves cities based on user permissions and city status.
  */
 export async function getCities({ includeUnlisted = false, includePending = false }: { includeUnlisted?: boolean, includePending?: boolean } = {}): Promise<CityWithCounts[]> {

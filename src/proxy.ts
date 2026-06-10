@@ -6,6 +6,13 @@ import { env } from '@/env.mjs';
 
 const i18nMiddleware = createIntlMiddleware(routing);
 
+// Obvious bot-scanner paths. 404 them here, before any rendering, so they
+// can't create cache entries or trigger data fetches (#358). Only
+// extensionless probes are listed: dotted paths (.php/.env) never reach the
+// proxy — the matcher below excludes them — and 404 via locale validation
+// without touching per-city caches.
+const JUNK_PATH = /^\/(wp-admin|wp-login|wp-content|wp-includes|wordpress|xmlrpc|administrator|phpmyadmin|cgi-bin)(\/|$)/i;
+
 export default async function proxy(req: NextRequest) {
     // Basic auth check
     if (!isHttpBasicAuthAuthenticated(req)) {
@@ -13,6 +20,10 @@ export default async function proxy(req: NextRequest) {
             status: 401,
             headers: { 'WWW-Authenticate': 'Basic' },
         });
+    }
+
+    if (JUNK_PATH.test(req.nextUrl.pathname)) {
+        return new NextResponse(null, { status: 404 });
     }
 
     // Handle the specific case for opencouncil.chania.gr

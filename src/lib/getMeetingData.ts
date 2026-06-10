@@ -4,7 +4,7 @@ import { CityWithGeometry, getCity } from '@/lib/db/cities';
 import { PersonWithRelations } from '@/lib/db/people';
 import { getHighlightsForMeeting, HighlightWithUtterances } from '@/lib/db/highlights';
 import { cache } from 'react';
-import { getPeopleForCityCached, getPartiesForCityCached, getSubjectsForMeetingCached, getSubjectStatisticsCached } from '@/lib/cache/queries';
+import { getAllCityIdsCached, getPeopleForCityCached, getPartiesForCityCached, getSubjectsForMeetingCached, getSubjectStatisticsCached } from '@/lib/cache/queries';
 import { SubjectWithRelations } from '@/lib/db/subject';
 import { Statistics } from '@/lib/statistics';
 import { getMeetingTaskStatus, MeetingTaskStatus } from '@/lib/db/tasks';
@@ -86,6 +86,17 @@ export const getMeetingDataCore = async (cityId: string, meetingId: string): Pro
 };
 
 async function fetchMeetingDataCore(cityId: string, meetingId: string): Promise<MeetingDataCore> {
+    // Validate cityId against the known set (single shared cache key) before
+    // any per-city cached query runs. Next renders nested segments in
+    // parallel, so this fetch can start before the [cityId] layout's own
+    // validation 404s — without this guard, junk slugs (e.g. /admin/settings
+    // resolving to cityId='admin') write `city:<junk>:*` entries to the
+    // shared cache (#358). Callers already treat this throw as notFound().
+    const cityIds = await getAllCityIdsCached();
+    if (!cityIds.includes(cityId)) {
+        throw new Error('Required data not found');
+    }
+
     const meetingTags = { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`, `city:${cityId}:meeting:${meetingId}`] };
     const cityTags = { tags: ['city', `city:${cityId}`, `city:${cityId}:basic`] };
 

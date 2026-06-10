@@ -1,4 +1,4 @@
-import { getCityCached } from "@/lib/cache";
+import { getAllCityIdsCached } from "@/lib/cache";
 import { notFound } from "next/navigation";
 
 const VALID_CITY_ID = /^[a-z][a-z0-9_-]*$/;
@@ -24,8 +24,12 @@ export default async function CityLayout(
         notFound();
     }
 
-    const city = await getCityCached(cityId);
-    if (!city) {
+    // Validate against the known city set via a SINGLE shared cache key.
+    // The previous getCityCached(cityId) existence check was itself a cached
+    // per-city query, so every junk slug that passed the regex (e.g. /wp-admin)
+    // wrote a `city:<junk>:basic` entry to the shared cache before 404ing (#358).
+    const cityIds = await getAllCityIdsCached();
+    if (!cityIds.includes(cityId)) {
         notFound();
     }
 
