@@ -86,16 +86,19 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
             commentBody
         );
 
-        const posthog = getPostHogClient();
-        posthog.capture({
-            distinctId: session?.user?.email ?? "anonymous",
-            event: "consultation_comment_submitted",
-            properties: {
-                consultation_id: params.id,
-                city_id: cityId,
-                entity_type: entityType,
-            },
-        });
+        // Only attribute the event when there's a signed-in user; a shared
+        // "anonymous" distinct ID would pile unrelated events onto one person.
+        if (session?.user?.id) {
+            getPostHogClient()?.capture({
+                distinctId: session.user.id,
+                event: "consultation_comment_submitted",
+                properties: {
+                    consultation_id: params.id,
+                    city_id: cityId,
+                    entity_type: entityType,
+                },
+            });
+        }
 
         return NextResponse.json({ comment });
     } catch (error) {

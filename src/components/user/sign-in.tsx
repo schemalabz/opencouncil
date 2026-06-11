@@ -20,10 +20,8 @@ export function SignIn() {
         setIsLoading(true)
 
         const formData = new FormData(e.currentTarget)
-        const emailValue = formData.get("email") as string
 
         posthog.capture("sign_in_requested", { has_callback_url: !!callbackUrl })
-        posthog.identify(emailValue, { email: emailValue })
 
         try {
             await signInWithEmail(formData)
