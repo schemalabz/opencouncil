@@ -7,7 +7,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
-import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
+import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from "@/components/ui/command";
 import { Check, X, Edit2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "../ui/button";
@@ -249,8 +249,8 @@ function PersonBadge({
                         // matches first) instead of cmdk's default substring fuzzy match
                         // over the full rendered text (which includes role/party labels
                         // and produced irrelevant top results — see issue #305).
-                        // Static items (unknown speaker, set label, remove) bypass this
-                        // via `forceMount` and are always returned with a non-zero score.
+                        // Static items (unknown speaker, set label, remove) use
+                        // `forceMount`, so they render regardless of the filter score.
                         filter={(_value, search, keywords) =>
                             relevanceScore((keywords ?? []).join(' '), search)
                         }
@@ -262,7 +262,9 @@ function PersonBadge({
                             onValueChange={setSearchQuery}
                         />
                         <CommandList ref={listRef}>
-                            <CommandEmpty>No results found</CommandEmpty>
+                            {/* No CommandEmpty: the force-mounted "unknown speaker" and
+                                "Set label" items are always present, so when no person
+                                matches the query they serve as the fallback actions. */}
                             <CommandGroup>
                                 <CommandItem
                                     forceMount
