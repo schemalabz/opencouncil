@@ -37,7 +37,7 @@ export const NotificationEmail = ({
 
     // Announcement-only notification: the meeting has no agenda items yet (e.g. Λογοδοσία).
     // We still inform subscribers about the upcoming session, without a subject list.
-    const isAnnouncementOnly = subjects.length === 0;
+    const isAnnouncementOnly = subjects.length === 0 && type === 'beforeMeeting';
 
     const meetingDateFormatted = meetingDate.toLocaleDateString('el-GR', {
         day: 'numeric',
