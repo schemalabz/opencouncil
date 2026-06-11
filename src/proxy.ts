@@ -35,10 +35,15 @@ export default async function proxy(req: NextRequest) {
     // its /ingest endpoints with trailing slashes. /ingest itself never
     // reaches the proxy — the matcher excludes it — so restore the
     // canonical-URL redirect for everything else here.
+    // Note: a plain URL, not req.nextUrl.clone() — NextURL keeps the trailing
+    // slash as a separate flag and re-appends it when serializing, which
+    // would redirect the URL to itself.
     if (req.nextUrl.pathname.length > 1 && req.nextUrl.pathname.endsWith('/')) {
-        const url = req.nextUrl.clone();
-        url.pathname = url.pathname.replace(/\/+$/, '');
-        return NextResponse.redirect(url, 308);
+        const target = new URL(
+            req.nextUrl.pathname.replace(/\/+$/, '') + req.nextUrl.search,
+            req.url,
+        );
+        return NextResponse.redirect(target, 308);
     }
 
     // Legacy vanity URL: rewrite /t-shirt to /qr/t-shirt

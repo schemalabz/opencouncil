@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { SiX, SiInstagram, SiFacebook, SiGithub, SiDiscord, SiSubstack } from 'react-icons/si';
+import { REOPEN_CONSENT_EVENT } from "@/components/analytics/ConsentChip";
 
 interface FooterProps {
     className?: string;
@@ -78,6 +79,13 @@ export default function Footer({ className }: FooterProps = {}) {
                                     {link.label}
                                 </Link>
                             ))}
+                            <button
+                                type="button"
+                                onClick={() => window.dispatchEvent(new Event(REOPEN_CONSENT_EVENT))}
+                                className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                            >
+                                Προτιμήσεις cookies
+                            </button>
                         </nav>
                     </div>
                     <div className="flex flex-col items-center md:items-start space-y-4">

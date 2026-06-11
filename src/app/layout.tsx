@@ -1,7 +1,9 @@
 import "./globals.css"
 import { cn } from "../lib/utils"
-import React from "react"
+import React, { Suspense } from "react"
 import PlausibleAnalytics from "@/components/analytics/PlausibleAnalytics"
+import PostHogPageView from "@/components/analytics/PostHogPageView"
+import PostHogAuthSync from "@/components/analytics/PostHogAuthSync"
 import { SessionProvider } from "next-auth/react"
 import { Toaster } from "@/components/ui/toaster";
 import { routing } from "@/i18n/routing";
@@ -81,6 +83,11 @@ export default async function RootLayout(
                         {children}
                         <Toaster />
                     </PlausibleAnalytics>
+                    {/* useSearchParams requires a Suspense boundary in layouts */}
+                    <Suspense fallback={null}>
+                        <PostHogPageView />
+                    </Suspense>
+                    <PostHogAuthSync />
                 </SessionProvider>
             </body>
         </html>
