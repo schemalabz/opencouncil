@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { X, MapPin, AlertCircle, Loader2 } from 'lucide-react';
+import { X, MapPin, AlertCircle, Loader2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Location } from '@/lib/types/onboarding';
@@ -19,6 +19,14 @@ interface LocationSelectorProps {
     city: CityWithGeometry;
     onLocationClick?: (location: Location) => void;
     hideSelectedList?: boolean;
+    /**
+     * When true, once at least one location has been added the search input is
+     * collapsed into an "add a new location" button, making the
+     * "you can add more than one" affordance explicit. Opt-in so the shared
+     * consultations usages (LocationNavigator, LayerControlsPanel) keep their
+     * always-visible search input. Defaults to false.
+     */
+    collapseAfterAdd?: boolean;
 }
 
 export function LocationSelector({
@@ -27,10 +35,16 @@ export function LocationSelector({
     onRemove,
     city,
     onLocationClick,
-    hideSelectedList = false
+    hideSelectedList = false,
+    collapseAfterAdd = false
 }: LocationSelectorProps) {
     const t = useTranslations('Common');
     const [inputValue, setInputValue] = useState('');
+    // When collapseAfterAdd is enabled, start collapsed if the user already has
+    // locations (e.g. re-entering the step via back navigation).
+    const [isSearchVisible, setIsSearchVisible] = useState(
+        () => !(collapseAfterAdd && selectedLocations.length > 0)
+    );
     const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
     const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
     const [isSelectingLocation, setIsSelectingLocation] = useState(false);
@@ -145,6 +159,11 @@ export function LocationSelector({
                 setInputValue('');
                 setSuggestions([]);
                 setIsWaitingForDebounce(false);
+                // Collapse the search back into the "add new location" button
+                // after a successful add, so the affordance is explicit.
+                if (collapseAfterAdd) {
+                    setIsSearchVisible(false);
+                }
             } else {
                 setError('Δεν ήταν δυνατή η ανάκτηση των λεπτομερειών της τοποθεσίας.');
             }
@@ -156,8 +175,28 @@ export function LocationSelector({
         }
     };
 
+    // When collapseAfterAdd is on and there is at least one location, hide the
+    // search input behind a button until the user opts to add another.
+    const showAddButton = collapseAfterAdd && selectedLocations.length > 0 && !isSearchVisible;
+
     return (
         <div className="space-y-5">
+            {showAddButton ? (
+                <Button
+                    variant="outline"
+                    onClick={() => {
+                        setIsSearchVisible(true);
+                        // Focus the input once React has rendered the search box,
+                        // so the user can type without an extra tap. Safe here
+                        // because revealing is a deliberate user action.
+                        setTimeout(() => inputRef.current?.focus(), 0);
+                    }}
+                    className="w-full justify-center py-5 text-base md:text-sm touch-manipulation"
+                >
+                    <Plus className="h-5 w-5 md:h-4 md:w-4 mr-2" />
+                    {t('addNewLocation')}
+                </Button>
+            ) : (
             <div className="relative">
                 <div className="flex items-center gap-2">
                     <div className="relative flex-1">
@@ -229,6 +268,7 @@ export function LocationSelector({
                     </div>
                 )}
             </div>
+            )}
 
             {!hideSelectedList && (selectedLocations.length > 0 ? (
                 <div className="mt-4">
