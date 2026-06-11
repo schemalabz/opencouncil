@@ -2,7 +2,6 @@
 
 import Image from 'next/image';
 import {
-    Search,
     MapPin,
     MessageSquare,
     Flame,
@@ -33,36 +32,10 @@ export function BrandMark({ light, className }: { light?: boolean; className?: s
     );
 }
 
-/* search field (visual) */
-export function SearchField({
-    placeholder = 'Αναζήτηση θέματος, δρόμου ή απόφασης…',
-    big,
-}: {
-    placeholder?: string;
-    big?: boolean;
-}) {
-    return (
-        <label
-            className={cn(
-                'flex items-center gap-2.5 rounded-lg border border-border bg-background px-3 shadow-sm focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20',
-                big ? 'h-[52px]' : 'h-11',
-            )}
-        >
-            <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <input
-                className="w-full bg-transparent text-[15px] text-foreground outline-none placeholder:text-muted-foreground/70"
-                placeholder={placeholder}
-            />
-            <kbd className="hidden shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground sm:inline">
-                ⌘K
-            </kbd>
-        </label>
-    );
-}
-
 /* category chip */
 export function CatChip({ cat, small }: { cat: CategoryKey; small?: boolean }) {
     const c = CATEGORIES[cat];
+    const Icon = c.icon;
     return (
         <span
             className={cn(
@@ -71,7 +44,7 @@ export function CatChip({ cat, small }: { cat: CategoryKey; small?: boolean }) {
             )}
             style={{ color: c.color, backgroundColor: `${c.color}1a`, borderColor: `${c.color}38` }}
         >
-            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: c.color }} />
+            <Icon className={small ? 'h-3 w-3 shrink-0' : 'h-3.5 w-3.5 shrink-0'} />
             {small ? c.short : c.label}
         </span>
     );
@@ -113,12 +86,15 @@ export function FilterBar({ value, onChange }: { value: CatValue; onChange: (v: 
             <FilterPill active={value === 'all'} onClick={() => onChange('all')}>
                 Όλα
             </FilterPill>
-            {categoryList.map((c) => (
-                <FilterPill key={c.key} active={value === c.key} onClick={() => onChange(c.key)}>
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: c.color }} />
-                    {c.short}
-                </FilterPill>
-            ))}
+            {categoryList.map((c) => {
+                const Icon = c.icon;
+                return (
+                    <FilterPill key={c.key} active={value === c.key} onClick={() => onChange(c.key)}>
+                        <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: c.color }} />
+                        {c.short}
+                    </FilterPill>
+                );
+            })}
         </div>
     );
 }
@@ -269,7 +245,7 @@ export function SubjectPageLink({ href, className }: { href: string; className?:
     );
 }
 
-/* editorial topic card (photo on hot topics) — used by Concept B grid and Concept C list */
+/* editorial topic card (photo on hot topics) — used by the desktop panel list */
 export function EditorialCard({
     topic,
     onClick,

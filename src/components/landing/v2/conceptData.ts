@@ -1,5 +1,5 @@
 /**
- * Mock data for the map-first landing (Concept A / Concept C).
+ * Mock data for the map-first landing redesign.
  *
  * Ported from the design handoff's `data.js`. These shapes stand in for APIs that
  * don't exist yet — geo-located "hot subjects", municipalities, and meetings across
@@ -9,6 +9,8 @@
  * NOTE: coordinates are stored as { lat, lng }. Mapbox expects [lng, lat] tuples,
  * so use `lngLat()` when building GeoJSON.
  */
+
+import { Building2, CarFront, Euro, HeartHandshake, Leaf, Store, type LucideIcon } from 'lucide-react';
 
 export type CategoryKey =
     | 'transport'
@@ -26,15 +28,20 @@ export type Category = {
     short: string;
     /** hex accent used for pins, chips and the left rail */
     color: string;
+    /** lucide icon shown in category badges and map pins */
+    icon: LucideIcon;
 };
 
+// Icons follow the real topic taxonomy: transport → Συγκοινωνίες, budget →
+// Προϋπολογισμός & Οικονομία, env → Περιβάλλον, works → Πολεοδομία, social →
+// Πρόνοια, daily → Εμπόριο & Καταστήματα (λαϊκές, τραπεζοκαθίσματα κ.λπ.).
 export const CATEGORIES: Record<CategoryKey, Category> = {
-    transport: { key: 'transport', label: 'Κυκλοφορία & Στάθμευση', short: 'Κυκλοφορία', color: '#2E7D8C' },
-    budget: { key: 'budget', label: 'Προϋπολογισμός & Οικονομικά', short: 'Οικονομικά', color: '#3C5A99' },
-    env: { key: 'env', label: 'Περιβάλλον & Πράσινο', short: 'Περιβάλλον', color: '#3E8E5A' },
-    works: { key: 'works', label: 'Πολεοδομία & Έργα', short: 'Έργα', color: '#B07A2E' },
-    social: { key: 'social', label: 'Κοινωνικά & Πρόνοια', short: 'Κοινωνικά', color: '#7A5298' },
-    daily: { key: 'daily', label: 'Καθημερινότητα', short: 'Καθημερινότητα', color: '#B05468' },
+    transport: { key: 'transport', label: 'Κυκλοφορία & Στάθμευση', short: 'Κυκλοφορία', color: '#2E7D8C', icon: CarFront },
+    budget: { key: 'budget', label: 'Προϋπολογισμός & Οικονομικά', short: 'Οικονομικά', color: '#3C5A99', icon: Euro },
+    env: { key: 'env', label: 'Περιβάλλον & Πράσινο', short: 'Περιβάλλον', color: '#3E8E5A', icon: Leaf },
+    works: { key: 'works', label: 'Πολεοδομία & Έργα', short: 'Έργα', color: '#B07A2E', icon: Building2 },
+    social: { key: 'social', label: 'Κοινωνικά & Πρόνοια', short: 'Κοινωνικά', color: '#7A5298', icon: HeartHandshake },
+    daily: { key: 'daily', label: 'Καθημερινότητα', short: 'Καθημερινότητα', color: '#B05468', icon: Store },
 };
 
 export const categoryList: Category[] = Object.values(CATEGORIES);
