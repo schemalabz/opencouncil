@@ -7,6 +7,9 @@ const mockPrisma = {
         findUnique: jest.fn(),
         findMany: jest.fn(),
     },
+    utterance: {
+        findMany: jest.fn(),
+    },
 };
 
 jest.mock("../db/prisma", () => ({
@@ -56,15 +59,15 @@ beforeEach(() => {
 describe("getCandidateSegmentsForVoiceprint", () => {
     it("filters out short segments, sorts longest-first, and builds previews", async () => {
         mockPrisma.person.findUnique.mockResolvedValue({ cityId: CITY_ID });
+        // First pass: segment scan without transcripts.
         mockPrisma.speakerSegment.findMany.mockResolvedValue([
             {
                 id: "seg-short",
                 meetingId: MEETING_ID,
                 cityId: CITY_ID,
                 startTimestamp: 0,
-                endTimestamp: 10, // 10s -> filtered out
+                endTimestamp: 10, // 10s -> filtered out before the transcript fetch
                 meeting: { name: "Meeting A", name_en: "Meeting A", dateTime: new Date("2024-01-01T00:00:00Z") },
-                utterances: [{ text: "too short", startTimestamp: 0, endTimestamp: 10 }],
             },
             {
                 id: "seg-medium",
@@ -79,13 +82,6 @@ describe("getCandidateSegmentsForVoiceprint", () => {
                     audioUrl: null,
                     videoUrl: "https://media/meeting-b.mp4",
                 },
-                // window is [107.5, 137.5]; "intro" and "outro" fall outside it
-                utterances: [
-                    { text: "intro", startTimestamp: 100, endTimestamp: 105 },
-                    { text: "hello", startTimestamp: 110, endTimestamp: 120 },
-                    { text: "world", startTimestamp: 125, endTimestamp: 135 },
-                    { text: "outro", startTimestamp: 140, endTimestamp: 145 },
-                ],
             },
             {
                 id: "seg-long",
@@ -100,8 +96,16 @@ describe("getCandidateSegmentsForVoiceprint", () => {
                     audioUrl: "https://media/meeting-c.mp3",
                     videoUrl: "https://media/meeting-c.mp4",
                 },
-                utterances: [{ text: "longest segment", startTimestamp: 200, endTimestamp: 290 }],
             },
+        ]);
+        // Second pass: transcripts only for the surviving (longest) segments.
+        // seg-medium window is [107.5, 137.5]; "intro" and "outro" fall outside it.
+        mockPrisma.utterance.findMany.mockResolvedValue([
+            { speakerSegmentId: "seg-long", text: "longest segment", startTimestamp: 200, endTimestamp: 290 },
+            { speakerSegmentId: "seg-medium", text: "intro", startTimestamp: 100, endTimestamp: 105 },
+            { speakerSegmentId: "seg-medium", text: "hello", startTimestamp: 110, endTimestamp: 120 },
+            { speakerSegmentId: "seg-medium", text: "world", startTimestamp: 125, endTimestamp: 135 },
+            { speakerSegmentId: "seg-medium", text: "outro", startTimestamp: 140, endTimestamp: 145 },
         ]);
 
         const result = await getCandidateSegmentsForVoiceprint(PERSON_ID);
