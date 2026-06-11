@@ -42,6 +42,7 @@ import {
     getCandidateSegmentsForVoiceprint,
     requestGenerateVoiceprintForSegment,
 } from "../tasks/generateVoiceprint";
+import { computeVoiceprintWindow } from "../tasks/voiceprintWindow";
 
 const PERSON_ID = "person-1";
 const CITY_ID = "city-1";
@@ -63,7 +64,7 @@ describe("getCandidateSegmentsForVoiceprint", () => {
                 startTimestamp: 0,
                 endTimestamp: 10, // 10s -> filtered out
                 meeting: { name: "Meeting A", name_en: "Meeting A", dateTime: new Date("2024-01-01T00:00:00Z") },
-                utterances: [{ text: "too short" }],
+                utterances: [{ text: "too short", startTimestamp: 0, endTimestamp: 10 }],
             },
             {
                 id: "seg-medium",
@@ -71,8 +72,20 @@ describe("getCandidateSegmentsForVoiceprint", () => {
                 cityId: CITY_ID,
                 startTimestamp: 100,
                 endTimestamp: 145, // 45s
-                meeting: { name: "Meeting B", name_en: "Meeting B", dateTime: new Date("2024-02-01T00:00:00Z") },
-                utterances: [{ text: "hello" }, { text: "world" }],
+                meeting: {
+                    name: "Meeting B",
+                    name_en: "Meeting B",
+                    dateTime: new Date("2024-02-01T00:00:00Z"),
+                    audioUrl: null,
+                    videoUrl: "https://media/meeting-b.mp4",
+                },
+                // window is [107.5, 137.5]; "intro" and "outro" fall outside it
+                utterances: [
+                    { text: "intro", startTimestamp: 100, endTimestamp: 105 },
+                    { text: "hello", startTimestamp: 110, endTimestamp: 120 },
+                    { text: "world", startTimestamp: 125, endTimestamp: 135 },
+                    { text: "outro", startTimestamp: 140, endTimestamp: 145 },
+                ],
             },
             {
                 id: "seg-long",
@@ -80,8 +93,14 @@ describe("getCandidateSegmentsForVoiceprint", () => {
                 cityId: CITY_ID,
                 startTimestamp: 200,
                 endTimestamp: 290, // 90s
-                meeting: { name: "Meeting C", name_en: "Meeting C", dateTime: new Date("2024-03-01T00:00:00Z") },
-                utterances: [{ text: "longest segment" }],
+                meeting: {
+                    name: "Meeting C",
+                    name_en: "Meeting C",
+                    dateTime: new Date("2024-03-01T00:00:00Z"),
+                    audioUrl: "https://media/meeting-c.mp3",
+                    videoUrl: "https://media/meeting-c.mp4",
+                },
+                utterances: [{ text: "longest segment", startTimestamp: 200, endTimestamp: 290 }],
             },
         ]);
 
@@ -90,12 +109,48 @@ describe("getCandidateSegmentsForVoiceprint", () => {
         expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: CITY_ID });
         expect(result.map(c => c.segmentId)).toEqual(["seg-long", "seg-medium"]);
         expect(result[0].duration).toBe(90);
-        expect(result[1].textPreview).toBe("hello world");
+
+        // windowText is only the utterances inside the centered 30s window;
+        // fullText is the whole segment
+        expect(result[1].windowText).toBe("hello world");
+        expect(result[1].fullText).toBe("intro hello world outro");
+
+        // mediaUrl prefers audioUrl, falls back to videoUrl
+        expect(result[0].mediaUrl).toBe("https://media/meeting-c.mp3");
+        expect(result[1].mediaUrl).toBe("https://media/meeting-b.mp4");
+
+        // preview window matches the 30s window the voiceprint job will consume
+        expect(result[0].previewStartTimestamp).toBe(230);
+        expect(result[0].previewEndTimestamp).toBe(260);
+        expect(result[1].previewStartTimestamp).toBe(107.5);
+        expect(result[1].previewEndTimestamp).toBe(137.5);
     });
 
     it("throws when the person does not exist", async () => {
         mockPrisma.person.findUnique.mockResolvedValue(null);
         await expect(getCandidateSegmentsForVoiceprint(PERSON_ID)).rejects.toThrow("Person not found");
+    });
+});
+
+describe("computeVoiceprintWindow", () => {
+    it("returns the whole segment when it is exactly the window length", () => {
+        expect(computeVoiceprintWindow(100, 130)).toEqual({ startTimestamp: 100, endTimestamp: 130 });
+    });
+
+    it("centers a 30s window on the midpoint of a longer segment", () => {
+        // 90s segment [200, 290] -> midpoint 245 -> [230, 260]
+        expect(computeVoiceprintWindow(200, 290)).toEqual({ startTimestamp: 230, endTimestamp: 260 });
+    });
+
+    it("handles fractional bounds", () => {
+        // 45s segment [100, 145] -> midpoint 122.5 -> [107.5, 137.5]
+        expect(computeVoiceprintWindow(100, 145)).toEqual({ startTimestamp: 107.5, endTimestamp: 137.5 });
+    });
+
+    it("rejects invalid inputs", () => {
+        expect(() => computeVoiceprintWindow(NaN, 100)).toThrow(/finite/);
+        expect(() => computeVoiceprintWindow(200, 100)).toThrow(/must not exceed/);
+        expect(() => computeVoiceprintWindow(0, 100, 0)).toThrow(/positive/);
     });
 });
 
