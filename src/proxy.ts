@@ -30,6 +30,17 @@ export default async function proxy(req: NextRequest) {
     const chaniaResponse = handleChaniaSubdomain(req);
     if (chaniaResponse) return chaniaResponse;
 
+    // Next's automatic trailing-slash redirect is disabled app-wide
+    // (skipTrailingSlashRedirect in next.config.mjs) because PostHog calls
+    // its /ingest endpoints with trailing slashes. /ingest itself never
+    // reaches the proxy — the matcher excludes it — so restore the
+    // canonical-URL redirect for everything else here.
+    if (req.nextUrl.pathname.length > 1 && req.nextUrl.pathname.endsWith('/')) {
+        const url = req.nextUrl.clone();
+        url.pathname = url.pathname.replace(/\/+$/, '');
+        return NextResponse.redirect(url, 308);
+    }
+
     // Legacy vanity URL: rewrite /t-shirt to /qr/t-shirt
     // This allows managing the redirect destination from the QR campaign admin
     const pathname = req.nextUrl.pathname;
@@ -49,7 +60,10 @@ export default async function proxy(req: NextRequest) {
 }
 
 export const config = {
-    matcher: ['/((?!api|_next|_vercel|.*\\..*).*)'],
+    // `ingest` is the PostHog reverse proxy (rewrites in next.config.mjs):
+    // its extensionless endpoints (/ingest/e/, /ingest/flags/) must bypass
+    // basic auth and i18n routing, or events get swallowed by locale 404s.
+    matcher: ['/((?!api|ingest|_next|_vercel|.*\\..*).*)'],
 };
 
 function isHttpBasicAuthAuthenticated(req: Request) {
