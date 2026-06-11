@@ -24,9 +24,10 @@ const staleTimeMs = 10 * 60 * 1000; // 10 minutes
 interface TaskStatusComponentProps {
     task: TaskStatus
     onDelete: (taskId: string) => void
+    showMeetingInfo?: boolean
 }
 
-export function TaskStatusComponent({ task, onDelete }: TaskStatusComponentProps) {
+export function TaskStatusComponent({ task, onDelete, showMeetingInfo }: TaskStatusComponentProps) {
     const t = useTranslations('admin.taskStatus.reprocessDialog');
     const tStatus = useTranslations('admin.taskStatus');
     const [isStale, setIsStale] = useState(false);
@@ -109,6 +110,20 @@ export function TaskStatusComponent({ task, onDelete }: TaskStatusComponentProps
                         <Badge variant="outline" className="text-xs font-normal">
                             {task.type}
                         </Badge>
+                        {task.status === 'succeeded' && task.version !== null && (
+                            <span className="text-xs text-muted-foreground font-mono">v{task.version}</span>
+                        )}
+                        {showMeetingInfo && (
+                            <a
+                                href={`/${task.cityId}/${task.councilMeetingId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-mono text-xs text-blue-600 hover:underline"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                {task.cityId}/{task.councilMeetingId}
+                            </a>
+                        )}
                         <span className="text-xs font-medium">{tStatus(task.status)}</span>
                     </div>
                     <div className="flex items-center space-x-4">

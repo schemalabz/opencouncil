@@ -1,7 +1,8 @@
 "use client";
 
+import { useState, useMemo, useCallback } from 'react';
 import { formatTimestamp } from '@/lib/utils';
-import { formatGapDuration } from '@/lib/formatters/time';
+
 import { getAbsentLabel, extractFirstName } from '@/lib/formatters/name';
 import { el } from 'date-fns/locale';
 import { formatInTimeZone } from 'date-fns-tz';
@@ -11,23 +12,120 @@ import {
     MinutesMember,
     MinutesCouncilComposition,
     MinutesTranscriptEntry,
+    MinutesAttendanceChange,
 } from '@/lib/minutes/types';
+import { interleaveSubstitutes, formatSubjectLabel } from '@/lib/minutes/builders';
 import { getWithdrawnLabel } from '@/lib/utils/subjects';
+
+type DebugCategory = 'SUBJECT_DISCUSSION' | 'VOTE' | 'PROCEDURAL_VOTE' | 'ATTENDANCE' | 'OTHER' | 'CROSS_SUBJECT';
+
+const DEBUG_CATEGORIES: { key: DebugCategory; label: string; bg: string; border: string; color: string }[] = [
+    { key: 'SUBJECT_DISCUSSION', label: 'SUBJECT_DISCUSSION', bg: 'bg-blue-100', border: 'border-blue-300', color: '#dbeafe' },
+    { key: 'VOTE', label: 'VOTE', bg: 'bg-green-100', border: 'border-green-300', color: '#dcfce7' },
+    { key: 'PROCEDURAL_VOTE', label: 'PROCEDURAL_VOTE', bg: 'bg-yellow-100', border: 'border-yellow-300', color: '#fef9c3' },
+    { key: 'ATTENDANCE', label: 'ATTENDANCE', bg: 'bg-purple-100', border: 'border-purple-300', color: '#f3e8ff' },
+    { key: 'OTHER', label: 'OTHER / null', bg: 'bg-gray-100', border: 'border-gray-300', color: '#f3f4f6' },
+    { key: 'CROSS_SUBJECT', label: 'Cross-subject', bg: 'bg-red-200', border: 'border-red-300', color: '#fecaca' },
+];
+
+function getDebugCategory(status: string | null | undefined, isCrossSubject: boolean): DebugCategory {
+    if (isCrossSubject) return 'CROSS_SUBJECT';
+    switch (status) {
+        case 'SUBJECT_DISCUSSION': return 'SUBJECT_DISCUSSION';
+        case 'VOTE': return 'VOTE';
+        case 'PROCEDURAL_VOTE': return 'PROCEDURAL_VOTE';
+        case 'ATTENDANCE': return 'ATTENDANCE';
+        default: return 'OTHER';
+    }
+}
+
+function getDebugColor(category: DebugCategory): string {
+    return DEBUG_CATEGORIES.find(c => c.key === category)?.color ?? '#f3f4f6';
+}
 
 interface MinutesPreviewContentProps {
     data: MinutesData;
+    debugMode?: boolean;
 }
 
-export function MinutesPreviewContent({ data }: MinutesPreviewContentProps) {
+export function MinutesPreviewContent({ data, debugMode = false }: MinutesPreviewContentProps) {
     const meetingDate = new Date(data.meeting.dateTime);
+    const [debugCursor, setDebugCursor] = useState<{ category: DebugCategory; index: number } | null>(null);
 
     const agendaSubjects = data.subjects
         .filter(s => s.nonAgendaReason !== 'outOfAgenda')
         .sort((a, b) => (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0));
     const outOfAgendaSubjects = data.subjects.filter(s => s.nonAgendaReason === 'outOfAgenda');
 
+    // Count speaker entries per debug category across all transcript sections
+    const debugCounts = useMemo(() => {
+        if (!debugMode) return new Map<DebugCategory, number>();
+        const counts = new Map<DebugCategory, number>();
+        const allEntrySections = [
+            data.preambleEntries,
+            ...data.subjects.flatMap(s => [s.preDiscussionEntries, s.transcriptEntries]),
+            data.epilogueEntries,
+        ];
+        for (const entries of allEntrySections) {
+            let inCross = false;
+            for (const entry of entries) {
+                if (entry.type === 'cross-subject') {
+                    inCross = entry.direction === 'start';
+                    continue;
+                }
+                const cat = getDebugCategory(entry.debugStatus, inCross);
+                counts.set(cat, (counts.get(cat) ?? 0) + 1);
+            }
+        }
+        return counts;
+    }, [debugMode, data]);
+
+    const navigateDebug = useCallback((category: DebugCategory, direction: 'next' | 'prev') => {
+        const total = debugCounts.get(category) ?? 0;
+        if (total === 0) return;
+
+        let newIndex: number;
+        if (!debugCursor || debugCursor.category !== category) {
+            newIndex = direction === 'next' ? 0 : total - 1;
+        } else {
+            newIndex = direction === 'next'
+                ? (debugCursor.index + 1) % total
+                : (debugCursor.index - 1 + total) % total;
+        }
+
+        setDebugCursor({ category, index: newIndex });
+        const el = document.getElementById(`debug-${category}-${newIndex}`);
+        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, [debugCounts, debugCursor]);
+
     return (
         <div className="bg-white text-black font-serif max-w-[210mm] mx-auto px-12 py-8 text-sm leading-relaxed">
+            {/* Debug legend — sticky when debug mode is on */}
+            {debugMode && (
+                <div className="sticky top-0 z-10 bg-gray-50 -mx-12 px-12 py-2 border-b border-gray-200 print:hidden">
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                        {DEBUG_CATEGORIES.map(({ key, label, color }) => {
+                            const count = debugCounts.get(key) ?? 0;
+                            const isActive = debugCursor?.category === key;
+                            return (
+                                <span key={key} className="flex items-center gap-1">
+                                    <span className="w-3 h-3 rounded border border-gray-400" style={{ backgroundColor: color }} />
+                                    <span className={isActive ? 'font-bold' : ''}>{label}</span>
+                                    {count > 0 && (
+                                        <>
+                                            <span className="text-gray-400">({isActive ? `${debugCursor.index + 1}/` : ''}{count})</span>
+                                            <button onClick={() => navigateDebug(key, 'prev')} className="text-gray-400 hover:text-gray-700 px-0.5" title="Previous">&#9650;</button>
+                                            <button onClick={() => navigateDebug(key, 'next')} className="text-gray-400 hover:text-gray-700 px-0.5" title="Next">&#9660;</button>
+                                        </>
+                                    )}
+                                    {count === 0 && <span className="text-gray-300">(0)</span>}
+                                </span>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
             {/* Title Page */}
             <div className="text-center mb-12 pt-16">
                 <p className="text-base mb-2">{data.city.name_municipality}</p>
@@ -54,6 +152,19 @@ export function MinutesPreviewContent({ data }: MinutesPreviewContentProps) {
                 <CouncilCompositionSection composition={data.councilComposition} absentMembers={data.absentMembers} adminBody={data.administrativeBody} />
             )}
 
+            {/* Arrivals/departures */}
+            {data.attendanceChanges.length > 0 && (
+                <AttendanceChangesSection changes={data.attendanceChanges} />
+            )}
+
+            {/* Discussion order (only when non-natural) */}
+            {data.discussionOrderLabel && (
+                <p className="text-sm mt-2">
+                    <span className="font-bold">Σειρά συζήτησης: </span>
+                    {data.discussionOrderLabel}
+                </p>
+            )}
+
             {/* Table of Contents */}
             {data.subjects.length > 0 && (
                 <TOCSections
@@ -62,20 +173,25 @@ export function MinutesPreviewContent({ data }: MinutesPreviewContentProps) {
                 />
             )}
 
-            {/* Preamble: orphaned utterances before the first subject */}
-            {data.preambleEntries.length > 0 && (
-                <TranscriptSection entries={data.preambleEntries} />
-            )}
+            {/* Preamble, subjects, epilogue — share a debug counter for navigation IDs */}
+            <DebugCounterScope debugMode={debugMode}>
+                {(debugCounterRef) => (<>
+                    {/* Preamble: orphaned utterances before the first subject */}
+                    {data.preambleEntries.length > 0 && (
+                        <TranscriptSection entries={data.preambleEntries} debugMode={debugMode} debugCounterRef={debugCounterRef} />
+                    )}
 
-            {/* All subjects in discussion order (skip withdrawn — they appear in TOC only) */}
-            {data.subjects.filter(s => !s.withdrawn).map((subject) => (
-                <SubjectSection key={subject.subjectId} subject={subject} />
-            ))}
+                    {/* All subjects in discussion order (skip withdrawn and empty — they appear in TOC only) */}
+                    {data.subjects.filter(s => !s.withdrawn && (s.transcriptEntries.length > 0 || s.preDiscussionEntries.length > 0 || s.decision || s.voteResult)).map((subject) => (
+                        <SubjectSection key={subject.subjectId} subject={subject} debugMode={debugMode} debugCounterRef={debugCounterRef} />
+                    ))}
 
-            {/* Epilogue: orphaned utterances after the last subject */}
-            {data.epilogueEntries.length > 0 && (
-                <TranscriptSection entries={data.epilogueEntries} />
-            )}
+                    {/* Epilogue: orphaned utterances after the last subject */}
+                    {data.epilogueEntries.length > 0 && (
+                        <TranscriptSection entries={data.epilogueEntries} debugMode={debugMode} debugCounterRef={debugCounterRef} />
+                    )}
+                </>)}
+            </DebugCounterScope>
         </div>
     );
 }
@@ -152,6 +268,46 @@ function CouncilCompositionSection({ composition, absentMembers, adminBody }: {
     );
 }
 
+function AttendanceChangesSection({ changes }: { changes: MinutesAttendanceChange[] }) {
+    const arrivals = changes.filter(c => c.type === 'arrival');
+    const departures = changes.filter(c => c.type === 'departure');
+
+    return (
+        <div className="mt-4 space-y-2">
+            {arrivals.length > 0 && (
+                <div>
+                    <p className="font-bold text-sm">Προσελεύσεις</p>
+                    <ul className="list-disc pl-5 text-sm">
+                        {arrivals.map((change, i) => (
+                            <li key={i}>
+                                {change.name}
+                                <span className="text-muted-foreground">
+                                    {` — από το ${formatSubjectLabel(change.atSubject)}`}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+            {departures.length > 0 && (
+                <div>
+                    <p className="font-bold text-sm">Αποχωρήσεις</p>
+                    <ul className="list-disc pl-5 text-sm">
+                        {departures.map((change, i) => (
+                            <li key={i}>
+                                {change.name}
+                                <span className="text-muted-foreground">
+                                    {` — από το ${formatSubjectLabel(change.atSubject)}`}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+        </div>
+    );
+}
+
 /** Strip Greek diacritics — uppercase Greek convention omits accents (τόνοι). */
 function stripDiacritics(text: string): string {
     return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -168,7 +324,7 @@ function CommitteeAttendanceSection({ composition, absentMembers }: {
     const substituteIds = new Set(composition.substituteMembers.map(m => m.personId));
     const absentPersonIds = new Set(absentMembers?.map(m => m.personId) ?? []);
 
-    const allMembers = [...composition.members, ...composition.substituteMembers];
+    const allMembers = interleaveSubstitutes(composition.members, composition.substituteMembers);
     const presentMembers = allMembers.filter(m => !absentPersonIds.has(m.personId));
     const absentMembersList = allMembers.filter(m => absentPersonIds.has(m.personId));
 
@@ -272,7 +428,7 @@ function TOCTable({ subjects, useSequentialNumbers }: { subjects: MinutesSubject
     );
 }
 
-function SubjectSection({ subject }: { subject: MinutesSubject }) {
+function SubjectSection({ subject, debugMode, debugCounterRef }: { subject: MinutesSubject; debugMode?: boolean; debugCounterRef?: Map<DebugCategory, number> }) {
     const headingPrefix = subject.nonAgendaReason === 'outOfAgenda'
         ? null
         : subject.agendaItemIndex !== null
@@ -285,10 +441,10 @@ function SubjectSection({ subject }: { subject: MinutesSubject }) {
         <div className="mb-10">
             {/* Orphaned utterances between previous subject and this one */}
             {subject.preDiscussionEntries.length > 0 && (
-                <TranscriptSection entries={subject.preDiscussionEntries} />
+                <TranscriptSection entries={subject.preDiscussionEntries} debugMode={debugMode} debugCounterRef={debugCounterRef} />
             )}
 
-            <h3 id={`subject-${subject.subjectId}`} className="text-base font-bold mt-8 mb-3">{headingText}</h3>
+            <h3 id={`subject-${subject.subjectId}`} className={`sticky z-[5] bg-white py-2 -mx-12 px-12 border-b border-gray-200 text-base font-bold mt-8 mb-3 ${debugMode ? 'top-10' : 'top-0'}`}>{headingText}</h3>
 
             {subject.discussedWith && (
                 <p className="text-sm italic text-gray-500 mb-3">
@@ -302,9 +458,22 @@ function SubjectSection({ subject }: { subject: MinutesSubject }) {
                 </p>
             )}
 
+            {subject.discussedElsewhere && subject.discussedElsewhere.length > 0 && (
+                <p className="text-sm italic text-gray-500 mb-2">
+                    Μέρος της συζήτησης πραγματοποιήθηκε κατά τη συζήτηση{' '}
+                    {subject.discussedElsewhere.map((d, i) => (
+                        <span key={d.subjectId}>
+                            {i > 0 && ', '}
+                            {d.agendaItemIndex != null ? `του ${d.agendaItemIndex}ου θέματος` : ''}
+                            {' «'}<a href={`#subject-${d.subjectId}`} className="text-blue-400 hover:underline">{d.name}</a>{'»'}
+                        </span>
+                    ))}
+                </p>
+            )}
+
             {/* Transcript (no heading) */}
             {subject.transcriptEntries.length > 0 && (
-                <TranscriptSection entries={subject.transcriptEntries} />
+                <TranscriptSection entries={subject.transcriptEntries} debugMode={debugMode} debugCounterRef={debugCounterRef} />
             )}
 
             {/* Decision excerpt (no heading, extra spacing from transcript) */}
@@ -321,9 +490,7 @@ function SubjectSection({ subject }: { subject: MinutesSubject }) {
 }
 
 function formatMemberList(members: MinutesMember[]) {
-    return members
-        .map(m => m.party ? `${m.name} (${m.party}${m.isPartyHead ? ', Επικεφαλής' : ''})` : m.name)
-        .join(', ');
+    return members.map(m => m.name).join(', ');
 }
 
 function SubjectFooter({ subject }: { subject: MinutesSubject }) {
@@ -384,27 +551,52 @@ function SubjectFooter({ subject }: { subject: MinutesSubject }) {
     );
 }
 
-function TranscriptSection({ entries }: { entries: MinutesTranscriptEntry[] }) {
+/** Render prop that provides a shared mutable counter for debug navigation IDs.
+ *  The counter resets on each render so IDs stay consistent with the count computation. */
+function DebugCounterScope({ debugMode, children }: {
+    debugMode: boolean;
+    children: (counterRef: Map<DebugCategory, number> | undefined) => React.ReactNode;
+}) {
+    const counterRef = debugMode ? new Map<DebugCategory, number>() : undefined;
+    return <>{children(counterRef)}</>;
+}
+
+function TranscriptSection({ entries, debugMode, debugCounterRef }: {
+    entries: MinutesTranscriptEntry[];
+    debugMode?: boolean;
+    /** Shared mutable counter per category, passed across all TranscriptSection instances */
+    debugCounterRef?: Map<DebugCategory, number>;
+}) {
+    // Track cross-subject state for debug coloring — speaker entries between
+    // a cross-subject 'start' and 'end' marker are cross-subject content
+    let inCrossSubject = false;
+
     return (
         <div className="mt-2">
             <div className="space-y-3">
-                {entries.map((entry, i) => (
-                    entry.type === 'gap' ? (
-                        <div key={i} className="text-center text-sm text-gray-400 italic my-4 py-2 border-y border-dashed border-gray-200">
-                            [Άλλη συζήτηση {formatGapDuration(entry.durationSeconds)}
-                            {entry.subjects.length > 0 && (
-                                <> — {entry.subjects.map((s, j) => (
-                                    <span key={s.id}>
-                                        {j > 0 && ', '}
-                                        «<a href={`#subject-${s.id}`} className="hover:underline text-blue-400">
-                                            {s.name}
-                                        </a>»
-                                    </span>
-                                ))}</>
-                            )}]
-                        </div>
-                    ) : (
-                        <div key={i}>
+                {entries.map((entry, i) => {
+                    if (entry.type === 'cross-subject') {
+                        inCrossSubject = entry.direction === 'start';
+                        return (
+                            <p key={i} className="text-center text-sm italic text-gray-500 my-2 border-y border-dashed border-gray-300 py-1">
+                                {entry.direction === 'start'
+                                    ? <>[ Σχετικά με: «<a href={`#subject-${entry.subject.id}`} className="text-blue-400 hover:underline">{entry.subject.name}</a>» ]</>
+                                    : <>[ Συνέχεια συζήτησης ]</>
+                                }
+                            </p>
+                        );
+                    }
+                    const category = debugMode ? getDebugCategory(entry.debugStatus, inCrossSubject) : undefined;
+                    const debugColor = category ? getDebugColor(category) : undefined;
+                    // Assign a sequential ID per category for navigation
+                    let debugId: string | undefined;
+                    if (debugMode && category && debugCounterRef) {
+                        const idx = debugCounterRef.get(category) ?? 0;
+                        debugId = `debug-${category}-${idx}`;
+                        debugCounterRef.set(category, idx + 1);
+                    }
+                    return (
+                        <div key={i} id={debugId} className={debugMode ? 'border-l-4 pl-2' : ''} style={debugColor ? { borderLeftColor: debugColor } : undefined}>
                             <span className="font-bold">
                                 {entry.speakerName} {entry.party ? `(${entry.party}${entry.isPartyHead ? ', Επικεφαλής' : ''})` : ''}
                             </span>
@@ -416,8 +608,8 @@ function TranscriptSection({ entries }: { entries: MinutesTranscriptEntry[] }) {
                             </span>
                             <p className="mt-1">{entry.text}</p>
                         </div>
-                    )
-                ))}
+                    );
+                })}
             </div>
         </div>
     );

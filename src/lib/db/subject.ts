@@ -33,23 +33,32 @@ const introducedByInclude = {
     },
 } satisfies Prisma.PersonDefaultArgs;
 
+/** Person select with elected order — shared by votes and attendance queries */
+const personWithElectedOrderSelect = {
+    select: {
+        id: true,
+        name: true,
+        roles: {
+            select: { electedOrder: true, administrativeBodyId: true },
+            where: { electedOrder: { not: null } },
+        },
+    },
+} satisfies Prisma.PersonDefaultArgs;
+
 const votesInclude = {
     select: {
         voteType: true,
-        person: {
-            select: {
-                id: true,
-                name: true,
-                roles: {
-                    select: { electedOrder: true },
-                    where: { electedOrder: { not: null } },
-                    take: 1,
-                },
-            },
-        },
+        person: personWithElectedOrderSelect,
     },
     orderBy: { person: { name: 'asc' as const } },
 } satisfies Prisma.SubjectVoteFindManyArgs;
+
+const attendanceInclude = {
+    select: {
+        status: true,
+        person: personWithElectedOrderSelect,
+    },
+} satisfies Prisma.SubjectAttendanceFindManyArgs;
 
 // Type for location with coordinates
 export type LocationWithCoordinates = Location & {
@@ -73,7 +82,8 @@ export type SubjectWithRelations = Subject & {
     introducedBy: PersonWithRelations | null;
     discussedIn: (Subject & { topic: Topic | null }) | null;
     decision: Decision | null;
-    votes: { voteType: VoteType; person: { id: string; name: string; roles: { electedOrder: number | null }[] } }[];
+    votes: { voteType: VoteType; person: { id: string; name: string; roles: { electedOrder: number | null; administrativeBodyId: string | null }[] } }[];
+    attendance: { status: 'PRESENT' | 'ABSENT'; person: { id: string; name: string; roles: { electedOrder: number | null; administrativeBodyId: string | null }[] } }[];
 };
 
 export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
@@ -97,6 +107,7 @@ export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
                     },
                 },
                 votes: votesInclude,
+                attendance: attendanceInclude,
             },
         });
         return subjects;
@@ -137,6 +148,7 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
                     },
                 },
                 votes: votesInclude,
+                attendance: attendanceInclude,
             },
         });
 
@@ -202,6 +214,7 @@ export async function getSubject(subjectId: string): Promise<SubjectWithRelation
                     },
                 },
                 votes: votesInclude,
+                attendance: attendanceInclude,
             },
         });
 

@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { toggleCommentUpvote } from '@/lib/db/consultations';
 
-export async function POST(
-    request: NextRequest,
-    { params }: { params: { commentId: string } }
-) {
+export async function POST(request: NextRequest, props: { params: Promise<{ commentId: string }> }) {
+    const params = await props.params;
     try {
         const session = await auth();
 

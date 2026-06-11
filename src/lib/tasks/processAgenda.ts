@@ -37,6 +37,18 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
         throw new Error('Task not found');
     }
 
+    // Delete existing subjects and auto-generated highlights before saving new ones.
+    // This runs in the callback (not at dispatch time) so data is only deleted when
+    // new results are ready to replace it — a failed dispatch won't cause data loss.
+    // User-created highlights (createdById is set) are preserved — their subjectId
+    // will be set to null by the onDelete: SetNull cascade when subjects are deleted.
+    await prisma.highlight.deleteMany({
+        where: { meetingId: task.councilMeeting.id, cityId: task.councilMeeting.cityId, subjectId: { not: null }, createdById: null }
+    });
+    await prisma.subject.deleteMany({
+        where: { councilMeetingId: task.councilMeeting.id, cityId: task.councilMeeting.cityId }
+    });
+
     await saveSubjectsForMeeting(
         response.subjects,
         task.councilMeeting.cityId,

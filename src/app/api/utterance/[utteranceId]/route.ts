@@ -29,10 +29,8 @@ function getLocaleFromReferer(referer: string | null): string | null {
     return null;
 }
 
-export async function GET(
-    request: NextRequest,
-    { params }: { params: { utteranceId: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ utteranceId: string }> }) {
+    const params = await props.params;
     try {
         const { utteranceId } = params;
 

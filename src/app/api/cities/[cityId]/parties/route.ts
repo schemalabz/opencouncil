@@ -4,12 +4,14 @@ import { uploadFile } from '@/lib/s3'
 import { getPartiesForCity, createParty } from '@/lib/db/parties'
 import { withUserAuthorizedToEdit } from '@/lib/auth'
 
-export async function GET(request: Request, { params }: { params: { cityId: string } }) {
+export async function GET(request: Request, props: { params: Promise<{ cityId: string }> }) {
+    const params = await props.params;
     const parties = await getPartiesForCity(params.cityId)
     return NextResponse.json(parties)
 }
 
-export async function POST(request: Request, { params }: { params: { cityId: string } }) {
+export async function POST(request: Request, props: { params: Promise<{ cityId: string }> }) {
+    const params = await props.params;
     try {
         await withUserAuthorizedToEdit({ cityId: params.cityId })
         const formData = await request.formData()
@@ -43,7 +45,7 @@ export async function POST(request: Request, { params }: { params: { cityId: str
             cityId: params.cityId,
         })
 
-        revalidateTag(`city:${params.cityId}:parties`);
+        revalidateTag(`city:${params.cityId}:parties`, 'max');
         revalidatePath(`/${params.cityId}/parties`);
 
         return NextResponse.json(party)

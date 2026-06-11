@@ -1,0 +1,23 @@
+# OpenCouncil
+
+> OpenCouncil uses AI to monitor Greek municipal (city) council meetings and make them simple and understandable. It transcribes council meeting recordings, breaks them into discrete agenda subjects, summarizes them, and links statements to the councillors and parties who made them. Content is primarily in Greek (el); an English (en) translation of the interface is served under `/en`.
+
+## How content is organized
+
+- Cities (municipalities) each have a page at `https://opencouncil.gr/{cityId}` listing their council meetings, councillors, and parties.
+- Meetings live at `https://opencouncil.gr/{cityId}/{meetingId}` and contain the video, full transcript, and a list of agenda subjects.
+- Subjects (individual agenda items) live at `https://opencouncil.gr/{cityId}/{meetingId}/subjects/{subjectId}` and carry an AI summary plus the relevant transcript segments. These are the most citation-worthy units of content.
+- People (councillors) live at `https://opencouncil.gr/{cityId}/people/{personId}`.
+
+## Key entry points
+
+- [Homepage](https://opencouncil.gr/): overview of supported municipalities.
+- [About](https://opencouncil.gr/about): what OpenCouncil is, who runs it, and how it works.
+- [Search](https://opencouncil.gr/search): full-text search across all transcribed council meetings, filterable by city, person, party, topic, location, and date.
+- [Chat](https://opencouncil.gr/chat): an AI assistant for questions about council meetings and local government.
+- [Sitemap](https://opencouncil.gr/sitemap.xml): the authoritative list of all indexable cities, meetings, and subjects.
+
+## Notes
+
+- OpenCouncil is open source: https://github.com/schemalabz/opencouncil
+- Raw `/transcript` pages duplicate content that is better structured on the subject pages; prefer linking to subject pages when citing specific statements.

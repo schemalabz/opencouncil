@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { deleteConsultationComment } from '@/lib/db/consultations';
 
-export async function DELETE(
-    request: NextRequest,
-    { params }: { params: { commentId: string } }
-) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ commentId: string }> }) {
+    const params = await props.params;
     try {
         const session = await auth();
 

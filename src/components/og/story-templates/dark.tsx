@@ -1,0 +1,166 @@
+import { format } from "date-fns";
+import { el } from "date-fns/locale";
+import { OpenCouncilWatermark } from "../shared-components";
+import type { PreviewData } from "./types";
+import { SectionLabel, SubjectRow, RemainderLine, STORY_FONT_FAMILY, uppercaseGreek } from "./shared";
+
+// T2 — Dark (dark with hero date)
+export const Template2Dark = (data: PreviewData) => {
+    const { preAgenda, agenda, preAgendaShown, agendaShown, preAgendaRemaining, agendaRemaining } = data;
+
+    const month = format(data.meetingDate, "LLLL", { locale: el });
+    // Greek long-form weekday name, e.g. "Δευτέρα", "Τρίτη", ...
+    const weekday = data.meetingDate.toLocaleDateString("el-GR", { weekday: "long" });
+
+    return (
+        <div
+            style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                backgroundColor: "#0B0B0B",
+                // CSS background-image paints at stage 1 of the painting order (the element's
+                // own background), so in-flow content always paints on top of it. Using an
+                // <img position: absolute> instead would paint at stage 6 and cover content.
+                backgroundImage: "url(/og/bg-dark-dots.png)",
+                backgroundSize: "1080px 1920px",
+                backgroundRepeat: "no-repeat",
+                color: "#F5F5F5",
+                padding: "64px 56px",
+                position: "relative",
+                fontFamily: STORY_FONT_FAMILY,
+            }}
+        >
+            {/* Top strip in a full-width light-tinted wrapper */}
+            <div
+                style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    marginLeft: -56,
+                    marginRight: -56,
+                    padding: "32px 56px",
+                    marginBottom: 88,
+                    backgroundColor: "#ffffff",
+                    borderBottom: "1px solid rgba(255,255,255,0.08)",
+                }}
+            >
+                {data.cityLogoImage && (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                        src={data.cityLogoImage}
+                        height={130}
+                        alt="City Logo"
+                        style={{ objectFit: "contain", marginRight: 40 }}
+                    />
+                )}
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                    <span
+                        style={{
+                            display: "flex",
+                            fontSize: 36,
+                            fontWeight: 600,
+                            color: "#1f2937ad",
+                            letterSpacing: "0.18em",
+                            whiteSpace: "nowrap",
+                        }}
+                    >
+                        {data.adminBodyName ? uppercaseGreek(data.adminBodyName) : ""}
+                    </span>
+                    <span style={{ display: "flex", fontSize: 40, fontWeight: 700, color: "#1F2937", marginTop: 4, whiteSpace: "nowrap" }}>
+                        {data.cityName}
+                    </span>
+                </div>
+            </div>
+
+            {/* Hero date */}
+            <div style={{ display: "flex", alignItems: "flex-end", marginBottom: 28 }}>
+                <span
+                    style={{
+                        display: "flex",
+                        fontSize: 320,
+                        fontWeight: 900,
+                        color: "#FFFFFF",
+                        lineHeight: 0.85,
+                        letterSpacing: "-0.04em",
+                    }}
+                >
+                    {String(data.meetingDate.getDate()).padStart(2, "0")}
+                </span>
+                <div style={{ display: "flex", flexDirection: "column", marginLeft: 28, marginBottom: 18 }}>
+                    <span
+                        style={{
+                            display: "flex",
+                            fontSize: 60,
+                            fontWeight: 700,
+                            color: "#FFFFFF",
+                            lineHeight: 1,
+                            whiteSpace: "nowrap",
+                        }}
+                    >
+                        {weekday}
+                    </span>
+                    <span
+                        style={{
+                            display: "flex",
+                            fontSize: 60,
+                            fontWeight: 700,
+                            color: "#FFFFFF",
+                            lineHeight: 1,
+                            whiteSpace: "nowrap",
+                        }}
+                    >
+                        {month}
+                    </span>
+                    <span style={{ display: "flex", fontSize: 36, color: "#9CA3AF", marginTop: 8, whiteSpace: "nowrap" }}>
+                        {data.meetingDate.getFullYear()}
+                    </span>
+                </div>
+            </div>
+
+            {/* Meta strip */}
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    color: "#9CA3AF",
+                    fontSize: 32,
+                    marginBottom: 48,
+                }}
+            >
+                <span style={{ display: "flex", whiteSpace: "nowrap" }}>{`Συζητήθηκαν ${data.totalSubjects} θέματα`}</span>
+            </div>
+
+            {preAgendaShown.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                    <SectionLabel label="Προ ημερησίας συζήτηση" count={preAgenda.length} color="#9CA3AF" />
+                    {preAgendaShown.map((s) => (
+                        <SubjectRow key={s.id} subject={s} palette="dark" />
+                    ))}
+                </div>
+            )}
+
+            {preAgendaRemaining > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", marginBottom: 64 }}>
+                    <RemainderLine count={preAgendaRemaining} color="#9CA3AF" label="ακόμα θέματα προ ημερησίας συζήτησης" />
+                </div>
+            )}
+
+            {/* Agenda section */}
+            {agendaShown.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                    <SectionLabel label="Ημερήσια διάταξη" count={agenda.length} color="#9CA3AF" />
+                    {agendaShown.map((s) => (
+                        <SubjectRow key={s.id} subject={s} palette="dark" />
+                    ))}
+                </div>
+            )}
+
+            {agendaRemaining > 0 && <RemainderLine count={agendaRemaining} color="#9CA3AF" label="ακόμα θέματα στην ημερήσια διάταξη" />}
+
+            <OpenCouncilWatermark logoSrc={data.whiteLogoSrc} logoOnly size={96} bottom={48} right={48} />
+        </div>
+    );
+};

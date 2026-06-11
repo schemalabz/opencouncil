@@ -1,9 +1,9 @@
-import { City, CouncilMeeting, Party } from "@prisma/client";
+import { AdministrativeBody, City, CouncilMeeting, Party } from "@prisma/client";
 import { Statistics } from "@/lib/statistics";
 import { SubjectWithRelations } from "@/lib/db/subject";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import Icon from "./icon";
-import { MapPin, ScrollText, Calendar, Loader2, Clock, MessageSquare } from "lucide-react";
+import { MapPin, ScrollText, Loader2, Clock, MessageSquare } from "lucide-react";
 import { cn, getPartyFromRoles } from "@/lib/utils";
 import { getNonAgendaLabel, getWithdrawnLabel } from "@/lib/utils/subjects";
 import { Link, useRouter } from "@/i18n/routing";
@@ -12,13 +12,14 @@ import { PersonWithRelations } from '@/lib/db/people';
 import { HighlightVideo } from "./meetings/HighlightVideo";
 import { HighlightWithUtterances } from "@/lib/db/highlights";
 import { stripMarkdown } from "@/lib/formatters/markdown";
+import { formatDate } from "@/lib/formatters/time";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 
 interface SubjectCardProps {
     subject: SubjectWithRelations & { statistics?: Statistics };
     city: City;
-    meeting: CouncilMeeting;
+    meeting: CouncilMeeting & { administrativeBody?: AdministrativeBody | null };
     parties: Party[];
     persons: PersonWithRelations[];
     fullWidth?: boolean;
@@ -100,19 +101,22 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
 
                 {/* Header: topic icon + title + meta */}
                 <CardHeader className="flex flex-col gap-1.5 pb-2">
-                    {showContext && (
-                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70 -mt-1 -mb-1">
-                            <span className="truncate">
-                                {city.name} • {meeting.name}
-                            </span>
-                        </div>
-                    )}
                     <div className="flex flex-row items-center gap-1.5">
                         <div className="p-1.5 rounded-full shrink-0 transition-colors duration-300" style={{ backgroundColor: subject.topic?.colorHex ? subject.topic.colorHex + "20" : "#e5e7eb" }}>
                             <Icon name={subject.topic?.icon || "hash"} color={subject.topic?.colorHex || "#9ca3af"} size={16} />
                         </div>
                         <CardTitle className="text-sm sm:text-base line-clamp-2 flex-1 group-hover/card:text-accent-foreground transition-colors duration-300">{subject.name}</CardTitle>
                     </div>
+                    {showContext && (
+                        <div className="flex flex-col gap-0.5">
+                            <span className="text-[10px] text-muted-foreground/70">
+                                {[city.name, meeting.administrativeBody?.name, formatDate(new Date(meeting.dateTime))]
+                                    .filter(Boolean)
+                                    .join(" · ")}
+                            </span>
+                            <span className="text-xs font-medium text-foreground/90">{meeting.name}</span>
+                        </div>
+                    )}
                     <div className="flex flex-row justify-between gap-2 text-xs text-muted-foreground">
                         <div className="flex items-center gap-1 min-w-0 flex-1">
                             <MapPin className="w-3.5 h-3.5 shrink-0" />
@@ -192,14 +196,6 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                                 autoScroll
                                 isHovered={isCardHovered}
                             />
-                        </div>
-                    )}
-                    {showContext && (
-                        <div className="flex justify-end w-full mt-auto">
-                            <span className="text-[10px] text-muted-foreground/70 flex items-center gap-1">
-                                <Calendar className="w-3 h-3" />
-                                {new Date(meeting.dateTime).toLocaleDateString('el-GR', { year: 'numeric', month: 'long', day: 'numeric' })}
-                            </span>
                         </div>
                     )}
                 </CardFooter>

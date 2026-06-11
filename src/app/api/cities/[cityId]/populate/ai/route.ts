@@ -4,10 +4,8 @@ import { canUseCityCreator, getCity } from '@/lib/db/cities';
 import { generateCityDataWithAI } from '@/lib/cityCreatorAI';
 
 // POST: AI-powered city data population with streaming
-export async function POST(
-    request: NextRequest,
-    { params }: { params: { cityId: string } }
-) {
+export async function POST(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {
+    const params = await props.params;
     try {
         const user = await getCurrentUser();
 

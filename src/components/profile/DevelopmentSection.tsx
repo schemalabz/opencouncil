@@ -8,11 +8,15 @@ import { Settings, Eye, EyeOff } from "lucide-react"
 import { useQuickLoginVisibility } from "@/hooks/useQuickLoginVisibility"
 import { IS_DEV } from "@/lib/utils"
 
-export function DevelopmentSection() {
+// `isPreview` is passed from the server (profile/page.tsx reads
+// process.env.IS_PREVIEW at runtime). It can't be read here directly: IS_PREVIEW
+// is not a NEXT_PUBLIC_ var and is only set at runtime by the preview systemd
+// unit, so it's undefined in the client bundle.
+export function DevelopmentSection({ isPreview = false }: { isPreview?: boolean }) {
   const { isVisible, isLoaded, toggle } = useQuickLoginVisibility()
 
-  // Only show in development
-  if (!IS_DEV) {
+  // Only show in development or on preview deployments
+  if (!(IS_DEV || isPreview)) {
     return null
   }
 
@@ -28,7 +32,7 @@ export function DevelopmentSection() {
           <Settings className="h-5 w-5 text-red-600" />
           Development Tools
           <Badge variant="secondary" className="bg-red-100 text-red-800 text-xs">
-            DEV ONLY
+            {isPreview ? 'PREVIEW ONLY' : 'DEV ONLY'}
           </Badge>
         </CardTitle>
       </CardHeader>

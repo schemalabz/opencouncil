@@ -7,8 +7,9 @@ import prisma from '@/lib/db/prisma';
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { cityId: string; meetingId: string } }
+    props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
+    const params = await props.params;
     await withUserAuthorizedToEdit({ cityId: params.cityId });
 
     const body = await request.json();

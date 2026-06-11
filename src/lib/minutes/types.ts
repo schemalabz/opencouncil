@@ -40,20 +40,20 @@ export interface MinutesSpeakerEntry {
     role: string | null;
     text: string;
     timestamp: number;
+    /** Debug: DiscussionStatus of the first utterance in this block */
+    debugStatus?: string | null;
+    /** Debug: discussionSubjectId of the first utterance in this block */
+    debugSubjectId?: string | null;
 }
 
-export interface MinutesGapSubject {
-    id: string;
-    name: string;
+export interface MinutesCrossSubjectEntry {
+    type: 'cross-subject';
+    /** 'start' = beginning of cross-subject block, 'end' = return to original subject */
+    direction: 'start' | 'end';
+    subject: { id: string; name: string };
 }
 
-export interface MinutesGapEntry {
-    type: 'gap';
-    durationSeconds: number;
-    subjects: MinutesGapSubject[];
-}
-
-export type MinutesTranscriptEntry = MinutesSpeakerEntry | MinutesGapEntry;
+export type MinutesTranscriptEntry = MinutesSpeakerEntry | MinutesCrossSubjectEntry;
 
 export interface MinutesSubject {
     subjectId: string;
@@ -63,6 +63,13 @@ export interface MinutesSubject {
     name: string;
 
     discussedWith: { id: string; name: string; agendaItemIndex: number | null } | null;
+
+    /** Subjects whose discussion partially occurred within another subject's section */
+    discussedElsewhere: Array<{
+        subjectId: string;
+        name: string;
+        agendaItemIndex: number | null;
+    }> | null;
 
     decision: {
         protocolNumber: string | null;
@@ -75,6 +82,21 @@ export interface MinutesSubject {
     /** Orphaned utterances that fall between the previous subject and this one */
     preDiscussionEntries: MinutesTranscriptEntry[];
     transcriptEntries: MinutesTranscriptEntry[];
+}
+
+export interface MinutesAttendanceChange {
+    personId: string;
+    name: string;
+    type: 'arrival' | 'departure';
+    /** The agenda item where this change is first observed (subject immediately after the change) */
+    atSubject: {
+        id: string;
+        name: string;
+        agendaItemIndex: number | null;
+        nonAgendaReason: 'beforeAgenda' | 'outOfAgenda' | null;
+        /** Sequential number among out-of-agenda subjects (1-based), null for regular items */
+        outOfAgendaIndex: number | null;
+    };
 }
 
 export interface MinutesData {
@@ -96,6 +118,10 @@ export interface MinutesData {
     absentMembers: MinutesMember[] | null;
     /** Orphaned utterances before the first subject (opening remarks, procedural content) */
     preambleEntries: MinutesTranscriptEntry[];
+    /** Mid-meeting arrivals and departures derived from per-subject attendance diffs */
+    attendanceChanges: MinutesAttendanceChange[];
+    /** Discussion order summary, only set when subjects were discussed out of natural order */
+    discussionOrderLabel: string | null;
     subjects: MinutesSubject[];
     /** Orphaned utterances after the last subject (closing remarks) */
     epilogueEntries: MinutesTranscriptEntry[];

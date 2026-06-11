@@ -108,7 +108,7 @@ export const TEAM_MEMBERS: TeamMember[] = [
         socials: {
             linkedin: 'https://www.linkedin.com/in/christos-porios-91297690/',
             twitter: 'https://twitter.com/christosporios',
-            email: 'mailto:christos@schemalabs.gr',
+            email: 'mailto:christos@opencouncil.gr',
         },
     },
     {
@@ -117,7 +117,7 @@ export const TEAM_MEMBERS: TeamMember[] = [
         socials: {
             linkedin: 'https://www.linkedin.com/in/kouloumos/',
             twitter: 'https://twitter.com/kouloumos',
-            email: 'mailto:andreas@schemalabs.gr',
+            email: 'mailto:andreas@opencouncil.gr',
         },
     },
     {
@@ -125,7 +125,7 @@ export const TEAM_MEMBERS: TeamMember[] = [
         image: '/people/eliza.jpeg',
         socials: {
             linkedin: 'https://www.linkedin.com/in/egkimitzoudi/',
-            email: 'mailto:eliza@schemalabs.gr',
+            email: 'mailto:eliza@opencouncil.gr',
         },
     },
     {
@@ -133,7 +133,7 @@ export const TEAM_MEMBERS: TeamMember[] = [
         image: '/people/thanos.png',
         socials: {
             linkedin: 'https://www.linkedin.com/in/athanasios-papadogiannis-099537195/',
-            email: 'mailto:thanos@schemalabs.gr',
+            email: 'mailto:thanos@opencouncil.gr',
         },
     },
     {
@@ -144,10 +144,11 @@ export const TEAM_MEMBERS: TeamMember[] = [
         },
     },
     {
-        id: 'klea',
-        image: '/people/klea.png',
+        id: 'myrto',
+        image: '/people/myrto.jpg',
         socials: {
-            linkedin: 'https://www.linkedin.com/in/klea-meshi-0980b2370/',
+            linkedin: 'https://www.linkedin.com/in/myrto-plemmenou/',
+            email: 'mailto:myrto@opencouncil.gr',
         },
     },
 ]

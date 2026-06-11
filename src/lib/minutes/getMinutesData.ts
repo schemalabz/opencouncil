@@ -3,6 +3,7 @@ import { getSubjectsForMeeting } from '@/lib/db/subject';
 import { getExtractedDataForMeeting, getMeetingAttendance, SubjectExtractedData } from '@/lib/db/decisions';
 import { getPeopleForCity } from '@/lib/db/people';
 import { getCity } from '@/lib/db/cities';
+import { getElectedOrderForBody } from '@/lib/sorting/people';
 import { getSpeakerDisplayInfo, isRoleActiveAt, isMayorRole, simplifyRoleName } from '@/lib/utils/roles';
 import { PersonWithRelations } from '@/lib/db/people';
 import prisma from '@/lib/db/prisma';
@@ -17,13 +18,15 @@ import {
     buildAttendance,
     buildVoteResult,
     buildCouncilComposition,
+    buildAttendanceChanges,
     sortSubjectsByDiscussionOrder,
     sortByElectedOrder,
     MemberResolver,
     ElectedOrderGetter,
 } from './builders';
 
-import { buildTranscriptEntriesFromUtterances, GAP_FILL_THRESHOLD_SECONDS, GapContentUtterance } from './transcriptEntries';
+import { buildTranscriptEntriesFromUtterances, CrossSubjectInfo } from './transcriptEntries';
+import { computeTemporalWindows, assignUtterances } from './temporalWindows';
 
 export async function getMinutesData(
     cityId: string,
@@ -53,129 +56,44 @@ export async function getMinutesData(
 
     // Filter to agenda + outOfAgenda subjects (exclude beforeAgenda)
     // Includes withdrawn subjects — they appear in the TOC but get empty transcript entries
-    const filteredSubjects = subjects.filter(
+    const sectionSubjects = subjects.filter(
         s => s.agendaItemIndex || s.nonAgendaReason === 'outOfAgenda'
     );
 
-    // Get transcript entries grouped by non-withdrawn subjects only
-    const subjectIds = filteredSubjects.filter(s => !s.withdrawn).map(s => s.id);
-    const utteranceSelect = {
-        id: true,
-        text: true,
-        startTimestamp: true,
-        endTimestamp: true,
-        discussionSubjectId: true,
-        speakerSegment: {
-            select: {
-                id: true,
-                meetingId: true,
-                cityId: true,
-                speakerTag: {
-                    select: {
-                        label: true,
-                        personId: true,
+    // Get active (non-withdrawn) subject IDs for temporal window computation
+    const activeSubjectIds = sectionSubjects.filter(s => !s.withdrawn).map(s => s.id);
+
+    // Fetch ALL meeting utterances in a single query (no status filter)
+    const allUtterances = await prisma.utterance.findMany({
+        where: {
+            speakerSegment: { meetingId: meeting.id, cityId },
+        },
+        select: {
+            id: true,
+            text: true,
+            startTimestamp: true,
+            endTimestamp: true,
+            discussionSubjectId: true,
+            discussionStatus: true,
+            speakerSegment: {
+                select: {
+                    speakerTag: {
+                        select: {
+                            label: true,
+                            personId: true,
+                        },
                     },
                 },
             },
         },
-    } as const;
-
-    const utterancesWithSpeaker = await prisma.utterance.findMany({
-        where: {
-            discussionSubjectId: { in: subjectIds },
-            discussionStatus: { in: ['SUBJECT_DISCUSSION', 'VOTE'] },
-        },
-        select: utteranceSelect,
         orderBy: { startTimestamp: 'asc' },
     });
 
-    type UtteranceWithSpeaker = typeof utterancesWithSpeaker[number];
-
-    // Group utterances by subject
-    const utterancesBySubject = new Map<string, UtteranceWithSpeaker[]>();
-    for (const u of utterancesWithSpeaker) {
-        if (!u.discussionSubjectId) continue;
-        const list = utterancesBySubject.get(u.discussionSubjectId) || [];
-        list.push(u);
-        utterancesBySubject.set(u.discussionSubjectId, list);
-    }
-
-    // Subject name map for gap marker labels (includes all subjects, not just filtered)
+    // Subject name map for cross-subject annotations (includes all subjects)
     const subjectNameMap = new Map(subjects.map(s => [s.id, s.name]));
 
-    // Per-subject gap content info for long gaps
-    const gapContentBySubject = new Map<string, GapContentUtterance[]>();
-
-    // Detect gaps, fetch fill utterances for short gaps, check content for long gaps
-    for (const [subjectId, utterances] of utterancesBySubject) {
-        if (utterances.length < 2) continue;
-
-        const shortGapRanges: { start: number; end: number }[] = [];
-
-        for (let i = 0; i < utterances.length - 1; i++) {
-            const current = utterances[i];
-            const next = utterances[i + 1];
-            const gap = next.startTimestamp - current.endTimestamp;
-
-            if (gap > 0 && gap < GAP_FILL_THRESHOLD_SECONDS) {
-                shortGapRanges.push({ start: current.endTimestamp, end: next.startTimestamp });
-            }
-        }
-
-        if (shortGapRanges.length > 0) {
-            // Fetch fill utterances for all short gaps in one batch
-            const fillUtterances = await prisma.utterance.findMany({
-                where: {
-                    speakerSegment: {
-                        meetingId: meeting.id,
-                        cityId: cityId,
-                    },
-                    OR: shortGapRanges.map(range => ({
-                        startTimestamp: { gte: range.start, lt: range.end },
-                    })),
-                    NOT: { discussionSubjectId: { in: subjectIds } },
-                },
-                select: utteranceSelect,
-                orderBy: { startTimestamp: 'asc' },
-            });
-
-            // Merge fill utterances into the list at correct positions
-            if (fillUtterances.length > 0) {
-                const merged = [...utterances, ...fillUtterances];
-                merged.sort((a, b) => a.startTimestamp - b.startTimestamp);
-                utterancesBySubject.set(subjectId, merged);
-            }
-        }
-
-        // After short gap handling, detect long gaps and check for content
-        const updatedUtterances = utterancesBySubject.get(subjectId)!;
-        const longGapRanges: { start: number; end: number }[] = [];
-        for (let i = 0; i < updatedUtterances.length - 1; i++) {
-            const gap = updatedUtterances[i + 1].startTimestamp - updatedUtterances[i].endTimestamp;
-            if (gap >= GAP_FILL_THRESHOLD_SECONDS) {
-                longGapRanges.push({
-                    start: updatedUtterances[i].endTimestamp,
-                    end: updatedUtterances[i + 1].startTimestamp,
-                });
-            }
-        }
-
-        if (longGapRanges.length > 0) {
-            // Check what content exists in long gap ranges (for silence vs real gap detection)
-            const gapContent = await prisma.utterance.findMany({
-                where: {
-                    speakerSegment: { meetingId: meeting.id, cityId },
-                    OR: longGapRanges.map(r => ({
-                        startTimestamp: { gte: r.start, lt: r.end },
-                    })),
-                    id: { notIn: updatedUtterances.map(u => u.id) },
-                },
-                select: { startTimestamp: true, discussionSubjectId: true },
-                orderBy: { startTimestamp: 'asc' },
-            });
-            gapContentBySubject.set(subjectId, gapContent);
-        }
-    }
+    // Compute temporal windows from linked utterances
+    const windows = computeTemporalWindows(allUtterances, activeSubjectIds);
 
     const meetingDate = new Date(meeting.dateTime);
 
@@ -200,15 +118,42 @@ export async function getMinutesData(
         };
     };
 
+    const adminBodyId = meeting.administrativeBody?.id ?? null;
+
     const getElectedOrder: ElectedOrderGetter = (personId) => {
         const person = peopleMap.get(personId);
-        if (!person) return null;
-        const role = person.roles.find(r => r.electedOrder != null);
-        return role?.electedOrder ?? null;
+        return getElectedOrderForBody(person, adminBodyId);
     };
 
+    // Compute preliminary first-utterance timestamps for discussion order sorting.
+    // First pass: exclude PROCEDURAL_VOTE; second pass: fallback for procedural-only subjects.
+    const preliminaryFirstUtterance = new Map<string, number>();
+    for (const u of allUtterances) {
+        if (u.discussionSubjectId && !preliminaryFirstUtterance.has(u.discussionSubjectId)) {
+            if (u.discussionStatus !== 'PROCEDURAL_VOTE') {
+                preliminaryFirstUtterance.set(u.discussionSubjectId, u.startTimestamp);
+            }
+        }
+    }
+    for (const u of allUtterances) {
+        if (u.discussionSubjectId && !preliminaryFirstUtterance.has(u.discussionSubjectId)) {
+            preliminaryFirstUtterance.set(u.discussionSubjectId, u.startTimestamp);
+        }
+    }
+
+    const sortedSubjects = sortSubjectsByDiscussionOrder(sectionSubjects, preliminaryFirstUtterance);
+    const sortedActiveIds = sortedSubjects.filter(s => !s.withdrawn).map(s => s.id);
+
+    // Assign all utterances to temporal windows
+    const assignment = assignUtterances(allUtterances, windows, sortedActiveIds);
+
     function buildTranscriptEntries(subjectId: string): MinutesTranscriptEntry[] {
-        const utterances = utterancesBySubject.get(subjectId) || [];
+        const utterances = assignment.utterancesBySubject.get(subjectId) || [];
+        const crossMap = assignment.crossSubjectMap.get(subjectId);
+        const crossSubjectInfo: CrossSubjectInfo | undefined = crossMap && crossMap.size > 0
+            ? { crossSubjectUtterances: crossMap, subjectNames: subjectNameMap }
+            : undefined;
+
         return buildTranscriptEntriesFromUtterances(utterances, (personId, label) => {
             const person = personId ? peopleMap.get(personId) : null;
             const speakerName = person ? person.name_short : (label || 'Ομιλητής');
@@ -221,114 +166,47 @@ export async function getMinutesData(
                 isPartyHead,
                 role: simplifyRoleName(role?.name ?? null),
             };
-        }, {
-            gapContentUtterances: gapContentBySubject.get(subjectId) ?? [],
-            subjectNames: subjectNameMap,
+        }, crossSubjectInfo);
+    }
+
+    function buildOrphanTranscriptEntries(utterances: typeof allUtterances): MinutesTranscriptEntry[] {
+        return buildTranscriptEntriesFromUtterances(utterances, (personId, label) => {
+            const person = personId ? peopleMap.get(personId) : null;
+            const speakerName = person ? person.name_short : (label || 'Ομιλητής');
+            const { party, role, isPartyHead } = person
+                ? getSpeakerDisplayInfo(person.roles || [], meetingDate)
+                : { party: null, role: null, isPartyHead: false };
+            return {
+                speakerName,
+                party: party?.name_short ?? null,
+                isPartyHead,
+                role: simplifyRoleName(role?.name ?? null),
+            };
         });
     }
 
-    // Sort subjects by discussion order (first utterance timestamp)
-    const firstUtteranceBySubject = new Map<string, number>();
-    for (const [subjectId, utterances] of utterancesBySubject) {
-        if (utterances.length > 0) {
-            firstUtteranceBySubject.set(subjectId, utterances[0].startTimestamp);
+    const preambleEntries = buildOrphanTranscriptEntries(assignment.preambleUtterances);
+    const epilogueEntries = buildOrphanTranscriptEntries(assignment.epilogueUtterances);
+
+    // Build a map from sortedActiveIds index → sortedSubjects index
+    // so we can look up pre-discussion utterances correctly (preDiscussionByIndex
+    // is keyed by active subject index, not by sortedSubjects index)
+    const activeIndexToSubjectId = new Map<number, string>();
+    let activeIdx = 0;
+    for (const s of sortedSubjects) {
+        if (!s.withdrawn) {
+            activeIndexToSubjectId.set(activeIdx, s.id);
+            activeIdx++;
         }
     }
-
-    const sortedSubjects = sortSubjectsByDiscussionOrder(filteredSubjects, firstUtteranceBySubject);
-
-    // --- Orphaned utterances (no subject, or PROCEDURAL_VOTE which flows into preamble/gaps) ---
-    const orphanedUtterances = await prisma.utterance.findMany({
-        where: {
-            speakerSegment: { meetingId: meeting.id, cityId },
-            OR: [
-                { discussionSubjectId: null },
-                { discussionStatus: 'PROCEDURAL_VOTE' },
-            ],
-        },
-        select: utteranceSelect,
-        orderBy: { startTimestamp: 'asc' },
-    });
-
-    // Compute timestamp boundaries for each sorted subject
-    const subjectBounds: { firstTs: number; lastTs: number }[] = sortedSubjects.map(s => {
-        const utterances = utterancesBySubject.get(s.id) || [];
-        if (utterances.length === 0) return { firstTs: Infinity, lastTs: -Infinity };
-        return {
-            firstTs: utterances[0].startTimestamp,
-            lastTs: utterances[utterances.length - 1].endTimestamp,
-        };
-    });
-
-    // Split orphaned utterances by position relative to subjects
-    const preambleUtterances: UtteranceWithSpeaker[] = [];
-    const epilogueUtterances: UtteranceWithSpeaker[] = [];
-    const preDiscussionByIndex = new Map<number, UtteranceWithSpeaker[]>();
-
-    const boundsWithUtterances = subjectBounds.filter(b => b.firstTs !== Infinity);
-    const firstSubjectTs = boundsWithUtterances.length > 0
-        ? Math.min(...boundsWithUtterances.map(b => b.firstTs))
-        : Infinity;
-    const lastSubjectTs = boundsWithUtterances.length > 0
-        ? Math.max(...boundsWithUtterances.map(b => b.lastTs))
-        : -Infinity;
-
-    for (const u of orphanedUtterances) {
-        if (u.startTimestamp < firstSubjectTs) {
-            preambleUtterances.push(u);
-            continue;
-        }
-
-        if (u.startTimestamp >= lastSubjectTs) {
-            epilogueUtterances.push(u);
-            continue;
-        }
-
-        // Assign orphan to the next subject that starts after it. This handles both:
-        // - Orphans in the gap between subjects (the common case)
-        // - Orphans interleaved within a subject's range (e.g. OTHER utterances
-        //   between VOTE and SUBJECT_DISCUSSION of the next subject)
-        let assigned = false;
-        for (let i = 0; i < sortedSubjects.length; i++) {
-            const bounds = subjectBounds[i];
-            if (bounds.firstTs === Infinity) continue;
-
-            if (u.startTimestamp < bounds.firstTs) {
-                const list = preDiscussionByIndex.get(i) || [];
-                list.push(u);
-                preDiscussionByIndex.set(i, list);
-                assigned = true;
-                break;
-            }
-        }
-
-        // Orphans after the last subject's start but before lastSubjectTs — append to epilogue
-        if (!assigned) {
-            epilogueUtterances.push(u);
-        }
+    // Invert: subjectId → active index for lookup
+    const subjectIdToActiveIndex = new Map<string, number>();
+    for (const [idx, id] of activeIndexToSubjectId) {
+        subjectIdToActiveIndex.set(id, idx);
     }
-
-    function buildOrphanTranscriptEntries(utterances: UtteranceWithSpeaker[]): MinutesTranscriptEntry[] {
-        return buildTranscriptEntriesFromUtterances(utterances, (personId, label) => {
-            const person = personId ? peopleMap.get(personId) : null;
-            const speakerName = person ? person.name_short : (label || 'Ομιλητής');
-            const { party, role, isPartyHead } = person
-                ? getSpeakerDisplayInfo(person.roles || [], meetingDate)
-                : { party: null, role: null, isPartyHead: false };
-            return {
-                speakerName,
-                party: party?.name_short ?? null,
-                isPartyHead,
-                role: simplifyRoleName(role?.name ?? null),
-            };
-        }, { gapContentUtterances: [] });
-    }
-
-    const preambleEntries = buildOrphanTranscriptEntries(preambleUtterances);
-    const epilogueEntries = buildOrphanTranscriptEntries(epilogueUtterances);
 
     // Build MinutesSubject for each
-    const minutesSubjects: MinutesSubject[] = sortedSubjects.map((s, index) => {
+    const minutesSubjects: MinutesSubject[] = sortedSubjects.map((s) => {
         const ed = extractedDataMap.get(s.id);
         const attendance = ed && ed.attendance.length > 0
             ? buildAttendance(ed.attendance, mayorPersonId, resolveMember, getElectedOrder)
@@ -336,7 +214,29 @@ export async function getMinutesData(
         const voteResult = ed
             ? buildVoteResult(ed.votes, ed.attendance, mayorPersonId, resolveMember, getElectedOrder)
             : null;
-        const preDiscussionUtterances = preDiscussionByIndex.get(index) || [];
+        const activeIndex = subjectIdToActiveIndex.get(s.id);
+        const preDiscussionUtterances = activeIndex !== undefined
+            ? (assignment.preDiscussionByIndex.get(activeIndex) || [])
+            : [];
+
+        // Compute discussedElsewhere: which subjects had cross-subject utterances
+        // claimed by another subject's window
+        let discussedElsewhere: MinutesSubject['discussedElsewhere'] = null;
+        for (const [ownerSubjectId, crossMap] of assignment.crossSubjectMap) {
+            for (const [, linkedSubjectId] of crossMap) {
+                if (linkedSubjectId === s.id && ownerSubjectId !== s.id) {
+                    if (!discussedElsewhere) discussedElsewhere = [];
+                    const ownerSubject = sectionSubjects.find(ss => ss.id === ownerSubjectId);
+                    if (ownerSubject && !discussedElsewhere.some(d => d.subjectId === ownerSubjectId)) {
+                        discussedElsewhere.push({
+                            subjectId: ownerSubjectId,
+                            name: ownerSubject.name,
+                            agendaItemIndex: ownerSubject.agendaItemIndex,
+                        });
+                    }
+                }
+            }
+        }
 
         return {
             subjectId: s.id,
@@ -349,6 +249,7 @@ export async function getMinutesData(
                 name: s.discussedIn.name,
                 agendaItemIndex: s.discussedIn.agendaItemIndex,
             } : null,
+            discussedElsewhere,
             decision: s.decision ? {
                 protocolNumber: s.decision.protocolNumber,
                 excerpt: s.decision.excerpt ?? null,
@@ -361,11 +262,31 @@ export async function getMinutesData(
         };
     });
 
+    // Verify no utterances were lost — count at the output level (after both
+    // assignment and consumption) to catch index mismatches or dropped buckets.
+    // Counts utterances backing speaker entries, not the entries themselves
+    // (speaker entries merge consecutive same-speaker utterances).
+    const renderedUtteranceCount =
+        assignment.preambleUtterances.length +
+        assignment.epilogueUtterances.length +
+        minutesSubjects.reduce((sum, s) => {
+            const preDiscIdx = subjectIdToActiveIndex.get(s.subjectId);
+            const preDiscCount = preDiscIdx !== undefined
+                ? (assignment.preDiscussionByIndex.get(preDiscIdx)?.length ?? 0)
+                : 0;
+            const transcriptCount = assignment.utterancesBySubject.get(s.subjectId)?.length ?? 0;
+            return sum + preDiscCount + transcriptCount;
+        }, 0);
+    if (renderedUtteranceCount !== allUtterances.length) {
+        console.error(
+            `[getMinutesData] Utterance count mismatch: ${renderedUtteranceCount} rendered vs ${allUtterances.length} total. ` +
+            `Some utterances may be missing from the minutes.`
+        );
+    }
+
     // Council composition: all members sorted by elected order,
     // plus mayor and president of the administrative body.
     // Built from roles — no attendance dependency.
-    const adminBodyId = meeting.administrativeBody?.id ?? null;
-
     const mayorPerson = mayorPersonId ? people.find(p => p.id === mayorPersonId) : null;
     const mayor = mayorPerson ? { personId: mayorPerson.id, name: mayorPerson.name } : null;
 
@@ -383,15 +304,6 @@ export async function getMinutesData(
         }
     }
 
-    // Council/committee composition and absent members both come from the initial
-    // roll call (MeetingAttendance). The composition IS present + absent — the full
-    // body as recorded at the start of the meeting.
-    //
-    // For committees, members are split into regular (τακτικά) and substitute
-    // (αναπληρωματικά) based on their Role.name in the administrative body.
-    let councilCompositionResult = null;
-    let absentMembers: MinutesMember[] | null = null;
-
     // Build a set of substitute member IDs (those with "Αναπληρωματικό Μέλος" role)
     const substitutePersonIds = new Set<string>();
     if (adminBodyId) {
@@ -404,6 +316,14 @@ export async function getMinutesData(
             if (substituteRole) substitutePersonIds.add(person.id);
         }
     }
+
+    // Council/committee composition and absent members.
+    // When MeetingAttendance records exist (from decision extraction), use those
+    // for both composition and present/absent status.
+    // When they don't exist, build composition from roles — we know who the members
+    // are, just not who was present/absent.
+    let councilCompositionResult = null;
+    let absentMembers: MinutesMember[] | null = null;
 
     if (meetingAttendance.length > 0) {
         const allMembers = meetingAttendance
@@ -420,8 +340,52 @@ export async function getMinutesData(
             .filter(a => a.status === 'ABSENT')
             .map(a => resolveMember(a.personId, a.person.name))
             .sort((a, b) => sortByElectedOrder(a, b, getElectedOrder));
+    } else if (adminBodyId) {
+        // Fallback: build composition from roles (no present/absent info)
+        const roleMembers = people.filter(p =>
+            p.roles.some(r => isRoleActiveAt(r, meetingDate) && r.administrativeBodyId === adminBodyId)
+        );
+        const allMembers = roleMembers.map(p => resolveMember(p.id, p.name));
+        const regularMembers = allMembers.filter(m => !substitutePersonIds.has(m.personId));
+        const substituteMembers = allMembers.filter(m => substitutePersonIds.has(m.personId));
+
+        councilCompositionResult = buildCouncilComposition(
+            regularMembers, substituteMembers, mayor, president, mayorPersonId, getElectedOrder,
+        );
     }
 
+
+    // Compute mid-meeting attendance changes from per-subject attendance diffs
+    const attendanceChanges = buildAttendanceChanges(
+        minutesSubjects.filter(s => !s.withdrawn),
+        absentMembers,
+    );
+
+    // Build discussion order label if subjects were discussed out of natural order.
+    // Natural order: OA subjects first (sorted), then regular subjects (sorted by agendaItemIndex).
+    const nonWithdrawn = minutesSubjects.filter(s => !s.withdrawn);
+    const naturalOrder = [
+        ...nonWithdrawn.filter(s => s.nonAgendaReason === 'outOfAgenda'),
+        ...nonWithdrawn.filter(s => s.nonAgendaReason !== 'outOfAgenda'),
+    ].sort((a, b) => {
+        const aIsOA = a.nonAgendaReason === 'outOfAgenda';
+        const bIsOA = b.nonAgendaReason === 'outOfAgenda';
+        if (aIsOA !== bIsOA) return aIsOA ? -1 : 1;
+        return (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0);
+    });
+    const isNaturalOrder = nonWithdrawn.every((s, i) => s.subjectId === naturalOrder[i]?.subjectId);
+
+    let discussionOrderLabel: string | null = null;
+    if (!isNaturalOrder && nonWithdrawn.length > 0) {
+        let oaCounter = 0;
+        discussionOrderLabel = nonWithdrawn.map(s => {
+            if (s.nonAgendaReason === 'outOfAgenda') {
+                oaCounter++;
+                return `ΕΗΔ${oaCounter}`;
+            }
+            return `${s.agendaItemIndex}ο`;
+        }).join(', ');
+    }
 
     return {
         city: {
@@ -442,6 +406,8 @@ export async function getMinutesData(
         councilComposition: councilCompositionResult,
         absentMembers,
         preambleEntries,
+        attendanceChanges,
+        discussionOrderLabel,
         subjects: minutesSubjects,
         epilogueEntries,
     };

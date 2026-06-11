@@ -1,16 +1,35 @@
-import { getCityCached } from "@/lib/cache";
+import { getAllCityIdsCached } from "@/lib/cache";
 import { notFound } from "next/navigation";
 
-export default async function CityLayout({
-    children,
-    params: { locale, cityId }
-}: {
-    children: React.ReactNode,
-    params: { locale: string, cityId: string }
-}) {
+const VALID_CITY_ID = /^[a-z][a-z0-9_-]*$/;
 
-    const city = await getCityCached(cityId);
-    if (!city) {
+export default async function CityLayout(
+    props: {
+        children: React.ReactNode,
+        params: Promise<{ locale: string, cityId: string }>
+    }
+) {
+    const params = await props.params;
+
+    const {
+        locale,
+        cityId
+    } = params;
+
+    const {
+        children
+    } = props;
+
+    if (!VALID_CITY_ID.test(cityId)) {
+        notFound();
+    }
+
+    // Validate against the known city set via a SINGLE shared cache key.
+    // The previous getCityCached(cityId) existence check was itself a cached
+    // per-city query, so every junk slug that passed the regex (e.g. /wp-admin)
+    // wrote a `city:<junk>:basic` entry to the shared cache before 404ing (#358).
+    const cityIds = await getAllCityIdsCached();
+    if (!cityIds.includes(cityId)) {
         notFound();
     }
 

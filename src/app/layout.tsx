@@ -1,7 +1,7 @@
 import "./globals.css"
 import { cn } from "../lib/utils"
 import React from "react"
-import PlausibleProvider from 'next-plausible'
+import PlausibleAnalytics from "@/components/analytics/PlausibleAnalytics"
 import { SessionProvider } from "next-auth/react"
 import { Toaster } from "@/components/ui/toaster";
 import { routing } from "@/i18n/routing";
@@ -44,22 +44,22 @@ export const viewport = {
     userScalable: false,
 }
 
-export function generateStaticParams() {
-    return routing.locales.map((locale) => ({ locale }));
-}
+export default async function RootLayout(
+    props: {
+        children: React.ReactNode,
+    }
+) {
+    const { children } = props;
 
-export default async function RootLayout({
-    children,
-    params: { locale }
-}: {
-    children: React.ReactNode,
-    params: { locale: string }
-}) {
-
-    const t = await getTranslations({ locale: locale || routing.defaultLocale, namespace: "Common" });
+    // The root layout sits above the [locale] segment, so it doesn't receive a
+    // locale param from routing. Fall back to the default for the lang attr
+    // and the skip-to-content translation; per-page strings come from the
+    // [locale] layout's NextIntlClientProvider.
+    const locale = routing.defaultLocale;
+    const t = await getTranslations({ locale, namespace: "Common" });
 
     return (
-        <html lang={locale || routing.defaultLocale} suppressHydrationWarning>
+        <html lang={locale} suppressHydrationWarning>
             <head>
             </head>
             <body
@@ -77,10 +77,10 @@ export default async function RootLayout({
                     {t("skipToContent")}
                 </a>
                 <SessionProvider>
-                    <PlausibleProvider domain="opencouncil.gr">
+                    <PlausibleAnalytics>
                         {children}
                         <Toaster />
-                    </PlausibleProvider>
+                    </PlausibleAnalytics>
                 </SessionProvider>
             </body>
         </html>

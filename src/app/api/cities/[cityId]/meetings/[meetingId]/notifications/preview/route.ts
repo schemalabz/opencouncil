@@ -5,8 +5,9 @@ import { calculateNotificationImpact } from '@/lib/notifications/matching';
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { cityId: string; meetingId: string } }
+    props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
+    const params = await props.params;
     const user = await getCurrentUser();
     if (!user) {
         return new NextResponse('Unauthorized', { status: 401 });

@@ -53,6 +53,7 @@ export const env = createEnv({
     BIRD_WHATSAPP_TEMPLATE_BEFORE_MEETING: z.string().optional(), // Template project ID from Bird Studio
     BIRD_WHATSAPP_TEMPLATE_AFTER_MEETING: z.string().optional(),  // Template project ID from Bird Studio
     BIRD_WHATSAPP_TEMPLATE_WELCOME: z.string().optional(),  // Welcome template when user signs up
+    BIRD_WEBHOOK_SECRET: z.string().optional(), // Shared secret for verifying inbound webhook signatures from Bird
 
     // Google Calendar Integration (OAuth 2.0)
     GOOGLE_CALENDAR_CLIENT_ID: z.string().optional(),
@@ -85,6 +86,7 @@ export const env = createEnv({
     NEXT_PUBLIC_CONTACT_PHONE: z.string().optional(),
     NEXT_PUBLIC_CONTACT_EMAIL: z.string().email().optional(),
     NEXT_PUBLIC_CONTACT_ADDRESS: z.string().optional(),
+    NEXT_PUBLIC_BUILD_COMMIT_SHA: z.string().optional(),
   },
 
   /**
@@ -122,6 +124,7 @@ export const env = createEnv({
     BIRD_WHATSAPP_TEMPLATE_BEFORE_MEETING: process.env.BIRD_WHATSAPP_TEMPLATE_BEFORE_MEETING,
     BIRD_WHATSAPP_TEMPLATE_AFTER_MEETING: process.env.BIRD_WHATSAPP_TEMPLATE_AFTER_MEETING,
     BIRD_WHATSAPP_TEMPLATE_WELCOME: process.env.BIRD_WHATSAPP_TEMPLATE_WELCOME,
+    BIRD_WEBHOOK_SECRET: process.env.BIRD_WEBHOOK_SECRET,
     GOOGLE_CALENDAR_CLIENT_ID: process.env.GOOGLE_CALENDAR_CLIENT_ID,
     GOOGLE_CALENDAR_CLIENT_SECRET: process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
     GOOGLE_CALENDAR_REFRESH_TOKEN: process.env.GOOGLE_CALENDAR_REFRESH_TOKEN,
@@ -139,6 +142,7 @@ export const env = createEnv({
     NEXT_PUBLIC_CONTACT_PHONE: process.env.NEXT_PUBLIC_CONTACT_PHONE,
     NEXT_PUBLIC_CONTACT_EMAIL: process.env.NEXT_PUBLIC_CONTACT_EMAIL,
     NEXT_PUBLIC_CONTACT_ADDRESS: process.env.NEXT_PUBLIC_CONTACT_ADDRESS,
+    NEXT_PUBLIC_BUILD_COMMIT_SHA: process.env.NEXT_PUBLIC_BUILD_COMMIT_SHA,
   },
 
   /**

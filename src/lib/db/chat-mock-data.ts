@@ -86,7 +86,8 @@ function subjectToSearchResult(
         introducedBy: null,
         discussedIn: null,
         decision: null,
-        votes: []
+        votes: [],
+        attendance: []
     };
 
     // Create the search result

@@ -10,6 +10,32 @@ export type MeetingTaskStatus = {
     [K in MeetingTaskType]: boolean;
 };
 
+export async function getActiveTasks(): Promise<TaskStatus[]> {
+    await withUserAuthorizedToEdit({});
+    return prisma.taskStatus.findMany({
+        where: {
+            status: { notIn: ['succeeded', 'failed'] },
+        },
+        orderBy: { updatedAt: 'desc' },
+    });
+}
+
+const RECENT_TASKS_PAGE_SIZE = 20;
+
+export async function getRecentTasks(offset: number = 0): Promise<{ tasks: TaskStatus[]; hasMore: boolean }> {
+    await withUserAuthorizedToEdit({});
+    const tasks = await prisma.taskStatus.findMany({
+        where: {
+            status: { in: ['succeeded', 'failed'] },
+        },
+        orderBy: { updatedAt: 'desc' },
+        skip: offset,
+        take: RECENT_TASKS_PAGE_SIZE + 1,
+    });
+    const hasMore = tasks.length > RECENT_TASKS_PAGE_SIZE;
+    return { tasks: tasks.slice(0, RECENT_TASKS_PAGE_SIZE), hasMore };
+}
+
 export async function getTasksForMeeting(cityId: string, meetingId: string): Promise<TaskStatus[]> {
     await withUserAuthorizedToEdit({ councilMeetingId: meetingId, cityId: cityId })
     try {

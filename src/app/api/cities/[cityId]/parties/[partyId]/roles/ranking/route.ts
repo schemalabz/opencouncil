@@ -5,8 +5,9 @@ import { updateRoleRankings } from '@/lib/db/roles'
 
 export async function POST(
     request: Request,
-    { params }: { params: { cityId: string, partyId: string } }
+    props: { params: Promise<{ cityId: string, partyId: string }> }
 ) {
+    const params = await props.params;
     try {
         await withUserAuthorizedToEdit({ partyId: params.partyId });
 
@@ -20,8 +21,8 @@ export async function POST(
         await updateRoleRankings(params.cityId, params.partyId, rankings);
 
         // Revalidate cache
-        revalidateTag(`city:${params.cityId}:parties`);
-        revalidateTag(`city:${params.cityId}:people`);
+        revalidateTag(`city:${params.cityId}:parties`, 'max');
+        revalidateTag(`city:${params.cityId}:people`, 'max');
         revalidatePath(`/${params.cityId}/parties/${params.partyId}`);
         revalidatePath(`/${params.cityId}/people`);
 

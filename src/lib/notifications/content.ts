@@ -84,3 +84,13 @@ export async function generateSmsContent(notification: NotificationData): Promis
     return `${notification.city.name_municipality} - ${adminBody} στις ${meetingDateFormatted}: ${subjectCount} νέα θέματα για εσάς. ${subjectNames}. Δείτε περισσότερα: ${notificationUrl}`;
 }
 
+/**
+ * Welcome SMS body
+ */
+export async function generateWelcomeSmsContent(
+    userName: string,
+    cityName: string,
+): Promise<string> {
+    return `Γεια σας ${userName}! Εγγραφήκατε επιτυχώς για ειδοποιήσεις από το OpenCouncil για ${cityName}. Θα λαμβάνετε ενημερώσεις για θέματα που σας αφορούν.`;
+}
+

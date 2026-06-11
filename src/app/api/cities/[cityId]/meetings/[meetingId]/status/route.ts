@@ -4,11 +4,12 @@ import { getCouncilMeeting } from '@/lib/db/meetings';
 
 export async function GET(
     request: Request,
-    { params }: { params: { cityId: string; meetingId: string } }
+    props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
+    const params = await props.params;
     // Check if meeting exists and if user is authorized to view it (handles unreleased meetings)
     const meeting = await getCouncilMeeting(params.cityId, params.meetingId);
-    
+
     if (!meeting) {
         return NextResponse.json({ error: 'Meeting not found' }, { status: 404 });
     }

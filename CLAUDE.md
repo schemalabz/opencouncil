@@ -252,16 +252,31 @@ When working on a branch with existing commits, new changes must be categorized:
 - **Fixup commits** (`fixup! <original commit message>`): Changes that modify, improve, or clean up code introduced by an existing commit on the branch. Use the `fixup!` prefix with the exact original commit message so `git rebase -i --autosquash` can squash them automatically.
 - **New commits**: Genuinely new functionality that doesn't belong to any existing commit.
 
-Before creating commits, run `git log --oneline main..HEAD` to understand the branch's commit structure and decide which changes are fixups vs new commits. Stage files selectively to keep each commit focused.
+Before creating commits, run `git log --oneline` to understand the branch's commit structure and decide which changes are fixups vs new commits. Stage files selectively to keep each commit focused.
 
-After all commits are created, run `GIT_SEQUENCE_EDITOR=true git rebase -i --autosquash main` to fold fixup commits into their targets.
+**Before pushing**:
+Never push `fixup!` commits to remote. Before any `git push`, check for fixup commits on the branch. If any exist, squash them into their targets using interactive rebase with `--autosquash`. Determine the correct base ref dynamically (e.g., `git merge-base HEAD @{upstream}`) — don't hardcode `main` or a specific remote name.
+
+**After pushing to a PR branch**:
+After every push to a branch with an open PR (except the initial push that creates the PR), add a comment explaining what changed. This helps reviewers track progress across revisions.
+
+For force pushes, capture the old/new SHAs from the `git push` output and include a comparison link:
+```
+I [force-pushed](<https://github.com/{upstream-owner}/{repo}/compare/{OLD}..{NEW}>) to <reason>:
+
+- <change 1>
+- <change 2>
+```
+Use the upstream repo URL (where the PR lives, not the fork), two dots (`..`), and full 40-character SHAs. For regular pushes, reference the new commits directly.
+
+Prefer describing changes from your working context when available. Fall back to diffing SHAs only when you lack context (e.g., pushing work from a previous session).
 
 **Build Verification**:
 - Run `npm run build` **once after all changes are complete** — not after every individual step
 - For schema changes: run `npm run prisma:generate` before building
 - Quick TypeScript check without full build: `npx tsc --noEmit`
 - **Tests**: `npm test` and `npm run test:integration` are fast — run them between changes to catch regressions early
-- **If `package-lock.json` changed**: update `npmDepsHash` in `flake.nix` — run `nix run nixpkgs#prefetch-npm-deps package-lock.json` and copy the hash. Preview deployments will fail without this.
+- **`package-lock.json` changes need no extra step**: the Nix build (`importNpmLock`) reads dependency hashes directly from the lockfile.
 
 ### TypeScript
 - Strict mode is enabled

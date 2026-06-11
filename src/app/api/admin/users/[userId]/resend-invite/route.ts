@@ -3,10 +3,8 @@ import prisma from "@/lib/db/prisma"
 import { NextResponse } from "next/server"
 import { sendInviteEmail } from "@/lib/auth/invite"
 
-export async function POST(
-    request: Request,
-    { params }: { params: { userId: string } }
-) {
+export async function POST(request: Request, props: { params: Promise<{ userId: string }> }) {
+    const params = await props.params;
     const currentUser = await getCurrentUser()
     if (!currentUser?.isSuperAdmin) {
         return new NextResponse("Unauthorized", { status: 401 })

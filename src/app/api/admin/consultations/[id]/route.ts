@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { updateConsultation, deleteConsultation } from '@/lib/db/consultations';
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
     await withUserAuthorizedToEdit({});
     const body = await req.json();
     const { name, jsonUrl, endDate, isActive } = body as {
@@ -23,7 +24,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
     await withUserAuthorizedToEdit({});
     try {
         await deleteConsultation(params.id);

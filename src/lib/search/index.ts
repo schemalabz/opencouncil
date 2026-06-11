@@ -157,7 +157,8 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                 topic: true,
                 councilMeeting: {
                     include: {
-                        city: true
+                        city: true,
+                        administrativeBody: true
                     }
                 },
                 introducedBy: {
@@ -257,7 +258,8 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                     score: hit._score || 0,
                     matchedSpeakerSegmentIds,
                     councilMeeting: subject.councilMeeting,
-                    votes: []
+                    votes: [],
+                    attendance: []
                 };
 
                 // If detailed results are requested, add speaker segment text

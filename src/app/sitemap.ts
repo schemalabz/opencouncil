@@ -84,20 +84,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     const meetingEntries: MetadataRoute.Sitemap = cities.flatMap(city =>
         city.councilMeetings.map(meeting => ({
-            url: `${baseUrl}/${city.id}/meetings/${meeting.id}`,
+            url: `${baseUrl}/${city.id}/${meeting.id}`,
             changeFrequency: 'weekly',
             priority: 0.7,
-            alternates: buildAlternates(`/${city.id}/meetings/${meeting.id}`)
+            alternates: buildAlternates(`/${city.id}/${meeting.id}`)
         }))
     )
 
     const subjectEntries: MetadataRoute.Sitemap = cities.flatMap(city =>
         city.councilMeetings.flatMap(meeting =>
             meeting.subjects.map(subject => ({
-                url: `${baseUrl}/${city.id}/meetings/${meeting.id}/subjects/${subject.id}`,
+                url: `${baseUrl}/${city.id}/${meeting.id}/subjects/${subject.id}`,
                 changeFrequency: 'weekly',
                 priority: 0.6,
-                alternates: buildAlternates(`/${city.id}/meetings/${meeting.id}/subjects/${subject.id}`)
+                alternates: buildAlternates(`/${city.id}/${meeting.id}/subjects/${subject.id}`)
             }))
         )
     )

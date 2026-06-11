@@ -5,12 +5,14 @@ import CityConsultations from "@/components/cities/CityConsultations";
 import { getCityCached } from "@/lib/cache";
 import { getAllConsultationsForCity, isConsultationActive } from "@/lib/db/consultations";
 import { env } from "@/env.mjs";
+import { buildHreflangAlternates } from '@/lib/utils/hreflang';
 
 interface PageProps {
-    params: { cityId: string };
+    params: Promise<{ cityId: string; locale: string }>;
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata(props: PageProps): Promise<Metadata> {
+    const params = await props.params;
     const [city, consultations] = await Promise.all([
         getCityCached(params.cityId),
         getAllConsultationsForCity(params.cityId)
@@ -75,9 +77,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
             description,
             images: [ogImageUrl],
         },
-        alternates: {
-            canonical: `/${params.cityId}/consultations`,
-        },
+        alternates: buildHreflangAlternates(`/${params.cityId}/consultations`, params.locale),
         other: {
             'consultations:total': totalConsultationsCount.toString(),
             'consultations:active': activeConsultationsCount.toString(),
@@ -87,11 +87,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
 }
 
-export default async function ConsultationsPage({
-    params: { cityId }
-}: {
-    params: { cityId: string }
-}) {
+export default async function ConsultationsPage(
+    props: {
+        params: Promise<{ cityId: string }>
+    }
+) {
+    const params = await props.params;
+
+    const {
+        cityId
+    } = params;
+
     const [city, consultations] = await Promise.all([
         getCityCached(cityId),
         getAllConsultationsForCity(cityId)

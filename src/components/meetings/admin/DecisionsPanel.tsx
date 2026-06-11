@@ -11,12 +11,16 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useToast } from '@/hooks/use-toast';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { useTranslations } from 'next-intl';
-import { ExternalLink, Trash2, FileCheck, FileX, Loader2, Bot, UserIcon, Plus, X, Clock, ChevronRight, ChevronDown, Users, Vote, Eraser, Search } from 'lucide-react';
+import { ExternalLink, FileCheck, FileX, Loader2, Bot, UserIcon, Plus, X, Clock, ChevronRight, ChevronDown, Users, Vote, Search, MoreHorizontal, RotateCcw } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { DecisionWithSource, MeetingAttendanceRecord, SubjectExtractedData } from '@/lib/db/decisions';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
 import { getPollingHistoryForMeeting, requestPollDecisions } from '@/lib/tasks/pollDecisions';
 import { calculateVoteResult } from '@/lib/utils/votes';
 import { getWithdrawnLabel } from '@/lib/utils/subjects';
+import { isMayorRole, isRoleActiveAt } from '@/lib/utils/roles';
+import { compareRanks, getElectedOrderForBody } from '@/lib/sorting/people';
+import { PersonWithRelations } from '@/lib/db/people';
 import ReactMarkdown from 'react-markdown';
 
 type FilterTab = 'all' | 'unlinked' | 'extracted';
@@ -88,10 +92,40 @@ function NameList({ names, label }: { names: string[]; label: string }) {
     );
 }
 
-function MeetingAttendanceSummary({ attendance }: { attendance: MeetingAttendanceRecord[] }) {
+/** Sort names by elected order, falling back to alphabetical. */
+function sortNamesByElectedOrder(
+    items: { personId: string; personName: string }[],
+    getPerson: (id: string) => PersonWithRelations | undefined,
+    administrativeBodyId: string | null,
+): { personId: string; personName: string }[] {
+    return [...items].sort((a, b) => {
+        const aOrder = getElectedOrderForBody(getPerson(a.personId), administrativeBodyId);
+        const bOrder = getElectedOrderForBody(getPerson(b.personId), administrativeBodyId);
+        const orderCompare = compareRanks(aOrder, bOrder);
+        if (orderCompare !== 0) return orderCompare;
+        return a.personName.localeCompare(b.personName);
+    });
+}
+
+function MeetingAttendanceSummary({ attendance, getPerson, administrativeBodyId, mayorPersonId }: {
+    attendance: MeetingAttendanceRecord[];
+    getPerson: (id: string) => PersonWithRelations | undefined;
+    administrativeBodyId: string | null;
+    mayorPersonId: string | null;
+}) {
     const [expanded, setExpanded] = useState(false);
-    const present = attendance.filter(a => a.status === 'PRESENT');
-    const absent = attendance.filter(a => a.status === 'ABSENT');
+    const filtered = attendance.filter(a => a.personId !== mayorPersonId);
+    const present = filtered.filter(a => a.status === 'PRESENT');
+    const absent = filtered.filter(a => a.status === 'ABSENT');
+
+    const sortedPresent = sortNamesByElectedOrder(
+        present.map(a => ({ personId: a.personId, personName: a.person.name })),
+        getPerson, administrativeBodyId,
+    );
+    const sortedAbsent = sortNamesByElectedOrder(
+        absent.map(a => ({ personId: a.personId, personName: a.person.name })),
+        getPerson, administrativeBodyId,
+    );
 
     return (
         <div className="border rounded-lg p-2.5 bg-muted/30">
@@ -105,19 +139,19 @@ function MeetingAttendanceSummary({ attendance }: { attendance: MeetingAttendanc
                     Initial roll call
                 </span>
                 <span className="text-xs text-muted-foreground ml-1">
-                    {present.length} present, {absent.length} absent ({attendance.length} total)
+                    {present.length} present, {absent.length} absent ({filtered.length} total)
                 </span>
             </button>
             {expanded && (
                 <div className="mt-2 ml-5 space-y-1.5">
                     <div>
-                        <span className="text-[11px] font-medium text-green-700">Present ({present.length})</span>
-                        <p className="text-[11px] text-muted-foreground">{present.map(a => a.person.name).join(', ')}</p>
+                        <span className="text-[11px] font-medium text-green-700">Present ({sortedPresent.length})</span>
+                        <p className="text-[11px] text-muted-foreground">{sortedPresent.map(a => a.personName).join(', ')}</p>
                     </div>
-                    {absent.length > 0 && (
+                    {sortedAbsent.length > 0 && (
                         <div>
-                            <span className="text-[11px] font-medium text-red-700">Absent ({absent.length})</span>
-                            <p className="text-[11px] text-muted-foreground">{absent.map(a => a.person.name).join(', ')}</p>
+                            <span className="text-[11px] font-medium text-red-700">Absent ({sortedAbsent.length})</span>
+                            <p className="text-[11px] text-muted-foreground">{sortedAbsent.map(a => a.personName).join(', ')}</p>
                         </div>
                     )}
                 </div>
@@ -128,8 +162,13 @@ function MeetingAttendanceSummary({ attendance }: { attendance: MeetingAttendanc
 
 export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
     const { toast } = useToast();
-    const { subjects, meeting } = useCouncilMeetingData();
+    const { subjects, meeting, people, getPerson } = useCouncilMeetingData();
     const t = useTranslations('admin.adminActions');
+    const administrativeBodyId = meeting.administrativeBodyId ?? null;
+    const meetingDate = new Date(meeting.dateTime);
+    const mayorPersonId = people.find(p =>
+        p.roles.some(r => isRoleActiveAt(r, meetingDate) && isMayorRole(r))
+    )?.id ?? null;
     const [decisions, setDecisions] = useState<Record<string, DecisionWithSource>>({});
     const [extractedData, setExtractedData] = useState<Record<string, SubjectExtractedData>>({});
     const [meetingAttendance, setMeetingAttendance] = useState<MeetingAttendanceRecord[]>([]);
@@ -140,12 +179,13 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
     const [showMoreOptions, setShowMoreOptions] = useState(false);
     const [savingSubjectId, setSavingSubjectId] = useState<string | null>(null);
     const [removingSubjectId, setRemovingSubjectId] = useState<string | null>(null);
+    const [resettingSubjectId, setResettingSubjectId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [filterTab, setFilterTab] = useState<FilterTab>('all');
     const [pollingStatus, setPollingStatus] = useState<Awaited<ReturnType<typeof getPollingHistoryForMeeting>> | null>(null);
     const [isPolling, setIsPolling] = useState(false);
     const [isClearing, setIsClearing] = useState(false);
-    const [forceExtract, setForceExtract] = useState(false);
+    const [skipCache, setSkipCache] = useState(false);
 
     const fetchDecisions = useCallback(async () => {
         setIsLoading(true);
@@ -250,17 +290,30 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                 { method: 'DELETE' }
             );
             if (!response.ok) throw new Error('Failed to remove decision');
-
-            setDecisions(prev => {
-                const next = { ...prev };
-                delete next[subjectId];
-                return next;
-            });
-            toast({ title: t('toasts.decisionUnlinked.title') });
+            toast({ title: t('decisions.decisionRemoved') });
+            await fetchDecisions();
         } catch (error) {
             toast({ title: t('toasts.errorRemovingDecision.title'), description: `${error}`, variant: 'destructive' });
         } finally {
             setRemovingSubjectId(null);
+        }
+    };
+
+    const handleResetExtraction = async (subjectId: string) => {
+        setResettingSubjectId(subjectId);
+        try {
+            const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'resetExtraction', subjectId }),
+            });
+            if (!response.ok) throw new Error('Failed to reset extraction');
+            toast({ title: t('decisions.extractionReset') });
+            await fetchDecisions();
+        } catch (error) {
+            toast({ title: 'Error resetting extraction', description: `${error}`, variant: 'destructive' });
+        } finally {
+            setResettingSubjectId(null);
         }
     };
 
@@ -296,7 +349,7 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
     const handlePollDecisions = async () => {
         setIsPolling(true);
         try {
-            await requestPollDecisions(meeting.cityId, meeting.id, forceExtract ? { forceExtract: true } : undefined);
+            await requestPollDecisions(meeting.cityId, meeting.id, skipCache ? { forceExtract: true } : undefined);
             toast({ title: t('decisions.pollRequested') });
         } catch (error) {
             toast({
@@ -310,7 +363,7 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
     };
 
     const handleClearExtractedData = async () => {
-        if (!confirm('Clear all extracted data (excerpts, attendance, votes) for this meeting? Decision links will be kept.')) return;
+        if (!confirm(t('decisions.resetExtractionsConfirm'))) return;
         setIsClearing(true);
         try {
             const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions`, {
@@ -318,12 +371,12 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'clearExtractedData' }),
             });
-            if (!response.ok) throw new Error('Failed to clear extracted data');
+            if (!response.ok) throw new Error('Failed to reset extractions');
             const result = await response.json();
-            toast({ title: `Cleared extracted data for ${result.clearedCount} decisions` });
+            toast({ title: `${t('decisions.resetExtractions')}: ${result.clearedCount}` });
             await fetchDecisions();
         } catch (error) {
-            toast({ title: 'Error clearing extracted data', description: `${error}`, variant: 'destructive' });
+            toast({ title: 'Error resetting extractions', description: `${error}`, variant: 'destructive' });
         } finally {
             setIsClearing(false);
         }
@@ -378,51 +431,31 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
 
                 {/* Actions */}
                 <div className="space-y-3 border-b pb-3">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <div>
-                                <div className="text-xs font-medium">Poll &amp; extract decisions</div>
-                                <div className="text-[11px] text-muted-foreground">
-                                    Poll Diavgeia, match decisions to subjects, and extract data from PDFs.
-                                </div>
-                            </div>
+                    {/* Primary action row */}
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="text-xs font-medium shrink-0">
+                            {t('decisions.pollTitle')}
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-3 shrink-0">
                             <span className="text-xs text-muted-foreground">
                                 <FileCheck className="h-3.5 w-3.5 inline mr-1" />
                                 {linkedCount}/{eligibleSubjects.length}
                             </span>
-                            {extractedSubjects.length > 0 && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 text-xs"
-                                    disabled={isClearing}
-                                    onClick={handleClearExtractedData}
-                                >
-                                    {isClearing ? (
-                                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                    ) : (
-                                        <Eraser className="h-3 w-3 mr-1" />
-                                    )}
-                                    Clear
-                                </Button>
-                            )}
-                            <div className="flex items-center gap-1.5">
+                            <label className="flex items-center gap-1.5 cursor-pointer">
                                 <Checkbox
-                                    id="force-extract"
-                                    checked={forceExtract}
-                                    onCheckedChange={(checked) => setForceExtract(checked === true)}
+                                    id="skip-cache"
+                                    checked={skipCache}
+                                    onCheckedChange={(checked) => setSkipCache(checked === true)}
                                     className="h-3.5 w-3.5"
                                 />
-                                <Label htmlFor="force-extract" className="text-[11px] text-muted-foreground cursor-pointer">
-                                    Force extract
-                                </Label>
-                            </div>
+                                <span className="text-[11px] text-muted-foreground">
+                                    {t('decisions.skipCacheLabel')}
+                                </span>
+                            </label>
                             <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-7 text-xs"
+                                className={`h-7 text-xs ${skipCache ? 'border-amber-400 bg-amber-50 text-amber-700 hover:bg-amber-100' : ''}`}
                                 disabled={isPolling}
                                 onClick={handlePollDecisions}
                             >
@@ -431,10 +464,17 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                 ) : (
                                     <Search className="h-3 w-3 mr-1" />
                                 )}
-                                {t('decisions.pollButton')}
+                                {skipCache ? t('decisions.pollButtonSkipCache') : t('decisions.pollButton')}
                             </Button>
                         </div>
                     </div>
+
+                    {/* Skip cache explanation — shown when toggled */}
+                    {skipCache && (
+                        <div className="text-[11px] text-muted-foreground bg-amber-50 border border-amber-200 rounded px-2.5 py-1.5">
+                            {t('decisions.skipCacheHint')}
+                        </div>
+                    )}
 
                     {/* Polling Status */}
                     {pollingStatus && pollingStatus.totalPolls > 0 && (
@@ -472,7 +512,12 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
 
                 {/* Meeting-level attendance (initial roll call) */}
                 {meetingAttendance.length > 0 && (
-                    <MeetingAttendanceSummary attendance={meetingAttendance} />
+                    <MeetingAttendanceSummary
+                        attendance={meetingAttendance}
+                        getPerson={getPerson}
+                        administrativeBodyId={administrativeBodyId}
+                        mayorPersonId={mayorPersonId}
+                    />
                 )}
 
                 {/* Filter tabs */}
@@ -551,8 +596,8 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                         {/* Main row */}
                                         <div className="flex items-start justify-between gap-3">
                                             <div className="flex-1 min-w-0 flex items-start gap-2">
-                                                {/* Expand chevron for linked decisions with extracted data */}
-                                                {decision && hasExtractedContent ? (
+                                                {/* Expand chevron for subjects with extracted data (decisions or attendance) */}
+                                                {hasExtractedContent ? (
                                                     <button
                                                         onClick={() => toggleExtracted(subject.id)}
                                                         className="mt-0.5 text-muted-foreground hover:text-foreground shrink-0"
@@ -579,8 +624,9 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                                     )}
                                                     {/* Inline attendance & vote summary */}
                                                     {extracted && (extracted.attendance.length > 0 || extracted.votes.length > 0) && (() => {
-                                                        const present = extracted.attendance.filter(a => a.status === 'PRESENT');
-                                                        const absent = extracted.attendance.filter(a => a.status === 'ABSENT');
+                                                        const filteredInline = extracted.attendance.filter(a => a.personId !== mayorPersonId);
+                                                        const present = filteredInline.filter(a => a.status === 'PRESENT');
+                                                        const absent = filteredInline.filter(a => a.status === 'ABSENT');
                                                         const voteResult = extracted.votes.length > 0 ? calculateVoteResult(extracted.votes) : null;
                                                         return (
                                                             <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
@@ -633,8 +679,11 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                                         )}
                                                         <Badge variant="default" className="bg-green-600 text-xs">
                                                             <FileCheck className="h-3 w-3 mr-1" />
-                                                            {decision.ada || decision.protocolNumber || t('decisions.linked')}
+                                                            {decision.protocolNumber || decision.ada || t('decisions.linked')}
                                                         </Badge>
+                                                        {decision.protocolNumber && decision.ada && (
+                                                            <span className="text-xs text-muted-foreground">{decision.ada}</span>
+                                                        )}
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
                                                                 <a
@@ -648,22 +697,42 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                                             </TooltipTrigger>
                                                             <TooltipContent>{t('decisions.viewPdf')}</TooltipContent>
                                                         </Tooltip>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
                                                                 <button
-                                                                    onClick={() => handleRemove(subject.id)}
-                                                                    disabled={isRemoving}
-                                                                    className="text-muted-foreground hover:text-destructive disabled:opacity-50"
+                                                                    disabled={isRemoving || resettingSubjectId === subject.id}
+                                                                    className="text-muted-foreground hover:text-foreground disabled:opacity-50"
                                                                 >
-                                                                    {isRemoving ? (
+                                                                    {(isRemoving || resettingSubjectId === subject.id) ? (
                                                                         <Loader2 className="h-4 w-4 animate-spin" />
                                                                     ) : (
-                                                                        <Trash2 className="h-4 w-4" />
+                                                                        <MoreHorizontal className="h-4 w-4" />
                                                                     )}
                                                                 </button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>{t('decisions.remove')}</TooltipContent>
-                                                        </Tooltip>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end" className="w-72">
+                                                                <DropdownMenuItem
+                                                                    onClick={() => handleResetExtraction(subject.id)}
+                                                                    disabled={resettingSubjectId === subject.id}
+                                                                >
+                                                                    <div>
+                                                                        <div className="text-sm font-medium">{t('decisions.resetExtraction')}</div>
+                                                                        <div className="text-xs text-muted-foreground mt-0.5">{t('decisions.resetExtractionDescription')}</div>
+                                                                    </div>
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem
+                                                                    onClick={() => handleRemove(subject.id)}
+                                                                    disabled={isRemoving}
+                                                                    className="text-destructive focus:text-destructive"
+                                                                >
+                                                                    <div>
+                                                                        <div className="text-sm font-medium">{t('decisions.removeDecision')}</div>
+                                                                        <div className="text-xs text-muted-foreground mt-0.5">{t('decisions.removeDecisionDescription')}</div>
+                                                                    </div>
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
                                                     </>
                                                 ) : (
                                                     <>
@@ -687,7 +756,7 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                             </div>
                                         </div>
 
-                                        {/* Extracted data panel - expandable for linked decisions */}
+                                        {/* Extracted data panel - expandable for subjects with attendance/vote data */}
                                         {isExtractedExpanded && hasExtractedContent && (
                                             <div className="mt-3 ml-6 pl-4 border-l-2 border-muted space-y-3">
                                                 {/* Excerpt */}
@@ -720,8 +789,15 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
 
                                                 {/* Attendance */}
                                                 {extracted && extracted.attendance.length > 0 && (() => {
-                                                    const present = extracted.attendance.filter(a => a.status === 'PRESENT');
-                                                    const absent = extracted.attendance.filter(a => a.status === 'ABSENT');
+                                                    const filteredAttendance = extracted.attendance.filter(a => a.personId !== mayorPersonId);
+                                                    const present = sortNamesByElectedOrder(
+                                                        filteredAttendance.filter(a => a.status === 'PRESENT'),
+                                                        getPerson, administrativeBodyId,
+                                                    );
+                                                    const absent = sortNamesByElectedOrder(
+                                                        filteredAttendance.filter(a => a.status === 'ABSENT'),
+                                                        getPerson, administrativeBodyId,
+                                                    );
                                                     return (
                                                         <div>
                                                             <div className="text-xs font-medium text-muted-foreground mb-1">
@@ -886,6 +962,31 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                         </TooltipProvider>
                     )}
                 </div>
+
+                {/* Danger zone — Delete extractions (bottom of dialog) */}
+                {extractedSubjects.length > 0 && (
+                    <div className="pt-2 border-t border-dashed">
+                        <div className="flex items-center justify-between gap-4">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs shrink-0 border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10"
+                                disabled={isClearing}
+                                onClick={handleClearExtractedData}
+                            >
+                                {isClearing ? (
+                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                ) : (
+                                    <RotateCcw className="h-3 w-3 mr-1" />
+                                )}
+                                {t('decisions.resetExtractions')}
+                            </Button>
+                            <span className="text-[11px] text-muted-foreground text-right">
+                                {t('decisions.resetExtractionsDescription')}
+                            </span>
+                        </div>
+                    </div>
+                )}
             </DialogContent>
         </Dialog>
     );

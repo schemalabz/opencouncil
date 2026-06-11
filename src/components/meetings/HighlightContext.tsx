@@ -41,6 +41,7 @@ interface HighlightContextType {
   isEditingDisabled: boolean;
   enterEditMode: (highlight: HighlightWithUtterances) => void;
   updateHighlightUtterances: (utteranceId: string, action: 'add' | 'remove', modifiers?: { shift: boolean }) => void;
+  addUtteranceRangeToHighlight: (fromUtteranceId: string, toUtteranceId: string) => boolean;
   resetToOriginal: () => void;
   exitEditMode: () => void;
   exitEditModeAndRedirectToHighlight: () => void;
@@ -428,6 +429,48 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     setIsDirty(true);
   }, []);
 
+  // Add a range of utterances (inclusive) to the highlight. Used by the
+  // "select from here" / "select until here" context menu actions, which need
+  // an explicit range-add independent of the shift-click anchor. Returns
+  // true if anything was actually added (lets callers distinguish a real
+  // commit from a no-op so they can decide whether to clear UI state).
+  const addUtteranceRangeToHighlight = useCallback((fromUtteranceId: string, toUtteranceId: string): boolean => {
+    if (isEditingDisabledRef.current) return false;
+    const current = editingHighlightRef.current;
+    if (!current) return false;
+
+    const utteranceIds = calculateUtteranceRange(allUtterancesRef.current, fromUtteranceId, toUtteranceId);
+    const map = utteranceMapRef.current;
+    const now = new Date();
+    const newHighlightedUtterances = utteranceIds
+      .filter(id => !current.highlightedUtterances.some(hu => hu.utteranceId === id))
+      .map(id => {
+        const utterance = map.get(id);
+        if (!utterance) return null;
+        return {
+          id: `temp-${Date.now()}-${Math.random()}`,
+          utteranceId: id,
+          highlightId: current.id,
+          createdAt: now,
+          updatedAt: now,
+          utterance,
+        };
+      })
+      .filter((hu): hu is NonNullable<typeof hu> => hu !== null);
+
+    if (newHighlightedUtterances.length === 0) return false;
+
+    setEditingHighlight({
+      ...current,
+      highlightedUtterances: [
+        ...current.highlightedUtterances,
+        ...newHighlightedUtterances,
+      ],
+    });
+    setIsDirty(true);
+    return true;
+  }, []);
+
   const resetToOriginal = useCallback(() => {
     if (originalHighlight) {
       setEditingHighlight(originalHighlight);
@@ -574,6 +617,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     isEditingDisabled,
     enterEditMode,
     updateHighlightUtterances,
+    addUtteranceRangeToHighlight,
     resetToOriginal,
     exitEditMode,
     exitEditModeAndRedirectToHighlight,
@@ -600,6 +644,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     isEditingDisabled,
     enterEditMode,
     updateHighlightUtterances,
+    addUtteranceRangeToHighlight,
     resetToOriginal,
     exitEditMode,
     exitEditModeAndRedirectToHighlight,

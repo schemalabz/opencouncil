@@ -15,6 +15,11 @@
  *   npx tsx scripts/find-municipal-committee.ts --name "Ζωγράφου"
  *   npx tsx scripts/find-municipal-committee.ts --name "Χαλάνδρι" --json
  *   npx tsx scripts/find-municipal-committee.ts --name "Ζωγράφου" --term 2024-2029
+ *   npx tsx scripts/find-municipal-committee.ts --city zografou --write --dry-run
+ *   npx tsx scripts/find-municipal-committee.ts --city zografou --write
+ *
+ * When --city is provided, the Diavgeia org ID is resolved from the city's
+ * diavgeiaUid in the database (set by import_diavgeia.ts).
  *
  * Requires ANTHROPIC_API_KEY in .env or environment.
  */
@@ -27,8 +32,12 @@ import Anthropic from '@anthropic-ai/sdk'
 import dotenv from 'dotenv'
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
+import { PrismaClient } from '@prisma/client'
+import { matchByName, DbMember } from './lib/greek-name-matching'
 
 dotenv.config()
+
+const prisma = new PrismaClient()
 
 // ---------------------------------------------------------------------------
 // Diavgeia API helpers
@@ -340,6 +349,146 @@ async function extractWithLLM(
 }
 
 // ---------------------------------------------------------------------------
+// Database write
+// ---------------------------------------------------------------------------
+
+async function writeCommitteeToDb(
+  committee: CommitteeData,
+  cityId: string,
+  dryRun: boolean,
+): Promise<void> {
+  // Find the committee administrative body
+  const committeeBody = await prisma.administrativeBody.findFirst({
+    where: { cityId, type: 'committee' },
+    select: { id: true, name: true },
+  })
+
+  if (!committeeBody) {
+    console.error(
+      `No committee administrative body found for city ${cityId}. Create one first.`
+    )
+    process.exit(1)
+  }
+  console.log(`\nAdministrative body: ${committeeBody.name} (${committeeBody.id})`)
+
+  // Load people from database
+  const people = await prisma.person.findMany({
+    where: { cityId },
+    select: {
+      id: true,
+      name: true,
+      roles: {
+        where: { administrativeBodyId: committeeBody.id },
+        select: { id: true, electedOrder: true },
+        take: 1,
+      },
+    },
+  })
+
+  const dbMembers: DbMember[] = people.map(p => ({ id: p.id, name: p.name }))
+
+  // Build candidate list: regulars first, then alternates
+  const allMembers = [
+    ...committee.regular.map((m, i) => ({
+      name: m.name,
+      index: i,
+      type: 'regular' as const,
+    })),
+    ...committee.alternate.map((m, i) => ({
+      name: m.name,
+      index: committee.regular.length + i,
+      type: 'alternate' as const,
+    })),
+  ]
+
+  const candidates = allMembers.map(m => ({ name: m.name, index: m.index }))
+  const { matched, unmatched } = matchByName(candidates, dbMembers)
+
+  console.log(`\nMatched: ${matched.size}/${allMembers.length}`)
+  if (unmatched.length > 0) {
+    console.log(`Unmatched DB members (not in committee): ${unmatched.length}`)
+  }
+
+  // Show matches and plan
+  const operations: Array<{
+    personId: string
+    personName: string
+    memberType: 'regular' | 'alternate'
+    electedOrder: number
+    existingRoleId: string | null
+  }> = []
+
+  for (const [personId, candidateIdx] of matched) {
+    const person = people.find(p => p.id === personId)!
+    const member = allMembers[candidateIdx]
+    const existingRole = person.roles[0] ?? null
+    operations.push({
+      personId,
+      personName: person.name,
+      memberType: member.type,
+      electedOrder: candidateIdx + 1,
+      existingRoleId: existingRole?.id ?? null,
+    })
+  }
+
+  // Log unmatched committee members (from external data)
+  const matchedIndices = new Set(matched.values())
+  const unmatchedCommitteeMembers = allMembers.filter(
+    (_, i) => !matchedIndices.has(i)
+  )
+  if (unmatchedCommitteeMembers.length > 0) {
+    console.log(`\nUnmatched committee members (not found in DB):`)
+    for (const m of unmatchedCommitteeMembers) {
+      console.log(`  - ${m.name} (${m.type})`)
+    }
+  }
+
+  // Show planned operations
+  console.log(`\nPlanned operations:`)
+  for (const op of operations.sort((a, b) => a.electedOrder - b.electedOrder)) {
+    const action = op.existingRoleId ? 'UPDATE' : 'CREATE'
+    const roleName = op.memberType === 'alternate' ? ' [Αναπληρωματικό Μέλος]' : ''
+    console.log(
+      `  ${op.electedOrder.toString().padStart(2)}. ${op.personName} — ${action}${roleName}`
+    )
+  }
+
+  if (dryRun) {
+    console.log(`\nDry run — no database changes.`)
+    return
+  }
+
+  // Execute
+  await prisma.$transaction(async (tx) => {
+    for (const op of operations) {
+      const roleName =
+        op.memberType === 'alternate' ? 'Αναπληρωματικό Μέλος' : null
+
+      if (op.existingRoleId) {
+        await tx.role.update({
+          where: { id: op.existingRoleId },
+          data: { electedOrder: op.electedOrder, name: roleName },
+        })
+      } else {
+        await tx.role.create({
+          data: {
+            personId: op.personId,
+            administrativeBodyId: committeeBody.id,
+            isHead: false,
+            name: roleName,
+            electedOrder: op.electedOrder,
+          },
+        })
+      }
+    }
+  })
+
+  console.log(
+    `\nWritten ${operations.length} committee roles to database.`
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -363,9 +512,26 @@ async function main() {
       default: false,
       description: 'Output as JSON',
     })
+    .option('write', {
+      type: 'boolean',
+      default: false,
+      description: 'Write committee roles and elected order to database',
+    })
+    .option('city', {
+      type: 'string',
+      description: 'City ID in our database (required for --write)',
+    })
+    .option('dry-run', {
+      type: 'boolean',
+      default: false,
+      description: 'Preview database changes without writing (use with --write)',
+    })
     .check((argv) => {
-      if (!argv.org && !argv.name) {
-        throw new Error('Provide either --org or --name')
+      if (!argv.org && !argv.name && !argv.city) {
+        throw new Error('Provide either --org, --name, or --city')
+      }
+      if (argv.write && !argv.city) {
+        throw new Error('--city is required when using --write')
       }
       return true
     }).argv
@@ -374,11 +540,32 @@ async function main() {
     apiKey: process.env.ANTHROPIC_API_KEY!,
   })
 
-  // Resolve org ID
+  // Resolve org ID — three sources: --org, --name, or --city (DB lookup)
   let orgId = argv.org
   let orgLabel: string | undefined
 
-  if (!orgId) {
+  if (!orgId && argv.city) {
+    // Look up the city's diavgeiaUid from the database
+    const city = await prisma.city.findUnique({
+      where: { id: argv.city },
+      select: { name_municipality: true, diavgeiaUid: true },
+    })
+    if (!city) {
+      console.error(`City not found in database: ${argv.city}`)
+      process.exit(1)
+    }
+    if (!city.diavgeiaUid) {
+      console.error(
+        `City "${city.name_municipality}" has no diavgeiaUid. Run import_diavgeia.ts first, or use --org/--name.`
+      )
+      process.exit(1)
+    }
+    orgId = city.diavgeiaUid
+    orgLabel = city.name_municipality
+    console.error(`City: ${city.name_municipality} (diavgeiaUid: ${orgId})`)
+  }
+
+  if (!orgId && argv.name) {
     console.error(`Searching for municipality "${argv.name}"...`)
     const org = await findOrganization(argv.name!)
     if (!org) {
@@ -388,7 +575,14 @@ async function main() {
     orgId = org.uid
     orgLabel = org.label
     console.error(`Found: ${org.label} (uid: ${org.uid})`)
-  } else {
+  }
+
+  if (!orgId) {
+    console.error('Could not resolve Diavgeia organization ID')
+    process.exit(1)
+  }
+
+  if (!orgLabel) {
     try {
       const org = await diavgeiaApi<Organization>(
         `/organizations/${orgId}.json`
@@ -507,9 +701,17 @@ async function main() {
       )
     }
   }
+
+  if (argv.write) {
+    await writeCommitteeToDb(committee, argv.city!, argv.dryRun)
+  }
 }
 
-main().catch((err) => {
-  console.error(`Error: ${err.message}`)
-  process.exit(1)
-})
+main()
+  .catch((err) => {
+    console.error(`Error: ${err.message}`)
+    process.exit(1)
+  })
+  .finally(async () => {
+    await prisma.$disconnect()
+  })

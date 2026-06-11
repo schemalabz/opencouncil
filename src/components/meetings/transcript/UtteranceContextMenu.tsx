@@ -1,7 +1,7 @@
 "use client";
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ArrowLeftToLine, ArrowRightToLine, Copy, Loader2, Scissors, Star } from 'lucide-react';
+import { ArrowLeftToLine, ArrowRightToLine, ClipboardCopy, Copy, ListEnd, ListStart, Loader2, Scissors, Star } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +25,10 @@ interface ContextTarget {
     startTimestamp: number;
     x: number;
     y: number;
+    // Captured at right-click time so the menu's open/focus changes don't
+    // collapse the selection before "Copy text" runs.
+    selectedText: string;
+    utteranceText: string;
 }
 
 /**
@@ -44,9 +48,16 @@ export function UtteranceContextMenu({ children }: { children: React.ReactNode }
     const [open, setOpen] = useState(false);
     const [target, setTarget] = useState<ContextTarget | null>(null);
     const pendingShareRef = useRef<number | null>(null);
+    // Tracks whether handleContextMenu applied a temp utterance selection
+    // for visual feedback, so the close handler only clears what it added.
+    const didTempSelectRef = useRef(false);
+    // "Select from here" anchor for range-add via the context menu. Lives
+    // only here — independent of the shift-click anchor in HighlightContext
+    // so it isn't overwritten by stray clicks between "from" and "until".
+    const [rangeAnchorId, setRangeAnchorId] = useState<string | null>(null);
 
     const { options } = useTranscriptOptions();
-    const { editingHighlight, createHighlight } = useHighlight();
+    const { editingHighlight, createHighlight, addUtteranceRangeToHighlight } = useHighlight();
     const { selectedUtteranceIds, isProcessing, toggleSelection, clearSelection, extractSelectedSegment } = useEditing();
     const { moveUtterancesToPrevious, moveUtterancesToNext } = useCouncilMeetingActions();
     const { openShareDropdownAndCopy } = useShare();
@@ -55,10 +66,18 @@ export function UtteranceContextMenu({ children }: { children: React.ReactNode }
 
     const canStartHighlight = options.canCreateHighlights && !editingHighlight && !options.editable;
     const canShare = !editingHighlight && !options.editable;
-    const hasAnyAction = canStartHighlight || options.editable || canShare;
+    const canRangeSelect = Boolean(editingHighlight);
+    // "Copy text" is universally available, so the menu always opens on an
+    // utterance. The original `hasAnyAction` gate is no longer needed.
+
+    // Clear the range anchor whenever the user switches highlights or exits
+    // highlight-edit mode — a stale anchor from a previous highlight would
+    // produce nonsensical ranges.
+    useEffect(() => {
+        setRangeAnchorId(null);
+    }, [editingHighlight?.id]);
 
     const handleContextMenu = useCallback((e: React.MouseEvent) => {
-        if (!hasAnyAction) return;
         const span = (e.target as HTMLElement | null)?.closest<HTMLElement>('[data-utterance-id]');
         if (!span) return; // outside an utterance — let the system menu show
         const id = span.dataset.utteranceId;
@@ -66,17 +85,28 @@ export function UtteranceContextMenu({ children }: { children: React.ReactNode }
         if (!id || !segmentId) return;
         const startTimestamp = parseFloat(span.dataset.startTimestamp || '0');
 
+        // Capture the user's text selection BEFORE preventDefault / state
+        // updates that might collapse it. `getSelection()` is global; if the
+        // user has nothing selected, this is an empty string.
+        const selectedText = window.getSelection()?.toString() ?? '';
+        const utteranceText = (span.textContent ?? '').trim();
+
         e.preventDefault();
-        setTarget({ id, segmentId, startTimestamp, x: e.clientX, y: e.clientY });
+        setTarget({ id, segmentId, startTimestamp, x: e.clientX, y: e.clientY, selectedText, utteranceText });
         setOpen(true);
 
-        // Mirror the original per-utterance behavior: temporarily select the
-        // right-clicked utterance for visual feedback unless it's already in
-        // the user's deliberate selection.
-        if (!selectedUtteranceIds.has(id)) {
+        // Temp-select the right-clicked utterance for visual feedback —
+        // but skip it when the user already has a text selection (which is
+        // their own feedback; bolding only the clicked utterance would
+        // misrepresent a multi-utterance selection), when this utterance is
+        // already deliberately selected, or in highlight-edit mode (where
+        // font-semibold would stack on font-bold and EditingContext state
+        // would mutate for no visible reason).
+        if (!selectedText && !editingHighlight && !selectedUtteranceIds.has(id)) {
             toggleSelection(id, { shift: false, ctrl: false });
+            didTempSelectRef.current = true;
         }
-    }, [hasAnyAction, selectedUtteranceIds, toggleSelection]);
+    }, [editingHighlight, selectedUtteranceIds, toggleSelection]);
 
     const handleOpenChange = useCallback((next: boolean) => {
         setOpen(next);
@@ -86,16 +116,30 @@ export function UtteranceContextMenu({ children }: { children: React.ReactNode }
             openShareDropdownAndCopy(pendingShareRef.current);
             pendingShareRef.current = null;
         }
-        if (selectedUtteranceIds.size === 1) {
+        if (didTempSelectRef.current) {
             clearSelection();
+            didTempSelectRef.current = false;
         }
-        // Depend on the full Set, not just `.size`. Each selection change
-        // produces a new Set identity, so we recreate this callback even when
-        // size stays the same (e.g., right-clicking utterance B while A was
-        // the lone selection swaps the contents but keeps size = 1).
-    }, [clearSelection, openShareDropdownAndCopy, selectedUtteranceIds]);
+    }, [clearSelection, openShareDropdownAndCopy]);
 
     const targetSelected = target ? selectedUtteranceIds.has(target.id) : false;
+
+    const handleCopyText = useCallback(async () => {
+        if (!target) return;
+        // Prefer the user's manual selection; fall back to the utterance's
+        // full text. Matches what native "Copy" would have produced.
+        const text = target.selectedText.trim() || target.utteranceText;
+        if (!text) return;
+        try {
+            await navigator.clipboard.writeText(text);
+        } catch (err) {
+            toast({
+                title: t('common.error'),
+                description: t('toasts.copyError'),
+                variant: 'destructive',
+            });
+        }
+    }, [target, toast, t]);
 
     const handleStartHighlight = useCallback(async () => {
         if (!target) return;
@@ -112,6 +156,21 @@ export function UtteranceContextMenu({ children }: { children: React.ReactNode }
             }),
         });
     }, [target, createHighlight, toast, t]);
+
+    const handleSelectFromHere = useCallback(() => {
+        if (!target) return;
+        setRangeAnchorId(target.id);
+    }, [target]);
+
+    const handleSelectUntilHere = useCallback(() => {
+        if (!target || !rangeAnchorId) return;
+        // Only clear the anchor when the range actually committed — if the
+        // call no-ops (e.g. every utterance in the range is already in the
+        // highlight), preserve the anchor so the user isn't forced to
+        // re-set it just to try a different "until here".
+        const added = addUtteranceRangeToHighlight(rangeAnchorId, target.id);
+        if (added) setRangeAnchorId(null);
+    }, [target, rangeAnchorId, addUtteranceRangeToHighlight]);
 
     const handleMoveToPrevious = useCallback(() => {
         if (!target) return;
@@ -180,15 +239,37 @@ export function UtteranceContextMenu({ children }: { children: React.ReactNode }
                     />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                    {target && canStartHighlight && (
-                        <DropdownMenuItem onClick={handleStartHighlight}>
-                            <Star className="h-4 w-4 mr-2" />
-                            {t('contextMenu.startHighlightFromHere')}
+                    {target && (
+                        <DropdownMenuItem onClick={handleCopyText}>
+                            <ClipboardCopy className="h-4 w-4 mr-2" />
+                            {t('contextMenu.copyText')}
                         </DropdownMenuItem>
+                    )}
+                    {target && canRangeSelect && (
+                        <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={handleSelectFromHere}>
+                                <ListStart className="h-4 w-4 mr-2" />
+                                {t('contextMenu.selectFromHere')}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleSelectUntilHere} disabled={!rangeAnchorId}>
+                                <ListEnd className="h-4 w-4 mr-2" />
+                                {t('contextMenu.selectUntilHere')}
+                            </DropdownMenuItem>
+                        </>
+                    )}
+                    {target && canStartHighlight && (
+                        <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={handleStartHighlight}>
+                                <Star className="h-4 w-4 mr-2" />
+                                {t('contextMenu.startHighlightFromHere')}
+                            </DropdownMenuItem>
+                        </>
                     )}
                     {target && options.editable && (
                         <>
-                            {canStartHighlight && <DropdownMenuSeparator />}
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem
                                 onClick={() => extractSelectedSegment()}
                                 disabled={isProcessing || (!targetSelected && selectedUtteranceIds.size > 0)}
@@ -211,10 +292,13 @@ export function UtteranceContextMenu({ children }: { children: React.ReactNode }
                         </>
                     )}
                     {target && canShare && (
-                        <DropdownMenuItem onClick={handleShareFromHere}>
-                            <Copy className="h-4 w-4 mr-2" />
-                            {t('contextMenu.shareFromHere')}
-                        </DropdownMenuItem>
+                        <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={handleShareFromHere}>
+                                <Copy className="h-4 w-4 mr-2" />
+                                {t('contextMenu.shareFromHere')}
+                            </DropdownMenuItem>
+                        </>
                     )}
                 </DropdownMenuContent>
             </DropdownMenu>

@@ -12,15 +12,24 @@ import { PersonBadge } from "@/components/persons/PersonBadge";
 import { VoiceprintActions } from "./voiceprint-actions";
 import { BulkVoiceprintDialog } from "./bulk-voiceprint-dialog";
 import ElectedOrderSheet from "./ElectedOrderSheet";
+import { AdministrativeBody } from "@prisma/client";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface PeopleProps {
     people: PersonWithRelations[];
     currentCityName: string;
+    administrativeBodies: AdministrativeBody[];
 }
 
-export default function People({ people, currentCityName }: PeopleProps) {
+export default function People({ people, currentCityName, administrativeBodies }: PeopleProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [electedOrderOpen, setElectedOrderOpen] = useState(false);
+    const [selectedBodyId, setSelectedBodyId] = useState<string | null>(null);
     const t = useTranslations("Person");
     const tElectedOrder = useTranslations("ElectedOrderSheet");
 
@@ -39,14 +48,21 @@ export default function People({ people, currentCityName }: PeopleProps) {
             totalPeople: filteredPeople.length,
             peopleWithRoles: filteredPeople.filter(person => person.roles.length > 0).length,
             peopleWithImages: filteredPeople.filter(person => person.image !== null).length,
-            peopleWithVoiceprints: filteredPeople.filter(person => person.voicePrints && person.voicePrints.length > 0)
-                .length,
+            peopleWithVoiceprints: filteredPeople.filter(person => person.voicePrints && person.voicePrints.length > 0).length,
         }),
         [filteredPeople],
     );
 
     // Get the cityId from the first person or use empty string as fallback
     const cityId = people.length > 0 ? people[0].cityId : "";
+
+    const handleBodySelect = (bodyId: string) => {
+        setSelectedBodyId(bodyId);
+        // Delay opening the Sheet to let the DropdownMenu (also a Radix Dialog)
+        // fully close first — otherwise two dialogs transitioning simultaneously
+        // can leave pointer-events: none stuck on the body.
+        requestAnimationFrame(() => setElectedOrderOpen(true));
+    };
 
     return (
         <>
@@ -72,14 +88,24 @@ export default function People({ people, currentCityName }: PeopleProps) {
                     <CardTitle className='flex justify-between'>
                         <span>People</span>
                         <div className='flex items-center gap-2'>
-                            {cityId && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setElectedOrderOpen(true)}
-                                >
-                                    {tElectedOrder('triggerButton')}
-                                </Button>
+                            {cityId && administrativeBodies.length > 0 && (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" size="sm">
+                                            {tElectedOrder('triggerButton')}
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        {administrativeBodies.map(body => (
+                                            <DropdownMenuItem
+                                                key={body.id}
+                                                onClick={() => handleBodySelect(body.id)}
+                                            >
+                                                {body.name}
+                                            </DropdownMenuItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             )}
                             {cityId && <BulkVoiceprintDialog cityId={cityId} currentCityName={currentCityName} />}
                             <span className='text-muted-foreground text-sm ml-2'>{currentCityName}</span>
@@ -112,10 +138,11 @@ export default function People({ people, currentCityName }: PeopleProps) {
 
             {cityId && (
                 <ElectedOrderSheet
-                    open={electedOrderOpen}
+                    open={electedOrderOpen && selectedBodyId !== null}
                     onOpenChange={setElectedOrderOpen}
                     people={people}
                     cityId={cityId}
+                    administrativeBodyId={selectedBodyId ?? ""}
                 />
             )}
         </>

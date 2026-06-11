@@ -9,6 +9,7 @@ import { useState } from "react"
 export function SignIn() {
     const searchParams = useSearchParams()
     const email = searchParams.get("email")
+    const callbackUrl = searchParams.get("callbackUrl")
     const [error, setError] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
 
@@ -45,6 +46,9 @@ export function SignIn() {
                             defaultValue={email || ""}
                             disabled={isLoading}
                         />
+                        {callbackUrl && (
+                            <input type="hidden" name="callbackUrl" value={callbackUrl} />
+                        )}
                         {error && (
                             <p className="text-sm text-red-500">{error}</p>
                         )}
