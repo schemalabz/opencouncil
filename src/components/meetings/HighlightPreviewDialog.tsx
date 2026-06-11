@@ -4,7 +4,6 @@ import { useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Video as VideoIcon, Play, Pause, Monitor, Smartphone, CheckCircle, Clock, List, FileText } from 'lucide-react';
@@ -45,7 +44,7 @@ export function HighlightPreviewDialog() {
 
   const captionsId = useId();
   const speakersId = useId();
-  const aspectSwitchId = useId();
+  const aspectRatioName = useId();
 
   // Render settings (session-scoped only)
   const [includeCaptions, setIncludeCaptions] = useState(true);
@@ -182,91 +181,96 @@ export function HighlightPreviewDialog() {
           </div>
         </div>
 
-        {/* Always visible compact settings */}
+        {/* Always visible grouped settings */}
         <div className="mt-4 space-y-3">
-          <div className="border rounded-lg p-3 bg-muted/30">
-            <div className="flex items-center gap-4 flex-wrap">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">{t('previewDialog.format')}</span>
-                <button
-                  type="button"
-                  onClick={() => setAspectRatio('default')}
-                  className={cn(
-                    "flex items-center gap-1 text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded",
-                    isSocial ? "text-muted-foreground" : "font-medium"
-                  )}
-                >
-                  <Monitor className="h-3.5 w-3.5" />
-                  16:9
-                </button>
-                <Switch
-                  id={aspectSwitchId}
-                  checked={isSocial}
-                  onCheckedChange={(checked) => setAspectRatio(checked ? 'social-9x16' : 'default')}
-                  aria-label={t('previewDialog.format')}
-                />
-                <button
-                  type="button"
-                  onClick={() => setAspectRatio('social-9x16')}
-                  className={cn(
-                    "flex items-center gap-1 text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded",
-                    isSocial ? "font-medium" : "text-muted-foreground"
-                  )}
-                >
-                  <Smartphone className="h-3.5 w-3.5" />
-                  9:16
-                </button>
-              </div>
+          <div className="border rounded-lg p-3 bg-muted/30 space-y-4">
+            <div className="text-sm font-medium">{t('previewDialog.settings')}</div>
 
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id={captionsId}
-                  checked={includeCaptions}
-                  onCheckedChange={(checked) => setIncludeCaptions(checked === true)}
-                />
-                <Label
-                  htmlFor={captionsId}
-                  className={cn(
-                    "text-xs cursor-pointer",
-                    includeCaptions && (isTranscriptVerified ? "text-green-700 dark:text-green-400" : "text-yellow-700 dark:text-yellow-500")
-                  )}
-                >
-                  {t('previewDialog.captions')}
-                </Label>
-                {includeCaptions && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        aria-label={isTranscriptVerified ? t('previewDialog.captionsVerified') : t('previewDialog.captionsUnverified')}
-                        className={cn(
-                          "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                          isTranscriptVerified ? "text-green-600 dark:text-green-400" : "text-yellow-600 dark:text-yellow-500"
-                        )}
-                      >
-                        {isTranscriptVerified
-                          ? <CheckCircle2 className="h-3.5 w-3.5" />
-                          : <AlertTriangle className="h-3.5 w-3.5" />}
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" align="center" className="max-w-[260px] text-xs whitespace-normal break-words">
-                      {isTranscriptVerified ? t('previewDialog.captionsVerified') : t('previewDialog.captionsUnverified')}
-                    </TooltipContent>
-                  </Tooltip>
-                )}
+            {/* Size: aspect-ratio radio group */}
+            <fieldset className="space-y-2">
+              <legend className="text-xs font-medium text-muted-foreground">{t('previewDialog.size')}</legend>
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-2 text-xs cursor-pointer">
+                  <input
+                    type="radio"
+                    name={aspectRatioName}
+                    value="default"
+                    checked={!isSocial}
+                    onChange={() => setAspectRatio('default')}
+                    className="h-3.5 w-3.5 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                  <Monitor className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span className={cn(!isSocial && "font-medium")}>{t('previewDialog.aspectDesktop')}</span>
+                </label>
+                <label className="flex items-center gap-2 text-xs cursor-pointer">
+                  <input
+                    type="radio"
+                    name={aspectRatioName}
+                    value="social-9x16"
+                    checked={isSocial}
+                    onChange={() => setAspectRatio('social-9x16')}
+                    className="h-3.5 w-3.5 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                  <Smartphone className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span className={cn(isSocial && "font-medium")}>{t('previewDialog.aspectMobile')}</span>
+                </label>
               </div>
+            </fieldset>
 
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id={speakersId}
-                  checked={overlaySpeakerNames}
-                  onCheckedChange={(checked) => setOverlaySpeakerNames(checked === true)}
-                />
-                <Label htmlFor={speakersId} className="text-xs cursor-pointer">
-                  {t('previewDialog.speakerOverlays')}
-                </Label>
+            {/* Formatting: caption and speaker-overlay checkboxes */}
+            <fieldset className="space-y-2">
+              <legend className="text-xs font-medium text-muted-foreground">{t('previewDialog.formatting')}</legend>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id={captionsId}
+                    checked={includeCaptions}
+                    onCheckedChange={(checked) => setIncludeCaptions(checked === true)}
+                  />
+                  <Label
+                    htmlFor={captionsId}
+                    className={cn(
+                      "text-xs cursor-pointer",
+                      includeCaptions && (isTranscriptVerified ? "text-green-700 dark:text-green-400" : "text-yellow-700 dark:text-yellow-500")
+                    )}
+                  >
+                    {t('previewDialog.captions')}
+                  </Label>
+                  {includeCaptions && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label={isTranscriptVerified ? t('previewDialog.captionsVerified') : t('previewDialog.captionsUnverified')}
+                          className={cn(
+                            "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                            isTranscriptVerified ? "text-green-600 dark:text-green-400" : "text-yellow-600 dark:text-yellow-500"
+                          )}
+                        >
+                          {isTranscriptVerified
+                            ? <CheckCircle2 className="h-3.5 w-3.5" />
+                            : <AlertTriangle className="h-3.5 w-3.5" />}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" align="center" className="max-w-[260px] text-xs whitespace-normal break-words">
+                        {isTranscriptVerified ? t('previewDialog.captionsVerified') : t('previewDialog.captionsUnverified')}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id={speakersId}
+                    checked={overlaySpeakerNames}
+                    onCheckedChange={(checked) => setOverlaySpeakerNames(checked === true)}
+                  />
+                  <Label htmlFor={speakersId} className="text-xs cursor-pointer">
+                    {t('previewDialog.speakerOverlays')}
+                  </Label>
+                </div>
               </div>
-            </div>
+            </fieldset>
           </div>
 
           {/* Actions */}
