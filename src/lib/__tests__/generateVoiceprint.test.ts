@@ -111,6 +111,13 @@ describe("getCandidateSegmentsForVoiceprint", () => {
         const result = await getCandidateSegmentsForVoiceprint(PERSON_ID);
 
         expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: CITY_ID });
+        // The segment scan must be scoped to the person's city so a caller can't
+        // read transcript content from cities they aren't authorized for.
+        expect(mockPrisma.speakerSegment.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: expect.objectContaining({ cityId: CITY_ID }),
+            }),
+        );
         expect(result.map(c => c.segmentId)).toEqual(["seg-long", "seg-medium"]);
         expect(result[0].duration).toBe(90);
 
