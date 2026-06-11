@@ -4,13 +4,22 @@ import Footer from "@/components/layout/Footer";
 import { getCityCached } from "@/lib/cache";
 import { notFound } from "next/navigation";
 
-export default async function CityInnerLayout({
-    children,
-    params: { locale, cityId }
-}: {
-    children: React.ReactNode,
-    params: { locale: string, cityId: string }
-}) {
+export default async function CityInnerLayout(
+    props: {
+        children: React.ReactNode,
+        params: Promise<{ locale: string, cityId: string }>
+    }
+) {
+    const params = await props.params;
+
+    const {
+        locale,
+        cityId
+    } = params;
+
+    const {
+        children
+    } = props;
 
     const city = await getCityCached(cityId);
     if (!city) notFound();

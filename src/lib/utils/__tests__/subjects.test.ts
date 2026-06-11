@@ -7,6 +7,7 @@ function makeSubject(overrides: Partial<{
     agendaItemIndex: number | null;
     withdrawn: boolean;
     statistics: { speakingSeconds: number };
+    _count: { contributions: number };
 }> = {}) {
     return {
         id: 'subject-1',
@@ -16,6 +17,7 @@ function makeSubject(overrides: Partial<{
         withdrawn: false,
         statistics: { speakingSeconds: 0 },
         speakerSegments: [],
+        _count: { contributions: 0 },
         ...overrides,
     };
 }
@@ -49,11 +51,11 @@ describe('categorizeSubjects', () => {
         expect(result.agenda).toHaveLength(1);
     });
 
-    it('sorts beforeAgenda and outOfAgenda by speaking time (descending)', () => {
+    it('sorts beforeAgenda and outOfAgenda by speaker contribution count (descending)', () => {
         const subjects = [
-            makeSubject({ name: 'Low', nonAgendaReason: 'beforeAgenda', statistics: { speakingSeconds: 10 } }),
-            makeSubject({ name: 'High', nonAgendaReason: 'beforeAgenda', statistics: { speakingSeconds: 100 } }),
-            makeSubject({ name: 'Mid', nonAgendaReason: 'beforeAgenda', statistics: { speakingSeconds: 50 } }),
+            makeSubject({ name: 'Low', nonAgendaReason: 'beforeAgenda', _count: { contributions: 1 } }),
+            makeSubject({ name: 'High', nonAgendaReason: 'beforeAgenda', _count: { contributions: 10 } }),
+            makeSubject({ name: 'Mid', nonAgendaReason: 'beforeAgenda', _count: { contributions: 5 } }),
         ];
 
         const result = categorizeSubjects(subjects);

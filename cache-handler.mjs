@@ -1,6 +1,6 @@
-import { CacheHandler } from '@neshca/cache-handler';
-import createRedisHandler from '@neshca/cache-handler/redis-strings';
-import createLruHandler from '@neshca/cache-handler/local-lru';
+import { CacheHandler } from '@fortedigital/nextjs-cache-handler';
+import createRedisHandler from '@fortedigital/nextjs-cache-handler/redis-strings';
+import createLruHandler from '@fortedigital/nextjs-cache-handler/local-lru';
 import { createClient } from 'redis';
 
 CacheHandler.onCreation(async ({ buildId }) => {
@@ -20,6 +20,10 @@ CacheHandler.onCreation(async ({ buildId }) => {
 
     client = createClient({
       url: normalizedUrl,
+      // Keep the connection warm — DO managed Valkey closes idle TCP sockets
+      // around the 300s mark, producing periodic "Socket closed unexpectedly"
+      // errors and adding reconnect latency to the first request after each.
+      pingInterval: 60_000,
     });
 
     client.on('error', (error) => {
@@ -66,13 +70,31 @@ CacheHandler.onCreation(async ({ buildId }) => {
       console.warn('[cache-handler] Deploy flush check failed:', error.message);
     }
 
+    // Namespace by buildId so old-build instances during a rolling deploy can't
+    // pollute the new build's cache (and vice-versa). Without this, an old
+    // instance writes HTML referencing its own chunk hashes into the shared
+    // cache, then new instances serve it and 404 on the chunks they don't have.
+    // sharedTagsKey is also namespaced so a revalidateTag from an old-build
+    // instance doesn't delete the new build's entries through the shared tag map.
+    const namespace = buildId || 'nobuild';
+
+    // Forte's redis-strings handler fixes the @neshca issues that drove #358:
+    //   • TTL-bound tag hashmap (sharedTagsTtlKey) — no unbounded growth from bot pollution
+    //   • Higher default revalidateTagQuerySize (10_000 vs the old 100) — fewer round-trips per scan
+    //   • Tag revalidation is no longer O(n) over a single hash
     const handler = createRedisHandler({
       client,
-      keyPrefix: 'oc:',
-      timeoutMs: 1000,
+      keyPrefix: `oc:${namespace}:`,
+      // The old @neshca config used 1000ms, which (combined with the O(n) scan)
+      // was a #358 failure mode: revalidation commands aborted under load. The
+      // new handler removes the O(n) scan, but keep a generous ceiling so a
+      // transient Valkey latency spike (e.g. a rolling-deploy flush) doesn't
+      // abort revalidation. 5s matches the library default.
+      timeoutMs: 5000,
       keyExpirationStrategy: 'EXAT',
-      sharedTagsKey: '__oc_tags__',
-      revalidateTagQuerySize: 100,
+      // Namespaced by buildId for the same rolling-deploy isolation as keyPrefix.
+      sharedTagsKey: `__oc_tags__:${namespace}`,
+      sharedTagsTtlKey: `__oc_tags_ttl__:${namespace}`,
     });
 
     return {

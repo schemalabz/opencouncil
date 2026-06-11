@@ -16,6 +16,7 @@ interface TaskFiltersProps {
   taskTypes: MeetingTaskType[];
   versionMin: string | undefined;
   versionMax: string | undefined;
+  maxVersion: number;
   availableCities: { id: string; name: string; name_en: string }[];
 }
 
@@ -26,6 +27,7 @@ export function TaskFilters({
   taskTypes,
   versionMin,
   versionMax,
+  maxVersion,
   availableCities,
 }: TaskFiltersProps) {
   const { updateParam, isPending } = useUrlParams();
@@ -52,6 +54,16 @@ export function TaskFilters({
     o => o.value === taskTypesValue || (o.value === "default" && taskTypesValue === "transcribe,processAgenda,summarize")
   );
   const selectTaskTypesValue = matchingOption ? matchingOption.value : taskTypesValue;
+
+  // Build version options: "Any", 0 (unversioned), 1, 2, ... maxVersion
+  const versionOptions = [
+    { value: "any", label: "Any" },
+    { value: "0", label: "Unversioned" },
+    ...Array.from({ length: maxVersion }, (_, i) => ({
+      value: String(i + 1),
+      label: `v${i + 1}`,
+    })),
+  ];
 
   return (
     <>
@@ -123,46 +135,48 @@ export function TaskFilters({
         </Select>
       </div>
 
-      <div className="w-full md:w-28">
+      <div className="w-full md:w-36">
         <Label htmlFor="versionMin-filter" className="text-sm font-medium mb-2 block">
           Version Min
         </Label>
-        <Input
-          id="versionMin-filter"
-          type="number"
-          placeholder="Min"
-          defaultValue={versionMin ?? ""}
+        <Select
+          value={versionMin ?? "any"}
+          onValueChange={(v) => updateParam("versionMin", v === "any" ? null : v)}
           disabled={isPending}
-          onBlur={(e) => {
-            updateParam("versionMin", e.target.value.trim() || null);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              (e.target as HTMLInputElement).blur();
-            }
-          }}
-        />
+        >
+          <SelectTrigger id="versionMin-filter" disabled={isPending}>
+            <SelectValue placeholder="Any" />
+          </SelectTrigger>
+          <SelectContent>
+            {versionOptions.map(option => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      <div className="w-full md:w-28">
+      <div className="w-full md:w-36">
         <Label htmlFor="versionMax-filter" className="text-sm font-medium mb-2 block">
           Version Max
         </Label>
-        <Input
-          id="versionMax-filter"
-          type="number"
-          placeholder="Max"
-          defaultValue={versionMax ?? ""}
+        <Select
+          value={versionMax ?? "any"}
+          onValueChange={(v) => updateParam("versionMax", v === "any" ? null : v)}
           disabled={isPending}
-          onBlur={(e) => {
-            updateParam("versionMax", e.target.value.trim() || null);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              (e.target as HTMLInputElement).blur();
-            }
-          }}
-        />
+        >
+          <SelectTrigger id="versionMax-filter" disabled={isPending}>
+            <SelectValue placeholder="Any" />
+          </SelectTrigger>
+          <SelectContent>
+            {versionOptions.map(option => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {isPending && (

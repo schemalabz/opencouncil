@@ -28,7 +28,7 @@ interface ConnectedDevice {
   isOnline: boolean
 }
 
-export default function MobilePreviewButton({ barRef }: { barRef: React.RefObject<HTMLDivElement> }) {
+export default function MobilePreviewButton({ barRef }: { barRef: React.RefObject<HTMLDivElement | null> }) {
   const [isOpen, setIsOpen] = useState(false)
   const [lanInfo, setLanInfo] = useState<LanInfo | null>(null)
   const [devices, setDevices] = useState<ConnectedDevice[]>([])

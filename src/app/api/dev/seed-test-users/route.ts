@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/db/prisma'
 import { TEST_USERS } from '@/lib/dev/test-users'
-import { IS_DEV } from '@/lib/utils'
+import { DEV_TOOLS_ALLOWED } from '@/lib/utils'
 import { env } from '@/env.mjs'
 import { createUser } from '@/lib/db/users'
 
 const DEV_TEST_CITY_ID = env.DEV_TEST_CITY_ID
 
 export async function POST(request: NextRequest) {
-  // Only allow in development environment
-  if (!IS_DEV) {
+  // Only allow in development or on preview deployments — never on real production
+  if (!DEV_TOOLS_ALLOWED) {
     return NextResponse.json({ error: 'Not allowed in production' }, { status: 403 })
   }
 
@@ -129,8 +129,8 @@ export async function POST(request: NextRequest) {
 
 // Add a GET endpoint to check if test users exist
 export async function GET(request: NextRequest) {
-  // Only allow in development environment
-  if (!IS_DEV) {
+  // Only allow in development or on preview deployments — never on real production
+  if (!DEV_TOOLS_ALLOWED) {
     return NextResponse.json({ error: 'Not allowed in production' }, { status: 403 })
   }
 

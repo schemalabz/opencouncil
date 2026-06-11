@@ -25,10 +25,11 @@ interface PersonDisplayProps {
     size?: 'sm' | 'md' | 'lg' | 'xl';
     editable?: boolean;
     onClick?: () => void;
+    nonInteractive?: boolean;
 }
 
 // A simpler version of PersonBadge used in search results
-function PersonDisplay({ person, speakerTag, segmentCount, short = false, preferFullName = false, size = 'md', editable = false, onClick }: PersonDisplayProps) {
+function PersonDisplay({ person, speakerTag, segmentCount, short = false, preferFullName = false, size = 'md', editable = false, onClick, nonInteractive = false }: PersonDisplayProps) {
     const activeRoles = person ? filterActiveRoles(person.roles) : [];
     const party = person ? getPartyFromRoles(person.roles) : null;
     const partyColor = party?.colorHex || 'gray';
@@ -54,12 +55,12 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
                     size === 'md' && "w-10 h-10 sm:w-12 sm:h-12",
                     size === 'lg' && "w-12 h-12 sm:w-16 sm:h-16",
                     size === 'xl' && "w-16 h-16 sm:w-24 sm:h-24",
-                    !editable && "cursor-pointer"
+                    !editable && !nonInteractive && "cursor-pointer"
                 )}
-                onClick={onClick}
-                role="button"
-                tabIndex={0}
-                onKeyPress={(e) => {
+                onClick={nonInteractive ? undefined : onClick}
+                role={nonInteractive ? undefined : "button"}
+                tabIndex={nonInteractive ? undefined : 0}
+                onKeyPress={nonInteractive ? undefined : (e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                         onClick?.();
                     }
@@ -119,6 +120,8 @@ interface PersonBadgeProps extends PersonDisplayProps {
     availablePeople?: PersonWithRelations[];
     nextUnknownLabel?: string;
     variant?: 'default' | 'inline';
+    /** When true, the badge does not navigate or behave like a button (useful on the person's own page). */
+    disableNavigation?: boolean;
 }
 
 function PersonBadge({
@@ -137,6 +140,7 @@ function PersonBadge({
     preferFullName = false,
     size = 'md',
     variant = 'default',
+    disableNavigation = false,
 }: PersonBadgeProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -159,7 +163,7 @@ function PersonBadge({
     const handlePersonClick = () => {
         if (editable) {
             setIsOpen(true);
-        } else if (person) {
+        } else if (person && !disableNavigation) {
             router.push(`/${person.cityId}/people/${person.id}`);
         }
     };
@@ -187,6 +191,7 @@ function PersonBadge({
         );
     }
 
+    const isInteractive = editable || !disableNavigation;
     const badge = (
         <div
             className={cn(
@@ -194,17 +199,17 @@ function PersonBadge({
                 withBorder && "border",
                 isSelected && "bg-accent",
                 editable && "cursor-pointer hover:bg-accent/50",
-                !editable && "cursor-pointer hover:bg-accent/20",
+                !editable && !disableNavigation && "cursor-pointer hover:bg-accent/20",
                 className
             )}
-            onClick={handlePersonClick}
-            role="button"
-            tabIndex={0}
-            onKeyPress={(e) => {
+            onClick={isInteractive ? handlePersonClick : undefined}
+            role={isInteractive ? "button" : undefined}
+            tabIndex={isInteractive ? 0 : undefined}
+            onKeyPress={isInteractive ? (e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     handlePersonClick();
                 }
-            }}
+            } : undefined}
         >
             <PersonDisplay
                 person={person}
@@ -214,6 +219,7 @@ function PersonBadge({
                 preferFullName={preferFullName}
                 size={size}
                 editable={editable}
+                nonInteractive={disableNavigation && !editable}
             />
             {editable && (
                 <Button

@@ -9,11 +9,18 @@ export const metadata = {
     title: "Παρουσίαση συνεδρίασης | OpenCouncil",
 };
 
-export default async function PresentationPage({
-    params: { cityId, meetingId },
-}: {
-    params: { cityId: string; meetingId: string; locale: string };
-}) {
+export default async function PresentationPage(
+    props: {
+        params: Promise<{ cityId: string; meetingId: string; locale: string }>;
+    }
+) {
+    const params = await props.params;
+
+    const {
+        cityId,
+        meetingId
+    } = params;
+
     const editable = await isUserAuthorizedToEdit({ cityId });
     if (!editable) {
         notFound();

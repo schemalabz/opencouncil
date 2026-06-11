@@ -1,12 +1,12 @@
-import { MinutesTranscriptEntry, MinutesSpeakerEntry } from './types';
-
-/** Gaps shorter than this include the actual utterances for completeness. */
-export const GAP_FILL_THRESHOLD_SECONDS = 15;
+import { MinutesTranscriptEntry, MinutesSpeakerEntry, MinutesCrossSubjectEntry } from './types';
 
 export interface TranscriptUtterance {
+    id: string;
     text: string;
     startTimestamp: number;
     endTimestamp: number;
+    discussionStatus?: string | null;
+    discussionSubjectId?: string | null;
     speakerSegment: {
         speakerTag: {
             label: string | null;
@@ -24,23 +24,17 @@ export interface SpeakerInfo {
 
 export type SpeakerResolver = (personId: string | null, label: string | null) => SpeakerInfo;
 
-/** Minimal info about utterances that exist in gap timeframes. */
-export interface GapContentUtterance {
-    startTimestamp: number;
-    discussionSubjectId: string | null;
-}
-
-export interface TranscriptEntriesOptions {
-    /** Utterances from the meeting that fall within gap timeframes (not part of the current subject). */
-    gapContentUtterances?: GapContentUtterance[];
-    /** Map of subject ID → subject name, for labeling gap markers. */
-    subjectNames?: Map<string, string>;
+export interface CrossSubjectInfo {
+    /** Map of utterance ID → the subjectId this utterance is actually linked to */
+    crossSubjectUtterances: Map<string, string>;
+    /** Map of subjectId → subject name, for annotation labels */
+    subjectNames: Map<string, string>;
 }
 
 export function buildTranscriptEntriesFromUtterances(
     utterances: TranscriptUtterance[],
     resolveSpeaker: SpeakerResolver,
-    options?: TranscriptEntriesOptions,
+    crossSubjectInfo?: CrossSubjectInfo,
 ): MinutesTranscriptEntry[] {
     if (utterances.length === 0) return [];
 
@@ -49,7 +43,9 @@ export function buildTranscriptEntriesFromUtterances(
     let currentLabel: string | null | undefined = undefined;
     let currentTexts: string[] = [];
     let currentTimestamp = 0;
-    let lastEndTimestamp: number | null = null;
+    let inCrossSubject: string | null = null;
+    let currentDebugStatus: string | null | undefined = undefined;
+    let currentDebugSubjectId: string | null | undefined = undefined;
 
     function flushCurrentBlock() {
         if (currentTexts.length > 0 && currentPersonId !== undefined) {
@@ -62,50 +58,50 @@ export function buildTranscriptEntriesFromUtterances(
                 role: info.role,
                 text: currentTexts.join(' '),
                 timestamp: currentTimestamp,
+                debugStatus: currentDebugStatus ?? null,
+                debugSubjectId: currentDebugSubjectId ?? null,
             };
             entries.push(entry);
         }
     }
 
     for (const u of utterances) {
-        // Check for long gap before processing this utterance
-        if (lastEndTimestamp !== null) {
-            const gap = u.startTimestamp - lastEndTimestamp;
-            if (gap >= GAP_FILL_THRESHOLD_SECONDS) {
-                // Check if there's actual content in this gap (not just silence)
-                const gapContent = options?.gapContentUtterances?.filter(
-                    gc => gc.startTimestamp >= lastEndTimestamp! && gc.startTimestamp < u.startTimestamp
-                );
+        if (crossSubjectInfo) {
+            const crossSubjectId = crossSubjectInfo.crossSubjectUtterances.get(u.id) ?? null;
 
-                if (gapContent && gapContent.length > 0) {
-                    // Real content gap — flush and insert marker
-                    flushCurrentBlock();
-
-                    // Resolve subjects discussed during the gap
-                    const subjectIds = new Set(
-                        gapContent.map(gc => gc.discussionSubjectId).filter((id): id is string => id !== null)
-                    );
-                    const subjects: { id: string; name: string }[] = [];
-                    for (const id of subjectIds) {
-                        const name = options?.subjectNames?.get(id);
-                        if (name) subjects.push({ id, name });
-                    }
-
-                    entries.push({ type: 'gap', durationSeconds: gap, subjects });
-                    // Reset speaker tracking — start fresh after gap
-                    currentPersonId = undefined;
-                    currentLabel = undefined;
-                    currentTexts = [];
-                } else if (!options?.gapContentUtterances) {
-                    // No gap content info provided — fall back to always inserting markers
-                    // (backwards compatibility for callers that don't provide gap info)
-                    flushCurrentBlock();
-                    entries.push({ type: 'gap', durationSeconds: gap, subjects: [] });
-                    currentPersonId = undefined;
-                    currentLabel = undefined;
-                    currentTexts = [];
+            if (crossSubjectId && crossSubjectId !== inCrossSubject) {
+                flushCurrentBlock();
+                currentPersonId = undefined;
+                currentTexts = [];
+                currentDebugStatus = undefined;
+                currentDebugSubjectId = undefined;
+                // Close the previous cross-subject block before opening a new one
+                if (inCrossSubject) {
+                    entries.push({
+                        type: 'cross-subject',
+                        direction: 'end',
+                        subject: { id: inCrossSubject, name: crossSubjectInfo.subjectNames.get(inCrossSubject) ?? inCrossSubject },
+                    });
                 }
-                // else: silence (gap content info provided but no utterances in range) — skip marker
+                const name = crossSubjectInfo.subjectNames.get(crossSubjectId) ?? crossSubjectId;
+                entries.push({
+                    type: 'cross-subject',
+                    direction: 'start',
+                    subject: { id: crossSubjectId, name },
+                });
+                inCrossSubject = crossSubjectId;
+            } else if (!crossSubjectId && inCrossSubject) {
+                flushCurrentBlock();
+                currentPersonId = undefined;
+                currentTexts = [];
+                currentDebugStatus = undefined;
+                currentDebugSubjectId = undefined;
+                entries.push({
+                    type: 'cross-subject',
+                    direction: 'end',
+                    subject: { id: inCrossSubject, name: crossSubjectInfo.subjectNames.get(inCrossSubject) ?? inCrossSubject },
+                });
+                inCrossSubject = null;
             }
         }
 
@@ -123,12 +119,20 @@ export function buildTranscriptEntriesFromUtterances(
             currentLabel = tag.label;
             currentTexts = [u.text];
             currentTimestamp = u.startTimestamp;
+            currentDebugStatus = u.discussionStatus ?? null;
+            currentDebugSubjectId = u.discussionSubjectId ?? null;
         }
-
-        lastEndTimestamp = u.endTimestamp;
     }
-    // Flush last block
+
     flushCurrentBlock();
+
+    if (inCrossSubject && crossSubjectInfo) {
+        entries.push({
+            type: 'cross-subject',
+            direction: 'end',
+            subject: { id: inCrossSubject, name: crossSubjectInfo.subjectNames.get(inCrossSubject) ?? inCrossSubject },
+        });
+    }
 
     return entries;
 }

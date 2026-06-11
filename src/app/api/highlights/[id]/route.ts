@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { deleteHighlight, toggleHighlightShowcase, upsertHighlight, getHighlight } from "@/lib/db/highlights";
 import { handleApiError } from "@/lib/api/errors";
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
     try {
         if (!params.id) {
             return NextResponse.json({ error: "Missing highlight ID" }, { status: 400 });
@@ -17,7 +18,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     }
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
     try {
         const body = await req.json();
         const { name, meetingId, cityId, utteranceIds, subjectId } = body || {};
@@ -38,7 +40,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
     try {
         if (!params.id) {
             return NextResponse.json({ error: "Invalid request" }, { status: 400 });
@@ -50,7 +53,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
     }
 }
 
-export async function PATCH(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
     try {
         if (!params.id) {
             return NextResponse.json({ error: "Missing highlight ID" }, { status: 400 });

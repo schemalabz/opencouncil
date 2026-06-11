@@ -7,8 +7,9 @@ WORKDIR /app
 # Install necessary system dependencies
 RUN apk add --no-cache openssl openssl-dev
 
-# Copy package.json and package-lock.json (if available)
-COPY package*.json ./
+# Copy package.json, package-lock.json, and .npmrc (the latter carries
+# legacy-peer-deps=true, required for the React 19 peer-dep set to install).
+COPY package*.json .npmrc ./
 
 # Install dependencies
 RUN npm install

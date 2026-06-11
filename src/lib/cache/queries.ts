@@ -1,6 +1,6 @@
 import { AdministrativeBodyType } from "@prisma/client";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
-import { getCity, getAllCitiesMinimal, getSupportedCitiesWithLogos, getAboutPageStats } from "@/lib/db/cities";
+import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogos, getAboutPageStats } from "@/lib/db/cities";
 import { getGitHubStats } from "@/lib/github";
 import { getCityMessage } from "@/lib/db/cityMessages";
 import { getCouncilMeetingsForCity } from "@/lib/db/meetings";
@@ -12,6 +12,20 @@ import { getMeetingStatus } from "@/lib/meetingStatus";
 import { getBatchStatisticsForSubjects, Statistics } from "@/lib/statistics";
 import { createCache } from "./index";
 import { fetchLatestSubstackPost } from "@/lib/db/landing";
+
+/**
+ * Cached list of all city ids (single shared cache key, tag `cities:all`).
+ * Use to validate route cityId params BEFORE calling any per-city cached
+ * function: per-city caches key by cityId, so a junk slug (bot probe) would
+ * otherwise write a `city:<junk>:*` entry to the shared cache (#358).
+ */
+export async function getAllCityIdsCached() {
+  return createCache(
+    () => getAllCityIds(),
+    ['cities', 'ids'],
+    { tags: ['cities:all'] }
+  )();
+}
 
 /**
  * Cached version of getCity that fetches and caches basic city data

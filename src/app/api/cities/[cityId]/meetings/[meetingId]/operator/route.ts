@@ -4,8 +4,9 @@ import { NextResponse } from "next/server";
 
 export async function GET(
     request: Request,
-    { params }: { params: { cityId: string; meetingId: string } }
+    props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
+    const params = await props.params;
     const user = await getCurrentUser();
     if (!user?.isSuperAdmin) {
         return new NextResponse("Unauthorized", { status: 401 });
@@ -30,8 +31,9 @@ export async function GET(
 
 export async function PUT(
     request: Request,
-    { params }: { params: { cityId: string; meetingId: string } }
+    props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
+    const params = await props.params;
     const user = await getCurrentUser();
     if (!user?.isSuperAdmin) {
         return new NextResponse("Unauthorized", { status: 401 });

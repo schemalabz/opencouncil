@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PhoneInput } from 'react-international-phone';
-import 'react-international-phone/style.css';
+import { PhoneField, PhoneFieldValidity } from '@/components/ui/phone-field';
 import { useSession } from 'next-auth/react';
 import { User, Mail, Phone, Lock, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -40,9 +39,13 @@ export function UserInfoForm({
     const [name, setName] = useState(initialData?.name || '');
     const [email, setEmail] = useState(initialData?.email || '');
     const [phone, setPhone] = useState(initialData?.phone || '');
+    const [phoneValidity, setPhoneValidity] = useState<PhoneFieldValidity>({
+        isActive: false,
+        isEmpty: true,
+        isValid: false,
+    });
     const [nameError, setNameError] = useState<string | null>(null);
     const [emailError, setEmailError] = useState<string | null>(null);
-    const [phoneError, setPhoneError] = useState<string | null>(null);
 
     // Check if the user is logged in
     const isLoggedIn = sessionStatus === 'authenticated' && !!session?.user;
@@ -68,18 +71,6 @@ export function UserInfoForm({
         return /.+@.+\..+/.test(email);
     };
 
-    const validatePhone = (phone: string) => {
-        // If phone is empty or only contains the +30 prefix, return true
-        if (!phone || phone === '+30') return true;
-        
-        // Remove any non-digit characters and the +30 prefix for validation
-        const digitsOnly = phone.replace(/\D/g, '');
-        // Remove the +30 prefix if it exists (first 2 digits)
-        const numberWithoutPrefix = digitsOnly.startsWith('30') ? digitsOnly.slice(2) : digitsOnly;
-        // Greek phone numbers should be 10 digits (without the country code)
-        return numberWithoutPrefix.length === 10;
-    };
-
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         let valid = true;
@@ -98,18 +89,15 @@ export function UserInfoForm({
             setEmailError(null);
         }
 
-        if (showPhone && (!validatePhone(phone))) {
-            setPhoneError('Παρακαλώ εισάγετε ένα έγκυρο τηλέφωνο (10 ψηφία)');
+        if (showPhone && phoneValidity.isActive && !phoneValidity.isEmpty && !phoneValidity.isValid) {
             valid = false;
-        } else {
-            setPhoneError(null);
         }
 
         if (valid) {
             onSubmit({
                 name: name.trim(),
                 email: email.trim(),
-                phone: phone.trim() || undefined
+                phone: phoneValidity.isActive && !phoneValidity.isEmpty ? phone : undefined
             });
         }
     };
@@ -201,22 +189,14 @@ export function UserInfoForm({
                         <Phone className="h-4 w-4" />
                         <span>Τηλέφωνο {!requirePhone && '(προαιρετικό)'}</span>
                     </Label>
-                    <div className="phone-input-container relative">
-                        <PhoneInput
-                            defaultCountry="gr"
-                            hideDropdown={true}
-                            value={phone}
-                            onChange={(value) => setPhone(value)}
-                            inputClassName="flex h-11 md:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                            placeholder="Το τηλέφωνό σας"
-                        />
-                    </div>
-                    {phoneError && (
-                        <div className="flex items-center gap-1 text-red-500 text-sm">
-                            <AlertCircle className="h-3 w-3" />
-                            <p>{phoneError}</p>
-                        </div>
-                    )}
+                    <PhoneField
+                        value={phone}
+                        onChange={setPhone}
+                        onValidityChange={setPhoneValidity}
+                        placeholder="Προσθήκη αριθμού τηλεφώνου"
+                        activePlaceholder="Το τηλέφωνό σας"
+                        invalidMessage="Παρακαλώ εισάγετε ένα έγκυρο τηλέφωνο"
+                    />
                 </div>
             )}
         </form>

@@ -2,6 +2,23 @@ import { getCities } from '../db/cities';
 import prisma from '../db/prisma';
 import * as auth from '../auth';
 
+// Mock '../api/errors' to avoid loading 'next/server' (which references the Fetch API
+// `Request` global) in the jest environment. Mirrors the workaround in users.test.ts.
+jest.mock('../api/errors', () => {
+    class ApiError extends Error {
+        constructor(public readonly statusCode: number, message: string) {
+            super(message);
+            this.name = this.constructor.name;
+        }
+    }
+    class UnauthorizedError extends ApiError {
+        constructor(message: string = "Authentication required") {
+            super(401, message);
+        }
+    }
+    return { ApiError, UnauthorizedError };
+});
+
 // Mock the prisma client
 jest.mock('../db/prisma', () => ({
     city: {

@@ -26,10 +26,7 @@ const nextConfig = {
         domains: ['townhalls-gr.fra1.digitaloceanspaces.com', 'data.opencouncil.gr', 'fra1.digitaloceanspaces.com'],
     },
     transpilePackages: ['@'],
-    // Development optimizations
-    swcMinify: true,
-    // Enable custom domains - we'll handle this entirely in middleware
-    // Removing the invalid rewrite configuration
+    // Enable custom domains - we'll handle this entirely in proxy.ts
     async headers() {
         return [
             {
@@ -38,6 +35,19 @@ const nextConfig = {
                 headers: [
                     { key: 'Content-Security-Policy', value: 'frame-ancestors *' },
                     { key: 'Cache-Control', value: 'public, s-maxage=300, stale-while-revalidate=3600' },
+                ],
+            },
+            {
+                // HTML pages vary by auth (per-user profile data, admin-only UI, the admin
+                // dashboard itself), so they must NEVER be stored by a shared cache like
+                // Cloudflare — doing so leaks one user's rendered page to another and can
+                // serve cached admin HTML to anonymous visitors, bypassing the auth gate.
+                // `private, no-store` keeps every HTML response per-request and also caps a
+                // broken deploy, since the edge can't cache HTML at all.
+                // Excludes _next/* (immutable hashed assets), api/*, files with extensions, and the embed rule above.
+                source: '/((?!_next/|api/|[^/]*\\.[^/]*|[^/]+/embed/).*)',
+                headers: [
+                    { key: 'Cache-Control', value: 'private, no-store' },
                 ],
             },
         ];

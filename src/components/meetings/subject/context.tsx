@@ -43,7 +43,8 @@ export function SubjectContext({ subject }: { subject: Subject }) {
                 }
 
                 if (React.isValidElement(content)) {
-                    const childrenArray = React.Children.toArray(content.props.children);
+                    const element = content as React.ReactElement<{ children?: React.ReactNode }>;
+                    const childrenArray = React.Children.toArray(element.props.children);
 
                     if (childrenArray.length === 0) {
                         return content;
@@ -54,7 +55,7 @@ export function SubjectContext({ subject }: { subject: Subject }) {
                         child => processContent(child)
                     );
 
-                    return React.cloneElement(content, { ...content.props }, processedChildren);
+                    return React.cloneElement(element, { ...element.props }, processedChildren);
                 }
 
                 if (Array.isArray(content)) {
@@ -80,8 +81,9 @@ export function SubjectContext({ subject }: { subject: Subject }) {
                 }
 
                 if (React.isValidElement(content)) {
+                    const element = content as React.ReactElement<{ children?: React.ReactNode }>;
                     // Process children of React elements recursively
-                    const childrenArray = React.Children.toArray(content.props.children);
+                    const childrenArray = React.Children.toArray(element.props.children);
 
                     if (childrenArray.length === 0) {
                         return content;
@@ -92,7 +94,7 @@ export function SubjectContext({ subject }: { subject: Subject }) {
                         child => processContent(child)
                     );
 
-                    return React.cloneElement(content, { ...content.props }, processedChildren);
+                    return React.cloneElement(element, { ...element.props }, processedChildren);
                 }
 
                 // If it's an array (like React fragments), process each item

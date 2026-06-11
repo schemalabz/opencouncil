@@ -223,13 +223,20 @@
       },
       "sourceTask": "Added automatically",
       "addManually": "Add manually",
-      "remove": "Remove",
       "tabAll": "All",
       "tabUnlinked": "Unlinked",
       "allLinked": "All subjects have linked decisions.",
+      "pollTitle": "Poll & extract decisions",
+      "pollDescription": "Poll Diavgeia, match decisions to subjects, and extract data from PDFs.",
       "pollButton": "Poll Diavgeia",
+      "pollButtonSkipCache": "Poll (skip cache)",
       "pollRequested": "Decision polling started",
       "pollError": "Failed to start polling",
+      "skipCacheLabel": "Skip cache",
+      "skipCacheHint": "The task server caches PDF extraction results — this bypasses that cache",
+      "resetExtractions": "Reset extractions",
+      "resetExtractionsDescription": "Remove all extracted data (excerpts, attendance, votes) for every subject. Decision links are kept.",
+      "resetExtractionsConfirm": "Reset all extracted data (excerpts, attendance, votes) for this meeting? Decision links will be kept.",
       "tabExtracted": "Extracted",
       "excerpt": "Excerpt",
       "references": "Legal references",
@@ -249,7 +256,13 @@
       "unanimous": "Unanimous ({count} for)",
       "majorityVote": "By majority ({for} for, {against} against)",
       "rejected": "Rejected ({against} against, {for} for)",
-      "noExtractedData": "No subjects with extracted data."
+      "noExtractedData": "No subjects with extracted data.",
+      "resetExtraction": "Reset extraction",
+      "resetExtractionDescription": "Clear extracted data, keep decision link. Next poll will re-extract.",
+      "removeDecision": "Remove decision",
+      "removeDecisionDescription": "Unlink decision and clear all extracted data.",
+      "extractionReset": "Extraction reset",
+      "decisionRemoved": "Decision removed"
     }
   }
 }

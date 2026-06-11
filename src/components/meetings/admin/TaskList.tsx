@@ -9,9 +9,10 @@ interface TaskListProps {
     tasks: TaskStatus[];
     onDelete: (taskId: string) => void;
     isLoading: boolean;
+    showMeetingInfo?: boolean;
 }
 
-export default function TaskList({ tasks, onDelete, isLoading }: TaskListProps) {
+export default function TaskList({ tasks, onDelete, isLoading, showMeetingInfo }: TaskListProps) {
     const t = useTranslations('admin.taskList');
     
     if (isLoading) {
@@ -40,7 +41,7 @@ export default function TaskList({ tasks, onDelete, isLoading }: TaskListProps) 
                     exit={{ opacity: 0, height: 0 }}
                     transition={{ duration: 0.1 }}
                 >
-                    <TaskStatusComponent task={task} onDelete={onDelete} />
+                    <TaskStatusComponent task={task} onDelete={onDelete} showMeetingInfo={showMeetingInfo} />
                 </motion.div>
             ))}
         </AnimatePresence>

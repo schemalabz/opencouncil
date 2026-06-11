@@ -4,8 +4,6 @@ import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { PhoneInput } from 'react-international-phone';
-import 'react-international-phone/style.css';
 import type { User } from "@prisma/client";
 import { CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -13,8 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { X, HelpCircle } from "lucide-react";
-import { detectCountryFromPhone, isPhoneValid, isPhoneEmpty } from "@/lib/utils/phone";
+import { HelpCircle } from "lucide-react";
+import { PhoneField, PhoneFieldValidity } from "@/components/ui/phone-field";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { NotificationPreferencesSection } from "@/components/profile/NotificationPreferencesSection";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -33,9 +31,11 @@ export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState(false);
-    const [phoneActive, setPhoneActive] = useState(!isPhoneEmpty(user.phone || ""));
-    const [shouldAutoFocus, setShouldAutoFocus] = useState(false);
-    const [phoneCountry, setPhoneCountry] = useState(detectCountryFromPhone(user.phone || "") || "GR");
+    const [phoneValidity, setPhoneValidity] = useState<PhoneFieldValidity>({
+        isActive: false,
+        isEmpty: true,
+        isValid: false,
+    });
 
     const [formData, setFormData] = useState({
         name: user.name || "",
@@ -44,8 +44,7 @@ export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
         allowPetitionUpdates: user.allowPetitionUpdates,
     });
 
-    const phoneEmpty = isPhoneEmpty(formData.phone);
-    const phoneValid = isPhoneValid(formData.phone, [phoneCountry]);
+    const phoneSubmitBlocked = phoneValidity.isActive && !phoneValidity.isEmpty && !phoneValidity.isValid;
 
     async function saveToApi(payload: object) {
         setIsSubmitting(true);
@@ -66,10 +65,10 @@ export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
 
     async function handlePersonalSubmit(e: React.FormEvent) {
         e.preventDefault();
-        if (phoneActive && !phoneEmpty && !phoneValid) return;
+        if (phoneSubmitBlocked) return;
         await saveToApi({
             name: formData.name,
-            phone: phoneEmpty ? null : formData.phone,
+            phone: phoneValidity.isEmpty ? null : formData.phone,
             onboarded: true,
         });
     }
@@ -161,46 +160,13 @@ export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
 
                                 <div className="space-y-2">
                                     <Label htmlFor="phone">{t("phone")}</Label>
-                                    {phoneActive ? (
-                                        <div className="relative">
-                                            <PhoneInput
-                                                defaultCountry="gr"
-                                                value={formData.phone}
-                                                onChange={(phone, meta) => {
-                                                    setFormData({ ...formData, phone });
-                                                    setPhoneCountry(meta.country.iso2);
-                                                }}
-                                                inputProps={{ autoFocus: shouldAutoFocus }}
-                                                inputClassName="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pr-8"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setFormData({ ...formData, phone: "" });
-                                                    setPhoneActive(false);
-                                                    setShouldAutoFocus(false);
-                                                }}
-                                                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                            >
-                                                <X className="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <Input
-                                            type="text"
-                                            id="phone"
-                                            placeholder={t("phonePlaceholder")}
-                                            onFocus={() => {
-                                                setPhoneActive(true);
-                                                setShouldAutoFocus(true);
-                                            }}
-                                            readOnly
-                                            className="cursor-text"
-                                        />
-                                    )}
-                                    {phoneActive && !phoneEmpty && !phoneValid && (
-                                        <p className="text-sm text-destructive">{t("phoneInvalid")}</p>
-                                    )}
+                                    <PhoneField
+                                        value={formData.phone}
+                                        onChange={(phone) => setFormData({ ...formData, phone })}
+                                        onValidityChange={setPhoneValidity}
+                                        placeholder={t("phonePlaceholder")}
+                                        invalidMessage={t("phoneInvalid")}
+                                    />
                                 </div>
 
                                 <div className="flex flex-col justify-between gap-2">
@@ -209,7 +175,7 @@ export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
                                     </p>
                                     <Button
                                         type="submit"
-                                        disabled={isSubmitting || !formData.name || (phoneActive && !phoneEmpty && !phoneValid)}
+                                        disabled={isSubmitting || !formData.name || phoneSubmitBlocked}
                                         className="whitespace-normal h-auto"
                                     >
                                         {isSubmitting ? t("saving") : t("savePersonalInfo")}

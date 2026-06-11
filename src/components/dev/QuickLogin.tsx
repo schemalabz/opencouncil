@@ -24,7 +24,11 @@ import MobilePreviewButton from '@/components/dev/MobilePreviewButton'
 // Get predefined test users from shared definition
 const PREDEFINED_USERS = getTestUsersForDisplay()
 
-export default function QuickLogin() {
+// `isPreview` is passed from the server (layout.tsx reads process.env.IS_PREVIEW
+// at runtime). It can't be read here directly: IS_PREVIEW is not a NEXT_PUBLIC_
+// var and is only set at runtime by the preview systemd unit, so it's undefined
+// in the client bundle.
+export default function QuickLogin({ isPreview = false }: { isPreview?: boolean }) {
   const [isOpen, setIsOpen] = useState(false)
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -153,8 +157,8 @@ export default function QuickLogin() {
     setMessage('') // Clear any messages
   }
 
-  // Only show in development
-  if (!IS_DEV) {
+  // Only show in development or on preview deployments
+  if (!(IS_DEV || isPreview)) {
     return null
   }
 
@@ -176,7 +180,9 @@ export default function QuickLogin() {
           <div className="w-px bg-red-400/40 my-1.5" />
           <DialogTrigger asChild>
             <button className="flex items-center gap-2 px-3 py-1.5 hover:bg-red-700/50 transition-colors rounded-r-md">
-              <span className="text-[10px] font-bold bg-red-800 px-1.5 py-0.5 rounded">DEV</span>
+              <span className="text-[10px] font-bold bg-red-800 px-1.5 py-0.5 rounded">
+                {isPreview ? 'PREVIEW' : 'DEV'}
+              </span>
               <span className="text-xs">Quick Login</span>
             </button>
           </DialogTrigger>
@@ -194,7 +200,7 @@ export default function QuickLogin() {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5 text-red-600" />
-            Development Quick Login
+            {isPreview ? 'Preview Quick Login' : 'Development Quick Login'}
           </DialogTitle>
           <DialogDescription>
             Quickly switch between different user accounts for testing authorization scenarios. 

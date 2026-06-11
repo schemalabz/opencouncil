@@ -114,7 +114,7 @@ export async function markHumanReviewComplete(
     
     // Revalidate tags that list meetings for the city
     try {
-        revalidateTag(`city:${cityId}:meetings`);
+        revalidateTag(`city:${cityId}:meetings`, 'max');
     } catch (error) {
         // Log cache revalidation errors but don't fail the operation
         // Cache revalidation is not critical for the core functionality

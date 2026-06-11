@@ -1136,20 +1136,15 @@ export async function getNotificationsGroupedByMeeting(filters: {
         pageSize = 20
     } = filters;
 
-    // Default to last 30 days for start date, and 90 days in the future for end date
-    // This ensures we show pending notifications for upcoming meetings (beforeMeeting notifications)
-    const effectiveEndDate = endDate || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
-    const effectiveStartDate = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-
     // Build the where clause for notifications
-    const notificationWhere: Prisma.NotificationWhereInput = {
-        meeting: {
-            dateTime: {
-                gte: effectiveStartDate,
-                lte: effectiveEndDate
-            }
-        }
-    };
+    const notificationWhere: Prisma.NotificationWhereInput = {};
+
+    if (startDate || endDate) {
+        const dateFilter: { gte?: Date; lte?: Date } = {};
+        if (startDate) dateFilter.gte = startDate;
+        if (endDate) dateFilter.lte = endDate;
+        notificationWhere.meeting = { dateTime: dateFilter };
+    }
 
     if (cityId) {
         notificationWhere.cityId = cityId;

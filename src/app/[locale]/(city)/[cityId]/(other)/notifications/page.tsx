@@ -11,13 +11,14 @@ export const metadata: Metadata = {
 };
 
 interface PageProps {
-    params: { cityId: string };
+    params: Promise<{ cityId: string }>;
 }
 
-export default async function NotificationSignupPage({ params }: PageProps) {
+export default async function NotificationSignupPage(props: PageProps) {
+    const params = await props.params;
     // Fetch city data with geometry at the server level
     const city = await getCity(params.cityId, { includeGeometry: true });
-    
+
     if (!city) {
         notFound();
     }

@@ -98,14 +98,16 @@ let getAgendaItemIndex = (subject: DbSubject): number | "BEFORE_AGENDA" | "OUT_O
     return subject.nonAgendaReason === "beforeAgenda" ? "BEFORE_AGENDA" : "OUT_OF_AGENDA";
 }
 
-export async function getSummarizeRequestBody(councilMeetingId: string, cityId: string, requestedSubjects: string[], additionalInstructions?: string): Promise<Omit<SummarizeRequest, 'callbackUrl'>> {
+export async function getSummarizeRequestBody(councilMeetingId: string, cityId: string, requestedSubjects: string[], additionalInstructions?: string, { force = false }: { force?: boolean } = {}): Promise<Omit<SummarizeRequest, 'callbackUrl'>> {
     const baseRequest = await getRequestOnTranscriptRequestBody(councilMeetingId, cityId);
     const existingSubjects = await getSubjectsForMeeting(cityId, councilMeetingId);
     return {
         ...baseRequest,
         requestedSubjects,
         existingSubjects: existingSubjects
-            .filter(s => s.agendaItemIndex || s.nonAgendaReason)
+            // When force re-running, only send agenda subjects — non-agenda subjects
+            // (BEFORE_AGENDA/OUT_OF_AGENDA) will be rediscovered fresh by the backend
+            .filter(s => force ? s.agendaItemIndex : (s.agendaItemIndex || s.nonAgendaReason))
             .map(s => ({
             name: s.name,
             description: s.description,

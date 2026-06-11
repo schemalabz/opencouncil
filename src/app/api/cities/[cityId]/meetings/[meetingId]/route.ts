@@ -31,8 +31,9 @@ const meetingSchema = z.object({
 
 export async function GET(
     request: Request,
-    { params }: { params: { cityId: string; meetingId: string } }
+    props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
+    const params = await props.params;
     try {
         const data = await getMeetingDataCore(params.cityId, params.meetingId);
         // Strip transcript data when hidden for review (no auth on this endpoint)
@@ -58,8 +59,9 @@ export async function GET(
 
 export async function PUT(
     request: Request,
-    { params }: { params: { cityId: string; meetingId: string } }
+    props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
+    const params = await props.params;
     try {
         await withUserAuthorizedToEdit({ cityId: params.cityId });
         const body = await request.json();
@@ -74,7 +76,7 @@ export async function PUT(
             administrativeBodyId: administrativeBodyId || null,
         });
 
-        revalidateTag(`city:${params.cityId}:meetings`);
+        revalidateTag(`city:${params.cityId}:meetings`, 'max');
         revalidatePath(`/${params.cityId}`, "layout");
 
         return NextResponse.json(meeting);

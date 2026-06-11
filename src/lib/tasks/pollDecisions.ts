@@ -3,18 +3,10 @@
 import { PollDecisionsRequest, PollDecisionsResult, ExtractedDecisionData } from "../apiTypes";
 import { startTask } from "./tasks";
 import prisma from "../db/prisma";
-import { AttendanceStatus, DataSource, Prisma, VoteType } from "@prisma/client";
+import { AttendanceStatus, DataSource, VoteType } from "@prisma/client";
 import { sortSubjectsByDiscussionOrder } from "../minutes/builders";
 
-/** Subjects eligible for decision polling: agenda + out-of-agenda, excluding withdrawn */
-const POLL_ELIGIBLE_SUBJECT_WHERE = {
-    withdrawn: false,
-    OR: [
-        { agendaItemIndex: { not: null } },
-        { nonAgendaReason: 'outOfAgenda' },
-    ],
-} satisfies Prisma.SubjectWhereInput;
-import { upsertDecision, deleteDecision, getDecisionForSubject } from "../db/decisions";
+import { upsertDecision, deleteDecision, getDecisionForSubject, DECISION_ELIGIBLE_SUBJECT_WHERE } from "../db/decisions";
 export { getDecisionForSubject };
 import { withUserAuthorizedToEdit } from "../auth";
 import { getPeopleForMeeting } from "../db/people";
@@ -72,7 +64,7 @@ export async function pollDecisionsForMeeting(
                     discussedIn: { select: { id: true } },
                     decision: { select: { ada: true, title: true, pdfUrl: true, excerpt: true } },
                 },
-                where: POLL_ELIGIBLE_SUBJECT_WHERE,
+                where: DECISION_ELIGIBLE_SUBJECT_WHERE,
             },
         },
     });
@@ -86,7 +78,7 @@ export async function pollDecisionsForMeeting(
     }
 
     if (councilMeeting.subjects.length === 0) {
-        throw new Error("No eligible subjects to poll (subjects must have agendaItemIndex or be outOfAgenda)");
+        throw new Error("No eligible subjects to poll (subjects must have agendaItemIndex or be outOfAgenda, and not be withdrawn)");
     }
 
     // Fetch people for name matching during extraction
@@ -176,7 +168,7 @@ export async function pollDecisionsForRecentMeetings() {
             },
             subjects: {
                 some: {
-                    ...POLL_ELIGIBLE_SUBJECT_WHERE,
+                    ...DECISION_ELIGIBLE_SUBJECT_WHERE,
                     decision: null,
                 },
             },

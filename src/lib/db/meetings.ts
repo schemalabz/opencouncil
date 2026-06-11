@@ -183,7 +183,7 @@ export async function toggleMeetingRelease(cityId: string, id: string, released:
             include: meetingWithAdminBodyInclude,
         });
         // TODO: utilize api/cities/[cityId]/meetings/[meetingId] to edit the meeting
-        revalidateTag(`city:${cityId}:meetings`);
+        revalidateTag(`city:${cityId}:meetings`, 'max');
         revalidatePath(`/${cityId}`, "layout");
         return updatedMeeting;
     } catch (error) {
@@ -211,7 +211,9 @@ export async function getMeetingDataForOG(cityId: string, meetingId: string) {
                         _count: { select: { contributions: true } },
                         topic: {
                             select: {
-                                colorHex: true
+                                name: true,
+                                colorHex: true,
+                                icon: true
                             }
                         }
                     }

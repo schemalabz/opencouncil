@@ -26,7 +26,7 @@ export async function POST(request: Request) {
         // Revalidate tags if provided
         if (tags && tags.length > 0) {
             for (const tag of tags) {
-                revalidateTag(tag);
+                revalidateTag(tag, 'max');
                 revalidatedTags.push(tag);
             }
         }

@@ -129,7 +129,7 @@ export async function sendTranscriptToMunicipality(
 
         // Invalidate meeting status cache so the UI reflects the new task
         try {
-            revalidateTag(`city:${cityId}:meetings`);
+            revalidateTag(`city:${cityId}:meetings`, 'max');
         } catch (error) {
             console.error(`[sendTranscript] Failed to revalidate cache for city ${cityId}:`, error);
         }

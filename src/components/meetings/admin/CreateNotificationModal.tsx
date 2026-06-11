@@ -10,21 +10,7 @@ import { Loader2, Users, Ban, Star, AlertCircle, Download } from 'lucide-react';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { TripleToggle } from '@/components/ui/triple-toggle';
 import { stripMarkdown } from '@/lib/formatters/markdown';
-
-interface Subject {
-    id: string;
-    name: string;
-    description: string;
-    topic: {
-        id: string;
-        name: string;
-        colorHex: string;
-    } | null;
-    location: {
-        id: string;
-        text: string;
-    } | null;
-}
+import { SubjectWithRelations } from '@/lib/db/subject';
 
 interface SubjectImportance {
     topicImportance: 'doNotNotify' | 'normal' | 'high';
@@ -34,7 +20,7 @@ interface SubjectImportance {
 interface CreateNotificationModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    subjects: Subject[];
+    subjects: SubjectWithRelations[];
     notificationType: 'beforeMeeting' | 'afterMeeting';
     onCreateNotifications: (
         type: 'beforeMeeting' | 'afterMeeting',
@@ -54,18 +40,73 @@ export function CreateNotificationModal({
     const [sendImmediately, setSendImmediately] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [subjectImportances, setSubjectImportances] = useState<Record<string, SubjectImportance>>(() => {
-        // Initialize all subjects with default values
         const initial: Record<string, SubjectImportance> = {};
         subjects.forEach(subject => {
             initial[subject.id] = {
-                topicImportance: 'doNotNotify',
-                proximityImportance: 'none'
+                topicImportance: (subject.topicImportance as SubjectImportance['topicImportance']) || 'doNotNotify',
+                proximityImportance: (subject.proximityImportance as SubjectImportance['proximityImportance']) || 'none'
             };
         });
         return initial;
     });
     const [impactPreview, setImpactPreview] = useState<{ totalUsers: number; subjectImpact: Record<string, number> } | null>(null);
     const [isLoadingImpact, setIsLoadingImpact] = useState(false);
+    const [existingNotifications, setExistingNotifications] = useState<{
+        total: number;
+        sent: number;
+        pending: number;
+        failed: number;
+    } | null>(null);
+
+    useEffect(() => {
+        if (!open) {
+            setExistingNotifications(null);
+            return;
+        }
+
+        const fetchExisting = async () => {
+            try {
+                const response = await fetch(
+                    `/api/admin/notifications?meetingId=${meeting.id}&cityIdForMeeting=${city.id}&type=${notificationType}`
+                );
+                if (response.ok) {
+                    const data = await response.json();
+                    const notifications = data.notifications || [];
+                    const stats = { total: notifications.length, sent: 0, pending: 0, failed: 0 };
+                    for (const n of notifications) {
+                        const deliveryStatuses = n.deliveries.map((d: { status: string }) => d.status);
+                        if (deliveryStatuses.includes('pending')) {
+                            stats.pending++;
+                        } else if (deliveryStatuses.includes('failed')) {
+                            stats.failed++;
+                        } else if (deliveryStatuses.length > 0) {
+                            stats.sent++;
+                        }
+                    }
+                    setExistingNotifications(stats);
+                }
+            } catch (error) {
+                console.error('Error fetching existing notifications:', error);
+            }
+        };
+
+        fetchExisting();
+    }, [open, meeting.id, city.id, notificationType]);
+
+    // Reset importance values from current subject data each time the modal opens,
+    // so values are fresh if subjects changed since the component mounted
+    useEffect(() => {
+        if (open) {
+            const fresh: Record<string, SubjectImportance> = {};
+            subjects.forEach(subject => {
+                fresh[subject.id] = {
+                    topicImportance: (subject.topicImportance as SubjectImportance['topicImportance']) || 'doNotNotify',
+                    proximityImportance: (subject.proximityImportance as SubjectImportance['proximityImportance']) || 'none'
+                };
+            });
+            setSubjectImportances(fresh);
+        }
+    }, [open, subjects]);
 
     const updateSubjectImportance = (
         subjectId: string,
@@ -207,9 +248,24 @@ export function CreateNotificationModal({
                         Create {notificationType === 'beforeMeeting' ? 'Before Meeting' : 'After Meeting'} Notifications
                     </DialogTitle>
                     <DialogDescription>
-                        Configure which subjects to include and their importance levels. Users will be notified based on their topic interests and location preferences.
+                        Importance levels are pre-filled from the last processing run. Adjust as needed before creating notifications. Users will be matched based on their topic interests and location preferences.
                     </DialogDescription>
                 </DialogHeader>
+
+                {existingNotifications && existingNotifications.total > 0 && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                        <p className="text-sm font-medium text-amber-900">
+                            {existingNotifications.total} {notificationType === 'beforeMeeting' ? 'before meeting' : 'after meeting'} notification{existingNotifications.total !== 1 ? 's' : ''} already exist
+                        </p>
+                        <p className="text-xs text-amber-700 mt-1">
+                            {[
+                                existingNotifications.sent > 0 && `${existingNotifications.sent} sent`,
+                                existingNotifications.pending > 0 && `${existingNotifications.pending} pending`,
+                                existingNotifications.failed > 0 && `${existingNotifications.failed} failed`,
+                            ].filter(Boolean).join(', ')}
+                        </p>
+                    </div>
+                )}
 
                 <div className="flex justify-end">
                     <Button

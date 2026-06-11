@@ -1,7 +1,8 @@
 "use client"
 import Map, { MapFeature } from "@/components/map/map";
 import { CityWithGeometry } from "@/lib/db/cities";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import Image from "next/image";
 import Icon from "@/components/icon";
 import { MapFilters, MapFiltersState } from "@/components/map/MapFilters";
@@ -52,6 +53,39 @@ export default function MapPage() {
         officialSupport: false,
         supportsNotifications: false
     });
+
+    const { status: sessionStatus } = useSession();
+    const [subscribedCityIds, setSubscribedCityIds] = useState<Set<string>>(new Set());
+    const subscriptionsAbortRef = useRef<AbortController | null>(null);
+
+    const refreshSubscribedCities = useCallback(() => {
+        // Cancel any in-flight request so a stale response can't overwrite newer state.
+        subscriptionsAbortRef.current?.abort();
+        if (sessionStatus !== 'authenticated') {
+            subscriptionsAbortRef.current = null;
+            setSubscribedCityIds(new Set());
+            return;
+        }
+        const controller = new AbortController();
+        subscriptionsAbortRef.current = controller;
+        fetch('/api/user/notification-preferences', { signal: controller.signal })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (!data?.preferences) return;
+                setSubscribedCityIds(new Set(data.preferences.map((p: { city: { id: string } }) => p.city.id)));
+            })
+            .catch(() => { /* non-fatal; also swallows AbortError on cancellation */ });
+    }, [sessionStatus]);
+
+    useEffect(() => {
+        refreshSubscribedCities();
+        return () => subscriptionsAbortRef.current?.abort();
+    }, [refreshSubscribedCities]);
+
+    const hasNotificationsForOpenCity = useMemo(
+        () => subscribedCityIds.has(citySheet.cityId),
+        [subscribedCityIds, citySheet.cityId],
+    );
 
     const [subjectSheet, setSubjectSheet] = useState<{
         open: boolean;
@@ -464,6 +498,9 @@ export default function MapPage() {
                 cityName: feature.properties?.cityName
             });
         } else if (featureType === 'city') {
+            // Refresh subscription state each time a sheet opens so a city the
+            // user just subscribed to (without an auth-status change) reflects it.
+            refreshSubscribedCities();
             // Open unified city sheet for both supported and unsupported cities
             setCitySheet({
                 open: true,
@@ -552,6 +589,7 @@ export default function MapPage() {
                 meetingsCount={citySheet.meetingsCount}
                 officialSupport={citySheet.officialSupport}
                 supportsNotifications={citySheet.supportsNotifications}
+                hasNotifications={hasNotificationsForOpenCity}
             />
 
             <SubjectInfoSheet
