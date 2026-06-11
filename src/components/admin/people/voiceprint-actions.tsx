@@ -11,7 +11,7 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 import { VoicePrint, TaskStatus } from "@prisma/client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { AudioLines, ChevronDown, ListMusic, Loader2, Play, Trash } from "lucide-react";
 import { deleteVoicePrint } from "@/lib/db/voiceprints";
 import {
@@ -50,6 +50,10 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
     const [candidatesLoaded, setCandidatesLoaded] = useState(false);
     const [candidatesError, setCandidatesError] = useState(false);
     const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
+    // Identifies the latest candidate-load request. Bumped on every load and on
+    // dialog close, so a stale in-flight fetch can detect it has been superseded
+    // and skip its state updates instead of clobbering a fresh load.
+    const loadRequestIdRef = useRef(0);
     const { toast } = useToast();
 
     // Reset the manual picker whenever the dialog closes so reopening starts clean
@@ -58,11 +62,17 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
     const handleDialogOpenChange = useCallback((open: boolean) => {
         setIsDialogOpen(open);
         if (!open) {
+            // Invalidate any in-flight candidate load so its result is ignored.
+            loadRequestIdRef.current += 1;
             setIsManualOpen(false);
             setSelectedSegmentId(null);
             setCandidates([]);
             setCandidatesLoaded(false);
             setCandidatesError(false);
+            // Clear the spinner too: otherwise a fetch interrupted by close stays
+            // "loading", and on reopen handleToggleManual's guard blocks a fresh
+            // fetch, leaving the picker stuck on the spinner.
+            setIsLoadingCandidates(false);
         }
     }, []);
 
@@ -147,13 +157,17 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
     };
 
     const loadCandidates = useCallback(async () => {
+        const requestId = (loadRequestIdRef.current += 1);
+        const isCurrent = () => requestId === loadRequestIdRef.current;
         setIsLoadingCandidates(true);
         setCandidatesError(false);
         try {
             const segments = await getCandidateSegmentsForVoiceprint(personId);
+            if (!isCurrent()) return; // dialog closed/reopened — don't clobber fresh state
             setCandidates(segments);
             setCandidatesLoaded(true);
         } catch (error) {
+            if (!isCurrent()) return;
             console.error("Error loading candidate segments:", error);
             // Flag the error so the panel shows a retry affordance instead of
             // falling through to the misleading "No segments" empty state.
@@ -164,7 +178,9 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
                 variant: "destructive",
             });
         } finally {
-            setIsLoadingCandidates(false);
+            if (isCurrent()) {
+                setIsLoadingCandidates(false);
+            }
         }
     }, [personId, toast]);
 
