@@ -22,6 +22,8 @@ import {
     Clock,
     X,
     CalendarDays,
+    ChevronDown,
+    Check,
     LogIn,
     User,
 } from 'lucide-react';
@@ -32,6 +34,12 @@ import { cn } from '@/lib/utils';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { useTopics } from '@/hooks/useTopics';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import Map, { type MapFeature } from '@/components/map/map';
 import Icon from '@/components/icon';
 import { formatDate, formatDateTime } from '@/lib/formatters/time';
@@ -65,6 +73,50 @@ const DEFAULT_VIEW: { center: [number, number]; zoom: number } = {
 type FlyTarget = GeoJSON.Point | null;
 type PanelTab = 'topics' | 'municipalities';
 
+/** Date-range options for subject filtering — days first, months for the long view. */
+const DATE_RANGES = [
+    { key: '7d', label: '7 ημέρες', menuLabel: 'Τελευταίες 7 ημέρες', query: 'daysBack=7' },
+    { key: '14d', label: '14 ημέρες', menuLabel: 'Τελευταίες 14 ημέρες', query: 'daysBack=14' },
+    { key: '30d', label: '30 ημέρες', menuLabel: 'Τελευταίες 30 ημέρες', query: 'daysBack=30' },
+    { key: '3m', label: '3 μήνες', menuLabel: 'Τελευταίοι 3 μήνες', query: 'monthsBack=3' },
+    { key: '6m', label: '6 μήνες', menuLabel: 'Τελευταίοι 6 μήνες', query: 'monthsBack=6' },
+    { key: '12m', label: '12 μήνες', menuLabel: 'Τελευταίοι 12 μήνες', query: 'monthsBack=12' },
+    { key: 'all', label: 'Όλο το διάστημα', menuLabel: 'Όλο το διάστημα', query: 'allTime=true' },
+] as const;
+type DateRangeKey = (typeof DATE_RANGES)[number]['key'];
+const DEFAULT_RANGE: DateRangeKey = '6m';
+
+/* date-range dropdown — badge-style pill, same look as the topic filter pills */
+function DateRangePill({ value, onChange }: { value: DateRangeKey; onChange: (v: DateRangeKey) => void }) {
+    const current = DATE_RANGES.find((r) => r.key === value) ?? DATE_RANGES[0];
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <button
+                    type="button"
+                    className="inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-background px-3 text-[13px] font-medium text-muted-foreground shadow-md transition-colors hover:border-foreground/30"
+                >
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    {current.label}
+                    <ChevronDown className="h-3.5 w-3.5" />
+                </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+                {DATE_RANGES.map((r) => (
+                    <DropdownMenuItem
+                        key={r.key}
+                        onSelect={() => onChange(r.key)}
+                        className={cn('gap-2', r.key === value && 'font-semibold')}
+                    >
+                        <Check className={cn('h-4 w-4', r.key === value ? 'opacity-100' : 'opacity-0')} />
+                        {r.menuLabel}
+                    </DropdownMenuItem>
+                ))}
+            </DropdownMenuContent>
+        </DropdownMenu>
+    );
+}
+
 /** A subject's HTML map marker: the badge button, its React root and the Mapbox handle. */
 type SubjectPin = { el: HTMLButtonElement; rootEl: HTMLDivElement; root: Root; marker: mapboxgl.Marker; subject: LandingSubject };
 
@@ -92,6 +144,8 @@ function stylePin({ el, rootEl }: { el: HTMLButtonElement; rootEl: HTMLDivElemen
 type LayoutProps = {
     cat: CatValue;
     setCat: (v: CatValue) => void;
+    range: DateRangeKey;
+    setRange: (v: DateRangeKey) => void;
     topics: Topic[];
     cities: LandingCity[];
     /** geo-located subjects per cityId (for the Δήμοι cards) */
@@ -145,25 +199,42 @@ export function LandingV2() {
     const [upcoming, setUpcoming] = useState<UpcomingMeeting[]>([]);
     const [loading, setLoading] = useState(true);
 
+    const [range, setRange] = useState<DateRangeKey>(DEFAULT_RANGE);
+
     useEffect(() => {
         let cancelled = false;
         const get = <T,>(url: string): Promise<T[]> =>
             fetch(url).then((r) => (r.ok ? r.json() : [])).catch(() => []);
         Promise.all([
-            get<MapSubject>('/api/map/subjects'),
             get<LandingCity>('/api/cities'),
             get<UpcomingMeeting>('/api/meetings/upcoming'),
-        ]).then(([subjects, allCities, upcomingMeetings]) => {
+        ]).then(([allCities, upcomingMeetings]) => {
             if (cancelled) return;
-            setMapSubjects(subjects);
             setCities(allCities);
             setUpcoming(upcomingMeetings);
-            setLoading(false);
         });
         return () => {
             cancelled = true;
         };
     }, []);
+
+    // Subjects refetch whenever the date range changes.
+    useEffect(() => {
+        let cancelled = false;
+        setLoading(true);
+        const { query } = DATE_RANGES.find((r) => r.key === range) ?? DATE_RANGES[0];
+        fetch(`/api/map/subjects?${query}`)
+            .then((r) => (r.ok ? r.json() : []))
+            .catch(() => [])
+            .then((subjects: MapSubject[]) => {
+                if (cancelled) return;
+                setMapSubjects(subjects);
+                setLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [range]);
 
     const allSubjects = useMemo(
         () => toLandingSubjects(mapSubjects, Object.fromEntries(cities.map((c) => [c.id, c.name]))),
@@ -288,6 +359,8 @@ export function LandingV2() {
     const layoutProps: LayoutProps = {
         cat,
         setCat,
+        range,
+        setRange,
         topics,
         cities,
         subjectCountByCity,
@@ -313,6 +386,8 @@ export function LandingV2() {
 function DesktopLayout({
     cat,
     setCat,
+    range,
+    setRange,
     topics,
     cities,
     subjectCountByCity,
@@ -388,10 +463,13 @@ function DesktopLayout({
                 <div className="relative min-w-0 flex-1">
                     {mapNode}
 
-                    {/* floating search + topic filters (per the design) */}
+                    {/* floating search + date range + topic filters (per the design) */}
                     <div className="pointer-events-none absolute inset-x-4 top-4 z-[6] flex flex-col gap-3">
-                        <div className="pointer-events-auto w-[360px] max-w-full">
-                            <DesktopSearch topics={topics} cities={cities} onPickTopic={setCat} />
+                        <div className="pointer-events-auto flex items-center gap-2.5">
+                            <div className="w-[360px] max-w-full">
+                                <DesktopSearch topics={topics} cities={cities} onPickTopic={setCat} />
+                            </div>
+                            <DateRangePill value={range} onChange={setRange} />
                         </div>
                         <div className="pointer-events-auto overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden [&_button]:shadow-md">
                             <FilterBar topics={topics} value={cat} onChange={setCat} />
@@ -645,6 +723,8 @@ function initialsOf(name?: string | null): string {
 function MobileLayout({
     cat,
     setCat,
+    range,
+    setRange,
     topics,
     cities,
     selectedId,
@@ -695,12 +775,15 @@ function MobileLayout({
             <div className="relative min-h-0 flex-1">
                 {mapNode}
 
-                {/* floating topic chips (Google-Maps style) */}
+                {/* floating date range + topic chips (Google-Maps style) */}
                 <div
                     className="absolute inset-x-0 top-3 z-[7] overflow-x-auto px-3 pb-1.5 [&::-webkit-scrollbar]:hidden [&_button]:shadow-md"
                     style={{ scrollbarWidth: 'none' }}
                 >
-                    <FilterBar topics={topics} value={cat} onChange={setCat} />
+                    <div className="flex w-max items-center gap-2">
+                        <DateRangePill value={range} onChange={setRange} />
+                        <FilterBar topics={topics} value={cat} onChange={setCat} />
+                    </div>
                 </div>
 
                 {/* controls (below the chips) */}
