@@ -145,10 +145,16 @@
     "changesResetDescription": "All unsaved changes were discarded."
   },
   "exit": {
-    "confirmExit": "You have unsaved changes. Are you sure you want to cancel?",
+    "confirmExitTitle": "Discard this highlight?",
+    "confirmExitDescription": "If you exit now, the highlight you're building will be canceled and the utterances you've chosen will be lost. This can't be undone.",
+    "confirmExitEditsTitle": "Discard unsaved changes?",
+    "confirmExitEditsDescription": "If you exit now, your unsaved changes to this highlight will be lost. The highlight itself won't be deleted.",
+    "confirmDiscard": "Discard & exit",
+    "keepEditing": "Keep editing",
     "exitedEditMode": "Exited edit mode",
     "noChangesSaved": "No changes were saved.",
-    "returningToHighlights": "Returning to highlights."
+    "deleteErrorTitle": "Could not discard highlight",
+    "deleteErrorDescription": "The unsaved highlight may still appear in your list. Please refresh."
   },
   "previewDialog": {
     "title": "Preview highlight",

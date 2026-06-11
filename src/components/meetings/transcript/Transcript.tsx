@@ -60,10 +60,17 @@ export default function Transcript() {
         return () => container.removeEventListener('scroll', handleScroll);
     }, []);
 
-    // Handle highlight editing initialization from URL
+    // Handle highlight editing initialization from URL. Enter edit mode only
+    // when the highlight param *newly appears or changes* — tracked via a ref.
+    // Without this guard, clearing editingHighlight elsewhere (exitEditMode)
+    // while the param is still mid-removal would re-trigger this effect and
+    // immediately re-enter edit mode.
+    const prevHighlightParamRef = useRef<string | null>(null);
     useEffect(() => {
         const highlightId = searchParams.get('highlight');
-        if (highlightId && highlightId !== editingHighlight?.id) {
+        const prevParam = prevHighlightParamRef.current;
+        prevHighlightParamRef.current = highlightId;
+        if (highlightId && highlightId !== prevParam && highlightId !== editingHighlight?.id) {
             const highlight = getHighlight(highlightId);
             if (highlight) {
                 enterEditMode(highlight);
