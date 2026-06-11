@@ -39,7 +39,7 @@ export function NotificationInfoStep({
                         </p>
                     )}
                     <p className="flex items-start gap-2 text-sm">
-                        <Bell className="h-4 w-4 flex-none mt-0.5" />
+                        <Bell aria-hidden="true" className="h-4 w-4 flex-none mt-0.5" />
                         <span>{t('sendTiming')}</span>
                     </p>
                 </div>

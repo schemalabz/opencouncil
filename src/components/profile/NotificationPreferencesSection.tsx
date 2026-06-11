@@ -261,7 +261,7 @@ export function NotificationPreferencesSection() {
                     {t('noPreferencesDescription')}
                 </p>
                 <p className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <Bell className="h-4 w-4 flex-none mt-0.5" />
+                    <Bell aria-hidden="true" className="h-4 w-4 flex-none mt-0.5" />
                     <span>{t('sendTiming')}</span>
                 </p>
                 <CitySelector label={t('selectCityButton')} {...citySelectorProps} />
@@ -298,7 +298,7 @@ export function NotificationPreferencesSection() {
                     </Button>
                 </div>
                 <p className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <Bell className="h-4 w-4 flex-none mt-0.5" />
+                    <Bell aria-hidden="true" className="h-4 w-4 flex-none mt-0.5" />
                     <span>{t('sendTiming')}</span>
                 </p>
                 {/* Mobile: stacked cards */}
