@@ -1,24 +1,16 @@
 'use client';
 
 import Image from 'next/image';
-import {
-    MapPin,
-    MessageSquare,
-    Flame,
-    Plus,
-    Minus,
-    Gavel,
-    Link2,
-    Layers,
-    Globe,
-    ArrowRight,
-} from 'lucide-react';
+import { MapPin, Flame, Plus, Minus, Clock, ArrowRight, Users } from 'lucide-react';
+import type { Topic } from '@prisma/client';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
-import { CATEGORIES, municipalityOf, categoryList, type CategoryKey, type Topic } from './conceptData';
+import Icon from '@/components/icon';
+import { formatDate } from '@/lib/formatters/time';
+import { type LandingSubject, type SubjectTopic } from './landingData';
 
-/** Active category filter value. */
-export type CatValue = CategoryKey | 'all';
+/** Active topic filter value — a Topic id or 'all'. */
+export type CatValue = string;
 
 /* brand mark (app logo + wordmark) — `light` for use on dark surfaces */
 export function BrandMark({ light, className }: { light?: boolean; className?: string }) {
@@ -32,69 +24,78 @@ export function BrandMark({ light, className }: { light?: boolean; className?: s
     );
 }
 
-/* category chip */
-export function CatChip({ cat, small }: { cat: CategoryKey; small?: boolean }) {
-    const c = CATEGORIES[cat];
-    const Icon = c.icon;
+/* topic chip (icon + name in the topic's accent color) */
+export function TopicChip({ topic, small }: { topic: SubjectTopic; small?: boolean }) {
     return (
         <span
             className={cn(
                 'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border font-medium',
                 small ? 'px-2 py-1 text-[11px]' : 'px-2.5 py-1 text-xs',
             )}
-            style={{ color: c.color, backgroundColor: `${c.color}1a`, borderColor: `${c.color}38` }}
+            style={{ color: topic.color, backgroundColor: `${topic.color}1a`, borderColor: `${topic.color}38` }}
         >
-            <Icon className={small ? 'h-3 w-3 shrink-0' : 'h-3.5 w-3.5 shrink-0'} />
-            {small ? c.short : c.label}
+            <Icon name={topic.icon || 'hash'} color={topic.color} size={small ? 12 : 14} />
+            {topic.name}
         </span>
     );
 }
 
 /* "πολυσυζητημένο" hot tag */
-export function HotTag({ count, suffix }: { count: number; suffix?: string }) {
+export function HotTag() {
     return (
         <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--orange))]/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[hsl(var(--orange))]">
-            <Flame className="h-3 w-3" /> {count}
-            {suffix ? ` ${suffix}` : ''}
+            <Flame className="h-3 w-3" /> Πολυσυζητημένο
         </span>
     );
 }
 
-/* meta row (location · date · count) */
-export function MetaRow({ topic }: { topic: Topic }) {
-    const m = municipalityOf(topic.muni);
+/* meta row (municipality · meeting date · speakers) */
+export function MetaRow({ subject }: { subject: LandingSubject }) {
     return (
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1 font-medium text-foreground/80">
-                <MapPin className="h-3 w-3" /> {m.name}
+                <MapPin className="h-3 w-3" /> {subject.cityName}
             </span>
-            <span aria-hidden className="opacity-40">·</span>
-            <span className="font-mono tabular-nums">{topic.date}</span>
-            <span aria-hidden className="opacity-40">·</span>
-            <span className="inline-flex items-center gap-1">
-                <MessageSquare className="h-3 w-3" />
-                <b className="font-mono tabular-nums text-foreground/80">{topic.count}</b> τοποθετήσεις
-            </span>
+            {subject.date && (
+                <>
+                    <span aria-hidden className="opacity-40">·</span>
+                    <span className="font-mono tabular-nums">{formatDate(new Date(subject.date))}</span>
+                </>
+            )}
+            {subject.speakers > 0 && (
+                <>
+                    <span aria-hidden className="opacity-40">·</span>
+                    <span className="inline-flex items-center gap-1">
+                        <Users className="h-3 w-3" />
+                        <b className="font-mono tabular-nums text-foreground/80">{subject.speakers}</b> ομιλητές
+                    </span>
+                </>
+            )}
         </div>
     );
 }
 
-/* category filter pills */
-export function FilterBar({ value, onChange }: { value: CatValue; onChange: (v: CatValue) => void }) {
+/* topic filter pills */
+export function FilterBar({
+    topics,
+    value,
+    onChange,
+}: {
+    topics: Topic[];
+    value: CatValue;
+    onChange: (v: CatValue) => void;
+}) {
     return (
         <div className="flex w-max items-center gap-2">
             <FilterPill active={value === 'all'} onClick={() => onChange('all')}>
                 Όλα
             </FilterPill>
-            {categoryList.map((c) => {
-                const Icon = c.icon;
-                return (
-                    <FilterPill key={c.key} active={value === c.key} onClick={() => onChange(c.key)}>
-                        <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: c.color }} />
-                        {c.short}
-                    </FilterPill>
-                );
-            })}
+            {topics.map((t) => (
+                <FilterPill key={t.id} active={value === t.id} onClick={() => onChange(t.id)}>
+                    <Icon name={t.icon || 'hash'} color={t.colorHex} size={14} />
+                    {t.name}
+                </FilterPill>
+            ))}
         </div>
     );
 }
@@ -155,13 +156,13 @@ export function ControlButton({
     );
 }
 
-/* compact topic card (color bar + chip + title + meta) — rails, sheets, map peeks */
+/* compact subject card (color bar + chip + title + meta) — rails, sheets, map peeks */
 export function CompactTopicCard({
-    topic,
+    subject,
     selected,
     onClick,
 }: {
-    topic: Topic;
+    subject: LandingSubject;
     selected?: boolean;
     onClick?: () => void;
 }) {
@@ -174,58 +175,16 @@ export function CompactTopicCard({
                 selected ? 'border-primary ring-2 ring-primary/15' : 'border-border hover:border-foreground/20',
             )}
         >
-            <span className="w-1 shrink-0" style={{ backgroundColor: CATEGORIES[topic.cat].color }} />
+            <span className="w-1 shrink-0" style={{ backgroundColor: subject.topic.color }} />
             <span className="flex min-w-0 flex-1 flex-col gap-1.5 px-3.5 py-3">
                 <span className="flex items-center gap-2">
-                    <CatChip cat={topic.cat} small />
-                    {topic.hot && <HotTag count={topic.count} />}
+                    <TopicChip topic={subject.topic} small />
+                    {subject.hot && <HotTag />}
                 </span>
-                <span className="line-clamp-2 text-[15px] font-semibold leading-snug text-foreground">{topic.title}</span>
-                <MetaRow topic={topic} />
+                <span className="line-clamp-2 text-[15px] font-semibold leading-snug text-foreground">{subject.title}</span>
+                <MetaRow subject={subject} />
             </span>
         </button>
-    );
-}
-
-/* "Με ψηφοφορία" badge (Subject went to a vote / has a Decision) */
-export function VoteBadge() {
-    return (
-        <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-border bg-muted px-2 py-1 text-[11px] font-semibold text-foreground/70">
-            <Gavel className="h-3 w-3" /> Με ψηφοφορία
-        </span>
-    );
-}
-
-/* relates-to / discussed-with / external context */
-export function SubjectExtras({ topic }: { topic: Topic }) {
-    if (!topic.relatedTo && !topic.discussedIn && !topic.context) return null;
-    return (
-        <div className="flex flex-col gap-2">
-            {topic.relatedTo && (
-                <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                    <Link2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <span>
-                        <span className="font-medium text-foreground/70">Σχετίζεται με:</span> {topic.relatedTo}
-                    </span>
-                </div>
-            )}
-            {topic.discussedIn && (
-                <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                    <Layers className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <span>
-                        <span className="font-medium text-foreground/70">Συζητήθηκε μαζί με:</span> {topic.discussedIn}
-                    </span>
-                </div>
-            )}
-            {topic.context && (
-                <div className="rounded-lg border border-border bg-muted/50 p-2.5">
-                    <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                        <Globe className="h-3 w-3" /> Πλαίσιο · από το διαδίκτυο
-                    </div>
-                    <p className="text-xs leading-relaxed text-foreground/70">{topic.context}</p>
-                </div>
-            )}
-        </div>
     );
 }
 
@@ -245,13 +204,13 @@ export function SubjectPageLink({ href, className }: { href: string; className?:
     );
 }
 
-/* editorial topic card (photo on hot topics) — used by the desktop panel list */
+/* editorial subject card — used by the desktop panel list */
 export function EditorialCard({
-    topic,
+    subject,
     onClick,
     selected,
 }: {
-    topic: Topic;
+    subject: LandingSubject;
     onClick?: () => void;
     selected?: boolean;
 }) {
@@ -277,27 +236,30 @@ export function EditorialCard({
                 selected ? 'border-primary ring-2 ring-primary/15' : 'border-border hover:border-foreground/20',
             )}
         >
-            {topic.hot && (
-                <div className="relative h-32 overflow-hidden rounded-lg bg-muted">
-                    <div className="absolute inset-0 bg-[repeating-linear-gradient(135deg,hsl(var(--muted))_0_10px,hsl(var(--background))_10px_20px)]" />
-                    <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-[hsl(var(--orange))] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
-                        <Flame className="h-3 w-3" /> Πολυσυζητημένο
-                    </span>
-                    <span className="absolute bottom-1.5 left-2 rounded bg-background/80 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-                        φωτό θέματος — {CATEGORIES[topic.cat].short}
-                    </span>
-                </div>
-            )}
             <div className="flex flex-wrap items-center gap-2">
-                <CatChip cat={topic.cat} />
-                {topic.hasVote && <VoteBadge />}
+                <TopicChip topic={subject.topic} />
+                {subject.hot && <HotTag />}
             </div>
-            <h3 className="text-balance text-lg font-bold leading-snug tracking-tight text-foreground">{topic.title}</h3>
-            <p className="text-sm leading-relaxed text-foreground/70">{topic.summary}</p>
-            <SubjectExtras topic={topic} />
+            <h3 className="text-balance text-lg font-bold leading-snug tracking-tight text-foreground">{subject.title}</h3>
+            {subject.summary && <p className="text-sm leading-relaxed text-foreground/70">{subject.summary}</p>}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                {subject.where && (
+                    <span className="inline-flex items-center gap-1 font-medium text-foreground/80">
+                        <MapPin className="h-3 w-3" /> {subject.where}
+                    </span>
+                )}
+                {subject.durationMin > 0 && (
+                    <>
+                        {subject.where && <span aria-hidden className="opacity-40">·</span>}
+                        <span className="inline-flex items-center gap-1">
+                            <Clock className="h-3 w-3" /> {subject.durationMin}′ συζήτηση
+                        </span>
+                    </>
+                )}
+            </div>
             <div className="h-px bg-border" />
-            <MetaRow topic={topic} />
-            <SubjectPageLink href={topic.href} />
+            <MetaRow subject={subject} />
+            <SubjectPageLink href={subject.href} />
         </div>
     );
 }

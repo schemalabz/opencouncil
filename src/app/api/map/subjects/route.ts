@@ -153,6 +153,7 @@ export async function GET(request: Request) {
                     meetingName: s.councilMeeting?.name,
                     locationText: s.location?.text,
                     locationType: s.location?.type,
+                    topicId: s.topicId,
                     topicName: s.topic?.name,
                     topicColor: s.topic?.colorHex || '#627BBC',
                     topicIcon: s.topic?.icon,

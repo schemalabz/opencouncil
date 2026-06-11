@@ -21,20 +21,25 @@ import {
     LocateFixed,
     Clock,
     X,
-    ChevronDown,
     CalendarDays,
+    LogIn,
+    User,
 } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import type { Topic } from '@prisma/client';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import { useMediaQuery } from '@/hooks/use-media-query';
+import { useTopics } from '@/hooks/useTopics';
 import { Button } from '@/components/ui/button';
 import Map, { type MapFeature } from '@/components/map/map';
+import Icon from '@/components/icon';
+import { formatDate, formatDateTime } from '@/lib/formatters/time';
 import { Eyebrow } from './shared';
 import {
     BrandMark,
-    CatChip,
+    TopicChip,
     HotTag,
-    VoteBadge,
     FilterBar,
     ControlButton,
     ZoomGroup,
@@ -43,20 +48,13 @@ import {
     type CatValue,
 } from './conceptShared';
 import {
-    CATEGORIES,
-    categoryList,
-    MUNICIPALITIES,
-    municipalityOf,
-    TOPICS,
-    MEETINGS,
-    FAKE_GEO,
-    HOT_COLOR,
     SEARCH_KEYWORDS,
-    type CategoryKey,
-    type Meeting,
-    type Municipality,
-    type Topic,
-} from './conceptData';
+    toLandingSubjects,
+    type LandingCity,
+    type LandingSubject,
+    type MapSubject,
+    type UpcomingMeeting,
+} from './landingData';
 
 // Default view over the Attica cluster (Mapbox expects [lng, lat]).
 const DEFAULT_VIEW: { center: [number, number]; zoom: number } = {
@@ -67,43 +65,48 @@ const DEFAULT_VIEW: { center: [number, number]; zoom: number } = {
 type FlyTarget = GeoJSON.Point | null;
 type PanelTab = 'topics' | 'municipalities';
 
-/** A topic's HTML map marker: the badge button, its React root and the Mapbox handle. */
-type TopicPin = { el: HTMLButtonElement; rootEl: HTMLDivElement; root: Root; marker: mapboxgl.Marker; topic: Topic };
+/** A subject's HTML map marker: the badge button, its React root and the Mapbox handle. */
+type SubjectPin = { el: HTMLButtonElement; rootEl: HTMLDivElement; root: Root; marker: mapboxgl.Marker; subject: LandingSubject };
 
 /**
- * Styles a map pin like the CatChip badge, minus the label. Mapbox positions the
+ * Styles a map pin like the TopicChip badge, minus the label. Mapbox positions the
  * marker root via inline transform, so the scale/border styling goes on the inner
  * button and only z-index touches the root.
  */
-function stylePin({ el, rootEl }: { el: HTMLButtonElement; rootEl: HTMLDivElement }, topic: Topic, selected: boolean) {
-    const c = CATEGORIES[topic.cat];
+function stylePin({ el, rootEl }: { el: HTMLButtonElement; rootEl: HTMLDivElement }, subject: LandingSubject, selected: boolean) {
+    const color = subject.topic.color;
     el.className = cn(
         'flex cursor-pointer items-center justify-center rounded-full border shadow-md transition-transform',
-        topic.hot ? 'h-9 w-9' : 'h-7 w-7',
+        subject.hot ? 'h-9 w-9' : 'h-7 w-7',
         selected && 'scale-110',
     );
-    el.style.color = c.color;
+    el.style.color = color;
     // solid version of the chip's translucent tint, so map tiles don't bleed through
-    el.style.backgroundColor = `color-mix(in srgb, ${c.color} 10%, white)`;
-    el.style.borderColor = selected ? '#171A20' : `${c.color}38`;
+    el.style.backgroundColor = `color-mix(in srgb, ${color} 10%, white)`;
+    el.style.borderColor = selected ? '#171A20' : `${color}38`;
     el.style.borderWidth = selected ? '2px' : '1px';
-    rootEl.style.zIndex = selected ? '2' : topic.hot ? '1' : '0';
+    rootEl.style.zIndex = selected ? '2' : subject.hot ? '1' : '0';
 }
 
 /** Props shared by the desktop and mobile layouts. */
 type LayoutProps = {
     cat: CatValue;
     setCat: (v: CatValue) => void;
+    topics: Topic[];
+    cities: LandingCity[];
+    /** geo-located subjects per cityId (for the Δήμοι cards) */
+    subjectCountByCity: Record<string, number>;
+    upcoming: UpcomingMeeting[];
+    loading: boolean;
     selectedId: string | null;
-    selectTopic: (id: string) => void;
+    selectSubject: (id: string) => void;
     clearSelection: () => void;
-    selectedTopic: Topic | null;
-    /** filtered list for the desktop panel, hot/count first */
-    ordered: Topic[];
+    selectedSubject: LandingSubject | null;
+    /** filtered list for the desktop panel, hot/most-discussed first */
+    ordered: LandingSubject[];
     /** unfiltered most-discussed list for the mobile sheet */
-    trending: Topic[];
+    trending: LandingSubject[];
     count: number;
-    nextMeeting: Meeting;
     locate: () => void;
     zoomIn: () => void;
     zoomOut: () => void;
@@ -112,10 +115,12 @@ type LayoutProps = {
 
 /**
  * The consolidated landing redesign (issue #208). Desktop (≥ lg): the split-screen
- * map + side panel direction, with the search field and category filters floating
+ * map + side panel direction, with the search field and topic filters floating
  * over the map and a Θέματα / Δήμοι tabbed panel. Mobile: the immersive map-first
  * layout with a draggable trending sheet. Only one <Map> is mounted at a time.
- * Driven by mock data (./conceptData.ts).
+ *
+ * Data comes from the real APIs: /api/map/subjects (geo-located subjects),
+ * /api/topics, /api/cities and /api/meetings/upcoming — see ./landingData.ts.
  */
 export function LandingV2() {
     const [cat, setCat] = useState<CatValue>('all');
@@ -127,51 +132,89 @@ export function LandingV2() {
     // the common desktop view has no layout flash; mobile flips in after hydration.
     const isMobile = useMediaQuery('(max-width: 1023px)');
 
-    // The Mapbox instance — topic pins are HTML markers added onto it (so they can
-    // carry the category's lucide icon) and the zoom buttons drive it directly.
+    // The Mapbox instance — subject pins are HTML markers added onto it (so they can
+    // carry the topic's lucide icon) and the zoom buttons drive it directly.
     const [mapInstance, setMapInstance] = useState<MapboxMap | null>(null);
     const handleMapReady = useCallback((m: MapboxMap) => setMapInstance(m), []);
-    const pinsRef = useRef<TopicPin[]>([]);
+    const pinsRef = useRef<SubjectPin[]>([]);
 
-    const visibleTopics = useMemo(
-        () => (cat === 'all' ? TOPICS : TOPICS.filter((t) => t.cat === cat)),
-        [cat],
+    // ---- real data ----
+    const { topics } = useTopics();
+    const [mapSubjects, setMapSubjects] = useState<MapSubject[]>([]);
+    const [cities, setCities] = useState<LandingCity[]>([]);
+    const [upcoming, setUpcoming] = useState<UpcomingMeeting[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        let cancelled = false;
+        const get = <T,>(url: string): Promise<T[]> =>
+            fetch(url).then((r) => (r.ok ? r.json() : [])).catch(() => []);
+        Promise.all([
+            get<MapSubject>('/api/map/subjects'),
+            get<LandingCity>('/api/cities'),
+            get<UpcomingMeeting>('/api/meetings/upcoming'),
+        ]).then(([subjects, allCities, upcomingMeetings]) => {
+            if (cancelled) return;
+            setMapSubjects(subjects);
+            setCities(allCities);
+            setUpcoming(upcomingMeetings);
+            setLoading(false);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    const allSubjects = useMemo(
+        () => toLandingSubjects(mapSubjects, Object.fromEntries(cities.map((c) => [c.id, c.name]))),
+        [mapSubjects, cities],
+    );
+    const subjectCountByCity = useMemo(() => {
+        const counts: Record<string, number> = {};
+        for (const s of allSubjects) counts[s.cityId] = (counts[s.cityId] ?? 0) + 1;
+        return counts;
+    }, [allSubjects]);
+
+    const visibleSubjects = useMemo(
+        () => (cat === 'all' ? allSubjects : allSubjects.filter((s) => s.topicId === cat)),
+        [allSubjects, cat],
     );
     const ordered = useMemo(
-        () => [...visibleTopics].sort((a, b) => Number(b.hot) - Number(a.hot) || b.count - a.count),
-        [visibleTopics],
+        () => [...visibleSubjects].sort((a, b) => Number(b.hot) - Number(a.hot) || b.durationMin - a.durationMin),
+        [visibleSubjects],
     );
-    const trending = useMemo(() => [...TOPICS].sort((a, b) => b.count - a.count), []);
-    const selectedTopic = TOPICS.find((t) => t.id === selectedId) ?? null;
-    const nextMeeting = MEETINGS[0];
+    const trending = useMemo(
+        () => [...allSubjects].sort((a, b) => b.durationMin - a.durationMin),
+        [allSubjects],
+    );
+    const selectedSubject = allSubjects.find((s) => s.id === selectedId) ?? null;
 
-    const selectTopic = (id: string) => {
+    const selectSubject = (id: string) => {
         setSelectedId(id);
-        const t = TOPICS.find((x) => x.id === id);
-        if (t) setFlyTo({ type: 'Point', coordinates: [t.lng, t.lat] });
+        const s = allSubjects.find((x) => x.id === id);
+        if (s) setFlyTo({ type: 'Point', coordinates: [s.lng, s.lat] });
     };
     const clearSelection = () => setSelectedId(null);
 
     const locate = () => {
-        const apply = (lat: number, lng: number) => {
-            setGeo({ lat, lng });
-            setFlyTo({ type: 'Point', coordinates: [lng, lat] });
-        };
-        if (typeof navigator !== 'undefined' && navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => apply(pos.coords.latitude, pos.coords.longitude),
-                () => apply(FAKE_GEO.lat, FAKE_GEO.lng), // denied/unavailable → faked "near me"
-                { enableHighAccuracy: true, timeout: 8000 },
-            );
-        } else {
-            apply(FAKE_GEO.lat, FAKE_GEO.lng);
-        }
+        if (typeof navigator === 'undefined' || !navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const { latitude: lat, longitude: lng } = pos.coords;
+                setGeo({ lat, lng });
+                setFlyTo({ type: 'Point', coordinates: [lng, lat] });
+            },
+            () => {
+                // denied/unavailable — leave the map where it is
+            },
+            { enableHighAccuracy: true, timeout: 8000 },
+        );
     };
 
     const zoomIn = () => mapInstance?.zoomIn();
     const zoomOut = () => mapInstance?.zoomOut();
 
-    // The "you are here" puck — topic pins are HTML markers (see the effect below),
+    // The "you are here" puck — subject pins are HTML markers (see the effect below),
     // so the <Map> feature layer only carries the geo dot. strokeWidth is the radius.
     const features: MapFeature[] = useMemo(() => {
         if (!geo) return [];
@@ -188,30 +231,28 @@ export function LandingV2() {
     // Refs so the pin-building effect doesn't rebuild markers on every selection change.
     const selectedIdRef = useRef<string | null>(null);
     selectedIdRef.current = selectedId;
-    const selectTopicRef = useRef(selectTopic);
-    selectTopicRef.current = selectTopic;
+    const selectSubjectRef = useRef(selectSubject);
+    selectSubjectRef.current = selectSubject;
 
-    // Build one icon-badge marker per visible topic; rebuilt when the category
-    // filter changes the visible set.
+    // Build one icon-badge marker per visible subject; rebuilt when the topic
+    // filter (or the fetched data) changes the visible set.
     useEffect(() => {
         if (!mapInstance) return;
-        const pins: TopicPin[] = visibleTopics.map((t) => {
+        const pins: SubjectPin[] = visibleSubjects.map((s) => {
             const rootEl = document.createElement('div');
             const el = document.createElement('button');
             el.type = 'button';
-            el.setAttribute('aria-label', t.title);
+            el.setAttribute('aria-label', s.title);
             rootEl.appendChild(el);
-            stylePin({ el, rootEl }, t, t.id === selectedIdRef.current);
+            stylePin({ el, rootEl }, s, s.id === selectedIdRef.current);
             el.addEventListener('click', (e) => {
                 e.stopPropagation();
-                selectTopicRef.current(t.id);
+                selectSubjectRef.current(s.id);
             });
-            const Icon = CATEGORIES[t.cat].icon;
             const root = createRoot(el);
-            const size = t.hot ? 18 : 14;
-            root.render(<Icon style={{ width: size, height: size }} strokeWidth={2.25} />);
-            const marker = new mapboxgl.Marker({ element: rootEl }).setLngLat([t.lng, t.lat]).addTo(mapInstance);
-            return { el, rootEl, root, marker, topic: t };
+            root.render(<Icon name={s.topic.icon || 'hash'} color={s.topic.color} size={s.hot ? 18 : 14} />);
+            const marker = new mapboxgl.Marker({ element: rootEl }).setLngLat([s.lng, s.lat]).addTo(mapInstance);
+            return { el, rootEl, root, marker, subject: s };
         });
         pinsRef.current = pins;
         return () => {
@@ -222,11 +263,11 @@ export function LandingV2() {
                 setTimeout(() => root.unmount(), 0);
             });
         };
-    }, [mapInstance, visibleTopics]);
+    }, [mapInstance, visibleSubjects]);
 
     // Selection restyles the existing markers in place (no rebuild).
     useEffect(() => {
-        pinsRef.current.forEach((pin) => stylePin(pin, pin.topic, pin.topic.id === selectedId));
+        pinsRef.current.forEach((pin) => stylePin(pin, pin.subject, pin.subject.id === selectedId));
     }, [selectedId]);
 
     const mapNode = (
@@ -247,14 +288,18 @@ export function LandingV2() {
     const layoutProps: LayoutProps = {
         cat,
         setCat,
+        topics,
+        cities,
+        subjectCountByCity,
+        upcoming,
+        loading,
         selectedId,
-        selectTopic,
+        selectSubject,
         clearSelection,
-        selectedTopic,
+        selectedSubject,
         ordered,
         trending,
-        count: visibleTopics.length,
-        nextMeeting,
+        count: visibleSubjects.length,
         locate,
         zoomIn,
         zoomOut,
@@ -268,11 +313,15 @@ export function LandingV2() {
 function DesktopLayout({
     cat,
     setCat,
+    topics,
+    cities,
+    subjectCountByCity,
+    upcoming,
+    loading,
     selectedId,
-    selectTopic,
+    selectSubject,
     ordered,
     count,
-    nextMeeting,
     locate,
     zoomIn,
     zoomOut,
@@ -289,7 +338,7 @@ function DesktopLayout({
     useEffect(() => {
         if (!selectedId || panelTab !== 'topics') return;
         listRef.current
-            ?.querySelector(`[data-topic-id="${selectedId}"]`)
+            ?.querySelector(`[data-subject-id="${selectedId}"]`)
             ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, [selectedId, panelTab]);
 
@@ -317,6 +366,8 @@ function DesktopLayout({
         e.currentTarget.releasePointerCapture(e.pointerId);
     };
 
+    const nextMeeting = upcoming[0];
+
     return (
         <div className="flex h-[100dvh] w-full flex-col overflow-hidden bg-muted">
             <nav className="flex h-16 shrink-0 items-center gap-5 border-b border-border bg-card px-6">
@@ -337,13 +388,13 @@ function DesktopLayout({
                 <div className="relative min-w-0 flex-1">
                     {mapNode}
 
-                    {/* floating search + category filters (per the design) */}
+                    {/* floating search + topic filters (per the design) */}
                     <div className="pointer-events-none absolute inset-x-4 top-4 z-[6] flex flex-col gap-3">
                         <div className="pointer-events-auto w-[360px] max-w-full">
-                            <DesktopSearch onPickCategory={setCat} />
+                            <DesktopSearch topics={topics} cities={cities} onPickTopic={setCat} />
                         </div>
                         <div className="pointer-events-auto overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden [&_button]:shadow-md">
-                            <FilterBar value={cat} onChange={setCat} />
+                            <FilterBar topics={topics} value={cat} onChange={setCat} />
                         </div>
                     </div>
 
@@ -391,16 +442,14 @@ function DesktopLayout({
                                     Θέματα κοντά σου{' '}
                                     <span className="font-mono text-base font-semibold tabular-nums text-muted-foreground">· {count}</span>
                                 </h1>
-                                {/* <SortPill /> */}
                             </div>
                         )}
                         {panelTab === 'municipalities' && (
                             <div className="mt-4 flex items-baseline justify-between gap-3">
                                 <h1 className="text-2xl font-bold tracking-tight text-foreground">
                                     Συνεργαζόμενοι Δήμοι
-                                    <span className="font-mono text-base font-semibold tabular-nums text-muted-foreground">· {count}</span>
+                                    <span className="font-mono text-base font-semibold tabular-nums text-muted-foreground">· {cities.length}</span>
                                 </h1>
-                                {/* <SortPill /> */}
                             </div>
                         )}
                     </div>
@@ -408,17 +457,19 @@ function DesktopLayout({
                     {panelTab === 'topics' ? (
                         <>
                             <div ref={listRef} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-6 py-4">
-                                <NextMeetingStrip meeting={nextMeeting} />
-                                {ordered.map((t) => (
+                                {nextMeeting && <NextMeetingStrip meeting={nextMeeting} />}
+                                {loading && <ListNote>Φόρτωση θεμάτων…</ListNote>}
+                                {!loading && count === 0 && <ListNote>Δεν βρέθηκαν θέματα με τοποθεσία.</ListNote>}
+                                {ordered.map((s) => (
                                     // scroll-mt leaves a breather above the card when scrollIntoView aligns it to the top
-                                    <div key={t.id} data-topic-id={t.id} className="scroll-mt-4">
-                                        <EditorialCard topic={t} selected={t.id === selectedId} onClick={() => selectTopic(t.id)} />
+                                    <div key={s.id} data-subject-id={s.id} className="scroll-mt-4">
+                                        <EditorialCard subject={s} selected={s.id === selectedId} onClick={() => selectSubject(s.id)} />
                                     </div>
                                 ))}
                             </div>
                             <div className="flex shrink-0 items-center justify-between border-t border-border bg-card px-6 py-3">
                                 <span className="text-sm text-muted-foreground">
-                                    Εμφανίζονται {Math.min(6, count)} από {count} θέματα
+                                    Εμφανίζονται {count} θέματα
                                 </span>
                                 <Button variant="ghost" size="sm" className="gap-2">
                                     Δες όλα τα θέματα <ArrowRight className="h-4 w-4" />
@@ -427,8 +478,13 @@ function DesktopLayout({
                         </>
                     ) : (
                         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-6 py-4">
-                            {MUNICIPALITIES.map((m) => (
-                                <MuniPanelCard key={m.slug} muni={m} />
+                            {cities.map((c) => (
+                                <MuniPanelCard
+                                    key={c.id}
+                                    city={c}
+                                    subjectCount={subjectCountByCity[c.id] ?? 0}
+                                    next={upcoming.find((m) => m.cityId === c.id)}
+                                />
                             ))}
                             <PetitionCta />
                         </div>
@@ -437,6 +493,10 @@ function DesktopLayout({
             </div>
         </div>
     );
+}
+
+function ListNote({ children }: { children: ReactNode }) {
+    return <div className="py-6 text-center text-sm text-muted-foreground">{children}</div>;
 }
 
 /* Θέματα / Δήμοι segmented tabs (desktop panel) */
@@ -466,19 +526,14 @@ function PanelTabs({ value, onChange }: { value: PanelTab; onChange: (v: PanelTa
     );
 }
 
-function SortPill() {
-    return (
-        <button
-            type="button"
-            className="inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-background px-3.5 text-sm font-medium text-muted-foreground transition-colors hover:border-foreground/30"
-        >
-            Ταξινόμηση: Δημοφιλή <ChevronDown className="h-3.5 w-3.5" />
-        </button>
-    );
+/** Days from now until the given date, rounded up (e.g. tomorrow evening → 2). */
+function daysUntil(date: Date): number {
+    return Math.max(0, Math.ceil((date.getTime() - Date.now()) / 86_400_000));
 }
 
-function NextMeetingStrip({ meeting }: { meeting: Meeting }) {
-    const m = municipalityOf(meeting.muni);
+function NextMeetingStrip({ meeting }: { meeting: UpcomingMeeting }) {
+    const date = new Date(meeting.dateTime);
+    const inDays = daysUntil(date);
     return (
         <div className="flex shrink-0 items-center gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-3.5">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -486,10 +541,10 @@ function NextMeetingStrip({ meeting }: { meeting: Meeting }) {
             </span>
             <div className="min-w-0 flex-1">
                 <div className="text-[11px] font-bold uppercase tracking-wide text-primary">
-                    Επόμενη συνεδρίαση · σε {meeting.inDays} ημέρες
+                    Επόμενη συνεδρίαση · {inDays === 0 ? 'σήμερα' : inDays === 1 ? 'αύριο' : `σε ${inDays} ημέρες`}
                 </div>
                 <div className="mt-0.5 truncate text-sm font-semibold text-foreground">
-                    {m.name} — {meeting.date}, {meeting.time}
+                    {meeting.city.name} — {formatDateTime(date)}
                 </div>
             </div>
             <Button size="sm" className="shrink-0">
@@ -499,33 +554,54 @@ function NextMeetingStrip({ meeting }: { meeting: Meeting }) {
     );
 }
 
+/* city avatar — logo when available, first letter otherwise */
+function CityAvatar({ city, size = 9 }: { city: { name: string; logoImage: string | null }; size?: number }) {
+    if (city.logoImage) {
+        return (
+            <span className={`relative h-${size} w-${size} flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-card`}>
+                <Image src={city.logoImage} alt={city.name} width={36} height={36} className="h-full w-full object-contain" />
+            </span>
+        );
+    }
+    return (
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-bold text-primary">
+            {city.name[0]}
+        </span>
+    );
+}
+
 /* δήμος card (Δήμοι tab) — stats + next meeting, links to the municipality page */
-function MuniPanelCard({ muni }: { muni: Municipality }) {
-    const topicCount = TOPICS.filter((t) => t.muni === muni.slug).length;
-    const next = MEETINGS.find((m) => m.muni === muni.slug && m.status === 'upcoming');
+function MuniPanelCard({
+    city,
+    subjectCount,
+    next,
+}: {
+    city: LandingCity;
+    subjectCount: number;
+    next?: UpcomingMeeting;
+}) {
     return (
         <Link
-            href={muni.href}
+            href={`/${city.id}`}
             className="flex shrink-0 flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-foreground/20"
         >
             <div className="flex items-center gap-2.5">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-bold text-primary">
-                    {muni.name[0]}
-                </span>
-                <span className="flex-1 text-lg font-bold tracking-tight text-foreground">{muni.name}</span>
+                <CityAvatar city={city} />
+                <span className="flex-1 text-lg font-bold tracking-tight text-foreground">{city.name}</span>
                 <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
             </div>
             <div className="grid grid-cols-3 gap-2">
-                <MuniStat label="Θέματα" value={topicCount} />
-                <MuniStat label="Συνεδριάσεις" value={muni.sessions} />
-                <MuniStat label="Πρόσωπα" value={muni.people} />
+                <MuniStat label="Θέματα" value={subjectCount} />
+                <MuniStat label="Συνεδριάσεις" value={city._count.councilMeetings} />
+                <MuniStat label="Πρόσωπα" value={city._count.persons} />
             </div>
             <div className="h-px bg-border" />
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <CalendarDays className="h-3.5 w-3.5 shrink-0" />
                 {next ? (
                     <span className="truncate">
-                        <span className="font-medium text-foreground/80">Επόμενη συνεδρίαση:</span> {next.date}, {next.time}
+                        <span className="font-medium text-foreground/80">Επόμενη συνεδρίαση:</span>{' '}
+                        {formatDateTime(new Date(next.dateTime))}
                     </span>
                 ) : (
                     'Καμία προγραμματισμένη συνεδρίαση'
@@ -556,21 +632,34 @@ function PetitionCta() {
     );
 }
 
+/** Initials from a full name — first + last word (e.g. "Βάσια Κουμαριανού" → "ΒΚ"). */
+function initialsOf(name?: string | null): string {
+    if (!name) return '';
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '';
+    if (parts.length === 1) return parts[0][0].toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 /* ============================ MOBILE LAYOUT ============================ */
 function MobileLayout({
     cat,
     setCat,
+    topics,
+    cities,
     selectedId,
-    selectTopic,
+    selectSubject,
     clearSelection,
-    selectedTopic,
+    selectedSubject,
     trending,
+    loading,
     locate,
     zoomIn,
     zoomOut,
     mapNode,
 }: LayoutProps) {
     const [searchOpen, setSearchOpen] = useState(false);
+    const { data: session } = useSession();
 
     // Live sheet position so the subject preview can sit on the sheet's top edge.
     // 326 matches the sheet's initial half-snap height before it first reports.
@@ -584,21 +673,34 @@ function MobileLayout({
                     <Image src="/logo.png" alt="OpenCouncil" width={120} height={120} className="h-9 w-auto object-contain" priority />
                 </Link>
                 <SearchPill onClick={() => setSearchOpen(true)} />
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-                    Κ
-                </span>
+                {session?.user ? (
+                    <span
+                        title={session.user.name ?? undefined}
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary"
+                    >
+                        {initialsOf(session.user.name) || <User className="h-4 w-4" />}
+                    </span>
+                ) : (
+                    <Link
+                        href="/sign-in"
+                        aria-label="Σύνδεση"
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors hover:bg-primary/20"
+                    >
+                        <LogIn className="h-4 w-4" />
+                    </Link>
+                )}
             </div>
 
             {/* map + floating overlays */}
             <div className="relative min-h-0 flex-1">
                 {mapNode}
 
-                {/* floating category chips (Google-Maps style) */}
+                {/* floating topic chips (Google-Maps style) */}
                 <div
                     className="absolute inset-x-0 top-3 z-[7] overflow-x-auto px-3 pb-1.5 [&::-webkit-scrollbar]:hidden [&_button]:shadow-md"
                     style={{ scrollbarWidth: 'none' }}
                 >
-                    <FilterBar value={cat} onChange={setCat} />
+                    <FilterBar topics={topics} value={cat} onChange={setCat} />
                 </div>
 
                 {/* controls (below the chips) */}
@@ -610,9 +712,9 @@ function MobileLayout({
                 </div>
 
                 {/* subject preview card — sticks to the top edge of the sheet, riding along as it's dragged */}
-                {selectedTopic && (
+                {selectedSubject && (
                     <MobileSubjectPreview
-                        topic={selectedTopic}
+                        subject={selectedSubject}
                         onClose={clearSelection}
                         bottom={sheetPos.height + 8}
                         animate={!sheetPos.dragging}
@@ -622,17 +724,20 @@ function MobileLayout({
                 {/* draggable bottom sheet (drag fully down to dismiss) */}
                 <MobileTrendingSheet
                     trending={trending}
+                    loading={loading}
                     selectedId={selectedId}
-                    onSelect={selectTopic}
+                    onSelect={selectSubject}
                     onPositionChange={setSheetPos}
                 />
             </div>
 
             {searchOpen && (
                 <MobileSearchOverlay
+                    topics={topics}
+                    cities={cities}
                     onClose={() => setSearchOpen(false)}
-                    onPickCategory={(c) => {
-                        setCat(c);
+                    onPickTopic={(t) => {
+                        setCat(t);
                         setSearchOpen(false);
                     }}
                 />
@@ -644,17 +749,16 @@ function MobileLayout({
 /* compact subject preview (mobile) — anchored just above the bottom sheet; `bottom`
    tracks the sheet height, animating in sync with its snap transition unless dragging */
 function MobileSubjectPreview({
-    topic,
+    subject,
     onClose,
     bottom,
     animate,
 }: {
-    topic: Topic;
+    subject: LandingSubject;
     onClose: () => void;
     bottom: number;
     animate: boolean;
 }) {
-    const m = municipalityOf(topic.muni);
     return (
         <div
             className="absolute inset-x-3 z-[9]"
@@ -670,30 +774,32 @@ function MobileSubjectPreview({
                 >
                     <X className="h-4 w-4" />
                 </button>
-                <Link href={topic.href} className="flex items-stretch gap-3 p-3 pr-9">
-                    <span
-                        className="w-1 shrink-0 rounded-full"
-                        style={{ backgroundColor: topic.hot ? HOT_COLOR : CATEGORIES[topic.cat].color }}
-                    />
+                <Link href={subject.href} className="flex items-stretch gap-3 p-3 pr-9">
+                    <span className="w-1 shrink-0 rounded-full" style={{ backgroundColor: subject.topic.color }} />
                     <span className="flex min-w-0 flex-1 flex-col gap-1.5">
                         <span className="flex flex-wrap items-center gap-2">
-                            <CatChip cat={topic.cat} small />
-                            {topic.hasVote && <VoteBadge />}
-                            {topic.hot && <HotTag count={topic.count} />}
+                            <TopicChip topic={subject.topic} small />
+                            {subject.hot && <HotTag />}
                         </span>
                         <span className="line-clamp-2 text-[15px] font-semibold leading-snug text-foreground">
-                            {topic.title}
+                            {subject.title}
                         </span>
                         <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                            <span className="inline-flex items-center gap-1 font-medium text-foreground/80">
-                                <MapPin className="h-3 w-3" /> {topic.where}
-                            </span>
+                            {subject.where && (
+                                <span className="inline-flex items-center gap-1 font-medium text-foreground/80">
+                                    <MapPin className="h-3 w-3" /> {subject.where}
+                                </span>
+                            )}
                             <span aria-hidden className="opacity-40">·</span>
-                            <span className="font-mono tabular-nums">{m.name}</span>
-                            <span aria-hidden className="opacity-40">·</span>
-                            <span className="inline-flex items-center gap-1 font-medium text-foreground/80">
-                                <Clock className="h-3 w-3" /> {topic.durationMin}′ συζήτηση
-                            </span>
+                            <span className="font-mono tabular-nums">{subject.cityName}</span>
+                            {subject.durationMin > 0 && (
+                                <>
+                                    <span aria-hidden className="opacity-40">·</span>
+                                    <span className="inline-flex items-center gap-1 font-medium text-foreground/80">
+                                        <Clock className="h-3 w-3" /> {subject.durationMin}′ συζήτηση
+                                    </span>
+                                </>
+                            )}
                         </span>
                         <span className="mt-0.5 inline-flex items-center gap-1 text-[13px] font-semibold text-[hsl(var(--orange))]">
                             Δες τη συζήτηση <ArrowRight className="h-3.5 w-3.5" />
@@ -708,11 +814,13 @@ function MobileSubjectPreview({
 /* draggable mobile trending sheet — snaps between collapsed peek, half and full */
 function MobileTrendingSheet({
     trending,
+    loading,
     selectedId,
     onSelect,
     onPositionChange,
 }: {
-    trending: Topic[];
+    trending: LandingSubject[];
+    loading: boolean;
     selectedId: string | null;
     onSelect: (id: string) => void;
     /** reports the sheet's height/drag state so siblings (the subject preview) can track it */
@@ -832,8 +940,9 @@ function MobileTrendingSheet({
                     WebkitMaskImage: 'linear-gradient(#000 88%, transparent)',
                 }}
             >
-                {trending.map((t) => (
-                    <CompactTopicCard key={t.id} topic={t} selected={t.id === selectedId} onClick={() => onSelect(t.id)} />
+                {loading && <div className="py-6 text-center text-sm text-muted-foreground">Φόρτωση θεμάτων…</div>}
+                {trending.map((s) => (
+                    <CompactTopicCard key={s.id} subject={s} selected={s.id === selectedId} onClick={() => onSelect(s.id)} />
                 ))}
             </div>
         </div>
@@ -857,28 +966,30 @@ function SearchPill({ onClick }: { onClick: () => void }) {
 /* search suggestion sections (δήμοι, κατηγορίες, δημοφιλείς αναζητήσεις) — shared by
    the mobile full-screen overlay and the desktop dropdown */
 function SearchSuggestions({
+    topics,
+    cities,
     onPick,
-    onPickCategory,
+    onPickTopic,
 }: {
+    topics: Topic[];
+    cities: LandingCity[];
     /** called when any suggestion is chosen, so the host overlay/dropdown can close */
     onPick: () => void;
-    onPickCategory: (c: CategoryKey) => void;
+    onPickTopic: (topicId: string) => void;
 }) {
     return (
         <>
             <Eyebrow className="block">Δήμοι</Eyebrow>
             <div className="mt-2.5 flex flex-col gap-1">
-                {MUNICIPALITIES.map((m) => (
+                {cities.map((c) => (
                     <Link
-                        key={m.slug}
-                        href={m.href}
+                        key={c.id}
+                        href={`/${c.id}`}
                         onClick={onPick}
                         className="flex items-center gap-3 rounded-xl px-2 py-2.5 transition-colors hover:bg-muted"
                     >
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-bold text-primary">
-                            {m.name[0]}
-                        </span>
-                        <span className="flex-1 text-[15px] font-medium text-foreground">{m.name}</span>
+                        <CityAvatar city={c} />
+                        <span className="flex-1 text-[15px] font-medium text-foreground">{c.name}</span>
                         <ArrowRight className="h-4 w-4 text-muted-foreground" />
                     </Link>
                 ))}
@@ -886,20 +997,17 @@ function SearchSuggestions({
 
             <Eyebrow className="mt-7 block">Κατηγορίες</Eyebrow>
             <div className="mt-2.5 flex flex-wrap gap-2">
-                {categoryList.map((c) => {
-                    const Icon = c.icon;
-                    return (
-                        <button
-                            key={c.key}
-                            type="button"
-                            onClick={() => onPickCategory(c.key)}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-2 text-[13px] font-medium text-foreground shadow-sm transition-colors hover:border-foreground/30"
-                        >
-                            <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: c.color }} />
-                            {c.short}
-                        </button>
-                    );
-                })}
+                {topics.map((t) => (
+                    <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => onPickTopic(t.id)}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-2 text-[13px] font-medium text-foreground shadow-sm transition-colors hover:border-foreground/30"
+                    >
+                        <Icon name={t.icon || 'hash'} color={t.colorHex} size={14} />
+                        {t.name}
+                    </button>
+                ))}
             </div>
 
             <Eyebrow className="mt-7 block">Δημοφιλείς αναζητήσεις</Eyebrow>
@@ -920,7 +1028,15 @@ function SearchSuggestions({
 }
 
 /* desktop search — mobile-style rounded pill; focusing it drops down the suggestions */
-function DesktopSearch({ onPickCategory }: { onPickCategory: (c: CategoryKey) => void }) {
+function DesktopSearch({
+    topics,
+    cities,
+    onPickTopic,
+}: {
+    topics: Topic[];
+    cities: LandingCity[];
+    onPickTopic: (topicId: string) => void;
+}) {
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
 
@@ -957,9 +1073,11 @@ function DesktopSearch({ onPickCategory }: { onPickCategory: (c: CategoryKey) =>
             {open && (
                 <div className="absolute inset-x-0 top-[calc(100%+8px)] max-h-[min(560px,calc(100dvh-220px))] overflow-y-auto rounded-2xl border border-border bg-card p-4 shadow-xl">
                     <SearchSuggestions
+                        topics={topics}
+                        cities={cities}
                         onPick={() => setOpen(false)}
-                        onPickCategory={(c) => {
-                            onPickCategory(c);
+                        onPickTopic={(t) => {
+                            onPickTopic(t);
                             setOpen(false);
                         }}
                     />
@@ -971,11 +1089,15 @@ function DesktopSearch({ onPickCategory }: { onPickCategory: (c: CategoryKey) =>
 
 /* full-screen search suggestions (mobile) — δήμοι, κατηγορίες, δημοφιλείς αναζητήσεις */
 function MobileSearchOverlay({
+    topics,
+    cities,
     onClose,
-    onPickCategory,
+    onPickTopic,
 }: {
+    topics: Topic[];
+    cities: LandingCity[];
     onClose: () => void;
-    onPickCategory: (c: CategoryKey) => void;
+    onPickTopic: (topicId: string) => void;
 }) {
     return (
         <div className="fixed inset-0 z-[60] flex flex-col bg-background">
@@ -999,7 +1121,7 @@ function MobileSearchOverlay({
             </div>
 
             <div className="flex-1 overflow-y-auto px-4 py-5">
-                <SearchSuggestions onPick={onClose} onPickCategory={onPickCategory} />
+                <SearchSuggestions topics={topics} cities={cities} onPick={onClose} onPickTopic={onPickTopic} />
             </div>
         </div>
     );

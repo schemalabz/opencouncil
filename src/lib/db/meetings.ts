@@ -174,6 +174,32 @@ export async function getCouncilMeetingsForCity(cityId: string, { includeUnrelea
     }
 }
 
+const upcomingMeetingInclude = {
+    city: { select: { id: true, name: true, name_municipality: true, logoImage: true } },
+    administrativeBody: true,
+} satisfies Prisma.CouncilMeetingInclude;
+
+export type UpcomingMeetingWithCity = Prisma.CouncilMeetingGetPayload<{
+    include: typeof upcomingMeetingInclude
+}>;
+
+export async function getUpcomingMeetings({ limit = 10 }: { limit?: number } = {}): Promise<UpcomingMeetingWithCity[]> {
+    try {
+        return await prisma.councilMeeting.findMany({
+            where: {
+                dateTime: { gt: new Date() },
+                city: { status: 'listed' },
+            },
+            orderBy: [{ dateTime: 'asc' }, { createdAt: 'asc' }],
+            take: limit,
+            include: upcomingMeetingInclude,
+        });
+    } catch (error) {
+        console.error('Error fetching upcoming meetings:', error);
+        throw new Error('Failed to fetch upcoming meetings');
+    }
+}
+
 export async function toggleMeetingRelease(cityId: string, id: string, released: boolean): Promise<CouncilMeetingWithAdminBody> {
     await withUserAuthorizedToEdit({ councilMeetingId: id, cityId: cityId });
     try {
