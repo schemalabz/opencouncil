@@ -47,6 +47,7 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
     const [candidates, setCandidates] = useState<VoiceprintCandidateSegment[]>([]);
     const [isLoadingCandidates, setIsLoadingCandidates] = useState(false);
     const [candidatesLoaded, setCandidatesLoaded] = useState(false);
+    const [candidatesError, setCandidatesError] = useState(false);
     const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
     const { toast } = useToast();
 
@@ -60,6 +61,7 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
             setSelectedSegmentId(null);
             setCandidates([]);
             setCandidatesLoaded(false);
+            setCandidatesError(false);
         }
     }, []);
 
@@ -145,12 +147,16 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
 
     const loadCandidates = useCallback(async () => {
         setIsLoadingCandidates(true);
+        setCandidatesError(false);
         try {
             const segments = await getCandidateSegmentsForVoiceprint(personId);
             setCandidates(segments);
             setCandidatesLoaded(true);
         } catch (error) {
             console.error("Error loading candidate segments:", error);
+            // Flag the error so the panel shows a retry affordance instead of
+            // falling through to the misleading "No segments" empty state.
+            setCandidatesError(true);
             toast({
                 title: "Error",
                 description: error instanceof Error ? error.message : "Failed to load candidate segments.",
@@ -336,6 +342,20 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
                                                 {isLoadingCandidates ? (
                                                     <div className='flex justify-center py-4'>
                                                         <Loader2 className='h-5 w-5 animate-spin text-slate-400' />
+                                                    </div>
+                                                ) : candidatesError ? (
+                                                    <div className='space-y-2'>
+                                                        <p className='text-sm text-slate-600'>
+                                                            Could not load segments. Please try again.
+                                                        </p>
+                                                        <Button
+                                                            variant='outline'
+                                                            size='sm'
+                                                            onClick={loadCandidates}
+                                                            disabled={isLoadingCandidates}
+                                                        >
+                                                            Retry
+                                                        </Button>
                                                     </div>
                                                 ) : candidates.length === 0 ? (
                                                     <p className='text-sm text-slate-600'>
