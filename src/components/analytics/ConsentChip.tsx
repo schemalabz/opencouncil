@@ -47,6 +47,12 @@ export default function ConsentChip() {
                 logged_in: !!session?.user,
             });
         } else {
+            // opt_out_capturing() already resets identity internally when the
+            // visitor was opted in (on_reject mode), but the privacy policy
+            // promises the identifier is deleted on withdrawal — make that
+            // guarantee explicit here rather than relying on a posthog-js
+            // implementation detail.
+            posthog.reset();
             posthog.opt_out_capturing();
         }
         localStorage.setItem(ANALYTICS_CHOICE_KEY, accepted ? "accepted" : "declined");
