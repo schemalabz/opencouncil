@@ -5,7 +5,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Video as VideoIcon, Play, Pause, Monitor, Smartphone, CheckCircle, Clock, List, FileText } from 'lucide-react';
 import { useHighlight } from './HighlightContext';
 import { useVideo } from './VideoProvider';
@@ -119,186 +118,165 @@ export function HighlightPreviewDialog() {
 
   const renderPreviewContent = () => (
     <>
-      <DialogHeader>
+      <DialogHeader className="w-full">
         <DialogTitle>{t('previewDialog.title')}</DialogTitle>
         <DialogDescription>
           {t('previewDialog.description')}
         </DialogDescription>
       </DialogHeader>
 
-        {/* Unified preview area: text and video same height, controls below */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
-          {/* Text Preview */}
-          <div className="border rounded-lg p-4 bg-gradient-to-br from-blue-50/50 to-transparent flex flex-col">
-            <div className="flex-1 min-h-[25vh] max-h-[35vh] overflow-auto">
-              <HighlightPreview title="Content Preview" maxHeight="max-h-none" />
-            </div>
-          </div>
-
-          {/* Video Preview (uses shared VideoProvider) */}
-          <div className="border rounded-lg p-4 bg-gradient-to-br from-green-50/50 to-transparent flex flex-col">
-            <div className="flex-1 min-h-[25vh] max-h-[35vh] relative">
-              <div 
-                className="rounded-lg overflow-hidden h-full bg-black cursor-pointer relative"
-                onMouseEnter={() => setIsVideoHovered(true)}
-                onMouseLeave={() => setIsVideoHovered(false)}
-                onClick={togglePlayPause}
-              >
-                <Video className="w-full h-full" />
-                {/* Hover overlay with play/pause */}
-                {isVideoHovered && (
-                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                    <Button
-                      variant="secondary"
-                      size="lg"
-                      className="bg-white/80 hover:bg-white/90 text-black"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        togglePlayPause();
-                      }}
-                    >
-                      {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {/* Clip navigation below video */}
-            {totalHighlights > 0 && (
-              <div className="mt-3 flex items-center justify-center gap-2">
-                <Button variant="outline" size="sm" onClick={goToPreviousHighlight} aria-label={t('common.previousClip')}>
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <div className="px-3 py-1 text-sm bg-amber-100 text-amber-900 border border-amber-200 rounded">
-                  {t('previewDialog.clip', { current: currentHighlightIndex + 1, total: totalHighlights })}
-                </div>
-                <Button variant="outline" size="sm" onClick={goToNextHighlight} aria-label={t('common.nextClip')}>
-                  <ChevronRight className="w-4 h-4" />
+      {/* Preview area: video is the anchor, selected content beside it */}
+      <div className="grid w-full grid-cols-1 gap-4 lg:grid-cols-5">
+        {/* Video preview (uses shared VideoProvider) */}
+        <div className="space-y-3 lg:col-span-3">
+          <div
+            className="relative aspect-video w-full cursor-pointer overflow-hidden rounded-lg bg-black"
+            onMouseEnter={() => setIsVideoHovered(true)}
+            onMouseLeave={() => setIsVideoHovered(false)}
+            onClick={togglePlayPause}
+          >
+            <Video className="w-full h-full" />
+            {/* Play/pause affordance: always visible while paused, on hover while playing */}
+            {(isVideoHovered || !isPlaying) && (
+              <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  className="bg-white/80 hover:bg-white/90 text-black"
+                  aria-label={isPlaying ? t('common.pause') : t('common.play')}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    togglePlayPause();
+                  }}
+                >
+                  {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
                 </Button>
               </div>
             )}
           </div>
-        </div>
 
-        {/* Always visible grouped settings */}
-        <div className="mt-4 space-y-3">
-          <div className="border rounded-lg p-3 bg-muted/30 space-y-4">
-            <div className="text-sm font-medium">{t('previewDialog.settings')}</div>
-
-            {/* Size: aspect-ratio radio group */}
-            <fieldset className="space-y-2">
-              <legend className="text-xs font-medium text-muted-foreground">{t('previewDialog.size')}</legend>
-              <div className="space-y-1.5">
-                <label className="flex items-center gap-2 text-xs cursor-pointer">
-                  <input
-                    type="radio"
-                    name={aspectRatioName}
-                    value="default"
-                    checked={!isSocial}
-                    onChange={() => setAspectRatio('default')}
-                    className="h-3.5 w-3.5 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  />
-                  <Monitor className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span className={cn(!isSocial && "font-medium")}>{t('previewDialog.aspectDesktop')}</span>
-                </label>
-                <label className="flex items-center gap-2 text-xs cursor-pointer">
-                  <input
-                    type="radio"
-                    name={aspectRatioName}
-                    value="social-9x16"
-                    checked={isSocial}
-                    onChange={() => setAspectRatio('social-9x16')}
-                    className="h-3.5 w-3.5 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  />
-                  <Smartphone className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span className={cn(isSocial && "font-medium")}>{t('previewDialog.aspectMobile')}</span>
-                </label>
-              </div>
-            </fieldset>
-
-            {/* Formatting: caption and speaker-overlay checkboxes */}
-            <fieldset className="space-y-2">
-              <legend className="text-xs font-medium text-muted-foreground">{t('previewDialog.formatting')}</legend>
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id={captionsId}
-                    checked={includeCaptions}
-                    onCheckedChange={(checked) => setIncludeCaptions(checked === true)}
-                  />
-                  <Label
-                    htmlFor={captionsId}
-                    className={cn(
-                      "text-xs cursor-pointer",
-                      includeCaptions && (isTranscriptVerified ? "text-green-700 dark:text-green-400" : "text-yellow-700 dark:text-yellow-500")
-                    )}
-                  >
-                    {t('previewDialog.captions')}
-                  </Label>
-                  {includeCaptions && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          aria-label={isTranscriptVerified ? t('previewDialog.captionsVerified') : t('previewDialog.captionsUnverified')}
-                          className={cn(
-                            "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                            isTranscriptVerified ? "text-green-600 dark:text-green-400" : "text-yellow-600 dark:text-yellow-500"
-                          )}
-                        >
-                          {isTranscriptVerified
-                            ? <CheckCircle2 className="h-3.5 w-3.5" />
-                            : <AlertTriangle className="h-3.5 w-3.5" />}
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" align="center" className="max-w-[260px] text-xs whitespace-normal break-words">
-                        {isTranscriptVerified ? t('previewDialog.captionsVerified') : t('previewDialog.captionsUnverified')}
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id={speakersId}
-                    checked={overlaySpeakerNames}
-                    onCheckedChange={(checked) => setOverlaySpeakerNames(checked === true)}
-                  />
-                  <Label htmlFor={speakersId} className="text-xs cursor-pointer">
-                    {t('previewDialog.speakerOverlays')}
-                  </Label>
-                </div>
-              </div>
-            </fieldset>
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center justify-between">
-            <div className="text-xs text-muted-foreground">
-              {statistics ? (
-                <span>
-                  {t('common.duration')} {Math.round(statistics.duration)}s • {statistics.speakerCount} {t('common.speakers')} • {statistics.utteranceCount} {t('common.utterances')}
-                </span>
-              ) : (
-                <span>{t('previewDialog.noUtterancesSelected')}</span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleGenerate}
-                disabled={isSaving || isGenerating || totalHighlights === 0}
-                className="flex items-center space-x-1"
-              >
-                <VideoIcon className="h-4 w-4" />
-                <span>{isGenerating ? t('details.generating') : generateCtaLabel}</span>
+          {totalHighlights > 1 && (
+            <div className="flex items-center justify-center gap-3">
+              <Button variant="outline" size="icon" onClick={goToPreviousHighlight} aria-label={t('common.previousClip')}>
+                <ChevronLeft className="h-5 w-5" />
               </Button>
-              <Button variant="outline" size="sm" onClick={closePreviewDialog}>{t('common.close')}</Button>
+              <span className="min-w-[7rem] text-center text-sm font-medium" aria-live="polite">
+                {t('previewDialog.clip', { current: currentHighlightIndex + 1, total: totalHighlights })}
+              </span>
+              <Button variant="outline" size="icon" onClick={goToNextHighlight} aria-label={t('common.nextClip')}>
+                <ChevronRight className="h-5 w-5" />
+              </Button>
             </div>
-          </div>
+          )}
         </div>
+
+        {/* Selected content: matches the video's height on desktop, scrolls internally */}
+        <div className="relative min-h-[10rem] lg:col-span-2">
+          <HighlightPreview
+            title={t('previewDialog.contentPreview')}
+            maxHeight="max-h-72 lg:max-h-none"
+            className="lg:absolute lg:inset-0"
+          />
+        </div>
+      </div>
+
+      {/* Settings: size and formatting side by side */}
+      <div className="w-full rounded-lg border bg-muted/30 p-4">
+        <h3 className="mb-3 text-sm font-semibold">{t('previewDialog.settings')}</h3>
+        <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+          {/* Size: aspect-ratio radio group */}
+          <fieldset>
+            <legend className="mb-1 text-sm font-medium text-muted-foreground">{t('previewDialog.size')}</legend>
+            <label className="flex cursor-pointer items-center gap-2.5 py-1.5 text-sm">
+              <input
+                type="radio"
+                name={aspectRatioName}
+                value="default"
+                checked={!isSocial}
+                onChange={() => setAspectRatio('default')}
+                className="h-4 w-4 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <Monitor className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <span className={cn(!isSocial && "font-medium")}>{t('previewDialog.aspectDesktop')}</span>
+            </label>
+            <label className="flex cursor-pointer items-center gap-2.5 py-1.5 text-sm">
+              <input
+                type="radio"
+                name={aspectRatioName}
+                value="social-9x16"
+                checked={isSocial}
+                onChange={() => setAspectRatio('social-9x16')}
+                className="h-4 w-4 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <Smartphone className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <span className={cn(isSocial && "font-medium")}>{t('previewDialog.aspectMobile')}</span>
+            </label>
+          </fieldset>
+
+          {/* Formatting: caption and speaker-overlay checkboxes */}
+          <fieldset>
+            <legend className="mb-1 text-sm font-medium text-muted-foreground">{t('previewDialog.formatting')}</legend>
+            <div className="flex items-center gap-2.5 py-1.5">
+              <Checkbox
+                id={captionsId}
+                checked={includeCaptions}
+                onCheckedChange={(checked) => setIncludeCaptions(checked === true)}
+              />
+              <Label htmlFor={captionsId} className="text-sm cursor-pointer">
+                {t('previewDialog.captions')}
+              </Label>
+            </div>
+            {includeCaptions && (
+              <p
+                className={cn(
+                  "flex items-start gap-1.5 pl-[26px] pb-1 text-xs leading-snug",
+                  isTranscriptVerified ? "text-green-700 dark:text-green-400" : "text-yellow-700 dark:text-yellow-500"
+                )}
+              >
+                {isTranscriptVerified
+                  ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  : <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
+                <span>{isTranscriptVerified ? t('previewDialog.captionsVerified') : t('previewDialog.captionsUnverified')}</span>
+              </p>
+            )}
+            <div className="flex items-center gap-2.5 py-1.5">
+              <Checkbox
+                id={speakersId}
+                checked={overlaySpeakerNames}
+                onCheckedChange={(checked) => setOverlaySpeakerNames(checked === true)}
+              />
+              <Label htmlFor={speakersId} className="text-sm cursor-pointer">
+                {t('previewDialog.speakerOverlays')}
+              </Label>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+
+      {/* Footer: summary on the left, actions on the right */}
+      <div className="flex w-full flex-col-reverse gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">
+          {statistics ? (
+            <>
+              {t('common.duration')} {Math.round(statistics.duration)}s
+              {' • '}{t('preview.speakerCount', { count: statistics.speakerCount })}
+              {' • '}{t('preview.utteranceCount', { count: statistics.utteranceCount })}
+            </>
+          ) : (
+            t('previewDialog.noUtterancesSelected')
+          )}
+        </p>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:gap-3">
+          <Button variant="outline" onClick={closePreviewDialog}>{t('common.close')}</Button>
+          <Button
+            onClick={handleGenerate}
+            disabled={isSaving || isGenerating || totalHighlights === 0}
+          >
+            <VideoIcon className="mr-2 h-4 w-4" />
+            {isGenerating ? t('details.generating') : generateCtaLabel}
+          </Button>
+        </div>
+      </div>
     </>
   );
 
@@ -371,12 +349,13 @@ export function HighlightPreviewDialog() {
   );
 
   return (
-    <TooltipProvider delayDuration={150}>
-      <Dialog open={isPreviewDialogOpen} onOpenChange={(open) => (open ? undefined : closePreviewDialog())}>
-        <DialogContent className={view === 'preview' ? 'max-w-5xl' : 'sm:max-w-md'}>
-          {view === 'preview' ? renderPreviewContent() : renderStatusContent()}
-        </DialogContent>
-      </Dialog>
-    </TooltipProvider>
+    <Dialog open={isPreviewDialogOpen} onOpenChange={(open) => (open ? undefined : closePreviewDialog())}>
+      <DialogContent
+        className={view === 'preview' ? 'max-w-5xl' : 'sm:max-w-md'}
+        align={view === 'preview' ? 'start' : 'center'}
+      >
+        {view === 'preview' ? renderPreviewContent() : renderStatusContent()}
+      </DialogContent>
+    </Dialog>
   );
 }

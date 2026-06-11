@@ -7,6 +7,8 @@
     "cancel": "Ακύρωση",
     "error": "Σφάλμα",
     "success": "Επιτυχία",
+    "play": "Αναπαραγωγή",
+    "pause": "Παύση",
     "previousClip": "Προηγούμενο κλιπ",
     "nextClip": "Επόμενο κλιπ",
     "connectedSubject": "Συνδεδεμένο Θέμα:",
@@ -40,6 +42,8 @@
     "contentPreview": "Προεπισκόπηση Περιεχομένου",
     "videoPreview": "Προεπισκόπηση Βίντεο",
     "utterance": "εκφώνηση",
+    "utteranceCount": "{count, plural, one {1 φράση} other {# φράσεις}}",
+    "speakerCount": "{count, plural, one {1 ομιλητής} other {# ομιλητές}}",
     "clip": "Κλιπ {current} από {total}"
   },
   "generation": {
