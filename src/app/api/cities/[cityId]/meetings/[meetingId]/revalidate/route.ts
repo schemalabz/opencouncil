@@ -4,8 +4,9 @@ import { isUserAuthorizedToEdit } from '@/lib/auth';
 
 export async function POST(
     request: Request,
-    { params }: { params: { cityId: string; meetingId: string } }
+    props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
+    const params = await props.params;
     // Check if user is authorized to edit this meeting
     const hasPermission = await isUserAuthorizedToEdit({ cityId: params.cityId });
     if (!hasPermission) {

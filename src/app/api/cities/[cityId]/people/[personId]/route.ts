@@ -8,12 +8,20 @@ import { Role } from '@prisma/client'
 import { isUserAuthorizedToEdit } from '@/lib/auth'
 import { validateRoles } from '@/lib/utils/roles'
 
-export async function GET(request: Request, { params }: { params: { cityId: string, personId: string } }) {
+export async function GET(
+    request: Request,
+    props: { params: Promise<{ cityId: string, personId: string }> }
+) {
+    const params = await props.params;
     const person = await getPerson(params.personId)
     return NextResponse.json(person)
 }
 
-export async function PUT(request: Request, { params }: { params: { cityId: string, personId: string } }) {
+export async function PUT(
+    request: Request,
+    props: { params: Promise<{ cityId: string, personId: string }> }
+) {
+    const params = await props.params;
     const authorizedToEdit = await isUserAuthorizedToEdit({ personId: params.personId })
     if (!authorizedToEdit) {
         return new NextResponse("Unauthorized", { status: 401 });
@@ -99,8 +107,8 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
         })
 
         console.log('Person updated successfully')
-        revalidateTag(`city:${params.cityId}:people`);
-        revalidateTag(`city:${params.cityId}:parties`);
+        revalidateTag(`city:${params.cityId}:people`, 'max');
+        revalidateTag(`city:${params.cityId}:parties`, 'max');
         revalidatePath(`/${params.cityId}/people`);
         revalidatePath(`/${params.cityId}/parties`);
 
@@ -111,15 +119,19 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     }
 }
 
-export async function DELETE(request: Request, { params }: { params: { cityId: string, personId: string } }) {
+export async function DELETE(
+    request: Request,
+    props: { params: Promise<{ cityId: string, personId: string }> }
+) {
+    const params = await props.params;
     const authorizedToDelete = await isUserAuthorizedToEdit({ personId: params.personId })
     if (!authorizedToDelete) {
         return new NextResponse("Unauthorized", { status: 401 });
     }
     try {
         await deletePerson(params.personId)
-        revalidateTag(`city:${params.cityId}:people`);
-        revalidateTag(`city:${params.cityId}:parties`);
+        revalidateTag(`city:${params.cityId}:people`, 'max');
+        revalidateTag(`city:${params.cityId}:parties`, 'max');
         revalidatePath(`/${params.cityId}/people`);
         revalidatePath(`/${params.cityId}/parties`);
         revalidatePath(`/admin/people`);

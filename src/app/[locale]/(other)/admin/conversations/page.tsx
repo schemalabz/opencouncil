@@ -269,10 +269,11 @@ function ThreadDetail({
 }
 
 interface PageProps {
-    searchParams: { all?: string; page?: string };
+    searchParams: Promise<{ all?: string, page?: string }>;
 }
 
-export default async function ConversationsPage({ searchParams }: PageProps) {
+export default async function ConversationsPage(props: PageProps) {
+    const searchParams = await props.searchParams;
     // Default view hides outbound-only threads (broadcasts no one answered,
     // failed deliveries) so the admin can focus on conversations that need
     // attention. `?all=1` opts back into the full unfiltered list.

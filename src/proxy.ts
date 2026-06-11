@@ -4,15 +4,26 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { auth } from './auth'
 import { env } from '@/env.mjs';
 
-const i18nMiddleware = createIntlMiddleware(routing, { localeDetection: false });
+const i18nMiddleware = createIntlMiddleware(routing);
 
-export default async function middleware(req: NextRequest) {
+// Obvious bot-scanner paths. 404 them here, before any rendering, so they
+// can't create cache entries or trigger data fetches (#358). Only
+// extensionless probes are listed: dotted paths (.php/.env) never reach the
+// proxy — the matcher below excludes them — and 404 via locale validation
+// without touching per-city caches.
+const JUNK_PATH = /^\/(wp-admin|wp-login|wp-content|wp-includes|wordpress|xmlrpc|administrator|phpmyadmin|cgi-bin)(\/|$)/i;
+
+export default async function proxy(req: NextRequest) {
     // Basic auth check
     if (!isHttpBasicAuthAuthenticated(req)) {
         return new NextResponse('Authentication required', {
             status: 401,
             headers: { 'WWW-Authenticate': 'Basic' },
         });
+    }
+
+    if (JUNK_PATH.test(req.nextUrl.pathname)) {
+        return new NextResponse(null, { status: 404 });
     }
 
     // Handle the specific case for opencouncil.chania.gr
@@ -51,7 +62,28 @@ function isHttpBasicAuthAuthenticated(req: Request) {
         return false;
     }
 
-    const [username, password] = atob(authHeader.split(' ')[1]).split(':');
+    // Must be a well-formed `Basic <base64>` header. Anything else (missing
+    // payload, wrong scheme, invalid base64) is unauthenticated, not a 500.
+    const [scheme, encoded] = authHeader.split(' ');
+    if (scheme !== 'Basic' || !encoded) {
+        return false;
+    }
+
+    let decoded: string;
+    try {
+        decoded = atob(encoded);
+    } catch {
+        return false;
+    }
+
+    // Per RFC 7617 the credentials are `username:password`; only the username
+    // is colon-free, so split on the first colon to preserve colons in passwords.
+    const sep = decoded.indexOf(':');
+    if (sep === -1) {
+        return false;
+    }
+    const username = decoded.slice(0, sep);
+    const password = decoded.slice(sep + 1);
     return username === env.BASIC_AUTH_USERNAME && password === env.BASIC_AUTH_PASSWORD;
 }
 

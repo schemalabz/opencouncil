@@ -3,11 +3,12 @@ import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { safeRedirectPath } from "@/lib/safeRedirect"
 
-export default async function SignInPage({
-    searchParams,
-}: {
-    searchParams: { callbackUrl?: string | string[] }
-}) {
+export default async function SignInPage(
+    props: {
+        searchParams: Promise<{ callbackUrl?: string | string[] }>
+    }
+) {
+    const searchParams = await props.searchParams;
     const session = await auth()
 
     if (session) {

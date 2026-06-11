@@ -12,7 +12,10 @@ import { Metadata } from "next";
 import { env } from '@/env.mjs';
 import { buildHreflangAlternates } from '@/lib/utils/hreflang';
 
-export async function generateMetadata({ params }: { params: { locale: string, personId: string, cityId: string } }): Promise<Metadata> {
+export async function generateMetadata(
+    props: { params: Promise<{ locale: string, personId: string, cityId: string }> }
+): Promise<Metadata> {
+    const params = await props.params;
     const [person, city] = await Promise.all([
         getPerson(params.personId),
         getCity(params.cityId)
@@ -87,7 +90,10 @@ export async function generateMetadata({ params }: { params: { locale: string, p
     };
 }
 
-export default async function PersonPage({ params }: { params: { locale: string, personId: string, cityId: string } }) {
+export default async function PersonPage(
+    props: { params: Promise<{ locale: string, personId: string, cityId: string }> }
+) {
+    const params = await props.params;
     const includeUnreleased = await isUserAuthorizedToEdit({ cityId: params.cityId });
 
     const [person, city, parties, administrativeBodies, statistics, contributionTopics] = await Promise.all([

@@ -19,8 +19,8 @@ export const revalidate = 300;
 const VALID_BODY_TYPES = new Set<string>(['council', 'committee', 'community']);
 
 interface EmbedMeetingsPageProps {
-    params: { locale: string };
-    searchParams: {
+    params: Promise<{ locale: string }>;
+    searchParams: Promise<{
         cityId?: string;
         accent?: string;
         mode?: string;
@@ -28,10 +28,12 @@ interface EmbedMeetingsPageProps {
         showSubjects?: string;
         radius?: string;
         bodies?: string;
-    };
+    }>;
 }
 
-export default async function EmbedMeetingsPage({ params, searchParams }: EmbedMeetingsPageProps) {
+export default async function EmbedMeetingsPage(props: EmbedMeetingsPageProps) {
+    const searchParams = await props.searchParams;
+    const params = await props.params;
     const { locale } = params;
     const { cityId } = searchParams;
 

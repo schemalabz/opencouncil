@@ -4,11 +4,17 @@ import { Metadata } from "next";
 import { env } from '@/env.mjs';
 import { buildHreflangAlternates } from '@/lib/utils/hreflang';
 
-export async function generateMetadata({
-    params: { locale }
-}: {
-    params: { locale: string }
-}): Promise<Metadata> {
+export async function generateMetadata(
+    props: {
+        params: Promise<{ locale: string }>
+    }
+): Promise<Metadata> {
+    const params = await props.params;
+
+    const {
+        locale
+    } = params;
+
     return {
         title: "OpenCouncil AI | Συνομιλήστε για τα Δημοτικά Συμβούλια",
         description: "Συνομιλήστε με την τεχνητή νοημοσύνη του OpenCouncil για να μάθετε για δημοτικά συμβούλια, θέματα πολιτικής και την τοπική αυτοδιοίκηση. Κάντε ερωτήσεις και λάβετε εξατομικευμένες απαντήσεις.",

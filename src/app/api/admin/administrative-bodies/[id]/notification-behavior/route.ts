@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, withUserAuthorizedToEdit } from '@/lib/auth';
 import { updateNotificationBehavior } from '@/lib/db/administrativeBodies';
 
-export async function PATCH(
-    request: NextRequest,
-    { params }: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
     await withUserAuthorizedToEdit({});
 
     const body = await request.json();

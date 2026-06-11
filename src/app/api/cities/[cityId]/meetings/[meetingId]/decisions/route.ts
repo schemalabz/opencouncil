@@ -8,8 +8,9 @@ import { z } from 'zod';
 
 export async function GET(
     request: Request,
-    { params }: { params: { cityId: string; meetingId: string } }
+    props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
+    const params = await props.params;
     await withUserAuthorizedToEdit({ cityId: params.cityId });
 
     const [decisions, extractedData, meetingAttendance] = await Promise.all([
@@ -31,8 +32,9 @@ const upsertSchema = z.object({
 
 export async function PUT(
     request: Request,
-    { params }: { params: { cityId: string; meetingId: string } }
+    props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
+    const params = await props.params;
     await withUserAuthorizedToEdit({ cityId: params.cityId });
 
     const session = await auth();
@@ -66,14 +68,15 @@ export async function PUT(
         publishDate: parsed.publishDate ? new Date(parsed.publishDate) : undefined,
         createdById: userId, // Track who manually added this decision
     });
-    revalidateTag(`city:${params.cityId}:meetings`);
+    revalidateTag(`city:${params.cityId}:meetings`, 'max');
     return NextResponse.json(decision);
 }
 
 export async function DELETE(
     request: Request,
-    { params }: { params: { cityId: string; meetingId: string } }
+    props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
+    const params = await props.params;
     await withUserAuthorizedToEdit({ cityId: params.cityId });
 
     const { searchParams } = new URL(request.url);
@@ -100,7 +103,7 @@ export async function DELETE(
     }
 
     await deleteDecision(subjectId);
-    revalidateTag(`city:${params.cityId}:meetings`);
+    revalidateTag(`city:${params.cityId}:meetings`, 'max');
     return NextResponse.json({ success: true });
 }
 
@@ -111,8 +114,9 @@ const postSchema = z.discriminatedUnion('action', [
 
 export async function POST(
     request: Request,
-    { params }: { params: { cityId: string; meetingId: string } }
+    props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
+    const params = await props.params;
     await withUserAuthorizedToEdit({ cityId: params.cityId });
 
     const body = await request.json();
@@ -124,7 +128,7 @@ export async function POST(
 
     if (parsed.data.action === 'clearExtractedData') {
         const result = await clearExtractedDataForMeeting(params.cityId, params.meetingId);
-        revalidateTag(`city:${params.cityId}:meetings`);
+        revalidateTag(`city:${params.cityId}:meetings`, 'max');
         return NextResponse.json(result);
     }
 
@@ -145,6 +149,6 @@ export async function POST(
     }
 
     await resetExtractionForSubject(parsed.data.subjectId);
-    revalidateTag(`city:${params.cityId}:meetings`);
+    revalidateTag(`city:${params.cityId}:meetings`, 'max');
     return NextResponse.json({ success: true });
 }

@@ -9,17 +9,18 @@ import { MeetingTaskType } from "@/lib/tasks/types";
 const DEFAULT_TASK_TYPES: MeetingTaskType[] = ['transcribe', 'processAgenda', 'summarize'];
 
 interface PageProps {
-    searchParams: {
+    searchParams: Promise<{
         dateFrom?: string;
         dateTo?: string;
         cityId?: string;
         taskTypes?: string;
         versionMin?: string;
         versionMax?: string;
-    };
+    }>;
 }
 
-export default async function TasksPage({ searchParams }: PageProps) {
+export default async function TasksPage(props: PageProps) {
+    const searchParams = await props.searchParams;
     // Parse date range — default dateFrom is Jan 1 of current year, "all" = no filter
     const currentYear = new Date().getFullYear();
     const defaultDateFrom = `${currentYear}-01-01`;

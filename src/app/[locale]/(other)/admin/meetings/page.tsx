@@ -6,10 +6,11 @@ import CitySelector from "@/components/admin/people/city-selector";
 import Meetings from "@/components/admin/meetings/Meetings";
 
 interface PageProps {
-    searchParams: { cityId?: string };
+    searchParams: Promise<{ cityId?: string }>;
 }
 
-export default async function AdminMeetingsPage({ searchParams }: PageProps) {
+export default async function AdminMeetingsPage(props: PageProps) {
+    const searchParams = await props.searchParams;
     // Ensure user is authorized as super admin
     await withUserAuthorizedToEdit({});
 

@@ -44,10 +44,8 @@ const cityPopulationSchema = z.object({
 });
 
 // GET: Load initial empty structure
-export async function GET(
-    request: NextRequest,
-    { params }: { params: { cityId: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {
+    const params = await props.params;
     try {
         const user = await getCurrentUser();
 
@@ -89,10 +87,8 @@ export async function GET(
 }
 
 // POST: Save city data
-export async function POST(
-    request: NextRequest,
-    { params }: { params: { cityId: string } }
-) {
+export async function POST(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {
+    const params = await props.params;
     try {
         const user = await getCurrentUser();
 
@@ -215,7 +211,7 @@ export async function POST(
         });
 
         try {
-            revalidateTag(`city:${params.cityId}`);
+            revalidateTag(`city:${params.cityId}`, 'max');
         } catch (error) {
             console.error('Error revalidating city:', error);
         }

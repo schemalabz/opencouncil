@@ -5,11 +5,17 @@ import { env } from '@/env.mjs'
 import { getSupportedCitiesWithLogosCached, getAboutPageStatsCached, getGitHubStatsCached } from '@/lib/cache/queries'
 import { buildHreflangAlternates } from '@/lib/utils/hreflang'
 
-export async function generateMetadata({
-    params: { locale }
-}: {
-    params: { locale: string }
-}): Promise<Metadata> {
+export async function generateMetadata(
+    props: {
+        params: Promise<{ locale: string }>
+    }
+): Promise<Metadata> {
+    const params = await props.params;
+
+    const {
+        locale
+    } = params;
+
     const t = await getTranslations('about.metadata')
 
     const title = t('title')

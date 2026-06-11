@@ -10,8 +10,9 @@ import { routing } from '@/i18n/routing';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { locale: string; cityId: string } }
+    props: { params: Promise<{ locale: string; cityId: string }> }
 ) {
+    const params = await props.params;
     const { locale, cityId } = params;
     const searchParams = request.nextUrl.searchParams;
     const rawLimit = parseInt(searchParams.get('limit') || '20', 10);

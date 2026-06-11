@@ -4,7 +4,7 @@ import { CityWithGeometry, getCity } from '@/lib/db/cities';
 import { PersonWithRelations } from '@/lib/db/people';
 import { getHighlightsForMeeting, HighlightWithUtterances } from '@/lib/db/highlights';
 import { cache } from 'react';
-import { getPeopleForCityCached, getPartiesForCityCached, getSubjectsForMeetingCached, getSubjectStatisticsCached } from '@/lib/cache/queries';
+import { getAllCityIdsCached, getPeopleForCityCached, getPartiesForCityCached, getSubjectsForMeetingCached, getSubjectStatisticsCached } from '@/lib/cache/queries';
 import { SubjectWithRelations } from '@/lib/db/subject';
 import { Statistics } from '@/lib/statistics';
 import { getMeetingTaskStatus, MeetingTaskStatus } from '@/lib/db/tasks';
@@ -77,13 +77,26 @@ export const getMeetingDataCore = async (cityId: string, meetingId: string): Pro
     console.log(`getMeetingDataCore ${key} LEADER from: ${callerHint}`);
     const promise = fetchMeetingDataCore(cityId, meetingId);
     coreInflight.set(key, promise);
-    // Discard the .finally() return — we only need the side effect, and
-    // followers still resolve/reject through the original `promise` ref.
-    promise.finally(() => coreInflight.delete(key));
+    // The cleanup fork: .finally() returns a NEW promise that also rejects
+    // when the fetch fails. Callers handle the original `promise`; nothing
+    // handles the fork, so without the .catch() a failed fetch surfaces as
+    // an unhandledRejection on the Node runtime.
+    promise.finally(() => coreInflight.delete(key)).catch(() => {});
     return promise;
 };
 
 async function fetchMeetingDataCore(cityId: string, meetingId: string): Promise<MeetingDataCore> {
+    // Validate cityId against the known set (single shared cache key) before
+    // any per-city cached query runs. Next renders nested segments in
+    // parallel, so this fetch can start before the [cityId] layout's own
+    // validation 404s — without this guard, junk slugs (e.g. /admin/settings
+    // resolving to cityId='admin') write `city:<junk>:*` entries to the
+    // shared cache (#358). Callers already treat this throw as notFound().
+    const cityIds = await getAllCityIdsCached();
+    if (!cityIds.includes(cityId)) {
+        throw new Error('Required data not found');
+    }
+
     const meetingTags = { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`, `city:${cityId}:meeting:${meetingId}`] };
     const cityTags = { tags: ['city', `city:${cityId}`, `city:${cityId}:basic`] };
 

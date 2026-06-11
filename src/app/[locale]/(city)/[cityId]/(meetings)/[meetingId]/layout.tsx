@@ -25,11 +25,13 @@ import { NotificationPreferenceProvider } from '@/contexts/NotificationPreferenc
 import { getTranslations } from 'next-intl/server';
 import { buildHreflangAlternates } from '@/lib/utils/hreflang';
 
-export async function generateImageMetadata({
-    params: { meetingId, cityId }
-}: {
-    params: { meetingId: string; cityId: string }
-}) {
+export async function generateImageMetadata(
+    props: {
+        params: Promise<{ meetingId: string; cityId: string }>
+    }
+) {
+    const { meetingId, cityId } = await props.params;
+
     const data = await getMeetingDataCached(cityId, meetingId);
 
     if (!data || !data.city) {
@@ -54,11 +56,19 @@ export async function generateImageMetadata({
     ];
 }
 
-export async function generateMetadata({
-    params: { meetingId, cityId, locale }
-}: {
-    params: { meetingId: string; cityId: string; locale: string }
-}) {
+export async function generateMetadata(
+    props: {
+        params: Promise<{ meetingId: string; cityId: string; locale: string }>
+    }
+) {
+    const params = await props.params;
+
+    const {
+        meetingId,
+        cityId,
+        locale
+    } = params;
+
     const data = await getMeetingDataCached(cityId, meetingId);
 
     if (!data || !data.city) {
@@ -100,13 +110,23 @@ export async function generateMetadata({
     };
 }
 
-export default async function CouncilMeetingPage({
-    params: { meetingId, cityId, locale },
-    children
-}: {
-    params: { meetingId: string; cityId: string, locale: string },
-    children: React.ReactNode
-}) {
+export default async function CouncilMeetingPage(
+    props: {
+        params: Promise<{ meetingId: string; cityId: string, locale: string }>,
+        children: React.ReactNode
+    }
+) {
+    const params = await props.params;
+
+    const {
+        meetingId,
+        cityId,
+        locale
+    } = params;
+
+    const {
+        children
+    } = props;
 
     const currentUser = await getCurrentUser();
     const editable = await isUserAuthorizedToEdit({ cityId });

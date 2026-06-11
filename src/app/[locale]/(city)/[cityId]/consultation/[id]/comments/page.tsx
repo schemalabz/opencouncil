@@ -10,10 +10,11 @@ import PrintButton from "@/components/consultations/PrintButton";
 import { env } from "@/env.mjs";
 
 interface PageProps {
-    params: { cityId: string; id: string };
+    params: Promise<{ cityId: string; id: string }>;
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata(props: PageProps): Promise<Metadata> {
+    const params = await props.params;
     const [consultation, city] = await Promise.all([
         getConsultationById(params.cityId, params.id),
         getCityCached(params.cityId)
@@ -246,7 +247,8 @@ function getEntityDetails(entityType: string, entityId: string, regulationData: 
     }
 }
 
-export default async function CommentsPage({ params }: PageProps) {
+export default async function CommentsPage(props: PageProps) {
+    const params = await props.params;
     const [city, consultation, session] = await Promise.all([
         getCityCached(params.cityId),
         getConsultationById(params.cityId, params.id),

@@ -7,13 +7,22 @@ import { getCityCached, getCityMessageCached, getPartiesForCityCached, getPeople
 import { getCurrentUser } from "@/lib/auth";
 import { getNotificationPreferenceForCity } from "@/lib/db/notifications";
 
-export default async function TabsLayout({
-    children,
-    params: { cityId }
-}: {
-    children: React.ReactNode,
-    params: { cityId: string }
-}) {
+export default async function TabsLayout(
+    props: {
+        children: React.ReactNode,
+        params: Promise<{ cityId: string }>
+    }
+) {
+    const params = await props.params;
+
+    const {
+        cityId
+    } = params;
+
+    const {
+        children
+    } = props;
+
     const [city, cityMessage, parties, people, currentUser] = await Promise.all([
         getCityCached(cityId),
         getCityMessageCached(cityId),

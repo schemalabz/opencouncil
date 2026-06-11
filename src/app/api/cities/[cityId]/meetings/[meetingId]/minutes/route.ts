@@ -5,8 +5,9 @@ import { renderMinutesDocx } from '@/components/meetings/docx/MinutesDocx';
 
 export async function GET(
     request: Request,
-    { params }: { params: { cityId: string; meetingId: string } }
+    props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
+    const params = await props.params;
     await withUserAuthorizedToEdit({ cityId: params.cityId });
 
     const data = await getMinutesData(params.cityId, params.meetingId);

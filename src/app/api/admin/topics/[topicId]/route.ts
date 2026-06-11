@@ -5,10 +5,8 @@ import { deleteTopic, updateTopic } from "@/lib/db/topics";
 import { handleApiError } from "@/lib/api/errors";
 import { updateTopicSchema } from "@/lib/zod-schemas/topic";
 
-export async function PUT(
-    request: Request,
-    { params }: { params: { topicId: string } }
-) {
+export async function PUT(request: Request, props: { params: Promise<{ topicId: string }> }) {
+    const params = await props.params;
     await withUserAuthorizedToEdit({});
 
     try {
@@ -25,10 +23,8 @@ export async function PUT(
     }
 }
 
-export async function DELETE(
-    _request: Request,
-    { params }: { params: { topicId: string } }
-) {
+export async function DELETE(_request: Request, props: { params: Promise<{ topicId: string }> }) {
+    const params = await props.params;
     await withUserAuthorizedToEdit({});
 
     try {

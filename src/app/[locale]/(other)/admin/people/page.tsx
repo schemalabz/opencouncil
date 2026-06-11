@@ -7,10 +7,11 @@ import People from "@/components/admin/people/people";
 import { AdministrativeBody } from "@prisma/client";
 
 interface PageProps {
-    searchParams: { cityId?: string };
+    searchParams: Promise<{ cityId?: string }>;
 }
 
-export default async function PeoplePage({ searchParams }: PageProps) {
+export default async function PeoplePage(props: PageProps) {
+    const searchParams = await props.searchParams;
     const cities = await getCities({ includeUnlisted: true });
 
     const selectedCityId = searchParams.cityId || (cities.length > 0 ? cities[0].id : "");

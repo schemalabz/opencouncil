@@ -9,7 +9,8 @@ import { updateCityFormDataSchema } from '@/lib/zod-schemas/city'
 import { parseFormData } from '@/lib/api/form-data-parser'
 import { CityUpdateData } from '@/lib/db/types/city'
 
-export async function GET(request: Request, { params }: { params: { cityId: string } }) {
+export async function GET(request: Request, props: { params: Promise<{ cityId: string }> }) {
+    const params = await props.params;
     const city = await getCity(params.cityId, { includeGeometry: true });
 
     if (!city) {
@@ -21,7 +22,8 @@ export async function GET(request: Request, { params }: { params: { cityId: stri
     return NextResponse.json(city);
 }
 
-export async function PUT(request: Request, { params }: { params: { cityId: string } }) {
+export async function PUT(request: Request, props: { params: Promise<{ cityId: string }> }) {
+    const params = await props.params;
     const authorizedToEdit = await isUserAuthorizedToEdit({ cityId: params.cityId })
     if (!authorizedToEdit) {
         return new NextResponse("Unauthorized", { status: 401 });
@@ -110,9 +112,9 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
 
         // Revalidate cache after successful operations
         try {
-            revalidateTag(`city:${params.cityId}:basic`);
-            revalidateTag(`city:${params.cityId}:message`);
-            revalidateTag('cities:all');
+            revalidateTag(`city:${params.cityId}:basic`, 'max');
+            revalidateTag(`city:${params.cityId}:message`, 'max');
+            revalidateTag('cities:all', 'max');
             revalidatePath(`/${params.cityId}`, "layout");
         } catch (error) {
             console.error('Error revalidating cache:', error);
@@ -132,7 +134,8 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     }
 }
 
-export async function DELETE(request: Request, { params }: { params: { cityId: string } }) {
+export async function DELETE(request: Request, props: { params: Promise<{ cityId: string }> }) {
+    const params = await props.params;
     const authorizedToDelete = await isUserAuthorizedToEdit({})
     if (!authorizedToDelete) {
         return new NextResponse("Unauthorized", { status: 401 });
