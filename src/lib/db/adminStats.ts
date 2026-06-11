@@ -29,7 +29,13 @@ export interface AdminDashboardStats {
     engagement: {
         inbound: { total: number; whatsapp: number; sms: number };
         outbound: { total: number; whatsapp: number; sms: number };
+        searches: { thisWeek: number; prevWeek: number; percentChange: number };
     };
+}
+
+function percentChange(current: number, previous: number): number {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return ((current - previous) / previous) * 100;
 }
 
 export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
@@ -53,6 +59,8 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
         meetingHoursThisWeek,
         supportedCities,
         messagesByChannelAndDirection,
+        searchesThisWeek,
+        searchesPrevWeek,
     ] = await Promise.all([
         prisma.user.count(),
         prisma.user.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
@@ -82,15 +90,18 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
             where: { createdAt: { gte: sevenDaysAgo } },
             _count: { _all: true },
         }),
+        prisma.searchQuery.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+        prisma.searchQuery.count({ where: { createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
     ]);
-
-    const percentChange = newPrev7Days === 0
-        ? (newLast7Days > 0 ? 100 : 0)
-        : ((newLast7Days - newPrev7Days) / newPrev7Days) * 100;
 
     const engagement: AdminDashboardStats['engagement'] = {
         inbound: { total: 0, whatsapp: 0, sms: 0 },
         outbound: { total: 0, whatsapp: 0, sms: 0 },
+        searches: {
+            thisWeek: searchesThisWeek,
+            prevWeek: searchesPrevWeek,
+            percentChange: percentChange(searchesThisWeek, searchesPrevWeek),
+        },
     };
     for (const group of messagesByChannelAndDirection) {
         const count = group._count._all;
@@ -103,7 +114,7 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
             total: totalUsers,
             newLast7Days,
             newPrev7Days,
-            percentChange,
+            percentChange: percentChange(newLast7Days, newPrev7Days),
         },
         notifications: {
             usersWithPreferences,

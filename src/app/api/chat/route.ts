@@ -359,7 +359,8 @@ export async function POST(req: NextRequest) {
                     };
                 }) as unknown as SearchResultDetailed[];
             } else {
-                // Perform real search
+                // Perform real search. Chat messages are not user search queries,
+                // so they are excluded from the search query log.
                 const searchResponse = await search({
                     query: messages[messages.length - 1].content,
                     cityIds: cityId ? [cityId] : undefined,
@@ -367,7 +368,7 @@ export async function POST(req: NextRequest) {
                         ...searchConfig,
                         detailed: true
                     }
-                });
+                }, { skipQueryLog: true });
 
                 if (!searchResponse.results.every(result => 'speakerSegments' in result)) {
                     throw new Error('Search results do not contain detailed speaker segments');
