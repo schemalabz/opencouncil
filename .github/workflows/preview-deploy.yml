@@ -54,21 +54,16 @@ jobs:
             echo "✅ No migrations detected - preview will use shared staging database" >> $GITHUB_STEP_SUMMARY
           fi
 
-      - name: Check npmDepsHash freshness
+      - name: Check lockfile freshness
         run: |
           set -euo pipefail
 
           LOCKFILE_CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '^package-lock.json$' || true)
-          HASH_CHANGED=$(git diff origin/${{ github.base_ref }}...HEAD -- flake.nix | grep 'npmDepsHash' || true)
           PKG_JSON_CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '^package.json$' || true)
 
-          # Case 1: lockfile changed but hash wasn't updated
-          if [ -n "$LOCKFILE_CHANGED" ] && [ -z "$HASH_CHANGED" ]; then
-            echo "::error::package-lock.json was modified but npmDepsHash in flake.nix was not updated. Run: nix run nixpkgs#prefetch-npm-deps package-lock.json"
-            exit 1
-          fi
-
-          # Case 2: dependencies changed in package.json but lockfile wasn't updated
+          # Dependencies changed in package.json but lockfile wasn't updated.
+          # (The Nix build reads dependency hashes straight from the lockfile
+          # via importNpmLock, so no flake.nix hash check is needed.)
           if [ -n "$PKG_JSON_CHANGED" ] && [ -z "$LOCKFILE_CHANGED" ]; then
             OLD_DEPS=$(git show origin/${{ github.base_ref }}:package.json | jq -S '{dep: .dependencies, dev: .devDependencies}')
             NEW_DEPS=$(jq -S '{dep: .dependencies, dev: .devDependencies}' package.json)
@@ -78,7 +73,7 @@ jobs:
             fi
           fi
 
-          echo "✅ npmDepsHash check passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Lockfile freshness check passed" >> $GITHUB_STEP_SUMMARY
 
   # Build and deploy preview
   deploy:
@@ -156,7 +151,9 @@ jobs:
         with:
           name: ${{ env.CACHIX_CACHE_NAME }}
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          pushFilter: "opencouncil-(prod|npm-deps)"
+          # Exclude the prod build itself and npm deps (per-package .tgz
+          # fetchurls + the opencouncil-*-sources lockfile derivation).
+          pushFilter: "(opencouncil-prod|\\.tgz$|opencouncil-.*-sources$)"
 
       - name: Build production package
         env:

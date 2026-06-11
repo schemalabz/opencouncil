@@ -78,22 +78,16 @@ If no dev files were touched and no new packages added, mark this check as **N/A
 
 ## Check 4: Nix Build Readiness
 
-If `package-lock.json` was changed in this branch but `flake.nix`'s `npmDepsHash` line was not, the preview deployment **will fail**. Check this before wasting time on a full build:
+The Nix build reads npm dependency hashes directly from `package-lock.json` (via `importNpmLock`), so lockfile changes need no `flake.nix` update. The only failure mode is `package.json` dependencies changing without the lockfile being regenerated:
 
 ```bash
-git diff --name-only $(git merge-base HEAD $BASE)..HEAD | grep -q '^package-lock.json$' && \
-  ! git diff $(git merge-base HEAD $BASE)..HEAD -- flake.nix | grep -q 'npmDepsHash' && \
-  echo "FAIL: package-lock.json changed but npmDepsHash not updated" || \
+git diff --name-only $(git merge-base HEAD $BASE)..HEAD | grep -q '^package.json$' && \
+  ! git diff --name-only $(git merge-base HEAD $BASE)..HEAD | grep -q '^package-lock.json$' && \
+  echo "CHECK: package.json changed without package-lock.json — if dependencies changed, run 'npm install' and commit the lockfile" || \
   echo "PASS"
 ```
 
-If this fails, regenerate the hash and update `flake.nix`:
-
-```bash
-nix develop --command nix run nixpkgs#prefetch-npm-deps package-lock.json
-```
-
-If `package-lock.json` was not changed, mark as **N/A**.
+If `package.json` was not changed, mark as **N/A**.
 
 ## Check 5: Build & Lint
 
