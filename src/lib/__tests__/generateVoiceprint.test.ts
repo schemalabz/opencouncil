@@ -1,3 +1,11 @@
+import {
+    getCandidateSegmentsForVoiceprint,
+    requestGenerateVoiceprintForSegment,
+} from "@/lib/actions/voiceprints";
+import { computeVoiceprintWindow } from "@/lib/tasks/voiceprintWindow";
+
+jest.mock("server-only", () => ({}));
+
 // Mock Prisma client
 const mockPrisma = {
     person: {
@@ -12,27 +20,38 @@ const mockPrisma = {
     },
 };
 
-jest.mock("../db/prisma", () => ({
+jest.mock("@/lib/db/prisma", () => ({
     __esModule: true,
-    default: mockPrisma,
+    default: {
+        person: {
+            findUnique: (...args: unknown[]) => mockPrisma.person.findUnique(...args),
+        },
+        speakerSegment: {
+            findUnique: (...args: unknown[]) => mockPrisma.speakerSegment.findUnique(...args),
+            findMany: (...args: unknown[]) => mockPrisma.speakerSegment.findMany(...args),
+        },
+        utterance: {
+            findMany: (...args: unknown[]) => mockPrisma.utterance.findMany(...args),
+        },
+    },
 }));
 
 // Mock auth module
 const mockWithUserAuthorizedToEdit = jest.fn();
-jest.mock("../auth", () => ({
+jest.mock("@/lib/auth", () => ({
     withUserAuthorizedToEdit: (...args: unknown[]) => mockWithUserAuthorizedToEdit(...args),
     isUserAuthorizedToEdit: jest.fn(),
 }));
 
 // Mock task dispatch
 const mockStartTask = jest.fn();
-jest.mock("../tasks/tasks", () => ({
+jest.mock("@/lib/tasks/tasks", () => ({
     startTask: (...args: unknown[]) => mockStartTask(...args),
 }));
 
 // Mock meeting lookup
 const mockGetCouncilMeeting = jest.fn();
-jest.mock("../db/meetings", () => ({
+jest.mock("@/lib/db/meetings", () => ({
     getCouncilMeeting: (...args: unknown[]) => mockGetCouncilMeeting(...args),
 }));
 
@@ -40,12 +59,6 @@ jest.mock("../db/meetings", () => ({
 jest.mock("@/lib/db/voiceprintsCreate", () => ({
     createVoicePrintDirect: jest.fn(),
 }));
-
-import {
-    getCandidateSegmentsForVoiceprint,
-    requestGenerateVoiceprintForSegment,
-} from "../tasks/generateVoiceprint";
-import { computeVoiceprintWindow } from "../tasks/voiceprintWindow";
 
 const PERSON_ID = "person-1";
 const CITY_ID = "city-1";
@@ -58,7 +71,7 @@ beforeEach(() => {
 
 describe("getCandidateSegmentsForVoiceprint", () => {
     it("filters out short segments, sorts longest-first, and builds previews", async () => {
-        mockPrisma.person.findUnique.mockResolvedValue({ cityId: CITY_ID });
+        mockPrisma.person.findUnique.mockResolvedValue({ cityId: CITY_ID, city: { timezone: "America/New_York" } });
         // First pass: segment scan without transcripts.
         mockPrisma.speakerSegment.findMany.mockResolvedValue([
             {
@@ -111,8 +124,16 @@ describe("getCandidateSegmentsForVoiceprint", () => {
         const result = await getCandidateSegmentsForVoiceprint(PERSON_ID);
 
         expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: CITY_ID });
+        // The segment scan must be scoped to the person's city so a caller can't
+        // read transcript content from cities they aren't authorized for.
+        expect(mockPrisma.speakerSegment.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: expect.objectContaining({ cityId: CITY_ID }),
+            }),
+        );
         expect(result.map(c => c.segmentId)).toEqual(["seg-long", "seg-medium"]);
         expect(result[0].duration).toBe(90);
+        expect(result[0].meetingTimezone).toBe("America/New_York");
 
         // windowText is only the utterances inside the centered 30s window;
         // fullText is the whole segment
@@ -159,6 +180,53 @@ describe("computeVoiceprintWindow", () => {
 });
 
 describe("requestGenerateVoiceprintForSegment", () => {
+    it("rejects a foreign person's segment even when the segment's city is authorized", async () => {
+        mockPrisma.speakerSegment.findUnique.mockResolvedValue({
+            id: "seg-1",
+            cityId: CITY_ID,
+            meetingId: MEETING_ID,
+            startTimestamp: 0,
+            endTimestamp: 60,
+            speakerTag: { personId: PERSON_ID },
+        });
+        mockGetCouncilMeeting.mockResolvedValue({ audioUrl: "http://audio", videoUrl: null });
+        mockStartTask.mockResolvedValue({ id: "task-1" });
+        mockWithUserAuthorizedToEdit.mockImplementation(async (scope: { personId?: string }) => {
+            if (scope.personId === PERSON_ID) {
+                throw new Error("Not authorized");
+            }
+        });
+
+        await expect(requestGenerateVoiceprintForSegment(PERSON_ID, "seg-1")).rejects.toThrow("Not authorized");
+        expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ personId: PERSON_ID });
+        expect(mockGetCouncilMeeting).not.toHaveBeenCalled();
+        expect(mockStartTask).not.toHaveBeenCalled();
+    });
+
+    it("rejects an unauthorized segment city even when the person is authorized", async () => {
+        mockPrisma.speakerSegment.findUnique.mockResolvedValue({
+            id: "seg-1",
+            cityId: "foreign-city",
+            meetingId: MEETING_ID,
+            startTimestamp: 0,
+            endTimestamp: 60,
+            speakerTag: { personId: PERSON_ID },
+        });
+        mockGetCouncilMeeting.mockResolvedValue({ audioUrl: "http://audio", videoUrl: null });
+        mockStartTask.mockResolvedValue({ id: "task-1" });
+        mockWithUserAuthorizedToEdit.mockImplementation(async (scope: { cityId?: string }) => {
+            if (scope.cityId === "foreign-city") {
+                throw new Error("Not authorized");
+            }
+        });
+
+        await expect(requestGenerateVoiceprintForSegment(PERSON_ID, "seg-1")).rejects.toThrow("Not authorized");
+        expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ personId: PERSON_ID });
+        expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: "foreign-city" });
+        expect(mockGetCouncilMeeting).not.toHaveBeenCalled();
+        expect(mockStartTask).not.toHaveBeenCalled();
+    });
+
     it("rejects a segment that does not belong to the person", async () => {
         mockPrisma.speakerSegment.findUnique.mockResolvedValue({
             id: "seg-1",
@@ -204,6 +272,7 @@ describe("requestGenerateVoiceprintForSegment", () => {
         const task = await requestGenerateVoiceprintForSegment(PERSON_ID, "seg-1");
 
         expect(task).toEqual({ id: "task-1" });
+        expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ personId: PERSON_ID });
         expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: CITY_ID });
         expect(mockStartTask).toHaveBeenCalledWith(
             "generateVoiceprint",

@@ -18,8 +18,8 @@ import {
     requestGenerateVoiceprint,
     requestGenerateVoiceprintForSegment,
     getCandidateSegmentsForVoiceprint,
-    type VoiceprintCandidateSegment,
-} from "@/lib/tasks/generateVoiceprint";
+} from "@/lib/actions/voiceprints";
+import type { VoiceprintCandidateSegment } from "@/lib/db/types";
 import { VOICEPRINT_DURATION } from "@/lib/tasks/voiceprintWindow";
 import { deleteTaskStatus, getVoiceprintTasksForPerson } from "@/lib/db/tasks";
 import { useToast } from "@/hooks/use-toast";
@@ -394,7 +394,7 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
                                                                                 </span>
                                                                             </div>
                                                                             <div className='text-xs text-slate-500'>
-                                                                                {formatNumericDate(new Date(candidate.meetingDate))}{" "}
+                                                                                {formatNumericDate(new Date(candidate.meetingDate), candidate.meetingTimezone)}{" "}
                                                                                 ·{" "}
                                                                                 {formatTimestamp(
                                                                                     candidate.startTimestamp,

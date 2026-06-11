@@ -1,13 +1,12 @@
 "use server";
 
 import prisma from "@/lib/db/prisma";
-import { getCouncilMeeting } from "@/lib/db/meetings";
+import { dispatchVoiceprintTaskForSegment } from "@/lib/tasks/voiceprintRequests";
 import { withUserAuthorizedToEdit } from "../auth";
-import { startTask } from "./tasks";
 import { GenerateVoiceprintRequest, GenerateVoiceprintResult } from "../apiTypes";
 import { SpeakerSegment } from "@prisma/client";
 import { createVoicePrintDirect } from "@/lib/db/voiceprintsCreate";
-import { VOICEPRINT_DURATION, computeVoiceprintWindow } from "@/lib/tasks/voiceprintWindow";
+import { VOICEPRINT_DURATION } from "@/lib/tasks/voiceprintWindow";
 
 /**
  * Find all people in a city who are eligible for voiceprint generation
@@ -103,56 +102,6 @@ export async function requestGenerateVoiceprintsForCity(cityId: string) {
 }
 
 /**
- * Build and dispatch a generateVoiceprint task for an explicit speaker segment.
- *
- * Shared by both the automatic (longest-segment) flow and the manual
- * segment-selection flow. Validates the segment is long enough, resolves the
- * meeting media URL, authorizes the caller for the segment's city, and computes
- * a VOICEPRINT_DURATION window centered on the segment midpoint.
- */
-async function dispatchVoiceprintTaskForSegment(personId: string, segment: SpeakerSegment) {
-    // Check if the segment is long enough for a voiceprint
-    const segmentDuration = segment.endTimestamp - segment.startTimestamp;
-    if (segmentDuration < VOICEPRINT_DURATION) {
-        throw new Error(
-            `Speaker segment is too short (${segmentDuration.toFixed(1)}s). At least ${VOICEPRINT_DURATION}s of audio is required for a voiceprint.`,
-        );
-    }
-
-    // Get meeting details
-    const meeting = await getCouncilMeeting(segment.cityId, segment.meetingId);
-
-    if (!meeting) {
-        throw new Error("Meeting not found");
-    }
-
-    await withUserAuthorizedToEdit({ cityId: segment.cityId });
-
-    const mediaUrl = meeting.audioUrl || meeting.videoUrl;
-    if (!mediaUrl) {
-        throw new Error("Meeting media URL not found");
-    }
-
-    // Take a VOICEPRINT_DURATION window centered on the segment, clamped to its bounds
-    const { startTimestamp, endTimestamp } = computeVoiceprintWindow(
-        segment.startTimestamp,
-        segment.endTimestamp,
-    );
-
-    // Create the request
-    const request: Omit<GenerateVoiceprintRequest, "callbackUrl"> = {
-        mediaUrl,
-        personId,
-        segmentId: segment.id,
-        startTimestamp,
-        endTimestamp,
-        cityId: segment.cityId,
-    };
-
-    return startTask("generateVoiceprint", request, segment.meetingId, segment.cityId);
-}
-
-/**
  * Request to generate a voiceprint for a person, automatically selecting the
  * longest available speaker segment.
  */
@@ -165,43 +114,6 @@ export async function requestGenerateVoiceprint(personId: string) {
     }
 
     return dispatchVoiceprintTaskForSegment(personId, segment);
-}
-
-/**
- * Request to generate a voiceprint for a person from a specific, manually
- * chosen speaker segment.
- *
- * This is the manual counterpart to {@link requestGenerateVoiceprint}: instead
- * of auto-picking the longest segment, the admin picks one of the candidate
- * segments returned by {@link getCandidateSegmentsForVoiceprint}.
- */
-export async function requestGenerateVoiceprintForSegment(personId: string, segmentId: string) {
-    const segment = await prisma.speakerSegment.findUnique({
-        where: { id: segmentId },
-        include: {
-            speakerTag: {
-                select: { personId: true },
-            },
-        },
-    });
-
-    if (!segment) {
-        throw new Error("Speaker segment not found");
-    }
-
-    // Ensure the chosen segment actually belongs to this person. The speakerTag
-    // FK is required by the schema, but guard against a missing relation anyway so
-    // an unexpected null raises the ownership error rather than a bare TypeError.
-    if (!segment.speakerTag || segment.speakerTag.personId !== personId) {
-        throw new Error("The selected segment does not belong to this person");
-    }
-
-    // dispatchVoiceprintTaskForSegment expects a plain SpeakerSegment; drop the
-    // included relation before passing it through.
-    const { speakerTag, ...plainSegment } = segment;
-    void speakerTag;
-
-    return dispatchVoiceprintTaskForSegment(personId, plainSegment);
 }
 
 /**
@@ -252,135 +164,6 @@ export async function findLongestSpeakerSegmentForPerson(personId: string): Prom
  * A speaker segment that is eligible to be used as the source for a voiceprint,
  * enriched with the metadata an admin needs to choose between candidates.
  */
-export interface VoiceprintCandidateSegment {
-    segmentId: string;
-    meetingId: string;
-    cityId: string;
-    meetingName: string;
-    meetingNameEn: string;
-    meetingDate: string; // ISO string
-    startTimestamp: number;
-    endTimestamp: number;
-    duration: number; // seconds
-    mediaUrl: string | null; // meeting audio/video URL for audio preview, if available
-    previewStartTimestamp: number; // start of the 30s window the voiceprint will use (seconds)
-    previewEndTimestamp: number; // end of the 30s window the voiceprint will use (seconds)
-    windowText: string; // transcript of the centered 30s window — what the admin actually hears
-    fullText: string; // full transcript of the segment — shown on demand for fuller context
-}
-
-const MAX_VOICEPRINT_CANDIDATES = 5;
-
-/**
- * Return the top candidate speaker segments for manual voiceprint selection.
- *
- * Candidates are segments belonging to the person that are at least
- * VOICEPRINT_DURATION long, sorted longest-first and capped at
- * MAX_VOICEPRINT_CANDIDATES. Each candidate carries enough metadata
- * (meeting, duration, transcript preview) for an admin to make an informed
- * choice in the UI.
- */
-export async function getCandidateSegmentsForVoiceprint(personId: string): Promise<VoiceprintCandidateSegment[]> {
-    const person = await prisma.person.findUnique({
-        where: { id: personId },
-        select: { cityId: true },
-    });
-
-    if (!person) {
-        throw new Error("Person not found");
-    }
-
-    await withUserAuthorizedToEdit({ cityId: person.cityId });
-
-    // First pass: scan the person's segments WITHOUT transcripts — just timestamps
-    // and meeting metadata — and keep only the longest eligible ones. Prisma can't
-    // order/filter by the computed (endTimestamp - startTimestamp) duration, but
-    // these rows are cheap, and this bounds the expensive transcript fetch below to
-    // MAX_VOICEPRINT_CANDIDATES segments even for prolific speakers.
-    const segments = await prisma.speakerSegment.findMany({
-        where: {
-            speakerTag: { personId },
-        },
-        select: {
-            id: true,
-            meetingId: true,
-            cityId: true,
-            startTimestamp: true,
-            endTimestamp: true,
-            meeting: {
-                select: { name: true, name_en: true, dateTime: true, audioUrl: true, videoUrl: true },
-            },
-        },
-    });
-
-    const topSegments = segments
-        .map(segment => ({ ...segment, duration: segment.endTimestamp - segment.startTimestamp }))
-        .filter(segment => segment.duration >= VOICEPRINT_DURATION)
-        .sort((a, b) => b.duration - a.duration)
-        .slice(0, MAX_VOICEPRINT_CANDIDATES);
-
-    if (topSegments.length === 0) {
-        return [];
-    }
-
-    // Second pass: fetch transcripts only for the chosen segments.
-    const utterances = await prisma.utterance.findMany({
-        where: { speakerSegmentId: { in: topSegments.map(s => s.id) } },
-        orderBy: { startTimestamp: "asc" },
-        select: { speakerSegmentId: true, text: true, startTimestamp: true, endTimestamp: true },
-    });
-
-    const utterancesBySegment = new Map<string, typeof utterances>();
-    for (const utterance of utterances) {
-        const list = utterancesBySegment.get(utterance.speakerSegmentId);
-        if (list) {
-            list.push(utterance);
-        } else {
-            utterancesBySegment.set(utterance.speakerSegmentId, [utterance]);
-        }
-    }
-
-    return topSegments.map(segment => {
-        // Same media URL the dispatch uses, so the admin previews exactly what
-        // the voiceprint job will consume.
-        const mediaUrl = segment.meeting.audioUrl || segment.meeting.videoUrl || null;
-        const previewWindow = computeVoiceprintWindow(segment.startTimestamp, segment.endTimestamp);
-
-        const segmentUtterances = utterancesBySegment.get(segment.id) ?? [];
-
-        // windowText is the transcript of the centered 30s window the voiceprint
-        // uses — i.e. what the admin hears in the audio preview, so they can read
-        // along. fullText is the whole segment, shown on demand.
-        const windowText = segmentUtterances
-            .filter(
-                u =>
-                    u.startTimestamp < previewWindow.endTimestamp &&
-                    u.endTimestamp > previewWindow.startTimestamp,
-            )
-            .map(u => u.text)
-            .join(" ")
-            .trim();
-        const fullText = segmentUtterances.map(u => u.text).join(" ").trim();
-
-        return {
-            segmentId: segment.id,
-            meetingId: segment.meetingId,
-            cityId: segment.cityId,
-            meetingName: segment.meeting.name,
-            meetingNameEn: segment.meeting.name_en,
-            meetingDate: segment.meeting.dateTime.toISOString(),
-            startTimestamp: segment.startTimestamp,
-            endTimestamp: segment.endTimestamp,
-            duration: segment.duration,
-            mediaUrl,
-            previewStartTimestamp: previewWindow.startTimestamp,
-            previewEndTimestamp: previewWindow.endTimestamp,
-            windowText,
-            fullText,
-        };
-    });
-}
-
 /**
  * Handle the result of a generate voiceprint task
  */
