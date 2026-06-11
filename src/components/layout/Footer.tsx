@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { SiX, SiInstagram, SiFacebook, SiGithub, SiDiscord, SiSubstack } from 'react-icons/si';
-import { REOPEN_CONSENT_EVENT } from "@/components/analytics/ConsentChip";
+import { REOPEN_CONSENT_EVENT } from "@/lib/utils/analyticsConsent";
 
 interface FooterProps {
     className?: string;

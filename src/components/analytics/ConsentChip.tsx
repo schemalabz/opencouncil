@@ -8,16 +8,7 @@ import { Cookie } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/routing";
 import { identifyPostHogUser } from "./identifyUser";
-
-// Re-opens the chip (e.g. from the footer's "cookie preferences" link) so
-// consent can be withdrawn or changed as easily as it was given.
-export const REOPEN_CONSENT_EVENT = "oc-reopen-cookie-consent";
-
-// Tracks whether the visitor has explicitly answered the chip. PostHog's own
-// consent status can't gate visibility: instrumentation-client defaults
-// undecided visitors to the declined (cookieless) state, because posthog-js
-// drops all events while consent is 'pending'.
-const CHOICE_KEY = "oc-analytics-choice";
+import { ANALYTICS_CHOICE_KEY, REOPEN_CONSENT_EVENT } from "@/lib/utils/analyticsConsent";
 
 // Deliberately ignorable consent chip: until a choice is made, PostHog runs
 // in cookieless mode (nothing stored on the device), so dismissal or
@@ -31,7 +22,7 @@ export default function ConsentChip() {
     useEffect(() => {
         // posthog only initializes with a token and outside embeds; the chip
         // follows the same gate and only shows while no choice has been made.
-        if (posthog.__loaded && !localStorage.getItem(CHOICE_KEY)) {
+        if (posthog.__loaded && !localStorage.getItem(ANALYTICS_CHOICE_KEY)) {
             setVisible(true);
         }
 
@@ -58,7 +49,7 @@ export default function ConsentChip() {
         } else {
             posthog.opt_out_capturing();
         }
-        localStorage.setItem(CHOICE_KEY, accepted ? "accepted" : "declined");
+        localStorage.setItem(ANALYTICS_CHOICE_KEY, accepted ? "accepted" : "declined");
         setVisible(false);
     };
 

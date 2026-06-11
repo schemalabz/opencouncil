@@ -1,6 +1,7 @@
 import posthog from "posthog-js";
 import { env } from "@/env.mjs";
 import { EMBED_PATH } from "@/lib/utils/embed";
+import { ANALYTICS_CHOICE_KEY } from "@/lib/utils/analyticsConsent";
 
 // Without a token (contributor setups, CI), analytics stays fully disabled.
 // Embed routes are excluded like in PlausibleAnalytics: they load inside
@@ -27,13 +28,21 @@ if (env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && !EMBED_PATH.test(window.location.pa
     });
 
     // on_reject mode DROPS all events while consent is 'pending' (it only
-    // sends for explicit accept or decline). Default to the declined state
-    // instead: cookieless tracking via PostHog's server-side daily hash,
-    // nothing stored on the device. Visitors who ignore the ConsentChip are
-    // then still measured anonymously; accepting upgrades to cookie-based
-    // tracking. The chip's own visibility is gated separately (it can't use
-    // the 'pending' status, which this call consumes).
+    // sends for explicit accept or decline), and posthog.reset() — called on
+    // sign-out — clears PostHog's consent storage back to 'pending'. Restore
+    // the visitor's stored ConsentChip answer, defaulting to the declined
+    // state: cookieless tracking via PostHog's server-side daily hash,
+    // nothing stored on the device. Visitors who ignore the chip are still
+    // measured anonymously; accepting upgrades to cookie-based tracking. The
+    // chip's own visibility is gated on ANALYTICS_CHOICE_KEY (it can't use
+    // the 'pending' status, which this block consumes).
     if (posthog.get_explicit_consent_status() === "pending") {
-        posthog.opt_out_capturing();
+        if (localStorage.getItem(ANALYTICS_CHOICE_KEY) === "accepted") {
+            // A restore of an earlier choice, not a new consent action:
+            // don't emit the default $opt_in event.
+            posthog.opt_in_capturing({ captureEventName: null });
+        } else {
+            posthog.opt_out_capturing();
+        }
     }
 }
