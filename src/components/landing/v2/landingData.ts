@@ -7,6 +7,8 @@
  *   GET /api/topics            → Topic[]        (via useTopics())
  */
 
+import { stripReferences } from '@/lib/utils/references';
+
 /** Row returned by GET /api/map/subjects (see src/app/api/map/subjects/route.ts). */
 export type MapSubject = {
     id: string;
@@ -84,7 +86,8 @@ export function toLandingSubjects(rows: MapSubject[], cityNames: Record<string, 
             return {
                 id: s.id,
                 title: s.name,
-                summary: s.description,
+                // descriptions may embed [text](REF:UTTERANCE:id) links — keep only the text
+                summary: stripReferences(s.description),
                 cityId: s.cityId,
                 cityName: cityNames[s.cityId] ?? s.cityId,
                 meetingId: s.councilMeetingId,
