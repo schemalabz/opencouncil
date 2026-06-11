@@ -2,6 +2,7 @@
 import { City, CouncilMeeting, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getCurrentUser } from "../auth";
+import { UnauthorizedError } from "../api/errors";
 
 export type CityGeometryOptions = {
     includeGeometry?: boolean;
@@ -207,6 +208,16 @@ export async function getAllCitiesMinimal(): Promise<CityMinimalWithCounts[]> {
 }
 
 /**
+ * All city ids regardless of status. Used to validate route cityId params
+ * against the known set before any per-city cached query runs, so junk slugs
+ * (bot probes) never create per-city cache entries.
+ */
+export async function getAllCityIds(): Promise<string[]> {
+    const cities = await prisma.city.findMany({ select: { id: true } });
+    return cities.map(c => c.id);
+}
+
+/**
  * Retrieves cities based on user permissions and city status.
  */
 export async function getCities({ includeUnlisted = false, includePending = false }: { includeUnlisted?: boolean, includePending?: boolean } = {}): Promise<CityWithCounts[]> {
@@ -215,7 +226,7 @@ export async function getCities({ includeUnlisted = false, includePending = fals
 
     // Validate permissions
     if (includeUnlisted && !currentUser) {
-        throw new Error("Not authorized to view unlisted cities");
+        throw new UnauthorizedError("Not authorized to view unlisted cities");
     }
 
     // Build where clause based on user permissions

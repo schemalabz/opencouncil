@@ -25,7 +25,9 @@ async function getClient() {
     }
     // The `redis` npm package uses rediss:// for TLS; DO Valkey uses valkeys://
     const normalizedUrl = cacheUrl.replace(/^valkeys:\/\//, 'rediss://');
-    client = createClient({ url: normalizedUrl });
+    // pingInterval keeps the TCP connection warm against DO Valkey's ~300s
+    // idle timeout — same reasoning as cache-handler.mjs.
+    client = createClient({ url: normalizedUrl, pingInterval: 60_000 });
     client.on('error', (error) => {
       console.error('[cache-stats] Valkey client error:', error.message);
     });

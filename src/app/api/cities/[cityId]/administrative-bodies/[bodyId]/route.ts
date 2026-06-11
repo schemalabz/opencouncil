@@ -29,8 +29,9 @@ const bodySchema = z.object({
 
 export async function PUT(
     request: NextRequest,
-    { params }: { params: { cityId: string, bodyId: string } }
+    props: { params: Promise<{ cityId: string, bodyId: string }> }
 ) {
+    const params = await props.params;
     try {
         await withUserAuthorizedToEdit({ cityId: params.cityId });
         const body = await request.json();
@@ -48,7 +49,7 @@ export async function PUT(
             diavgeiaUnitIds: diavgeiaUnitIds || [],
         });
 
-        revalidateTag(`city:${params.cityId}:administrativeBodies`);
+        revalidateTag(`city:${params.cityId}:administrativeBodies`, 'max');
         revalidatePath(`/${params.cityId}/people`);
 
         return NextResponse.json(updatedBody);
@@ -66,12 +67,13 @@ export async function PUT(
 
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { cityId: string, bodyId: string } }
+    props: { params: Promise<{ cityId: string, bodyId: string }> }
 ) {
+    const params = await props.params;
     try {
         await withUserAuthorizedToEdit({ cityId: params.cityId });
         await deleteAdministrativeBody(params.bodyId);
-        revalidateTag(`city:${params.cityId}:administrativeBodies`);
+        revalidateTag(`city:${params.cityId}:administrativeBodies`, 'max');
         revalidatePath(`/${params.cityId}/people`);
         return new NextResponse(null, { status: 204 });
     } catch (error) {

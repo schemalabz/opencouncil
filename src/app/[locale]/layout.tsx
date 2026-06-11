@@ -6,8 +6,11 @@ import { routing } from '@/i18n/routing';
 import { notFound } from "next/navigation";
 import { Toaster } from "@/components/ui/toaster";
 
-// Only import in development — excluded from production bundles entirely
-const QuickLogin = process.env.NODE_ENV === 'development'
+// Only import in development or on preview deployments — excluded from real
+// production bundles entirely. Both branches use literal `process.env.X === '...'`
+// comparisons so the bundler can dead-code-eliminate QuickLogin when neither flag
+// is set (i.e. real production).
+const QuickLogin = process.env.NODE_ENV === 'development' || process.env.IS_PREVIEW === 'true'
     ? require("@/components/dev/QuickLogin").default
     : null;
 const MobilePreviewReporter = process.env.NODE_ENV === 'development'
@@ -18,13 +21,22 @@ export function generateStaticParams() {
     return routing.locales.map((locale) => ({ locale }));
 }
 
-export default async function LocaleLayout({
-    children,
-    params: { locale }
-}: {
-    children: React.ReactNode,
-    params: { locale: string }
-}) {
+export default async function LocaleLayout(
+    props: {
+        children: React.ReactNode,
+        params: Promise<{ locale: string }>
+    }
+) {
+    const params = await props.params;
+
+    const {
+        locale
+    } = params;
+
+    const {
+        children
+    } = props;
+
     if (!routing.locales.includes(locale as any)) {
         notFound();
     }
@@ -37,7 +49,7 @@ export default async function LocaleLayout({
             {children}
 
             <Toaster />
-            {QuickLogin && <QuickLogin />}
+            {QuickLogin && <QuickLogin isPreview={process.env.IS_PREVIEW === 'true'} />}
             {MobilePreviewReporter && <MobilePreviewReporter />}
         </NextIntlClientProvider>
     );

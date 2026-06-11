@@ -49,10 +49,13 @@ export async function GET(request: NextRequest) {
 
     if (startDateStr) {
         startDate = new Date(startDateStr);
-    }
-    if (endDateStr) {
+        // When filtering by start date, default endDate to 90 days in the future
+        // to include pending beforeMeeting notifications for upcoming meetings
+        endDate = endDateStr ? new Date(endDateStr) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+    } else if (endDateStr) {
         endDate = new Date(endDateStr);
     }
+    // No dates = no date filter (all time)
 
     const result = await getNotificationsGroupedByMeeting({
         cityId,

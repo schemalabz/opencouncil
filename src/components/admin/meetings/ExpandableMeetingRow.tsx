@@ -201,7 +201,7 @@ export function ExpandableMeetingRow({
                             className="w-full"
                         >
                             <Link
-                                href={`/${selectedCityId}/${meeting.id}/admin`}
+                                href={`/${selectedCityId}/${meeting.id}/admin#decisions`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-2"

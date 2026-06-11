@@ -8,12 +8,14 @@ import { getAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
 import { isUserAuthorizedToEdit } from '@/lib/auth'
 import { validateRoles } from '@/lib/utils/roles'
 
-export async function GET(request: Request, { params }: { params: { cityId: string } }) {
+export async function GET(request: Request, props: { params: Promise<{ cityId: string }> }) {
+    const params = await props.params;
     const people = await getPeopleForCity(params.cityId);
     return NextResponse.json(people)
 }
 
-export async function POST(request: Request, { params }: { params: { cityId: string } }) {
+export async function POST(request: Request, props: { params: Promise<{ cityId: string }> }) {
+    const params = await props.params;
     const authorizedToEdit = await isUserAuthorizedToEdit({ cityId: params.cityId })
     if (!authorizedToEdit) {
         return new NextResponse("Unauthorized", { status: 401 });
@@ -76,8 +78,8 @@ export async function POST(request: Request, { params }: { params: { cityId: str
             roles
         });
 
-        revalidateTag(`city:${params.cityId}:people`);
-        revalidateTag(`city:${params.cityId}:parties`);
+        revalidateTag(`city:${params.cityId}:people`, 'max');
+        revalidateTag(`city:${params.cityId}:parties`, 'max');
         revalidatePath(`/${params.cityId}/people`);
         revalidatePath(`/${params.cityId}/parties`);
 

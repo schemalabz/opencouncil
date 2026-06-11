@@ -12,10 +12,8 @@ const electedOrderSchema = z.object({
     })),
 });
 
-export async function POST(
-    request: Request,
-    { params }: { params: { cityId: string } }
-) {
+export async function POST(request: Request, props: { params: Promise<{ cityId: string }> }) {
+    const params = await props.params;
     try {
         await withUserAuthorizedToEdit({ cityId: params.cityId });
 
@@ -24,7 +22,7 @@ export async function POST(
 
         await updateElectedOrder(params.cityId, administrativeBodyId, rankings);
 
-        revalidateTag(`city:${params.cityId}:people`);
+        revalidateTag(`city:${params.cityId}:people`, 'max');
 
         return NextResponse.json({ success: true });
     } catch (error) {

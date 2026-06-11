@@ -4,6 +4,9 @@
 .claude/launch.json
 .claude/worktrees/
 
+# Impeccable design-skill local state (sidecar, live-mode sessions)
+.impeccable/
+
 # dependencies
 /node_modules
 /.pnp
@@ -59,6 +62,7 @@ scripts/clear_advisory_locks.sh
 
 *.csv
 *.txt
+!public/llms.txt
 *.swp
 
 # Logs

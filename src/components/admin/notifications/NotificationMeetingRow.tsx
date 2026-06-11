@@ -29,7 +29,6 @@ import {
     ExternalLink,
     Trash2
 } from "lucide-react";
-import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { MeetingNotificationStats, NotificationStatusCounts } from "@/lib/db/notifications";
 import { createMeetingKey } from "./utils";
@@ -149,7 +148,7 @@ function NotificationCard({ notification }: { notification: NotificationData }) 
                         {notification.type === 'beforeMeeting' ? 'Before' : 'After'}
                     </Badge>
                 </div>
-                <Link
+                <a
                     href={`/el/notifications/${notification.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -157,7 +156,7 @@ function NotificationCard({ notification }: { notification: NotificationData }) 
                 >
                     <ExternalLink className="h-3 w-3" />
                     View
-                </Link>
+                </a>
             </div>
             <div className="text-xs text-muted-foreground mb-2">
                 {notification.subjects.length} subject{notification.subjects.length !== 1 ? 's' : ''}

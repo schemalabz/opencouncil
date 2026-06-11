@@ -7,13 +7,22 @@ import { notFound } from "next/navigation";
 
 interface ConsultationLayoutProps {
     children: React.ReactNode;
-    params: { locale: string; cityId: string; id: string };
+    params: Promise<{ locale: string; cityId: string; id: string }>;
 }
 
-export default async function ConsultationLayout({
-    children,
-    params: { locale, cityId, id }
-}: ConsultationLayoutProps) {
+export default async function ConsultationLayout(props: ConsultationLayoutProps) {
+    const params = await props.params;
+
+    const {
+        locale,
+        cityId,
+        id
+    } = params;
+
+    const {
+        children
+    } = props;
+
     const [city, consultation] = await Promise.all([
         getCityCached(cityId),
         getConsultationById(cityId, id)

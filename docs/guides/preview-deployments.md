@@ -36,10 +36,7 @@ On the droplet, each PR maps to:
 
 The `opencouncil-prod` package in `flake.nix` uses `buildNpmPackage` with these key considerations:
 
-- **`npmDepsHash`**: Must be updated when `package-lock.json` changes. Regenerate with:
-  ```bash
-  nix run nixpkgs#prefetch-npm-deps package-lock.json
-  ```
+- **npm dependencies via `importNpmLock`**: Each package is fetched using the integrity hashes already in `package-lock.json`, so lockfile changes (including dependabot bumps) need no manual hash update.
 - **`--ignore-scripts` during install**: The `canvas` npm package requires native libraries (cairo, pango, libjpeg, giflib, librsvg, pixman). Scripts are skipped during the dependency fetch phase, then `npm rebuild canvas` runs in `preBuild` with all native deps available.
 - **`SKIP_ENV_VALIDATION=1`**: The app uses `@t3-oss/env-nextjs` which validates env vars at build time. Since secrets aren't available in the Nix sandbox, this flag (checked via `skipValidation` in `src/env.mjs`) skips validation during build.
 - **Prisma**: Engines are provided by `pkgs.prisma-engines`. `npx prisma generate` runs in `preBuild`.
@@ -251,11 +248,6 @@ set -a; source .env; set +a
 nix build --impure .#opencouncil-prod
 ```
 
-If `package-lock.json` changed, update `npmDepsHash` first:
-```bash
-nix run nixpkgs#prefetch-npm-deps package-lock.json
-```
-
 ### 2. Push to Cachix
 
 ```bash
@@ -391,7 +383,6 @@ To avoid this, prefer creating additive migrations instead of amending existing 
 **Build failures:**
 1. Check GitHub Actions logs
 2. Test locally: `nix build .#opencouncil-prod`
-3. If `package-lock.json` changed, update `npmDepsHash` (see [Nix Build Details](#nix-build-details))
 
 **Disk space:**
 ```bash

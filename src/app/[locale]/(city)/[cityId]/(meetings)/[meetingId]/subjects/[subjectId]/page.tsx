@@ -2,12 +2,14 @@ import { Metadata } from "next";
 import Subject from "@/components/meetings/subject/subject";
 import { getMeetingDataCached, getSubjectFromMeetingCached } from "@/lib/getMeetingData";
 import { notFound } from "next/navigation";
+import { buildHreflangAlternates } from "@/lib/utils/hreflang";
 
-export async function generateMetadata({
-    params,
-}: {
-    params: { cityId: string; meetingId: string; subjectId: string };
-}): Promise<Metadata> {
+export async function generateMetadata(
+    props: {
+        params: Promise<{ cityId: string; meetingId: string; subjectId: string; locale: string }>;
+    }
+): Promise<Metadata> {
+    const params = await props.params;
     // First try to get the subject from the cached meeting data
     const subject = await getSubjectFromMeetingCached(params.cityId, params.meetingId, params.subjectId);
 
@@ -33,6 +35,10 @@ export async function generateMetadata({
     return {
         title,
         description,
+        alternates: buildHreflangAlternates(
+            `/${params.cityId}/${params.meetingId}/subjects/${params.subjectId}`,
+            params.locale
+        ),
         openGraph: {
             title,
             description,
@@ -46,6 +52,9 @@ export async function generateMetadata({
 }
 
 // Server component that renders the Subject component
-export default function SubjectPage({ params }: { params: { cityId: string; meetingId: string; subjectId: string } }) {
+export default async function SubjectPage(
+    props: { params: Promise<{ cityId: string; meetingId: string; subjectId: string }> }
+) {
+    const params = await props.params;
     return <Subject subjectId={params.subjectId} />;
 }

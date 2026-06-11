@@ -85,14 +85,9 @@ These variables are used by the flake runner (`nix run .#dev`) to configure **lo
 | `BIRD_WHATSAPP_TEMPLATE_BEFORE_MEETING` | Template project ID (UUID) from Bird Studio for before meeting notifications. | No | - |
 | `BIRD_WHATSAPP_TEMPLATE_AFTER_MEETING` | Template project ID (UUID) from Bird Studio for after meeting notifications. | No | - |
 | `BIRD_WHATSAPP_TEMPLATE_WELCOME` | Template project ID (UUID) from Bird Studio for welcome messages when users sign up. | No | - |
+| `BIRD_WEBHOOK_SECRET` | Shared secret for verifying HMAC signatures on inbound Bird webhook events. | No | - |
 
-**Note**: Bird API variables are optional. If not configured, message notifications (WhatsApp/SMS) will be skipped, but email notifications will still work. You need separate channel IDs because WhatsApp and SMS typically use different phone numbers/senders in Bird.
-
-**Getting Template Project IDs**: In Bird Studio, go to your approved WhatsApp templates and copy the project ID (UUID format like `ce6a2fd6-b2fa-4f5a-a2cd-f3bd15883318`). We use the latest version of each template project.
-
-**Required template parameters:**
-- Before/After Meeting templates: `date`, `cityName`, `subjectsSummary`, `adminBody`, `notificationId`
-- Welcome template: `userName`, `cityName`
+For full setup instructions (workspace, channels, templates, API key, webhook subscription), see [bird-setup.md](./bird-setup.md).
 
 #### NEXTAUTH_SECRET
 You can quickly create a good value on the command line via this openssl command:

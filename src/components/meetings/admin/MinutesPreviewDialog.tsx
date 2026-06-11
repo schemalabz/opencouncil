@@ -23,6 +23,7 @@ export function MinutesPreviewDialog({ open, onOpenChange }: MinutesPreviewDialo
     const { toast } = useToast();
     const t = useTranslations('admin.adminActions');
     const [state, setState] = React.useState<PreviewState>('idle');
+    const [debugMode, setDebugMode] = React.useState(false);
     const [data, setData] = React.useState<MinutesData | null>(null);
     const [error, setError] = React.useState<string | null>(null);
 
@@ -88,7 +89,15 @@ export function MinutesPreviewDialog({ open, onOpenChange }: MinutesPreviewDialo
             <DialogContent align="start" className="max-w-5xl max-h-[90vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle>{t('minutes.title')}</DialogTitle>
-                    <DialogDescription>{meeting.name}</DialogDescription>
+                    <div className="flex items-center justify-between">
+                        <DialogDescription>{meeting.name}</DialogDescription>
+                        {state === 'ready' && (
+                            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer shrink-0 ml-4">
+                                <input type="checkbox" checked={debugMode} onChange={e => setDebugMode(e.target.checked)} />
+                                Debug: Show classification
+                            </label>
+                        )}
+                    </div>
                 </DialogHeader>
 
                 <div className="flex-1 overflow-y-auto min-h-0">
@@ -108,7 +117,7 @@ export function MinutesPreviewDialog({ open, onOpenChange }: MinutesPreviewDialo
                     )}
 
                     {state === 'ready' && data && (
-                        <MinutesPreviewContent data={data} />
+                        <MinutesPreviewContent data={data} debugMode={debugMode} />
                     )}
                 </div>
 

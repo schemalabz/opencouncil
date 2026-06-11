@@ -3,10 +3,8 @@ import { getCurrentUser } from '@/lib/auth';
 import { deleteNotificationPreference, updateNotificationPreferenceChannels } from '@/lib/db/notifications';
 import { handleApiError } from '@/lib/api/errors';
 
-export async function PATCH(
-    request: NextRequest,
-    { params }: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
     const currentUser = await getCurrentUser();
 
     if (!currentUser) {
@@ -27,10 +25,8 @@ export async function PATCH(
     }
 }
 
-export async function DELETE(
-    request: NextRequest,
-    { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
     const currentUser = await getCurrentUser();
 
     if (!currentUser) {

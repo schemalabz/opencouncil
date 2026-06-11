@@ -317,46 +317,80 @@ interface SortableSubject {
 
 /**
  * Sorts subjects by discussion order (transcript timestamp), with fallbacks:
- * - Subjects with transcript come before those without
+ * - Subjects with transcript come first, sorted by timestamp
  * - "discussedIn" subjects inherit their parent's timestamp, sorted after the parent
- * - Subjects without transcript fall back to agenda order
- * - outOfAgenda subjects sort after regular agenda items
+ * - Subjects without transcript are interleaved by agenda position among
+ *   timestamped subjects, placed where they'd naturally appear in the sequence
  */
 export function sortSubjectsByDiscussionOrder<T extends SortableSubject>(
     subjects: T[],
     firstUtteranceBySubject: Map<string, number>,
 ): T[] {
     function getDiscussionTime(s: T): number | undefined {
-        // Child subjects always inherit their parent's timestamp — their own
-        // utterances (e.g., procedural votes) don't determine discussion position.
         if (s.discussedIn) return firstUtteranceBySubject.get(s.discussedIn.id);
         return firstUtteranceBySubject.get(s.id);
     }
 
-    return [...subjects].sort((a, b) => {
-        const aTime = getDiscussionTime(a);
-        const bTime = getDiscussionTime(b);
+    // Separate into timestamped and non-timestamped
+    const withTime = subjects.filter(s => getDiscussionTime(s) !== undefined);
+    const withoutTime = subjects.filter(s => getDiscussionTime(s) === undefined);
 
-        // Both have discussion times: sort by time
-        if (aTime !== undefined && bTime !== undefined) {
-            if (aTime !== bTime) return aTime - bTime;
-            // Same timestamp (child inherits parent's time): parent comes first
-            const aIsChild = a.discussedIn != null;
-            const bIsChild = b.discussedIn != null;
-            if (aIsChild !== bIsChild) return aIsChild ? 1 : -1;
-            return (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0);
-        }
-        // Subjects with discussion time come before those without
-        if (aTime !== undefined) return -1;
-        if (bTime !== undefined) return 1;
+    // Sort timestamped subjects
+    const sortedWithTime = [...withTime].sort((a, b) => {
+        const aTime = getDiscussionTime(a)!;
+        const bTime = getDiscussionTime(b)!;
+        if (aTime !== bTime) return aTime - bTime;
+        const aIsChild = a.discussedIn != null;
+        const bIsChild = b.discussedIn != null;
+        if (aIsChild !== bIsChild) return aIsChild ? 1 : -1;
+        return (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0);
+    });
 
-        // Fallback for subjects without transcript: agenda order
+    if (withoutTime.length === 0) return sortedWithTime;
+
+    // Sort non-timestamped by agenda order
+    const sortedWithoutTime = [...withoutTime].sort((a, b) => {
         const aIsOOA = a.nonAgendaReason === 'outOfAgenda';
         const bIsOOA = b.nonAgendaReason === 'outOfAgenda';
         if (aIsOOA && !bIsOOA) return 1;
         if (!aIsOOA && bIsOOA) return -1;
         return (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0);
     });
+
+    // Interleave: insert each non-timestamped subject at its natural agenda position
+    const result = [...sortedWithTime];
+    for (const s of sortedWithoutTime) {
+        const agendaIdx = s.agendaItemIndex ?? Infinity;
+        const isOOA = s.nonAgendaReason === 'outOfAgenda';
+
+        // Find insertion point: after the last timestamped subject with a lower agenda index.
+        // Default to 0 (beginning) — if no subject has a lower index, this one goes first.
+        let insertAt = 0;
+        for (let i = result.length - 1; i >= 0; i--) {
+            const existing = result[i];
+            const existingIsOOA = existing.nonAgendaReason === 'outOfAgenda';
+            const existingIdx = existing.agendaItemIndex ?? 0;
+
+            if (isOOA === existingIsOOA && existingIdx <= agendaIdx) {
+                insertAt = Math.max(insertAt, i + 1);
+                break;
+            }
+            if (!isOOA && existingIsOOA) {
+                // OOA items that were discussed (have timestamps) stay in place.
+                // Don't insert before them — record as floor, keep searching
+                // for a regular subject with a lower agenda index.
+                insertAt = Math.max(insertAt, i + 1);
+                continue;
+            }
+            if (isOOA && !existingIsOOA) {
+                insertAt = i + 1;
+                break;
+            }
+        }
+        result.splice(insertAt, 0, s);
+    }
+
+    return result;
 }
 
 /** Formats a subject reference for display in attendance change sections. */

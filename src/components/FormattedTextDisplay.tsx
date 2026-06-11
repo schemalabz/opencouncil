@@ -12,6 +12,11 @@ interface FormattedTextDisplayProps {
     meetingId?: string;
     cityId?: string;
     linkColor?: 'blue' | 'black'; // Optional link color override
+    /**
+     * Use on pages that aren't inside a CouncilMeetingDataProvider (e.g. the Person page),
+     * where the expansion mini-transcript cannot resolve utterance data.
+     */
+    disableUtteranceExpansion?: boolean;
 }
 
 export const FormattedTextDisplay = memo(function FormattedTextDisplay({
@@ -19,7 +24,8 @@ export const FormattedTextDisplay = memo(function FormattedTextDisplay({
     onUtteranceClick,
     meetingId,
     cityId,
-    linkColor = 'blue'
+    linkColor = 'blue',
+    disableUtteranceExpansion = false,
 }: FormattedTextDisplayProps) {
     const linkClassName = linkColor === 'black'
         ? 'text-foreground underline hover:opacity-80'
@@ -70,7 +76,13 @@ export const FormattedTextDisplay = memo(function FormattedTextDisplay({
 
                         switch (refType) {
                             case 'utterance':
-                                // Use UtteranceReferenceLink for inline mini transcript
+                                if (disableUtteranceExpansion) {
+                                    return (
+                                        <span className={`${linkClassName} inline`} style={linkStyle}>
+                                            {children}
+                                        </span>
+                                    );
+                                }
                                 return (
                                     <UtteranceReferenceLink
                                         utteranceId={id}

@@ -5,10 +5,8 @@ import prisma from '@/lib/db/prisma';
 import { IS_DEV } from '@/lib/utils';
 
 // POST: Reset city (development only)
-export async function POST(
-    request: NextRequest,
-    { params }: { params: { cityId: string } }
-) {
+export async function POST(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {
+    const params = await props.params;
     try {
         // Development mode check
         if (!IS_DEV) {

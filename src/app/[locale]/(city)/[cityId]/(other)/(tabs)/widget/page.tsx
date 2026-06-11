@@ -7,11 +7,17 @@ import { EmbedConfigurator } from '@/components/embed/EmbedConfigurator';
 
 const ADMIN_BODY_TYPE_ORDER: AdministrativeBodyType[] = ['council', 'committee', 'community'];
 
-export default async function WidgetPage({
-    params: { cityId },
-}: {
-    params: { cityId: string };
-}) {
+export default async function WidgetPage(
+    props: {
+        params: Promise<{ cityId: string }>;
+    }
+) {
+    const params = await props.params;
+
+    const {
+        cityId
+    } = params;
+
     const canEdit = await isUserAuthorizedToEdit({ cityId });
     if (!canEdit) notFound();
 

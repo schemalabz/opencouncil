@@ -13,8 +13,9 @@ import { Search, Users, FileText } from "lucide-react";
 import { Input } from '../ui/input';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from '@/i18n/routing';
-import { getLatestSegmentsForParty, SegmentWithRelations } from '@/lib/db/speakerSegments';
-import { Result } from '../search/Result';
+import { getLatestContributionsForParty } from '@/lib/db/contributions';
+import { ContributionForPerson } from '@/lib/db/types';
+import { ContributionCard } from '@/components/meetings/subject/ContributionCard';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { getAdministrativeBodyTypesForPeople, filterPersonByAdminBodyTypes } from '@/lib/utils/administrativeBodies';
 import { motion } from 'framer-motion';
@@ -211,13 +212,12 @@ function PartyMembersTab({
 
 // Segments Tab Component
 function SegmentsTab({
-    city,
     party,
     typeOptions,
     selectedType,
     onSelectType,
-    latestSegments,
-    isLoadingSegments,
+    contributions,
+    isLoadingContributions,
     totalCount,
     setPage,
     searchQuery,
@@ -225,13 +225,12 @@ function SegmentsTab({
     handleSearch,
     allLabel
 }: {
-    city: City,
     party: PartyWithPersons,
     typeOptions: { value: AdministrativeBodyType; label: string }[],
     selectedType: AdministrativeBodyType | null,
     onSelectType: (type: AdministrativeBodyType | null) => void,
-    latestSegments: SegmentWithRelations[],
-    isLoadingSegments: boolean,
+    contributions: ContributionForPerson[],
+    isLoadingContributions: boolean,
     totalCount: number,
     setPage: (updater: (prev: number) => number) => void,
     searchQuery: string,
@@ -283,9 +282,9 @@ function SegmentsTab({
                 transition={{ delay: 0.4 }}
                 className="relative"
             >
-                <h2 className="text-lg sm:text-xl font-semibold mb-4">{t('recentSegments')}</h2>
+                <h2 className="text-lg sm:text-xl font-semibold mb-4">{t('recentContributions')}</h2>
 
-                {isLoadingSegments && latestSegments.length === 0 ? (
+                {isLoadingContributions && contributions.length === 0 ? (
                     <div className="flex justify-center items-center py-12 border rounded-lg bg-card/50">
                         <div className="flex flex-col items-center space-y-4">
                             <div className="h-6 w-6 sm:h-8 sm:w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
@@ -294,18 +293,40 @@ function SegmentsTab({
                     </div>
                 ) : (
                     <div className="space-y-3 sm:space-y-4">
-                        {latestSegments.map((segment, index) => (
+                        {contributions.map((contribution, index) => (
                             <motion.div
-                                key={index}
+                                key={contribution.id}
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.1 * index }}
                             >
-                                <Result result={segment} />
+                                <ContributionCard
+                                    contribution={contribution}
+                                    subjectId={contribution.subject.id}
+                                    meeting={{
+                                        id: contribution.subject.councilMeetingId,
+                                        cityId: contribution.subject.cityId,
+                                    }}
+                                    speaker={contribution.speaker}
+                                    contextHeader={{
+                                        meetingName: contribution.subject.councilMeeting.name,
+                                        adminBodyName: contribution.subject.councilMeeting.administrativeBody?.name ?? null,
+                                        meetingDate: contribution.subject.councilMeeting.dateTime,
+                                        subjectName: contribution.subject.name,
+                                        topic: contribution.subject.topic
+                                            ? {
+                                                name: contribution.subject.topic.name,
+                                                colorHex: contribution.subject.topic.colorHex,
+                                                icon: contribution.subject.topic.icon,
+                                            }
+                                            : null,
+                                    }}
+                                    showPlayButton={false}
+                                />
                             </motion.div>
                         ))}
 
-                        {latestSegments.length === 0 && !isLoadingSegments && (
+                        {contributions.length === 0 && !isLoadingContributions && (
                             <div className="text-center py-8 border rounded-lg bg-card/50">
                                 <p className="text-muted-foreground text-sm sm:text-base">{t('noSegmentsFound')}</p>
                             </div>
@@ -313,20 +334,20 @@ function SegmentsTab({
                     </div>
                 )}
 
-                {isLoadingSegments && latestSegments.length > 0 && (
+                {isLoadingContributions && contributions.length > 0 && (
                     <div className="flex justify-center items-center py-4">
                         <div className="h-6 w-6 sm:h-8 sm:w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
                     </div>
                 )}
 
-                {!isLoadingSegments && latestSegments.length < totalCount && (
+                {!isLoadingContributions && contributions.length < totalCount && (
                     <Button
                         onClick={() => setPage(prevPage => prevPage + 1)}
                         variant="outline"
                         className="mt-6 w-full sm:w-auto"
-                        disabled={isLoadingSegments}
+                        disabled={isLoadingContributions}
                     >
-                        {isLoadingSegments ? (
+                        {isLoadingContributions ? (
                             <>
                                 <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
                                 {t('loading')}
@@ -339,22 +360,21 @@ function SegmentsTab({
     );
 }
 
-export default function PartyC({ city, party, administrativeBodies, includeUnreleased }: {
+export default function PartyC({ city, party, administrativeBodies }: {
     city: City,
     party: PartyWithPersons,
     administrativeBodies: AdministrativeBody[],
-    includeUnreleased?: boolean
 }) {
     const t = useTranslations('Party');
     const tCommon = useTranslations('Common');
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
-    const [latestSegments, setLatestSegments] = useState<SegmentWithRelations[]>([]);
+    const [contributions, setContributions] = useState<ContributionForPerson[]>([]);
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [canEdit, setCanEdit] = useState(false);
     const [selectedAdminBodyType, setSelectedAdminBodyType] = useState<AdministrativeBodyType | null>(null);
-    const [isLoadingSegments, setIsLoadingSegments] = useState(false);
+    const [isLoadingContributions, setIsLoadingContributions] = useState(false);
 
     // Use people directly from the party object
     const persons = useMemo(() => party.people, [party.people]);
@@ -393,50 +413,48 @@ export default function PartyC({ city, party, administrativeBodies, includeUnrel
     }, [party.id]);
 
     useEffect(() => {
-        const fetchLatestSegments = async () => {
+        const fetchLatestContributions = async () => {
             try {
-                setIsLoadingSegments(true);
-                setLatestSegments([]);
+                setIsLoadingContributions(true);
+                setContributions([]);
                 setPage(1);
-                const { results, totalCount } = await getLatestSegmentsForParty(
+                const { results, totalCount } = await getLatestContributionsForParty(
                     party.id,
                     1,
                     5,
-                    includeUnreleased,
                     selectedAdminBodyType
                 );
-                setLatestSegments(results);
+                setContributions(results);
                 setTotalCount(totalCount);
             } catch (error) {
-                console.error('Error fetching segments:', error);
+                console.error('Error fetching contributions:', error);
             } finally {
-                setIsLoadingSegments(false);
+                setIsLoadingContributions(false);
             }
         };
-        fetchLatestSegments();
-    }, [party.id, selectedAdminBodyType, includeUnreleased]);
+        fetchLatestContributions();
+    }, [party.id, selectedAdminBodyType]);
 
     useEffect(() => {
-        const loadMoreSegments = async () => {
+        const loadMoreContributions = async () => {
             if (page === 1) return;
             try {
-                setIsLoadingSegments(true);
-                const { results } = await getLatestSegmentsForParty(
+                setIsLoadingContributions(true);
+                const { results } = await getLatestContributionsForParty(
                     party.id,
                     page,
                     5,
-                    includeUnreleased,
                     selectedAdminBodyType
                 );
-                setLatestSegments(prevSegments => [...prevSegments, ...results]);
+                setContributions(prev => [...prev, ...results]);
             } catch (error) {
-                console.error('Error loading more segments:', error);
+                console.error('Error loading more contributions:', error);
             } finally {
-                setIsLoadingSegments(false);
+                setIsLoadingContributions(false);
             }
         };
-        loadMoreSegments();
-    }, [party.id, page, selectedAdminBodyType, includeUnreleased]);
+        loadMoreContributions();
+    }, [party.id, page, selectedAdminBodyType]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -589,7 +607,7 @@ export default function PartyC({ city, party, administrativeBodies, includeUnrel
                                     <span className="hidden xs:inline">{t('tabPeople')}</span>
                                     <span className="xs:hidden">{t('tabPeopleShort')}</span>
                                 </TabsTrigger>
-                                <TabsTrigger value="segments" className="text-xs sm:text-sm py-2 px-3">
+                                <TabsTrigger value="contributions" className="text-xs sm:text-sm py-2 px-3">
                                     <FileText className="h-4 w-4 mr-1 sm:mr-2" />
                                     <span className="hidden sm:inline">{t('tabSegments')}</span>
                                     <span className="sm:hidden">{t('tabSegmentsShort')}</span>
@@ -607,15 +625,14 @@ export default function PartyC({ city, party, administrativeBodies, includeUnrel
                             />
                         </TabsContent>
 
-                        <TabsContent value="segments" className="mt-6">
+                        <TabsContent value="contributions" className="mt-6">
                             <SegmentsTab
-                                city={city}
                                 party={party}
                                 typeOptions={typeOptions}
                                 selectedType={selectedAdminBodyType}
                                 onSelectType={handleAdminBodyTypeSelect}
-                                latestSegments={latestSegments}
-                                isLoadingSegments={isLoadingSegments}
+                                contributions={contributions}
+                                isLoadingContributions={isLoadingContributions}
                                 totalCount={totalCount}
                                 setPage={setPage}
                                 searchQuery={searchQuery}

@@ -32,6 +32,9 @@
       "setEndTime": "Set to current video time (])"
     },
     "contextMenu": {
+      "copyText": "Copy text",
+      "selectFromHere": "Select from here",
+      "selectUntilHere": "Select until here",
       "startHighlightFromHere": "Start Highlight from here",
       "moveToPreviousSegment": "Move to previous segment",
       "moveToNextSegment": "Move to next segment",
@@ -49,6 +52,7 @@
       "error": "Error",
       "createHighlightError": "Failed to create highlight. Please try again.",
       "editError": "Failed to save changes. Please try again.",
+      "copyError": "Failed to copy text",
       "deleteUtterance": "Delete utterance?",
       "deleteUtteranceDescription": "This action cannot be undone.",
       "utteranceDeletedSuccessfully": "Utterance deleted successfully",

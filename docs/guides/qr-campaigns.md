@@ -56,7 +56,7 @@ sequenceDiagram
 - `src/app/api/admin/qr/[id]/route.ts` - Admin operations (PUT: update campaign, DELETE: delete campaign)
 
 ### Frontend Components
-- `src/app/[locale]/(other)/admin/qr/page.tsx` - Admin management page (server component, displays table with name column)
+- `src/app/[locale]/(admin)/admin/qr/page.tsx` - Admin management page (server component, displays table with name column)
 - `src/components/admin/qr/qr-controls.tsx` - Client controls (CreateForm with inline error display, ToggleActive, DeleteButton, CopyButton)
 - `src/components/admin/sidebar.tsx` - Admin navigation (QR Campaigns menu item with QrCode icon)
 

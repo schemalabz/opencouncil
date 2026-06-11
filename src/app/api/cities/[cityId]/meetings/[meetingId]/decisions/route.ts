@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
-import { getDecisionsForMeeting, getExtractedDataForMeeting, getMeetingAttendance, upsertDecision, deleteDecision, clearExtractedDataForMeeting } from '@/lib/db/decisions';
+import { getDecisionsForMeeting, getExtractedDataForMeeting, getMeetingAttendance, upsertDecision, deleteDecision, clearExtractedDataForMeeting, resetExtractionForSubject } from '@/lib/db/decisions';
 import prisma from '@/lib/db/prisma';
 import { revalidateTag } from 'next/cache';
 import { z } from 'zod';
 
 export async function GET(
     request: Request,
-    { params }: { params: { cityId: string; meetingId: string } }
+    props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
+    const params = await props.params;
     await withUserAuthorizedToEdit({ cityId: params.cityId });
 
     const [decisions, extractedData, meetingAttendance] = await Promise.all([
@@ -31,8 +32,9 @@ const upsertSchema = z.object({
 
 export async function PUT(
     request: Request,
-    { params }: { params: { cityId: string; meetingId: string } }
+    props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
+    const params = await props.params;
     await withUserAuthorizedToEdit({ cityId: params.cityId });
 
     const session = await auth();
@@ -66,14 +68,15 @@ export async function PUT(
         publishDate: parsed.publishDate ? new Date(parsed.publishDate) : undefined,
         createdById: userId, // Track who manually added this decision
     });
-    revalidateTag(`city:${params.cityId}:meetings`);
+    revalidateTag(`city:${params.cityId}:meetings`, 'max');
     return NextResponse.json(decision);
 }
 
 export async function DELETE(
     request: Request,
-    { params }: { params: { cityId: string; meetingId: string } }
+    props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
+    const params = await props.params;
     await withUserAuthorizedToEdit({ cityId: params.cityId });
 
     const { searchParams } = new URL(request.url);
@@ -100,18 +103,20 @@ export async function DELETE(
     }
 
     await deleteDecision(subjectId);
-    revalidateTag(`city:${params.cityId}:meetings`);
+    revalidateTag(`city:${params.cityId}:meetings`, 'max');
     return NextResponse.json({ success: true });
 }
 
-const postSchema = z.object({
-    action: z.literal('clearExtractedData'),
-});
+const postSchema = z.discriminatedUnion('action', [
+    z.object({ action: z.literal('clearExtractedData') }),
+    z.object({ action: z.literal('resetExtraction'), subjectId: z.string().min(1) }),
+]);
 
 export async function POST(
     request: Request,
-    { params }: { params: { cityId: string; meetingId: string } }
+    props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
+    const params = await props.params;
     await withUserAuthorizedToEdit({ cityId: params.cityId });
 
     const body = await request.json();
@@ -121,7 +126,29 @@ export async function POST(
         return NextResponse.json({ error: 'Invalid action', details: parsed.error.errors }, { status: 400 });
     }
 
-    const result = await clearExtractedDataForMeeting(params.cityId, params.meetingId);
-    revalidateTag(`city:${params.cityId}:meetings`);
-    return NextResponse.json(result);
+    if (parsed.data.action === 'clearExtractedData') {
+        const result = await clearExtractedDataForMeeting(params.cityId, params.meetingId);
+        revalidateTag(`city:${params.cityId}:meetings`, 'max');
+        return NextResponse.json(result);
+    }
+
+    // action === 'resetExtraction'
+    const subject = await prisma.subject.findFirst({
+        where: {
+            id: parsed.data.subjectId,
+            cityId: params.cityId,
+            councilMeetingId: params.meetingId,
+        },
+    });
+
+    if (!subject) {
+        return NextResponse.json(
+            { error: 'Subject not found in this meeting' },
+            { status: 404 }
+        );
+    }
+
+    await resetExtractionForSubject(parsed.data.subjectId);
+    revalidateTag(`city:${params.cityId}:meetings`, 'max');
+    return NextResponse.json({ success: true });
 }

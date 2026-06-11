@@ -4,7 +4,7 @@ import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { useVideo } from "../VideoProvider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, FileText, MapPin, ScrollText, CheckSquare, Landmark, ExternalLink, Loader2 } from "lucide-react";
+import { Play, FileText, MapPin, ScrollText, CheckSquare, Landmark, ExternalLink, Loader2, ArrowLeft } from "lucide-react";
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
@@ -27,15 +27,17 @@ import { useSubjectHeader } from "@/contexts/SubjectHeaderContext";
 import { useSession } from "next-auth/react";
 import { getWithdrawnLabel } from "@/lib/utils/subjects";
 import { SubjectAdminControls } from "./SubjectAdminControls";
+import { useTranscriptOptions } from "../options/OptionsContext";
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
-    const { subjects, getSpeakerTag, getPerson, getParty, meeting } = useCouncilMeetingData();
+    const { subjects, getSpeakerTag, getPerson, getParty, meeting, city } = useCouncilMeetingData();
     const { seekToAndPlay } = useVideo();
     const t = useTranslations("Subject");
     const locale = useLocale();
     const { setSubjectHeader } = useSubjectHeader();
     const { data: session } = useSession();
     const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
+    const { options } = useTranscriptOptions();
     const [isFetchingDecision, setIsFetchingDecision] = useState(false);
     const [localDecision, setLocalDecision] = useState<{
         ada: string | null;
@@ -152,6 +154,35 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
         <div className="min-h-screen bg-background">
             {/* Main Content */}
             <div className="max-w-4xl mx-auto px-3 py-4 md:px-4 md:py-6 space-y-6">
+                {/* On-page context + back affordance.
+                    The breadcrumb in the header is the only other place that
+                    shows which meeting/council this subject belongs to and the
+                    only "back" path, which users miss (#405). This is a real
+                    navigational <Link> to the meeting page, so back never falls
+                    back to "/" the way browser history did in #51. */}
+                <nav
+                    aria-label={t("partOf")}
+                    className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
+                >
+                    <Link
+                        href={`/${meeting.cityId}/${meeting.id}`}
+                        aria-label={t("backToMeetingNamed", { meeting: meeting.name })}
+                        className="inline-flex items-center gap-1.5 font-medium text-foreground hover:text-primary transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                        <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span>{meeting.name}</span>
+                    </Link>
+                    <span className="text-muted-foreground" aria-hidden="true">·</span>
+                    <Link
+                        href={`/${meeting.cityId}`}
+                        className="text-muted-foreground hover:text-primary transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                        {city.name}
+                    </Link>
+                    <span className="text-muted-foreground">
+                        {formatDate(new Date(meeting.dateTime), undefined, locale)}
+                    </span>
+                </nav>
                 {isSuperAdmin && (
                     <div className="flex justify-end">
                         <SubjectAdminControls
@@ -313,7 +344,12 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                 {contributions.map((contribution, index) => (
                                     <div key={contribution.id}>
                                         {index > 0 && <div className="border-t border-border" />}
-                                        <ContributionCard contribution={contribution} subjectId={subject.id} />
+                                        <ContributionCard
+                                            contribution={contribution}
+                                            subjectId={subject.id}
+                                            meeting={meeting}
+                                            speaker={contribution.speakerId ? getPerson(contribution.speakerId) ?? null : null}
+                                        />
                                     </div>
                                 ))}
                             </>
@@ -502,8 +538,8 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                     </CollapsibleCard>
                 )}
 
-                {/* Admin Section */}
-                {(topicImportance || proximityImportance) && (
+                {/* Admin Section - internal signals, only for users authorized to edit */}
+                {options.editsAllowed && (topicImportance || proximityImportance) && (
                     <CollapsibleCard
                         icon={<ScrollText className="w-4 h-4" />}
                         title={t("adminDetails")}

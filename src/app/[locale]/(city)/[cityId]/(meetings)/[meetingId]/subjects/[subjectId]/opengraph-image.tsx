@@ -1,7 +1,9 @@
-import { ImageResponse } from "next/og";
+// See src/app/api/og/route.tsx for why we use @vercel/og directly instead of next/og.
+import { ImageResponse } from "@vercel/og";
 import { Container, OgHeader, formatCityDisplayName } from "@/components/og/shared-components";
 import { getMeetingDataForOG } from "@/lib/db/meetings";
 import { getPeopleForCityCached, getSubjectsForMeetingCached, getSubjectStatisticsCached } from "@/lib/cache/queries";
+import { LOGO_BLACK_DATA_URI } from "@/lib/og/serverAssets";
 import { PersonWithRelations } from '@/lib/db/people';
 import { ColorPercentageRingProps } from "@/components/ui/color-percentage-ring";
 
@@ -149,14 +151,14 @@ function ColorPercentageRing({
 export default async function SubjectOgImage({
     params,
 }: {
-    params: {
+    params: Promise<{
         locale: string;
         cityId: string;
         meetingId: string;
         subjectId: string;
-    };
+    }>;
 }) {
-    const { cityId, meetingId, subjectId } = params;
+    const { cityId, meetingId, subjectId } = await params;
 
     const [meeting, subjects, people] = await Promise.all([
         getMeetingDataForOG(cityId, meetingId),
@@ -216,7 +218,7 @@ export default async function SubjectOgImage({
 
     return new ImageResponse(
         (
-            <Container watermarkProps={{ logoOnly: true, size: 80 }}>
+            <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI} watermarkProps={{ logoOnly: true, size: 80 }}>
                 {/* Color Percentage Ring in the absolute top right corner */}
                 <div
                     style={{

@@ -18,7 +18,7 @@ import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { requestProcessAgenda } from '@/lib/tasks/processAgenda';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
-import { Pencil, Bell, Eye } from 'lucide-react';
+import { Pencil, Bell, BellOff, Eye } from 'lucide-react';
 import { DecisionsPanel } from './DecisionsPanel';
 import { MinutesPreviewDialog } from './MinutesPreviewDialog';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
@@ -37,6 +37,11 @@ export default function AdminActions({
     const [isSummarizing, setIsSummarizing] = React.useState(false);
     const [isProcessingAgenda, setIsProcessingAgenda] = React.useState(false);
     const [decisionsDialogOpen, setDecisionsDialogOpen] = React.useState(false);
+    React.useEffect(() => {
+        if (window.location.hash === '#decisions') {
+            setDecisionsDialogOpen(true);
+        }
+    }, []);
     const [minutesPreviewOpen, setMinutesPreviewOpen] = React.useState(false);
     const [mediaUrl, setMediaUrl] = React.useState('');
     const [agendaUrl, setAgendaUrl] = React.useState(meeting.agendaUrl || '');
@@ -57,6 +62,9 @@ export default function AdminActions({
         setMediaUrl(meeting.youtubeUrl || '');
     }, [meeting.youtubeUrl]);
 
+    const notificationBehavior = meeting.administrativeBody?.notificationBehavior;
+
+    const notificationsEnabled = notificationBehavior && notificationBehavior !== 'NOTIFICATIONS_DISABLED';
     const fetchTaskStatuses = React.useCallback(async () => {
         try {
             const tasks = await getTasksForMeeting(meeting.cityId, meeting.id);
@@ -362,6 +370,7 @@ export default function AdminActions({
                                 </div>
                                 <Button onClick={() => handleProcessAgenda(forceAgenda)} disabled={isProcessingAgenda}>
                                     {isProcessingAgenda ? t('buttons.starting') : t('buttons.process')}
+                                    {notificationsEnabled ? <Bell className="ml-1.5 h-3 w-3" /> : <BellOff className="ml-1.5 h-3 w-3 text-amber-500" />}
                                 </Button>
                             </div>
                             {forceAgenda && (
@@ -406,6 +415,7 @@ export default function AdminActions({
                                 </div>
                                 <Button onClick={() => handleSummarize(forceSummarize)} disabled={isSummarizing}>
                                     {isSummarizing ? t('buttons.starting') : t('buttons.summarize')}
+                                    {notificationsEnabled ? <Bell className="ml-1.5 h-3 w-3" /> : <BellOff className="ml-1.5 h-3 w-3 text-amber-500" />}
                                 </Button>
                             </div>
                             {forceSummarize && (

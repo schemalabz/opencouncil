@@ -26,7 +26,7 @@ jobs:
       has-migrations: ${{ steps.check-migrations.outputs.has-migrations }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
@@ -54,21 +54,16 @@ jobs:
             echo "✅ No migrations detected - preview will use shared staging database" >> $GITHUB_STEP_SUMMARY
           fi
 
-      - name: Check npmDepsHash freshness
+      - name: Check lockfile freshness
         run: |
           set -euo pipefail
 
           LOCKFILE_CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '^package-lock.json$' || true)
-          HASH_CHANGED=$(git diff origin/${{ github.base_ref }}...HEAD -- flake.nix | grep 'npmDepsHash' || true)
           PKG_JSON_CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '^package.json$' || true)
 
-          # Case 1: lockfile changed but hash wasn't updated
-          if [ -n "$LOCKFILE_CHANGED" ] && [ -z "$HASH_CHANGED" ]; then
-            echo "::error::package-lock.json was modified but npmDepsHash in flake.nix was not updated. Run: nix run nixpkgs#prefetch-npm-deps package-lock.json"
-            exit 1
-          fi
-
-          # Case 2: dependencies changed in package.json but lockfile wasn't updated
+          # Dependencies changed in package.json but lockfile wasn't updated.
+          # (The Nix build reads dependency hashes straight from the lockfile
+          # via importNpmLock, so no flake.nix hash check is needed.)
           if [ -n "$PKG_JSON_CHANGED" ] && [ -z "$LOCKFILE_CHANGED" ]; then
             OLD_DEPS=$(git show origin/${{ github.base_ref }}:package.json | jq -S '{dep: .dependencies, dev: .devDependencies}')
             NEW_DEPS=$(jq -S '{dep: .dependencies, dev: .devDependencies}' package.json)
@@ -78,7 +73,7 @@ jobs:
             fi
           fi
 
-          echo "✅ npmDepsHash check passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Lockfile freshness check passed" >> $GITHUB_STEP_SUMMARY
 
   # Build and deploy preview
   deploy:
@@ -89,7 +84,7 @@ jobs:
     steps:
       - name: Comment on PR (building)
         id: pr-comment
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const prNumber = context.payload.pull_request.number;
@@ -139,12 +134,12 @@ jobs:
             core.setOutput('comment-id', commentId);
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v26
+        uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-24.11
           extra_nix_config: |
@@ -152,11 +147,13 @@ jobs:
             accept-flake-config = true
 
       - name: Setup Cachix
-        uses: cachix/cachix-action@v14
+        uses: cachix/cachix-action@v17
         with:
           name: ${{ env.CACHIX_CACHE_NAME }}
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          pushFilter: "opencouncil-(prod|npm-deps)"
+          # Exclude the prod build itself and npm deps (per-package .tgz
+          # fetchurls + the opencouncil-*-sources lockfile derivation).
+          pushFilter: "(opencouncil-prod|\\.tgz$|opencouncil-.*-sources$)"
 
       - name: Build production package
         env:
@@ -168,6 +165,7 @@ jobs:
           NEXT_PUBLIC_CONTACT_PHONE: ${{ secrets.NEXT_PUBLIC_CONTACT_PHONE }}
           NEXT_PUBLIC_CONTACT_EMAIL: ${{ secrets.NEXT_PUBLIC_CONTACT_EMAIL }}
           NEXT_PUBLIC_CONTACT_ADDRESS: ${{ secrets.NEXT_PUBLIC_CONTACT_ADDRESS }}
+          NEXT_PUBLIC_BUILD_COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           echo "Building OpenCouncil production package..."
           nix build --impure .#opencouncil-prod --print-build-logs
@@ -185,7 +183,7 @@ jobs:
           echo "Store path: $STORE_PATH"
 
       - name: Update PR comment (deploying)
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const commentId = ${{ steps.pr-comment.outputs.comment-id }};
@@ -217,7 +215,7 @@ jobs:
 
       - name: Parse preview links from PR body
         id: preview-links
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const prBody = context.payload.pull_request.body || '';
@@ -302,7 +300,7 @@ jobs:
           echo "Preview did not return HTTP 200 after 10 attempts"
 
       - name: Update PR comment (result)
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const commentId = ${{ steps.pr-comment.outputs.comment-id }};

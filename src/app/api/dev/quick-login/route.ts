@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { PrismaAdapter } from "@auth/prisma-adapter"
-import { IS_DEV } from '@/lib/utils'
+import { IS_DEV, DEV_TOOLS_ALLOWED } from '@/lib/utils'
 
 export async function POST(request: NextRequest) {
-  // Only allow in development environment
-  if (!IS_DEV) {
+  // Only allow in development or on preview deployments — never on real production
+  if (!DEV_TOOLS_ALLOWED) {
     return NextResponse.json({ error: 'Not allowed in production' }, { status: 403 })
   }
 
@@ -41,8 +41,10 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Set the session cookie with the same name Next-Auth uses
-    // In dev, use port-specific cookie name to allow multiple instances
+    // Set the session cookie with the same name Next-Auth uses.
+    // In local dev, use a port-specific non-secure cookie to allow multiple instances.
+    // Previews run over HTTPS in production mode, so they use the secure cookie name
+    // (this intentionally keys off IS_DEV, not DEV_TOOLS_ALLOWED).
     const port = process.env.APP_PORT || '3000'
     const cookieName = !IS_DEV
       ? '__Secure-authjs.session-token'

@@ -5,10 +5,8 @@ import { taskHandlers } from '@/lib/tasks/registry';
 import { TaskUpdate } from '@/lib/apiTypes';
 import { deleteTaskStatus, getTaskStatus } from '@/lib/db/tasks';
 
-export async function GET(
-    request: NextRequest,
-    { params }: { params: { taskStatusId: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ taskStatusId: string }> }) {
+    const params = await props.params;
     const taskStatus = await getTaskStatus(params.taskStatusId);
     if (!taskStatus) {
         return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
@@ -17,24 +15,18 @@ export async function GET(
     return NextResponse.json(taskStatus);
 }
 
-export async function POST(
-    request: NextRequest,
-    { params }: { params: { taskStatusId: string } }
-) {
+export async function POST(request: NextRequest, props: { params: Promise<{ taskStatusId: string }> }) {
+    const params = await props.params;
     return handleUpdateRequest(request, params.taskStatusId);
 }
 
-export async function PUT(
-    request: NextRequest,
-    { params }: { params: { taskStatusId: string } }
-) {
+export async function PUT(request: NextRequest, props: { params: Promise<{ taskStatusId: string }> }) {
+    const params = await props.params;
     return handleUpdateRequest(request, params.taskStatusId);
 }
 
-export async function DELETE(
-    request: NextRequest,
-    { params }: { params: { taskStatusId: string } }
-) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ taskStatusId: string }> }) {
+    const params = await props.params;
     const taskStatus = await getTaskStatus(params.taskStatusId);
 
     if (!taskStatus) {
@@ -48,7 +40,7 @@ export async function DELETE(
 
     await deleteTaskStatus(params.taskStatusId);
 
-    revalidateTag(`city:${taskStatus.cityId}:meeting:${taskStatus.councilMeetingId}:derived`);
+    revalidateTag(`city:${taskStatus.cityId}:meeting:${taskStatus.councilMeetingId}:derived`, 'max');
 
     return NextResponse.json({ message: 'Task status deleted successfully' });
 }
