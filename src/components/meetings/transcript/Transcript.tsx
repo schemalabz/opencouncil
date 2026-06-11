@@ -1,7 +1,8 @@
 "use client";
 import SpeakerSegment from "./SpeakerSegment";
+import SegmentContext from "./SegmentContext";
 import { useEffect, useRef, useMemo, useState } from 'react';
-import { useVideo } from "../VideoProvider";
+import { useVideo, useVideoActions } from "../VideoProvider";
 import { debounce, joinTranscriptSegments } from '@/lib/utils';
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { Clock, ScrollText } from "lucide-react";
@@ -11,6 +12,10 @@ import { useHighlight } from "../HighlightContext";
 import { useTranslations } from 'next-intl';
 import { UnverifiedTranscriptBanner, BANNER_HEIGHT_FULL } from "./UnverifiedTranscriptBanner";
 import { UtteranceContextMenu } from "./UtteranceContextMenu";
+import { useViewMode } from "@/hooks/useViewMode";
+import { useFisheyeCenter } from "@/hooks/useFisheyeCenter";
+import { fisheyeModeForDistance } from "@/lib/utils/fisheye";
+import FisheyeToggle from "./FisheyeToggle";
 
 // Helper functions for speaker segment identification and parsing
 const SPEAKER_SEGMENT_PREFIX = 'speaker-segment-';
@@ -38,6 +43,10 @@ export default function Transcript() {
     const [bannerHeight, setBannerHeight] = useState(BANNER_HEIGHT_FULL);
     const [isScrolled, setIsScrolled] = useState(false);
     const searchParams = useSearchParams();
+    const [viewMode] = useViewMode();
+    const isFisheye = viewMode === 'fisheye' && !options.editable;
+    const { currentTimeRef } = useVideoActions();
+    const [activeSegmentIndex, setActiveSegmentIndex] = useState<number | null>(null);
 
     // Check if transcript is unverified (humanReview not completed)
     const isUnverified = !taskStatus.humanReview && !options.editsAllowed;
@@ -46,6 +55,10 @@ export default function Transcript() {
     const displayedSegments = useMemo(() => {
         return options.editable ? speakerSegments : joinTranscriptSegments(speakerSegments);
     }, [speakerSegments, options.editable]);
+
+    // Store displayedSegments in a ref for stable callbacks
+    const displayedSegmentsRef = useRef(displayedSegments);
+    displayedSegmentsRef.current = displayedSegments;
 
     // Track scroll state for banner minimization via scroll container
     useEffect(() => {
@@ -60,6 +73,44 @@ export default function Transcript() {
         return () => container.removeEventListener('scroll', handleScroll);
     }, []);
 
+    // Track segment containing the current playback time. Polled from a ref to
+    // avoid re-rendering the transcript on every video tick. Only enabled in
+    // fisheye mode — default view doesn't read it.
+    useEffect(() => {
+        if (!isFisheye) {
+            setActiveSegmentIndex(null);
+            return;
+        }
+        const recompute = () => {
+            const now = currentTimeRef.current;
+            const segs = displayedSegmentsRef.current;
+            if (!segs.length) {
+                setActiveSegmentIndex(null);
+                return;
+            }
+            // Linear scan is fine: invoked at 4Hz, segments rarely exceed a few hundred.
+            let found: number | null = null;
+            for (let i = 0; i < segs.length; i++) {
+                if (now >= segs[i].startTimestamp && now <= segs[i].endTimestamp) {
+                    found = i;
+                    break;
+                }
+                if (segs[i].startTimestamp > now) {
+                    found = Math.max(0, i - 1);
+                    break;
+                }
+            }
+            if (found === null) found = segs.length - 1;
+            setActiveSegmentIndex(prev => (prev === found ? prev : found));
+        };
+        recompute();
+        const id = setInterval(recompute, 250);
+        return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isFisheye, displayedSegments.length]);
+
+    const centerIndex = useFisheyeCenter(activeSegmentIndex);
+
     // Handle highlight editing initialization from URL
     useEffect(() => {
         const highlightId = searchParams.get('highlight');
@@ -70,10 +121,6 @@ export default function Transcript() {
             }
         }
     }, [searchParams, getHighlight, enterEditMode, editingHighlight?.id]);
-
-    // Store displayedSegments in a ref for stable IntersectionObserver callback
-    const displayedSegmentsRef = useRef(displayedSegments);
-    displayedSegmentsRef.current = displayedSegments;
 
     // Store setCurrentScrollInterval in a ref for stable access from observer callback
     const setCurrentScrollIntervalRef = useRef(setCurrentScrollInterval);
@@ -165,21 +212,35 @@ export default function Transcript() {
                     onBannerHeightChange={setBannerHeight}
                 />
             )}
+            {!options.editable && (
+                <div className="flex justify-end pt-2 pb-1">
+                    <FisheyeToggle />
+                </div>
+            )}
             <UtteranceContextMenu>
                 <div ref={containerRef} role="list" aria-label={t('transcript')}>
-                {displayedSegments.map((segment, index: number) => (
-                    <div
-                        key={index}
-                        id={createSegmentId(index)}
-                        className="content-visibility-auto"
-                        role="listitem"
-                    >
-                        <SpeakerSegment
-                            segment={segment}
-                            isFirstSegment={index === 0}
-                        />
-                    </div>
-                ))}
+                {displayedSegments.map((segment, index: number) => {
+                    const mode = isFisheye && centerIndex !== null
+                        ? fisheyeModeForDistance(index - centerIndex)
+                        : 'focus';
+                    return (
+                        <div
+                            key={index}
+                            id={createSegmentId(index)}
+                            className="content-visibility-auto"
+                            role="listitem"
+                        >
+                            {mode === 'context' ? (
+                                <SegmentContext segment={segment} />
+                            ) : (
+                                <SpeakerSegment
+                                    segment={segment}
+                                    isFirstSegment={index === 0}
+                                />
+                            )}
+                        </div>
+                    );
+                })}
                 </div>
             </UtteranceContextMenu>
         </div>

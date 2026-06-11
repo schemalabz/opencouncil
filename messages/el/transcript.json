@@ -76,5 +76,15 @@
         "button": "Αντιγραφή τμήματος",
         "segmentCopied": "Το τμήμα αντιγράφηκε",
         "copySourceAttribution": "Αντιγράφηκε από το OpenCouncil · opencouncil.gr"
+    },
+    "viewModes": {
+        "toggleLabel": "Εναλλαγή προβολής fish-eye",
+        "default": "Προεπιλεγμένη προβολή",
+        "fisheye": "Προβολή fish-eye",
+        "expand": "Επέκταση τμήματος",
+        "collapse": "Σύμπτυξη",
+        "seekHere": "Μετάβαση εδώ",
+        "seekHereDetailed": "Μετάβαση σε {speaker} στις {time}",
+        "aiSummary": "Περίληψη από ΤΝ"
     }
 }
