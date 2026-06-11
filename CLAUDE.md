@@ -74,7 +74,7 @@ For deeper context on architecture, features, operations, and product specs, see
 ## Architecture Overview
 
 ### Technology Stack
-- **Framework**: Next.js 14 with App Router and TypeScript (strict mode)
+- **Framework**: Next.js 16 with App Router, React 19, and TypeScript (strict mode)
 - **Database**: PostgreSQL with PostGIS extension
 - **ORM**: Prisma with type-safe queries
 - **Authentication**: Auth.js (NextAuth v5) with Resend email provider
@@ -104,7 +104,8 @@ src/
 ├── contexts/        # React Context for shared state
 ├── hooks/           # Custom React hooks
 ├── types/           # TypeScript type definitions
-└── auth.ts          # Authentication setup
+├── auth.ts          # Authentication setup
+└── proxy.ts         # Request proxy (Next 16 rename of middleware.ts): basic auth, i18n routing, rewrites
 ```
 
 ### Data Access Patterns
@@ -153,7 +154,7 @@ OpenCouncil uses a **decoupled async job processing system**:
 - `transcribe.ts` - Audio transcription
 - `summarize.ts` - AI-generated summaries
 - `generateVoiceprint.ts` - Speaker voice recognition
-- `generatePodcast.ts` - Podcast generation
+- `generatePodcastSpec.ts` - Podcast generation
 - `tasks.ts` - Task orchestration
 
 **Discord Integration**: Admin alerts for task events via `DISCORD_WEBHOOK_URL`
