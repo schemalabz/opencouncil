@@ -378,9 +378,7 @@
         "regBodyLoggedIn": "We'll save these choices to your existing profile. This won't create a new account.",
         "regBodyAnon": "We'll use these details to save your preferences and send you notifications.",
         "summaryTitle": "Your selections",
-        "stillNeeded": "Still needed: {fields}",
-        "fieldName": "name",
-        "fieldEmail": "email",
+        "detailsSummary": "What does signing up for notifications mean?",
         "sendTiming": "We send a heads-up before a meeting and a follow-up after it."
     },
     "PersonForm": {

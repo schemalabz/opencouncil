@@ -26,12 +26,6 @@ interface UserInfoFormProps {
     requireName?: boolean;
     requireEmail?: boolean;
     requirePhone?: boolean;
-    /**
-     * Reports which required fields are still unfilled and editable by the user.
-     * Emits stable identifiers ('name' | 'email') so callers can localise labels.
-     * Disabled/prefilled fields (e.g. for logged-in users) are never reported.
-     */
-    onMissingRequiredChange?: (missing: Array<'name' | 'email'>) => void;
 }
 
 export function UserInfoForm({
@@ -44,7 +38,6 @@ export function UserInfoForm({
     requireName = true,
     requireEmail = true,
     requirePhone = false,
-    onMissingRequiredChange,
 }: UserInfoFormProps) {
     const { data: session, status: sessionStatus } = useSession();
     const [name, setName] = useState(initialData?.name || '');
@@ -78,31 +71,8 @@ export function UserInfoForm({
         }
     }, [initialData, isSubmitting]);
 
-    // Fields locked to the session value cannot be edited here, so they are
-    // never reported as "missing" even if somehow empty.
+    // The name field is locked (read-only) when prefilled from the session.
     const nameLocked = isLoggedIn && !!session?.user?.name;
-    const emailLocked = isLoggedIn;
-
-    // Report still-unfilled, editable required fields so the parent can surface
-    // them above the fold. Mirrors the submit validation below.
-    useEffect(() => {
-        if (!onMissingRequiredChange) return;
-        // While the session is still resolving, report nothing. Otherwise a
-        // logged-in user would see a brief "still needed" flash before the
-        // session loads and locks the prefilled name/email fields.
-        if (sessionStatus === 'loading') {
-            onMissingRequiredChange([]);
-            return;
-        }
-        const missing: Array<'name' | 'email'> = [];
-        if (showName && requireName && !nameLocked && !name.trim()) {
-            missing.push('name');
-        }
-        if (showEmail && requireEmail && !emailLocked && (!email.trim() || !validateEmail(email))) {
-            missing.push('email');
-        }
-        onMissingRequiredChange(missing);
-    }, [name, email, showName, showEmail, requireName, requireEmail, nameLocked, emailLocked, onMissingRequiredChange, sessionStatus]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
