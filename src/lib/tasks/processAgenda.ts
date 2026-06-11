@@ -37,6 +37,26 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
         throw new Error('Task not found');
     }
 
+    // A success result with an empty `subjects` array is a valid outcome:
+    // some agendas (e.g. λογοδοσία / accountability sessions) genuinely have no
+    // extractable subjects. The backend reports success with `{ subjects: [] }`,
+    // so this must NOT be treated as a failure.
+    //
+    // We distinguish two cases:
+    //   - subjects is an array (including []): authoritative result → replace.
+    //   - subjects missing/not an array: malformed/partial success payload →
+    //     skip destructive replacement to avoid silently wiping existing agenda
+    //     data, and do not throw (which would flip the succeeded task to failed).
+    if (!Array.isArray(response?.subjects)) {
+        console.warn(
+            `processAgenda result for task ${taskId} has no subjects array (got ${typeof response?.subjects}); ` +
+            `skipping subject replacement to avoid data loss. Task remains succeeded.`
+        );
+        return;
+    }
+
+    const subjects = response.subjects;
+
     // Delete existing subjects and auto-generated highlights before saving new ones.
     // This runs in the callback (not at dispatch time) so data is only deleted when
     // new results are ready to replace it — a failed dispatch won't cause data loss.
@@ -50,7 +70,7 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
     });
 
     await saveSubjectsForMeeting(
-        response.subjects,
+        subjects,
         task.councilMeeting.cityId,
         task.councilMeeting.id
     );
