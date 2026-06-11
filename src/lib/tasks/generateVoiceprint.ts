@@ -189,8 +189,10 @@ export async function requestGenerateVoiceprintForSegment(personId: string, segm
         throw new Error("Speaker segment not found");
     }
 
-    // Ensure the chosen segment actually belongs to this person
-    if (segment.speakerTag.personId !== personId) {
+    // Ensure the chosen segment actually belongs to this person. The speakerTag
+    // FK is required by the schema, but guard against a missing relation anyway so
+    // an unexpected null raises the ownership error rather than a bare TypeError.
+    if (!segment.speakerTag || segment.speakerTag.personId !== personId) {
         throw new Error("The selected segment does not belong to this person");
     }
 
