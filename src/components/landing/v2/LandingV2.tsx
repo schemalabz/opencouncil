@@ -117,8 +117,22 @@ function DateRangePill({ value, onChange }: { value: DateRangeKey; onChange: (v:
     );
 }
 
-/** A subject's HTML map marker: the badge button, its React root and the Mapbox handle. */
-type SubjectPin = { el: HTMLButtonElement; rootEl: HTMLDivElement; root: Root; marker: mapboxgl.Marker; subject: LandingSubject };
+/** Max individual pins in the viewport before nearby subjects merge into count circles. */
+const MAX_VISIBLE_PINS = 10;
+/** Screen-space grid cell (px) used to group subjects into clusters. */
+const CLUSTER_CELL_PX = 96;
+
+/**
+ * An HTML map marker handle: either a subject's icon badge (`subject` set, React
+ * root for the icon) or a cluster count circle (`subject` null, plain text).
+ */
+type SubjectPin = {
+    el: HTMLButtonElement;
+    rootEl: HTMLDivElement;
+    root: Root | null;
+    marker: mapboxgl.Marker;
+    subject: LandingSubject | null;
+};
 
 /**
  * Styles a map pin like the TopicChip badge, minus the label. Mapbox positions the
@@ -138,6 +152,16 @@ function stylePin({ el, rootEl }: { el: HTMLButtonElement; rootEl: HTMLDivElemen
     el.style.borderColor = selected ? '#171A20' : `${color}38`;
     el.style.borderWidth = selected ? '2px' : '1px';
     rootEl.style.zIndex = selected ? '2' : subject.hot ? '1' : '0';
+}
+
+/* cluster count circle — grows mildly with the number of grouped subjects */
+function styleCluster({ el, rootEl }: { el: HTMLButtonElement; rootEl: HTMLDivElement }, count: number) {
+    const size = Math.min(64, 38 + count * 2);
+    el.className =
+        'flex cursor-pointer items-center justify-center rounded-full border-2 border-white bg-[hsl(var(--orange))] text-sm font-bold text-white shadow-lg transition-transform hover:scale-105';
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
+    rootEl.style.zIndex = '3';
 }
 
 /** Props shared by the desktop and mobile layouts. */
@@ -305,40 +329,100 @@ export function LandingV2() {
     const selectSubjectRef = useRef(selectSubject);
     selectSubjectRef.current = selectSubject;
 
-    // Build one icon-badge marker per visible subject; rebuilt when the topic
-    // filter (or the fetched data) changes the visible set.
+    // Re-cluster after every pan/zoom (moveend also fires at the end of a zoom).
+    const [viewVersion, setViewVersion] = useState(0);
     useEffect(() => {
         if (!mapInstance) return;
-        const pins: SubjectPin[] = visibleSubjects.map((s) => {
+        const bump = () => setViewVersion((v) => v + 1);
+        mapInstance.on('moveend', bump);
+        return () => {
+            mapInstance.off('moveend', bump);
+        };
+    }, [mapInstance]);
+
+    // Build the map markers: individual icon badges when the viewport holds at most
+    // MAX_VISIBLE_PINS subjects, otherwise nearby subjects merge into count circles
+    // (screen-space grid) that zoom into their members on click.
+    useEffect(() => {
+        if (!mapInstance) return;
+
+        const bounds = mapInstance.getBounds();
+        const inViewCount = bounds
+            ? visibleSubjects.filter((s) => bounds.contains([s.lng, s.lat])).length
+            : visibleSubjects.length;
+
+        let groups: LandingSubject[][];
+        if (inViewCount > MAX_VISIBLE_PINS) {
+            const cells: Record<string, LandingSubject[]> = {};
+            for (const s of visibleSubjects) {
+                const p = mapInstance.project([s.lng, s.lat]);
+                const key = `${Math.floor(p.x / CLUSTER_CELL_PX)}:${Math.floor(p.y / CLUSTER_CELL_PX)}`;
+                (cells[key] ??= []).push(s);
+            }
+            groups = Object.values(cells);
+        } else {
+            groups = visibleSubjects.map((s) => [s]);
+        }
+
+        const pins: SubjectPin[] = groups.map((members) => {
             const rootEl = document.createElement('div');
             const el = document.createElement('button');
             el.type = 'button';
-            el.setAttribute('aria-label', s.title);
             rootEl.appendChild(el);
-            stylePin({ el, rootEl }, s, s.id === selectedIdRef.current);
+
+            if (members.length === 1) {
+                const s = members[0];
+                el.setAttribute('aria-label', s.title);
+                stylePin({ el, rootEl }, s, s.id === selectedIdRef.current);
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    selectSubjectRef.current(s.id);
+                });
+                const root = createRoot(el);
+                root.render(<Icon name={s.topic.icon || 'hash'} color={s.topic.color} size={s.hot ? 18 : 14} />);
+                const marker = new mapboxgl.Marker({ element: rootEl }).setLngLat([s.lng, s.lat]).addTo(mapInstance);
+                return { el, rootEl, root, marker, subject: s };
+            }
+
+            // cluster circle — click zooms into its members; re-clustering happens on moveend
+            el.setAttribute('aria-label', `${members.length} θέματα — μεγέθυνση`);
+            el.textContent = String(members.length);
+            styleCluster({ el, rootEl }, members.length);
             el.addEventListener('click', (e) => {
                 e.stopPropagation();
-                selectSubjectRef.current(s.id);
+                const b = new mapboxgl.LngLatBounds();
+                members.forEach((m) => b.extend([m.lng, m.lat]));
+                const ne = b.getNorthEast();
+                const sw = b.getSouthWest();
+                // degenerate bounds (members on one spot) → plain zoom-in instead
+                if (Math.abs(ne.lng - sw.lng) < 1e-6 && Math.abs(ne.lat - sw.lat) < 1e-6) {
+                    mapInstance.easeTo({ center: b.getCenter(), zoom: mapInstance.getZoom() + 2 });
+                } else {
+                    mapInstance.fitBounds(b, { padding: 100, maxZoom: 16 });
+                }
             });
-            const root = createRoot(el);
-            root.render(<Icon name={s.topic.icon || 'hash'} color={s.topic.color} size={s.hot ? 18 : 14} />);
-            const marker = new mapboxgl.Marker({ element: rootEl }).setLngLat([s.lng, s.lat]).addTo(mapInstance);
-            return { el, rootEl, root, marker, subject: s };
+            const centerLng = members.reduce((sum, m) => sum + m.lng, 0) / members.length;
+            const centerLat = members.reduce((sum, m) => sum + m.lat, 0) / members.length;
+            const marker = new mapboxgl.Marker({ element: rootEl }).setLngLat([centerLng, centerLat]).addTo(mapInstance);
+            return { el, rootEl, root: null, marker, subject: null };
         });
+
         pinsRef.current = pins;
         return () => {
             pinsRef.current = [];
             pins.forEach(({ marker, root }) => {
                 marker.remove();
                 // unmount async — React forbids unmounting a root mid-commit
-                setTimeout(() => root.unmount(), 0);
+                if (root) setTimeout(() => root.unmount(), 0);
             });
         };
-    }, [mapInstance, visibleSubjects]);
+    }, [mapInstance, visibleSubjects, viewVersion]);
 
-    // Selection restyles the existing markers in place (no rebuild).
+    // Selection restyles the existing subject markers in place (no rebuild).
     useEffect(() => {
-        pinsRef.current.forEach((pin) => stylePin(pin, pin.subject, pin.subject.id === selectedId));
+        pinsRef.current.forEach((pin) => {
+            if (pin.subject) stylePin(pin, pin.subject, pin.subject.id === selectedId);
+        });
     }, [selectedId]);
 
     const mapNode = (
