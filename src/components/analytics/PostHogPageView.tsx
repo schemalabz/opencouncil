@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import posthog from "posthog-js";
+import { EMBED_PATH } from "@/lib/utils/embed";
 
 // Captures $pageview manually (automatic capture is disabled in
 // instrumentation-client.ts) so that every pageview carries `logged_in`.
@@ -20,7 +21,10 @@ export default function PostHogPageView() {
     const lastUrl = useRef<string | null>(null);
 
     useEffect(() => {
-        if (!posthog.__loaded || status === "loading" || !pathname) return;
+        // EMBED_PATH: init-time exclusion covers embeds loaded as documents
+        // (iframes), but client-side navigation onto an embed route keeps
+        // posthog alive — don't count those as pageviews either.
+        if (!posthog.__loaded || status === "loading" || !pathname || EMBED_PATH.test(pathname)) return;
 
         const search = searchParams?.toString();
         const url = window.origin + pathname + (search ? `?${search}` : "");
