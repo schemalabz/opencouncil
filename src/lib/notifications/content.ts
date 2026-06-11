@@ -78,7 +78,7 @@ export async function generateSmsContent(notification: NotificationData): Promis
 
     // Announcement-only notification: the meeting has no agenda items (e.g. Λογοδοσία).
     // Announce the upcoming session without referencing a subject count.
-    if (subjectCount === 0) {
+    if (subjectCount === 0 && notification.type === 'beforeMeeting') {
         return `${notification.city.name_municipality} - ${adminBody} στις ${meetingDateFormatted}. Δείτε περισσότερα: ${notificationUrl}`;
     }
 
