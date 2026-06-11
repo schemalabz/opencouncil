@@ -12,6 +12,10 @@ export interface UserInfoFormData {
     phone?: string;
 }
 
+// Module-level so the reference is stable across renders (no exhaustive-deps
+// churn when used inside effects). Pure: depends only on its argument.
+const validateEmail = (email: string) => /.+@.+\..+/.test(email);
+
 interface UserInfoFormProps {
     onSubmit: (data: UserInfoFormData) => void;
     initialData?: UserInfoFormData;
@@ -67,9 +71,8 @@ export function UserInfoForm({
         }
     }, [initialData, isSubmitting]);
 
-    const validateEmail = (email: string) => {
-        return /.+@.+\..+/.test(email);
-    };
+    // The name field is locked (read-only) when prefilled from the session.
+    const nameLocked = isLoggedIn && !!session?.user?.name;
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -122,13 +125,12 @@ export function UserInfoForm({
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder="Εισάγετε το ονοματεπώνυμό σας"
-                            disabled={isLoggedIn && !!session?.user?.name}
+                            disabled={nameLocked}
                             className={cn(
                                 "text-base md:text-sm",
-                                isLoggedIn && !!session?.user?.name ?
-                                    "bg-gray-100 text-gray-700 cursor-not-allowed" : ""
+                                nameLocked ? "bg-gray-100 text-gray-700 cursor-not-allowed" : ""
                             )}
-                            readOnly={isLoggedIn && !!session?.user?.name}
+                            readOnly={nameLocked}
                         />
                     </div>
                     {isLoggedIn && session?.user?.name && (
