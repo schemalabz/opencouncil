@@ -344,7 +344,7 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
                                                 ) : (
                                                     <>
                                                         <p className='text-xs text-slate-500'>
-                                                            Pick the segment with the clearest audio. A 30-second window
+                                                            Pick the segment with the clearest audio. A {VOICEPRINT_DURATION}-second window
                                                             centered on the segment will be used.
                                                         </p>
                                                         <ul className='max-h-[45vh] space-y-2 overflow-y-auto pr-1'>
