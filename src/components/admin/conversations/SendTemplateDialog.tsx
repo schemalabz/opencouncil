@@ -33,7 +33,7 @@ import {
     listMeetingsForTest,
     type CityOption,
     type MeetingOption,
-} from '@/app/[locale]/(other)/admin/conversations/actions';
+} from '@/app/[locale]/(admin)/admin/conversations/actions';
 import type { SendStatus } from './types';
 
 /**

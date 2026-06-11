@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { PlusIcon } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Pagination } from "@/components/ui/pagination"
+import { PlusIcon, Search } from "lucide-react"
 import { useState, useEffect } from "react"
 import { UserDialog } from "@/components/admin/users/user-dialog"
 import { toast } from "@/hooks/use-toast"
@@ -15,6 +17,8 @@ import { ExpandableUserRow } from "@/components/admin/users/expandable-user-row"
 import { IS_DEV } from '@/lib/utils'
 import { UserWithRelations } from "@/lib/db/users"
 
+const PAGE_SIZE = 20
+
 export default function UsersPage() {
     const [users, setUsers] = useState<UserWithRelations[]>([])
     const [dialogOpen, setDialogOpen] = useState(false)
@@ -23,7 +27,8 @@ export default function UsersPage() {
     const [loading, setLoading] = useState(true)
     const [deleting, setDeleting] = useState(false)
     const [resendingInvite, setResendingInvite] = useState<string | null>(null)
-    const [dateRange, setDateRange] = useState("30")
+    const [searchQuery, setSearchQuery] = useState("")
+    const [page, setPage] = useState(1)
 
     // Calculate enhanced stats
     const totalUsers = users.length
@@ -40,6 +45,19 @@ export default function UsersPage() {
     
     const newUsersThisWeek = users.filter(user => new Date(user.createdAt) >= weekAgo).length
     const newUsersThisMonth = users.filter(user => new Date(user.createdAt) >= monthAgo).length
+
+    // Search + client-side pagination for the users table
+    const query = searchQuery.trim().toLowerCase()
+    const filteredUsers = query
+        ? users.filter(user =>
+            user.name?.toLowerCase().includes(query) ||
+            user.email.toLowerCase().includes(query))
+        : users
+    const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE))
+    // Clamp instead of resetting via effect so deletions and narrowing
+    // searches can't leave us on a page that no longer exists.
+    const currentPage = Math.min(page, totalPages)
+    const pagedUsers = filteredUsers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
     async function refreshUsers() {
         try {
@@ -166,11 +184,7 @@ export default function UsersPage() {
             </div>
 
             {/* Analytics Dashboard */}
-            <AnalyticsDashboard
-                users={users}
-                dateRange={dateRange} 
-                onDateRangeChange={setDateRange} 
-            />
+            <AnalyticsDashboard users={users} />
 
             {/* Enhanced User Stats */}
             <UserStats
@@ -186,7 +200,21 @@ export default function UsersPage() {
             {/* Enhanced Users Table with Expandable Rows */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Users</CardTitle>
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                        <CardTitle>Users ({filteredUsers.length})</CardTitle>
+                        <div className="relative w-full sm:w-72">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search by name or email"
+                                value={searchQuery}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value)
+                                    setPage(1)
+                                }}
+                                className="pl-8"
+                            />
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -202,17 +230,31 @@ export default function UsersPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {users.map((user) => (
-                                <ExpandableUserRow
-                                    key={user.id}
-                                    user={user}
-                                    onEdit={onEditUser}
-                                    onResendInvite={onResendInvite}
-                                    resendingInvite={resendingInvite}
-                                />
-                            ))}
+                            {pagedUsers.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                                        {query ? "No users match your search." : "No users yet."}
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                pagedUsers.map((user) => (
+                                    <ExpandableUserRow
+                                        key={user.id}
+                                        user={user}
+                                        onEdit={onEditUser}
+                                        onResendInvite={onResendInvite}
+                                        resendingInvite={resendingInvite}
+                                    />
+                                ))
+                            )}
                         </TableBody>
                     </Table>
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        pageSize={PAGE_SIZE}
+                        onPageChange={setPage}
+                    />
                 </CardContent>
             </Card>
 
