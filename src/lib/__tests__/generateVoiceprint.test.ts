@@ -1,3 +1,11 @@
+import {
+    getCandidateSegmentsForVoiceprint,
+    requestGenerateVoiceprintForSegment,
+} from "@/lib/actions/voiceprints";
+import { computeVoiceprintWindow } from "@/lib/tasks/voiceprintWindow";
+
+jest.mock("server-only", () => ({}));
+
 // Mock Prisma client
 const mockPrisma = {
     person: {
@@ -12,27 +20,38 @@ const mockPrisma = {
     },
 };
 
-jest.mock("../db/prisma", () => ({
+jest.mock("@/lib/db/prisma", () => ({
     __esModule: true,
-    default: mockPrisma,
+    default: {
+        person: {
+            findUnique: (...args: unknown[]) => mockPrisma.person.findUnique(...args),
+        },
+        speakerSegment: {
+            findUnique: (...args: unknown[]) => mockPrisma.speakerSegment.findUnique(...args),
+            findMany: (...args: unknown[]) => mockPrisma.speakerSegment.findMany(...args),
+        },
+        utterance: {
+            findMany: (...args: unknown[]) => mockPrisma.utterance.findMany(...args),
+        },
+    },
 }));
 
 // Mock auth module
 const mockWithUserAuthorizedToEdit = jest.fn();
-jest.mock("../auth", () => ({
+jest.mock("@/lib/auth", () => ({
     withUserAuthorizedToEdit: (...args: unknown[]) => mockWithUserAuthorizedToEdit(...args),
     isUserAuthorizedToEdit: jest.fn(),
 }));
 
 // Mock task dispatch
 const mockStartTask = jest.fn();
-jest.mock("../tasks/tasks", () => ({
+jest.mock("@/lib/tasks/tasks", () => ({
     startTask: (...args: unknown[]) => mockStartTask(...args),
 }));
 
 // Mock meeting lookup
 const mockGetCouncilMeeting = jest.fn();
-jest.mock("../db/meetings", () => ({
+jest.mock("@/lib/db/meetings", () => ({
     getCouncilMeeting: (...args: unknown[]) => mockGetCouncilMeeting(...args),
 }));
 
@@ -41,15 +60,21 @@ jest.mock("@/lib/db/voiceprintsCreate", () => ({
     createVoicePrintDirect: jest.fn(),
 }));
 
-import {
-    getCandidateSegmentsForVoiceprint,
-    requestGenerateVoiceprintForSegment,
-} from "../tasks/generateVoiceprint";
-import { computeVoiceprintWindow } from "../tasks/voiceprintWindow";
-
 const PERSON_ID = "person-1";
 const CITY_ID = "city-1";
 const MEETING_ID = "meeting-1";
+const TAG_CREATED_AT = new Date("2026-10-01T12:00:00Z");
+
+function sourceTag(personSetBy: string, reviewDates: Date[] = []) {
+    return {
+        id: "tag-1",
+        personId: PERSON_ID,
+        personSetBy,
+        createdAt: TAG_CREATED_AT,
+        speakerSegments: [{ meeting: { taskStatuses: reviewDates.map(createdAt => ({ createdAt })) } }],
+    };
+}
+
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -58,7 +83,7 @@ beforeEach(() => {
 
 describe("getCandidateSegmentsForVoiceprint", () => {
     it("filters out short segments, sorts longest-first, and builds previews", async () => {
-        mockPrisma.person.findUnique.mockResolvedValue({ cityId: CITY_ID });
+        mockPrisma.person.findUnique.mockResolvedValue({ cityId: CITY_ID, city: { timezone: "America/New_York" }, speakerTags: [sourceTag("user")] });
         // First pass: segment scan without transcripts.
         mockPrisma.speakerSegment.findMany.mockResolvedValue([
             {
@@ -111,8 +136,16 @@ describe("getCandidateSegmentsForVoiceprint", () => {
         const result = await getCandidateSegmentsForVoiceprint(PERSON_ID);
 
         expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: CITY_ID });
+        // The segment scan must be scoped to the person's city so a caller can't
+        // read transcript content from cities they aren't authorized for.
+        expect(mockPrisma.speakerSegment.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: expect.objectContaining({ cityId: CITY_ID }),
+            }),
+        );
         expect(result.map(c => c.segmentId)).toEqual(["seg-long", "seg-medium"]);
         expect(result[0].duration).toBe(90);
+        expect(result[0].meetingTimezone).toBe("America/New_York");
 
         // windowText is only the utterances inside the centered 30s window;
         // fullText is the whole segment
@@ -128,6 +161,77 @@ describe("getCandidateSegmentsForVoiceprint", () => {
         expect(result[0].previewEndTimestamp).toBe(260);
         expect(result[1].previewStartTimestamp).toBe(107.5);
         expect(result[1].previewEndTimestamp).toBe(137.5);
+    });
+
+    it.each([
+        ["no review", []],
+        ["an older review", [new Date("2026-10-01T11:59:59Z")]],
+        ["a review at tag creation", [TAG_CREATED_AT]],
+    ])("excludes transcript sources with %s before fetching segments or transcripts", async (_name, reviewDates) => {
+        mockPrisma.person.findUnique.mockResolvedValue({
+            cityId: CITY_ID,
+            city: { timezone: "Europe/Athens" },
+            speakerTags: [sourceTag("transcript", reviewDates as Date[])],
+        });
+
+        await expect(getCandidateSegmentsForVoiceprint(PERSON_ID)).resolves.toEqual([]);
+        expect(mockPrisma.speakerSegment.findMany).not.toHaveBeenCalled();
+        expect(mockPrisma.utterance.findMany).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ["a reviewed transcript source", "transcript", [new Date("2026-10-01T12:00:01Z")]],
+        ["a reviewer-assigned source without a review", "user", []],
+        ["a voiceprint source without a review", "voiceprint", []],
+        ["a jointly assigned source without a review", "both", []],
+    ])("lists only eligible tag IDs for %s", async (_name, personSetBy, reviewDates) => {
+        mockPrisma.person.findUnique.mockResolvedValue({
+            cityId: CITY_ID,
+            city: { timezone: "Europe/Athens" },
+            speakerTags: [
+                sourceTag(personSetBy as string, reviewDates as Date[]),
+                { ...sourceTag("transcript"), id: "unreviewed-tag" },
+            ],
+        });
+        mockPrisma.speakerSegment.findMany.mockResolvedValue([{
+            id: "eligible-segment",
+            meetingId: MEETING_ID,
+            cityId: CITY_ID,
+            startTimestamp: 0,
+            endTimestamp: 60,
+            meeting: { name: "Meeting", name_en: "Meeting", dateTime: TAG_CREATED_AT, audioUrl: "http://audio" },
+        }]);
+        mockPrisma.utterance.findMany.mockResolvedValue([]);
+
+        const candidates = await getCandidateSegmentsForVoiceprint(PERSON_ID);
+
+        expect(candidates.map(candidate => candidate.segmentId)).toEqual(["eligible-segment"]);
+        expect(mockPrisma.speakerSegment.findMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: expect.objectContaining({
+                cityId: CITY_ID,
+                speakerTag: { personId: PERSON_ID, id: { in: ["tag-1"] } },
+            }),
+        }));
+    });
+
+    it("derives candidate labels from meeting facts when legacy names are null", async () => {
+        mockPrisma.person.findUnique.mockResolvedValue({
+            cityId: CITY_ID, city: { timezone: "Europe/Athens" }, speakerTags: [sourceTag("user")],
+        });
+        mockPrisma.speakerSegment.findMany.mockResolvedValue([{
+            id: "seg-1", cityId: CITY_ID, meetingId: MEETING_ID, startTimestamp: 0, endTimestamp: 60,
+            meeting: {
+                name: null, name_en: null, kind: "ordinary", urgent: false, sessionNumber: 3,
+                administrativeBody: { name: "Συμβούλιο", name_en: "Council" },
+                dateTime: TAG_CREATED_AT, audioUrl: "http://audio", videoUrl: null,
+            },
+        }]);
+        mockPrisma.utterance.findMany.mockResolvedValue([]);
+
+        const [candidate] = await getCandidateSegmentsForVoiceprint(PERSON_ID);
+
+        expect(candidate.meetingName).toBe("Συμβούλιο · 3η Τακτική");
+        expect(candidate.meetingNameEn).toBe("Council · 3rd Regular");
     });
 
     it("throws when the person does not exist", async () => {
@@ -159,6 +263,100 @@ describe("computeVoiceprintWindow", () => {
 });
 
 describe("requestGenerateVoiceprintForSegment", () => {
+    it("rejects a stale picker submission after a reviewed tag is replaced by an unreviewed transcript tag", async () => {
+        mockPrisma.person.findUnique.mockResolvedValue({
+            cityId: CITY_ID,
+            city: { timezone: "Europe/Athens" },
+            speakerTags: [sourceTag("transcript", [new Date("2026-10-01T12:00:01Z")])],
+        });
+        mockPrisma.speakerSegment.findMany.mockResolvedValue([{
+            id: "seg-1", cityId: CITY_ID, meetingId: MEETING_ID, startTimestamp: 0, endTimestamp: 60,
+            meeting: { name: "Meeting", name_en: "Meeting", dateTime: TAG_CREATED_AT, audioUrl: "http://audio" },
+        }]);
+        mockPrisma.utterance.findMany.mockResolvedValue([]);
+        expect(await getCandidateSegmentsForVoiceprint(PERSON_ID)).toHaveLength(1);
+
+        mockPrisma.speakerSegment.findUnique.mockResolvedValue({
+            id: "seg-1", cityId: CITY_ID, meetingId: MEETING_ID, startTimestamp: 0, endTimestamp: 60,
+            speakerTag: sourceTag("transcript"),
+        });
+
+        await expect(requestGenerateVoiceprintForSegment(PERSON_ID, "seg-1")).rejects.toThrow(/requires a completed human review/);
+        expect(mockGetCouncilMeeting).not.toHaveBeenCalled();
+        expect(mockStartTask).not.toHaveBeenCalled();
+    });
+
+    it("allows a transcript source reviewed after its tag was created", async () => {
+        mockPrisma.speakerSegment.findUnique.mockResolvedValue({
+            id: "seg-1", cityId: CITY_ID, meetingId: MEETING_ID, startTimestamp: 0, endTimestamp: 60,
+            speakerTag: sourceTag("transcript", [new Date("2026-10-01T12:00:01Z")]),
+        });
+        mockGetCouncilMeeting.mockResolvedValue({ audioUrl: "http://audio", videoUrl: null });
+        mockStartTask.mockResolvedValue({ id: "task-1" });
+
+        await expect(requestGenerateVoiceprintForSegment(PERSON_ID, "seg-1")).resolves.toEqual({ id: "task-1" });
+        expect(mockStartTask).toHaveBeenCalledTimes(1);
+        expect(mockPrisma.speakerSegment.findUnique).toHaveBeenCalledWith({
+            where: { id: "seg-1" },
+            include: { speakerTag: { select: {
+                personId: true,
+                personSetBy: true,
+                createdAt: true,
+                speakerSegments: { select: { meeting: { select: { taskStatuses: {
+                    where: { type: "humanReview", status: "succeeded" },
+                    select: { createdAt: true },
+                } } } } },
+            } } },
+        });
+    });
+
+    it("rejects a foreign person's segment even when the segment's city is authorized", async () => {
+        mockPrisma.speakerSegment.findUnique.mockResolvedValue({
+            id: "seg-1",
+            cityId: CITY_ID,
+            meetingId: MEETING_ID,
+            startTimestamp: 0,
+            endTimestamp: 60,
+            speakerTag: sourceTag("user"),
+        });
+        mockGetCouncilMeeting.mockResolvedValue({ audioUrl: "http://audio", videoUrl: null });
+        mockStartTask.mockResolvedValue({ id: "task-1" });
+        mockWithUserAuthorizedToEdit.mockImplementation(async (scope: { personId?: string }) => {
+            if (scope.personId === PERSON_ID) {
+                throw new Error("Not authorized");
+            }
+        });
+
+        await expect(requestGenerateVoiceprintForSegment(PERSON_ID, "seg-1")).rejects.toThrow("Not authorized");
+        expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ personId: PERSON_ID });
+        expect(mockGetCouncilMeeting).not.toHaveBeenCalled();
+        expect(mockStartTask).not.toHaveBeenCalled();
+    });
+
+    it("rejects an unauthorized segment city even when the person is authorized", async () => {
+        mockPrisma.speakerSegment.findUnique.mockResolvedValue({
+            id: "seg-1",
+            cityId: "foreign-city",
+            meetingId: MEETING_ID,
+            startTimestamp: 0,
+            endTimestamp: 60,
+            speakerTag: sourceTag("user"),
+        });
+        mockGetCouncilMeeting.mockResolvedValue({ audioUrl: "http://audio", videoUrl: null });
+        mockStartTask.mockResolvedValue({ id: "task-1" });
+        mockWithUserAuthorizedToEdit.mockImplementation(async (scope: { cityId?: string }) => {
+            if (scope.cityId === "foreign-city") {
+                throw new Error("Not authorized");
+            }
+        });
+
+        await expect(requestGenerateVoiceprintForSegment(PERSON_ID, "seg-1")).rejects.toThrow("Not authorized");
+        expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ personId: PERSON_ID });
+        expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: "foreign-city" });
+        expect(mockGetCouncilMeeting).not.toHaveBeenCalled();
+        expect(mockStartTask).not.toHaveBeenCalled();
+    });
+
     it("rejects a segment that does not belong to the person", async () => {
         mockPrisma.speakerSegment.findUnique.mockResolvedValue({
             id: "seg-1",
@@ -182,7 +380,7 @@ describe("requestGenerateVoiceprintForSegment", () => {
             meetingId: MEETING_ID,
             startTimestamp: 0,
             endTimestamp: 10, // 10s < 30s
-            speakerTag: { personId: PERSON_ID },
+            speakerTag: sourceTag("user"),
         });
 
         await expect(requestGenerateVoiceprintForSegment(PERSON_ID, "seg-1")).rejects.toThrow(/too short/);
@@ -196,7 +394,7 @@ describe("requestGenerateVoiceprintForSegment", () => {
             meetingId: MEETING_ID,
             startTimestamp: 100,
             endTimestamp: 200, // 100s, midpoint 150
-            speakerTag: { personId: PERSON_ID },
+            speakerTag: sourceTag("user"),
         });
         mockGetCouncilMeeting.mockResolvedValue({ audioUrl: "http://audio", videoUrl: null });
         mockStartTask.mockResolvedValue({ id: "task-1" });
@@ -204,6 +402,7 @@ describe("requestGenerateVoiceprintForSegment", () => {
         const task = await requestGenerateVoiceprintForSegment(PERSON_ID, "seg-1");
 
         expect(task).toEqual({ id: "task-1" });
+        expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ personId: PERSON_ID });
         expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: CITY_ID });
         expect(mockStartTask).toHaveBeenCalledWith(
             "generateVoiceprint",
