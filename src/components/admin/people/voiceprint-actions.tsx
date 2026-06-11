@@ -333,7 +333,7 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
                                                             Pick the segment with the clearest audio. A 30-second window
                                                             centered on the segment will be used.
                                                         </p>
-                                                        <ul className='space-y-2'>
+                                                        <ul className='max-h-[45vh] space-y-2 overflow-y-auto pr-1'>
                                                             {candidates.map(candidate => {
                                                                 const isSelected =
                                                                     selectedSegmentId === candidate.segmentId;
@@ -368,12 +368,33 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
                                                                                     candidate.startTimestamp,
                                                                                 )}
                                                                             </div>
-                                                                            {candidate.textPreview && (
-                                                                                <p className='mt-1 line-clamp-2 text-xs text-slate-600'>
-                                                                                    {candidate.textPreview}
+                                                                            {candidate.windowText && (
+                                                                                <p className='mt-1 text-xs text-slate-600'>
+                                                                                    {candidate.windowText}
                                                                                 </p>
                                                                             )}
                                                                         </button>
+                                                                        {candidate.mediaUrl && (
+                                                                            <audio
+                                                                                controls
+                                                                                preload='none'
+                                                                                src={`${candidate.mediaUrl}#t=${candidate.previewStartTimestamp},${candidate.previewEndTimestamp}`}
+                                                                                className='mt-1 h-8 w-full'
+                                                                                aria-label={`Προεπισκόπηση ήχου για ${candidate.meetingName}`}
+                                                                            >
+                                                                                Your browser does not support audio playback.
+                                                                            </audio>
+                                                                        )}
+                                                                        {candidate.fullText && (
+                                                                            <details className='mt-1'>
+                                                                                <summary className='cursor-pointer text-xs text-slate-500 hover:text-slate-700'>
+                                                                                    Όλο το κείμενο του τμήματος
+                                                                                </summary>
+                                                                                <p className='mt-1 max-h-32 overflow-y-auto whitespace-pre-wrap rounded-md bg-slate-50 p-2 text-xs text-slate-600'>
+                                                                                    {candidate.fullText}
+                                                                                </p>
+                                                                            </details>
+                                                                        )}
                                                                     </li>
                                                                 );
                                                             })}

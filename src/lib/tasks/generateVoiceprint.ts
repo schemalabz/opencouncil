@@ -7,8 +7,7 @@ import { startTask } from "./tasks";
 import { GenerateVoiceprintRequest, GenerateVoiceprintResult } from "../apiTypes";
 import { SpeakerSegment } from "@prisma/client";
 import { createVoicePrint } from "@/lib/db/voiceprints";
-
-const VOICEPRINT_DURATION = 30;
+import { VOICEPRINT_DURATION, computeVoiceprintWindow } from "@/lib/tasks/voiceprintWindow";
 
 /**
  * Find all people in a city who are eligible for voiceprint generation
@@ -134,13 +133,11 @@ async function dispatchVoiceprintTaskForSegment(personId: string, segment: Speak
         throw new Error("Meeting media URL not found");
     }
 
-    // Calculate a segment centered on the midpoint
-    const segmentMidpoint = segment.startTimestamp + segmentDuration / 2;
-
-    // Take VOICEPRINT_DURATION seconds centered on the midpoint, ensuring we stay within segment bounds
-    const halfDuration = VOICEPRINT_DURATION / 2;
-    const startTimestamp = Math.max(segment.startTimestamp, segmentMidpoint - halfDuration);
-    const endTimestamp = Math.min(segment.endTimestamp, startTimestamp + VOICEPRINT_DURATION);
+    // Take a VOICEPRINT_DURATION window centered on the segment, clamped to its bounds
+    const { startTimestamp, endTimestamp } = computeVoiceprintWindow(
+        segment.startTimestamp,
+        segment.endTimestamp,
+    );
 
     // Create the request
     const request: Omit<GenerateVoiceprintRequest, "callbackUrl"> = {
@@ -263,11 +260,14 @@ export interface VoiceprintCandidateSegment {
     startTimestamp: number;
     endTimestamp: number;
     duration: number; // seconds
-    textPreview: string; // first chunk of the transcript for this segment
+    mediaUrl: string | null; // meeting audio/video URL for audio preview, if available
+    previewStartTimestamp: number; // start of the 30s window the voiceprint will use (seconds)
+    previewEndTimestamp: number; // end of the 30s window the voiceprint will use (seconds)
+    windowText: string; // transcript of the centered 30s window — what the admin actually hears
+    fullText: string; // full transcript of the segment — shown on demand for fuller context
 }
 
 const MAX_VOICEPRINT_CANDIDATES = 5;
-const TEXT_PREVIEW_MAX_LENGTH = 240;
 
 /**
  * Return the top candidate speaker segments for manual voiceprint selection.
@@ -301,11 +301,11 @@ export async function getCandidateSegmentsForVoiceprint(personId: string): Promi
             startTimestamp: true,
             endTimestamp: true,
             meeting: {
-                select: { name: true, name_en: true, dateTime: true },
+                select: { name: true, name_en: true, dateTime: true, audioUrl: true, videoUrl: true },
             },
             utterances: {
                 orderBy: { startTimestamp: "asc" },
-                select: { text: true },
+                select: { text: true, startTimestamp: true, endTimestamp: true },
             },
         },
     });
@@ -313,11 +313,25 @@ export async function getCandidateSegmentsForVoiceprint(personId: string): Promi
     return segments
         .map(segment => {
             const duration = segment.endTimestamp - segment.startTimestamp;
+
+            // Same media URL the dispatch uses, so the admin previews exactly what
+            // the voiceprint job will consume.
+            const mediaUrl = segment.meeting.audioUrl || segment.meeting.videoUrl || null;
+            const previewWindow = computeVoiceprintWindow(segment.startTimestamp, segment.endTimestamp);
+
+            // windowText is the transcript of the centered 30s window the voiceprint
+            // uses — i.e. what the admin hears in the audio preview, so they can read
+            // along. fullText is the whole segment, shown on demand.
+            const windowText = segment.utterances
+                .filter(
+                    u =>
+                        u.startTimestamp < previewWindow.endTimestamp &&
+                        u.endTimestamp > previewWindow.startTimestamp,
+                )
+                .map(u => u.text)
+                .join(" ")
+                .trim();
             const fullText = segment.utterances.map(u => u.text).join(" ").trim();
-            const textPreview =
-                fullText.length > TEXT_PREVIEW_MAX_LENGTH
-                    ? `${fullText.slice(0, TEXT_PREVIEW_MAX_LENGTH).trimEnd()}…`
-                    : fullText;
 
             return {
                 segmentId: segment.id,
@@ -329,7 +343,11 @@ export async function getCandidateSegmentsForVoiceprint(personId: string): Promi
                 startTimestamp: segment.startTimestamp,
                 endTimestamp: segment.endTimestamp,
                 duration,
-                textPreview,
+                mediaUrl,
+                previewStartTimestamp: previewWindow.startTimestamp,
+                previewEndTimestamp: previewWindow.endTimestamp,
+                windowText,
+                fullText,
             };
         })
         .filter(candidate => candidate.duration >= VOICEPRINT_DURATION)
