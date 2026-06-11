@@ -20,6 +20,7 @@ import {
     getCandidateSegmentsForVoiceprint,
     type VoiceprintCandidateSegment,
 } from "@/lib/tasks/generateVoiceprint";
+import { VOICEPRINT_DURATION } from "@/lib/tasks/voiceprintWindow";
 import { deleteTaskStatus, getVoiceprintTasksForPerson } from "@/lib/db/tasks";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
@@ -48,6 +49,19 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
     const [candidatesLoaded, setCandidatesLoaded] = useState(false);
     const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
     const { toast } = useToast();
+
+    // Reset the manual picker whenever the dialog closes so reopening starts clean
+    // (no stale candidates expanded, no previously highlighted segment that could be
+    // generated from by accident).
+    const handleDialogOpenChange = useCallback((open: boolean) => {
+        setIsDialogOpen(open);
+        if (!open) {
+            setIsManualOpen(false);
+            setSelectedSegmentId(null);
+            setCandidates([]);
+            setCandidatesLoaded(false);
+        }
+    }, []);
 
     const fetchTaskStatuses = useCallback(async () => {
         try {
@@ -238,7 +252,7 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
     const canGenerateVoiceprint = !voicePrint && !latestPendingTask;
 
     return (
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
             <DialogTrigger asChild>
                 <Button variant='outline' size='sm' className={voicePrint ? "border-blue-300 text-blue-700" : ""}>
                     <Volume2 className='mr-2 h-4 w-4' />
@@ -325,7 +339,7 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
                                                     </div>
                                                 ) : candidates.length === 0 ? (
                                                     <p className='text-sm text-slate-600'>
-                                                        No segments of at least 30 seconds are available for this person.
+                                                        No segments of at least {VOICEPRINT_DURATION} seconds are available for this person.
                                                     </p>
                                                 ) : (
                                                     <>
@@ -380,7 +394,7 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
                                                                                 preload='none'
                                                                                 src={`${candidate.mediaUrl}#t=${candidate.previewStartTimestamp},${candidate.previewEndTimestamp}`}
                                                                                 className='mt-1 h-8 w-full'
-                                                                                aria-label={`Προεπισκόπηση ήχου για ${candidate.meetingName}`}
+                                                                                aria-label={`Audio preview for ${candidate.meetingName}`}
                                                                             >
                                                                                 Your browser does not support audio playback.
                                                                             </audio>
@@ -388,7 +402,7 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
                                                                         {candidate.fullText && (
                                                                             <details className='mt-1'>
                                                                                 <summary className='cursor-pointer text-xs text-slate-500 hover:text-slate-700'>
-                                                                                    Όλο το κείμενο του τμήματος
+                                                                                    Full segment transcript
                                                                                 </summary>
                                                                                 <p className='mt-1 max-h-32 overflow-y-auto whitespace-pre-wrap rounded-md bg-slate-50 p-2 text-xs text-slate-600'>
                                                                                     {candidate.fullText}
@@ -439,7 +453,7 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
                             </Button>
                         )}
                     </div>
-                    <Button variant='outline' onClick={() => setIsDialogOpen(false)} disabled={isLoading}>
+                    <Button variant='outline' onClick={() => handleDialogOpenChange(false)} disabled={isLoading}>
                         Close
                     </Button>
                 </DialogFooter>
