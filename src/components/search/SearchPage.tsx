@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { SubjectListContainer } from "@/components/subject/SubjectListContainer";
 import { getPartyFromRoles } from "@/lib/utils";
 import { useTranslations } from 'next-intl';
+import posthog from "posthog-js";
 
 const PAGE_SIZE = 6;
 const SEARCH_DELAY = 500;
@@ -143,8 +144,19 @@ export default function SearchPage() {
                 isLoading: false,
                 error: null
             });
+
+            if (!skipQueryLog) {
+                posthog.capture("search_performed", {
+                    query_length: query.length,
+                    has_city_filter: !!cityId,
+                    has_person_filter: !!personId,
+                    has_party_filter: !!partyId,
+                    results_count: response.total,
+                });
+            }
         } catch (err) {
             const error = err instanceof Error ? err : new Error('An error occurred during search');
+            posthog.captureException(err);
             setState(prev => ({ ...prev, error, isLoading: false }));
             toast({
                 variant: "destructive",

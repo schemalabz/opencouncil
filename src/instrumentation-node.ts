@@ -5,9 +5,27 @@
 import { registerInitialCache } from '@fortedigital/nextjs-cache-handler/instrumentation';
 import CacheHandler from '../cache-handler.mjs';
 import prisma from '@/lib/db/prisma';
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { resourceFromAttributes } from '@opentelemetry/resources';
+import { PostHogSpanProcessor } from '@posthog/ai/otel';
+import { AnthropicInstrumentation } from '@traceloop/instrumentation-anthropic';
 
 export async function runNodeInstrumentation() {
   await registerInitialCache(CacheHandler);
+
+  // PostHog AI Observability: auto-instrument all Anthropic SDK calls to emit
+  // $ai_generation events (model, tokens, latency, cost) to PostHog.
+  const sdk = new NodeSDK({
+    resource: resourceFromAttributes({ 'service.name': 'opencouncil' }),
+    spanProcessors: [
+      new PostHogSpanProcessor({
+        projectToken: process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN!,
+        host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+      }),
+    ],
+    instrumentations: [new AnthropicInstrumentation()],
+  });
+  sdk.start();
 
   // Prisma boot probe.
   //

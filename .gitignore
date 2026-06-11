@@ -75,3 +75,6 @@ result-*
 
 CLAUDE.local.md
 .claude/scheduled_tasks.lock
+
+# PostHog wizard agent-docs (kept locally for agent use, not part of the app)
+.claude/skills/integration-nextjs-app-router/

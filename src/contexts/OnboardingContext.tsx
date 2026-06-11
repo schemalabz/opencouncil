@@ -7,6 +7,7 @@ import { saveNotificationPreferences, savePetition, getUserPreferences } from '@
 import { useSession } from 'next-auth/react';
 import { createLocation } from '@/lib/db/location';
 import { useTranslations } from 'next-intl';
+import posthog from "posthog-js";
 
 interface OnboardingProviderProps {
     children: ReactNode;
@@ -192,10 +193,16 @@ export function OnboardingProvider({
                     setError('genericError');
                 }
             } else {
-                // Move to completion stage
+                posthog.capture("notification_signup_completed", {
+                    city_id: city.id,
+                    location_count: locationIds.length,
+                    topic_count: topicIds.length,
+                    has_phone: !!phone,
+                });
                 setStage(OnboardingStage.NOTIFICATION_COMPLETE);
             }
         } catch (error: any) {
+            posthog.captureException(error);
             console.error('Error saving notification preferences:', error);
             setError('genericError');
         } finally {
@@ -227,10 +234,16 @@ export function OnboardingProvider({
                     setError('genericError');
                 }
             } else {
-                // Move to completion stage
+                posthog.capture("petition_submitted", {
+                    city_id: city.id,
+                    is_resident: petitionData.isResident,
+                    is_citizen: petitionData.isCitizen,
+                    has_phone: !!phone,
+                });
                 setStage(OnboardingStage.PETITION_COMPLETE);
             }
         } catch (error: any) {
+            posthog.captureException(error);
             console.error('Error saving petition:', error);
             setError('genericError');
         } finally {

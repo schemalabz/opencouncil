@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { ChatMessage } from '@/types/chat';
 import { useRouter, useSearchParams } from 'next/navigation';
+import posthog from "posthog-js";
 
 // Temporary flag to disable chat functionality
 const CHAT_TEMPORARILY_DISABLED = false;
@@ -62,6 +63,12 @@ export function useChat() {
             role: 'user',
             content: input,
         };
+
+        posthog.capture("chat_message_sent", {
+            has_city_filter: !!selectedCity,
+            message_length: input.trim().length,
+            message_count: messages.length + 1,
+        });
 
         setMessages(prev => [...prev, userMessage]);
         setInput('');
@@ -151,6 +158,7 @@ export function useChat() {
                 }
             }
         } catch (err) {
+            posthog.captureException(err);
             console.error('Error sending message:', err);
             setError(err instanceof Error ? err : new Error('Unknown error occurred'));
             

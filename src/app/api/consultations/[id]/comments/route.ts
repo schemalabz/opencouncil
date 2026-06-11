@@ -6,6 +6,7 @@ import {
     ConsultationCommentEntityType,
     getConsultationById
 } from '@/lib/db/consultations';
+import { getPostHogClient } from '@/lib/posthog-server';
 
 export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
     const params = await props.params;
@@ -84,6 +85,17 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
             entityId,
             commentBody
         );
+
+        const posthog = getPostHogClient();
+        posthog.capture({
+            distinctId: session?.user?.email ?? "anonymous",
+            event: "consultation_comment_submitted",
+            properties: {
+                consultation_id: params.id,
+                city_id: cityId,
+                entity_type: entityType,
+            },
+        });
 
         return NextResponse.json({ comment });
     } catch (error) {

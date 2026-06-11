@@ -5,6 +5,7 @@ import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card"
 import { useSearchParams } from "next/navigation"
 import { signInWithEmail } from "@/lib/serverSignIn"
 import { useState } from "react"
+import posthog from "posthog-js"
 
 export function SignIn() {
     const searchParams = useSearchParams()
@@ -18,10 +19,16 @@ export function SignIn() {
         setError(null)
         setIsLoading(true)
 
+        const formData = new FormData(e.currentTarget)
+        const emailValue = formData.get("email") as string
+
+        posthog.capture("sign_in_requested", { has_callback_url: !!callbackUrl })
+        posthog.identify(emailValue, { email: emailValue })
+
         try {
-            const formData = new FormData(e.currentTarget)
             await signInWithEmail(formData)
         } catch (err) {
+            posthog.captureException(err)
             setError("Υπήρξε πρόβλημα κατά την αποστολή του email. Παρακαλώ δοκιμάστε ξανά αργότερα.")
             console.error("Sign in error:", err)
         } finally {
