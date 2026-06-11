@@ -20,6 +20,9 @@ jobs:
         with:
           name: opencouncil
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          pushFilter: opencouncil-npm-deps
+          # Don't cache npm deps: importNpmLock produces one .tgz fetchurl per
+          # package plus an opencouncil-*-sources lockfile derivation, all
+          # cheaply re-fetched from the npm registry.
+          pushFilter: "(\\.tgz$|opencouncil-.*-sources$)"
 
       - run: nix flake check --print-build-logs

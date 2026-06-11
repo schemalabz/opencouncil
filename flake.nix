@@ -56,19 +56,12 @@
         export OPENSSL_INCLUDE_DIR="${pkgs.openssl.dev}/include"
       '';
 
-      # Shared npm config (used by opencouncil-prod and CI checks)
-      # Update this hash when package-lock.json changes:
-      #   nix run nixpkgs#prefetch-npm-deps package-lock.json
-      npmDepsHash = "sha256-ZvqENLhwRTCbjyMcjpq8RwZ8smwMNyP0CEL4pOEZPZo=";
-
-      # Single npm-deps derivation shared by all buildNpmPackage consumers.
-      # Without this, each consumer (prod build + 3 checks) would create its
-      # own identical copy with a different store path.
-      mkNpmDeps = pkgs: pkgs.fetchNpmDeps {
-        src = ./.;
-        name = "opencouncil-npm-deps";
-        hash = npmDepsHash;
-      };
+      # Shared npm deps (used by opencouncil-prod and CI checks).
+      # importNpmLock fetches each package using the integrity hashes already
+      # in package-lock.json, so there is no aggregate npmDepsHash to keep in
+      # sync when the lockfile changes (e.g. dependabot bumps). Consumers must
+      # pair this with importNpmLock.npmConfigHook.
+      mkNpmDeps = pkgs: pkgs.importNpmLock { npmRoot = ./.; };
 
       mkNpmBuildInputs = pkgs: with pkgs; [
         cairo pango libjpeg giflib pixman libpng glib librsvg
@@ -1050,6 +1043,7 @@ EOF
             # derivation hash when values change.
 
             npmDeps = mkNpmDeps pkgs;
+            npmConfigHook = pkgs.importNpmLock.npmConfigHook;
 
             # Configure npm - ignore scripts during dependency installation
             makeCacheWritable = true;
@@ -1291,14 +1285,15 @@ EOF
             version = "0.1.0";
             src = ./.;
             npmDeps = mkNpmDeps pkgs;
+            npmConfigHook = pkgs.importNpmLock.npmConfigHook;
             makeCacheWritable = true;
             npmFlags = [ "--legacy-peer-deps" ];
             npmInstallFlags = [ "--ignore-scripts" ];
             nativeBuildInputs = npmNativeBuildInputs;
             buildInputs = npmBuildInputs;
             dontNpmBuild = true;
-            # Setup runs in preBuild (not postPatch) because postPatch also
-            # runs inside the npm-deps FOD where npm/node aren't available.
+            # Setup runs in preBuild so it executes after npmConfigHook has
+            # installed node_modules.
             preBuild = ''
               export HOME=$TMPDIR
               ${mkPrismaEnv pkgs}
