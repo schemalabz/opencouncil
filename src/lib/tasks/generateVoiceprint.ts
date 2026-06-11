@@ -300,6 +300,10 @@ export async function getCandidateSegmentsForVoiceprint(personId: string): Promi
     const segments = await prisma.speakerSegment.findMany({
         where: {
             speakerTag: { personId },
+            // Scope to the person's city: the auth check above only asserts access
+            // to person.cityId, so without this a caller could read transcript text
+            // (meeting name, timestamps, full text) from segments in other cities.
+            cityId: person.cityId,
         },
         select: {
             id: true,
