@@ -265,7 +265,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
     };
 
     const renderControls = () => (
-        <div className={cn("flex items-center gap-1 sm:gap-2 md:gap-4 flex-shrink-0 ml-auto", noContainer && "sm:ml-1 md:ml-4")}>
+        <div className={cn("flex items-center gap-1 sm:gap-2 md:gap-4 flex-shrink-0 ml-auto", isMeetingContext && "sm:ml-1 md:ml-4")}>
             {children}
             <div className="flex items-center gap-1 sm:gap-2">
                 <button
