@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import Subject from "@/components/meetings/subject/subject";
+import SubjectReadTracker from "@/components/analytics/SubjectReadTracker";
 import { getMeetingDataCached, getSubjectFromMeetingCached } from "@/lib/getMeetingData";
 import { notFound } from "next/navigation";
 import { buildHreflangAlternates } from "@/lib/utils/hreflang";
@@ -56,5 +57,14 @@ export default async function SubjectPage(
     props: { params: Promise<{ cityId: string; meetingId: string; subjectId: string }> }
 ) {
     const params = await props.params;
-    return <Subject subjectId={params.subjectId} />;
+    return (
+        <>
+            <SubjectReadTracker
+                cityId={params.cityId}
+                meetingId={params.meetingId}
+                subjectId={params.subjectId}
+            />
+            <Subject subjectId={params.subjectId} />
+        </>
+    );
 }
