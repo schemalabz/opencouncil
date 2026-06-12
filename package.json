@@ -33,7 +33,7 @@
     "seed": "tsx prisma/seed.ts"
   },
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=20.9.0 <23"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.56.0",
