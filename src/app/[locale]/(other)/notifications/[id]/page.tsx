@@ -10,6 +10,7 @@ import Icon from '@/components/icon';
 import { ColorPercentageRing } from '@/components/ui/color-percentage-ring';
 import { getNotificationForView } from '@/lib/db/notifications';
 import { stripMarkdown } from '@/lib/formatters/markdown';
+import NotificationOpenTracker from '@/components/analytics/NotificationOpenTracker';
 
 export default async function NotificationPage(props: { params: Promise<{ id: string; locale: string }> }) {
     const params = await props.params;
@@ -26,6 +27,13 @@ export default async function NotificationPage(props: { params: Promise<{ id: st
 
     return (
         <div className="min-h-screen py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
+            <NotificationOpenTracker
+                notificationId={notification.id}
+                cityId={city.id}
+                meetingId={meeting.id}
+                notificationType={notification.type}
+                subjectCount={notification.subjects.length}
+            />
             <div className="max-w-3xl mx-auto space-y-3 sm:space-y-4">
                 {/* Header */}
                 <div className="text-center space-y-1.5 sm:space-y-2">
