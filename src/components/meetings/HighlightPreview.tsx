@@ -1,9 +1,11 @@
 "use client";
 import React, { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
 import { Quote } from 'lucide-react';
 import { HighlightUtterance } from './HighlightContext';
 import { useHighlight } from './HighlightContext';
+import { cn } from '@/lib/utils';
 
 interface HighlightPreviewProps {
   className?: string;
@@ -27,6 +29,7 @@ export function HighlightPreview({
   // Use external utterances if provided, otherwise fall back to context
   const { editingHighlight, highlightUtterances: contextHighlightUtterances } = useHighlight();
   const utterances = externalHighlightUtterances || contextHighlightUtterances;
+  const t = useTranslations('highlights');
 
   // Memoize the speaker blocks to prevent unnecessary re-renders
   const speakerBlocks = useMemo(() => {
@@ -97,11 +100,11 @@ export function HighlightPreview({
   // If using external utterances, don't require editingHighlight
   if (!utterances || utterances.length === 0) {
     return (
-      <div className={`bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 rounded-lg p-4 ${className}`}>
+      <div className={cn('bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 rounded-lg p-4', className)}>
         <div className="text-center py-4 text-muted-foreground">
           <Quote className="h-6 w-6 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">No utterances selected</p>
-          <p className="text-xs mt-1">This highlight is empty</p>
+          <p className="text-sm">{t('editing.noUtterances')}</p>
+          <p className="text-xs mt-1">{t('editing.emptyHighlight')}</p>
         </div>
       </div>
     );
@@ -113,13 +116,13 @@ export function HighlightPreview({
   }
 
   return (
-    <div className={`bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 rounded-lg p-4 ${className}`}>
-      <div className="flex items-center space-x-2 mb-3">
+    <div className={cn('flex flex-col bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 rounded-lg p-4', className)}>
+      <div className="flex items-center space-x-2 mb-3 shrink-0">
         <Quote className="h-4 w-4 text-primary" />
         <span className="font-semibold text-sm">{title}</span>
       </div>
-      
-      <div className={`space-y-2 ${maxHeight} overflow-y-auto`}>
+
+      <div className={cn('space-y-3 overflow-y-auto flex-1 min-h-0', maxHeight)}>
         {speakerBlocks.map((block, index) => (
           <div key={`${block.speakerName}-${index}`} className="space-y-1">
             <div className="flex items-center space-x-2">
@@ -127,7 +130,7 @@ export function HighlightPreview({
                 {block.speakerName}
               </Badge>
               <span className="text-xs text-muted-foreground">
-                {block.utteranceCount} {block.utteranceCount === 1 ? 'utterance' : 'utterances'}
+                {t('preview.utteranceCount', { count: block.utteranceCount })}
               </span>
             </div>
             <div className="pl-2 border-l-2 border-primary/20">
@@ -138,14 +141,6 @@ export function HighlightPreview({
           </div>
         ))}
       </div>
-
-      {utterances.length === 0 && (
-        <div className="text-center py-4 text-muted-foreground">
-          <Quote className="h-6 w-6 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">No utterances selected</p>
-          <p className="text-xs mt-1">Click on utterances in the transcript to add them</p>
-        </div>
-      )}
     </div>
   );
 } 
