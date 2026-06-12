@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/db/prisma'
 import { Prisma } from '@prisma/client'
+import { normalizeGeometryCoordinates } from '@/lib/geo'
 
 // Disable caching for dynamic queries with different filters
 export const dynamic = 'force-dynamic';
@@ -110,22 +111,10 @@ export async function GET(request: Request) {
             WHERE id IN (${Prisma.join(locationIds)})
         `;
 
-        // Create a map of location id to geometry
-        // Fix coordinate order: PostGIS might return [lat, lon] but GeoJSON needs [lon, lat]
+        // Create a map of location id to geometry.
+        // No-op for correctly stored rows; fixes legacy [lat, lng]-swapped rows.
         const geometryMap = new Map(
-            geometries.map(g => {
-                const geom = JSON.parse(g.geometry);
-                // Swap coordinates if it's a Point
-                if (geom.type === 'Point' && geom.coordinates.length === 2) {
-                    // Check if coordinates seem to be in [lat, lon] order (lat > lon for Greece)
-                    const [first, second] = geom.coordinates;
-                    if (first > 30 && first < 42 && second > 19 && second < 30) {
-                        // Likely [lat, lon], swap to [lon, lat]
-                        geom.coordinates = [second, first];
-                    }
-                }
-                return [g.id, geom];
-            })
+            geometries.map(g => [g.id, normalizeGeometryCoordinates(JSON.parse(g.geometry) as GeoJSON.Geometry)])
         );
 
         // Combine subjects with their geometries

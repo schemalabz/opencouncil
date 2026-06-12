@@ -6,6 +6,7 @@ import { SubjectWithRelations } from "./db/subject";
 import { default as greekKlitiki } from "greek-name-klitiki";
 import { Transcript } from "./db/transcript";
 import { VideoIcon, AudioLines, FileText, Ban, LucideIcon } from "lucide-react";
+import { normalizeLngLat } from "./geo";
 
 // Export time formatters from the new location
 export {
@@ -61,7 +62,8 @@ export function subjectToMapFeature(subject: SubjectWithRelations) {
     id: subject.id,
     geometry: {
       type: 'Point',
-      coordinates: [subject.location.coordinates.y, subject.location.coordinates.x]
+      // No-op for correctly stored points; fixes legacy [lat, lng]-swapped rows
+      coordinates: normalizeLngLat([subject.location.coordinates.x, subject.location.coordinates.y])
     },
     properties: {
       subjectId: subject.id,

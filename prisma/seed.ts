@@ -4,6 +4,7 @@ import * as path from 'path'
 import { env } from '@/env.mjs'
 import { CITY_DEFAULTS } from "@/lib/zod-schemas/city"
 import { CORE_PROCESSING_TASKS } from "@/lib/tasks/types"
+import { normalizeGeometryCoordinates } from "@/lib/geo"
 
 const prisma = new PrismaClient()
 
@@ -665,11 +666,13 @@ async function seedSubjects(subjects: any[], meeting: any) {
   for (const subject of subjects) {
     if (subject.location) {
       try {
-        // Use the geoData if available, otherwise create default GeoJSON
-        const geoJson = subject.location.geoData || {
+        // Use the geoData if available, otherwise create default GeoJSON.
+        // Seed dumps predate the coordinate fix and store [lat, lng]-swapped
+        // points; normalize so seeded rows are GeoJSON-correct [lng, lat].
+        const geoJson = normalizeGeometryCoordinates(subject.location.geoData || {
           type: 'Point',
           coordinates: [24.0195, 35.5139] // Default coordinates for Chania
-        };
+        });
 
         // Create a unique ID for the location if not provided
         const locationId = subject.location.id || subject.locationId || `loc_${subject.id}`;

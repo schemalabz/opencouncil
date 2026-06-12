@@ -11,11 +11,18 @@ import prisma from "./prisma";
 import { getSubjectsForMeeting, extractUtteranceIdsFromContributions } from "./subject";
 import { Subject as DbSubject } from "@prisma/client";
 import { getPartyFromRoles, getRoleNameForPerson } from "../utils";
+import { normalizeLngLat } from "../geo";
 import { roleWithRelationsInclude } from "./types";
 import { categorizeSubjectsForUpsert } from "./subject-helpers";
 
 // Type for the Prisma interactive transaction client
 type PrismaTxClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
+
+/** The task server exchanges point coordinates as [lat, lng]. */
+function toTaskServerLatLng(coords: [number, number]): [number, number] {
+    const [lng, lat] = normalizeLngLat(coords);
+    return [lat, lng];
+}
 
 export async function getRequestOnTranscriptRequestBody(councilMeetingId: string, cityId: string): Promise<Omit<RequestOnTranscript, 'callbackUrl'>> {
     const transcript = await getTranscript(councilMeetingId, cityId, { joinAdjacentSameSpeakerSegments: true });
@@ -113,10 +120,14 @@ export async function getSummarizeRequestBody(councilMeetingId: string, cityId: 
             description: s.description,
             introducedByPersonId: s.introducedBy?.id || null,
             topicLabel: s.topic?.name || null,
+            // The task server's wire format is [lat, lng] — it both sends and
+            // expects that order. Normalize the stored row (legacy rows are
+            // axis-swapped) and emit [lat, lng] explicitly so the payload stays
+            // identical before and after the coordinate data migration.
             location: s.location && s.location.coordinates ? {
                 type: s.location.type,
                 text: s.location.text,
-                coordinates: [[s.location.coordinates.x, s.location.coordinates.y]]
+                coordinates: [toTaskServerLatLng([s.location.coordinates.x, s.location.coordinates.y])]
             } : null,
             agendaItemIndex: getAgendaItemIndex(s)!,
             context: s.context ? {
@@ -194,6 +205,15 @@ async function createLocationInTx(
     const cuid = await tx.$queryRaw<[{ cuid: string }]>`
         SELECT gen_random_uuid()::text as cuid
     `;
+    // The task server sends point coordinates as [lat, lng]; normalize so the
+    // database always stores GeoJSON-correct [lng, lat].
+    // TODO: non-point geometries arrive as position arrays and coordinates[0]
+    // truncates them to a single position — never exercised today (all
+    // Location rows are points), but needs fixing alongside the task server
+    // before lineString/polygon locations ship.
+    const coordinates = location.type === 'point'
+        ? normalizeLngLat([location.coordinates[0][0], location.coordinates[0][1]])
+        : location.coordinates[0];
     const result = await tx.$queryRaw<[{ id: string }]>`
         INSERT INTO "Location" (id, type, text, coordinates)
         VALUES (
@@ -203,7 +223,7 @@ async function createLocationInTx(
             ST_GeomFromGeoJSON(${JSON.stringify({
                 type: location.type === 'point' ? 'Point' :
                       location.type === 'lineString' ? 'LineString' : 'Polygon',
-                coordinates: location.coordinates[0]
+                coordinates
             })})
         )
         RETURNING id

@@ -9,6 +9,7 @@ import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
 import { subjectToMapFeature } from "@/lib/utils";
+import { normalizeLngLat } from "@/lib/geo";
 import { notFound } from "next/navigation";
 import { SubjectContext } from "./context";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -311,7 +312,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                     >
                         <div className="h-[300px] w-full">
                             <Map
-                                center={location.coordinates ? [location.coordinates.y, location.coordinates.x] : undefined}
+                                center={location.coordinates ? normalizeLngLat([location.coordinates.x, location.coordinates.y]) : undefined}
                                 zoom={15}
                                 features={mapFeatures}
                                 animateRotation={false}

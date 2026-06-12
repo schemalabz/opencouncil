@@ -279,7 +279,7 @@ describe('subjectToMapFeature', () => {
       id: '123',
       name: 'Test Subject',
       location: {
-        coordinates: { x: 10, y: 20 }
+        coordinates: { x: 23.73, y: 37.98 } // correctly stored [lng, lat]
       }
     };
 
@@ -289,7 +289,7 @@ describe('subjectToMapFeature', () => {
       id: '123',
       geometry: {
         type: 'Point',
-        coordinates: [20, 10]
+        coordinates: [23.73, 37.98]
       },
       properties: {
         subjectId: '123',
@@ -303,6 +303,19 @@ describe('subjectToMapFeature', () => {
         label: 'Test Subject'
       }
     });
+  });
+
+  it('should normalize legacy axis-swapped coordinates', () => {
+    const subject = {
+      id: '123',
+      name: 'Test Subject',
+      location: {
+        coordinates: { x: 37.98, y: 23.73 } // legacy swapped row: x = lat, y = lng
+      }
+    };
+
+    const feature = subjectToMapFeature(subject as any);
+    expect(feature?.geometry.coordinates).toEqual([23.73, 37.98]);
   });
 
   it('should return null for subject without coordinates', () => {
