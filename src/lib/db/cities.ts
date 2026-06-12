@@ -457,3 +457,45 @@ export async function getAboutPageStats(): Promise<AboutPageStats> {
         throw new Error('Failed to fetch about page stats')
     }
 }
+
+/**
+ * Listed cities with the fields the map needs, geometry attached.
+ * Shared by /api/cities/map and the /map page server shell.
+ */
+export async function getCitiesForMap() {
+    const cities = await prisma.city.findMany({
+        select: {
+            id: true,
+            name: true,
+            name_en: true,
+            name_municipality: true,
+            name_municipality_en: true,
+            logoImage: true,
+            timezone: true,
+            createdAt: true,
+            updatedAt: true,
+            officialSupport: true,
+            status: true,
+            authorityType: true,
+            wikipediaId: true,
+            supportsNotifications: true,
+            consultationsEnabled: true,
+            peopleOrdering: true,
+            highlightCreationPermission: true,
+            _count: {
+                select: {
+                    councilMeetings: true
+                }
+            }
+        },
+        where: {
+            status: 'listed'
+        },
+        orderBy: [
+            { status: 'desc' },
+            { name: 'asc' }
+        ]
+    });
+
+    return attachGeometryToCities(cities);
+}

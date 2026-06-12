@@ -1,12 +1,14 @@
 import { AdministrativeBodyType } from "@prisma/client";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
-import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogos, getAboutPageStats } from "@/lib/db/cities";
+import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogos, getAboutPageStats, getCitiesForMap } from "@/lib/db/cities";
 import { getGitHubStats } from "@/lib/github";
 import { getCityMessage } from "@/lib/db/cityMessages";
 import { getCouncilMeetingsForCity } from "@/lib/db/meetings";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { getPeopleForCity } from "@/lib/db/people";
-import { getSubjectsForMeeting, SubjectWithRelations } from "@/lib/db/subject";
+import { getSubjectsForMeeting, SubjectWithRelations, getMapSubjects } from "@/lib/db/subject";
+import { getPetitionCountsByCity } from "@/lib/db/petitions";
+import { getTopics } from "@/lib/db/topics";
 import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
 import { getMeetingStatus } from "@/lib/meetingStatus";
 import { getBatchStatisticsForSubjects, Statistics } from "@/lib/statistics";
@@ -207,5 +209,51 @@ export async function getGitHubStatsCached() {
     () => getGitHubStats(),
     ['about', 'github'],
     { tags: ['github'], revalidate: 86400 } // refresh once per day
+  )();
+}
+
+/**
+ * Cached listed cities with geometry for the map
+ */
+export async function getCitiesForMapCached() {
+  return createCache(
+    () => getCitiesForMap(),
+    ['cities', 'map'],
+    { tags: ['cities:all'], revalidate: 3600 }
+  )();
+}
+
+/**
+ * Cached petition counts per city (map heat + Δήμοι panel)
+ */
+export async function getPetitionCountsByCityCached() {
+  return createCache(
+    () => getPetitionCountsByCity(),
+    ['petitions', 'counts-by-city'],
+    { tags: ['petitions'], revalidate: 900 }
+  )();
+}
+
+/**
+ * Cached active topics
+ */
+export async function getTopicsCached() {
+  return createCache(
+    () => getTopics(),
+    ['topics', 'all'],
+    { tags: ['topics'] }
+  )();
+}
+
+/**
+ * Cached map subjects for the DEFAULT filter only — arbitrary topic/time
+ * combinations would explode cache-key cardinality, so non-default filters
+ * query the database directly.
+ */
+export async function getDefaultMapSubjectsCached() {
+  return createCache(
+    () => getMapSubjects(),
+    ['map', 'subjects', 'default'],
+    { tags: ['map:subjects'], revalidate: 1800 }
   )();
 }
