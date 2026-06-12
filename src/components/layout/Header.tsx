@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Search, Building2, ChevronRight, type LucideIcon } from "lucide-react"
 import { useRouter, useSelectedLayoutSegment } from "next/navigation"
 import { useState, useRef, useEffect } from "react"
+import { createPortal } from "react-dom"
 import { useSubjectHeaderOptional, SubjectHeaderInfo } from "@/contexts/SubjectHeaderContext"
 import { AutoScrollText } from "@/components/ui/auto-scroll-text"
 import Icon from "@/components/icon"
@@ -118,6 +119,13 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
 
     const subjectContext = useSubjectHeaderOptional();
     const subjectHeader = subjectContext?.subjectHeader ?? null;
+
+    // The search modal is portaled to <body>: the header's containers set
+    // their own position/z-index (e.g. the (other) layout downgrades it to
+    // z-10), so a fixed overlay rendered inside would be trapped in that
+    // stacking context and page content could paint above the backdrop.
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
 
     const dynamicPath = [...path];
     // These breadcrumbs target the city-scoped signup pages, but the same
@@ -400,7 +408,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
             )}
 
             {/* Search Modal */}
-            <AnimatePresence>
+            {mounted && createPortal(<AnimatePresence>
                 {isSearchOpen && (
                     <div className="fixed inset-0 z-50">
                         <motion.div
@@ -442,7 +450,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                         </div>
                     </div>
                 )}
-            </AnimatePresence>
+            </AnimatePresence>, document.body)}
         </motion.header>
     )
 }
