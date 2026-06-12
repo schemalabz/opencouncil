@@ -67,5 +67,25 @@
         "submitting": "Submitting…",
         "close": "Close"
     },
-    "openFullMap": "Open map"
+    "openFullMap": "Open map",
+    "searchUnifiedPlaceholder": "Search for a topic, address or municipality…",
+    "actionFilter": "Filter",
+    "actionGoToLocation": "Go to",
+    "actionGoToCity": "Go to",
+    "filtersTitle": "Filters",
+    "sectionTopics": "Topics",
+    "sectionCities": "Municipalities",
+    "sectionBodies": "Body",
+    "sectionDates": "Exact dates",
+    "dateFrom": "From",
+    "dateTo": "To",
+    "datesOverrideMonths": "Exact dates take precedence over the quick period presets",
+    "clearAll": "Clear all",
+    "done": "Done",
+    "removeFilter": "Remove filter {name}",
+    "bodyTypes": {
+        "council": "Council",
+        "committee": "Committee",
+        "community": "Community"
+    }
 }

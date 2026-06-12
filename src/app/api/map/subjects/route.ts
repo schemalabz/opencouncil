@@ -1,23 +1,42 @@
 import { NextResponse } from 'next/server'
+import type { AdministrativeBodyType } from '@prisma/client'
 import { getMapSubjects } from '@/lib/db/subject'
 import { MAP_MONTHS_MAX, MAP_MONTHS_MIN } from '@/lib/map/constants'
 
 // Filters vary per request (client refetch on filter change) — don't cache.
 export const dynamic = 'force-dynamic';
 
+const BODY_TYPES: AdministrativeBodyType[] = ['council', 'committee', 'community'];
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+function idList(raw: string | null): string[] | undefined {
+    if (!raw) return undefined;
+    const ids = raw.split(',').map(id => id.trim()).filter(Boolean);
+    return ids.length > 0 ? ids : undefined;
+}
+
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
-        const monthsBackParam = searchParams.get('monthsBack');
-        const topicIdsParam = searchParams.get('topicIds');
 
-        const parsedMonths = monthsBackParam ? parseInt(monthsBackParam, 10) : NaN;
+        const parsedMonths = parseInt(searchParams.get('monthsBack') ?? '', 10);
         const monthsBack = Number.isFinite(parsedMonths)
             ? Math.min(MAP_MONTHS_MAX, Math.max(MAP_MONTHS_MIN, parsedMonths))
             : undefined;
-        const topicIds = topicIdsParam ? topicIdsParam.split(',').filter(Boolean) : undefined;
 
-        const subjects = await getMapSubjects({ monthsBack, topicIds });
+        const bodyTypes = idList(searchParams.get('bodyTypes'))
+            ?.filter((value): value is AdministrativeBodyType => (BODY_TYPES as string[]).includes(value));
+        const fromRaw = searchParams.get('from');
+        const toRaw = searchParams.get('to');
+
+        const subjects = await getMapSubjects({
+            monthsBack,
+            topicIds: idList(searchParams.get('topicIds')),
+            cityIds: idList(searchParams.get('cityIds')),
+            bodyTypes: bodyTypes && bodyTypes.length > 0 ? bodyTypes : undefined,
+            dateFrom: fromRaw && ISO_DATE.test(fromRaw) ? fromRaw : undefined,
+            dateTo: toRaw && ISO_DATE.test(toRaw) ? toRaw : undefined,
+        });
         return NextResponse.json(subjects);
     } catch (error) {
         console.error('Error fetching subjects for map:', error);

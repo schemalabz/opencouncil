@@ -67,5 +67,25 @@
         "submitting": "Υποβολή…",
         "close": "Κλείσιμο"
     },
-    "openFullMap": "Άνοιγμα χάρτη"
+    "openFullMap": "Άνοιγμα χάρτη",
+    "searchUnifiedPlaceholder": "Αναζήτηση θέματος, διεύθυνσης ή δήμου…",
+    "actionFilter": "Φίλτρο",
+    "actionGoToLocation": "Μετάβαση",
+    "actionGoToCity": "Μετάβαση",
+    "filtersTitle": "Φίλτρα",
+    "sectionTopics": "Θεματικές",
+    "sectionCities": "Δήμοι",
+    "sectionBodies": "Όργανο",
+    "sectionDates": "Συγκεκριμένες ημερομηνίες",
+    "dateFrom": "Από",
+    "dateTo": "Έως",
+    "datesOverrideMonths": "Οι ημερομηνίες υπερισχύουν της γρήγορης επιλογής περιόδου",
+    "clearAll": "Καθαρισμός όλων",
+    "done": "Έτοιμο",
+    "removeFilter": "Αφαίρεση φίλτρου {name}",
+    "bodyTypes": {
+        "council": "Συμβούλιο",
+        "committee": "Επιτροπή",
+        "community": "Κοινότητα"
+    }
 }

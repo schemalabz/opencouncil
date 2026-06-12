@@ -5,7 +5,8 @@ import { cn } from '@/lib/utils';
 import { MAP_MONTHS_OPTIONS } from '@/lib/map/constants';
 
 interface TimeFilterProps {
-    monthsBack: number;
+    /** null = a custom date range is active, no preset highlighted. */
+    monthsBack: number | null;
     onChange: (monthsBack: number) => void;
     className?: string;
 }

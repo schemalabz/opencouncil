@@ -7,6 +7,7 @@ import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/formatters/time';
 import Icon from '@/components/icon';
+import { contrastTextColor } from '@/lib/map/colors';
 import type { MapSubject } from '@/lib/map/types';
 
 interface SubjectListItemProps {
@@ -16,15 +17,6 @@ interface SubjectListItemProps {
     onHover?: (subjectId: string | null) => void;
 }
 
-/** Light text-contrast check for the topic pill. */
-function pillTextColor(hex: string): string {
-    const match = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
-    if (!match) return '#ffffff';
-    const value = parseInt(match[1], 16);
-    const luminance = (0.299 * ((value >> 16) & 0xff) + 0.587 * ((value >> 8) & 0xff) + 0.114 * (value & 0xff)) / 255;
-    return luminance > 0.66 ? '#0c0a09' : '#ffffff';
-}
-
 /**
  * A subject row in the map panel: dense at rest, expanding in place with the
  * full description and a CTA to the subject page.
@@ -32,7 +24,7 @@ function pillTextColor(hex: string): string {
 export function SubjectListItem({ subject, expanded, onToggle, onHover }: SubjectListItemProps) {
     const t = useTranslations('map');
     const minutes = Math.round(subject.discussionTimeSeconds / 60);
-    const textColor = pillTextColor(subject.topicColor);
+    const textColor = contrastTextColor(subject.topicColor);
 
     return (
         <div

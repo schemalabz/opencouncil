@@ -1,5 +1,6 @@
 import prisma from './prisma';
 import {
+    AdministrativeBodyType,
     Subject,
     SubjectSpeakerSegment,
     SpeakerSegment,
@@ -315,6 +316,11 @@ export async function getUtterancesForSubject(subjectId: string) {
 export interface MapSubjectsFilter {
     monthsBack?: number;
     topicIds?: string[];
+    cityIds?: string[];
+    bodyTypes?: AdministrativeBodyType[];
+    /** ISO dates (yyyy-mm-dd); when set they take precedence over monthsBack */
+    dateFrom?: string;
+    dateTo?: string;
 }
 
 /**
@@ -324,15 +330,26 @@ export interface MapSubjectsFilter {
  */
 export async function getMapSubjects(filter: MapSubjectsFilter = {}): Promise<MapSubjectsApiItem[]> {
     const monthsBack = filter.monthsBack ?? MAP_DEFAULT_MONTHS_BACK;
-    const dateThreshold = new Date();
-    dateThreshold.setMonth(dateThreshold.getMonth() - monthsBack);
+    const defaultThreshold = new Date();
+    defaultThreshold.setMonth(defaultThreshold.getMonth() - monthsBack);
+
+    const from = filter.dateFrom ? new Date(`${filter.dateFrom}T00:00:00`) : null;
+    const to = filter.dateTo ? new Date(`${filter.dateTo}T23:59:59.999`) : null;
+    const dateTime: Prisma.DateTimeFilter = {
+        gte: from ?? (to ? undefined : defaultThreshold),
+        ...(to ? { lte: to } : {}),
+    };
 
     const where: Prisma.SubjectWhereInput = {
         locationId: { not: null },
         councilMeeting: {
             city: { officialSupport: true },
             released: true,
-            dateTime: { gte: dateThreshold },
+            dateTime,
+            ...(filter.cityIds && filter.cityIds.length > 0 ? { cityId: { in: filter.cityIds } } : {}),
+            ...(filter.bodyTypes && filter.bodyTypes.length > 0
+                ? { administrativeBody: { type: { in: filter.bodyTypes } } }
+                : {}),
         },
         ...(filter.topicIds && filter.topicIds.length > 0 ? { topicId: { in: filter.topicIds } } : {}),
     };

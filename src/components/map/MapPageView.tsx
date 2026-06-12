@@ -1,14 +1,21 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, SlidersHorizontal } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Topic } from '@prisma/client';
 import { cn } from '@/lib/utils';
 import { calculateGeometryBounds } from '@/lib/geo';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { apiSubjectToMapSubject } from '@/lib/map/adapters';
-import { DEFAULT_MAP_FILTER, isDefaultFilter, mapFilterToApiQuery, mapFilterToSearchParams, type MapFilterState } from '@/lib/map/params';
+import {
+    DEFAULT_MAP_FILTER,
+    hasNarrowingFilters,
+    isDefaultFilter,
+    mapFilterToApiQuery,
+    mapFilterToSearchParams,
+    type MapFilterState,
+} from '@/lib/map/params';
 import type { MapMunicipality, MapSubject, MapSubjectsApiItem } from '@/lib/map/types';
 import type { ViewportBounds } from '@/lib/map/viewport';
 import CivicMap from './civic/CivicMap';
@@ -17,9 +24,10 @@ import { MapPanel, MOBILE_SNAP_POINTS, type PanelTab } from './civic/panel/MapPa
 import { SubjectsTab, type SubjectsSort } from './civic/panel/SubjectsTab';
 import { MunicipalitiesTab } from './civic/panel/MunicipalitiesTab';
 import { MunicipalityDetail } from './civic/panel/MunicipalityDetail';
-import { TopicChips } from './civic/panel/TopicChips';
 import { TimeFilter } from './civic/panel/TimeFilter';
-import { AddressSearch } from './civic/panel/AddressSearch';
+import { MapSearch } from './civic/panel/MapSearch';
+import { FilterPane } from './civic/panel/FilterPane';
+import { ActiveFilterChips } from './civic/panel/ActiveFilterChips';
 import { GeolocateButton } from './civic/panel/GeolocateButton';
 
 interface MapPageViewProps {
@@ -48,7 +56,13 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
     const [municipalityDetail, setMunicipalityDetail] = useState<MapMunicipality | null>(null);
     const [highlightPoint, setHighlightPoint] = useState<[number, number] | null>(null);
     const [snap, setSnap] = useState<number | string | null>(MOBILE_SNAP_POINTS[0]);
+    const [isFilterPaneOpen, setFilterPaneOpen] = useState(false);
     const mapHandleRef = useRef<CivicMapHandle | null>(null);
+
+    const supportedMunicipalities = useMemo(
+        () => municipalities.filter(municipality => municipality.officialSupport),
+        [municipalities],
+    );
 
     // Refetch on filter change (the server shell provided the initial set).
     const isInitialFilter = useRef(true);
@@ -198,36 +212,57 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
                     labels={{ clusterAria: count => t('clusterAria', { count }) }}
                 >
                     <div className="absolute left-3 right-3 top-3 flex flex-col gap-2 md:left-4 md:right-4 md:top-4">
-                        <div className="flex items-start gap-2">
-                            <AddressSearch
-                                compact={!isDesktop}
+                        <div className="flex items-center gap-2">
+                            <MapSearch
+                                topics={topics}
+                                municipalities={supportedMunicipalities}
+                                onTopicSelect={topicId => setFilter(prev => ({
+                                    ...prev,
+                                    topicIds: prev.topicIds?.includes(topicId)
+                                        ? prev.topicIds
+                                        : [...(prev.topicIds ?? []), topicId],
+                                }))}
+                                onMunicipalitySelect={municipality => {
+                                    if (municipality.geometry) mapHandleRef.current?.fitGeometry(municipality.geometry);
+                                }}
                                 onLocationSelect={(coordinates) => {
                                     setHighlightPoint(coordinates);
                                     mapHandleRef.current?.flyTo(coordinates, 15);
                                 }}
                                 onClear={() => setHighlightPoint(null)}
                             />
-                            {!isDesktop && (
-                                <TopicChips
-                                    className="min-w-0 flex-1"
-                                    topics={topics}
-                                    selectedTopicId={filter.topicIds?.[0] ?? null}
-                                    onChange={topicId => setFilter(prev => ({ ...prev, topicIds: topicId ? [topicId] : null }))}
+                            {isDesktop && (
+                                <TimeFilter
+                                    monthsBack={filter.dateFrom || filter.dateTo ? null : filter.monthsBack}
+                                    onChange={monthsBack => setFilter(prev => ({ ...prev, monthsBack, dateFrom: null, dateTo: null }))}
                                 />
                             )}
+                            <button
+                                type="button"
+                                aria-label={t('filtersTitle')}
+                                aria-pressed={isFilterPaneOpen}
+                                onClick={() => setFilterPaneOpen(true)}
+                                className="relative flex h-10 w-10 shrink-0 items-center justify-center border border-border bg-background shadow-md transition-colors hover:bg-muted"
+                            >
+                                <SlidersHorizontal className="h-4 w-4 text-foreground" />
+                                {hasNarrowingFilters(filter) && (
+                                    <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[hsl(24,100%,50%)]" />
+                                )}
+                            </button>
                         </div>
                         <div className="flex items-center gap-2">
-                            {isDesktop && (
-                                <TopicChips
-                                    className="min-w-0 flex-1"
-                                    topics={topics}
-                                    selectedTopicId={filter.topicIds?.[0] ?? null}
-                                    onChange={topicId => setFilter(prev => ({ ...prev, topicIds: topicId ? [topicId] : null }))}
+                            {!isDesktop && (
+                                <TimeFilter
+                                    monthsBack={filter.dateFrom || filter.dateTo ? null : filter.monthsBack}
+                                    onChange={monthsBack => setFilter(prev => ({ ...prev, monthsBack, dateFrom: null, dateTo: null }))}
                                 />
                             )}
-                            <TimeFilter
-                                monthsBack={filter.monthsBack}
-                                onChange={monthsBack => setFilter(prev => ({ ...prev, monthsBack }))}
+                            <ActiveFilterChips
+                                className="min-w-0 flex-1"
+                                filter={filter}
+                                topics={topics}
+                                municipalities={supportedMunicipalities}
+                                onFilterChange={setFilter}
                             />
                         </div>
                     </div>
@@ -289,6 +324,15 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
                 onOpenChange={open => {
                     if (!open) setMunicipalityDetail(null);
                 }}
+            />
+
+            <FilterPane
+                open={isFilterPaneOpen}
+                onOpenChange={setFilterPaneOpen}
+                topics={topics}
+                municipalities={supportedMunicipalities}
+                filter={filter}
+                onFilterChange={setFilter}
             />
         </div>
     );
