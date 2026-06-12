@@ -72,6 +72,11 @@ export interface CivicMapProps {
 
     /** Accessible label for the map region (pages pass a translated string). */
     ariaLabel?: string;
+    /** Translated label builders for map-internal elements. */
+    labels?: {
+        /** aria-label for a donut cluster button, e.g. count => `${count} θέματα` */
+        clusterAria?: (count: number) => string;
+    };
     className?: string;
     /** Overlay content rendered above the map (chips, search, buttons). */
     children?: React.ReactNode;

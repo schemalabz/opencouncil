@@ -53,6 +53,9 @@ export function useMapInstance(
         instance.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-left');
 
         instance.on('load', () => setIsLoaded(true));
+        if (process.env.NODE_ENV === 'development') {
+            (window as unknown as { __civicMap?: mapboxgl.Map }).__civicMap = instance;
+        }
         setMap(instance);
 
         const resizeObserver = new ResizeObserver(() => instance.resize());

@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { DEV_TOOLS_ALLOWED } from '@/lib/utils';
-import { getCitiesForMapCached, getDefaultMapSubjectsCached, getPetitionCountsByCityCached } from '@/lib/cache/queries';
+import { getCitiesForMapCached, getPetitionCountsByCityCached } from '@/lib/cache/queries';
+import { getMapSubjects } from '@/lib/db/subject';
 import { apiSubjectToMapSubject, cityToMapMunicipality } from '@/lib/map/adapters';
 import MapDevView from './MapDevView';
 
@@ -14,7 +15,7 @@ export default async function MapDevPage() {
     const [cities, petitionCounts, apiSubjects] = await Promise.all([
         getCitiesForMapCached(),
         getPetitionCountsByCityCached(),
-        getDefaultMapSubjectsCached(),
+        getMapSubjects(), // uncached on purpose — the harness wants fresh data
     ]);
 
     // Every dev city is officially supported and has zero petitions, so

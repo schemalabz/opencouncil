@@ -3,7 +3,8 @@ import type { ExpressionSpecification } from 'mapbox-gl';
 import { MUNICIPALITIES_SOURCE_ID } from '@/lib/map/constants';
 import type { MapMunicipality } from '@/lib/map/types';
 
-const FILL_LAYER_ID = 'civic-muni-fill';
+export const MUNICIPALITIES_FILL_LAYER_ID = 'civic-muni-fill';
+const FILL_LAYER_ID = MUNICIPALITIES_FILL_LAYER_ID;
 const LINE_LAYER_ID = 'civic-muni-line';
 const LABEL_LAYER_ID = 'civic-muni-labels';
 
@@ -17,7 +18,7 @@ const MARBLE_BLUE_DEEP = '#7d9bc4';
 
 // Boundaries belong to low zooms; high zoom belongs to subjects.
 const BOUNDARY_FADE_START_ZOOM = 11;
-const BOUNDARY_FADE_END_ZOOM = 12.5;
+export const BOUNDARY_FADE_END_ZOOM = 12.5;
 
 const hoverExpression: ExpressionSpecification = ['boolean', ['feature-state', 'hover'], false];
 const supportedExpression: ExpressionSpecification = ['boolean', ['get', 'officialSupport'], false];
@@ -61,8 +62,9 @@ function toFeatureCollection(municipalities: MapMunicipality[]): GeoJSON.Feature
 
 export interface MunicipalitiesLayerOptions {
     interactive: boolean;
-    onClick?: (municipalityId: string) => void;
     onHoverChange?: (municipalityId: string | null) => void;
+    /** Insert below this layer (keeps boundaries under subject pins when attached late). */
+    beforeId?: string;
 }
 
 export interface MunicipalitiesLayerHandle {
@@ -88,6 +90,8 @@ export function attachMunicipalitiesLayer(
         promoteId: 'id',
     });
 
+    const beforeId = options.beforeId && map.getLayer(options.beforeId) ? options.beforeId : undefined;
+
     map.addLayer({
         id: FILL_LAYER_ID,
         type: 'fill',
@@ -107,7 +111,7 @@ export function attachMunicipalitiesLayer(
                 ['case', hoverExpression, 0.12, 0],
             ]),
         },
-    });
+    }, beforeId);
 
     map.addLayer({
         id: LINE_LAYER_ID,
@@ -131,7 +135,7 @@ export function attachMunicipalitiesLayer(
                 1,
             ]),
         },
-    });
+    }, beforeId);
 
     map.addLayer({
         id: LABEL_LAYER_ID,
@@ -157,7 +161,7 @@ export function attachMunicipalitiesLayer(
                 ['case', hoverExpression, 1, 0],
             ]),
         },
-    });
+    }, beforeId);
 
     let hoveredId: string | null = null;
 
@@ -179,17 +183,12 @@ export function attachMunicipalitiesLayer(
         setHovered(feature?.id != null ? String(feature.id) : null);
     };
     const onMouseLeave = () => setHovered(null);
-    const onClick = (event: mapboxgl.MapLayerMouseEvent) => {
-        const feature = event.features?.[0];
-        if (feature?.id != null) {
-            options.onClick?.(String(feature.id));
-        }
-    };
 
+    // Clicks are resolved by CivicMap's unified handler (subjects win over
+    // municipalities regardless of listener registration order).
     if (options.interactive) {
         map.on('mousemove', FILL_LAYER_ID, onMouseMove);
         map.on('mouseleave', FILL_LAYER_ID, onMouseLeave);
-        map.on('click', FILL_LAYER_ID, onClick);
     }
 
     return {
@@ -201,7 +200,6 @@ export function attachMunicipalitiesLayer(
             if (options.interactive) {
                 map.off('mousemove', FILL_LAYER_ID, onMouseMove);
                 map.off('mouseleave', FILL_LAYER_ID, onMouseLeave);
-                map.off('click', FILL_LAYER_ID, onClick);
             }
             if (!map.getStyle()) return;
             for (const layerId of [LABEL_LAYER_ID, LINE_LAYER_ID, FILL_LAYER_ID]) {

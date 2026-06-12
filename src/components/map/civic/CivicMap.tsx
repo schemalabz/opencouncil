@@ -11,8 +11,15 @@ import type { MapMunicipality, MapSubject } from '@/lib/map/types';
 import { useMapInstance, usePrefersReducedMotion } from './useMapInstance';
 import { boundsFromGeometry, toMapboxPadding, useCameraControl } from './useCameraControl';
 import { useVisibleSubjects, toViewportBounds } from './useVisibleSubjects';
-import { attachMunicipalitiesLayer, type MunicipalitiesLayerHandle } from './municipalitiesLayer';
-import type { CivicMapHandle, CivicMapPadding, CivicMapProps } from './types';
+import {
+    attachMunicipalitiesLayer,
+    BOUNDARY_FADE_END_ZOOM,
+    MUNICIPALITIES_FILL_LAYER_ID,
+    type MunicipalitiesLayerHandle,
+} from './municipalitiesLayer';
+import { attachSubjectsLayer, SUBJECTS_HALO_LAYER_ID, topicsFromSubjects, type SubjectsLayerHandle } from './subjectsLayer';
+import { createDonutMarkerPool, type DonutMarkerPool } from './donutMarkerPool';
+import { DEFAULT_MARKER_OPTIONS, type CivicMapHandle, type CivicMapPadding, type CivicMapProps } from './types';
 
 const CONTEXT_SOURCE_ID = 'civic-context-boundary';
 const CONTEXT_LINE_LAYER_ID = 'civic-context-boundary-line';
@@ -46,12 +53,16 @@ function CivicMapInner(props: CivicMapProps) {
         onMunicipalityClick: props.onMunicipalityClick,
         onMoveEnd: props.onMoveEnd,
         onMapReady: props.onMapReady,
+        onSubjectSelect: props.onSubjectSelect,
+        onSubjectHover: props.onSubjectHover,
     });
     useEffect(() => {
         callbacksRef.current = {
             onMunicipalityClick: props.onMunicipalityClick,
             onMoveEnd: props.onMoveEnd,
             onMapReady: props.onMapReady,
+            onSubjectSelect: props.onSubjectSelect,
+            onSubjectHover: props.onSubjectHover,
         };
     });
 
@@ -61,6 +72,21 @@ function CivicMapInner(props: CivicMapProps) {
     );
     const municipalitiesByIdRef = useRef(municipalitiesById);
     municipalitiesByIdRef.current = municipalitiesById;
+
+    const subjectsById = useMemo(
+        () => new Map(props.subjects.map(subject => [subject.id, subject])),
+        [props.subjects],
+    );
+    const subjectsByIdRef = useRef(subjectsById);
+    subjectsByIdRef.current = subjectsById;
+    const subjectsRef = useRef(props.subjects);
+    subjectsRef.current = props.subjects;
+
+    // Marker options are read once at attach — pages configure them per
+    // surface, not per render.
+    const markerOptionsRef = useRef({ ...DEFAULT_MARKER_OPTIONS, ...props.markerOptions });
+    const clusterAriaLabelRef = useRef(props.labels?.clusterAria);
+    clusterAriaLabelRef.current = props.labels?.clusterAria;
 
     // Camera padding shared by every programmatic move; pages update it via
     // the handle when their chrome changes (e.g. mobile drawer snaps).
@@ -76,10 +102,7 @@ function CivicMapInner(props: CivicMapProps) {
         if (!map || !isLoaded || !hasMunicipalities || muniHandleRef.current) return;
         muniHandleRef.current = attachMunicipalitiesLayer(map, [...municipalitiesByIdRef.current.values()], {
             interactive,
-            onClick: municipalityId => {
-                const municipality = municipalitiesByIdRef.current.get(municipalityId);
-                if (municipality) callbacksRef.current.onMunicipalityClick?.(municipality);
-            },
+            beforeId: SUBJECTS_HALO_LAYER_ID,
         });
         return () => {
             muniHandleRef.current?.destroy();
@@ -110,6 +133,106 @@ function CivicMapInner(props: CivicMapProps) {
             source.setData(contextBoundaryData(props.contextBoundary));
         }
     }, [map, isLoaded, props.contextBoundary]);
+
+    // Subjects: clustered source + pins/dots layers + donut marker pool
+    const subjectsHandleRef = useRef<SubjectsLayerHandle | null>(null);
+    const donutPoolRef = useRef<DonutMarkerPool | null>(null);
+    useEffect(() => {
+        if (!map || !isLoaded) return;
+        const markerOptions = markerOptionsRef.current;
+        subjectsHandleRef.current = attachSubjectsLayer(map, subjectsRef.current, {
+            ...markerOptions,
+            interactive,
+            onHover: subjectId => callbacksRef.current.onSubjectHover?.(subjectId),
+        });
+        if (markerOptions.clusterMode === 'donut') {
+            donutPoolRef.current = createDonutMarkerPool(map, {
+                topics: topicsFromSubjects(subjectsRef.current),
+                clusterAriaLabel: count => clusterAriaLabelRef.current?.(count) ?? `${count}`,
+                reducedMotion,
+            });
+        }
+        return () => {
+            donutPoolRef.current?.destroy();
+            donutPoolRef.current = null;
+            subjectsHandleRef.current?.destroy();
+            subjectsHandleRef.current = null;
+        };
+        // reducedMotion is intentionally captured at attach time
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [map, isLoaded, interactive]);
+    useEffect(() => {
+        subjectsHandleRef.current?.update(props.subjects);
+        donutPoolRef.current?.setTopics(topicsFromSubjects(props.subjects));
+    }, [props.subjects]);
+
+    // Selection (panel click or map click): highlight + gentle camera focus
+    const selectedSubject = props.selectedSubjectId ? subjectsById.get(props.selectedSubjectId) ?? null : null;
+    useEffect(() => {
+        if (!map || !isLoaded) return;
+        subjectsHandleRef.current?.setSelected(selectedSubject);
+        if (!selectedSubject || props.flyToSelected === false || !interactive) return;
+
+        const [lng, lat] = selectedSubject.anchor;
+        const bounds = map.getBounds();
+        const inView = Boolean(bounds && lng >= bounds.getWest() && lng <= bounds.getEast() &&
+            lat >= bounds.getSouth() && lat <= bounds.getNorth());
+        if (inView) {
+            map.easeTo({ center: selectedSubject.anchor, padding: paddingRef.current, duration: reducedMotion ? 0 : 300 });
+        } else {
+            map.flyTo({
+                center: selectedSubject.anchor,
+                zoom: Math.max(map.getZoom(), FLY_TO_MIN_ZOOM),
+                padding: paddingRef.current,
+                duration: reducedMotion ? 0 : FLY_TO_DURATION_MS,
+                essential: true,
+            });
+        }
+    }, [map, isLoaded, selectedSubject, props.flyToSelected, interactive, reducedMotion]);
+
+    // External hover (panel rows)
+    useEffect(() => {
+        if (!map || !isLoaded) return;
+        subjectsHandleRef.current?.setHovered(props.hoveredSubjectId ?? null);
+    }, [map, isLoaded, props.hoveredSubjectId]);
+
+    // Unified click resolution: subjects (8px hit slop) win over
+    // municipalities; empty clicks clear the selection.
+    useEffect(() => {
+        if (!map || !isLoaded || !interactive) return;
+        const onClick = (event: mapboxgl.MapMouseEvent) => {
+            const subjectLayers = subjectsHandleRef.current?.hitTestLayerIds() ?? [];
+            if (subjectLayers.length > 0) {
+                const { x, y } = event.point;
+                const hits = map.queryRenderedFeatures(
+                    [[x - 8, y - 8], [x + 8, y + 8]],
+                    { layers: subjectLayers },
+                );
+                const hit = hits[0];
+                const hitId = hit?.id ?? hit?.properties?.id;
+                if (hitId != null) {
+                    const subject = subjectsByIdRef.current.get(String(hitId)) ?? null;
+                    callbacksRef.current.onSubjectSelect?.(subject);
+                    return;
+                }
+            }
+            if (map.getLayer(MUNICIPALITIES_FILL_LAYER_ID) && map.getZoom() < BOUNDARY_FADE_END_ZOOM) {
+                const muniHit = map.queryRenderedFeatures(event.point, { layers: [MUNICIPALITIES_FILL_LAYER_ID] })[0];
+                if (muniHit?.id != null) {
+                    const municipality = municipalitiesByIdRef.current.get(String(muniHit.id));
+                    if (municipality) {
+                        callbacksRef.current.onMunicipalityClick?.(municipality);
+                        return;
+                    }
+                }
+            }
+            callbacksRef.current.onSubjectSelect?.(null);
+        };
+        map.on('click', onClick);
+        return () => {
+            map.off('click', onClick);
+        };
+    }, [map, isLoaded, interactive]);
 
     useCameraControl(map, isLoaded, {
         camera: props.camera,
