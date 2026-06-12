@@ -24,6 +24,12 @@ if (env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && !EMBED_PATH.test(window.location.pa
         // Pageviews are captured by PostHogPageView so they carry `logged_in`;
         // the automatic capture would fire before the session is known.
         capture_pageview: false,
+        // The default ('if_capture_pageview') disables pageleave when
+        // capture_pageview is false, but manual $pageview captures still feed
+        // the page-view state that $pageleave reads, so automatic pageleave
+        // works fine alongside PostHogPageView. Without it, bounce rate and
+        // session duration in Web Analytics are inaccurate.
+        capture_pageleave: true,
         debug: process.env.NODE_ENV === "development",
     });
 
