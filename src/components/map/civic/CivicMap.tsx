@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { cn } from '@/lib/utils';
 import { isWebGLSupported } from '@/lib/webgl';
@@ -19,6 +19,8 @@ import {
 } from './municipalitiesLayer';
 import { attachSubjectsLayer, SUBJECTS_HALO_LAYER_ID, topicsFromSubjects, type SubjectsLayerHandle } from './subjectsLayer';
 import { createDonutMarkerPool, type DonutMarkerPool } from './donutMarkerPool';
+import { createSpiderfier, type Spiderfier } from './spiderfier';
+import { anchorKeyOf } from '@/lib/map/spiderfy';
 import { DEFAULT_MARKER_OPTIONS, type CivicMapHandle, type CivicMapPadding, type CivicMapProps } from './types';
 
 const CONTEXT_SOURCE_ID = 'civic-context-boundary';
@@ -82,6 +84,23 @@ function CivicMapInner(props: CivicMapProps) {
     const subjectsRef = useRef(props.subjects);
     subjectsRef.current = props.subjects;
 
+    // Subjects sharing the exact same spot (~0.1m) — the spiderfier's groups
+    const subjectsByAnchor = useMemo(() => {
+        const groups = new Map<string, MapSubject[]>();
+        for (const subject of props.subjects) {
+            const key = anchorKeyOf(subject.anchor);
+            const group = groups.get(key);
+            if (group) {
+                group.push(subject);
+            } else {
+                groups.set(key, [subject]);
+            }
+        }
+        return groups;
+    }, [props.subjects]);
+    const subjectsByAnchorRef = useRef(subjectsByAnchor);
+    subjectsByAnchorRef.current = subjectsByAnchor;
+
     // Marker options are read once at attach — pages configure them per
     // surface, not per render.
     const markerOptionsRef = useRef({ ...DEFAULT_MARKER_OPTIONS, ...props.markerOptions });
@@ -137,6 +156,20 @@ function CivicMapInner(props: CivicMapProps) {
     // Subjects: clustered source + pins/dots layers + donut marker pool
     const subjectsHandleRef = useRef<SubjectsLayerHandle | null>(null);
     const donutPoolRef = useRef<DonutMarkerPool | null>(null);
+
+    // Spiderfier: co-located subjects fan out so each stays selectable
+    const spiderfierRef = useRef<Spiderfier | null>(null);
+    const closeSpiderfier = useCallback(() => {
+        if (spiderfierRef.current?.isOpen()) {
+            spiderfierRef.current.close();
+            subjectsHandleRef.current?.setHiddenAnchorKey(null);
+        }
+    }, []);
+    const openSpiderfier = useCallback((group: MapSubject[], anchor: [number, number]) => {
+        if (!spiderfierRef.current) return;
+        subjectsHandleRef.current?.setHiddenAnchorKey(anchorKeyOf(anchor));
+        spiderfierRef.current.open(group, anchor);
+    }, []);
     useEffect(() => {
         if (!map || !isLoaded) return;
         const markerOptions = markerOptionsRef.current;
@@ -145,14 +178,63 @@ function CivicMapInner(props: CivicMapProps) {
             interactive,
             onHover: subjectId => callbacksRef.current.onSubjectHover?.(subjectId),
         });
+        if (interactive && markerOptions.spiderfy) {
+            spiderfierRef.current = createSpiderfier(map, {
+                reducedMotion,
+                onSelect: subject => {
+                    closeSpiderfier();
+                    callbacksRef.current.onSubjectSelect?.(subject);
+                },
+                onHover: subjectId => callbacksRef.current.onSubjectHover?.(subjectId),
+            });
+        }
         if (markerOptions.clusterMode === 'donut') {
             donutPoolRef.current = createDonutMarkerPool(map, {
                 topics: topicsFromSubjects(subjectsRef.current),
                 clusterAriaLabel: count => clusterAriaLabelRef.current?.(count) ?? `${count}`,
                 reducedMotion,
+                clusterMaxZoom: markerOptions.clusterMaxZoom,
+                onUnexpandable: (subjectIds, lngLat) => {
+                    const group = subjectIds
+                        .map(id => subjectsByIdRef.current.get(id))
+                        .filter((subject): subject is MapSubject => Boolean(subject));
+                    const sharedAnchors = new Set(group.map(subject => anchorKeyOf(subject.anchor)));
+                    const pinsZoom = markerOptions.clusterMaxZoom + 1;
+
+                    // One shared spot → settle the camera there, then fan out.
+                    if (markerOptions.spiderfy && interactive && group.length > 1 && sharedAnchors.size === 1) {
+                        const anchor = group[0].anchor;
+                        const center = map.getCenter();
+                        const needsMove = map.getZoom() < pinsZoom - 0.05 ||
+                            Math.abs(center.lng - anchor[0]) > 0.0005 ||
+                            Math.abs(center.lat - anchor[1]) > 0.0005;
+                        if (needsMove) {
+                            map.once('moveend', () => openSpiderfier(group, anchor));
+                            map.easeTo({
+                                center: anchor,
+                                zoom: Math.max(map.getZoom(), pinsZoom),
+                                padding: paddingRef.current,
+                                duration: reducedMotion ? 0 : 600,
+                            });
+                        } else {
+                            openSpiderfier(group, anchor);
+                        }
+                        return;
+                    }
+                    // Distinct-but-close points: jump past the clustering
+                    // ceiling and let individual pins take over.
+                    map.easeTo({
+                        center: lngLat,
+                        zoom: pinsZoom + 0.2,
+                        padding: paddingRef.current,
+                        duration: reducedMotion ? 0 : 600,
+                    });
+                },
             });
         }
         return () => {
+            spiderfierRef.current?.destroy();
+            spiderfierRef.current = null;
             donutPoolRef.current?.destroy();
             donutPoolRef.current = null;
             subjectsHandleRef.current?.destroy();
@@ -162,9 +244,20 @@ function CivicMapInner(props: CivicMapProps) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [map, isLoaded, interactive]);
     useEffect(() => {
+        closeSpiderfier();
         subjectsHandleRef.current?.update(props.subjects);
         donutPoolRef.current?.setTopics(topicsFromSubjects(props.subjects));
-    }, [props.subjects]);
+    }, [props.subjects, closeSpiderfier]);
+
+    // Zooming re-arranges clusters under the fan — fold it back in.
+    useEffect(() => {
+        if (!map || !isLoaded) return;
+        const onZoomStart = () => closeSpiderfier();
+        map.on('zoomstart', onZoomStart);
+        return () => {
+            map.off('zoomstart', onZoomStart);
+        };
+    }, [map, isLoaded, closeSpiderfier]);
 
     // Selection (panel click or map click): highlight + gentle camera focus
     const selectedSubject = props.selectedSubjectId ? subjectsById.get(props.selectedSubjectId) ?? null : null;
@@ -216,6 +309,12 @@ function CivicMapInner(props: CivicMapProps) {
     useEffect(() => {
         if (!map || !isLoaded || !interactive) return;
         const onClick = (event: mapboxgl.MapMouseEvent) => {
+            // An open fan treats any map click as "dismiss" (badge clicks
+            // don't reach the canvas).
+            if (spiderfierRef.current?.isOpen()) {
+                closeSpiderfier();
+                return;
+            }
             const subjectLayers = subjectsHandleRef.current?.hitTestLayerIds() ?? [];
             if (subjectLayers.length > 0) {
                 const { x, y } = event.point;
@@ -227,6 +326,13 @@ function CivicMapInner(props: CivicMapProps) {
                 const hitId = hit?.id ?? hit?.properties?.id;
                 if (hitId != null) {
                     const subject = subjectsByIdRef.current.get(String(hitId)) ?? null;
+                    if (subject && markerOptionsRef.current.spiderfy) {
+                        const group = subjectsByAnchorRef.current.get(anchorKeyOf(subject.anchor));
+                        if (group && group.length > 1) {
+                            openSpiderfier(group, subject.anchor);
+                            return;
+                        }
+                    }
                     callbacksRef.current.onSubjectSelect?.(subject);
                     return;
                 }

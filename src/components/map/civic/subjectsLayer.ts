@@ -2,6 +2,7 @@ import type mapboxgl from 'mapbox-gl';
 import type { ExpressionSpecification, GeoJSONSourceSpecification } from 'mapbox-gl';
 import { SELECTED_SOURCE_ID, SUBJECTS_SOURCE_ID } from '@/lib/map/constants';
 import { buildClusterProperties } from '@/lib/map/donut';
+import { anchorKeyOf } from '@/lib/map/spiderfy';
 import type { MapSubject } from '@/lib/map/types';
 import { ensurePinImage, ensurePinImages, pinImageId, PIN_IMAGE_PREFIX, type PinTopic } from './pinImages';
 
@@ -38,6 +39,8 @@ export interface SubjectsLayerHandle {
     setHovered(subjectId: string | null): void;
     /** Selection highlight + outline; renders even while the subject is clustered. */
     setSelected(subject: MapSubject | null): void;
+    /** Hide the stacked pins at an anchor while the spiderfier fans them out. */
+    setHiddenAnchorKey(anchorKey: string | null): void;
     /** Layer ids to hit-test for subject clicks, in priority order. */
     hitTestLayerIds(): string[];
     destroy(): void;
@@ -75,6 +78,7 @@ function toFeatureCollection(subjects: MapSubject[]): GeoJSON.FeatureCollection 
                 topicColor: subject.topicColor,
                 importance: subject.importance,
                 sortKey: -subject.discussionTimeSeconds,
+                anchorKey: anchorKeyOf(subject.anchor),
             },
         })),
     };
@@ -115,6 +119,22 @@ export function attachSubjectsLayer(
     let topics = topicsFromSubjects(subjects);
     let signature = topicSignature(topics);
     let hoveredId: string | null = null;
+    let hiddenAnchorKey: string | null = null;
+
+    // Base layer filters, composable with the spiderfier's hidden anchor
+    const haloFilter = notClustered;
+    const dotsFilter: ExpressionSpecification = options.importanceScaling
+        ? ['all', notClustered, ['==', ['get', 'importance'], 'minor']]
+        : ['boolean', false];
+    const pinsFilter: ExpressionSpecification = options.importanceScaling
+        ? ['all', notClustered, ['!=', ['get', 'importance'], 'minor']]
+        : notClustered;
+    const labelsFilter: ExpressionSpecification = ['all', notClustered, ['==', ['get', 'importance'], 'hot']];
+
+    const withHidden = (base: ExpressionSpecification): ExpressionSpecification =>
+        hiddenAnchorKey === null
+            ? base
+            : ['all', base, ['!=', ['get', 'anchorKey'], hiddenAnchorKey]];
 
     let disposed = false;
 
@@ -177,7 +197,7 @@ export function attachSubjectsLayer(
             id: SUBJECTS_HALO_LAYER_ID,
             type: 'circle',
             source: SUBJECTS_SOURCE_ID,
-            filter: notClustered,
+            filter: withHidden(haloFilter),
             paint: {
                 'circle-color': ['get', 'topicColor'],
                 'circle-radius': [
@@ -196,9 +216,7 @@ export function attachSubjectsLayer(
             id: SUBJECTS_DOTS_LAYER_ID,
             type: 'circle',
             source: SUBJECTS_SOURCE_ID,
-            filter: options.importanceScaling
-                ? ['all', notClustered, ['==', ['get', 'importance'], 'minor']]
-                : ['boolean', false],
+            filter: withHidden(dotsFilter),
             paint: {
                 'circle-color': ['get', 'topicColor'],
                 'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 2.5, 16, 5],
@@ -214,7 +232,7 @@ export function attachSubjectsLayer(
             type: 'symbol',
             source: SUBJECTS_SOURCE_ID,
             minzoom: 15,
-            filter: ['all', notClustered, ['==', ['get', 'importance'], 'hot']],
+            filter: withHidden(labelsFilter),
             layout: {
                 'text-field': ['get', 'name'],
                 'text-size': 12,
@@ -283,9 +301,7 @@ export function attachSubjectsLayer(
                 id: SUBJECTS_PINS_LAYER_ID,
                 type: 'symbol',
                 source: SUBJECTS_SOURCE_ID,
-                filter: options.importanceScaling
-                    ? ['all', notClustered, ['!=', ['get', 'importance'], 'minor']]
-                    : notClustered,
+                filter: withHidden(pinsFilter),
                 layout: {
                     'icon-image': ['concat', PIN_IMAGE_PREFIX, ['coalesce', ['get', 'topicId'], 'fallback']],
                     'icon-size': options.importanceScaling
@@ -405,6 +421,19 @@ export function attachSubjectsLayer(
             }
             const source = map.getSource(SELECTED_SOURCE_ID) as mapboxgl.GeoJSONSource | undefined;
             source?.setData(selectionFeatureCollection(subject));
+        },
+        setHiddenAnchorKey(anchorKey: string | null) {
+            if (anchorKey === hiddenAnchorKey) return;
+            hiddenAnchorKey = anchorKey;
+            const filtersByLayer: [string, ExpressionSpecification][] = [
+                [SUBJECTS_HALO_LAYER_ID, haloFilter],
+                [SUBJECTS_DOTS_LAYER_ID, dotsFilter],
+                [SUBJECTS_PINS_LAYER_ID, pinsFilter],
+                [SUBJECTS_LABELS_LAYER_ID, labelsFilter],
+            ];
+            for (const [layerId, base] of filtersByLayer) {
+                if (map.getLayer(layerId)) map.setFilter(layerId, withHidden(base));
+            }
         },
         hitTestLayerIds() {
             return [SELECTED_PIN_LAYER_ID, SUBJECTS_PINS_LAYER_ID, SUBJECTS_DOTS_LAYER_ID].filter(id => map.getLayer(id));

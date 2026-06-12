@@ -8,7 +8,10 @@ export interface CivicMapMarkerOptions {
     /** Scale pins by discussion intensity; minor (τυπικά) subjects render as small dots. */
     importanceScaling: boolean;
     clusterRadius: number;
+    /** Clustering runs through this zoom; every subject renders individually from the next zoom up. */
     clusterMaxZoom: number;
+    /** Fan out co-located subjects on click so each stays selectable. */
+    spiderfy: boolean;
 }
 
 export const DEFAULT_MARKER_OPTIONS: CivicMapMarkerOptions = {
@@ -16,6 +19,7 @@ export const DEFAULT_MARKER_OPTIONS: CivicMapMarkerOptions = {
     importanceScaling: true,
     clusterRadius: CLUSTER_RADIUS_PX,
     clusterMaxZoom: CLUSTER_MAX_ZOOM,
+    spiderfy: true,
 };
 
 export type CivicMapPadding = number | { top: number; bottom: number; left: number; right: number };

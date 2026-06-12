@@ -22,8 +22,17 @@ export const IMPORTANCE_MINOR_MAX_SPEAKERS = 1;
 // Clustering
 export const CLUSTER_RADIUS_PX = 56;
 export const CLUSTER_RADIUS_MOBILE_PX = 48;
-/** Clustering runs through this zoom — pins take over from the next one. */
-export const CLUSTER_MAX_ZOOM = 14;
+/**
+ * Clustering runs through this zoom; from the next zoom every subject
+ * renders individually (default: pins/dots from z14 up).
+ */
+export const CLUSTER_MAX_ZOOM = 13;
+
+// Spiderfy (co-located subjects fan out around their shared location)
+/** Anchor precision for "same spot" grouping: 6 decimals ≈ 0.1m. */
+export const SPIDERFY_ANCHOR_PRECISION = 6;
+export const SPIDERFY_CIRCLE_MAX = 8;
+export const SPIDERFY_BADGE_SIZE_PX = 34;
 /** Topics beyond this cap accumulate into a single overflow cluster property. */
 export const CLUSTER_TOPIC_PROPERTY_CAP = 24;
 export const CLUSTER_OTHER_KEY = 't_other';

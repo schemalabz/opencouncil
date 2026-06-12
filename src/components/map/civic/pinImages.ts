@@ -81,6 +81,22 @@ function fallbackDisc(colorHex: string): ImageData | null {
     return ctx.getImageData(0, 0, PIN_IMAGE_SIZE, PIN_IMAGE_SIZE);
 }
 
+/**
+ * The composed badge SVG (disc + icon + ring + shadow) as markup — shared by
+ * the map-image pipeline and DOM consumers like the spiderfier.
+ */
+export async function createPinBadgeSvg(topic: Pick<PinTopic, 'colorHex' | 'icon'>): Promise<string | null> {
+    const colorHex = topic.colorHex || FALLBACK_TOPIC_COLOR;
+    const iconName = topic.icon && VALID_ICON_NAMES.has(topic.icon) ? topic.icon : FALLBACK_TOPIC_ICON;
+    try {
+        const markup = await renderIconMarkup(iconName);
+        if (!markup) return null;
+        return composeBadgeSvg(colorHex, markup);
+    } catch {
+        return null;
+    }
+}
+
 // One rasterization per (map, topic) — keyed weakly so a removed map frees its jobs.
 const jobsByMap = new WeakMap<mapboxgl.Map, Map<string, Promise<void>>>();
 

@@ -15,6 +15,14 @@ export interface DonutMarkerPoolOptions {
     /** Accessible label for a cluster button. */
     clusterAriaLabel: (count: number) => string;
     reducedMotion: boolean;
+    /** Clustering ceiling — clusters that outlive it hand off to onUnexpandable. */
+    clusterMaxZoom: number;
+    /**
+     * A cluster that zooming cannot split (its members sit closer than the
+     * cluster radius even at clusterMaxZoom — usually the same address).
+     * The map decides whether to spiderfy or just zoom past the ceiling.
+     */
+    onUnexpandable?: (subjectIds: string[], lngLat: [number, number]) => void;
 }
 
 export interface DonutMarkerPool {
@@ -67,6 +75,17 @@ export function createDonutMarkerPool(map: mapboxgl.Map, options: DonutMarkerPoo
             if (!source || !pooled) return;
             source.getClusterExpansionZoom(clusterId, (error, zoom) => {
                 if (error || zoom == null) return;
+                if (zoom > options.clusterMaxZoom && options.onUnexpandable) {
+                    source.getClusterLeaves(clusterId, Infinity, 0, (leavesError, leaves) => {
+                        const lngLat = pooled.marker.getLngLat().toArray() as [number, number];
+                        if (leavesError || !leaves) return;
+                        const subjectIds = leaves
+                            .map(leaf => leaf.properties?.id)
+                            .filter((id): id is string => typeof id === 'string');
+                        options.onUnexpandable?.(subjectIds, lngLat);
+                    });
+                    return;
+                }
                 map.easeTo({
                     center: pooled.marker.getLngLat(),
                     zoom: zoom + 0.2,
