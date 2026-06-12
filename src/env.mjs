@@ -87,6 +87,8 @@ export const env = createEnv({
     NEXT_PUBLIC_CONTACT_EMAIL: z.string().email().optional(),
     NEXT_PUBLIC_CONTACT_ADDRESS: z.string().optional(),
     NEXT_PUBLIC_BUILD_COMMIT_SHA: z.string().optional(),
+    // PostHog analytics; unset (or empty) disables analytics entirely.
+    NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: z.string().optional(),
   },
 
   /**
@@ -143,6 +145,7 @@ export const env = createEnv({
     NEXT_PUBLIC_CONTACT_EMAIL: process.env.NEXT_PUBLIC_CONTACT_EMAIL,
     NEXT_PUBLIC_CONTACT_ADDRESS: process.env.NEXT_PUBLIC_CONTACT_ADDRESS,
     NEXT_PUBLIC_BUILD_COMMIT_SHA: process.env.NEXT_PUBLIC_BUILD_COMMIT_SHA,
+    NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN,
   },
 
   /**

@@ -5,6 +5,7 @@ import { getMessages } from "next-intl/server";
 import { routing } from '@/i18n/routing';
 import { notFound } from "next/navigation";
 import { Toaster } from "@/components/ui/toaster";
+import ConsentChip from "@/components/analytics/ConsentChip";
 
 // Only import in development or on preview deployments — excluded from real
 // production bundles entirely. Both branches use literal `process.env.X === '...'`
@@ -49,6 +50,7 @@ export default async function LocaleLayout(
             {children}
 
             <Toaster />
+            <ConsentChip />
             {QuickLogin && <QuickLogin isPreview={process.env.IS_PREVIEW === 'true'} />}
             {MobilePreviewReporter && <MobilePreviewReporter />}
         </NextIntlClientProvider>

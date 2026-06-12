@@ -10,6 +10,7 @@ import { MessageCircle, ChevronDown, LogIn, ChevronUp, Trash2, Clock } from "luc
 import { cn } from "@/lib/utils";
 import { getSafeHtmlContent } from "@/lib/utils/sanitize";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
+import posthog from "posthog-js";
 
 // Dynamically import ReactQuill to avoid SSR issues
 const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
@@ -103,6 +104,15 @@ export default function CommentSection({
             }
 
             const { comment: newComment } = await response.json();
+
+            // Captured client-side so the consent model applies: consented
+            // users are attributed via their identified person, everyone
+            // else stays on anonymous cookieless measurement.
+            posthog.capture("consultation_comment_submitted", {
+                consultation_id: consultationId,
+                city_id: cityId,
+                entity_type: entityType.toUpperCase(),
+            });
 
             // Add the new comment to the list
             const commentWithUpvotes = {

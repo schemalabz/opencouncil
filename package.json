@@ -114,6 +114,7 @@
     "next-plausible": "^3.12.2",
     "pdf-parse": "^1.1.1",
     "pg": "^8.13.1",
+    "posthog-js": "^1.386.5",
     "qrcode.react": "^4.2.0",
     "quill": "^2.0.3",
     "re-resizable": "^6.11.2",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from "../ui/button";
 import {
     DropdownMenu,
@@ -20,6 +20,7 @@ import { formatTimestamp } from '@/lib/utils';
 import { downloadFile } from '@/lib/export/meetings';
 import { useToast } from '@/hooks/use-toast';
 import StoryTemplatePickerDialog from './StoryTemplatePickerDialog';
+import posthog from 'posthog-js';
 
 
 interface ShareDropdownProps {
@@ -27,6 +28,18 @@ interface ShareDropdownProps {
     cityId: string;
     className?: string;
 }
+
+const SHARE_CONTEXT_LABELS: Record<string, string> = {
+    transcript: 'την απομαγνητοφώνηση',
+    statistics: 'τα στατιστικά',
+    subject: 'αυτό το θέμα',
+    highlights: 'τα highlights',
+    share: 'τις επιλογές κοινοποίησης',
+    settings: 'τις ρυθμίσεις',
+    admin: 'τη σελίδα διαχείρισης',
+    map: 'τον χάρτη',
+    meeting: 'τη συνεδρίαση',
+};
 
 export default function ShareDropdown({ meetingId, cityId, className }: ShareDropdownProps) {
     const [url, setUrl] = useState('');
@@ -135,32 +148,50 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     };
 
     // Determine what's being shared based on the current path
-    const getShareContext = () => {
+    const getShareContextKey = () => {
         if (pathname.includes('/transcript')) {
-            return 'την απομαγνητοφώνηση';
+            return 'transcript';
         } else if (pathname.includes('/statistics')) {
-            return 'τα στατιστικά';
+            return 'statistics';
         } else if (pathname.includes('/subjects/')) {
-            return 'αυτό το θέμα';
+            return 'subject';
         } else if (pathname.includes('/highlights')) {
-            return 'τα highlights';
+            return 'highlights';
         } else if (pathname.includes('/share')) {
-            return 'τις επιλογές κοινοποίησης';
+            return 'share';
         } else if (pathname.includes('/settings')) {
-            return 'τις ρυθμίσεις';
+            return 'settings';
         } else if (pathname.includes('/admin')) {
-            return 'τη σελίδα διαχείρισης';
+            return 'admin';
         } else if (pathname.includes('/map')) {
-            return 'τον χάρτη';
+            return 'map';
         } else {
-            return 'τη συνεδρίαση';
+            return 'meeting';
         }
     };
 
-    const shareContext = getShareContext();
+    const shareContextKey = getShareContextKey();
+    const shareContext = SHARE_CONTEXT_LABELS[shareContextKey];
 
     // Use a single controlled state - prioritize context state when active
     const dropdownOpen = isOpen || internalOpen;
+
+    // Each open counts as one share intent, whether triggered by the button
+    // or programmatically from the transcript context menu. Capture strictly
+    // on the closed→open transition: shareContextKey is in the deps, so a
+    // client-side navigation while the menu stays open would otherwise
+    // re-fire for the same open.
+    const prevDropdownOpen = useRef(false);
+    useEffect(() => {
+        const justOpened = dropdownOpen && !prevDropdownOpen.current;
+        prevDropdownOpen.current = dropdownOpen;
+        if (!justOpened || !posthog.__loaded) return;
+        posthog.capture('share_clicked', {
+            city_id: cityId,
+            meeting_id: meetingId,
+            page: shareContextKey,
+        });
+    }, [dropdownOpen, cityId, meetingId, shareContextKey]);
 
     const handleOpenChange = (open: boolean) => {
         if (open) {
