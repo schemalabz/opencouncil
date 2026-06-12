@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from "../ui/button";
 import {
     DropdownMenu,
@@ -177,9 +177,15 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const dropdownOpen = isOpen || internalOpen;
 
     // Each open counts as one share intent, whether triggered by the button
-    // or programmatically from the transcript context menu.
+    // or programmatically from the transcript context menu. Capture strictly
+    // on the closed→open transition: shareContextKey is in the deps, so a
+    // client-side navigation while the menu stays open would otherwise
+    // re-fire for the same open.
+    const prevDropdownOpen = useRef(false);
     useEffect(() => {
-        if (!dropdownOpen || !posthog.__loaded) return;
+        const justOpened = dropdownOpen && !prevDropdownOpen.current;
+        prevDropdownOpen.current = dropdownOpen;
+        if (!justOpened || !posthog.__loaded) return;
         posthog.capture('share_clicked', {
             city_id: cityId,
             meeting_id: meetingId,
