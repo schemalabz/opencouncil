@@ -48,6 +48,7 @@ function CivicMapInner(props: CivicMapProps) {
         onMapReady: props.onMapReady,
         onSubjectSelect: props.onSubjectSelect,
         onSubjectHover: props.onSubjectHover,
+        onSpiderfyChange: props.onSpiderfyChange,
     });
     useEffect(() => {
         callbacksRef.current = {
@@ -56,6 +57,7 @@ function CivicMapInner(props: CivicMapProps) {
             onMapReady: props.onMapReady,
             onSubjectSelect: props.onSubjectSelect,
             onSubjectHover: props.onSubjectHover,
+            onSpiderfyChange: props.onSpiderfyChange,
         };
     });
 
@@ -160,12 +162,14 @@ function CivicMapInner(props: CivicMapProps) {
         if (spiderfierRef.current?.isOpen()) {
             spiderfierRef.current.close();
             subjectsHandleRef.current?.setHiddenAnchorKey(null);
+            callbacksRef.current.onSpiderfyChange?.(null);
         }
     }, []);
     const openSpiderfier = useCallback((group: MapSubject[], anchor: [number, number]) => {
         if (!spiderfierRef.current) return;
         subjectsHandleRef.current?.setHiddenAnchorKey(anchorKeyOf(anchor));
         spiderfierRef.current.open(group, anchor);
+        callbacksRef.current.onSpiderfyChange?.(group.map(subject => subject.id));
     }, []);
     useEffect(() => {
         if (!map || !isLoaded) return;

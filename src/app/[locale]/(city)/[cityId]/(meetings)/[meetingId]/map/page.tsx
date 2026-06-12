@@ -7,7 +7,7 @@ import { useMediaQuery } from '@/hooks/use-media-query';
 import CivicMap from '@/components/map/civic/CivicMap';
 import type { CivicMapHandle } from '@/components/map/civic/types';
 import { MapPanel, MOBILE_SNAP_POINTS } from '@/components/map/civic/panel/MapPanel';
-import { SubjectsTab, type SubjectsSort } from '@/components/map/civic/panel/SubjectsTab';
+import { SubjectsTab } from '@/components/map/civic/panel/SubjectsTab';
 import { subjectWithRelationsToMapSubject } from '@/lib/map/adapters';
 import type { MapSubject } from '@/lib/map/types';
 
@@ -19,7 +19,7 @@ export default function MeetingMapPage() {
     const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
     const [hoveredSubjectId, setHoveredSubjectId] = useState<string | null>(null);
     const [visibleIds, setVisibleIds] = useState<Set<string> | null>(null);
-    const [sort, setSort] = useState<SubjectsSort>('discussion');
+    const [spiderfiedIds, setSpiderfiedIds] = useState<string[] | null>(null);
     const [snap, setSnap] = useState<number | string | null>(MOBILE_SNAP_POINTS[0]);
     const mapHandleRef = useRef<CivicMapHandle | null>(null);
 
@@ -38,15 +38,18 @@ export default function MeetingMapPage() {
         () => (visibleIds === null ? mapSubjects : mapSubjects.filter(subject => visibleIds.has(subject.id))),
         [mapSubjects, visibleIds],
     );
-    const sortedSubjects = useMemo(() => {
-        const list = [...visibleSubjects];
-        if (sort === 'discussion') {
-            list.sort((a, b) => b.discussionTimeSeconds - a.discussionTimeSeconds);
-        } else {
-            list.sort((a, b) => (b.meetingDate ?? '').localeCompare(a.meetingDate ?? ''));
-        }
-        return list;
-    }, [visibleSubjects, sort]);
+    // While a spiderfy fan is open, the list scopes to exactly its subjects.
+    const spiderfiedSubjects = useMemo(() => {
+        if (!spiderfiedIds) return null;
+        const byId = new Map(mapSubjects.map(subject => [subject.id, subject]));
+        return spiderfiedIds
+            .map(id => byId.get(id))
+            .filter((subject): subject is MapSubject => Boolean(subject));
+    }, [spiderfiedIds, mapSubjects]);
+    const listSubjects = useMemo(() => {
+        const base = spiderfiedSubjects ?? visibleSubjects;
+        return [...base].sort((a, b) => b.discussionTimeSeconds - a.discussionTimeSeconds);
+    }, [spiderfiedSubjects, visibleSubjects]);
 
     const handleSelect = (subject: MapSubject | null) => {
         setSelectedSubjectId(subject?.id ?? null);
@@ -68,6 +71,7 @@ export default function MeetingMapPage() {
                     hoveredSubjectId={hoveredSubjectId}
                     onSubjectSelect={handleSelect}
                     onVisibleSubjectsChange={ids => setVisibleIds(new Set(ids))}
+                    onSpiderfyChange={setSpiderfiedIds}
                     onMapReady={controls => {
                         mapHandleRef.current = controls;
                     }}
@@ -81,15 +85,15 @@ export default function MeetingMapPage() {
                 activeTab="subjects"
                 onTabChange={() => undefined}
                 availableTabs={['subjects']}
-                summary={t('subjectsInView', { count: visibleSubjects.length })}
+                summary={spiderfiedSubjects
+                    ? t('subjectsAtPoint', { count: spiderfiedSubjects.length })
+                    : t('subjectsInView', { count: visibleSubjects.length })}
                 snap={snap}
                 onSnapChange={setSnap}
             >
                 <SubjectsTab
-                    subjects={sortedSubjects}
-                    totalCount={visibleSubjects.length}
-                    sort={sort}
-                    onSortChange={setSort}
+                    subjects={listSubjects}
+                    totalCount={listSubjects.length}
                     selectedSubjectId={selectedSubjectId}
                     onSelect={handleSelect}
                     onHover={setHoveredSubjectId}
@@ -97,6 +101,7 @@ export default function MeetingMapPage() {
                     onClearFilters={() => undefined}
                     onZoomOut={() => mapHandleRef.current?.zoomBy(-2)}
                     showCount={isDesktop}
+                    headerText={spiderfiedSubjects ? t('subjectsAtPoint', { count: spiderfiedSubjects.length }) : undefined}
                 />
             </MapPanel>
         </div>

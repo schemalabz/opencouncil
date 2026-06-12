@@ -10,6 +10,7 @@ export const SUBJECTS_HALO_LAYER_ID = 'civic-subjects-halo';
 export const SUBJECTS_DOTS_LAYER_ID = 'civic-subjects-dots';
 export const SUBJECTS_PINS_LAYER_ID = 'civic-subjects-pins';
 export const SUBJECTS_LABELS_LAYER_ID = 'civic-subjects-labels';
+export const SUBJECTS_STACK_COUNT_LAYER_ID = 'civic-subjects-stack-count';
 const SELECTED_OUTLINE_FILL_ID = 'civic-selected-outline-fill';
 const SELECTED_OUTLINE_LINE_ID = 'civic-selected-outline-line';
 const SELECTED_RING_LAYER_ID = 'civic-selected-ring';
@@ -66,21 +67,37 @@ function topicSignature(topics: PinTopic[]): string {
 }
 
 function toFeatureCollection(subjects: MapSubject[]): GeoJSON.FeatureCollection {
+    const renderable = subjects.filter(hasRenderableAnchor);
+    // Same-spot groups: every feature knows its stack size, one per stack
+    // (the leader) carries the count badge.
+    const stackCounts = new Map<string, number>();
+    for (const subject of renderable) {
+        const key = anchorKeyOf(subject.anchor);
+        stackCounts.set(key, (stackCounts.get(key) ?? 0) + 1);
+    }
+    const seenStacks = new Set<string>();
     return {
         type: 'FeatureCollection',
-        features: subjects.filter(hasRenderableAnchor).map(subject => ({
-            type: 'Feature' as const,
-            geometry: { type: 'Point' as const, coordinates: subject.anchor },
-            properties: {
-                id: subject.id,
-                name: subject.name,
-                topicId: subject.topicId,
-                topicColor: subject.topicColor,
-                importance: subject.importance,
-                sortKey: -subject.discussionTimeSeconds,
-                anchorKey: anchorKeyOf(subject.anchor),
-            },
-        })),
+        features: renderable.map(subject => {
+            const anchorKey = anchorKeyOf(subject.anchor);
+            const stackLeader = !seenStacks.has(anchorKey);
+            seenStacks.add(anchorKey);
+            return {
+                type: 'Feature' as const,
+                geometry: { type: 'Point' as const, coordinates: subject.anchor },
+                properties: {
+                    id: subject.id,
+                    name: subject.name,
+                    topicId: subject.topicId,
+                    topicColor: subject.topicColor,
+                    importance: subject.importance,
+                    sortKey: -subject.discussionTimeSeconds,
+                    anchorKey,
+                    stackCount: stackCounts.get(anchorKey) ?? 1,
+                    stackLeader,
+                },
+            };
+        }),
     };
 }
 
@@ -130,6 +147,11 @@ export function attachSubjectsLayer(
         ? ['all', notClustered, ['!=', ['get', 'importance'], 'minor']]
         : notClustered;
     const labelsFilter: ExpressionSpecification = ['all', notClustered, ['==', ['get', 'importance'], 'hot']];
+    const stackCountFilter: ExpressionSpecification = [
+        'all', notClustered,
+        ['boolean', ['get', 'stackLeader'], false],
+        ['>', ['get', 'stackCount'], 1],
+    ];
 
     const withHidden = (base: ExpressionSpecification): ExpressionSpecification =>
         hiddenAnchorKey === null
@@ -246,6 +268,29 @@ export function attachSubjectsLayer(
                 'text-color': '#1c1917',
                 'text-halo-color': '#ffffff',
                 'text-halo-width': 1.5,
+            },
+        });
+
+        // How many subjects hide behind a stacked pin — a small floating
+        // count at its top right (the spiderfier hides it while fanned out).
+        map.addLayer({
+            id: SUBJECTS_STACK_COUNT_LAYER_ID,
+            type: 'symbol',
+            source: SUBJECTS_SOURCE_ID,
+            filter: withHidden(stackCountFilter),
+            layout: {
+                'text-field': ['to-string', ['get', 'stackCount']],
+                'text-size': 11,
+                'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                'text-anchor': 'bottom-left',
+                'text-offset': [0.7, -0.7],
+                'text-allow-overlap': true,
+                'text-ignore-placement': true,
+            },
+            paint: {
+                'text-color': '#0c0a09',
+                'text-halo-color': '#ffffff',
+                'text-halo-width': 1.8,
             },
         });
     }
@@ -380,7 +425,7 @@ export function attachSubjectsLayer(
     }
 
     function removeSubjectLayersAndSource() {
-        for (const layerId of [SUBJECTS_LABELS_LAYER_ID, SUBJECTS_PINS_LAYER_ID, SUBJECTS_DOTS_LAYER_ID, SUBJECTS_HALO_LAYER_ID]) {
+        for (const layerId of [SUBJECTS_STACK_COUNT_LAYER_ID, SUBJECTS_LABELS_LAYER_ID, SUBJECTS_PINS_LAYER_ID, SUBJECTS_DOTS_LAYER_ID, SUBJECTS_HALO_LAYER_ID]) {
             if (map.getLayer(layerId)) map.removeLayer(layerId);
         }
         if (map.getSource(SUBJECTS_SOURCE_ID)) map.removeSource(SUBJECTS_SOURCE_ID);
@@ -430,6 +475,7 @@ export function attachSubjectsLayer(
                 [SUBJECTS_DOTS_LAYER_ID, dotsFilter],
                 [SUBJECTS_PINS_LAYER_ID, pinsFilter],
                 [SUBJECTS_LABELS_LAYER_ID, labelsFilter],
+                [SUBJECTS_STACK_COUNT_LAYER_ID, stackCountFilter],
             ];
             for (const [layerId, base] of filtersByLayer) {
                 if (map.getLayer(layerId)) map.setFilter(layerId, withHidden(base));

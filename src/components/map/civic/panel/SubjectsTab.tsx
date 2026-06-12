@@ -7,16 +7,12 @@ import { Button } from '@/components/ui/button';
 import type { MapSubject } from '@/lib/map/types';
 import { SubjectListItem } from './SubjectListItem';
 
-export type SubjectsSort = 'discussion' | 'recency';
-
 /** Panel rows are capped; the map always shows everything. */
 export const SUBJECTS_LIST_CAP = 100;
 
 interface SubjectsTabProps {
     subjects: MapSubject[];
     totalCount: number;
-    sort: SubjectsSort;
-    onSortChange: (sort: SubjectsSort) => void;
     selectedSubjectId: string | null;
     onSelect: (subject: MapSubject | null) => void;
     onHover?: (subjectId: string | null) => void;
@@ -27,13 +23,13 @@ interface SubjectsTabProps {
     onRetry?: () => void;
     /** The mobile drawer's peek row already shows the count. */
     showCount?: boolean;
+    /** Overrides the count line (e.g. while a spiderfy fan scopes the list). */
+    headerText?: string;
 }
 
 export function SubjectsTab({
     subjects,
     totalCount,
-    sort,
-    onSortChange,
     selectedSubjectId,
     onSelect,
     onHover,
@@ -43,6 +39,7 @@ export function SubjectsTab({
     error,
     onRetry,
     showCount = true,
+    headerText,
 }: SubjectsTabProps) {
     const t = useTranslations('map');
     const listRef = useRef<HTMLDivElement>(null);
@@ -57,9 +54,9 @@ export function SubjectsTab({
     return (
         <div className="flex min-h-0 flex-1 flex-col">
             <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-2.5">
-                <p aria-live="polite" className={showCount ? 'text-sm text-foreground' : 'sr-only'}>
-                    {t('subjectsInView', { count: totalCount })}
-                    {filtersActive && showCount && (
+                <p aria-live="polite" className={showCount || headerText ? 'text-sm text-foreground' : 'sr-only'}>
+                    {headerText ?? t('subjectsInView', { count: totalCount })}
+                    {filtersActive && (showCount || headerText) && (
                         <>
                             {' · '}
                             <button
@@ -72,23 +69,6 @@ export function SubjectsTab({
                         </>
                     )}
                 </p>
-                <div className="flex shrink-0 text-xs">
-                    {(['discussion', 'recency'] as const).map(option => (
-                        <button
-                            key={option}
-                            type="button"
-                            onClick={() => onSortChange(option)}
-                            aria-pressed={sort === option}
-                            className={
-                                sort === option
-                                    ? 'px-1.5 font-semibold text-foreground'
-                                    : 'px-1.5 text-muted-foreground hover:text-foreground'
-                            }
-                        >
-                            {option === 'discussion' ? t('sortByDiscussion') : t('sortByRecency')}
-                        </button>
-                    ))}
-                </div>
             </div>
 
             <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">

@@ -7,9 +7,6 @@
     "noSubjectsInView": "No subjects in this area",
     "zoomOut": "Zoom out",
     "clearFilters": "Clear filters",
-    "sortLabel": "Sort",
-    "sortByDiscussion": "Most discussed",
-    "sortByRecency": "Most recent",
     "allTopics": "All",
     "searchPlaceholder": "Search for an address…",
     "searchOpen": "Search for an address",
@@ -87,5 +84,7 @@
         "council": "Council",
         "committee": "Committee",
         "community": "Community"
-    }
+    },
+    "timeRange": "Time range",
+    "subjectsAtPoint": "{count, plural, one {# subject} other {# subjects}} at this spot"
 }

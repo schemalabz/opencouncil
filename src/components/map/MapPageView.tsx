@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, SlidersHorizontal } from 'lucide-react';
+import { Filter, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Topic } from '@prisma/client';
 import { cn } from '@/lib/utils';
@@ -21,7 +21,7 @@ import type { ViewportBounds } from '@/lib/map/viewport';
 import CivicMap from './civic/CivicMap';
 import type { CivicMapHandle } from './civic/types';
 import { MapPanel, MOBILE_SNAP_POINTS, type PanelTab } from './civic/panel/MapPanel';
-import { SubjectsTab, type SubjectsSort } from './civic/panel/SubjectsTab';
+import { SubjectsTab } from './civic/panel/SubjectsTab';
 import { MunicipalitiesTab } from './civic/panel/MunicipalitiesTab';
 import { MunicipalityDetail } from './civic/panel/MunicipalityDetail';
 import { TimeFilter } from './civic/panel/TimeFilter';
@@ -51,7 +51,7 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
     const [hoveredSubjectId, setHoveredSubjectId] = useState<string | null>(null);
     const [visibleIds, setVisibleIds] = useState<Set<string> | null>(null);
     const [bounds, setBounds] = useState<ViewportBounds | null>(null);
-    const [sort, setSort] = useState<SubjectsSort>('discussion');
+    const [spiderfiedIds, setSpiderfiedIds] = useState<string[] | null>(null);
     const [activeTab, setActiveTab] = useState<PanelTab>('subjects');
     const [municipalityDetail, setMunicipalityDetail] = useState<MapMunicipality | null>(null);
     const [highlightPoint, setHighlightPoint] = useState<[number, number] | null>(null);
@@ -124,15 +124,18 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
         () => (visibleIds === null ? subjects : subjects.filter(subject => visibleIds.has(subject.id))),
         [subjects, visibleIds],
     );
-    const sortedSubjects = useMemo(() => {
-        const list = [...visibleSubjects];
-        if (sort === 'discussion') {
-            list.sort((a, b) => b.discussionTimeSeconds - a.discussionTimeSeconds);
-        } else {
-            list.sort((a, b) => (b.meetingDate ?? '').localeCompare(a.meetingDate ?? ''));
-        }
-        return list;
-    }, [visibleSubjects, sort]);
+    // While a spiderfy fan is open, the list scopes to exactly its subjects.
+    const spiderfiedSubjects = useMemo(() => {
+        if (!spiderfiedIds) return null;
+        const byId = new Map(subjects.map(subject => [subject.id, subject]));
+        return spiderfiedIds
+            .map(id => byId.get(id))
+            .filter((subject): subject is MapSubject => Boolean(subject));
+    }, [spiderfiedIds, subjects]);
+    const listSubjects = useMemo(() => {
+        const base = spiderfiedSubjects ?? visibleSubjects;
+        return [...base].sort((a, b) => b.discussionTimeSeconds - a.discussionTimeSeconds);
+    }, [spiderfiedSubjects, visibleSubjects]);
 
     const subjectCountByCity = useMemo(() => {
         const counts = new Map<string, number>();
@@ -165,6 +168,11 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
     }, [municipalities, municipalityBBoxes, bounds]);
 
     const filtersActive = !isDefaultFilter(filter);
+    const activeFilterCount =
+        (filter.topicIds?.length ?? 0) +
+        (filter.cityIds?.length ?? 0) +
+        (filter.bodyTypes?.length ?? 0) +
+        (filter.dateFrom || filter.dateTo ? 1 : 0);
 
     const handleSubjectSelect = (subject: MapSubject | null) => {
         setSelectedSubjectId(subject?.id ?? null);
@@ -181,7 +189,9 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
         setMunicipalityDetail(municipality);
     };
 
-    const summary = t('subjectsInView', { count: visibleSubjects.length });
+    const summary = spiderfiedSubjects
+        ? t('subjectsAtPoint', { count: spiderfiedSubjects.length })
+        : t('subjectsInView', { count: visibleSubjects.length });
 
     return (
         <div className="flex h-full w-full">
@@ -203,6 +213,7 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
                     onSubjectSelect={handleSubjectSelect}
                     onMunicipalityClick={setMunicipalityDetail}
                     onVisibleSubjectsChange={ids => setVisibleIds(new Set(ids))}
+                    onSpiderfyChange={setSpiderfiedIds}
                     onMoveEnd={view => setBounds(view.bounds)}
                     onMapReady={controls => {
                         mapHandleRef.current = controls;
@@ -244,9 +255,11 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
                                 onClick={() => setFilterPaneOpen(true)}
                                 className="relative flex h-10 w-10 shrink-0 items-center justify-center border border-border bg-background shadow-md transition-colors hover:bg-muted"
                             >
-                                <SlidersHorizontal className="h-4 w-4 text-foreground" />
-                                {hasNarrowingFilters(filter) && (
-                                    <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[hsl(24,100%,50%)]" />
+                                <Filter className="h-4 w-4 text-foreground" />
+                                {activeFilterCount > 0 && (
+                                    <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[hsl(24,100%,50%)] px-1 text-[10px] font-semibold leading-none text-white">
+                                        {activeFilterCount}
+                                    </span>
                                 )}
                             </button>
                         </div>
@@ -295,10 +308,8 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
             >
                 {activeTab === 'subjects' ? (
                     <SubjectsTab
-                        subjects={sortedSubjects}
-                        totalCount={visibleSubjects.length}
-                        sort={sort}
-                        onSortChange={setSort}
+                        subjects={listSubjects}
+                        totalCount={listSubjects.length}
                         selectedSubjectId={selectedSubjectId}
                         onSelect={handleSubjectSelect}
                         onHover={setHoveredSubjectId}
@@ -308,6 +319,7 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
                         error={fetchFailed}
                         onRetry={() => setRetryNonce(nonce => nonce + 1)}
                         showCount={isDesktop}
+                        headerText={spiderfiedSubjects ? t('subjectsAtPoint', { count: spiderfiedSubjects.length }) : undefined}
                     />
                 ) : (
                     <MunicipalitiesTab

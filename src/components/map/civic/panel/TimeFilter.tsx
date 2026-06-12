@@ -18,8 +18,8 @@ export function TimeFilter({ monthsBack, onChange, className }: TimeFilterProps)
     return (
         <div
             role="group"
-            aria-label={t('sortLabel')}
-            className={cn('flex h-8 shrink-0 overflow-hidden border border-border bg-background shadow-md', className)}
+            aria-label={t('timeRange')}
+            className={cn('flex h-10 shrink-0 overflow-hidden border border-border bg-background shadow-md', className)}
         >
             {MAP_MONTHS_OPTIONS.map(months => (
                 <button
@@ -28,7 +28,7 @@ export function TimeFilter({ monthsBack, onChange, className }: TimeFilterProps)
                     onClick={() => onChange(months)}
                     aria-pressed={monthsBack === months}
                     className={cn(
-                        'px-2.5 text-[13px] font-medium transition-colors',
+                        'px-3 text-[13px] font-medium transition-colors',
                         monthsBack === months
                             ? 'bg-primary text-primary-foreground'
                             : 'text-muted-foreground hover:bg-muted hover:text-foreground',

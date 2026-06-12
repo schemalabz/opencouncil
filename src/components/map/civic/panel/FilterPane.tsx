@@ -46,12 +46,12 @@ export function FilterPane({ open, onOpenChange, topics, municipalities, filter,
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="left" className="flex w-full flex-col overflow-y-auto sm:max-w-md">
-                <SheetHeader className="text-left">
+            <SheetContent side="left" className="flex h-full w-full flex-col gap-0 sm:max-w-md">
+                <SheetHeader className="shrink-0 border-b border-border pb-4 text-left">
                     <SheetTitle>{t('filtersTitle')}</SheetTitle>
                 </SheetHeader>
 
-                <div className="min-h-0 flex-1">
+                <div className="min-h-0 flex-1 overflow-y-auto pb-6 pr-1">
                     {sectionTitle(t('sectionTopics'))}
                     <div className="flex flex-wrap gap-1.5">
                         {topics.map(topic => {
@@ -155,7 +155,7 @@ export function FilterPane({ open, onOpenChange, topics, municipalities, filter,
                     )}
                 </div>
 
-                <div className="flex shrink-0 gap-3 border-t border-border pt-4">
+                <div className="-mx-6 flex shrink-0 gap-3 border-t border-border bg-background px-6 pb-1 pt-4">
                     <Button
                         variant="outline"
                         className="flex-1"

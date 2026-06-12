@@ -78,6 +78,8 @@ export interface CivicMapProps {
 
     /** Debounced ids of subjects whose anchor is inside the current viewport. */
     onVisibleSubjectsChange?: (ids: string[]) => void;
+    /** Ids of the spiderfied (fanned-out) group while one is open, null otherwise. */
+    onSpiderfyChange?: (subjectIds: string[] | null) => void;
     onMoveEnd?: (view: { center: [number, number]; zoom: number; bounds: ViewportBounds }) => void;
     /** Imperative escape hatch for page-level controls (geolocate, address search). */
     onMapReady?: (controls: CivicMapHandle) => void;

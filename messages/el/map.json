@@ -7,9 +7,6 @@
     "noSubjectsInView": "Δεν υπάρχουν θέματα σε αυτή την περιοχή",
     "zoomOut": "Σμίκρυνση χάρτη",
     "clearFilters": "Καθαρισμός φίλτρων",
-    "sortLabel": "Ταξινόμηση",
-    "sortByDiscussion": "Πιο συζητημένα",
-    "sortByRecency": "Πιο πρόσφατα",
     "allTopics": "Όλα",
     "searchPlaceholder": "Αναζήτηση διεύθυνσης…",
     "searchOpen": "Αναζήτηση διεύθυνσης",
@@ -87,5 +84,7 @@
         "council": "Συμβούλιο",
         "committee": "Επιτροπή",
         "community": "Κοινότητα"
-    }
+    },
+    "timeRange": "Χρονικό διάστημα",
+    "subjectsAtPoint": "{count, plural, one {# θέμα} other {# θέματα}} σε αυτό το σημείο"
 }
