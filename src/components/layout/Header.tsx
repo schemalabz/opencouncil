@@ -120,16 +120,21 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
     const subjectHeader = subjectContext?.subjectHeader ?? null;
 
     const dynamicPath = [...path];
-    if (segment === 'notifications') {
-        dynamicPath.push({
-            name: "Ενημερώσεις",
-            link: `/${currentEntity?.cityId}/notifications`
-        });
-    } else if (segment === 'petition') {
-        dynamicPath.push({
-            name: "Υποστήριξη Δήμου",
-            link: `/${currentEntity?.cityId}/petition`
-        });
+    // These breadcrumbs target the city-scoped signup pages, but the same
+    // segment names also match routes without a city context (/notifications/[id],
+    // /petition, /admin/notifications), where the link would be /undefined/...
+    if (currentEntity?.cityId) {
+        if (segment === 'notifications') {
+            dynamicPath.push({
+                name: "Ενημερώσεις",
+                link: `/${currentEntity.cityId}/notifications`
+            });
+        } else if (segment === 'petition') {
+            dynamicPath.push({
+                name: "Υποστήριξη Δήμου",
+                link: `/${currentEntity.cityId}/petition`
+            });
+        }
     }
 
     if (showSidebarTrigger) {
