@@ -37,6 +37,7 @@ export interface CivicMapHandle {
     flyTo(center: [number, number], zoom?: number): void;
     fitGeometry(geometry: GeoJSON.Geometry, padding?: CivicMapPadding): void;
     getBounds(): ViewportBounds | null;
+    zoomBy(delta: number): void;
     /** Update camera padding (e.g. when the mobile drawer snaps open). */
     setPadding(padding: CivicMapPadding): void;
 }
@@ -63,6 +64,9 @@ export interface CivicMapProps {
     onMunicipalityClick?: (municipality: MapMunicipality) => void;
     /** Fly to the subject when selectedSubjectId changes from outside. Default true. */
     flyToSelected?: boolean;
+
+    /** Reference point marker (address search / geolocate result). */
+    highlightPoint?: [number, number] | null;
 
     /** Debounced ids of subjects whose anchor is inside the current viewport. */
     onVisibleSubjectsChange?: (ids: string[]) => void;

@@ -6,6 +6,7 @@ import { attachGeometryToCities } from "./cities";
 import prisma from "@/lib/db/prisma";
 import { Result, createSuccess, createError } from "@/lib/result";
 import { normalizeLngLat } from "@/lib/geo";
+import { revalidateTag } from "next/cache";
 import { NotFoundError } from "@/lib/api/errors";
 import { sendPetitionReceivedAdminAlert, sendUserOnboardedAdminAlert, sendNotificationSignupAdminAlert } from "@/lib/discord";
 import { matchUsersToSubjects } from "@/lib/notifications/matching";
@@ -568,6 +569,7 @@ export async function savePetition(data: OnboardingData & {
                     city: true
                 }
             });
+            revalidateTag('petitions', 'max');
             return createSuccess(result);
         } else {
             // Create new petition
@@ -600,6 +602,7 @@ export async function savePetition(data: OnboardingData & {
                 });
             }
 
+            revalidateTag('petitions', 'max');
             return createSuccess(result);
         }
     } catch (error) {

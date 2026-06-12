@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type mapboxgl from 'mapbox-gl';
+import mapboxgl from 'mapbox-gl';
 import { cn } from '@/lib/utils';
 import { isWebGLSupported } from '@/lib/webgl';
 import MapFallback from '../MapFallback';
@@ -177,7 +177,9 @@ function CivicMapInner(props: CivicMapProps) {
         const bounds = map.getBounds();
         const inView = Boolean(bounds && lng >= bounds.getWest() && lng <= bounds.getEast() &&
             lat >= bounds.getSouth() && lat <= bounds.getNorth());
-        if (inView) {
+        // Already on screen at street level → just recenter. Anything else
+        // (off-screen, or hidden inside a cluster at low zoom) → fly in.
+        if (inView && map.getZoom() >= 11) {
             map.easeTo({ center: selectedSubject.anchor, padding: paddingRef.current, duration: reducedMotion ? 0 : 300 });
         } else {
             map.flyTo({
@@ -195,6 +197,19 @@ function CivicMapInner(props: CivicMapProps) {
         if (!map || !isLoaded) return;
         subjectsHandleRef.current?.setHovered(props.hoveredSubjectId ?? null);
     }, [map, isLoaded, props.hoveredSubjectId]);
+
+    // Reference marker for search/geolocate results
+    useEffect(() => {
+        if (!map || !isLoaded || !props.highlightPoint) return;
+        const element = document.createElement('div');
+        element.style.cssText =
+            'width:14px;height:14px;border-radius:50%;background:#0c0a09;border:2px solid #ffffff;' +
+            'box-shadow:0 0 0 2px rgb(12 10 9 / 0.3), 0 1px 3px rgb(0 0 0 / 0.3)';
+        const marker = new mapboxgl.Marker({ element }).setLngLat(props.highlightPoint).addTo(map);
+        return () => {
+            marker.remove();
+        };
+    }, [map, isLoaded, props.highlightPoint]);
 
     // Unified click resolution: subjects (8px hit slop) win over
     // municipalities; empty clicks clear the selection.
@@ -287,6 +302,9 @@ function CivicMapInner(props: CivicMapProps) {
             getBounds() {
                 const bounds = map.getBounds();
                 return bounds ? toViewportBounds(bounds) : null;
+            },
+            zoomBy(delta) {
+                map.zoomTo(map.getZoom() + delta, { duration: reducedMotion ? 0 : 300 });
             },
             setPadding(padding: CivicMapPadding) {
                 paddingRef.current = toMapboxPadding(padding);

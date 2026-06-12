@@ -8,16 +8,15 @@ export default async function MapLayout({
 }) {
 
   return (
-    <div className="fixed inset-0 overflow-hidden">
+    <div className="fixed inset-0 flex flex-col overflow-hidden">
       <Header
         path={[]}
-        className="absolute top-0 left-0 right-0 z-50 [&_.absolute.inset-0]:!hidden"
+        className="relative z-50 shrink-0 border-b border-border bg-background"
         noContainer={true}
       />
-      <div className="absolute inset-0">
+      <div className="min-h-0 flex-1">
         {children}
       </div>
     </div>
   );
 }
-
