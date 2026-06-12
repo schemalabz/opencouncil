@@ -29,6 +29,18 @@ interface ShareDropdownProps {
     className?: string;
 }
 
+const SHARE_CONTEXT_LABELS: Record<string, string> = {
+    transcript: 'την απομαγνητοφώνηση',
+    statistics: 'τα στατιστικά',
+    subject: 'αυτό το θέμα',
+    highlights: 'τα highlights',
+    share: 'τις επιλογές κοινοποίησης',
+    settings: 'τις ρυθμίσεις',
+    admin: 'τη σελίδα διαχείρισης',
+    map: 'τον χάρτη',
+    meeting: 'τη συνεδρίαση',
+};
+
 export default function ShareDropdown({ meetingId, cityId, className }: ShareDropdownProps) {
     const [url, setUrl] = useState('');
     const [includeTimestamp, setIncludeTimestamp] = useState(false);
@@ -156,18 +168,6 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
         } else {
             return 'meeting';
         }
-    };
-
-    const SHARE_CONTEXT_LABELS: Record<string, string> = {
-        transcript: 'την απομαγνητοφώνηση',
-        statistics: 'τα στατιστικά',
-        subject: 'αυτό το θέμα',
-        highlights: 'τα highlights',
-        share: 'τις επιλογές κοινοποίησης',
-        settings: 'τις ρυθμίσεις',
-        admin: 'τη σελίδα διαχείρισης',
-        map: 'τον χάρτη',
-        meeting: 'τη συνεδρίαση',
     };
 
     const shareContextKey = getShareContextKey();
