@@ -12,6 +12,10 @@ export function identifyPostHogUser(session: Session | null) {
     if (!posthog.__loaded) return;
     if (posthog.get_explicit_consent_status() !== "granted") return;
     if (session?.user?.id) {
-        posthog.identify(session.user.id, { email: session.user.email ?? undefined });
+        // Deliberately no person properties: the id alone is enough to link
+        // events to the account, keeps direct PII (email) out of PostHog, and
+        // avoids the billable $set that identify() emits on every page load
+        // when properties are passed for an already-identified person.
+        posthog.identify(session.user.id);
     }
 }
