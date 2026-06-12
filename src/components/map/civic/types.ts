@@ -1,4 +1,4 @@
-import type { MapMunicipality, MapSubject } from '@/lib/map/types';
+import type { MapMunicipality, MapOverlay, MapReferenceMarker, MapSubject } from '@/lib/map/types';
 import type { ViewportBounds } from '@/lib/map/viewport';
 import { CLUSTER_MAX_ZOOM, CLUSTER_RADIUS_PX } from '@/lib/map/constants';
 
@@ -51,6 +51,10 @@ export interface CivicMapProps {
     municipalities?: MapMunicipality[];
     /** Context outline (e.g. the city boundary on meeting pages) — drawn quietly, not interactive. */
     contextBoundary?: GeoJSON.Geometry | null;
+    /** Quiet styled geometries under the subject layers (boundaries, radii, …). */
+    overlays?: MapOverlay[];
+    /** Labeled reference dots (user-picked locations, admin annotations, …). */
+    referenceMarkers?: MapReferenceMarker[];
 
     markerOptions?: Partial<CivicMapMarkerOptions>;
     camera?: CivicMapCamera;

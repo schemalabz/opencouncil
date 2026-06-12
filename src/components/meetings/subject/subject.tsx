@@ -1,5 +1,5 @@
 "use client";
-import Map from "@/components/map/map";
+import CivicMap from "@/components/map/civic/CivicMap";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { useVideo } from "../VideoProvider";
 import { Button } from "@/components/ui/button";
@@ -8,8 +8,7 @@ import { Play, FileText, MapPin, ScrollText, CheckSquare, Landmark, ExternalLink
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
-import { subjectToMapFeature } from "@/lib/utils";
-import { normalizeLngLat } from "@/lib/geo";
+import { subjectWithRelationsToMapSubject } from "@/lib/map/adapters";
 import { notFound } from "next/navigation";
 import { SubjectContext } from "./context";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -82,12 +81,15 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
 
     const totalMinutes = Math.round(subject.statistics?.speakingSeconds ? subject.statistics.speakingSeconds / 60 : 0);
 
-    // Memoize map features to prevent unnecessary recalculations
-    const mapFeatures = useMemo(() => {
-        if (!location) return [];
-        const feature = subjectToMapFeature(subject);
-        return feature ? [feature] : [];
-    }, [subject, location]);
+    // The subject as a CivicMap pin for the location mini-map
+    const mapSubjects = useMemo(() => {
+        const mapSubject = subjectWithRelationsToMapSubject(subject, {
+            cityName: city.name,
+            meetingDate: meeting.dateTime,
+            meetingName: meeting.name,
+        });
+        return mapSubject ? [mapSubject] : [];
+    }, [subject, city.name, meeting.dateTime, meeting.name]);
 
     // Calculate vote result from extracted data
     const voteResult = useMemo(
@@ -311,11 +313,15 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                         title={location.text}
                     >
                         <div className="h-[300px] w-full">
-                            <Map
-                                center={location.coordinates ? normalizeLngLat([location.coordinates.x, location.coordinates.y]) : undefined}
-                                zoom={15}
-                                features={mapFeatures}
-                                animateRotation={false}
+                            <CivicMap
+                                className="h-full w-full"
+                                subjects={mapSubjects}
+                                markerOptions={{ clusterMode: 'none', spiderfy: false, importanceScaling: false }}
+                                camera={{
+                                    initialCenter: mapSubjects[0]?.anchor,
+                                    initialZoom: 15,
+                                }}
+                                cooperativeGestures
                             />
                         </div>
                     </CollapsibleCard>

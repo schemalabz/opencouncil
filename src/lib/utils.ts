@@ -1,12 +1,10 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { Statistics } from "./statistics";
-import { SubjectWithRelations } from "./db/subject";
 // @ts-ignore
 import { default as greekKlitiki } from "greek-name-klitiki";
 import { Transcript } from "./db/transcript";
 import { VideoIcon, AudioLines, FileText, Ban, LucideIcon } from "lucide-react";
-import { normalizeLngLat } from "./geo";
 
 // Export time formatters from the new location
 export {
@@ -48,36 +46,10 @@ export const IS_DEV = process.env.NODE_ENV === 'development';
 export const IS_PREVIEW = process.env.IS_PREVIEW === 'true';
 export const DEV_TOOLS_ALLOWED = IS_DEV || IS_PREVIEW;
 
-export const SUBJECT_POINT_COLOR = '#E57373'; // A nice red color that contrasts with the blue city polygons
-
 export const UNKNOWN_SPEAKER_LABEL = "Άγνωστος Ομιλητής";
 
 export const buildUnknownSpeakerLabel = (index: number) =>
   `${UNKNOWN_SPEAKER_LABEL} ${index}`;
-
-export function subjectToMapFeature(subject: SubjectWithRelations) {
-  if (!subject.location?.coordinates) return null;
-
-  return {
-    id: subject.id,
-    geometry: {
-      type: 'Point',
-      // No-op for correctly stored points; fixes legacy [lat, lng]-swapped rows
-      coordinates: normalizeLngLat([subject.location.coordinates.x, subject.location.coordinates.y])
-    },
-    properties: {
-      subjectId: subject.id,
-      name: subject.name
-    },
-    style: {
-      fillColor: SUBJECT_POINT_COLOR,
-      fillOpacity: 0.6,
-      strokeColor: SUBJECT_POINT_COLOR,
-      strokeWidth: 6,
-      label: subject.name
-    }
-  };
-}
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))

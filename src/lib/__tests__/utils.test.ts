@@ -7,7 +7,6 @@ import {
   cn,
   debounce,
   klitiki,
-  subjectToMapFeature,
   sortSubjectsByImportance,
   sortSubjectsBySpeakerContributionCount,
   joinTranscriptSegments,
@@ -270,62 +269,6 @@ describe('debounce', () => {
     jest.advanceTimersByTime(500);
 
     expect(mockFn).toBeCalledWith('test', 123);
-  });
-});
-
-describe('subjectToMapFeature', () => {
-  it('should convert subject to map feature', () => {
-    const subject = {
-      id: '123',
-      name: 'Test Subject',
-      location: {
-        coordinates: { x: 23.73, y: 37.98 } // correctly stored [lng, lat]
-      }
-    };
-
-    const feature = subjectToMapFeature(subject as any);
-
-    expect(feature).toEqual({
-      id: '123',
-      geometry: {
-        type: 'Point',
-        coordinates: [23.73, 37.98]
-      },
-      properties: {
-        subjectId: '123',
-        name: 'Test Subject'
-      },
-      style: {
-        fillColor: '#E57373',
-        fillOpacity: 0.6,
-        strokeColor: '#E57373',
-        strokeWidth: 6,
-        label: 'Test Subject'
-      }
-    });
-  });
-
-  it('should normalize legacy axis-swapped coordinates', () => {
-    const subject = {
-      id: '123',
-      name: 'Test Subject',
-      location: {
-        coordinates: { x: 37.98, y: 23.73 } // legacy swapped row: x = lat, y = lng
-      }
-    };
-
-    const feature = subjectToMapFeature(subject as any);
-    expect(feature?.geometry.coordinates).toEqual([23.73, 37.98]);
-  });
-
-  it('should return null for subject without coordinates', () => {
-    const subject = {
-      id: '123',
-      name: 'Test Subject',
-      location: null
-    };
-
-    expect(subjectToMapFeature(subject as any)).toBeNull();
   });
 });
 

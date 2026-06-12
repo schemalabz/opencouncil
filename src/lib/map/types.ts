@@ -55,6 +55,32 @@ export interface MapMunicipality {
 }
 
 /**
+ * A quiet styled geometry drawn under the subject layers (city boundaries,
+ * notification radii, …). Display only — never clustered, never clickable.
+ * Point data belongs in referenceMarkers or subjects instead.
+ */
+export interface MapOverlay {
+    id: string;
+    geometry: GeoJSON.Geometry;
+    style?: {
+        fillColor?: string;
+        fillOpacity?: number;
+        strokeColor?: string;
+        strokeWidth?: number;
+        strokeOpacity?: number;
+        label?: string;
+    };
+}
+
+/** A labeled reference dot (search result, user-picked location, …). */
+export interface MapReferenceMarker {
+    id: string;
+    coordinates: [number, number];
+    label?: string;
+    color?: string;
+}
+
+/**
  * Wire shape of map subjects as returned by getMapSubjects() and the
  * /api/map/subjects route.
  */

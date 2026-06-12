@@ -3,7 +3,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Loader2 } from 'lucide-react';
-import Map, { MapFeature } from '@/components/map/map';
+import CivicMap from '@/components/map/civic/CivicMap';
+import type { MapOverlay, MapReferenceMarker } from '@/lib/map/types';
 import { createCircleBuffer } from '@/lib/geo';
 
 interface SubjectLocation {
@@ -61,92 +62,50 @@ export function NotificationMapDialog({
         }
     }, [open, meetingId, cityId]);
 
-    // Build map features from the data
-    const mapFeatures = useMemo(() => {
+    // Notification radii as quiet overlays
+    const overlays = useMemo<MapOverlay[]>(() => {
         if (!mapData) return [];
-
-        const features: MapFeature[] = [];
-
-        // Add subject locations with radius circles
-        mapData.subjectLocations.forEach((subject) => {
-            // Add 400m radius circle
-            features.push({
+        return mapData.subjectLocations.flatMap(subject => [
+            {
                 id: `subject-${subject.id}-400m`,
                 geometry: createCircleBuffer(subject.coordinates, 400),
-                style: {
-                    fillColor: '#3B82F6',
-                    fillOpacity: 0.1,
-                    strokeColor: '#3B82F6',
-                    strokeWidth: 2,
-                },
-            });
-
-            // Add 600m radius circle
-            features.push({
+                style: { fillColor: '#3B82F6', fillOpacity: 0.1, strokeColor: '#3B82F6', strokeWidth: 2 },
+            },
+            {
                 id: `subject-${subject.id}-600m`,
                 geometry: createCircleBuffer(subject.coordinates, 600),
-                style: {
-                    fillColor: '#60A5FA',
-                    fillOpacity: 0.1,
-                    strokeColor: '#60A5FA',
-                    strokeWidth: 2,
-                },
-            });
-
-            // Add subject point
-            features.push({
-                id: `subject-${subject.id}`,
-                geometry: {
-                    type: 'Point',
-                    coordinates: subject.coordinates,
-                },
-                style: {
-                    fillColor: '#1E40AF',
-                    fillOpacity: 0.9,
-                    strokeColor: '#1E3A8A',
-                    strokeWidth: 4,
-                    label: subject.name,
-                },
-            });
-        });
-
-        // Add user preference locations
-        mapData.userPreferenceLocations.forEach((location) => {
-            features.push({
-                id: `user-pref-${location.id}`,
-                geometry: {
-                    type: 'Point',
-                    coordinates: location.coordinates,
-                },
-                style: {
-                    fillColor: '#EF4444',
-                    fillOpacity: 0.8,
-                    strokeColor: '#B91C1C',
-                    strokeWidth: 3,
-                    label: location.text,
-                },
-            });
-        });
-
-        return features;
+                style: { fillColor: '#60A5FA', fillOpacity: 0.1, strokeColor: '#60A5FA', strokeWidth: 2 },
+            },
+        ]);
     }, [mapData]);
 
-    // Calculate center from features
-    const mapCenter = useMemo(() => {
-        if (!mapData || mapFeatures.length === 0) return undefined;
-
-        const allCoords: [number, number][] = [
-            ...mapData.subjectLocations.map(s => s.coordinates),
-            ...mapData.userPreferenceLocations.map(l => l.coordinates),
+    // Subject + user preference locations as labeled dots
+    const referenceMarkers = useMemo<MapReferenceMarker[]>(() => {
+        if (!mapData) return [];
+        return [
+            ...mapData.subjectLocations.map(subject => ({
+                id: `subject-${subject.id}`,
+                coordinates: subject.coordinates,
+                label: subject.name,
+                color: '#1E40AF',
+            })),
+            ...mapData.userPreferenceLocations.map(location => ({
+                id: `user-pref-${location.id}`,
+                coordinates: location.coordinates,
+                label: location.text,
+                color: '#EF4444',
+            })),
         ];
+    }, [mapData]);
 
-        if (allCoords.length === 0) return undefined;
-
-        const avgLng = allCoords.reduce((sum, coord) => sum + coord[0], 0) / allCoords.length;
-        const avgLat = allCoords.reduce((sum, coord) => sum + coord[1], 0) / allCoords.length;
-
-        return [avgLng, avgLat] as [number, number];
-    }, [mapData, mapFeatures]);
+    // Fit all points
+    const fitTarget = useMemo((): GeoJSON.Geometry | null => {
+        if (referenceMarkers.length === 0) return null;
+        return {
+            type: 'GeometryCollection',
+            geometries: referenceMarkers.map(marker => ({ type: 'Point' as const, coordinates: marker.coordinates })),
+        };
+    }, [referenceMarkers]);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -166,17 +125,17 @@ export function NotificationMapDialog({
                         <div className="absolute inset-0 flex items-center justify-center">
                             <p className="text-red-500">{error}</p>
                         </div>
-                    ) : mapFeatures.length === 0 ? (
+                    ) : referenceMarkers.length === 0 ? (
                         <div className="absolute inset-0 flex items-center justify-center">
                             <p className="text-gray-500">No location data available</p>
                         </div>
                     ) : (
-                        <Map
-                            features={mapFeatures}
-                            center={mapCenter}
-                            zoom={13}
-                            animateRotation={false}
-                            pitch={0}
+                        <CivicMap
+                            className="h-full w-full"
+                            subjects={[]}
+                            overlays={overlays}
+                            referenceMarkers={referenceMarkers}
+                            camera={{ fitTo: fitTarget, padding: 80 }}
                         />
                     )}
                 </div>

@@ -2,9 +2,8 @@
 
 import { useMemo } from 'react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
-import { MapFeature } from '@/components/map/map';
-import { calculateMapView } from '@/lib/geo';
-import Map from '@/components/map/map';
+import CivicMap from '@/components/map/civic/CivicMap';
+import type { MapReferenceMarker } from '@/lib/map/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Eye, EyeOff, Map as MapIcon } from 'lucide-react';
@@ -12,98 +11,43 @@ import { useMediaQuery } from '@/hooks/use-media-query';
 
 export function MapContainer() {
     const isDesktop = useMediaQuery('(min-width: 1024px)');
-    const { 
-        city, 
-        selectedLocations, 
-        isMapVisible, 
+    const {
+        city,
+        selectedLocations,
+        isMapVisible,
         setMapVisible,
         isFormVisible,
         setFormVisible
     } = useOnboarding();
 
-    // Derive map features from city and locations
-    const mapFeatures = useMemo(() => {
-        if (!city) return [];
-
-        const cityFeature = {
-            id: city.id,
-            geometry: city.geometry,
-            style: {
-                fillColor: '#627BBC',
-                fillOpacity: 0.2,
-                strokeColor: '#4263EB',
-                strokeWidth: 2
-            }
-        };
-
-        if (selectedLocations.length === 0) {
-            return [cityFeature];
-        }
-
-        const locationFeatures = selectedLocations.map((location, index) => {
-            const lng = parseFloat(String(location.coordinates[0]));
-            const lat = parseFloat(String(location.coordinates[1]));
-
-            const hasValidCoordinates =
-                !isNaN(lng) && isFinite(lng) &&
-                !isNaN(lat) && isFinite(lat);
-
-            if (!hasValidCoordinates) {
-                return null;
-            }
-
-            return {
-                id: `location-${index}`,
-                geometry: {
-                    type: 'Point',
-                    coordinates: [lng, lat] as [number, number]
-                },
-                style: {
-                    fillColor: '#EF4444',
-                    fillOpacity: 0.8,
-                    strokeColor: '#B91C1C',
-                    strokeWidth: 6,
-                    label: location.text || `Τοποθεσία ${index + 1}`
-                }
-            };
-        }).filter(Boolean) as MapFeature[];
-
-        return [cityFeature, ...locationFeatures];
-    }, [city, selectedLocations]);
-
-    // Derive map center and zoom from city geometry
-    const { center: mapCenter, zoom: mapZoom } = useMemo(() => {
-        if (!city?.geometry) {
-            return {
-                center: [23.7275, 37.9838] as [number, number],
-                zoom: 6
-            };
-        }
-        return calculateMapView(city.geometry);
-    }, [city?.geometry]);
-
-    // Zoom to fit: city boundary initially, then all locations as they're added
-    const zoomTarget = useMemo((): GeoJSON.Geometry | null => {
-        if (!city) return null;
-        if (selectedLocations.length === 0) return city.geometry ?? null;
-
-        // Build a GeometryCollection of all location points so fitBounds shows them all
-        const locationGeometries: GeoJSON.Geometry[] = selectedLocations
-            .map(location => {
+    // The user's picked notification locations as labeled reference dots
+    const referenceMarkers = useMemo<MapReferenceMarker[]>(() => {
+        return selectedLocations
+            .map((location, index): MapReferenceMarker | null => {
                 const lng = parseFloat(String(location.coordinates[0]));
                 const lat = parseFloat(String(location.coordinates[1]));
-                if (isNaN(lng) || isNaN(lat)) return null;
-                return { type: 'Point' as const, coordinates: [lng, lat] };
+                if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
+                return {
+                    id: `location-${index}`,
+                    coordinates: [lng, lat],
+                    label: location.text || `Τοποθεσία ${index + 1}`,
+                    color: '#EF4444',
+                };
             })
-            .filter((g): g is GeoJSON.Point => g !== null);
+            .filter((marker): marker is MapReferenceMarker => marker !== null);
+    }, [selectedLocations]);
 
-        if (locationGeometries.length === 0) return city.geometry ?? null;
-
+    // Fit the city boundary initially, then all picked locations as they're added
+    const fitTarget = useMemo((): GeoJSON.Geometry | null => {
+        if (!city) return null;
+        if (referenceMarkers.length === 0) return city.geometry ?? null;
         return {
             type: 'GeometryCollection',
-            geometries: locationGeometries
+            geometries: referenceMarkers.map(marker => ({ type: 'Point' as const, coordinates: marker.coordinates })),
         };
-    }, [city, selectedLocations]);
+    }, [city, referenceMarkers]);
+
+    if (!city) return null;
 
     return (
         <>
@@ -111,17 +55,14 @@ export function MapContainer() {
                 className={cn(
                     "absolute inset-0 transition-all duration-300 ease-in-out",
                     !isMapVisible && "opacity-0 pointer-events-none",
-                    isDesktop ? "left-0" : "left-0"
                 )}
             >
-                <Map
-                    features={mapFeatures}
-                    center={mapCenter}
-                    zoom={mapZoom}
-                    animateRotation={false}
-                    zoomToGeometry={zoomTarget}
-                    zoomPadding={120}
-                    className="w-full h-full"
+                <CivicMap
+                    className="h-full w-full"
+                    subjects={[]}
+                    contextBoundary={city.geometry ?? null}
+                    referenceMarkers={referenceMarkers}
+                    camera={{ fitTo: fitTarget, padding: 120 }}
                 />
             </div>
 
@@ -156,4 +97,4 @@ export function MapContainer() {
             )}
         </>
     );
-} 
+}

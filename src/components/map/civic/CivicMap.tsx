@@ -7,7 +7,7 @@ import { isWebGLSupported } from '@/lib/webgl';
 import MapFallback from '../MapFallback';
 import MapErrorBoundary from '../MapErrorBoundary';
 import { MAP_DEFAULT_CENTER, MAP_DEFAULT_ZOOM, MAP_MAX_ZOOM } from '@/lib/map/constants';
-import type { MapMunicipality, MapSubject } from '@/lib/map/types';
+import type { MapMunicipality, MapOverlay, MapReferenceMarker, MapSubject } from '@/lib/map/types';
 import { useMapInstance, usePrefersReducedMotion } from './useMapInstance';
 import { boundsFromGeometry, toMapboxPadding, useCameraControl } from './useCameraControl';
 import { useVisibleSubjects, toViewportBounds } from './useVisibleSubjects';
@@ -18,23 +18,14 @@ import {
     type MunicipalitiesLayerHandle,
 } from './municipalitiesLayer';
 import { attachSubjectsLayer, SUBJECTS_HALO_LAYER_ID, topicsFromSubjects, type SubjectsLayerHandle } from './subjectsLayer';
+import { attachOverlaysLayer, type OverlaysLayerHandle } from './overlaysLayer';
 import { createDonutMarkerPool, type DonutMarkerPool } from './donutMarkerPool';
 import { createSpiderfier, type Spiderfier } from './spiderfier';
 import { anchorKeyOf } from '@/lib/map/spiderfy';
 import { DEFAULT_MARKER_OPTIONS, type CivicMapHandle, type CivicMapPadding, type CivicMapProps } from './types';
 
-const CONTEXT_SOURCE_ID = 'civic-context-boundary';
-const CONTEXT_LINE_LAYER_ID = 'civic-context-boundary-line';
-
 const FLY_TO_DURATION_MS = 800;
 const FLY_TO_MIN_ZOOM = 14;
-
-function contextBoundaryData(geometry: GeoJSON.Geometry | null | undefined): GeoJSON.FeatureCollection {
-    return {
-        type: 'FeatureCollection',
-        features: geometry ? [{ type: 'Feature', geometry, properties: {} }] : [],
-    };
-}
 
 function CivicMapInner(props: CivicMapProps) {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -132,26 +123,32 @@ function CivicMapInner(props: CivicMapProps) {
         if (props.municipalities) muniHandleRef.current?.update(props.municipalities);
     }, [props.municipalities]);
 
-    // Context boundary (meeting pages: the city outline)
-    useEffect(() => {
-        if (!map || !isLoaded) return;
-        if (!map.getSource(CONTEXT_SOURCE_ID)) {
-            map.addSource(CONTEXT_SOURCE_ID, { type: 'geojson', data: contextBoundaryData(props.contextBoundary) });
-            map.addLayer({
-                id: CONTEXT_LINE_LAYER_ID,
-                type: 'line',
-                source: CONTEXT_SOURCE_ID,
-                paint: {
-                    'line-color': '#1c1917',
-                    'line-width': 1.2,
-                    'line-opacity': 0.35,
-                },
+    // Quiet styled geometries: page-provided overlays + the context boundary
+    const overlays = useMemo<MapOverlay[]>(() => {
+        const list = [...(props.overlays ?? [])];
+        if (props.contextBoundary) {
+            list.push({
+                id: '__context-boundary',
+                geometry: props.contextBoundary,
+                style: { strokeColor: '#1c1917', strokeWidth: 1.2, strokeOpacity: 0.35, fillOpacity: 0 },
             });
-        } else {
-            const source = map.getSource(CONTEXT_SOURCE_ID) as mapboxgl.GeoJSONSource;
-            source.setData(contextBoundaryData(props.contextBoundary));
         }
-    }, [map, isLoaded, props.contextBoundary]);
+        return list;
+    }, [props.overlays, props.contextBoundary]);
+    const overlaysHandleRef = useRef<OverlaysLayerHandle | null>(null);
+    const overlaysRef = useRef(overlays);
+    overlaysRef.current = overlays;
+    useEffect(() => {
+        if (!map || !isLoaded || overlaysHandleRef.current) return;
+        overlaysHandleRef.current = attachOverlaysLayer(map, overlaysRef.current, { beforeId: SUBJECTS_HALO_LAYER_ID });
+        return () => {
+            overlaysHandleRef.current?.destroy();
+            overlaysHandleRef.current = null;
+        };
+    }, [map, isLoaded]);
+    useEffect(() => {
+        overlaysHandleRef.current?.update(overlays);
+    }, [overlays]);
 
     // Subjects: clustered source + pins/dots layers + donut marker pool
     const subjectsHandleRef = useRef<SubjectsLayerHandle | null>(null);
@@ -291,18 +288,37 @@ function CivicMapInner(props: CivicMapProps) {
         subjectsHandleRef.current?.setHovered(props.hoveredSubjectId ?? null);
     }, [map, isLoaded, props.hoveredSubjectId]);
 
-    // Reference marker for search/geolocate results
+    // Labeled reference dots (search/geolocate results, user-picked locations)
+    const referenceMarkers = useMemo<MapReferenceMarker[]>(() => {
+        const list = [...(props.referenceMarkers ?? [])];
+        if (props.highlightPoint) {
+            list.push({ id: '__highlight', coordinates: props.highlightPoint });
+        }
+        return list;
+    }, [props.referenceMarkers, props.highlightPoint]);
     useEffect(() => {
-        if (!map || !isLoaded || !props.highlightPoint) return;
-        const element = document.createElement('div');
-        element.style.cssText =
-            'width:14px;height:14px;border-radius:50%;background:#0c0a09;border:2px solid #ffffff;' +
-            'box-shadow:0 0 0 2px rgb(12 10 9 / 0.3), 0 1px 3px rgb(0 0 0 / 0.3)';
-        const marker = new mapboxgl.Marker({ element }).setLngLat(props.highlightPoint).addTo(map);
+        if (!map || !isLoaded || referenceMarkers.length === 0) return;
+        const markers = referenceMarkers
+            .filter(marker => Number.isFinite(marker.coordinates[0]) && Number.isFinite(marker.coordinates[1]))
+            .map(definition => {
+                const color = definition.color ?? '#0c0a09';
+                const element = document.createElement('div');
+                element.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:none;';
+                element.innerHTML =
+                    `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid #ffffff;` +
+                    `box-shadow:0 0 0 2px ${color}4d, 0 1px 3px rgb(0 0 0 / 0.3)"></div>` +
+                    (definition.label
+                        ? `<div style="font-size:12px;font-weight:600;color:#1c1917;white-space:nowrap;` +
+                          `text-shadow:0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff">${definition.label.replace(/</g, '&lt;')}</div>`
+                        : '');
+                return new mapboxgl.Marker({ element, anchor: definition.label ? 'top' : 'center' })
+                    .setLngLat(definition.coordinates)
+                    .addTo(map);
+            });
         return () => {
-            marker.remove();
+            for (const marker of markers) marker.remove();
         };
-    }, [map, isLoaded, props.highlightPoint]);
+    }, [map, isLoaded, referenceMarkers]);
 
     // Unified click resolution: subjects (8px hit slop) win over
     // municipalities; empty clicks clear the selection.
