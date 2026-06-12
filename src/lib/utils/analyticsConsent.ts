@@ -9,6 +9,12 @@ export const ANALYTICS_CHOICE_KEY = "oc-analytics-choice";
 // so consent can be withdrawn or changed as easily as it was given.
 export const REOPEN_CONSENT_EVENT = "oc-reopen-cookie-consent";
 
+// Set once a team member (superadmin or @opencouncil.gr) signs in on this
+// device, and kept forever — see identifyUser.ts. Every PostHog event from a
+// marked device carries `internal_user: true`, which the project's "filter
+// internal and test users" setting excludes. Clearing site data unmarks.
+export const INTERNAL_USER_KEY = "oc-internal-user";
+
 // Re-applies the stored ConsentChip answer whenever PostHog's own consent
 // state is back to 'pending' — on initial load, and right after
 // posthog.reset() on sign-out. In on_reject mode 'pending' DROPS all events,

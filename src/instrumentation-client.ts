@@ -1,7 +1,7 @@
 import posthog from "posthog-js";
 import { env } from "@/env.mjs";
 import { EMBED_PATH } from "@/lib/utils/embed";
-import { applyStoredAnalyticsConsent } from "@/lib/utils/analyticsConsent";
+import { applyStoredAnalyticsConsent, INTERNAL_USER_KEY } from "@/lib/utils/analyticsConsent";
 
 // Without a token (contributor setups, CI), analytics stays fully disabled.
 // Embed routes are excluded like in PlausibleAnalytics: they load inside
@@ -45,4 +45,13 @@ if (env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && !EMBED_PATH.test(window.location.pa
     // tracking. The chip's own visibility is gated on ANALYTICS_CHOICE_KEY,
     // since this call consumes PostHog's 'pending' status.
     applyStoredAnalyticsConsent();
+
+    // Devices marked by a past team sign-in (see identifyUser.ts) stamp every
+    // event so the "filter internal and test users" project setting can
+    // exclude them. Must re-register on each load: in cookieless mode
+    // PostHog's persistence is memory-only, so register() doesn't survive
+    // a full page load.
+    if (localStorage.getItem(INTERNAL_USER_KEY) === "1") {
+        posthog.register({ internal_user: true });
+    }
 }
