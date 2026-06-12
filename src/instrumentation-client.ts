@@ -21,6 +21,13 @@ if (env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && !EMBED_PATH.test(window.location.pa
         // visitors are tracked via PostHog's cookieless daily-hash mode, so no
         // banner wall is needed and the privacy policy's cookie section holds.
         cookieless_mode: "on_reject",
+        // Most visitors never sign in, so the defaults' 'identified_only'
+        // would leave the Persons page showing signed-in users only. 'always'
+        // creates profiles for consenting anonymous visitors too. Tradeoffs:
+        // all events bill at the identified-event rate, and cookieless
+        // (pending/declined) visitors still get only day-scoped profiles —
+        // their daily hash makes each day a new person by design.
+        person_profiles: "always",
         // Pageviews are captured by PostHogPageView so they carry `logged_in`;
         // the automatic capture would fire before the session is known.
         capture_pageview: false,
