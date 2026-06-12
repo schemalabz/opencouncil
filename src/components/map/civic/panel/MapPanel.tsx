@@ -13,6 +13,8 @@ interface MapPanelProps {
     isDesktop: boolean;
     activeTab: PanelTab;
     onTabChange: (tab: PanelTab) => void;
+    /** Which tabs exist on this surface (meeting maps show subjects only). */
+    availableTabs?: PanelTab[];
     /** Compact summary line shown in the header row (count). */
     summary: React.ReactNode;
     children: React.ReactNode;
@@ -21,12 +23,12 @@ interface MapPanelProps {
     onSnapChange: (snap: number | string | null) => void;
 }
 
-function TabBar({ activeTab, onTabChange }: Pick<MapPanelProps, 'activeTab' | 'onTabChange'>) {
+function TabBar({ activeTab, onTabChange, availableTabs }: Pick<MapPanelProps, 'activeTab' | 'onTabChange'> & { availableTabs: PanelTab[] }) {
     const t = useTranslations('map');
     const tabs: { id: PanelTab; label: string }[] = [
         { id: 'subjects', label: t('tabSubjects') },
         { id: 'cities', label: t('tabCities') },
-    ];
+    ].filter(tab => availableTabs.includes(tab.id as PanelTab)) as { id: PanelTab; label: string }[];
     return (
         <div role="tablist" className="flex shrink-0 gap-1">
             {tabs.map(tab => (
@@ -54,7 +56,7 @@ function TabBar({ activeTab, onTabChange }: Pick<MapPanelProps, 'activeTab' | 'o
  * desktop, a non-modal bottom drawer with snap points on mobile (the map
  * stays interactive behind it).
  */
-export function MapPanel({ isDesktop, activeTab, onTabChange, summary, children, snap, onSnapChange }: MapPanelProps) {
+export function MapPanel({ isDesktop, activeTab, onTabChange, availableTabs = ['subjects', 'cities'], summary, children, snap, onSnapChange }: MapPanelProps) {
     const t = useTranslations('map');
 
     if (isDesktop) {
@@ -66,7 +68,7 @@ export function MapPanel({ isDesktop, activeTab, onTabChange, summary, children,
             >
                 {/* The count lives in the tab content's own header — no duplicate here. */}
                 <div className="flex items-center border-b border-border">
-                    <TabBar activeTab={activeTab} onTabChange={onTabChange} />
+                    <TabBar activeTab={activeTab} onTabChange={onTabChange} availableTabs={availableTabs} />
                 </div>
                 {children}
             </aside>
@@ -92,7 +94,7 @@ export function MapPanel({ isDesktop, activeTab, onTabChange, summary, children,
                     }}
                 >
                     <div className="text-sm text-foreground">{summary}</div>
-                    <TabBar activeTab={activeTab} onTabChange={onTabChange} />
+                    <TabBar activeTab={activeTab} onTabChange={onTabChange} availableTabs={availableTabs} />
                 </div>
                 <div className="flex min-h-0 flex-1 flex-col">{children}</div>
             </DrawerContent>

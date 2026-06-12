@@ -1,38 +1,41 @@
 "use client"
-import MapView from "@/components/map/map";
+import CivicMap from "@/components/map/civic/CivicMap";
 import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataContext";
 import { SubjectSection } from "@/components/meetings/subject-section";
 import { TopicFilter } from "@/components/TopicFilter";
 import { formatDate } from "date-fns";
-import { CalendarIcon, ExternalLink, FileIcon, FileText, Youtube } from "lucide-react";
+import { CalendarIcon, ExternalLink, FileIcon, FileText, Map as MapIcon, Youtube } from "lucide-react";
 import { useNotificationPreference } from "@/contexts/NotificationPreferenceContext";
 import { formatDateTime, formatRelativeTime } from "@/lib/formatters/time";
-import { sortSubjectsBySpeakerContributionCount, sortSubjectsByAgendaIndex, subjectToMapFeature } from "@/lib/utils";
+import { sortSubjectsBySpeakerContributionCount, sortSubjectsByAgendaIndex } from "@/lib/utils";
 import { categorizeSubjects, SUBJECT_CATEGORIES } from "@/lib/utils/subjects";
-import { calculateGeometryBounds } from "@/lib/geo";
+import { subjectWithRelationsToMapSubject } from "@/lib/map/adapters";
+import type { MapSubject } from "@/lib/map/types";
 import { Link } from "@/i18n/routing";
 import { HighlightCards } from "@/components/meetings/highlight-cards";
 import { el } from "date-fns/locale";
 import { enUS } from "date-fns/locale";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState, useMemo, useEffect } from "react";
 import type { Topic } from "@prisma/client";
 
 export default function MeetingPage() {
     const { meeting, subjects, city } = useCouncilMeetingData();
+    const t = useTranslations('map');
     const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
     const [agendaSortMode, setAgendaSortMode] = useState<'speakingTime' | 'agendaIndex'>('speakingTime');
 
-    // Convert all subjects with locations to map features
-    const subjectFeatures = subjects
-        .map(subjectToMapFeature)
-        .filter((f): f is NonNullable<ReturnType<typeof subjectToMapFeature>> => f !== null);
-
-    // Center on city geometry for the decorative header map
-    const cityCenter = useMemo((): [number, number] => {
-        if (!city.geometry) return [23.7275, 37.9838];
-        return calculateGeometryBounds(city.geometry).center;
-    }, [city.geometry]);
+    // The meeting's located subjects for the decorative header map
+    const mapSubjects = useMemo(
+        () => subjects
+            .map(subject => subjectWithRelationsToMapSubject(subject, {
+                cityName: city.name,
+                meetingDate: meeting.dateTime,
+                meetingName: meeting.name,
+            }))
+            .filter((subject): subject is MapSubject => subject !== null),
+        [subjects, city.name, meeting.dateTime, meeting.name],
+    );
 
     // Extract unique topics from all subjects
     const availableTopics = useMemo(() => {
@@ -67,27 +70,26 @@ export default function MeetingPage() {
     return (
         <div className="flex flex-col w-full">
             <div className="relative h-[200px] sm:h-[300px] w-full">
-                <MapView className="w-full h-full" features={[
-                    {
-                        id: city.id,
-                        geometry: city.geometry,
-                        properties: {
-                            name: city.name,
-                            name_en: city.name_en
-                        },
-                        style: {
-                            fillColor: '#627BBC',
-                            fillOpacity: 0.2,
-                            strokeColor: '#627BBC',
-                            strokeWidth: 2,
-                        }
-                    },
-                    ...subjectFeatures
-                ]}
-                    center={cityCenter}
-                    zoom={12}
+                <CivicMap
+                    className="h-full w-full"
+                    subjects={mapSubjects}
+                    contextBoundary={city.geometry ?? null}
+                    interactive={false}
+                    markerOptions={{ clusterRadius: 40 }}
+                    camera={{ fitTo: city.geometry ?? 'subjects', padding: 24 }}
+                    ariaLabel={t('mapAria')}
+                    labels={{ clusterAria: count => t('clusterAria', { count }) }}
                 />
-                <div className="absolute bottom-0 left-0 right-0 h-36 sm:h-48 bg-gradient-to-t from-white via-white/70 to-transparent" />
+                {mapSubjects.length > 0 && (
+                    <Link
+                        href={`/${city.id}/${meeting.id}/map`}
+                        className="absolute right-3 top-3 flex h-8 items-center gap-1.5 rounded-full border border-border bg-background px-3 text-xs font-medium text-foreground shadow-md transition-colors hover:bg-muted"
+                    >
+                        <MapIcon className="h-3.5 w-3.5" />
+                        {t('openFullMap')}
+                    </Link>
+                )}
+                <div className="absolute bottom-0 left-0 right-0 h-36 sm:h-48 bg-gradient-to-t from-white via-white/70 to-transparent pointer-events-none" />
                 <MeetingInfo />
             </div>
 

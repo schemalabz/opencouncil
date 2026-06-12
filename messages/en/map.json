@@ -66,5 +66,6 @@
         "submit": "Submit",
         "submitting": "Submitting…",
         "close": "Close"
-    }
+    },
+    "openFullMap": "Open map"
 }
