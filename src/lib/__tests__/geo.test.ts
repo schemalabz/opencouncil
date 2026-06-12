@@ -1,4 +1,10 @@
-import { calculateGeometryBounds, createCircleBuffer, haversineDistance } from '../geo';
+import {
+  calculateGeometryBounds,
+  createCircleBuffer,
+  haversineDistance,
+  normalizeGeometryCoordinates,
+  normalizeLngLat,
+} from '../geo';
 
 describe('calculateGeometryBounds', () => {
   it('returns default Athens center for null geometry', () => {
@@ -8,8 +14,22 @@ describe('calculateGeometryBounds', () => {
   });
 
   it('returns default for unsupported geometry type', () => {
-    const result = calculateGeometryBounds({ type: 'LineString', coordinates: [[0, 0], [1, 1]] });
+    const result = calculateGeometryBounds({ type: 'Bogus', coordinates: [[0, 0], [1, 1]] });
     expect(result.bounds).toBeNull();
+  });
+
+  it('calculates bounds for a LineString', () => {
+    const result = calculateGeometryBounds({ type: 'LineString', coordinates: [[0, 0], [2, 4]] });
+    expect(result.bounds).toEqual({ minLng: 0, maxLng: 2, minLat: 0, maxLat: 4 });
+    expect(result.center).toEqual([1, 2]);
+  });
+
+  it('calculates bounds for a MultiLineString', () => {
+    const result = calculateGeometryBounds({
+      type: 'MultiLineString',
+      coordinates: [[[0, 0], [1, 1]], [[5, 5], [6, 7]]],
+    });
+    expect(result.bounds).toEqual({ minLng: 0, maxLng: 6, minLat: 0, maxLat: 7 });
   });
 
   it('calculates bounds for a Point', () => {
@@ -80,6 +100,69 @@ describe('createCircleBuffer', () => {
       expect(dist).toBeGreaterThan(radiusMeters * 0.99);
       expect(dist).toBeLessThan(radiusMeters * 1.01);
     }
+  });
+});
+
+describe('normalizeLngLat', () => {
+  it('swaps coordinates stored as [lat, lng] within Greece', () => {
+    // Souda, Crete stored swapped: lat 35.49, lng 24.07
+    expect(normalizeLngLat([35.4876457, 24.0750792])).toEqual([24.0750792, 35.4876457]);
+  });
+
+  it('keeps correct [lng, lat] coordinates unchanged', () => {
+    expect(normalizeLngLat([23.7275, 37.9838])).toEqual([23.7275, 37.9838]);
+  });
+
+  it('keeps coordinates outside both ranges unchanged', () => {
+    expect(normalizeLngLat([-74.006, 40.7128])).toEqual([-74.006, 40.7128]);
+    expect(normalizeLngLat([0, 0])).toEqual([0, 0]);
+  });
+
+  it('respects exact range edges', () => {
+    // first=29.9 is not a Greek latitude → no swap
+    expect(normalizeLngLat([29.9, 24])).toEqual([29.9, 24]);
+    // first=34.1 is a Greek latitude, second=24 a Greek longitude → swap
+    expect(normalizeLngLat([34.1, 24])).toEqual([24, 34.1]);
+  });
+});
+
+describe('normalizeGeometryCoordinates', () => {
+  it('normalizes a swapped Point', () => {
+    const result = normalizeGeometryCoordinates({ type: 'Point', coordinates: [37.98, 23.73] });
+    expect(result).toEqual({ type: 'Point', coordinates: [23.73, 37.98] });
+  });
+
+  it('normalizes every position of a LineString', () => {
+    const result = normalizeGeometryCoordinates({
+      type: 'LineString',
+      coordinates: [[37.98, 23.73], [23.74, 37.99]],
+    });
+    expect(result.coordinates).toEqual([[23.73, 37.98], [23.74, 37.99]]);
+  });
+
+  it('normalizes nested Polygon rings', () => {
+    const result = normalizeGeometryCoordinates({
+      type: 'Polygon',
+      coordinates: [[[37.98, 23.73], [37.99, 23.74], [37.98, 23.73]]],
+    });
+    expect(result.coordinates).toEqual([[[23.73, 37.98], [23.74, 37.99], [23.73, 37.98]]]);
+  });
+
+  it('recurses into GeometryCollections', () => {
+    const result = normalizeGeometryCoordinates({
+      type: 'GeometryCollection',
+      geometries: [{ type: 'Point', coordinates: [37.98, 23.73] }],
+    });
+    expect(result).toEqual({
+      type: 'GeometryCollection',
+      geometries: [{ type: 'Point', coordinates: [23.73, 37.98] }],
+    });
+  });
+
+  it('does not mutate the input geometry', () => {
+    const input: GeoJSON.Point = { type: 'Point', coordinates: [37.98, 23.73] };
+    normalizeGeometryCoordinates(input);
+    expect(input.coordinates).toEqual([37.98, 23.73]);
   });
 });
 

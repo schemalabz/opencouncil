@@ -23,7 +23,8 @@ export function calculateGeometryBounds(geometry: any): GeometryBounds {
         let minLat = Infinity, maxLat = -Infinity;
 
         // Check for supported geometry types
-        if (!['Point', 'Polygon', 'MultiPolygon', 'GeometryCollection'].includes(geometry.type)) {
+        const SUPPORTED_TYPES = ['Point', 'MultiPoint', 'LineString', 'MultiLineString', 'Polygon', 'MultiPolygon', 'GeometryCollection'];
+        if (!SUPPORTED_TYPES.includes(geometry.type)) {
             console.warn(`[Location] Unsupported geometry type: ${geometry.type}, using default coordinates`);
             return DEFAULT_RETURN;
         }
@@ -44,6 +45,12 @@ export function calculateGeometryBounds(geometry: any): GeometryBounds {
             } else if (geom.type === 'MultiPolygon') {
                 geom.coordinates.forEach((polygon: number[][][]) => {
                     processCoordinates(polygon[0]);
+                });
+            } else if (geom.type === 'LineString' || geom.type === 'MultiPoint') {
+                processCoordinates(geom.coordinates);
+            } else if (geom.type === 'MultiLineString') {
+                geom.coordinates.forEach((line: number[][]) => {
+                    processCoordinates(line);
                 });
             } else if (geom.type === 'Point') {
                 const [lng, lat] = geom.coordinates;
@@ -130,6 +137,58 @@ export function createCircleBuffer(center: [number, number], radiusInMeters: num
         type: 'Polygon',
         coordinates: [points]
     };
+}
+
+/**
+ * Greece bounding ranges used to detect legacy [lat, lng]-swapped coordinates.
+ * Latitude (34–42.5) and longitude (19–30) ranges are disjoint, so a point
+ * within Greece can be classified unambiguously.
+ */
+export const GREECE_LAT_RANGE: [number, number] = [34, 42.5];
+export const GREECE_LNG_RANGE: [number, number] = [19, 30];
+
+/**
+ * Returns [lng, lat], swapping the input when it looks like a legacy
+ * [lat, lng] pair within Greece. Coordinates outside both ranges are
+ * returned unchanged. See Location ingestion history: most stored rows
+ * were inserted with swapped axis order.
+ */
+export function normalizeLngLat(coords: [number, number]): [number, number] {
+    const [first, second] = coords;
+    const looksLikeLat = first >= GREECE_LAT_RANGE[0] && first <= GREECE_LAT_RANGE[1];
+    const looksLikeLng = second >= GREECE_LNG_RANGE[0] && second <= GREECE_LNG_RANGE[1];
+    if (looksLikeLat && looksLikeLng) {
+        return [second, first];
+    }
+    return coords;
+}
+
+type Position = number[];
+
+function mapPositions(coords: unknown, fn: (pos: Position) => Position): unknown {
+    if (!Array.isArray(coords)) return coords;
+    if (coords.length >= 2 && typeof coords[0] === 'number' && typeof coords[1] === 'number') {
+        return fn(coords as Position);
+    }
+    return coords.map(c => mapPositions(c, fn));
+}
+
+/**
+ * Recursively normalizes every position of a GeoJSON geometry through
+ * normalizeLngLat. Returns a new geometry; the input is not mutated.
+ */
+export function normalizeGeometryCoordinates<T extends GeoJSON.Geometry>(geometry: T): T {
+    if (geometry.type === 'GeometryCollection') {
+        return {
+            ...geometry,
+            geometries: geometry.geometries.map(g => normalizeGeometryCoordinates(g)),
+        } as T;
+    }
+    const coordinates = mapPositions(geometry.coordinates, pos => {
+        const [lng, lat] = normalizeLngLat([pos[0], pos[1]]);
+        return [lng, lat, ...pos.slice(2)];
+    }) as typeof geometry.coordinates;
+    return { ...geometry, coordinates } as T;
 }
 
 /**
