@@ -89,15 +89,24 @@ export function SubjectListItem({ subject, expanded, onToggle, onHover, showCity
                 className="w-full px-4 py-3 text-left"
             >
                 <div className="flex gap-3">
-                    {/* The topic, by icon alone */}
-                    <span
-                        className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-                        style={{ backgroundColor: `${subject.topicColor}1f` }}
-                        title={subject.topicName ?? undefined}
-                        aria-label={subject.topicName ?? undefined}
-                    >
-                        {subject.topicIcon && <Icon name={subject.topicIcon} color={subject.topicColor} size={17} />}
-                    </span>
+                    {/* Identity stack: municipality (when ambiguous) above the topic icon */}
+                    <div className="flex shrink-0 flex-col items-center gap-1.5">
+                        {showCity && (
+                            cityLogo ? (
+                                <Image src={cityLogo} alt={subject.cityName ?? ''} width={32} height={32} className="h-8 w-8 object-contain" />
+                            ) : (
+                                <Building2 className="h-7 w-7 text-muted-foreground" />
+                            )
+                        )}
+                        <span
+                            className="flex h-9 w-9 items-center justify-center rounded-full"
+                            style={{ backgroundColor: `${subject.topicColor}1f` }}
+                            title={subject.topicName ?? undefined}
+                            aria-label={subject.topicName ?? undefined}
+                        >
+                            {subject.topicIcon && <Icon name={subject.topicIcon} color={subject.topicColor} size={17} />}
+                        </span>
+                    </div>
 
                     <div className="min-w-0 flex-1">
                         {/* Pre-title: who (municipality when ambiguous · body) + date */}
@@ -105,14 +114,7 @@ export function SubjectListItem({ subject, expanded, onToggle, onHover, showCity
                             <div className="flex items-center justify-between gap-2 text-xs">
                                 <div className="flex min-w-0 items-center gap-1.5">
                                     {showCity && subject.cityName && (
-                                        <span className="flex shrink-0 items-center gap-1.5 font-medium text-foreground">
-                                            {cityLogo ? (
-                                                <Image src={cityLogo} alt="" width={24} height={24} className="h-6 w-6 object-contain" />
-                                            ) : (
-                                                <Building2 className="h-4 w-4 text-muted-foreground" />
-                                            )}
-                                            {subject.cityName}
-                                        </span>
+                                        <span className="shrink-0 font-medium text-foreground">{subject.cityName}</span>
                                     )}
                                     {showCity && subject.cityName && subject.adminBodyName && (
                                         <span className="shrink-0 text-muted-foreground/60">·</span>

@@ -26,7 +26,7 @@ export interface SubjectRankingWeights {
 export const DEFAULT_SUBJECT_RANKING_WEIGHTS: SubjectRankingWeights = {
     recency: 1,
     discussion: 1.1,
-    smallMunicipality: 0.6,
+    smallMunicipality: 0.15,
     adminBody: 0.4,
     location: 0.35,
 };
