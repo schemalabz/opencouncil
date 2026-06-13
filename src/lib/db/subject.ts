@@ -361,7 +361,7 @@ export async function getMapSubjects(filter: MapSubjectsFilter = {}): Promise<Ma
                     dateTime: true,
                     name: true,
                     city: { select: { name: true } },
-                    administrativeBody: { select: { name: true } },
+                    administrativeBody: { select: { name: true, type: true } },
                 },
             },
             topic: {
@@ -468,6 +468,7 @@ export async function getMapSubjects(filter: MapSubjectsFilter = {}): Promise<Ma
                 locationText: s.location?.text ?? null,
                 locationType: s.location?.type ?? null,
                 adminBodyName: s.councilMeeting?.administrativeBody?.name ?? null,
+                adminBodyType: s.councilMeeting?.administrativeBody?.type ?? null,
                 topicId: s.topic?.id ?? null,
                 topicName: s.topic?.name ?? null,
                 topicColor: s.topic?.colorHex ?? FALLBACK_TOPIC_COLOR,

@@ -8,6 +8,7 @@ import CivicMap from '@/components/map/civic/CivicMap';
 import type { CivicMapHandle } from '@/components/map/civic/types';
 import { MapPanel, MOBILE_SNAP_POINTS } from '@/components/map/civic/panel/MapPanel';
 import { SubjectsTab } from '@/components/map/civic/panel/SubjectsTab';
+import { sortByRanking, type SubjectRanking } from '@/lib/map/ranking';
 import { subjectWithRelationsToMapSubject } from '@/lib/map/adapters';
 import type { MapSubject } from '@/lib/map/types';
 
@@ -30,6 +31,7 @@ export default function MeetingMapPage() {
                 meetingDate: meeting.dateTime,
                 meetingName: meeting.name,
                 adminBodyName: meeting.administrativeBody?.name ?? null,
+            adminBodyType: meeting.administrativeBody?.type ?? null,
             })),
         [subjects, city.name, meeting.dateTime, meeting.name],
     );
@@ -49,10 +51,15 @@ export default function MeetingMapPage() {
             .map(id => byId.get(id))
             .filter((subject): subject is MapSubject => Boolean(subject));
     }, [spiderfiedIds, mapSubjects]);
-    const listSubjects = useMemo(() => {
-        const base = spiderfiedSubjects ?? visibleSubjects;
-        return [...base].sort((a, b) => b.discussionTimeSeconds - a.discussionTimeSeconds);
-    }, [spiderfiedSubjects, visibleSubjects]);
+    const rankings = useMemo(
+        () => sortByRanking(spiderfiedSubjects ?? visibleSubjects),
+        [spiderfiedSubjects, visibleSubjects],
+    );
+    const listSubjects = useMemo(() => rankings.map(ranking => ranking.subject), [rankings]);
+    const rankingById = useMemo(
+        () => new Map<string, SubjectRanking>(rankings.map(ranking => [ranking.subject.id, ranking])),
+        [rankings],
+    );
 
     const handleSelect = (subject: MapSubject | null) => {
         setSelectedSubjectId(subject?.id ?? null);
@@ -105,6 +112,7 @@ export default function MeetingMapPage() {
                     onZoomOut={() => mapHandleRef.current?.zoomBy(-2)}
                     showCount={isDesktop}
                     header={isDesktop && spiderfiedSubjects ? t('subjectsAtPoint', { count: spiderfiedSubjects.length }) : undefined}
+                    rankings={rankingById}
                 />
             </MapPanel>
         </div>

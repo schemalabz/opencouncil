@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { calculateGeometryBounds } from '@/lib/geo';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { apiSubjectToMapSubject } from '@/lib/map/adapters';
+import { sortByRanking, type SubjectRanking } from '@/lib/map/ranking';
 import {
     DEFAULT_MAP_FILTER,
     hasNarrowingFilters,
@@ -167,10 +168,15 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
             .map(id => byId.get(id))
             .filter((subject): subject is MapSubject => Boolean(subject));
     }, [spiderfiedIds, subjects]);
-    const listSubjects = useMemo(() => {
-        const base = spiderfiedSubjects ?? visibleSubjects;
-        return [...base].sort((a, b) => b.discussionTimeSeconds - a.discussionTimeSeconds);
-    }, [spiderfiedSubjects, visibleSubjects]);
+    const rankings = useMemo(
+        () => sortByRanking(spiderfiedSubjects ?? visibleSubjects),
+        [spiderfiedSubjects, visibleSubjects],
+    );
+    const listSubjects = useMemo(() => rankings.map(ranking => ranking.subject), [rankings]);
+    const rankingById = useMemo(
+        () => new Map<string, SubjectRanking>(rankings.map(ranking => [ranking.subject.id, ranking])),
+        [rankings],
+    );
 
     const cityLogos = useMemo(
         () => new Map(municipalities.map(municipality => [municipality.id, municipality.logoImage])),
@@ -365,6 +371,7 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
                         header={isDesktop ? panelHeader : undefined}
                         showCity={showCityOnCards}
                         cityLogos={cityLogos}
+                        rankings={rankingById}
                     />
                 ) : (
                     <MunicipalitiesTab

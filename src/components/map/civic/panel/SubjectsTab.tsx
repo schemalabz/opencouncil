@@ -5,6 +5,7 @@ import { AlertCircle, MapPinOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import type { MapSubject } from '@/lib/map/types';
+import type { SubjectRanking } from '@/lib/map/ranking';
 import { SubjectListItem } from './SubjectListItem';
 
 /** Panel rows are capped; the map always shows everything. */
@@ -28,6 +29,8 @@ interface SubjectsTabProps {
     /** Identify each subject's municipality (multi-municipality views). */
     showCity?: boolean;
     cityLogos?: Map<string, string | null>;
+    /** Per-subject ranking detail — surfaced only in development. */
+    rankings?: Map<string, SubjectRanking>;
 }
 
 export function SubjectsTab({
@@ -45,6 +48,7 @@ export function SubjectsTab({
     header,
     showCity = false,
     cityLogos,
+    rankings,
 }: SubjectsTabProps) {
     const t = useTranslations('map');
     const listRef = useRef<HTMLDivElement>(null);
@@ -113,6 +117,7 @@ export function SubjectsTab({
                                 onHover={onHover}
                                 showCity={showCity}
                                 cityLogo={cityLogos?.get(subject.cityId)}
+                                ranking={rankings?.get(subject.id)}
                             />
                         ))}
                         {subjects.length > SUBJECTS_LIST_CAP && (

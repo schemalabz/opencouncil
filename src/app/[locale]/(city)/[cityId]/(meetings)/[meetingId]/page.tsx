@@ -32,6 +32,7 @@ export default function MeetingPage() {
                 meetingDate: meeting.dateTime,
                 meetingName: meeting.name,
                 adminBodyName: meeting.administrativeBody?.name ?? null,
+            adminBodyType: meeting.administrativeBody?.type ?? null,
             })),
         [subjects, city.name, meeting.dateTime, meeting.name],
     );

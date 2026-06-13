@@ -1,3 +1,4 @@
+import type { AdministrativeBodyType } from '@prisma/client';
 import { calculateGeometryBounds, normalizeGeometryCoordinates, normalizeLngLat } from '@/lib/geo';
 import { FALLBACK_TOPIC_COLOR } from './constants';
 import { deriveImportanceTier } from './importance';
@@ -41,6 +42,7 @@ export function apiSubjectToMapSubject(item: MapSubjectsApiItem): MapSubject {
         meetingName: item.meetingName ?? null,
         locationText: item.locationText ?? null,
         adminBodyName: item.adminBodyName ?? null,
+        adminBodyType: item.adminBodyType ?? null,
         topicId: item.topicId ?? null,
         topicName: item.topicName ?? null,
         topicColor: item.topicColor || FALLBACK_TOPIC_COLOR,
@@ -75,6 +77,7 @@ export interface MeetingSubjectContext {
     meetingDate?: Date | string | null;
     meetingName?: string | null;
     adminBodyName?: string | null;
+    adminBodyType?: AdministrativeBodyType | null;
 }
 
 /**
@@ -107,6 +110,7 @@ export function subjectWithRelationsToMapSubject(
         meetingName: context.meetingName ?? null,
         locationText: subject.location?.text ?? null,
         adminBodyName: context.adminBodyName ?? null,
+        adminBodyType: context.adminBodyType ?? null,
         topicId: subject.topicId ?? subject.topic?.id ?? null,
         topicName: subject.topic?.name ?? null,
         topicColor: subject.topic?.colorHex || FALLBACK_TOPIC_COLOR,

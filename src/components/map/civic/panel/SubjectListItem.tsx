@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from 'react';
 import Image from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Building2, Clock, Landmark, MapPin, MapPinOff, Users } from 'lucide-react';
@@ -9,6 +10,9 @@ import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/formatters/time';
 import Icon from '@/components/icon';
 import type { MapSubject } from '@/lib/map/types';
+import type { SubjectRanking } from '@/lib/map/ranking';
+
+const IS_DEV = process.env.NODE_ENV === 'development';
 
 interface SubjectListItemProps {
     subject: MapSubject;
@@ -18,6 +22,44 @@ interface SubjectListItemProps {
     /** Identify the municipality on the card (multi-municipality views). */
     showCity?: boolean;
     cityLogo?: string | null;
+    /** Ranking breakdown — rendered as a dev-only clickable score chip. */
+    ranking?: SubjectRanking;
+}
+
+/** Dev-only score chip that reveals the ranking breakdown when clicked. */
+function RankingDebug({ ranking }: { ranking: SubjectRanking }) {
+    const [open, setOpen] = useState(false);
+    return (
+        <div className="mt-1.5 text-[11px]">
+            <button
+                type="button"
+                onClick={event => {
+                    event.stopPropagation();
+                    setOpen(value => !value);
+                }}
+                className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 font-mono text-muted-foreground hover:text-foreground"
+            >
+                score {ranking.score.toFixed(2)}
+                <span className="opacity-60">{open ? '▾' : '▸'}</span>
+            </button>
+            {open && (
+                <table className="mt-1 w-full font-mono text-[10px] text-muted-foreground">
+                    <tbody>
+                        {ranking.components.map(component => (
+                            <tr key={component.key}>
+                                <td className="pr-2">{component.key}</td>
+                                <td className="pr-2 text-right tabular-nums">{component.signal.toFixed(2)}</td>
+                                <td className="pr-2 text-right tabular-nums opacity-60">×{component.weight}</td>
+                                <td className={cn('text-right tabular-nums', component.contribution >= 0 ? 'text-emerald-600' : 'text-red-500')}>
+                                    {component.contribution >= 0 ? '+' : ''}{component.contribution.toFixed(2)}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
+        </div>
+    );
 }
 
 /**
@@ -26,7 +68,7 @@ interface SubjectListItemProps {
  * quietly where the location would be. Expands in place with the full
  * description and a CTA to the subject page.
  */
-export function SubjectListItem({ subject, expanded, onToggle, onHover, showCity = false, cityLogo }: SubjectListItemProps) {
+export function SubjectListItem({ subject, expanded, onToggle, onHover, showCity = false, cityLogo, ranking }: SubjectListItemProps) {
     const t = useTranslations('map');
     const minutes = Math.round(subject.discussionTimeSeconds / 60);
 
@@ -122,6 +164,8 @@ export function SubjectListItem({ subject, expanded, onToggle, onHover, showCity
                                 </span>
                             )}
                         </div>
+
+                        {IS_DEV && ranking && <RankingDebug ranking={ranking} />}
                     </div>
                 </div>
             </button>

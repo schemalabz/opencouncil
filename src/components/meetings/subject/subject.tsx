@@ -88,6 +88,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
             meetingDate: meeting.dateTime,
             meetingName: meeting.name,
             adminBodyName: meeting.administrativeBody?.name ?? null,
+            adminBodyType: meeting.administrativeBody?.type ?? null,
         });
         return mapSubject.anchor ? [mapSubject] : [];
     }, [subject, city.name, meeting.dateTime, meeting.name]);

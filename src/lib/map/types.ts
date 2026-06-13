@@ -1,3 +1,4 @@
+import type { AdministrativeBodyType } from '@prisma/client';
 /**
  * Data contracts for the CivicMap component suite.
  *
@@ -25,6 +26,7 @@ export interface MapSubject {
     meetingName: string | null;
     locationText: string | null;
     adminBodyName: string | null;
+    adminBodyType: AdministrativeBodyType | null;
     topicId: string | null;
     topicName: string | null;
     /** Always present — defaults to FALLBACK_TOPIC_COLOR */
@@ -99,6 +101,7 @@ export interface MapSubjectsApiItem {
     locationText?: string | null;
     locationType?: string | null;
     adminBodyName?: string | null;
+    adminBodyType?: AdministrativeBodyType | null;
     topicId?: string | null;
     topicName?: string | null;
     topicColor?: string | null;
