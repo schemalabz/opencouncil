@@ -18,6 +18,7 @@ import { roleWithRelationsInclude } from './types/roles';
 import { normalizeGeometryCoordinates } from '@/lib/geo';
 import { FALLBACK_TOPIC_COLOR, MAP_DEFAULT_MONTHS_BACK } from '@/lib/map/constants';
 import type { MapSubjectsApiItem } from '@/lib/map/types';
+import { getSubjectMetrics, type SubjectMetrics } from './subjectMetrics';
 
 // Shared include blocks for Subject queries
 const contributionsInclude = {
@@ -327,8 +328,17 @@ export interface MapSubjectsFilter {
  * Subjects with locations from officially supported cities, for the map.
  * Returns the wire shape consumed by /api/map/subjects and the /map page
  * (see MapSubjectsApiItem in src/lib/map/types.ts).
+ *
+ * Discussion metrics default to a fresh SQL aggregation; production callers
+ * pass the cached map (getSubjectMetricsCached, in the cache layer) so the
+ * aggregation runs once per revalidation rather than per request. Kept out of
+ * the db module's import graph so it stays free of next/cache.
  */
-export async function getMapSubjects(filter: MapSubjectsFilter = {}): Promise<MapSubjectsApiItem[]> {
+export async function getMapSubjects(
+    filter: MapSubjectsFilter = {},
+    metrics?: Record<string, SubjectMetrics>,
+): Promise<MapSubjectsApiItem[]> {
+    const subjectMetrics = metrics ?? await getSubjectMetrics();
     const monthsBack = filter.monthsBack ?? MAP_DEFAULT_MONTHS_BACK;
     const defaultThreshold = new Date();
     defaultThreshold.setMonth(defaultThreshold.getMonth() - monthsBack);
@@ -370,17 +380,6 @@ export async function getMapSubjects(filter: MapSubjectsFilter = {}): Promise<Ma
             location: {
                 select: { text: true, type: true },
             },
-            speakerSegments: {
-                select: {
-                    speakerSegment: {
-                        select: {
-                            startTimestamp: true,
-                            endTimestamp: true,
-                            speakerTag: { select: { id: true } },
-                        },
-                    },
-                },
-            },
         },
     });
 
@@ -403,59 +402,9 @@ export async function getMapSubjects(filter: MapSubjectsFilter = {}): Promise<Ma
         geometries.map(g => [g.id, normalizeGeometryCoordinates(JSON.parse(g.geometry) as GeoJSON.Geometry)])
     );
 
-    // Discussion metrics, new system first (Utterance.discussionSubjectId) —
-    // newer meetings have no SubjectSpeakerSegment rows, so relying on the
-    // legacy link alone would report most subjects as undiscussed. Lean
-    // mirror of getBatchStatisticsForSubjects without person/party loads.
-    const utterances = await prisma.utterance.findMany({
-        where: {
-            discussionSubjectId: { in: subjects.map(s => s.id) },
-            discussionStatus: 'SUBJECT_DISCUSSION',
-        },
-        select: {
-            discussionSubjectId: true,
-            speakerSegmentId: true,
-            startTimestamp: true,
-            endTimestamp: true,
-        },
-    });
-    const utterancesBySubject = new Map<string, typeof utterances>();
-    for (const utterance of utterances) {
-        if (!utterance.discussionSubjectId) continue;
-        const list = utterancesBySubject.get(utterance.discussionSubjectId);
-        if (list) {
-            list.push(utterance);
-        } else {
-            utterancesBySubject.set(utterance.discussionSubjectId, [utterance]);
-        }
-    }
-    const utteranceSegmentIds = [...new Set(utterances.map(u => u.speakerSegmentId))];
-    const segmentSpeakers = utteranceSegmentIds.length > 0
-        ? await prisma.speakerSegment.findMany({
-            where: { id: { in: utteranceSegmentIds } },
-            select: { id: true, speakerTag: { select: { id: true } } },
-        })
-        : [];
-    const speakerTagBySegment = new Map(segmentSpeakers.map(segment => [segment.id, segment.speakerTag.id]));
-
     return subjects
         .map(s => {
-            let totalTimeSeconds = 0;
-            const uniqueSpeakerIds = new Set<string>();
-            const subjectUtterances = utterancesBySubject.get(s.id);
-            if (subjectUtterances && subjectUtterances.length > 0) {
-                for (const utterance of subjectUtterances) {
-                    totalTimeSeconds += Math.max(0, utterance.endTimestamp - utterance.startTimestamp);
-                    const speakerTagId = speakerTagBySegment.get(utterance.speakerSegmentId);
-                    if (speakerTagId) uniqueSpeakerIds.add(speakerTagId);
-                }
-            } else {
-                for (const sss of s.speakerSegments || []) {
-                    totalTimeSeconds += sss.speakerSegment.endTimestamp - sss.speakerSegment.startTimestamp;
-                    uniqueSpeakerIds.add(sss.speakerSegment.speakerTag.id);
-                }
-            }
-
+            const metric = subjectMetrics[s.id];
             return {
                 id: s.id,
                 name: s.name,
@@ -473,8 +422,8 @@ export async function getMapSubjects(filter: MapSubjectsFilter = {}): Promise<Ma
                 topicName: s.topic?.name ?? null,
                 topicColor: s.topic?.colorHex ?? FALLBACK_TOPIC_COLOR,
                 topicIcon: s.topic?.icon ?? null,
-                discussionTimeSeconds: Math.round(totalTimeSeconds),
-                speakerCount: uniqueSpeakerIds.size,
+                discussionTimeSeconds: metric?.discussionSeconds ?? 0,
+                speakerCount: metric?.speakerCount ?? 0,
                 geometry: (s.locationId ? geometryMap.get(s.locationId) : null) ?? null,
             };
         });

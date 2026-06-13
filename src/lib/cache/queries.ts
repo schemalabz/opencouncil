@@ -7,6 +7,7 @@ import { getCouncilMeetingsForCity } from "@/lib/db/meetings";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { getPeopleForCity } from "@/lib/db/people";
 import { getSubjectsForMeeting, SubjectWithRelations, getMapSubjects } from "@/lib/db/subject";
+import { getSubjectMetrics } from "@/lib/db/subjectMetrics";
 import { getPetitionCountsByCity } from "@/lib/db/petitions";
 import { getTopics } from "@/lib/db/topics";
 import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
@@ -246,13 +247,32 @@ export async function getTopicsCached() {
 }
 
 /**
+ * Cached per-subject discussion metrics (length + speaker count). Static once
+ * a meeting is processed, and filter-independent — one key reused by every map
+ * view. Bust with the `subjects:metrics` tag on reprocessing; otherwise it
+ * refreshes on the revalidate window (new subjects briefly read as
+ * undiscussed until then).
+ */
+export async function getSubjectMetricsCached() {
+  return createCache(
+    () => getSubjectMetrics(),
+    ['subjects', 'metrics'],
+    { tags: ['subjects:metrics'], revalidate: 1800 }
+  )();
+}
+
+/**
  * Cached map subjects for the DEFAULT filter only — arbitrary topic/time
  * combinations would explode cache-key cardinality, so non-default filters
  * query the database directly.
+ *
+ * Discussion metrics are resolved (from their own cache) BEFORE the cache
+ * scope and passed in, so we never nest unstable_cache inside unstable_cache.
  */
 export async function getDefaultMapSubjectsCached() {
+  const metrics = await getSubjectMetricsCached();
   return createCache(
-    () => getMapSubjects(),
+    () => getMapSubjects({}, metrics),
     ['map', 'subjects', 'default'],
     { tags: ['map:subjects'], revalidate: 1800 }
   )();

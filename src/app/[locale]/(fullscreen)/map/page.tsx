@@ -2,6 +2,7 @@ import {
     getCitiesForMapCached,
     getDefaultMapSubjectsCached,
     getPetitionCountsByCityCached,
+    getSubjectMetricsCached,
     getTopicsCached,
 } from '@/lib/cache/queries';
 import { getMapSubjects } from '@/lib/db/subject';
@@ -20,17 +21,18 @@ export default async function MapPage({
         getTopicsCached(),
         getCitiesForMapCached(),
         getPetitionCountsByCityCached(),
-        // Deep links with non-default filters bypass the cache (bounded key space)
+        // Deep links with non-default filters bypass the subjects cache (the
+        // key space is unbounded) but still reuse the cached discussion metrics.
         isDefaultFilter(filter)
             ? getDefaultMapSubjectsCached()
-            : getMapSubjects({
+            : getSubjectMetricsCached().then(metrics => getMapSubjects({
                 monthsBack: filter.monthsBack,
                 topicIds: filter.topicIds ?? undefined,
                 cityIds: filter.cityIds ?? undefined,
                 bodyTypes: filter.bodyTypes ?? undefined,
                 dateFrom: filter.dateFrom ?? undefined,
                 dateTo: filter.dateTo ?? undefined,
-            }),
+            }, metrics)),
     ]);
 
     const municipalities = cities.map(city => cityToMapMunicipality(city, petitionCounts[city.id] ?? 0));

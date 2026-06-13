@@ -221,6 +221,10 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                 if (updatedTask.cityId && shouldRevalidateForTaskType(updatedTask.type as MeetingTaskType)) {
                     try {
                         revalidateTag(`city:${updatedTask.cityId}:meetings`, 'max');
+                        // Subjects/utterances changed → refresh the map's subject
+                        // list and the (filter-independent) discussion metrics.
+                        revalidateTag('map:subjects', 'max');
+                        revalidateTag('subjects:metrics', 'max');
                     } catch (revalidateError) {
                         console.error(`Error revalidating cache for task ${taskId}:`, revalidateError);
                     }
