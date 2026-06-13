@@ -1,7 +1,9 @@
 import {
   calculateGeometryBounds,
   createCircleBuffer,
+  geometryIntersectsBounds,
   haversineDistance,
+  isPointInGeometry,
   normalizeGeometryCoordinates,
   normalizeLngLat,
 } from '../geo';
@@ -163,6 +165,87 @@ describe('normalizeGeometryCoordinates', () => {
     const input: GeoJSON.Point = { type: 'Point', coordinates: [37.98, 23.73] };
     normalizeGeometryCoordinates(input);
     expect(input.coordinates).toEqual([37.98, 23.73]);
+  });
+});
+
+describe('isPointInGeometry', () => {
+  const square: GeoJSON.Polygon = {
+    type: 'Polygon',
+    coordinates: [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]],
+  };
+
+  it('detects a point inside a polygon', () => {
+    expect(isPointInGeometry([5, 5], square)).toBe(true);
+  });
+
+  it('rejects a point outside a polygon', () => {
+    expect(isPointInGeometry([15, 5], square)).toBe(false);
+    expect(isPointInGeometry([-1, 5], square)).toBe(false);
+  });
+
+  it('respects holes', () => {
+    const withHole: GeoJSON.Polygon = {
+      type: 'Polygon',
+      coordinates: [
+        [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]],
+        [[4, 4], [6, 4], [6, 6], [4, 6], [4, 4]],
+      ],
+    };
+    expect(isPointInGeometry([5, 5], withHole)).toBe(false);
+    expect(isPointInGeometry([1, 1], withHole)).toBe(true);
+  });
+
+  it('handles MultiPolygon membership', () => {
+    const multi: GeoJSON.MultiPolygon = {
+      type: 'MultiPolygon',
+      coordinates: [
+        [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]],
+        [[[5, 5], [6, 5], [6, 6], [5, 6], [5, 5]]],
+      ],
+    };
+    expect(isPointInGeometry([5.5, 5.5], multi)).toBe(true);
+    expect(isPointInGeometry([3, 3], multi)).toBe(false);
+  });
+
+  it('returns false for null or non-area geometry', () => {
+    expect(isPointInGeometry([5, 5], null)).toBe(false);
+    expect(isPointInGeometry([5, 5], { type: 'Point', coordinates: [5, 5] })).toBe(false);
+  });
+});
+
+describe('geometryIntersectsBounds', () => {
+  // 0..10 square
+  const square: GeoJSON.Polygon = {
+    type: 'Polygon',
+    coordinates: [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]],
+  };
+
+  it('is true when the viewport centre sits inside the geometry', () => {
+    // small viewport deep inside the square, no vertices in view
+    expect(geometryIntersectsBounds(square, { west: 4, south: 4, east: 6, north: 6 })).toBe(true);
+  });
+
+  it('is true when an outline vertex falls inside the viewport', () => {
+    // viewport straddling the corner at (10,10)
+    expect(geometryIntersectsBounds(square, { west: 9, south: 9, east: 12, north: 12 })).toBe(true);
+  });
+
+  it('is false when the geometry is entirely outside the viewport', () => {
+    expect(geometryIntersectsBounds(square, { west: 20, south: 20, east: 25, north: 25 })).toBe(false);
+  });
+
+  it('does not leak a far-away geometry sharing only a bbox row', () => {
+    // an L-shaped neighbour whose bbox overlaps but polygon does not
+    const neighbour: GeoJSON.Polygon = {
+      type: 'Polygon',
+      coordinates: [[[20, 0], [30, 0], [30, 1], [20, 1], [20, 0]]],
+    };
+    // viewport over the square's centre — same latitude band as neighbour, far in lng
+    expect(geometryIntersectsBounds(neighbour, { west: 4, south: 0, east: 6, north: 2 })).toBe(false);
+  });
+
+  it('returns false for null geometry', () => {
+    expect(geometryIntersectsBounds(null, { west: 0, south: 0, east: 1, north: 1 })).toBe(false);
   });
 });
 

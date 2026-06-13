@@ -191,6 +191,79 @@ export function normalizeGeometryCoordinates<T extends GeoJSON.Geometry>(geometr
     return { ...geometry, coordinates } as T;
 }
 
+export interface LngLatBounds {
+    west: number;
+    south: number;
+    east: number;
+    north: number;
+}
+
+/**
+ * Whether a geometry intersects a viewport rectangle — true if the viewport
+ * centre is inside the geometry (zoomed into it) or any of its vertices fall
+ * inside the rectangle (its outline enters view). Unlike a bbox-overlap test
+ * this doesn't leak large/adjacent municipalities, and unlike a "has a
+ * subject here" test a single mis-geocoded point can't trigger it.
+ */
+export function geometryIntersectsBounds(geometry: GeoJSON.Geometry | null | undefined, bounds: LngLatBounds): boolean {
+    if (!geometry) return false;
+    const centre: [number, number] = [(bounds.west + bounds.east) / 2, (bounds.south + bounds.north) / 2];
+    if (isPointInGeometry(centre, geometry)) return true;
+
+    const inRect = (lng: number, lat: number) =>
+        lng >= bounds.west && lng <= bounds.east && lat >= bounds.south && lat <= bounds.north;
+    const walk = (coords: unknown): boolean => {
+        if (!Array.isArray(coords)) return false;
+        if (typeof coords[0] === 'number') return inRect(coords[0] as number, coords[1] as number);
+        return coords.some(walk);
+    };
+    if (geometry.type === 'GeometryCollection') {
+        return geometry.geometries.some(g => geometryIntersectsBounds(g, bounds));
+    }
+    return walk(geometry.coordinates);
+}
+
+/** Ray-casting point-in-ring test. point and ring are [lng, lat]. */
+function pointInRing(point: [number, number], ring: number[][]): boolean {
+    const [x, y] = point;
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const [xi, yi] = ring[i];
+        const [xj, yj] = ring[j];
+        const intersects = (yi > y) !== (yj > y) &&
+            x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+        if (intersects) inside = !inside;
+    }
+    return inside;
+}
+
+/**
+ * Whether a [lng, lat] point lies within a Polygon or MultiPolygon (holes
+ * respected). Used to decide which municipality the map is centered on —
+ * far more precise than a bounding-box test for adjacent or large cities.
+ */
+export function isPointInGeometry(point: [number, number], geometry: GeoJSON.Geometry | null | undefined): boolean {
+    if (!geometry) return false;
+    const inPolygon = (polygon: number[][][]): boolean => {
+        if (polygon.length === 0 || !pointInRing(point, polygon[0])) return false;
+        // Inside the outer ring but inside a hole → not contained.
+        for (let i = 1; i < polygon.length; i++) {
+            if (pointInRing(point, polygon[i])) return false;
+        }
+        return true;
+    };
+    if (geometry.type === 'Polygon') {
+        return inPolygon(geometry.coordinates);
+    }
+    if (geometry.type === 'MultiPolygon') {
+        return geometry.coordinates.some(inPolygon);
+    }
+    if (geometry.type === 'GeometryCollection') {
+        return geometry.geometries.some(g => isPointInGeometry(point, g));
+    }
+    return false;
+}
+
 /**
  * Calculate the great-circle distance between two [lng, lat] points using the Haversine formula.
  * Returns distance in meters.

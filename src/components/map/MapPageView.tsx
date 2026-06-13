@@ -1,15 +1,15 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import Image from 'next/image';
 import { Filter, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Topic } from '@prisma/client';
 import { cn } from '@/lib/utils';
-import { calculateGeometryBounds } from '@/lib/geo';
+import { geometryIntersectsBounds } from '@/lib/geo';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { apiSubjectToMapSubject } from '@/lib/map/adapters';
 import { sortByRanking, type SubjectRanking } from '@/lib/map/ranking';
+import { useMapHeaderCity } from './MapHeaderContext';
 import {
     DEFAULT_MAP_FILTER,
     hasNarrowingFilters,
@@ -127,38 +127,30 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
         }
     }, [isDesktop, snap]);
 
-    const municipalityBBoxes = useMemo(() => {
-        const boxes = new Map<string, { minLng: number; maxLng: number; minLat: number; maxLat: number }>();
+    // The municipalities the map is actually focused on — those whose polygon
+    // intersects the viewport. Far tighter than bbox overlap (which leaks
+    // neighbours in the dense Attica basin) and robust to the odd mis-geocoded
+    // subject. Decides which unlocated subjects to list, which municipalities
+    // the Δήμοι tab shows, and whether we're on a single municipality.
+    const activeCityIds = useMemo(() => {
+        if (!bounds) return new Set(municipalities.map(municipality => municipality.id));
+        const ids = new Set<string>();
         for (const municipality of municipalities) {
-            if (municipality.geometry) {
-                const { bounds: box } = calculateGeometryBounds(municipality.geometry);
-                if (box) boxes.set(municipality.id, box);
-            }
+            if (geometryIntersectsBounds(municipality.geometry, bounds)) ids.add(municipality.id);
         }
-        return boxes;
-    }, [municipalities]);
-    // BBox overlap, not center-in-view: zoomed deep inside a city, its
-    // center is off-screen but the city is very much "in view".
-    const municipalitiesInView = useMemo(() => {
-        if (!bounds) return municipalities;
-        return municipalities.filter(municipality => {
-            const box = municipalityBBoxes.get(municipality.id);
-            if (!box) return false;
-            return box.maxLng >= bounds.west && box.minLng <= bounds.east &&
-                box.maxLat >= bounds.south && box.minLat <= bounds.north;
-        });
-    }, [municipalities, municipalityBBoxes, bounds]);
-    const municipalityIdsInView = useMemo(
-        () => new Set(municipalitiesInView.map(municipality => municipality.id)),
-        [municipalitiesInView],
+        return ids;
+    }, [bounds, municipalities]);
+    const municipalitiesInView = useMemo(
+        () => municipalities.filter(municipality => activeCityIds.has(municipality.id)),
+        [municipalities, activeCityIds],
     );
-    // Anchored subjects are "visible" inside the viewport; unanchored ones
-    // (no location) whenever their municipality is in view.
+    // Anchored subjects are "visible" inside the viewport; unlocated ones
+    // whenever their municipality is the focus of the view.
     const visibleSubjects = useMemo(
         () => subjects.filter(subject => subject.anchor
             ? (visibleIds === null || visibleIds.has(subject.id))
-            : municipalityIdsInView.has(subject.cityId)),
-        [subjects, visibleIds, municipalityIdsInView],
+            : activeCityIds.has(subject.cityId)),
+        [subjects, visibleIds, activeCityIds],
     );
     // While a spiderfy fan is open, the list scopes to exactly its subjects.
     const spiderfiedSubjects = useMemo(() => {
@@ -214,16 +206,21 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
         setMunicipalityDetail(municipality);
     };
 
-    // Exactly one municipality listed → it identifies the whole list instead
-    // of repeating on every card.
-    const listCityIds = useMemo(
-        () => new Set(listSubjects.map(subject => subject.cityId)),
-        [listSubjects],
-    );
-    const singleCity = listCityIds.size === 1
-        ? supportedMunicipalities.find(municipality => listCityIds.has(municipality.id)) ?? null
+    // Focused on exactly one municipality → it identifies the whole list
+    // (and the page header) instead of repeating on every card.
+    const singleCity = activeCityIds.size === 1
+        ? supportedMunicipalities.find(municipality => activeCityIds.has(municipality.id)) ?? null
         : null;
-    const showCityOnCards = listCityIds.size > 1;
+    const showCityOnCards = activeCityIds.size > 1;
+
+    // Drive the page header logo from the focused municipality.
+    const { setCity: setHeaderCity } = useMapHeaderCity();
+    useEffect(() => {
+        setHeaderCity(singleCity
+            ? { id: singleCity.id, name_municipality: singleCity.name_municipality, logoImage: singleCity.logoImage }
+            : null);
+    }, [singleCity, setHeaderCity]);
+    useEffect(() => () => setHeaderCity(null), [setHeaderCity]);
 
     const panelHeader = spiderfiedSubjects
         ? <>{t('subjectsAtPoint', { count: spiderfiedSubjects.length })}</>
@@ -231,12 +228,7 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
             ? (
                 <>
                     {t('subjectsFromCity', { count: listSubjects.length })}
-                    <span className="flex items-center gap-2 font-semibold">
-                        {singleCity.logoImage && (
-                            <Image src={singleCity.logoImage} alt="" width={28} height={28} className="h-7 w-7 object-contain" />
-                        )}
-                        {cityAccusative(singleCity.name_municipality)}
-                    </span>
+                    <span className="font-semibold">{cityAccusative(singleCity.name_municipality)}</span>
                 </>
             )
             : <>{t('subjectsInView', { count: visibleSubjects.length })}</>;

@@ -53,10 +53,21 @@ export function SubjectsTab({
     const t = useTranslations('map');
     const listRef = useRef<HTMLDivElement>(null);
 
+    // The capped slice the panel renders. A subject selected from the map can
+    // rank beyond the cap (dense viewports) — surface it at the top so it's
+    // always rendered, scrollable and expandable.
+    const capped = subjects.slice(0, SUBJECTS_LIST_CAP);
+    const selectedBeyondCap = selectedSubjectId != null && !capped.some(s => s.id === selectedSubjectId)
+        ? subjects.find(s => s.id === selectedSubjectId)
+        : undefined;
+    const renderedSubjects = selectedBeyondCap
+        ? [selectedBeyondCap, ...capped.slice(0, SUBJECTS_LIST_CAP - 1)]
+        : capped;
+
     // A selection arriving from the map scrolls its row into view.
     useEffect(() => {
         if (!selectedSubjectId || !listRef.current) return;
-        const row = listRef.current.querySelector(`[data-subject-id="${selectedSubjectId}"]`);
+        const row = listRef.current.querySelector(`[data-subject-id="${CSS.escape(selectedSubjectId)}"]`);
         row?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }, [selectedSubjectId]);
 
@@ -108,7 +119,7 @@ export function SubjectsTab({
                     </div>
                 ) : (
                     <>
-                        {subjects.slice(0, SUBJECTS_LIST_CAP).map(subject => (
+                        {renderedSubjects.map(subject => (
                             <SubjectListItem
                                 key={subject.id}
                                 subject={subject}

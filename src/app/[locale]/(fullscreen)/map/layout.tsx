@@ -1,5 +1,6 @@
 import React from "react"
-import Header from "@/components/layout/Header"
+import { MapHeaderProvider } from "@/components/map/MapHeaderContext"
+import { MapPageHeader } from "@/components/map/MapPageHeader"
 
 export default async function MapLayout({
   children,
@@ -8,15 +9,13 @@ export default async function MapLayout({
 }) {
 
   return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden">
-      <Header
-        path={[]}
-        className="relative z-50 shrink-0 border-b border-border bg-background"
-        noContainer={true}
-      />
-      <div className="min-h-0 flex-1">
-        {children}
+    <MapHeaderProvider>
+      <div className="fixed inset-0 flex flex-col overflow-hidden">
+        <MapPageHeader />
+        <div className="min-h-0 flex-1">
+          {children}
+        </div>
       </div>
-    </div>
+    </MapHeaderProvider>
   );
 }

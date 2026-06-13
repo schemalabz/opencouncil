@@ -22,7 +22,9 @@ export interface PathElement {
     name: string
     link: string
     description?: string
-    city?: City
+    // Only the logo + name are rendered, so any city-like shape works
+    // (the map page passes a municipality, not a full City row).
+    city?: Pick<City, 'name' | 'logoImage'>
 }
 
 interface HeaderProps {
