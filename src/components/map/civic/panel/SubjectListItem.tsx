@@ -58,43 +58,46 @@ export function SubjectListItem({ subject, expanded, onToggle, onHover, showCity
                     </span>
 
                     <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                            <h3 className={cn('text-sm font-medium leading-snug text-foreground', !expanded && 'line-clamp-2')}>
-                                {subject.name}
-                            </h3>
-                            {subject.meetingDate && (
-                                <span className="shrink-0 pt-0.5 text-xs text-muted-foreground">
-                                    {formatDate(new Date(subject.meetingDate))}
-                                </span>
-                            )}
-                        </div>
+                        {/* Pre-title: who (municipality when ambiguous · body) + date */}
+                        {((showCity && subject.cityName) || subject.adminBodyName || subject.meetingDate) && (
+                            <div className="flex items-center justify-between gap-2 text-xs">
+                                <div className="flex min-w-0 items-center gap-1.5">
+                                    {showCity && subject.cityName && (
+                                        <span className="flex shrink-0 items-center gap-1.5 font-medium text-foreground">
+                                            {cityLogo ? (
+                                                <Image src={cityLogo} alt="" width={24} height={24} className="h-6 w-6 object-contain" />
+                                            ) : (
+                                                <Building2 className="h-4 w-4 text-muted-foreground" />
+                                            )}
+                                            {subject.cityName}
+                                        </span>
+                                    )}
+                                    {showCity && subject.cityName && subject.adminBodyName && (
+                                        <span className="shrink-0 text-muted-foreground/60">·</span>
+                                    )}
+                                    {subject.adminBodyName && (
+                                        <span className="flex min-w-0 items-center gap-1 text-muted-foreground">
+                                            {!showCity && <Landmark className="h-3 w-3 shrink-0" />}
+                                            <span className="truncate">{subject.adminBodyName}</span>
+                                        </span>
+                                    )}
+                                </div>
+                                {subject.meetingDate && (
+                                    <span className="shrink-0 text-muted-foreground">
+                                        {formatDate(new Date(subject.meetingDate))}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+
+                        <h3 className={cn('mt-1 text-sm font-medium leading-snug text-foreground', !expanded && 'line-clamp-2')}>
+                            {subject.name}
+                        </h3>
 
                         {subject.description && !expanded && (
                             <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-muted-foreground">
                                 {subject.description}
                             </p>
-                        )}
-
-                        {/* Who: municipality (when ambiguous) + administrative body */}
-                        {((showCity && subject.cityName) || subject.adminBodyName) && (
-                            <div className="mt-1.5 flex min-w-0 items-center gap-2 text-xs">
-                                {showCity && subject.cityName && (
-                                    <span className="flex shrink-0 items-center gap-1.5 font-medium text-foreground">
-                                        {cityLogo ? (
-                                            <Image src={cityLogo} alt="" width={16} height={16} className="h-4 w-4 object-contain" />
-                                        ) : (
-                                            <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                                        )}
-                                        {subject.cityName}
-                                    </span>
-                                )}
-                                {subject.adminBodyName && (
-                                    <span className="flex min-w-0 items-center gap-1 text-muted-foreground">
-                                        <Landmark className="h-3 w-3 shrink-0" />
-                                        <span className="truncate">{subject.adminBodyName}</span>
-                                    </span>
-                                )}
-                            </div>
                         )}
 
                         {/* Where + numbers */}

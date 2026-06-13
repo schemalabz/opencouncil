@@ -225,9 +225,9 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
             ? (
                 <>
                     {t('subjectsFromCity', { count: listSubjects.length })}
-                    <span className="flex items-center gap-1.5 font-semibold">
+                    <span className="flex items-center gap-2 font-semibold">
                         {singleCity.logoImage && (
-                            <Image src={singleCity.logoImage} alt="" width={18} height={18} className="h-[18px] w-[18px] object-contain" />
+                            <Image src={singleCity.logoImage} alt="" width={28} height={28} className="h-7 w-7 object-contain" />
                         )}
                         {cityAccusative(singleCity.name_municipality)}
                     </span>
