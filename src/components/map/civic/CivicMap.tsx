@@ -81,6 +81,7 @@ function CivicMapInner(props: CivicMapProps) {
     const subjectsByAnchor = useMemo(() => {
         const groups = new Map<string, MapSubject[]>();
         for (const subject of props.subjects) {
+            if (!subject.anchor) continue;
             const key = anchorKeyOf(subject.anchor);
             const group = groups.get(key);
             if (group) {
@@ -198,7 +199,7 @@ function CivicMapInner(props: CivicMapProps) {
                 onUnexpandable: (subjectIds, lngLat) => {
                     const group = subjectIds
                         .map(id => subjectsByIdRef.current.get(id))
-                        .filter((subject): subject is MapSubject => Boolean(subject));
+                        .filter((subject): subject is MapSubject & { anchor: [number, number] } => Boolean(subject?.anchor));
                     const sharedAnchors = new Set(group.map(subject => anchorKeyOf(subject.anchor)));
                     const pinsZoom = markerOptions.clusterMaxZoom + 1;
 
@@ -265,7 +266,7 @@ function CivicMapInner(props: CivicMapProps) {
     useEffect(() => {
         if (!map || !isLoaded) return;
         subjectsHandleRef.current?.setSelected(selectedSubject);
-        if (!selectedSubject || props.flyToSelected === false || !interactive) return;
+        if (!selectedSubject || !selectedSubject.anchor || props.flyToSelected === false || !interactive) return;
 
         const [lng, lat] = selectedSubject.anchor;
         const bounds = map.getBounds();
@@ -274,10 +275,10 @@ function CivicMapInner(props: CivicMapProps) {
         // Already on screen at street level → just recenter. Anything else
         // (off-screen, or hidden inside a cluster at low zoom) → fly in.
         if (inView && map.getZoom() >= 11) {
-            map.easeTo({ center: selectedSubject.anchor, padding: paddingRef.current, duration: reducedMotion ? 0 : 300 });
+            map.easeTo({ center: [lng, lat], padding: paddingRef.current, duration: reducedMotion ? 0 : 300 });
         } else {
             map.flyTo({
-                center: selectedSubject.anchor,
+                center: [lng, lat],
                 zoom: Math.max(map.getZoom(), FLY_TO_MIN_ZOOM),
                 padding: paddingRef.current,
                 duration: reducedMotion ? 0 : FLY_TO_DURATION_MS,
@@ -346,7 +347,7 @@ function CivicMapInner(props: CivicMapProps) {
                 const hitId = hit?.id ?? hit?.properties?.id;
                 if (hitId != null) {
                     const subject = subjectsByIdRef.current.get(String(hitId)) ?? null;
-                    if (subject && markerOptionsRef.current.spiderfy) {
+                    if (subject?.anchor && markerOptionsRef.current.spiderfy) {
                         const group = subjectsByAnchorRef.current.get(anchorKeyOf(subject.anchor));
                         if (group && group.length > 1) {
                             openSpiderfier(group, subject.anchor);
@@ -483,6 +484,7 @@ function buildFallbackFeatures(
         features.push({ geometry: contextBoundary, style: boundaryStyle });
     }
     for (const subject of subjects.slice(0, FALLBACK_SUBJECT_CAP)) {
+        if (!subject.anchor) continue;
         features.push({
             geometry: { type: 'Point', coordinates: subject.anchor },
             style: { fillColor: subject.topicColor, fillOpacity: 0.85 },

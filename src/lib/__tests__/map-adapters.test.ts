@@ -61,8 +61,8 @@ describe('apiSubjectToMapSubject', () => {
             ...baseItem,
             geometry: { type: 'LineString', coordinates: [[24.0, 35.5], [24.2, 35.7]] },
         });
-        expect(subject.anchor[0]).toBeCloseTo(24.1);
-        expect(subject.anchor[1]).toBeCloseTo(35.6);
+        expect(subject.anchor?.[0]).toBeCloseTo(24.1);
+        expect(subject.anchor?.[1]).toBeCloseTo(35.6);
     });
 
     it('defaults topic color, normalizes the icon, and nulls missing fields', () => {
@@ -94,9 +94,13 @@ describe('subjectWithRelationsToMapSubject', () => {
         location: { text: 'Οδός Αίμονος', coordinates: { x: 37.99, y: 23.71 } }, // swapped legacy row
     };
 
-    it('returns null without location coordinates', () => {
-        expect(subjectWithRelationsToMapSubject({ ...baseSubject, location: null })).toBeNull();
-        expect(subjectWithRelationsToMapSubject({ ...baseSubject, location: { text: 'χωρίς συντεταγμένες' } })).toBeNull();
+    it('returns an unanchored subject without location coordinates', () => {
+        const noLocation = subjectWithRelationsToMapSubject({ ...baseSubject, location: null });
+        expect(noLocation.anchor).toBeNull();
+        expect(noLocation.geometry).toBeNull();
+        const noCoordinates = subjectWithRelationsToMapSubject({ ...baseSubject, location: { text: 'χωρίς συντεταγμένες' } });
+        expect(noCoordinates.anchor).toBeNull();
+        expect(noCoordinates.locationText).toBe('χωρίς συντεταγμένες');
     });
 
     it('normalizes swapped {x: lat, y: lng} coordinates', () => {

@@ -86,5 +86,7 @@
         "community": "Κοινότητα"
     },
     "timeRange": "Χρονικό διάστημα",
-    "subjectsAtPoint": "{count, plural, one {# θέμα} other {# θέματα}} σε αυτό το σημείο"
+    "subjectsAtPoint": "{count, plural, one {# θέμα} other {# θέματα}} σε αυτό το σημείο",
+    "subjectsFromCity": "{count, plural, one {# θέμα} other {# θέματα}} από τον",
+    "noLocation": "Χωρίς τοποθεσία"
 }

@@ -87,8 +87,9 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
             cityName: city.name,
             meetingDate: meeting.dateTime,
             meetingName: meeting.name,
+            adminBodyName: meeting.administrativeBody?.name ?? null,
         });
-        return mapSubject ? [mapSubject] : [];
+        return mapSubject.anchor ? [mapSubject] : [];
     }, [subject, city.name, meeting.dateTime, meeting.name]);
 
     // Calculate vote result from extracted data
@@ -318,7 +319,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                 subjects={mapSubjects}
                                 markerOptions={{ clusterMode: 'none', spiderfy: false, importanceScaling: false }}
                                 camera={{
-                                    initialCenter: mapSubjects[0]?.anchor,
+                                    initialCenter: mapSubjects[0]?.anchor ?? undefined,
                                     initialZoom: 15,
                                 }}
                                 cooperativeGestures

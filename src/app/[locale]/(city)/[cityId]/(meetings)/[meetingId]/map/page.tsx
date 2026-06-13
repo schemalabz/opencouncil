@@ -29,13 +29,16 @@ export default function MeetingMapPage() {
                 cityName: city.name,
                 meetingDate: meeting.dateTime,
                 meetingName: meeting.name,
-            }))
-            .filter((subject): subject is MapSubject => subject !== null),
+                adminBodyName: meeting.administrativeBody?.name ?? null,
+            })),
         [subjects, city.name, meeting.dateTime, meeting.name],
     );
 
+    // Anchored subjects follow the viewport; unanchored ones always list
+    // (the meeting's municipality is by definition "in view" here).
     const visibleSubjects = useMemo(
-        () => (visibleIds === null ? mapSubjects : mapSubjects.filter(subject => visibleIds.has(subject.id))),
+        () => mapSubjects.filter(subject => !subject.anchor ||
+            visibleIds === null || visibleIds.has(subject.id)),
         [mapSubjects, visibleIds],
     );
     // While a spiderfy fan is open, the list scopes to exactly its subjects.
@@ -101,7 +104,7 @@ export default function MeetingMapPage() {
                     onClearFilters={() => undefined}
                     onZoomOut={() => mapHandleRef.current?.zoomBy(-2)}
                     showCount={isDesktop}
-                    headerText={spiderfiedSubjects ? t('subjectsAtPoint', { count: spiderfiedSubjects.length }) : undefined}
+                    header={isDesktop && spiderfiedSubjects ? t('subjectsAtPoint', { count: spiderfiedSubjects.length }) : undefined}
                 />
             </MapPanel>
         </div>

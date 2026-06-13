@@ -27,7 +27,7 @@ function geometryAnchor(geometry: GeoJSON.Geometry): [number, number] {
 
 /** Adapts a getMapSubjects() / /api/map/subjects item into a MapSubject. */
 export function apiSubjectToMapSubject(item: MapSubjectsApiItem): MapSubject {
-    const geometry = normalizeGeometryCoordinates(item.geometry);
+    const geometry = item.geometry ? normalizeGeometryCoordinates(item.geometry) : null;
     const discussionTimeSeconds = item.discussionTimeSeconds ?? 0;
     const speakerCount = item.speakerCount ?? 0;
     return {
@@ -40,6 +40,7 @@ export function apiSubjectToMapSubject(item: MapSubjectsApiItem): MapSubject {
         meetingDate: item.meetingDate ?? null,
         meetingName: item.meetingName ?? null,
         locationText: item.locationText ?? null,
+        adminBodyName: item.adminBodyName ?? null,
         topicId: item.topicId ?? null,
         topicName: item.topicName ?? null,
         topicColor: item.topicColor || FALLBACK_TOPIC_COLOR,
@@ -48,7 +49,7 @@ export function apiSubjectToMapSubject(item: MapSubjectsApiItem): MapSubject {
         speakerCount,
         importance: deriveImportanceTier(discussionTimeSeconds, speakerCount),
         geometry,
-        anchor: geometryAnchor(geometry),
+        anchor: geometry ? geometryAnchor(geometry) : null,
     };
 }
 
@@ -73,21 +74,22 @@ export interface MeetingSubjectContext {
     cityName?: string | null;
     meetingDate?: Date | string | null;
     meetingName?: string | null;
+    adminBodyName?: string | null;
 }
 
 /**
  * Adapts a meeting-context subject (SubjectWithRelations & { statistics })
- * into a MapSubject. Returns null when the subject has no usable location.
+ * into a MapSubject. Subjects without usable coordinates come back
+ * unanchored (geometry/anchor null): they list with their municipality but
+ * never render on the map.
  */
 export function subjectWithRelationsToMapSubject(
     subject: MeetingSubjectLike,
     context: MeetingSubjectContext = {},
-): MapSubject | null {
+): MapSubject {
     const coordinates = subject.location?.coordinates;
-    if (!coordinates) return null;
-
     // ST_X/ST_Y of legacy rows can be axis-swapped; normalize defensively.
-    const anchor = normalizeLngLat([coordinates.x, coordinates.y]);
+    const anchor = coordinates ? normalizeLngLat([coordinates.x, coordinates.y]) : null;
     const discussionTimeSeconds = Math.round(subject.statistics?.speakingSeconds ?? 0);
     const speakerCount = subject.statistics?.people?.length ?? 0;
     const meetingDate = context.meetingDate instanceof Date
@@ -104,6 +106,7 @@ export function subjectWithRelationsToMapSubject(
         meetingDate,
         meetingName: context.meetingName ?? null,
         locationText: subject.location?.text ?? null,
+        adminBodyName: context.adminBodyName ?? null,
         topicId: subject.topicId ?? subject.topic?.id ?? null,
         topicName: subject.topic?.name ?? null,
         topicColor: subject.topic?.colorHex || FALLBACK_TOPIC_COLOR,
@@ -111,7 +114,7 @@ export function subjectWithRelationsToMapSubject(
         discussionTimeSeconds,
         speakerCount,
         importance: deriveImportanceTier(discussionTimeSeconds, speakerCount),
-        geometry: { type: 'Point', coordinates: anchor },
+        geometry: anchor ? { type: 'Point', coordinates: anchor } : null,
         anchor,
     };
 }

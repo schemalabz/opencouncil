@@ -23,8 +23,11 @@ interface SubjectsTabProps {
     onRetry?: () => void;
     /** The mobile drawer's peek row already shows the count. */
     showCount?: boolean;
-    /** Overrides the count line (e.g. while a spiderfy fan scopes the list). */
-    headerText?: string;
+    /** Overrides the count line (spiderfy scope, single-municipality view). */
+    header?: React.ReactNode;
+    /** Identify each subject's municipality (multi-municipality views). */
+    showCity?: boolean;
+    cityLogos?: Map<string, string | null>;
 }
 
 export function SubjectsTab({
@@ -39,7 +42,9 @@ export function SubjectsTab({
     error,
     onRetry,
     showCount = true,
-    headerText,
+    header,
+    showCity = false,
+    cityLogos,
 }: SubjectsTabProps) {
     const t = useTranslations('map');
     const listRef = useRef<HTMLDivElement>(null);
@@ -54,9 +59,9 @@ export function SubjectsTab({
     return (
         <div className="flex min-h-0 flex-1 flex-col">
             <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-2.5">
-                <p aria-live="polite" className={showCount || headerText ? 'text-sm text-foreground' : 'sr-only'}>
-                    {headerText ?? t('subjectsInView', { count: totalCount })}
-                    {filtersActive && (showCount || headerText) && (
+                <p aria-live="polite" className={showCount || header ? 'flex min-w-0 flex-wrap items-center gap-x-1.5 text-sm text-foreground' : 'sr-only'}>
+                    {header ?? t('subjectsInView', { count: totalCount })}
+                    {filtersActive && (showCount || header) && (
                         <>
                             {' · '}
                             <button
@@ -106,6 +111,8 @@ export function SubjectsTab({
                                 expanded={selectedSubjectId === subject.id}
                                 onToggle={onSelect}
                                 onHover={onHover}
+                                showCity={showCity}
+                                cityLogo={cityLogos?.get(subject.cityId)}
                             />
                         ))}
                         {subjects.length > SUBJECTS_LIST_CAP && (

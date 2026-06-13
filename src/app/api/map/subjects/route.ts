@@ -37,7 +37,9 @@ export async function GET(request: Request) {
             dateFrom: fromRaw && ISO_DATE.test(fromRaw) ? fromRaw : undefined,
             dateTo: toRaw && ISO_DATE.test(toRaw) ? toRaw : undefined,
         });
-        return NextResponse.json(subjects);
+        return NextResponse.json(subjects, {
+            headers: { 'Cache-Control': 'no-store' },
+        });
     } catch (error) {
         console.error('Error fetching subjects for map:', error);
         return NextResponse.json({ error: 'Failed to fetch subjects' }, { status: 500 });

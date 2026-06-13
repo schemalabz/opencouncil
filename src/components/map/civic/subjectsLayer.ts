@@ -47,7 +47,10 @@ export interface SubjectsLayerHandle {
     destroy(): void;
 }
 
-function hasRenderableAnchor(subject: MapSubject): boolean {
+type AnchoredSubject = MapSubject & { anchor: [number, number] };
+
+function hasRenderableAnchor(subject: MapSubject): subject is AnchoredSubject {
+    if (!subject.anchor) return false;
     const [lng, lat] = subject.anchor;
     return Number.isFinite(lng) && Number.isFinite(lat) && Math.abs(lat) <= 85 && Math.abs(lng) <= 180;
 }
@@ -115,7 +118,7 @@ function selectionFeatureCollection(subject: MapSubject | null): GeoJSON.Feature
             importance: subject.importance,
         },
     }];
-    if (subject.geometry.type !== 'Point') {
+    if (subject.geometry && subject.geometry.type !== 'Point') {
         features.push({
             type: 'Feature',
             geometry: subject.geometry,

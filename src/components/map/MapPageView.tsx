@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
 import { Filter, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Topic } from '@prisma/client';
@@ -29,6 +30,11 @@ import { MapSearch } from './civic/panel/MapSearch';
 import { FilterPane } from './civic/panel/FilterPane';
 import { ActiveFilterChips } from './civic/panel/ActiveFilterChips';
 import { GeolocateButton } from './civic/panel/GeolocateButton';
+
+/** «Δήμος Αθηναίων» → «Δήμο Αθηναίων» for the «από τον …» phrasing. */
+function cityAccusative(name: string): string {
+    return name.replace(/^Δήμος\s/, 'Δήμο ');
+}
 
 interface MapPageViewProps {
     topics: Topic[];
@@ -74,7 +80,7 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
         const controller = new AbortController();
         setIsUpdating(true);
         setFetchFailed(false);
-        fetch(`/api/map/subjects?${mapFilterToApiQuery(filter)}`, { signal: controller.signal })
+        fetch(`/api/map/subjects?${mapFilterToApiQuery(filter)}`, { signal: controller.signal, cache: 'no-store' })
             .then(response => {
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 return response.json();
@@ -120,31 +126,6 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
         }
     }, [isDesktop, snap]);
 
-    const visibleSubjects = useMemo(
-        () => (visibleIds === null ? subjects : subjects.filter(subject => visibleIds.has(subject.id))),
-        [subjects, visibleIds],
-    );
-    // While a spiderfy fan is open, the list scopes to exactly its subjects.
-    const spiderfiedSubjects = useMemo(() => {
-        if (!spiderfiedIds) return null;
-        const byId = new Map(subjects.map(subject => [subject.id, subject]));
-        return spiderfiedIds
-            .map(id => byId.get(id))
-            .filter((subject): subject is MapSubject => Boolean(subject));
-    }, [spiderfiedIds, subjects]);
-    const listSubjects = useMemo(() => {
-        const base = spiderfiedSubjects ?? visibleSubjects;
-        return [...base].sort((a, b) => b.discussionTimeSeconds - a.discussionTimeSeconds);
-    }, [spiderfiedSubjects, visibleSubjects]);
-
-    const subjectCountByCity = useMemo(() => {
-        const counts = new Map<string, number>();
-        for (const subject of subjects) {
-            counts.set(subject.cityId, (counts.get(subject.cityId) ?? 0) + 1);
-        }
-        return counts;
-    }, [subjects]);
-
     const municipalityBBoxes = useMemo(() => {
         const boxes = new Map<string, { minLng: number; maxLng: number; minLat: number; maxLat: number }>();
         for (const municipality of municipalities) {
@@ -166,6 +147,44 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
                 box.maxLat >= bounds.south && box.minLat <= bounds.north;
         });
     }, [municipalities, municipalityBBoxes, bounds]);
+    const municipalityIdsInView = useMemo(
+        () => new Set(municipalitiesInView.map(municipality => municipality.id)),
+        [municipalitiesInView],
+    );
+    // Anchored subjects are "visible" inside the viewport; unanchored ones
+    // (no location) whenever their municipality is in view.
+    const visibleSubjects = useMemo(
+        () => subjects.filter(subject => subject.anchor
+            ? (visibleIds === null || visibleIds.has(subject.id))
+            : municipalityIdsInView.has(subject.cityId)),
+        [subjects, visibleIds, municipalityIdsInView],
+    );
+    // While a spiderfy fan is open, the list scopes to exactly its subjects.
+    const spiderfiedSubjects = useMemo(() => {
+        if (!spiderfiedIds) return null;
+        const byId = new Map(subjects.map(subject => [subject.id, subject]));
+        return spiderfiedIds
+            .map(id => byId.get(id))
+            .filter((subject): subject is MapSubject => Boolean(subject));
+    }, [spiderfiedIds, subjects]);
+    const listSubjects = useMemo(() => {
+        const base = spiderfiedSubjects ?? visibleSubjects;
+        return [...base].sort((a, b) => b.discussionTimeSeconds - a.discussionTimeSeconds);
+    }, [spiderfiedSubjects, visibleSubjects]);
+
+    const cityLogos = useMemo(
+        () => new Map(municipalities.map(municipality => [municipality.id, municipality.logoImage])),
+        [municipalities],
+    );
+
+    const subjectCountByCity = useMemo(() => {
+        const counts = new Map<string, number>();
+        for (const subject of subjects) {
+            counts.set(subject.cityId, (counts.get(subject.cityId) ?? 0) + 1);
+        }
+        return counts;
+    }, [subjects]);
+
 
     const filtersActive = !isDefaultFilter(filter);
     const activeFilterCount =
@@ -189,9 +208,33 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
         setMunicipalityDetail(municipality);
     };
 
-    const summary = spiderfiedSubjects
-        ? t('subjectsAtPoint', { count: spiderfiedSubjects.length })
-        : t('subjectsInView', { count: visibleSubjects.length });
+    // Exactly one municipality listed → it identifies the whole list instead
+    // of repeating on every card.
+    const listCityIds = useMemo(
+        () => new Set(listSubjects.map(subject => subject.cityId)),
+        [listSubjects],
+    );
+    const singleCity = listCityIds.size === 1
+        ? supportedMunicipalities.find(municipality => listCityIds.has(municipality.id)) ?? null
+        : null;
+    const showCityOnCards = listCityIds.size > 1;
+
+    const panelHeader = spiderfiedSubjects
+        ? <>{t('subjectsAtPoint', { count: spiderfiedSubjects.length })}</>
+        : singleCity
+            ? (
+                <>
+                    {t('subjectsFromCity', { count: listSubjects.length })}
+                    <span className="flex items-center gap-1.5 font-semibold">
+                        {singleCity.logoImage && (
+                            <Image src={singleCity.logoImage} alt="" width={18} height={18} className="h-[18px] w-[18px] object-contain" />
+                        )}
+                        {cityAccusative(singleCity.name_municipality)}
+                    </span>
+                </>
+            )
+            : <>{t('subjectsInView', { count: visibleSubjects.length })}</>;
+    const summary = panelHeader;
 
     return (
         <div className="flex h-full w-full">
@@ -319,7 +362,9 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
                         error={fetchFailed}
                         onRetry={() => setRetryNonce(nonce => nonce + 1)}
                         showCount={isDesktop}
-                        headerText={spiderfiedSubjects ? t('subjectsAtPoint', { count: spiderfiedSubjects.length }) : undefined}
+                        header={isDesktop ? panelHeader : undefined}
+                        showCity={showCityOnCards}
+                        cityLogos={cityLogos}
                     />
                 ) : (
                     <MunicipalitiesTab

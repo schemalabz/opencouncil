@@ -12,6 +12,7 @@ function subjectAt(id: string, lng: number, lat: number): MapSubject {
         meetingDate: null,
         meetingName: null,
         locationText: null,
+        adminBodyName: null,
         topicId: null,
         topicName: null,
         topicColor: '#627BBC',

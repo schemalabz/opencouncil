@@ -19,6 +19,7 @@ export function boundsFromSubjects(subjects: MapSubject[]): mapboxgl.LngLatBound
     let minLat = Infinity;
     let maxLat = -Infinity;
     for (const subject of subjects) {
+        if (!subject.anchor) continue;
         const [lng, lat] = subject.anchor;
         // Junk geocodes (a handful of rows) must not drag the fit across the globe.
         if (!Number.isFinite(lng) || !Number.isFinite(lat) || Math.abs(lat) > 85 || Math.abs(lng) > 180) continue;

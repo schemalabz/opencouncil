@@ -86,5 +86,7 @@
         "community": "Community"
     },
     "timeRange": "Time range",
-    "subjectsAtPoint": "{count, plural, one {# subject} other {# subjects}} at this spot"
+    "subjectsAtPoint": "{count, plural, one {# subject} other {# subjects}} at this spot",
+    "subjectsFromCity": "{count, plural, one {# subject} other {# subjects}} from",
+    "noLocation": "No location"
 }

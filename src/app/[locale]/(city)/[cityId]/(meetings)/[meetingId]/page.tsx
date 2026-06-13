@@ -10,7 +10,6 @@ import { formatDateTime, formatRelativeTime } from "@/lib/formatters/time";
 import { sortSubjectsBySpeakerContributionCount, sortSubjectsByAgendaIndex } from "@/lib/utils";
 import { categorizeSubjects, SUBJECT_CATEGORIES } from "@/lib/utils/subjects";
 import { subjectWithRelationsToMapSubject } from "@/lib/map/adapters";
-import type { MapSubject } from "@/lib/map/types";
 import { Link } from "@/i18n/routing";
 import { HighlightCards } from "@/components/meetings/highlight-cards";
 import { el } from "date-fns/locale";
@@ -32,8 +31,8 @@ export default function MeetingPage() {
                 cityName: city.name,
                 meetingDate: meeting.dateTime,
                 meetingName: meeting.name,
-            }))
-            .filter((subject): subject is MapSubject => subject !== null),
+                adminBodyName: meeting.administrativeBody?.name ?? null,
+            })),
         [subjects, city.name, meeting.dateTime, meeting.name],
     );
 

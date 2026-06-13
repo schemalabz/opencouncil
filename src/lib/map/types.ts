@@ -24,6 +24,7 @@ export interface MapSubject {
     meetingDate: string | null;
     meetingName: string | null;
     locationText: string | null;
+    adminBodyName: string | null;
     topicId: string | null;
     topicName: string | null;
     /** Always present — defaults to FALLBACK_TOPIC_COLOR */
@@ -33,13 +34,15 @@ export interface MapSubject {
     discussionTimeSeconds: number;
     speakerCount: number;
     importance: ImportanceTier;
-    /** GeoJSON geometry with normalized [lng, lat] positions */
-    geometry: GeoJSON.Geometry;
+    /** GeoJSON geometry with normalized [lng, lat] positions; null for subjects without a location */
+    geometry: GeoJSON.Geometry | null;
     /**
      * Representative point ([lng, lat]) — the geometry's coordinates for
      * Points, its bbox center otherwise. This is what gets clustered/pinned.
+     * null = no location: the subject lists with its municipality but never
+     * renders on the map.
      */
-    anchor: [number, number];
+    anchor: [number, number] | null;
 }
 
 export interface MapMunicipality {
@@ -95,11 +98,12 @@ export interface MapSubjectsApiItem {
     meetingName?: string | null;
     locationText?: string | null;
     locationType?: string | null;
+    adminBodyName?: string | null;
     topicId?: string | null;
     topicName?: string | null;
     topicColor?: string | null;
     topicIcon?: string | null;
     discussionTimeSeconds?: number;
     speakerCount?: number;
-    geometry: GeoJSON.Geometry;
+    geometry: GeoJSON.Geometry | null;
 }

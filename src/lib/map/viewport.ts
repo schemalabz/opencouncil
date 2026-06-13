@@ -15,6 +15,7 @@ export interface ViewportBounds {
  */
 export function filterSubjectsInBounds(subjects: MapSubject[], bounds: ViewportBounds): MapSubject[] {
     return subjects.filter(subject => {
+        if (!subject.anchor) return false;
         const [lng, lat] = subject.anchor;
         return lng >= bounds.west && lng <= bounds.east && lat >= bounds.south && lat <= bounds.north;
     });

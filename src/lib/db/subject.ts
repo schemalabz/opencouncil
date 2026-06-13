@@ -341,7 +341,6 @@ export async function getMapSubjects(filter: MapSubjectsFilter = {}): Promise<Ma
     };
 
     const where: Prisma.SubjectWhereInput = {
-        locationId: { not: null },
         councilMeeting: {
             city: { officialSupport: true },
             released: true,
@@ -362,6 +361,7 @@ export async function getMapSubjects(filter: MapSubjectsFilter = {}): Promise<Ma
                     dateTime: true,
                     name: true,
                     city: { select: { name: true } },
+                    administrativeBody: { select: { name: true } },
                 },
             },
             topic: {
@@ -387,17 +387,16 @@ export async function getMapSubjects(filter: MapSubjectsFilter = {}): Promise<Ma
     const locationIds = subjects
         .map(s => s.locationId)
         .filter((id): id is string => Boolean(id));
-    if (locationIds.length === 0) {
-        return [];
-    }
 
-    const geometries = await prisma.$queryRaw<{ id: string; geometry: string }[]>`
-        SELECT
-            id,
-            ST_AsGeoJSON(coordinates, 15, 0)::text AS geometry
-        FROM "Location"
-        WHERE id IN (${Prisma.join(locationIds)})
-    `;
+    const geometries = locationIds.length > 0
+        ? await prisma.$queryRaw<{ id: string; geometry: string }[]>`
+            SELECT
+                id,
+                ST_AsGeoJSON(coordinates, 15, 0)::text AS geometry
+            FROM "Location"
+            WHERE id IN (${Prisma.join(locationIds)})
+        `
+        : [];
 
     // No-op for correctly stored rows; fixes legacy [lat, lng]-swapped rows.
     const geometryMap = new Map(
@@ -440,7 +439,6 @@ export async function getMapSubjects(filter: MapSubjectsFilter = {}): Promise<Ma
     const speakerTagBySegment = new Map(segmentSpeakers.map(segment => [segment.id, segment.speakerTag.id]));
 
     return subjects
-        .filter(s => s.locationId && geometryMap.has(s.locationId))
         .map(s => {
             let totalTimeSeconds = 0;
             const uniqueSpeakerIds = new Set<string>();
@@ -469,13 +467,14 @@ export async function getMapSubjects(filter: MapSubjectsFilter = {}): Promise<Ma
                 meetingName: s.councilMeeting?.name ?? null,
                 locationText: s.location?.text ?? null,
                 locationType: s.location?.type ?? null,
+                adminBodyName: s.councilMeeting?.administrativeBody?.name ?? null,
                 topicId: s.topic?.id ?? null,
                 topicName: s.topic?.name ?? null,
                 topicColor: s.topic?.colorHex ?? FALLBACK_TOPIC_COLOR,
                 topicIcon: s.topic?.icon ?? null,
                 discussionTimeSeconds: Math.round(totalTimeSeconds),
                 speakerCount: uniqueSpeakerIds.size,
-                geometry: geometryMap.get(s.locationId!)!,
+                geometry: (s.locationId ? geometryMap.get(s.locationId) : null) ?? null,
             };
         });
 }
