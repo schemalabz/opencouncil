@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { SpeakerTag } from "@prisma/client";
 import { ImageOrInitials } from "../ImageOrInitials";
 import { cn, filterActiveRoles, getPartyFromRoles, relevanceScore } from "@/lib/utils";
@@ -154,6 +154,29 @@ function PersonBadge({
         }
     }, [searchQuery, isOpen]);
 
+    // Rank and filter people by relevance to the typed query — prefix and
+    // word-start matches outrank plain substrings, with Greek accents/case
+    // normalized (see issue #305). We drive ranking here and disable the
+    // Command's own filtering (`shouldFilter={false}`) so the static fallback
+    // actions (unknown speaker, set label, remove) always stay visible; cmdk
+    // would otherwise score them zero and hide them while typing.
+    const rankedPeople = useMemo(() => {
+        const people = availablePeople ?? [];
+        const query = searchQuery.trim();
+        if (!query) return people;
+        return people
+            .map((p) => ({
+                person: p,
+                score: relevanceScore(
+                    [p.name, p.name_short, p.name_en, p.name_short_en].filter(Boolean).join(' '),
+                    query
+                ),
+            }))
+            .filter(({ score }) => score > 0)
+            .sort((a, b) => b.score - a.score)
+            .map(({ person }) => person);
+    }, [availablePeople, searchQuery]);
+
     const handleSetLabel = (label: string) => {
         onPersonChange?.(null);
         onLabelChange?.(label);
@@ -244,17 +267,7 @@ function PersonBadge({
                     {badge}
                 </PopoverTrigger>
                 <PopoverContent className="p-0" align="start">
-                    <Command
-                        // Rank people by relevance to the typed query (prefix/word-start
-                        // matches first) instead of cmdk's default substring fuzzy match
-                        // over the full rendered text (which includes role/party labels
-                        // and produced irrelevant top results — see issue #305).
-                        // Static items (unknown speaker, set label, remove) use
-                        // `forceMount`, so they render regardless of the filter score.
-                        filter={(_value, search, keywords) =>
-                            relevanceScore((keywords ?? []).join(' '), search)
-                        }
-                    >
+                    <Command shouldFilter={false}>
                         <CommandInput
                             autoFocus
                             placeholder="Search people..."
@@ -262,50 +275,55 @@ function PersonBadge({
                             onValueChange={setSearchQuery}
                         />
                         <CommandList ref={listRef}>
-                            {/* No CommandEmpty: the force-mounted "unknown speaker" and
-                                "Set label" items are always present, so when no person
-                                matches the query they serve as the fallback actions. */}
-                            <CommandGroup>
-                                <CommandItem
-                                    forceMount
-                                    onSelect={() => handleSetLabel(nextUnknownLabel || "Άγνωστος Ομιλητής")}
-                                    className="flex items-center gap-2"
-                                >
-                                    <div className="w-10 h-10 relative shrink-0 flex items-center justify-center bg-muted rounded-full">
-                                        <span className="text-xs font-medium">?</span>
-                                    </div>
-                                    <span className="font-medium">{nextUnknownLabel || "Άγνωστος Ομιλητής"}</span>
-                                </CommandItem>
-                            </CommandGroup>
-                            <CommandGroup>
-                                {availablePeople.map((p) => (
+                            {/* cmdk's own filtering is disabled (shouldFilter=false);
+                                we rank people and gate visibility here. While the user
+                                is searching we show the ranked matches plus the "set
+                                label" fallback; the quick actions (unknown speaker,
+                                remove) show only when not searching. This keeps the top
+                                match highlighted for Enter and stops a zero filter score
+                                from hiding the fallback actions (the bug this fixes). */}
+                            {!searchQuery && (
+                                <CommandGroup>
                                     <CommandItem
-                                        key={p.id}
-                                        value={p.id}
-                                        keywords={[p.name, p.name_short, p.name_en, p.name_short_en].filter(Boolean)}
-                                        onSelect={() => {
-                                            onPersonChange?.(p.id);
-                                            setIsOpen(false);
-                                        }}
+                                        onSelect={() => handleSetLabel(nextUnknownLabel || "Άγνωστος Ομιλητής")}
                                         className="flex items-center gap-2"
                                     >
-                                        <Check
-                                            className={cn(
-                                                "shrink-0 h-4 w-4",
-                                                person?.id === p.id ? "opacity-100" : "opacity-0"
-                                            )}
-                                        />
-                                        <PersonDisplay
-                                            person={p}
-                                            size="sm"
-                                        />
+                                        <div className="w-10 h-10 relative shrink-0 flex items-center justify-center bg-muted rounded-full">
+                                            <span className="text-xs font-medium">?</span>
+                                        </div>
+                                        <span className="font-medium">{nextUnknownLabel || "Άγνωστος Ομιλητής"}</span>
                                     </CommandItem>
-                                ))}
-                            </CommandGroup>
+                                </CommandGroup>
+                            )}
+                            {rankedPeople.length > 0 && (
+                                <CommandGroup>
+                                    {rankedPeople.map((p) => (
+                                        <CommandItem
+                                            key={p.id}
+                                            value={p.id}
+                                            onSelect={() => {
+                                                onPersonChange?.(p.id);
+                                                setIsOpen(false);
+                                            }}
+                                            className="flex items-center gap-2"
+                                        >
+                                            <Check
+                                                className={cn(
+                                                    "shrink-0 h-4 w-4",
+                                                    person?.id === p.id ? "opacity-100" : "opacity-0"
+                                                )}
+                                            />
+                                            <PersonDisplay
+                                                person={p}
+                                                size="sm"
+                                            />
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
                             {searchQuery && (
                                 <CommandGroup>
                                     <CommandItem
-                                        forceMount
                                         onSelect={() => handleSetLabel(searchQuery)}
                                     >
                                         <Edit2 className="mr-2 h-4 w-4" />
@@ -313,10 +331,9 @@ function PersonBadge({
                                     </CommandItem>
                                 </CommandGroup>
                             )}
-                            {person && (
+                            {person && !searchQuery && (
                                 <CommandGroup>
                                     <CommandItem
-                                        forceMount
                                         onSelect={() => {
                                             onPersonChange?.(null);
                                             setIsOpen(false);
