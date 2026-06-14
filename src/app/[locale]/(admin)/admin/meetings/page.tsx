@@ -19,11 +19,13 @@ export default async function AdminMeetingsPage(props: PageProps) {
 
     let meetings: CouncilMeetingWithAdminBodyAndSubjects[] = [];
     let decisionCounts: MeetingDecisionCounts = {};
+    let cityHasDiavgeiaUid = false;
     if (selectedCityId) {
         [meetings, decisionCounts] = await Promise.all([
             getCouncilMeetingsForCity(selectedCityId, { includeUnreleased: true }),
             getDecisionCountsForCity(selectedCityId),
         ]);
+        cityHasDiavgeiaUid = !!cities.find(c => c.id === selectedCityId)?.diavgeiaUid;
     }
 
     const currentCityName = cities.find(c => c.id === selectedCityId)?.name || "Select City";
@@ -45,6 +47,7 @@ export default async function AdminMeetingsPage(props: PageProps) {
                 currentCityName={currentCityName}
                 selectedCityId={selectedCityId}
                 decisionCounts={decisionCounts}
+                cityHasDiavgeiaUid={cityHasDiavgeiaUid}
             />
         </div>
     );
