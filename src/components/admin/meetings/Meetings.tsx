@@ -12,6 +12,7 @@ import { MeetingDecisionCounts } from "@/lib/db/decisions";
 import { BadgePicker, BadgePickerOption } from "@/components/ui/badge-picker";
 import { ExpandableMeetingRow } from "./ExpandableMeetingRow";
 import { BulkExportActions } from "./BulkExportActions";
+import { BulkPollDecisionsAction } from "./BulkPollDecisionsAction";
 import { StatsCard, StatsCardItem } from "@/components/ui/stats-card";
 
 interface MeetingsProps {
@@ -19,9 +20,10 @@ interface MeetingsProps {
     currentCityName: string;
     selectedCityId: string;
     decisionCounts: MeetingDecisionCounts;
+    cityHasDiavgeiaUid: boolean;
 }
 
-export default function Meetings({ meetings, currentCityName, selectedCityId, decisionCounts }: MeetingsProps) {
+export default function Meetings({ meetings, currentCityName, selectedCityId, decisionCounts, cityHasDiavgeiaUid }: MeetingsProps) {
     const tCommon = useTranslations('Common');
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedAdminBodyId, setSelectedAdminBodyId] = useState<string | null>(null);
@@ -151,13 +153,20 @@ export default function Meetings({ meetings, currentCityName, selectedCityId, de
                     <CardTitle className='flex justify-between items-center'>
                         <span>Meetings</span>
                         <div className='flex items-center gap-4'>
-                            <BulkExportActions 
+                            <BulkExportActions
                                 selectedMeetingIds={selectedMeetingIds}
                                 meetings={filteredMeetings}
                                 selectedCityId={selectedCityId}
                                 onSelectAll={handleSelectAll}
                                 isAllSelected={selectedMeetingIds.size === filteredMeetings.length && filteredMeetings.length > 0}
                                 isPartiallySelected={selectedMeetingIds.size > 0 && selectedMeetingIds.size < filteredMeetings.length}
+                            />
+                            <BulkPollDecisionsAction
+                                selectedMeetingIds={selectedMeetingIds}
+                                meetings={filteredMeetings}
+                                decisionCounts={decisionCounts}
+                                selectedCityId={selectedCityId}
+                                cityHasDiavgeiaUid={cityHasDiavgeiaUid}
                             />
                             <span className='text-muted-foreground text-sm'>{currentCityName}</span>
                         </div>
