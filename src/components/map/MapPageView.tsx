@@ -217,7 +217,7 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
     const { setCity: setHeaderCity } = useMapHeaderCity();
     useEffect(() => {
         setHeaderCity(singleCity
-            ? { id: singleCity.id, name_municipality: singleCity.name_municipality, logoImage: singleCity.logoImage }
+            ? { id: singleCity.id, name: singleCity.name, logoImage: singleCity.logoImage }
             : null);
     }, [singleCity, setHeaderCity]);
     useEffect(() => () => setHeaderCity(null), [setHeaderCity]);

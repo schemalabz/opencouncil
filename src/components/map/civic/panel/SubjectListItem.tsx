@@ -88,53 +88,53 @@ export function SubjectListItem({ subject, expanded, onToggle, onHover, showCity
                 aria-expanded={expanded}
                 className="w-full px-4 py-3 text-left"
             >
-                <div className="flex gap-3">
-                    {/* Identity stack: municipality (when ambiguous) above the topic icon */}
-                    <div className="flex shrink-0 flex-col items-center gap-1.5">
+                {/* Identity band: municipality (when ambiguous) · administrative
+                    body, with the date — a header for the card, set apart from
+                    the subject itself below. */}
+                {((showCity && subject.cityName) || subject.adminBodyName || subject.meetingDate) && (
+                    <div className="mb-2.5 flex items-center gap-3">
                         {showCity && (
                             cityLogo ? (
-                                <Image src={cityLogo} alt={subject.cityName ?? ''} width={32} height={32} className="h-8 w-8 object-contain" />
+                                <Image src={cityLogo} alt={subject.cityName ?? ''} width={36} height={36} className="h-9 w-9 shrink-0 object-contain" />
                             ) : (
-                                <Building2 className="h-7 w-7 text-muted-foreground" />
+                                <Building2 className="h-9 w-9 shrink-0 text-muted-foreground" />
                             )
                         )}
-                        <span
-                            className="flex h-9 w-9 items-center justify-center rounded-full"
-                            style={{ backgroundColor: `${subject.topicColor}1f` }}
-                            title={subject.topicName ?? undefined}
-                            aria-label={subject.topicName ?? undefined}
-                        >
-                            {subject.topicIcon && <Icon name={subject.topicIcon} color={subject.topicColor} size={17} />}
-                        </span>
+                        <div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs">
+                            {showCity && subject.cityName && (
+                                <span className="shrink-0 font-medium text-foreground">{subject.cityName}</span>
+                            )}
+                            {showCity && subject.cityName && subject.adminBodyName && (
+                                <span className="shrink-0 text-muted-foreground/50">·</span>
+                            )}
+                            {subject.adminBodyName && (
+                                <span className="flex min-w-0 items-center gap-1 text-muted-foreground">
+                                    {!showCity && <Landmark className="h-3 w-3 shrink-0" />}
+                                    <span className="truncate">{subject.adminBodyName}</span>
+                                </span>
+                            )}
+                        </div>
+                        {subject.meetingDate && (
+                            <span className="shrink-0 text-xs text-muted-foreground">
+                                {formatDate(new Date(subject.meetingDate))}
+                            </span>
+                        )}
                     </div>
+                )}
+
+                {/* The subject: topic icon + title, description and stats */}
+                <div className="flex gap-3">
+                    <span
+                        className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+                        style={{ backgroundColor: `${subject.topicColor}1f` }}
+                        title={subject.topicName ?? undefined}
+                        aria-label={subject.topicName ?? undefined}
+                    >
+                        {subject.topicIcon && <Icon name={subject.topicIcon} color={subject.topicColor} size={17} />}
+                    </span>
 
                     <div className="min-w-0 flex-1">
-                        {/* Pre-title: who (municipality when ambiguous · body) + date */}
-                        {((showCity && subject.cityName) || subject.adminBodyName || subject.meetingDate) && (
-                            <div className="flex items-center justify-between gap-2 text-xs">
-                                <div className="flex min-w-0 items-center gap-1.5">
-                                    {showCity && subject.cityName && (
-                                        <span className="shrink-0 font-medium text-foreground">{subject.cityName}</span>
-                                    )}
-                                    {showCity && subject.cityName && subject.adminBodyName && (
-                                        <span className="shrink-0 text-muted-foreground/60">·</span>
-                                    )}
-                                    {subject.adminBodyName && (
-                                        <span className="flex min-w-0 items-center gap-1 text-muted-foreground">
-                                            {!showCity && <Landmark className="h-3 w-3 shrink-0" />}
-                                            <span className="truncate">{subject.adminBodyName}</span>
-                                        </span>
-                                    )}
-                                </div>
-                                {subject.meetingDate && (
-                                    <span className="shrink-0 text-muted-foreground">
-                                        {formatDate(new Date(subject.meetingDate))}
-                                    </span>
-                                )}
-                            </div>
-                        )}
-
-                        <h3 className={cn('mt-1 text-sm font-medium leading-snug text-foreground', !expanded && 'line-clamp-2')}>
+                        <h3 className={cn('text-sm font-medium leading-snug text-foreground', !expanded && 'line-clamp-2')}>
                             {subject.name}
                         </h3>
 
@@ -145,7 +145,7 @@ export function SubjectListItem({ subject, expanded, onToggle, onHover, showCity
                         )}
 
                         {/* Where + numbers */}
-                        <div className="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                        <div className="mt-1.5 flex items-center justify-between gap-2 text-xs text-muted-foreground">
                             {subject.locationText ? (
                                 <span className="flex min-w-0 items-center gap-1">
                                     <MapPin className="h-3 w-3 shrink-0" />

@@ -8,9 +8,9 @@ export function MapPageHeader() {
     const { city } = useMapHeaderCity();
     const path = city
         ? [{
-            name: city.name_municipality,
+            name: city.name,
             link: `/${city.id}`,
-            city: { name: city.name_municipality, logoImage: city.logoImage },
+            city: { name: city.name, logoImage: city.logoImage },
         }]
         : [];
 

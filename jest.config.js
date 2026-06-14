@@ -9,6 +9,10 @@ const shared = {
   },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/', '<rootDir>/tests/integration/'],
+  // Keep build output and nested git worktrees out of the haste map — copies of
+  // the project there otherwise collide as duplicate manual mocks (e.g. styleMock)
+  // and break every suite.
+  modulePathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/.claude/worktrees/'],
   transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', {
       tsconfig: 'tsconfig.jest.json',

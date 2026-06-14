@@ -4,7 +4,8 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 
 export interface MapHeaderCity {
     id: string;
-    name_municipality: string;
+    /** Short city name («Αθήνα»), matching the city-page header — not «Δήμος Αθηναίων». */
+    name: string;
     logoImage: string | null;
 }
 
