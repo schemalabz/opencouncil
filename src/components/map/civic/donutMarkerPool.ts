@@ -128,8 +128,14 @@ export function createDonutMarkerPool(map: mapboxgl.Map, options: DonutMarkerPoo
             });
         });
 
-        if (!options.reducedMotion && typeof element.animate === 'function') {
-            element.animate(
+        // Animate the inner content, never the root: mapbox positions the root
+        // via `transform: translate(...)`, and a `transform` keyframe on it would
+        // replace that translate with a bare scale for the animation — snapping
+        // the marker to the container's top-left for 200ms (a visible flash as
+        // clusters churn during zoom).
+        const intro = element.firstElementChild;
+        if (intro && !options.reducedMotion && typeof intro.animate === 'function') {
+            intro.animate(
                 [{ transform: 'scale(0.9)', opacity: 0.4 }, { transform: 'scale(1)', opacity: 1 }],
                 { duration: 200, easing: 'ease-out' },
             );
