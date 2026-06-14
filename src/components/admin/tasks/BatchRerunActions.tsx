@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,10 +18,11 @@ import {
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { AlertTriangle, CheckCircle2, XCircle, Loader2, ChevronRight, ChevronDown } from 'lucide-react';
+import { AlertTriangle, ChevronRight, ChevronDown } from 'lucide-react';
 import { formatDate } from '@/lib/formatters/time';
-import { batchRerunTask, type BatchRerunResult } from '@/lib/tasks/batchRerun';
+import { batchRerunTask } from '@/lib/tasks/batchRerun';
+import { useSequentialDispatch } from '@/hooks/useSequentialDispatch';
+import { BatchProgressView } from '@/components/admin/BatchProgressView';
 
 export interface BatchMeeting {
     meetingId: string;
@@ -36,65 +37,34 @@ interface BatchRerunActionsProps {
 }
 
 type TaskType = 'processAgenda' | 'summarize';
-type DialogState = 'confirm' | 'executing' | 'done';
 
 const TASK_LABELS: Record<TaskType, string> = {
     processAgenda: 'Process Agenda',
     summarize: 'Summarize',
 };
 
-
 export function BatchRerunActions({ meetings }: BatchRerunActionsProps) {
     const t = useTranslations('admin.adminActions');
     const [dialogOpen, setDialogOpen] = useState(false);
     const [selectedTask, setSelectedTask] = useState<TaskType>('processAgenda');
-    const [dialogState, setDialogState] = useState<DialogState>('confirm');
-    const [results, setResults] = useState<BatchRerunResult[]>([]);
-    const [currentIndex, setCurrentIndex] = useState(0);
-    const cancelledRef = useRef(false);
+    const [batchOpen, setBatchOpen] = useState(false);
+
+    const dispatchTask = useCallback(async (meeting: BatchMeeting) => {
+        const result = await batchRerunTask(meeting.cityId, meeting.meetingId, selectedTask);
+        if (!result.success) {
+            throw new Error(result.error ?? 'Dispatch failed');
+        }
+    }, [selectedTask]);
+
+    const dispatch = useSequentialDispatch<BatchMeeting>(dispatchTask);
 
     const openDialog = (taskType: TaskType) => {
         setSelectedTask(taskType);
-        setDialogState('confirm');
-        setResults([]);
-        setCurrentIndex(0);
-        cancelledRef.current = false;
+        dispatch.reset();
         setDialogOpen(true);
     };
 
-    const handleCancel = () => {
-        cancelledRef.current = true;
-    };
-
-    const handleClose = () => {
-        setDialogOpen(false);
-    };
-
-    const handleConfirm = useCallback(async () => {
-        setDialogState('executing');
-        const newResults: BatchRerunResult[] = [];
-
-        for (let i = 0; i < meetings.length; i++) {
-            if (cancelledRef.current) break;
-
-            setCurrentIndex(i);
-            const meeting = meetings[i];
-            const result = await batchRerunTask(meeting.cityId, meeting.meetingId, selectedTask);
-            newResults.push(result);
-            setResults([...newResults]);
-        }
-
-        setDialogState('done');
-    }, [meetings, selectedTask]);
-
-    const succeeded = results.filter(r => r.success).length;
-    const failed = results.filter(r => !r.success).length;
-    const remaining = meetings.length - results.length;
-    const progressPercent = meetings.length > 0 ? (results.length / meetings.length) * 100 : 0;
-
     const cityCount = new Set(meetings.map(m => m.cityId)).size;
-
-    const [batchOpen, setBatchOpen] = useState(false);
 
     return (
         <>
@@ -137,11 +107,11 @@ export function BatchRerunActions({ meetings }: BatchRerunActionsProps) {
 
             <Dialog open={dialogOpen} onOpenChange={(open) => {
                 // Prevent closing during execution by clicking outside
-                if (!open && dialogState === 'executing') return;
+                if (!open && dispatch.phase === 'executing') return;
                 setDialogOpen(open);
             }}>
                 <DialogContent className="max-w-2xl">
-                    {dialogState === 'confirm' && (
+                    {dispatch.phase === 'idle' ? (
                         <>
                             <DialogHeader>
                                 <DialogTitle className="flex items-center gap-2">
@@ -163,16 +133,14 @@ export function BatchRerunActions({ meetings }: BatchRerunActionsProps) {
                                 </DialogDescription>
                             </DialogHeader>
 
-                            {(selectedTask === 'processAgenda' || selectedTask === 'summarize') && (
-                                <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm">
-                                    <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                                    <p className="text-amber-800">
-                                        {selectedTask === 'processAgenda' ? 'Before meeting' : 'After meeting'} notifications
-                                        will be created for meetings whose administrative body has notifications enabled.
-                                        Check each body&apos;s notification behavior setting if this is not intended.
-                                    </p>
-                                </div>
-                            )}
+                            <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm">
+                                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                                <p className="text-amber-800">
+                                    {selectedTask === 'processAgenda' ? 'Before meeting' : 'After meeting'} notifications
+                                    will be created for meetings whose administrative body has notifications enabled.
+                                    Check each body&apos;s notification behavior setting if this is not intended.
+                                </p>
+                            </div>
 
                             <ScrollArea className="max-h-80 border rounded-md">
                                 <table className="w-full text-sm">
@@ -214,68 +182,30 @@ export function BatchRerunActions({ meetings }: BatchRerunActionsProps) {
                             </ScrollArea>
 
                             <DialogFooter>
-                                <Button variant="outline" onClick={handleClose}>Cancel</Button>
-                                <Button variant="destructive" onClick={handleConfirm}>
+                                <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+                                <Button variant="destructive" onClick={() => dispatch.run(meetings)}>
                                     Confirm Re-run
                                 </Button>
                             </DialogFooter>
                         </>
-                    )}
-
-                    {(dialogState === 'executing' || dialogState === 'done') && (
-                        <>
-                            <DialogHeader>
-                                <DialogTitle>
-                                    {dialogState === 'executing'
-                                        ? `Dispatching ${TASK_LABELS[selectedTask]}...`
-                                        : `${TASK_LABELS[selectedTask]} — All Tasks Dispatched`
-                                    }
-                                </DialogTitle>
-                                <DialogDescription>
-                                    {succeeded} dispatched, {failed} failed
-                                    {remaining > 0 && `, ${remaining} remaining`}
-                                    {cancelledRef.current && ' (cancelled)'}
-                                </DialogDescription>
-                            </DialogHeader>
-
-                            <Progress value={progressPercent} className="w-full" />
-
-                            {dialogState === 'executing' && currentIndex < meetings.length && (
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    Processing: {meetings[currentIndex].cityId}/{meetings[currentIndex].meetingId}
-                                </div>
-                            )}
-
-                            <ScrollArea className="max-h-60 border rounded-md">
-                                <div className="p-2 space-y-1">
-                                    {results.map((result) => (
-                                        <div key={`${result.cityId}-${result.meetingId}`} className="flex items-center gap-2 text-sm">
-                                            {result.success
-                                                ? <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
-                                                : <XCircle className="h-4 w-4 text-red-600 shrink-0" />
-                                            }
-                                            <span className="font-mono text-xs">{result.cityId}/{result.meetingId}</span>
-                                            {result.error && (
-                                                <span className="text-red-600 text-xs truncate">— {result.error}</span>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            </ScrollArea>
-
-                            <DialogFooter>
-                                {dialogState === 'executing' ? (
-                                    <Button variant="destructive" onClick={handleCancel}>
-                                        Cancel
-                                    </Button>
-                                ) : (
-                                    <Button variant="outline" onClick={handleClose}>
-                                        Close
-                                    </Button>
-                                )}
-                            </DialogFooter>
-                        </>
+                    ) : (
+                        <BatchProgressView
+                            phase={dispatch.phase}
+                            items={meetings}
+                            currentIndex={dispatch.currentIndex}
+                            results={dispatch.results}
+                            cancelled={dispatch.cancelled}
+                            getItemKey={(m) => `${m.cityId}-${m.meetingId}`}
+                            getItemLabel={(m) => `${m.cityId}/${m.meetingId}`}
+                            title={{
+                                executing: `Dispatching ${TASK_LABELS[selectedTask]}...`,
+                                done: `${TASK_LABELS[selectedTask]} — All Tasks Dispatched`,
+                            }}
+                            currentVerb="Processing"
+                            monospaceLabels
+                            onCancel={dispatch.cancel}
+                            onClose={() => setDialogOpen(false)}
+                        />
                     )}
                 </DialogContent>
             </Dialog>
