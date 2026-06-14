@@ -12,6 +12,7 @@ import { PersonWithRelations } from '@/lib/db/people';
 import { HighlightVideo } from "./meetings/HighlightVideo";
 import { HighlightWithUtterances } from "@/lib/db/highlights";
 import { stripMarkdown } from "@/lib/formatters/markdown";
+import { renderHighlighted } from "@/lib/search/highlight";
 import { formatDate } from "@/lib/formatters/time";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
@@ -27,9 +28,13 @@ interface SubjectCardProps {
     disableHover?: boolean;
     showContext?: boolean;
     openInNewTab?: boolean;
+    // Elasticsearch highlight fragments (matched terms wrapped in sentinel tags).
+    // When present, the matched terms are bolded in the title/description.
+    nameHighlight?: string;
+    descriptionHighlight?: string;
 }
 
-export function SubjectCard({ subject, city, meeting, parties, persons, fullWidth, highlight, disableHover, showContext, openInNewTab }: SubjectCardProps) {
+export function SubjectCard({ subject, city, meeting, parties, persons, fullWidth, highlight, disableHover, showContext, openInNewTab, nameHighlight, descriptionHighlight }: SubjectCardProps) {
     const router = useRouter();
     const pathname = usePathname();
     const [isLoading, setIsLoading] = useState(false);
@@ -105,7 +110,7 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                         <div className="p-1.5 rounded-full shrink-0 transition-colors duration-300" style={{ backgroundColor: subject.topic?.colorHex ? subject.topic.colorHex + "20" : "#e5e7eb" }}>
                             <Icon name={subject.topic?.icon || "hash"} color={subject.topic?.colorHex || "#9ca3af"} size={16} />
                         </div>
-                        <CardTitle className="text-sm sm:text-base line-clamp-2 flex-1 group-hover/card:text-accent-foreground transition-colors duration-300">{subject.name}</CardTitle>
+                        <CardTitle className="text-sm sm:text-base line-clamp-2 flex-1 group-hover/card:text-accent-foreground transition-colors duration-300">{renderHighlighted(nameHighlight, subject.name)}</CardTitle>
                     </div>
                     {showContext && (
                         <div className="flex flex-col gap-0.5">
@@ -151,7 +156,7 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                         </div>
                     )}
                     {subject.description && (
-                        <div className="text-xs sm:text-sm text-muted-foreground line-clamp-4 sm:line-clamp-5 group-hover/card:text-muted-foreground/80 transition-colors duration-300">{stripMarkdown(subject.description)}</div>
+                        <div className="text-xs sm:text-sm text-muted-foreground line-clamp-4 sm:line-clamp-5 group-hover/card:text-muted-foreground/80 transition-colors duration-300">{renderHighlighted(descriptionHighlight, subject.description, true)}</div>
                     )}
                 </CardContent>
 

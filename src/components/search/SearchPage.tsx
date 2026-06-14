@@ -132,6 +132,7 @@ export default function SearchPage() {
                 partyIds: partyId ? [partyId] : undefined,
                 config: {
                     enableSemanticSearch: true,
+                    enableHighlights: true,
                     size: PAGE_SIZE,
                     from: (page - 1) * PAGE_SIZE,
                     detailed: false
