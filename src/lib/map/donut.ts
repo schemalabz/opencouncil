@@ -2,6 +2,7 @@ import {
     CLUSTER_OTHER_KEY,
     CLUSTER_TOPIC_PROPERTY_CAP,
     DONUT_MAX_SEGMENTS,
+    DONUT_MIN_ICON_SIZE,
     DONUT_OTHER_COLOR,
 } from './constants';
 
@@ -81,25 +82,80 @@ export function computeDonutSegments(
 
 /** Outer diameter (px) of a donut marker, stepped by cluster size. */
 export function donutDiameter(pointCount: number): number {
-    if (pointCount > 500) return 62;
-    if (pointCount > 100) return 54;
-    if (pointCount > 25) return 46;
-    if (pointCount > 9) return 38;
-    return 30;
+    if (pointCount > 500) return 80;
+    if (pointCount > 100) return 74;
+    if (pointCount > 25) return 68;
+    if (pointCount > 9) return 62;
+    return 58;
 }
 
+/**
+ * Radial width (px) of the coloured ring band — wide enough that a topic icon
+ * fits inside a segment (the point of showing them there), while still leaving
+ * a centre hole big enough for the count.
+ */
 function donutRingThickness(pointCount: number): number {
-    if (pointCount > 100) return 7;
-    if (pointCount > 9) return 6;
-    return 5;
+    if (pointCount > 100) return 22;
+    if (pointCount > 9) return 20;
+    return 18;
+}
+
+/** Largest icon (px) a segment's ring band can hold, with padding. */
+function donutSegmentIconSize(pointCount: number): number {
+    return donutRingThickness(pointCount) - 7;
+}
+
+export interface DonutIconPlacement {
+    topicId: string;
+    /** Icon centre, in the donut's 0..diameter coordinate space. */
+    x: number;
+    y: number;
+    size: number;
+}
+
+/**
+ * Positions a topic icon on every named segment whose arc is long enough to
+ * hold a legible one — at the segment's mid-angle and the band's mid-radius.
+ * Slivers too thin to fit an icon (and the neutral "other" bucket) get none.
+ * This lets a glance at a cluster reveal which subject areas it contains, not
+ * just their colours. The marker pool fetches the (white) glyphs and drops
+ * them at these points.
+ */
+export function donutSegmentIcons(segments: DonutSegment[], totalCount: number): DonutIconPlacement[] {
+    const r = donutDiameter(totalCount) / 2;
+    const rMid = r - donutRingThickness(totalCount) / 2;
+    const maxSize = donutSegmentIconSize(totalCount);
+    const total = segments.reduce((sum, segment) => sum + segment.count, 0) || 1;
+
+    const placements: DonutIconPlacement[] = [];
+    let offset = 0;
+    for (const segment of segments) {
+        const fraction = segment.count / total;
+        const midFraction = (offset + segment.count / 2) / total;
+        offset += segment.count;
+        if (segment.topicId === 'other') continue;
+        // Arc available to this segment along the band's mid-radius.
+        const arc = 2 * Math.PI * rMid * fraction;
+        const size = Math.min(maxSize, Math.floor(arc * 0.62));
+        if (size < DONUT_MIN_ICON_SIZE) continue;
+        const angle = 2 * Math.PI * (midFraction - 0.25);
+        placements.push({
+            topicId: segment.topicId,
+            x: r + rMid * Math.cos(angle),
+            y: r + rMid * Math.sin(angle),
+            size,
+        });
+    }
+    return placements;
 }
 
 function donutFontSize(pointCount: number): number {
-    if (pointCount > 500) return 15;
-    if (pointCount > 100) return 14;
-    if (pointCount > 25) return 13;
+    // Kept small enough to sit inside the (now tighter) centre hole, even at
+    // four digits for the largest clusters.
+    if (pointCount > 500) return 12;
+    if (pointCount > 100) return 13;
     if (pointCount > 9) return 12;
-    return 11;
+    return 13;
 }
 
 function donutSegmentPath(
@@ -130,10 +186,17 @@ function donutSegmentPath(
 }
 
 /**
- * Renders a donut cluster as an SVG string: a topic-segmented ring around a
- * white disc with the total count. Sized by donutDiameter(totalCount).
+ * Renders a donut cluster as an SVG string: a topic-segmented ring with the
+ * total count on a white centre disc. The marker pool overlays per-segment
+ * topic icons (donutSegmentIcons) on the ring band around it. `showCount: false`
+ * leaves the centre empty. Sized by donutDiameter(totalCount).
  */
-export function donutSvg(segments: DonutSegment[], totalCount: number): string {
+export function donutSvg(
+    segments: DonutSegment[],
+    totalCount: number,
+    options: { showCount?: boolean } = {},
+): string {
+    const { showCount = true } = options;
     const diameter = donutDiameter(totalCount);
     const r = diameter / 2;
     const r0 = r - donutRingThickness(totalCount);
@@ -148,14 +211,17 @@ export function donutSvg(segments: DonutSegment[], totalCount: number): string {
     }
 
     const fontSize = donutFontSize(totalCount);
+    const countText = showCount
+        ? `<text x="${r}" y="${r}" dominant-baseline="central" text-anchor="middle" ` +
+          `font-family="'Relative Book Pro', Inter, sans-serif" font-weight="600" ` +
+          `font-size="${fontSize}" fill="#0c0a09">${totalCount}</text>`
+        : '';
     return (
         `<svg width="${diameter}" height="${diameter}" viewBox="0 0 ${diameter} ${diameter}" ` +
         `xmlns="http://www.w3.org/2000/svg" style="display:block">` +
         paths.join('') +
         `<circle cx="${r}" cy="${r}" r="${r0}" fill="#ffffff"/>` +
-        `<text x="${r}" y="${r}" dominant-baseline="central" text-anchor="middle" ` +
-        `font-family="'Relative Book Pro', Inter, sans-serif" font-weight="600" ` +
-        `font-size="${fontSize}" fill="#0c0a09">${totalCount}</text>` +
+        countText +
         `</svg>`
     );
 }

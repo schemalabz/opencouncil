@@ -1,7 +1,7 @@
 import mapboxgl from 'mapbox-gl';
 import { DONUT_MIN_HIT_AREA_PX, SUBJECTS_SOURCE_ID } from '@/lib/map/constants';
-import { computeDonutSegments, donutSvg } from '@/lib/map/donut';
-import type { PinTopic } from './pinImages';
+import { computeDonutSegments, donutDiameter, donutSegmentIcons, donutSvg } from '@/lib/map/donut';
+import { createTopicIconSvg, type PinTopic } from './pinImages';
 
 /**
  * Renders donut clusters as pooled HTML markers, synced on the map's render
@@ -46,6 +46,10 @@ export function createDonutMarkerPool(map: mapboxgl.Map, options: DonutMarkerPoo
             .map(topic => ({ id: topic.id, colorHex: topic.colorHex }));
     }
 
+    function topicIconOf(topicId: string): string | null {
+        return topics.find(topic => topic.id === topicId)?.icon ?? null;
+    }
+
     function clusterSignature(pointCount: number, properties: Record<string, unknown>): string {
         const counts = segmentTopics().map(topic => properties[`t_${topic.id}`] ?? 0);
         return `${pointCount}:${counts.join(',')}`;
@@ -53,11 +57,41 @@ export function createDonutMarkerPool(map: mapboxgl.Map, options: DonutMarkerPoo
 
     function renderInto(element: HTMLButtonElement, pointCount: number, properties: Record<string, unknown>) {
         const segments = computeDonutSegments(properties, segmentTopics(), pointCount);
+        // Each topic's icon rides on its own ring segment (where one fits), so a
+        // glance shows which subject areas the cluster holds — not just colours —
+        // while the total count sits in the centre hole.
+        const placements = donutSegmentIcons(segments, pointCount);
+        const diameter = donutDiameter(pointCount);
+
+        const iconSlots = placements
+            .map((placement, index) =>
+                `<span class="civic-donut-icon" data-i="${index}" style="position:absolute;` +
+                `left:${placement.x}px;top:${placement.y}px;width:${placement.size}px;height:${placement.size}px;` +
+                `transform:translate(-50%,-50%);line-height:0;pointer-events:none"></span>`)
+            .join('');
+
         element.innerHTML =
-            `<div style="border-radius:50%;box-shadow:0 1px 3px rgb(0 0 0 / 0.25);line-height:0">` +
+            `<div style="position:relative;width:${diameter}px;height:${diameter}px;line-height:0">` +
+            `<div style="width:${diameter}px;height:${diameter}px;border-radius:50%;box-shadow:0 1px 3px rgb(0 0 0 / 0.25)">` +
             donutSvg(segments, pointCount) +
+            `</div>` +
+            iconSlots +
             `</div>`;
         element.setAttribute('aria-label', options.clusterAriaLabel(pointCount));
+
+        placements.forEach((placement, index) => {
+            const slot = element.querySelector<HTMLElement>(`.civic-donut-icon[data-i="${index}"]`);
+            if (!slot) return;
+            // White glyph reads on any topic colour, like the pins.
+            void createTopicIconSvg(
+                { colorHex: '#ffffff', icon: topicIconOf(placement.topicId) },
+                placement.size,
+            ).then(svg => {
+                // A newer render swaps innerHTML, disconnecting this slot — so a
+                // stale icon never lands in the current donut.
+                if (svg && slot.isConnected) slot.innerHTML = svg;
+            });
+        });
     }
 
     function createElementFor(clusterId: number, pointCount: number, properties: Record<string, unknown>): HTMLButtonElement {

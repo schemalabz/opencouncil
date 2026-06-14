@@ -29,14 +29,19 @@ const VALID_ICON_NAMES = new Set(ICON_NAMES);
 
 type LucideModule = { default: React.ComponentType<{ color?: string; size?: number; strokeWidth?: number }> };
 
-async function renderIconMarkup(iconName: string): Promise<string | null> {
+async function renderIconMarkup(
+    iconName: string,
+    color = '#ffffff',
+    size = 32,
+    strokeWidth = 2.5,
+): Promise<string | null> {
     const mod = (await import(`lucide-react/dist/esm/icons/${iconName}.js`)) as LucideModule;
     const host = document.createElement('div');
     const root = createRoot(host);
     // Runs in a microtask after an awaited import — never inside React's
     // own render/commit, which is what flushSync forbids.
     flushSync(() => {
-        root.render(createElement(mod.default, { color: '#ffffff', size: 32, strokeWidth: 2.5 }));
+        root.render(createElement(mod.default, { color, size, strokeWidth }));
     });
     const markup = host.innerHTML;
     root.unmount();
@@ -92,6 +97,26 @@ export async function createPinBadgeSvg(topic: Pick<PinTopic, 'colorHex' | 'icon
         const markup = await renderIconMarkup(iconName);
         if (!markup) return null;
         return composeBadgeSvg(colorHex, markup);
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * A bare lucide icon at a given pixel size, in the supplied `colorHex` — for
+ * compositing into DOM markers where a full badge (disc + ring) would be too
+ * heavy, e.g. the per-topic glyphs the donut marker pool lays on each ring
+ * segment (passed white, to read on the coloured arc). Returns the `<svg>`
+ * markup, or null on failure.
+ */
+export async function createTopicIconSvg(
+    topic: Pick<PinTopic, 'colorHex' | 'icon'>,
+    sizePx: number,
+): Promise<string | null> {
+    const colorHex = topic.colorHex || FALLBACK_TOPIC_COLOR;
+    const iconName = topic.icon && VALID_ICON_NAMES.has(topic.icon) ? topic.icon : FALLBACK_TOPIC_ICON;
+    try {
+        return await renderIconMarkup(iconName, colorHex, sizePx, 2.25);
     } catch {
         return null;
     }

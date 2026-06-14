@@ -42,6 +42,8 @@ export const DONUT_MAX_SEGMENTS = 5;
 export const DONUT_OTHER_COLOR = '#d6d3d1'; // stone-300 — neutral "λοιπά" bucket
 /** Minimum interactive hit area for cluster markers (touch target floor). */
 export const DONUT_MIN_HIT_AREA_PX = 44;
+/** A segment only gets a topic icon if at least this many px fit on its arc. */
+export const DONUT_MIN_ICON_SIZE = 10;
 
 // Municipalities petition heat — the fill ramp saturates at this count.
 export const PETITION_HEAT_MAX = 50;

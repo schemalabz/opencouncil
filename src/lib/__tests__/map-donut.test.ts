@@ -3,6 +3,7 @@ import {
     clusterTopicKey,
     computeDonutSegments,
     donutDiameter,
+    donutSegmentIcons,
     donutSvg,
 } from '../map/donut';
 import {
@@ -97,20 +98,62 @@ describe('computeDonutSegments', () => {
 
 describe('donutDiameter', () => {
     it('steps by cluster size buckets', () => {
-        expect(donutDiameter(2)).toBe(30);
-        expect(donutDiameter(9)).toBe(30);
-        expect(donutDiameter(10)).toBe(38);
-        expect(donutDiameter(25)).toBe(38);
-        expect(donutDiameter(26)).toBe(46);
-        expect(donutDiameter(100)).toBe(46);
-        expect(donutDiameter(101)).toBe(54);
-        expect(donutDiameter(500)).toBe(54);
-        expect(donutDiameter(501)).toBe(62);
+        expect(donutDiameter(2)).toBe(58);
+        expect(donutDiameter(9)).toBe(58);
+        expect(donutDiameter(10)).toBe(62);
+        expect(donutDiameter(25)).toBe(62);
+        expect(donutDiameter(26)).toBe(68);
+        expect(donutDiameter(100)).toBe(68);
+        expect(donutDiameter(101)).toBe(74);
+        expect(donutDiameter(500)).toBe(74);
+        expect(donutDiameter(501)).toBe(80);
+    });
+});
+
+describe('donutSegmentIcons', () => {
+    it('places an icon on each named segment with room, skipping the other bucket', () => {
+        const placements = donutSegmentIcons(
+            [
+                { topicId: 'a', color: '#aa0000', count: 5 },
+                { topicId: 'b', color: '#00bb00', count: 5 },
+                { topicId: 'other', color: '#d6d3d1', count: 2 },
+            ],
+            12,
+        );
+        expect(placements.map(p => p.topicId).sort()).toEqual(['a', 'b']);
+        for (const placement of placements) {
+            // inside the marker box, and a legible size
+            expect(placement.x).toBeGreaterThan(0);
+            expect(placement.x).toBeLessThan(donutDiameter(12));
+            expect(placement.y).toBeGreaterThan(0);
+            expect(placement.y).toBeLessThan(donutDiameter(12));
+            expect(placement.size).toBeGreaterThanOrEqual(10);
+        }
+    });
+
+    it('omits a sliver too thin to hold a legible icon', () => {
+        const placements = donutSegmentIcons(
+            [
+                { topicId: 'big', color: '#aa0000', count: 99 },
+                { topicId: 'sliver', color: '#00bb00', count: 1 },
+            ],
+            100,
+        );
+        expect(placements.map(p => p.topicId)).toContain('big');
+        expect(placements.map(p => p.topicId)).not.toContain('sliver');
+    });
+
+    it('sits the icon on the band, not the centre hole or the rim', () => {
+        const [placement] = donutSegmentIcons([{ topicId: 'a', color: '#aa0000', count: 4 }], 4);
+        const r = donutDiameter(4) / 2;
+        const radius = Math.hypot(placement.x - r, placement.y - r);
+        expect(radius).toBeGreaterThan(0);
+        expect(radius).toBeLessThan(r);
     });
 });
 
 describe('donutSvg', () => {
-    it('renders one path per segment plus the count', () => {
+    it('renders one path per segment plus the count by default', () => {
         const svg = donutSvg(
             [
                 { topicId: 'a', color: '#aa0000', count: 5 },
@@ -124,6 +167,13 @@ describe('donutSvg', () => {
         expect(svg).toContain('stroke="#ffffff"');
     });
 
+    it('omits the centre count when showCount is false', () => {
+        const svg = donutSvg([{ topicId: 'a', color: '#aa0000', count: 8 }], 8, { showCount: false });
+        expect(svg).not.toContain('<text');
+        // the white centre disc is still drawn for the icon overlay to sit on
+        expect(svg).toContain('fill="#ffffff"');
+    });
+
     it('renders a single full ring without separators', () => {
         const svg = donutSvg([{ topicId: 'a', color: '#aa0000', count: 4 }], 4);
         expect(svg.match(/<path /g)).toHaveLength(1);
@@ -133,7 +183,7 @@ describe('donutSvg', () => {
 
     it('sizes the svg by the count bucket', () => {
         const svg = donutSvg([{ topicId: 'a', color: '#aa0000', count: 120 }], 120);
-        expect(svg).toContain('width="54"');
-        expect(svg).toContain('height="54"');
+        expect(svg).toContain('width="74"');
+        expect(svg).toContain('height="74"');
     });
 });
