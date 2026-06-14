@@ -33,6 +33,16 @@ export function parseReferences(markdown: string): ParsedReference[] {
 }
 
 /**
+ * Replace REF:TYPE:ID markdown links with their display text, for plain-text
+ * contexts (e.g. list cards) — `[some text](REF:UTTERANCE:abc)` → `some text`.
+ * @param markdown - Markdown text with REF:TYPE:ID links
+ * @returns The text with reference links flattened to their display text
+ */
+export function stripReferences(markdown: string): string {
+    return markdown.replace(/\[([^\]]*)\]\(REF:(?:UTTERANCE|PERSON|PARTY|SUBJECT):[^)]+\)/g, '$1');
+}
+
+/**
  * Extract all utterance IDs from contribution text
  * @param contributionText - Markdown text with REF:UTTERANCE:ID links
  * @returns Array of utterance IDs

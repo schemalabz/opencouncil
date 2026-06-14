@@ -10,13 +10,19 @@ export async function GET(request: Request) {
         // Parse query parameters
         const { searchParams } = new URL(request.url);
         const monthsBackParam = searchParams.get('monthsBack');
+        const daysBackParam = searchParams.get('daysBack');
         const topicIdsParam = searchParams.get('topicIds');
 
         const monthsBack = monthsBackParam ? parseInt(monthsBackParam) : 6;
+        // daysBack takes precedence over monthsBack when both are given
+        const daysBack = daysBackParam ? parseInt(daysBackParam) : null;
+        // allTime=true disables the date filter entirely
+        const allTime = searchParams.get('allTime') === 'true';
         const topicIds = topicIdsParam ? topicIdsParam.split(',') : [];
 
         console.log('🔍 API Filter params:', {
             monthsBack,
+            daysBack,
             topicIdsCount: topicIds.length,
             topicIdsParam,
             topicIds: topicIds.slice(0, 5)
@@ -24,7 +30,11 @@ export async function GET(request: Request) {
 
         // Calculate date threshold
         const dateThreshold = new Date();
-        dateThreshold.setMonth(dateThreshold.getMonth() - monthsBack);
+        if (daysBack && daysBack > 0) {
+            dateThreshold.setDate(dateThreshold.getDate() - daysBack);
+        } else {
+            dateThreshold.setMonth(dateThreshold.getMonth() - monthsBack);
+        }
 
         console.log('📅 Date threshold:', dateThreshold.toISOString());
 
@@ -38,9 +48,7 @@ export async function GET(request: Request) {
                     officialSupport: true
                 },
                 released: true,
-                dateTime: {
-                    gte: dateThreshold
-                }
+                ...(allTime ? {} : { dateTime: { gte: dateThreshold } })
             }
         };
 
@@ -153,6 +161,7 @@ export async function GET(request: Request) {
                     meetingName: s.councilMeeting?.name,
                     locationText: s.location?.text,
                     locationType: s.location?.type,
+                    topicId: s.topicId,
                     topicName: s.topic?.name,
                     topicColor: s.topic?.colorHex || '#627BBC',
                     topicIcon: s.topic?.icon,
