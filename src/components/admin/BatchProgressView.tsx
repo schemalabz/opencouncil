@@ -19,6 +19,8 @@ interface BatchProgressViewProps<T> {
     title: { executing: string; done: string };
     /** Verb for the in-progress line, e.g. "Processing" or "Polling". */
     currentVerb: string;
+    /** Render result labels in a monospace font (e.g. for `cityId/meetingId` identifiers). */
+    monospaceLabels?: boolean;
     /** Optional content rendered in the done phase (e.g. a follow-up link). */
     doneExtra?: ReactNode;
     onCancel: () => void;
@@ -35,6 +37,7 @@ export function BatchProgressView<T>({
     getItemLabel,
     title,
     currentVerb,
+    monospaceLabels = false,
     doneExtra,
     onCancel,
     onClose,
@@ -74,7 +77,7 @@ export function BatchProgressView<T>({
                                 ? <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
                                 : <XCircle className="h-4 w-4 text-red-600 shrink-0" />
                             }
-                            <span className="text-xs truncate">{getItemLabel(result.item)}</span>
+                            <span className={`text-xs truncate${monospaceLabels ? ' font-mono' : ''}`}>{getItemLabel(result.item)}</span>
                             {result.error && (
                                 <span className="text-red-600 text-xs truncate">— {result.error}</span>
                             )}
