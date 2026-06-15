@@ -160,6 +160,7 @@ PGSync requires helper views to denormalize complex relationships and handle Pos
 1. **LocationSearchView** - Converts PostGIS geometry to GeoJSON format
 2. **IntroducedByPartyView** - Resolves party affiliation through the `Role` table
 3. **SubjectSpeakerSegmentSearchView** - Denormalizes speaker segments with concatenated utterances
+4. **SpeakerContributionSearchView** - Denormalizes speaker contributions with party resolution
 
 ### Create the Views
 
@@ -170,7 +171,7 @@ psql "$DATABASE_URL" < elasticsearch/views.sql
 ```
 
 The script will:
-- Create all three required views
+- Create all four required views
 - Run verification checks on each view
 - Display sample data to confirm everything works
 - Show statistics about data coverage
@@ -723,7 +724,13 @@ A: PGSync tracks its position in the WAL stream using Redis. When it restarts, i
 **Q: How do I update the schema?**  
 A: See <https://pgsync.com/advanced/re-indexing>
 
-**Q: Why use views instead of direct table joins in PGSync?**  
+**Q: Why are REF links (`[text](REF:TYPE:ID)`) indexed in Elasticsearch instead of being stripped?**
+A: This is intentional. The Greek analyzer strips punctuation during tokenization, so `[Ο Δήμαρχος](REF:PERSON:abc123)` tokenizes to the same search terms as `Ο Δήμαρχος`. The extra tokens (`ref`, `person`, `abc123`) are harmless noise that no user would search for. More importantly, **a view with `base_tables: ["Subject"]` would intercept Subject DELETE events in PGSync**, causing deletions to never propagate to Elasticsearch. By reading `description` directly from the Subject table (the root node), we ensure PGSync correctly processes root-table deletions. The app's frontend handles REF link rendering via `FormattedTextDisplay` and `stripMarkdown()`.
+
+**Q: Why must views never list the root table in `base_tables`?**
+A: PGSync builds an internal `base_table_to_node` mapping from all views' `base_tables`. If a view declares `base_tables: ["Subject"]` (the root table), PGSync treats Subject WAL events as child-node changes for that view, instead of root-table operations. This means DELETE events on Subject are never processed as document deletions — PGSync tries to "re-sync" the parent document instead, which fails silently because the row is already gone. **Rule: only use `base_tables` for tables that are NOT the root node.**
+
+**Q: Why use views instead of direct table joins in PGSync?**
 A: Views handle complex logic (PostGIS conversion, role-based party resolution, utterance concatenation) in PostgreSQL where it's more efficient. PGSync sees views as simple tables, keeping the sync configuration clean.
 
 **Q: Can I combine semantic search with traditional text search?**  

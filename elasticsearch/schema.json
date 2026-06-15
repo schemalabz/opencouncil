@@ -157,7 +157,8 @@
         "createdAt",
         "updatedAt",
         "context",
-        "contextCitationUrls"
+        "contextCitationUrls",
+        "description"
       ],
       "transform": {
         "rename": {
@@ -364,19 +365,6 @@
             "rename": {
               "id": "segment_id"
             }
-          }
-        },
-        {
-          "table": "SubjectSearchView",
-          "schema": "public",
-          "base_tables": ["Subject"],
-          "primary_key": ["id"],
-          "columns": ["description"],
-          "label": "description",
-          "relationship": {
-            "variant": "scalar",
-            "type": "one_to_one",
-            "foreign_key": { "parent": ["id"], "child": ["id"] }
           }
         },
         {
