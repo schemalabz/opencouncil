@@ -10,18 +10,10 @@ import { cn } from '@/lib/utils';
 import Icon from '@/components/icon';
 import { normalizeIconName } from '@/lib/map/adapters';
 import { contrastTextColor } from '@/lib/map/colors';
-import { DEFAULT_MAP_FILTER, hasNarrowingFilters, type MapFilterState } from '@/lib/map/params';
+import { DEFAULT_MAP_FILTER, hasNarrowingFilters, toggleFilterValue, type MapFilterState } from '@/lib/map/params';
 import type { MapMunicipality } from '@/lib/map/types';
 
 const BODY_TYPES: AdministrativeBodyType[] = ['council', 'committee', 'community'];
-
-function toggleInList(list: string[] | null, value: string): string[] | null {
-    const current = list ?? [];
-    const next = current.includes(value)
-        ? current.filter(item => item !== value)
-        : [...current, value];
-    return next.length > 0 ? next : null;
-}
 
 interface FilterPaneProps {
     open: boolean;
@@ -63,7 +55,7 @@ export function FilterPane({ open, onOpenChange, topics, municipalities, filter,
                                     key={topic.id}
                                     type="button"
                                     aria-pressed={isSelected}
-                                    onClick={() => onFilterChange({ ...filter, topicIds: toggleInList(filter.topicIds, topic.id) })}
+                                    onClick={() => onFilterChange({ ...filter, topicIds: toggleFilterValue(filter.topicIds, topic.id) })}
                                     className={cn(
                                         'flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[13px] font-medium transition-colors',
                                         !isSelected && 'bg-background text-foreground hover:bg-muted',
@@ -89,7 +81,7 @@ export function FilterPane({ open, onOpenChange, topics, municipalities, filter,
                                         id={`filter-city-${municipality.id}`}
                                         checked={isSelected}
                                         onCheckedChange={() =>
-                                            onFilterChange({ ...filter, cityIds: toggleInList(filter.cityIds, municipality.id) })}
+                                            onFilterChange({ ...filter, cityIds: toggleFilterValue(filter.cityIds, municipality.id) })}
                                     />
                                     <Label htmlFor={`filter-city-${municipality.id}`} className="text-sm font-normal">
                                         {municipality.name_municipality}
@@ -110,7 +102,7 @@ export function FilterPane({ open, onOpenChange, topics, municipalities, filter,
                                     aria-pressed={isSelected}
                                     onClick={() => onFilterChange({
                                         ...filter,
-                                        bodyTypes: (toggleInList(filter.bodyTypes, bodyType) as AdministrativeBodyType[] | null),
+                                        bodyTypes: toggleFilterValue(filter.bodyTypes, bodyType),
                                     })}
                                     className={cn(
                                         'h-8 rounded-full border px-3 text-[13px] font-medium transition-colors',

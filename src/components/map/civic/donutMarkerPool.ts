@@ -1,6 +1,6 @@
 import mapboxgl from 'mapbox-gl';
 import { DONUT_MIN_HIT_AREA_PX, SUBJECTS_SOURCE_ID } from '@/lib/map/constants';
-import { computeDonutSegments, donutDiameter, donutSegmentIcons, donutSvg } from '@/lib/map/donut';
+import { clusterTopicKey, computeDonutSegments, donutDiameter, donutSegmentIcons, donutSvg } from '@/lib/map/donut';
 import { createTopicIconSvg, type PinTopic } from './pinImages';
 
 /**
@@ -51,7 +51,7 @@ export function createDonutMarkerPool(map: mapboxgl.Map, options: DonutMarkerPoo
     }
 
     function clusterSignature(pointCount: number, properties: Record<string, unknown>): string {
-        const counts = segmentTopics().map(topic => properties[`t_${topic.id}`] ?? 0);
+        const counts = segmentTopics().map(topic => properties[clusterTopicKey(topic.id)] ?? 0);
         return `${pointCount}:${counts.join(',')}`;
     }
 

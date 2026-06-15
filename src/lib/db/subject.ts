@@ -415,7 +415,6 @@ export async function getMapSubjects(
                 meetingDate: s.councilMeeting?.dateTime?.toISOString() ?? null,
                 meetingName: s.councilMeeting?.name ?? null,
                 locationText: s.location?.text ?? null,
-                locationType: s.location?.type ?? null,
                 adminBodyName: s.councilMeeting?.administrativeBody?.name ?? null,
                 adminBodyType: s.councilMeeting?.administrativeBody?.type ?? null,
                 topicId: s.topic?.id ?? null,

@@ -11,8 +11,8 @@ import { apiSubjectToMapSubject } from '@/lib/map/adapters';
 import { sortByRanking, type SubjectRanking } from '@/lib/map/ranking';
 import { useMapHeaderCity } from './MapHeaderContext';
 import {
+    countNarrowingFilters,
     DEFAULT_MAP_FILTER,
-    hasNarrowingFilters,
     isDefaultFilter,
     mapFilterToApiQuery,
     mapFilterToSearchParams,
@@ -185,11 +185,7 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
 
 
     const filtersActive = !isDefaultFilter(filter);
-    const activeFilterCount =
-        (filter.topicIds?.length ?? 0) +
-        (filter.cityIds?.length ?? 0) +
-        (filter.bodyTypes?.length ?? 0) +
-        (filter.dateFrom || filter.dateTo ? 1 : 0);
+    const activeFilterCount = countNarrowingFilters(filter);
 
     const handleSubjectSelect = (subject: MapSubject | null) => {
         setSelectedSubjectId(subject?.id ?? null);

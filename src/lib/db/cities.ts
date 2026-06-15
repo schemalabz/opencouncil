@@ -460,7 +460,7 @@ export async function getAboutPageStats(): Promise<AboutPageStats> {
 
 /**
  * Listed cities with the fields the map needs, geometry attached.
- * Shared by /api/cities/map and the /map page server shell.
+ * Consumed (via getCitiesForMapCached) by the /map page server shell.
  */
 export async function getCitiesForMap() {
     const cities = await prisma.city.findMany({

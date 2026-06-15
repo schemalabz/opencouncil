@@ -8,7 +8,7 @@ import Icon from '@/components/icon';
 import { normalizeIconName } from '@/lib/map/adapters';
 import { contrastTextColor } from '@/lib/map/colors';
 import { formatDate } from '@/lib/formatters/time';
-import { hasNarrowingFilters, type MapFilterState } from '@/lib/map/params';
+import { hasNarrowingFilters, removeFilterValue, type MapFilterState } from '@/lib/map/params';
 import type { MapMunicipality } from '@/lib/map/types';
 
 interface ActiveFilterChipsProps {
@@ -17,11 +17,6 @@ interface ActiveFilterChipsProps {
     municipalities: MapMunicipality[];
     onFilterChange: (next: MapFilterState) => void;
     className?: string;
-}
-
-function removeFrom(list: string[] | null, value: string): string[] | null {
-    const next = (list ?? []).filter(item => item !== value);
-    return next.length > 0 ? next : null;
 }
 
 /**
@@ -37,8 +32,7 @@ export function ActiveFilterChips({ filter, topics, municipalities, onFilterChan
     const activeTopics = topics.filter(topic => filter.topicIds?.includes(topic.id));
     const activeCities = municipalities.filter(municipality => filter.cityIds?.includes(municipality.id));
     const removeBody = (bodyType: AdministrativeBodyType) => {
-        const next = (filter.bodyTypes ?? []).filter(item => item !== bodyType);
-        onFilterChange({ ...filter, bodyTypes: next.length > 0 ? next : null });
+        onFilterChange({ ...filter, bodyTypes: removeFilterValue(filter.bodyTypes, bodyType) });
     };
     const dateLabel = filter.dateFrom || filter.dateTo
         ? [
@@ -64,7 +58,7 @@ export function ActiveFilterChips({ filter, topics, municipalities, onFilterChan
                             type="button"
                             aria-label={t('removeFilter', { name: topic.name })}
                             className={removeClass}
-                            onClick={() => onFilterChange({ ...filter, topicIds: removeFrom(filter.topicIds, topic.id) })}
+                            onClick={() => onFilterChange({ ...filter, topicIds: removeFilterValue(filter.topicIds, topic.id) })}
                         >
                             <X className="h-3 w-3" />
                         </button>
@@ -79,7 +73,7 @@ export function ActiveFilterChips({ filter, topics, municipalities, onFilterChan
                         type="button"
                         aria-label={t('removeFilter', { name: municipality.name })}
                         className={removeClass}
-                        onClick={() => onFilterChange({ ...filter, cityIds: removeFrom(filter.cityIds, municipality.id) })}
+                        onClick={() => onFilterChange({ ...filter, cityIds: removeFilterValue(filter.cityIds, municipality.id) })}
                     >
                         <X className="h-3 w-3" />
                     </button>

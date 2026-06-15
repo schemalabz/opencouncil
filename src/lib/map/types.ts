@@ -99,7 +99,6 @@ export interface MapSubjectsApiItem {
     meetingDate?: string | null;
     meetingName?: string | null;
     locationText?: string | null;
-    locationType?: string | null;
     adminBodyName?: string | null;
     adminBodyType?: AdministrativeBodyType | null;
     topicId?: string | null;

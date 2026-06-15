@@ -1,9 +1,12 @@
 import {
+    countNarrowingFilters,
     DEFAULT_MAP_FILTER,
     isDefaultFilter,
     mapFilterToApiQuery,
     mapFilterToSearchParams,
     parseMapFilterParams,
+    removeFilterValue,
+    toggleFilterValue,
 } from '../map/params';
 import { MAP_DEFAULT_MONTHS_BACK, MAP_MONTHS_MAX, MAP_MONTHS_MIN } from '../map/constants';
 
@@ -99,6 +102,37 @@ describe('mapFilterToSearchParams', () => {
             from: params.get('from') ?? undefined,
             to: params.get('to') ?? undefined,
         })).toEqual(filter);
+    });
+});
+
+describe('countNarrowingFilters', () => {
+    it('counts topic/city/body values plus one for any date range, ignoring the time preset', () => {
+        expect(countNarrowingFilters(DEFAULT_MAP_FILTER)).toBe(0);
+        expect(countNarrowingFilters({ ...DEFAULT_MAP_FILTER, monthsBack: 3 })).toBe(0);
+        expect(countNarrowingFilters({
+            ...DEFAULT_MAP_FILTER,
+            topicIds: ['a', 'b'],
+            cityIds: ['athens'],
+            bodyTypes: ['council'],
+            dateFrom: '2026-01-01',
+        })).toBe(5);
+        expect(countNarrowingFilters({ ...DEFAULT_MAP_FILTER, dateTo: '2026-02-01' })).toBe(1);
+    });
+});
+
+describe('toggleFilterValue / removeFilterValue', () => {
+    it('toggles a value in and out, collapsing an empty result to null', () => {
+        expect(toggleFilterValue(null, 'a')).toEqual(['a']);
+        expect(toggleFilterValue(['a'], 'b')).toEqual(['a', 'b']);
+        expect(toggleFilterValue(['a', 'b'], 'a')).toEqual(['b']);
+        expect(toggleFilterValue(['a'], 'a')).toBeNull();
+    });
+
+    it('removes a value, collapsing an empty result to null', () => {
+        expect(removeFilterValue(['a', 'b'], 'a')).toEqual(['b']);
+        expect(removeFilterValue(['a'], 'a')).toBeNull();
+        expect(removeFilterValue(null, 'a')).toBeNull();
+        expect(removeFilterValue(['a'], 'b')).toEqual(['a']);
     });
 });
 

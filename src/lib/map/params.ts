@@ -95,6 +95,33 @@ export function hasNarrowingFilters(filter: MapFilterState): boolean {
         filter.bodyTypes !== null || filter.dateFrom !== null || filter.dateTo !== null;
 }
 
+/**
+ * How many filter values are narrowing the data (topics + cities + body types,
+ * plus one for a date range) — the badge count on the filter button. Time
+ * presets (monthsBack) don't count, consistent with hasNarrowingFilters.
+ */
+export function countNarrowingFilters(filter: MapFilterState): number {
+    return (filter.topicIds?.length ?? 0) +
+        (filter.cityIds?.length ?? 0) +
+        (filter.bodyTypes?.length ?? 0) +
+        (filter.dateFrom || filter.dateTo ? 1 : 0);
+}
+
+/** Toggles a value in a nullable filter list, collapsing an empty result to null. */
+export function toggleFilterValue<T extends string>(list: T[] | null, value: T): T[] | null {
+    const current = list ?? [];
+    const next = current.includes(value)
+        ? current.filter(item => item !== value)
+        : [...current, value];
+    return next.length > 0 ? next : null;
+}
+
+/** Removes a value from a nullable filter list, collapsing an empty result to null. */
+export function removeFilterValue<T extends string>(list: T[] | null, value: T): T[] | null {
+    const next = (list ?? []).filter(item => item !== value);
+    return next.length > 0 ? next : null;
+}
+
 /** Page-URL params — only non-default values are written. */
 export function mapFilterToSearchParams(filter: MapFilterState): URLSearchParams {
     const params = new URLSearchParams();
