@@ -9,6 +9,11 @@ export const MAP_DEFAULT_CENTER: [number, number] = [23.7275, 37.9838]; // Athen
 export const MAP_DEFAULT_ZOOM = 6.5;
 export const MAP_MAX_ZOOM = 17;
 
+// Programmatic fly-to: animation duration, and the minimum zoom a selection
+// flies in to when it isn't already on screen at street level.
+export const FLY_TO_DURATION_MS = 800;
+export const FLY_TO_MIN_ZOOM = 14;
+
 export const FALLBACK_TOPIC_COLOR = '#627BBC';
 export const FALLBACK_TOPIC_ICON = 'hash';
 
