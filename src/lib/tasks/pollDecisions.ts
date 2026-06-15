@@ -17,7 +17,7 @@ import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAler
 export async function requestPollDecisions(
     cityId: string,
     councilMeetingId: string,
-    options?: { forceExtract?: boolean },
+    options?: { forceExtract?: boolean; silent?: boolean },
 ) {
     await withUserAuthorizedToEdit({ cityId });
 
