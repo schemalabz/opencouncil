@@ -21,6 +21,7 @@ import { attachSubjectsLayer, SUBJECTS_HALO_LAYER_ID, topicsFromSubjects, type S
 import { attachOverlaysLayer, type OverlaysLayerHandle } from './overlaysLayer';
 import { createDonutMarkerPool, type DonutMarkerPool } from './donutMarkerPool';
 import { createSpiderfier, type Spiderfier } from './spiderfier';
+import { renderReferenceMarkers } from './referenceMarkersLayer';
 import { anchorKeyOf } from '@/lib/map/spiderfy';
 import { DEFAULT_MARKER_OPTIONS, type CivicMapHandle, type CivicMapPadding, type CivicMapProps } from './types';
 
@@ -303,26 +304,7 @@ function CivicMapInner(props: CivicMapProps) {
     }, [props.referenceMarkers, props.highlightPoint]);
     useEffect(() => {
         if (!map || !isLoaded || referenceMarkers.length === 0) return;
-        const markers = referenceMarkers
-            .filter(marker => Number.isFinite(marker.coordinates[0]) && Number.isFinite(marker.coordinates[1]))
-            .map(definition => {
-                const color = definition.color ?? '#0c0a09';
-                const element = document.createElement('div');
-                element.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:none;';
-                element.innerHTML =
-                    `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid #ffffff;` +
-                    `box-shadow:0 0 0 2px ${color}4d, 0 1px 3px rgb(0 0 0 / 0.3)"></div>` +
-                    (definition.label
-                        ? `<div style="font-size:12px;font-weight:600;color:#1c1917;white-space:nowrap;` +
-                          `text-shadow:0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff">${definition.label.replace(/</g, '&lt;')}</div>`
-                        : '');
-                return new mapboxgl.Marker({ element, anchor: definition.label ? 'top' : 'center' })
-                    .setLngLat(definition.coordinates)
-                    .addTo(map);
-            });
-        return () => {
-            for (const marker of markers) marker.remove();
-        };
+        return renderReferenceMarkers(map, referenceMarkers);
     }, [map, isLoaded, referenceMarkers]);
 
     // Unified click resolution: subjects (8px hit slop) win over
