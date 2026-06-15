@@ -5,6 +5,7 @@ import { buildClusterProperties } from '@/lib/map/donut';
 import { anchorKeyOf } from '@/lib/map/spiderfy';
 import type { MapSubject } from '@/lib/map/types';
 import { ensurePinImage, ensurePinImages, pinImageId, PIN_IMAGE_PREFIX, type PinTopic } from './pinImages';
+import { createIconLayerScheduler } from './iconLayerScheduler';
 
 export const SUBJECTS_HALO_LAYER_ID = 'civic-subjects-halo';
 export const SUBJECTS_DOTS_LAYER_ID = 'civic-subjects-dots';
@@ -161,45 +162,15 @@ export function attachSubjectsLayer(
             ? base
             : ['all', base, ['!=', ['get', 'anchorKey'], hiddenAnchorKey]];
 
-    let disposed = false;
-
-    // Symbols laid out while their image is still rasterizing are dropped and
-    // the tile never re-lays-out when the image lands later; layers added
-    // while initial tiles are still parsing hit the same fate. So the icon
-    // layers (pins, selected pin) are only (re)created once every pin image
-    // exists AND the map is idle.
-    const addIconLayersWhenReady = () => {
-        void ensurePinImages(map, topics).then(() => {
-            if (disposed || !map.getStyle()) return;
-            if (map.loaded()) {
-                addIconLayers();
-            } else {
-                map.once('idle', () => {
-                    if (!disposed && map.getStyle()) addIconLayers();
-                });
-            }
-        });
-    };
-    let refreshScheduled = false;
-    const scheduleIconLayerRefresh = () => {
-        if (refreshScheduled) return;
-        refreshScheduled = true;
-        setTimeout(() => {
-            refreshScheduled = false;
-            if (disposed || !map.getStyle()) return;
-            removeIconLayers();
-            addIconLayersWhenReady();
-        }, 50);
-    };
-
-    // Pin images a style reload throws away get re-ensured here.
-    const onStyleImageMissing = (event: { id: string }) => {
-        if (!event.id.startsWith(PIN_IMAGE_PREFIX)) return;
-        const topicId = event.id.slice(PIN_IMAGE_PREFIX.length);
-        const topic = topics.find(t => t.id === topicId);
-        void ensurePinImage(map, topic ?? { id: null, colorHex: '', icon: null }).then(scheduleIconLayerRefresh);
-    };
-    map.on('styleimagemissing', onStyleImageMissing);
+    // The pin / selected-pin symbol layers can only be laid out once their
+    // images exist and the map is idle; this scheduler owns that timing, the
+    // styleimagemissing recovery, and the teardown of its own timers/listeners.
+    // addIconLayers / removeIconLayers are hoisted function declarations below.
+    const iconScheduler = createIconLayerScheduler(map, {
+        getTopics: () => topics,
+        addIconLayers,
+        removeIconLayers,
+    });
 
     function addSourceAndLayers(data: GeoJSON.FeatureCollection) {
         const sourceSpec: GeoJSONSourceSpecification = {
@@ -390,7 +361,7 @@ export function attachSubjectsLayer(
 
     addSourceAndLayers(toFeatureCollection(subjects));
     addSelectionLayers();
-    addIconLayersWhenReady();
+    iconScheduler.whenReady();
 
     const setHoverState = (subjectId: string | null) => {
         if (subjectId === hoveredId) return;
@@ -448,13 +419,13 @@ export function attachSubjectsLayer(
                 removeIconLayers();
                 removeSubjectLayersAndSource();
                 addSourceAndLayers(toFeatureCollection(next));
-                addIconLayersWhenReady();
+                iconScheduler.whenReady();
                 return;
             }
             // Same topic set is the common case — only rebuild icon layers
             // when a new topic's image still has to rasterize.
             if (topics.some(topic => !map.hasImage(pinImageId(topic.id)))) {
-                void ensurePinImages(map, topics).then(scheduleIconLayerRefresh);
+                void ensurePinImages(map, topics).then(iconScheduler.scheduleRefresh);
             }
             const source = map.getSource(SUBJECTS_SOURCE_ID) as mapboxgl.GeoJSONSource | undefined;
             source?.setData(toFeatureCollection(next));
@@ -465,7 +436,7 @@ export function attachSubjectsLayer(
         setSelected(subject: MapSubject | null) {
             if (subject?.topicId && !map.hasImage(pinImageId(subject.topicId))) {
                 void ensurePinImage(map, { id: subject.topicId, colorHex: subject.topicColor, icon: subject.topicIcon })
-                    .then(scheduleIconLayerRefresh);
+                    .then(iconScheduler.scheduleRefresh);
             }
             const source = map.getSource(SELECTED_SOURCE_ID) as mapboxgl.GeoJSONSource | undefined;
             source?.setData(selectionFeatureCollection(subject));
@@ -488,14 +459,13 @@ export function attachSubjectsLayer(
             return [SELECTED_PIN_LAYER_ID, SUBJECTS_PINS_LAYER_ID, SUBJECTS_DOTS_LAYER_ID].filter(id => map.getLayer(id));
         },
         destroy() {
-            disposed = true;
+            iconScheduler.dispose();
             if (options.interactive) {
                 for (const layerId of [SUBJECTS_PINS_LAYER_ID, SUBJECTS_DOTS_LAYER_ID]) {
                     map.off('mousemove', layerId, onMouseMove);
                     map.off('mouseleave', layerId, onMouseLeave);
                 }
             }
-            map.off('styleimagemissing', onStyleImageMissing);
             if (!map.getStyle()) return;
             for (const layerId of [SELECTED_PIN_LAYER_ID, SELECTED_RING_LAYER_ID, SELECTED_OUTLINE_LINE_ID, SELECTED_OUTLINE_FILL_ID]) {
                 if (map.getLayer(layerId)) map.removeLayer(layerId);
