@@ -8,7 +8,7 @@ import CivicMap from '@/components/map/civic/CivicMap';
 import type { CivicMapHandle } from '@/components/map/civic/types';
 import { MapPanel, MOBILE_SNAP_POINTS } from '@/components/map/civic/panel/MapPanel';
 import { SubjectsTab } from '@/components/map/civic/panel/SubjectsTab';
-import { sortByRanking, type SubjectRanking } from '@/lib/map/ranking';
+import { useMapSubjectList } from '@/components/map/civic/useMapSubjectList';
 import { subjectWithRelationsToMapSubject } from '@/lib/map/adapters';
 import type { MapSubject } from '@/lib/map/types';
 
@@ -43,23 +43,8 @@ export default function MeetingMapPage() {
             visibleIds === null || visibleIds.has(subject.id)),
         [mapSubjects, visibleIds],
     );
-    // While a spiderfy fan is open, the list scopes to exactly its subjects.
-    const spiderfiedSubjects = useMemo(() => {
-        if (!spiderfiedIds) return null;
-        const byId = new Map(mapSubjects.map(subject => [subject.id, subject]));
-        return spiderfiedIds
-            .map(id => byId.get(id))
-            .filter((subject): subject is MapSubject => Boolean(subject));
-    }, [spiderfiedIds, mapSubjects]);
-    const rankings = useMemo(
-        () => sortByRanking(spiderfiedSubjects ?? visibleSubjects),
-        [spiderfiedSubjects, visibleSubjects],
-    );
-    const listSubjects = useMemo(() => rankings.map(ranking => ranking.subject), [rankings]);
-    const rankingById = useMemo(
-        () => new Map<string, SubjectRanking>(rankings.map(ranking => [ranking.subject.id, ranking])),
-        [rankings],
-    );
+    // Spiderfy resolution + ranking + list shaping is shared with /map.
+    const { listSubjects, rankingById, spiderfiedSubjects } = useMapSubjectList(mapSubjects, visibleSubjects, spiderfiedIds);
 
     const handleSelect = (subject: MapSubject | null) => {
         setSelectedSubjectId(subject?.id ?? null);

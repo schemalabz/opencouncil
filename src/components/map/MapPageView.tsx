@@ -8,8 +8,8 @@ import { cn } from '@/lib/utils';
 import { geometryIntersectsBounds } from '@/lib/geo';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { apiSubjectToMapSubject } from '@/lib/map/adapters';
-import { sortByRanking, type SubjectRanking } from '@/lib/map/ranking';
 import { useMapHeaderCity } from './MapHeaderContext';
+import { useMapSubjectList } from './civic/useMapSubjectList';
 import {
     countNarrowingFilters,
     DEFAULT_MAP_FILTER,
@@ -152,23 +152,9 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
             : activeCityIds.has(subject.cityId)),
         [subjects, visibleIds, activeCityIds],
     );
-    // While a spiderfy fan is open, the list scopes to exactly its subjects.
-    const spiderfiedSubjects = useMemo(() => {
-        if (!spiderfiedIds) return null;
-        const byId = new Map(subjects.map(subject => [subject.id, subject]));
-        return spiderfiedIds
-            .map(id => byId.get(id))
-            .filter((subject): subject is MapSubject => Boolean(subject));
-    }, [spiderfiedIds, subjects]);
-    const rankings = useMemo(
-        () => sortByRanking(spiderfiedSubjects ?? visibleSubjects),
-        [spiderfiedSubjects, visibleSubjects],
-    );
-    const listSubjects = useMemo(() => rankings.map(ranking => ranking.subject), [rankings]);
-    const rankingById = useMemo(
-        () => new Map<string, SubjectRanking>(rankings.map(ranking => [ranking.subject.id, ranking])),
-        [rankings],
-    );
+    // Spiderfy resolution + ranking + list shaping is shared with the meeting
+    // map page; only the visibleSubjects rule above differs between them.
+    const { listSubjects, rankingById, spiderfiedSubjects } = useMapSubjectList(subjects, visibleSubjects, spiderfiedIds);
 
     const cityLogos = useMemo(
         () => new Map(municipalities.map(municipality => [municipality.id, municipality.logoImage])),
