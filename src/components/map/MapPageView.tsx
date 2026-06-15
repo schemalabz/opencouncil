@@ -18,6 +18,7 @@ import {
     mapFilterToSearchParams,
     type MapFilterState,
 } from '@/lib/map/params';
+import { UNLOCATED_SUBJECTS_MAX_ZOOM } from '@/lib/map/constants';
 import type { MapMunicipality, MapSubject, MapSubjectsApiItem } from '@/lib/map/types';
 import type { ViewportBounds } from '@/lib/map/viewport';
 import CivicMap from './civic/CivicMap';
@@ -58,6 +59,7 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
     const [hoveredSubjectId, setHoveredSubjectId] = useState<string | null>(null);
     const [visibleIds, setVisibleIds] = useState<Set<string> | null>(null);
     const [bounds, setBounds] = useState<ViewportBounds | null>(null);
+    const [zoom, setZoom] = useState<number | null>(null);
     const [spiderfiedIds, setSpiderfiedIds] = useState<string[] | null>(null);
     const [activeTab, setActiveTab] = useState<PanelTab>('subjects');
     const [municipalityDetail, setMunicipalityDetail] = useState<MapMunicipality | null>(null);
@@ -145,12 +147,15 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
         [municipalities, activeCityIds],
     );
     // Anchored subjects are "visible" inside the viewport; unlocated ones
-    // whenever their municipality is the focus of the view.
+    // (municipality-wide items) whenever their municipality is the focus of the
+    // view — but only up to street level, past which we're looking at specific
+    // places, not the whole δήμος.
+    const showUnlocated = zoom === null || zoom <= UNLOCATED_SUBJECTS_MAX_ZOOM;
     const visibleSubjects = useMemo(
         () => subjects.filter(subject => subject.anchor
             ? (visibleIds === null || visibleIds.has(subject.id))
-            : activeCityIds.has(subject.cityId)),
-        [subjects, visibleIds, activeCityIds],
+            : (showUnlocated && activeCityIds.has(subject.cityId))),
+        [subjects, visibleIds, activeCityIds, showUnlocated],
     );
     // Spiderfy resolution + ranking + list shaping is shared with the meeting
     // map page; only the visibleSubjects rule above differs between them.
@@ -237,7 +242,7 @@ export default function MapPageView({ topics, municipalities, initialSubjects, i
                     onMunicipalityClick={setMunicipalityDetail}
                     onVisibleSubjectsChange={ids => setVisibleIds(new Set(ids))}
                     onSpiderfyChange={setSpiderfiedIds}
-                    onMoveEnd={view => setBounds(view.bounds)}
+                    onMoveEnd={view => { setBounds(view.bounds); setZoom(view.zoom); }}
                     onMapReady={controls => {
                         mapHandleRef.current = controls;
                     }}

@@ -58,6 +58,10 @@ export const SUBJECTS_SOURCE_ID = 'civic-subjects';
 export const SELECTED_SOURCE_ID = 'civic-selected';
 export const MUNICIPALITIES_SOURCE_ID = 'civic-municipalities';
 
+// Above this zoom the list drops municipality-wide (unlocated) subjects —
+// you're at street level looking at specific places, not the whole δήμος.
+export const UNLOCATED_SUBJECTS_MAX_ZOOM = 15;
+
 // Time filter
 export const MAP_MONTHS_OPTIONS = [1, 3, 6, 12] as const;
 export const MAP_DEFAULT_MONTHS_BACK = 6;

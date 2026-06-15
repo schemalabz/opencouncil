@@ -18,7 +18,12 @@ export interface SubjectRankingWeights {
     smallMunicipality: number;
     /** Council ranks over committee over community (only with several body types). */
     adminBody: number;
-    /** A located subject gets a small flat boost over an unlocated one. */
+    /**
+     * A located subject gets a slight edge over an identical unlocated one —
+     * deliberately the weakest signal. Unlocated (municipality-wide) subjects
+     * are the majority in most δήμοι, so a strong boost here would bury them
+     * below the panel's list cap; this is a tiebreaker, not a category filter.
+     */
     location: number;
 }
 
@@ -28,7 +33,7 @@ export const DEFAULT_SUBJECT_RANKING_WEIGHTS: SubjectRankingWeights = {
     discussion: 1.1,
     smallMunicipality: 0.15,
     adminBody: 0.4,
-    location: 0.35,
+    location: 0.1,
 };
 
 /** Δημοτικό Συμβούλιο > Δημοτική Επιτροπή > Δημοτική Κοινότητα. */
