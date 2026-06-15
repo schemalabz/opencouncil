@@ -255,8 +255,17 @@ describe('extractPhone', () => {
 // ---------------------------------------------------------------------------
 
 describe('extractBody', () => {
-    it('prefers preview.text', () => {
-        expect(extractBody({ preview: { text: 'preview wins' }, text: 'loses' })).toBe('preview wins');
+    it('prefers the full body over the truncated preview snippet', () => {
+        expect(extractBody({ preview: { text: 'truncated…' }, text: 'full body wins' })).toBe('full body wins');
+        expect(extractBody({ preview: { text: 'truncated…' }, body: { text: { text: 'nested full' } } })).toBe('nested full');
+    });
+
+    it('falls back to preview.text when no body is present', () => {
+        expect(extractBody({ preview: { text: 'preview fallback' } })).toBe('preview fallback');
+    });
+
+    it('prefers a plain-string body over the truncated preview snippet', () => {
+        expect(extractBody({ preview: { text: 'truncated…' }, body: 'full string body' })).toBe('full string body');
     });
 
     it('reads body.text.text (nested object form)', () => {
