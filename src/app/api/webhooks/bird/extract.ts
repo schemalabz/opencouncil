@@ -162,11 +162,15 @@ export function extractPhone(
 }
 
 export function extractBody(message: BirdMessageLike | undefined): string {
+    // Prefer the full message body. `preview.text` is Bird's conversation-list
+    // snippet — truncated to ~140 chars — so it's only a last-resort fallback
+    // for events that carry no body at all.
     return (
-        message?.preview?.text ??
         extractBodyText(message?.body) ??
         message?.text ??
-        (typeof message?.body === 'string' ? message.body : '')
+        (typeof message?.body === 'string' && message.body ? message.body : undefined) ??
+        message?.preview?.text ??
+        ''
     );
 }
 
