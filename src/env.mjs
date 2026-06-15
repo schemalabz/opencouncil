@@ -17,6 +17,10 @@ export const env = createEnv({
 
     // Auth
     RESEND_API_KEY: z.string().min(1),
+    // Sender ("from") address for sign-in magic-link emails. In local dev,
+    // set this to a Resend test sender (e.g. "OpenCouncil <onboarding@resend.dev>")
+    // since the production domain isn't verified on a fork's Resend account.
+    AUTH_EMAIL_FROM: z.string().min(1).default('OpenCouncil <auth@opencouncil.gr>'),
     NEXTAUTH_SECRET: z.string().min(1),
     NEXTAUTH_URL: z.string().url(),
     BASIC_AUTH_USERNAME: z.string().optional(),
@@ -102,6 +106,7 @@ export const env = createEnv({
     DATABASE_PASSWORD: process.env.DATABASE_PASSWORD,
     DATABASE_NAME: process.env.DATABASE_NAME,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
+    AUTH_EMAIL_FROM: process.env.AUTH_EMAIL_FROM,
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     BASIC_AUTH_USERNAME: process.env.BASIC_AUTH_USERNAME,
