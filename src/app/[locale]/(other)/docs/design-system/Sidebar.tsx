@@ -31,13 +31,14 @@ export function Sidebar({ sections }: { sections: SidebarSection[] }) {
         <nav className="flex flex-col gap-8">
             <div>
                 <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Overview</div>
-                <ul className="flex flex-col gap-0.5">{link(BASE, 'Introduction')}</ul>
+                <ul className="flex flex-col gap-0.5">
+                    {link(BASE, 'Introduction')}
+                </ul>
             </div>
             {sections.map((section) => (
                 <div key={section.kind}>
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{section.label}</div>
                     <ul className="flex flex-col gap-0.5">
-                        {link(`${BASE}/${section.kind}`, `All ${section.label.toLowerCase()}`)}
                         {section.items.map((item) => link(`${BASE}/${section.kind}/${item.slug}`, item.name))}
                     </ul>
                 </div>
