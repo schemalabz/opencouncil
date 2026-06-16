@@ -28,7 +28,7 @@ import { runBackfill } from "@/lib/tasks/backfillDecisions";
 function looksLikeProd(): boolean {
     if (process.env.NODE_ENV === "production") return true;
     const url = process.env.DATABASE_URL ?? "";
-    return /prod|amazonaws|supabase|neon\.tech|render\.com|\.rds\./i.test(url);
+    return /production|\bprod\b|amazonaws|supabase|neon\.tech|render\.com|\.rds\./i.test(url);
 }
 
 async function main() {
@@ -79,10 +79,12 @@ async function main() {
     if (!result.executed && result.toDispatch === 0) {
         console.log("\nNothing to dispatch.");
     }
+
+    return result;
 }
 
 main()
-    .then(() => process.exit(0))
+    .then((result) => process.exit(result.failed > 0 ? 1 : 0))
     .catch((error) => {
         console.error("Backfill failed:", error);
         process.exit(1);

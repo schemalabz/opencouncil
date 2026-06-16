@@ -1,6 +1,5 @@
 import prisma from "@/lib/db/prisma";
 import { DECISION_ELIGIBLE_SUBJECT_WHERE } from "@/lib/db/decisions";
-import { LOGODOSIA_NAME_PATTERN } from "@/lib/tasks/pollDecisionsBackoff";
 import { pollDecisionsForMeeting } from "@/lib/tasks/pollDecisions";
 import {
     selectBackfillMeetings,
@@ -89,13 +88,13 @@ export async function runBackfill(options: BackfillRunOptions = {}): Promise<Bac
         where: { diavgeiaUid: { not: null }, ...(cityId ? { id: cityId } : {}) },
     });
 
-    // Candidate meetings: configured city, not Λογοδοσία, with at least one
-    // eligible subject lacking a decision.
+    // Candidate meetings: configured city with at least one eligible subject
+    // lacking a decision. Λογοδοσία meetings are NOT filtered here — the pure
+    // selectBackfillMeetings owns that skip, so it shows up in the summary.
     const meetings = await prisma.councilMeeting.findMany({
         where: {
             ...(cityId ? { cityId } : {}),
             city: { diavgeiaUid: { not: null } },
-            NOT: { name: { contains: LOGODOSIA_NAME_PATTERN } },
             subjects: {
                 some: { ...DECISION_ELIGIBLE_SUBJECT_WHERE, decision: null },
             },
