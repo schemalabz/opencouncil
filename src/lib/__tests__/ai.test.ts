@@ -51,7 +51,7 @@ describe('aiChat', () => {
     await aiChat(systemPrompt, userPrompt);
     
     expect(mockCreate).toHaveBeenCalledWith({
-      model: "claude-sonnet-4-0",
+      model: "claude-sonnet-4-5-20250929",
       max_tokens: 8192,
       system: systemPrompt,
       messages: [
@@ -69,7 +69,7 @@ describe('aiChat', () => {
     await aiChat(systemPrompt, userPrompt, prefill);
     
     expect(mockCreate).toHaveBeenCalledWith({
-      model: "claude-sonnet-4-0",
+      model: "claude-sonnet-4-5-20250929",
       max_tokens: 8192,
       system: systemPrompt,
       messages: [
