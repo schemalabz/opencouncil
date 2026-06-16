@@ -151,6 +151,14 @@ export const TEAM_MEMBERS: TeamMember[] = [
             email: 'mailto:myrto@opencouncil.gr',
         },
     },
+    {
+        id: 'alexandra',
+        image: '/people/alexandra.jpg',
+        socials: {
+            linkedin: 'https://www.linkedin.com/in/alexandra-ranunkel-1a621026b/',
+            email: 'mailto:alexandra@opencouncil.gr',
+        },
+    },
 ]
 
 export const ROADMAP_ITEM_IDS = ['diavgeia', 'bidirectional', 'fineTuned'] as const
