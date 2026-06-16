@@ -26,7 +26,7 @@ export interface AIConfig {
 const DEFAULT_CONFIG: AIConfig = {
     maxTokens: 8192,
     temperature: 0,
-    model: "claude-sonnet-4-0",
+    model: "claude-sonnet-4-5-20250929",
     logPrompts: IS_DEV,
     promptsDir: path.join(process.cwd(), 'logs', 'prompts'),
     enableWebSearch: false,
