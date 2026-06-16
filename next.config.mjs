@@ -23,7 +23,11 @@ const nextConfig = {
         : undefined,
     cacheMaxMemorySize: process.env.NODE_ENV === 'production' ? 0 : undefined,
     images: {
-        domains: ['townhalls-gr.fra1.digitaloceanspaces.com', 'data.opencouncil.gr', 'fra1.digitaloceanspaces.com'],
+        remotePatterns: [
+            { protocol: 'https', hostname: 'townhalls-gr.fra1.digitaloceanspaces.com' },
+            { protocol: 'https', hostname: 'data.opencouncil.gr' },
+            { protocol: 'https', hostname: 'fra1.digitaloceanspaces.com' },
+        ],
     },
     transpilePackages: ['@'],
     // Enable custom domains - we'll handle this entirely in proxy.ts
