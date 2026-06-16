@@ -80,7 +80,18 @@ describe('taskStatuses callback route', () => {
             expect(mockHandleTaskUpdate).not.toHaveBeenCalled();
         });
 
-        it('DELETE returns 404 when deleteTaskStatus deletes nothing (tenant mismatch)', async () => {
+        it('DELETE returns 404 when the task does not belong to the path tenant', async () => {
+            // Scoped getTaskStatus misses (wrong city/meeting) → null → early 404,
+            // before any delete is attempted.
+            mockGetTaskStatus.mockResolvedValue(null);
+
+            const res = await DELETE(deleteRequest(), { params: params({ cityId: 'other-city' }) });
+
+            expect(res.status).toBe(404);
+            expect(mockDeleteTaskStatus).not.toHaveBeenCalled();
+        });
+
+        it('DELETE returns 404 when the scoped delete removes no rows (already gone / race)', async () => {
             mockGetTaskStatus.mockResolvedValue(fakeTask);
             mockDeleteTaskStatus.mockResolvedValue(0);
 

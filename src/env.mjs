@@ -39,7 +39,7 @@ export const env = createEnv({
     // Optional shared secret for authenticating inbound task-status callbacks.
     // When set, callbacks must send "Authorization: Bearer <secret>". When unset, the
     // callback endpoint stays open (tenant-scoped only) for backwards compatibility.
-    TASK_CALLBACK_SECRET: z.string().min(1).optional(),
+    TASK_CALLBACK_SECRET: z.string().trim().min(1).optional(),
 
     // Elasticsearch
     ELASTICSEARCH_URL: z.string().url(),
