@@ -21,8 +21,9 @@ const STORY_HEIGHT = 1920;
 // Each preview tile renders an actual story template (full-size) scaled down via CSS
 // transform so the dialog stays fast even on slow devices. Layout dimensions are still
 // the native 1080×1920 — only the paint is scaled — so the download path produces a
-// 1:1 pixel-faithful PNG without re-laying anything out.
-const PREVIEW_SCALE = 0.28;
+// 1:1 pixel-faithful PNG without re-laying anything out. Tiles are scaled purely in CSS
+// (scale-[0.27] on mobile, scale-[0.28] from md up); the box dimensions on the preview wrapper
+// are STORY_WIDTH/HEIGHT × those scales (1080×0.27≈292, 1920×0.27≈518, 1080×0.28≈302, 1920×0.28≈538).
 
 const TEMPLATE_IDS = Object.keys(STORY_TEMPLATES) as StoryTemplateId[];
 
@@ -89,50 +90,42 @@ export default function StoryTemplatePickerDialog({
                     </DialogDescription>
                 </DialogHeader>
 
-                {/* 2×2 grid: each tile is preview + label + description + button.
-                    Tiles use flex-col so the button gets pushed to the bottom via mt-auto
-                    regardless of how many lines the description wraps to. */}
-                <div className="grid grid-cols-2 gap-x-8 gap-y-6 pt-2 justify-items-center">
+                {/* Single column on mobile, 2×2 grid from md up. The label always sits above
+                    the preview (both breakpoints). The download button is overlaid at the top
+                    of the preview as a faded, translucent outline button so it stays legible
+                    over any template background. */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8 md:gap-y-6 pt-2 justify-items-center">
                     {TEMPLATE_IDS.map((template) => {
                         const meta = STORY_TEMPLATES[template];
                         const isDownloading = downloading === template;
                         return (
                             <div key={template} className="flex flex-col w-full max-w-[320px]">
-                                <div
-                                    className="relative overflow-hidden rounded-md border bg-muted shadow-sm mx-auto"
-                                    style={{
-                                        width: STORY_WIDTH * PREVIEW_SCALE,
-                                        height: STORY_HEIGHT * PREVIEW_SCALE,
-                                    }}
-                                >
-                                    <div
-                                        style={{
-                                            width: STORY_WIDTH,
-                                            height: STORY_HEIGHT,
-                                            transform: `scale(${PREVIEW_SCALE})`,
-                                            transformOrigin: "top left",
-                                        }}
-                                    >
-                                        {renderStoryTemplate(template, previewData)}
-                                    </div>
-                                </div>
-                                <div className="flex flex-col gap-0.5 mt-3">
+                                <div className="flex flex-col gap-0.5 text-center md:text-left">
                                     <span className="text-sm font-medium">{meta.name}</span>
                                     <span className="text-xs text-muted-foreground">{meta.description}</span>
                                 </div>
-                                <Button
-                                    onClick={() => handleDownload(template)}
-                                    disabled={downloading !== null}
-                                    size="sm"
-                                    className="w-full mt-auto"
-                                >
-                                    {isDownloading ? (
-                                        <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
-                                    ) : (
-                                        <Download className="w-3 h-3 mr-1.5" />
-                                    )}
-                                    <span className="text-xs">Λήψη</span>
-                                </Button>
+                                <div className="relative overflow-hidden rounded-md border bg-muted shadow-sm mx-auto mt-3 w-[292px] h-[518px] md:w-[302px] md:h-[538px]">
+                                    <div
+                                        className="origin-top-left scale-[0.27] md:scale-[0.28]"
+                                        style={{ width: STORY_WIDTH, height: STORY_HEIGHT }}
+                                    >
+                                        {renderStoryTemplate(template, previewData)}
+                                    </div>
+                                    <Button
+                                        onClick={() => handleDownload(template)}
+                                        disabled={downloading !== null}
+                                        variant="outline"
+                                        size="sm"
+                                        className="absolute top-2 left-1/2 -translate-x-1/2 h-7 bg-background/50 backdrop-blur-sm border-foreground/20 text-foreground/80 shadow-sm hover:bg-background/80 hover:text-foreground"
+                                    >
+                                        {isDownloading ? (
+                                            <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+                                        ) : (
+                                            <Download className="w-3 h-3 mr-1.5" />
+                                        )}
+                                        <span className="text-xs">Λήψη</span>
+                                    </Button>
+                                </div>
                             </div>
                         );
                     })}
