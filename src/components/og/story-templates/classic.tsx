@@ -77,11 +77,11 @@ export const Template1Classic = (data: PreviewData) => {
                 }}
             >
                 <div style={{ display: "flex", alignItems: "center", marginBottom: 12 }}>
-                    <span style={{ display: "flex", marginRight: 10 }}>📅</span>
+                    <span style={{ display: "flex", marginRight: 18 }}>📅</span>
                     <span style={{ display: "flex" }}>{weekday}, {formatDate(data.meetingDate)}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center" }}>
-                    <span style={{ display: "flex", marginRight: 10 }}>📋</span>
+                    <span style={{ display: "flex", marginRight: 18 }}>📋</span>
                     <span style={{ display: "flex" }}>{data.totalSubjects} θέματα</span>
                 </div>
             </div>
