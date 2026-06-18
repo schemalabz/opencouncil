@@ -30,7 +30,7 @@ interface SpeakerStat {
 }
 
 function SpeakerStatsContent() {
-    const { transcript, getSpeakerTag, getPerson } = useCouncilMeetingData();
+    const { transcript, getSpeakerTag, getPerson, meeting } = useCouncilMeetingData();
     const { seekTo } = useVideo();
     const t = useTranslations('editing');
     const [expandedSpeakerId, setExpandedSpeakerId] = useState<string | null>(null);
@@ -48,7 +48,7 @@ function SpeakerStatsContent() {
 
             if (!stats.has(key)) {
                 const person = personId ? getPerson(personId) : null;
-                const party = person ? getPartyFromRoles(person.roles) : null;
+                const party = person ? getPartyFromRoles(person.roles, meeting.dateTime) : null;
                 
                 let name = "Unknown";
                 if (person) {
@@ -90,7 +90,7 @@ function SpeakerStatsContent() {
         });
 
         return Array.from(stats.values()).sort((a, b) => a.firstAppearance - b.firstAppearance);
-    }, [transcript, getSpeakerTag, getPerson]);
+    }, [transcript, getSpeakerTag, getPerson, meeting.dateTime]);
 
     const toggleExpand = (id: string) => {
         setExpandedSpeakerId(prev => prev === id ? null : id);

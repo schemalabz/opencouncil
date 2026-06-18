@@ -26,12 +26,14 @@ interface PersonDisplayProps {
     editable?: boolean;
     onClick?: () => void;
     nonInteractive?: boolean;
+    /** Resolve the party color as of this date (e.g. the meeting date) instead of today. */
+    date?: Date;
 }
 
 // A simpler version of PersonBadge used in search results
-function PersonDisplay({ person, speakerTag, segmentCount, short = false, preferFullName = false, size = 'md', editable = false, onClick, nonInteractive = false }: PersonDisplayProps) {
+function PersonDisplay({ person, speakerTag, segmentCount, short = false, preferFullName = false, size = 'md', editable = false, onClick, nonInteractive = false, date }: PersonDisplayProps) {
     const activeRoles = person ? filterActiveRoles(person.roles) : [];
-    const party = person ? getPartyFromRoles(person.roles) : null;
+    const party = person ? getPartyFromRoles(person.roles, date) : null;
     const partyColor = party?.colorHex || 'gray';
 
     const imageSizes = {
@@ -141,6 +143,7 @@ function PersonBadge({
     size = 'md',
     variant = 'default',
     disableNavigation = false,
+    date,
 }: PersonBadgeProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -193,7 +196,7 @@ function PersonBadge({
 
     // Inline variant - minimal display with just party dot and name
     if (variant === 'inline') {
-        const party = person ? getPartyFromRoles(person.roles) : null;
+        const party = person ? getPartyFromRoles(person.roles, date) : null;
         return (
             <div className={cn("flex items-center gap-2.5 min-w-0", className)}>
                 {party && (
@@ -243,6 +246,7 @@ function PersonBadge({
                 size={size}
                 editable={editable}
                 nonInteractive={disableNavigation && !editable}
+                date={date}
             />
             {editable && (
                 <Button
@@ -316,6 +320,7 @@ function PersonBadge({
                                             <PersonDisplay
                                                 person={p}
                                                 size="sm"
+                                                date={date}
                                             />
                                         </CommandItem>
                                     ))}

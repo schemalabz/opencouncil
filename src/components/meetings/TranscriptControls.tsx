@@ -2,7 +2,7 @@
 import { Play, Pause, Loader, ChevronLeft, ChevronRight, Youtube } from "lucide-react"
 import { useTranslations } from 'next-intl';
 import { useVideo } from "./VideoProvider"
-import { cn, formatTimestamp } from "@/lib/utils";
+import { cn, formatTimestamp, getPartyFromRoles } from "@/lib/utils";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import { useTranscriptOptions } from "./options/OptionsContext";
 import { useHighlight } from "./HighlightContext";
@@ -68,7 +68,10 @@ export default function TranscriptControls({ className }: { className?: string }
         updateHoveredSpeaker(touchTime);
     };
 
-    const { getParty, getPerson, getSpeakerTag } = useCouncilMeetingData();
+    const { getParty, getPerson, getSpeakerTag, meeting } = useCouncilMeetingData();
+    // Resolve party color as of the meeting date so a councilor who later
+    // changed affiliation keeps their historical color on older meetings.
+    const meetingDate = meeting.dateTime;
     const [hoverTime, setHoverTime] = useState<number | null>(null);
     const [isExpanded, setIsExpanded] = useState(false);
 
@@ -77,7 +80,7 @@ export default function TranscriptControls({ className }: { className?: string }
             if (time >= segment.startTimestamp && time <= segment.endTimestamp) {
                 const speakerTag = getSpeakerTag(segment.speakerTagId);
                 const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
-                const party = person?.roles?.find(role => role.party)?.party;
+                const party = person ? getPartyFromRoles(person.roles, meetingDate) : null;
                 let speakerColor = party?.colorHex || '#D3D3D3';
                 let speakerName = person ? person.name_short : speakerTag?.label || 'Unknown';
 
@@ -142,7 +145,7 @@ export default function TranscriptControls({ className }: { className?: string }
             if (currentTime >= segment.startTimestamp && currentTime <= segment.endTimestamp) {
                 const speakerTag = getSpeakerTag(segment.speakerTagId);
                 const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
-                const party = person?.roles?.find(role => role.party)?.party;
+                const party = person ? getPartyFromRoles(person.roles, meetingDate) : null;
                 let speakerColor = party?.colorHex || '#D3D3D3';
                 let speakerName = person ? person.name_short : speakerTag?.label || 'Unknown';
 
@@ -308,7 +311,7 @@ export default function TranscriptControls({ className }: { className?: string }
                     {speakerSegments.map((segment, index) => {
                         const speakerTag = getSpeakerTag(segment.speakerTagId);
                         const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
-                        const party = person?.roles?.find(role => role.party)?.party;
+                        const party = person ? getPartyFromRoles(person.roles, meetingDate) : null;
                         let speakerColor = party?.colorHex || '#D3D3D3';
                         let speakerName = person ? person.name_short : speakerTag?.label;
 
