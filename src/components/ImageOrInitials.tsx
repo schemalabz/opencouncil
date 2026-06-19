@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { getInitials } from "@/lib/formatters/name";
 
 
 interface ImageOrInitialsProps {
@@ -10,15 +11,7 @@ interface ImageOrInitialsProps {
     square?: boolean;
 }
 export const ImageOrInitials: React.FC<ImageOrInitialsProps> = ({ imageUrl, width, height, name, color, square }) => {
-    const getInitials = () => {
-        if (!name) return '';
-        const nameParts = name.split(' ');
-        if (nameParts.length <= 2) {
-            return nameParts.map(n => n[0]).join('').toUpperCase();
-        }
-        return (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase();
-    };
-    const displayInitials = getInitials();
+    const displayInitials = name ? getInitials(name) : '';
 
     return (
         <div

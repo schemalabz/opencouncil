@@ -10,6 +10,7 @@ import { RegulationData } from '@/components/consultations/types';
 import prisma from '@/lib/db/prisma';
 import { getPartiesForCity } from '@/lib/db/parties';
 import { getPeopleForCity, getPerson } from '@/lib/db/people';
+import { getInitials } from '@/lib/formatters/name';
 import { sortSubjectsByImportance } from '@/lib/utils';
 import { Container, MeetingMetaRow, OgHeader, SubjectPills, formatCityDisplayName } from '@/components/og/shared-components';
 import { tryAcquireOgSlot, getOgConcurrencyStats } from '@/lib/og/concurrency';
@@ -541,7 +542,7 @@ const PersonOGImage = async (cityId: string, personId: string) => {
                             style={{ borderRadius: '80px', objectFit: 'cover' }}
                         />
                     ) : (
-                        person.name.split(' ').map(n => n[0]).join('').toUpperCase()
+                        getInitials(person.name)
                     )}
                 </div>
 
@@ -687,7 +688,7 @@ const PeopleOGImage = async (cityId: string) => {
                                         style={{ borderRadius: '20px', objectFit: 'cover' }}
                                     />
                                 ) : (
-                                    person.name.split(' ').map(n => n[0]).join('').toUpperCase()
+                                    getInitials(person.name)
                                 )}
                             </div>
                             <div style={{
