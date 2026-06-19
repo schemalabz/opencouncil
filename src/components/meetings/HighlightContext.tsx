@@ -7,6 +7,7 @@ import { useCouncilMeetingActions, useCouncilMeetingData } from './CouncilMeetin
 import { useVideo } from './VideoProvider';
 import { Utterance } from '@prisma/client';
 import { calculateUtteranceRange } from '@/lib/selection-utils';
+import { getShortName } from '@/lib/formatters/name';
 import { toast } from '@/hooks/use-toast';
 
 export interface HighlightUtterance {
@@ -151,7 +152,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
         const segment = getSpeakerSegmentById(utterance.speakerSegmentId);
         const speakerTag = segment ? getSpeakerTag(segment.speakerTagId) : null;
         const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
-        const speakerName = person ? person.name_short : speakerTag?.label || 'Unknown';
+        const speakerName = person ? (person.name_short || getShortName(person.name)) : speakerTag?.label || 'Unknown';
 
         utterances.push({
           id: utterance.id,

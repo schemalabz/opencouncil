@@ -30,6 +30,34 @@ export function extractFirstName(
 }
 
 /**
+ * Builds avatar initials from a full name: the first letter of the first and
+ * last name parts (e.g. "Ιωάννης Μώραλης" → "ΙΜ"). Single-word names fall back
+ * to their first two characters. Returns '' for empty input.
+ */
+export function getInitials(name: string): string {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+/**
+ * Abbreviates a full name to first-initial + surname form
+ * (e.g. "Ιωάννης Μώραλης" → "Ι. Μώραλης"). Middle parts are kept in the
+ * surname tail; single-word names are returned unchanged.
+ *
+ * This is a fallback for the stored `name_short` field — prefer the stored
+ * value when present, since it can encode editorial choices this heuristic
+ * cannot infer.
+ */
+export function getShortName(name: string): string {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length <= 1) return name.trim();
+    const [first, ...rest] = parts;
+    return `${first[0]}. ${rest.join(' ')}`;
+}
+
+/**
  * Detects whether a Greek first name is female based on its ending.
  *
  * Greek first names are strongly gendered by their suffix:

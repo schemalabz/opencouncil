@@ -5,6 +5,7 @@ import { getMeetingDataForOG } from "@/lib/db/meetings";
 import { getPeopleForCityCached, getSubjectsForMeetingCached, getSubjectStatisticsCached } from "@/lib/cache/queries";
 import { LOGO_BLACK_DATA_URI } from "@/lib/og/serverAssets";
 import { PersonWithRelations } from '@/lib/db/people';
+import { getInitials } from "@/lib/formatters/name";
 import { ColorPercentageRingProps } from "@/components/ui/color-percentage-ring";
 
 // Image configuration
@@ -371,12 +372,7 @@ export default async function SubjectOgImage({
                                     // Check if this is the introducer
                                     const isIntroducer = introducedByPerson && person.id === introducedByPerson.id;
 
-                                    // Get initials (first character of first name and first character of last name)
-                                    const nameParts = person.name.split(" ");
-                                    const initials =
-                                        nameParts.length > 1
-                                            ? `${nameParts[0].charAt(0)}${nameParts[nameParts.length - 1].charAt(0)}`
-                                            : person.name.substring(0, 2).toUpperCase();
+                                    const initials = getInitials(person.name);
 
                                     return (
                                         <div
