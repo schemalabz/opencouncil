@@ -35,7 +35,8 @@ export async function requestProcessAgendaInternal(agendaUrl: string, councilMee
             },
             city: {
                 select: {
-                    name: true
+                    name: true,
+                    language: true
                 }
             }
         }
@@ -75,7 +76,8 @@ export async function requestProcessAgendaInternal(agendaUrl: string, councilMee
         date: councilMeeting.dateTime.toISOString(),
         people: Array.from(peopleMap.values()),
         topicLabels: topicLabels.map(t => ({ name: t.name, description: t.description })),
-        cityName: councilMeeting.city.name
+        cityName: councilMeeting.city.name,
+        cityLanguage: councilMeeting.city.language
     }
 
     console.log(`Process agenda body: ${JSON.stringify(body)}`);
