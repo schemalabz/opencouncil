@@ -23,6 +23,8 @@ const validFrontendBase = {
   consultationsEnabled: false,
   peopleOrdering: 'default' as const,
   highlightCreationPermission: 'ADMINS_ONLY' as const,
+  language: 'el' as const,
+  stratum: 'greece' as const,
 };
 
 const validFormDataBase = {
@@ -38,6 +40,8 @@ const validFormDataBase = {
   consultationsEnabled: 'false',
   peopleOrdering: 'default',
   highlightCreationPermission: 'ADMINS_ONLY',
+  language: 'el',
+  stratum: 'greece',
 };
 
 const createMockFile = (name = 'logo.png'): File => {
@@ -417,6 +421,8 @@ describe('CITY_DEFAULTS alignment', () => {
       consultationsEnabled: false,
       peopleOrdering: 'default',
       highlightCreationPermission: 'ADMINS_ONLY',
+      language: 'el',
+      stratum: 'greece',
     });
   });
 });

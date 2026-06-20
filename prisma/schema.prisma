@@ -33,6 +33,8 @@ model City {
   peopleOrdering PeopleOrdering @default(default)
   highlightCreationPermission HighlightCreationPermission @default(ADMINS_ONLY)
   diavgeiaUid String?
+  language CityLanguage @default(el)
+  stratum  Stratum      @default(greece)
 
   parties        Party[]
   persons        Person[]
@@ -54,11 +56,24 @@ model City {
   consultationComments ConsultationComment[]
 
   @@index([status])
+  @@index([stratum])
 }
 
 enum AuthorityType {
   municipality
   region
+}
+
+// Content language of a city (metadata; does not auto-switch the UI locale).
+enum CityLanguage {
+  el
+  fr
+}
+
+// Tenant/grouping a city belongs to (e.g. the Greek vs. French deployment).
+enum Stratum {
+  greece
+  france
 }
 
 enum CityStatus {

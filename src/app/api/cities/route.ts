@@ -1,4 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { z } from 'zod'
 import { createCity, getCities } from '@/lib/db/cities'
 import { getAllCitiesAsServiceKey } from '@/lib/db/citiesAdmin'
@@ -75,7 +76,14 @@ export async function POST(request: Request) {
             peopleOrdering: data.peopleOrdering,
             highlightCreationPermission: data.highlightCreationPermission,
             diavgeiaUid: data.diavgeiaUid || null,
+            language: data.language,
+            stratum: data.stratum,
         });
+
+        // Bust the all-cities caches so the new city is immediately visible —
+        // notably getAllCityIdsCached, which the [cityId] layout uses to validate
+        // slugs (a freshly created city 404s until this tag is revalidated).
+        revalidateTag('cities:all', 'max');
 
         return NextResponse.json(city);
     } catch (error) {
