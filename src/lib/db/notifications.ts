@@ -795,16 +795,34 @@ export async function createNotificationsForMeeting(
             }
         }
 
-        // Use shared matching logic to determine which users should be notified
-        const userSubjectMatches = await matchUsersToSubjects(
-            subjectsForMatching,
-            usersWithPreferences,
-            effectiveOverrides
-        );
+        // Determine which users should be notified.
+        //
+        // Special case — meeting announcement with no agenda items:
+        // Some sessions (notably Λογοδοσία/accountability meetings) are processed with
+        // zero subjects. Subject-based matching would notify nobody, silently dropping the
+        // upcoming-meeting announcement. For `beforeMeeting` we instead notify every user
+        // with a preference for this city, creating a subject-less announcement
+        // notification. This mirrors the existing `topicImportance: 'high'` behavior, which
+        // already notifies all city subscribers. `afterMeeting` keeps the old behavior:
+        // a post-meeting summary with no subjects has nothing to report.
+        const isMeetingAnnouncement = subjectsForMatching.length === 0 && type === 'beforeMeeting';
 
-        // Filter out users with no matching subjects
-        const usersToNotify = Array.from(userSubjectMatches.entries())
-            .filter(([_, subjects]) => subjects.size > 0);
+        let usersToNotify: Array<[string, Set<{ subjectId: string; reason: 'proximity' | 'topic' | 'generalInterest' }>]>;
+        if (isMeetingAnnouncement) {
+            console.log('Meeting has no subjects — creating beforeMeeting announcement for all city subscribers');
+            usersToNotify = usersWithPreferences.map(user => [user.userId, new Set()]);
+        } else {
+            // Use shared matching logic to determine which users should be notified
+            const userSubjectMatches = await matchUsersToSubjects(
+                subjectsForMatching,
+                usersWithPreferences,
+                effectiveOverrides
+            );
+
+            // Filter out users with no matching subjects
+            usersToNotify = Array.from(userSubjectMatches.entries())
+                .filter(([_, subjects]) => subjects.size > 0);
+        }
 
         if (usersToNotify.length === 0) {
             console.log('No users matched any subjects');
