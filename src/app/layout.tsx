@@ -6,9 +6,10 @@ import PostHogPageView from "@/components/analytics/PostHogPageView"
 import PostHogAuthSync from "@/components/analytics/PostHogAuthSync"
 import { SessionProvider } from "next-auth/react"
 import { Toaster } from "@/components/ui/toaster";
-import { routing } from "@/i18n/routing";
 import { inter, roboto, robotoMono } from "@/lib/fonts";
-import { getTranslations } from "next-intl/server";
+import { routing, LOCALE_OVERRIDE_HEADER } from "@/i18n/routing";
+import { getLocale, getTranslations } from "next-intl/server";
+import { headers } from "next/headers";
 
 export const metadata = {
     title: 'OpenCouncil',
@@ -54,10 +55,15 @@ export default async function RootLayout(
     const { children } = props;
 
     // The root layout sits above the [locale] segment, so it doesn't receive a
-    // locale param from routing. Fall back to the default for the lang attr
-    // and the skip-to-content translation; per-page strings come from the
-    // [locale] layout's NextIntlClientProvider.
-    const locale = routing.defaultLocale;
+    // locale param from routing. For `.fr`-host requests (which bypass next-intl's
+    // middleware) the proxy passes the locale via LOCALE_OVERRIDE_HEADER; for
+    // everything else getLocale() resolves it normally. This drives the <html lang>
+    // attr and the skip-to-content string; per-page strings come from the [locale]
+    // layout's NextIntlClientProvider.
+    const overrideLocale = (await headers()).get(LOCALE_OVERRIDE_HEADER);
+    const locale = overrideLocale && routing.locales.includes(overrideLocale as typeof routing.locales[number])
+        ? overrideLocale
+        : await getLocale();
     const t = await getTranslations({ locale, namespace: "Common" });
 
     return (

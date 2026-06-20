@@ -1,4 +1,5 @@
 import { MapPin, Search, Bell } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -20,17 +21,18 @@ export function MunicipalitySelector({
     isNavigating = false,
     hideQuickSelection = false,
 }: MunicipalitySelectorProps) {
+    const t = useTranslations('MunicipalitySelector');
     // Group cities
     const groups = [
         {
             key: 'supported',
-            label: 'ΥΠΟΣΤΗΡΙΖΟΜΕΝΟΙ ΔΗΜΟΙ',
+            label: t('groupSupported'),
             items: cities.filter(city => city.status === 'listed'),
             icon: MapPin
         },
         {
             key: 'all',
-            label: 'ΌΛΟΙ ΟΙ ΔΗΜΟΙ',
+            label: t('groupAll'),
             items: cities.filter(city => city.status !== 'listed'),
             icon: MapPin
         }
@@ -113,15 +115,15 @@ export function MunicipalitySelector({
                     items={cities}
                     value={value}
                     onChange={onCitySelect}
-                    placeholder="Επιλέξτε τον Δήμο σας..."
-                    searchPlaceholder="Αναζητήστε τον Δήμο σας..."
+                    placeholder={t('placeholder')}
+                    searchPlaceholder={t('searchPlaceholder')}
                     groups={groups}
                     ItemComponent={CityItem}
                     TriggerComponent={CityTrigger}
                     getItemLabel={(city) => city.name}
                     getItemValue={(city) => `${city.name} ${city.name_municipality}`}
                     clearable
-                    emptyMessage="Δεν βρέθηκε Δήμος με αυτό το όνομα."
+                    emptyMessage={t('emptyMessage')}
                 />
 
                 {/* Quick Selection for Listed Cities */}

@@ -1,0 +1,142 @@
+{
+  "status": {
+    "title": "ÉDITION DE LA TRANSCRIPTION",
+    "description": "Vous êtes actuellement en train de modifier la transcription.",
+    "enabled": "Mode édition activé",
+    "enabledDescription": "Vous pouvez désormais modifier la structure et le texte de la transcription."
+  },
+  "actions": {
+    "unknownSpeaker": "Intervenant inconnu",
+    "nextUnknown": "Inconnu suivant",
+    "speed": "Vitesse",
+    "skipInterval": "Intervalle de saut",
+    "exit": "Quitter",
+    "enableEdit": "Activer le mode édition",
+    "guide": "Guide",
+    "speakers": "Intervenants",
+    "completeReview": "Terminer la révision"
+  },
+  "stats": {
+    "title": "Intervenants"
+  },
+  "guide": {
+    "title": "Guide d'édition",
+    "description": "Apprenez à modifier les transcriptions efficacement grâce aux raccourcis clavier et aux bonnes pratiques",
+    "hint": {
+      "title": "Vous débutez l'édition ?",
+      "description": "Cliquez ici pour un guide rapide sur les raccourcis et les flux de travail"
+    },
+    "tabs": {
+      "quickStart": "Démarrage rapide",
+      "shortcuts": "Raccourcis",
+      "commonTasks": "Tâches courantes",
+      "visualGuide": "Guide visuel"
+    },
+    "quickStart": {
+      "whatIsIt": {
+        "title": "Qu'est-ce que le mode édition ?",
+        "description": "Le mode édition vous permet de corriger le texte de la transcription, d'attribuer des intervenants et de réorganiser la structure de la transcription. Toutes les modifications sont suivies avec un historique complet à des fins d'auditabilité."
+      },
+      "workflow": {
+        "title": "Flux de travail de base",
+        "step1": "Cliquez sur n'importe quel énoncé pour modifier son texte sur place",
+        "step2": "Appuyez sur Entrée pour enregistrer ou sur Échap pour annuler",
+        "step3": "Utilisez le menu contextuel (clic droit) pour les opérations avancées comme le déplacement d'énoncés ou l'extraction de segments"
+      },
+      "legend": {
+        "title": "Légende visuelle",
+        "userEdited": "Soulignement vert - Texte modifié par un utilisateur",
+        "aiCorrected": "Soulignement bleu - Texte corrigé automatiquement par l'IA"
+      }
+    },
+    "shortcuts": {
+      "playback": {
+        "title": "Commandes de lecture",
+        "playPause": "Lecture / Pause",
+        "previous": "Aller à l'énoncé précédent",
+        "next": "Aller à l'énoncé suivant",
+        "skipBackward": "Reculer d'un intervalle",
+        "skipForward": "Avancer d'un intervalle",
+        "speedUp": "Augmenter la vitesse de lecture",
+        "speedDown": "Diminuer la vitesse de lecture"
+      },
+      "utteranceEditing": {
+        "title": "Pendant l'édition d'un énoncé",
+        "playPause": "Lecture / Pause (Maj+Espace fonctionne dans l'éditeur de texte)",
+        "skipBackward": "Reculer (Maj+← fonctionne dans l'éditeur de texte)",
+        "skipForward": "Avancer (Maj+→ fonctionne dans l'éditeur de texte)",
+        "setStartTime": "Définir l'heure de début à l'horodatage actuel de la vidéo",
+        "setEndTime": "Définir l'heure de fin à l'horodatage actuel de la vidéo"
+      },
+      "editing": {
+        "title": "Édition de texte",
+        "saveAndNext": "Enregistrer et modifier le suivant",
+        "cancel": "Annuler l'édition"
+      },
+      "selection": {
+        "title": "Sélection & structure",
+        "selectRange": "Sélectionner une plage d'énoncés",
+        "toggleSelect": "Activer/désactiver la sélection d'un énoncé",
+        "extract": "Extraire le segment sélectionné",
+        "clear": "Effacer la sélection"
+      }
+    },
+    "tasks": {
+      "fixText": {
+        "question": "Comment corriger un texte incorrect ?",
+        "answer": "Cliquez sur l'énoncé, modifiez le texte sur place, puis appuyez sur Entrée pour enregistrer vos modifications."
+      },
+      "assignSpeaker": {
+        "question": "Comment attribuer des intervenants ?",
+        "answer": "Cliquez sur le badge d'intervenant du segment, puis recherchez un intervenant ou sélectionnez « Intervenant inconnu »."
+      },
+      "splitSegment": {
+        "question": "Comment diviser un segment (schéma A-B-A) ?",
+        "answer": "Lorsque les énoncés de l'Intervenant B sont incorrectement inclus dans le segment de l'Intervenant A, sélectionnez les énoncés à extraire à l'aide de Maj+Clic pour les plages, puis appuyez sur « e » ou faites un clic droit et sélectionnez « Extraire le segment »."
+      },
+      "moveUtterances": {
+        "question": "Comment déplacer des énoncés entre les segments ?",
+        "answer": "Faites un clic droit sur un énoncé et sélectionnez « Déplacer vers le segment précédent » ou « Déplacer vers le segment suivant »."
+      },
+      "createSegment": {
+        "question": "Comment créer un nouveau segment vide ?",
+        "answer": "Cliquez sur le bouton « + » sur n'importe quelle carte de segment pour créer un nouveau segment avant ou après celui-ci."
+      },
+      "findUnknown": {
+        "question": "Comment trouver rapidement les intervenants inconnus ?",
+        "answer": "Utilisez le bouton « Intervenant inconnu » dans la barre d'édition pour passer au segment suivant comportant un intervenant non identifié."
+      }
+    },
+    "visual": {
+      "userEdited": {
+        "title": "Modifié par l'utilisateur",
+        "description": "Texte qui a été modifié par un éditeur humain. Cela indique un contenu vérifié et corrigé.",
+        "example": "Ce texte a été modifié par un utilisateur"
+      },
+      "aiCorrected": {
+        "title": "Corrigé par l'IA",
+        "description": "Texte qui a été corrigé automatiquement par des tâches d'IA. Ces modifications sont des améliorations suggérées mais peuvent nécessiter une révision.",
+        "example": "Ce texte a été corrigé par l'IA"
+      },
+      "selected": {
+        "title": "Sélectionné pour extraction",
+        "description": "Le texte en gras indique les énoncés sélectionnés pour être extraits dans un nouveau segment. Utilisez cette fonction lorsque les énoncés de l'Intervenant B sont incorrectement inclus dans le segment de l'Intervenant A (schéma A-B-A).",
+        "example": "Les énoncés sélectionnés apparaissent en gras"
+      }
+    }
+  },
+  "toasts": {
+    "exited": "Sortie du mode édition",
+    "exitedDescription": "Retour au mode lecture seule.",
+    "noMoreUnknown": "Aucun autre intervenant inconnu trouvé",
+    "extractionSuccess": "Segment extrait avec succès",
+    "extractionError": "Échec de l'extraction du segment",
+    "selectionErrorTitle": "Erreur de sélection",
+    "selectionErrorDiffSegments": "Impossible d'extraire des énoncés de différents segments en même temps.",
+    "invalidOperationTitle": "Opération non valide",
+    "invalidOperationExtractAll": "Impossible d'extraire tous les énoncés. Utilisez plutôt « Changer d'intervenant ».",
+    "invalidOperationExtractStartEnd": "Impossible d'extraire depuis le début ou la fin d'un segment. La sélection doit se situer strictement au milieu.",
+    "reviewCompleted": "Révision terminée",
+    "reviewCompletedDescription": "La révision de la transcription a été marquée comme terminée."
+  }
+}

@@ -1,6 +1,6 @@
 import createIntlMiddleware from 'next-intl/middleware';
-import { routing } from './i18n/routing';
-import { NextResponse, type NextRequest } from 'next/server';
+import { routing, LOCALE_OVERRIDE_HEADER } from './i18n/routing';
+import { NextResponse, NextRequest } from 'next/server';
 import { auth } from './auth'
 import { env } from '@/env.mjs';
 
@@ -12,6 +12,10 @@ const i18nMiddleware = createIntlMiddleware(routing);
 // proxy — the matcher below excludes them — and 404 via locale validation
 // without touching per-city caches.
 const JUNK_PATH = /^\/(wp-admin|wp-login|wp-content|wp-includes|wordpress|xmlrpc|administrator|phpmyadmin|cgi-bin)(\/|$)/i;
+
+// Page paths that go through i18n routing (i.e. not api/_next/_vercel/qr or
+// dotted asset paths). Both the .fr rewrite and the i18n handoff gate on this.
+const APP_PATH = /^\/(?!api|_next|_vercel|qr\/|\..+).*/;
 
 export default async function proxy(req: NextRequest) {
     // Basic auth check
@@ -55,8 +59,32 @@ export default async function proxy(req: NextRequest) {
         return NextResponse.rewrite(url);
     }
 
+    // French-domain handling: on a .fr host, serve the French UI transparently.
+    // Rewrite (not redirect) unprefixed app paths to the /fr locale segment so the
+    // [locale] route resolves to 'fr' while the browser's address bar stays on the
+    // .fr domain. The [locale] layout calls setRequestLocale('fr'), so messages
+    // load as French without next-intl's middleware running for these requests.
+    // Only applies when the path has no explicit locale prefix, so an explicit
+    // /en or /el on a .fr host is still respected.
+    if (
+        isFrenchHost(req) &&
+        !/^\/(en|el|fr)(\/|$)/.test(pathname) &&
+        APP_PATH.test(pathname)
+    ) {
+        const frUrl = req.nextUrl.clone();
+        frUrl.pathname = pathname === '/' ? '/fr' : `/fr${pathname}`;
+        // The [locale] segment handles French rendering via setRequestLocale,
+        // but the root layout sits above it and (since we bypass next-intl's
+        // middleware here) has no locale to read for the <html lang> attr. Pass
+        // it via our own header, which the root layout reads explicitly — no
+        // dependency on next-intl's undocumented internal locale header.
+        const requestHeaders = new Headers(req.headers);
+        requestHeaders.set(LOCALE_OVERRIDE_HEADER, 'fr');
+        return NextResponse.rewrite(frUrl, { request: { headers: requestHeaders } });
+    }
+
     // Handle i18n first (skip for /qr/* paths to allow direct route handler)
-    if (/^\/(?!api|_next|_vercel|qr\/|\..+).*/.test(pathname)) {
+    if (APP_PATH.test(pathname)) {
         const response = await i18nMiddleware(req);
         if (response) return response;
     }
@@ -104,6 +132,22 @@ function isHttpBasicAuthAuthenticated(req: Request) {
     const username = decoded.slice(0, sep);
     const password = decoded.slice(sep + 1);
     return username === env.BASIC_AUTH_USERNAME && password === env.BASIC_AUTH_PASSWORD;
+}
+
+// The French production domain (apex + any subdomain). Scoped to opencouncil.fr
+// rather than a bare `.fr` suffix so an unrelated `*.fr` host (staging, internal
+// tooling, a typo'd preview) can't accidentally force the French UI.
+const FRENCH_DOMAIN = 'opencouncil.fr';
+
+/**
+ * Whether the request arrived on the French domain (`opencouncil.fr` or a
+ * subdomain of it). The port is stripped so `localhost`-style `host:port` and
+ * real domains both work, and a spoofed `Host: opencouncil.fr` header can be
+ * used to test locally.
+ */
+function isFrenchHost(req: NextRequest): boolean {
+    const host = (req.headers.get('host') ?? '').split(':')[0].toLowerCase();
+    return host === FRENCH_DOMAIN || host.endsWith(`.${FRENCH_DOMAIN}`);
 }
 
 /**

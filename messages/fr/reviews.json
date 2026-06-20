@@ -1,0 +1,66 @@
+{
+  "completeDialog": {
+    "title": "Terminer la révision",
+    "description": "Vous êtes sur le point de marquer cette révision de transcription comme terminée. Voici un récapitulatif du travail de révision.",
+    "primaryReviewer": "Réviseur principal :",
+    "additionalContributors": "Contributeurs supplémentaires :",
+    "noEdits": "Aucune modification n'a encore été apportée à cette transcription. Êtes-vous sûr de vouloir la marquer comme terminée ?",
+    "buttons": {
+      "cancel": "Annuler",
+      "markComplete": "Marquer comme terminée",
+      "completing": "Finalisation..."
+    },
+    "toasts": {
+      "success": {
+        "title": "Révision terminée",
+        "description": "La révision a été marquée comme terminée."
+      },
+      "error": {
+        "title": "Erreur",
+        "description": "Échec du marquage de la révision comme terminée"
+      }
+    },
+    "manualTime": {
+      "label": "Le temps de révision calculé n'est pas exact",
+      "placeholder": "Saisissez le temps de révision réel (par ex. 2h 30min)",
+      "help": "Ceci est utilisé uniquement comme référence afin d'améliorer notre algorithme d'estimation du temps."
+    },
+    "sendTranscript": {
+      "label": "Envoyer la transcription à la commune",
+      "help": "À : {toEmail}",
+      "cc": "CC : {ccEmails}"
+    }
+  },
+  "stats": {
+    "editsMade": "Modifications apportées",
+    "reviewTime": "Temps de révision",
+    "meetingDuration": "Durée de la séance",
+    "efficiency": "Efficacité",
+    "reviewSessions": "Sessions de révision",
+    "explanation": {
+      "title": "Comment nous calculons le temps de révision",
+      "description": "Il s'agit d'une approximation basée sur les horodatages des modifications et la durée audio entre les modifications. Nous détectons les sessions de révision en analysant les écarts de temps qui dépassent le temps de révision attendu, ce qui aide à distinguer le travail actif des pauses."
+    }
+  },
+  "sessionBreakdown": {
+    "meetingDuration": "Durée de la séance",
+    "totalReviewTime": "Temps total de révision",
+    "reviewEfficiency": "Efficacité de la révision",
+    "reviewerBreakdown": "Temps par réviseur",
+    "reviewTimeline": "Chronologie de la révision",
+    "sessions": "sessions",
+    "timelineDescription": "Affichage des sessions de tous les réviseurs par ordre chronologique",
+    "session": "Session",
+    "primaryReviewer": "Réviseur principal",
+    "reviewer": "Réviseur",
+    "duration": "Durée",
+    "utterancesCovered": "Énoncés couverts",
+    "meetingContent": "Contenu de la séance",
+    "pause": "Pause",
+    "noSessions": "Aucune session de révision enregistrée pour le moment.",
+    "explanation": {
+      "title": "Comment nous calculons le temps de révision",
+      "description": "Il s'agit d'une approximation basée sur les horodatages des modifications et la durée audio entre les modifications. Nous détectons les sessions de révision en analysant les écarts de temps qui dépassent le temps de révision attendu, ce qui aide à distinguer le travail actif des pauses."
+    }
+  }
+}

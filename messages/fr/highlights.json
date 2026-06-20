@@ -1,0 +1,314 @@
+{
+  "common": {
+    "utterances": "énoncés",
+    "speakers": "intervenants",
+    "duration": "durée",
+    "close": "Fermer",
+    "cancel": "Annuler",
+    "error": "Erreur",
+    "success": "Succès",
+    "play": "Lecture",
+    "pause": "Pause",
+    "previousClip": "Clip précédent",
+    "nextClip": "Clip suivant",
+    "connectedSubject": "Sujet associé :",
+    "noConnectedSubject": "Aucun sujet associé"
+  },
+  "title": "Temps forts de la séance",
+  "description": "Créez et gérez des temps forts vidéo de cette séance. Cliquez sur un temps fort pour en voir les détails, ou créez-en un nouveau pour commencer.",
+  "tabs": {
+    "myHighlights": "Mes temps forts",
+    "othersHighlights": "Temps forts des autres",
+    "aiGenerated": "Générés par IA"
+  },
+  "sections": {
+    "showcased": "Temps forts mis en avant",
+    "video": "Temps forts vidéo",
+    "draft": "Temps forts en brouillon"
+  },
+  "emptyState": {
+    "title": "Aucun temps fort pour le moment",
+    "description": "Créez votre premier temps fort pour commencer. Vous pouvez sélectionner des parties spécifiques de la transcription de la séance et générer des clips vidéo.",
+    "action": "Créer un temps fort"
+  },
+  "editing": {
+    "currentlyEditing": "Édition du temps fort en cours :",
+    "description": "Cliquez sur les énoncés de la transcription pour les ajouter ou les retirer de ce temps fort. Utilisez les commandes ci-dessous pour naviguer entre les clips.",
+    "noUtterances": "Aucun énoncé sélectionné",
+    "emptyHighlight": "Ce temps fort est vide"
+  },
+  "preview": {
+    "title": "Aperçu",
+    "contentPreview": "Aperçu du contenu",
+    "videoPreview": "Aperçu vidéo",
+    "utterance": "énoncé",
+    "utteranceCount": "{count, plural, one {1 énoncé} other {# énoncés}}",
+    "speakerCount": "{count, plural, one {1 intervenant} other {# intervenants}}",
+    "clip": "Clip {current} sur {total}"
+  },
+  "generation": {
+    "format": "Format :",
+    "default": "Par défaut (16:9)",
+    "social": "Réseaux sociaux (9:16)",
+    "captions": "Sous-titres",
+    "speakerOverlay": "Intervenants",
+    "generate": "Générer la vidéo",
+    "regenerate": "Régénérer la vidéo",
+    "started": "Génération lancée",
+    "startedDescription": "La vidéo de votre temps fort est en cours de génération.",
+    "failed": "Échec de la génération de la vidéo. Veuillez réessayer.",
+    "whatNext": "Que souhaitez-vous faire ensuite ?",
+    "trackProgress": "Suivre la progression",
+    "trackProgressDescription": "Voir ce temps fort",
+    "viewAll": "Voir tous les temps forts",
+    "viewAllDescription": "Parcourir les temps forts",
+    "returnToTranscript": "Revenir à la transcription",
+    "returnToTranscriptDescription": "Continuer la lecture"
+  },
+  "details": {
+    "name": "Nom",
+    "showcased": "Mis en avant",
+    "created": "Créé",
+    "contentVideo": "Contenu & Vidéo",
+    "content": "Contenu",
+    "video": "Vidéo",
+    "editContent": "Modifier le contenu",
+    "toggleShowcase": "Activer/désactiver la mise en avant",
+    "download": "Télécharger",
+    "downloading": "Téléchargement...",
+    "delete": "Supprimer",
+    "backToHighlights": "Retour aux temps forts",
+    "generating": "Génération de la vidéo...",
+    "generatingDescription": "La vidéo de votre temps fort est en cours de traitement. Cela peut prendre quelques minutes."
+  },
+  "dialog": {
+    "createTitle": "Créer un nouveau temps fort",
+    "editTitle": "Modifier le temps fort",
+    "highlightName": "Nom du temps fort",
+    "namePlaceholder": "Saisissez le nom du temps fort",
+    "subjectPlaceholder": "Sélectionnez un sujet (facultatif)",
+    "subjectSearchPlaceholder": "Rechercher des sujets...",
+    "noSubjectsFound": "Aucun sujet trouvé",
+    "cancel": "Annuler",
+    "create": "Créer un temps fort",
+    "save": "Enregistrer les modifications",
+    "nameRequired": "Veuillez saisir un nom de temps fort."
+  },
+  "buttons": {
+    "createHighlight": "Créer un temps fort",
+    "createNewHighlight": "Créer un nouveau temps fort",
+    "creating": "Création du temps fort...",
+    "currentlyEditing": "Édition d'un temps fort en cours",
+    "addHighlight": "Ajouter un temps fort"
+  },
+  "toasts": {
+    "highlightCreated": "Temps fort créé",
+    "highlightCreatedDescription": "Commencez à sélectionner des énoncés pour construire votre temps fort.",
+    "highlightUpdated": "Temps fort mis à jour avec succès.",
+    "highlightDeleted": "Temps fort supprimé avec succès.",
+    "deleteError": "Échec de la suppression du temps fort. Veuillez réessayer.",
+    "generationStarted": "La génération de la vidéo a démarré. Cela peut prendre quelques minutes. Vous recevrez un e-mail lorsqu'elle sera prête.",
+    "generationError": "Échec de la génération de la vidéo. Veuillez réessayer.",
+    "showcaseAdded": "Temps fort ajouté à la mise en avant.",
+    "showcaseRemoved": "Temps fort retiré de la mise en avant.",
+    "showcaseError": "Échec du basculement de l'état de mise en avant. Veuillez réessayer.",
+    "downloadStarted": "Téléchargement démarré avec succès.",
+    "downloadError": "Échec du téléchargement de la vidéo. Veuillez réessayer.",
+    "saveFailed": "Échec de l'enregistrement",
+    "saveFailedDescription": "Veuillez résoudre les problèmes et réessayer."
+  },
+  "confirmations": {
+    "deleteHighlight": "Êtes-vous sûr de vouloir supprimer ce temps fort ?"
+  },
+  "modeBar": {
+    "currentlyEditing": "Édition du temps fort en cours :",
+    "currentlyPreviewing": "Aperçu en cours",
+    "currentlyEditingMode": "Édition en cours",
+    "editingDescription": "Cliquez sur les énoncés de la transcription pour les ajouter ou les retirer de ce temps fort. Utilisez les commandes ci-dessous pour naviguer entre les clips.",
+    "unsavedChanges": "Modifications non enregistrées",
+    "preview": "Aperçu",
+    "save": "Enregistrer",
+    "reset": "Réinitialiser",
+    "exit": "Quitter l'édition",
+    "duration": "Durée",
+    "speakers": "Intervenants",
+    "utterances": "Énoncés",
+    "clip": "Clip {current} sur {total}",
+    "previousClip": "Précédent",
+    "nextClip": "Suivant",
+    "saving": "Enregistrement…",
+    "saveNow": "Enregistrer maintenant",
+    "resetChanges": "Réinitialiser les modifications",
+    "openPreview": "Ouvrir l'aperçu",
+    "exitEditingMode": "Quitter le mode édition",
+    "guide": "Guide"
+  },
+  "reset": {
+    "confirmReset": "Êtes-vous sûr de vouloir réinitialiser toutes les modifications ? Cette action est irréversible.",
+    "changesReset": "Modifications réinitialisées",
+    "changesResetDescription": "Toutes les modifications non enregistrées ont été abandonnées."
+  },
+  "exit": {
+    "confirmExitTitle": "Abandonner ce temps fort ?",
+    "confirmExitDescription": "Si vous quittez maintenant, le temps fort que vous construisez sera annulé et les énoncés que vous avez choisis seront perdus. Cette action est irréversible.",
+    "confirmExitEditsTitle": "Abandonner les modifications non enregistrées ?",
+    "confirmExitEditsDescription": "Si vous quittez maintenant, vos modifications non enregistrées de ce temps fort seront perdues. Le temps fort lui-même ne sera pas supprimé.",
+    "confirmDiscard": "Abandonner & quitter",
+    "keepEditing": "Continuer l'édition",
+    "exitedEditMode": "Sortie du mode édition",
+    "noChangesSaved": "Aucune modification n'a été enregistrée.",
+    "deleteErrorTitle": "Impossible d'abandonner le temps fort",
+    "deleteErrorDescription": "Le temps fort non enregistré peut encore apparaître dans votre liste. Veuillez actualiser la page."
+  },
+  "previewDialog": {
+    "title": "Aperçu du temps fort",
+    "description": "Examinez les clips sélectionnés. Utilisez les commandes pour naviguer entre les clips. Lorsque vous êtes prêt, configurez les paramètres et générez.",
+    "contentPreview": "Aperçu du contenu",
+    "videoPreview": "Aperçu vidéo",
+    "noUtterancesSelected": "Aucun énoncé sélectionné",
+    "highlightEmpty": "Ce temps fort est vide",
+    "format": "Format :",
+    "defaultAspectRatio": "Par défaut (16:9)",
+    "socialAspectRatio": "Réseaux sociaux (9:16)",
+    "contentOptions": "Options de contenu :",
+    "settings": "Paramètres",
+    "size": "Taille",
+    "formatting": "Mise en forme",
+    "aspectDesktop": "16:9 (écran d'ordinateur)",
+    "aspectMobile": "9:16 (écran de mobile)",
+    "captions": "Sous-titres",
+    "captionsVerified": "La transcription a été révisée — les sous-titres seront exacts",
+    "captionsUnverified": "La transcription n'a pas encore été révisée — certains sous-titres peuvent être inexacts",
+    "speakerOverlays": "Intervenants",
+    "generateVideo": "Générer la vidéo",
+    "regenerateVideo": "Régénérer la vidéo",
+    "generationStarted": "Génération lancée",
+    "whatNext": "Que souhaitez-vous faire ensuite ?",
+    "trackProgress": "Suivre la progression",
+    "trackProgressDescription": "Accéder à la page de votre temps fort",
+    "viewAllHighlights": "Voir tous les temps forts",
+    "viewAllHighlightsDescription": "Parcourir tous les temps forts",
+    "returnToTranscript": "Revenir à la transcription",
+    "returnToTranscriptDescription": "Poursuivez votre parcours",
+    "clip": "Clip {current} sur {total}"
+  },
+  "highlightCard": {
+    "subjectConnected": "Sujet associé",
+    "allHighlightsProcessed": "Tous les temps forts ont été traités en vidéos",
+    "currentlyEditing": "Édition du temps fort en cours :",
+    "finishEditingDescription": "Terminez l'édition de ce temps fort avant d'en créer un nouveau."
+  },
+  "highlightView": {
+    "lastUpdated": "Dernière mise à jour {relativeTime}",
+    "generating": "Génération...",
+    "generateVideo": "Générer la vidéo",
+    "generatingVideo": "Génération de la vidéo du temps fort... Cela peut prendre quelques minutes. Vous recevrez un e-mail une fois terminé.",
+    "contentAndVideo": "Contenu & Vidéo",
+    "contentPreview": "Aperçu du contenu",
+    "video": "Vidéo"
+  },
+  "guide": {
+    "title": "Guide des temps forts",
+    "description": "Apprenez à créer et à gérer des temps forts vidéo à partir des transcriptions de séances",
+    "hint": {
+      "title": "Vous débutez avec les temps forts ?",
+      "description": "Cliquez ici pour un guide rapide sur la création et la gestion des temps forts"
+    },
+    "tabs": {
+      "quickStart": "Démarrage rapide",
+      "selection": "Sélection",
+      "preview": "Aperçu & Génération",
+      "visualGuide": "Guide visuel"
+    },
+    "quickStart": {
+      "whatIsIt": {
+        "title": "Que sont les temps forts ?",
+        "description": "Les temps forts vous permettent de sélectionner des moments précis d'une transcription de séance et de les combiner en un clip vidéo partageable. Vous pouvez ajouter des sous-titres, des incrustations d'intervenants et choisir entre un format paysage ou portrait pour les réseaux sociaux."
+      },
+      "workflow": {
+        "title": "Flux de travail de base",
+        "step1": "Créez un nouveau temps fort à l'aide du bouton dans l'en-tête ou depuis la liste des temps forts",
+        "step2": "Cliquez sur les énoncés (ou Clic et Maj+Clic pour les plages) dans la transcription pour les ajouter ou les retirer de votre temps fort",
+        "step3": "Utilisez l'aperçu pour vérifier votre sélection et configurer les options de génération vidéo",
+        "step4": "Générez votre vidéo et partagez-la"
+      },
+      "creationMethods": {
+        "title": "Façons de créer un temps fort",
+        "headerButton": "Cliquez sur le bouton « Créer un temps fort » dans l'en-tête de la séance",
+        "contextMenu": "Faites un clic droit sur n'importe quel énoncé et sélectionnez « Démarrer un temps fort à partir d'ici »",
+        "listButton": "Cliquez sur « + Ajouter un temps fort » dans la liste des temps forts"
+      }
+    },
+    "selection": {
+      "adding": {
+        "title": "Ajout & retrait d'énoncés",
+        "clickToAdd": "Ajouter un énoncé au temps fort",
+        "clickToRemove": "Retirer un énoncé du temps fort",
+        "clickBadge": "Clic",
+        "selectRange": "Sélectionner une plage d'énoncés",
+        "selectRangeBadge": "Clic et Maj+Clic",
+        "deselectRange": "Retirer une plage d'énoncés",
+        "deselectRangeBadge": "Clic et Maj+Clic"
+      },
+      "navigation": {
+        "title": "Navigation entre les clips",
+        "subtitle": "Ces options sont disponibles sur la timeline",
+        "previousClip": "Aller au clip sélectionné précédent",
+        "previousButton": "Précédent",
+        "nextClip": "Aller au clip sélectionné suivant",
+        "nextButton": "Suivant"
+      },
+      "saving": {
+        "title": "Enregistrement des modifications",
+        "subtitle": "Ces options sont disponibles dans la barre de mode",
+        "saveNow": "Enregistrer les modifications actuelles",
+        "saveButton": "Enregistrer (menu déroulant)",
+        "reset": "Abandonner les modifications non enregistrées",
+        "resetButton": "Réinitialiser",
+        "autoSave": "Enregistrement automatique avant la génération de la vidéo",
+        "autoSaveBadge": "Automatique"
+      }
+    },
+    "previewTab": {
+      "openPreview": {
+        "question": "Comment prévisualiser mon temps fort ?",
+        "answer": "Cliquez sur le bouton « Aperçu » dans la barre de mode. Cela ouvre une boîte de dialogue où vous pouvez regarder vos clips sélectionnés se lire en séquence et voir un aperçu textuel du contenu."
+      },
+      "aspectRatio": {
+        "question": "Quels formats vidéo sont disponibles ?",
+        "answer": "Choisissez entre Par défaut (16:9) pour une vidéo paysage standard, ou Réseaux sociaux (9:16) pour un format portrait optimisé pour TikTok, Instagram Stories et YouTube Shorts."
+      },
+      "contentOptions": {
+        "question": "Quelles options de contenu puis-je configurer ?",
+        "answer": "Vous pouvez activer les Sous-titres (incrustation textuelle du contenu parlé) et les Incrustations d'intervenants (identification visuelle de la personne qui parle pendant ses segments). Remarque : ces options ne sont visibles que dans la vidéo finale générée, pas dans l'aperçu."
+      },
+      "generate": {
+        "question": "Comment générer la vidéo ?",
+        "answer": "Cliquez sur « Générer la vidéo » dans la boîte de dialogue d'aperçu. Le système enregistrera automatiquement vos modifications, puis créera la vidéo. Vous recevrez un e-mail lorsqu'elle sera prête, ou vous pourrez suivre la progression sur la page du temps fort."
+      },
+      "editDetails": {
+        "question": "Comment modifier le nom du temps fort ou associer un sujet ?",
+        "answer": "Cliquez sur l'icône d'édition à côté du nom du temps fort dans la barre de mode. Cela ouvre une boîte de dialogue où vous pouvez mettre à jour le nom et, éventuellement, associer le temps fort à un sujet de la séance pour une meilleure organisation."
+      }
+    },
+    "visual": {
+      "selected": {
+        "title": "Énoncés sélectionnés",
+        "description": "Les énoncés inclus dans votre temps fort sont affichés en gras et soulignés. Cliquez à nouveau dessus pour les retirer du temps fort.",
+        "example": "Cet énoncé est sélectionné"
+      },
+      "timeline": {
+        "title": "Incrustation sur la timeline",
+        "description": "Les clips sélectionnés apparaissent sous forme de barres ambrées sur la timeline au-dessus du lecteur vidéo. Cliquez sur ces barres pour naviguer directement vers ce clip dans la vidéo."
+      },
+      "unsaved": {
+        "title": "Indicateur de modifications non enregistrées",
+        "description": "Un petit point rouge apparaît à côté du nom du temps fort lorsque vous avez des modifications non enregistrées. Utilisez Enregistrer dans le menu déroulant pour conserver vos modifications."
+      },
+      "modeBar": {
+        "title": "Barre de mode",
+        "description": "La barre ambrée en haut indique que vous êtes en mode d'édition de temps fort. Elle affiche des statistiques en temps réel (durée, nombre d'intervenants, nombre d'énoncés) et donne accès à toutes les commandes d'édition."
+      }
+    }
+  }
+}

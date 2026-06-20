@@ -1,4 +1,5 @@
 import { ArrowUpRight, Briefcase } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 import { SiX, SiInstagram, SiGithub, SiDiscord, SiSubstack } from 'react-icons/si';
 import { LandingPageData, SubstackPost } from '@/lib/db/landing';
 import TimeAgo from 'react-timeago';
@@ -16,6 +17,12 @@ interface HeaderBarProps extends Pick<LandingPageData, 'latestPost'> {
 }
 
 export function HeaderBar({ latestPost, className }: HeaderBarProps) {
+    // The Substack post is Greek-only content (a Greek-language article), so it's
+    // only surfaced in the Greek locale. The hiring badge's copy is translated
+    // (Landing.hiring), so it can show in any locale.
+    const locale = useLocale();
+    const showSubstack = locale === 'el' && Boolean(latestPost);
+    const showHiring = HIRING_CONFIG.enabled;
     const containerClasses = cn(
         "rounded-full",
         "flex items-center",
@@ -41,13 +48,13 @@ export function HeaderBar({ latestPost, className }: HeaderBarProps) {
 
             {/* Content container to ensure links are clickable */}
             <div className="relative flex items-center z-10">
-                {/* Hiring badge (when enabled) or Substack badge */}
-                {HIRING_CONFIG.enabled ? (
+                {/* Hiring badge (when enabled) or the Greek-only Substack badge */}
+                {showHiring ? (
                     <>
                         <HiringBadge className="hidden sm:flex" />
                         <HiringBadge className="flex sm:hidden" mobile />
                     </>
-                ) : latestPost && (
+                ) : showSubstack && latestPost && (
                     <SubstackBadge
                         post={latestPost}
                         className="hidden sm:flex"
@@ -56,7 +63,7 @@ export function HeaderBar({ latestPost, className }: HeaderBarProps) {
 
                 {/* Social icons */}
                 <div className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-0.5 sm:gap-1 py-0.5 sm:py-1 sm:pl-1 sm:pr-2">
-                    {!HIRING_CONFIG.enabled && latestPost && (
+                    {!HIRING_CONFIG.enabled && showSubstack && latestPost && (
                          <div className="sm:hidden">
                             <SocialIcon
                                 href={latestPost.url}
@@ -115,6 +122,7 @@ interface HiringBadgeProps {
 }
 
 function HiringBadge({ className, mobile = false }: HiringBadgeProps) {
+    const t = useTranslations('Landing');
     return (
         <a
             href={HIRING_CONFIG.url}
@@ -134,7 +142,7 @@ function HiringBadge({ className, mobile = false }: HiringBadgeProps) {
                         "truncate text-[hsl(var(--orange))] font-medium",
                         mobile && "text-xs"
                     )}>
-                        {mobile ? "Προσλαμβάνουμε" : HIRING_CONFIG.text}
+                        {t('hiring')}
                     </span>
                     <ArrowUpRight className="size-3 flex-shrink-0 text-[hsl(var(--orange))] transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </div>

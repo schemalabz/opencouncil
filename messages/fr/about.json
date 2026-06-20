@@ -1,0 +1,368 @@
+{
+  "nav": {
+    "openness": "Transparence",
+    "internal": "Pour les services",
+    "how-it-works": "Comment ça marche",
+    "recognition": "Distinctions & Mentions",
+    "pricing": "Tarifs",
+    "team": "Équipe"
+  },
+  "metadata": {
+    "title": "OpenCouncil — Le système d'exploitation des organes collégiaux",
+    "description": "Conseils municipaux, commissions et conseils de quartier — plus ouverts pour les citoyens, plus efficaces pour les services. Dans 10 communes en Grèce.",
+    "keywords": "OpenCouncil,intelligence artificielle,conseils municipaux,transparence,démocratie,collectivités locales,automatisation,participation citoyenne,citoyens"
+  },
+  "hero": {
+    "title": "Le système d'exploitation",
+    "titleHighlight": "des organes collégiaux",
+    "subtitle": "Conseils municipaux, commissions et conseils de quartier — plus ouverts pour les citoyens, plus efficaces pour les services.",
+    "scheduleCall": "Planifiez une présentation",
+    "counters": {
+      "municipalities": "communes",
+      "subjects": "sujets",
+      "meetingHours": "heures de séances"
+    }
+  },
+  "socialProof": {
+    "prefix": "Dans",
+    "municipalities": "{count} communes",
+    "suffix": "en Grèce, de la commune de Samothrace à celle d'Athènes."
+  },
+  "openness": {
+    "title": "Chaque séance,",
+    "titleHighlight": "ouverte à tous",
+    "subtitle": "OpenCouncil transforme des séances de plusieurs heures en un contenu compréhensible, consultable et accessible — automatiquement.",
+    "comingSoon": "Bientôt disponible",
+    "tryIt": "Essayez-le",
+    "features": {
+      "subjects": {
+        "title": "Sujets & Résumés",
+        "description": "Chaque séance est automatiquement découpée en sujets. Pour chaque sujet, un résumé de la position de chaque intervenant, avec vidéo, texte et vote."
+      },
+      "search": {
+        "title": "Recherche",
+        "description": "Recherchez tout ce qui a été dit dans chaque séance, dans chaque commune."
+      },
+      "notifications": {
+        "title": "Notifications",
+        "description": "Lorsque le conseil débat d'un sujet concernant votre rue ou votre quartier, vous serez informé — par WhatsApp, SMS ou e-mail.",
+        "demoLabel": "Abonnez-vous aux notifications pour Athènes"
+      },
+      "map": {
+        "title": "Carte des sujets",
+        "description": "Chaque débat du conseil épinglé sur la carte — zoomez sur n'importe quel quartier pour voir ce qui a été décidé sur les lieux qui vous tiennent à cœur.",
+        "demoLabel": "Voir la carte"
+      }
+    }
+  },
+  "internal": {
+    "title": "Ce qui prenait des jours,",
+    "titleHighlight": "se fait désormais en heures",
+    "subtitle": "Transcriptions, procès-verbaux, décisions — automatiquement ou avec une intervention humaine minimale.",
+    "seeExample": "Voir un exemple",
+    "comingSoon": "Bientôt disponible",
+    "bottomNote": "OpenCouncil peut remplacer votre prestataire de procès-verbaux à un coût comparable — avec dix fois plus de fonctionnalités et de rapidité.",
+    "features": {
+      "transcription": {
+        "title": "Transcriptions en 48 heures",
+        "description": "Des transcriptions précises et vérifiées par un humain de chaque séance, prêtes en 48 heures. Reconnaissance automatique des intervenants."
+      },
+      "minutes": {
+        "title": "Génération automatique des procès-verbaux",
+        "description": "Procès-verbaux automatiques de la séance, prêts à être relus et signés. Économisez des jours de travail."
+      },
+      "diavgeia": {
+        "title": "Décisions pour Di@vgeia",
+        "description": "Génération automatique des documents de décision, prêts à être publiés sur Di@vgeia.",
+        "targetDate": "Décembre 2026"
+      },
+      "printArchive": {
+        "title": "Remise d'archives au format imprimé",
+        "description": "Remise des archives de transcriptions au format imprimé, conformément aux spécifications de chaque commune."
+      }
+    }
+  },
+  "howItWorks": {
+    "title": "Comment ça",
+    "titleHighlight": "marche",
+    "subtitle": "De la séance à la commune et au citoyen — automatiquement",
+    "inputs": {
+      "recording": {
+        "title": "Enregistrement de la séance",
+        "description": "Enregistrée en direct ou importée depuis YouTube — un fichier vidéo ou audio suffit."
+      },
+      "documents": {
+        "title": "Documents de la séance",
+        "description": "Ordres du jour, décisions issues de Di@vgeia et tout document complémentaire."
+      }
+    },
+    "processing": {
+      "transcription": {
+        "title": "Transcription",
+        "description": "Transcription par IA avec reconnaissance des intervenants, vérifiée par un humain en 48 heures."
+      },
+      "analysis": {
+        "title": "Analyse & structure",
+        "description": "Sujets, résumés, positions par intervenant et décisions — extraits automatiquement."
+      }
+    },
+    "branches": {
+      "notifications": {
+        "title": "Notifications aux citoyens",
+        "description": "Les citoyens sont informés des sujets qui les concernent, via WhatsApp, SMS et e-mail."
+      },
+      "openByDefault": {
+        "title": "Ouvert par défaut",
+        "description": "La transparence comme infrastructure — résumés de sujets, contributions des intervenants, cartes interactives et recherche en texte intégral."
+      },
+      "tools": {
+        "title": "Outils pour les élus & les services",
+        "description": "Procès-verbaux, transcriptions et décisions — prêts à l'emploi."
+      }
+    }
+  },
+  "quotes": {
+    "whatMunicipalitiesSay": "Ce que disent les communes",
+    "items": {
+      "chania": {
+        "quote": "Dès les cinq premières minutes, j'ai su que c'était quelque chose de différent.",
+        "name": "Cheffe de la Direction de la Planification, de l'Organisation et de l'Informatique",
+        "role": "Commune de La Canée"
+      }
+    }
+  },
+  "recognition": {
+    "title": "Distinctions & Mentions",
+    "items": {
+      "ministryAward": {
+        "title": "Prix du Ministère de la Gouvernance Numérique",
+        "subtitle": "Meilleure Idée Appliquée — Collectivités Locales"
+      },
+      "oecd": {
+        "title": "OCDE",
+        "subtitle": "Cité dans un rapport de l'OCDE sur l'IA & l'engagement citoyen"
+      },
+      "ert": {
+        "title": "ERTnews",
+        "subtitle": "Reportage sur l'intelligence artificielle à La Canée"
+      },
+      "kede": {
+        "title": "KEDE",
+        "subtitle": "Article sur l'IA dans la démocratie locale sur kede.gr"
+      }
+    }
+  },
+  "team": {
+    "title": "L'équipe derrière OpenCouncil",
+    "subtitle": "6 personnes, qui construisent une technologie au service de la démocratie locale. OpenCouncil IKE appartient intégralement à <link>Schema Labs</link>, une société à but non lucratif.",
+    "members": {
+      "christos": "Christos Porios",
+      "andreas": "Andreas Kouloumos",
+      "eliza": "Eliza Gkimitzoudi",
+      "thanos": "Thanos Papadogiannis",
+      "vasia": "Vasiliki Koumarela",
+      "myrto": "Myrto Plemmenou"
+    },
+    "office": {
+      "title": "Notre espace",
+      "imageAlt": "Notre espace — Smolenski 22, Athènes",
+      "description": "Un espace ouvert pour échanger et créer au centre d'Athènes. Venez nous rencontrer, ou écrivez-nous à <email>space@opencouncil.gr</email> pour co-organiser un événement.",
+      "address": "Smolenski 22, Athènes"
+    },
+    "roadmap": {
+      "title": "En construction permanente",
+      "viewRoadmap": "Voir la feuille de route",
+      "items": {
+        "diavgeia": { "title": "Décisions Di@vgeia automatiques" },
+        "bidirectional": { "title": "Notifications bidirectionnelles" },
+        "fineTuned": { "title": "Modèle de transcription affiné" }
+      }
+    },
+    "openSource": {
+      "title": "Notre code est open source",
+      "description": "Développement transparent sous licence GPL v3. Chaque ligne de code est publique.",
+      "viewOnGithub": "Voir sur GitHub",
+      "contributorsLastWeeks": "{count} contributeurs · 12 dernières semaines"
+    }
+  },
+  "cta": {
+    "title": "Faites entrer les organes collégiaux de votre commune dans le présent.",
+    "subtitle": "OpenCouncil peut démarrer dans votre commune en quelques jours — pas en quelques mois.",
+    "scheduleCall": "Planifiez une présentation"
+  },
+  "demos": {
+    "subject": {
+      "meetingLabel": "Séance du Conseil Municipal 15/01/26",
+      "subjectLabel": "Sujet",
+      "subjectName": "Réaménagement de la place du Marché Municipal",
+      "speakers": "{count} intervenants",
+      "minutes": "{count} minutes",
+      "introducer": "Rapporteuse :",
+      "summary": "Résumé",
+      "summaryText": "La proposition de réaménagement de la place du Marché Municipal a été débattue, avec un budget de 1,2 M€. La majorité s'est prononcée en faveur, avec des réserves sur le financement. Il a été décidé de lancer un concours d'architecture dans un délai de trois mois.",
+      "contributions": "Contributions",
+      "decision": "Décision",
+      "decisionTitle": "Titre",
+      "decisionTitleText": "Approbation du concours d'architecture pour le réaménagement de la place",
+      "decisionAda": "ADA",
+      "decisionProtocol": "Numéro d'enregistrement",
+      "viewRealSubject": "Voir une page de sujet réelle",
+      "callouts": {
+        "header": "Reconnaissance de tous les sujets pré-ordre du jour, hors ordre du jour et à l'ordre du jour",
+        "stats": "Statistiques par groupe",
+        "summary": "Résumé, avec sources directement issues de la transcription",
+        "contributions": "Synthèse de la position de chaque intervenant",
+        "decision": "Lien vers la décision sur Di@vgeia"
+      },
+      "parties": {
+        "dimotikiKinisi": "Mouvement Municipal",
+        "laikiSyspirosi": "Rassemblement Populaire",
+        "anexartitoi": "Indépendants"
+      },
+      "people": {
+        "georgiou": { "name": "Maria Georgiou", "initials": "MG", "role": "Adjointe au Maire chargée des Travaux Techniques", "roleShort": "Adjointe au Maire" },
+        "papadakis": { "name": "Nikos Papadakis", "initials": "NP", "role": "Conseiller Municipal" }
+      },
+      "contributionTexts": {
+        "georgiou": "Le réaménagement de la place est une priorité. Le budget est couvert par les fonds ESPA et le concours sera lancé dans un délai de trois mois.",
+        "papadakis": "Nous émettons des réserves quant au mode de financement. Nous demandons une concertation avec les habitants avant que le projet ne soit finalisé."
+      }
+    },
+    "search": {
+      "allMunicipalities": "Toutes les communes",
+      "resultsCount": "{count} résultats dans 3 communes",
+      "results": {
+        "0": {
+          "subject": "Réaménagement de la place du Marché Municipal",
+          "city": "Commune de La Canée",
+          "speaker": "Maria Georgiou",
+          "location": "Place du Marché Municipal",
+          "highlight": "...le budget est couvert par les fonds <mark>ESPA</mark> et le concours sera lancé dans un délai de trois mois..."
+        },
+        "1": {
+          "subject": "Financement des installations sportives",
+          "city": "Commune de Chalandri",
+          "speaker": "Dimitris Konstantinou",
+          "location": "Centre sportif de N. Chalandri",
+          "highlight": "...l'inscription au programme <mark>ESPA</mark> a été approuvée pour la piscine et les salles polyvalentes..."
+        },
+        "2": {
+          "subject": "Rénovation énergétique des écoles",
+          "city": "Commune d'Athènes",
+          "speaker": "Eleni Papandreou",
+          "location": "Secteur central",
+          "highlight": "...une proposition a été soumise au programme <mark>ESPA</mark> 2021-2027 pour des panneaux solaires sur 12 bâtiments scolaires..."
+        }
+      }
+    },
+    "notification": {
+      "today": "AUJOURD'HUI",
+      "senderName": "OpenCouncil · Chalandri",
+      "messageBody": "Lors de la séance d'hier du conseil municipal, des sujets concernant ton quartier ont été débattus :",
+      "item1Title": "Prolongation des horaires d'un commerce",
+      "item1Location": "42 Av. Pentelis",
+      "item2Title": "Réglementation de la circulation",
+      "item2Location": "Rue Herakleitou",
+      "viewSummaries": "Voir les résumés →",
+      "reply": "Merci ! 👍",
+      "inputPlaceholder": "Écris un message"
+    },
+    "map": {
+      "mapAlt": "Carte de La Canée",
+      "filters": "Filtres",
+      "subjectCount": "{count} sujets · 6 derniers mois",
+      "subjects": {
+        "0": { "title": "Réaménagement de la place du Marché Municipal", "location": "Place du Marché Municipal", "topic": "Travaux Techniques" },
+        "1": { "title": "Réglementation de la circulation rue Skalidi", "location": "Rue Skalidi", "topic": "Circulation" },
+        "2": { "title": "Autorisation d'un commerce", "location": "15 Av. Halepa", "topic": "Autorisations" },
+        "3": { "title": "Entretien d'un bâtiment scolaire", "location": "4e École Primaire", "topic": "Éducation" }
+      }
+    }
+  },
+  "pricing": {
+    "title": "Tarification transparente",
+    "subtitle": "Un coût comparable ou inférieur à la transcription que vous réalisez déjà — avec 10 fois plus de fonctionnalités. Pour les communes de toutes tailles.",
+    "sessionProcessing": "Intégration d'une séance",
+    "sessionProcessingDesc": "Comprend la numérisation et la correction de la transcription par un humain",
+    "perHour": "/ heure",
+    "platformUsage": "Utilisation de la Plateforme",
+    "platformUsageDesc": "Tarification selon la taille de la commune",
+    "tiers": [
+      "Jusqu'à 2 000 habitants",
+      "2 001 - 10 000 habitants",
+      "10 001 - 30 000 habitants",
+      "30 001 - 50 000 habitants",
+      "50 001 - 100 000 habitants",
+      "100 001+ habitants"
+    ],
+    "free": "Gratuit",
+    "perMonth": "/ mois",
+    "showMore": "Plus",
+    "showLess": "Moins",
+    "sessionChecklist": [
+      "Transcription automatique et reconnaissance des intervenants",
+      "Correction de la transcription par un humain",
+      "Résumés automatiques par contribution"
+    ],
+    "sessionChecklistExtra": [
+      "Génération d'embeddings pour chaque contribution d'intervenant",
+      "Extraction de statistiques"
+    ],
+    "platformChecklist": [
+      "Accès libre pour tous",
+      "Toutes les fonctionnalités de la plateforme",
+      "Support technique"
+    ],
+    "archiveNote": "Séances plus anciennes sans correction humaine : {price} / heure",
+    "vatNote": "Les prix s'entendent hors TVA. Vous pouvez consulter nos contrats existants sur Di@vgeia ou le KIMDIS à l'aide de notre numéro fiscal 802666391.",
+    "calculateContract": "Calculez votre contrat",
+    "extras": {
+      "title": "Avantages supplémentaires",
+      "subtitle": "Chaque abonnement comprend",
+      "items": [
+        "Une période d'essai gratuite, aussi longtemps que nécessaire",
+        "Toutes les fonctionnalités actuelles et futures",
+        "Un support téléphonique pour les citoyens, les agents et les élus",
+        "La possibilité d'inclure des séances plus anciennes",
+        "La remise d'archives au format imprimé ou sur CD, une fois par an",
+        "Proposez de nouvelles fonctionnalités et façonnez OpenCouncil avec nous",
+        "Une tarification simple et transparente pour toutes les communes",
+        "La promotion d'OpenCouncil auprès des citoyens, en ligne et en personne"
+      ],
+      "additionalCharges": "En option, avec frais supplémentaires :",
+      "additionalItems": [
+        "Fourniture du matériel pour l'enregistrement des séances (par ex. Commission Municipale, Conseils Municipaux ou Conseils de Quartier)",
+        "Support technique en présentiel à chaque séance"
+      ]
+    },
+    "calculator": {
+      "title": "Calculez le coût annuel",
+      "subtitle": "Adaptez les données de votre commune",
+      "councilsPerYear": "Conseils par an",
+      "averageDuration": "Durée moyenne (heures)",
+      "population": "Population",
+      "populationUpTo": "jusqu'à 2 000",
+      "populationOver": "200 000+",
+      "calculate": "Calculer"
+    }
+  },
+  "contactForm": {
+    "title": "Contactez-nous",
+    "subtitle": "Renseignez vos coordonnées et nous vous recontacterons dans les plus brefs délais.",
+    "estimatedCost": "Coût annuel estimé",
+    "vatSuffix": "+ TVA",
+    "name": "Nom",
+    "namePlaceholder": "Votre nom",
+    "position": "Poste",
+    "positionPlaceholder": "par ex. Directeur du Soutien aux Organes Collégiaux",
+    "municipality": "Commune",
+    "municipalityPlaceholder": "Nom de la commune",
+    "submit": "Demandez une présentation",
+    "thankYou": "Merci !",
+    "thankYouMessage": "Nous vous recontacterons à l'adresse <strong>{email}</strong> dans les plus brefs délais.",
+    "close": "Fermer",
+    "errorTitle": "Une erreur s'est produite",
+    "errorMessage": "Réessayez ou contactez-nous à <email>sales@touvlo.co</email>",
+    "errorClose": "Fermer"
+  }
+}
