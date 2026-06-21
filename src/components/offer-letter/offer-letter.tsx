@@ -66,7 +66,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                     </p>
                     <p className="text-lg text-neutral-600 max-w-2xl pt-2">
                         Για την πλατφόρμα OpenCouncil και τη ψηφιοποίηση των δημόσιων
-                        συνεδριάσεων του {G.bodyAdj} συμβουλίου.
+                        συνεδριάσεων των συλλογικών οργάνων {G.possessive}.
                     </p>
                 </header>
 
@@ -89,7 +89,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                     intro={
                         <>
                             Δύο βασικές υπηρεσίες: η <strong>ψηφιοποίηση δημόσιων συνεδριάσεων</strong> και η
-                            ελεύθερη χρήση της <strong>πλατφόρμας OpenCouncil</strong> από {G.def} και τους {G.demonym}{" "}
+                            ελεύθερη χρήση της <strong>πλατφόρμας</strong> OpenCouncil από {G.def} και τους {G.demonym}{" "}
                             {G.possessive}.
                         </>
                     }
@@ -246,7 +246,7 @@ function ActionBar({ offer }: { offer: Offer }) {
             <div className="max-w-4xl mx-auto px-4 sm:px-8 py-3 flex items-center justify-between gap-2">
                 <a href="/" className="flex items-center gap-2 text-neutral-900">
                     <Image src="/logo.png" alt="OpenCouncil" width={28} height={28} />
-                    <span className="font-semibold tracking-tight">OpenCouncil</span>
+                    <span className="tracking-tight">OpenCouncil</span>
                 </a>
                 <div className="flex items-center gap-2">
                     <CopyLinkButton offer={offer} />

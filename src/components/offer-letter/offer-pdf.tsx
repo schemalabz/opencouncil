@@ -255,8 +255,8 @@ export function OfferPdfDocument({
                     {offer.recipientName}
                 </Text>
                 <Text style={{ color: C.mid, fontSize: 11, marginBottom: 40 }}>
-                    Για την πλατφόρμα OpenCouncil και τη ψηφιοποίηση δημόσιων
-                    συνεδριάσεων του {G.bodyAdj === "περιφερειακό" ? "περιφερειακού" : "δημοτικού"} συμβουλίου.
+                    Για την πλατφόρμα OpenCouncil και τη ψηφιοποίηση των δημόσιων
+                    συνεδριάσεων των συλλογικών οργάνων {G.possessive}.
                 </Text>
 
                 {/* Hero summary */}
