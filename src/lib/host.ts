@@ -1,15 +1,14 @@
-// The French production domain (apex + any subdomain). Scoped to opencouncil.fr
-// rather than a bare `.fr` suffix so an unrelated `*.fr` host (staging, internal
-// tooling, a typo'd preview) can't accidentally be treated as the French realm.
-export const FRENCH_DOMAIN = 'opencouncil.fr';
+import { REALMS, realmForHost } from './realm';
+
+// The French production domain (apex + any subdomain). Re-exported from the
+// shared realm config so there is a single literal for the domain.
+export const FRENCH_DOMAIN = REALMS.france.domain;
 
 /**
  * Whether a `Host` header value belongs to the French domain (`opencouncil.fr`
- * or a subdomain of it). The port is stripped so `localhost`-style `host:port`
- * and real domains both work, and a spoofed `Host: opencouncil.fr` header can be
- * used to test locally.
+ * or a subdomain of it). Thin wrapper over the shared `realmForHost` mapping (the
+ * single source of truth for host→realm) so host-parsing isn't duplicated.
  */
 export function isFrenchDomainHost(hostHeader: string | null | undefined): boolean {
-    const host = (hostHeader ?? '').split(':')[0].toLowerCase();
-    return host === FRENCH_DOMAIN || host.endsWith(`.${FRENCH_DOMAIN}`);
+    return realmForHost(hostHeader) === 'france';
 }
