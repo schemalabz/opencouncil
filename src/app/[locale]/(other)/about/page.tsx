@@ -1,11 +1,9 @@
 import About from "@/components/about/AboutPage"
 import { Metadata } from "next"
-import { headers } from 'next/headers'
 import { getTranslations } from 'next-intl/server'
-import { env } from '@/env.mjs'
 import { getSupportedCitiesWithLogosCached, getAboutPageStatsCached, getGitHubStatsCached } from '@/lib/cache/queries'
 import { buildHreflangAlternates } from '@/lib/utils/hreflang'
-import { isFrenchDomainHost } from '@/lib/host'
+import { getRealm } from '@/lib/realm.server'
 
 export async function generateMetadata(
     props: {
@@ -24,7 +22,7 @@ export async function generateMetadata(
     const description = t('description')
     const keywords = t('keywords').split(',')
 
-    const ogImageUrl = `${env.NEXTAUTH_URL}/api/og?pageType=about`;
+    const ogImageUrl = `/api/og?pageType=about`;
 
     return {
         title,
@@ -53,7 +51,7 @@ export async function generateMetadata(
             creator: '@opencouncil',
             site: '@opencouncil'
         },
-        alternates: buildHreflangAlternates('/about', locale),
+        alternates: await buildHreflangAlternates('/about', locale),
         other: {
             'about:mission': 'transparency',
             'about:technology': 'artificial-intelligence',
@@ -63,15 +61,15 @@ export async function generateMetadata(
 }
 
 export default async function AboutPage() {
+    const realm = await getRealm();
     // On the French realm (opencouncil.fr, any locale) we hide pricing.
-    const hidePricing = isFrenchDomainHost((await headers()).get('host'))
-
+    const hidePricing = realm === 'france';
     const [citiesWithLogos, stats, githubStats] = await Promise.all([
-        getSupportedCitiesWithLogosCached().catch(error => {
+        getSupportedCitiesWithLogosCached(realm).catch(error => {
             console.error('Failed to fetch cities with logos:', error);
             return [];
         }),
-        getAboutPageStatsCached().catch(error => {
+        getAboutPageStatsCached(realm).catch(error => {
             console.error('Failed to fetch about page stats:', error);
             return null;
         }),

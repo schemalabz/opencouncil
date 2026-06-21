@@ -9,7 +9,8 @@ import { SubjectWithRelations } from '@/lib/db/subject';
 import { Statistics } from '@/lib/statistics';
 import { getMeetingTaskStatus, MeetingTaskStatus } from '@/lib/db/tasks';
 import { createCache } from '@/lib/cache';
-import { SpeakerTag } from '@prisma/client';
+import { getRealm } from '@/lib/realm.server';
+import { Realm, SpeakerTag } from '@prisma/client';
 import { Party } from '@prisma/client';
 
 const EMPTY_STATISTICS: Statistics = {
@@ -66,7 +67,12 @@ export const getMeetingDataCore = async (cityId: string, meetingId: string): Pro
         .slice(2, 5)
         .map(l => l.trim())
         .join(' ← ') ?? 'unknown';
-    const key = `${cityId}/${meetingId}`;
+    // Key by realm too: the realm guard lives inside fetchMeetingDataCore, so a
+    // deduped waiter reuses the leader's promise and skips it. Without realm in
+    // the key, a concurrent .fr request for a French slug could coalesce with a
+    // .gr request for the same ids and receive the other realm's payload.
+    const realm = await getRealm();
+    const key = `${realm}/${cityId}/${meetingId}`;
 
     const existing = coreInflight.get(key);
     if (existing) {
@@ -75,7 +81,7 @@ export const getMeetingDataCore = async (cityId: string, meetingId: string): Pro
     }
 
     console.log(`getMeetingDataCore ${key} LEADER from: ${callerHint}`);
-    const promise = fetchMeetingDataCore(cityId, meetingId);
+    const promise = fetchMeetingDataCore(cityId, meetingId, realm);
     coreInflight.set(key, promise);
     // The cleanup fork: .finally() returns a NEW promise that also rejects
     // when the fetch fails. Callers handle the original `promise`; nothing
@@ -85,14 +91,14 @@ export const getMeetingDataCore = async (cityId: string, meetingId: string): Pro
     return promise;
 };
 
-async function fetchMeetingDataCore(cityId: string, meetingId: string): Promise<MeetingDataCore> {
+async function fetchMeetingDataCore(cityId: string, meetingId: string, realm: Realm): Promise<MeetingDataCore> {
     // Validate cityId against the known set (single shared cache key) before
     // any per-city cached query runs. Next renders nested segments in
     // parallel, so this fetch can start before the [cityId] layout's own
     // validation 404s — without this guard, junk slugs (e.g. /admin/settings
     // resolving to cityId='admin') write `city:<junk>:*` entries to the
     // shared cache (#358). Callers already treat this throw as notFound().
-    const cityIds = await getAllCityIdsCached();
+    const cityIds = await getAllCityIdsCached(realm);
     if (!cityIds.includes(cityId)) {
         throw new Error('Required data not found');
     }

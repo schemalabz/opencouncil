@@ -1,5 +1,5 @@
 "use server";
-import { City, CouncilMeeting, Prisma } from '@prisma/client';
+import { City, CouncilMeeting, Prisma, Realm } from '@prisma/client';
 import prisma from "./prisma";
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getCurrentUser } from "../auth";
 import { UnauthorizedError } from "../api/errors";
@@ -182,9 +182,10 @@ export async function getFullCity(
     return await attachGeometryToCity(city);
 }
 
-export async function getAllCitiesMinimal(): Promise<CityMinimalWithCounts[]> {
+export async function getAllCitiesMinimal(realm?: Realm): Promise<CityMinimalWithCounts[]> {
     try {
         const cities = await prisma.city.findMany({
+            where: realm ? { realm } : undefined,
             select: {
                 id: true,
                 name: true,
@@ -212,15 +213,18 @@ export async function getAllCitiesMinimal(): Promise<CityMinimalWithCounts[]> {
  * against the known set before any per-city cached query runs, so junk slugs
  * (bot probes) never create per-city cache entries.
  */
-export async function getAllCityIds(): Promise<string[]> {
-    const cities = await prisma.city.findMany({ select: { id: true } });
+export async function getAllCityIds(realm?: Realm): Promise<string[]> {
+    const cities = await prisma.city.findMany({
+        where: realm ? { realm } : undefined,
+        select: { id: true }
+    });
     return cities.map(c => c.id);
 }
 
 /**
  * Retrieves cities based on user permissions and city status.
  */
-export async function getCities({ includeUnlisted = false, includePending = false }: { includeUnlisted?: boolean, includePending?: boolean } = {}): Promise<CityWithCounts[]> {
+export async function getCities({ includeUnlisted = false, includePending = false }: { includeUnlisted?: boolean, includePending?: boolean } = {}, realm?: Realm): Promise<CityWithCounts[]> {
     // Get current user for authorization
     const currentUser = includeUnlisted ? await getCurrentUser() : null;
 
@@ -263,6 +267,13 @@ export async function getCities({ includeUnlisted = false, includePending = fals
     }
     // Superadmin mode: show all cities (no additional filter needed)
 
+    // Tenant isolation: restrict to a single realm when one is supplied. Callers
+    // serving a public, host-scoped page pass the request realm; cross-realm admin
+    // views omit it to see every realm.
+    if (realm) {
+        whereClause.realm = realm;
+    }
+
     try {
         const cities = await prisma.city.findMany({
             where: whereClause,
@@ -278,7 +289,7 @@ export async function getCities({ includeUnlisted = false, includePending = fals
     }
 }
 
-export async function getCitiesWithCouncilMeetings({ includeUnlisted = false, includePending = false }: { includeUnlisted?: boolean, includePending?: boolean } = {}): Promise<CityWithCouncilMeeting[]> {
+export async function getCitiesWithCouncilMeetings({ includeUnlisted = false, includePending = false }: { includeUnlisted?: boolean, includePending?: boolean } = {}, realm?: Realm): Promise<CityWithCouncilMeeting[]> {
     if (includeUnlisted) {
         await withUserAuthorizedToEdit({});
     }
@@ -294,8 +305,12 @@ export async function getCitiesWithCouncilMeetings({ includeUnlisted = false, in
         }
         // If both are true, show all (no filter)
 
+        const whereClause: Prisma.CityWhereInput = {};
+        if (statusFilter) whereClause.status = statusFilter;
+        if (realm) whereClause.realm = realm;
+
         const cities = await prisma.city.findMany({
-            where: statusFilter ? { status: statusFilter } : {},
+            where: whereClause,
             include: {
                 councilMeetings: true
             },
@@ -379,7 +394,7 @@ export async function canUseCityCreator(cityId: string): Promise<boolean> {
  * Fetches cities with logos for display purposes (e.g., infinite scroller).
  * Returns only listed cities that have logos.
  */
-export async function getSupportedCitiesWithLogos(): Promise<Array<{ id: string; logoImage: string; name_municipality: string }>> {
+export async function getSupportedCitiesWithLogos(realm?: Realm): Promise<Array<{ id: string; logoImage: string; name_municipality: string }>> {
     try {
         const cities = await prisma.city.findMany({
             where: {
@@ -387,7 +402,8 @@ export async function getSupportedCitiesWithLogos(): Promise<Array<{ id: string;
                 status: 'listed',
                 logoImage: {
                     not: null
-                }
+                },
+                ...(realm ? { realm } : {})
             },
             select: {
                 id: true,
@@ -419,17 +435,23 @@ export interface AboutPageStats {
  * - Total subject count across all released meetings
  * - Total meeting hours (estimated from speaker segment timestamps)
  */
-export async function getAboutPageStats(): Promise<AboutPageStats> {
+export async function getAboutPageStats(realm?: Realm): Promise<AboutPageStats> {
     try {
+        // Realm-scoped join for the raw duration query (the Prisma queries below
+        // express realm via the typed `where`).
+        const realmJoin = realm
+            ? Prisma.sql`JOIN "City" c ON c.id = cm."cityId" AND c.realm = ${realm}::"Realm"`
+            : Prisma.empty;
+
         const [municipalityCount, subjectCount, meetingDurations] = await Promise.all([
             // Count officially supported cities
             prisma.city.count({
-                where: { officialSupport: true }
+                where: { officialSupport: true, ...(realm ? { realm } : {}) }
             }),
             // Count subjects in released meetings only
             prisma.subject.count({
                 where: {
-                    councilMeeting: { released: true }
+                    councilMeeting: { released: true, ...(realm ? { city: { realm } } : {}) }
                 }
             }),
             // Get min/max timestamps per meeting to calculate duration
@@ -439,6 +461,7 @@ export async function getAboutPageStats(): Promise<AboutPageStats> {
                     SELECT (MAX(ss."endTimestamp") - MIN(ss."startTimestamp")) / 3600.0 as meeting_hours
                     FROM "CouncilMeeting" cm
                     JOIN "SpeakerSegment" ss ON ss."meetingId" = cm.id AND ss."cityId" = cm."cityId"
+                    ${realmJoin}
                     WHERE cm.released = true
                     GROUP BY cm.id, cm."cityId"
                 ) meetings

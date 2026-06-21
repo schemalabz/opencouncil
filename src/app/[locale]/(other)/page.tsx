@@ -3,6 +3,7 @@ import { Landing } from "@/components/landing/landing";
 import { LandingCity } from "@/lib/db/landing";
 import { fetchLatestSubstackPostCached, getAllCitiesMinimalCached, getCouncilMeetingsForCityPublicCached } from "@/lib/cache/queries";
 import { buildHreflangAlternates } from "@/lib/utils/hreflang";
+import { getRealm } from "@/lib/realm.server";
 
 export async function generateMetadata(
     props: {
@@ -16,7 +17,7 @@ export async function generateMetadata(
     } = params;
 
     return {
-        alternates: buildHreflangAlternates('', locale),
+        alternates: await buildHreflangAlternates('', locale),
     };
 }
 
@@ -32,8 +33,9 @@ export default async function HomePage(
     } = params;
 
     // Fetch all cities (minimal data) and substack post in parallel
+    const realm = await getRealm();
     const [allCities, latestPost] = await Promise.all([
-        getAllCitiesMinimalCached().catch(error => {
+        getAllCitiesMinimalCached(realm).catch(error => {
             console.error('Failed to fetch cities:', error);
             return [];
         }),
