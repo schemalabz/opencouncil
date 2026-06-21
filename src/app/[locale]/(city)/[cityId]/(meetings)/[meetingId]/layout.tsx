@@ -88,7 +88,7 @@ export async function generateMetadata(
     return {
         title: optimizedTitle,
         description,
-        alternates: buildHreflangAlternates(`/${cityId}/${meetingId}`, locale),
+        alternates: await buildHreflangAlternates(`/${cityId}/${meetingId}`, locale),
         openGraph: {
             title: optimizedTitle,
             description,

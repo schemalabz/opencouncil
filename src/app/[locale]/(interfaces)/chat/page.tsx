@@ -1,7 +1,6 @@
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { Suspense } from "react";
 import { Metadata } from "next";
-import { env } from '@/env.mjs';
 import { buildHreflangAlternates } from '@/lib/utils/hreflang';
 
 export async function generateMetadata(
@@ -37,7 +36,7 @@ export async function generateMetadata(
             siteName: 'OpenCouncil',
             images: [
                 {
-                    url: `${env.NEXTAUTH_URL}/api/og?pageType=chat`,
+                    url: `/api/og?pageType=chat`,
                     width: 1200,
                     height: 630,
                     alt: "OpenCouncil AI - Συνομιλήστε για τα Δημοτικά Συμβούλια",
@@ -49,11 +48,11 @@ export async function generateMetadata(
             card: 'summary_large_image',
             title: "OpenCouncil AI",
             description: "Συνομιλήστε με την τεχνητή νοημοσύνη για να μάθετε για δημοτικά συμβούλια και θέματα πολιτικής",
-            images: [`${env.NEXTAUTH_URL}/api/og?pageType=chat`],
+            images: [`/api/og?pageType=chat`],
             creator: '@opencouncil',
             site: '@opencouncil'
         },
-        alternates: buildHreflangAlternates('/chat', locale),
+        alternates: await buildHreflangAlternates('/chat', locale),
         other: {
             'chat:type': 'ai-assistant',
             'chat:domain': 'municipal-politics',

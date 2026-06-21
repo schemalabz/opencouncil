@@ -9,7 +9,6 @@ import { getCity } from "@/lib/db/cities";
 import { getStatisticsFor } from "@/lib/statistics";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import { Metadata } from "next";
-import { env } from '@/env.mjs';
 import { buildHreflangAlternates } from '@/lib/utils/hreflang';
 
 export async function generateMetadata(
@@ -42,7 +41,7 @@ export async function generateMetadata(
     const description = `Προφίλ του προσώπου ${person.name} ${roleDescription} | ${city.name} | Στατιστικά συμμετοχής, τοποθετήσεις, δραστηριότητα στο δημοτικό συμβούλιο.`;
 
     // Generate OG image URL
-    const ogImageUrl = `${env.NEXTAUTH_URL}/api/og?cityId=${params.cityId}&personId=${params.personId}`;
+    const ogImageUrl = `/api/og?cityId=${params.cityId}&personId=${params.personId}`;
 
     return {
         title: `${person.name} | ${city.name} | OpenCouncil`,
@@ -80,7 +79,7 @@ export async function generateMetadata(
             description,
             images: [ogImageUrl],
         },
-        alternates: buildHreflangAlternates(`/${params.cityId}/people/${params.personId}`, params.locale),
+        alternates: await buildHreflangAlternates(`/${params.cityId}/people/${params.personId}`, params.locale),
         other: {
             'person:name': person.name,
             'person:city': city.name,

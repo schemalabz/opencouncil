@@ -4,7 +4,6 @@ import { isUserAuthorizedToEdit } from "@/lib/auth";
 import CityMeetings from "@/components/cities/CityMeetings";
 import { getCityCached, getCouncilMeetingsForCityCached } from "@/lib/cache";
 import { buildHreflangAlternates } from "@/lib/utils/hreflang";
-import { env } from "@/env.mjs";
 
 export async function generateMetadata(
     props: {
@@ -24,12 +23,12 @@ export async function generateMetadata(
         return {
             title: "Δήμος δεν βρέθηκε | OpenCouncil",
             description: "Ο δήμος που αναζητάτε δεν είναι διαθέσιμος.",
-            alternates: buildHreflangAlternates(`/${cityId}`, locale),
+            alternates: await buildHreflangAlternates(`/${cityId}`, locale),
         };
     }
 
     const description = `Συνεδριάσεις του Δήμου ${city.name}: βίντεο, απομαγνητοφωνήσεις, θέματα ημερήσιας διάταξης και αποφάσεις, εξηγημένα απλά.`;
-    const ogImageUrl = `${env.NEXTAUTH_URL}/api/og?cityId=${cityId}`;
+    const ogImageUrl = `/api/og?cityId=${cityId}`;
 
     return {
         title: `${city.name} | OpenCouncil`,
@@ -63,7 +62,7 @@ export async function generateMetadata(
             description,
             images: [ogImageUrl],
         },
-        alternates: buildHreflangAlternates(`/${cityId}`, locale),
+        alternates: await buildHreflangAlternates(`/${cityId}`, locale),
     };
 }
 

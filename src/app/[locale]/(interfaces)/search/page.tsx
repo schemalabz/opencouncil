@@ -2,7 +2,6 @@
 import { default as SearchPageComponent } from "@/components/search/SearchPage";
 import { Suspense } from "react";
 import { Metadata } from "next";
-import { env } from '@/env.mjs';
 import { buildHreflangAlternates } from '@/lib/utils/hreflang';
 
 export async function generateMetadata(
@@ -18,7 +17,7 @@ export async function generateMetadata(
 
     const description = "Αναζητήστε στα δημοτικά συμβούλια του OpenCouncil. Βρείτε αναφορές σε θέματα, τοποθετήσεις συμβούλων, στατιστικά και πολλά άλλα χρησιμοποιώντας την έξυπνη αναζήτηση του OpenCouncil.";
 
-    const ogImageUrl = `${env.NEXTAUTH_URL}/api/og?pageType=search`;
+    const ogImageUrl = `/api/og?pageType=search`;
 
     return {
         title: "Αναζήτηση | OpenCouncil",
@@ -58,7 +57,7 @@ export async function generateMetadata(
             creator: '@opencouncil',
             site: '@opencouncil'
         },
-        alternates: buildHreflangAlternates('/search', locale),
+        alternates: await buildHreflangAlternates('/search', locale),
         other: {
             'search:type': 'intelligent',
             'search:scope': 'municipal-councils',

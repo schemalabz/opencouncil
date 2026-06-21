@@ -5,8 +5,8 @@ import { formatInTimeZone } from 'date-fns-tz';
 import sanitizeHtml from 'sanitize-html';
 import { getCityCached, getCouncilMeetingsForCityPublicCached } from '@/lib/cache/queries';
 import { stripMarkdown } from '@/lib/formatters/markdown';
-import { env } from '@/env.mjs';
-import { routing } from '@/i18n/routing';
+import { REALMS } from '@/lib/realm';
+import { getRealm, getRealmBaseUrlFromRequest } from '@/lib/realm.server';
 
 export async function GET(
     request: NextRequest,
@@ -20,15 +20,21 @@ export async function GET(
 
     const city = await getCityCached(cityId);
 
-    if (!city) {
+    // Tenant isolation: route handlers don't run the [cityId] layout's realm
+    // guard, so enforce it here — a city from another realm 404s even when its
+    // slug is known (e.g. a French commune's feed requested on opencouncil.gr).
+    const realm = await getRealm();
+    if (!city || city.realm !== realm) {
         const t = await getTranslations({ locale, namespace: 'RSS' });
         return new NextResponse(t('cityNotFound'), { status: 404 });
     }
 
     const meetings = await getCouncilMeetingsForCityPublicCached(cityId, { limit });
 
-    const baseUrl = env.NEXTAUTH_URL;
-    const isDefaultLocale = locale === routing.defaultLocale;
+    // The feed is served on the realm's domain and its default locale (el for
+    // greece, fr for france) is the unprefixed one.
+    const baseUrl = await getRealmBaseUrlFromRequest();
+    const isDefaultLocale = locale === REALMS[realm].defaultLocale;
     const cityUrl = isDefaultLocale
         ? `${baseUrl}/${cityId}`
         : `${baseUrl}/${locale}/${cityId}`;

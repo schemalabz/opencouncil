@@ -1,29 +1,37 @@
 import { Metadata } from 'next';
-import { env } from '@/env.mjs';
-
-const baseUrl = env.NEXTAUTH_URL;
+import { getRealmBaseUrl, REALMS } from '@/lib/realm';
+import { getRealm } from '@/lib/realm.server';
 
 /**
- * Builds canonical + hreflang alternates for a page.
+ * Builds canonical + hreflang alternates for a page, scoped to the request's
+ * realm (resolved from the Host header).
  *
- * Greek is the default locale and served unprefixed (`/path`); English lives at
- * `/en/path`. `x-default` points at the Greek URL so search engines surface the
- * Greek variant by default. Each locale self-references its own canonical to
- * avoid sending Google a canonical signal that contradicts the hreflang cluster.
+ * Each realm self-references its own domain only — a city/meeting page exists in
+ * exactly one realm, so there is no cross-domain (`.gr`↔`.fr`) hreflang cluster.
+ * The realm's default locale is served unprefixed (`/path`); English lives at
+ * `/en/path`. `x-default` points at the default-locale URL. Each locale
+ * self-references its own canonical to avoid contradicting the hreflang cluster.
+ *
+ * - greece → `el` (default, unprefixed) + `en`, on `https://opencouncil.gr`
+ * - france → `fr` (default, unprefixed) + `en`, on `https://opencouncil.fr`
  *
  * @param path locale-agnostic path beginning with `/`, or `''` for the homepage
- * @param locale current request locale (`'el'` | `'en'`)
+ * @param locale current request locale (`'el'` | `'en'` | `'fr'`)
  */
-export function buildHreflangAlternates(path: string, locale: string): Metadata['alternates'] {
-    const elUrl = `${baseUrl}${path}`;
+export async function buildHreflangAlternates(path: string, locale: string): Promise<Metadata['alternates']> {
+    const realm = await getRealm();
+    const baseUrl = getRealmBaseUrl(realm);
+    const defaultLocale = REALMS[realm].defaultLocale;
+
+    const defaultUrl = `${baseUrl}${path}`;
     const enUrl = `${baseUrl}/en${path}`;
 
     return {
-        canonical: locale === 'en' ? enUrl : elUrl,
+        canonical: locale === 'en' ? enUrl : defaultUrl,
         languages: {
-            el: elUrl,
+            [defaultLocale]: defaultUrl,
             en: enUrl,
-            'x-default': elUrl,
+            'x-default': defaultUrl,
         },
     };
 }

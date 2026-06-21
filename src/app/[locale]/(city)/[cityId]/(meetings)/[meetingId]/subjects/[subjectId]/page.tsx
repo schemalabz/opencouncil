@@ -36,7 +36,7 @@ export async function generateMetadata(
     return {
         title,
         description,
-        alternates: buildHreflangAlternates(
+        alternates: await buildHreflangAlternates(
             `/${params.cityId}/${params.meetingId}/subjects/${params.subjectId}`,
             params.locale
         ),
