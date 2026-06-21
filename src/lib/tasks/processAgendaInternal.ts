@@ -36,7 +36,8 @@ export async function requestProcessAgendaInternal(agendaUrl: string, councilMee
             city: {
                 select: {
                     name: true,
-                    language: true
+                    language: true,
+                    realm: true
                 }
             }
         }
@@ -53,7 +54,8 @@ export async function requestProcessAgendaInternal(agendaUrl: string, councilMee
 
     // Get relevant people for the meeting (filtered by administrative body)
     const people = await getPeopleForMeeting(cityId, councilMeeting.administrativeBodyId);
-    const topicLabels = await getTopics();
+    // Realm-scoped taxonomy: a French commune gets French topics, not the Greek set.
+    const topicLabels = await getTopics(councilMeeting.city.realm);
 
     // Build people array with deduplication by ID (keep last entry)
     const peopleMap = new Map();

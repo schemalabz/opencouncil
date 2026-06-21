@@ -5,6 +5,7 @@ const validTopic = {
     name_en: 'Environment',
     colorHex: '#4f46e5',
     description: 'Topics related to the environment',
+    realm: 'greece' as const,
 };
 
 describe('createTopicSchema', () => {
