@@ -1,12 +1,8 @@
 "use client";
 import { useState } from "react";
-import Image from "next/image";
 import {
     Building2,
     FileText,
-    Smartphone,
-    Mic,
-    MessageCircle,
     Code,
     Mail,
     Phone,
@@ -17,22 +13,26 @@ import {
     Rocket,
     Package,
     Clock,
-    Calendar,
     Receipt,
 } from "lucide-react";
 
-import { formatCurrency, monthsBetween, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { calculateOfferTotals, PHYSICAL_PRESENCE } from "@/lib/pricing";
 import type { Offer } from "@prisma/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DownloadPdfButton } from "./download-pdf-button";
+
+const VAT_RATE = 0.24;
+const withVAT = (n: number) => n * (1 + VAT_RATE);
 
 const isRegionFor = (offer: Offer) => offer.recipientName.startsWith("Περιφέρεια");
 
 const grammar = (offer: Offer) => {
     const isRegion = isRegionFor(offer);
     return {
+        // Article for "για τον/την [recipient]" — recipientName already starts
+        // with "Δήμο" (masc. acc.) or "Περιφέρεια" (fem. acc.).
+        articleAcc: isRegion ? "την" : "τον",
         accusative: isRegion ? "την" : "το",
         def: isRegion ? "την περιφέρεια" : "τον δήμο",
         possessive: isRegion ? "της περιφέρειας" : "του δήμου",
@@ -54,25 +54,17 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
             {/* Sticky action bar */}
             <ActionBar offer={offer} />
 
-            <div className="max-w-4xl mx-auto px-4 sm:px-8 py-12 space-y-12">
+            <div className="max-w-4xl mx-auto px-4 sm:px-8 pt-10 pb-16 space-y-10">
                 {/* Header */}
-                <header className="space-y-6">
-                    <div className="flex items-center gap-3">
-                        <Image src="/logo.png" alt="OpenCouncil" width={36} height={36} />
-                        <span className="text-base font-semibold tracking-tight">OpenCouncil</span>
-                    </div>
-                    <div className="space-y-3">
-                        <p className="text-sm uppercase tracking-wider text-muted-foreground">
-                            Οικονομική προσφορά
-                        </p>
-                        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-neutral-900">
-                            {offer.recipientName}
-                        </h1>
-                        <p className="text-lg text-neutral-600 max-w-2xl">
-                            Για την πλατφόρμα OpenCouncil και τη ψηφιοποίηση των δημόσιων
-                            συνεδριάσεων του {G.bodyAdj} συμβουλίου.
-                        </p>
-                    </div>
+                <header className="space-y-3">
+                    <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900 leading-tight">
+                        Ενημέρωση για οικονομική προσφορά για {G.articleAcc}{" "}
+                        <span className="text-orange">{offer.recipientName}</span>
+                    </h1>
+                    <p className="text-lg text-neutral-600 max-w-2xl">
+                        Για την πλατφόρμα OpenCouncil και τη ψηφιοποίηση των δημόσιων
+                        συνεδριάσεων του {G.bodyAdj} συμβουλίου.
+                    </p>
                 </header>
 
                 {/* Hero summary */}
@@ -128,6 +120,8 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                                 </>,
                                 "Πρόσβαση σε απομαγνητοφωνήσεις, θέματα και συνόψεις",
                                 "Στατιστικά παρατάξεων, ομιλητών και θεμάτων",
+                                <>Ενημερώσεις {G.demonym} μέσω SMS, WhatsApp και Email</>,
+                                "Εξαγωγή βίντεο για τα social media",
                                 "Εξαγωγή απομαγνητοφωνήσεων σε PDF",
                                 "Σελίδες παρατάξεων και ομιλητών",
                                 "Αναζήτηση σε θέματα και απομαγνητοφωνήσεις",
@@ -161,38 +155,6 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                         </div>
                     </Section>
                 )}
-
-                {/* Pilot features */}
-                <Section
-                    title="Πιλοτικές λειτουργίες"
-                    intro={
-                        <>
-                            Δωρεάν διαθέσιμες κατόπιν συνεννόησης. Δεν είναι εγγυημένες, αλλά
-                            θα αναπτυχθούν σε συνεργασία με {G.def}.
-                        </>
-                    }
-                >
-                    <div className="grid md:grid-cols-3 gap-4">
-                        <PilotCard
-                            icon={<MessageCircle className="w-5 h-5" />}
-                            title="Άμεση ενημέρωση"
-                            description={`Προσωποποιημένα μηνύματα σε ${G.demonym} ανά συνεδρίαση.`}
-                            limit="Έως 1.000 ενεργοί λογαριασμοί"
-                        />
-                        <PilotCard
-                            icon={<Mic className="w-5 h-5" />}
-                            title="Podcast"
-                            description="Αυτόματη παραγωγή και δημοσίευση σε Spotify, Apple Podcasts κ.ά."
-                            limit="Έως 2 ώρες/μήνα"
-                        />
-                        <PilotCard
-                            icon={<Smartphone className="w-5 h-5" />}
-                            title="Υλικό για social media"
-                            description="Σύντομα βίντεο και κείμενα ανά συνεδρίαση."
-                            limit="Έως 20 δημοσιεύσεις/μήνα"
-                        />
-                    </div>
-                </Section>
 
                 {/* Bonus benefits */}
                 <Section title="Δωρεάν προνόμια">
@@ -296,9 +258,9 @@ function HeroSummary({ offer }: { offer: Offer }) {
                         Συνολικό κόστος
                     </p>
                     <p className="text-3xl font-bold tracking-tight text-neutral-900">
-                        {formatCurrency(totals.total)}
+                        {formatCurrency(withVAT(totals.total))}
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">χωρίς ΦΠΑ</p>
+                    <p className="text-xs text-muted-foreground mt-1">συμπερ. ΦΠΑ 24%</p>
                 </div>
                 <div className="p-6">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
@@ -307,20 +269,17 @@ function HeroSummary({ offer }: { offer: Offer }) {
                     <p className="text-3xl font-bold tracking-tight text-neutral-900">
                         {totals.months} μήνες
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1 inline-flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        {formatDate(offer.startDate)} → {formatDate(offer.endDate)}
-                    </p>
+                    <div className="text-xs text-muted-foreground mt-2 space-y-0.5">
+                        <p>Από {formatDate(offer.startDate)}</p>
+                        <p>Έως {formatDate(offer.endDate)}</p>
+                    </div>
                 </div>
                 <div className="p-6">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
                         Ημερομηνία προσφοράς
                     </p>
-                    <p className="text-base font-medium text-neutral-900">
+                    <p className="text-3xl font-bold tracking-tight text-neutral-900">
                         {formatDate(offer.createdAt)}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                        Δωρεάν δοκιμαστική μέχρι την έναρξη
                     </p>
                 </div>
             </div>
@@ -420,14 +379,6 @@ function CostTable({
                             amount={formatCurrency(t.correctnessGuaranteeCost)}
                         />
                     )}
-                    <CostRow
-                        label="Πιλοτικές λειτουργίες"
-                        qty="∞"
-                        rate="δωρεάν"
-                        amount="—"
-                        muted
-                    />
-
                     {/* Subtotal */}
                     <tr className="border-t border-neutral-200">
                         <td className="px-5 py-3 text-right text-neutral-600" colSpan={3}>
@@ -440,11 +391,11 @@ function CostTable({
 
                     {t.discount > 0 && (
                         <tr>
-                            <td className="px-5 py-3 text-right text-blue-600" colSpan={3}>
+                            <td className="px-5 py-3 text-right text-orange" colSpan={3}>
                                 Έκπτωση για {G.accusative} {offer.recipientName}{" "}
                                 ({offer.discountPercentage}%)
                             </td>
-                            <td className="px-5 py-3 text-right font-medium text-blue-600">
+                            <td className="px-5 py-3 text-right font-medium text-orange">
                                 −{formatCurrency(t.discount)}
                             </td>
                         </tr>
@@ -461,7 +412,7 @@ function CostTable({
                     </tr>
                 </tbody>
             </table>
-            <p className="px-5 py-3 text-xs text-muted-foreground italic border-t border-neutral-200">
+            <p className="px-5 py-3 text-xs text-muted-foreground italic border-t border-neutral-200 text-right">
                 Οι τιμές δεν περιλαμβάνουν ΦΠΑ.
             </p>
         </div>
@@ -542,14 +493,14 @@ function FeatureCard({
     return (
         <div className="rounded-xl border border-neutral-200 bg-white p-6 flex flex-col">
             <div className="flex items-center gap-2 text-neutral-900">
-                <span className="text-blue-600">{icon}</span>
+                <span className="text-orange">{icon}</span>
                 <h3 className="text-base font-semibold">{title}</h3>
             </div>
             <p className="text-xs text-muted-foreground mt-1">{restriction}</p>
             <ul className="mt-4 space-y-2 text-sm text-neutral-700">
                 {items.map((it, i) => (
                     <li key={i} className="flex gap-2">
-                        <span className="text-blue-500 mt-1.5 leading-none">·</span>
+                        <span className="text-orange mt-1.5 leading-none">·</span>
                         <span>{it}</span>
                     </li>
                 ))}
@@ -569,7 +520,7 @@ function ExtraCard({
 }) {
     return (
         <div className="rounded-xl border border-neutral-200 bg-white p-5 flex gap-4">
-            <span className="text-blue-600 mt-0.5">{icon}</span>
+            <span className="text-orange mt-0.5">{icon}</span>
             <div>
                 <h4 className="font-semibold text-neutral-900">{title}</h4>
                 <p className="text-sm text-neutral-600 mt-1">{description}</p>
@@ -578,28 +529,6 @@ function ExtraCard({
     );
 }
 
-function PilotCard({
-    icon,
-    title,
-    description,
-    limit,
-}: {
-    icon: React.ReactNode;
-    title: string;
-    description: string;
-    limit: string;
-}) {
-    return (
-        <div className="rounded-xl border border-neutral-200 bg-white p-5">
-            <span className="text-blue-600 inline-flex">{icon}</span>
-            <h4 className="font-semibold text-neutral-900 mt-2">{title}</h4>
-            <p className="text-sm text-neutral-600 mt-1">{description}</p>
-            <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-neutral-100">
-                {limit}
-            </p>
-        </div>
-    );
-}
 
 function Perk({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
     return (
@@ -612,17 +541,17 @@ function Perk({ icon, children }: { icon: React.ReactNode; children: React.React
 
 function CTABox({ offer }: { offer: Offer }) {
     return (
-        <div className="rounded-xl bg-blue-50 border border-blue-100 p-6 sm:p-8 text-center space-y-3">
+        <div className="rounded-xl bg-orange-50 border border-orange-100 p-6 sm:p-8 text-center space-y-3">
             <h3 className="text-lg font-semibold text-neutral-900">
                 Για να απαντήσετε σε αυτή τη προσφορά
             </h3>
             <p className="text-neutral-700">
                 Στείλτε email στο{" "}
-                <a href={`mailto:${offer.respondToEmail}`} className="text-blue-700 font-medium underline decoration-blue-200 underline-offset-2">
+                <a href={`mailto:${offer.respondToEmail}`} className="text-orange font-medium underline decoration-orange-200 underline-offset-2">
                     {offer.respondToEmail}
                 </a>{" "}
                 ή καλέστε στο{" "}
-                <a href={`tel:${offer.respondToPhone}`} className="text-blue-700 font-medium underline decoration-blue-200 underline-offset-2">
+                <a href={`tel:${offer.respondToPhone}`} className="text-orange font-medium underline decoration-orange-200 underline-offset-2">
                     {offer.respondToPhone}
                 </a>
                 .

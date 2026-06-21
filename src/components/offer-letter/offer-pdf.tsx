@@ -47,19 +47,23 @@ const C = {
     light: "#a3a3a3",
     line: "#e5e5e5",
     surface: "#fafafa",
-    accent: "#2563eb",
-    accentSoft: "#eff6ff",
+    // Brand orange (matches --orange in globals.css: hsl(24 100% 50%))
+    accent: "#ff8000",
+    accentSoft: "#fff4eb",
 };
+
+const VAT_RATE = 0.24;
+const withVAT = (n: number) => n * (1 + VAT_RATE);
 
 const A4 = { w: 595.28, h: 841.89 };
 const PAGE_MARGIN = { top: 56, bottom: 56, x: 56 };
 
 // ─── Greek grammar fudge for region vs municipality ─────────────────────────
-function genderArticle(offer: Offer): { def: string; possessive: string; demonym: string; bodyAdj: string } {
+function genderArticle(offer: Offer): { articleAcc: string; def: string; possessive: string; demonym: string; bodyAdj: string } {
     const isRegion = offer.recipientName.startsWith("Περιφέρεια");
     return isRegion
-        ? { def: "την περιφέρεια", possessive: "της περιφέρειας", demonym: "πολίτες", bodyAdj: "περιφερειακό" }
-        : { def: "τον δήμο", possessive: "του δήμου", demonym: "δημότες", bodyAdj: "δημοτικό" };
+        ? { articleAcc: "την", def: "την περιφέρεια", possessive: "της περιφέρειας", demonym: "πολίτες", bodyAdj: "περιφερειακό" }
+        : { articleAcc: "τον", def: "τον δήμο", possessive: "του δήμου", demonym: "δημότες", bodyAdj: "δημοτικό" };
 }
 
 // ─── Formatting helpers (local, locale-aware, no Intl in PDF context issues) ─
@@ -243,7 +247,8 @@ export function OfferPdfDocument({
                     Οικονομική προσφορά
                 </Text>
                 <Text style={{ ...styles.h1, marginBottom: 12 }}>
-                    {offer.recipientName}
+                    Ενημέρωση για οικονομική προσφορά για {G.articleAcc}{" "}
+                    <Text style={{ color: C.accent }}>{offer.recipientName}</Text>
                 </Text>
                 <Text style={{ color: C.mid, fontSize: 11, marginBottom: 40 }}>
                     Για την πλατφόρμα OpenCouncil και τη ψηφιοποίηση δημόσιων
@@ -257,28 +262,33 @@ export function OfferPdfDocument({
                         borderRadius: 6,
                         padding: 24,
                         marginBottom: 32,
+                        flexDirection: "row",
                     }}
                 >
-                    <View style={{ flexDirection: "row" }}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={{ ...styles.small, marginBottom: 4 }}>
-                                Συνολικό κόστος (χωρίς ΦΠΑ)
-                            </Text>
-                            <Text style={{ fontSize: 28, fontWeight: 700, color: C.ink }}>
-                                {fmtEur(totals.total)}
-                            </Text>
-                        </View>
-                        <View style={{ flex: 1 }}>
-                            <Text style={{ ...styles.small, marginBottom: 4 }}>
-                                Διάρκεια
-                            </Text>
-                            <Text style={{ fontSize: 18, fontWeight: 600, color: C.ink }}>
-                                {totals.months} μήνες
-                            </Text>
-                            <Text style={{ ...styles.small, marginTop: 2 }}>
-                                {fmtDate(offer.startDate)} → {fmtDate(offer.endDate)}
-                            </Text>
-                        </View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={{ ...styles.small, marginBottom: 4 }}>
+                            Συνολικό κόστος
+                        </Text>
+                        <Text style={{ fontSize: 28, fontWeight: 700, color: C.ink }}>
+                            {fmtEur(withVAT(totals.total))}
+                        </Text>
+                        <Text style={{ ...styles.small, marginTop: 2 }}>
+                            συμπερ. ΦΠΑ 24%
+                        </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={{ ...styles.small, marginBottom: 4 }}>
+                            Διάρκεια
+                        </Text>
+                        <Text style={{ fontSize: 18, fontWeight: 600, color: C.ink }}>
+                            {totals.months} μήνες
+                        </Text>
+                        <Text style={{ ...styles.small, marginTop: 4 }}>
+                            Από {fmtDate(offer.startDate)}
+                        </Text>
+                        <Text style={{ ...styles.small }}>
+                            Έως {fmtDate(offer.endDate)}
+                        </Text>
                     </View>
                 </View>
 
@@ -404,8 +414,6 @@ export function OfferPdfDocument({
                         total={fmtEurExact(totals.correctnessGuaranteeCost)}
                     />
                 )}
-                <Row label="Πιλοτικές λειτουργίες" qty="∞" rate="δωρεάν" total="—" />
-
                 <Row label="Μερικό Σύνολο" emphasize total={fmtEurExact(totals.subtotal)} />
                 {totals.discount > 0 && (
                     <Row
@@ -416,7 +424,7 @@ export function OfferPdfDocument({
                 )}
                 <Row label="Σύνολο (χωρίς ΦΠΑ)" isTotal total={fmtEurExact(totals.total)} />
 
-                <Text style={{ ...styles.small, marginTop: 6 }}>
+                <Text style={{ ...styles.small, marginTop: 6, textAlign: "right" }}>
                     Οι τιμές δεν περιλαμβάνουν ΦΠΑ.
                 </Text>
 
@@ -500,6 +508,8 @@ export function OfferPdfDocument({
                     </Bullet>
                     <Bullet>Πρόσβαση σε απομαγνητοφωνήσεις, θέματα και συνόψεις</Bullet>
                     <Bullet>Στατιστικά παρατάξεων, ομιλητών και θεμάτων</Bullet>
+                    <Bullet>Ενημερώσεις {G.demonym} μέσω SMS, WhatsApp και Email</Bullet>
+                    <Bullet>Εξαγωγή βίντεο για τα social media</Bullet>
                     <Bullet>Εξαγωγή απομαγνητοφωνήσεων σε PDF</Bullet>
                     <Bullet>Σελίδες παρατάξεων και ομιλητών</Bullet>
                     <Bullet>Αναζήτηση σε θέματα και απομαγνητοφωνήσεις</Bullet>
@@ -538,41 +548,6 @@ export function OfferPdfDocument({
 
             {/* ─── Pilot features + tech specs ────────────────────────── */}
             <Page size="A4" style={styles.page}>
-                <Text style={styles.h2}>Πιλοτικές λειτουργίες (δωρεάν)</Text>
-                <Text style={{ marginBottom: 16, color: C.mid }}>
-                    Διαθέσιμες κατόπιν συνεννόησης, χωρίς εγγύηση παροχής.
-                </Text>
-
-                <View style={{ marginBottom: 18 }}>
-                    <Text style={styles.h3}>Άμεση ενημέρωση & διαβούλευση</Text>
-                    <Text style={{ ...styles.small, marginBottom: 6 }}>
-                        Έως 1.000 ενεργοί λογαριασμοί {G.demonym}.
-                    </Text>
-                    <Bullet>Εγγραφή σε θέματα και περιοχές ενδιαφέροντος</Bullet>
-                    <Bullet>Προσωποποιημένα μηνύματα ανά συνεδρίαση</Bullet>
-                    <Bullet>Σύνοψη απαντήσεων για τον εισηγητή</Bullet>
-                </View>
-
-                <View style={{ marginBottom: 18 }}>
-                    <Text style={styles.h3}>Podcast</Text>
-                    <Text style={{ ...styles.small, marginBottom: 6 }}>
-                        Έως 2 ώρες/μήνα.
-                    </Text>
-                    <Bullet>Αυτόματη παραγωγή ανά συνεδρίαση</Bullet>
-                    <Bullet>Δημοσίευση σε Spotify, Apple Podcasts κ.ά.</Bullet>
-                </View>
-
-                <View style={{ marginBottom: 26 }}>
-                    <Text style={styles.h3}>Υλικό για social media</Text>
-                    <Text style={{ ...styles.small, marginBottom: 6 }}>
-                        Έως 20 δημοσιεύσεις/μήνα.
-                    </Text>
-                    <Bullet>Σύντομα βίντεο και κείμενα μετά από κάθε συνεδρίαση</Bullet>
-                    <Bullet>Προγραμματισμός σε TikTok, Facebook, Instagram, X</Bullet>
-                </View>
-
-                <View style={styles.rule} />
-
                 <Text style={styles.h2}>Τεχνικές προδιαγραφές</Text>
                 <Bullet>Cloud στη Digital Ocean (servers στην ΕΕ)</Bullet>
                 <Bullet>Whisper (OpenAI) + PyAnnote για απομαγνητοφώνηση</Bullet>
