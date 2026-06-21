@@ -142,13 +142,21 @@
         "title": "OECD",
         "subtitle": "Αναφορά σε έκθεση του ΟΟΣΑ για AI & Civic Engagement"
       },
-      "ert": {
-        "title": "ERTnews",
-        "subtitle": "Ρεπορτάζ για την τεχνητή νοημοσύνη στα Χανιά"
+      "innovationInPolitics": {
+        "title": "Innovation in Politics Awards 2026",
+        "subtitle": "Φιναλίστ"
+      },
+      "epsa": {
+        "title": "EPSA 2025-26",
+        "subtitle": "Πιστοποιητικό Καλής Πρακτικής"
       },
       "kede": {
         "title": "ΚΕΔΕ",
         "subtitle": "Άρθρο στο kede.gr για την τεχνητή νοημοσύνη στην τοπική δημοκρατία"
+      },
+      "wired": {
+        "title": "WIRED Greece",
+        "subtitle": "Άρθρο"
       }
     }
   },

@@ -142,13 +142,21 @@
         "title": "OECD",
         "subtitle": "Referenced in OECD report on AI & Civic Engagement"
       },
-      "ert": {
-        "title": "ERTnews",
-        "subtitle": "Report on artificial intelligence in Chania"
+      "innovationInPolitics": {
+        "title": "Innovation in Politics Awards 2026",
+        "subtitle": "Finalists"
+      },
+      "epsa": {
+        "title": "EPSA 2025-26",
+        "subtitle": "Good Practice Certificate"
       },
       "kede": {
         "title": "KEDE",
         "subtitle": "Article on AI in local democracy on kede.gr"
+      },
+      "wired": {
+        "title": "WIRED Greece",
+        "subtitle": "Article"
       }
     }
   },
