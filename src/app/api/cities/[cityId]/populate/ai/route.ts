@@ -74,7 +74,8 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
                     result = await generateCityDataWithAI(params.cityId, city.name, {
                         useWebSearch: true,
                         webSearchMaxUses: 3,
-                        userProvidedText
+                        userProvidedText,
+                        language: city.language
                     });
                 } finally {
                     // Always clear the heartbeat interval
