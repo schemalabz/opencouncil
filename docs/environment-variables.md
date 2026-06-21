@@ -71,6 +71,7 @@ These variables are used by the flake runner (`nix run .#dev`) to configure **lo
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
 | `RESEND_API_KEY` | API key for Resend email service. | Yes | - |
+| `AUTH_EMAIL_FROM` | Sender ("from") address for sign-in magic-link emails. For local dev, use a Resend test sender (see below). | No | `OpenCouncil <auth@opencouncil.gr>` |
 | `BASIC_AUTH_USERNAME` | Username for basic auth protection. | No | - |
 | `BASIC_AUTH_PASSWORD` | Password for basic auth protection. | No | - |
 | `NEXTAUTH_SECRET` | Secret used by NextAuth.js to hash tokens, sign/encrypt cookies, and generate cryptographic keys. | Yes | - |
@@ -88,6 +89,22 @@ These variables are used by the flake runner (`nix run .#dev`) to configure **lo
 | `BIRD_WEBHOOK_SECRET` | Shared secret for verifying HMAC signatures on inbound Bird webhook events. | No | - |
 
 For full setup instructions (workspace, channels, templates, API key, webhook subscription), see [bird-setup.md](./bird-setup.md).
+
+#### Resend setup for local development
+
+Sign-in uses a magic link sent through [Resend](https://resend.com). Two things commonly trip up new contributors and self-hosters:
+
+1. **The default `from` domain isn't yours.** The default `AUTH_EMAIL_FROM` is `OpenCouncil <auth@opencouncil.gr>`. Resend only lets you send from a domain you've verified on your own account, so on a fork every sign-in fails with **HTTP 403**. To avoid verifying a domain, set `AUTH_EMAIL_FROM` to Resend's test sender:
+
+   ```
+   AUTH_EMAIL_FROM="OpenCouncil <onboarding@resend.dev>"
+   ```
+
+2. **Test mode only delivers to the account owner.** While using `onboarding@resend.dev` (or any unverified setup), Resend will only deliver to the email address that owns your API key. So **sign in with that same email** — e.g. the address you registered your Resend account with. Sending to placeholder domains like `example@example.com` is blocked and returns **HTTP 422**.
+
+If you want every sign-in email (for any address) redirected to a single inbox you own, set `DEV_EMAIL_OVERRIDE` (see [Development Configuration](#development-configuration)) — note this only redirects the [test users](#test-users).
+
+When a send fails, the cause (status code + Resend message + a hint) is logged with the `[Auth][Resend]` prefix in your dev server console.
 
 #### NEXTAUTH_SECRET
 You can quickly create a good value on the command line via this openssl command:
