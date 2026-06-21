@@ -174,7 +174,10 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
 }) => {
     // useCouncilMeetingMeta() — not useCouncilMeetingData() — so this
     // component bails on transcript-only edits.
-    const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, speakerTags } = useCouncilMeetingMeta();
+    const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, speakerTags, meeting } = useCouncilMeetingMeta();
+    // Resolve party color as of the meeting date so a councilor who later
+    // changed affiliation keeps their historical color on older meetings.
+    const meetingDate = meeting.dateTime;
     const { updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingActions();
     const { options } = useTranscriptOptions();
     const { data: session } = useSession();
@@ -228,7 +231,7 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
     // tags / segment counts change.
     const speakerTag = getSpeakerTag(segment.speakerTagId);
     const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
-    const party = person ? getPartyFromRoles(person.roles) : null;
+    const party = person ? getPartyFromRoles(person.roles, meetingDate) : null;
     const borderColor = party?.colorHex || '#D3D3D3';
     const segmentCount = speakerTag ? getSpeakerSegmentCount(speakerTag.id) : 0;
     const headerData = { speakerTag, person, party, borderColor, segmentCount };
@@ -288,6 +291,7 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
                                             speakerTag={headerData.speakerTag}
                                             variant="inline"
                                             className="flex-1 min-w-0"
+                                            date={meetingDate}
                                         />
                                         <div className='flex items-center gap-1.5 shrink-0'>
                                             <span className='text-[10px] text-muted-foreground font-medium'>
@@ -313,9 +317,10 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
                                                     nextUnknownLabel={nextUnknownLabel}
                                                     availablePeople={people.map(p => ({
                                                         ...p,
-                                                        party: getPartyFromRoles(p.roles)
+                                                        party: getPartyFromRoles(p.roles, meetingDate)
                                                     }))}
                                                     size="sm"
+                                                    date={meetingDate}
                                                 />
                                             )}
                                         </div>

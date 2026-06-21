@@ -1,5 +1,5 @@
 import { Role, Party } from '@prisma/client';
-import { getSpeakerDisplayInfo, isRoleActiveAt, sortRolesByPriority, getPrimaryRole, simplifyRoleName } from '../roles';
+import { getSpeakerDisplayInfo, getPartyFromRoles, isRoleActiveAt, sortRolesByPriority, getPrimaryRole, simplifyRoleName } from '../roles';
 
 function makeRole(overrides: Partial<Role> & { party?: Party | null } = {}): Role & { party?: Party | null; cityId?: string | null } {
   return {
@@ -310,6 +310,44 @@ describe('getSpeakerDisplayInfo', () => {
       expect(result.role!.name).toBe('Αντιδήμαρχος');
       expect(result.isPartyHead).toBe(true);
     });
+  });
+});
+
+describe('getPartyFromRoles', () => {
+  // Mirrors issue #309: a councilor who became independent (party role ended).
+  // The timeline color must reflect affiliation as of the meeting date — old
+  // meetings keep the party color, later meetings fall back to independent.
+  const party = makeParty({ id: 'old-party', colorHex: '#123456' });
+  const affiliationEnd = new Date('2025-11-01');
+  const rolesAfterLeaving = [
+    makeRole({ partyId: 'old-party', party, startDate: null, endDate: affiliationEnd }),
+  ];
+
+  it('returns the old party for a meeting before the affiliation ended', () => {
+    const result = getPartyFromRoles(rolesAfterLeaving, new Date('2025-10-15'));
+    expect(result?.id).toBe('old-party');
+    expect(result?.colorHex).toBe('#123456');
+  });
+
+  it('returns null (independent) for a meeting after the affiliation ended', () => {
+    const result = getPartyFromRoles(rolesAfterLeaving, new Date('2025-11-15'));
+    expect(result).toBeNull();
+  });
+
+  it('treats the end date as exclusive (independent on the day it ends)', () => {
+    const result = getPartyFromRoles(rolesAfterLeaving, affiliationEnd);
+    expect(result).toBeNull();
+  });
+
+  // Guards against the Server -> Client serialization bug: meeting.dateTime
+  // arrives as an ISO string, which must still compare correctly against the
+  // role's dates (Date vs string comparisons would otherwise yield NaN/false).
+  it('resolves correctly when the date is an ISO string (serialized)', () => {
+    const before = getPartyFromRoles(rolesAfterLeaving, '2025-10-15T10:00:00.000Z' as unknown as Date);
+    expect(before?.id).toBe('old-party');
+
+    const after = getPartyFromRoles(rolesAfterLeaving, '2025-11-15T10:00:00.000Z' as unknown as Date);
+    expect(after).toBeNull();
   });
 });
 
