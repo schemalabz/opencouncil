@@ -40,53 +40,50 @@ export default function Recognition() {
                 </figcaption>
             </motion.figure>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <div className="mx-auto grid max-w-4xl grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border/50 bg-border/50 lg:grid-cols-3">
                 {RECOGNITION_ITEMS.map((item, index) => {
                     const hasLink = !!item.linkUrl
                     const cardClass = cn(
-                        'flex flex-col rounded-xl border border-border/50 bg-white p-6 h-full transition-shadow duration-200',
-                        hasLink && 'hover:shadow-md'
+                        'group relative flex h-full flex-col items-center bg-white px-5 py-7 text-center transition-colors duration-200',
+                        hasLink && 'hover:bg-muted/30'
                     )
 
                     const cardContent = (
                         <>
-                            <div className="h-10 mb-4 flex items-center">
+                            {hasLink && (
+                                <ExternalLink className="absolute right-3.5 top-3.5 h-3.5 w-3.5 text-muted-foreground/30 transition-colors group-hover:text-foreground" />
+                            )}
+
+                            <div className="flex h-12 items-center justify-center">
                                 {item.logoUrl ? (
                                     <Image
                                         src={item.logoUrl}
                                         alt={t(`recognition.items.${item.id}.title`)}
-                                        width={120}
-                                        height={40}
-                                        className="h-8 w-auto max-w-[120px] object-contain object-left"
+                                        width={160}
+                                        height={48}
+                                        className={cn('w-auto object-contain', item.logoClassName ?? 'max-h-8 max-w-[120px]')}
                                     />
                                 ) : (
-                                    <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-primary/10">
-                                        <Trophy className="h-5 w-5 text-primary" />
-                                    </div>
+                                    <Trophy className="h-9 w-9 text-primary/80" strokeWidth={1.5} />
                                 )}
                             </div>
 
-                            <h3 className="text-sm font-semibold text-foreground leading-snug">
+                            <h3 className="mt-5 flex min-h-[2.5rem] items-center justify-center text-sm font-semibold leading-snug text-foreground">
                                 {t(`recognition.items.${item.id}.title`)}
                             </h3>
-                            <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed flex-1">
+                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                                 {t(`recognition.items.${item.id}.subtitle`)}
                             </p>
-
-                            {hasLink && (
-                                <div className="mt-4 flex items-center gap-1 text-xs text-muted-foreground/60">
-                                    <ExternalLink className="h-3 w-3" />
-                                </div>
-                            )}
                         </>
                     )
 
                     return (
                         <motion.div
                             key={item.id}
-                            initial={{ opacity: 0, y: 20 }}
+                            className="h-full"
+                            initial={{ opacity: 0, y: 16 }}
                             whileInView={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5, delay: index * 0.08 }}
+                            transition={{ duration: 0.45, delay: index * 0.06 }}
                             viewport={{ once: true }}
                         >
                             {hasLink ? (
@@ -94,7 +91,7 @@ export default function Recognition() {
                                     href={item.linkUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className={cn(cardClass, 'no-underline [&_*]:no-underline')}
+                                    className={cn(cardClass, 'no-underline hover:no-underline [&_*]:no-underline')}
                                 >
                                     {cardContent}
                                 </a>

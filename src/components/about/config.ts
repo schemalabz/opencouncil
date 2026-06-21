@@ -16,6 +16,9 @@ export interface RecognitionItem {
     id: string
     logoUrl?: string
     linkUrl: string
+    /** Per-logo optical sizing within the fixed logo lockup (logos have very different
+     *  aspect ratios, so each is tuned by eye to sit at a balanced visual weight). */
+    logoClassName?: string
 }
 
 export interface TeamMember {
@@ -88,16 +91,31 @@ export const RECOGNITION_ITEMS: RecognitionItem[] = [
         id: 'oecd',
         linkUrl: 'https://oecd.ai/en/gov/issues/civic-engagement-open-government',
         logoUrl: '/about/oecd.png',
+        logoClassName: 'max-h-7 max-w-[116px]',
     },
     {
-        id: 'ert',
-        linkUrl: 'https://www.ertnews.gr/video/xania-i-texniti-noimosyni-sti-diathesi-tou-dimoti/',
-        logoUrl: '/about/ert-news.svg',
+        id: 'innovationInPolitics',
+        linkUrl: 'https://event.innovationinpolitics.eu/InnovationinPoliticsAwards2026#/Finalists?lang=en',
+        logoUrl: '/about/innovation-politics-figure.png',
+        logoClassName: 'max-h-11 max-w-[64px]',
+    },
+    {
+        id: 'epsa',
+        linkUrl: 'https://www.eipa.eu/epsa-2025-26/',
+        logoUrl: '/about/eipa.png',
+        logoClassName: 'max-h-8 max-w-[128px]',
     },
     {
         id: 'kede',
         linkUrl: 'https://kede.gr/opencouncil-chania-gr-i-protoporiaki-platforma-ai-pou-allazei-ta-dedomena-sto-dimotiko-symvoulio-chanion/',
         logoUrl: '/about/kede.png',
+        logoClassName: 'max-h-10 max-w-[56px]',
+    },
+    {
+        id: 'wired',
+        linkUrl: 'https://wired.com.gr/article/ai-kai-dimotika-symvoulia-stin-akri-tis-elladas/',
+        logoUrl: '/about/wired.svg',
+        logoClassName: 'max-h-6 max-w-[112px]',
     },
 ]
 
