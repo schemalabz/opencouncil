@@ -259,8 +259,15 @@ type OnboardingData = {
 export async function saveNotificationPreferences(data: OnboardingData & {
     locationIds: string[];
     topicIds: string[];
-}): Promise<Result<NotificationPreference>> {
-    const { cityId, locationIds, topicIds, phone, email, name, seedUser } = data;
+    /**
+     * Opt-in flag for the unsubscribe-all path. When true and both arrays are empty,
+     * the existing NotificationPreference row is deleted. Without this flag, empty
+     * arrays are rejected as an error to protect callers (e.g. onboarding) from
+     * accidentally wiping a user's preferences.
+     */
+    allowUnsubscribeAll?: boolean;
+}): Promise<Result<NotificationPreference | null>> {
+    const { cityId, locationIds, topicIds, phone, email, name, seedUser, allowUnsubscribeAll } = data;
     // Only call getServerSession if not in seed/CLI mode (avoids Next.js request context requirement)
     const session = seedUser ? null : await getServerSession();
 
@@ -296,6 +303,12 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 });
             }
         } else if (email) {
+            // Validate before creating a new user so we never create an orphaned user
+            // or send a magic link when there are no preferences to save.
+            if ((!locationIds || locationIds.length === 0) && (!topicIds || topicIds.length === 0)) {
+                return createError("No valid topics or locations provided");
+            }
+
             // Non-authenticated user
             // Check if this email already exists
             let user = await prisma.user.findUnique({
@@ -373,6 +386,28 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 }
             }
         });
+
+        /**
+         * Unsubscribe-all path: opt-in via `allowUnsubscribeAll`, used exclusively by
+         * `useSubjectSubscribe` when the user deselects every topic and location.
+         *
+         * WARNING: this path bypasses `sendWelcomeMessages` and
+         * `sendNotificationSignupAdminAlert`. The preference row is deleted entirely,
+         * so a later re-subscribe will create a new row and re-trigger welcome messages
+         * and admin alerts.
+         *
+         * Other callers (onboarding, seed-users) reach the default branch and get an
+         * error on empty arrays, protecting against accidental preference wipes.
+         */
+        if (validTopicIds.length === 0 && validLocationIds.length === 0) {
+            if (isNewlyCreatedUser || !allowUnsubscribeAll) {
+                return createError("No valid topics or locations provided");
+            }
+            if (existingPreference) {
+                await prisma.notificationPreference.delete({ where: { id: existingPreference.id } });
+            }
+            return createSuccess(null);
+        }
 
         if (existingPreference) {
             // For existing preferences, update using Prisma's connect/disconnect
