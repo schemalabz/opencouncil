@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Image from "next/image";
 import {
     Building2,
     FileText,
@@ -60,6 +61,9 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                     <h1 className="text-4xl sm:text-5xl tracking-tight text-orange leading-tight">
                         {offer.recipientName}
                     </h1>
+                    <p className="text-xs text-neutral-500 uppercase tracking-wider">
+                        {formatDate(offer.createdAt)}
+                    </p>
                     <p className="text-lg text-neutral-600 max-w-2xl pt-2">
                         Για την πλατφόρμα OpenCouncil και τη ψηφιοποίηση των δημόσιων
                         συνεδριάσεων του {G.bodyAdj} συμβουλίου.
@@ -239,9 +243,15 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
 function ActionBar({ offer }: { offer: Offer }) {
     return (
         <div className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-neutral-200">
-            <div className="max-w-4xl mx-auto px-4 sm:px-8 py-3 flex items-center justify-end gap-2">
-                <CopyLinkButton offer={offer} />
-                <DownloadPdfButton offer={offer} />
+            <div className="max-w-4xl mx-auto px-4 sm:px-8 py-3 flex items-center justify-between gap-2">
+                <a href="/" className="flex items-center gap-2 text-neutral-900">
+                    <Image src="/logo.png" alt="OpenCouncil" width={28} height={28} />
+                    <span className="font-semibold tracking-tight">OpenCouncil</span>
+                </a>
+                <div className="flex items-center gap-2">
+                    <CopyLinkButton offer={offer} />
+                    <DownloadPdfButton offer={offer} />
+                </div>
             </div>
         </div>
     );
@@ -251,7 +261,7 @@ function HeroSummary({ offer }: { offer: Offer }) {
     const totals = calculateOfferTotals(offer);
     return (
         <div className="rounded-xl border border-neutral-200 bg-white">
-            <div className="grid sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-neutral-200">
+            <div className="grid sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-neutral-200">
                 <div className="p-6">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
                         Συνολικό κόστος
@@ -268,17 +278,8 @@ function HeroSummary({ offer }: { offer: Offer }) {
                     <p className="text-3xl font-bold tracking-tight text-neutral-900">
                         {totals.months} μήνες
                     </p>
-                    <div className="text-xs text-muted-foreground mt-2 space-y-0.5">
-                        <p>Από {formatDate(offer.startDate)}</p>
-                        <p>Έως {formatDate(offer.endDate)}</p>
-                    </div>
-                </div>
-                <div className="p-6">
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
-                        Ημερομηνία προσφοράς
-                    </p>
-                    <p className="text-3xl font-bold tracking-tight text-neutral-900">
-                        {formatDate(offer.createdAt)}
+                    <p className="text-xs text-muted-foreground mt-1">
+                        {formatDate(offer.startDate)} — {formatDate(offer.endDate)}
                     </p>
                 </div>
             </div>
@@ -508,7 +509,7 @@ function FeatureCard({
             <ul className="mt-4 space-y-2 text-sm text-neutral-700">
                 {items.map((it, i) => (
                     <li key={i} className="flex gap-2">
-                        <span className="text-orange mt-1.5 leading-none">·</span>
+                        <span className="text-neutral-400 mt-1.5 leading-none">·</span>
                         <span>{it}</span>
                     </li>
                 ))}
@@ -555,11 +556,11 @@ function CTABox({ offer }: { offer: Offer }) {
             </h3>
             <p className="text-neutral-700">
                 Στείλτε email στο{" "}
-                <a href={`mailto:${offer.respondToEmail}`} className="text-orange font-medium underline decoration-orange-200 underline-offset-2">
+                <a href={`mailto:${offer.respondToEmail}`} className="font-medium underline decoration-neutral-300 underline-offset-2">
                     {offer.respondToEmail}
                 </a>{" "}
                 ή καλέστε στο{" "}
-                <a href={`tel:${offer.respondToPhone}`} className="text-orange font-medium underline decoration-orange-200 underline-offset-2">
+                <a href={`tel:${offer.respondToPhone}`} className="font-medium underline decoration-neutral-300 underline-offset-2">
                     {offer.respondToPhone}
                 </a>
                 .
