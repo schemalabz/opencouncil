@@ -1,7 +1,7 @@
 {
   "cities": {
     "title": "Communes",
-    "description": "Toutes les communes regroupées par groupe (stratum).",
+    "description": "Toutes les communes regroupées par groupe (realm).",
     "addCity": "Ajouter une commune",
     "editCity": "Modifier la commune",
     "searchPlaceholder": "Rechercher des communes...",
@@ -13,8 +13,8 @@
     "columnMeetings": "Séances",
     "columnPeople": "Personnes",
     "columnParties": "Groupes",
-    "stratumGreece": "Grèce",
-    "stratumFrance": "France",
+    "realmGreece": "Grèce",
+    "realmFrance": "France",
     "languageGreek": "Grec",
     "languageFrench": "Français",
     "cityCount": "{count, plural, one {# commune} other {# communes}}"

@@ -1,7 +1,7 @@
 {
   "cities": {
     "title": "Δήμοι",
-    "description": "Όλοι οι δήμοι ομαδοποιημένοι ανά ομάδα (stratum).",
+    "description": "Όλοι οι δήμοι ομαδοποιημένοι ανά ομάδα (realm).",
     "addCity": "Προσθήκη Δήμου",
     "editCity": "Επεξεργασία Δήμου",
     "searchPlaceholder": "Αναζήτηση δήμων...",
@@ -13,8 +13,8 @@
     "columnMeetings": "Συνεδριάσεις",
     "columnPeople": "Πρόσωπα",
     "columnParties": "Παρατάξεις",
-    "stratumGreece": "Ελλάδα",
-    "stratumFrance": "Γαλλία",
+    "realmGreece": "Ελλάδα",
+    "realmFrance": "Γαλλία",
     "languageGreek": "Ελληνικά",
     "languageFrench": "Γαλλικά",
     "cityCount": "{count, plural, one {# δήμος} other {# δήμοι}}"

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { City, CityStatus, Stratum } from "@prisma/client";
+import { City, CityStatus, Realm } from "@prisma/client";
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -25,7 +25,7 @@ interface CitiesAdminTableProps {
 }
 
 // Render strata in a stable, meaningful order.
-const STRATUM_ORDER: Stratum[] = ["greece", "france"];
+const REALM_ORDER: Realm[] = ["greece", "france"];
 
 const STATUS_VARIANT: Record<CityStatus, "default" | "secondary" | "outline"> = {
     listed: "default",
@@ -48,15 +48,15 @@ export function CitiesAdminTable({ cities }: CitiesAdminTableProps) {
         );
     }, [cities, searchTerm]);
 
-    const groupedByStratum = useMemo(() => {
-        // Stratum is a closed enum, so iterate it in fixed order and drop empty groups.
-        return STRATUM_ORDER
-            .map((stratum) => ({ stratum, cities: filteredCities.filter((c) => c.stratum === stratum) }))
+    const groupedByRealm = useMemo(() => {
+        // Realm is a closed enum, so iterate it in fixed order and drop empty groups.
+        return REALM_ORDER
+            .map((realm) => ({ realm, cities: filteredCities.filter((c) => c.realm === realm) }))
             .filter((group) => group.cities.length > 0);
     }, [filteredCities]);
 
-    const stratumLabel = (stratum: Stratum) =>
-        stratum === "france" ? t("stratumFrance") : t("stratumGreece");
+    const realmLabel = (realm: Realm) =>
+        realm === "france" ? t("realmFrance") : t("realmGreece");
     const languageLabel = (language: City["language"]) =>
         language === "fr" ? t("languageFrench") : t("languageGreek");
 
@@ -84,16 +84,16 @@ export function CitiesAdminTable({ cities }: CitiesAdminTableProps) {
                 className="max-w-sm"
             />
 
-            {groupedByStratum.length === 0 ? (
+            {groupedByRealm.length === 0 ? (
                 <p className="text-muted-foreground">{t("noCities")}</p>
             ) : (
-                groupedByStratum.map(({ stratum, cities: stratumCities }) => (
-                    <Card key={stratum}>
+                groupedByRealm.map(({ realm, cities: realmCities }) => (
+                    <Card key={realm}>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
-                                {stratumLabel(stratum)}
+                                {realmLabel(realm)}
                                 <Badge variant="secondary">
-                                    {t("cityCount", { count: stratumCities.length })}
+                                    {t("cityCount", { count: realmCities.length })}
                                 </Badge>
                             </CardTitle>
                         </CardHeader>
@@ -112,7 +112,7 @@ export function CitiesAdminTable({ cities }: CitiesAdminTableProps) {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {stratumCities.map((city) => (
+                                    {realmCities.map((city) => (
                                         <TableRow key={city.id}>
                                             <TableCell className="font-medium">{city.name}</TableCell>
                                             <TableCell>

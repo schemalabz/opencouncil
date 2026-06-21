@@ -77,7 +77,7 @@ export async function POST(request: Request) {
             highlightCreationPermission: data.highlightCreationPermission,
             diavgeiaUid: data.diavgeiaUid || null,
             language: data.language,
-            stratum: data.stratum,
+            realm: data.realm,
         });
 
         // Bust the all-cities caches so the new city is immediately visible —

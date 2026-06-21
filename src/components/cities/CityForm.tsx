@@ -111,7 +111,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
             highlightCreationPermission: city?.highlightCreationPermission || CITY_DEFAULTS.highlightCreationPermission,
             diavgeiaUid: city?.diavgeiaUid || '',
             language: city?.language || CITY_DEFAULTS.language,
-            stratum: city?.stratum || CITY_DEFAULTS.stratum,
+            realm: city?.realm || CITY_DEFAULTS.realm,
         },
     })
 
@@ -146,7 +146,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         formData.append('peopleOrdering', values.peopleOrdering)
         formData.append('diavgeiaUid', values.diavgeiaUid || '')
         formData.append('language', values.language)
-        formData.append('stratum', values.stratum)
+        formData.append('realm', values.realm)
         if (logoImage) {
             formData.append('logoImage', logoImage)
         }
@@ -553,23 +553,23 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                             />
                             <FormField
                                 control={form.control}
-                                name="stratum"
+                                name="realm"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>{t('stratum')}</FormLabel>
+                                        <FormLabel>{t('realm')}</FormLabel>
                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                                             <FormControl>
                                                 <SelectTrigger>
-                                                    <SelectValue placeholder={t('selectStratum')} />
+                                                    <SelectValue placeholder={t('selectRealm')} />
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value="greece">{t('stratumGreece')}</SelectItem>
-                                                <SelectItem value="france">{t('stratumFrance')}</SelectItem>
+                                                <SelectItem value="greece">{t('realmGreece')}</SelectItem>
+                                                <SelectItem value="france">{t('realmFrance')}</SelectItem>
                                             </SelectContent>
                                         </Select>
                                         <FormDescription>
-                                            {t('stratumDescription')}
+                                            {t('realmDescription')}
                                         </FormDescription>
                                         <FormMessage />
                                     </FormItem>

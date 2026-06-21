@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AuthorityType, CityStatus, PeopleOrdering, HighlightCreationPermission, CityLanguage, Stratum } from '@prisma/client';
+import { AuthorityType, CityStatus, PeopleOrdering, HighlightCreationPermission, CityLanguage, Realm } from '@prisma/client';
 
 // Prisma enum schemas - use nativeEnum for type safety
 export const authorityTypeSchema = z.nativeEnum(AuthorityType);
@@ -7,7 +7,7 @@ export const cityStatusSchema = z.nativeEnum(CityStatus);
 export const peopleOrderingSchema = z.nativeEnum(PeopleOrdering);
 export const highlightCreationPermissionSchema = z.nativeEnum(HighlightCreationPermission);
 export const cityLanguageSchema = z.nativeEnum(CityLanguage);
-export const stratumSchema = z.nativeEnum(Stratum);
+export const realmSchema = z.nativeEnum(Realm);
 
 // Default values — single source of truth for the entire app.
 // These mirror the Prisma schema defaults and are used by:
@@ -30,7 +30,7 @@ export const CITY_DEFAULTS = {
   peopleOrdering: 'default' as PeopleOrdering,
   highlightCreationPermission: 'ADMINS_ONLY' as HighlightCreationPermission,
   language: 'el' as CityLanguage,
-  stratum: 'greece' as Stratum,
+  realm: 'greece' as Realm,
 } as const;
 
 // Helper to convert string to boolean (for FormData)
@@ -65,7 +65,7 @@ const baseCityFields = {
   peopleOrdering: peopleOrderingSchema,
   highlightCreationPermission: highlightCreationPermissionSchema,
   language: cityLanguageSchema,
-  stratum: stratumSchema,
+  realm: realmSchema,
 };
 
 // Base schema for frontend forms (React Hook Form) — uses booleans directly

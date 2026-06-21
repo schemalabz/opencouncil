@@ -24,7 +24,7 @@ const validFrontendBase = {
   peopleOrdering: 'default' as const,
   highlightCreationPermission: 'ADMINS_ONLY' as const,
   language: 'el' as const,
-  stratum: 'greece' as const,
+  realm: 'greece' as const,
 };
 
 const validFormDataBase = {
@@ -41,7 +41,7 @@ const validFormDataBase = {
   peopleOrdering: 'default',
   highlightCreationPermission: 'ADMINS_ONLY',
   language: 'el',
-  stratum: 'greece',
+  realm: 'greece',
 };
 
 const createMockFile = (name = 'logo.png'): File => {
@@ -422,7 +422,7 @@ describe('CITY_DEFAULTS alignment', () => {
       peopleOrdering: 'default',
       highlightCreationPermission: 'ADMINS_ONLY',
       language: 'el',
-      stratum: 'greece',
+      realm: 'greece',
     });
   });
 });
