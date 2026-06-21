@@ -55,8 +55,8 @@ export default async function proxy(req: NextRequest) {
         return NextResponse.rewrite(url);
     }
 
-    // Handle i18n first (skip for /qr/* paths to allow direct route handler)
-    if (/^\/(?!api|_next|_vercel|qr\/|\..+).*/.test(pathname)) {
+    // Handle i18n first (skip for /qr/* and /yt/* paths to allow direct route handler)
+    if (/^\/(?!api|_next|_vercel|qr\/|yt\/|\..+).*/.test(pathname)) {
         const response = await i18nMiddleware(req);
         if (response) return response;
     }
