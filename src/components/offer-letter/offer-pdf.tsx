@@ -52,8 +52,6 @@ const C = {
     accentSoft: "#fff4eb",
 };
 
-const VAT_RATE = 0.24;
-const withVAT = (n: number) => n * (1 + VAT_RATE);
 
 const A4 = { w: 595.28, h: 841.89 };
 const PAGE_MARGIN = { top: 56, bottom: 56, x: 56 };
@@ -243,12 +241,18 @@ export function OfferPdfDocument({
                     </Text>
                 </View>
 
-                <Text style={{ ...styles.small, marginBottom: 8 }}>
-                    Οικονομική προσφορά
+                <Text style={{ fontSize: 10, color: C.mid, marginBottom: 8 }}>
+                    Ενημέρωση για οικονομική προσφορά για {G.articleAcc}
                 </Text>
-                <Text style={{ ...styles.h1, marginBottom: 12 }}>
-                    Ενημέρωση για οικονομική προσφορά για {G.articleAcc}{" "}
-                    <Text style={{ color: C.accent }}>{offer.recipientName}</Text>
+                <Text
+                    style={{
+                        fontSize: 28,
+                        color: C.accent,
+                        marginBottom: 16,
+                        lineHeight: 1.1,
+                    }}
+                >
+                    {offer.recipientName}
                 </Text>
                 <Text style={{ color: C.mid, fontSize: 11, marginBottom: 40 }}>
                     Για την πλατφόρμα OpenCouncil και τη ψηφιοποίηση δημόσιων
@@ -270,10 +274,10 @@ export function OfferPdfDocument({
                             Συνολικό κόστος
                         </Text>
                         <Text style={{ fontSize: 28, fontWeight: 700, color: C.ink }}>
-                            {fmtEur(withVAT(totals.total))}
+                            {fmtEur(totals.total)}
                         </Text>
                         <Text style={{ ...styles.small, marginTop: 2 }}>
-                            συμπερ. ΦΠΑ 24%
+                            πλέον ΦΠΑ 24%
                         </Text>
                     </View>
                     <View style={{ flex: 1 }}>

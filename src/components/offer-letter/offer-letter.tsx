@@ -22,9 +22,6 @@ import type { Offer } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { DownloadPdfButton } from "./download-pdf-button";
 
-const VAT_RATE = 0.24;
-const withVAT = (n: number) => n * (1 + VAT_RATE);
-
 const isRegionFor = (offer: Offer) => offer.recipientName.startsWith("Περιφέρεια");
 
 const grammar = (offer: Offer) => {
@@ -57,11 +54,13 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
             <div className="max-w-4xl mx-auto px-4 sm:px-8 pt-10 pb-16 space-y-10">
                 {/* Header */}
                 <header className="space-y-3">
-                    <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900 leading-tight">
-                        Ενημέρωση για οικονομική προσφορά για {G.articleAcc}{" "}
-                        <span className="text-orange">{offer.recipientName}</span>
+                    <p className="text-sm text-neutral-600">
+                        Ενημέρωση για οικονομική προσφορά για {G.articleAcc}
+                    </p>
+                    <h1 className="text-4xl sm:text-5xl tracking-tight text-orange leading-tight">
+                        {offer.recipientName}
                     </h1>
-                    <p className="text-lg text-neutral-600 max-w-2xl">
+                    <p className="text-lg text-neutral-600 max-w-2xl pt-2">
                         Για την πλατφόρμα OpenCouncil και τη ψηφιοποίηση των δημόσιων
                         συνεδριάσεων του {G.bodyAdj} συμβουλίου.
                     </p>
@@ -258,9 +257,9 @@ function HeroSummary({ offer }: { offer: Offer }) {
                         Συνολικό κόστος
                     </p>
                     <p className="text-3xl font-bold tracking-tight text-neutral-900">
-                        {formatCurrency(withVAT(totals.total))}
+                        {formatCurrency(totals.total)}
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">συμπερ. ΦΠΑ 24%</p>
+                    <p className="text-xs text-muted-foreground mt-1">πλέον ΦΠΑ 24%</p>
                 </div>
                 <div className="p-6">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
@@ -299,7 +298,10 @@ function Section({
     return (
         <section className="space-y-4">
             <div>
-                <h2 className="text-2xl font-semibold tracking-tight text-neutral-900">
+                <h2
+                    className="text-2xl font-semibold tracking-tight text-neutral-900"
+                    style={{ textAlign: "left" }}
+                >
                     {title}
                 </h2>
                 {intro && (
@@ -492,11 +494,17 @@ function FeatureCard({
 }) {
     return (
         <div className="rounded-xl border border-neutral-200 bg-white p-6 flex flex-col">
-            <div className="flex items-center gap-2 text-neutral-900">
-                <span className="text-orange">{icon}</span>
-                <h3 className="text-base font-semibold">{title}</h3>
+            <div className="flex items-start gap-3">
+                <span className="text-orange shrink-0 [&>svg]:w-8 [&>svg]:h-8">
+                    {icon}
+                </span>
+                <div className="min-w-0 pt-0.5">
+                    <h3 className="text-base font-semibold text-neutral-900 leading-tight">
+                        {title}
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1">{restriction}</p>
+                </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">{restriction}</p>
             <ul className="mt-4 space-y-2 text-sm text-neutral-700">
                 {items.map((it, i) => (
                     <li key={i} className="flex gap-2">
