@@ -1,5 +1,28 @@
-import { unstable_cache } from 'next/cache';
+import { revalidateTag, unstable_cache } from 'next/cache';
 import { IS_DEV } from '@/lib/utils';
+
+/**
+ * Revalidate all cached meeting data (subjects, statistics, derived status,
+ * task status). Mirrors the tag set used by getMeetingDataCore, so a single
+ * call busts everything the meeting and subject pages read.
+ *
+ * Call this immediately after persisting new meeting/subject data and BEFORE
+ * any slow side effects (e.g. rate-limited notification sends). Otherwise a
+ * recipient who clicks a notification before the send loop finishes can be
+ * served stale, pre-summarize content.
+ */
+export function revalidateMeeting(cityId: string, meetingId: string): void {
+  // revalidateTag throws ("static generation store missing") when called outside
+  // a request scope (e.g. background reprocessing, tests). A cache hiccup should
+  // never fail the surrounding task, so log and continue — matching the existing
+  // defensive handling in src/lib/tasks/tasks.ts.
+  try {
+    revalidateTag(`city:${cityId}:meetings`, 'max');
+    revalidateTag(`city:${cityId}:meeting:${meetingId}`, 'max');
+  } catch (error) {
+    console.error(`Error revalidating meeting cache for ${cityId}/${meetingId}:`, error);
+  }
+}
 
 /**
  * Creates a cached version of a function with logging.
