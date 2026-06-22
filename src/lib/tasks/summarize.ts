@@ -7,6 +7,7 @@ import { startTask } from "./tasks";
 import { getCity } from "../db/cities";
 import { getCouncilMeeting } from "../db/meetings";
 import prisma from "../db/prisma";
+import { revalidateMeeting } from "../cache";
 import { getAvailableSpeakerSegmentIds, getSummarizeRequestBody, saveSubjectsForMeeting } from "../db/utils";
 import { withUserAuthorizedToEdit } from "../auth";
 
@@ -220,6 +221,12 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
             console.log(`Saved ${validStatuses.length} utterance discussion statuses (${response.utteranceDiscussionStatuses.length - validStatuses.length} skipped/duplicates)`);
         }
     }
+
+    // Bust the meeting/subject cache now that all summarize results are persisted,
+    // BEFORE sending notifications below. The notification send is rate-limited
+    // (~500ms/recipient), so revalidating only after it finishes would let early
+    // recipients open the meeting and see stale, pre-summarize content.
+    revalidateMeeting(councilMeeting.cityId, councilMeeting.id);
 
     // Create notifications if administrative body allows it
     const adminBody = councilMeeting.administrativeBody;

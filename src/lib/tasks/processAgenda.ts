@@ -2,6 +2,7 @@
 
 import { ProcessAgendaResult } from "../apiTypes";
 import prisma from "../db/prisma";
+import { revalidateMeeting } from "../cache";
 import { saveSubjectsForMeeting } from "../db/utils";
 import { withUserAuthorizedToEdit } from "../auth";
 import { requestProcessAgendaInternal } from "./processAgendaInternal";
@@ -74,6 +75,12 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
         task.councilMeeting.cityId,
         task.councilMeeting.id
     );
+
+    // Bust the meeting/subject cache now that the new agenda subjects are persisted,
+    // BEFORE sending notifications below. The notification send is rate-limited
+    // (~500ms/recipient), so revalidating only after it finishes would let early
+    // recipients open the meeting and see stale content.
+    revalidateMeeting(task.councilMeeting.cityId, task.councilMeeting.id);
 
     // Create notifications if administrative body allows it
     const adminBody = task.councilMeeting.administrativeBody;

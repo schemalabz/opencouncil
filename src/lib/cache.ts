@@ -5,7 +5,7 @@
  */
 
 // Core caching utilities
-export { createCache } from './cache/index';
+export { createCache, revalidateMeeting } from './cache/index';
 
 // Cached query functions
 export * from './cache/queries';
