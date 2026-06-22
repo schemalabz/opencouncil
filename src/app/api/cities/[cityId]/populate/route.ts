@@ -208,6 +208,12 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
                 rolesCount: totalRoles,
                 adminBodiesCount: adminBodies.length,
             };
+        }, {
+            // A full council (a large city can have 60+ members, each with several
+            // roles) is hundreds of sequential inserts; against a remote DB that
+            // overruns Prisma's default 5s interactive-transaction timeout.
+            maxWait: 10_000,
+            timeout: 60_000,
         });
 
         try {

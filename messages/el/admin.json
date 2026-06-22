@@ -1,4 +1,24 @@
 {
+  "cities": {
+    "title": "Δήμοι",
+    "description": "Όλοι οι δήμοι ομαδοποιημένοι ανά ομάδα (realm).",
+    "addCity": "Προσθήκη Δήμου",
+    "editCity": "Επεξεργασία Δήμου",
+    "searchPlaceholder": "Αναζήτηση δήμων...",
+    "noCities": "Δεν βρέθηκαν δήμοι",
+    "columnName": "Όνομα",
+    "columnId": "Αναγνωριστικό",
+    "columnLanguage": "Γλώσσα",
+    "columnStatus": "Κατάσταση",
+    "columnMeetings": "Συνεδριάσεις",
+    "columnPeople": "Πρόσωπα",
+    "columnParties": "Παρατάξεις",
+    "realmGreece": "Ελλάδα",
+    "realmFrance": "Γαλλία",
+    "languageGreek": "Ελληνικά",
+    "languageFrench": "Γαλλικά",
+    "cityCount": "{count, plural, one {# δήμος} other {# δήμοι}}"
+  },
   "taskStatus": {
     "pending": "Σε εκκρεμότητα",
     "succeeded": "Ολοκληρώθηκε",

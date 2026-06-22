@@ -1,4 +1,24 @@
 {
+  "cities": {
+    "title": "Cities",
+    "description": "All cities grouped by realm.",
+    "addCity": "Add City",
+    "editCity": "Edit City",
+    "searchPlaceholder": "Search cities...",
+    "noCities": "No cities found",
+    "columnName": "Name",
+    "columnId": "ID",
+    "columnLanguage": "Language",
+    "columnStatus": "Status",
+    "columnMeetings": "Meetings",
+    "columnPeople": "People",
+    "columnParties": "Parties",
+    "realmGreece": "Greece",
+    "realmFrance": "France",
+    "languageGreek": "Greek",
+    "languageFrench": "French",
+    "cityCount": "{count, plural, one {# city} other {# cities}}"
+  },
   "taskStatus": {
     "pending": "Pending",
     "succeeded": "Succeeded",

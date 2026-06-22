@@ -75,13 +75,21 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
             ...(data.diavgeiaUid !== undefined && { diavgeiaUid: data.diavgeiaUid || null }),
         }
 
-        // Only include admin-only fields if user is superadmin
+        // Only include admin-only fields if user is superadmin. Realm (tenant)
+        // and language are tenant-level like status/officialSupport, so a
+        // city-scoped admin must not be able to move a city to another realm.
         if (isSuperAdmin) {
             if (data.officialSupport !== undefined) {
                 updateData.officialSupport = data.officialSupport
             }
             if (data.status !== undefined) {
                 updateData.status = data.status
+            }
+            if (data.language !== undefined) {
+                updateData.language = data.language
+            }
+            if (data.realm !== undefined) {
+                updateData.realm = data.realm
             }
         }
 

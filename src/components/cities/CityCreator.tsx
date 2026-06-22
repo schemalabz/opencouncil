@@ -582,7 +582,7 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
                                 <CardContent className="space-y-4">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <Label htmlFor={`party-${index}-name`}>Name (Greek)</Label>
+                                            <Label htmlFor={`party-${index}-name`}>Name (native)</Label>
                                             <Input
                                                 id={`party-${index}-name`}
                                                 value={party.name}
@@ -604,7 +604,7 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <Label htmlFor={`party-${index}-short`}>Short Name (Greek)</Label>
+                                            <Label htmlFor={`party-${index}-short`}>Short Name (native)</Label>
                                             <Input
                                                 id={`party-${index}-short`}
                                                 value={party.name_short}
@@ -669,7 +669,7 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
                                 <CardContent className="space-y-4">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <Label htmlFor={`person-${index}-name`}>Name (Greek)</Label>
+                                            <Label htmlFor={`person-${index}-name`}>Name (native)</Label>
                                             <Input
                                                 id={`person-${index}-name`}
                                                 value={person.name}
@@ -689,7 +689,7 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <Label htmlFor={`person-${index}-short`}>Short Name (Greek)</Label>
+                                            <Label htmlFor={`person-${index}-short`}>Short Name (native)</Label>
                                             <Input
                                                 id={`person-${index}-short`}
                                                 value={person.name_short}
@@ -862,7 +862,7 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
                                 <CardContent className="space-y-4">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <Label htmlFor={`body-${index}-name`}>Name (Greek)</Label>
+                                            <Label htmlFor={`body-${index}-name`}>Name (native)</Label>
                                             <Input
                                                 id={`body-${index}-name`}
                                                 value={body.name}

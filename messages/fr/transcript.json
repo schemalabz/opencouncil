@@ -1,0 +1,80 @@
+{
+  "utterance": {
+    "editing": {
+      "saveShortcut": "Enregistrer (Entrée)",
+      "cancelShortcut": "Annuler (Échap)",
+      "timestamps": "Horodatages",
+      "useCurrent": "Utiliser l'actuel",
+      "setStartTime": "Définir à l'horodatage actuel de la vidéo ([)",
+      "setEndTime": "Définir à l'horodatage actuel de la vidéo (])"
+    },
+    "contextMenu": {
+      "copyText": "Copier le texte",
+      "selectFromHere": "Sélectionner à partir d'ici",
+      "selectUntilHere": "Sélectionner jusqu'ici",
+      "startHighlightFromHere": "Démarrer un temps fort à partir d'ici",
+      "moveToPreviousSegment": "Déplacer vers le segment précédent",
+      "moveToNextSegment": "Déplacer vers le segment suivant",
+      "shareFromHere": "Partager à partir d'ici",
+      "extractSegment": "Extraire le segment"
+    },
+    "toasts": {
+      "moveUtterances": "Déplacer les énoncés ?",
+      "moveToPreviousDescription": "Déplacer cet énoncé et les précédents vers le segment précédent ?",
+      "moveToNextDescription": "Déplacer cet énoncé et les suivants vers le segment suivant ?",
+      "confirm": "Confirmer",
+      "utterancesMovedSuccessfully": "Énoncés déplacés avec succès",
+      "highlightCreated": "Temps fort créé",
+      "highlightCreatedDescription": "Le temps fort a commencé avec cet énoncé. Ajoutez d'autres énoncés pour construire votre temps fort.",
+      "error": "Erreur",
+      "createHighlightError": "Échec de la création du temps fort. Veuillez réessayer.",
+      "editError": "Échec de l'enregistrement des modifications. Veuillez réessayer.",
+      "copyError": "Échec de la copie du texte",
+      "deleteUtterance": "Supprimer l'énoncé ?",
+      "deleteUtteranceDescription": "Cette action est irréversible.",
+      "utteranceDeletedSuccessfully": "Énoncé supprimé avec succès",
+      "deleteError": "Échec de la suppression de l'énoncé"
+    },
+    "common": {
+      "error": "Erreur"
+    }
+  },
+  "controls": {
+    "hideControls": "Masquer les commandes",
+    "showControls": "Afficher les commandes",
+    "pause": "Pause",
+    "play": "Lecture",
+    "previousClip": "Clip précédent",
+    "nextClip": "Clip suivant",
+    "timeline": "Timeline de lecture",
+    "playbackProgress": "Progression de la lecture"
+  },
+  "unverifiedBanner": {
+    "title": "Transcription automatique",
+    "description": "Cette transcription a été générée automatiquement et peut contenir des erreurs. Elle est en cours de révision et sera mise à jour dans les 48 heures suivant la séance."
+  },
+  "emptySegment": {
+    "noUtterances": "Aucun énoncé dans ce segment",
+    "addUtterance": "Ajouter un énoncé",
+    "adding": "Ajout..."
+  },
+  "addUtterance": {
+    "button": "Ajouter un énoncé",
+    "tooltip": "Ajouter un nouvel énoncé à la fin de ce segment"
+  },
+  "miniTranscript": {
+    "play": "Lecture",
+    "pause": "Pause",
+    "seekTo": "Aller à",
+    "transcript": "Transcription"
+  },
+  "hiddenForReview": {
+    "title": "Transcription pas encore disponible",
+    "description": "La transcription est en cours de révision par notre équipe et sera bientôt disponible."
+  },
+  "copySegment": {
+    "button": "Copier le segment",
+    "segmentCopied": "Segment copié",
+    "copySourceAttribution": "Copié depuis OpenCouncil · opencouncil.gr"
+  }
+}

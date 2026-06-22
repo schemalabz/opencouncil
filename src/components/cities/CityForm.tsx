@@ -110,6 +110,8 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
             peopleOrdering: city?.peopleOrdering || CITY_DEFAULTS.peopleOrdering,
             highlightCreationPermission: city?.highlightCreationPermission || CITY_DEFAULTS.highlightCreationPermission,
             diavgeiaUid: city?.diavgeiaUid || '',
+            language: city?.language || CITY_DEFAULTS.language,
+            realm: city?.realm || CITY_DEFAULTS.realm,
         },
     })
 
@@ -143,6 +145,8 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         formData.append('highlightCreationPermission', values.highlightCreationPermission)
         formData.append('peopleOrdering', values.peopleOrdering)
         formData.append('diavgeiaUid', values.diavgeiaUid || '')
+        formData.append('language', values.language)
+        formData.append('realm', values.realm)
         if (logoImage) {
             formData.append('logoImage', logoImage)
         }
@@ -542,6 +546,54 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                                         </Select>
                                         <FormDescription>
                                             {t('highlightCreationPermissionDescription')}
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="realm"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{t('realm')}</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder={t('selectRealm')} />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="greece">{t('realmGreece')}</SelectItem>
+                                                <SelectItem value="france">{t('realmFrance')}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FormDescription>
+                                            {t('realmDescription')}
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="language"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{t('language')}</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder={t('selectLanguage')} />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="el">{t('languageGreek')}</SelectItem>
+                                                <SelectItem value="fr">{t('languageFrench')}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FormDescription>
+                                            {t('languageDescription')}
                                         </FormDescription>
                                         <FormMessage />
                                     </FormItem>

@@ -1,3 +1,4 @@
+import { CityLanguage } from '@prisma/client';
 import { aiChat, AIConfig } from './ai';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
@@ -22,11 +23,18 @@ export async function generateCityDataWithAI(
         useWebSearch?: boolean;
         webSearchMaxUses?: number;
         userProvidedText?: string;
+        language?: CityLanguage;
     } = {}
 ): Promise<CityCreatorResult> {
-    const { useWebSearch = true, webSearchMaxUses = 10, userProvidedText } = options;
+    const { useWebSearch = true, webSearchMaxUses = 10, userProvidedText, language = 'el' } = options;
 
-    const systemPrompt = `You are an expert municipal government researcher tasked with extracting comprehensive information about Greek city councils by searching the web. Your mission is to generate accurate, real data about municipal governance structures.
+    // French communes need a French-language prompt (terminology, search queries,
+    // role taxonomy). Greek is the default and its prompt is left untouched below.
+    const frenchPrompts = language === 'fr'
+        ? buildFrenchCityCreatorPrompts(cityId, cityName, { useWebSearch, userProvidedText })
+        : null;
+
+    const systemPrompt = frenchPrompts ? frenchPrompts.systemPrompt : `You are an expert municipal government researcher tasked with extracting comprehensive information about Greek city councils by searching the web. Your mission is to generate accurate, real data about municipal governance structures.
 
 CORE MISSION: NEVER REFUSE TO PROVIDE DATA
 - You MUST ALWAYS return valid JSON, even if information is incomplete
@@ -66,7 +74,7 @@ RESPONSE REQUIREMENTS:
 JSON SCHEMA TO MATCH:
 ${JSON.stringify(citySchemaJson, null, 2)}`;
 
-    const userPrompt = `TARGET MUNICIPALITY: "${cityName}" (ID: ${cityId})
+    const userPrompt = frenchPrompts ? frenchPrompts.userPrompt : `TARGET MUNICIPALITY: "${cityName}" (ID: ${cityId})
 
 ${userProvidedText ? `USER-PROVIDED DATA:
 The user has provided the following text that contains information about this municipality. Use this as your PRIMARY data source and supplement with web search as needed:
@@ -251,6 +259,163 @@ Generate the complete JSON structure now:`;
             ]
         };
     }
+}
+
+/**
+ * French-language variant of the city-creator prompts. Mirrors the Greek prompt's
+ * structure and rigor but adapts terminology (conseil municipal, maire, adjoints,
+ * conseillers municipaux), search queries, council-size rules and the role
+ * taxonomy to French municipal governance. The output JSON shape is identical, so
+ * the schema and business-logic validation are unchanged.
+ */
+function buildFrenchCityCreatorPrompts(
+    cityId: string,
+    cityName: string,
+    { useWebSearch, userProvidedText }: { useWebSearch: boolean; userProvidedText?: string }
+): { systemPrompt: string; userPrompt: string } {
+    const currentYear = new Date().getFullYear();
+
+    const systemPrompt = `You are an expert municipal government researcher tasked with extracting comprehensive information about French municipal councils (conseils municipaux) by searching the web. Your mission is to generate accurate, real data about municipal governance structures.
+
+CORE MISSION: NEVER REFUSE TO PROVIDE DATA
+- You MUST ALWAYS return valid JSON, even if information is incomplete
+- NEVER say "I cannot find information" - always provide what you can find
+- It is ALWAYS better to provide partial data than no data
+- If you find even 1 council member, create a complete structure around them
+- Missing fields should be null, never skip entire records
+
+SEARCH STRATEGY FOR MAXIMUM DATA COLLECTION:
+1. Start with multiple search approaches simultaneously
+2. Use these French search patterns systematically:
+   - "{cityName} conseil municipal" (current council)
+   - "{cityName} maire adjoints" (mayor and deputy mayors)
+   - "trombinoscope conseil municipal {cityName}" (photo roster of elected members)
+   - "{cityName} élus liste" (list of elected members)
+   - "{cityName} groupes conseil municipal" (council political groups)
+3. Prefer the official commune website (often "{cityName}.fr" or "ville-{cityName}.fr") and its "élus" / "conseil municipal" pages
+4. Search for meeting minutes (procès-verbaux / comptes rendus du conseil municipal), press releases and official announcements
+5. Look for electoral list results and candidate lists
+
+DATA QUALITY STANDARDS:
+1. Generate ONLY valid JSON that matches the provided schema exactly
+2. Use real data from web searches - never fabricate information
+3. French municipal councils range from 7 seats (small communes) to 69 seats (cities over 300,000 inhabitants), set by population; large cities typically have 49-69 members - aim for completeness
+4. For missing information, use null values (not empty strings)
+5. Names are already in the Latin alphabet: set name_en equal to name for people, and translate only descriptive list/group names where a natural English form exists (otherwise keep the French name)
+6. Always provide at least basic required fields (name, name_en, name_short, name_short_en)
+7. For optional fields, use null if not available
+8. For roles: always specify type, use null for name/name_en if it's simple membership
+9. For names: use the conventional form (not all caps, first name first). The short name for e.g. Nathalie Appéré is N. Appéré.
+10. For list/group names: avoid all-caps names. Use the local electoral list or group name (e.g. "Rennes, ville d'avance"), not the national party - you may note the national affiliation if relevant. Provide a plausible colorHex if the list's color is unknown.
+
+RESPONSE REQUIREMENTS:
+- Return ONLY the JSON data structure
+- No explanations, no markdown formatting, no additional text
+- Even if you find minimal information, structure it properly in the full schema
+
+JSON SCHEMA TO MATCH:
+${JSON.stringify(citySchemaJson, null, 2)}`;
+
+    const userPrompt = `TARGET COMMUNE: "${cityName}" (ID: ${cityId})
+
+${userProvidedText ? `USER-PROVIDED DATA:
+The user has provided the following text that contains information about this commune. Use this as your PRIMARY data source and supplement with web search as needed:
+
+---
+${userProvidedText}
+---
+
+Please extract all relevant information from this text, including names of council members, lists/groups, roles, etc. This user-provided data should be prioritized over web search results where there are conflicts. Yet, people should be deduplicated, and their names should appear in the conventional form (not all caps, first name first).
+
+` : ''}${useWebSearch ? `COMPREHENSIVE SEARCH PROTOCOL:
+Execute these searches systematically to maximize data collection:
+
+PRIMARY SEARCHES (try all of these):
+1. "${cityName} conseil municipal membres ${currentYear}"
+2. "${cityName} élections municipales 2026 résultats"
+3. "${cityName} maire ${currentYear}"
+4. "${cityName} adjoints au maire délégations"
+5. "${cityName} groupes conseil municipal majorité opposition"
+6. "trombinoscope conseil municipal ${cityName}"
+
+SECONDARY SEARCHES (if primary data is limited):
+7. "${cityName} conseil municipal 2026"
+8. "${cityName} élus liste"
+9. "${cityName} élections municipales 2026 candidats"
+10. "ville de ${cityName} conseil municipal"
+
+FALLBACK SEARCHES (for the previous 2020-2026 mandate):
+11. "${cityName} conseil municipal 2020"
+12. "${cityName} élections municipales 2020 résultats"
+
+TARGET INFORMATION:
+- Current mayor (maire) and full name
+- All deputy mayors (adjoints au maire) with their delegations (portfolios)
+- Complete list of municipal councilors (conseillers municipaux)
+- Electoral lists / council groups (listes / groupes), both majority (majorité) and opposition (opposition) - use the local list name, NOT national parties
+- List leaders / heads of opposition (têtes de liste)
+- Note: in France the mayor presides over the council; there is no separate council president or secretary` : ''}
+
+MUNICIPAL STRUCTURE TO CREATE:
+
+1. **PARTIES SECTION**:
+   - The municipal electoral lists / political groups that won seats in the council
+   - Typically 2-6 lists/groups depending on commune size
+   - Use the actual local list name (e.g. "Rennes, ville d'avance"), not the national party name
+   - Include list colors if available from election materials
+
+2. **ADMINISTRATIVE BODIES SECTION**:
+   - Create exactly one body: "Conseil municipal" / "Municipal Council" (type: "council")
+
+3. **PEOPLE SECTION**:
+   - Mayor + all deputy mayors + all municipal councilors
+   - French councils range from 7 members (small communes) to 69 (cities over 300,000)
+   - Include ALL people you find - don't limit arbitrarily
+
+ROLE ASSIGNMENT LOGIC:
+Each person gets specific roles in their "roles" array:
+
+**Council Members**:
+- Role type "adminBody" connecting to "Conseil municipal"
+- Role name is null for regular members (the mayor presides; there is no separate president/secretary role to assign)
+
+**List / Group Members**:
+- Role type "party" connecting to their municipal list/group
+- Role name is null for regular members
+- Role name is "Tête de liste"/"List leader" for the leader of a list or group
+
+**City Officials**:
+- Role type "city" with specific titles:
+  - "Maire"/"Mayor"
+  - "Adjoint au maire délégué aux Finances"/"Deputy Mayor for Finance"
+  - "Adjointe au maire déléguée à l'Urbanisme"/"Deputy Mayor for Urban Planning"
+  - etc. (use the actual delegations found; respect gender: "Adjoint" vs "Adjointe")
+
+**Opposition councilors**:
+- Have an adminBody role for council membership
+- Have a party role for their list/group
+- NO city role unless they hold an executive office
+
+DATA COMPLETION REQUIREMENTS:
+- NEVER skip a person because information is incomplete
+- If you find someone's name but not their list → include them with partyName: null
+- If you find a list but not all members → include the list and whatever members you find
+- If you find only partial names → use what you have and make reasonable short versions
+- Names are in Latin script: set name_en equal to name; translate only descriptive list names
+
+MINIMUM SUCCESS CRITERIA:
+Even if searches yield limited results, you MUST provide:
+- At least the mayor (if you can find their name)
+- At least 1-2 council members (if you can find any)
+- At least 1 list/group (even a generic "Liste municipale" if needed)
+- The "Conseil municipal" administrative body
+
+Remember: Partial accurate data is infinitely better than no data. French communes are well-documented online (official commune websites and official records) - with systematic searching you should find substantial information.
+We care about all conseillers municipaux, not just deputy mayors and list leaders.
+
+Generate the complete JSON structure now:`;
+
+    return { systemPrompt, userPrompt };
 }
 
 function validateBusinessLogic(data: any): { valid: boolean; errors: string[] } {

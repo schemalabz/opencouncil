@@ -71,6 +71,7 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
         }),
         topicLabels: topics.map(t => ({ name: t.name, description: t.description })),
         cityName: city.name,
+        cityLanguage: city.language,
         administrativeBodyName: councilMeeting.administrativeBody?.name || null,
         partiesWithPeople: parties.map(p => ({
             name: p.name,

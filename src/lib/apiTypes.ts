@@ -15,6 +15,11 @@ export interface TaskRequest {
     callbackUrl: string;
 }
 
+// Content language of the city a task runs for. Kept as a self-contained string
+// union (this file is the backend contract and has no Prisma imports); mirrors
+// the Prisma `CityLanguage` enum.
+export type CityLanguage = 'el' | 'fr';
+
 /*
  * System endpoints
  */
@@ -38,9 +43,8 @@ export type MediaType = "audio" | "video";
 
 export interface TranscribeRequest extends TaskRequest {
     youtubeUrl: string;
-    customVocabulary?: string[];
-    customPrompt?: string;
     voiceprints?: Voiceprint[];
+    cityLanguage: CityLanguage;
 }
 
 export type TranscriptWithUtteranceDrifts = Transcript & {
@@ -120,6 +124,7 @@ export interface ProcessAgendaRequest extends TaskRequest {
     }[];
     topicLabels: TopicLabelInfo[];
     cityName: string;
+    cityLanguage: CityLanguage;
     date: string;
 }
 
@@ -249,6 +254,7 @@ export interface RequestOnTranscript extends TaskRequest {
     }[];
     topicLabels: TopicLabelInfo[];
     cityName: string;
+    cityLanguage: CityLanguage;
     administrativeBodyName: string | null;
     partiesWithPeople: {
         name: string;

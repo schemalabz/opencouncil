@@ -10,8 +10,8 @@ export interface HiringConfig {
     readonly enabled: boolean;
     /** Job posting URL */
     readonly url: string;
-    /** Display text for the hiring badge */
-    readonly text: string;
+    // Display copy lives in the Landing.hiring translation key, not here, so the
+    // badge is localized.
 }
 
 /**
@@ -23,5 +23,4 @@ export interface HiringConfig {
 export const HIRING_CONFIG: HiringConfig = {
     enabled: false, // Set to true to show hiring badge instead of Substack
     url: 'https://schemalabs.gr/jobs/civic-tech-software-engineer',
-    text: 'Προσλαμβάνουμε developer!'
 } as const;

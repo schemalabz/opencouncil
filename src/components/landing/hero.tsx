@@ -1,4 +1,5 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Link } from '@/i18n/routing';
 import { SubstackPost } from '@/lib/db/landing';
@@ -16,6 +17,7 @@ interface HeroProps {
 }
 
 export function Hero({ latestPost, cities, value, onCitySelect, isNavigating }: HeroProps) {
+    const t = useTranslations('Landing');
     const { scrollY } = useScroll();
     const opacity = useTransform(scrollY, [0, 200], [1, 0]);
     const y = useTransform(scrollY, [0, 200], [0, 100]);
@@ -58,9 +60,9 @@ export function Hero({ latestPost, cities, value, onCitySelect, isNavigating }: 
                             variants={item}
                             className="text-3xl sm:text-5xl md:text-7xl font-normal"
                         >
-                            Ο Δήμος σου,{' '}
+                            {t('heroTitlePrefix')}{' '}
                             <span className="relative z-10 text-[hsl(var(--orange))]">
-                                απλά
+                                {t('heroTitleHighlight')}
                             </span>
                         </motion.h1>
                     </motion.div>
@@ -89,7 +91,7 @@ export function Hero({ latestPost, cities, value, onCitySelect, isNavigating }: 
                             className="text-base sm:text-lg text-accent hover:text-accent/80 transition-colors duration-300"
                         >
                             <Link href="/about">
-                                Πληροφορίες για δήμους και περιφέρειες
+                                {t('aboutLink')}
                             </Link>
                         </Button>
                     </motion.div>

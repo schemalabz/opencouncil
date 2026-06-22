@@ -44,6 +44,11 @@ export default function ShineTitle({ children, className = '' }: ShineTitleProps
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
+                // background-clip:text paints the gradient only within the box;
+                // with tight line-height the descenders (g, p, …) fall just below
+                // it and get clipped. A little bottom padding extends the paint
+                // area into the padding box so descenders render fully.
+                paddingBottom: '0.12em',
             } as React.CSSProperties}
         >
             {children}

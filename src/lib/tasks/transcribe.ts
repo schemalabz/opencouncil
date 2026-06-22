@@ -86,9 +86,6 @@ export async function requestTranscribe(youtubeUrl: string, councilMeetingId: st
 
     const city = councilMeeting.city;
 
-    const vocabulary = [city.name, ...city.persons.map(p => p.name), ...city.parties.map(p => p.name)].flatMap(s => s.split(' '));
-    const prompt = `Αυτή είναι η απομαγνητοφώνηση της συνεδρίασης του δήμου της ${city.name} που έγινε στις ${councilMeeting.dateTime}.`;
-
     // Get voiceprints for relevant people based on meeting's administrative body
     const people = await getPeopleForMeeting(cityId, councilMeeting.administrativeBodyId);
     const peopleWithVoiceprints = people
@@ -127,9 +124,8 @@ export async function requestTranscribe(youtubeUrl: string, councilMeetingId: st
 
     const body: Omit<TranscribeRequest, 'callbackUrl'> = {
         youtubeUrl,
-        customVocabulary: vocabulary,
-        customPrompt: prompt,
         voiceprints: voiceprints.length > 0 ? voiceprints : undefined,
+        cityLanguage: city.language,
     }
 
     await prisma.councilMeeting.update({

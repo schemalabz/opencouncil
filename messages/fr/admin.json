@@ -1,0 +1,288 @@
+{
+  "cities": {
+    "title": "Communes",
+    "description": "Toutes les communes regroupées par groupe (realm).",
+    "addCity": "Ajouter une commune",
+    "editCity": "Modifier la commune",
+    "searchPlaceholder": "Rechercher des communes...",
+    "noCities": "Aucune commune trouvée",
+    "columnName": "Nom",
+    "columnId": "Identifiant",
+    "columnLanguage": "Langue",
+    "columnStatus": "Statut",
+    "columnMeetings": "Séances",
+    "columnPeople": "Personnes",
+    "columnParties": "Groupes",
+    "realmGreece": "Grèce",
+    "realmFrance": "France",
+    "languageGreek": "Grec",
+    "languageFrench": "Français",
+    "cityCount": "{count, plural, one {# commune} other {# communes}}"
+  },
+  "taskStatus": {
+    "pending": "En attente",
+    "succeeded": "Terminée",
+    "failed": "Échouée",
+    "unknownError": "Erreur inconnue",
+    "deleteDialog": {
+      "title": "Supprimer la tâche ?",
+      "description": "Cette action supprimera définitivement l'état de la tâche ainsi que toute information de progression associée.",
+      "warning": "Cette action est irréversible.",
+      "cancel": "Annuler",
+      "confirm": "Supprimer la tâche"
+    },
+    "reprocessDialog": {
+      "title": "Retraitement depuis la base de données : {taskType}",
+      "explanation": "Lorsqu'une tâche s'exécute, nous enregistrons toujours son résultat brut dans la base de données, afin que vous puissiez le retraiter ultérieurement, sans avoir à relancer la tâche sur le serveur de tâches.",
+      "transcribe": {
+        "description": "Voulez-vous supprimer les données existantes avant le retraitement ?",
+        "warning": "Pour les tâches de transcription, nous recommandons de supprimer d'abord afin d'éviter la création de contenu en double."
+      },
+      "default": {
+        "description": "Le résultat enregistré sera retraité depuis la base de données.",
+        "info": "Toute donnée existante sera mise à jour automatiquement."
+      },
+      "buttons": {
+        "cancel": "Annuler",
+        "reprocessOnly": "Retraiter uniquement",
+        "deleteAndReprocess": "Supprimer & Retraiter",
+        "reprocess": "Retraiter depuis la base de données",
+        "reprocessing": "Traitement...",
+        "processing": "Traitement...",
+        "done": "Terminé"
+      },
+      "feedback": {
+        "success": "Tâche retraitée avec succès !",
+        "error": "Échec du retraitement de la tâche"
+      }
+    }
+  },
+  "taskList": {
+    "noTasks": "Aucune tâche en cours d'exécution"
+  },
+  "adminActions": {
+    "sections": {
+      "meetingDetails": "Gestion de la séance",
+      "meetingDetailsSubtitle": "Modifiez les informations de base de cette séance.",
+      "taskStatuses": "État des tâches",
+      "taskStatusesSubtitle": "Suivez les tâches en cours d'exécution sur le backend.",
+      "requestNewTasks": "Demander de nouvelles tâches",
+      "requestNewTasksSubtitle": "Lancez de nouvelles tâches de traitement sur le backend.",
+      "meetingRelease": "Publication de la séance",
+      "meetingReleaseSubtitle": "Contrôlez la visibilité publique de cette séance.",
+      "notifications": "Notifications",
+      "notificationsSubtitle": "Créez des notifications pour les utilisateurs intéressés par les sujets de cette séance.",
+      "cacheManagement": "Gestion du cache",
+      "cacheManagementSubtitle": "Forcez l'actualisation des données en cache pour voir immédiatement les dernières modifications.",
+      "podcastSpecs": "Spécifications du podcast",
+      "podcastSpecsSubtitle": "Gérez les spécifications de génération de podcast pour cette séance.",
+      "decisions": "Décisions",
+      "decisionsSubtitle": "Associez les décisions Diavgeia aux sujets de la séance.",
+      "minutes": "Aperçu des procès-verbaux",
+      "minutesSubtitle": "Prévisualisez et exportez les procès-verbaux de la séance au format DOCX à partir des données de la base.",
+      "export": "Exporter",
+      "exportSubtitle": "Téléchargez les données de la séance dans divers formats."
+    },
+    "buttons": {
+      "editMeeting": "Modifier la séance",
+      "transcribe": "transcribe",
+      "processAgenda": "processAgenda",
+      "summarize": "summarize",
+      "fixTranscript": "fixTranscript",
+      "beforeMeeting": "beforeMeeting",
+      "afterMeeting": "afterMeeting",
+      "refreshMeetingCache": "Actualiser le cache de la séance",
+      "refreshCityCache": "Actualiser le cache de la commune",
+      "addTopic": "Ajouter un sujet",
+      "starting": "Démarrage...",
+      "syncing": "Synchronisation...",
+      "process": "Traiter",
+      "manageDecisions": "Gérer les décisions",
+      "extractDecisions": "Extraire les décisions",
+      "previewMinutes": "Aperçu des procès-verbaux",
+      "exportMinutesDocx": "Exporter en DOCX"
+    },
+    "forms": {
+      "enterMediaUrl": "Saisir l'URL du média",
+      "enterAgendaUrl": "Saisir l'URL de l'ordre du jour",
+      "enterTopics": "Saisir les sujets",
+      "additionalInstructions": "Instructions supplémentaires",
+      "mediaUrlPlaceholder": "https://... (YouTube, mp4, mp3)",
+      "agendaUrlPlaceholder": "https://...",
+      "topicPlaceholder": "Sujet {number}",
+      "force": "Force",
+      "forceDescription": {
+        "transcribe": "Supprime tous les segments d'intervenant, les énoncés et les résumés de cette séance, puis relance la transcription depuis le début.",
+        "processAgenda": "Supprime tous les sujets et les extraits générés automatiquement de cette séance, puis retraite l'ordre du jour depuis le début. Les extraits créés par les utilisateurs sont conservés (dissociés des sujets).",
+        "summarize": "Les sujets de l'ordre du jour sont conservés et mis à jour ; les sujets hors ordre du jour sont remplacés. Supprime les étiquettes de sujet et réinitialise le suivi de discussion des énoncés (statut et liens vers les sujets)."
+      },
+      "released": "Publiée"
+    },
+    "toasts": {
+      "transcriptionRequested": {
+        "title": "Transcription demandée",
+        "description": "Le processus de transcription a démarré."
+      },
+      "errorRequestingTranscription": {
+        "title": "Erreur lors de la demande de transcription"
+      },
+      "summarizationRequested": {
+        "title": "Résumé demandé",
+        "description": "Le processus de résumé a démarré."
+      },
+      "errorRequestingSummarization": {
+        "title": "Erreur lors de la demande de résumé"
+      },
+      "fixTranscriptRequested": {
+        "title": "Correction de la transcription demandée",
+        "description": "Le processus de correction de la transcription a démarré."
+      },
+      "errorRequestingTranscriptFix": {
+        "title": "Erreur lors de la demande de correction de la transcription"
+      },
+      "taskDeleted": {
+        "title": "Tâche supprimée",
+        "description": "La tâche {taskId} a été supprimée avec succès."
+      },
+      "errorDeletingTask": {
+        "title": "Erreur lors de la suppression de la tâche"
+      },
+      "meetingReleased": {
+        "title": "Séance publiée",
+        "description": "La séance a été publiée."
+      },
+      "meetingUnreleased": {
+        "title": "Séance retirée",
+        "description": "La séance a été retirée."
+      },
+      "errorTogglingRelease": {
+        "title": "Erreur lors du basculement de la publication de la séance"
+      },
+      "agendaProcessingRequested": {
+        "title": "Traitement de l'ordre du jour demandé",
+        "description": "Le traitement de l'ordre du jour a démarré."
+      },
+      "errorProcessingAgenda": {
+        "title": "Erreur lors du traitement de l'ordre du jour"
+      },
+      "notificationsCreated": {
+        "title": "Notifications créées",
+        "description": "{count} notifications créées pour {total} sujets. {immediate}"
+      },
+      "sentImmediately": "Envoyées immédiatement.",
+      "pendingApproval": "En attente d'approbation par un administrateur.",
+      "errorCreatingNotifications": {
+        "title": "Erreur lors de la création des notifications"
+      },
+      "errorFetchingTaskStatuses": {
+        "title": "Erreur lors de la récupération de l'état des tâches"
+      },
+      "unknownError": "Une erreur inconnue s'est produite",
+      "meetingCacheInvalidated": {
+        "title": "Cache de la séance invalidé",
+        "description": "Les données de la séance seront actualisées lors de la prochaine requête."
+      },
+      "cityCacheInvalidated": {
+        "title": "Cache de la commune invalidé",
+        "description": "Les données de la commune seront actualisées lors de la prochaine requête."
+      },
+      "error": {
+        "title": "Erreur",
+        "failedToInvalidateMeetingCache": "Échec de l'invalidation du cache de la séance",
+        "failedToInvalidateCityCache": "Échec de l'invalidation du cache de la commune"
+      },
+      "decisionLinked": {
+        "title": "Décision associée"
+      },
+      "decisionUnlinked": {
+        "title": "Décision dissociée"
+      },
+      "errorSavingDecision": {
+        "title": "Erreur lors de l'enregistrement de la décision"
+      },
+      "errorRemovingDecision": {
+        "title": "Erreur lors de la suppression de la décision"
+      },
+      "extractDecisionsRequested": {
+        "title": "Extraction des décisions demandée",
+        "description": "Extraction des données des PDF de décisions."
+      },
+      "errorExtractingDecisions": {
+        "title": "Erreur lors de l'extraction des décisions"
+      }
+    },
+    "minutes": {
+      "title": "Aperçu des procès-verbaux",
+      "loading": "Génération de l'aperçu des procès-verbaux...",
+      "noSubjects": "Aucun sujet trouvé pour cette séance.",
+      "exportSuccess": "Procès-verbaux DOCX exportés",
+      "exportError": "Erreur lors de l'exportation des procès-verbaux"
+    },
+    "decisions": {
+      "title": "Gérer les décisions (Diavgeia)",
+      "description": "Associez les décisions Diavgeia aux sujets de la séance. Utilisez l'interrogation automatique ou ajoutez-les manuellement.",
+      "noSubjects": "Aucun sujet trouvé pour cette séance.",
+      "noDecision": "Aucune décision",
+      "adaLabel": "ADA",
+      "adaPlaceholder": "par ex. 91ΥΔΩΡΦ-ΓΥ6",
+      "protocolNumberLabel": "Numéro d'enregistrement",
+      "protocolNumberPlaceholder": "par ex. 261/2024",
+      "titleLabel": "Titre de la décision",
+      "titlePlaceholder": "Titre de la décision",
+      "pdfUrlLabel": "URL du PDF",
+      "pdfUrlPlaceholder": "https://diavgeia.gov.gr/...",
+      "viewPdf": "Voir le PDF",
+      "linked": "associés",
+      "save": "Enregistrer",
+      "moreOptions": "Plus d'options",
+      "autoPdfHint": "Le PDF sera récupéré depuis diavgeia.gov.gr/doc/{ada}",
+      "validation": {
+        "adaRequired": "L'ADA est obligatoire",
+        "pdfUrlRequired": "L'URL du PDF est obligatoire",
+        "pdfUrlInvalid": "Veuillez saisir une URL valide"
+      },
+      "sourceTask": "Ajoutée automatiquement",
+      "addManually": "Ajouter manuellement",
+      "tabAll": "Tous",
+      "tabUnlinked": "Non associés",
+      "allLinked": "Tous les sujets ont des décisions associées.",
+      "pollTitle": "Interroger & extraire les décisions",
+      "pollDescription": "Interrogez Diavgeia, associez les décisions aux sujets et extrayez les données des PDF.",
+      "pollButton": "Interroger Diavgeia",
+      "pollButtonSkipCache": "Interroger (sans cache)",
+      "pollRequested": "L'interrogation des décisions a démarré",
+      "pollError": "Échec du démarrage de l'interrogation",
+      "skipCacheLabel": "Ignorer le cache",
+      "skipCacheHint": "Le serveur de tâches met en cache les résultats d'extraction des PDF — ceci contourne ce cache",
+      "resetExtractions": "Réinitialiser les extractions",
+      "resetExtractionsDescription": "Supprime toutes les données extraites (extraits, présences, votes) pour chaque sujet. Les associations de décisions sont conservées.",
+      "resetExtractionsConfirm": "Réinitialiser toutes les données extraites (extraits, présences, votes) pour cette séance ? Les associations de décisions seront conservées.",
+      "tabExtracted": "Extraits",
+      "excerpt": "Extrait",
+      "references": "Références juridiques",
+      "attendance": "Présences",
+      "votes": "Vote",
+      "present": "présents",
+      "absent": "absents",
+      "showNames": "Afficher les noms",
+      "hideNames": "Masquer les noms",
+      "voteFor": "pour",
+      "voteAgainst": "contre",
+      "voteAbstain": "abstention",
+      "votePresent": "présent",
+      "voteDidNotVote": "n'a pas voté",
+      "showMore": "Plus",
+      "showLess": "Moins",
+      "unanimous": "À l'unanimité ({count} pour)",
+      "majorityVote": "À la majorité ({for} pour, {against} contre)",
+      "rejected": "Rejetée ({against} contre, {for} pour)",
+      "noExtractedData": "Aucun sujet avec des données extraites.",
+      "resetExtraction": "Réinitialiser l'extraction",
+      "resetExtractionDescription": "Effacez les données extraites, conservez l'association de la décision. La prochaine interrogation procédera à une nouvelle extraction.",
+      "removeDecision": "Supprimer la décision",
+      "removeDecisionDescription": "Dissociez la décision et effacez toutes les données extraites.",
+      "extractionReset": "Extraction réinitialisée",
+      "decisionRemoved": "Décision supprimée"
+    }
+  }
+}
