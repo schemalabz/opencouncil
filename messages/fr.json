@@ -78,12 +78,24 @@
     },
     "Header": {
         "about": "Pour les communes",
-        "search": "Rechercher"
+        "search": "Rechercher",
+        "login": "Connexion"
     },
     "Footer": {
+        "tagline": "Conçu avec respect et considération pour les collectivités locales.",
+        "companyDescription": "OpenCouncil est une société de <link>Schema Labs</link>, une organisation à but non lucratif qui développe des technologies au service de la démocratie.",
+        "linksHeading": "Liens",
+        "linkHome": "Accueil",
+        "linkForMunicipalities": "Pour les communes",
+        "linkSearch": "Recherche",
+        "linkJobs": "Emplois",
+        "policiesHeading": "Politiques et conditions",
+        "corrections": "Corrections",
         "privacy": "Politique de confidentialité",
         "terms": "Conditions d'utilisation",
+        "cookiePreferences": "Préférences cookies",
         "contact": "Contact",
+        "contribute": "Contribuer sur GitHub",
         "copyright": "Tous droits réservés",
         "disclaimer": "Les informations affichées sont collectées automatiquement et peuvent ne pas être exactes."
     },
