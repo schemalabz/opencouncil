@@ -132,6 +132,56 @@ export function createCircleBuffer(center: [number, number], radiusInMeters: num
     };
 }
 
+// Base32 alphabet used by the standard geohash algorithm (excludes a, i, l, o).
+const GEOHASH_BASE32 = '0123456789bcdefghjkmnpqrstuvwxyz';
+
+/**
+ * Encode a [lng, lat] coordinate into a geohash string of the given precision.
+ * Implements the standard geohash algorithm (https://en.wikipedia.org/wiki/Geohash).
+ * Precision is the number of characters (each character adds ~5 bits of resolution);
+ * precision 6 yields cells of roughly 1.2km × 0.6km.
+ */
+export function encodeGeohash([lng, lat]: [number, number], precision = 6): string {
+    let latMin = -90, latMax = 90;
+    let lngMin = -180, lngMax = 180;
+    let hash = '';
+    let bits = 0;
+    let bitCount = 0;
+    let even = true; // alternate between longitude (even) and latitude (odd)
+
+    while (hash.length < precision) {
+        if (even) {
+            const mid = (lngMin + lngMax) / 2;
+            if (lng >= mid) {
+                bits = (bits << 1) | 1;
+                lngMin = mid;
+            } else {
+                bits = bits << 1;
+                lngMax = mid;
+            }
+        } else {
+            const mid = (latMin + latMax) / 2;
+            if (lat >= mid) {
+                bits = (bits << 1) | 1;
+                latMin = mid;
+            } else {
+                bits = bits << 1;
+                latMax = mid;
+            }
+        }
+
+        even = !even;
+
+        if (++bitCount === 5) {
+            hash += GEOHASH_BASE32[bits];
+            bits = 0;
+            bitCount = 0;
+        }
+    }
+
+    return hash;
+}
+
 /**
  * Calculate the great-circle distance between two [lng, lat] points using the Haversine formula.
  * Returns distance in meters.

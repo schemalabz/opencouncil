@@ -1,4 +1,4 @@
-import { calculateGeometryBounds, createCircleBuffer, haversineDistance } from '../geo';
+import { calculateGeometryBounds, createCircleBuffer, encodeGeohash, haversineDistance } from '../geo';
 
 describe('calculateGeometryBounds', () => {
   it('returns default Athens center for null geometry', () => {
@@ -80,6 +80,24 @@ describe('createCircleBuffer', () => {
       expect(dist).toBeGreaterThan(radiusMeters * 0.99);
       expect(dist).toBeLessThan(radiusMeters * 1.01);
     }
+  });
+});
+
+describe('encodeGeohash', () => {
+  it('encodes a known coordinate to the expected geohash (Wikipedia reference)', () => {
+    // Reference value from the geohash spec: 42.6, -5.6 -> "ezs42"
+    expect(encodeGeohash([-5.6, 42.6], 5)).toBe('ezs42');
+  });
+
+  it('respects the requested precision', () => {
+    expect(encodeGeohash([-5.6, 42.6], 5)).toHaveLength(5);
+    expect(encodeGeohash([-5.6, 42.6], 8)).toHaveLength(8);
+    expect(encodeGeohash([-5.6, 42.6], 8).startsWith('ezs42')).toBe(true);
+  });
+
+  it('encodes Athens-area coordinates into the expected geohash-6 tile', () => {
+    // Center of osektutu tile "swbb5u" (Kypseli) should round-trip to itself.
+    expect(encodeGeohash([23.7298, 37.9955], 6)).toBe('swbb5u');
   });
 });
 
