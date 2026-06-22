@@ -1,6 +1,7 @@
 'use client'
 
 import { useSession } from "next-auth/react"
+import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
@@ -22,6 +23,7 @@ import { isUserAuthorizedToEdit } from "@/lib/auth"
 
 export default function UserDropdown({ currentEntity }: { currentEntity?: { cityId: string } }) {
     const { data: session, status } = useSession()
+    const t = useTranslations("Header")
     const router = useRouter()
     const [canEdit, setCanEdit] = useState(false);
 
@@ -48,7 +50,7 @@ export default function UserDropdown({ currentEntity }: { currentEntity?: { city
         return (
             <Button variant="link" onClick={() => router.push('/sign-in')} className="cursor-pointer text-muted-foreground hover:text-foreground">
                 <LogIn className="h-4 w-4 md:mr-2" />
-                <span className="hidden md:inline">Σύνδεση</span>
+                <span className="hidden md:inline">{t("login")}</span>
             </Button>
         )
     }
