@@ -154,14 +154,15 @@
   },
   "team": {
     "title": "L'équipe derrière OpenCouncil",
-    "subtitle": "6 personnes, qui construisent une technologie au service de la démocratie locale. OpenCouncil IKE appartient intégralement à <link>Schema Labs</link>, une société à but non lucratif.",
+    "subtitle": "7 personnes, qui construisent une technologie au service de la démocratie locale. OpenCouncil IKE appartient intégralement à <link>Schema Labs</link>, une société à but non lucratif.",
     "members": {
       "christos": "Christos Porios",
       "andreas": "Andreas Kouloumos",
       "eliza": "Eliza Gkimitzoudi",
       "thanos": "Thanos Papadogiannis",
       "vasia": "Vasiliki Koumarela",
-      "myrto": "Myrto Plemmenou"
+      "myrto": "Myrto Plemmenou",
+      "alexandra": "Alexandra Ranunkel"
     },
     "office": {
       "title": "Notre espace",
