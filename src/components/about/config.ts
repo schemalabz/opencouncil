@@ -36,7 +36,7 @@ export const OPENNESS_FEATURES: Feature[] = [
     {
         id: 'subjects',
         status: 'live',
-        demoUrl: '/chania/mar26_2026/subjects/cmmywhibg07ud139hav10soag',
+        demoUrl: '/chania/apr29_2026/subjects/cmocx5sqp03k4grw512nudanu',
     },
     {
         id: 'search',

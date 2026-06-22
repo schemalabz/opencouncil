@@ -67,7 +67,7 @@ export default function SubjectDemo() {
     }))
 
     return (
-        <BrowserFrame url="opencouncil.gr/chania/mar26_2026/subjects/..." className="w-full">
+        <BrowserFrame url="opencouncil.gr/chania/apr29_2026/subjects/..." className="w-full">
             <div className="p-4 md:p-6 space-y-5 bg-white">
                 {/* Section 1: Header */}
                 <AnnotationBox label={t('callouts.header')}>
@@ -206,7 +206,7 @@ export default function SubjectDemo() {
                 {/* CTA */}
                 <div className="pt-2">
                     <Link
-                        href="/chania/mar26_2026/subjects/cmmywhibg07ud139hav10soag"
+                        href="/chania/apr29_2026/subjects/cmocx5sqp03k4grw512nudanu"
                         className="inline-flex items-center gap-1.5 text-sm font-medium text-orange hover:text-orange/80 transition-colors group"
                     >
                         {t('viewRealSubject')}
