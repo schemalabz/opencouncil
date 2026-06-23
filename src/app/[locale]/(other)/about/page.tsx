@@ -1,9 +1,11 @@
 import About from "@/components/about/AboutPage"
 import { Metadata } from "next"
+import { headers } from 'next/headers'
 import { getTranslations } from 'next-intl/server'
 import { env } from '@/env.mjs'
 import { getSupportedCitiesWithLogosCached, getAboutPageStatsCached, getGitHubStatsCached } from '@/lib/cache/queries'
 import { buildHreflangAlternates } from '@/lib/utils/hreflang'
+import { isFrenchDomainHost } from '@/lib/host'
 
 export async function generateMetadata(
     props: {
@@ -61,6 +63,9 @@ export async function generateMetadata(
 }
 
 export default async function AboutPage() {
+    // On the French realm (opencouncil.fr, any locale) we hide pricing.
+    const hidePricing = isFrenchDomainHost((await headers()).get('host'))
+
     const [citiesWithLogos, stats, githubStats] = await Promise.all([
         getSupportedCitiesWithLogosCached().catch(error => {
             console.error('Failed to fetch cities with logos:', error);
@@ -75,5 +80,5 @@ export default async function AboutPage() {
             return null;
         }),
     ]);
-    return <About citiesWithLogos={citiesWithLogos} stats={stats} githubStats={githubStats} />
+    return <About citiesWithLogos={citiesWithLogos} stats={stats} githubStats={githubStats} hidePricing={hidePricing} />
 }

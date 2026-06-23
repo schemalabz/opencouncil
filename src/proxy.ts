@@ -3,6 +3,7 @@ import { routing, LOCALE_OVERRIDE_HEADER } from './i18n/routing';
 import { NextResponse, NextRequest } from 'next/server';
 import { auth } from './auth'
 import { env } from '@/env.mjs';
+import { isFrenchDomainHost } from '@/lib/host';
 
 const i18nMiddleware = createIntlMiddleware(routing);
 
@@ -134,20 +135,13 @@ function isHttpBasicAuthAuthenticated(req: Request) {
     return username === env.BASIC_AUTH_USERNAME && password === env.BASIC_AUTH_PASSWORD;
 }
 
-// The French production domain (apex + any subdomain). Scoped to opencouncil.fr
-// rather than a bare `.fr` suffix so an unrelated `*.fr` host (staging, internal
-// tooling, a typo'd preview) can't accidentally force the French UI.
-const FRENCH_DOMAIN = 'opencouncil.fr';
-
 /**
  * Whether the request arrived on the French domain (`opencouncil.fr` or a
- * subdomain of it). The port is stripped so `localhost`-style `host:port` and
- * real domains both work, and a spoofed `Host: opencouncil.fr` header can be
- * used to test locally.
+ * subdomain of it). Delegates to the shared host helper so the proxy and
+ * server components agree on what counts as the French realm.
  */
 function isFrenchHost(req: NextRequest): boolean {
-    const host = (req.headers.get('host') ?? '').split(':')[0].toLowerCase();
-    return host === FRENCH_DOMAIN || host.endsWith(`.${FRENCH_DOMAIN}`);
+    return isFrenchDomainHost(req.headers.get('host'));
 }
 
 /**
