@@ -181,7 +181,7 @@ function MobileNav({ active, visible, scrollTo, sectionIds }: NavProps) {
 }
 
 interface AboutPageProps {
-    citiesWithLogos?: Array<{ id: string; logoImage: string; name_municipality: string }>
+    citiesWithLogos?: Array<{ id: string; logoImage: string; name_municipality: string; name_municipality_en: string }>
     stats?: AboutPageStats | null
     githubStats?: GitHubStats | null
     /** Hide the pricing section + its nav entry (e.g. on the French realm). */

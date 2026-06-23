@@ -137,13 +137,15 @@ export async function getAllCitiesMinimalCached(realm: Realm) {
 }
 
 /**
- * Cached version of getSupportedCitiesWithLogos
+ * Cached version of getSupportedCitiesWithLogos.
+ * Intentionally NOT realm-scoped: the about page shows the full set of supported
+ * municipalities across all realms (e.g. opencouncil.fr displays the Greek cities too).
  */
-export async function getSupportedCitiesWithLogosCached(realm: Realm) {
+export async function getSupportedCitiesWithLogosCached() {
   return createCache(
-    () => getSupportedCitiesWithLogos(realm),
-    ['cities', 'supported-with-logos', realm],
-    { tags: ['cities:all', `realm:${realm}:cities:all`] }
+    () => getSupportedCitiesWithLogos(),
+    ['cities', 'supported-with-logos', 'global'],
+    { tags: ['cities:all'] }
   )();
 }
 

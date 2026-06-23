@@ -65,7 +65,7 @@ export default async function AboutPage() {
     // On the French realm (opencouncil.fr, any locale) we hide pricing.
     const hidePricing = realm === 'france';
     const [citiesWithLogos, stats, githubStats] = await Promise.all([
-        getSupportedCitiesWithLogosCached(realm).catch(error => {
+        getSupportedCitiesWithLogosCached().catch(error => {
             console.error('Failed to fetch cities with logos:', error);
             return [];
         }),

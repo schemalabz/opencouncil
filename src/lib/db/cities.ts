@@ -394,7 +394,7 @@ export async function canUseCityCreator(cityId: string): Promise<boolean> {
  * Fetches cities with logos for display purposes (e.g., infinite scroller).
  * Returns only listed cities that have logos.
  */
-export async function getSupportedCitiesWithLogos(realm?: Realm): Promise<Array<{ id: string; logoImage: string; name_municipality: string }>> {
+export async function getSupportedCitiesWithLogos(): Promise<Array<{ id: string; logoImage: string; name_municipality: string; name_municipality_en: string }>> {
     try {
         const cities = await prisma.city.findMany({
             where: {
@@ -402,13 +402,13 @@ export async function getSupportedCitiesWithLogos(realm?: Realm): Promise<Array<
                 status: 'listed',
                 logoImage: {
                     not: null
-                },
-                ...(realm ? { realm } : {})
+                }
             },
             select: {
                 id: true,
                 logoImage: true,
-                name_municipality: true
+                name_municipality: true,
+                name_municipality_en: true
             },
             orderBy: [
                 { officialSupport: 'desc' },
@@ -416,7 +416,7 @@ export async function getSupportedCitiesWithLogos(realm?: Realm): Promise<Array<
             ]
         });
 
-        return cities.filter(city => city.logoImage !== null) as Array<{ id: string; logoImage: string; name_municipality: string }>;
+        return cities.filter(city => city.logoImage !== null) as Array<{ id: string; logoImage: string; name_municipality: string; name_municipality_en: string }>;
     } catch (error) {
         console.error('Error fetching cities with logos:', error);
         throw new Error('Failed to fetch cities with logos');
