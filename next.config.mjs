@@ -22,6 +22,10 @@ const nextConfig = {
         ? new URL('./cache-handler.mjs', import.meta.url).pathname
         : undefined,
     cacheMaxMemorySize: process.env.NODE_ENV === 'production' ? 0 : undefined,
+    // Deterministic build id (commit-based when available) so the Valkey cache
+    // namespace distinguishes different code and is stable across the instances
+    // of one deploy. Falls back to Next's default (random per build) otherwise.
+    generateBuildId: async () => process.env.SOURCE_COMMIT || process.env.BUILD_ID || null,
     images: {
         domains: ['townhalls-gr.fra1.digitaloceanspaces.com', 'data.opencouncil.gr', 'fra1.digitaloceanspaces.com'],
     },
