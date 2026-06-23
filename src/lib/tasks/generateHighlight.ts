@@ -9,7 +9,7 @@ import { sendHighlightCompleteEmail } from '@/lib/email/highlightComplete';
 
 export async function requestGenerateHighlight(
     highlightId: string,
-    options?: Pick<GenerateHighlightRequest['render'], 'includeCaptions' | 'includeSpeakerOverlay' | 'aspectRatio' | 'socialOptions'> & { 
+    options?: Pick<GenerateHighlightRequest['render'], 'includeCaptions' | 'includeSpeakerOverlay' | 'aspectRatio' | 'minResolution' | 'socialOptions'> & {
         force?: boolean;
     }
 ) {
@@ -119,6 +119,9 @@ export async function requestGenerateHighlight(
             includeCaptions: options?.includeCaptions,
             includeSpeakerOverlay: options?.includeSpeakerOverlay,
             aspectRatio: options?.aspectRatio || 'default',
+            // Default to 1080p so every request meets the minimum, even when the
+            // caller (e.g. the preview dialog) doesn't specify a resolution.
+            minResolution: options?.minResolution ?? '1080p',
             ...(options?.aspectRatio === 'social-9x16' && options?.socialOptions && {
                 socialOptions: options.socialOptions
             }),

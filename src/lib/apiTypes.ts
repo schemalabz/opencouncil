@@ -397,6 +397,8 @@ export interface GenerateHighlightRequest extends TaskRequest {
         includeCaptions?: boolean;
         includeSpeakerOverlay?: boolean;
         aspectRatio?: AspectRatio;
+        // Minimum output resolution; the task server upscales the source if needed.
+        minResolution?: MinResolution;
 
         // Social media formatting options (only used when aspectRatio is 'social-9x16')
         socialOptions?: {
@@ -408,6 +410,7 @@ export interface GenerateHighlightRequest extends TaskRequest {
 }
 // Shared rendering types
 export type AspectRatio = 'default' | 'social-9x16';
+export type MinResolution = '720p' | '1080p' | '1440p' | '2160p';
 
 export interface GenerateHighlightResult {
     parts: Array<{
