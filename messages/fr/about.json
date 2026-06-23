@@ -142,13 +142,21 @@
         "title": "OCDE",
         "subtitle": "Cité dans un rapport de l'OCDE sur l'IA & l'engagement citoyen"
       },
-      "ert": {
-        "title": "ERTnews",
-        "subtitle": "Reportage sur l'intelligence artificielle à La Canée"
+      "innovationInPolitics": {
+        "title": "Innovation in Politics Awards 2026",
+        "subtitle": "Finalistes"
+      },
+      "epsa": {
+        "title": "EPSA 2025-26",
+        "subtitle": "Certificat de bonne pratique"
       },
       "kede": {
         "title": "KEDE",
         "subtitle": "Article sur l'IA dans la démocratie locale sur kede.gr"
+      },
+      "wired": {
+        "title": "WIRED Greece",
+        "subtitle": "Article"
       }
     }
   },
