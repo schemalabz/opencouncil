@@ -4,6 +4,7 @@ import { OnboardingFooter } from '@/components/onboarding/OnboardingFooter';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { UserInfoForm, UserInfoFormData } from '@/components/onboarding/UserInfoForm';
+import { useTranslations } from 'next-intl';
 
 interface PetitionFormStepProps {
   currentStep: number;
@@ -18,6 +19,7 @@ interface PetitionFormStepProps {
 }
 
 export function PetitionFormStep({ currentStep, totalSteps, onContinue, onBack, isSubmitting, initial, city }: PetitionFormStepProps) {
+  const t = useTranslations('Onboarding');
   const [isResident, setIsResident] = useState(initial?.isResident || false);
   const [isCitizen, setIsCitizen] = useState(initial?.isCitizen || false);
   const [checkboxError, setCheckboxError] = useState<string | null>(null);
@@ -25,7 +27,7 @@ export function PetitionFormStep({ currentStep, totalSteps, onContinue, onBack, 
   const handleSubmit = (formData: UserInfoFormData) => {
     // Validate checkboxes
     if (!isResident && !isCitizen) {
-      setCheckboxError('Παρακαλώ επιλέξτε τουλάχιστον μία σχέση με τον δήμο');
+      setCheckboxError(t('petition.relationError'));
       return;
     }
     setCheckboxError(null);
@@ -39,10 +41,10 @@ export function PetitionFormStep({ currentStep, totalSteps, onContinue, onBack, 
 
   return (
     <OnboardingStepTemplate
-      title="Συμπληρώστε τα στοιχεία σας"
+      title={t('petition.formTitle')}
       description={
         <p className="text-gray-700 text-left">
-          Βοηθήστε μας να φέρουμε το OpenCouncil στον δήμο σας.
+          {t('petition.formDescription')}
         </p>
       }
       footer={
@@ -54,7 +56,7 @@ export function PetitionFormStep({ currentStep, totalSteps, onContinue, onBack, 
             const form = document.querySelector('form');
             if (form) form.requestSubmit();
           }}
-          actionLabel={isSubmitting ? 'Συνέχεια...' : 'Συνέχεια'}
+          actionLabel={isSubmitting ? t('nextSubmitting') : t('next')}
           isActionDisabled={isSubmitting}
         />
       }
@@ -73,7 +75,7 @@ export function PetitionFormStep({ currentStep, totalSteps, onContinue, onBack, 
         />
 
         <div className="space-y-2">
-          <p className="text-sm font-medium">Σχέση με τον δήμο</p>
+          <p className="text-sm font-medium">{t('petition.relationLabel')}</p>
 
           <div className="flex items-center space-x-2">
             <Checkbox
@@ -81,7 +83,7 @@ export function PetitionFormStep({ currentStep, totalSteps, onContinue, onBack, 
               checked={isResident}
               onCheckedChange={(checked) => setIsResident(checked === true)}
             />
-            <Label htmlFor="isResident" className="text-sm">Είμαι κάτοικος</Label>
+            <Label htmlFor="isResident" className="text-sm">{t('petition.isResident')}</Label>
           </div>
 
           <div className="flex items-center space-x-2">
@@ -90,7 +92,7 @@ export function PetitionFormStep({ currentStep, totalSteps, onContinue, onBack, 
               checked={isCitizen}
               onCheckedChange={(checked) => setIsCitizen(checked === true)}
             />
-            <Label htmlFor="isCitizen" className="text-sm">Είμαι δημότης</Label>
+            <Label htmlFor="isCitizen" className="text-sm">{t('petition.isCitizen')}</Label>
           </div>
 
           {checkboxError && <p className="text-red-500 text-sm">{checkboxError}</p>}

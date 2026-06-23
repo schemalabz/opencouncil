@@ -2,6 +2,7 @@ import React from 'react';
 import { MapPin, Tag, User, Home, UserCheck } from 'lucide-react';
 import { Location } from '@/lib/types/onboarding';
 import { Topic } from '@prisma/client';
+import { useTranslations } from 'next-intl';
 
 interface PreferencesOverviewProps {
   locations?: Location[];
@@ -18,6 +19,7 @@ export function PreferencesOverview({
   topics, 
   petitionData
 }: PreferencesOverviewProps) {
+  const t = useTranslations('Onboarding.preferences');
   return (
     <div className="p-4 bg-gray-50 rounded-lg">
       {locations && locations.length > 0 && (
@@ -26,7 +28,7 @@ export function PreferencesOverview({
             <MapPin className="h-4 w-4" />
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-900">Τοποθεσίες</p>
+            <p className="text-sm font-medium text-gray-900">{t('locations')}</p>
             <ul className="text-sm text-gray-700">
               {locations.map((location, idx) => (
                 <li key={idx}>{location.text}</li>
@@ -42,7 +44,7 @@ export function PreferencesOverview({
             <Tag className="h-4 w-4" />
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-900">Θέματα</p>
+            <p className="text-sm font-medium text-gray-900">{t('topics')}</p>
             <div className="flex flex-wrap gap-1 mt-1">
               {topics.map((topic, idx) => (
                 <span
@@ -67,17 +69,17 @@ export function PreferencesOverview({
             <User className="h-4 w-4" />
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-900">Στοιχεία αιτήματος</p>
-            <p className="text-sm text-gray-700">Όνομα: {petitionData.name}</p>
+            <p className="text-sm font-medium text-gray-900">{t('petitionDetails')}</p>
+            <p className="text-sm text-gray-700">{t('name', { name: petitionData.name })}</p>
             <div className="flex gap-2 mt-2">
               {petitionData.isResident && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-800">
-                  <span className="mr-1"><Home className="h-4 w-4" /></span>Κάτοικος
+                  <span className="mr-1"><Home className="h-4 w-4" /></span>{t('resident')}
                 </span>
               )}
               {petitionData.isCitizen && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-800">
-                  <span className="mr-1"><UserCheck className="h-4 w-4" /></span>Δημότης
+                  <span className="mr-1"><UserCheck className="h-4 w-4" /></span>{t('citizen')}
                 </span>
               )}
             </div>

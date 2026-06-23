@@ -79,7 +79,9 @@
     "Header": {
         "about": "Pour les communes",
         "search": "Rechercher",
-        "login": "Connexion"
+        "login": "Connexion",
+        "notificationsBreadcrumb": "Notifications",
+        "petitionBreadcrumb": "Soutenez votre commune"
     },
     "Footer": {
         "tagline": "Conçu avec respect et considération pour les collectivités locales.",
@@ -227,7 +229,8 @@
             "manageTitle": "Gérer les notifications",
             "manageSubtitle": "Vous recevez déjà des notifications de cette commune. Vous pouvez modifier vos préférences ou arrêter les notifications à tout moment.",
             "manageAction": "Accéder à la page de gestion des notifications"
-        }
+        },
+        "petitionCta": "Demandez le soutien de votre commune"
     },
     "EmbedConfigurator": {
         "title": "Widget pour votre site web",
@@ -762,7 +765,60 @@
         "regBodyAnon": "Nous utiliserons ces coordonnées pour enregistrer vos préférences et vous envoyer des notifications.",
         "summaryTitle": "Récapitulatif des choix",
         "detailsSummary": "Que signifie l'inscription aux notifications ?",
-        "sendTiming": "Nous envoyons une information avant une séance et une autre après celle-ci."
+        "sendTiming": "Nous envoyons une information avant une séance et une autre après celle-ci.",
+        "back": "Retour",
+        "update": "Mettre à jour",
+        "next": "Continuer",
+        "nextSubmitting": "Continuer...",
+        "petition": {
+            "infoTitle": "{city} n'est pas encore sur le réseau OpenCouncil",
+            "infoBody": "Vous pouvez nous aider à amener votre commune sur OpenCouncil en nous autorisant à utiliser votre nom lorsque nous parlons à la commune, en tant qu'habitant qui souhaiterait avoir OpenCouncil dans sa commune.",
+            "pricingNote": "Nous avons une activité commerciale avec les communes avec lesquelles nous collaborons. Nos tarifs et notre mode de facturation sont publiquement disponibles sur <link>opencouncil.gr/about</link>.",
+            "alreadySupportedTitle": "Vous avez déjà soutenu l'ajout de cette commune",
+            "thankYou": "Merci pour votre soutien ! Nous vous préviendrons lorsque la commune rejoindra le réseau OpenCouncil.",
+            "formTitle": "Renseignez vos coordonnées",
+            "formDescription": "Aidez-nous à amener OpenCouncil dans votre commune.",
+            "relationLabel": "Votre lien avec la commune",
+            "isResident": "Je suis résident",
+            "isCitizen": "Je suis inscrit sur les listes électorales",
+            "relationError": "Veuillez sélectionner au moins un lien avec la commune",
+            "registrationTitle": "Finalisez votre inscription",
+            "metaTitle": "Soutenez votre commune | OpenCouncil",
+            "metaDescription": "Soutenez l'ajout de votre commune à OpenCouncil"
+        },
+        "preferences": {
+            "locations": "Lieux",
+            "topics": "Thèmes",
+            "petitionDetails": "Détails de la demande",
+            "name": "Nom : {name}",
+            "resident": "Résident",
+            "citizen": "Inscrit sur les listes électorales"
+        },
+        "form": {
+            "nameLabel": "Nom complet",
+            "namePlaceholder": "Saisissez votre nom complet",
+            "nameFromAccount": "Le nom de votre compte est utilisé",
+            "nameError": "Veuillez saisir votre nom complet",
+            "emailPlaceholder": "Saisissez votre e-mail",
+            "emailFromAccount": "L'e-mail de votre compte est utilisé",
+            "emailError": "Veuillez saisir un e-mail valide",
+            "phoneLabel": "Téléphone",
+            "phoneOptional": "(facultatif)",
+            "phonePlaceholder": "Ajouter un numéro de téléphone",
+            "phoneActivePlaceholder": "Votre numéro de téléphone",
+            "phoneInvalid": "Veuillez saisir un numéro de téléphone valide"
+        },
+        "complete": {
+            "petitionTitle": "Votre demande a été enregistrée",
+            "petitionDescription": "Merci pour votre soutien ! Nous vous préviendrons lorsque {city} rejoindra le réseau OpenCouncil.",
+            "updatedTitle": "Vos choix ont été mis à jour",
+            "registeredTitle": "Votre inscription est terminée",
+            "confirmEmail": "Nous vous avons envoyé un e-mail pour confirmer votre compte.",
+            "returnHome": "Retour à l'accueil",
+            "whatsNext": "Et ensuite ?",
+            "notifyItem": "Vous recevrez des notifications concernant les lieux et les thèmes que vous avez sélectionnés — avant ou après leur examen en conseil municipal.",
+            "manageNotifications": "Vous pouvez gérer vos notifications pour cette commune depuis la <link>page des notifications</link>"
+        }
     },
     "MeetingStatus": {
         "scheduled": "Programmée",

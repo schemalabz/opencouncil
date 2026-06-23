@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 interface OnboardingFooterProps {
   currentStep: number; // 0-based
@@ -21,6 +22,7 @@ export function OnboardingFooter({
   isActionDisabled,
   hideBack,
 }: OnboardingFooterProps) {
+  const t = useTranslations('Onboarding');
   return (
     <div className="flex items-center justify-between w-full p-4 md:p-3 pt-2 gap-2 md:gap-0">
       {/* Back Button */}
@@ -31,7 +33,7 @@ export function OnboardingFooter({
             onClick={onBack}
             className="text-muted-foreground hover:text-primary h-11 md:h-10 px-4 md:px-3 touch-manipulation"
           >
-            Πίσω
+            {t('back')}
           </Button>
         )}
       </div>

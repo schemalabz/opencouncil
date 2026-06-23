@@ -5,6 +5,7 @@ import { PhoneField, PhoneFieldValidity } from '@/components/ui/phone-field';
 import { useSession } from 'next-auth/react';
 import { User, Mail, Phone, Lock, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 export interface UserInfoFormData {
     name: string;
@@ -40,6 +41,7 @@ export function UserInfoForm({
     requirePhone = false,
 }: UserInfoFormProps) {
     const { data: session, status: sessionStatus } = useSession();
+    const t = useTranslations('Onboarding.form');
     const [name, setName] = useState(initialData?.name || '');
     const [email, setEmail] = useState(initialData?.email || '');
     const [phone, setPhone] = useState(initialData?.phone || '');
@@ -79,14 +81,14 @@ export function UserInfoForm({
         let valid = true;
 
         if (showName && requireName && !name.trim()) {
-            setNameError('Παρακαλώ συμπληρώστε το ονοματεπώνυμό σας');
+            setNameError(t('nameError'));
             valid = false;
         } else {
             setNameError(null);
         }
 
         if (showEmail && requireEmail && (!email.trim() || !validateEmail(email))) {
-            setEmailError('Παρακαλώ εισάγετε ένα έγκυρο email');
+            setEmailError(t('emailError'));
             valid = false;
         } else {
             setEmailError(null);
@@ -111,7 +113,7 @@ export function UserInfoForm({
                 <div className="space-y-2">
                     <Label htmlFor="name" className="flex items-center gap-1">
                         <User className="h-4 w-4" />
-                        <span>Ονοματεπώνυμο</span>
+                        <span>{t('nameLabel')}</span>
                         {isLoggedIn && session?.user?.name && (
                             <Lock className="h-3 w-3 text-gray-400 ml-1" />
                         )}
@@ -124,7 +126,7 @@ export function UserInfoForm({
                             inputMode="text"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            placeholder="Εισάγετε το ονοματεπώνυμό σας"
+                            placeholder={t('namePlaceholder')}
                             disabled={nameLocked}
                             className={cn(
                                 "text-base md:text-sm",
@@ -135,7 +137,7 @@ export function UserInfoForm({
                     </div>
                     {isLoggedIn && session?.user?.name && (
                         <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                            <span>Χρησιμοποιείται το όνομα από τον λογαριασμό σας</span>
+                            <span>{t('nameFromAccount')}</span>
                         </div>
                     )}
                     {nameError && (
@@ -163,7 +165,7 @@ export function UserInfoForm({
                         inputMode="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="Εισάγετε το email σας"
+                        placeholder={t('emailPlaceholder')}
                         disabled={isLoggedIn}
                         readOnly={isLoggedIn}
                         className={cn(
@@ -173,7 +175,7 @@ export function UserInfoForm({
                     />
                     {isLoggedIn && (
                         <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                            <span>Χρησιμοποιείται το email από τον λογαριασμό σας</span>
+                            <span>{t('emailFromAccount')}</span>
                         </div>
                     )}
                     {emailError && (
@@ -189,15 +191,15 @@ export function UserInfoForm({
                 <div className="space-y-2">
                     <Label htmlFor="phone" className="flex items-center gap-1">
                         <Phone className="h-4 w-4" />
-                        <span>Τηλέφωνο {!requirePhone && '(προαιρετικό)'}</span>
+                        <span>{t('phoneLabel')} {!requirePhone && t('phoneOptional')}</span>
                     </Label>
                     <PhoneField
                         value={phone}
                         onChange={setPhone}
                         onValidityChange={setPhoneValidity}
-                        placeholder="Προσθήκη αριθμού τηλεφώνου"
-                        activePlaceholder="Το τηλέφωνό σας"
-                        invalidMessage="Παρακαλώ εισάγετε ένα έγκυρο τηλέφωνο"
+                        placeholder={t('phonePlaceholder')}
+                        activePlaceholder={t('phoneActivePlaceholder')}
+                        invalidMessage={t('phoneInvalid')}
                     />
                 </div>
             )}
