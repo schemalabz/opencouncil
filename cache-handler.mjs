@@ -46,37 +46,32 @@ CacheHandler.onCreation(async ({ buildId }) => {
   }
 
   if (client?.isReady) {
-    // Flush stale cached pages when a new build is deployed.
-    // Compares the current Next.js build ID against a sentinel key in Valkey.
-    // First instance to boot after a deploy flushes; others find the updated sentinel and skip.
-    const SENTINEL_KEY = 'oc:__build_id__';
-    try {
-      if (!buildId) {
-        console.warn('[cache-handler] No build ID available — skipping deploy flush check');
-      } else {
-        const storedBuildId = await client.get(SENTINEL_KEY);
-
-        if (storedBuildId !== buildId) {
-          console.info(
-            `[cache-handler] Build ID changed: ${storedBuildId ?? '(none)'} → ${buildId} — flushing cache`,
-          );
-          await client.flushDb();
-          await client.set(SENTINEL_KEY, buildId);
-        } else {
-          console.info(`[cache-handler] Build ID unchanged (${buildId}) — skipping flush`);
+    // Isolate cache entries per ENVIRONMENT and per BUILD. prod and staging can
+    // point at the same Valkey db, and Next's runtime `buildId` here is
+    // unreliable (frequently undefined → everything collapsed into one shared
+    // `nobuild` namespace). Either way, cached RSC rendered by one build/env was
+    // being served by another whose code has different server-action IDs →
+    // "Failed to find Server Action". The env key (explicit APP_ENV, else the
+    // NEXTAUTH_URL host) separates prod/staging; the build key (commit/build id)
+    // separates deploys, so a new build never reads the previous build's stale
+    // entries. keyPrefix and the shared-tags keys all use this namespace.
+    //
+    // We deliberately do NOT flushDb() anymore: on a shared db that wipes the
+    // *other* environment's cache. The per-build namespace makes superseded
+    // entries simply unreachable; they expire via their existing TTLs.
+    const envKey =
+      process.env.APP_ENV ||
+      (() => {
+        try {
+          return new URL(process.env.NEXTAUTH_URL).host;
+        } catch {
+          return process.env.NODE_ENV || 'unknown';
         }
-      }
-    } catch (error) {
-      console.warn('[cache-handler] Deploy flush check failed:', error.message);
-    }
-
-    // Namespace by buildId so old-build instances during a rolling deploy can't
-    // pollute the new build's cache (and vice-versa). Without this, an old
-    // instance writes HTML referencing its own chunk hashes into the shared
-    // cache, then new instances serve it and 404 on the chunks they don't have.
-    // sharedTagsKey is also namespaced so a revalidateTag from an old-build
-    // instance doesn't delete the new build's entries through the shared tag map.
-    const namespace = buildId || 'nobuild';
+      })();
+    const buildKey =
+      process.env.SOURCE_COMMIT || process.env.BUILD_ID || buildId || 'nobuild';
+    const namespace = `${envKey}:${buildKey}`;
+    console.info(`[cache-handler] Cache namespace: oc:${namespace}:`);
 
     // Forte's redis-strings handler fixes the @neshca issues that drove #358:
     //   • TTL-bound tag hashmap (sharedTagsTtlKey) — no unbounded growth from bot pollution
