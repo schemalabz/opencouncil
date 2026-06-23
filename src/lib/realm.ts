@@ -22,14 +22,30 @@ export const REALMS = {
  * hosts like `pr-7.preview.opencouncil.fr` resolve correctly). Defaults to
  * `greece` for unknown hosts (localhost, the Greek production domain).
  */
+const hostMatchesDomain = (host: string, domain: string): boolean =>
+    host === domain || host.endsWith(`.${domain}`);
+
 export function realmForHost(host: string | null | undefined): Realm {
     const normalized = (host ?? '').split(':')[0].toLowerCase();
     for (const [realm, { domain }] of Object.entries(REALMS)) {
-        if (normalized === domain || normalized.endsWith(`.${domain}`)) {
+        if (hostMatchesDomain(normalized, domain)) {
             return realm as Realm;
         }
     }
     return 'greece';
+}
+
+/**
+ * Whether a Host header value is one of our own domains (apex or subdomain of a
+ * realm domain — so production and preview hosts match, but `localhost` and any
+ * attacker-supplied host do not). Unlike `realmForHost` (which defaults unknown
+ * hosts to `greece`), this is a strict membership check — use it before trusting
+ * a request's Host for anything sensitive, e.g. building a magic-link URL.
+ */
+export function isKnownRealmHost(host: string | null | undefined): boolean {
+    const normalized = (host ?? '').split(':')[0].toLowerCase();
+    if (!normalized) return false;
+    return Object.values(REALMS).some(({ domain }) => hostMatchesDomain(normalized, domain));
 }
 
 /**

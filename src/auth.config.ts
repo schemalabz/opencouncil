@@ -4,6 +4,7 @@ import { AuthEmail } from "./lib/email/templates/AuthEmail"
 import { renderReactEmailToHtml } from "./lib/email/render"
 import { env } from "./env.mjs"
 import { isTestUserEmail } from "./lib/dev/test-users"
+import { signInUrlForRequest } from "./lib/auth/signInUrl"
 
 // In development, use port-specific session cookie names to allow multiple
 // instances on different ports to have independent sessions. Without this,
@@ -25,8 +26,12 @@ export default {
         from: 'OpenCouncil <auth@opencouncil.gr>',
         apiKey: env.RESEND_API_KEY,
         sendVerificationRequest: async (params) => {
-            const { identifier: to, provider, url, theme } = params
-            const html = await renderReactEmailToHtml(AuthEmail({ url }))
+            const { identifier: to, provider, url, request } = params
+            // Point the magic link at the domain the user is signing in from
+            // (opencouncil.gr vs opencouncil.fr) instead of the single build-time
+            // NEXTAUTH_URL host, so the callback sets a cookie on the right domain.
+            const signInUrl = signInUrlForRequest(url, request)
+            const html = await renderReactEmailToHtml(AuthEmail({ url: signInUrl }))
 
             // Redirect test user emails to DEV_EMAIL_OVERRIDE if set
             // This allows testing different admin roles with a single real inbox
@@ -47,7 +52,7 @@ export default {
                     to: emailTo,
                     subject: `Συνδεθείτε στο OpenCouncil`,
                     html,
-                    text: `Συνδεθείτε στο OpenCouncil: ${url}`,
+                    text: `Συνδεθείτε στο OpenCouncil: ${signInUrl}`,
                 }),
             })
 
