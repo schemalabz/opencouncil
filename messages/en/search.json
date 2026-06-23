@@ -1,0 +1,35 @@
+{
+    "heading": "Search",
+    "subheading": "Search council topics, speaker positions and more",
+    "placeholder": "Type to search...",
+    "placeholderDisabled": "Search is temporarily disabled...",
+    "welcomeTitle": "Welcome to search",
+    "welcomeBody": "Type to search council topics",
+    "noResultsTitle": "No results found",
+    "noResultsBody": "Try changing your search terms or filters",
+    "resultsCount": "{count, plural, one {# result found} other {# results found}}",
+    "previous": "Previous",
+    "next": "Next",
+    "pageOf": "Page {page} of {total}",
+    "errorTitle": "Search error",
+    "errorBody": "Search ran into a problem. Our team has already been notified. Please try again later.",
+    "backToSearch": "Back to search",
+    "maintenanceTitle": "Temporary Service Interruption",
+    "maintenanceBody": "Search is temporarily unavailable due to system maintenance. Please try again later.",
+    "filters": {
+        "title": "Filters",
+        "city": "City",
+        "cityPlaceholder": "Select a city",
+        "party": "Party",
+        "partyPlaceholder": "Select a party",
+        "person": "Person",
+        "personPlaceholder": "Select a person",
+        "clearFilters": "Clear filters",
+        "clear": "Clear"
+    },
+    "result": {
+        "transcript": "Transcript",
+        "showMore": "Show more",
+        "showLess": "Show less"
+    }
+}

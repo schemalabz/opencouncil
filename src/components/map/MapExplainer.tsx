@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import {
     Sheet,
@@ -12,7 +13,10 @@ import { HelpCircle } from 'lucide-react';
 import Link from 'next/link';
 
 export function MapExplainer() {
+    const t = useTranslations('map.explainer');
     const [open, setOpen] = useState(false);
+
+    const strong = (chunks: React.ReactNode) => <strong>{chunks}</strong>;
 
     return (
         <Sheet open={open} onOpenChange={setOpen}>
@@ -22,45 +26,35 @@ export function MapExplainer() {
                 className="fixed bottom-6 left-[110px] sm:left-[160px] z-40 rounded-full shadow-lg h-14 px-6 gap-2 bg-white hover:bg-gray-50 text-foreground border border-border"
             >
                 <HelpCircle className="h-5 w-5" />
-                <span className="hidden sm:inline">Τι είναι αυτό;</span>
+                <span className="hidden sm:inline">{t('button')}</span>
             </Button>
 
             <SheetContent side="left" className="w-full sm:max-w-lg overflow-y-auto">
                 <SheetHeader className="text-left mb-6">
-                    <SheetTitle className="text-2xl">Ο Χάρτης του OpenCouncil</SheetTitle>
+                    <SheetTitle className="text-2xl">{t('title')}</SheetTitle>
                 </SheetHeader>
 
                 <div className="space-y-4 text-sm leading-relaxed">
-                    <p>
-                        Σε αυτό το χάρτη μπορείτε να δείτε <strong>θέματα που συζητάνε οι δήμοι</strong> που συμμετέχουν στο OpenCouncil στα δημοτικά συμβούλια. Μπορείτε να φιλτράρετε για πιο πρόσφατα θέματα, ή για θέματα σε συγκεκριμένες θεματικές.
-                    </p>
+                    <p>{t.rich('p1', { strong })}</p>
 
-                    <p>
-                        Τα θέματα και οι τοποθεσίες τους εξάγονται και οργανώνονται <strong>αυτόματα με τη χρήση τεχνητής νοημοσύνης</strong>.
-                    </p>
+                    <p>{t.rich('p2', { strong })}</p>
 
-                    <p>
-                        <strong>Εμφανίζονται μόνο</strong> τα θέματα που αφορούν κάποια <strong>συγκεκριμένη τοποθεσία</strong> (π.χ. ένα θέμα που αφορά κάποια λαϊκή αγορά, αλλά όχι κάποιο θέμα που αφορά το προϋπολογισμό του δήμου), και μόνο από συνεδριάσεις που καλύπτει το OpenCouncil <strong>με την υποστήριξη του δήμου</strong>.
-                    </p>
+                    <p>{t.rich('p3', { strong })}</p>
 
-                    <p>
-                        Μπορείτε να μάθετε περισσότερα για ένα θέμα <strong>πατώντας πάνω του</strong>, και να ανοίξετε τη σελίδα του θέματος για να δείτε τις τοποθετήσεις των μελών του δημοτικού συμβουλίου, ή και τη πλήρη απομαγνητοφώνηση της συνεδρίασης.
-                    </p>
+                    <p>{t.rich('p4', { strong })}</p>
 
                     <div className="pt-4 border-t border-border">
-                        <p className="mb-3">
-                            Αν ο δήμος σας <strong>δεν συμμετέχει</strong> στο OpenCouncil, μπορείτε να <strong>ζητήσετε την ένταξη του</strong> πατώντας πάνω του.
-                        </p>
+                        <p className="mb-3">{t.rich('p5', { strong })}</p>
                         <p>
-                            Αν είστε υπάλληλος ή αιρετός του δήμου, σας προτείνουμε να διαβάσετε τη σελίδα{' '}
+                            {t('p6Prefix')}
                             <Link
                                 href="/about"
                                 className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
                                 onClick={() => setOpen(false)}
                             >
-                                Για Δήμους
+                                {t('p6LinkText')}
                             </Link>
-                            .
+                            {t('p6Suffix')}
                         </p>
                     </div>
                 </div>
@@ -68,4 +62,3 @@ export function MapExplainer() {
         </Sheet>
     );
 }
-

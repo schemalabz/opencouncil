@@ -31,6 +31,7 @@ export default function SearchPage() {
     // changes re-executing the same query don't log the same intent again.
     const lastLoggedQueryRef = useRef<string | null>(null);
     const t = useTranslations('Common');
+    const ts = useTranslations('search');
 
     // Get all search parameters from URL
     const query = searchParams.get('query') || "";
@@ -255,10 +256,9 @@ export default function SearchPage() {
                     <div className="flex items-center gap-3">
                         <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
                         <div>
-                            <h3 className="font-medium text-amber-800">Προσωρινή Διακοπή Λειτουργίας</h3>
+                            <h3 className="font-medium text-amber-800">{ts('maintenanceTitle')}</h3>
                             <p className="text-sm text-amber-700 mt-1">
-                                Η λειτουργία αναζήτησης είναι προσωρινά μη διαθέσιμη λόγω συντήρησης του συστήματος. 
-                                Παρακαλούμε δοκιμάστε ξανά αργότερα.
+                                {ts('maintenanceBody')}
                             </p>
                         </div>
                     </div>
@@ -275,10 +275,10 @@ export default function SearchPage() {
                 </div>
                 <div className="text-center">
                     <h2 className="text-2xl font-bold mb-2 bg-gradient-to-r from-[hsl(var(--orange))] to-[hsl(var(--accent))] bg-clip-text text-transparent">
-                        Αναζήτηση
+                        {ts('heading')}
                     </h2>
                     <p className="text-muted-foreground text-sm">
-                        Αναζητήστε θέματα συμβουλίων, τοποθετήσεις ομιλητών και περισσότερα
+                        {ts('subheading')}
                     </p>
                 </div>
             </div>
@@ -307,7 +307,7 @@ export default function SearchPage() {
                         <div className="relative">
                             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                             <Input
-                                placeholder={SEARCH_TEMPORARILY_DISABLED ? "Η αναζήτηση είναι προσωρινά απενεργοποιημένη..." : "Πληκτρολογήστε για αναζήτηση..."}
+                                placeholder={SEARCH_TEMPORARILY_DISABLED ? ts('placeholderDisabled') : ts('placeholder')}
                                 aria-label={t('search')}
                                 className="pl-12 h-12 text-base"
                                 value={localQuery}
@@ -333,15 +333,15 @@ export default function SearchPage() {
                         <div className="flex justify-center items-center min-h-[400px]">
                             <div className="text-center space-y-3">
                                 <AlertTriangle className="w-10 h-10 text-destructive mx-auto" />
-                                <div className="text-destructive text-lg font-medium">Σφάλμα αναζήτησης</div>
+                                <div className="text-destructive text-lg font-medium">{ts('errorTitle')}</div>
                                 <p className="text-muted-foreground text-sm max-w-md">
-                                    Η αναζήτηση αντιμετώπισε πρόβλημα. Η ομάδα μας έχει ήδη ενημερωθεί. Παρακαλούμε δοκιμάστε ξανά αργότερα.
+                                    {ts('errorBody')}
                                 </p>
                                 <button
                                     onClick={() => router.push('/search')}
                                     className="px-4 py-2 rounded-md border bg-background hover:bg-accent transition-colors text-sm"
                                 >
-                                    Επιστροφή στην αναζήτηση
+                                    {ts('backToSearch')}
                                 </button>
                             </div>
                         </div>
@@ -354,18 +354,18 @@ export default function SearchPage() {
                     ) : !query ? (
                         <div className="flex justify-center items-center min-h-[400px]">
                             <div className="text-center space-y-2">
-                                <div className="text-muted-foreground text-lg">Καλώς ήρθατε στην αναζήτηση</div>
+                                <div className="text-muted-foreground text-lg">{ts('welcomeTitle')}</div>
                                 <p className="text-muted-foreground text-sm">
-                                    Πληκτρολογήστε για να αναζητήσετε θέματα συμβουλίων
+                                    {ts('welcomeBody')}
                                 </p>
                             </div>
                         </div>
                     ) : state.results.length === 0 ? (
                         <div className="flex justify-center items-center min-h-[400px]">
                             <div className="text-center space-y-2">
-                                <div className="text-muted-foreground text-lg">Δε βρέθηκαν αποτελέσματα</div>
+                                <div className="text-muted-foreground text-lg">{ts('noResultsTitle')}</div>
                                 <p className="text-muted-foreground text-sm">
-                                    Δοκιμάστε να αλλάξετε τους όρους αναζήτησης ή τα φίλτρα
+                                    {ts('noResultsBody')}
                                 </p>
                             </div>
                         </div>
@@ -374,7 +374,7 @@ export default function SearchPage() {
                             <div className="mt-6">
                                 <div className="flex items-center justify-between">
                                     <p className="text-sm text-muted-foreground">
-                                        Βρέθηκαν {state.total} αποτελέσματα
+                                        {ts('resultsCount', { count: state.total })}
                                     </p>
                                 </div>
                                 {resultsGrid}
@@ -386,17 +386,17 @@ export default function SearchPage() {
                                         disabled={page === 1}
                                         className="px-4 py-2 rounded-md border bg-background hover:bg-accent disabled:opacity-50 disabled:hover:bg-background transition-colors"
                                     >
-                                        Προηγούμενο
+                                        {ts('previous')}
                                     </button>
                                     <div className="px-4 py-2 text-sm text-muted-foreground">
-                                        Σελίδα {page} από {totalPages}
+                                        {ts('pageOf', { page, total: totalPages })}
                                     </div>
                                     <button
                                         onClick={() => updateSearchParams({ page: (page + 1).toString() })}
                                         disabled={page === totalPages}
                                         className="px-4 py-2 rounded-md border bg-background hover:bg-accent disabled:opacity-50 disabled:hover:bg-background transition-colors"
                                     >
-                                        Επόμενο
+                                        {ts('next')}
                                     </button>
                                 </div>
                             )}

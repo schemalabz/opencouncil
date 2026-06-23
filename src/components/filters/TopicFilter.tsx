@@ -1,6 +1,7 @@
 'use client';
 
 import { Tag, AlertCircle, Loader2, Check } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -30,6 +31,8 @@ export function TopicFilter({
     error = null,
     columns = 1,
 }: TopicFilterProps) {
+    const t = useTranslations('topicFilter');
+
     const isTopicSelected = (topic: Topic) => {
         return selectedTopics.some(selected => selected.id === topic.id);
     };
@@ -71,7 +74,7 @@ export function TopicFilter({
         return (
             <div className="text-center p-6 border border-dashed border-gray-300 rounded-lg bg-gray-50">
                 <Tag className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                <p className="text-gray-500 text-sm">Δεν βρέθηκαν διαθέσιμα θέματα</p>
+                <p className="text-gray-500 text-sm">{t('noTopics')}</p>
             </div>
         );
     }
@@ -80,7 +83,7 @@ export function TopicFilter({
         <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <div className="text-sm font-medium">
-                    Θέματα ({selectedTopics.length}/{topics.length})
+                    {t('header', { selected: selectedTopics.length, total: topics.length })}
                 </div>
                 <Button
                     type="button"
@@ -89,7 +92,7 @@ export function TopicFilter({
                     className="h-7 px-2 text-xs"
                     onClick={handleToggleAll}
                 >
-                    {allSelected ? 'Καθαρισμός όλων' : 'Επιλογή όλων'}
+                    {allSelected ? t('clearAll') : t('selectAll')}
                 </Button>
             </div>
             <div className={cn(

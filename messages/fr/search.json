@@ -1,0 +1,35 @@
+{
+    "heading": "Recherche",
+    "subheading": "Recherchez des sujets de conseil, des interventions et plus encore",
+    "placeholder": "Tapez pour rechercher...",
+    "placeholderDisabled": "La recherche est temporairement désactivée...",
+    "welcomeTitle": "Bienvenue dans la recherche",
+    "welcomeBody": "Tapez pour rechercher des sujets de conseil",
+    "noResultsTitle": "Aucun résultat trouvé",
+    "noResultsBody": "Essayez de modifier vos termes de recherche ou vos filtres",
+    "resultsCount": "{count, plural, one {# résultat trouvé} other {# résultats trouvés}}",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "pageOf": "Page {page} sur {total}",
+    "errorTitle": "Erreur de recherche",
+    "errorBody": "La recherche a rencontré un problème. Notre équipe en a déjà été informée. Veuillez réessayer plus tard.",
+    "backToSearch": "Retour à la recherche",
+    "maintenanceTitle": "Interruption temporaire du service",
+    "maintenanceBody": "La recherche est temporairement indisponible en raison d'une maintenance du système. Veuillez réessayer plus tard.",
+    "filters": {
+        "title": "Filtres",
+        "city": "Ville",
+        "cityPlaceholder": "Sélectionnez une ville",
+        "party": "Groupe",
+        "partyPlaceholder": "Sélectionnez un groupe",
+        "person": "Personne",
+        "personPlaceholder": "Sélectionnez une personne",
+        "clearFilters": "Effacer les filtres",
+        "clear": "Effacer"
+    },
+    "result": {
+        "transcript": "Transcription",
+        "showMore": "Voir plus",
+        "showLess": "Voir moins"
+    }
+}

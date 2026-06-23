@@ -2,6 +2,29 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { TopicFilter } from '../TopicFilter';
 import { Topic } from '@prisma/client';
 
+// next-intl ships ESM that Jest doesn't transform, so mock the hook with the
+// Greek (default) translations — keeps the existing Greek assertions meaningful.
+const elMessages: Record<string, string> = {
+    noTopics: 'Δεν βρέθηκαν διαθέσιμα θέματα',
+    header: 'Θέματα ({selected}/{total})',
+    selectAll: 'Επιλογή όλων',
+    clearAll: 'Καθαρισμός όλων',
+};
+
+jest.mock('next-intl', () => ({
+    useTranslations: () => (key: string, values?: Record<string, string | number>) => {
+        let message = elMessages[key] ?? key;
+        if (values) {
+            for (const [name, value] of Object.entries(values)) {
+                message = message.replace(`{${name}}`, String(value));
+            }
+        }
+        return message;
+    },
+}));
+
+const renderWithIntl = (ui: React.ReactElement) => render(ui);
+
 // Mock the Icon component — it uses next/dynamic which doesn't work in tests
 jest.mock('@/components/icon', () => {
     return function MockIcon({ name }: { name: string }) {
@@ -44,7 +67,7 @@ describe('TopicFilter', () => {
     });
 
     it('renders all topics', () => {
-        render(<TopicFilter topics={topics} selectedTopics={[]} onChange={mockOnChange} />);
+        renderWithIntl(<TopicFilter topics={topics} selectedTopics={[]} onChange={mockOnChange} />);
 
         expect(screen.getByText('Ασφάλεια')).toBeInTheDocument();
         expect(screen.getByText('Παιδεία')).toBeInTheDocument();
@@ -52,41 +75,41 @@ describe('TopicFilter', () => {
     });
 
     it('shows counter with selection state', () => {
-        render(<TopicFilter topics={topics} selectedTopics={[topics[0]]} onChange={mockOnChange} />);
+        renderWithIntl(<TopicFilter topics={topics} selectedTopics={[topics[0]]} onChange={mockOnChange} />);
 
         expect(screen.getByText('Θέματα (1/3)')).toBeInTheDocument();
     });
 
     it('calls onChange with added topic when clicking unselected', () => {
-        render(<TopicFilter topics={topics} selectedTopics={[topics[0]]} onChange={mockOnChange} />);
+        renderWithIntl(<TopicFilter topics={topics} selectedTopics={[topics[0]]} onChange={mockOnChange} />);
 
         fireEvent.click(screen.getByText('Παιδεία'));
         expect(mockOnChange).toHaveBeenCalledWith([topics[0], topics[1]]);
     });
 
     it('calls onChange with removed topic when clicking selected', () => {
-        render(<TopicFilter topics={topics} selectedTopics={[topics[0], topics[1]]} onChange={mockOnChange} />);
+        renderWithIntl(<TopicFilter topics={topics} selectedTopics={[topics[0], topics[1]]} onChange={mockOnChange} />);
 
         fireEvent.click(screen.getByText('Ασφάλεια'));
         expect(mockOnChange).toHaveBeenCalledWith([topics[1]]);
     });
 
     it('select all selects every topic', () => {
-        render(<TopicFilter topics={topics} selectedTopics={[]} onChange={mockOnChange} />);
+        renderWithIntl(<TopicFilter topics={topics} selectedTopics={[]} onChange={mockOnChange} />);
 
         fireEvent.click(screen.getByText('Επιλογή όλων'));
         expect(mockOnChange).toHaveBeenCalledWith(topics);
     });
 
     it('clear all deselects every topic', () => {
-        render(<TopicFilter topics={topics} selectedTopics={topics} onChange={mockOnChange} />);
+        renderWithIntl(<TopicFilter topics={topics} selectedTopics={topics} onChange={mockOnChange} />);
 
         fireEvent.click(screen.getByText('Καθαρισμός όλων'));
         expect(mockOnChange).toHaveBeenCalledWith([]);
     });
 
     it('shows loading spinner', () => {
-        render(<TopicFilter topics={[]} selectedTopics={[]} onChange={mockOnChange} isLoading />);
+        renderWithIntl(<TopicFilter topics={[]} selectedTopics={[]} onChange={mockOnChange} isLoading />);
 
         expect(screen.queryByText('Θέματα')).not.toBeInTheDocument();
         // Loader2 renders an svg with the animate-spin class
@@ -94,26 +117,26 @@ describe('TopicFilter', () => {
     });
 
     it('shows error message', () => {
-        render(<TopicFilter topics={[]} selectedTopics={[]} onChange={mockOnChange} error="Something broke" />);
+        renderWithIntl(<TopicFilter topics={[]} selectedTopics={[]} onChange={mockOnChange} error="Something broke" />);
 
         expect(screen.getByText('Something broke')).toBeInTheDocument();
     });
 
     it('shows empty state when no topics', () => {
-        render(<TopicFilter topics={[]} selectedTopics={[]} onChange={mockOnChange} />);
+        renderWithIntl(<TopicFilter topics={[]} selectedTopics={[]} onChange={mockOnChange} />);
 
         expect(screen.getByText('Δεν βρέθηκαν διαθέσιμα θέματα')).toBeInTheDocument();
     });
 
     it('renders english name when available', () => {
-        render(<TopicFilter topics={topics} selectedTopics={[]} onChange={mockOnChange} />);
+        renderWithIntl(<TopicFilter topics={topics} selectedTopics={[]} onChange={mockOnChange} />);
 
         expect(screen.getByText('Safety')).toBeInTheDocument();
         expect(screen.getByText('Education')).toBeInTheDocument();
     });
 
     it('uses correct icon from topic data', () => {
-        render(<TopicFilter topics={topics} selectedTopics={[]} onChange={mockOnChange} />);
+        renderWithIntl(<TopicFilter topics={topics} selectedTopics={[]} onChange={mockOnChange} />);
 
         expect(screen.getByTestId('icon-shield')).toBeInTheDocument();
         expect(screen.getByTestId('icon-graduation-cap')).toBeInTheDocument();
@@ -121,7 +144,7 @@ describe('TopicFilter', () => {
     });
 
     it('applies 2-column grid class', () => {
-        const { container } = render(
+        const { container } = renderWithIntl(
             <TopicFilter topics={topics} selectedTopics={[]} onChange={mockOnChange} columns={2} />
         );
 
