@@ -241,7 +241,7 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage, hasNoData 
                             <div className="relative z-10 flex items-center gap-2">
                                 <BadgeCheck className="w-5 h-5" />
                                 <span className="font-medium">
-                                    Ζητήστε την υποστήριξη του δήμου
+                                    {t('petitionCta')}
                                 </span>
                             </div>
                             <motion.div

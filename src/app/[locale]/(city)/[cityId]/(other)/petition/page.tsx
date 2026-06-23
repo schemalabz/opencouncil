@@ -4,11 +4,15 @@ import { OnboardingStage } from '@/lib/types/onboarding';
 import { Suspense } from "react";
 import { getCity } from "@/lib/db/cities";
 import { notFound, redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = {
-    title: "Υποστήριξη Δήμου | OpenCouncil",
-    description: "Υποστηρίξτε την προσθήκη του δήμου σας στο OpenCouncil",
-};
+export async function generateMetadata(): Promise<Metadata> {
+    const t = await getTranslations("Onboarding.petition");
+    return {
+        title: t("metaTitle"),
+        description: t("metaDescription"),
+    };
+}
 
 interface PageProps {
     params: Promise<{ cityId: string }>;

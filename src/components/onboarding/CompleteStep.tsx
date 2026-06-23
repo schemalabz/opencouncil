@@ -8,11 +8,15 @@ import { Home, Mail, Bell } from 'lucide-react';
 import { OnboardingStepTemplate } from './OnboardingStepTemplate';
 import { findOsektutuNeighbourhood } from '@/lib/osektutu';
 import { OsektutuBanner } from './OsektutuBanner';
+import { useTranslations, useLocale } from 'next-intl';
 
 export function CompleteStep() {
   const { data: session, status: sessionStatus } = useSession();
   const router = useRouter();
   const { stage, city, selectedLocations } = useOnboarding();
+  const t = useTranslations('Onboarding.complete');
+  const locale = useLocale();
+  const municipalityName = (locale === 'en' ? city?.name_municipality_en : city?.name_municipality) ?? '';
 
   const isPetitionFlow = stage === OnboardingStage.PETITION_COMPLETE;
 
@@ -28,20 +32,20 @@ export function CompleteStep() {
 
   const getTitle = () => {
     if (isPetitionFlow) {
-      return 'Το αίτημά σας καταχωρήθηκε';
+      return t('petitionTitle');
     }
-    return sessionStatus === 'authenticated' 
-      ? 'Οι επιλογές σας ενημερώθηκαν'
-      : 'Η εγγραφή σας ολοκληρώθηκε';
+    return sessionStatus === 'authenticated'
+      ? t('updatedTitle')
+      : t('registeredTitle');
   };
 
   const getDescription = () => {
     if (isPetitionFlow) {
-      return `Σας ευχαριστούμε για την υποστήριξή σας! Θα σας ενημερώσουμε όταν ο ${city?.name_municipality} ενταχθεί στο δίκτυο OpenCouncil.`;
+      return t('petitionDescription', { city: municipalityName });
     }
     return sessionStatus === 'authenticated'
       ? undefined
-      : 'Έχουμε στείλει ένα email για την επιβεβαίωση του λογαριασμού σας.';
+      : t('confirmEmail');
   };
 
   const footer = (
@@ -52,7 +56,7 @@ export function CompleteStep() {
         onClick={handleHomeClick}
       >
         <Home className="h-4 w-4 mr-2" />
-        Επιστροφή στην αρχική
+        {t('returnHome')}
       </Button>
     </div>
   );
@@ -66,26 +70,28 @@ export function CompleteStep() {
       <div className="text-center">
         {!isPetitionFlow && (
           <div className="bg-gray-50 rounded-lg p-4 mb-3 text-left">
-            <h3 className="font-medium mb-2">Τι ακολουθεί;</h3>
+            <h3 className="font-medium mb-2">{t('whatsNext')}</h3>
             <ul className="space-y-2 text-sm text-gray-600">
               <li className="flex items-start gap-2">
                 <Bell className="h-5 w-5 mt-0.5 shrink-0 text-gray-400" />
-                <span>Θα λαμβάνετε ειδοποιήσεις για τις τοποθεσίες και τα θέματα που επιλέξατε — πριν ή αφού συζητηθούν στο δημοτικό συμβούλιο.</span>
+                <span>{t('notifyItem')}</span>
               </li>
               <li className="flex items-start gap-2">
                 <Mail className="h-5 w-5 mt-0.5 shrink-0 text-gray-400" />
                 <span>
-                  Μπορείτε να διαχειριστείτε τις ειδοποιήσεις σας για τον δήμο από τη{' '}
-                  {sessionStatus === 'authenticated' ? (
-                    <Link
-                      href="/profile?tab=notifications"
-                      className="text-blue-600 hover:text-blue-800 underline"
-                    >
-                      σελίδα ειδοποιήσεων
-                    </Link>
-                  ) : (
-                    'σελίδα ειδοποιήσεων'
-                  )}
+                  {t.rich('manageNotifications', {
+                    link: (chunks) =>
+                      sessionStatus === 'authenticated' ? (
+                        <Link
+                          href="/profile?tab=notifications"
+                          className="text-blue-600 hover:text-blue-800 underline"
+                        >
+                          {chunks}
+                        </Link>
+                      ) : (
+                        <>{chunks}</>
+                      ),
+                  })}
                 </span>
               </li>
             </ul>

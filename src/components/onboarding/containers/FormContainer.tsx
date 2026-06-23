@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { PetitionFormStep } from '../steps/petition/PetitionFormStep';
 import { NotificationInfoStep } from '../steps/notification/NotificationInfoStep';
+import { useLocale } from 'next-intl';
 
 export function FormContainer() {
     const {
@@ -26,7 +27,13 @@ export function FormContainer() {
         setPetitionData,
     } = useOnboarding();
     const router = useRouter();
+    const locale = useLocale();
     const isDesktop = useMediaQuery('(min-width: 1024px)');
+
+    // `name_municipality` holds the native-language name; English uses the
+    // dedicated `_en` field. Other locales (e.g. fr) fall back to the native
+    // name, matching the convention used across the app.
+    const municipalityName = (locale === 'en' ? city?.name_municipality_en : city?.name_municipality) ?? '';
 
     const currentFlow = getCurrentFlow(stage);
     const currentStep = getCurrentStep(stage);
@@ -106,7 +113,7 @@ export function FormContainer() {
                         onBack={handleBack}
                         city={{
                             id: city.id,
-                            name_municipality: city.name_municipality
+                            name_municipality: municipalityName
                         }}
                     />
                 );
@@ -122,7 +129,7 @@ export function FormContainer() {
                         onBack={handleBack}
                         initial={petitionData}
                         city={{
-                            name_municipality: city.name_municipality
+                            name_municipality: municipalityName
                         }}
                     />
                 );

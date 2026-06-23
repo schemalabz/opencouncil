@@ -134,12 +134,12 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
     if (currentEntity?.cityId) {
         if (segment === 'notifications') {
             dynamicPath.push({
-                name: "Ενημερώσεις",
+                name: t("notificationsBreadcrumb"),
                 link: `/${currentEntity.cityId}/notifications`
             });
         } else if (segment === 'petition') {
             dynamicPath.push({
-                name: "Υποστήριξη Δήμου",
+                name: t("petitionBreadcrumb"),
                 link: `/${currentEntity.cityId}/petition`
             });
         }

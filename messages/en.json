@@ -65,7 +65,9 @@
     "Header": {
         "about": "For Municipalities",
         "search": "Search",
-        "login": "Sign in"
+        "login": "Sign in",
+        "notificationsBreadcrumb": "Notifications",
+        "petitionBreadcrumb": "Support your municipality"
     },
     "Footer": {
         "tagline": "Built with respect and appreciation for local government.",
@@ -213,7 +215,8 @@
             "manageTitle": "Manage notifications",
             "manageSubtitle": "You're already receiving notifications from this council. You can update your preferences or stop notifications anytime.",
             "manageAction": "Go to the notification management page"
-        }
+        },
+        "petitionCta": "Request your municipality's support"
     },
     "EmbedConfigurator": {
         "title": "Widget for your website",
@@ -435,7 +438,60 @@
         "regBodyAnon": "We'll use these details to save your preferences and send you notifications.",
         "summaryTitle": "Your selections",
         "detailsSummary": "What does signing up for notifications mean?",
-        "sendTiming": "We send a heads-up before a meeting and a follow-up after it."
+        "sendTiming": "We send a heads-up before a meeting and a follow-up after it.",
+        "back": "Back",
+        "update": "Update",
+        "next": "Continue",
+        "nextSubmitting": "Continuing...",
+        "petition": {
+            "infoTitle": "{city} isn't on the OpenCouncil network yet",
+            "infoBody": "You can help us bring your municipality to OpenCouncil by letting us use your name when we talk to the municipality, as a resident who would like to have OpenCouncil in their town.",
+            "pricingNote": "We work commercially with the municipalities we partner with. Our prices and how we bill are publicly available at <link>opencouncil.gr/about</link>.",
+            "alreadySupportedTitle": "You've already supported adding this municipality",
+            "thankYou": "Thank you for your support! We'll let you know when the municipality joins the OpenCouncil network.",
+            "formTitle": "Fill in your details",
+            "formDescription": "Help us bring OpenCouncil to your municipality.",
+            "relationLabel": "Your relationship with the municipality",
+            "isResident": "I'm a resident",
+            "isCitizen": "I'm a registered citizen",
+            "relationError": "Please select at least one relationship with the municipality",
+            "registrationTitle": "Complete your registration",
+            "metaTitle": "Support your municipality | OpenCouncil",
+            "metaDescription": "Support adding your municipality to OpenCouncil"
+        },
+        "preferences": {
+            "locations": "Locations",
+            "topics": "Topics",
+            "petitionDetails": "Request details",
+            "name": "Name: {name}",
+            "resident": "Resident",
+            "citizen": "Registered citizen"
+        },
+        "form": {
+            "nameLabel": "Full name",
+            "namePlaceholder": "Enter your full name",
+            "nameFromAccount": "Using the name from your account",
+            "nameError": "Please enter your full name",
+            "emailPlaceholder": "Enter your email",
+            "emailFromAccount": "Using the email from your account",
+            "emailError": "Please enter a valid email",
+            "phoneLabel": "Phone",
+            "phoneOptional": "(optional)",
+            "phonePlaceholder": "Add a phone number",
+            "phoneActivePlaceholder": "Your phone number",
+            "phoneInvalid": "Please enter a valid phone number"
+        },
+        "complete": {
+            "petitionTitle": "Your request has been recorded",
+            "petitionDescription": "Thank you for your support! We'll let you know when {city} joins the OpenCouncil network.",
+            "updatedTitle": "Your selections have been updated",
+            "registeredTitle": "Your registration is complete",
+            "confirmEmail": "We've sent an email to confirm your account.",
+            "returnHome": "Return to homepage",
+            "whatsNext": "What's next?",
+            "notifyItem": "You'll receive notifications about the locations and topics you selected — before or after they're discussed at the council.",
+            "manageNotifications": "You can manage your notifications for this municipality from the <link>notifications page</link>"
+        }
     },
     "ImageCropDialog": {
         "title": "Adjust image",

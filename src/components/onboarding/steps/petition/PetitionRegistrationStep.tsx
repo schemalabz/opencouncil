@@ -36,7 +36,7 @@ export function PetitionRegistrationStep({ currentStep, totalSteps, onBack }: Pe
 
   return (
     <OnboardingStepTemplate
-      title="Ολοκληρώστε την εγγραφή σας"
+      title={t('petition.registrationTitle')}
       footer={
         <OnboardingFooter
           currentStep={currentStep}
@@ -52,7 +52,7 @@ export function PetitionRegistrationStep({ currentStep, totalSteps, onBack }: Pe
       }
     >
       <div className="mb-6">
-        <h3 className="text-sm font-medium mb-2">Σύνοψη επιλογών</h3>
+        <h3 className="text-sm font-medium mb-2">{t('summaryTitle')}</h3>
         <PreferencesOverview
           petitionData={petitionData}
         />
