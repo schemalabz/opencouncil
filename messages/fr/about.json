@@ -8,14 +8,14 @@
     "team": "Équipe"
   },
   "metadata": {
-    "title": "OpenCouncil — Le système d'exploitation des organes collégiaux",
-    "description": "Conseils municipaux, commissions et conseils de quartier — plus ouverts pour les citoyens, plus efficaces pour les services. Dans 10 communes en Grèce.",
+    "title": "OpenCouncil — La plateforme pour les organes collégiaux",
+    "description": "Conseils municipaux, commissions et instances de participation citoyenne : plus ouverts aux citoyens, plus efficaces pour les services. Dans 10 communes en Grèce.",
     "keywords": "OpenCouncil,intelligence artificielle,conseils municipaux,transparence,démocratie,collectivités locales,automatisation,participation citoyenne,citoyens"
   },
   "hero": {
-    "title": "Le système d'exploitation",
-    "titleHighlight": "des organes collégiaux",
-    "subtitle": "Conseils municipaux, commissions et conseils de quartier — plus ouverts pour les citoyens, plus efficaces pour les services.",
+    "title": "La plateforme pour",
+    "titleHighlight": "les organes collégiaux",
+    "subtitle": "Conseils municipaux, commissions et instances de participation citoyenne : plus ouverts aux citoyens, plus efficaces pour les services.",
     "scheduleCall": "Planifiez une présentation",
     "counters": {
       "municipalities": "communes",
@@ -24,24 +24,24 @@
     }
   },
   "socialProof": {
-    "prefix": "Dans",
+    "prefix": "Déployé dans",
     "municipalities": "{count} communes",
     "suffix": "en Grèce, de la commune de Samothrace à celle d'Athènes."
   },
   "openness": {
-    "title": "Chaque séance,",
-    "titleHighlight": "ouverte à tous",
-    "subtitle": "OpenCouncil transforme des séances de plusieurs heures en un contenu compréhensible, consultable et accessible — automatiquement.",
+    "title": "Chaque séance est",
+    "titleHighlight": "disponible pour tous",
+    "subtitle": "OpenCouncil transforme automatiquement les séances de plusieurs heures en un contenu compréhensible, consultable et accessible.",
     "comingSoon": "Bientôt disponible",
     "tryIt": "Essayez-le",
     "features": {
       "subjects": {
         "title": "Sujets & Résumés",
-        "description": "Chaque séance est automatiquement découpée en sujets. Pour chaque sujet, un résumé de la position de chaque intervenant, avec vidéo, texte et vote."
+        "description": "Chaque séance est automatiquement découpée par point de l'ordre du jour. Pour chaque point, retrouvez un résumé des interventions, les extraits vidéo associés, les transcriptions et les résultats des votes."
       },
       "search": {
         "title": "Recherche",
-        "description": "Recherchez tout ce qui a été dit dans chaque séance, dans chaque commune."
+        "description": "Retrouvez instantanément toute intervention, délibération ou prise de parole dans les séances de chaque collectivité."
       },
       "notifications": {
         "title": "Notifications",
@@ -50,22 +50,22 @@
       },
       "map": {
         "title": "Carte des sujets",
-        "description": "Chaque débat du conseil épinglé sur la carte — zoomez sur n'importe quel quartier pour voir ce qui a été décidé sur les lieux qui vous tiennent à cœur.",
+        "description": "Visualisez les débats du conseil sur une carte — zoomez sur un quartier pour voir ce qui a été discuté et décidé à proximité.",
         "demoLabel": "Voir la carte"
       }
     }
   },
   "internal": {
-    "title": "Ce qui prenait des jours,",
-    "titleHighlight": "se fait désormais en heures",
-    "subtitle": "Transcriptions, procès-verbaux, décisions — automatiquement ou avec une intervention humaine minimale.",
+    "title": "Ce qui prenait des jours",
+    "titleHighlight": "se fait désormais en quelques heures",
+    "subtitle": "Transcriptions, procès-verbaux et relevés de décisions — automatiquement ou avec une intervention humaine minimale.",
     "seeExample": "Voir un exemple",
     "comingSoon": "Bientôt disponible",
     "bottomNote": "OpenCouncil peut remplacer votre prestataire de procès-verbaux à un coût comparable — avec dix fois plus de fonctionnalités et de rapidité.",
     "features": {
       "transcription": {
         "title": "Transcriptions en 48 heures",
-        "description": "Des transcriptions précises et vérifiées par un humain de chaque séance, prêtes en 48 heures. Reconnaissance automatique des intervenants."
+        "description": "Des transcriptions de chaque séance précises et vérifiées par un humain sous 48 heures. Reconnaissance automatique des intervenants."
       },
       "minutes": {
         "title": "Génération automatique des procès-verbaux",
@@ -73,7 +73,7 @@
       },
       "diavgeia": {
         "title": "Décisions pour Di@vgeia",
-        "description": "Génération automatique des documents de décision, prêts à être publiés sur Di@vgeia.",
+        "description": "Génération automatique des documents des décisions — si cela n'est pas déjà fait dans les procès-verbaux.",
         "targetDate": "Décembre 2026"
       },
       "printArchive": {
@@ -89,7 +89,7 @@
     "inputs": {
       "recording": {
         "title": "Enregistrement de la séance",
-        "description": "Enregistrée en direct ou importée depuis YouTube — un fichier vidéo ou audio suffit."
+        "description": "Diffusez en direct ou importez vos enregistrements depuis YouTube, une plateforme vidéo ou un simple fichier audio."
       },
       "documents": {
         "title": "Documents de la séance",
@@ -99,7 +99,7 @@
     "processing": {
       "transcription": {
         "title": "Transcription",
-        "description": "Transcription par IA avec reconnaissance des intervenants, vérifiée par un humain en 48 heures."
+        "description": "Transcription par IA avec reconnaissance des intervenants, vérifiée par un humain sous 48 heures."
       },
       "analysis": {
         "title": "Analyse & structure",
@@ -109,11 +109,11 @@
     "branches": {
       "notifications": {
         "title": "Notifications aux citoyens",
-        "description": "Les citoyens sont informés des sujets qui les concernent, via WhatsApp, SMS et e-mail."
+        "description": "Les citoyens sont informés des sujets qui les concernent, par WhatsApp, SMS et e-mail."
       },
       "openByDefault": {
         "title": "Ouvert par défaut",
-        "description": "La transparence comme infrastructure — résumés de sujets, contributions des intervenants, cartes interactives et recherche en texte intégral."
+        "description": "Une transparence renforcée grâce aux synthèses des séances, aux interventions des participants, aux cartes interactives et à la recherche en texte intégral."
       },
       "tools": {
         "title": "Outils pour les élus & les services",
@@ -126,7 +126,7 @@
     "items": {
       "chania": {
         "quote": "Dès les cinq premières minutes, j'ai su que c'était quelque chose de différent.",
-        "name": "Cheffe de la Direction de la Planification, de l'Organisation et de l'Informatique",
+        "name": "Directrice de la planification, de l'organisation et des systèmes d'information",
         "role": "Commune de La Canée"
       }
     }
@@ -154,7 +154,7 @@
   },
   "team": {
     "title": "L'équipe derrière OpenCouncil",
-    "subtitle": "7 personnes, qui construisent une technologie au service de la démocratie locale. OpenCouncil IKE appartient intégralement à <link>Schema Labs</link>, une société à but non lucratif.",
+    "subtitle": "7 personnes, qui construisent une technologie au service de la démocratie locale. OpenCouncil IKE appartient intégralement à <link>Schema Labs</link>, une organisation à but non lucratif.",
     "members": {
       "christos": "Christos Porios",
       "andreas": "Andreas Kouloumos",
@@ -187,8 +187,8 @@
     }
   },
   "cta": {
-    "title": "Faites entrer les organes collégiaux de votre commune dans le présent.",
-    "subtitle": "OpenCouncil peut démarrer dans votre commune en quelques jours — pas en quelques mois.",
+    "title": "Faites entrer votre conseil municipal dans le présent.",
+    "subtitle": "OpenCouncil peut être déployé dans votre collectivité en seulement quelques jours.",
     "scheduleCall": "Planifiez une présentation"
   },
   "demos": {

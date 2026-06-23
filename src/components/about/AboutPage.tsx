@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { ChevronUp } from 'lucide-react'
@@ -18,6 +18,8 @@ import type { AboutPageStats } from '@/lib/db/cities'
 import type { GitHubStats } from '@/lib/github'
 
 const SECTION_IDS = ['openness', 'internal', 'how-it-works', 'recognition', 'pricing', 'team'] as const
+
+type SectionId = typeof SECTION_IDS[number]
 
 /** Scroll progress bar — direct DOM mutation, no React re-renders */
 function ScrollProgressBar() {
@@ -44,12 +46,12 @@ function ScrollProgressBar() {
 }
 
 /** Shared hook for section visibility + active tracking */
-function useSectionNav() {
+function useSectionNav(sectionIds: readonly SectionId[]) {
     const [active, setActive] = useState<string | null>(null)
     const [visible, setVisible] = useState(false)
 
     useEffect(() => {
-        const sectionEls = SECTION_IDS.map(id => document.getElementById(id)).filter(Boolean) as HTMLElement[]
+        const sectionEls = sectionIds.map(id => document.getElementById(id)).filter(Boolean) as HTMLElement[]
         if (!sectionEls.length) return
 
         const onScroll = () => {
@@ -75,7 +77,7 @@ function useSectionNav() {
             window.removeEventListener('scroll', onScroll)
             observer.disconnect()
         }
-    }, [])
+    }, [sectionIds])
 
     const scrollTo = useCallback((id: string) => {
         const el = document.getElementById(id)
@@ -89,10 +91,11 @@ interface NavProps {
     active: string | null
     visible: boolean
     scrollTo: (id: string) => void
+    sectionIds: readonly SectionId[]
 }
 
 /** Desktop: floating pill nav at top */
-function DesktopNav({ active, visible, scrollTo }: NavProps) {
+function DesktopNav({ active, visible, scrollTo, sectionIds }: NavProps) {
     const t = useTranslations('about.nav')
 
     if (!visible) return null
@@ -106,7 +109,7 @@ function DesktopNav({ active, visible, scrollTo }: NavProps) {
             >
                 <Image src="/logo.png" alt="" width={24} height={24} className="w-full h-full object-cover" />
             </button>
-            {SECTION_IDS.map(id => (
+            {sectionIds.map(id => (
                 <button
                     key={id}
                     onClick={() => scrollTo(id)}
@@ -124,7 +127,7 @@ function DesktopNav({ active, visible, scrollTo }: NavProps) {
 }
 
 /** Mobile: bottom pill showing current section, expands to full list on tap */
-function MobileNav({ active, visible, scrollTo }: NavProps) {
+function MobileNav({ active, visible, scrollTo, sectionIds }: NavProps) {
     const t = useTranslations('about.nav')
     const [expanded, setExpanded] = useState(false)
 
@@ -143,7 +146,7 @@ function MobileNav({ active, visible, scrollTo }: NavProps) {
             {/* Expanded list — positioned above the pill */}
             {expanded && (
                 <nav className="absolute bottom-full mb-2 bg-white/95 backdrop-blur-md border border-border/50 rounded-2xl shadow-lg p-2 flex flex-col gap-0.5 min-w-[180px]">
-                    {SECTION_IDS.map(id => (
+                    {sectionIds.map(id => (
                         <button
                             key={id}
                             onClick={() => {
@@ -181,17 +184,23 @@ interface AboutPageProps {
     citiesWithLogos?: Array<{ id: string; logoImage: string; name_municipality: string }>
     stats?: AboutPageStats | null
     githubStats?: GitHubStats | null
+    /** Hide the pricing section + its nav entry (e.g. on the French realm). */
+    hidePricing?: boolean
 }
 
-export default function AboutPage({ citiesWithLogos = [], stats, githubStats }: AboutPageProps) {
+export default function AboutPage({ citiesWithLogos = [], stats, githubStats, hidePricing = false }: AboutPageProps) {
     const [isContactFormOpen, setIsContactFormOpen] = useState(false)
-    const navProps = useSectionNav()
+    const sectionIds = useMemo(
+        () => hidePricing ? SECTION_IDS.filter(id => id !== 'pricing') : SECTION_IDS,
+        [hidePricing]
+    )
+    const navProps = useSectionNav(sectionIds)
 
     return (
         <div className="min-h-screen">
             <ScrollProgressBar />
-            <DesktopNav {...navProps} />
-            <MobileNav {...navProps} />
+            <DesktopNav {...navProps} sectionIds={sectionIds} />
+            <MobileNav {...navProps} sectionIds={sectionIds} />
 
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 {/* 1. Hero */}
@@ -222,12 +231,14 @@ export default function AboutPage({ citiesWithLogos = [], stats, githubStats }: 
                     <Recognition />
                 </div>
 
-                {/* 7. Pricing */}
-                <div id="pricing">
-                    <section className="py-16 md:py-24">
-                        <Pricing />
-                    </section>
-                </div>
+                {/* 7. Pricing (hidden on the French realm) */}
+                {!hidePricing && (
+                    <div id="pricing">
+                        <section className="py-16 md:py-24">
+                            <Pricing />
+                        </section>
+                    </div>
+                )}
             </div>
 
             {/* 8. Team (full-width gray bg) */}
