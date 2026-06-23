@@ -1,4 +1,4 @@
-import { AdministrativeBodyType } from "@prisma/client";
+import { AdministrativeBodyType, Realm } from "@prisma/client";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogos, getAboutPageStats } from "@/lib/db/cities";
 import { getGitHubStats } from "@/lib/github";
@@ -19,11 +19,11 @@ import { fetchLatestSubstackPost } from "@/lib/db/landing";
  * function: per-city caches key by cityId, so a junk slug (bot probe) would
  * otherwise write a `city:<junk>:*` entry to the shared cache (#358).
  */
-export async function getAllCityIdsCached() {
+export async function getAllCityIdsCached(realm: Realm) {
   return createCache(
-    () => getAllCityIds(),
-    ['cities', 'ids'],
-    { tags: ['cities:all'] }
+    () => getAllCityIds(realm),
+    ['cities', 'ids', realm],
+    { tags: ['cities:all', `realm:${realm}:cities:all`] }
   )();
 }
 
@@ -128,22 +128,22 @@ export async function fetchLatestSubstackPostCached() {
   )();
 }
 
-export async function getAllCitiesMinimalCached() {
+export async function getAllCitiesMinimalCached(realm: Realm) {
   return createCache(
-    () => getAllCitiesMinimal(),
-    ['cities', 'all'],
-    { tags: ['cities:all'] }
+    () => getAllCitiesMinimal(realm),
+    ['cities', 'all', realm],
+    { tags: ['cities:all', `realm:${realm}:cities:all`] }
   )();
 }
 
 /**
  * Cached version of getSupportedCitiesWithLogos
  */
-export async function getSupportedCitiesWithLogosCached() {
+export async function getSupportedCitiesWithLogosCached(realm: Realm) {
   return createCache(
-    () => getSupportedCitiesWithLogos(),
-    ['cities', 'supported-with-logos'],
-    { tags: ['cities:all'] }
+    () => getSupportedCitiesWithLogos(realm),
+    ['cities', 'supported-with-logos', realm],
+    { tags: ['cities:all', `realm:${realm}:cities:all`] }
   )();
 }
 
@@ -191,11 +191,11 @@ export async function getSubjectStatisticsCached(
 /**
  * Cached aggregate stats for the about page (municipality count, subject count, meeting hours)
  */
-export async function getAboutPageStatsCached() {
+export async function getAboutPageStatsCached(realm: Realm) {
   return createCache(
-    () => getAboutPageStats(),
-    ['about', 'stats'],
-    { tags: ['cities:all'] }
+    () => getAboutPageStats(realm),
+    ['about', 'stats', realm],
+    { tags: ['cities:all', `realm:${realm}:cities:all`] }
   )();
 }
 

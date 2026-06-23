@@ -4,9 +4,9 @@ import { getConsultationById, getConsultationComments, fetchRegulationData } fro
 import { notFound } from "next/navigation";
 import { ConsultationViewer } from "@/components/consultations";
 import { auth } from "@/auth";
-import { env } from "@/env.mjs";
 import { Suspense } from "react";
 import { buildHreflangAlternates } from '@/lib/utils/hreflang';
+import { getRealmBaseUrlFromRequest } from '@/lib/realm.server';
 
 interface PageProps {
     params: Promise<{ cityId: string; id: string; locale: string }>;
@@ -43,7 +43,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
     const description = `${isActive ? 'Ενεργή δημόσια διαβούλευση' : 'Δημόσια διαβούλευση που έχει λήξει'} για "${title}" στον Δήμο ${city.name}. ${chaptersCount > 0 ? `Περιλαμβάνει ${chaptersCount} κεφάλαια${geosetsCount > 0 ? ` και ${geosetsCount} γεωγραφικές περιοχές` : ''}.` : ''} Μάθετε περισσότερα και συμμετέχετε στη διαβούλευση.`;
 
     // Generate OG image URL
-    const ogImageUrl = `${env.NEXTAUTH_URL}/api/og?cityId=${params.cityId}&consultationId=${params.id}`;
+    const ogImageUrl = `/api/og?cityId=${params.cityId}&consultationId=${params.id}`;
 
     return {
         title: `${title} | ${city.name} | OpenCouncil`,
@@ -79,7 +79,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
             description,
             images: [ogImageUrl],
         },
-        alternates: buildHreflangAlternates(`/${params.cityId}/consultation/${params.id}`, params.locale),
+        alternates: await buildHreflangAlternates(`/${params.cityId}/consultation/${params.id}`, params.locale),
         other: {
             'consultation:status': isActive ? 'active' : 'expired',
             'consultation:endDate': consultation.endDate.toISOString(),
@@ -118,10 +118,11 @@ export default async function ConsultationPage(props: PageProps) {
         getConsultationComments(params.id, params.cityId, session)
     ]);
 
-    // Base URL for permalinks
+    // Base URL for permalinks — the realm's canonical domain (per request Host)
+    const realmBaseUrl = await getRealmBaseUrlFromRequest();
     const baseUrl = `/${params.cityId}/consultation/${params.id}`;
-    const consultationUrl = new URL(baseUrl, env.NEXTAUTH_URL);
-    const cityUrl = new URL(`/${params.cityId}`, env.NEXTAUTH_URL);
+    const consultationUrl = new URL(baseUrl, realmBaseUrl);
+    const cityUrl = new URL(`/${params.cityId}`, realmBaseUrl);
 
 
     // Generate structured data for SEO

@@ -3,6 +3,7 @@
 import { Link } from "@/i18n/routing"
 import { useTranslations } from "next-intl"
 import Logo from "./Logo"
+import CountrySwitcher from "./CountrySwitcher"
 import { Phone, Mail, ExternalLink } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
@@ -160,8 +161,9 @@ export default function Footer({ className }: FooterProps = {}) {
                         </a>
                     </Button>
                 </div>
-                <div className="mt-6 pt-6 border-t border-border text-center text-xs text-muted-foreground">
-                    © {new Date().getFullYear()} OpenCouncil
+                <div className="mt-6 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-center text-xs text-muted-foreground">
+                    <span>© {new Date().getFullYear()} OpenCouncil</span>
+                    <CountrySwitcher />
                 </div>
             </div>
         </footer>

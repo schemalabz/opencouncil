@@ -6,7 +6,6 @@ import { getParty } from "@/lib/db/parties";
 import { notFound } from "next/navigation";
 import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
 import { Metadata } from "next";
-import { env } from "@/env.mjs";
 import { buildHreflangAlternates } from "@/lib/utils/hreflang";
 
 // Request-scoped dedup so generateMetadata and PartyPage share a single fetch.
@@ -31,7 +30,7 @@ export async function generateMetadata(
     }
 
     const description = `Η παράταξη ${party.name} στο Δημοτικό Συμβούλιο του Δήμου ${city.name}. Δείτε τα μέλη, τις τοποθετήσεις και τη δραστηριότητά της στις συνεδριάσεις.`;
-    const ogImageUrl = `${env.NEXTAUTH_URL}/api/og?cityId=${params.cityId}`;
+    const ogImageUrl = `/api/og?cityId=${params.cityId}`;
 
     return {
         title: `${party.name} | ${city.name} | OpenCouncil`,
@@ -67,7 +66,7 @@ export async function generateMetadata(
             description,
             images: [ogImageUrl],
         },
-        alternates: buildHreflangAlternates(
+        alternates: await buildHreflangAlternates(
             `/${params.cityId}/parties/${params.partyId}`,
             params.locale,
         ),

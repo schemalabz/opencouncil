@@ -1,4 +1,5 @@
 import { getAllCityIdsCached } from "@/lib/cache";
+import { getRealm } from "@/lib/realm.server";
 import { notFound } from "next/navigation";
 
 const VALID_CITY_ID = /^[a-z][a-z0-9_-]*$/;
@@ -28,7 +29,9 @@ export default async function CityLayout(
     // The previous getCityCached(cityId) existence check was itself a cached
     // per-city query, so every junk slug that passed the regex (e.g. /wp-admin)
     // wrote a `city:<junk>:basic` entry to the shared cache before 404ing (#358).
-    const cityIds = await getAllCityIdsCached();
+    // Scoped to the request realm: a city from the other realm (e.g. a French
+    // city on opencouncil.gr) isn't in this set, so it 404s — tenant isolation.
+    const cityIds = await getAllCityIdsCached(await getRealm());
     if (!cityIds.includes(cityId)) {
         notFound();
     }

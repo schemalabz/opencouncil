@@ -3,7 +3,7 @@ import { routing, LOCALE_OVERRIDE_HEADER } from './i18n/routing';
 import { NextResponse, NextRequest } from 'next/server';
 import { auth } from './auth'
 import { env } from '@/env.mjs';
-import { isFrenchDomainHost } from '@/lib/host';
+import { realmForHost } from './lib/realm';
 
 const i18nMiddleware = createIntlMiddleware(routing);
 
@@ -137,11 +137,13 @@ function isHttpBasicAuthAuthenticated(req: Request) {
 
 /**
  * Whether the request arrived on the French domain (`opencouncil.fr` or a
- * subdomain of it). Delegates to the shared host helper so the proxy and
- * server components agree on what counts as the French realm.
+ * subdomain of it). Delegates to the shared `realmForHost` mapping (the single
+ * source of truth for host→realm), which strips the port and matches the apex or
+ * any subdomain — so `localhost`-style `host:port`, real domains and a spoofed
+ * `Host: opencouncil.fr` header all work for local testing.
  */
 function isFrenchHost(req: NextRequest): boolean {
-    return isFrenchDomainHost(req.headers.get('host'));
+    return realmForHost(req.headers.get('host')) === 'france';
 }
 
 /**

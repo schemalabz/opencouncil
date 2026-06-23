@@ -1,8 +1,13 @@
 import { MetadataRoute } from 'next'
 import prisma from '@/lib/db/prisma'
-import { env } from '@/env.mjs'
+import { Realm } from '@prisma/client'
+import { REALMS } from '@/lib/realm'
+import { getRealm, getRealmBaseUrlFromRequest } from '@/lib/realm.server'
 
-const baseUrl = env.NEXTAUTH_URL
+// Resolves the realm from the request Host, so it must render per request rather
+// than being statically generated at build time (where no Host is available and
+// realmForHost would fall back to greece, serving Greek URLs on .fr).
+export const dynamic = 'force-dynamic'
 
 type SitemapCity = {
     id: string
@@ -12,19 +17,23 @@ type SitemapCity = {
     }>
 }
 
-function buildAlternates(path: string) {
+// Each realm exposes its own default locale (unprefixed) plus English (`/en`).
+// Alternates stay within the realm's own domain — cities exist in exactly one
+// realm, so there is no cross-domain (`.gr`↔`.fr`) hreflang.
+function buildAlternates(baseUrl: string, defaultLocale: string, path: string) {
     return {
         languages: {
-            el: `${baseUrl}${path}`,
+            [defaultLocale]: `${baseUrl}${path}`,
             en: `${baseUrl}/en${path}`
         }
     }
 }
 
-async function fetchSitemapData(): Promise<SitemapCity[]> {
+async function fetchSitemapData(realm: Realm): Promise<SitemapCity[]> {
     return prisma.city.findMany({
         where: {
             status: 'listed',
+            realm,
         },
         select: {
             id: true,
@@ -42,36 +51,42 @@ async function fetchSitemapData(): Promise<SitemapCity[]> {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-    if (!baseUrl || process.env.SKIP_FULL_SITEMAP === 'true') {
+    if (process.env.SKIP_FULL_SITEMAP === 'true') {
         return []
     }
 
-    const cities = await fetchSitemapData()
+    // Resolve the realm and its canonical base from the request Host, so
+    // opencouncil.gr and opencouncil.fr each emit their own realm's URLs.
+    const realm = await getRealm()
+    const baseUrl = await getRealmBaseUrlFromRequest()
+    const defaultLocale = REALMS[realm].defaultLocale
+
+    const cities = await fetchSitemapData(realm)
 
     const staticEntries: MetadataRoute.Sitemap = [
         {
             url: baseUrl,
             changeFrequency: 'daily',
             priority: 1,
-            alternates: buildAlternates('')
+            alternates: buildAlternates(baseUrl, defaultLocale, '')
         },
         {
             url: `${baseUrl}/about`,
             changeFrequency: 'weekly',
             priority: 0.8,
-            alternates: buildAlternates('/about')
+            alternates: buildAlternates(baseUrl, defaultLocale, '/about')
         },
         {
             url: `${baseUrl}/explain`,
             changeFrequency: 'weekly',
             priority: 0.8,
-            alternates: buildAlternates('/explain')
+            alternates: buildAlternates(baseUrl, defaultLocale, '/explain')
         },
         {
             url: `${baseUrl}/corrections`,
             changeFrequency: 'weekly',
             priority: 0.8,
-            alternates: buildAlternates('/corrections')
+            alternates: buildAlternates(baseUrl, defaultLocale, '/corrections')
         }
     ]
 
@@ -79,7 +94,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         url: `${baseUrl}/${city.id}`,
         changeFrequency: 'daily',
         priority: 0.9,
-        alternates: buildAlternates(`/${city.id}`)
+        alternates: buildAlternates(baseUrl, defaultLocale, `/${city.id}`)
     }))
 
     const meetingEntries: MetadataRoute.Sitemap = cities.flatMap(city =>
@@ -87,7 +102,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             url: `${baseUrl}/${city.id}/${meeting.id}`,
             changeFrequency: 'weekly',
             priority: 0.7,
-            alternates: buildAlternates(`/${city.id}/${meeting.id}`)
+            alternates: buildAlternates(baseUrl, defaultLocale, `/${city.id}/${meeting.id}`)
         }))
     )
 
@@ -97,7 +112,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
                 url: `${baseUrl}/${city.id}/${meeting.id}/subjects/${subject.id}`,
                 changeFrequency: 'weekly',
                 priority: 0.6,
-                alternates: buildAlternates(`/${city.id}/${meeting.id}/subjects/${subject.id}`)
+                alternates: buildAlternates(baseUrl, defaultLocale, `/${city.id}/${meeting.id}/subjects/${subject.id}`)
             }))
         )
     )

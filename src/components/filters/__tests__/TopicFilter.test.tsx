@@ -24,6 +24,7 @@ const makeTopic = (overrides: Partial<Topic> & { id: string; name: string }): To
     name_en: '',
     description: '',
     deprecated: false,
+    realm: 'greece',
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,

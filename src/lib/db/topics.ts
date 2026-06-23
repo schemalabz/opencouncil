@@ -1,5 +1,5 @@
 "use server";
-import { Prisma, Topic } from '@prisma/client';
+import { Prisma, Realm, Topic } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { ConflictError } from "../api/errors";
@@ -17,13 +17,16 @@ const topicWithSubjectCountInclude = {
 export type TopicWithSubjectCount = Prisma.TopicGetPayload<{ include: typeof topicWithSubjectCountInclude }>;
 
 /**
- * Returns all active (non-deprecated) topics.
- * For admin views that need deprecated topics too, use getAllTopicsWithSubjectCount.
+ * Returns all active (non-deprecated) topics for a realm. Topics are a
+ * realm-specific taxonomy (the Greek set references Greek-only institutions),
+ * so callers must pass the city's / request's realm.
+ * For admin views that need deprecated + cross-realm topics, use
+ * getAllTopicsWithSubjectCount.
  */
-export async function getTopics(): Promise<Topic[]> {
+export async function getTopics(realm: Realm): Promise<Topic[]> {
     try {
         const topics = await prisma.topic.findMany({
-            where: { deprecated: false },
+            where: { deprecated: false, realm },
             orderBy: { name: 'asc' }
         });
         return topics;
@@ -46,7 +49,7 @@ export async function getAllTopicsWithSubjectCount(): Promise<TopicWithSubjectCo
     }
 }
 
-export type TopicInput = Pick<Prisma.TopicCreateInput, 'name' | 'name_en' | 'colorHex' | 'icon' | 'description' | 'deprecated'>;
+export type TopicInput = Pick<Prisma.TopicCreateInput, 'name' | 'name_en' | 'colorHex' | 'icon' | 'description' | 'deprecated' | 'realm'>;
 
 
 export async function createTopic(data: TopicInput): Promise<Topic> {

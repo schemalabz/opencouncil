@@ -1,7 +1,0 @@
-User-agent: *
-Allow: /
-
-# Prevent indexing of raw transcript pages (content is surfaced via subject pages)
-Disallow: /*/*/transcript
-
-Sitemap: https://opencouncil.gr/sitemap.xml

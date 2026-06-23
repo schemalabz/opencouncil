@@ -406,15 +406,18 @@ model Topic {
   icon        String?
   description String   @default("")
   deprecated  Boolean  @default(false)
+  realm       Realm    @default(greece)  // Tenant the topic taxonomy belongs to
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   topicLabels TopicLabel[]
   subjects Subject[]
-  
+
   // Add relation to notification preferences
   notificationPreferences NotificationPreference[] @relation("NotificationTopic")
+
+  @@index([realm])
 }
 
 model Summary {

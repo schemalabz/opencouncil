@@ -4,7 +4,6 @@ import { isUserAuthorizedToEdit } from "@/lib/auth";
 import CityConsultations from "@/components/cities/CityConsultations";
 import { getCityCached } from "@/lib/cache";
 import { getAllConsultationsForCity, isConsultationActive } from "@/lib/db/consultations";
-import { env } from "@/env.mjs";
 import { buildHreflangAlternates } from '@/lib/utils/hreflang';
 
 interface PageProps {
@@ -39,7 +38,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
         : `Δεν υπάρχουν διαβουλεύσεις στον Δήμο ${city.name} αυτή τη στιγμή. Ελέγχετε ξανά σύντομα για νέες ευκαιρίες συμμετοχής.`;
 
     // Generate OG image URL for city
-    const ogImageUrl = `${env.NEXTAUTH_URL}/api/og?cityId=${params.cityId}`;
+    const ogImageUrl = `/api/og?cityId=${params.cityId}`;
 
     return {
         title: `Δημόσιες Διαβουλεύσεις | ${city.name} | OpenCouncil`,
@@ -77,7 +76,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
             description,
             images: [ogImageUrl],
         },
-        alternates: buildHreflangAlternates(`/${params.cityId}/consultations`, params.locale),
+        alternates: await buildHreflangAlternates(`/${params.cityId}/consultations`, params.locale),
         other: {
             'consultations:total': totalConsultationsCount.toString(),
             'consultations:active': activeConsultationsCount.toString(),

@@ -3,7 +3,6 @@ import { isUserAuthorizedToEdit } from "@/lib/auth";
 import CityPeople from "@/components/cities/CityPeople";
 import { getPartiesForCityCached, getPeopleForCityCached, getAdministrativeBodiesForCityCached, getCityCached } from "@/lib/cache";
 import { Metadata } from "next";
-import { env } from '@/env.mjs';
 import { buildHreflangAlternates } from '@/lib/utils/hreflang';
 
 export async function generateMetadata(props: { params: Promise<{ cityId: string; locale: string }> }): Promise<Metadata> {
@@ -28,7 +27,7 @@ export async function generateMetadata(props: { params: Promise<{ cityId: string
     const description = `Λίστα όλων των δημοτικών συμβούλων και αντιδημάρχων | ${city.name}. ${peopleCount} συμβούλους από ${partiesCount} κόμματα και παρατάξεις, τα προφίλ τους και τη δραστηριότητά τους στο δημοτικό συμβούλιο.`;
 
     // Generate OG image URL
-    const ogImageUrl = `${env.NEXTAUTH_URL}/api/og?cityId=${params.cityId}&pageType=people`;
+    const ogImageUrl = `/api/og?cityId=${params.cityId}&pageType=people`;
 
     return {
         title: `Δημοτικοί Σύμβουλοι | ${city.name} | OpenCouncil`,
@@ -67,7 +66,7 @@ export async function generateMetadata(props: { params: Promise<{ cityId: string
             description,
             images: [ogImageUrl],
         },
-        alternates: buildHreflangAlternates(`/${params.cityId}/people`, params.locale),
+        alternates: await buildHreflangAlternates(`/${params.cityId}/people`, params.locale),
         other: {
             'people:count': peopleCount.toString(),
             'people:parties': partiesCount.toString(),

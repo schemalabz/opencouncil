@@ -13,8 +13,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { useEffect, useState } from "react";
-import { Topic } from "@prisma/client";
+import { Realm, Topic } from "@prisma/client";
 import { toast } from "@/hooks/use-toast";
 import { IconInput, isValidIconName } from "@/components/admin/icon-input";
 import { Sparkles } from "lucide-react";
@@ -24,12 +31,16 @@ interface TopicDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     topic?: Topic;
+    /** Realm a newly-created topic defaults to (the admin's current host realm). */
+    defaultRealm: Realm;
     existingColors: string[];
     onSaved: () => void;
 }
 const NONE_ICON = "__none__";
+const REALM_OPTIONS: Realm[] = ["greece", "france"];
+const realmLabel = (realm: Realm) => (realm === "france" ? "France" : "Greece");
 
-export function TopicDialog({ open, onOpenChange, topic, existingColors, onSaved }: TopicDialogProps) {
+export function TopicDialog({ open, onOpenChange, topic, defaultRealm, existingColors, onSaved }: TopicDialogProps) {
     const isEditing = !!topic;
     const [loading, setLoading] = useState(false);
 
@@ -40,6 +51,7 @@ export function TopicDialog({ open, onOpenChange, topic, existingColors, onSaved
     const [iconInput, setIconInput] = useState("");
     const [description, setDescription] = useState("");
     const [deprecated, setDeprecated] = useState(false);
+    const [realm, setRealm] = useState<Realm>("greece");
     const [suggestedHistory, setSuggestedHistory] = useState<string[]>([]);
 
     useEffect(() => {
@@ -52,9 +64,10 @@ export function TopicDialog({ open, onOpenChange, topic, existingColors, onSaved
             setIconInput(topicIcon === NONE_ICON ? "" : topicIcon);
             setDescription(topic?.description ?? "");
             setDeprecated(topic?.deprecated ?? false);
+            setRealm(topic?.realm ?? defaultRealm);
             setSuggestedHistory([]);
         }
-    }, [open, topic]);
+    }, [open, topic, defaultRealm]);
 
     function onManualColorChange(value: string) {
         setColorHex(value);
@@ -115,6 +128,7 @@ export function TopicDialog({ open, onOpenChange, topic, existingColors, onSaved
             icon: icon === NONE_ICON ? null : icon,
             description: description.trim(),
             deprecated,
+            realm,
         };
 
         try {
@@ -220,6 +234,26 @@ export function TopicDialog({ open, onOpenChange, topic, existingColors, onSaved
                                 color={colorHex}
                             />
                         </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="realm">Realm</Label>
+                        <Select value={realm} onValueChange={(v) => setRealm(v as Realm)}>
+                            <SelectTrigger id="realm">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {REALM_OPTIONS.map((r) => (
+                                    <SelectItem key={r} value={r}>
+                                        {realmLabel(r)}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                            Topics are realm-specific: only shown for cities in this realm and passed to the
+                            LLM for those cities&apos; meetings.
+                        </p>
                     </div>
 
                     <div className="space-y-2">

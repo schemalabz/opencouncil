@@ -4,6 +4,7 @@ import { CheckCircle2 } from 'lucide-react';
 import { PetitionMunicipalitySelector } from "@/components/onboarding/selectors/PetitionMunicipalitySelector";
 import { OpenCouncilDescription } from "@/components/landing/OpenCouncilDescription";
 import { getAllCitiesMinimalCached } from "@/lib/cache/queries";
+import { getRealm } from "@/lib/realm.server";
 
 export const metadata: Metadata = {
     title: "Υποστήριξη Δήμου | OpenCouncil",
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
 
 export default async function PetitionPage() {
     // Fetch all cities
-    const cities = await getAllCitiesMinimalCached().catch(error => {
+    const cities = await getAllCitiesMinimalCached(await getRealm()).catch(error => {
         console.error('Failed to fetch cities:', error);
         return [];
     });

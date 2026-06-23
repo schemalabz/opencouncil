@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/db/prisma'
 import { Prisma } from '@prisma/client'
+import { getRealm } from '@/lib/realm.server'
 
 // Disable caching for dynamic queries with different filters
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
     try {
+        const realm = await getRealm();
+
         // Parse query parameters
         const { searchParams } = new URL(request.url);
         const monthsBackParam = searchParams.get('monthsBack');
@@ -35,7 +38,8 @@ export async function GET(request: Request) {
             },
             councilMeeting: {
                 city: {
-                    officialSupport: true
+                    officialSupport: true,
+                    realm
                 },
                 released: true,
                 dateTime: {

@@ -10,34 +10,44 @@ import { inter, roboto, robotoMono } from "@/lib/fonts";
 import { routing, LOCALE_OVERRIDE_HEADER } from "@/i18n/routing";
 import { getLocale, getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
+import { Metadata } from "next";
+import { getRealmBaseUrlFromRequest } from "@/lib/realm.server";
 
-export const metadata = {
-    title: 'OpenCouncil',
-    description: 'Ανοιχτή τοπική αυτοδιοίκηση',
-    icons: {
-        icon: '/favicon.ico',
-    },
-    metadataBase: new URL('https://opencouncil.gr'),
-    openGraph: {
+export async function generateMetadata(): Promise<Metadata> {
+    // metadataBase is the realm's canonical domain (resolved from the request
+    // Host), so opencouncil.gr and opencouncil.fr each resolve their own
+    // relative OG-image / canonical URLs. Child pages set relative `/api/og`
+    // image URLs that get resolved against this base per host.
+    const baseUrl = await getRealmBaseUrlFromRequest();
+
+    return {
         title: 'OpenCouncil',
         description: 'Ανοιχτή τοπική αυτοδιοίκηση',
-        type: 'website',
-        url: 'https://opencouncil.gr',
-        images: [
-            {
-                url: '/oc-theme.png',
-                width: 500,
-                height: 500,
-                alt: 'OpenCouncil Logo',
-            },
-        ],
-    },
-    twitter: {
-        card: 'summary_large_image',
-        title: 'OpenCouncil',
-        description: 'Ανοιχτή τοπική αυτοδιοίκηση',
-        images: ['/oc-theme.png'],
-    },
+        icons: {
+            icon: '/favicon.ico',
+        },
+        metadataBase: new URL(baseUrl),
+        openGraph: {
+            title: 'OpenCouncil',
+            description: 'Ανοιχτή τοπική αυτοδιοίκηση',
+            type: 'website',
+            url: baseUrl,
+            images: [
+                {
+                    url: '/oc-theme.png',
+                    width: 500,
+                    height: 500,
+                    alt: 'OpenCouncil Logo',
+                },
+            ],
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title: 'OpenCouncil',
+            description: 'Ανοιχτή τοπική αυτοδιοίκηση',
+            images: ['/oc-theme.png'],
+        },
+    };
 }
 
 export const viewport = {

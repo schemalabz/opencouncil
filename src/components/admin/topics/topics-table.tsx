@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Realm } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -36,14 +37,26 @@ import { Badge } from "@/components/ui/badge";
 
 interface TopicsTableProps {
     initialTopics: TopicWithSubjectCount[];
+    defaultRealm: Realm;
 }
 
-export function TopicsTable({ initialTopics: topics }: TopicsTableProps) {
+// Render realms in a stable, meaningful order (mirrors the cities admin).
+const REALM_ORDER: Realm[] = ["greece", "france"];
+const realmLabel = (realm: Realm) => (realm === "france" ? "France" : "Greece");
+
+export function TopicsTable({ initialTopics: topics, defaultRealm }: TopicsTableProps) {
     const router = useRouter();
     const [dialogOpen, setDialogOpen] = useState(false);
     const [selectedTopic, setSelectedTopic] = useState<TopicWithSubjectCount | undefined>();
     const [topicToDelete, setTopicToDelete] = useState<TopicWithSubjectCount | null>(null);
     const [deleting, setDeleting] = useState(false);
+
+    const groupedByRealm = useMemo(() => {
+        // Realm is a closed enum, so iterate it in fixed order and drop empty groups.
+        return REALM_ORDER
+            .map((realm) => ({ realm, topics: topics.filter((t) => t.realm === realm) }))
+            .filter((group) => group.topics.length > 0);
+    }, [topics]);
 
     function onCreate() {
         setSelectedTopic(undefined);
@@ -102,31 +115,32 @@ export function TopicsTable({ initialTopics: topics }: TopicsTableProps) {
                     </Button>
                 </div>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>All topics ({topics.length})</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-20">Symbol</TableHead>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Name (EN)</TableHead>
-                                    <TableHead className="w-24 text-right">Subjects</TableHead>
-                                    <TableHead>Description</TableHead>
-                                    <TableHead className="w-32 text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {topics.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                                            No topics yet. Create one to get started.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    topics.map((topic) => {
+                {groupedByRealm.length === 0 ? (
+                    <Card>
+                        <CardContent className="py-8 text-center text-muted-foreground">
+                            No topics yet. Create one to get started.
+                        </CardContent>
+                    </Card>
+                ) : (
+                    groupedByRealm.map(({ realm, topics: realmTopics }) => (
+                        <Card key={realm}>
+                            <CardHeader>
+                                <CardTitle>{realmLabel(realm)} ({realmTopics.length})</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-20">Symbol</TableHead>
+                                            <TableHead>Name</TableHead>
+                                            <TableHead>Name (EN)</TableHead>
+                                            <TableHead className="w-24 text-right">Subjects</TableHead>
+                                            <TableHead>Description</TableHead>
+                                            <TableHead className="w-32 text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {realmTopics.map((topic) => {
                                         const subjectCount = topic._count.subjects;
                                         const labelCount = topic._count.topicLabels;
                                         const notificationCount = topic._count.notificationPreferences;
@@ -223,17 +237,19 @@ export function TopicsTable({ initialTopics: topics }: TopicsTableProps) {
                                                 </TableCell>
                                             </TableRow>
                                         );
-                                    })
-                                )}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    ))
+                )}
 
                 <TopicDialog
                     open={dialogOpen}
                     onOpenChange={setDialogOpen}
                     topic={selectedTopic}
+                    defaultRealm={defaultRealm}
                     existingColors={topics
                         .filter((t) => t.id !== selectedTopic?.id)
                         .map((t) => t.colorHex)}

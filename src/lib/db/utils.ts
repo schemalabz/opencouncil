@@ -41,12 +41,14 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
     // People filtered by meeting's administrative body (for LLM context)
     const meetingPeople = await getPeopleForMeeting(cityId, councilMeeting.administrativeBodyId);
     const parties = await getPartiesForCity(cityId);
-    const topics = await getTopics();
     const city = await getCity(cityId);
 
     if (!city) {
         throw new Error('City not found');
     }
+
+    // Realm-scoped taxonomy — use the city's realm, not a global topic set.
+    const topics = await getTopics(city.realm);
 
     return {
         transcript: transcript.map(segment => {
@@ -156,7 +158,15 @@ export async function getAvailableSpeakerSegmentIds(councilMeetingId: string, ci
 // --- Internal helpers for saveSubjectsForMeeting ---
 
 async function validateSubjectPersons(subjects: Subject[], cityId: string) {
-    const topics = await prisma.topic.findMany({ where: { deprecated: false } });
+    // Topics are realm-specific, so scope the name->topic map to the city's realm.
+    // Otherwise a subject's topicLabel could resolve to another realm's
+    // identically-named topic, and Object.fromEntries would pick a duplicate name
+    // non-deterministically.
+    const city = await prisma.city.findUnique({ where: { id: cityId }, select: { realm: true } });
+    if (!city) {
+        throw new Error(`City not found: ${cityId}`);
+    }
+    const topics = await prisma.topic.findMany({ where: { deprecated: false, realm: city.realm } });
     const topicsByName = Object.fromEntries(topics.map(t => [t.name, t]));
 
     const speakerIds = subjects
