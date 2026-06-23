@@ -7,12 +7,13 @@ import { Button } from "@/components/ui/button";
 import { FileText } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import { format } from "date-fns";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { el, enUS } from "date-fns/locale";
 
 export function Result({ result, className }: { result: SegmentWithRelations, className?: string }) {
     const [isExpanded, setIsExpanded] = useState(false);
     const locale = useLocale();
+    const t = useTranslations('search.result');
 
     const party = result.person ? getPartyFromRoles(result.person.roles) : null;
     const borderColor = party?.colorHex || '#D3D3D3';
@@ -81,7 +82,7 @@ export function Result({ result, className }: { result: SegmentWithRelations, cl
                                     setIsExpanded(!isExpanded)
                                 }}
                             >
-                                {isExpanded ? 'Show less' : 'Show more'}
+                                {isExpanded ? t('showLess') : t('showMore')}
                             </button>
                         )}
                     </div>
@@ -94,7 +95,7 @@ export function Result({ result, className }: { result: SegmentWithRelations, cl
                         >
                             <Link href={transcriptUrl}>
                                 <FileText className="h-4 w-4 mr-2" />
-                                Απομαγνητοφώνηση
+                                {t('transcript')}
                             </Link>
                         </Button>
                     </div>

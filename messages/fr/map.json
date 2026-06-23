@@ -1,0 +1,35 @@
+{
+    "filters": {
+        "button": "Filtres",
+        "title": "Filtres de la carte",
+        "timeRange": "Période",
+        "monthsValue": "{months, plural, one {1 mois} other {# mois}}",
+        "topicCategories": "Catégories thématiques",
+        "scaleMonth": "1 mois",
+        "scaleHalfYear": "6 mois",
+        "scaleYear": "12 mois",
+        "scaleTwoYears": "2 ans",
+        "summaryNoTopics": "Aucun thème",
+        "summaryAllTopics": "Tous les thèmes",
+        "summaryOneTopic": "Thèmes concernant {name}",
+        "summaryManyTopics": "Thèmes dans {count} catégories",
+        "summaryLastMonth": "du dernier mois",
+        "summaryLastYear": "de la dernière année",
+        "summaryLastTwoYears": "des 2 dernières années",
+        "summaryLastYears": "des {years} dernières années",
+        "summaryLastYearsAndMonths": "des {years} dernières années et {months} mois",
+        "summaryLastMonths": "des {months} derniers mois"
+    },
+    "explainer": {
+        "button": "Qu'est-ce que c'est ?",
+        "title": "La carte d'OpenCouncil",
+        "p1": "Sur cette carte, vous pouvez voir les <strong>sujets débattus par les communes</strong> qui participent à OpenCouncil lors de leurs conseils municipaux. Vous pouvez filtrer les sujets les plus récents, ou les sujets dans des catégories précises.",
+        "p2": "Les sujets et leurs emplacements sont extraits et organisés <strong>automatiquement à l'aide de l'intelligence artificielle</strong>.",
+        "p3": "<strong>Seuls les sujets</strong> qui concernent un <strong>lieu précis</strong> sont affichés (par exemple un sujet concernant un marché, mais pas un sujet concernant le budget de la commune), et uniquement issus des séances qu'OpenCouncil couvre <strong>avec le soutien de la commune</strong>.",
+        "p4": "Vous pouvez en savoir plus sur un sujet <strong>en cliquant dessus</strong>, et ouvrir la page du sujet pour voir les interventions des membres du conseil municipal, ou la transcription complète de la séance.",
+        "p5": "Si votre commune <strong>ne participe pas</strong> à OpenCouncil, vous pouvez <strong>demander son adhésion</strong> en cliquant dessus.",
+        "p6Prefix": "Si vous êtes agent municipal ou élu, nous vous suggérons de lire la page ",
+        "p6LinkText": "Pour les communes",
+        "p6Suffix": "."
+    }
+}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { Topic } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,6 +28,7 @@ interface MapFiltersProps {
 }
 
 export function MapFilters({ filters, topics, onFiltersChange }: MapFiltersProps) {
+    const t = useTranslations('map.filters');
     const [open, setOpen] = useState(false);
     const [localMonthsBack, setLocalMonthsBack] = useState(filters.monthsBack);
     const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -60,7 +62,7 @@ export function MapFilters({ filters, topics, onFiltersChange }: MapFiltersProps
         }, 300);
     }, [filters, onFiltersChange]);
 
-    // Generate filter summary in Greek
+    // Generate a localized filter summary (e.g. "Topics about X from the last 3 months")
     const getFilterSummary = () => {
         const topicCount = filters.selectedTopics.length;
         const totalTopics = topics.length;
@@ -68,32 +70,32 @@ export function MapFilters({ filters, topics, onFiltersChange }: MapFiltersProps
 
         let topicPart = '';
         if (topicCount === 0) {
-            topicPart = 'Κανένα θέμα';
+            topicPart = t('summaryNoTopics');
         } else if (topicCount === totalTopics) {
-            topicPart = 'Όλα τα θέματα';
+            topicPart = t('summaryAllTopics');
         } else if (topicCount === 1) {
-            topicPart = `Θέματα για ${filters.selectedTopics[0].name}`;
+            topicPart = t('summaryOneTopic', { name: filters.selectedTopics[0].name });
         } else {
-            topicPart = `Θέματα για ${topicCount} θεματικές`;
+            topicPart = t('summaryManyTopics', { count: topicCount });
         }
 
         let timePart = '';
         if (months === 1) {
-            timePart = 'του τελευταίου μήνα';
+            timePart = t('summaryLastMonth');
         } else if (months === 12) {
-            timePart = 'του τελευταίου χρόνου';
+            timePart = t('summaryLastYear');
         } else if (months === 24) {
-            timePart = 'των τελευταίων 2 ετών';
+            timePart = t('summaryLastTwoYears');
         } else if (months >= 12) {
             const years = Math.floor(months / 12);
             const remainingMonths = months % 12;
             if (remainingMonths === 0) {
-                timePart = `των τελευταίων ${years} ετών`;
+                timePart = t('summaryLastYears', { years });
             } else {
-                timePart = `των τελευταίων ${years} ετών και ${remainingMonths} μηνών`;
+                timePart = t('summaryLastYearsAndMonths', { years, months: remainingMonths });
             }
         } else {
-            timePart = `των τελευταίων ${months} μηνών`;
+            timePart = t('summaryLastMonths', { months });
         }
 
         return `${topicPart} ${timePart}`;
@@ -108,12 +110,12 @@ export function MapFilters({ filters, topics, onFiltersChange }: MapFiltersProps
                     className="fixed bottom-6 left-6 z-40 rounded-full shadow-lg h-14 px-6 gap-2"
                 >
                     <Filter className="h-5 w-5" />
-                    <span className="hidden sm:inline">Φίλτρα</span>
+                    <span className="hidden sm:inline">{t('button')}</span>
                 </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-full sm:max-w-md overflow-y-auto">
                 <SheetHeader className="text-left mb-6">
-                    <SheetTitle>Φίλτρα Χάρτη</SheetTitle>
+                    <SheetTitle>{t('title')}</SheetTitle>
                     <SheetDescription className="text-base font-medium text-foreground pt-2">
                         {getFilterSummary()}
                     </SheetDescription>
@@ -124,10 +126,10 @@ export function MapFilters({ filters, topics, onFiltersChange }: MapFiltersProps
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
                             <label className="text-sm font-medium">
-                                Χρονικό διάστημα
+                                {t('timeRange')}
                             </label>
                             <span className="text-sm text-muted-foreground">
-                                {filters.monthsBack === 1 ? '1 μήνας' : `${filters.monthsBack} μήνες`}
+                                {t('monthsValue', { months: filters.monthsBack })}
                             </span>
                         </div>
                         <Slider
@@ -139,17 +141,17 @@ export function MapFilters({ filters, topics, onFiltersChange }: MapFiltersProps
                             className="w-full"
                         />
                         <div className="relative text-xs text-muted-foreground h-4">
-                            <span className="absolute left-0 -translate-x-0">1 μήνας</span>
-                            <span className="absolute left-[21.74%] -translate-x-1/2">6 μήνες</span>
-                            <span className="absolute left-[47.83%] -translate-x-1/2">12 μήνες</span>
-                            <span className="absolute right-0 translate-x-0">2 έτη</span>
+                            <span className="absolute left-0 -translate-x-0">{t('scaleMonth')}</span>
+                            <span className="absolute left-[21.74%] -translate-x-1/2">{t('scaleHalfYear')}</span>
+                            <span className="absolute left-[47.83%] -translate-x-1/2">{t('scaleYear')}</span>
+                            <span className="absolute right-0 translate-x-0">{t('scaleTwoYears')}</span>
                         </div>
                     </div>
 
                     {/* Topic Filter */}
                     <div className="space-y-4">
                         <label className="text-sm font-medium">
-                            Θεματικές κατηγορίες
+                            {t('topicCategories')}
                         </label>
                         <TopicFilter
                             topics={topics}

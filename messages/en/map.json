@@ -1,0 +1,35 @@
+{
+    "filters": {
+        "button": "Filters",
+        "title": "Map Filters",
+        "timeRange": "Time range",
+        "monthsValue": "{months, plural, one {1 month} other {# months}}",
+        "topicCategories": "Topic categories",
+        "scaleMonth": "1 month",
+        "scaleHalfYear": "6 months",
+        "scaleYear": "12 months",
+        "scaleTwoYears": "2 years",
+        "summaryNoTopics": "No topics",
+        "summaryAllTopics": "All topics",
+        "summaryOneTopic": "Topics about {name}",
+        "summaryManyTopics": "Topics across {count} categories",
+        "summaryLastMonth": "from the last month",
+        "summaryLastYear": "from the last year",
+        "summaryLastTwoYears": "from the last 2 years",
+        "summaryLastYears": "from the last {years} years",
+        "summaryLastYearsAndMonths": "from the last {years} years and {months} months",
+        "summaryLastMonths": "from the last {months} months"
+    },
+    "explainer": {
+        "button": "What is this?",
+        "title": "The OpenCouncil Map",
+        "p1": "On this map you can see <strong>topics discussed by the municipalities</strong> that take part in OpenCouncil in their council meetings. You can filter for more recent topics, or for topics in specific categories.",
+        "p2": "The topics and their locations are extracted and organized <strong>automatically using artificial intelligence</strong>.",
+        "p3": "<strong>Only topics</strong> that concern a <strong>specific location</strong> are shown (e.g. a topic about a street market, but not a topic about the municipality's budget), and only from meetings that OpenCouncil covers <strong>with the municipality's support</strong>.",
+        "p4": "You can learn more about a topic <strong>by clicking on it</strong>, and open the topic page to see council members' positions, or the full transcript of the meeting.",
+        "p5": "If your municipality <strong>does not take part</strong> in OpenCouncil, you can <strong>request that it joins</strong> by clicking on it.",
+        "p6Prefix": "If you are a municipal employee or elected official, we suggest you read the ",
+        "p6LinkText": "For Municipalities",
+        "p6Suffix": " page."
+    }
+}
