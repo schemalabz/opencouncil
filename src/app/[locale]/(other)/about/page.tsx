@@ -69,7 +69,7 @@ export default async function AboutPage() {
             console.error('Failed to fetch cities with logos:', error);
             return [];
         }),
-        getAboutPageStatsCached(realm).catch(error => {
+        getAboutPageStatsCached().catch(error => {
             console.error('Failed to fetch about page stats:', error);
             return null;
         }),

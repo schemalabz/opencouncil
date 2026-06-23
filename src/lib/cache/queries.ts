@@ -189,13 +189,15 @@ export async function getSubjectStatisticsCached(
 }
 
 /**
- * Cached aggregate stats for the about page (municipality count, subject count, meeting hours)
+ * Cached aggregate stats for the about page (municipality count, subject count, meeting hours).
+ * Intentionally NOT realm-scoped: the about page is a marketing page and shows platform-wide
+ * totals across all realms (e.g. opencouncil.fr displays the same achieved numbers as opencouncil.gr).
  */
-export async function getAboutPageStatsCached(realm: Realm) {
+export async function getAboutPageStatsCached() {
   return createCache(
-    () => getAboutPageStats(realm),
-    ['about', 'stats', realm],
-    { tags: ['cities:all', `realm:${realm}:cities:all`] }
+    () => getAboutPageStats(),
+    ['about', 'stats', 'global'],
+    { tags: ['cities:all'] }
   )();
 }
 

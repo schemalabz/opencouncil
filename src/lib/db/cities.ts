@@ -434,24 +434,22 @@ export interface AboutPageStats {
  * - Number of officially supported municipalities
  * - Total subject count across all released meetings
  * - Total meeting hours (estimated from speaker segment timestamps)
+ *
+ * Intentionally NOT realm-scoped: the about page is a marketing page that shows
+ * platform-wide totals across all realms (so opencouncil.fr displays the same
+ * achieved numbers as opencouncil.gr).
  */
-export async function getAboutPageStats(realm?: Realm): Promise<AboutPageStats> {
+export async function getAboutPageStats(): Promise<AboutPageStats> {
     try {
-        // Realm-scoped join for the raw duration query (the Prisma queries below
-        // express realm via the typed `where`).
-        const realmJoin = realm
-            ? Prisma.sql`JOIN "City" c ON c.id = cm."cityId" AND c.realm = ${realm}::"Realm"`
-            : Prisma.empty;
-
         const [municipalityCount, subjectCount, meetingDurations] = await Promise.all([
             // Count officially supported cities
             prisma.city.count({
-                where: { officialSupport: true, ...(realm ? { realm } : {}) }
+                where: { officialSupport: true }
             }),
             // Count subjects in released meetings only
             prisma.subject.count({
                 where: {
-                    councilMeeting: { released: true, ...(realm ? { city: { realm } } : {}) }
+                    councilMeeting: { released: true }
                 }
             }),
             // Get min/max timestamps per meeting to calculate duration
@@ -461,7 +459,6 @@ export async function getAboutPageStats(realm?: Realm): Promise<AboutPageStats> 
                     SELECT (MAX(ss."endTimestamp") - MIN(ss."startTimestamp")) / 3600.0 as meeting_hours
                     FROM "CouncilMeeting" cm
                     JOIN "SpeakerSegment" ss ON ss."meetingId" = cm.id AND ss."cityId" = cm."cityId"
-                    ${realmJoin}
                     WHERE cm.released = true
                     GROUP BY cm.id, cm."cityId"
                 ) meetings
