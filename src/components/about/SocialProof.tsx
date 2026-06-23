@@ -1,22 +1,29 @@
 import { motion } from 'framer-motion'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { Link } from '@/i18n/routing'
 import Marquee from '@/components/ui/marquee'
 
 interface SocialProofProps {
-    citiesWithLogos: Array<{ id: string; logoImage: string; name_municipality: string }>
+    citiesWithLogos: Array<{ id: string; logoImage: string; name_municipality: string; name_municipality_en: string }>
 }
 
 export default function SocialProof({ citiesWithLogos }: SocialProofProps) {
     const t = useTranslations('about.socialProof')
+    const locale = useLocale()
 
     if (!citiesWithLogos.length) return null
 
+    // Greek site shows Greek municipality names; every other locale (incl. French) uses English.
+    const useGreekNames = locale === 'el'
     const count = citiesWithLogos.length
-    const cities = citiesWithLogos.map(c => ({
-        ...c,
-        shortName: c.name_municipality.replace(/^Δήμος\s+/i, ''),
-    }))
+    const cities = citiesWithLogos.map(c => {
+        const name = useGreekNames ? c.name_municipality : c.name_municipality_en
+        return {
+            ...c,
+            displayName: name,
+            shortName: name.replace(/^(Δήμος|Municipality of)\s+/i, ''),
+        }
+    })
 
     return (
         <motion.section
@@ -55,7 +62,7 @@ export default function SocialProof({ citiesWithLogos }: SocialProofProps) {
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                                 src={city.logoImage}
-                                alt={city.name_municipality}
+                                alt={city.displayName}
                                 className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 object-contain"
                             />
                             <span className="text-xs sm:text-sm text-muted-foreground text-center leading-tight max-w-[96px] sm:max-w-[112px]">
