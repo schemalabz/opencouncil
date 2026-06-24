@@ -15,7 +15,18 @@ type Subject = {
     contextCitationUrls?: string[] | null
 }
 
-export function SubjectContext({ subject }: { subject: Subject }) {
+/** Whether a subject has any "information from the internet" content to reveal. */
+export function hasSubjectContext(subject: Subject): boolean {
+    return Boolean(subject.context) || (subject.contextCitationUrls?.length ?? 0) > 0
+}
+
+/**
+ * Renders the AI-gathered "information from the internet" for a subject.
+ * - `variant="card"` (default): a self-contained CollapsibleCard.
+ * - `variant="inline"`: just the body content, for embedding under a caller-owned
+ *   toggle (e.g. the "want to know more" affordance below the summary).
+ */
+export function SubjectContext({ subject, variant = 'card' }: { subject: Subject; variant?: 'card' | 'inline' }) {
     const [showSources, setShowSources] = useState(false)
 
     const markdownComponents: Components = {
@@ -66,7 +77,7 @@ export function SubjectContext({ subject }: { subject: Subject }) {
             };
 
             return (
-                <p className="text-left my-2 leading-relaxed" {...props}>
+                <p className="text-left mb-2 leading-relaxed" {...props}>
                     {processContent(children)}
                 </p>
             );
@@ -113,15 +124,11 @@ export function SubjectContext({ subject }: { subject: Subject }) {
         }
     }
 
-    if (!subject.context && (!subject.contextCitationUrls || subject.contextCitationUrls.length === 0)) {
+    if (!hasSubjectContext(subject)) {
         return null
     }
 
-    return (
-        <CollapsibleCard
-            icon={<Globe className="w-4 h-4" />}
-            title="Πληροφορίες από το διαδίκτυο"
-        >
+    const body = (
             <div className="space-y-3 p-4">
                 {subject.context && (
                     <div className="text-sm text-muted-foreground">
@@ -163,6 +170,18 @@ export function SubjectContext({ subject }: { subject: Subject }) {
                     </div>
                 )}
             </div>
+    )
+
+    if (variant === 'inline') {
+        return body
+    }
+
+    return (
+        <CollapsibleCard
+            icon={<Globe className="w-4 h-4" />}
+            title="Πληροφορίες από το διαδίκτυο"
+        >
+            {body}
         </CollapsibleCard>
     )
 }
