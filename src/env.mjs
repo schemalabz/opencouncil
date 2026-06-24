@@ -36,6 +36,10 @@ export const env = createEnv({
     // Task Server
     TASK_API_URL: z.string().url(),
     TASK_API_KEY: z.string().min(1),
+    // Optional shared secret for authenticating inbound task-status callbacks.
+    // When set, callbacks must send "Authorization: Bearer <secret>". When unset, the
+    // callback endpoint stays open (tenant-scoped only) for backwards compatibility.
+    TASK_CALLBACK_SECRET: z.string().trim().min(1).optional(),
 
     // Elasticsearch
     ELASTICSEARCH_URL: z.string().url(),
@@ -115,6 +119,7 @@ export const env = createEnv({
     CDN_URL: process.env.CDN_URL,
     TASK_API_URL: process.env.TASK_API_URL,
     TASK_API_KEY: process.env.TASK_API_KEY,
+    TASK_CALLBACK_SECRET: process.env.TASK_CALLBACK_SECRET,
     ELASTICSEARCH_URL: process.env.ELASTICSEARCH_URL,
     ELASTICSEARCH_API_KEY: process.env.ELASTICSEARCH_API_KEY,
     ELASTICSEARCH_INDEX: process.env.ELASTICSEARCH_INDEX,
