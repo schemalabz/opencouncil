@@ -17,8 +17,9 @@ import {
 } from "../../components/ui/form"
 import { Input } from "../../components/ui/input"
 import { SheetClose } from "../../components/ui/sheet"
+import { ImageCropDialog } from "@/components/ui/ImageCropDialog"
 import { Party } from '@prisma/client'
-import { Loader2 } from "lucide-react"
+import { Loader2, Trash2 } from "lucide-react"
 import { useTranslations } from 'next-intl'
 import InputWithDerivatives from '../../components/InputWithDerivatives'
 import React from "react";
@@ -53,6 +54,8 @@ interface PartyFormProps {
 export default function PartyForm({ party, onSuccess, cityId }: PartyFormProps) {
     const router = useRouter()
     const [logo, setLogo] = useState<File | null>(null)
+    const [removeLogo, setRemoveLogo] = useState(false)
+    const [cropFile, setCropFile] = useState<File | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [formError, setFormError] = useState<string | null>(null)
     const [logoPreview, setLogoPreview] = useState<string | null>(party?.logo || null)
@@ -87,6 +90,10 @@ export default function PartyForm({ party, onSuccess, cityId }: PartyFormProps) 
         // Append logo if it exists
         if (logo) {
             formData.append('logo', logo)
+        }
+        // Signal removal of an existing logo
+        if (removeLogo && !logo) {
+            formData.append('removeLogo', 'true')
         }
 
         try {
@@ -149,20 +156,51 @@ export default function PartyForm({ party, onSuccess, cityId }: PartyFormProps) 
                         <FormItem>
                             <FormLabel>{t('logo')}</FormLabel>
                             <FormControl>
-                                <Input type="file" onChange={(e) => {
-                                    if (e.target.files && e.target.files[0]) {
-                                        setLogo(e.target.files[0])
-                                        setLogoPreview(URL.createObjectURL(e.target.files[0]))
-                                    }
+                                <Input type="file" accept="image/*" onChange={(e) => {
+                                    const file = e.target.files?.[0]
+                                    if (file) setCropFile(file)
+                                    e.target.value = ''
                                 }} />
                             </FormControl>
-                            {logoPreview && <Image src={logoPreview} alt="Logo preview" width={200} height={200} className="mt-2 object-contain" unoptimized />}
-                            <FormDescription>
-                                {t('logoDescription')}
-                            </FormDescription>
+                            {logoPreview && (
+                                <div className="mt-2 flex items-end gap-2">
+                                    <Image src={logoPreview} alt="Logo preview" width={200} height={200} className="object-contain" unoptimized />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        aria-label="Remove logo"
+                                        onClick={() => {
+                                            setLogo(null)
+                                            setLogoPreview(null)
+                                            setRemoveLogo(true)
+                                        }}
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            )}
+                            {!logoPreview && (
+                                <FormDescription>
+                                    {t('logoDescription')}
+                                </FormDescription>
+                            )}
                             <FormMessage />
                         </FormItem>
                     )}
+                />
+
+                <ImageCropDialog
+                    file={cropFile}
+                    cropShape="rect"
+                    title={t('logo')}
+                    onCancel={() => setCropFile(null)}
+                    onConfirm={(processed) => {
+                        setLogo(processed)
+                        setLogoPreview(URL.createObjectURL(processed))
+                        setRemoveLogo(false)
+                        setCropFile(null)
+                    }}
                 />
 
                 <FormField
@@ -175,7 +213,7 @@ export default function PartyForm({ party, onSuccess, cityId }: PartyFormProps) 
                                 <>
                                     <div className="flex justify-center">
                                         <details className="w-full">
-                                            <summary className="cursor-pointer text-center py-2 bg-gray-200 rounded-md">Pick a Color</summary>
+                                            <summary className="cursor-pointer text-center py-2 bg-gray-200 rounded-md">{t('pickColor')}</summary>
                                             <div className="flex justify-center py-4">
                                                 <HexColorPicker color={field.value} onChange={field.onChange} />
                                             </div>

@@ -18,7 +18,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { SheetClose } from "@/components/ui/sheet"
 import { City, AdministrativeBodyType, CityMessage, NotificationBehavior } from '@prisma/client'
-import { Loader2, ChevronDown, ChevronUp } from "lucide-react"
+import { Loader2, ChevronDown, ChevronUp, Trash2 } from "lucide-react"
 import Image from 'next/image'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -31,6 +31,7 @@ import InputWithDerivatives from '@/components/InputWithDerivatives'
 import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 import AdministrativeBodiesList from './AdministrativeBodiesList'
 import CityMessageForm, { MessageFormState } from './CityMessageForm'
+import { ImageCropDialog } from '@/components/ui/ImageCropDialog'
 
 // Use shared schema from lib/schemas/city.ts
 const formSchema = cityFormSchema
@@ -45,6 +46,8 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
     const router = useRouter()
     const { data: session } = useSession()
     const [logoImage, setLogoImage] = useState<File | null>(null)
+    const [removeLogoImage, setRemoveLogoImage] = useState(false)
+    const [cropFile, setCropFile] = useState<File | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [formError, setFormError] = useState<string | null>(null)
     const [logoPreview, setLogoPreview] = useState<string | null>(city?.logoImage || null)
@@ -150,6 +153,9 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         if (logoImage) {
             formData.append('logoImage', logoImage)
         }
+        if (removeLogoImage && !logoImage) {
+            formData.append('removeLogoImage', 'true')
+        }
 
         // Add message data if superadmin and message data exists
         if (isSuperAdmin && messageData) {
@@ -188,18 +194,23 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         }
     }
 
-    const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0] || null
+    const handleCroppedLogo = (file: File) => {
         setLogoImage(file)
-        if (file) {
-            const reader = new FileReader()
-            reader.onloadend = () => {
-                setLogoPreview(reader.result as string)
-            }
-            reader.readAsDataURL(file)
-        } else {
-            setLogoPreview(city?.logoImage || null)
+        form.setValue('logoImage', file)
+        setRemoveLogoImage(false)
+        const reader = new FileReader()
+        reader.onloadend = () => {
+            setLogoPreview(reader.result as string)
         }
+        reader.readAsDataURL(file)
+        setCropFile(null)
+    }
+
+    const handleRemoveLogo = () => {
+        setLogoImage(null)
+        form.setValue('logoImage', undefined)
+        setLogoPreview(null)
+        setRemoveLogoImage(true)
     }
 
     const refreshAdminBodies = () => {
@@ -287,17 +298,21 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                             <FormControl>
                                 <Input
                                     type="file"
+                                    accept="image/*"
                                     onChange={(e) => {
-                                        handleLogoChange(e)
-                                        field.onChange(e.target.files?.[0] || null)
+                                        const file = e.target.files?.[0]
+                                        if (file) setCropFile(file)
+                                        e.target.value = ''
                                     }}
                                 />
                             </FormControl>
-                            <FormDescription>
-                                {t('logoImageDescription')}
-                            </FormDescription>
+                            {!logoPreview && (
+                                <FormDescription>
+                                    {t('logoImageDescription')}
+                                </FormDescription>
+                            )}
                             {logoPreview && (
-                                <div className="mt-2">
+                                <div className="mt-2 flex items-end gap-2">
                                     <Image
                                         src={logoPreview}
                                         alt={t('logoPreview')}
@@ -305,11 +320,28 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                                         height={100}
                                         className="object-contain"
                                     />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        aria-label="Remove logo"
+                                        onClick={handleRemoveLogo}
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
                                 </div>
                             )}
                             <FormMessage />
                         </FormItem>
                     )}
+                />
+
+                <ImageCropDialog
+                    file={cropFile}
+                    cropShape="rect"
+                    title={t('logoImage')}
+                    onCancel={() => setCropFile(null)}
+                    onConfirm={handleCroppedLogo}
                 />
 
                 {/* City Message Section - SuperAdmin Only */}

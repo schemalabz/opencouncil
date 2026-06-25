@@ -36,6 +36,7 @@ export async function PUT(
         const name_short_en = formData.get('name_short_en') as string
         const colorHex = formData.get('colorHex') as string
         const logo = formData.get('logo') as File | null
+        const removeLogo = formData.get('removeLogo') === 'true'
 
         let logoUrl: string | undefined = undefined
 
@@ -55,7 +56,7 @@ export async function PUT(
             name_short,
             name_short_en,
             colorHex,
-            ...(logoUrl && { logo: logoUrl }),
+            ...(logoUrl ? { logo: logoUrl } : removeLogo ? { logo: null } : {}),
         })
 
         revalidateTag(`city:${params.cityId}:parties`, 'max');

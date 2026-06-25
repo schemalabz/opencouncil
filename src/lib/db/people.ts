@@ -73,7 +73,7 @@ export async function editPerson(id: string, data: {
     name_en: string;
     name_short: string;
     name_short_en: string;
-    image?: string;
+    image?: string | null;
     profileUrl: string | null;
     roles: Role[];
 }): Promise<Person> {
@@ -93,7 +93,7 @@ export async function editPerson(id: string, data: {
                     name_en: data.name_en,
                     name_short: data.name_short,
                     name_short_en: data.name_short_en,
-                    ...(data.image && { image: data.image }),
+                    ...(data.image !== undefined && { image: data.image }),
                     profileUrl: data.profileUrl,
                     roles: {
                         create: data.roles.map(role => ({
