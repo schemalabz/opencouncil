@@ -38,7 +38,7 @@ export async function renderCroppedImageFile(
 
     const ctx = canvas.getContext('2d')
     if (!ctx) {
-        return file
+        throw new Error('Could not obtain 2D canvas context')
     }
 
     // Fill the background first so transparent areas and padding become solid.
@@ -62,7 +62,7 @@ export async function renderCroppedImageFile(
 
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
     if (!blob) {
-        return file
+        throw new Error('Canvas toBlob returned null')
     }
 
     const baseName = file.name.replace(/\.[^/.]+$/, '') || 'image'

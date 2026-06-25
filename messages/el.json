@@ -474,6 +474,12 @@
         "tabSegments": "Τοποθετήσεις",
         "tabSegmentsShort": "Τοποθετήσεις"
     },
+    "ImageCropDialog": {
+        "title": "Προσαρμογή εικόνας",
+        "save": "Αποθήκευση",
+        "cancel": "Ακύρωση",
+        "processingFailed": "Δεν ήταν δυνατή η επεξεργασία της εικόνας. Δοκιμάστε διαφορετικό αρχείο."
+    },
     "PartyForm": {
         "partyNamePlaceholder": "Όνομα Παράταξης",
         "partyNameDescription": "Εισάγετε το πλήρες όνομα της παράταξης.",

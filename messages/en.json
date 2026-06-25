@@ -437,6 +437,12 @@
         "detailsSummary": "What does signing up for notifications mean?",
         "sendTiming": "We send a heads-up before a meeting and a follow-up after it."
     },
+    "ImageCropDialog": {
+        "title": "Adjust image",
+        "save": "Save",
+        "cancel": "Cancel",
+        "processingFailed": "Could not process the image. Please try a different file."
+    },
     "PartyForm": {
         "partyNamePlaceholder": "Party Name",
         "partyNameDescription": "Enter the full party name.",
