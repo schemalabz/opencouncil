@@ -474,6 +474,12 @@
         "tabSegments": "Interventions",
         "tabSegmentsShort": "Interventions"
     },
+    "ImageCropDialog": {
+        "title": "Ajuster l'image",
+        "save": "Enregistrer",
+        "cancel": "Annuler",
+        "processingFailed": "Impossible de traiter l'image. Veuillez essayer un autre fichier."
+    },
     "PartyForm": {
         "partyNamePlaceholder": "Nom du groupe",
         "partyNameDescription": "Saisissez le nom complet du groupe.",

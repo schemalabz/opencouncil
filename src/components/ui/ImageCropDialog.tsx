@@ -3,6 +3,7 @@
 import * as React from "react"
 import Cropper, { Area } from "react-easy-crop"
 import { ZoomIn, ZoomOut, Loader2 } from "lucide-react"
+import { useTranslations } from "next-intl"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./dialog"
 import { Button } from "./button"
 import { renderCroppedImageFile } from "@/lib/utils/normalizeImage"
@@ -18,9 +19,11 @@ export interface ImageCropDialogProps {
     cropShape?: "rect" | "round"
     /** Output square dimension in pixels. Defaults to 512. */
     outputSize?: number
-    /** Dialog title. */
+    /** Dialog title. Falls back to a translated default. */
     title?: string
+    /** Confirm button label. Falls back to a translated default. */
     confirmLabel?: string
+    /** Cancel button label. Falls back to a translated default. */
     cancelLabel?: string
     onCancel: () => void
     onConfirm: (file: File) => void
@@ -30,17 +33,19 @@ export function ImageCropDialog({
     file,
     cropShape = "rect",
     outputSize = 512,
-    title = "Adjust image",
-    confirmLabel = "Save",
-    cancelLabel = "Cancel",
+    title,
+    confirmLabel,
+    cancelLabel,
     onCancel,
     onConfirm,
 }: ImageCropDialogProps) {
+    const t = useTranslations("ImageCropDialog")
     const [imageUrl, setImageUrl] = React.useState<string | null>(null)
     const [crop, setCrop] = React.useState({ x: 0, y: 0 })
     const [zoom, setZoom] = React.useState(1)
     const [croppedAreaPixels, setCroppedAreaPixels] = React.useState<Area | null>(null)
     const [isProcessing, setIsProcessing] = React.useState(false)
+    const [error, setError] = React.useState<string | null>(null)
 
     // Create (and clean up) an object URL for the selected file. Reset the
     // crop/zoom state each time a new file comes in.
@@ -54,6 +59,7 @@ export function ImageCropDialog({
         setCrop({ x: 0, y: 0 })
         setZoom(1)
         setCroppedAreaPixels(null)
+        setError(null)
         return () => URL.revokeObjectURL(url)
     }, [file])
 
@@ -68,19 +74,25 @@ export function ImageCropDialog({
     const handleConfirm = React.useCallback(async () => {
         if (!file || !croppedAreaPixels) return
         setIsProcessing(true)
+        setError(null)
         try {
             const result = await renderCroppedImageFile(file, croppedAreaPixels, { size: outputSize })
             onConfirm(result)
+        } catch (err) {
+            // Keep the dialog open and surface the failure instead of silently
+            // uploading an unprocessed file.
+            console.error("Image processing failed:", err)
+            setError(t("processingFailed"))
         } finally {
             setIsProcessing(false)
         }
-    }, [file, croppedAreaPixels, outputSize, onConfirm])
+    }, [file, croppedAreaPixels, outputSize, onConfirm, t])
 
     return (
         <Dialog open={!!file} onOpenChange={(open) => { if (!open) onCancel() }}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>{title}</DialogTitle>
+                    <DialogTitle>{title ?? t("title")}</DialogTitle>
                 </DialogHeader>
 
                 <div className="relative w-full h-72 rounded-md overflow-hidden bg-white">
@@ -126,13 +138,17 @@ export function ImageCropDialog({
                     </Button>
                 </div>
 
+                {error && (
+                    <p className="text-sm text-destructive" role="alert">{error}</p>
+                )}
+
                 <DialogFooter>
                     <Button type="button" variant="outline" onClick={onCancel} disabled={isProcessing}>
-                        {cancelLabel}
+                        {cancelLabel ?? t("cancel")}
                     </Button>
                     <Button type="button" onClick={handleConfirm} disabled={!croppedAreaPixels || isProcessing}>
                         {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {confirmLabel}
+                        {confirmLabel ?? t("save")}
                     </Button>
                 </DialogFooter>
             </DialogContent>
