@@ -474,6 +474,27 @@
         "tabSegments": "Τοποθετήσεις",
         "tabSegmentsShort": "Τοποθετήσεις"
     },
+    "PartyForm": {
+        "partyNamePlaceholder": "Όνομα Παράταξης",
+        "partyNameDescription": "Εισάγετε το πλήρες όνομα της παράταξης.",
+        "partyNameEnPlaceholder": "Όνομα Παράταξης (Αγγλικά)",
+        "partyNameEnDescription": "Εισάγετε το όνομα της παράταξης στα Αγγλικά.",
+        "partyShortNamePlaceholder": "Σύντομο Όνομα Παράταξης",
+        "partyShortNameDescription": "Εισάγετε το σύντομο όνομα της παράταξης.",
+        "partyShortNameEnPlaceholder": "Σύντομο Όνομα Παράταξης (Αγγλικά)",
+        "partyShortNameEnDescription": "Εισάγετε το σύντομο όνομα της παράταξης στα Αγγλικά.",
+        "logo": "Λογότυπο",
+        "logoDescription": "Ανεβάστε ένα λογότυπο για την παράταξη.",
+        "colorHex": "Χρώμα",
+        "colorHexDescription": "Επιλέξτε το χρώμα της παράταξης.",
+        "pickColor": "Επιλέξτε Χρώμα",
+        "submitting": "Υποβολή...",
+        "createParty": "Δημιουργία Παράταξης",
+        "updateParty": "Ενημέρωση Παράταξης",
+        "cancel": "Ακύρωση",
+        "failedToSaveParty": "Αποτυχία αποθήκευσης της παράταξης.",
+        "unexpectedError": "Απρόσμενο σφάλμα."
+    },
     "PersonForm": {
         "personNamePlaceholder": "Όνομα Μέλους",
         "personNameDescription": "Εισάγετε το πλήρες όνομα (Όνομα Επώνυμο). Για διπλά ονόματα ή επώνυμα χρησιμοποιήστε παύλα (π.χ. Μαρία-Ελένη, Παπαδοπούλου-Κωνσταντίνου).",

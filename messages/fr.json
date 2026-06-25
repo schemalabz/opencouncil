@@ -474,6 +474,27 @@
         "tabSegments": "Interventions",
         "tabSegmentsShort": "Interventions"
     },
+    "PartyForm": {
+        "partyNamePlaceholder": "Nom du groupe",
+        "partyNameDescription": "Saisissez le nom complet du groupe.",
+        "partyNameEnPlaceholder": "Nom du groupe (anglais)",
+        "partyNameEnDescription": "Saisissez le nom du groupe en anglais.",
+        "partyShortNamePlaceholder": "Nom court du groupe",
+        "partyShortNameDescription": "Saisissez le nom court du groupe.",
+        "partyShortNameEnPlaceholder": "Nom court du groupe (anglais)",
+        "partyShortNameEnDescription": "Saisissez le nom court du groupe en anglais.",
+        "logo": "Logo",
+        "logoDescription": "Téléversez un logo pour le groupe.",
+        "colorHex": "Couleur",
+        "colorHexDescription": "Choisissez la couleur du groupe.",
+        "pickColor": "Choisir une couleur",
+        "submitting": "Envoi...",
+        "createParty": "Créer le groupe",
+        "updateParty": "Mettre à jour le groupe",
+        "cancel": "Annuler",
+        "failedToSaveParty": "Échec de l'enregistrement du groupe.",
+        "unexpectedError": "Erreur inattendue."
+    },
     "PersonForm": {
         "personNamePlaceholder": "Nom du membre",
         "personNameDescription": "Saisissez le nom complet (Prénom Nom). Pour les prénoms ou noms composés, utilisez un trait d'union (p. ex. Maria-Eleni, Papadopoulou-Konstantinou).",

@@ -437,6 +437,27 @@
         "detailsSummary": "What does signing up for notifications mean?",
         "sendTiming": "We send a heads-up before a meeting and a follow-up after it."
     },
+    "PartyForm": {
+        "partyNamePlaceholder": "Party Name",
+        "partyNameDescription": "Enter the full party name.",
+        "partyNameEnPlaceholder": "Party Name (English)",
+        "partyNameEnDescription": "Enter the party name in English.",
+        "partyShortNamePlaceholder": "Party Short Name",
+        "partyShortNameDescription": "Enter the party's short name.",
+        "partyShortNameEnPlaceholder": "Party Short Name (English)",
+        "partyShortNameEnDescription": "Enter the party's short name in English.",
+        "logo": "Logo",
+        "logoDescription": "Upload a logo for the party.",
+        "colorHex": "Color",
+        "colorHexDescription": "Choose the party's color.",
+        "pickColor": "Pick a Color",
+        "submitting": "Submitting...",
+        "createParty": "Create Party",
+        "updateParty": "Update Party",
+        "cancel": "Cancel",
+        "failedToSaveParty": "Failed to save party.",
+        "unexpectedError": "Unexpected error."
+    },
     "PersonForm": {
         "personNamePlaceholder": "Member Name",
         "personNameDescription": "Enter the full name (Firstname Lastname). For double names or surnames, use a hyphen (e.g. Maria-Eleni, Papadopoulou-Konstantinou).",
