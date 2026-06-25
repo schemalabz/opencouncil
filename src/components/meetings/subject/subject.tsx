@@ -421,8 +421,8 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                     )}
                 </CollapsibleCard>
 
-                {/* Voting Section (skip for withdrawn subjects) */}
-                {!subject.withdrawn && <CollapsibleCard
+                {/* Voting Section (skip for withdrawn subjects; counselors only, hidden from the public) */}
+                {!subject.withdrawn && options.editsAllowed && <CollapsibleCard
                     icon={<CheckSquare className="w-4 h-4" />}
                     title={
                         voteResult && voteResult.totalVotes > 0 ? (
