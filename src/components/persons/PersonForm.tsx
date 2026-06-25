@@ -19,13 +19,14 @@ import { Input } from "../../components/ui/input"
 import { SheetClose } from "../../components/ui/sheet"
 import { Party, Person, Role, AdministrativeBody } from '@prisma/client'
 import { RoleWithRelations } from '@/lib/db/types'
-import { Loader2, Check } from "lucide-react"
+import { Loader2, Check, Trash2 } from "lucide-react"
 import { useTranslations } from 'next-intl'
 import React, { useRef } from "react"
 import InputWithDerivatives from "../../components/InputWithDerivatives"
 // @ts-ignore
 import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 import { useToast } from "@/hooks/use-toast"
+import { ImageCropDialog } from "@/components/ui/ImageCropDialog"
 import RolesList from './RolesList'
 
 const formSchema = z.object({
@@ -56,6 +57,8 @@ interface PersonFormProps {
 export default function PersonForm({ person, parties, administrativeBodies, onSuccess, cityId }: PersonFormProps) {
     const router = useRouter()
     const [image, setImage] = useState<File | null>(null)
+    const [removeImage, setRemoveImage] = useState(false)
+    const [cropFile, setCropFile] = useState<File | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isSuccess, setIsSuccess] = useState(false)
     const [imagePreview, setImagePreview] = useState<string | null>(person?.image || null)
@@ -125,6 +128,10 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
             console.log('Appending image:', image.name, image.size)
             formData.append('image', image)
         }
+        // Signal removal of an existing image
+        if (removeImage && !image) {
+            formData.append('removeImage', 'true')
+        }
 
         console.log('FormData created, sending request to:', url)
 
@@ -161,6 +168,7 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
                     })
                     setImage(null)
                     setImagePreview(null)
+                    setRemoveImage(false)
                     // Do not reset roles ever, for easier data entry
                     // setRoles([])
                     nameInputRef.current?.focus()
@@ -245,20 +253,51 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
                         <FormItem>
                             <FormLabel>{t('image')}</FormLabel>
                             <FormControl>
-                                <Input type="file" onChange={(e) => {
-                                    if (e.target.files && e.target.files[0]) {
-                                        setImage(e.target.files[0])
-                                        setImagePreview(URL.createObjectURL(e.target.files[0]))
-                                    }
+                                <Input type="file" accept="image/*" onChange={(e) => {
+                                    const file = e.target.files?.[0]
+                                    if (file) setCropFile(file)
+                                    e.target.value = ''
                                 }} />
                             </FormControl>
-                            {imagePreview && <Image src={imagePreview} alt="Image preview" width={200} height={200} className="mt-2 object-contain" unoptimized />}
-                            <FormDescription>
-                                {t('imageDescription')}
-                            </FormDescription>
+                            {imagePreview && (
+                                <div className="mt-2 flex items-end gap-2">
+                                    <Image src={imagePreview} alt="Image preview" width={200} height={200} className="object-contain rounded-full" unoptimized />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        aria-label="Remove image"
+                                        onClick={() => {
+                                            setImage(null)
+                                            setImagePreview(null)
+                                            setRemoveImage(true)
+                                        }}
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            )}
+                            {!imagePreview && (
+                                <FormDescription>
+                                    {t('imageDescription')}
+                                </FormDescription>
+                            )}
                             <FormMessage />
                         </FormItem>
                     )}
+                />
+
+                <ImageCropDialog
+                    file={cropFile}
+                    cropShape="round"
+                    title={t('image')}
+                    onCancel={() => setCropFile(null)}
+                    onConfirm={(processed) => {
+                        setImage(processed)
+                        setImagePreview(URL.createObjectURL(processed))
+                        setRemoveImage(false)
+                        setCropFile(null)
+                    }}
                 />
 
                 <FormField

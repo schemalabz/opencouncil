@@ -48,6 +48,7 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
         const messageIsActive = formData.get('messageIsActive') === 'true'
 
         // Upload logo if provided
+        const removeLogoImage = formData.get('removeLogoImage') === 'true'
         let logoImageUrl: string | undefined = undefined
         if (data.logoImage) {
             try {
@@ -66,7 +67,11 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
             ...(data.name_municipality !== undefined && { name_municipality: data.name_municipality }),
             ...(data.name_municipality_en !== undefined && { name_municipality_en: data.name_municipality_en }),
             ...(data.timezone !== undefined && { timezone: data.timezone }),
-            ...(logoImageUrl !== undefined && { logoImage: logoImageUrl }),
+            ...(logoImageUrl !== undefined
+                ? { logoImage: logoImageUrl }
+                : removeLogoImage
+                    ? { logoImage: null }
+                    : {}),
             ...(data.authorityType !== undefined && { authorityType: data.authorityType }),
             ...(data.supportsNotifications !== undefined && { supportsNotifications: data.supportsNotifications }),
             ...(data.consultationsEnabled !== undefined && { consultationsEnabled: data.consultationsEnabled }),

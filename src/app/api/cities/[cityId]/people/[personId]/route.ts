@@ -49,6 +49,7 @@ export async function PUT(
     const name_short = formData.get('name_short') as string
     const name_short_en = formData.get('name_short_en') as string
     const image = formData.get('image') as File | null
+    const removeImage = formData.get('removeImage') === 'true'
     const profileUrl = formData.get('profileUrl') as string
     const rolesJson = formData.get('roles') as string
     console.log('Raw roles JSON:', rolesJson)
@@ -101,7 +102,7 @@ export async function PUT(
             name_en,
             name_short,
             name_short_en,
-            ...(imageUrl && { image: imageUrl }),
+            ...(imageUrl ? { image: imageUrl } : removeImage ? { image: null } : {}),
             profileUrl: profileUrl || null,
             roles
         })
