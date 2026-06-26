@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { User } from "lucide-react";
 import { getInitials } from "@/lib/formatters/name";
 
 
@@ -40,9 +41,13 @@ export const ImageOrInitials: React.FC<ImageOrInitialsProps> = ({ imageUrl, widt
                     className={`object-cover ${square ? 'rounded' : 'rounded-full'}`}
                     style={{ objectPosition: 'center center' }}
                 />
-            ) : (
+            ) : displayInitials ? (
                 <div className="w-full h-full flex items-center justify-center text-[40cqmin]">
-                    {name && displayInitials}
+                    {displayInitials}
+                </div>
+            ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                    <User className="w-[55cqmin] h-[55cqmin]" aria-hidden />
                 </div>
             )}
         </div>
