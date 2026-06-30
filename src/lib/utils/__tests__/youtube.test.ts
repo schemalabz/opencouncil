@@ -55,6 +55,20 @@ describe('parseChannelRef', () => {
         expect(parseChannelRef('https://www.youtube.com/watch?v=abc')).toBeNull();
         expect(parseChannelRef('not a url /')).toBeNull();
     });
+
+    it('rejects channel-like paths on non-YouTube hosts', () => {
+        expect(parseChannelRef('https://example.com/@otherchannel')).toBeNull();
+        expect(parseChannelRef('https://evil.com/channel/UCabc')).toBeNull();
+        expect(parseChannelRef('https://notyoutube.com/user/foo')).toBeNull();
+        // Substring/look-alike hosts must not pass the suffix check.
+        expect(parseChannelRef('https://youtube.com.evil.com/@foo')).toBeNull();
+        expect(parseChannelRef('https://fakeyoutube.com/@foo')).toBeNull();
+    });
+
+    it('accepts youtube-nocookie.com and music.youtube.com hosts', () => {
+        expect(parseChannelRef('https://www.youtube-nocookie.com/channel/UCabc')).toEqual({ kind: 'id', value: 'UCabc' });
+        expect(parseChannelRef('https://music.youtube.com/channel/UCabc')).toEqual({ kind: 'id', value: 'UCabc' });
+    });
 });
 
 describe('isValidYouTubeUrl', () => {

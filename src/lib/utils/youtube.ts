@@ -39,12 +39,24 @@ export function parseChannelRef(channelUrl: string): ChannelRef | null {
     return handle ? { kind: 'handle', value: handle } : null
   }
 
-  let pathname: string
+  let url: URL
   try {
-    pathname = new URL(trimmed).pathname
+    url = new URL(trimmed)
   } catch {
     return null
   }
+
+  // Only trust channel references from real YouTube hosts. The admin field accepts any
+  // valid URL, so without this a value like https://example.com/@otherchannel would be
+  // resolved through the YouTube API and could point the cron at an unintended channel.
+  const host = url.hostname.toLowerCase()
+  const isYouTubeHost =
+    host === 'youtube.com' || host.endsWith('.youtube.com') ||
+    host === 'youtu.be' ||
+    host === 'youtube-nocookie.com' || host.endsWith('.youtube-nocookie.com')
+  if (!isYouTubeHost) return null
+
+  const pathname = url.pathname
 
   // /@handle
   const handleMatch = pathname.match(/^\/@([^/]+)/)
