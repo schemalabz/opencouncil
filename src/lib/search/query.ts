@@ -22,30 +22,35 @@ export function buildFilters(request: SearchRequest): estypes.QueryDslQueryConta
         });
     }
 
-    // Add person filter if specified
+    // Add person filter if specified.
+    // A subject is relevant to a person if they EITHER introduced it OR spoke in it.
+    // These two clauses must be OR-combined inside a single `bool.should`; pushing
+    // them as separate entries in the top-level `filter` array would AND them, which
+    // almost never matches (the person rarely both introduces and speaks in the same
+    // subject) and breaks search on every person profile page.
     if (request.personIds && request.personIds.length > 0) {
-        // Add filter for introduced by person
         filters.push({
-            terms: {
-                'introduced_by_person_id': request.personIds
-            }
-        });
-
-        // Add filter for speaker segments
-        filters.push({
-            nested: {
-                path: 'speaker_segments',
-                query: {
-                    bool: {
-                        must: [
-                            {
+            bool: {
+                should: [
+                    // Introduced by the person
+                    {
+                        terms: {
+                            'introduced_by_person_id': request.personIds
+                        }
+                    },
+                    // Spoke in the subject (nested speaker segments)
+                    {
+                        nested: {
+                            path: 'speaker_segments',
+                            query: {
                                 terms: {
                                     'speaker_segments.speaker_person_id': request.personIds
                                 }
                             }
-                        ]
+                        }
                     }
-                }
+                ],
+                minimum_should_match: 1
             }
         });
     }
