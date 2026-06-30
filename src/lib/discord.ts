@@ -811,6 +811,112 @@ export async function sendTranscriptSendFailedAdminAlert(data: {
 }
 
 /**
+ * Send admin alert when the poll-livestreams cron auto-matched a meeting to a
+ * YouTube video and triggered transcription. Lets a human sanity-check the match.
+ */
+export async function sendLivestreamMatchedAlert(data: {
+    cityId: string;
+    cityName: string;
+    meetingId: string;
+    meetingName: string;
+    videoUrl: string;
+    videoTitle: string;
+    confidence: number;
+    reasoning: string;
+}): Promise<void> {
+    await sendAdminAlert({
+        title: `🎥 Livestream auto-matched - ${data.cityId}`,
+        description: `Transcription triggered for ${data.meetingId}`,
+        color: 0x2ecc71, // Green
+        fields: [
+            {
+                name: 'Municipality',
+                value: data.cityName,
+                inline: true,
+            },
+            {
+                name: 'Confidence',
+                value: data.confidence.toFixed(2),
+                inline: true,
+            },
+            {
+                name: 'Meeting',
+                value: data.meetingName,
+                inline: false,
+            },
+            {
+                name: 'Matched Video',
+                value: `[${truncateField(data.videoTitle, 256)}](${data.videoUrl})`,
+                inline: false,
+            },
+            {
+                name: 'Reasoning',
+                value: truncateField(data.reasoning),
+                inline: false,
+            },
+            {
+                name: 'Admin Panel',
+                value: `[Open Meeting Admin](${meetingAdminUrl(data.cityId, data.meetingId)})`,
+                inline: false,
+            },
+        ],
+    });
+}
+
+/**
+ * Send admin alert when the poll-livestreams cron found a video that appears to
+ * cover MORE THAN ONE council meeting (e.g. a combined λογοδοσία + τακτική stream).
+ * These are handled manually — fired once per meeting (dedup via Valkey at the call site).
+ */
+export async function sendLivestreamMultipleMeetingsAlert(data: {
+    cityId: string;
+    cityName: string;
+    meetingId: string;
+    meetingName: string;
+    channelUrl: string;
+    videoUrl?: string;
+    reasoning: string;
+}): Promise<void> {
+    await sendAdminAlert({
+        title: `⚠️ Livestream needs manual handling - ${data.cityId}`,
+        description: `A candidate video appears to cover multiple meetings for ${data.meetingId}`,
+        color: 0xf39c12, // Yellow/orange
+        fields: [
+            {
+                name: 'Municipality',
+                value: data.cityName,
+                inline: true,
+            },
+            {
+                name: 'Meeting',
+                value: data.meetingName,
+                inline: false,
+            },
+            ...(data.videoUrl ? [{
+                name: 'Candidate Video',
+                value: data.videoUrl,
+                inline: false,
+            }] : []),
+            {
+                name: 'Channel',
+                value: data.channelUrl,
+                inline: false,
+            },
+            {
+                name: 'Reasoning',
+                value: truncateField(data.reasoning),
+                inline: false,
+            },
+            {
+                name: 'Admin Panel',
+                value: `[Open Meeting Admin](${meetingAdminUrl(data.cityId, data.meetingId)})`,
+                inline: false,
+            },
+        ],
+    });
+}
+
+/**
  * Generic error alert for unexpected failures anywhere in the app.
  * Context entries are rendered as inline fields for quick triage.
  */

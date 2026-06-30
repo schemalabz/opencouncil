@@ -158,6 +158,46 @@ This returns per-decision data showing: when Diavgeia published it, when the cro
 - City must have `diavgeiaUid` set (configured in city settings)
 - Optionally, administrative bodies can have `diavgeiaUnitIds` for more precise matching
 
+### Livestream Auto-Transcription
+
+The `poll-livestreams` cron closes the manual gap between a meeting being livestreamed
+and its transcription: it finds the meeting's YouTube video and triggers `transcribe`
+automatically.
+
+**Endpoint:** `GET /api/cron/poll-livestreams` (`?dryRun=1` logs decisions without acting)
+**Authentication:** `Authorization: Bearer <CRON_SECRET>`
+
+**What it does (each run):**
+1. Finds candidate meetings: a `processAgenda` task has `succeeded`, `dateTime` is within
+   ±12h of now, `youtubeUrl` is still null, the administrative body has a `youtubeChannelUrl`,
+   and no `transcribe` task is already in flight.
+2. Lists recent videos for each distinct channel via the YouTube Data API v3 (resolved channel
+   id + listing are cached in Valkey, so meetings sharing a channel cost one API call per run).
+3. Asks Claude to match each meeting to a single video. The matcher **refuses to match a video
+   that appears to cover more than one council meeting** (e.g. a combined Λογοδοσία + Τακτική
+   Συνεδρίαση stream) — those are handled manually.
+4. On a confident single match (`confidence ≥ 0.8`): calls the internal transcribe path and posts
+   a "Livestream auto-matched" Discord alert (in addition to the standard transcribe "started"
+   alert). On a multi-meeting detection: posts a "needs manual handling" alert **once**,
+   deduplicated via a Valkey marker (`oc:livestream:multi-alert:{cityId}:{meetingId}`).
+
+**Requirements:**
+- `YOUTUBE_API_KEY` (Google Cloud, "YouTube Data API v3"). When unset, the cron no-ops.
+- `CACHE_URL` (Valkey). When unset, the cron still works but the multi-meeting alert may repeat.
+- Each administrative body that should be polled must have `youtubeChannelUrl` set.
+
+**Setup:** alongside the `poll-decisions` trigger, schedule:
+```bash
+# Every 10 minutes
+*/10 * * * * curl -s -H "Authorization: Bearer $CRON_SECRET" https://your-domain.com/api/cron/poll-livestreams
+```
+
+**Key files:**
+- `src/app/api/cron/poll-livestreams/route.ts` — cron API route
+- `src/lib/tasks/pollLivestreams.ts` — `pollLivestreamsForRecentMeetings()` + `matchMeetingToVideo()`
+- `src/lib/youtube.ts` — YouTube Data API client + channel-id resolution
+- `src/lib/cache/valkey.ts` — shared Valkey client used for dedup + listing cache
+
 ### Adding New Cron Tasks
 
 To add a new cron-triggered task:
