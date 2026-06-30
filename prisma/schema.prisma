@@ -245,6 +245,7 @@ model TaskStatus {
   type      String
   requestBody String
   responseBody String?
+  processingError String?
 
   version Int?
 
