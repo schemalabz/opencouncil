@@ -25,6 +25,9 @@ export const env = createEnv({
     // Services
     ANTHROPIC_API_KEY: z.string().min(1),
     GOOGLE_API_KEY: z.string().min(1),
+    // YouTube Data API v3 key (used by the poll-livestreams cron to find meeting
+    // livestreams). Optional — when unset, the cron no-ops.
+    YOUTUBE_API_KEY: z.string().optional(),
 
     // Storage
     DO_SPACES_ENDPOINT: z.string().min(1),
@@ -108,6 +111,7 @@ export const env = createEnv({
     BASIC_AUTH_PASSWORD: process.env.BASIC_AUTH_PASSWORD,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
+    YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY,
     DO_SPACES_ENDPOINT: process.env.DO_SPACES_ENDPOINT,
     DO_SPACES_KEY: process.env.DO_SPACES_KEY,
     DO_SPACES_SECRET: process.env.DO_SPACES_SECRET,
