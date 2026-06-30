@@ -16,7 +16,9 @@
       "moveToPreviousSegment": "Μετακίνηση στο προηγούμενο τμήμα",
       "moveToNextSegment": "Μετακίνηση στο επόμενο τμήμα",
       "shareFromHere": "Κοινοποίηση από εδώ",
-      "extractSegment": "Εξαγωγή τμήματος"
+      "extractSegment": "Εξαγωγή τμήματος",
+      "deleteUtterance": "Διαγραφή φράσης",
+      "deleteSelectedUtterances": "Διαγραφή επιλεγμένων ({count})"
     },
     "toasts": {
       "moveUtterances": "Μετακίνηση φράσεων;",
@@ -36,7 +38,8 @@
       "deleteError": "Αποτυχία διαγραφής φράσης"
     },
     "common": {
-      "error": "Σφάλμα"
+      "error": "Σφάλμα",
+      "undo": "Αναίρεση"
     }
   },
   "controls": {
