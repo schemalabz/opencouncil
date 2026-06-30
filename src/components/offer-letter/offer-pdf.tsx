@@ -24,9 +24,10 @@ import type { Offer } from "@prisma/client";
 import { calculateOfferTotals, PHYSICAL_PRESENCE } from "@/lib/pricing";
 
 // ─── Font registration ──────────────────────────────────────────────────────
-// Inter via @fontsource on jsDelivr (Greek subset, CORS-enabled).
+// Inter (Greek subset) served from our own /public/fonts/pdf/ — same font
+// family as the rest of the app, no third-party CDN dependency at PDF time.
 const FONT_BASE =
-    "https://cdn.jsdelivr.net/npm/@fontsource/inter@4.5.15/files";
+    typeof window !== "undefined" ? `${window.location.origin}/fonts/pdf` : "/fonts/pdf";
 Font.register({
     family: "Inter",
     fonts: [
@@ -38,6 +39,18 @@ Font.register({
 });
 // Greek shouldn't be hyphenated mid-word.
 Font.registerHyphenationCallback((word) => [word]);
+
+// ─── Greek typography helpers ───────────────────────────────────────────────
+// Greek convention: ALL CAPS drops the tonos (acute accent). e.g.
+// "Φεβρουαρίου" → "ΦΕΒΡΟΥΑΡΙΟΥ" (not "ΦΕΒΡΟΥΑΡΊΟΥ"). textTransform:uppercase
+// would keep the accent, so we transform manually.
+function greekUpper(s: string): string {
+    return s
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .normalize("NFC")
+        .toUpperCase();
+}
 
 // ─── Design tokens ──────────────────────────────────────────────────────────
 const C = {
@@ -54,7 +67,11 @@ const C = {
 
 
 const A4 = { w: 595.28, h: 841.89 };
-const PAGE_MARGIN = { top: 56, bottom: 56, x: 56 };
+const PAGE_MARGIN = { top: 44, bottom: 44, x: 48 };
+
+// Logo aspect ratio (1606×1354 px → ~1.186:1)
+const LOGO_W = 22;
+const LOGO_H = (LOGO_W * 1354) / 1606;
 
 // ─── Greek grammar fudge for region vs municipality ─────────────────────────
 function genderArticle(offer: Offer): { articleAcc: string; def: string; possessive: string; demonym: string; bodyAdj: string } {
@@ -107,19 +124,19 @@ const styles = {
         backgroundColor: "#ffffff",
         color: C.body,
         fontFamily: "Inter",
-        fontSize: 10,
-        lineHeight: 1.5,
+        fontSize: 9,
+        lineHeight: 1.45,
         paddingTop: PAGE_MARGIN.top,
         paddingBottom: PAGE_MARGIN.bottom,
         paddingHorizontal: PAGE_MARGIN.x,
     },
-    h1: { fontSize: 22, fontWeight: 700, color: C.ink, lineHeight: 1.2 },
-    h2: { fontSize: 14, fontWeight: 600, color: C.ink, marginBottom: 10 },
-    h3: { fontSize: 11, fontWeight: 600, color: C.ink, marginBottom: 6 },
-    small: { fontSize: 8.5, color: C.mid },
+    h1: { fontSize: 18, fontWeight: 600, color: C.ink, lineHeight: 1.15 },
+    h2: { fontSize: 12, fontWeight: 600, color: C.ink, marginBottom: 8 },
+    h3: { fontSize: 10, fontWeight: 600, color: C.ink, marginBottom: 4 },
+    small: { fontSize: 7.5, color: C.mid },
+    micro: { fontSize: 7, color: C.light },
     mid: { color: C.mid },
-    sectionGap: { marginTop: 22 },
-    rule: { height: 1, backgroundColor: C.line, marginVertical: 12 },
+    rule: { height: 1, backgroundColor: C.line, marginVertical: 10 },
 } as const;
 
 function PageFooter({ offerUrl, pageLabel }: { offerUrl: string; pageLabel?: string }) {
@@ -128,12 +145,12 @@ function PageFooter({ offerUrl, pageLabel }: { offerUrl: string; pageLabel?: str
             fixed
             style={{
                 position: "absolute",
-                bottom: 24,
+                bottom: 18,
                 left: PAGE_MARGIN.x,
                 right: PAGE_MARGIN.x,
                 flexDirection: "row",
                 justifyContent: "space-between",
-                fontSize: 8,
+                fontSize: 7,
                 color: C.light,
             }}
         >
@@ -171,19 +188,19 @@ function Row({
         <View
             style={{
                 flexDirection: "row",
-                paddingVertical: 7,
-                borderTopWidth: isTotal ? 1.5 : 0.5,
+                paddingVertical: 5,
+                borderTopWidth: isTotal ? 1.2 : 0.5,
                 borderTopColor: isTotal ? C.ink : C.line,
             }}
         >
-            <Text style={{ flex: 3, fontWeight: weight, color }}>{label}</Text>
-            <Text style={{ flex: 1, textAlign: "right", color: C.mid, fontSize: 9 }}>
+            <Text style={{ flex: 3, fontWeight: weight, color, fontSize: 9 }}>{label}</Text>
+            <Text style={{ flex: 1, textAlign: "right", color: C.mid, fontSize: 8 }}>
                 {qty ?? ""}
             </Text>
-            <Text style={{ flex: 1, textAlign: "right", color: C.mid, fontSize: 9 }}>
+            <Text style={{ flex: 1, textAlign: "right", color: C.mid, fontSize: 8 }}>
                 {rate ?? ""}
             </Text>
-            <Text style={{ flex: 1.1, textAlign: "right", fontWeight: weight, color }}>
+            <Text style={{ flex: 1.1, textAlign: "right", fontWeight: weight, color, fontSize: 9 }}>
                 {total}
             </Text>
         </View>
@@ -192,9 +209,9 @@ function Row({
 
 function Bullet({ children }: { children: React.ReactNode }) {
     return (
-        <View style={{ flexDirection: "row", marginBottom: 5 }}>
-            <Text style={{ width: 12, color: C.accent }}>•</Text>
-            <Text style={{ flex: 1 }}>{children}</Text>
+        <View style={{ flexDirection: "row", marginBottom: 3 }}>
+            <Text style={{ width: 10, color: C.light, fontSize: 9 }}>·</Text>
+            <Text style={{ flex: 1, fontSize: 9 }}>{children}</Text>
         </View>
     );
 }
@@ -228,70 +245,71 @@ export function OfferPdfDocument({
                     style={{
                         flexDirection: "row",
                         alignItems: "center",
-                        gap: 10,
-                        marginBottom: 60,
+                        gap: 8,
+                        marginBottom: 36,
                     }}
                 >
-                    <Image
-                        src="/logo.png"
-                        style={{ width: 28, height: 28 }}
-                    />
-                    <Text style={{ fontSize: 14, fontWeight: 600, color: C.ink }}>
-                        OpenCouncil
-                    </Text>
+                    <Image src="/logo.png" style={{ width: LOGO_W, height: LOGO_H }} />
+                    <Text style={{ fontSize: 11, color: C.ink }}>OpenCouncil</Text>
                 </View>
 
-                <Text style={{ fontSize: 10, color: C.mid, marginBottom: 8 }}>
+                <Text style={{ fontSize: 8.5, color: C.mid, marginBottom: 4 }}>
                     Ενημέρωση για οικονομική προσφορά για {G.articleAcc}
                 </Text>
                 <Text
                     style={{
-                        fontSize: 28,
+                        fontSize: 24,
                         color: C.accent,
-                        marginBottom: 16,
+                        marginBottom: 4,
                         lineHeight: 1.1,
                     }}
                 >
                     {offer.recipientName}
                 </Text>
-                <Text style={{ color: C.mid, fontSize: 11, marginBottom: 40 }}>
+                <Text style={{ ...styles.micro, letterSpacing: 0.6, marginBottom: 14 }}>
+                    {greekUpper(fmtDate(offer.createdAt))}
+                </Text>
+                <Text style={{ color: C.mid, fontSize: 10, marginBottom: 24, lineHeight: 1.5 }}>
                     Για την πλατφόρμα OpenCouncil και τη ψηφιοποίηση των δημόσιων
                     συνεδριάσεων των συλλογικών οργάνων {G.possessive}.
                 </Text>
 
-                {/* Hero summary */}
+                {/* Hero summary — 2 cols */}
                 <View
                     style={{
-                        backgroundColor: C.surface,
+                        borderWidth: 1,
+                        borderColor: C.line,
                         borderRadius: 6,
-                        padding: 24,
-                        marginBottom: 32,
                         flexDirection: "row",
                     }}
                 >
-                    <View style={{ flex: 1 }}>
-                        <Text style={{ ...styles.small, marginBottom: 4 }}>
-                            Συνολικό κόστος
+                    <View style={{ flex: 1, padding: 14 }}>
+                        <Text style={{ ...styles.micro, letterSpacing: 0.6, marginBottom: 4 }}>
+                            {greekUpper("Συνολικό κόστος")}
                         </Text>
-                        <Text style={{ fontSize: 28, fontWeight: 700, color: C.ink }}>
-                            {fmtEur(totals.total)}
+                        <Text style={{ fontSize: 20, fontWeight: 600, color: C.ink }}>
+                            {fmtEurExact(totals.total)}
                         </Text>
                         <Text style={{ ...styles.small, marginTop: 2 }}>
                             πλέον ΦΠΑ 24%
                         </Text>
                     </View>
-                    <View style={{ flex: 1 }}>
-                        <Text style={{ ...styles.small, marginBottom: 4 }}>
-                            Διάρκεια
+                    <View
+                        style={{
+                            flex: 1,
+                            padding: 14,
+                            borderLeftWidth: 1,
+                            borderLeftColor: C.line,
+                        }}
+                    >
+                        <Text style={{ ...styles.micro, letterSpacing: 0.6, marginBottom: 4 }}>
+                            {greekUpper("Διάρκεια")}
                         </Text>
-                        <Text style={{ fontSize: 18, fontWeight: 600, color: C.ink }}>
+                        <Text style={{ fontSize: 20, fontWeight: 600, color: C.ink }}>
                             {totals.months} μήνες
                         </Text>
-                        <Text style={{ ...styles.small, marginTop: 4 }}>
-                            Από {fmtDate(offer.startDate)}
-                        </Text>
-                        <Text style={{ ...styles.small }}>
-                            Έως {fmtDate(offer.endDate)}
+                        <Text style={{ ...styles.small, marginTop: 2 }}>
+                            {fmtDate(offer.startDate)} — {fmtDate(offer.endDate)}
                         </Text>
                     </View>
                 </View>
@@ -301,45 +319,38 @@ export function OfferPdfDocument({
                     style={{
                         flexDirection: "row",
                         alignItems: "flex-end",
-                        marginTop: 60,
+                        marginTop: 36,
                     }}
                 >
                     <View style={{ flex: 1 }}>
-                        <Text style={{ ...styles.small, marginBottom: 4 }}>
-                            Ημερομηνία προσφοράς
+                        <Text style={{ ...styles.micro, letterSpacing: 0.6, marginBottom: 4 }}>
+                            {greekUpper("Επικοινωνία")}
                         </Text>
-                        <Text style={{ color: C.body, marginBottom: 16 }}>
-                            {fmtDate(offer.createdAt)}
-                        </Text>
-                        <Text style={{ ...styles.small, marginBottom: 4 }}>
-                            Επικοινωνία
-                        </Text>
-                        <Text style={{ color: C.body }}>{offer.respondToName}</Text>
-                        <Text style={{ color: C.mid, fontSize: 9 }}>
+                        <Text style={{ color: C.body, fontSize: 9.5 }}>{offer.respondToName}</Text>
+                        <Text style={{ color: C.mid, fontSize: 8.5 }}>
                             {offer.respondToEmail} · {offer.respondToPhone}
                         </Text>
                     </View>
-                    <View style={{ alignItems: "flex-end" }}>
+                    <View style={{ width: 90, alignItems: "center" }}>
                         <View
                             style={{
-                                padding: 6,
+                                padding: 4,
                                 backgroundColor: "#ffffff",
                                 borderWidth: 1,
                                 borderColor: C.line,
                                 borderRadius: 4,
                             }}
                         >
-                            <QRCode value={offerUrl} size={96} />
+                            <QRCode value={offerUrl} size={72} />
                         </View>
                         <Text
                             style={{
-                                ...styles.small,
-                                marginTop: 6,
-                                maxWidth: 130,
-                                textAlign: "right",
+                                ...styles.micro,
+                                marginTop: 4,
+                                textAlign: "center",
                             }}
                         >
-                            Σκανάρετε για την πάντα ενημερωμένη έκδοση
+                            Πιο πρόσφατη έκδοση
                         </Text>
                     </View>
                 </View>
@@ -360,17 +371,17 @@ export function OfferPdfDocument({
                         borderBottomColor: C.ink,
                     }}
                 >
-                    <Text style={{ flex: 3, fontSize: 8.5, color: C.mid, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                        Υπηρεσία
+                    <Text style={{ flex: 3, fontSize: 7, color: C.mid, letterSpacing: 0.6 }}>
+                        {greekUpper("Υπηρεσία")}
                     </Text>
-                    <Text style={{ flex: 1, fontSize: 8.5, color: C.mid, textTransform: "uppercase", letterSpacing: 0.5, textAlign: "right" }}>
-                        Μονάδα
+                    <Text style={{ flex: 1, fontSize: 7, color: C.mid, letterSpacing: 0.6, textAlign: "right" }}>
+                        {greekUpper("Μονάδα")}
                     </Text>
-                    <Text style={{ flex: 1, fontSize: 8.5, color: C.mid, textTransform: "uppercase", letterSpacing: 0.5, textAlign: "right" }}>
-                        Τιμή
+                    <Text style={{ flex: 1, fontSize: 7, color: C.mid, letterSpacing: 0.6, textAlign: "right" }}>
+                        {greekUpper("Τιμή")}
                     </Text>
-                    <Text style={{ flex: 1.1, fontSize: 8.5, color: C.mid, textTransform: "uppercase", letterSpacing: 0.5, textAlign: "right" }}>
-                        Σύνολο
+                    <Text style={{ flex: 1.1, fontSize: 7, color: C.mid, letterSpacing: 0.6, textAlign: "right" }}>
+                        {greekUpper("Σύνολο")}
                     </Text>
                 </View>
 
@@ -443,11 +454,11 @@ export function OfferPdfDocument({
                             borderBottomColor: C.ink,
                         }}
                     >
-                        <Text style={{ flex: 1, fontSize: 8.5, color: C.mid, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                            Ημερομηνία
+                        <Text style={{ flex: 1, fontSize: 7, color: C.mid, letterSpacing: 0.6 }}>
+                            {greekUpper("Ημερομηνία")}
                         </Text>
-                        <Text style={{ flex: 1, fontSize: 8.5, color: C.mid, textTransform: "uppercase", letterSpacing: 0.5, textAlign: "right" }}>
-                            Ποσό
+                        <Text style={{ flex: 1, fontSize: 7, color: C.mid, letterSpacing: 0.6, textAlign: "right" }}>
+                            {greekUpper("Ποσό")}
                         </Text>
                     </View>
                     {totals.paymentPlan.map((p, i) => (
@@ -571,21 +582,21 @@ export function OfferPdfDocument({
                 <View
                     style={{
                         backgroundColor: C.accentSoft,
-                        padding: 20,
+                        padding: 14,
                         borderRadius: 6,
-                        marginBottom: 30,
+                        marginBottom: 22,
                     }}
                 >
-                    <Text style={{ ...styles.h3, color: C.ink, marginBottom: 6 }}>
+                    <Text style={{ ...styles.h3, color: C.ink, marginBottom: 4 }}>
                         Για να απαντήσετε σε αυτή τη προσφορά
                     </Text>
-                    <Text style={{ color: C.body }}>
+                    <Text style={{ color: C.body, fontSize: 9 }}>
                         Στείλτε email στο{" "}
-                        <Link src={`mailto:${offer.respondToEmail}`} style={{ color: C.accent, textDecoration: "none" }}>
+                        <Link src={`mailto:${offer.respondToEmail}`} style={{ color: C.body, textDecoration: "underline" }}>
                             {offer.respondToEmail}
                         </Link>
                         {" "}ή καλέστε στο{" "}
-                        <Link src={`tel:${offer.respondToPhone}`} style={{ color: C.accent, textDecoration: "none" }}>
+                        <Link src={`tel:${offer.respondToPhone}`} style={{ color: C.body, textDecoration: "underline" }}>
                             {offer.respondToPhone}
                         </Link>
                         .
@@ -593,61 +604,53 @@ export function OfferPdfDocument({
                 </View>
 
                 <Text style={styles.h3}>Στοιχεία εταιρείας</Text>
-                <Text style={{ color: C.body, marginBottom: 4 }}>
+                <Text style={{ color: C.body, fontSize: 9 }}>
                     OpenCouncil Μονοπρόσωπη Ι.Κ.Ε.
                 </Text>
-                <Text style={{ color: C.mid, fontSize: 9 }}>
+                <Text style={{ color: C.mid, fontSize: 8 }}>
                     Λαλέχου 1, Νέο Ψυχικό 15451
                 </Text>
-                <Text style={{ color: C.mid, fontSize: 9 }}>
+                <Text style={{ color: C.mid, fontSize: 8 }}>
                     ΑΦΜ 802666391 (ΚΕΦΟΔΕ Αττικής) · ΓΕΜΗ 180529301000
                 </Text>
-                <Text style={{ color: C.mid, fontSize: 9, marginTop: 6 }}>
-                    Η OpenCouncil ανήκει στην Schema Labs ΑΜΚΕ
-                    (schemalabs.gr).
+                <Text style={{ color: C.mid, fontSize: 8, marginTop: 4 }}>
+                    Η OpenCouncil ανήκει στην Schema Labs ΑΜΚΕ (schemalabs.gr).
                 </Text>
 
                 <View
                     style={{
-                        marginTop: 60,
+                        marginTop: 42,
                         flexDirection: "row",
                         alignItems: "flex-end",
                     }}
                 >
                     <View style={{ flex: 1 }}>
-                        <Text style={{ color: C.mid, marginBottom: 14 }}>
+                        <Text style={{ color: C.mid, marginBottom: 10, fontSize: 9 }}>
                             Με εκτίμηση, εκ μέρους της OpenCouncil,
                         </Text>
-                        <Text style={{ fontWeight: 700, color: C.ink }}>
+                        <Text style={{ color: C.ink, fontSize: 10 }}>
                             {offer.respondToName}
                         </Text>
-                        <Text style={{ color: C.mid, fontSize: 9 }}>
+                        <Text style={{ color: C.mid, fontSize: 8 }}>
                             {offer.respondToEmail}
                         </Text>
-                        <Text style={{ color: C.mid, fontSize: 9 }}>
+                        <Text style={{ color: C.mid, fontSize: 8 }}>
                             {offer.respondToPhone}
                         </Text>
                     </View>
-                    <View style={{ width: 110, alignItems: "center" }}>
+                    <View style={{ width: 90, alignItems: "center" }}>
                         <View
                             style={{
-                                padding: 6,
+                                padding: 4,
                                 backgroundColor: "#ffffff",
                                 borderWidth: 1,
                                 borderColor: C.line,
                                 borderRadius: 4,
                             }}
                         >
-                            <QRCode value={offerUrl} size={72} />
+                            <QRCode value={offerUrl} size={64} />
                         </View>
-                        <Text
-                            style={{
-                                ...styles.small,
-                                marginTop: 6,
-                                fontSize: 7.5,
-                                textAlign: "center",
-                            }}
-                        >
+                        <Text style={{ ...styles.micro, marginTop: 4, textAlign: "center" }}>
                             Πιο πρόσφατη έκδοση
                         </Text>
                     </View>
