@@ -120,8 +120,9 @@ export interface PollLivestreamsSummary {
  * Finds meetings whose livestream should now exist, matches each to a YouTube video
  * via the LLM, and triggers transcription for confident single-meeting matches.
  *
- * Candidate = processAgenda succeeded, scheduled within ±12h of now, no youtubeUrl yet,
- * the administrative body has a youtubeChannelUrl, and no transcribe is already in flight.
+ * Candidate = processAgenda succeeded, scheduled within ±12h of now, the administrative body
+ * has a youtubeChannelUrl, and no transcribe is succeeded or in flight (a failed-only meeting
+ * is retried).
  *
  * Called by the poll-livestreams cron. Pass { dryRun: true } to log decisions without
  * triggering transcription or posting alerts.
@@ -143,10 +144,13 @@ export async function pollLivestreamsForRecentMeetings(
     const windowStart = new Date(now.getTime() - WINDOW_MS);
     const windowEnd = new Date(now.getTime() + WINDOW_MS);
 
+    // Note: candidacy is NOT gated on `youtubeUrl: null`. requestTranscribeInternal writes
+    // youtubeUrl before startTask, so a failed/never-started transcribe would otherwise leave
+    // the meeting with a non-null youtubeUrl and permanently excluded. Instead we gate on the
+    // transcribe task status below (retry on failed, skip on succeeded/in-flight).
     const meetings = await prisma.councilMeeting.findMany({
         where: {
             dateTime: { gte: windowStart, lte: windowEnd },
-            youtubeUrl: null,
             administrativeBody: { youtubeChannelUrl: { not: null } },
         },
         include: {
@@ -182,6 +186,8 @@ export async function pollLivestreamsForRecentMeetings(
         }
     }
 
+    // Candidate = processAgenda succeeded AND no transcribe that is succeeded or in flight.
+    // A meeting whose only prior transcribe attempts failed is eligible again (auto-retry).
     const candidates = meetings.filter(m => {
         const key = meetingKey(m.cityId, m.id);
         return processAgendaSucceeded.has(key) && !transcribeActive.has(key);
