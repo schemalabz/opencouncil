@@ -16,7 +16,7 @@ import { createPortal } from "react-dom"
 import { useSubjectHeaderOptional, SubjectHeaderInfo } from "@/contexts/SubjectHeaderContext"
 import { AutoScrollText } from "@/components/ui/auto-scroll-text"
 import Icon from "@/components/icon"
-import { MEETING_PAGE_SEGMENTS } from "@/lib/utils/meetingPages"
+import { getMeetingPageSegments } from "@/lib/utils/meetingPages"
 
 export interface PathElement {
     name: string
@@ -108,6 +108,7 @@ function PageIconBadge({ icon: IconComponent }: { icon: LucideIcon }) {
 
 const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noContainer = false, className }: HeaderProps) => {
     const t = useTranslations("Header");
+    const meetingPageSegments = getMeetingPageSegments(useTranslations("CouncilMeeting"));
     const [isScrolled, setIsScrolled] = useState(false);
     const router = useRouter();
     const segment = useSelectedLayoutSegment();
@@ -152,7 +153,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                 link: '',
             });
         } else {
-            const pageConfig = segment ? MEETING_PAGE_SEGMENTS[segment] : null;
+            const pageConfig = segment ? meetingPageSegments[segment] : null;
             if (pageConfig) {
                 dynamicPath.push({ name: pageConfig.title, link: '' });
             }
@@ -228,7 +229,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
     const middleElements = isMeetingContext ? dynamicPath.slice(1, -1) : dynamicPath.slice(1);
     const isCurrentSubject = subjectHeader !== null;
     const pageIcon = (showSidebarTrigger && !subjectHeader)
-        ? MEETING_PAGE_SEGMENTS[segment ?? 'overview']?.icon
+        ? meetingPageSegments[segment ?? 'overview']?.icon
         : null;
 
     const renderBreadcrumbs = () => {

@@ -15,6 +15,7 @@ import { stripMarkdown } from "@/lib/formatters/markdown";
 import { formatDate } from "@/lib/formatters/time";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 interface SubjectCardProps {
     subject: SubjectWithRelations & { statistics?: Statistics };
@@ -32,6 +33,7 @@ interface SubjectCardProps {
 export function SubjectCard({ subject, city, meeting, parties, persons, fullWidth, highlight, disableHover, showContext, openInNewTab }: SubjectCardProps) {
     const router = useRouter();
     const pathname = usePathname();
+    const t = useTranslations("Subject");
     const [isLoading, setIsLoading] = useState(false);
     const [isCardHovered, setIsCardHovered] = useState(false);
 
@@ -121,7 +123,7 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                         <div className="flex items-center gap-1 min-w-0 flex-1">
                             <MapPin className="w-3.5 h-3.5 shrink-0" />
                             <span className="truncate">
-                                {subject.location?.text || "Χωρίς τοποθεσία"}
+                                {subject.location?.text || t("noLocation")}
                             </span>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
@@ -130,7 +132,7 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                                 {subject.agendaItemIndex
                                     ? `#${subject.agendaItemIndex}`
                                     : subject.nonAgendaReason
-                                        ? getNonAgendaLabel(subject.nonAgendaReason)
+                                        ? getNonAgendaLabel(t, subject.nonAgendaReason)
                                         : null
                                 }
                             </div>

@@ -4,6 +4,7 @@ import { Statistics } from "@/lib/statistics";
 import { SubjectCard } from "../subject-card";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { HelpCircle, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,7 @@ export function SubjectSection({
     className,
 }: SubjectSectionProps) {
     const { city, meeting, parties, people } = useCouncilMeetingData();
+    const t = useTranslations("Subject");
     const [showExplainer, setShowExplainer] = useState(false);
     const [showAll, setShowAll] = useState(false);
 
@@ -51,12 +53,12 @@ export function SubjectSection({
                         <button
                             onClick={() => setShowExplainer(!showExplainer)}
                             className="text-muted-foreground hover:text-foreground transition-colors shrink-0 self-center"
-                            aria-label="Τι σημαίνει αυτό;"
+                            aria-label={t("whatIsThis")}
                         >
                             <HelpCircle className="w-3.5 h-3.5" />
                         </button>
                         <span className="text-xs sm:text-sm text-muted-foreground ml-auto">
-                            {subjects.length} {subjects.length === 1 ? "θέμα" : "θέματα"}
+                            {t("count", { count: subjects.length })}
                         </span>
                     </div>
 
@@ -71,7 +73,7 @@ export function SubjectSection({
                                         : "text-muted-foreground hover:text-foreground"
                                 )}
                             >
-                                Πιο πολυσυζητημένα
+                                {t("sortByMostDiscussed")}
                             </button>
                             <span className="text-muted-foreground/40">|</span>
                             <button
@@ -83,7 +85,7 @@ export function SubjectSection({
                                         : "text-muted-foreground hover:text-foreground"
                                 )}
                             >
-                                Σειρά διάταξης
+                                {t("sortByAgendaOrder")}
                             </button>
                         </div>
                     )}
@@ -115,7 +117,7 @@ export function SubjectSection({
                         onClick={() => setShowAll(true)}
                         className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                     >
-                        Εμφάνιση όλων ({subjects.length})
+                        {t("showAll", { count: subjects.length })}
                         <ChevronDown className="w-4 h-4" />
                     </button>
                 </div>

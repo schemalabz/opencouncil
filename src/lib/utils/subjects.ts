@@ -10,23 +10,36 @@ interface CategorizableSubject {
     _count?: { contributions?: number };
 }
 
-export const SUBJECT_CATEGORIES = {
-    beforeAgenda: {
-        label: 'Προ ημερησίας, συζήτηση και ανακοινώσεις',
-        shortLabel: 'Προ ημερησίας',
-        explainerText: 'Αυτά τα θέματα είναι ανακοινώσεις, ερωτήματα και συζήτηση για τα οποία δεν υπάρχει ψηφοφορία και δεν λαμβάνονται αποφάσεις, συνήθως στην αρχή της συνεδρίασης.',
-    },
-    outOfAgenda: {
-        label: 'Εκτός ημερησίας θέματα',
-        shortLabel: 'Εκτός ημερησίας',
-        explainerText: 'Τα εκτός ημερησίας θέματα είναι έκτακτα θέματα που δεν πρόλαβαν να ενταχτούν στην ημερήσια διάταξη της συνεδρίασης. Ψηφίζονται από το σώμα, πρώτα για το κατ\'επείγον, και έπειτα για την ουσία του θέματος.',
-    },
-    agenda: {
-        label: 'Θέματα ημερησίας διάταξης',
-        shortLabel: 'Ημερησίας διάταξης',
-        explainerText: 'Τα θέματα της ημερησίας διάταξης συζητούνται και ψηφίζονται από το σώμα και αποτελούν το κύριο μέρος της συνεδρίασης.',
-    },
-} as const;
+export const SUBJECT_CATEGORY_KEYS = ['beforeAgenda', 'outOfAgenda', 'agenda'] as const;
+export type SubjectCategoryKey = typeof SUBJECT_CATEGORY_KEYS[number];
+
+type Translate = (key: string) => string;
+
+/**
+ * Translated labels for the three agenda categories. Pass a translator scoped to
+ * the `Subject` namespace (e.g. `useTranslations('Subject')`).
+ */
+export function getSubjectCategories(
+    t: Translate,
+): Record<SubjectCategoryKey, { label: string; shortLabel: string; explainerText: string }> {
+    return {
+        beforeAgenda: {
+            label: t('categories.beforeAgenda.label'),
+            shortLabel: t('categories.beforeAgenda.shortLabel'),
+            explainerText: t('categories.beforeAgenda.explainerText'),
+        },
+        outOfAgenda: {
+            label: t('categories.outOfAgenda.label'),
+            shortLabel: t('categories.outOfAgenda.shortLabel'),
+            explainerText: t('categories.outOfAgenda.explainerText'),
+        },
+        agenda: {
+            label: t('categories.agenda.label'),
+            shortLabel: t('categories.agenda.shortLabel'),
+            explainerText: t('categories.agenda.explainerText'),
+        },
+    };
+}
 
 /**
  * Categorize subjects into their three agenda groups.
@@ -45,8 +58,8 @@ export function categorizeSubjects<T extends CategorizableSubject>(subjects: T[]
     };
 }
 
-export function getNonAgendaLabel(reason: 'beforeAgenda' | 'outOfAgenda'): string {
-    return SUBJECT_CATEGORIES[reason].shortLabel;
+export function getNonAgendaLabel(t: Translate, reason: 'beforeAgenda' | 'outOfAgenda'): string {
+    return t(`categories.${reason}.shortLabel`);
 }
 
 /**

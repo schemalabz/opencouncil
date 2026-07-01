@@ -1,6 +1,6 @@
 "use client"
 import { ChevronDown, ChevronRight, Play, Pause, Loader } from "lucide-react"
-import { MEETING_PAGE_SEGMENTS } from "@/lib/utils/meetingPages"
+import { getMeetingPageSegments } from "@/lib/utils/meetingPages"
 import {
     Sidebar,
     SidebarContent,
@@ -21,13 +21,15 @@ import { useState, useEffect, useMemo } from "react"
 import { useVideo } from "./VideoProvider"
 import { usePathname } from "next/navigation"
 import { cn, formatTime, sortSubjectsByAgendaIndex } from "@/lib/utils"
-import { categorizeSubjects, SUBJECT_CATEGORIES } from "@/lib/utils/subjects"
+import { categorizeSubjects, getSubjectCategories } from "@/lib/utils/subjects"
 import { useTranscriptOptions } from "./options/OptionsContext"
 import { useTranslations } from 'next-intl'
 
 export default function MeetingSidebar() {
     const { city, meeting, subjects } = useCouncilMeetingData()
     const tCommon = useTranslations('Common')
+    const meetingPageSegments = getMeetingPageSegments(useTranslations('CouncilMeeting'))
+    const subjectCategories = getSubjectCategories(useTranslations('Subject'))
     const [subjectsExpanded, setSubjectsExpanded] = useState(true)
     const { isMobile, setOpenMobile, state: sidebarState } = useSidebar()
     const pathname = usePathname()
@@ -125,12 +127,12 @@ export default function MeetingSidebar() {
     }
 
     const mainMenuItems = [
-        { ...MEETING_PAGE_SEGMENTS.overview, url: `/${city.id}/${meeting.id}` },
-        { ...MEETING_PAGE_SEGMENTS.map, url: `/${city.id}/${meeting.id}/map` },
-        { ...MEETING_PAGE_SEGMENTS.transcript, url: `/${city.id}/${meeting.id}/transcript` },
-        ...(canCreateHighlights ? [{ ...MEETING_PAGE_SEGMENTS.highlights, url: `/${city.id}/${meeting.id}/highlights` }] : []),
-        { ...MEETING_PAGE_SEGMENTS.settings, url: `/${city.id}/${meeting.id}/settings` },
-        ...(canEdit ? [{ ...MEETING_PAGE_SEGMENTS.admin, url: `/${city.id}/${meeting.id}/admin` }] : []),
+        { ...meetingPageSegments.overview, url: `/${city.id}/${meeting.id}` },
+        { ...meetingPageSegments.map, url: `/${city.id}/${meeting.id}/map` },
+        { ...meetingPageSegments.transcript, url: `/${city.id}/${meeting.id}/transcript` },
+        ...(canCreateHighlights ? [{ ...meetingPageSegments.highlights, url: `/${city.id}/${meeting.id}/highlights` }] : []),
+        { ...meetingPageSegments.settings, url: `/${city.id}/${meeting.id}/settings` },
+        ...(canEdit ? [{ ...meetingPageSegments.admin, url: `/${city.id}/${meeting.id}/admin` }] : []),
     ]
 
     return (
@@ -168,8 +170,8 @@ export default function MeetingSidebar() {
                                         isSubjectsActive() && "text-primary font-medium"
                                     )}
                                 >
-                                    <MEETING_PAGE_SEGMENTS.subjects.icon className="h-4 w-4" />
-                                    <span>{MEETING_PAGE_SEGMENTS.subjects.title}</span>
+                                    <meetingPageSegments.subjects.icon className="h-4 w-4" />
+                                    <span>{meetingPageSegments.subjects.title}</span>
                                     {subjectsExpanded ?
                                         <ChevronDown className="h-4 w-4 ml-auto" /> :
                                         <ChevronRight className="h-4 w-4 ml-auto" />
@@ -179,9 +181,9 @@ export default function MeetingSidebar() {
 
                             {subjectsExpanded && sidebarState !== 'collapsed' && (
                                 <>
-                                    {renderSubjectSection(SUBJECT_CATEGORIES.beforeAgenda.shortLabel, beforeAgenda)}
-                                    {renderSubjectSection(SUBJECT_CATEGORIES.outOfAgenda.shortLabel, outOfAgenda)}
-                                    {renderSubjectSection(SUBJECT_CATEGORIES.agenda.shortLabel, agenda, (s) => `${s.agendaItemIndex}.`)}
+                                    {renderSubjectSection(subjectCategories.beforeAgenda.shortLabel, beforeAgenda)}
+                                    {renderSubjectSection(subjectCategories.outOfAgenda.shortLabel, outOfAgenda)}
+                                    {renderSubjectSection(subjectCategories.agenda.shortLabel, agenda, (s) => `${s.agendaItemIndex}.`)}
                                 </>
                             )}
                         </SidebarMenu>
