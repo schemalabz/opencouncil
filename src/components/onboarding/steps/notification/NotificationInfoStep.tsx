@@ -50,7 +50,7 @@ export function NotificationInfoStep({
                     totalSteps={totalSteps}
                     onBack={onBack}
                     onAction={onContinue}
-                    actionLabel={existingPreference ? t('update') : t('continue')}
+                    actionLabel={existingPreference ? t('update') : t('next')}
                 />
             }
         >

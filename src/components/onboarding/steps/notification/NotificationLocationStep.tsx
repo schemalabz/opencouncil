@@ -41,7 +41,7 @@ export function NotificationLocationStep({ currentStep, totalSteps, onBack, onCo
           totalSteps={totalSteps}
           onBack={onBack}
           onAction={onContinue}
-          actionLabel={t('continue')}
+          actionLabel={t('next')}
         />
       }
     >
