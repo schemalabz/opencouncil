@@ -9,7 +9,7 @@ import AddMeetingForm from '@/components/meetings/AddMeetingForm';
 import { CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
 import { getAdministrativeBodyTypesForMeetings, filterMeetingByAdminBodyTypes, getBodiesOfTypeFromMeetings } from '@/lib/utils/administrativeBodies';
 import { PaginationParams } from '@/lib/db/types';
-import { BadgePicker } from '@/components/ui/badge-picker';
+import { AdminBodyPicker, type AdminBodyGroup } from '@/components/ui/admin-body-picker';
 import { updateBodyFilterURL, resolveBodyFromURL } from '@/lib/utils/filterURL';
 
 type CityMeetingsProps = {
@@ -34,6 +34,17 @@ export default function CityMeetings({
     const typeOptions = useMemo(() =>
         getAdministrativeBodyTypesForMeetings(councilMeetings, tCommon),
         [councilMeetings, tCommon]
+    );
+
+    // Two-level picker groups. Council stays a single body in practice, so keep its
+    // instance picker hidden (legacy behavior) by giving it no bodies.
+    const bodyGroups = useMemo<AdminBodyGroup[]>(() =>
+        typeOptions.map(o => ({
+            type: o.value,
+            typeLabel: o.label,
+            bodies: o.value === 'council' ? [] : getBodiesOfTypeFromMeetings(councilMeetings, o.value),
+        })),
+        [typeOptions, councilMeetings]
     );
 
     const defaultFilterValues = useMemo(() => {
@@ -76,30 +87,19 @@ export default function CityMeetings({
             }}
             defaultFilterValues={defaultFilterValues}
             renderFilter={({ selectedValues, onChange }) => {
-                if (typeOptions.length <= 1) return null;
-                return (
-                    <BadgePicker
-                        options={typeOptions}
-                        selectedValues={selectedValues}
-                        onSelectionChange={onChange}
-                        allLabel={tCommon('allMeetings')}
-                        collapsible={false}
-                        inline
-                    />
-                );
-            }}
-            renderAfterFilters={(selectedValues) => {
                 const selectedType = selectedValues.length === 1 ? selectedValues[0] : null;
-                if (!selectedType || selectedType === 'council') return null;
-                const subBodies = getBodiesOfTypeFromMeetings(councilMeetings, selectedType);
-                if (subBodies.length <= 1) return null;
-                const selectedBodyId = resolveBodyFromURL(searchParams, subBodies);
+                const subBodies = selectedType
+                    ? (bodyGroups.find(g => g.type === selectedType)?.bodies ?? [])
+                    : [];
                 return (
-                    <BadgePicker
-                        options={subBodies}
-                        selectedValues={selectedBodyId ? [selectedBodyId] : []}
-                        onSelectionChange={(values) => updateBodyFilterURL(values.length > 0 ? values[0] : null, subBodies, searchParams)}
-                        allLabel={tCommon('allBodies')}
+                    <AdminBodyPicker
+                        groups={bodyGroups}
+                        selectedType={selectedType}
+                        onTypeChange={(type) => onChange(type ? [type] : [])}
+                        selectedBodyId={resolveBodyFromURL(searchParams, subBodies)}
+                        onBodyChange={(bodyId) => updateBodyFilterURL(bodyId, subBodies, searchParams)}
+                        allTypesLabel={tCommon('allMeetings')}
+                        allBodiesLabel={tCommon('allBodies')}
                     />
                 );
             }}

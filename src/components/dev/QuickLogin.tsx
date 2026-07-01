@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { 
   Dialog, 
@@ -19,6 +19,7 @@ import { LogOut, Settings, User, Crown, EyeOff } from 'lucide-react'
 import { getTestUsersForDisplay } from '@/lib/dev/test-users'
 import { useQuickLoginVisibility } from '@/hooks/useQuickLoginVisibility'
 import { IS_DEV } from '@/lib/utils'
+import { EMBED_PATH } from '@/lib/utils/embed'
 import MobilePreviewButton from '@/components/dev/MobilePreviewButton'
 
 // Get predefined test users from shared definition
@@ -37,6 +38,7 @@ export default function QuickLogin({ isPreview = false }: { isPreview?: boolean 
   const [testUsersExist, setTestUsersExist] = useState<boolean | null>(null)
   const { data: session, status } = useSession()
   const router = useRouter()
+  const pathname = usePathname()
   const { isVisible, isLoaded, hide } = useQuickLoginVisibility()
   const barRef = useRef<HTMLDivElement>(null)
 
@@ -159,6 +161,11 @@ export default function QuickLogin({ isPreview = false }: { isPreview?: boolean 
 
   // Only show in development or on preview deployments
   if (!(IS_DEV || isPreview)) {
+    return null
+  }
+
+  // Never render inside embed iframes — third-party sites shouldn't see the dev bar
+  if (pathname && EMBED_PATH.test(pathname)) {
     return null
   }
 

@@ -128,7 +128,7 @@ export async function getCouncilMeeting(cityId: string, id: string): Promise<Cou
     }
 }
 
-export async function getCouncilMeetingsForCity(cityId: string, { includeUnreleased, limit, page, pageSize = 12, from, to, administrativeBodyTypes, timeFilter }: { includeUnreleased?: boolean; limit?: number; page?: number; pageSize?: number; from?: Date; to?: Date; administrativeBodyTypes?: AdministrativeBodyType[]; timeFilter?: 'upcoming' | 'past' } = {}): Promise<CouncilMeetingWithAdminBodyAndSubjects[]> {
+export async function getCouncilMeetingsForCity(cityId: string, { includeUnreleased, limit, page, pageSize = 12, from, to, administrativeBodyTypes, administrativeBodyIds, timeFilter }: { includeUnreleased?: boolean; limit?: number; page?: number; pageSize?: number; from?: Date; to?: Date; administrativeBodyTypes?: AdministrativeBodyType[]; administrativeBodyIds?: string[]; timeFilter?: 'upcoming' | 'past' } = {}): Promise<CouncilMeetingWithAdminBodyAndSubjects[]> {
 
     try {
         // Calculate pagination
@@ -149,15 +149,21 @@ export async function getCouncilMeetingsForCity(cityId: string, { includeUnrelea
             }
             : timeFilterValue;
 
+        // Specific bodies (ids) take precedence over the broader type filter.
+        let bodyFilter: Prisma.CouncilMeetingWhereInput = {};
+        if (administrativeBodyIds && administrativeBodyIds.length > 0) {
+            bodyFilter = { administrativeBodyId: { in: administrativeBodyIds } };
+        } else if (administrativeBodyTypes && administrativeBodyTypes.length > 0) {
+            bodyFilter = { administrativeBody: { type: { in: administrativeBodyTypes } } };
+        }
+
         // First, get meetings with subjects and basic relationships
         const meetings = await prisma.councilMeeting.findMany({
             where: {
                 cityId,
                 released: includeUnreleased ? undefined : true,
                 ...(dateTimeFilter && { dateTime: dateTimeFilter }),
-                ...(administrativeBodyTypes && administrativeBodyTypes.length > 0 && {
-                    administrativeBody: { type: { in: administrativeBodyTypes } }
-                }),
+                ...bodyFilter,
             },
             orderBy: timeFilter === 'upcoming'
                 ? [{ dateTime: 'asc' }, { createdAt: 'asc' }]

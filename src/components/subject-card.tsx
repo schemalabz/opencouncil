@@ -1,13 +1,13 @@
 import { AdministrativeBody, City, CouncilMeeting, Party } from "@prisma/client";
 import { Statistics } from "@/lib/statistics";
 import { SubjectWithRelations } from "@/lib/db/subject";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card";
-import Icon from "./icon";
-import { MapPin, ScrollText, Loader2, Clock, MessageSquare } from "lucide-react";
-import { cn, getPartyFromRoles } from "@/lib/utils";
-import { getNonAgendaLabel, getWithdrawnLabel } from "@/lib/utils/subjects";
+import { SubjectCardContent } from "./subject/SubjectCardContent";
+import { SubjectCardFooter } from "./subject/SubjectCardFooter";
+import { subjectCardStats } from "@/lib/subjectCardStats";
+import { Loader2 } from "lucide-react";
+import { getPartyFromRoles } from "@/lib/utils";
+import { getAgendaLabel, getWithdrawnLabel } from "@/lib/utils/subjects";
 import { Link, useRouter } from "@/i18n/routing";
-import { PersonAvatarList } from "./persons/PersonAvatarList";
 import { PersonWithRelations } from '@/lib/db/people';
 import { HighlightVideo } from "./meetings/HighlightVideo";
 import { HighlightWithUtterances } from "@/lib/db/highlights";
@@ -72,14 +72,10 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
         .map(s => persons.find(p => p.id === s.id))
         .filter((p): p is PersonWithRelations => p !== undefined);
 
-    const totalMinutes = subject.statistics?.speakingSeconds
-        ? Math.round(subject.statistics.speakingSeconds / 60)
-        : 0;
-
-    const speakerCount = subject.statistics?.people?.length
-        || subject.contributions?.length
-        || subject.speakerSegments?.length
-        || 0;
+    const stats = subjectCardStats(
+        subject.statistics,
+        subject.contributions?.length || subject.speakerSegments?.length
+    );
 
     const linkProps = {
         href: `/${city.id}/${meeting.id}/subjects/${subject.id}`,
@@ -87,122 +83,49 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
         ...(openInNewTab && { target: "_blank", rel: "noopener noreferrer" })
     };
 
+    const footer = (
+        <SubjectCardFooter
+            stats={stats}
+            speakers={fullDisplayedSpeakers}
+            withdrawn={subject.withdrawn}
+            withdrawnLabel={getWithdrawnLabel(subject)}
+            avatarsAutoScroll
+            avatarsHovered={isCardHovered}
+            onAvatarsClick={(e) => e.stopPropagation()}
+        />
+    );
+
     return (
         <Link {...linkProps} onClick={handleClick} onMouseEnter={() => setIsCardHovered(true)} onMouseLeave={() => setIsCardHovered(false)}>
-            <Card disableHover={disableHover} className={cn(
-                "relative group/card hover:shadow-md transition-all duration-300 w-full h-full",
-                disableHover ? "hover:shadow-none" : "",
-                subject.withdrawn ? "opacity-60" : ""
-            )}>
-                {isLoading && (
+            <SubjectCardContent
+                title={subject.name}
+                topic={subject.topic}
+                context={showContext ? {
+                    meta: [city.name, meeting.administrativeBody?.name, formatDate(new Date(meeting.dateTime))].filter(Boolean).join(" · "),
+                    meetingName: meeting.name,
+                } : null}
+                locationText={subject.location?.text || t("noLocation")}
+                agendaLabel={getAgendaLabel(t, subject)}
+                description={subject.description ? stripMarkdown(subject.description) : null}
+                mediaSlot={highlight?.muxPlaybackId ? (
+                    <div className="mb-4" onClick={(e) => e.stopPropagation()}>
+                        <HighlightVideo
+                            id={highlight.id}
+                            title={highlight.name}
+                            playbackId={highlight.muxPlaybackId}
+                            videoUrl={highlight.videoUrl || undefined}
+                        />
+                    </div>
+                ) : undefined}
+                footer={footer}
+                overlay={isLoading ? (
                     <div className="absolute inset-0 flex items-center justify-center bg-background/90 backdrop-blur-sm z-20 rounded-lg">
                         <Loader2 className="w-6 h-6 animate-spin text-primary" />
                     </div>
-                )}
-                <div className="flex flex-col h-full">
-
-                {/* Header: topic icon + title + meta */}
-                <CardHeader className="flex flex-col gap-1.5 pb-2">
-                    <div className="flex flex-row items-center gap-1.5">
-                        <div className="p-1.5 rounded-full shrink-0 transition-colors duration-300" style={{ backgroundColor: subject.topic?.colorHex ? subject.topic.colorHex + "20" : "#e5e7eb" }}>
-                            <Icon name={subject.topic?.icon || "hash"} color={subject.topic?.colorHex || "#9ca3af"} size={16} />
-                        </div>
-                        <CardTitle className="text-sm sm:text-base line-clamp-2 flex-1 group-hover/card:text-accent-foreground transition-colors duration-300">{subject.name}</CardTitle>
-                    </div>
-                    {showContext && (
-                        <div className="flex flex-col gap-0.5">
-                            <span className="text-[10px] text-muted-foreground/70">
-                                {[city.name, meeting.administrativeBody?.name, formatDate(new Date(meeting.dateTime))]
-                                    .filter(Boolean)
-                                    .join(" · ")}
-                            </span>
-                            <span className="text-xs font-medium text-foreground/90">{meeting.name}</span>
-                        </div>
-                    )}
-                    <div className="flex flex-row justify-between gap-2 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1 min-w-0 flex-1">
-                            <MapPin className="w-3.5 h-3.5 shrink-0" />
-                            <span className="truncate">
-                                {subject.location?.text || t("noLocation")}
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                            <ScrollText className="w-3.5 h-3.5 shrink-0" />
-                            <div className="text-xs text-muted-foreground">
-                                {subject.agendaItemIndex
-                                    ? `#${subject.agendaItemIndex}`
-                                    : subject.nonAgendaReason
-                                        ? getNonAgendaLabel(t, subject.nonAgendaReason)
-                                        : null
-                                }
-                            </div>
-                        </div>
-                    </div>
-                </CardHeader>
-
-                {/* Content: description + highlight */}
-                <CardContent className="flex-1 pb-2 max-w-full overflow-hidden">
-                    {highlight?.muxPlaybackId && (
-                        <div className="mb-4" onClick={(e) => e.stopPropagation()}>
-                            <HighlightVideo
-                                id={highlight.id}
-                                title={highlight.name}
-                                playbackId={highlight.muxPlaybackId}
-                                videoUrl={highlight.videoUrl || undefined}
-                            />
-                        </div>
-                    )}
-                    {subject.description && (
-                        <div className="text-xs sm:text-sm text-muted-foreground line-clamp-4 sm:line-clamp-5 group-hover/card:text-muted-foreground/80 transition-colors duration-300">{stripMarkdown(subject.description)}</div>
-                    )}
-                </CardContent>
-
-                {/* Footer: stats + speakers */}
-                <CardFooter className="pt-0 mt-auto flex flex-col gap-2">
-                    {/* Stats row: time, speakers, party dots */}
-                    {totalMinutes > 0 && (
-                        <div className="flex items-center gap-3 w-full text-[11px] text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                <span>{totalMinutes} λεπτά</span>
-                            </div>
-                            {speakerCount > 0 && (
-                                <div className="flex items-center gap-1">
-                                    <MessageSquare className="w-3 h-3" />
-                                    <span>{speakerCount}</span>
-                                </div>
-                            )}
-                            {subject.statistics?.parties && subject.statistics.parties.length > 0 && (
-                                <div className="flex items-center gap-1 ml-auto">
-                                    {subject.statistics.parties.map(p => (
-                                        <div
-                                            key={p.item.id}
-                                            className="w-2.5 h-2.5 rounded-full"
-                                            style={{ backgroundColor: p.item.colorHex }}
-                                            title={p.item.name}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                    {/* Speaker avatars or withdrawn label */}
-                    {subject.withdrawn ? (
-                        <div className="w-full text-xs text-muted-foreground/70 italic">
-                            {getWithdrawnLabel(subject)}
-                        </div>
-                    ) : (
-                        <div onClick={(e) => e.stopPropagation()} className="w-full">
-                            <PersonAvatarList
-                                users={fullDisplayedSpeakers}
-                                autoScroll
-                                isHovered={isCardHovered}
-                            />
-                        </div>
-                    )}
-                </CardFooter>
-                </div>
-            </Card>
+                ) : undefined}
+                disableHover={disableHover}
+                dimmed={subject.withdrawn}
+            />
         </Link>
     );
 }

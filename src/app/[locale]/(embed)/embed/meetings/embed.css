@@ -138,6 +138,20 @@
     flex-shrink: 0;
 }
 
+/* ── Subjects widget: responsive, centered card grid ── */
+/* Center the content and cap its width so cards don't stretch on wide iframes. */
+.embed-subjects {
+    max-width: 1120px;
+    margin-inline: auto;
+}
+/* As many columns as fit; each card is 260–360px wide, and the group is centered. */
+.embed-subject-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 320px));
+    justify-content: center;
+    gap: 10px;
+}
+
 .embed-card-more {
     display: inline-flex;
     align-items: center;
@@ -165,11 +179,12 @@
 .embed-footer-link {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    font-size: 12px;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 500;
     color: var(--embed-text-muted);
     text-decoration: none;
-    opacity: 0.7;
+    opacity: 0.8;
     transition: opacity 0.15s;
 }
 .embed-footer-link:hover {
@@ -177,8 +192,8 @@
     color: var(--embed-accent);
 }
 .embed-footer-logo {
-    opacity: 0.5;
-    width: 16px;
-    height: 16px;
+    opacity: 0.7;
+    width: 24px;
+    height: 24px;
     object-fit: contain;
 }
