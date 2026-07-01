@@ -16,6 +16,7 @@ import Team from './Team'
 import CTAFooter from './CTAFooter'
 import type { AboutPageStats } from '@/lib/db/cities'
 import type { GitHubStats } from '@/lib/github'
+import type { Realm } from '@prisma/client'
 
 const SECTION_IDS = ['openness', 'internal', 'how-it-works', 'recognition', 'pricing', 'team'] as const
 
@@ -186,9 +187,11 @@ interface AboutPageProps {
     githubStats?: GitHubStats | null
     /** Hide the pricing section + its nav entry (e.g. on the French realm). */
     hidePricing?: boolean
+    /** Realm of the current request; drives realm-specific demo links. */
+    realm: Realm
 }
 
-export default function AboutPage({ citiesWithLogos = [], stats, githubStats, hidePricing = false }: AboutPageProps) {
+export default function AboutPage({ citiesWithLogos = [], stats, githubStats, hidePricing = false, realm }: AboutPageProps) {
     const [isContactFormOpen, setIsContactFormOpen] = useState(false)
     const sectionIds = useMemo(
         () => hidePricing ? SECTION_IDS.filter(id => id !== 'pricing') : SECTION_IDS,
@@ -211,13 +214,13 @@ export default function AboutPage({ citiesWithLogos = [], stats, githubStats, hi
 
                 {/* 3. Openness features */}
                 <div id="openness">
-                    <OpennessFeatures />
+                    <OpennessFeatures realm={realm} />
                 </div>
             </div>
 
             {/* 4. Internal features */}
             <div id="internal">
-                <InternalFeatures />
+                <InternalFeatures realm={realm} />
             </div>
 
             {/* 5. How it works */}

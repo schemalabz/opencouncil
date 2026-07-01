@@ -78,5 +78,5 @@ export default async function AboutPage() {
             return null;
         }),
     ]);
-    return <About citiesWithLogos={citiesWithLogos} stats={stats} githubStats={githubStats} hidePricing={hidePricing} />
+    return <About citiesWithLogos={citiesWithLogos} stats={stats} githubStats={githubStats} hidePricing={hidePricing} realm={realm} />
 }
