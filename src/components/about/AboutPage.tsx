@@ -207,7 +207,7 @@ export default function AboutPage({ citiesWithLogos = [], stats, githubStats, hi
 
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 {/* 1. Hero */}
-                <Hero onContactClick={() => setIsContactFormOpen(true)} stats={stats} />
+                <Hero onContactClick={() => setIsContactFormOpen(true)} stats={stats} realm={realm} />
 
                 {/* 2. Social Proof */}
                 <SocialProof citiesWithLogos={citiesWithLogos} />

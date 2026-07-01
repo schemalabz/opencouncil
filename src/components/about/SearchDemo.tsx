@@ -1,14 +1,16 @@
 import { Search, MapPin, Clock, User } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import type { Realm } from '@prisma/client'
+import { getRealmDomain } from '@/lib/realm'
 import BrowserFrame from './BrowserFrame'
 
 const RESULT_DATES = ['15/01/2026', '22/01/2026', '10/02/2026']
 
-export default function SearchDemo() {
+export default function SearchDemo({ realm }: { realm: Realm }) {
     const t = useTranslations('about.demos.search')
 
     return (
-        <BrowserFrame url="opencouncil.gr/search" className="w-full">
+        <BrowserFrame url={`${getRealmDomain(realm)}/search`} className="w-full">
             <div className="bg-white p-3 md:p-4">
                 {/* Search bar */}
                 <div className="flex items-center gap-2 rounded-lg border border-border bg-gray-50/80 px-3 py-2 mb-4">

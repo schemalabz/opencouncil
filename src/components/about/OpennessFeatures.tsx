@@ -3,6 +3,7 @@ import { ArrowRight } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { Realm } from '@prisma/client'
 import { Link } from '@/i18n/routing'
+import { getRealmDomain } from '@/lib/realm'
 import { OPENNESS_FEATURES, demoUrlForRealm } from './config'
 import type { Feature } from './config'
 import BrowserFrame from './BrowserFrame'
@@ -13,11 +14,11 @@ import MapDemo from './MapDemo'
 
 function FeatureVisual({ feature, realm }: { feature: Feature; realm: Realm }) {
     if (feature.id === 'subjects') {
-        return <SubjectDemo />
+        return <SubjectDemo realm={realm} />
     }
 
     if (feature.id === 'search') {
-        return <SearchDemo />
+        return <SearchDemo realm={realm} />
     }
 
     if (feature.id === 'notifications') {
@@ -25,11 +26,11 @@ function FeatureVisual({ feature, realm }: { feature: Feature; realm: Realm }) {
     }
 
     if (feature.id === 'map') {
-        return <MapDemo />
+        return <MapDemo realm={realm} />
     }
 
     return (
-        <BrowserFrame url={`opencouncil.gr${demoUrlForRealm(feature, realm) ?? ''}`}>
+        <BrowserFrame url={`${getRealmDomain(realm)}${demoUrlForRealm(feature, realm) ?? ''}`}>
             <div className="aspect-[4/3] bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
                 <div className="text-center px-6">
                     <div className="mx-auto mb-3 h-5 w-32 rounded bg-gray-200/70 animate-pulse" />
