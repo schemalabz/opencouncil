@@ -28,7 +28,7 @@ export function NotificationTopicStep({ currentStep, totalSteps, onBack, onConti
           totalSteps={totalSteps}
           onBack={onBack}
           onAction={onContinue}
-          actionLabel={t('continue')}
+          actionLabel={t('next')}
         />
       }
     >
