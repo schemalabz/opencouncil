@@ -8,18 +8,20 @@ import { CalendarIcon, ExternalLink, FileIcon, FileText, Youtube } from "lucide-
 import { useNotificationPreference } from "@/contexts/NotificationPreferenceContext";
 import { formatDateTime, formatRelativeTime } from "@/lib/formatters/time";
 import { sortSubjectsBySpeakerContributionCount, sortSubjectsByAgendaIndex, subjectToMapFeature } from "@/lib/utils";
-import { categorizeSubjects, SUBJECT_CATEGORIES } from "@/lib/utils/subjects";
+import { categorizeSubjects, getSubjectCategories } from "@/lib/utils/subjects";
 import { calculateGeometryBounds } from "@/lib/geo";
 import { Link } from "@/i18n/routing";
 import { HighlightCards } from "@/components/meetings/highlight-cards";
 import { el } from "date-fns/locale";
 import { enUS } from "date-fns/locale";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState, useMemo, useEffect } from "react";
 import type { Topic } from "@prisma/client";
 
 export default function MeetingPage() {
     const { meeting, subjects, city } = useCouncilMeetingData();
+    const t = useTranslations("Subject");
+    const subjectCategories = getSubjectCategories(t);
     const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
     const [agendaSortMode, setAgendaSortMode] = useState<'speakingTime' | 'agendaIndex'>('speakingTime');
 
@@ -108,14 +110,14 @@ export default function MeetingPage() {
                 {(beforeAgendaSubjects.length > 0 || outOfAgendaSubjects.length > 0) && (
                     <div className={`max-w-4xl mx-auto ${beforeAgendaSubjects.length <= 1 && outOfAgendaSubjects.length <= 1 ? "flex flex-col lg:flex-row lg:flex-wrap gap-x-8" : "flex flex-col"}`}>
                         <SubjectSection
-                            title={SUBJECT_CATEGORIES.beforeAgenda.label}
-                            explainerText={SUBJECT_CATEGORIES.beforeAgenda.explainerText}
+                            title={subjectCategories.beforeAgenda.label}
+                            explainerText={subjectCategories.beforeAgenda.explainerText}
                             subjects={beforeAgendaSubjects}
                             className="flex-1 min-w-0"
                         />
                         <SubjectSection
-                            title={SUBJECT_CATEGORIES.outOfAgenda.label}
-                            explainerText={SUBJECT_CATEGORIES.outOfAgenda.explainerText}
+                            title={subjectCategories.outOfAgenda.label}
+                            explainerText={subjectCategories.outOfAgenda.explainerText}
                             subjects={outOfAgendaSubjects}
                             className="flex-1 min-w-0"
                         />
@@ -127,8 +129,8 @@ export default function MeetingPage() {
                 )}
 
                 <SubjectSection
-                    title={SUBJECT_CATEGORIES.agenda.label}
-                    explainerText={SUBJECT_CATEGORIES.agenda.explainerText}
+                    title={subjectCategories.agenda.label}
+                    explainerText={subjectCategories.agenda.explainerText}
                     subjects={agendaSubjects}
                     sortMode={agendaSortMode}
                     onSortModeChange={setAgendaSortMode}

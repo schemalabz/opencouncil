@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useTranslations } from "next-intl"
 import { Globe, ChevronDown, ChevronUp, LinkIcon, ExternalLink } from "lucide-react"
 import { CollapsibleCard } from "@/components/ui/collapsible-card"
 import ReactMarkdown from "react-markdown"
@@ -16,6 +17,7 @@ type Subject = {
 }
 
 export function SubjectContext({ subject }: { subject: Subject }) {
+    const t = useTranslations("Subject")
     const [showSources, setShowSources] = useState(false)
 
     const markdownComponents: Components = {
@@ -120,7 +122,7 @@ export function SubjectContext({ subject }: { subject: Subject }) {
     return (
         <CollapsibleCard
             icon={<Globe className="w-4 h-4" />}
-            title="Πληροφορίες από το διαδίκτυο"
+            title={t("webInfo")}
         >
             <div className="space-y-3 p-4">
                 {subject.context && (
@@ -137,7 +139,7 @@ export function SubjectContext({ subject }: { subject: Subject }) {
                         >
                             <span className="flex items-center gap-1.5">
                                 <LinkIcon className="h-3.5 w-3.5" />
-                                Πηγές ({subject.contextCitationUrls.length})
+                                {t("sources", { count: subject.contextCitationUrls.length })}
                             </span>
                             {showSources ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                         </button>

@@ -1,4 +1,8 @@
-import { categorizeSubjects, getNonAgendaLabel, getWithdrawnLabel, SUBJECT_CATEGORIES } from '../subjects';
+import { categorizeSubjects, getNonAgendaLabel, getWithdrawnLabel, getSubjectCategories } from '../subjects';
+
+// Identity translator: returns the key so tests assert the resolved key path
+// without depending on message-file contents.
+const t = (key: string) => key;
 
 function makeSubject(overrides: Partial<{
     id: string;
@@ -98,24 +102,26 @@ describe('categorizeSubjects', () => {
 });
 
 describe('getNonAgendaLabel', () => {
-    it('returns short label for beforeAgenda', () => {
-        expect(getNonAgendaLabel('beforeAgenda')).toBe('Προ ημερησίας');
+    it('resolves the shortLabel key for beforeAgenda', () => {
+        expect(getNonAgendaLabel(t, 'beforeAgenda')).toBe('categories.beforeAgenda.shortLabel');
     });
 
-    it('returns short label for outOfAgenda', () => {
-        expect(getNonAgendaLabel('outOfAgenda')).toBe('Εκτός ημερησίας');
+    it('resolves the shortLabel key for outOfAgenda', () => {
+        expect(getNonAgendaLabel(t, 'outOfAgenda')).toBe('categories.outOfAgenda.shortLabel');
     });
 });
 
-describe('SUBJECT_CATEGORIES', () => {
+describe('getSubjectCategories', () => {
     it('has all three categories defined', () => {
-        expect(SUBJECT_CATEGORIES).toHaveProperty('beforeAgenda');
-        expect(SUBJECT_CATEGORIES).toHaveProperty('outOfAgenda');
-        expect(SUBJECT_CATEGORIES).toHaveProperty('agenda');
+        const categories = getSubjectCategories(t);
+        expect(categories).toHaveProperty('beforeAgenda');
+        expect(categories).toHaveProperty('outOfAgenda');
+        expect(categories).toHaveProperty('agenda');
     });
 
-    it('each category has label, shortLabel, and explainerText', () => {
-        for (const category of Object.values(SUBJECT_CATEGORIES)) {
+    it('each category resolves label, shortLabel, and explainerText via the translator', () => {
+        const categories = getSubjectCategories(t);
+        for (const category of Object.values(categories)) {
             expect(category.label).toBeTruthy();
             expect(category.shortLabel).toBeTruthy();
             expect(category.explainerText).toBeTruthy();

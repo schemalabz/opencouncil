@@ -1,7 +1,7 @@
 'use client'
 
 import { useSession } from "next-auth/react"
-import { useTranslations } from "next-intl"
+import { useTranslations, useLocale } from "next-intl"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
@@ -24,6 +24,7 @@ import { isUserAuthorizedToEdit } from "@/lib/auth"
 export default function UserDropdown({ currentEntity }: { currentEntity?: { cityId: string } }) {
     const { data: session, status } = useSession()
     const t = useTranslations("Header")
+    const locale = useLocale()
     const router = useRouter()
     const [canEdit, setCanEdit] = useState(false);
 
@@ -55,7 +56,11 @@ export default function UserDropdown({ currentEntity }: { currentEntity?: { city
         )
     }
     const firstName = session.user.name?.split(" ")[0]
-    const greeting = firstName ? `👋 Γεια σου ${klitiki(firstName)}!` : "👋 Γεια σου!"
+    // klitiki produces the Greek vocative case; only meaningful for el, so other
+    // locales greet with the plain first name.
+    const greeting = firstName
+        ? t("greetingNamed", { name: locale === "el" ? klitiki(firstName) : firstName })
+        : t("greeting")
 
     return (
         <DropdownMenu>
@@ -70,7 +75,7 @@ export default function UserDropdown({ currentEntity }: { currentEntity?: { city
             <DropdownMenuContent className="w-56" align="end">
                 <DropdownMenuLabel>
                     <div className="flex flex-col space-y-1 items-center">
-                        <p className="text-sm font-medium leading-none">Λογαριασμός</p>
+                        <p className="text-sm font-medium leading-none">{t("account")}</p>
                         <p className="text-xs leading-none text-muted-foreground">
                             {session.user.email}
                         </p>
@@ -80,7 +85,7 @@ export default function UserDropdown({ currentEntity }: { currentEntity?: { city
                 {canEdit && <><DropdownMenuLabel>
                     <div className="flex items-center gap-2 text-sm font-medium">
                         <ShieldCheck className="h-8 w-8 text-blue-500" />
-                        <span className="text-xs font-normal text-left">Μπορείτε να επεξεργαστείτε αυτή τη σελίδα</span>
+                        <span className="text-xs font-normal text-left">{t("canEditPage")}</span>
                     </div>
                 </DropdownMenuLabel>
                     <DropdownMenuSeparator />
@@ -89,7 +94,7 @@ export default function UserDropdown({ currentEntity }: { currentEntity?: { city
                 <DropdownMenuItem asChild>
                     <Link href="/profile" className="cursor-pointer">
                         <User className="mr-2 h-4 w-4" />
-                        Προφίλ
+                        {t("profile")}
                     </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem
@@ -97,7 +102,7 @@ export default function UserDropdown({ currentEntity }: { currentEntity?: { city
                     onClick={() => signOut()}
                 >
                     <LogOut className="mr-2 h-4 w-4" />
-                    Αποσύνδεση
+                    {t("signOut")}
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>

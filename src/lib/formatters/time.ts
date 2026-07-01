@@ -107,7 +107,7 @@ export function formatDate(date: Date, timezone?: string, locale: string = 'el')
     options.timeZone = timezone;
   }
 
-  const intlLocale = locale === 'en' ? 'en-US' : 'el-GR';
+  const intlLocale = locale === 'en' ? 'en-US' : locale === 'fr' ? 'fr-FR' : 'el-GR';
   if (date instanceof Date) {
     return new Intl.DateTimeFormat(intlLocale, options).format(date);
   } else if (typeof date === 'string') {
