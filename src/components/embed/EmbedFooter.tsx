@@ -16,8 +16,8 @@ export function EmbedFooter({ baseUrl, cityId }: EmbedFooterProps) {
                 <img
                     src={`${baseUrl}/logo.png`}
                     alt="OpenCouncil"
-                    width={16}
-                    height={16}
+                    width={24}
+                    height={24}
                     className="embed-footer-logo"
                 />
                 <span>OpenCouncil</span>

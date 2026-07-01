@@ -19,6 +19,29 @@ export async function getAdministrativeBodiesForCity(cityId: string): Promise<Ad
     }
 }
 
+/**
+ * Administrative bodies that have at least one released (public) meeting.
+ * Used by public surfaces (e.g. the embed widget configurator) so the body
+ * filter only offers bodies a visitor could actually see meetings for.
+ */
+export async function getAdministrativeBodiesWithPublicMeetings(cityId: string): Promise<AdministrativeBody[]> {
+    try {
+        return await prisma.administrativeBody.findMany({
+            where: {
+                cityId,
+                meetings: { some: { released: true } },
+            },
+            orderBy: [
+                { type: 'asc' },
+                { name: 'asc' },
+            ],
+        });
+    } catch (error) {
+        console.error('Error fetching administrative bodies with public meetings:', error);
+        throw new Error('Failed to fetch administrative bodies');
+    }
+}
+
 export async function createAdministrativeBody(bodyData: Omit<AdministrativeBody, 'id' | 'createdAt' | 'updatedAt'>): Promise<AdministrativeBody> {
     await withUserAuthorizedToEdit({ cityId: bodyData.cityId });
     try {

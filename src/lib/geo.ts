@@ -183,6 +183,43 @@ export function encodeGeohash([lng, lat]: [number, number], precision = 6): stri
 }
 
 /**
+ * Decode a geohash back to the center [lng, lat] of the cell it represents.
+ * Throws on characters outside the geohash base-32 alphabet.
+ */
+export function decodeGeohashToCenter(geohash: string): [number, number] {
+    let latMin = -90, latMax = 90;
+    let lngMin = -180, lngMax = 180;
+    let even = true; // alternate between longitude (even) and latitude (odd)
+
+    for (const char of geohash.toLowerCase()) {
+        const value = GEOHASH_BASE32.indexOf(char);
+        if (value === -1) throw new Error(`Invalid geohash character: ${char}`);
+        for (let bit = 4; bit >= 0; bit--) {
+            const isSet = (value >> bit) & 1;
+            if (even) {
+                const mid = (lngMin + lngMax) / 2;
+                if (isSet) lngMin = mid; else lngMax = mid;
+            } else {
+                const mid = (latMin + latMax) / 2;
+                if (isSet) latMin = mid; else latMax = mid;
+            }
+            even = !even;
+        }
+    }
+
+    return [(lngMin + lngMax) / 2, (latMin + latMax) / 2];
+}
+
+/** True when `value` is a syntactically valid geohash of the expected precision (length). */
+export function isValidGeohash(value: string, precision = 6): boolean {
+    if (value.length !== precision) return false;
+    for (const char of value.toLowerCase()) {
+        if (!GEOHASH_BASE32.includes(char)) return false;
+    }
+    return true;
+}
+
+/**
  * Calculate the great-circle distance between two [lng, lat] points using the Haversine formula.
  * Returns distance in meters.
  */

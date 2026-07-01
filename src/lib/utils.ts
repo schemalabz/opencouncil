@@ -6,6 +6,7 @@ import { SubjectWithRelations } from "./db/subject";
 import { default as greekKlitiki } from "greek-name-klitiki";
 import { Transcript } from "./db/transcript";
 import { VideoIcon, AudioLines, FileText, Ban, LucideIcon } from "lucide-react";
+import { rankSubjects, type RankableSubject } from "./ranking/subjects";
 
 // Export time formatters from the new location
 export {
@@ -158,35 +159,44 @@ interface SortableSubject {
   contributions?: unknown[];
 }
 
+// Speaker-contribution count for a subject. Prefer the aggregated
+// _count.contributions (server shape); fall back to the full contributions
+// array length (client shape from CouncilMeetingDataContext). This is the
+// "discussion" signal fed into the shared ranker.
+export function getContributionCount(subject: {
+  _count?: { contributions?: number };
+  contributions?: unknown[];
+}): number {
+  return subject._count?.contributions ?? subject.contributions?.length ?? 0;
+}
+
+// Adapt a subject for the shared ranker in single-meeting contexts: only the
+// contribution count varies (recency / municipality / admin-body all collapse
+// to zero variance within one meeting), so this degenerates to a z-scored
+// contribution count — order-equivalent to the raw count, but routed through
+// the one standard ranking primitive (src/lib/ranking/subjects.ts).
+const toRankableInMeeting = (s: SortableSubject): RankableSubject => ({
+  contributionCount: getContributionCount(s),
+});
+
+// Importance score per subject, keyed by reference. `location` weight is zeroed
+// so the existing agenda tiebreakers stay authoritative — within a single
+// meeting nothing but discussion contributes, keeping ordering behavior-preserving.
+function importanceScores<T extends SortableSubject>(subjects: T[]): Map<T, number> {
+  const scores = new Map<T, number>();
+  for (const { item, score } of rankSubjects(subjects, toRankableInMeeting, { weights: { location: 0 } })) {
+    scores.set(item, score);
+  }
+  return scores;
+}
+
 export function sortSubjectsByImportance<T extends SortableSubject>(
   subjects: T[],
   orderBy: 'importance' | 'appearance' = 'importance'
 ) {
-  return [...subjects].sort((a, b) => {
-    if (orderBy === 'importance') {
-      // 1. Agenda status: beforeAgenda sorts last;
-      //    outOfAgenda and regular agenda items are treated equally
-      const aIsBeforeAgenda = a.nonAgendaReason === 'beforeAgenda' ? 1 : 0;
-      const bIsBeforeAgenda = b.nonAgendaReason === 'beforeAgenda' ? 1 : 0;
-      if (aIsBeforeAgenda !== bIsBeforeAgenda) return aIsBeforeAgenda - bIsBeforeAgenda;
-
-      // 2. Number of speaker contributions (descending). Prefer the aggregated
-      //    _count.contributions (server shape); fall back to the full contributions
-      //    array length (client shape from CouncilMeetingDataContext).
-      const aContributions = a._count?.contributions ?? a.contributions?.length ?? 0;
-      const bContributions = b._count?.contributions ?? b.contributions?.length ?? 0;
-      if (aContributions !== bContributions) return bContributions - aContributions;
-
-      // 3. Agenda item index (ascending), non-agenda items sort after agenda items
-      const aIndex = a.agendaItemIndex ?? Infinity;
-      const bIndex = b.agendaItemIndex ?? Infinity;
-      if (aIndex !== bIndex) return aIndex - bIndex;
-
-      // Final tie-breaker: alphabetical by name
-      return a.name.localeCompare(b.name);
-    } else if (orderBy === 'appearance') {
+  if (orderBy === 'appearance') {
+    return [...subjects].sort((a, b) => {
       // For appearance order, use speaker segment timestamps
-
       if (a.speakerSegments?.length && b.speakerSegments?.length) {
         const getTimestamp = (s: Record<string, unknown>) =>
           (s.startTimestamp as number) || ((s.speakerSegment as Record<string, unknown>)?.startTimestamp as number) || 0;
@@ -205,8 +215,29 @@ export function sortSubjectsByImportance<T extends SortableSubject>(
       if (aIndex !== bIndex) return aIndex - bIndex;
 
       return a.name.localeCompare(b.name);
-    }
+    });
+  }
 
+  // Importance order: primary signal from the shared ranker, agenda rules preserved.
+  const scores = importanceScores(subjects);
+  return [...subjects].sort((a, b) => {
+    // 1. Agenda status: beforeAgenda sorts last;
+    //    outOfAgenda and regular agenda items are treated equally
+    const aIsBeforeAgenda = a.nonAgendaReason === 'beforeAgenda' ? 1 : 0;
+    const bIsBeforeAgenda = b.nonAgendaReason === 'beforeAgenda' ? 1 : 0;
+    if (aIsBeforeAgenda !== bIsBeforeAgenda) return aIsBeforeAgenda - bIsBeforeAgenda;
+
+    // 2. Importance score (descending) — z-scored speaker contributions
+    const aScore = scores.get(a) ?? 0;
+    const bScore = scores.get(b) ?? 0;
+    if (aScore !== bScore) return bScore - aScore;
+
+    // 3. Agenda item index (ascending), non-agenda items sort after agenda items
+    const aIndex = a.agendaItemIndex ?? Infinity;
+    const bIndex = b.agendaItemIndex ?? Infinity;
+    if (aIndex !== bIndex) return aIndex - bIndex;
+
+    // Final tie-breaker: alphabetical by name
     return a.name.localeCompare(b.name);
   });
 }
@@ -222,11 +253,12 @@ function topicImportanceRank(value?: string | null): number {
 }
 
 export function sortSubjectsBySpeakerContributionCount<T extends SortableSubject>(subjects: T[]): T[] {
+  const scores = importanceScores(subjects);
   return [...subjects].sort((a, b) => {
-    // Accept either server (_count.contributions) or client (contributions[]) shape.
-    const aCount = a._count?.contributions ?? a.contributions?.length ?? 0;
-    const bCount = b._count?.contributions ?? b.contributions?.length ?? 0;
-    if (bCount !== aCount) return bCount - aCount;
+    // Primary signal from the shared ranker (z-scored speaker contributions).
+    const aScore = scores.get(a) ?? 0;
+    const bScore = scores.get(b) ?? 0;
+    if (aScore !== bScore) return bScore - aScore;
 
     // Tie-breakers when contribution counts are equal — notably before summarization,
     // when every subject has zero contributions. Fall back to meaningful agenda signals

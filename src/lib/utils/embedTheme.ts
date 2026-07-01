@@ -74,6 +74,42 @@ const RADIUS_MAP: Record<EmbedRadius, string> = {
     pill: '16px',
 };
 
+/** App design-token overrides so a shared app component picks up the widget theming. */
+export interface AppThemeShim {
+    /** CSS custom properties (shadcn HSL tokens) to spread onto the embed root. */
+    vars: Record<string, string>;
+    /** Whether to add the `dark` class so the app's dark tokens apply to the subtree. */
+    dark: boolean;
+}
+
+/** shadcn `--radius` values for each embed radius choice. */
+const APP_RADIUS_MAP: Record<EmbedRadius, string> = {
+    sharp: '0rem',
+    rounded: '0.5rem',
+    pill: '1rem',
+};
+
+/**
+ * Map the embed appearance controls onto the app's design tokens, so the shared
+ * SubjectCardContent (which uses app Tailwind tokens) respects the chosen accent
+ * / dark mode / radius inside the widget iframe. Base tokens (background, card,
+ * border, …) come from the app's `.dark` class; we only override the accent hue
+ * and the radius.
+ */
+export function generateAppThemeShim(accent: string, mode: EmbedMode, radius: EmbedRadius): AppThemeShim {
+    const [r, g, b] = hexToRgb(accent);
+    const [h, s, l] = rgbToHsl(r, g, b);
+    const hsl = `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+    return {
+        vars: {
+            '--primary': hsl,
+            '--ring': hsl,
+            '--radius': APP_RADIUS_MAP[radius],
+        },
+        dark: mode === 'dark',
+    };
+}
+
 export function parseAccentColor(raw: string | null | undefined): string {
     if (!raw) return DEFAULT_ACCENT;
     const cleaned = raw.startsWith('#') ? raw : `#${raw}`;
