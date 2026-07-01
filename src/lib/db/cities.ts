@@ -118,6 +118,37 @@ export async function getCity(
     }
 }
 
+/**
+ * The municipality whose boundary contains a point (lng/lat, WGS84). Used to highlight a
+ * clicked municipality on the map without loading every boundary up front. The geometry
+ * is simplified to keep the payload small; smallest matching polygon wins on overlaps.
+ */
+export async function getCityAtPoint(
+    lng: number,
+    lat: number,
+): Promise<{ id: string; name: string; name_municipality: string; officialSupport: boolean; geometry: GeoJSON.Geometry } | null> {
+    const rows = await prisma.$queryRaw<
+        Array<{ id: string; name: string; name_municipality: string; officialSupport: boolean; geometry: string }>
+    >`
+        SELECT id, name, name_municipality, "officialSupport",
+               ST_AsGeoJSON(ST_SimplifyPreserveTopology(geometry, 0.0005)) AS geometry
+        FROM "City"
+        WHERE geometry IS NOT NULL
+          AND ST_Intersects(geometry, ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326))
+        ORDER BY ST_Area(geometry) ASC
+        LIMIT 1
+    `;
+    const row = rows[0];
+    if (!row?.geometry) return null;
+    return {
+        id: row.id,
+        name: row.name,
+        name_municipality: row.name_municipality,
+        officialSupport: row.officialSupport,
+        geometry: JSON.parse(row.geometry) as GeoJSON.Geometry,
+    };
+}
+
 export async function getFullCity(
     cityId: string,
     options?: CityGeometryOptions
