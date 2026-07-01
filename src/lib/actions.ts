@@ -14,8 +14,10 @@ export async function getPlaceSuggestions(data: {
     input: string;
     cityName?: string;
     location?: string; // Format: "lat,lng"
+    country?: string;  // ISO 3166-1 country to restrict results to (defaults to Greece)
+    language?: string; // Response language (defaults to Greek)
 }): Promise<Result<any>> {
-    const { input, cityName, location } = data;
+    const { input, cityName, location, country = 'gr', language = 'el' } = data;
 
     if (!input) {
         return createError('Input parameter is required');
@@ -49,8 +51,8 @@ export async function getPlaceSuggestions(data: {
         const response = await axios.get('https://maps.googleapis.com/maps/api/place/autocomplete/json', {
             params: {
                 input: searchInput,
-                components: 'country:gr',
-                language: 'el',
+                components: `country:${country}`,
+                language,
                 key: env.GOOGLE_API_KEY,
                 ...locationParams
             },
@@ -79,8 +81,8 @@ export async function getPlaceSuggestions(data: {
 /**
  * Server action to get place details from Google Places API
  */
-export async function getPlaceDetails(data: { placeId: string }): Promise<Result<any>> {
-    const { placeId } = data;
+export async function getPlaceDetails(data: { placeId: string; language?: string }): Promise<Result<any>> {
+    const { placeId, language = 'el' } = data;
 
     if (!placeId) {
         return createError('placeId parameter is required');
@@ -97,7 +99,7 @@ export async function getPlaceDetails(data: { placeId: string }): Promise<Result
             params: {
                 place_id: placeId,
                 fields: 'geometry,formatted_address,name,address_components',
-                language: 'el',
+                language,
                 key: env.GOOGLE_API_KEY
             },
             timeout: 5000 // Set timeout to 5 seconds

@@ -30,7 +30,8 @@ export type PlaceSuggestionsResult = ApiResult<PlaceSuggestion[], PlaceSuggestio
 export async function getPlaceSuggestions(
     input: string,
     cityName?: string,
-    cityCoordinates?: [number, number] // In format [lng, lat]
+    cityCoordinates?: [number, number], // In format [lng, lat]
+    geocoding?: { country: string; language: string } // Country/language restriction (defaults to Greece server-side)
 ): Promise<PlaceSuggestionsResult> {
     if (!input || input.trim().length < 2) {
         return { data: [] };
@@ -41,6 +42,7 @@ export async function getPlaceSuggestions(
         const result = await fetchPlaceSuggestions({
             input: input.trim(),
             cityName,
+            ...(geocoding && { country: geocoding.country, language: geocoding.language }),
             // Pass coordinates if available (format: "lat,lng")
             ...(cityCoordinates && {
                 location: `${cityCoordinates[1]},${cityCoordinates[0]}`, // Convert [lng, lat] to "lat,lng"
@@ -105,14 +107,14 @@ export async function getPlaceSuggestions(
 /**
  * Get place details from a place ID
  */
-export async function getPlaceDetails(placeId: string): Promise<{ text: string; coordinates: [number, number] } | null> {
+export async function getPlaceDetails(placeId: string, language?: string): Promise<{ text: string; coordinates: [number, number] } | null> {
     if (!placeId) {
         return null;
     }
 
     try {
         // Call the server action to get place details
-        const result = await fetchPlaceDetails({ placeId });
+        const result = await fetchPlaceDetails({ placeId, ...(language && { language }) });
 
         // Check if the server action failed
         if (!result.success) {

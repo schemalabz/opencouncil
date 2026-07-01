@@ -27,15 +27,15 @@ export function NotificationInfoStep({
 
     return (
         <OnboardingStepTemplate
-            title="Μάθε τι συμβαίνει στον δήμο σου"
+            title={t('notification.infoTitle')}
             description={
                 <div className="space-y-4 text-gray-600">
                     <p>
-                        Με το OpenCouncil μπορείς να λαμβάνεις προσωποποιημένες ενημερώσεις για τα θέματα που σε ενδιαφέρουν — πριν ή αφού συζητηθούν στο δημοτικό συμβούλιο.
+                        {t('notification.infoBody1')}
                     </p>
                     {!existingPreference && (
                         <p>
-                            Στα επόμενα βήματα, θα επιλέξεις τις περιοχές και τα θέματα που σε ενδιαφέρουν. Με βάση αυτές τις επιλογές, θα λαμβάνεις ενημερώσεις στο email ή το κινητό σου, με όσα πραγματικά έχουν σημασία για εσένα.
+                            {t('notification.infoBody2')}
                         </p>
                     )}
                     <p className="flex items-start gap-2 text-sm">
@@ -50,7 +50,7 @@ export function NotificationInfoStep({
                     totalSteps={totalSteps}
                     onBack={onBack}
                     onAction={onContinue}
-                    actionLabel={existingPreference ? "Ενημέρωση" : "Συνέχεια"}
+                    actionLabel={existingPreference ? t('update') : t('continue')}
                 />
             }
         >
@@ -58,7 +58,7 @@ export function NotificationInfoStep({
                 <div className="space-y-6 mt-6">
                     <div className="flex items-center gap-2 text-green-700 mb-4">
                         <CheckCircle2 className="h-5 w-5" />
-                        <h3 className="font-medium">Έχετε ήδη εγγραφεί για ειδοποιήσεις</h3>
+                        <h3 className="font-medium">{t('notification.alreadySubscribedTitle')}</h3>
                     </div>
 
                     <PreferencesOverview
@@ -68,7 +68,7 @@ export function NotificationInfoStep({
 
                     <div className="text-center">
                         <p className="text-sm text-gray-600 mb-4">
-                            Μπορείτε να ενημερώσετε τις προτιμήσεις σας επιλέγοντας νέες τοποθεσίες και θέματα.
+                            {t('notification.updatePreferencesNote')}
                         </p>
                     </div>
                 </div>

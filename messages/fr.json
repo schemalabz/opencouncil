@@ -33,6 +33,7 @@
         "emptyMessage": "Aucune commune trouvée avec ce nom."
     },
     "Common": {
+        "aiGenerated": "Texte généré par IA",
         "skipToContent": "Aller au contenu principal",
         "search": "Rechercher",
         "collapse": "Réduire",
@@ -43,7 +44,22 @@
         "transcript": "Transcription",
         "meetingNavigation": "Navigation dans la séance",
         "searchAddressInMunicipality": "Rechercher une adresse dans {cityName}",
+        "searchAddressPlaceholder": "Rechercher une adresse dans {cityName}…",
         "addNewLocation": "Ajouter un nouvel emplacement",
+        "selectedLocationsCount": "Emplacements sélectionnés ({count})",
+        "remove": "Supprimer",
+        "removeShort": "Suppr.",
+        "noLocationsSelected": "Vous n'avez pas encore sélectionné d'emplacement.",
+        "noLocationsHint": "Utilisez la recherche pour ajouter des emplacements qui vous intéressent.",
+        "locationLabel": "Emplacement {index}",
+        "locationSearchNoResults": "Aucun résultat trouvé pour « {query} » dans {cityName}",
+        "locationSearchUnavailable": "Le service de recherche d'emplacements est actuellement indisponible. Veuillez réessayer plus tard.",
+        "locationSearchLimitExceeded": "La limite de recherches a été dépassée. Veuillez réessayer plus tard.",
+        "locationSearchApiError": "Erreur du service de recherche ({status}). Veuillez réessayer.",
+        "locationSearchNetworkError": "Problème de connexion. Veuillez vérifier votre connexion Internet et réessayer.",
+        "locationSearchGenericError": "Erreur lors de la recherche d'emplacements. Veuillez réessayer.",
+        "locationDetailsUnavailable": "Impossible de récupérer les détails de l'emplacement.",
+        "locationDetailsError": "Erreur lors de la récupération des détails de l'emplacement.",
         "allTopics": "Tous les thèmes",
         "allMeetings": "Toutes",
         "adminBodyType_council": "Conseils municipaux",
@@ -77,6 +93,12 @@
         "meetings": "séances"
     },
     "Header": {
+        "account": "Compte",
+        "canEditPage": "Vous pouvez modifier cette page",
+        "profile": "Profil",
+        "signOut": "Se déconnecter",
+        "greeting": "👋 Salut !",
+        "greetingNamed": "👋 Salut {name} !",
         "about": "Pour les communes",
         "search": "Rechercher",
         "login": "Connexion",
@@ -574,6 +596,15 @@
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {Aucune séance} =1 {1 séance} other {# séances}}",
+        "pages": {
+            "overview": "Aperçu",
+            "map": "Carte",
+            "transcript": "Transcription",
+            "highlights": "Moments forts",
+            "settings": "Paramètres",
+            "admin": "Gestion",
+            "subjects": "Sujets"
+        },
         "searchItems": "Rechercher des séances",
         "item": "séance",
         "addItem": "Ajouter une séance",
@@ -770,6 +801,17 @@
         "update": "Mettre à jour",
         "next": "Continuer",
         "nextSubmitting": "Continuer...",
+        "notification": {
+            "infoTitle": "Découvrez ce qui se passe dans votre commune",
+            "infoBody1": "Avec OpenCouncil, vous pouvez recevoir des mises à jour personnalisées sur les sujets qui vous intéressent — avant ou après leur discussion au conseil municipal.",
+            "infoBody2": "Dans les prochaines étapes, vous choisirez les zones et les sujets qui vous intéressent. En fonction de ces choix, vous recevrez des mises à jour par e-mail ou sur votre téléphone, avec ce qui compte vraiment pour vous.",
+            "alreadySubscribedTitle": "Vous êtes déjà abonné aux notifications",
+            "updatePreferencesNote": "Vous pouvez mettre à jour vos préférences en sélectionnant de nouveaux emplacements et sujets.",
+            "topicsTitle": "Sujets d'intérêt",
+            "topicsDescription": "Choisissez les sujets pour lesquels vous souhaitez recevoir des mises à jour",
+            "locationsTitle": "Emplacements d'intérêt",
+            "locationsDescription": "Ajoutez des adresses ou des zones qui vous intéressent — par ex. votre domicile, votre travail, un quartier ou une zone de la commune."
+        },
         "petition": {
             "infoTitle": "{city} n'est pas encore sur le réseau OpenCouncil",
             "infoBody": "Vous pouvez nous aider à amener votre commune sur OpenCouncil en nous autorisant à utiliser votre nom lorsque nous parlons à la commune, en tant qu'habitant qui souhaiterait avoir OpenCouncil dans sa commune.",
@@ -926,6 +968,31 @@
         "importErrorDescription": "Impossible de lire le fichier. Sélectionnez un fichier JSON d'ordre d'élection valide."
     },
     "Subject": {
+        "webInfo": "Informations issues du web",
+        "sources": "Sources ({count})",
+        "whatIsThis": "Qu'est-ce que cela signifie ?",
+        "noLocation": "Aucun emplacement",
+        "count": "{count, plural, =1 {1 point} other {# points}}",
+        "showAll": "Tout afficher ({count})",
+        "sortByMostDiscussed": "Les plus discutés",
+        "sortByAgendaOrder": "Ordre de séance",
+        "categories": {
+            "beforeAgenda": {
+                "label": "Avant l'ordre du jour, discussion et annonces",
+                "shortLabel": "Avant l'ordre du jour",
+                "explainerText": "Ces points sont des annonces, des questions et des discussions sans vote ni décision, généralement en début de séance."
+            },
+            "outOfAgenda": {
+                "label": "Points hors ordre du jour",
+                "shortLabel": "Hors ordre du jour",
+                "explainerText": "Les points hors ordre du jour sont des points urgents qui n'ont pas pu être inscrits à l'ordre du jour de la séance. Le conseil vote d'abord sur leur caractère urgent, puis sur le fond du point."
+            },
+            "agenda": {
+                "label": "Points à l'ordre du jour",
+                "shortLabel": "Ordre du jour",
+                "explainerText": "Les points à l'ordre du jour sont discutés et votés par le conseil et constituent la partie principale de la séance."
+            }
+        },
         "agendaItem": "Point n°{index}",
         "backToMeetingNamed": "Retour à la séance : {meeting}",
         "partOf": "Fait partie de la séance",

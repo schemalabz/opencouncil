@@ -1,9 +1,11 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { MapFeature } from '@/components/map/map';
 import { calculateMapView } from '@/lib/geo';
+import { getRealmDefaultMapView } from '@/lib/realm';
 import Map from '@/components/map/map';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -12,6 +14,7 @@ import { useMediaQuery } from '@/hooks/use-media-query';
 
 export function MapContainer() {
     const isDesktop = useMediaQuery('(min-width: 1024px)');
+    const t = useTranslations('Common');
     const { 
         city, 
         selectedLocations, 
@@ -63,24 +66,22 @@ export function MapContainer() {
                     fillOpacity: 0.8,
                     strokeColor: '#B91C1C',
                     strokeWidth: 6,
-                    label: location.text || `Τοποθεσία ${index + 1}`
+                    label: location.text || t('locationLabel', { index: index + 1 })
                 }
             };
         }).filter(Boolean) as MapFeature[];
 
         return [cityFeature, ...locationFeatures];
-    }, [city, selectedLocations]);
+    }, [city, selectedLocations, t]);
 
-    // Derive map center and zoom from city geometry
+    // Derive map center and zoom from city geometry, falling back to the city's
+    // realm (so a French city with no geometry opens over France, not Athens).
     const { center: mapCenter, zoom: mapZoom } = useMemo(() => {
         if (!city?.geometry) {
-            return {
-                center: [23.7275, 37.9838] as [number, number],
-                zoom: 6
-            };
+            return getRealmDefaultMapView(city?.realm ?? 'greece');
         }
         return calculateMapView(city.geometry);
-    }, [city?.geometry]);
+    }, [city?.geometry, city?.realm]);
 
     // Zoom to fit: city boundary initially, then all locations as they're added
     const zoomTarget = useMemo((): GeoJSON.Geometry | null => {

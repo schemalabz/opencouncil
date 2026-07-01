@@ -4,6 +4,7 @@ import { LocationSelector } from '@/components/onboarding/selectors/LocationSele
 import { Location } from '@/lib/types/onboarding';
 import { OnboardingStepTemplate } from '@/components/onboarding/OnboardingStepTemplate';
 import { OnboardingFooter } from '@/components/onboarding/OnboardingFooter';
+import { useTranslations } from 'next-intl';
 
 interface NotificationLocationStepProps {
   currentStep: number;
@@ -18,6 +19,7 @@ export function NotificationLocationStep({ currentStep, totalSteps, onBack, onCo
     selectedLocations,
     setSelectedLocations,
   } = useOnboarding();
+  const t = useTranslations('Onboarding');
 
   if (!city) return null;
 
@@ -31,15 +33,15 @@ export function NotificationLocationStep({ currentStep, totalSteps, onBack, onCo
 
   return (
     <OnboardingStepTemplate
-      title="Τοποθεσίες ενδιαφέροντος"
-      description={`Προσθέστε διευθύνσεις ή περιοχές που σας ενδιαφέρουν — π.χ. το σπίτι, το γραφείο, μια γειτονιά ή περιοχή του δήμου.`}
+      title={t('notification.locationsTitle')}
+      description={t('notification.locationsDescription')}
       footer={
         <OnboardingFooter
           currentStep={currentStep}
           totalSteps={totalSteps}
           onBack={onBack}
           onAction={onContinue}
-          actionLabel="Συνέχεια"
+          actionLabel={t('continue')}
         />
       }
     >

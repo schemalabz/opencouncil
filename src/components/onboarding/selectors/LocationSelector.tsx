@@ -10,6 +10,7 @@ import { useDebounce } from '@/hooks/use-debounce';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
 import { calculateGeometryBounds } from '@/lib/geo';
+import { getRealmGeocoding } from '@/lib/realm';
 import { CityWithGeometry } from '@/lib/db/cities';
 
 interface LocationSelectorProps {
@@ -59,24 +60,24 @@ export function LocationSelector({
     const getErrorMessage = useCallback((result: PlaceSuggestionsResult, searchQuery: string): string => {
         if (!result.error) {
             // No API error, just empty results
-            return `Δεν βρέθηκαν αποτελέσματα για "${searchQuery}" στον δήμο ${city.name}`;
+            return t('locationSearchNoResults', { query: searchQuery, cityName: city.name });
         }
 
         // Handle different types of API errors
         if (result.error.type === 'API_ERROR') {
             if (result.error.status === 'REQUEST_DENIED') {
-                return 'Η υπηρεσία αναζήτησης τοποθεσιών δεν είναι διαθέσιμη προς το παρόν. Παρακαλώ δοκιμάστε ξανά αργότερα.';
+                return t('locationSearchUnavailable');
             } else if (result.error.status === 'OVER_QUERY_LIMIT') {
-                return 'Έχει γίνει υπέρβαση του ορίου αναζητήσεων. Παρακαλώ δοκιμάστε ξανά αργότερα.';
+                return t('locationSearchLimitExceeded');
             } else {
-                return `Σφάλμα υπηρεσίας αναζήτησης (${result.error.status}). Παρακαλώ δοκιμάστε ξανά.`;
+                return t('locationSearchApiError', { status: result.error.status ?? '' });
             }
         } else if (result.error.type === 'NETWORK_ERROR') {
-            return 'Πρόβλημα σύνδεσης. Παρακαλώ ελέγξτε τη σύνδεσή σας στο διαδίκτυο και δοκιμάστε ξανά.';
+            return t('locationSearchNetworkError');
         }
 
-        return 'Σφάλμα κατά την αναζήτηση τοποθεσιών. Παρακαλώ δοκιμάστε ξανά.';
-    }, [city.name]);
+        return t('locationSearchGenericError');
+    }, [city.name, t]);
 
     // Fetch place suggestions from the Google API
     useEffect(() => {
@@ -97,11 +98,14 @@ export function LocationSelector({
                         cityCoordinates = center;
                     }
 
-                    // Pass the city name and coordinates to restrict suggestions to this municipality
+                    // Pass the city name and coordinates to restrict suggestions to this
+                    // municipality, plus the realm's country/language so a French city
+                    // searches French addresses (not Greek ones).
                     const result = await getPlaceSuggestions(
                         debouncedInputValue,
                         city.name,
-                        cityCoordinates
+                        cityCoordinates,
+                        getRealmGeocoding(city.realm)
                     );
 
                     setSuggestions(result.data);
@@ -112,7 +116,7 @@ export function LocationSelector({
                     }
                 } catch (error) {
                     console.error('Unexpected error fetching place suggestions:', error);
-                    setError('Απροσδόκητο σφάλμα κατά την αναζήτηση. Παρακαλώ δοκιμάστε ξανά.');
+                    setError(t('locationSearchGenericError'));
                 } finally {
                     setIsLoadingSuggestions(false);
                     // Don't refocus on mobile - it causes the keyboard to dismiss
@@ -124,7 +128,7 @@ export function LocationSelector({
         }
 
         fetchSuggestions();
-    }, [debouncedInputValue, city.name, city.geometry, getErrorMessage]);
+    }, [debouncedInputValue, city.name, city.geometry, city.realm, getErrorMessage, t]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = e.target.value;
@@ -147,7 +151,7 @@ export function LocationSelector({
         setError(null);
 
         try {
-            const placeDetails = await getPlaceDetails(suggestion.placeId);
+            const placeDetails = await getPlaceDetails(suggestion.placeId, getRealmGeocoding(city.realm).language);
 
             if (placeDetails) {
                 const location: Location = {
@@ -165,11 +169,11 @@ export function LocationSelector({
                     setIsSearchVisible(false);
                 }
             } else {
-                setError('Δεν ήταν δυνατή η ανάκτηση των λεπτομερειών της τοποθεσίας.');
+                setError(t('locationDetailsUnavailable'));
             }
         } catch (error) {
             console.error('Error fetching place details:', error);
-            setError('Σφάλμα κατά την ανάκτηση των λεπτομερειών της τοποθεσίας.');
+            setError(t('locationDetailsError'));
         } finally {
             setIsSelectingLocation(false);
         }
@@ -209,7 +213,7 @@ export function LocationSelector({
                             data-1p-ignore
                             data-lpignore="true"
                             data-form-type="other"
-                            placeholder={`Αναζητήστε διεύθυνση στον δήμο ${city.name}...`}
+                            placeholder={t('searchAddressPlaceholder', { cityName: city.name })}
                             aria-label={t('searchAddressInMunicipality', { cityName: city.name })}
                             className={`pl-10 py-5 text-base md:text-sm ${(isLoadingSuggestions || isSelectingLocation || isWaitingForDebounce) ? 'pr-10' : ''}`}
                             value={inputValue}
@@ -272,7 +276,7 @@ export function LocationSelector({
 
             {!hideSelectedList && (selectedLocations.length > 0 ? (
                 <div className="mt-4">
-                    <div className="text-sm font-medium text-gray-700 mb-2">Επιλεγμένες τοποθεσίες ({selectedLocations.length})</div>
+                    <div className="text-sm font-medium text-gray-700 mb-2">{t('selectedLocationsCount', { count: selectedLocations.length })}</div>
                     <div className="grid grid-cols-1 gap-2">
                         {selectedLocations.map((location, index) => (
                             <div
@@ -295,8 +299,8 @@ export function LocationSelector({
                                     }}
                                 >
                                     <X className="h-4 w-4 md:h-3 md:w-3 mr-1" />
-                                    <span className="hidden sm:inline">Αφαίρεση</span>
-                                    <span className="sm:hidden">Αφαίρ.</span>
+                                    <span className="hidden sm:inline">{t('remove')}</span>
+                                    <span className="sm:hidden">{t('removeShort')}</span>
                                 </Button>
                             </div>
                         ))}
@@ -305,8 +309,8 @@ export function LocationSelector({
             ) : (
                 <div className="mt-6 text-center p-6 border border-dashed border-gray-300 rounded-lg bg-gray-50">
                     <MapPin className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                    <p className="text-gray-500 text-sm">Δεν έχετε επιλέξει τοποθεσίες ακόμα.</p>
-                    <p className="text-gray-500 text-xs mt-1">Χρησιμοποιήστε την αναζήτηση για να προσθέσετε τοποθεσίες ενδιαφέροντος.</p>
+                    <p className="text-gray-500 text-sm">{t('noLocationsSelected')}</p>
+                    <p className="text-gray-500 text-xs mt-1">{t('noLocationsHint')}</p>
                 </div>
             ))}
         </div>

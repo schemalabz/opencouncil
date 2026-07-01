@@ -33,6 +33,7 @@
         "emptyMessage": "No municipality found with that name."
     },
     "Common": {
+        "aiGenerated": "AI-generated text",
         "skipToContent": "Skip to main content",
         "search": "Search",
         "collapse": "Collapse",
@@ -43,7 +44,22 @@
         "transcript": "Transcript",
         "meetingNavigation": "Meeting navigation",
         "searchAddressInMunicipality": "Search address in {cityName}",
+        "searchAddressPlaceholder": "Search address in {cityName}…",
         "addNewLocation": "Add a new location",
+        "selectedLocationsCount": "Selected locations ({count})",
+        "remove": "Remove",
+        "removeShort": "Remove",
+        "noLocationsSelected": "You haven't selected any locations yet.",
+        "noLocationsHint": "Use the search to add locations of interest.",
+        "locationLabel": "Location {index}",
+        "locationSearchNoResults": "No results found for \"{query}\" in {cityName}",
+        "locationSearchUnavailable": "The location search service is currently unavailable. Please try again later.",
+        "locationSearchLimitExceeded": "The search limit has been exceeded. Please try again later.",
+        "locationSearchApiError": "Location search error ({status}). Please try again.",
+        "locationSearchNetworkError": "Connection problem. Please check your internet connection and try again.",
+        "locationSearchGenericError": "Error searching for locations. Please try again.",
+        "locationDetailsUnavailable": "Couldn't retrieve the location details.",
+        "locationDetailsError": "Error retrieving the location details.",
         "allTopics": "All Topics",
         "allMeetings": "All",
         "adminBodyType_council": "Councils",
@@ -63,6 +79,12 @@
         "meetings": "meetings"
     },
     "Header": {
+        "account": "Account",
+        "canEditPage": "You can edit this page",
+        "profile": "Profile",
+        "signOut": "Sign out",
+        "greeting": "👋 Hi!",
+        "greetingNamed": "👋 Hi {name}!",
         "about": "For Municipalities",
         "search": "Search",
         "login": "Sign in",
@@ -443,6 +465,17 @@
         "update": "Update",
         "next": "Continue",
         "nextSubmitting": "Continuing...",
+        "notification": {
+            "infoTitle": "Find out what's happening in your municipality",
+            "infoBody1": "With OpenCouncil you can receive personalized updates about the topics that interest you — before or after they're discussed in the council.",
+            "infoBody2": "In the next steps, you'll choose the areas and topics that interest you. Based on those choices, you'll receive updates by email or on your phone, with what really matters to you.",
+            "alreadySubscribedTitle": "You're already subscribed to notifications",
+            "updatePreferencesNote": "You can update your preferences by selecting new locations and topics.",
+            "topicsTitle": "Topics of interest",
+            "topicsDescription": "Choose topics you'd like to receive updates about",
+            "locationsTitle": "Locations of interest",
+            "locationsDescription": "Add addresses or areas you care about — e.g. home, work, a neighborhood or an area of the municipality."
+        },
         "petition": {
             "infoTitle": "{city} isn't on the OpenCouncil network yet",
             "infoBody": "You can help us bring your municipality to OpenCouncil by letting us use your name when we talk to the municipality, as a resident who would like to have OpenCouncil in their town.",
@@ -947,6 +980,31 @@
         "importErrorDescription": "Could not parse the selected file. Please select a valid elected order JSON file."
     },
     "Subject": {
+        "webInfo": "Information from the web",
+        "sources": "Sources ({count})",
+        "whatIsThis": "What does this mean?",
+        "noLocation": "No location",
+        "count": "{count, plural, =1 {1 subject} other {# subjects}}",
+        "showAll": "Show all ({count})",
+        "sortByMostDiscussed": "Most discussed",
+        "sortByAgendaOrder": "Agenda order",
+        "categories": {
+            "beforeAgenda": {
+                "label": "Pre-agenda, discussion and announcements",
+                "shortLabel": "Pre-agenda",
+                "explainerText": "These items are announcements, questions and discussion with no vote and no decisions taken, usually at the start of the meeting."
+            },
+            "outOfAgenda": {
+                "label": "Off-agenda items",
+                "shortLabel": "Off-agenda",
+                "explainerText": "Off-agenda items are urgent items that couldn't be included in the meeting's agenda. The body votes on them, first on their urgency and then on the substance of the item."
+            },
+            "agenda": {
+                "label": "Agenda items",
+                "shortLabel": "Agenda",
+                "explainerText": "Agenda items are discussed and voted on by the body and form the main part of the meeting."
+            }
+        },
         "agendaItem": "Subject #{index}",
         "backToMeetingNamed": "Back to meeting: {meeting}",
         "partOf": "Part of the meeting",
@@ -1012,6 +1070,15 @@
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {No meetings} =1 {1 meeting} other {# meetings}}",
+        "pages": {
+            "overview": "Overview",
+            "map": "Map",
+            "transcript": "Transcript",
+            "highlights": "Highlights",
+            "settings": "Settings",
+            "admin": "Management",
+            "subjects": "Subjects"
+        },
         "searchItems": "Search meetings",
         "item": "meeting",
         "addItem": "Add Meeting",
