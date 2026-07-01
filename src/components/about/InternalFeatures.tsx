@@ -1,11 +1,12 @@
 import { motion } from 'framer-motion'
 import { ArrowRight } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import type { Realm } from '@prisma/client'
 import { Link } from '@/i18n/routing'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { INTERNAL_FEATURES } from './config'
+import { INTERNAL_FEATURES, demoUrlForRealm } from './config'
 
-export default function InternalFeatures() {
+export default function InternalFeatures({ realm }: { realm: Realm }) {
     const t = useTranslations('about.internal')
 
     return (
@@ -30,6 +31,7 @@ export default function InternalFeatures() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                     {INTERNAL_FEATURES.map((feature, index) => {
                         const targetDate = t.has(`features.${feature.id}.targetDate`) ? t(`features.${feature.id}.targetDate`) : undefined
+                        const demoUrl = demoUrlForRealm(feature, realm)
                         return (
                             <motion.div
                                 key={feature.id}
@@ -68,9 +70,9 @@ export default function InternalFeatures() {
                                         <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
                                             {t(`features.${feature.id}.description`)}
                                         </p>
-                                        {feature.demoUrl && feature.status === 'live' && (
+                                        {demoUrl && feature.status === 'live' && (
                                             <Link
-                                                href={feature.demoUrl}
+                                                href={demoUrl}
                                                 className="inline-flex items-center gap-1.5 mt-4 text-sm font-medium text-primary hover:text-primary/80 transition-colors group"
                                             >
                                                 {t('seeExample')}

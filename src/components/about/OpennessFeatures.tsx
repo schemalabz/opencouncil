@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion'
 import { ArrowRight } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import type { Realm } from '@prisma/client'
 import { Link } from '@/i18n/routing'
-import { OPENNESS_FEATURES } from './config'
+import { OPENNESS_FEATURES, demoUrlForRealm } from './config'
 import type { Feature } from './config'
 import BrowserFrame from './BrowserFrame'
 import SubjectDemo from './SubjectDemo'
@@ -10,7 +11,7 @@ import SearchDemo from './SearchDemo'
 import NotificationDemo from './NotificationDemo'
 import MapDemo from './MapDemo'
 
-function FeatureVisual({ feature }: { feature: Feature }) {
+function FeatureVisual({ feature, realm }: { feature: Feature; realm: Realm }) {
     if (feature.id === 'subjects') {
         return <SubjectDemo />
     }
@@ -28,7 +29,7 @@ function FeatureVisual({ feature }: { feature: Feature }) {
     }
 
     return (
-        <BrowserFrame url={`opencouncil.gr${feature.demoUrl ?? ''}`}>
+        <BrowserFrame url={`opencouncil.gr${demoUrlForRealm(feature, realm) ?? ''}`}>
             <div className="aspect-[4/3] bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
                 <div className="text-center px-6">
                     <div className="mx-auto mb-3 h-5 w-32 rounded bg-gray-200/70 animate-pulse" />
@@ -43,9 +44,10 @@ function FeatureVisual({ feature }: { feature: Feature }) {
     )
 }
 
-function FeatureRow({ feature, index, t }: { feature: Feature; index: number; t: ReturnType<typeof useTranslations> }) {
+function FeatureRow({ feature, index, t, realm }: { feature: Feature; index: number; t: ReturnType<typeof useTranslations>; realm: Realm }) {
     const isReversed = index % 2 === 1
     const demoLabel = t.has(`features.${feature.id}.demoLabel`) ? t(`features.${feature.id}.demoLabel`) : undefined
+    const demoUrl = demoUrlForRealm(feature, realm)
 
     return (
         <motion.div
@@ -75,9 +77,9 @@ function FeatureRow({ feature, index, t }: { feature: Feature; index: number; t:
                 <p className="mt-3 text-base md:text-lg text-muted-foreground leading-relaxed">
                     {t(`features.${feature.id}.description`)}
                 </p>
-                {feature.demoUrl && feature.status === 'live' && (
+                {demoUrl && feature.status === 'live' && (
                     <Link
-                        href={feature.demoUrl}
+                        href={demoUrl}
                         className="inline-flex items-center gap-1.5 mt-5 text-sm font-medium text-primary hover:text-primary/80 transition-colors group"
                     >
                         {demoLabel ?? t('tryIt')}
@@ -88,13 +90,13 @@ function FeatureRow({ feature, index, t }: { feature: Feature; index: number; t:
 
             {/* Visual */}
             <div className={`transition-transform duration-300 hover:scale-[1.01] ${isReversed ? 'md:order-1' : ''}`}>
-                <FeatureVisual feature={feature} />
+                <FeatureVisual feature={feature} realm={realm} />
             </div>
         </motion.div>
     )
 }
 
-export default function OpennessFeatures() {
+export default function OpennessFeatures({ realm }: { realm: Realm }) {
     const t = useTranslations('about.openness')
 
     return (
@@ -117,7 +119,7 @@ export default function OpennessFeatures() {
 
             <div className="space-y-16 md:space-y-24">
                 {OPENNESS_FEATURES.map((feature, index) => (
-                    <FeatureRow key={feature.id} feature={feature} index={index} t={t} />
+                    <FeatureRow key={feature.id} feature={feature} index={index} t={t} realm={realm} />
                 ))}
             </div>
         </section>

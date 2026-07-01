@@ -1,5 +1,6 @@
 import { Mic2, Search, Bell, Map, FileText, ScrollText, Scale, Printer } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import type { Realm } from '@prisma/client'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -9,7 +10,12 @@ export interface Feature {
     id: string
     status: FeatureStatus
     demoUrl?: string
+    demoUrlByRealm?: Partial<Record<Realm, string>>
     icon?: LucideIcon
+}
+
+export function demoUrlForRealm(feature: Feature, realm: Realm): string | undefined {
+    return feature.demoUrlByRealm?.[realm] ?? feature.demoUrl
 }
 
 export interface RecognitionItem {
@@ -40,21 +46,25 @@ export const OPENNESS_FEATURES: Feature[] = [
         id: 'subjects',
         status: 'live',
         demoUrl: '/chania/apr29_2026/subjects/cmocx5sqp03k4grw512nudanu',
+        demoUrlByRealm: { france: '/rennes/apr27_2026/subjects/cmqqzisrq02cvf0yhn637jfr7' },
     },
     {
         id: 'search',
         status: 'live',
         demoUrl: '/search',
+        demoUrlByRealm: { france: '/search' },
     },
     {
         id: 'notifications',
         status: 'live',
         demoUrl: '/athens/notifications',
+        demoUrlByRealm: { france: '/athens/notifications' },
     },
     {
         id: 'map',
         status: 'live',
         demoUrl: '/map',
+        demoUrlByRealm: { france: '/map' },
     },
 ]
 
@@ -63,6 +73,7 @@ export const INTERNAL_FEATURES: Feature[] = [
         id: 'transcription',
         status: 'live',
         demoUrl: '/chania/mar26_2026/transcript',
+        demoUrlByRealm: { france: '/rennes/apr27_2026/transcript' },
         icon: Mic2,
     },
     {
