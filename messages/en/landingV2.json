@@ -1,0 +1,173 @@
+{
+  "common": {
+    "back": "Back",
+    "close": "Close",
+    "clear": "Clear",
+    "clearAll": "Clear all",
+    "search": "Search",
+    "learnMore": "Learn more",
+    "requestToAdd": "Request to add it",
+    "dimosName": "Municipality of {name}"
+  },
+  "nav": {
+    "home": "Home",
+    "subjects": "Subjects",
+    "municipalities": "Municipalities",
+    "more": "More",
+    "menu": "Menu",
+    "menuTitle": "Navigation menu",
+    "subjectsNearYou": "Subjects near you",
+    "collapse": "Collapse",
+    "backToMap": "Back to the map"
+  },
+  "account": {
+    "profile": "Profile",
+    "logout": "Log out",
+    "signOut": "Sign out",
+    "signIn": "Sign in",
+    "signInAria": "Sign in / register",
+    "notifications": "Notifications"
+  },
+  "map": {
+    "locate": "My location",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "plainMap": "Plain map",
+    "satelliteView": "Satellite view",
+    "satellite": "Satellite",
+    "filters": "Filters",
+    "prevCategories": "Previous categories",
+    "nextCategories": "Next categories"
+  },
+  "search": {
+    "placeholder": "Search for a subject or address",
+    "clearSearch": "Clear search",
+    "filterCategory": "Filter by category:",
+    "filterMunicipality": "Filter by municipality:",
+    "subjectsNearAddress": "Subjects near the address:",
+    "noResults": "No subjects found.",
+    "popular": "Popular searches",
+    "categories": "Categories",
+    "municipalities": "Municipalities",
+    "body": "Body",
+    "duration": "Discussion length",
+    "dateRange": "Date range",
+    "from": "From",
+    "to": "To",
+    "datesOverride": "The dates override the quick range selection",
+    "datePlaceholder": "DD/MM/YYYY"
+  },
+  "list": {
+    "loading": "Loading subjects…",
+    "emptyLocated": "No subjects with a location found."
+  },
+  "filters": {
+    "all": "All"
+  },
+  "subject": {
+    "view": "View subject",
+    "discussionMinutes": "{min}′ discussion"
+  },
+  "municipality": {
+    "subjects": "Subjects",
+    "meetings": "Meetings",
+    "persons": "People",
+    "nextMeeting": "Next meeting:",
+    "notSeeing": "Don't see your municipality?",
+    "unavailable": "The Municipality of {name} isn't available yet — request to add it",
+    "notify": "Notifications for the municipality of {name}",
+    "notifyMeeting": "Notifications for the upcoming meeting of {name}"
+  },
+  "notify": {
+    "interested": "It looks like you're interested in ",
+    "known": "If you like, enable notifications to keep up with the subjects being discussed.",
+    "unknown": "Unfortunately it isn't in our network yet. You can request that it joins and we'll notify you once it does.",
+    "enable": "Enable notifications",
+    "notNow": "Not now"
+  },
+  "explain": {
+    "title": "This is our office!",
+    "body": "We're working to bring citizens closer to local government"
+  },
+  "municipalityTooltip": {
+    "body": "This municipality isn't on OpenCouncil yet."
+  },
+  "general": {
+    "title": "General subjects · {count}",
+    "subtitle": "Subjects without a specific location on the map.",
+    "coLocated": "{count} subjects here",
+    "cityAria": "General subjects · {name} ({count})"
+  },
+  "marker": {
+    "samePoint": "{count} subjects at the same point",
+    "seeSamePoint": "See {count} subjects at the same point",
+    "clusterZoom": "{count} subjects — zoom in"
+  },
+  "dateRange": {
+    "7d": "7 days",
+    "14d": "14 days",
+    "30d": "30 days",
+    "3m": "3 months",
+    "6m": "6 months",
+    "12m": "12 months",
+    "all": "All time"
+  },
+  "dateRangeMenu": {
+    "7d": "Last 7 days",
+    "14d": "Last 14 days",
+    "30d": "Last 30 days",
+    "3m": "Last 3 months",
+    "6m": "Last 6 months",
+    "12m": "Last 12 months",
+    "all": "All time"
+  },
+  "bodyType": {
+    "council": "Council",
+    "committee": "Committee",
+    "community": "Community"
+  },
+  "duration": {
+    "any": "All",
+    "discussed": "With discussion",
+    "5": "5′+",
+    "15": "15′+",
+    "30": "30′+"
+  },
+  "fewResults": {
+    "widenRange": "Try widening the time range to see more subjects",
+    "clearFilters": "Try clearing the filters to see more subjects",
+    "zoomOut": "Try zooming out to see more subjects"
+  },
+  "topic": {
+    "general": "General"
+  },
+  "footer": {
+    "groups": {
+      "links": "Links",
+      "policies": "Policies & Terms",
+      "contact": "Contact"
+    },
+    "links": {
+      "forMunicipalities": "For municipalities",
+      "search": "Search",
+      "ai": "OpenCouncil AI",
+      "api": "API",
+      "jobs": "Jobs",
+      "status": "Status",
+      "corrections": "Corrections",
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Use",
+      "cookies": "Cookie preferences"
+    }
+  },
+  "popularSearches": [
+    "Budget",
+    "Parking",
+    "Pedestrianization",
+    "Green & trees",
+    "Street markets",
+    "Flood protection",
+    "Schools",
+    "Cleanliness"
+  ]
+}

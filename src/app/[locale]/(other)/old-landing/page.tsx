@@ -17,11 +17,11 @@ export async function generateMetadata(
     } = params;
 
     return {
-        alternates: await buildHreflangAlternates('', locale),
+        alternates: await buildHreflangAlternates('/old-landing', locale),
     };
 }
 
-export default async function HomePage(
+export default async function OldHomePage(
     props: {
         params: Promise<{ locale: string }>
     }
@@ -49,7 +49,7 @@ export default async function HomePage(
     const citiesWithMeetings: LandingCity[] = await Promise.all(
         supportedCities.map(async city => {
             const meetings = await getCouncilMeetingsForCityPublicCached(city.id, { limit: 1 });
-            
+
             return {
                 ...city,
                 mostRecentMeeting: meetings[0]
@@ -59,4 +59,4 @@ export default async function HomePage(
 
 
     return <Landing allCities={allCities} cities={citiesWithMeetings} latestPost={latestPost} />;
-} 
+}
