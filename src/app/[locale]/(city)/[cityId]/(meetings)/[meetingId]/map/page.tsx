@@ -2,12 +2,18 @@
 import Map from "@/components/map/map";
 import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataContext";
 import { subjectToMapFeature } from "@/lib/utils";
+import { getRealmDefaultMapView } from "@/lib/realm";
 import { useRouter } from "next/navigation";
 import type { Feature } from 'geojson';
 
 export default function MapPage() {
     const { city, meeting, subjects } = useCouncilMeetingData();
     const router = useRouter();
+
+    // When the city has no stored geometry, fall back to its realm's center
+    // (e.g. France) so the map doesn't default to Greece. A city with geometry
+    // zooms to its boundary via zoomToGeometry below.
+    const fallbackView = getRealmDefaultMapView(city.realm);
 
     // Convert all subjects with locations to map features
     const subjectFeatures = subjects
@@ -36,6 +42,8 @@ export default function MapPage() {
                     },
                     ...subjectFeatures
                 ]}
+                center={city.geometry ? undefined : fallbackView.center}
+                zoom={city.geometry ? undefined : fallbackView.zoom}
                 animateRotation={false}
                 zoomToGeometry={city.geometry}
                 zoomPadding={120}
