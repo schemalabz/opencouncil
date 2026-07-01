@@ -4,6 +4,7 @@ import { TopicFilter } from '@/components/filters/TopicFilter';
 import { useTopics } from '@/hooks/useTopics';
 import { OnboardingStepTemplate } from '@/components/onboarding/OnboardingStepTemplate';
 import { OnboardingFooter } from '@/components/onboarding/OnboardingFooter';
+import { useTranslations } from 'next-intl';
 
 interface NotificationTopicStepProps {
   currentStep: number;
@@ -15,18 +16,19 @@ interface NotificationTopicStepProps {
 export function NotificationTopicStep({ currentStep, totalSteps, onBack, onContinue }: NotificationTopicStepProps) {
   const { selectedTopics, setSelectedTopics } = useOnboarding();
   const { topics, isLoading, error } = useTopics();
+  const t = useTranslations('Onboarding');
 
   return (
     <OnboardingStepTemplate
-      title="Θέματα ενδιαφέροντος"
-      description="Επιλέξτε θέματα για τα οποία θέλετε να λαμβάνετε ενημερώσεις"
+      title={t('notification.topicsTitle')}
+      description={t('notification.topicsDescription')}
       footer={
         <OnboardingFooter
           currentStep={currentStep}
           totalSteps={totalSteps}
           onBack={onBack}
           onAction={onContinue}
-          actionLabel="Συνέχεια"
+          actionLabel={t('continue')}
         />
       }
     >

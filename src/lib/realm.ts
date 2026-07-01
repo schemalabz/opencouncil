@@ -11,9 +11,19 @@ import { Realm } from '@prisma/client';
  * (`proxy.ts`). The request-scoped resolver lives in `realm.server.ts`.
  */
 export const REALMS = {
-    greece: { domain: 'opencouncil.gr', defaultLocale: 'el' },
-    france: { domain: 'opencouncil.fr', defaultLocale: 'fr' },
-} as const satisfies Record<Realm, { domain: string; defaultLocale: 'el' | 'fr' }>;
+    greece: { domain: 'opencouncil.gr', defaultLocale: 'el', country: 'gr' },
+    france: { domain: 'opencouncil.fr', defaultLocale: 'fr', country: 'fr' },
+} as const satisfies Record<Realm, { domain: string; defaultLocale: 'el' | 'fr'; country: string }>;
+
+/**
+ * Fallback map view (center `[lng, lat]` + zoom) for a realm, used when a city has
+ * no stored geometry so the map still opens over the right country rather than
+ * defaulting to Greece. A city with geometry always overrides this.
+ */
+const REALM_DEFAULT_MAP_VIEW: Record<Realm, { center: [number, number]; zoom: number }> = {
+    greece: { center: [23.7275, 37.9838], zoom: 6 }, // Athens
+    france: { center: [2.4, 46.6], zoom: 5 },        // metropolitan France
+};
 
 /**
  * Resolves the realm for a Host header value. The port is stripped and the host
@@ -55,4 +65,23 @@ export function isKnownRealmHost(host: string | null | undefined): boolean {
  */
 export function getRealmBaseUrl(realm: Realm): string {
     return `https://${REALMS[realm].domain}`;
+}
+
+/** Bare domain for a realm (e.g. `opencouncil.fr`), for display in URL chrome. */
+export function getRealmDomain(realm: Realm): string {
+    return REALMS[realm].domain;
+}
+
+/**
+ * Google Places geocoding parameters for a realm: the ISO country to restrict
+ * autocomplete to and the response language. Keeps address search scoped to the
+ * right country (e.g. France on opencouncil.fr) instead of hardcoding Greece.
+ */
+export function getRealmGeocoding(realm: Realm): { country: string; language: string } {
+    return { country: REALMS[realm].country, language: REALMS[realm].defaultLocale };
+}
+
+/** Fallback map center/zoom for a realm, used when a city has no stored geometry. */
+export function getRealmDefaultMapView(realm: Realm): { center: [number, number]; zoom: number } {
+    return REALM_DEFAULT_MAP_VIEW[realm];
 }
