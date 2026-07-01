@@ -156,7 +156,9 @@ export function toGeneralCities(
     /** localized fallback topic name for subjects with no topic */
     generalLabel = 'Γενικά',
 ): LandingGeneralCity[] {
-    return rows.map((row) => ({
+    return rows
+        .filter((row) => isValidLngLat(row.lng, row.lat))
+        .map((row) => ({
         cityId: row.cityId,
         cityName: cityNames[row.cityId] ?? row.cityName,
         nameMunicipality: municipalityNames[row.cityId] ?? cityNames[row.cityId] ?? row.cityName,
@@ -192,6 +194,12 @@ export function toGeneralCities(
 /** How many of the most-discussed subjects get the "πολυσυζητημένο" treatment. */
 const HOT_COUNT = 3;
 
+/** Guards against corrupt/out-of-range coordinates (e.g. an unswapped or projected point)
+ *  that would otherwise crash Mapbox's setLngLat with "latitude must be between -90 and 90". */
+export function isValidLngLat(lng: number, lat: number): boolean {
+    return Number.isFinite(lng) && Number.isFinite(lat) && Math.abs(lng) <= 180 && Math.abs(lat) <= 90;
+}
+
 export function toLandingSubjects(
     rows: MapSubject[],
     cityNames: Record<string, string>,
@@ -201,9 +209,13 @@ export function toLandingSubjects(
     generalLabel = 'Γενικά',
 ): LandingSubject[] {
     const subjects = rows
-        .filter((s) => s.geometry?.type === 'Point')
+        .filter((s): s is MapSubject & { geometry: GeoJSON.Point } => {
+            if (s.geometry?.type !== 'Point') return false;
+            const [lng, lat] = s.geometry.coordinates;
+            return isValidLngLat(lng, lat);
+        })
         .map((s) => {
-            const [lng, lat] = (s.geometry as GeoJSON.Point).coordinates;
+            const [lng, lat] = s.geometry.coordinates;
             return {
                 id: s.id,
                 title: s.name,
