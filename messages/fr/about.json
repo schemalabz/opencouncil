@@ -60,7 +60,7 @@
     "titleHighlight": "se fait désormais en quelques heures",
     "subtitle": "Transcriptions, procès-verbaux et relevés de décisions — automatiquement ou avec une intervention humaine minimale.",
     "seeExample": "Voir un exemple",
-    "comingSoon": "Bientôt disponible",
+    "comingSoon": "À venir",
     "bottomNote": "OpenCouncil peut remplacer votre prestataire de procès-verbaux à un coût comparable — avec dix fois plus de fonctionnalités et de rapidité.",
     "features": {
       "transcription": {
@@ -72,8 +72,8 @@
         "description": "Procès-verbaux automatiques de la séance, prêts à être relus et signés. Économisez des jours de travail."
       },
       "diavgeia": {
-        "title": "Décisions pour Di@vgeia",
-        "description": "Génération automatique des documents des décisions — si cela n'est pas déjà fait dans les procès-verbaux.",
+        "title": "Actes administratifs et délibérations",
+        "description": "Génération automatique des délibérations, décisions et actes administratifs à partir des débats du conseil municipal, prête à être intégrée au circuit de validation et de publication de la collectivité.",
         "targetDate": "Décembre 2026"
       },
       "printArchive": {
@@ -93,7 +93,7 @@
       },
       "documents": {
         "title": "Documents de la séance",
-        "description": "Ordres du jour, décisions issues de Di@vgeia et tout document complémentaire."
+        "description": "Ordre du jour, délibérations, procès-verbaux et tout document complémentaire."
       }
     },
     "processing": {

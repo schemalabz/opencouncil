@@ -7,14 +7,18 @@ import BrowserFrame from './BrowserFrame'
 import ShineTitle from './ShineTitle'
 import { env } from '@/env.mjs'
 import type { AboutPageStats } from '@/lib/db/cities'
+import type { Realm } from '@prisma/client'
+import { getRealmDomain } from '@/lib/realm'
 
 interface HeroProps {
     onContactClick: () => void
     stats?: AboutPageStats | null
+    realm: Realm
 }
 
-export default function Hero({ onContactClick, stats }: HeroProps) {
+export default function Hero({ onContactClick, stats, realm }: HeroProps) {
     const t = useTranslations('about.hero')
+    const domain = getRealmDomain(realm)
 
     const counters = [
         { value: stats?.municipalityCount ?? 10, label: t('counters.municipalities') },
@@ -39,7 +43,7 @@ export default function Hero({ onContactClick, stats }: HeroProps) {
                     className="h-full flex items-center"
                     style={{ transform: 'perspective(1200px) rotateY(-6deg) rotateX(2deg)' }}
                 >
-                    <BrowserFrame url="opencouncil.gr" className="shadow-xl">
+                    <BrowserFrame url={domain} className="shadow-xl">
                         <div className="aspect-[4/3] bg-black overflow-hidden">
                             <video
                                 src="https://data.opencouncil.gr/product-demo.mp4"
@@ -145,7 +149,7 @@ export default function Hero({ onContactClick, stats }: HeroProps) {
                         className="relative"
                         style={{ transform: 'perspective(1000px) rotateY(-6deg) rotateX(2deg)' }}
                     >
-                        <BrowserFrame url="opencouncil.gr" className="shadow-2xl">
+                        <BrowserFrame url={domain} className="shadow-2xl">
                             <div className="aspect-[4/3] bg-black overflow-hidden">
                                 <video
                                     src="https://data.opencouncil.gr/product-demo.mp4"

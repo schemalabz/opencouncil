@@ -2,7 +2,9 @@
 
 import { MapPin, Clock, Users, Filter } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import type { Realm } from '@prisma/client'
 import { env } from '@/env.mjs'
+import { getRealmDomain } from '@/lib/realm'
 import BrowserFrame from './BrowserFrame'
 
 // Chania center coordinates
@@ -21,11 +23,11 @@ function getStaticMapUrl(width: number, height: number): string {
     return `https://api.mapbox.com/styles/v1/mapbox/light-v11/static/${CHANIA_LNG},${CHANIA_LAT},14.5,0/${width}x${height}@2x?access_token=${token}`
 }
 
-export default function MapDemo() {
+export default function MapDemo({ realm }: { realm: Realm }) {
     const t = useTranslations('about.demos.map')
 
     return (
-        <BrowserFrame url="opencouncil.gr/map" className="w-full">
+        <BrowserFrame url={`${getRealmDomain(realm)}/map`} className="w-full">
             {/* Map area */}
             <div className="relative aspect-[4/3] overflow-hidden bg-[#f2efe9]">
                 {/* Mapbox static tile background */}

@@ -1,6 +1,8 @@
 import { FileText, ScrollText, Landmark, Play, BookOpen, ArrowRight, Clock, Users } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import type { Realm } from '@prisma/client'
 import { ColorPercentageRing } from '@/components/ui/color-percentage-ring'
+import { getRealmDomain } from '@/lib/realm'
 import BrowserFrame from './BrowserFrame'
 import { Link } from '@/i18n/routing'
 
@@ -57,7 +59,7 @@ function AnnotationBox({ label, labelRight, children }: {
 
 // ─── Main Component ─────────────────────────────────────────
 
-export default function SubjectDemo() {
+export default function SubjectDemo({ realm }: { realm: Realm }) {
     const t = useTranslations('about.demos.subject')
 
     const parties = PARTY_KEYS.map((key, i) => ({
@@ -67,7 +69,7 @@ export default function SubjectDemo() {
     }))
 
     return (
-        <BrowserFrame url="opencouncil.gr/chania/apr29_2026/subjects/..." className="w-full">
+        <BrowserFrame url={`${getRealmDomain(realm)}/chania/apr29_2026/subjects/...`} className="w-full">
             <div className="p-4 md:p-6 space-y-5 bg-white">
                 {/* Section 1: Header */}
                 <AnnotationBox label={t('callouts.header')}>

@@ -58,7 +58,7 @@ export const OPENNESS_FEATURES: Feature[] = [
         id: 'notifications',
         status: 'live',
         demoUrl: '/athens/notifications',
-        demoUrlByRealm: { france: '/athens/notifications' },
+        demoUrlByRealm: { france: '/rennes/notifications' },
     },
     {
         id: 'map',
