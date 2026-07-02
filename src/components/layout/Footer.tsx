@@ -18,7 +18,7 @@ interface FooterProps {
 export default function Footer({ className }: FooterProps = {}) {
     const t = useTranslations("Footer")
     return (
-        <footer className={cn("w-full bg-background border-t print:hidden", className)}>
+        <footer className={cn("w-full bg-muted border-t print:hidden", className)}>
             <div className="container mx-auto px-4 py-12">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                     <div className="flex flex-col items-center md:items-start space-y-4">
@@ -109,7 +109,7 @@ export default function Footer({ className }: FooterProps = {}) {
                             <Mail className="w-4 h-4 mr-2" />
                             hello@opencouncil.gr
                         </a>
-                        <div className="flex items-center gap-4">
+                        <div className="flex flex-wrap items-center justify-center gap-4 md:justify-start">
                             <TooltipProvider>
                                 {[
                                     { href: "https://twitter.com/opencouncil_gr", icon: SiX, label: "X (Twitter): @opencouncil_gr" },

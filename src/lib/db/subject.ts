@@ -10,6 +10,7 @@ import {
     Topic,
     VoteType,
     Prisma,
+    Realm,
 } from '@prisma/client';
 import { PersonWithRelations } from '@/lib/db/people';
 import { extractUtteranceIds } from '@/lib/utils/references';
@@ -85,6 +86,27 @@ export type SubjectWithRelations = Subject & {
     votes: { voteType: VoteType; person: { id: string; name: string; roles: { electedOrder: number | null; administrativeBodyId: string | null }[] } }[];
     attendance: { status: 'PRESENT' | 'ABSENT'; person: { id: string; name: string; roles: { electedOrder: number | null; administrativeBodyId: string | null }[] } }[];
 };
+
+/**
+ * Total subjects per city across the city's released meetings, as a { cityId: count }
+ * map. Powers the landing's Δήμοι tab, which shows unfiltered city totals (independent
+ * of the map's date-range / filter selection). Scoped to the active realm and officially
+ * supported cities — the same visibility as the map subject endpoints — so counts never
+ * include subjects that can't appear as pins on that map.
+ */
+export async function getSubjectCountsByCity(realm: Realm): Promise<Record<string, number>> {
+    const grouped = await prisma.subject.groupBy({
+        by: ['cityId'],
+        // exclude "before the agenda" items so the Δήμοι tab total matches the map, which
+        // filters them out of both the located and general-subject endpoints
+        where: {
+            nonAgendaReason: { not: 'beforeAgenda' },
+            councilMeeting: { released: true, city: { officialSupport: true, realm } },
+        },
+        _count: { _all: true },
+    });
+    return Object.fromEntries(grouped.map((g) => [g.cityId, g._count._all]));
+}
 
 export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
     try {

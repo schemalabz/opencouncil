@@ -13,38 +13,65 @@ export async function GET(request: Request) {
         // Parse query parameters
         const { searchParams } = new URL(request.url);
         const monthsBackParam = searchParams.get('monthsBack');
+        const daysBackParam = searchParams.get('daysBack');
         const topicIdsParam = searchParams.get('topicIds');
 
         const monthsBack = monthsBackParam ? parseInt(monthsBackParam) : 6;
+        // daysBack takes precedence over monthsBack when both are given
+        const daysBack = daysBackParam ? parseInt(daysBackParam) : null;
+        // allTime=true disables the date filter entirely
+        const allTime = searchParams.get('allTime') === 'true';
         const topicIds = topicIdsParam ? topicIdsParam.split(',') : [];
+        // Filter-pane params
+        const cityIds = (searchParams.get('cityIds') || '').split(',').filter(Boolean);
+        const bodyTypes = (searchParams.get('bodyType') || '').split(',').filter(Boolean);
+        const dateFromParam = searchParams.get('dateFrom');
+        const dateToParam = searchParams.get('dateTo');
+
+        // Calculate date threshold for the quick range
+        const dateThreshold = new Date();
+        if (daysBack && daysBack > 0) {
+            dateThreshold.setDate(dateThreshold.getDate() - daysBack);
+        } else {
+            dateThreshold.setMonth(dateThreshold.getMonth() - monthsBack);
+        }
+
+        // Date window: explicit from/to overrides the quick range; allTime disables it.
+        let dateTimeFilter: { gte?: Date; lte?: Date } | undefined;
+        if (dateFromParam || dateToParam) {
+            dateTimeFilter = {};
+            if (dateFromParam) dateTimeFilter.gte = new Date(dateFromParam);
+            if (dateToParam) dateTimeFilter.lte = new Date(`${dateToParam}T23:59:59.999`);
+        } else if (!allTime) {
+            dateTimeFilter = { gte: dateThreshold };
+        }
 
         console.log('🔍 API Filter params:', {
             monthsBack,
+            daysBack,
+            allTime,
+            dateFrom: dateFromParam,
+            dateTo: dateToParam,
+            cityIds,
+            bodyTypes,
             topicIdsCount: topicIds.length,
-            topicIdsParam,
-            topicIds: topicIds.slice(0, 5)
         });
-
-        // Calculate date threshold
-        const dateThreshold = new Date();
-        dateThreshold.setMonth(dateThreshold.getMonth() - monthsBack);
-
-        console.log('📅 Date threshold:', dateThreshold.toISOString());
 
         // Build where clause
         const whereClause: any = {
             locationId: {
                 not: null
             },
+            // Exclude "before the agenda" (προ ημερησίας) items — keep agenda subjects.
+            nonAgendaReason: { not: 'beforeAgenda' },
             councilMeeting: {
                 city: {
                     officialSupport: true,
                     realm
                 },
                 released: true,
-                dateTime: {
-                    gte: dateThreshold
-                }
+                ...(dateTimeFilter && { dateTime: dateTimeFilter }),
+                ...(bodyTypes.length > 0 && { administrativeBody: { type: { in: bodyTypes } } })
             }
         };
 
@@ -55,6 +82,13 @@ export async function GET(request: Request) {
             };
         }
 
+        // Add municipality filter if specified
+        if (cityIds.length > 0) {
+            whereClause.cityId = {
+                in: cityIds
+            };
+        }
+
         // Get all subjects from officially supported cities that have locations
         const subjects = await prisma.subject.findMany({
             where: whereClause,
@@ -62,7 +96,8 @@ export async function GET(request: Request) {
                 councilMeeting: {
                     select: {
                         dateTime: true,
-                        name: true
+                        name: true,
+                        administrativeBody: { select: { name: true, type: true } }
                     }
                 },
                 topic: {
@@ -155,8 +190,11 @@ export async function GET(request: Request) {
                     councilMeetingId: s.councilMeetingId,
                     meetingDate: s.councilMeeting?.dateTime?.toISOString(),
                     meetingName: s.councilMeeting?.name,
+                    bodyName: s.councilMeeting?.administrativeBody?.name ?? null,
+                    adminBodyType: s.councilMeeting?.administrativeBody?.type ?? null,
                     locationText: s.location?.text,
                     locationType: s.location?.type,
+                    topicId: s.topicId,
                     topicName: s.topic?.name,
                     topicColor: s.topic?.colorHex || '#627BBC',
                     topicIcon: s.topic?.icon,
