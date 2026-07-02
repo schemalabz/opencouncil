@@ -142,7 +142,7 @@ export function RoleDisplay({
                                 borderless && "text-sm"
                             )}>
                                 {primaryRole.party.name_short}
-                                {primaryRole.isHead && <span className="hidden sm:inline"> (Επικ.)</span>}
+                                {primaryRole.isHead && <span className="hidden sm:inline"> ({t('partyLeaderShort')})</span>}
                             </span>
                         </Badge>
                     </Link>

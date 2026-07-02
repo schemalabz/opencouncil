@@ -820,6 +820,7 @@
         "mayor": "Mayor",
         "president": "President",
         "member": "Member",
+        "partyLeaderShort": "Leader",
         "history": "History",
         "items": "{count, plural, =0 {No members} =1 {1 member} other {# members}}",
         "addItem": "Add Member",

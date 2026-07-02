@@ -445,6 +445,7 @@
         "mayor": "Maire",
         "president": "Président(e)",
         "member": "Membre",
+        "partyLeaderShort": "Chef",
         "history": "Historique",
         "items": "{count, plural, =0 {Aucun membre} =1 {1 membre} other {# membres}}",
         "addItem": "Ajouter un membre",
