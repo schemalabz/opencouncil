@@ -444,6 +444,8 @@
         "partyLeader": "Επικεφαλής",
         "mayor": "Δήμαρχος",
         "president": "Πρόεδρος",
+        "member": "Μέλος",
+        "partyLeaderShort": "Επικ.",
         "history": "Ιστορικό",
         "items": "{count, plural, =0 {Κανένα μέλος} =1 {1 μέλος} other {# μέλη}}",
         "addItem": "Προσθήκη Μέλους",

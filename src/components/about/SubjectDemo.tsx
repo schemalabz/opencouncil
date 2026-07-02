@@ -4,7 +4,10 @@ import type { Realm } from '@prisma/client'
 import { ColorPercentageRing } from '@/components/ui/color-percentage-ring'
 import { getRealmDomain } from '@/lib/realm'
 import BrowserFrame from './BrowserFrame'
+import { OPENNESS_FEATURES, demoUrlForRealm } from './config'
 import { Link } from '@/i18n/routing'
+
+const SUBJECTS_FEATURE = OPENNESS_FEATURES.find(f => f.id === 'subjects')
 
 // ─── Mock Data (non-translatable) ───────────────────────────────────────
 
@@ -62,6 +65,8 @@ function AnnotationBox({ label, labelRight, children }: {
 export default function SubjectDemo({ realm }: { realm: Realm }) {
     const t = useTranslations('about.demos.subject')
 
+    const demoUrl = SUBJECTS_FEATURE ? demoUrlForRealm(SUBJECTS_FEATURE, realm) : undefined
+
     const parties = PARTY_KEYS.map((key, i) => ({
         name: t(`parties.${key}`),
         color: PARTY_COLORS[i],
@@ -69,7 +74,7 @@ export default function SubjectDemo({ realm }: { realm: Realm }) {
     }))
 
     return (
-        <BrowserFrame url={`${getRealmDomain(realm)}/chania/apr29_2026/subjects/...`} className="w-full">
+        <BrowserFrame url={`${getRealmDomain(realm)}${demoUrl?.replace(/[^/]+$/, '...') ?? ''}`} className="w-full">
             <div className="p-4 md:p-6 space-y-5 bg-white">
                 {/* Section 1: Header */}
                 <AnnotationBox label={t('callouts.header')}>
@@ -206,15 +211,17 @@ export default function SubjectDemo({ realm }: { realm: Realm }) {
                 </AnnotationBox>
 
                 {/* CTA */}
-                <div className="pt-2">
-                    <Link
-                        href="/chania/apr29_2026/subjects/cmocx5sqp03k4grw512nudanu"
-                        className="inline-flex items-center gap-1.5 text-sm font-medium text-orange hover:text-orange/80 transition-colors group"
-                    >
-                        {t('viewRealSubject')}
-                        <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                    </Link>
-                </div>
+                {demoUrl && (
+                    <div className="pt-2">
+                        <Link
+                            href={demoUrl}
+                            className="inline-flex items-center gap-1.5 text-sm font-medium text-orange hover:text-orange/80 transition-colors group"
+                        >
+                            {t('viewRealSubject')}
+                            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                        </Link>
+                    </div>
+                )}
             </div>
         </BrowserFrame>
     )
