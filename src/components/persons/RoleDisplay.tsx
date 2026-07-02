@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { Badge } from '../ui/badge';
 import { cn, sortRolesByPriority, getPrimaryRole } from '@/lib/utils';
@@ -40,24 +41,24 @@ const getRoleIconColor = (role: RoleWithRelations) => {
     return "text-muted-foreground/70";
 };
 
-const getRoleText = (role: RoleWithRelations) => {
+const getRoleText = (role: RoleWithRelations, t: ReturnType<typeof useTranslations>) => {
     // Party roles (has partyId)
     if (role.partyId && role.party) {
         const text = role.party.name;
-        if (role.isHead) return `${text} (Επικεφαλής)`;
+        if (role.isHead) return `${text} (${t('partyLeader')})`;
         if (role.name) return `${text} - ${role.name}`;
         return text;
     }
 
     // Administrative body roles (has administrativeBodyId)
     if (role.administrativeBodyId && role.administrativeBody) {
-        // For administrative body roles, show role name first (e.g., "Πρόεδρος"), then body name
+        // For administrative body roles, show role name first (e.g., "President"), then body name
         if (role.name) {
             return `${role.name} - ${role.administrativeBody.name}`;
         }
-        // If no role name but is head, use "Πρόεδρος"
+        // If no role name but is head, use the localized "president" label
         if (role.isHead) {
-            return `Πρόεδρος - ${role.administrativeBody.name}`;
+            return `${t('president')} - ${role.administrativeBody.name}`;
         }
         // Otherwise just show the administrative body name
         return role.administrativeBody.name;
@@ -65,11 +66,11 @@ const getRoleText = (role: RoleWithRelations) => {
 
     // City-level roles (has cityId but no partyId or administrativeBodyId, e.g., mayor)
     if (role.cityId && !role.partyId && !role.administrativeBodyId) {
-        if (role.isHead) return 'Δήμαρχος';
-        return role.name || 'Μέλος';
+        if (role.isHead) return t('mayor');
+        return role.name || t('member');
     }
 
-    return role.name || 'Μέλος';
+    return role.name || t('member');
 };
 
 const getRoleVariant = (role: RoleWithRelations) => {
@@ -89,6 +90,8 @@ export function RoleDisplay({
     fullText = false,
     className
 }: RoleDisplayProps) {
+    const t = useTranslations('Person');
+
     if (!roles.length) return null;
 
     const displayRoles = sortRolesByPriority(roles);
@@ -152,7 +155,7 @@ export function RoleDisplay({
                             "text-muted-foreground truncate min-w-0",
                             borderless && "text-sm"
                         )}>
-                            {getRoleText(primaryRole)}
+                            {getRoleText(primaryRole, t)}
                         </span>
                     </div>
                 )}
@@ -164,7 +167,7 @@ export function RoleDisplay({
         <div className={cn(layoutClasses[layout], sizeClasses[size], className)}>
             {displayRoles.map((role, index) => {
                 const RoleIcon = showIcons ? getRoleIcon(role) : null;
-                const roleText = getRoleText(role);
+                const roleText = getRoleText(role, t);
                 const textSmall = truncateWithEllipsis(roleText, BADGE_MAX_CHARS_SMALL);
                 const textLg = truncateWithEllipsis(roleText, BADGE_MAX_CHARS_LG);
                 const displayText = fullText ? (
@@ -211,7 +214,7 @@ export function RoleDisplay({
                                                 <div className="w-3 h-3" />
                                             )}
                                         </div>
-                                        {getRoleText(role)}
+                                        {getRoleText(role, t)}
                                     </span>
                                 </Badge>
                             </Link>

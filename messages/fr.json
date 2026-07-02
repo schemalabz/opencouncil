@@ -443,7 +443,8 @@
     "Person": {
         "partyLeader": "Chef de groupe",
         "mayor": "Maire",
-        "president": "Président",
+        "president": "Président(e)",
+        "member": "Membre",
         "history": "Historique",
         "items": "{count, plural, =0 {Aucun membre} =1 {1 membre} other {# membres}}",
         "addItem": "Ajouter un membre",
