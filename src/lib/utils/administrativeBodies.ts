@@ -1,6 +1,6 @@
 import { PersonWithRelations } from '../db/people';
 import { AdministrativeBody, AdministrativeBodyType } from '@prisma/client';
-import { hasCityLevelRole } from './roles';
+import { hasCityLevelRole, isRoleActive } from './roles';
 
 /** Minimal type for meetings - only what we need for extracting admin bodies */
 type MeetingWithAdminBody = {
@@ -94,6 +94,8 @@ export function filterMeetingByAdminBodyTypes(
 
 /**
  * Filter a person by selected admin body types.
+ * Only currently-active roles are considered, so members whose membership has
+ * ended are excluded (e.g. a former committee member is hidden under 'committee').
  * City-level roles (mayors) are included only when 'council' is selected.
  * Empty selectedTypes = show all.
  */
@@ -104,6 +106,7 @@ export function filterPersonByAdminBodyTypes(
     if (selectedTypes.length === 0) return true;
     if (selectedTypes.includes('council') && hasCityLevelRole(person.roles)) return true;
     return person.roles.some(role =>
+        isRoleActive(role) &&
         role.administrativeBody &&
         selectedTypes.includes(role.administrativeBody.type)
     );
