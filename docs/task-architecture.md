@@ -171,8 +171,10 @@ automatically.
 1. Finds candidate meetings: a `processAgenda` task has `succeeded`, `dateTime` is within
    ±12h of now, `youtubeUrl` is still null, the administrative body has a `youtubeChannelUrl`,
    and no `transcribe` task is already in flight.
-2. Lists recent videos for each distinct channel via the YouTube Data API v3 (resolved channel
-   id + listing are cached in Valkey, so meetings sharing a channel cost one API call per run).
+2. Lists recent videos for each distinct channel from the channel's uploads playlist
+   (`playlistItems.list` + `videos.list`) — reliable and immediate, unlike `search.list`,
+   whose index lags for just-finished livestreams and intermittently 403s. Resolved channel
+   id + listing are cached in Valkey, so meetings sharing a channel cost one lookup per run.
 3. Asks Claude to match each meeting to a single video. The matcher **refuses to match a video
    that appears to cover more than one council meeting** (e.g. a combined Λογοδοσία + Τακτική
    Συνεδρίαση stream) — those are handled manually.
