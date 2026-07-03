@@ -52,7 +52,14 @@ interface ChannelListResponse {
 interface SearchListResponse {
     items?: Array<{
         id?: { channelId?: string; videoId?: string };
-        snippet?: { title?: string; publishedAt?: string; description?: string };
+        snippet?: {
+            title?: string;
+            publishedAt?: string;
+            description?: string;
+            // "none" for a finished/regular upload, "live" while broadcasting,
+            // "upcoming" for a scheduled premiere/stream that hasn't started.
+            liveBroadcastContent?: string;
+        };
     }>;
 }
 
@@ -104,11 +111,16 @@ export async function resolveChannelId(channelUrl: string): Promise<string | nul
 }
 
 /**
- * Lists the channel's most recent videos (newest first), briefly cached in Valkey.
+ * Lists the channel's most recent *finished* videos (newest first), briefly cached
+ * in Valkey.
  *
  * Uses search.list ordered by date rather than filtering to live broadcasts:
  * council livestreams surface as ordinary recent uploads once finished, so the
  * broad listing is the safe superset and the LLM matcher picks the right one.
+ *
+ * Scheduled/in-progress streams (liveBroadcastContent "upcoming" or "live") are
+ * excluded: a stream that hasn't finished has no complete recording to transcribe,
+ * and matching a meeting to it would trigger transcription of a partial video.
  */
 export async function listRecentChannelVideos(channelId: string): Promise<YouTubeVideo[]> {
     const cacheKey = `oc:youtube:channel-videos:${channelId}`;
@@ -125,6 +137,11 @@ export async function listRecentChannelVideos(channelId: string): Promise<YouTub
 
     const videos: YouTubeVideo[] = (data.items ?? [])
         .filter(item => item.id?.videoId)
+        // Keep only finished videos; drop scheduled ("upcoming") and live streams.
+        .filter(item => {
+            const state = item.snippet?.liveBroadcastContent;
+            return state !== 'upcoming' && state !== 'live';
+        })
         .map(item => ({
             videoId: item.id!.videoId!,
             title: item.snippet?.title ?? '',
