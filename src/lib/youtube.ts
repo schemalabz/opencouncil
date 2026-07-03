@@ -6,10 +6,10 @@ import { cacheGetJSON, cacheSetJSON } from '@/lib/cache/valkey';
  * Minimal YouTube Data API v3 client used by the poll-livestreams cron to locate
  * a meeting's livestream on an administrative body's channel.
  *
- * Quota notes (default 10k units/day): channels.list = 1 unit, search.list = 100
- * units. Channel-id resolution is cached long-term (ids are stable) and the recent
- * videos listing is cached briefly so multiple meetings sharing a channel cost a
- * single search per run.
+ * Quota notes (default 10k units/day): channels.list / playlistItems.list /
+ * videos.list = 1 unit each, search.list = 100 units. Channel-id resolution is
+ * cached long-term (ids are stable) and the recent videos listing is cached
+ * briefly so multiple meetings sharing a channel cost a single lookup per run.
  */
 
 const API_BASE = 'https://www.googleapis.com/youtube/v3';
@@ -17,6 +17,9 @@ const API_BASE = 'https://www.googleapis.com/youtube/v3';
 // Channel ids never change → cache aggressively. Recent-videos is volatile → short TTL.
 const CHANNEL_ID_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
 const CHANNEL_VIDEOS_TTL_SECONDS = 5 * 60; // 5 minutes
+// Must stay ≤ 50: both playlistItems.list (maxResults) and videos.list (comma-separated
+// ids) cap at 50 per request, and listRecentChannelVideos issues one call to each — a
+// larger value would 400 or silently drop tail videos.
 const MAX_RECENT_VIDEOS = 15;
 
 export interface YouTubeVideo {
@@ -52,6 +55,21 @@ interface ChannelListResponse {
 interface SearchListResponse {
     items?: Array<{
         id?: { channelId?: string; videoId?: string };
+        snippet?: { title?: string; publishedAt?: string; description?: string };
+    }>;
+}
+
+interface ChannelContentDetailsResponse {
+    items?: Array<{ contentDetails?: { relatedPlaylists?: { uploads?: string } } }>;
+}
+
+interface PlaylistItemsResponse {
+    items?: Array<{ contentDetails?: { videoId?: string } }>;
+}
+
+interface VideosListResponse {
+    items?: Array<{
+        id?: string;
         snippet?: {
             title?: string;
             publishedAt?: string;
@@ -59,6 +77,12 @@ interface SearchListResponse {
             // "none" for a finished/regular upload, "live" while broadcasting,
             // "upcoming" for a scheduled premiere/stream that hasn't started.
             liveBroadcastContent?: string;
+        };
+        // Present only for videos that are (or were) live broadcasts.
+        liveStreamingDetails?: {
+            scheduledStartTime?: string;
+            actualStartTime?: string;
+            actualEndTime?: string;
         };
     }>;
 }
@@ -111,42 +135,91 @@ export async function resolveChannelId(channelUrl: string): Promise<string | nul
 }
 
 /**
+ * A channel's auto-generated "uploads" playlist id. For every standard channel it
+ * is the channel id with the "UC" prefix swapped for "UU"; only non-standard ids
+ * need a channels.list lookup.
+ */
+async function resolveUploadsPlaylistId(channelId: string): Promise<string | null> {
+    if (channelId.startsWith('UC')) return `UU${channelId.slice(2)}`;
+
+    const data = await ytFetch<ChannelContentDetailsResponse>('channels', {
+        part: 'contentDetails',
+        id: channelId,
+    });
+    return data.items?.[0]?.contentDetails?.relatedPlaylists?.uploads ?? null;
+}
+
+/**
+ * True for a scheduled ("upcoming") or in-progress ("live") broadcast — a stream
+ * that has no complete recording to transcribe yet. A finished stream reports
+ * liveBroadcastContent "none" and carries an actualEndTime, so it passes.
+ */
+function isUnfinishedStream(video: NonNullable<VideosListResponse['items']>[number]): boolean {
+    const state = video.snippet?.liveBroadcastContent;
+    if (state === 'live' || state === 'upcoming') return true;
+
+    // Defensive: a broadcast that has started (or is only scheduled) but not ended
+    // is still in progress, even if liveBroadcastContent momentarily lags.
+    const details = video.liveStreamingDetails;
+    if (details && (details.actualStartTime || details.scheduledStartTime) && !details.actualEndTime) {
+        return true;
+    }
+    return false;
+}
+
+/**
  * Lists the channel's most recent *finished* videos (newest first), briefly cached
  * in Valkey.
  *
- * Uses search.list ordered by date rather than filtering to live broadcasts:
- * council livestreams surface as ordinary recent uploads once finished, so the
- * broad listing is the safe superset and the LLM matcher picks the right one.
+ * Reads the channel's uploads playlist via playlistItems.list rather than
+ * search.list. search.list queries YouTube's search index, which lags by
+ * minutes-to-hours, is unreliable for just-finished livestreams, and (observed
+ * on our key) intermittently 403s — so a council stream that ended within a
+ * meeting's polling window could be missed entirely. The uploads playlist is the
+ * channel's direct upload log: immediate, reliable, and far cheaper (1 unit vs 100).
  *
- * Scheduled/in-progress streams (liveBroadcastContent "upcoming" or "live") are
- * excluded: a stream that hasn't finished has no complete recording to transcribe,
- * and matching a meeting to it would trigger transcription of a partial video.
+ * A videos.list call then supplies each video's authoritative live status, so
+ * scheduled ("upcoming") and in-progress ("live") streams are excluded — they have
+ * no complete recording, and matching one would transcribe a partial video.
  */
 export async function listRecentChannelVideos(channelId: string): Promise<YouTubeVideo[]> {
     const cacheKey = `oc:youtube:channel-videos:${channelId}`;
     const cached = await cacheGetJSON<YouTubeVideo[]>(cacheKey);
     if (cached) return cached;
 
-    const data = await ytFetch<SearchListResponse>('search', {
-        part: 'snippet',
-        channelId,
-        type: 'video',
-        order: 'date',
+    const uploadsPlaylistId = await resolveUploadsPlaylistId(channelId);
+    if (!uploadsPlaylistId) return [];
+
+    const playlist = await ytFetch<PlaylistItemsResponse>('playlistItems', {
+        part: 'contentDetails',
+        playlistId: uploadsPlaylistId,
         maxResults: String(MAX_RECENT_VIDEOS),
     });
 
-    const videos: YouTubeVideo[] = (data.items ?? [])
-        .filter(item => item.id?.videoId)
-        // Keep only finished videos; drop scheduled ("upcoming") and live streams.
-        .filter(item => {
-            const state = item.snippet?.liveBroadcastContent;
-            return state !== 'upcoming' && state !== 'live';
-        })
-        .map(item => ({
-            videoId: item.id!.videoId!,
-            title: item.snippet?.title ?? '',
-            publishedAt: item.snippet?.publishedAt ?? '',
-            description: item.snippet?.description,
+    // Newest-first video ids from the uploads playlist.
+    const orderedIds = (playlist.items ?? [])
+        .map(item => item.contentDetails?.videoId)
+        .filter((id): id is string => Boolean(id));
+
+    if (orderedIds.length === 0) return [];
+
+    // One videos.list call (≤50 ids) for titles + authoritative live status.
+    const details = await ytFetch<VideosListResponse>('videos', {
+        part: 'snippet,liveStreamingDetails',
+        id: orderedIds.join(','),
+    });
+
+    const byId = new Map((details.items ?? []).map(v => [v.id, v] as const));
+
+    const videos: YouTubeVideo[] = orderedIds
+        .map(id => byId.get(id))
+        .filter((v): v is NonNullable<typeof v> => Boolean(v))
+        .filter(v => !isUnfinishedStream(v))
+        .map(v => ({
+            videoId: v.id!,
+            title: v.snippet?.title ?? '',
+            publishedAt: v.snippet?.publishedAt ?? '',
+            description: v.snippet?.description,
         }));
 
     await cacheSetJSON(cacheKey, videos, CHANNEL_VIDEOS_TTL_SECONDS);
