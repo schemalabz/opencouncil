@@ -64,6 +64,27 @@ interface SearchListResponse {
 }
 
 /**
+ * search.list intermittently returns 403 ("cannot act on behalf of the specified
+ * Google account") on our key — a known, transient YouTube quirk (~40% of calls in
+ * practice). Retry that specific failure a few times before surfacing it, so
+ * channel-id resolution for /c/ vanity URLs (the only remaining search.list caller)
+ * doesn't fail on a flaky response. Other errors are terminal and rethrow at once.
+ */
+const SEARCH_MAX_ATTEMPTS = 3;
+async function searchListWithRetry(params: Record<string, string>): Promise<SearchListResponse> {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= SEARCH_MAX_ATTEMPTS; attempt++) {
+        try {
+            return await ytFetch<SearchListResponse>('search', params);
+        } catch (error) {
+            lastError = error;
+            if (!(error instanceof Error && error.message.includes('search failed: 403'))) throw error;
+        }
+    }
+    throw lastError;
+}
+
+/**
  * Resolves a stored channel URL (handle, /channel/UC…, /user, or /c vanity) to a
  * canonical channel id. Cached in Valkey keyed by the input URL. Returns null when
  * the channel can't be resolved.
@@ -95,7 +116,8 @@ export async function resolveChannelId(channelUrl: string): Promise<string | nul
         channelId = data.items?.[0]?.id ?? null;
     } else {
         // Vanity /c/ URLs aren't directly resolvable — fall back to channel search.
-        const data = await ytFetch<SearchListResponse>('search', {
+        // search.list is flaky (intermittent 403), so retry that failure.
+        const data = await searchListWithRetry({
             part: 'id',
             type: 'channel',
             q: ref.value,
