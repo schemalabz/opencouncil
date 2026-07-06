@@ -119,6 +119,40 @@ export async function filterLocationIdsWithinRadius(
 }
 
 /**
+ * Distance in meters from `center` ([lng, lat]) to each of the given point
+ * locations. Same swapped-coordinate handling as filterLocationIdsWithinRadius;
+ * non-point locations are omitted from the result.
+ */
+export async function getLocationDistancesFromPoint(
+    locationIds: string[],
+    center: [number, number] // [longitude, latitude]
+): Promise<Map<string, number>> {
+    if (locationIds.length === 0) return new Map();
+    const [lng, lat] = center;
+
+    try {
+        const rows = await prisma.$queryRaw<Array<{ id: string; meters: number }>>`
+            SELECT id, ST_Distance(
+                CASE
+                  WHEN ST_X(coordinates::geometry) < 19.5 OR ST_X(coordinates::geometry) > 28.5
+                    OR ST_Y(coordinates::geometry) < 34.5 OR ST_Y(coordinates::geometry) > 41.5
+                  THEN ST_SetSRID(ST_MakePoint(ST_Y(coordinates::geometry), ST_X(coordinates::geometry)), 4326)::geography
+                  ELSE coordinates::geography
+                END,
+                ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
+              ) AS meters
+            FROM "Location"
+            WHERE id = ANY(${locationIds}::text[])
+              AND type = 'point'
+        `;
+        return new Map(rows.map(r => [r.id, Math.round(r.meters)]));
+    } catch (error) {
+        console.error('Error measuring location distances:', error);
+        return new Map();
+    }
+}
+
+/**
  * Get location by ID
  */
 export async function getLocation(id: string): Promise<Location | null> {
