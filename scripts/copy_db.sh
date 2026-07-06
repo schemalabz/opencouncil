@@ -236,7 +236,7 @@ done < "$NULLIFY_COLUMNS_FILE"
 if [ "$CLEAR" = true ]; then
     for TABLE in "${TABLES[@]}"; do
         echo "Deleting all rows from $TABLE"
-        psql --set ON_ERROR_STOP=on "$TARGET" -c "DELETE FROM \"$TABLE\";"
+        psql --set ON_ERROR_STOP=on "$TARGET" -c "DELETE FROM public.\"$TABLE\";"
         if [ $? -ne 0 ]; then
             echo -e "\033[31mERROR: Failed to delete from $TABLE. Aborting.\033[0m"
             exit 1
@@ -266,8 +266,8 @@ for TABLE in "${TABLES[@]}"; do
             SELECT_COLUMNS=$(echo "$SELECT_COLUMNS" | sed "s/\"$col\"/NULL AS \"$col\"/g")
         done
 
-        psql --set ON_ERROR_STOP=on "$SOURCE" -c "COPY (SELECT $SELECT_COLUMNS FROM \"$TABLE\") TO STDOUT" \
-            | psql --set ON_ERROR_STOP=on "$TARGET" -c "COPY \"$TABLE\" ($ALL_COLUMNS) FROM STDIN"
+        psql --set ON_ERROR_STOP=on "$SOURCE" -c "COPY (SELECT $SELECT_COLUMNS FROM public.\"$TABLE\") TO STDOUT" \
+            | psql --set ON_ERROR_STOP=on "$TARGET" -c "COPY public.\"$TABLE\" ($ALL_COLUMNS) FROM STDIN"
     else
         echo "Copying data for $TABLE"
         pg_dump --data-only -t "\"$TABLE\"" "$SOURCE" | psql --set ON_ERROR_STOP=on "$TARGET"
