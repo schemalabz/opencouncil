@@ -1,13 +1,14 @@
 interface EmbedFooterProps {
     baseUrl: string;
-    cityId: string;
+    /** Links to the city page when known; falls back to the homepage. */
+    cityId?: string;
 }
 
 export function EmbedFooter({ baseUrl, cityId }: EmbedFooterProps) {
     return (
         <div className="embed-footer">
             <a
-                href={`${baseUrl}/${cityId}`}
+                href={cityId ? `${baseUrl}/${cityId}` : baseUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="embed-footer-link"

@@ -1,6 +1,7 @@
 import { AdministrativeBodyType, Realm } from "@prisma/client";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
-import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogos, getAboutPageStats } from "@/lib/db/cities";
+import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogos, getAboutPageStats, getCityIdContainingPoint } from "@/lib/db/cities";
+import { decodeGeohashToCenter } from "@/lib/geo";
 import { getGitHubStats } from "@/lib/github";
 import { getCityMessage } from "@/lib/db/cityMessages";
 import { getCouncilMeetingsForCity } from "@/lib/db/meetings";
@@ -24,6 +25,19 @@ export async function getAllCityIdsCached(realm: Realm) {
     () => getAllCityIds(realm),
     ['cities', 'ids', realm],
     { tags: ['cities:all', `realm:${realm}:cities:all`] }
+  )();
+}
+
+/**
+ * Cached geohash → listed-city resolution (point-in-polygon on the cell center).
+ * Keyed per geohash so every widget load of the same cell hits the cache.
+ * Tagged `city` so boundary/status changes revalidate it.
+ */
+export async function getCityIdForGeohashCached(geohash: string) {
+  return createCache(
+    () => getCityIdContainingPoint(decodeGeohashToCenter(geohash)),
+    ['embed', 'geohashCity', geohash],
+    { tags: ['city'] }
   )();
 }
 

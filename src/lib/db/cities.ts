@@ -356,6 +356,28 @@ export async function attachGeometryToCities<T extends Pick<City, 'id'>>(
 }
 
 /**
+ * The publicly listed city whose boundary contains the given [lng, lat] point,
+ * or null when the point falls outside every covered municipality. Used by the
+ * embed widget to resolve a geohash to a city when no cityId is provided.
+ */
+export async function getCityIdContainingPoint([lng, lat]: [number, number]): Promise<string | null> {
+    try {
+        const rows = await prisma.$queryRaw<{ id: string }[]>`
+            SELECT id FROM "City"
+            WHERE status = 'listed'
+              AND geometry IS NOT NULL
+              AND ST_Covers(geometry::geometry, ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326))
+            ORDER BY id
+            LIMIT 1
+        `;
+        return rows[0]?.id ?? null;
+    } catch (error) {
+        console.error('Error resolving city for point:', error);
+        return null;
+    }
+}
+
+/**
  * Check if a city can use the city creator tool.
  * Returns true if the city exists and has no existing data, false otherwise.
  */
