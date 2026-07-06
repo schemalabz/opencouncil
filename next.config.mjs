@@ -1,5 +1,6 @@
 import './src/env.mjs';
 import createNextIntlPlugin from 'next-intl/plugin';
+import { withPostHogConfig } from "@posthog/nextjs-config";
 
 // Log which DB the build will use (host + db name only, no credentials)
 try {
@@ -84,5 +85,19 @@ const nextConfig = {
     skipTrailingSlashRedirect: true,
 };
 
-export default withNextIntl(nextConfig);
+export default withPostHogConfig(withNextIntl(nextConfig), {
+    personalApiKey: process.env.POSTHOG_API_KEY,
+    projectId: process.env.POSTHOG_PROJECT_ID,
+    host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+    sourcemaps: {
+        // SKIP_ENV_VALIDATION=1 is set in Nix sandbox builds where network is blocked.
+        // Disable there to prevent upload failures; production (DO App Platform) uses npm run build directly.
+        // The plugin throws at config-load time if enabled without credentials, so also
+        // require them to be present (contributors without a .env.local, deploys without the vars).
+        enabled: !process.env.SKIP_ENV_VALIDATION
+            && !!process.env.POSTHOG_API_KEY
+            && !!process.env.POSTHOG_PROJECT_ID,
+        deleteAfterUpload: true,
+    },
+});
 

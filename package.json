@@ -55,6 +55,7 @@
     "@mapbox/mapbox-gl-draw": "^1.5.0",
     "@mux/mux-video": "^0.20.2",
     "@mux/mux-video-react": "^0.26.1",
+    "@posthog/nextjs-config": "^1.9.68",
     "@prisma/client": "^5.22.0",
     "@radix-ui/react-checkbox": "^1.1.1",
     "@radix-ui/react-collapsible": "^1.1.0",
