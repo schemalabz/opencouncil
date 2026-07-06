@@ -31,7 +31,7 @@ function makeMeeting(adminBody: AdministrativeBody | null = null) {
     return { administrativeBody: adminBody };
 }
 
-function makePerson(roles: { administrativeBody: AdministrativeBody | null; cityId?: string | null }[]): PersonWithRelations {
+function makePerson(roles: { administrativeBody: AdministrativeBody | null; cityId?: string | null; startDate?: Date | null; endDate?: Date | null }[]): PersonWithRelations {
     return {
         id: 'person-1',
         cityId: 'city-1',
@@ -55,8 +55,8 @@ function makePerson(roles: { administrativeBody: AdministrativeBody | null; city
             name_en: null,
             rank: null,
             electedOrder: null,
-            startDate: new Date('2020-01-01'),
-            endDate: null,
+            startDate: r.startDate !== undefined ? r.startDate : new Date('2020-01-01'),
+            endDate: r.endDate !== undefined ? r.endDate : null,
             createdAt: new Date('2020-01-01'),
             updatedAt: new Date('2020-01-01'),
         })),
@@ -205,5 +205,32 @@ describe('filterPersonByAdminBodyTypes', () => {
     it('excludes mayors when council is not selected', () => {
         const person = makePerson([{ administrativeBody: null, cityId: 'city-1' }]);
         expect(filterPersonByAdminBodyTypes(person, ['community'])).toBe(false);
+    });
+
+    it('excludes a person whose committee role has ended', () => {
+        const person = makePerson([{
+            administrativeBody: committeeBody,
+            startDate: new Date('2020-01-01'),
+            endDate: new Date('2021-01-01'),
+        }]);
+        expect(filterPersonByAdminBodyTypes(person, ['committee'])).toBe(false);
+    });
+
+    it('includes a person whose committee role is still active', () => {
+        const person = makePerson([{
+            administrativeBody: committeeBody,
+            startDate: new Date('2020-01-01'),
+            endDate: null,
+        }]);
+        expect(filterPersonByAdminBodyTypes(person, ['committee'])).toBe(true);
+    });
+
+    it('excludes a person whose only matching role for the type has ended, even if another type is active', () => {
+        const person = makePerson([
+            { administrativeBody: committeeBody, endDate: new Date('2021-01-01') },
+            { administrativeBody: councilBody, endDate: null },
+        ]);
+        expect(filterPersonByAdminBodyTypes(person, ['committee'])).toBe(false);
+        expect(filterPersonByAdminBodyTypes(person, ['council'])).toBe(true);
     });
 });

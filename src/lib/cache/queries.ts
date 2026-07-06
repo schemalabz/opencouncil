@@ -7,7 +7,7 @@ import { getCouncilMeetingsForCity } from "@/lib/db/meetings";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { getPeopleForCity } from "@/lib/db/people";
 import { getSubjectsForMeeting, SubjectWithRelations } from "@/lib/db/subject";
-import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
+import { getAdministrativeBodiesForCity, getAdministrativeBodiesWithPublicMeetings } from "@/lib/db/administrativeBodies";
 import { getMeetingStatus } from "@/lib/meetingStatus";
 import { getBatchStatisticsForSubjects, Statistics } from "@/lib/statistics";
 import { createCache } from "./index";
@@ -59,15 +59,18 @@ export async function getCouncilMeetingsForCityCached(cityId: string, { limit, p
  */
 export async function getCouncilMeetingsForCityPublicCached(
   cityId: string,
-  { limit, administrativeBodyTypes, timeFilter }: { limit?: number; administrativeBodyTypes?: AdministrativeBodyType[]; timeFilter?: 'upcoming' | 'past' } = {}
+  { limit, administrativeBodyTypes, administrativeBodyIds, timeFilter }: { limit?: number; administrativeBodyTypes?: AdministrativeBodyType[]; administrativeBodyIds?: string[]; timeFilter?: 'upcoming' | 'past' } = {}
 ) {
   const typeKey = administrativeBodyTypes && administrativeBodyTypes.length > 0
     ? `types:${[...administrativeBodyTypes].sort().join(',')}`
     : 'types:all';
+  const idKey = administrativeBodyIds && administrativeBodyIds.length > 0
+    ? `ids:${[...administrativeBodyIds].sort().join(',')}`
+    : 'ids:all';
   const timeKey = timeFilter ?? 'all';
   return createCache(
-    () => getCouncilMeetingsForCity(cityId, { includeUnreleased: false, limit, administrativeBodyTypes, timeFilter }),
-    ['city', cityId, 'meetings', 'onlyReleased', limit ? `limit:${limit}` : 'all', typeKey, timeKey],
+    () => getCouncilMeetingsForCity(cityId, { includeUnreleased: false, limit, administrativeBodyTypes, administrativeBodyIds, timeFilter }),
+    ['city', cityId, 'meetings', 'onlyReleased', limit ? `limit:${limit}` : 'all', typeKey, idKey, timeKey],
     { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
   )();
 }
@@ -114,6 +117,18 @@ export async function getAdministrativeBodiesForCityCached(cityId: string) {
     () => getAdministrativeBodiesForCity(cityId),
     ['city', cityId, 'administrativeBodies'],
     { tags: ['city', `city:${cityId}`, `city:${cityId}:administrativeBodies`] }
+  )();
+}
+
+/**
+ * Cached administrative bodies that have at least one released meeting.
+ * Tagged with `:meetings` too, so releasing/unreleasing a meeting revalidates it.
+ */
+export async function getAdministrativeBodiesWithPublicMeetingsCached(cityId: string) {
+  return createCache(
+    () => getAdministrativeBodiesWithPublicMeetings(cityId),
+    ['city', cityId, 'administrativeBodies', 'withPublicMeetings'],
+    { tags: ['city', `city:${cityId}`, `city:${cityId}:administrativeBodies`, `city:${cityId}:meetings`] }
   )();
 }
 

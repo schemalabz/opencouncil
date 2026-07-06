@@ -1,4 +1,4 @@
-import { calculateGeometryBounds, createCircleBuffer, encodeGeohash, haversineDistance } from '../geo';
+import { calculateGeometryBounds, createCircleBuffer, encodeGeohash, decodeGeohashToCenter, isValidGeohash, haversineDistance } from '../geo';
 
 describe('calculateGeometryBounds', () => {
   it('returns default Athens center for null geometry', () => {
@@ -98,6 +98,34 @@ describe('encodeGeohash', () => {
   it('encodes Athens-area coordinates into the expected geohash-6 tile', () => {
     // Center of osektutu tile "swbb5u" (Kypseli) should round-trip to itself.
     expect(encodeGeohash([23.7298, 37.9955], 6)).toBe('swbb5u');
+  });
+});
+
+describe('decodeGeohashToCenter', () => {
+  it('round-trips a coordinate back into its cell (~1km for precision 6)', () => {
+    const [lng, lat] = [23.7298, 37.9955];
+    const [dLng, dLat] = decodeGeohashToCenter(encodeGeohash([lng, lat], 6));
+    expect(Math.abs(dLng - lng)).toBeLessThan(0.02);
+    expect(Math.abs(dLat - lat)).toBeLessThan(0.01);
+  });
+
+  it('throws on characters outside the base-32 alphabet', () => {
+    expect(() => decodeGeohashToCenter('abcil')).toThrow(/Invalid geohash/);
+  });
+});
+
+describe('isValidGeohash', () => {
+  it('accepts a valid geohash-6 (case-insensitive)', () => {
+    expect(isValidGeohash('swbb5u')).toBe(true);
+    expect(isValidGeohash('SWBB5U')).toBe(true);
+  });
+
+  it('rejects wrong length and non-base32 characters', () => {
+    expect(isValidGeohash('swbb5')).toBe(false); // too short
+    expect(isValidGeohash('swbb5a')).toBe(false); // 'a' excluded from base32
+    expect(isValidGeohash('swbb5i')).toBe(false); // 'i' excluded from base32
+    expect(isValidGeohash('swbb5!')).toBe(false);
+    expect(isValidGeohash('')).toBe(false);
   });
 });
 

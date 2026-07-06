@@ -62,6 +62,15 @@ export function getNonAgendaLabel(t: Translate, reason: 'beforeAgenda' | 'outOfA
     return t(`categories.${reason}.shortLabel`);
 }
 
+/** The agenda marker shown on a subject card: "#index", the non-agenda label, or none. */
+export function getAgendaLabel(t: Translate, subject: { agendaItemIndex: number | null; nonAgendaReason: string | null }): string | null {
+    if (subject.agendaItemIndex) return `#${subject.agendaItemIndex}`;
+    if (subject.nonAgendaReason === 'beforeAgenda' || subject.nonAgendaReason === 'outOfAgenda') {
+        return getNonAgendaLabel(t, subject.nonAgendaReason);
+    }
+    return null;
+}
+
 /**
  * Returns the withdrawn label for a subject based on whether it's an IN_AGENDA
  * item that was withdrawn/postponed, or an OUT_OF_AGENDA item that was rejected.

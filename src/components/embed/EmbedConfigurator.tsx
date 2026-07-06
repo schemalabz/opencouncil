@@ -9,29 +9,54 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
-import { BadgePicker, type BadgePickerOption } from '@/components/ui/badge-picker';
+import { AdminBodyPicker, type AdminBodyGroup } from '@/components/ui/admin-body-picker';
+import { EmbedLocationInput, type EmbedLocation } from '@/components/embed/EmbedLocationInput';
 import { Check, Copy, Code, Sun, Moon } from 'lucide-react';
 import { type EmbedRadius } from '@/lib/utils/embedTheme';
 
-interface EmbedConfiguratorProps {
-    cityId: string;
-    bodyTypeOptions: BadgePickerOption<AdministrativeBodyType>[];
+/** An admin-body type and its individual bodies that have public meetings. */
+export interface EmbedBodyGroup {
+    type: AdministrativeBodyType;
+    bodies: { id: string; name: string; name_en: string }[];
 }
 
-export function EmbedConfigurator({ cityId, bodyTypeOptions }: EmbedConfiguratorProps) {
+interface EmbedConfiguratorProps {
+    cityId: string;
+    /** City name — biases the location-filter address search. */
+    cityName?: string;
+    /** Only types/bodies that have released meetings — pre-filtered server-side. */
+    bodyGroups: EmbedBodyGroup[];
+}
+
+export function EmbedConfigurator({ cityId, cityName, bodyGroups }: EmbedConfiguratorProps) {
     const t = useTranslations('EmbedConfigurator');
     const tCommon = useTranslations('Common');
     const locale = useLocale();
 
     // Configuration state
+    const [widgetType, setWidgetType] = useState<'meetings' | 'subjects'>('meetings');
     const [accent, setAccent] = useState('#3b82f6');
     const [mode, setMode] = useState<'light' | 'dark'>('light');
     const [limit, setLimit] = useState(5);
     const [showSubjects, setShowSubjects] = useState(true);
     const [radius, setRadius] = useState<EmbedRadius>('rounded');
-    const [selectedBodyTypes, setSelectedBodyTypes] = useState<AdministrativeBodyType[]>([]);
+    // Body filter: a single type (level 1) plus an optional specific body (level 2).
+    const [selectedType, setSelectedType] = useState<AdministrativeBodyType | null>(null);
+    const [selectedBodyId, setSelectedBodyId] = useState<string | null>(null);
+    // Optional location filter (subjects widget only) — address resolved to a geohash-6.
+    const [geoLocation, setGeoLocation] = useState<EmbedLocation | null>(null);
     const [copied, setCopied] = useState(false);
     const [origin, setOrigin] = useState('');
+
+    // Localize the server-provided groups into the shared picker's shape.
+    const bodyPickerGroups = useMemo<AdminBodyGroup[]>(
+        () => bodyGroups.map(g => ({
+            type: g.type,
+            typeLabel: tCommon(`adminBodyType_${g.type}`),
+            bodies: g.bodies.map(b => ({ value: b.id, label: locale === 'en' ? b.name_en : b.name })),
+        })),
+        [bodyGroups, tCommon, locale]
+    );
 
     useEffect(() => {
         setOrigin(window.location.origin);
@@ -51,11 +76,20 @@ export function EmbedConfigurator({ cityId, bodyTypeOptions }: EmbedConfigurator
         if (accent !== '#3b82f6') params.set('accent', accent.replace('#', ''));
         if (mode !== 'light') params.set('mode', mode);
         if (limit !== 5) params.set('limit', String(limit));
-        if (!showSubjects) params.set('showSubjects', 'false');
-        if (radius !== 'rounded') params.set('radius', radius);
-        if (selectedBodyTypes.length > 0) params.set('bodies', selectedBodyTypes.join(','));
-        return `${origin}/${locale}/embed/meetings?${params.toString()}`;
-    }, [origin, locale, cityId, accent, mode, limit, showSubjects, radius, selectedBodyTypes]);
+        if (widgetType === 'meetings' && !showSubjects) params.set('showSubjects', 'false');
+        if (widgetType === 'meetings' && radius !== 'rounded') params.set('radius', radius);
+        // A specific body (id) wins over the broader type filter.
+        if (selectedBodyId) {
+            params.set('bodyIds', selectedBodyId);
+        } else if (selectedType) {
+            params.set('bodies', selectedType);
+        }
+        // Location filter is subjects-only.
+        if (widgetType === 'subjects' && geoLocation) {
+            params.set('geohash', geoLocation.geohash);
+        }
+        return `${origin}/${locale}/embed/${widgetType}?${params.toString()}`;
+    }, [origin, locale, cityId, widgetType, accent, mode, limit, showSubjects, radius, selectedType, selectedBodyId, geoLocation]);
 
     const embedCode = `<iframe\n  src="${embedUrl}"\n  width="100%"\n  height="600"\n  frameborder="0"\n  style="border-radius: 8px; border: 1px solid #e5e7eb;"\n  title="OpenCouncil"\n></iframe>`;
 
@@ -81,6 +115,29 @@ export function EmbedConfigurator({ cityId, bodyTypeOptions }: EmbedConfigurator
                 <div>
                     <h2 className="text-xl font-semibold mb-1">{t('title')}</h2>
                     <p className="text-sm text-muted-foreground">{t('description')}</p>
+                </div>
+
+                {/* Widget type */}
+                <div className="space-y-2">
+                    <Label>{t('widgetType')}</Label>
+                    <div className="flex gap-2">
+                        {([
+                            { value: 'meetings', label: t('typeMeetings') },
+                            { value: 'subjects', label: t('typeSubjects') },
+                        ] as const).map((opt) => (
+                            <button
+                                key={opt.value}
+                                onClick={() => setWidgetType(opt.value)}
+                                className={`px-3 py-1.5 text-sm border rounded-md transition-colors ${
+                                    widgetType === opt.value
+                                        ? 'bg-primary text-primary-foreground border-primary'
+                                        : 'bg-background text-foreground border-border hover:bg-muted'
+                                }`}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Accent color */}
@@ -119,10 +176,10 @@ export function EmbedConfigurator({ cityId, bodyTypeOptions }: EmbedConfigurator
                     />
                 </div>
 
-                {/* Number of meetings */}
+                {/* Number of cards */}
                 <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                        <Label>{t('numberOfMeetings')}</Label>
+                        <Label>{widgetType === 'subjects' ? t('numberOfSubjects') : t('numberOfMeetings')}</Label>
                         <span className="text-sm font-medium tabular-nums">{limit}</span>
                     </div>
                     <Slider
@@ -134,17 +191,33 @@ export function EmbedConfigurator({ cityId, bodyTypeOptions }: EmbedConfigurator
                     />
                 </div>
 
-                {/* Show subjects */}
-                <div className="flex items-center justify-between">
-                    <Label htmlFor="subjects-switch">{t('showSubjects')}</Label>
-                    <Switch
-                        id="subjects-switch"
-                        checked={showSubjects}
-                        onCheckedChange={setShowSubjects}
-                    />
-                </div>
+                {/* Location filter — subjects widget only */}
+                {widgetType === 'subjects' && (
+                    <div className="space-y-2">
+                        <Label>{t('locationLabel')}</Label>
+                        <p className="text-xs text-muted-foreground">{t('locationHint')}</p>
+                        <EmbedLocationInput
+                            cityName={cityName}
+                            value={geoLocation}
+                            onChange={setGeoLocation}
+                        />
+                    </div>
+                )}
 
-                {/* Border radius */}
+                {/* Show subjects — only relevant for the meetings widget */}
+                {widgetType === 'meetings' && (
+                    <div className="flex items-center justify-between">
+                        <Label htmlFor="subjects-switch">{t('showSubjects')}</Label>
+                        <Switch
+                            id="subjects-switch"
+                            checked={showSubjects}
+                            onCheckedChange={setShowSubjects}
+                        />
+                    </div>
+                )}
+
+                {/* Border radius — subjects cards have fixed corners, so meetings-only */}
+                {widgetType === 'meetings' && (
                 <div className="space-y-2">
                     <Label>{t('borderRadius')}</Label>
                     <div className="flex gap-2">
@@ -163,21 +236,19 @@ export function EmbedConfigurator({ cityId, bodyTypeOptions }: EmbedConfigurator
                         ))}
                     </div>
                 </div>
-
-                {/* Administrative body type filter — reuses BadgePicker from meetings list */}
-                {bodyTypeOptions.length > 1 && (
-                    <div className="space-y-2">
-                        <Label>{t('administrativeBodies')}</Label>
-                        <BadgePicker
-                            options={bodyTypeOptions}
-                            selectedValues={selectedBodyTypes}
-                            onSelectionChange={setSelectedBodyTypes}
-                            allLabel={tCommon('allMeetings')}
-                            collapsible={false}
-                            inline
-                        />
-                    </div>
                 )}
+
+                {/* Administrative body filter — type (level 1) + specific body (level 2) */}
+                <AdminBodyPicker
+                    groups={bodyPickerGroups}
+                    selectedType={selectedType}
+                    onTypeChange={type => { setSelectedType(type); setSelectedBodyId(null); }}
+                    selectedBodyId={selectedBodyId}
+                    onBodyChange={setSelectedBodyId}
+                    allTypesLabel={tCommon('allMeetings')}
+                    allBodiesLabel={tCommon('allBodies')}
+                    label={t('administrativeBodies')}
+                />
 
                 {/* Embed code */}
                 <div className="space-y-2">

@@ -3,31 +3,17 @@ import { getTranslations } from 'next-intl/server';
 import { getCityCached, getCouncilMeetingsForCityPublicCached } from '@/lib/cache';
 import { EmbedMeetingCard } from '@/components/embed/EmbedMeetingCard';
 import { EmbedFooter } from '@/components/embed/EmbedFooter';
-import {
-    generateThemeVars,
-    parseAccentColor,
-    type EmbedMode,
-    type EmbedRadius,
-} from '@/lib/utils/embedTheme';
-import { AdministrativeBodyType } from '@prisma/client';
-import { env } from '@/env.mjs';
+import { parseEmbedConfig, type EmbedSearchParams } from '@/lib/utils/embedParams';
 import './embed.css';
 
 // Cache the page for 5 minutes at the CDN, serve stale for up to 1 hour while revalidating
 export const revalidate = 300;
 
-const VALID_BODY_TYPES = new Set<string>(['council', 'committee', 'community']);
-
 interface EmbedMeetingsPageProps {
     params: Promise<{ locale: string }>;
-    searchParams: Promise<{
+    searchParams: Promise<EmbedSearchParams & {
         cityId?: string;
-        accent?: string;
-        mode?: string;
-        limit?: string;
         showSubjects?: string;
-        radius?: string;
-        bodies?: string;
     }>;
 }
 
@@ -42,24 +28,15 @@ export default async function EmbedMeetingsPage(props: EmbedMeetingsPageProps) {
     const city = await getCityCached(cityId);
     if (!city) notFound();
 
-    const accent = parseAccentColor(searchParams.accent);
-    const mode: EmbedMode = searchParams.mode === 'dark' ? 'dark' : 'light';
-    const limit = Math.min(Math.max(parseInt(searchParams.limit || '5', 10) || 5, 1), 10);
+    const { limit, administrativeBodyTypes, administrativeBodyIds, themeVars, baseUrl } = parseEmbedConfig(searchParams);
     const showSubjects = searchParams.showSubjects !== 'false';
-    const radius: EmbedRadius =
-        searchParams.radius === 'sharp' || searchParams.radius === 'pill'
-            ? searchParams.radius
-            : 'rounded';
-    const bodyTypeFilter = (searchParams.bodies?.split(',').filter(Boolean) || [])
-        .filter((v): v is AdministrativeBodyType => VALID_BODY_TYPES.has(v));
-    const administrativeBodyTypes = bodyTypeFilter.length > 0 ? bodyTypeFilter : undefined;
 
     // Fetch upcoming (ASC, nearest first) and past (DESC, most recent first) in parallel.
     // Two queries are correct: a single DESC query would cut off the nearest upcoming
     // meetings when there are more upcoming than `limit`.
     const [upcomingAll, pastAll] = await Promise.all([
-        getCouncilMeetingsForCityPublicCached(cityId, { limit, administrativeBodyTypes, timeFilter: 'upcoming' }),
-        getCouncilMeetingsForCityPublicCached(cityId, { limit, administrativeBodyTypes, timeFilter: 'past' }),
+        getCouncilMeetingsForCityPublicCached(cityId, { limit, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'upcoming' }),
+        getCouncilMeetingsForCityPublicCached(cityId, { limit, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past' }),
     ]);
 
     // Prioritize upcoming; fill remaining slots with past meetings.
@@ -68,8 +45,6 @@ export default async function EmbedMeetingsPage(props: EmbedMeetingsPageProps) {
     const hasAnyMeetings = upcoming.length + past.length > 0;
 
     const t = await getTranslations('EmbedWidget');
-    const themeVars = generateThemeVars(accent, mode, radius);
-    const baseUrl = env.NEXTAUTH_URL.replace(/\/$/, '');
     const cardTranslations = { subjects: t('subjects'), more: t('more'), watchLive: t('watchLive') };
 
     const renderCards = (items: typeof upcoming, isUpcoming: boolean) =>

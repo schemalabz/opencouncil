@@ -78,6 +78,47 @@ export async function findNearbyLocations(data: {
 }
 
 /**
+ * From a set of location ids, return those whose point lies within
+ * `distanceInMeters` of `center` ([lng, lat]).
+ *
+ * Handles the known data issue where some location points were stored with
+ * lat/lng swapped: if a point's stored coordinates fall outside Greece's
+ * bounding box, we swap X/Y before measuring (mirrors calculateProximityMatches
+ * in notifications.ts). Only `point` locations participate; other geometry
+ * types are ignored.
+ */
+export async function filterLocationIdsWithinRadius(
+    locationIds: string[],
+    center: [number, number], // [longitude, latitude]
+    distanceInMeters: number
+): Promise<string[]> {
+    if (locationIds.length === 0) return [];
+    const [lng, lat] = center;
+
+    try {
+        const rows = await prisma.$queryRaw<Array<{ id: string }>>`
+            SELECT id FROM "Location"
+            WHERE id = ANY(${locationIds}::text[])
+              AND type = 'point'
+              AND ST_DWithin(
+                CASE
+                  WHEN ST_X(coordinates::geometry) < 19.5 OR ST_X(coordinates::geometry) > 28.5
+                    OR ST_Y(coordinates::geometry) < 34.5 OR ST_Y(coordinates::geometry) > 41.5
+                  THEN ST_SetSRID(ST_MakePoint(ST_Y(coordinates::geometry), ST_X(coordinates::geometry)), 4326)::geography
+                  ELSE coordinates::geography
+                END,
+                ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
+                ${distanceInMeters}
+              )
+        `;
+        return rows.map(r => r.id);
+    } catch (error) {
+        console.error('Error filtering locations within radius:', error);
+        return [];
+    }
+}
+
+/**
  * Get location by ID
  */
 export async function getLocation(id: string): Promise<Location | null> {
