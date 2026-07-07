@@ -66,7 +66,14 @@ function meeting(overrides: Record<string, unknown> = {}) {
     };
 }
 
-const VIDEO = { videoId: 'v1', title: '21η Τακτική Συνεδρίαση 10/06/2026', publishedAt: '2026-06-10T20:00:00Z' };
+// A finished livestream: 2h long, ended well in the past (clears the grace period).
+const VIDEO = {
+    videoId: 'v1',
+    title: '21η Τακτική Συνεδρίαση 10/06/2026',
+    publishedAt: '2026-06-10T20:00:00Z',
+    actualStartTime: '2026-06-10T18:00:00Z',
+    actualEndTime: '2026-06-10T20:00:00Z',
+};
 
 function aiDecision(decision: Record<string, unknown>) {
     mockAiChat.mockResolvedValue({ result: decision, usage: {} });
@@ -123,12 +130,79 @@ describe('pollLivestreamsForRecentMeetings', () => {
 
         const summary = await pollLivestreamsForRecentMeetings();
 
+        // Expected duration = actualEndTime - actualStartTime = 2h = 7200s.
         expect(mockRequestTranscribeInternal).toHaveBeenCalledWith(
-            'https://www.youtube.com/watch?v=v1', 'm1', 'athens',
+            'https://www.youtube.com/watch?v=v1', 'm1', 'athens', { expectedDurationSeconds: 7200 },
         );
         expect(mockMatchedAlert).toHaveBeenCalledTimes(1);
         expect(summary.matched).toBe(1);
         expect(summary.results[0].action).toBe('transcribe_triggered');
+    });
+
+    it('skips a match still within the grace period (VOD may still be processing)', async () => {
+        const justEnded = {
+            ...VIDEO,
+            actualStartTime: new Date(Date.now() - 70 * 60 * 1000).toISOString(),
+            actualEndTime: new Date(Date.now() - 10 * 60 * 1000).toISOString(), // ended 10 min ago
+        };
+        mockListRecentChannelVideos.mockResolvedValue([justEnded]);
+        mockMeetingFindMany.mockResolvedValue([meeting()]);
+        mockTaskFindMany.mockResolvedValue(processAgendaDone());
+        aiDecision({ decision: 'match', videoId: 'v1', confidence: 0.95, reasoning: 'title+date align' });
+
+        const summary = await pollLivestreamsForRecentMeetings();
+
+        expect(mockRequestTranscribeInternal).not.toHaveBeenCalled();
+        expect(summary.matched).toBe(0);
+        expect(summary.skipped).toBe(1);
+        expect(summary.results[0].action).toBe('skipped');
+    });
+
+    it('does not retry a failed transcribe while still within the backoff window', async () => {
+        mockMeetingFindMany.mockResolvedValue([meeting()]);
+        mockTaskFindMany.mockResolvedValue([
+            ...processAgendaDone(),
+            { councilMeetingId: 'm1', cityId: 'athens', type: 'transcribe', status: 'failed', updatedAt: new Date(Date.now() - 5 * 60 * 1000) }, // failed 5 min ago
+        ]);
+
+        const summary = await pollLivestreamsForRecentMeetings();
+
+        expect(summary.candidates).toBe(0);
+        expect(mockAiChat).not.toHaveBeenCalled();
+        expect(mockRequestTranscribeInternal).not.toHaveBeenCalled();
+    });
+
+    it('retries a failed transcribe once the backoff window has passed', async () => {
+        mockMeetingFindMany.mockResolvedValue([meeting()]);
+        mockTaskFindMany.mockResolvedValue([
+            ...processAgendaDone(),
+            { councilMeetingId: 'm1', cityId: 'athens', type: 'transcribe', status: 'failed', updatedAt: new Date(Date.now() - 45 * 60 * 1000) }, // failed 45 min ago
+        ]);
+        aiDecision({ decision: 'match', videoId: 'v1', confidence: 0.95, reasoning: 'title+date align' });
+
+        const summary = await pollLivestreamsForRecentMeetings();
+
+        expect(mockRequestTranscribeInternal).toHaveBeenCalledTimes(1);
+        expect(summary.matched).toBe(1);
+    });
+
+    it('gives up after the attempt cap of failed transcribes', async () => {
+        const failedRows = Array.from({ length: 8 }, () => (
+            { councilMeetingId: 'm1', cityId: 'athens', type: 'transcribe', status: 'failed', updatedAt: new Date(Date.now() - 60 * 60 * 1000) }
+        ));
+        mockMeetingFindMany.mockResolvedValue([meeting()]);
+        mockTaskFindMany.mockResolvedValue([...processAgendaDone(), ...failedRows]);
+
+        const summary = await pollLivestreamsForRecentMeetings();
+
+        expect(summary.candidates).toBe(0);
+        expect(mockAiChat).not.toHaveBeenCalled();
+        expect(mockRequestTranscribeInternal).not.toHaveBeenCalled();
+        // Not silently dropped — surfaced in the summary so a persistent failure is visible.
+        expect(summary.skipped).toBe(1);
+        expect(summary.results).toHaveLength(1);
+        expect(summary.results[0].action).toBe('gave_up');
+        expect(summary.results[0].meetingId).toBe('m1');
     });
 
     it('does not transcribe when confidence is below threshold', async () => {

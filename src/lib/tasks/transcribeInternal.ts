@@ -47,9 +47,13 @@ export async function deleteExistingSpeakerData(
 }
 
 export async function requestTranscribeInternal(youtubeUrl: string, councilMeetingId: string, cityId: string, {
-    force = false
+    force = false,
+    expectedDurationSeconds,
 }: {
     force?: boolean;
+    /** Livestream wall-clock length (actualEndTime - actualStartTime), in seconds.
+     *  Passed to the backend so it can reject a partial download of a still-processing VOD. */
+    expectedDurationSeconds?: number;
 } = {}) {
     console.log(`Requesting transcription for ${youtubeUrl}`);
     const councilMeeting = await prisma.councilMeeting.findUnique({
@@ -130,6 +134,7 @@ export async function requestTranscribeInternal(youtubeUrl: string, councilMeeti
         youtubeUrl,
         voiceprints: voiceprints.length > 0 ? voiceprints : undefined,
         cityLanguage: city.language,
+        expectedDurationSeconds,
     }
 
     await prisma.councilMeeting.update({

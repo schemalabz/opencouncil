@@ -27,6 +27,11 @@ export interface YouTubeVideo {
     title: string;
     publishedAt: string;
     description?: string;
+    // Present for finished livestreams (absent for normal uploads). Used to gate
+    // transcription behind a grace period and to compute the expected recording
+    // length so the backend can detect a partial download of a still-processing VOD.
+    actualStartTime?: string;
+    actualEndTime?: string;
 }
 
 function requireApiKey(): string {
@@ -220,6 +225,8 @@ export async function listRecentChannelVideos(channelId: string): Promise<YouTub
             title: v.snippet?.title ?? '',
             publishedAt: v.snippet?.publishedAt ?? '',
             description: v.snippet?.description,
+            actualStartTime: v.liveStreamingDetails?.actualStartTime,
+            actualEndTime: v.liveStreamingDetails?.actualEndTime,
         }));
 
     await cacheSetJSON(cacheKey, videos, CHANNEL_VIDEOS_TTL_SECONDS);

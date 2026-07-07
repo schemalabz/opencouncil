@@ -16,6 +16,24 @@ const MAX_TRANSCRIBES_PER_RUN = 10;
 const MULTI_ALERT_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
 /** Transcribe statuses that mean "already handled" — anything but a failed attempt. */
 const TRANSCRIBE_ACTIVE_STATUSES = new Set(["pending", "processing", "running", "succeeded"]);
+/**
+ * Grace period after a livestream ends before we transcribe it. A just-ended stream's
+ * archived VOD is still being processed by YouTube for a while (roughly 30–60 min for a
+ * long council meeting) and can't be reliably downloaded yet, so we wait it out.
+ */
+const GRACE_MS = 35 * 60 * 1000;
+/**
+ * Minimum wait between transcribe retries for a meeting whose previous attempts failed.
+ * The backend fails a partial download (VOD still processing), and this backoff spaces the
+ * retries out instead of hammering every 10-min cron run.
+ */
+const RETRY_BACKOFF_MS = 30 * 60 * 1000;
+/**
+ * Give up auto-transcribing a meeting after this many failed attempts. With RETRY_BACKOFF_MS
+ * this covers several hours of retries — well past normal VOD processing — after which a
+ * persistent failure is a different problem (handled manually), not a still-processing VOD.
+ */
+const MAX_TRANSCRIBE_ATTEMPTS = 8;
 
 function meetingKey(cityId: string, meetingId: string): string {
     return `${cityId}:${meetingId}`;
@@ -102,7 +120,7 @@ export interface PollLivestreamsMeetingResult {
     decision: LivestreamMatchDecision['decision'] | 'error';
     videoId?: string;
     confidence?: number;
-    action: 'transcribe_triggered' | 'alerted_multiple' | 'alerted_multiple_skipped' | 'skipped' | 'dry_run' | 'error';
+    action: 'transcribe_triggered' | 'alerted_multiple' | 'alerted_multiple_skipped' | 'skipped' | 'gave_up' | 'dry_run' | 'error';
     error?: string;
 }
 
@@ -171,11 +189,14 @@ export async function pollLivestreamsForRecentMeetings(
             councilMeetingId: { in: meetingIds },
             type: { in: ['processAgenda', 'transcribe'] },
         },
-        select: { councilMeetingId: true, cityId: true, type: true, status: true },
+        select: { councilMeetingId: true, cityId: true, type: true, status: true, updatedAt: true },
     });
 
     const processAgendaSucceeded = new Set<string>();
     const transcribeActive = new Set<string>();
+    // Per meeting: how many transcribe attempts have failed and when the latest one failed.
+    // Drives retry backoff (space attempts out) and the give-up cap.
+    const failedTranscribe = new Map<string, { count: number; latestFailedAt: Date }>();
     for (const t of taskStatuses) {
         const key = meetingKey(t.cityId, t.councilMeetingId);
         if (t.type === 'processAgenda' && t.status === 'succeeded') {
@@ -184,17 +205,43 @@ export async function pollLivestreamsForRecentMeetings(
         if (t.type === 'transcribe' && TRANSCRIBE_ACTIVE_STATUSES.has(t.status)) {
             transcribeActive.add(key);
         }
+        if (t.type === 'transcribe' && t.status === 'failed') {
+            const cur = failedTranscribe.get(key);
+            if (!cur) {
+                failedTranscribe.set(key, { count: 1, latestFailedAt: t.updatedAt });
+            } else {
+                cur.count += 1;
+                if (t.updatedAt > cur.latestFailedAt) cur.latestFailedAt = t.updatedAt;
+            }
+        }
     }
 
     // Candidate = processAgenda succeeded AND no transcribe that is succeeded or in flight.
-    // A meeting whose only prior transcribe attempts failed is eligible again (auto-retry).
+    // A meeting whose only prior transcribe attempts failed is eligible again (auto-retry),
+    // but only after the backoff window and up to the attempt cap.
+    // Meetings that hit the cap are surfaced (not silently dropped) so a persistent failure
+    // is operator-visible in the poll summary rather than just a log line.
+    const gaveUp: PollLivestreamsMeetingResult[] = [];
     const candidates = meetings.filter(m => {
         const key = meetingKey(m.cityId, m.id);
-        return processAgendaSucceeded.has(key) && !transcribeActive.has(key);
+        if (!processAgendaSucceeded.has(key) || transcribeActive.has(key)) return false;
+
+        const failed = failedTranscribe.get(key);
+        if (failed) {
+            if (failed.count >= MAX_TRANSCRIBE_ATTEMPTS) {
+                console.warn(`[pollLivestreams] ${key}: ${failed.count} failed transcribe attempts, giving up (cap reached)`);
+                gaveUp.push({ cityId: m.cityId, meetingId: m.id, decision: 'no_match', action: 'gave_up', error: `gave up after ${failed.count} failed transcribe attempts` });
+                return false;
+            }
+            if (now.getTime() - failed.latestFailedAt.getTime() < RETRY_BACKOFF_MS) {
+                return false; // still within retry backoff
+            }
+        }
+        return true;
     });
 
     if (candidates.length === 0) {
-        return { ...empty, candidates: 0 };
+        return { ...empty, candidates: 0, skipped: gaveUp.length, results: gaveUp };
     }
 
     // Resolve + list videos once per distinct channel (quota-friendly).
@@ -216,10 +263,10 @@ export async function pollLivestreamsForRecentMeetings(
         }
     }
 
-    const results: PollLivestreamsMeetingResult[] = [];
+    const results: PollLivestreamsMeetingResult[] = [...gaveUp];
     let matched = 0;
     let multipleMeetings = 0;
-    let skipped = 0;
+    let skipped = gaveUp.length;
     let errors = 0;
     let transcribesTriggered = 0;
 
@@ -251,6 +298,18 @@ export async function pollLivestreamsForRecentMeetings(
                 matchedVideo &&
                 decision.confidence >= MATCH_CONFIDENCE_THRESHOLD
             ) {
+                // Grace period: a just-ended stream's VOD may still be processing and not
+                // yet downloadable. Wait until it's been ended a while before transcribing.
+                // (A normal upload has no actualEndTime and is never delayed.)
+                if (matchedVideo.actualEndTime) {
+                    const endedMsAgo = now.getTime() - new Date(matchedVideo.actualEndTime).getTime();
+                    if (endedMsAgo < GRACE_MS) {
+                        skipped++;
+                        results.push({ cityId, meetingId, decision: 'match', videoId: matchedVideo.videoId, confidence: decision.confidence, action: 'skipped', error: 'within grace period (VOD may still be processing)' });
+                        continue;
+                    }
+                }
+
                 if (transcribesTriggered >= MAX_TRANSCRIBES_PER_RUN) {
                     skipped++;
                     results.push({ cityId, meetingId, decision: 'match', videoId: matchedVideo.videoId, confidence: decision.confidence, action: 'skipped', error: 'per-run cap reached' });
@@ -263,8 +322,16 @@ export async function pollLivestreamsForRecentMeetings(
                     continue;
                 }
 
+                // Expected recording length from the livestream's wall-clock, so the backend
+                // can reject a partial download of a still-processing VOD. Undefined for a
+                // normal upload (no live timing) — then the backend skips the check.
+                const expectedDurationSeconds =
+                    matchedVideo.actualStartTime && matchedVideo.actualEndTime
+                        ? Math.max(0, (new Date(matchedVideo.actualEndTime).getTime() - new Date(matchedVideo.actualStartTime).getTime()) / 1000)
+                        : undefined;
+
                 const videoUrl = watchUrl(matchedVideo.videoId);
-                await requestTranscribeInternal(videoUrl, meetingId, cityId);
+                await requestTranscribeInternal(videoUrl, meetingId, cityId, { expectedDurationSeconds });
                 transcribesTriggered++;
                 matched++;
                 sendLivestreamMatchedAlert({

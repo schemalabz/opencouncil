@@ -45,6 +45,11 @@ export interface TranscribeRequest extends TaskRequest {
     youtubeUrl: string;
     voiceprints?: Voiceprint[];
     cityLanguage: CityLanguage;
+    // Expected recording length in seconds (livestream wall-clock). When set, the
+    // backend verifies the downloaded media is at least this long and fails if it
+    // captured a partial recording (VOD still processing). Set for auto-matched
+    // livestreams; omitted for manual transcribes of arbitrary URLs.
+    expectedDurationSeconds?: number;
 }
 
 export type TranscriptWithUtteranceDrifts = Transcript & {
