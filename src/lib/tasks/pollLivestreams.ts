@@ -34,6 +34,12 @@ const RETRY_BACKOFF_MS = 30 * 60 * 1000;
  * persistent failure is a different problem (handled manually), not a still-processing VOD.
  */
 const MAX_TRANSCRIBE_ATTEMPTS = 8;
+/**
+ * Prefix the backend puts on the error when it rejects a partial download of a
+ * still-processing VOD. Only these failures drive the backoff/cap — other failures
+ * retry on the normal cadence. Keep in sync with the backend (opencouncil-tasks pipeline).
+ */
+const INCOMPLETE_RECORDING_MARKER = 'INCOMPLETE_RECORDING';
 
 function meetingKey(cityId: string, meetingId: string): string {
     return `${cityId}:${meetingId}`;
@@ -189,13 +195,16 @@ export async function pollLivestreamsForRecentMeetings(
             councilMeetingId: { in: meetingIds },
             type: { in: ['processAgenda', 'transcribe'] },
         },
-        select: { councilMeetingId: true, cityId: true, type: true, status: true, updatedAt: true },
+        select: { councilMeetingId: true, cityId: true, type: true, status: true, updatedAt: true, responseBody: true },
     });
 
     const processAgendaSucceeded = new Set<string>();
     const transcribeActive = new Set<string>();
-    // Per meeting: how many transcribe attempts have failed and when the latest one failed.
-    // Drives retry backoff (space attempts out) and the give-up cap.
+    // Per meeting: how many transcribe attempts failed because the download was an
+    // incomplete recording (VOD still processing), and when the latest one failed.
+    // Drives the retry backoff and give-up cap. Only these failures count — a failure
+    // for any other reason (manual transcribe, transient backend/network error) neither
+    // consumes the cap nor triggers the backoff, so it retries on the normal poll cadence.
     const failedTranscribe = new Map<string, { count: number; latestFailedAt: Date }>();
     for (const t of taskStatuses) {
         const key = meetingKey(t.cityId, t.councilMeetingId);
@@ -205,7 +214,7 @@ export async function pollLivestreamsForRecentMeetings(
         if (t.type === 'transcribe' && TRANSCRIBE_ACTIVE_STATUSES.has(t.status)) {
             transcribeActive.add(key);
         }
-        if (t.type === 'transcribe' && t.status === 'failed') {
+        if (t.type === 'transcribe' && t.status === 'failed' && (t.responseBody ?? '').includes(INCOMPLETE_RECORDING_MARKER)) {
             const cur = failedTranscribe.get(key);
             if (!cur) {
                 failedTranscribe.set(key, { count: 1, latestFailedAt: t.updatedAt });
@@ -324,7 +333,9 @@ export async function pollLivestreamsForRecentMeetings(
 
                 // Expected recording length from the livestream's wall-clock, so the backend
                 // can reject a partial download of a still-processing VOD. Undefined for a
-                // normal upload (no live timing) — then the backend skips the check.
+                // normal upload (no live timing) — then the backend skips the check. In the
+                // rare case a finished stream reports actualEndTime but not actualStartTime,
+                // we can't compute a length; the 35-min grace period is the fallback guard.
                 const expectedDurationSeconds =
                     matchedVideo.actualStartTime && matchedVideo.actualEndTime
                         ? Math.max(0, (new Date(matchedVideo.actualEndTime).getTime() - new Date(matchedVideo.actualStartTime).getTime()) / 1000)

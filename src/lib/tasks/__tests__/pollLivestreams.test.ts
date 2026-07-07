@@ -162,7 +162,7 @@ describe('pollLivestreamsForRecentMeetings', () => {
         mockMeetingFindMany.mockResolvedValue([meeting()]);
         mockTaskFindMany.mockResolvedValue([
             ...processAgendaDone(),
-            { councilMeetingId: 'm1', cityId: 'athens', type: 'transcribe', status: 'failed', updatedAt: new Date(Date.now() - 5 * 60 * 1000) }, // failed 5 min ago
+            { councilMeetingId: 'm1', cityId: 'athens', type: 'transcribe', status: 'failed', responseBody: 'INCOMPLETE_RECORDING: downloaded 600s but expected ~7200s', updatedAt: new Date(Date.now() - 5 * 60 * 1000) }, // failed 5 min ago
         ]);
 
         const summary = await pollLivestreamsForRecentMeetings();
@@ -172,11 +172,27 @@ describe('pollLivestreamsForRecentMeetings', () => {
         expect(mockRequestTranscribeInternal).not.toHaveBeenCalled();
     });
 
+    it('does not back off a failure that is not an incomplete-recording (e.g. manual/transient)', async () => {
+        mockMeetingFindMany.mockResolvedValue([meeting()]);
+        mockTaskFindMany.mockResolvedValue([
+            ...processAgendaDone(),
+            // A non-VOD failure (no INCOMPLETE_RECORDING marker) 5 min ago must not consume
+            // the backoff/cap — the meeting stays eligible on the normal cadence.
+            { councilMeetingId: 'm1', cityId: 'athens', type: 'transcribe', status: 'failed', responseBody: 'pyannote diarization failed', updatedAt: new Date(Date.now() - 5 * 60 * 1000) },
+        ]);
+        aiDecision({ decision: 'match', videoId: 'v1', confidence: 0.95, reasoning: 'title+date align' });
+
+        const summary = await pollLivestreamsForRecentMeetings();
+
+        expect(mockRequestTranscribeInternal).toHaveBeenCalledTimes(1);
+        expect(summary.matched).toBe(1);
+    });
+
     it('retries a failed transcribe once the backoff window has passed', async () => {
         mockMeetingFindMany.mockResolvedValue([meeting()]);
         mockTaskFindMany.mockResolvedValue([
             ...processAgendaDone(),
-            { councilMeetingId: 'm1', cityId: 'athens', type: 'transcribe', status: 'failed', updatedAt: new Date(Date.now() - 45 * 60 * 1000) }, // failed 45 min ago
+            { councilMeetingId: 'm1', cityId: 'athens', type: 'transcribe', status: 'failed', responseBody: 'INCOMPLETE_RECORDING: downloaded 600s but expected ~7200s', updatedAt: new Date(Date.now() - 45 * 60 * 1000) }, // failed 45 min ago
         ]);
         aiDecision({ decision: 'match', videoId: 'v1', confidence: 0.95, reasoning: 'title+date align' });
 
@@ -188,7 +204,7 @@ describe('pollLivestreamsForRecentMeetings', () => {
 
     it('gives up after the attempt cap of failed transcribes', async () => {
         const failedRows = Array.from({ length: 8 }, () => (
-            { councilMeetingId: 'm1', cityId: 'athens', type: 'transcribe', status: 'failed', updatedAt: new Date(Date.now() - 60 * 60 * 1000) }
+            { councilMeetingId: 'm1', cityId: 'athens', type: 'transcribe', status: 'failed', responseBody: 'INCOMPLETE_RECORDING: downloaded 600s but expected ~7200s', updatedAt: new Date(Date.now() - 60 * 60 * 1000) }
         ));
         mockMeetingFindMany.mockResolvedValue([meeting()]);
         mockTaskFindMany.mockResolvedValue([...processAgendaDone(), ...failedRows]);
