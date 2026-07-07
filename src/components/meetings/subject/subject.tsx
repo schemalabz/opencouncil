@@ -280,6 +280,99 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                     <GroupedDiscussionNotice primarySubject={discussedIn} />
                 )}
 
+                {/* Decision Section (skip for beforeAgenda and withdrawn subjects) */}
+                {subject.nonAgendaReason !== 'beforeAgenda' && !subject.withdrawn && (
+                    <CollapsibleCard
+                        id="decision"
+                        icon={<Landmark className="w-4 h-4" />}
+                        title={
+                            decision ? (
+                                <span className="flex items-center gap-2">
+                                    {t("decision")}
+                                    <Badge variant="secondary" className="text-xs">
+                                        {decision.ada ? `ΑΔΑ: ${decision.ada}` : t("decision")}
+                                    </Badge>
+                                </span>
+                            ) : (
+                                <span className="text-muted-foreground">{t("noDecision")}</span>
+                            )
+                        }
+                    >
+                        {decision ? (
+                            <div className="p-4 space-y-3">
+                                <table className="w-full text-sm">
+                                    <tbody>
+                                        {decision.title && (
+                                            <tr>
+                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap align-top">{t("decisionTitle")}</td>
+                                                <td className="py-1.5">{decision.title}</td>
+                                            </tr>
+                                        )}
+                                        {decision.ada && (
+                                            <tr>
+                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">ΑΔΑ</td>
+                                                <td className="py-1.5">{decision.ada}</td>
+                                            </tr>
+                                        )}
+                                        {decision.protocolNumber && (
+                                            <tr>
+                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">{t("protocolNumber")}</td>
+                                                <td className="py-1.5">{decision.protocolNumber}</td>
+                                            </tr>
+                                        )}
+                                        {decision.publishDate && (
+                                            <tr>
+                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">{t("publishDate")}</td>
+                                                <td className="py-1.5">{formatDate(new Date(decision.publishDate))}</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                                <div className="flex items-center justify-between pt-2 border-t border-border">
+                                    <a
+                                        href={decision.pdfUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                                    >
+                                        <ExternalLink className="w-3.5 h-3.5" />
+                                        {t("viewDecision")}
+                                    </a>
+                                    {decision.updatedAt && (
+                                        <span className="text-xs text-muted-foreground">
+                                            {t("lastUpdated", { time: formatRelativeTime(new Date(decision.updatedAt), locale) })}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="p-6 text-center space-y-3">
+                                <p className="text-sm text-muted-foreground">{t("noDecisionDescription")}</p>
+                                {isFetchingDecision ? (
+                                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        {t("searchingDecision")}
+                                    </div>
+                                ) : (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleFetchDecision}
+                                    >
+                                        <Landmark className="w-4 h-4 mr-2" />
+                                        {t("fetchDecision")}
+                                    </Button>
+                                )}
+                                {lastSearchedAt && !isFetchingDecision && (
+                                    <p className="text-xs text-muted-foreground">
+                                        {t("lastSearched", { time: formatRelativeTime(new Date(lastSearchedAt), locale) })}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </CollapsibleCard>
+                )}
+
                 {/* Summary Section (Collapsible - Open by default) */}
                 {description && (
                     <CollapsibleCard
@@ -444,99 +537,6 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                 >
                     <VotingSection subjectId={subject.id} votes={subject.votes} attendance={subject.attendance} />
                 </CollapsibleCard>}
-
-                {/* Decision Section (skip for beforeAgenda and withdrawn subjects) */}
-                {subject.nonAgendaReason !== 'beforeAgenda' && !subject.withdrawn && (
-                    <CollapsibleCard
-                        id="decision"
-                        icon={<Landmark className="w-4 h-4" />}
-                        title={
-                            decision ? (
-                                <span className="flex items-center gap-2">
-                                    {t("decision")}
-                                    <Badge variant="secondary" className="text-xs">
-                                        {decision.ada ? `ΑΔΑ: ${decision.ada}` : t("decision")}
-                                    </Badge>
-                                </span>
-                            ) : (
-                                <span className="text-muted-foreground">{t("noDecision")}</span>
-                            )
-                        }
-                    >
-                        {decision ? (
-                            <div className="p-4 space-y-3">
-                                <table className="w-full text-sm">
-                                    <tbody>
-                                        {decision.title && (
-                                            <tr>
-                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap align-top">{t("decisionTitle")}</td>
-                                                <td className="py-1.5">{decision.title}</td>
-                                            </tr>
-                                        )}
-                                        {decision.ada && (
-                                            <tr>
-                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">ΑΔΑ</td>
-                                                <td className="py-1.5">{decision.ada}</td>
-                                            </tr>
-                                        )}
-                                        {decision.protocolNumber && (
-                                            <tr>
-                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">{t("protocolNumber")}</td>
-                                                <td className="py-1.5">{decision.protocolNumber}</td>
-                                            </tr>
-                                        )}
-                                        {decision.publishDate && (
-                                            <tr>
-                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">{t("publishDate")}</td>
-                                                <td className="py-1.5">{formatDate(new Date(decision.publishDate))}</td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                                <div className="flex items-center justify-between pt-2 border-t border-border">
-                                    <a
-                                        href={decision.pdfUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-                                    >
-                                        <ExternalLink className="w-3.5 h-3.5" />
-                                        {t("viewDecision")}
-                                    </a>
-                                    {decision.updatedAt && (
-                                        <span className="text-xs text-muted-foreground">
-                                            {t("lastUpdated", { time: formatRelativeTime(new Date(decision.updatedAt), locale) })}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="p-6 text-center space-y-3">
-                                <p className="text-sm text-muted-foreground">{t("noDecisionDescription")}</p>
-                                {isFetchingDecision ? (
-                                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        {t("searchingDecision")}
-                                    </div>
-                                ) : (
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleFetchDecision}
-                                    >
-                                        <Landmark className="w-4 h-4 mr-2" />
-                                        {t("fetchDecision")}
-                                    </Button>
-                                )}
-                                {lastSearchedAt && !isFetchingDecision && (
-                                    <p className="text-xs text-muted-foreground">
-                                        {t("lastSearched", { time: formatRelativeTime(new Date(lastSearchedAt), locale) })}
-                                    </p>
-                                )}
-                            </div>
-                        )}
-                    </CollapsibleCard>
-                )}
 
                 {/* Admin Section - internal signals, only for users authorized to edit */}
                 {options.editsAllowed && (topicImportance || proximityImportance) && (
