@@ -74,8 +74,10 @@
           origLock = pkgs.lib.importJSON ./package-lock.json;
           cliPath = "node_modules/@posthog/cli";
           cliEntry = origLock.packages.${cliPath};
-          # the repacked tarball has a different hash and no install script, so drop the pinned
-          # integrity and the now-meaningless shrinkwrap / install-script flags for this package.
+          # the repacked tarball has different bytes than the lock's integrity, so npm ci would
+          # fail EINTEGRITY against it — drop the pinned integrity (this removal is required). The
+          # shrinkwrap / install-script flags then no longer describe the tarball, so drop them
+          # too for consistency (not required for the build, just keeps the lock honest).
           patchedLock = origLock // {
             packages = origLock.packages // {
               ${cliPath} = builtins.removeAttrs cliEntry
@@ -93,9 +95,12 @@
           } ''
             mkdir unpack && tar -xzf "$src" -C unpack
             # (1) remove the bundled shrinkwrap that breaks offline resolution, and
-            # (2) drop the postinstall that downloads a prebuilt binary from GitHub — there's no
-            #     network in the sandbox, and the binary is only needed to actually run the CLI
-            #     (source-map upload), which is env-gated off in Nix builds anyway.
+            # (2) drop the postinstall that downloads a prebuilt binary from GitHub. This is
+            #     load-bearing, not just tidiness: importNpmLock's npmConfigHook runs `npm rebuild`
+            #     after the `--ignore-scripts` install, and rebuild DOES execute the script — with
+            #     no network in the sandbox it fails (getaddrinfo EAI_AGAIN github.com). Dropping it
+            #     is also safe: the binary only backs the CLI's source-map upload, which is
+            #     env-gated off in Nix builds anyway.
             rm -f unpack/package/npm-shrinkwrap.json
             jq 'del(.scripts.postinstall)' unpack/package/package.json > unpack/package/package.json.tmp
             mv unpack/package/package.json.tmp unpack/package/package.json
