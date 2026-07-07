@@ -72,19 +72,22 @@
       mkNpmDeps = pkgs:
         let
           origLock = pkgs.lib.importJSON ./package-lock.json;
+          cliPath = "node_modules/@posthog/cli";
+          cliEntry = origLock.packages.${cliPath};
           # the repacked tarball has a different hash and no install script, so drop the pinned
           # integrity and the now-meaningless shrinkwrap / install-script flags for this package.
           patchedLock = origLock // {
             packages = origLock.packages // {
-              "node_modules/@posthog/cli" = builtins.removeAttrs
-                origLock.packages."node_modules/@posthog/cli"
+              ${cliPath} = builtins.removeAttrs cliEntry
                 [ "integrity" "hasShrinkwrap" "hasInstallScript" ];
             };
           };
-          posthogCliPatched = pkgs.runCommand "posthog-cli-0.7.34-patched.tgz" {
+          # url + integrity come straight from the lockfile, so a dependabot bump of
+          # @posthog/cli is picked up automatically (no hardcoded version/hash to sync).
+          posthogCliPatched = pkgs.runCommand "posthog-cli-${cliEntry.version}-patched.tgz" {
             src = pkgs.fetchurl {
-              url = "https://registry.npmjs.org/@posthog/cli/-/cli-0.7.34.tgz";
-              hash = "sha512-wrRwj0FhbypW01TLpFRo1HkPBrwZHKP2tFE9xI4NTb84yMKZnXy49ibBdbImktJ5NbW7ndeWidOCZx+2Lkk7/Q==";
+              url = cliEntry.resolved;
+              hash = cliEntry.integrity;
             };
             nativeBuildInputs = [ pkgs.jq ];
           } ''
@@ -101,7 +104,7 @@
         in pkgs.importNpmLock {
           npmRoot = ./.;
           packageLock = patchedLock;
-          packageSourceOverrides."node_modules/@posthog/cli" = posthogCliPatched;
+          packageSourceOverrides.${cliPath} = posthogCliPatched;
         };
 
       mkNpmBuildInputs = pkgs: with pkgs; [
