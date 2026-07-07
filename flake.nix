@@ -61,7 +61,56 @@
       # in package-lock.json, so there is no aggregate npmDepsHash to keep in
       # sync when the lockfile changes (e.g. dependabot bumps). Consumers must
       # pair this with importNpmLock.npmConfigHook.
-      mkNpmDeps = pkgs: pkgs.importNpmLock { npmRoot = ./.; };
+      # @posthog/cli ships a bundled npm-shrinkwrap.json ("hasShrinkwrap": true). In the
+      # no-network Nix sandbox npm honours that bundled shrinkwrap and requests @posthog/cli's
+      # own deps (detect-libc) by their registry URL — but importNpmLock only rewrote the
+      # TOP-LEVEL lock to local file:// paths, so the offline (only-if-cached) request misses the
+      # cache → ENOTCACHED. Dropping the lockfile flag isn't enough (npm reads the shrinkwrap FILE
+      # inside the extracted tarball), so swap in a repacked tarball with npm-shrinkwrap.json
+      # removed via importNpmLock's packageSourceOverrides; npm then resolves @posthog/cli's deps
+      # from the top-level lock, which is already offline.
+      mkNpmDeps = pkgs:
+        let
+          origLock = pkgs.lib.importJSON ./package-lock.json;
+          cliPath = "node_modules/@posthog/cli";
+          cliEntry = origLock.packages.${cliPath};
+          # the repacked tarball has different bytes than the lock's integrity, so npm ci would
+          # fail EINTEGRITY against it — drop the pinned integrity (this removal is required). The
+          # shrinkwrap / install-script flags then no longer describe the tarball, so drop them
+          # too for consistency (not required for the build, just keeps the lock honest).
+          patchedLock = origLock // {
+            packages = origLock.packages // {
+              ${cliPath} = builtins.removeAttrs cliEntry
+                [ "integrity" "hasShrinkwrap" "hasInstallScript" ];
+            };
+          };
+          # url + integrity come straight from the lockfile, so a dependabot bump of
+          # @posthog/cli is picked up automatically (no hardcoded version/hash to sync).
+          posthogCliPatched = pkgs.runCommand "posthog-cli-${cliEntry.version}-patched.tgz" {
+            src = pkgs.fetchurl {
+              url = cliEntry.resolved;
+              hash = cliEntry.integrity;
+            };
+            nativeBuildInputs = [ pkgs.jq ];
+          } ''
+            mkdir unpack && tar -xzf "$src" -C unpack
+            # (1) remove the bundled shrinkwrap that breaks offline resolution, and
+            # (2) drop the postinstall that downloads a prebuilt binary from GitHub. This is
+            #     load-bearing, not just tidiness: importNpmLock's npmConfigHook runs `npm rebuild`
+            #     after the `--ignore-scripts` install, and rebuild DOES execute the script — with
+            #     no network in the sandbox it fails (getaddrinfo EAI_AGAIN github.com). Dropping it
+            #     is also safe: the binary only backs the CLI's source-map upload, which is
+            #     env-gated off in Nix builds anyway.
+            rm -f unpack/package/npm-shrinkwrap.json
+            jq 'del(.scripts.postinstall)' unpack/package/package.json > unpack/package/package.json.tmp
+            mv unpack/package/package.json.tmp unpack/package/package.json
+            tar -czf "$out" -C unpack package
+          '';
+        in pkgs.importNpmLock {
+          npmRoot = ./.;
+          packageLock = patchedLock;
+          packageSourceOverrides.${cliPath} = posthogCliPatched;
+        };
 
       mkNpmBuildInputs = pkgs: with pkgs; [
         cairo pango libjpeg giflib pixman libpng glib librsvg
