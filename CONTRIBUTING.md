@@ -9,6 +9,8 @@ To get started with development, you'll need to set up the project on your local
 > [!TIP]
 > Please follow the [Development Setup guide in our README.md](./README.md#development-setup) to get your environment up and running.
 
+The team shares Claude Code skills via the [`schemalabz/claude-plugins`](https://github.com/schemalabz/claude-plugins) marketplace — when you open the repo you'll be prompted to install them, or run `/plugin install workflow@schemalabz`.
+
 ### Database & Development Tools
 
 The database is automatically seeded with sample data and test users during setup. The seed data provides a realistic development environment while excluding sensitive information.
@@ -59,7 +61,7 @@ For more details on Docker configuration, see [`docs/docker-usage.md`](./docs/do
 
 ## Contributor Workflow
 
-Our development methodology is founded on a **co-creation partnership** between human contributors and AI. The human provides the creative leadership and strategic direction; the AI acts as a thinking partner and a powerful co-creator, automating the heavy lifting of planning and coding. **This process is supported by a series of dedicated AI co-pilots, each guided [by a prompt that can be found in our repository](/docs/prompts/)**.
+Our development methodology is founded on a **co-creation partnership** between human contributors and AI. The human provides the creative leadership and strategic direction; the AI acts as a thinking partner and a powerful co-creator, automating the heavy lifting of planning and coding.
 
 This workflow is designed to be flexible. A single contributor can take a task from start to finish, or different contributors can collaborate on separate steps. Anyone is welcome to initiate any part of the process.
 
@@ -78,7 +80,7 @@ There are two primary sources for contributions:
 Both roadmap items and new proposals are transformed into a formal GitHub Issue through a collaborative process between a contributor and an AI co-pilot.
 
 1.  A contributor takes a raw idea—either from the roadmap's "Ready" column or their own proposal.
-2.  They engage the "Idea Creation" AI co-pilot ([`docs/prompts/idea-creation.prompt.md`](./docs/prompts/idea-creation.prompt.md)).
+2.  They work through the idea with an AI assistant.
 3.  Through a collaborative dialogue, the AI helps the contributor clarify their thoughts, link it to a Feature Pillar (an existing Architectural Guide), and formulate a clear description.
 4.  The final output is a perfectly formatted GitHub Issue, ready to be created. Once the issue is created, it is ready to be picked up for development.
 
@@ -87,7 +89,7 @@ Both roadmap items and new proposals are transformed into a formal GitHub Issue 
 This step is most useful for complex features or changes. A well-defined GitHub Issue is expanded into a detailed, actionable plan called a Product Requirements Document (PRD). This is a co-creation process where a contributor acts as the creative lead and an AI co-pilot serves as a co-creator.
 
 1.  A contributor selects a GitHub Issue.
-2.  They engage the "PRD Creation" AI co-pilot ([`docs/prompts/prd-creation.prompt.md`](./docs/prompts/prd-creation.prompt.md)), providing the Issue content.
+2.  Working with an AI assistant and providing the Issue content, they begin drafting the PRD.
 3.  The AI reads the Issue, the linked Architectural Guide, and proactively gathers context from the codebase.
 4.  The AI drafts a complete PRD, and the human-AI team iterates on it until the plan is solid.
 
@@ -95,7 +97,7 @@ This step is most useful for complex features or changes. A well-defined GitHub 
 
 With a plan from a PRD or a simple Issue, the next step is to translate it into production-ready code and documentation. This is done collaboratively, with a human developer acting as the lead/reviewer and an AI pair programmer assisting with implementation.
 
-1.  With a finalized plan, the developer engages the "Implementation" AI pair programmer ([`docs/prompts/implementation.prompt.md`](./docs/prompts/implementation.prompt.md)).
+1.  With a finalized plan, the developer pairs with their AI assistant to implement it.
 2.  The AI proposes a technical strategy, and together they tackle the implementation file-by-file.
 3.  The AI writes the code, the human reviews, provides direction, and tests.
 4.  As the final step, they collaboratively update any relevant Architectural Guide.
@@ -157,6 +159,6 @@ Once your code and documentation changes are complete, you are ready to submit a
     -   If your Pull Request is based on a PRD, name your branch after the PRD file (e.g., `add-review-flag-to-utterances`) for a clear link between the plan and implementation.
 2.  **PR Title:** Write a clear and concise title that summarizes the change.
 3.  **Link to the Issue:** In the PR description, include the phrase `Closes #[issue_number]` to automatically link your PR to the GitHub Issue that it resolves.
-4.  **PR Description:** A good description is vital for reviewers. We have a dedicated AI co-pilot prompt ([`docs/prompts/pull-request-creation.prompt.md`](./docs/prompts/pull-request-creation.prompt.md)) to help you write a comprehensive one.
+4.  **PR Description:** A good description is vital for reviewers. Write a comprehensive one — your AI assistant can help.
 5.  **Draft PRs:** If your work is still in progress but you'd like to get early feedback, please open a "Draft" Pull Request.
 6.  **Quality Check:** Before opening your PR, run `/pre-pr` in Claude Code to catch common issues (commit hygiene, code quality, production safety, build, tests).

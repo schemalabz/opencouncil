@@ -1,0 +1,7 @@
+{
+  "extraKnownMarketplaces": {
+    "schemalabz": {
+      "source": { "source": "github", "repo": "schemalabz/claude-plugins" }
+    }
+  }
+}
