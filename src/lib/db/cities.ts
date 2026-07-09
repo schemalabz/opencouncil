@@ -1,6 +1,7 @@
 "use server";
 import { City, CouncilMeeting, Prisma, Realm } from '@prisma/client';
 import prisma from "./prisma";
+import { createCache } from "../cache";
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getCurrentUser } from "../auth";
 import { UnauthorizedError } from "../api/errors";
 
@@ -116,6 +117,120 @@ export async function getCity(
         console.error('Error fetching city:', error);
         throw new Error('Failed to fetch city');
     }
+}
+
+/** SQL predicate: the city polygon covers the given [lng, lat] point (WGS84). Shared by the
+ *  two point-lookup helpers so they can never diverge on how containment is decided. */
+function cityCoversPoint(lng: number, lat: number): Prisma.Sql {
+    return Prisma.sql`geometry IS NOT NULL AND ST_Covers(geometry::geometry, ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326))`;
+}
+
+export type CityAtPoint = {
+    id: string;
+    name: string;
+    name_municipality: string;
+    officialSupport: boolean;
+    geometry: GeoJSON.Geometry;
+};
+
+/**
+ * The realm's municipality whose boundary contains a point, to highlight a clicked δήμος on the
+ * map. Intentionally NOT restricted to listed cities (out-of-network δήμοι must resolve too —
+ * unlike getCityIdContainingPoint). Geometry simplified; smallest matching polygon wins.
+ */
+export async function getCityAtPoint(realm: Realm, lng: number, lat: number): Promise<CityAtPoint | null> {
+    const rows = await prisma.$queryRaw<
+        Array<{ id: string; name: string; name_municipality: string; officialSupport: boolean; geometry: string }>
+    >`
+        SELECT id, name, name_municipality, "officialSupport",
+               ST_AsGeoJSON(ST_SimplifyPreserveTopology(geometry, 0.0005)) AS geometry
+        FROM "City"
+        WHERE realm = ${realm}::"Realm"
+          AND ${cityCoversPoint(lng, lat)}
+        ORDER BY ST_Area(geometry) ASC
+        LIMIT 1
+    `;
+    const row = rows[0];
+    if (!row?.geometry) return null;
+    return {
+        id: row.id,
+        name: row.name,
+        name_municipality: row.name_municipality,
+        officialSupport: row.officialSupport,
+        geometry: JSON.parse(row.geometry) as GeoJSON.Geometry,
+    };
+}
+
+/** A cooperating municipality with its centroid + simplified boundary + logo, for the
+ *  landing's "Municipalities map" mode (one logo marker per δήμος). */
+export type MapCityRow = {
+    id: string;
+    name: string;
+    nameMunicipality: string;
+    logoImage: string | null;
+    lng: number;
+    lat: number;
+    geometry: GeoJSON.Geometry | null;
+};
+
+/** Cooperating (officialSupport) municipalities for the landing map — centroid, logo, simplified
+ *  boundary. Realm-keyed cache. Server-loaded in page.tsx (replaced the inline /api/map/cities). */
+export async function getMapCitiesCached(realm: Realm): Promise<MapCityRow[]> {
+    return createCache(
+        async () => {
+            const rows = await prisma.$queryRaw<
+                Array<{
+                    id: string;
+                    name: string;
+                    name_municipality: string;
+                    logoImage: string | null;
+                    lng: number;
+                    lat: number;
+                    geometry: string | null;
+                }>
+            >`
+                SELECT id, name, name_municipality, "logoImage",
+                       ST_X(ST_Centroid(geometry)) AS lng,
+                       ST_Y(ST_Centroid(geometry)) AS lat,
+                       ST_AsGeoJSON(ST_SimplifyPreserveTopology(geometry, 0.001)) AS geometry
+                FROM "City"
+                WHERE "officialSupport" = true
+                  AND realm = ${realm}::"Realm"
+                  AND geometry IS NOT NULL
+            `;
+            return rows.map((r) => ({
+                id: r.id,
+                name: r.name,
+                nameMunicipality: r.name_municipality,
+                logoImage: r.logoImage,
+                lng: Number(r.lng),
+                lat: Number(r.lat),
+                geometry: r.geometry ? (JSON.parse(r.geometry) as GeoJSON.Geometry) : null,
+            }));
+        },
+        ['cities', 'map-centroids', realm],
+        { tags: ['cities:all', `realm:${realm}:cities:all`] },
+    )();
+}
+
+/**
+ * Public listed cities (+ counts) for a realm, cached. The landing directory / Δήμοι tab reads
+ * this on every render, so it must not run the uncached city+counts query each time. Realm-keyed;
+ * shares the `cities:all` / `realm:${realm}:cities:all` tags with the other city caches so city
+ * edits bust it. TTL bounds the released-meeting count (release toggles don't hit `cities:all`).
+ * Public only — never returns unlisted/pending cities (no auth here, so it must stay filtered).
+ */
+export async function getListedCitiesCached(realm: Realm): Promise<CityWithCounts[]> {
+    return createCache(
+        async () =>
+            prisma.city.findMany({
+                where: { status: 'listed', realm },
+                include: { _count: CITY_COUNT_SELECT },
+                orderBy: CITY_ORDER_BY,
+            }),
+        ['cities', 'listed', realm],
+        { revalidate: 900, tags: ['cities:all', `realm:${realm}:cities:all`] },
+    )();
 }
 
 export async function getFullCity(
@@ -365,8 +480,7 @@ export async function getCityIdContainingPoint([lng, lat]: [number, number]): Pr
         const rows = await prisma.$queryRaw<{ id: string }[]>`
             SELECT id FROM "City"
             WHERE status = 'listed'
-              AND geometry IS NOT NULL
-              AND ST_Covers(geometry::geometry, ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326))
+              AND ${cityCoversPoint(lng, lat)}
             ORDER BY id
             LIMIT 1
         `;
