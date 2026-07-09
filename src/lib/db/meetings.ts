@@ -1,10 +1,13 @@
 "use server";
-import { CouncilMeeting, AdministrativeBodyType, Prisma } from '@prisma/client';
+import { CouncilMeeting, AdministrativeBodyType, Prisma, Realm } from '@prisma/client';
 import { revalidateTag, revalidatePath } from 'next/cache';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit, isUserAuthorizedToEdit } from '../auth';
 import { buildDateFilter } from './reviews/dateFilters';
 import { formatDateAsMeetingId } from '../utils/meetingId';
+import { landingSubjectsTag } from './subject';
+// Import from the cache leaf (see the note in subject.ts) to keep the barrel's heavy chain out.
+import { createCache } from '../cache/index';
 
 const meetingWithAdminBodyInclude = {
     administrativeBody: true,
@@ -180,6 +183,51 @@ export async function getCouncilMeetingsForCity(cityId: string, { includeUnrelea
     }
 }
 
+const upcomingMeetingInclude = {
+    city: { select: { id: true, name: true, name_municipality: true, logoImage: true } },
+    administrativeBody: true,
+} satisfies Prisma.CouncilMeetingInclude;
+
+export type UpcomingMeetingWithCity = Prisma.CouncilMeetingGetPayload<{
+    include: typeof upcomingMeetingInclude
+}>;
+
+export async function getUpcomingMeetings(realm: Realm, { limit = 10 }: { limit?: number } = {}): Promise<UpcomingMeetingWithCity[]> {
+    try {
+        return await prisma.councilMeeting.findMany({
+            where: {
+                // public visibility guard: never expose unreleased (draft) meetings
+                released: true,
+                dateTime: { gt: new Date() },
+                city: { status: 'listed', realm },
+            },
+            orderBy: [{ dateTime: 'asc' }, { createdAt: 'asc' }],
+            take: limit,
+            include: upcomingMeetingInclude,
+        });
+    } catch (error) {
+        console.error('Error fetching upcoming meetings:', error);
+        throw new Error('Failed to fetch upcoming meetings');
+    }
+}
+
+// Cache tag for a realm's upcoming-meetings list — revalidated when a meeting's release toggles.
+// Not exported: a "use server" module may only export async functions, and it's used only here.
+const upcomingMeetingsTag = (realm: Realm) => `realm:${realm}:upcoming-meetings`;
+
+/**
+ * Realm-scoped, cached wrapper around getUpcomingMeetings for the landing (read on every render).
+ * Short TTL because "upcoming" shrinks as meetings pass and the query is `dateTime > now()`, which
+ * a cache key can't reflect; release toggles bust the tag for correctness in between.
+ */
+export async function getUpcomingMeetingsCached(realm: Realm, { limit = 10 }: { limit?: number } = {}): Promise<UpcomingMeetingWithCity[]> {
+    return createCache(
+        () => getUpcomingMeetings(realm, { limit }),
+        ['upcoming-meetings', realm, String(limit)],
+        { revalidate: 300, tags: [upcomingMeetingsTag(realm)] },
+    )();
+}
+
 export async function toggleMeetingRelease(cityId: string, id: string, released: boolean): Promise<CouncilMeetingWithAdminBody> {
     await withUserAuthorizedToEdit({ councilMeetingId: id, cityId: cityId });
     try {
@@ -191,6 +239,12 @@ export async function toggleMeetingRelease(cityId: string, id: string, released:
         // TODO: utilize api/cities/[cityId]/meetings/[meetingId] to edit the meeting
         revalidateTag(`city:${cityId}:meetings`, 'max');
         revalidatePath(`/${cityId}`, "layout");
+        const city = await prisma.city.findUnique({ where: { id: cityId }, select: { realm: true } });
+        if (city) {
+            revalidateTag(landingSubjectsTag(city.realm), 'max');
+            // a newly (un)released meeting can enter/leave the landing's upcoming list
+            revalidateTag(upcomingMeetingsTag(city.realm), 'max');
+        }
         return updatedMeeting;
     } catch (error) {
         console.error('Error toggling council meeting release:', error);
