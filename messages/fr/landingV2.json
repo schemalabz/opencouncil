@@ -1,0 +1,195 @@
+{
+  "common": {
+    "back": "Retour",
+    "close": "Fermer",
+    "clear": "Effacer",
+    "clearAll": "Tout effacer",
+    "search": "Rechercher",
+    "learnMore": "En savoir plus",
+    "requestToAdd": "Demander à l'ajouter",
+    "dimosName": "Commune de {name}"
+  },
+  "nav": {
+    "home": "Accueil",
+    "subjects": "Sujets",
+    "municipalities": "Communes",
+    "more": "Plus",
+    "menu": "Menu",
+    "menuTitle": "Menu de navigation",
+    "subjectsNearYou": "Sujets près de chez vous",
+    "collapse": "Réduire",
+    "backToMap": "Retour à la carte",
+    "info": "Guide"
+  },
+  "account": {
+    "profile": "Profil",
+    "logout": "Se déconnecter",
+    "signOut": "Se déconnecter",
+    "signIn": "Se connecter",
+    "signInAria": "Se connecter / s'inscrire",
+    "notifications": "Notifications"
+  },
+  "map": {
+    "locate": "Ma position",
+    "zoomIn": "Zoom avant",
+    "zoomOut": "Zoom arrière",
+    "plainMap": "Carte simple",
+    "satelliteView": "Vue satellite",
+    "satellite": "Satellite",
+    "filters": "Filtres",
+    "prevCategories": "Catégories précédentes",
+    "nextCategories": "Catégories suivantes"
+  },
+  "search": {
+    "placeholder": "Rechercher un sujet ou une adresse",
+    "clearSearch": "Effacer la recherche",
+    "filterCategory": "Filtrer par catégorie :",
+    "filterMunicipality": "Filtrer par commune :",
+    "subjectsNearAddress": "Sujets près de l'adresse :",
+    "noResults": "Aucun sujet trouvé.",
+    "popular": "Recherches populaires",
+    "categories": "Catégories",
+    "municipalities": "Communes",
+    "body": "Organe",
+    "duration": "Durée de discussion",
+    "dateRange": "Période",
+    "from": "Du",
+    "to": "Au",
+    "datesOverride": "Les dates remplacent la sélection rapide de période",
+    "datePlaceholder": "JJ/MM/AAAA"
+  },
+  "list": {
+    "loading": "Chargement des sujets…",
+    "emptyLocated": "Aucun sujet avec une localisation trouvé."
+  },
+  "filters": {
+    "all": "Tous"
+  },
+  "subject": {
+    "view": "Voir le sujet",
+    "discussionMinutes": "{min}′ de discussion"
+  },
+  "municipality": {
+    "subjects": "Sujets",
+    "meetings": "Séances",
+    "persons": "Personnes",
+    "nextMeeting": "Prochaine séance :",
+    "notSeeing": "Vous ne voyez pas votre commune ?",
+    "unavailable": "La commune de {name} n'est pas encore disponible — demandez à l'ajouter",
+    "notify": "Notifications pour la commune de {name}",
+    "notifyMeeting": "Notifications pour la prochaine séance de {name}"
+  },
+  "notify": {
+    "interested": "Il semble que vous vous intéressiez à ",
+    "known": "Si vous le souhaitez, activez les notifications pour suivre les sujets débattus.",
+    "unknown": "Malheureusement, elle ne fait pas encore partie de notre réseau. Vous pouvez demander qu'elle le rejoigne et nous vous préviendrons dès que ce sera le cas.",
+    "enable": "Activer les notifications",
+    "notNow": "Plus tard"
+  },
+  "explain": {
+    "title": "Voici notre bureau !",
+    "body": "Nous œuvrons pour rapprocher les citoyens de leur administration locale"
+  },
+  "municipalityTooltip": {
+    "body": "Cette commune n'est pas encore sur OpenCouncil."
+  },
+  "general": {
+    "title": "Sujets généraux · {count}",
+    "subtitle": "Sujets sans localisation précise sur la carte.",
+    "coLocated": "{count} sujets ici",
+    "cityAria": "Sujets généraux · {name} ({count})"
+  },
+  "marker": {
+    "samePoint": "{count} sujets au même endroit",
+    "seeSamePoint": "Voir {count} sujets au même endroit",
+    "clusterZoom": "{count} sujets — zoomez"
+  },
+  "dateRange": {
+    "7d": "7 jours",
+    "14d": "14 jours",
+    "30d": "30 jours",
+    "3m": "3 mois",
+    "6m": "6 mois",
+    "12m": "12 mois",
+    "all": "Toute la période"
+  },
+  "dateRangeMenu": {
+    "7d": "7 derniers jours",
+    "14d": "14 derniers jours",
+    "30d": "30 derniers jours",
+    "3m": "3 derniers mois",
+    "6m": "6 derniers mois",
+    "12m": "12 derniers mois",
+    "all": "Toute la période"
+  },
+  "bodyType": {
+    "council": "Conseil",
+    "committee": "Commission",
+    "community": "Communauté"
+  },
+  "duration": {
+    "5": "5′+",
+    "15": "15′+",
+    "30": "30′+",
+    "any": "Tous",
+    "discussed": "Avec discussion"
+  },
+  "fewResults": {
+    "widenRange": "Essayez d'élargir la période pour voir plus de sujets",
+    "clearFilters": "Essayez d'effacer les filtres pour voir plus de sujets",
+    "zoomOut": "Essayez de dézoomer pour voir plus de sujets"
+  },
+  "topic": {
+    "general": "Général"
+  },
+  "footer": {
+    "groups": {
+      "links": "Liens",
+      "policies": "Politiques et conditions",
+      "contact": "Contact"
+    },
+    "links": {
+      "forMunicipalities": "Pour les communes",
+      "search": "Recherche",
+      "ai": "OpenCouncil IA",
+      "api": "API",
+      "jobs": "Emplois",
+      "status": "État du service",
+      "corrections": "Corrections",
+      "privacy": "Politique de confidentialité",
+      "terms": "Conditions d'utilisation",
+      "cookies": "Préférences de cookies"
+    }
+  },
+  "popularSearches": [
+    "Budget",
+    "Stationnement",
+    "Piétonnisation",
+    "Espaces verts et arbres",
+    "Marchés",
+    "Protection contre les inondations",
+    "Écoles",
+    "Propreté"
+  ],
+  "info": {
+    "title": "Qu'est-ce que c'est ?",
+    "intro": "La carte montre les sujets débattus lors des séances des conseils municipaux. Vous pouvez trouver ceux qui vous intéressent par catégorie, par zone ou directement sur la carte.",
+    "pins": {
+      "title": "Sujets sur la carte",
+      "body": "Chaque point est un sujet. Touchez-le pour ouvrir l'aperçu et lire sa description."
+    },
+    "cluster": {
+      "title": "Plusieurs sujets au même endroit",
+      "body": "Quand un endroit regroupe plusieurs sujets, un nombre apparaît. Touchez-le et choisissez celui qui vous intéresse."
+    },
+    "general": {
+      "title": "Sujets d'intérêt général",
+      "body": "Ils n'ont pas de localisation précise ; vous les trouvez sous l'icône de chaque commune."
+    },
+    "moreBody": "Envie d'en savoir plus sur l'administration locale — comment fonctionne le conseil, comment les communes sont financées, et plus encore ?",
+    "moreCta": "En savoir plus",
+    "sampleTopic": "Propreté",
+    "sampleSubject": "Collecte des déchets dans le centre",
+    "sampleDesc": "Le conseil a débattu du nouveau calendrier de collecte et des itinéraires."
+  }
+}
