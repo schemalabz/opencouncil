@@ -1,166 +1,179 @@
-'use client'
-
-import { motion } from 'framer-motion'
-import { Bot, Database, ExternalLink, Share2 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { WordRotator } from '@/components/ui/word-rotator'
-import { Button } from '@/components/ui/button'
+import { Metadata } from "next";
+import { ChevronRight } from "lucide-react";
 import { Link } from "@/i18n/routing";
+import { HeadingAnchor } from "@/components/explain/HeadingAnchor";
+import { NeighborhoodIllustration } from "@/components/explain/NeighborhoodIllustration";
+import { getNeighborhoodSubjects } from "@/lib/db/neighborhood";
+import { buildHreflangAlternates } from "@/lib/utils/hreflang";
+import { getRealm } from "@/lib/realm.server";
+import { ARTICLES, SECTIONS } from "@/lib/explain/articles";
+import { OPENCOUNCIL_SUBSECTIONS } from "@/lib/explain/subsections";
+import { ExplainReader } from "./ExplainReader";
+import { ExplainFeatures } from "./ExplainFeatures";
+import { SubstackCarousel } from "@/components/embeds/SubstackCarousel";
+import { SUBSTACK_POSTS } from "@/lib/explain/substackPosts";
 
-export default function ExplainPage() {
+/** Full scroll-spy / mobile-nav order: articles, the OpenCouncil sub-sections,
+ *  then the Substack "further reading" carousel as the final stop. */
+const SUBSTACK_HEADING = "Διάβασε περισσότερα στο Substack";
+const NAV_SECTIONS = [
+    ...SECTIONS,
+    ...OPENCOUNCIL_SUBSECTIONS,
+    { id: "substack", title: SUBSTACK_HEADING },
+];
+
+const PAGE_TITLE = "Η τοπική αυτοδιοίκηση, απλά";
+const PAGE_DESCRIPTION =
+    "Πώς λειτουργούν οι δήμοι στην Ελλάδα — έσοδα, όργανα, συνεδριάσεις και αποφάσεις — και πώς το OpenCouncil τα κάνει κατανοητά, αναζητήσιμα και προσβάσιμα.";
+
+export async function generateMetadata(props: {
+    params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+    const { locale } = await props.params;
+
+    return {
+        title: `${PAGE_TITLE} | OpenCouncil`,
+        description: PAGE_DESCRIPTION,
+        keywords: [
+            "τοπική αυτοδιοίκηση",
+            "δήμοι Ελλάδα",
+            "δημοτικό συμβούλιο",
+            "δημοτική επιτροπή",
+            "δημοτικές κοινότητες",
+            "Διαύγεια",
+            "δημοτικές εκλογές 2028",
+            "OpenCouncil",
+        ],
+        authors: [{ name: "OpenCouncil" }],
+        openGraph: {
+            title: PAGE_TITLE,
+            description: PAGE_DESCRIPTION,
+            type: "article",
+            siteName: "OpenCouncil",
+            locale: locale === "en" ? "en_US" : "el_GR",
+        },
+        twitter: {
+            card: "summary_large_image",
+            title: PAGE_TITLE,
+            description: PAGE_DESCRIPTION,
+        },
+        alternates: await buildHreflangAlternates("/explain", locale),
+    };
+}
+
+export default async function ExplainPage() {
+    const realm = await getRealm();
+    const neighborhoodSubjects = await getNeighborhoodSubjects();
+    const structuredData = {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        headline: PAGE_TITLE,
+        description: PAGE_DESCRIPTION,
+        about: "Τοπική αυτοδιοίκηση",
+        inLanguage: "el",
+        author: { "@type": "Organization", name: "OpenCouncil" },
+        publisher: { "@type": "Organization", name: "OpenCouncil" },
+    };
+
     return (
-        <div className="min-h-screen">
-            <div className="container mx-auto px-2 sm:px-4">
-                {/* Hero Section */}
-                <motion.section
-                    className="relative py-8 sm:py-16 flex flex-col justify-center items-center"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.8 }}
-                >
-                    <div className="flex flex-col items-center justify-center space-y-4 sm:space-y-6">
-                        <h1 className="text-xl sm:text-2xl text-muted-foreground">
-                            Η αυτοδιοίκηση λύνει καθημερινά προβλήματα.
-                        </h1>
-                        <div className="text-3xl sm:text-4xl md:text-6xl font-light my-6 sm:my-8 md:my-12">
-                            <WordRotator words={['🛣️ Τους δρόμους μας', '🏘️ Τις γειτονιές μας', '🏫 Τα σχολεία μας', '🌳 Τα πάρκα μας', '🕒 Ωράρια κατασημάτων', '🚦 Κυκλοφοριακές ρυθμίσεις', '🧹 Καθαριότητα']} />
-                        </div>
-                        <motion.p
-                            className="text-lg sm:text-xl text-muted-foreground max-w-3xl text-center leading-relaxed"
-                            initial={{ y: 20, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: 0.5, duration: 0.8 }}
-                        >
-                            Το OpenCouncil κάνει τις δημόσιες συνεδριάσεις της αυτοδιοίκησης απλές και πιο συμμετοχικές.
-                        </motion.p>
-                    </div>
-                </motion.section>
+        <div className="mx-auto max-w-6xl px-4 pb-28 sm:px-6 lg:pb-16">
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+            />
 
-                <motion.section
-                    className="flex justify-center py-8 sm:py-16"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.8, duration: 0.5 }}
-                >
-                    <Button
-                        asChild
-                        size="lg"
-                        className="relative group text-base sm:text-lg px-8 py-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 bg-primary hover:bg-primary/90"
-                    >
-                        <Link href="/athens">
-                            <span className="relative z-10">Εξερεύνησε τα δημοτικά συμβούλια της Αθήνας</span>
-                            <motion.div
-                                className="absolute inset-0 rounded-xl bg-primary opacity-0 group-hover:opacity-100 transition-opacity"
-                                whileHover={{
-                                    boxShadow: "0 0 30px rgba(var(--primary), 0.5)"
-                                }}
-                            />
-                        </Link>
-                    </Button>
-                </motion.section>
+            {/* breadcrumb */}
+            <nav className="flex items-center gap-2 text-sm text-muted-foreground" aria-label="breadcrumb">
+                <Link href="/" className="hover:text-orange">
+                    Αρχική
+                </Link>
+                <span className="text-border">/</span>
+                <span>Σχετικά με την τοπική αυτοδιοίκηση</span>
+            </nav>
 
-                {/* Features Section */}
-                <motion.section
-                    className="py-8 sm:py-16"
-                    initial={{ opacity: 0, y: 50 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8 }}
-                    viewport={{ once: true }}
+            {/* title + description */}
+            <header className="mt-5 max-w-3xl">
+                <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl">{PAGE_TITLE}</h1>
+                <p className="mt-4 text-lg leading-relaxed text-muted-foreground">{PAGE_DESCRIPTION}</p>
+            </header>
+
+            {/* interactive hero — a neighbourhood whose elements reveal real subjects */}
+            <NeighborhoodIllustration subjects={neighborhoodSubjects} />
+
+            <div className="mt-12 lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-12 lg:items-start">
+                {/* table of contents (desktop) — pinned via ExplainReader, since a
+                    parent layout uses overflow-hidden which breaks position: sticky */}
+                <aside
+                    className="hidden self-start lg:block lg:will-change-transform"
+                    data-toc
+                    aria-label="Περιεχόμενα"
                 >
-                    <h2 className="text-xl sm:text-2xl text-center mb-8 text-muted-foreground">
-                        Η τεχνητή νοημοσύνη του OpenCouncil...
+                    <h2 className="mb-3.5 text-xs font-bold uppercase tracking-wider text-muted-foreground !text-left">
+                        Περιεχόμενα
                     </h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-                        {[
-                            {
-                                description: 'Διαβάζει την ημερήσια διάταξη',
-                                emoji: '📜'
-                            },
-                            {
-                                description: 'Βλέπει τη συνεδρίαση',
-                                emoji: '📹'
-                            },
-                            {
-                                description: 'Αναγνωρίζει τους ομιλητές',
-                                emoji: '🗣️'
-                            },
-                            {
-                                description: 'Καταγράφει τα πρακτικά',
-                                emoji: '📚'
-                            },
-                            {
-                                description: 'Εντοπίζει θέματα και τοποθεσίες',
-                                emoji: '📍'
-                            },
-                            {
-                                description: 'Οργανώνει τα δεδομένα',
-                                emoji: '🗄️'
-                            },
-                            {
-                                description: 'Κάνει την πληροφορία προσβάσιμη',
-                                emoji: '🔍'
-                            },
-                            {
-                                description: 'Δημιουργεί podcast',
-                                emoji: '🎙️'
-                            },
-                            {
-                                description: 'Μοντάρει σύντομα βίντεο',
-                                emoji: '📱'
-                            },
-                            {
-                                description: 'Ενημερώνει τους δημότες',
-                                emoji: '💬'
-                            }
-                        ].map((step, index) => (
-                            <motion.div
-                                key={index}
-                                initial={{ opacity: 0, y: 20 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.1, duration: 0.5 }}
-                                viewport={{ once: true }}
-                            >
-                                <Card className="h-full hover:shadow-lg hover:scale-[1.01] transition-all duration-300">
-                                    <CardContent className="p-4 sm:p-6 flex items-center gap-4">
-                                        <span className="text-2xl sm:text-3xl">{step.emoji}</span>
-                                        <p className="text-sm sm:text-base text-muted-foreground">{step.description}</p>
-                                    </CardContent>
-                                </Card>
-                            </motion.div>
-                        ))}
-                    </div>
-                </motion.section>
+                    <ol className="space-y-0.5">
+                        {SECTIONS.map((s) => {
+                            const isOc = s.id === "opencouncil";
+                            return (
+                                <li key={s.id} className={isOc ? "group" : undefined} data-toc-group={isOc ? "" : undefined}>
+                                    <a
+                                        href={`#${s.id}`}
+                                        className="flex items-center justify-between gap-2 border-l-2 border-border py-1.5 pl-3.5 pr-1 text-sm leading-snug text-muted-foreground transition-colors hover:text-foreground aria-[current=true]:border-orange aria-[current=true]:font-semibold aria-[current=true]:text-orange"
+                                    >
+                                        <span>{s.title}</span>
+                                        {isOc && (
+                                            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition-transform duration-200 group-data-[expanded=true]:rotate-90" />
+                                        )}
+                                    </a>
+                                    {/* nested sub-sections — revealed when the section is active */}
+                                    {isOc && (
+                                        <div
+                                            data-toc-nested
+                                            className="grid grid-rows-[0fr] overflow-hidden transition-[grid-template-rows] duration-300 ease-out group-data-[expanded=true]:grid-rows-[1fr]"
+                                        >
+                                            <ol className="mt-1 min-h-0 space-y-0.5 overflow-hidden pl-2">
+                                                {OPENCOUNCIL_SUBSECTIONS.map((sub) => (
+                                                    <li key={sub.id}>
+                                                        <a
+                                                            href={`#${sub.id}`}
+                                                            className="block border-l-2 border-border py-1 pl-3 text-[13px] leading-snug text-muted-foreground transition-colors hover:text-foreground aria-[current=true]:border-orange/50 aria-[current=true]:font-medium aria-[current=true]:text-orange/80"
+                                                        >
+                                                            {sub.title}
+                                                        </a>
+                                                    </li>
+                                                ))}
+                                            </ol>
+                                        </div>
+                                    )}
+                                </li>
+                            );
+                        })}
+                    </ol>
+                </aside>
 
-                <motion.section
-                    className="flex flex-col items-center gap-6 py-8 sm:py-16"
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
-                    viewport={{ once: true }}
-                >
-                    <Button
-                        size="lg"
-                        asChild
-                        className="gap-2 text-base sm:text-lg px-8 py-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-                    >
-                        <Link href="https://schemalabs.substack.com/p/pencouncil" target="_blank">
-                            <ExternalLink className="w-4 h-4" />
-                            Διάβασε περισσότερα για το πως δουλεύει
-                        </Link>
-                    </Button>
-
-                    <Button
-                        size="lg"
-                        asChild
-                        variant="outline"
-                        className="gap-2 text-base sm:text-lg"
-                    >
-                        <Link href="/about">
-                            Αν είστε στην αυτοδιοίκηση, πατήστε εδώ
-                        </Link>
-                    </Button>
-                </motion.section>
+                {/* articles */}
+                <div className="space-y-14">
+                    {ARTICLES.map(({ id, title, Body }) => (
+                        <section key={id} id={id} className="scroll-mt-24">
+                            <h2 className="!text-left text-2xl font-bold !leading-none sm:text-3xl">
+                                <HeadingAnchor id={id}>{title}</HeadingAnchor>
+                            </h2>
+                            <div className="prose prose-neutral mt-4 max-w-none prose-headings:font-bold prose-a:text-orange prose-blockquote:border-l-orange prose-blockquote:not-italic">
+                                <Body />
+                            </div>
+                            {/* Product showcase (diagram + feature demos), reused from
+                                /about — part of the OpenCouncil section, matching its width */}
+                            {id === "opencouncil" && <ExplainFeatures realm={realm} />}
+                        </section>
+                    ))}
+                </div>
             </div>
+
+            {/* Further reading — OpenCouncil Substack posts */}
+            <hr className="mt-16 border-t border-border" />
+            <SubstackCarousel id="substack" posts={SUBSTACK_POSTS} heading={SUBSTACK_HEADING} />
+
+            <ExplainReader sections={NAV_SECTIONS} />
         </div>
     );
 }

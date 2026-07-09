@@ -11,8 +11,9 @@ import SubjectDemo from './SubjectDemo'
 import SearchDemo from './SearchDemo'
 import NotificationDemo from './NotificationDemo'
 import MapDemo from './MapDemo'
+import { HeadingAnchor } from '@/components/explain/HeadingAnchor'
 
-function FeatureVisual({ feature, realm }: { feature: Feature; realm: Realm }) {
+export function FeatureVisual({ feature, realm }: { feature: Feature; realm: Realm }) {
     if (feature.id === 'subjects') {
         return <SubjectDemo realm={realm} />
     }
@@ -45,21 +46,37 @@ function FeatureVisual({ feature, realm }: { feature: Feature; realm: Realm }) {
     )
 }
 
-function FeatureRow({ feature, index, t, realm }: { feature: Feature; index: number; t: ReturnType<typeof useTranslations>; realm: Realm }) {
-    const isReversed = index % 2 === 1
+/**
+ * A single openness feature: heading + description with its interactive demo.
+ *
+ * `layout` controls how the demo sits relative to the text:
+ *  - `split`   — two columns, alternating sides (the /about hub layout)
+ *  - `stacked` — text with the demo directly below it (reused on /explain)
+ */
+export function FeatureBlock({
+    feature,
+    index,
+    realm,
+    layout = 'split',
+    anchorId,
+}: {
+    feature: Feature
+    index: number
+    realm: Realm
+    layout?: 'split' | 'stacked'
+    /** When set, the heading becomes a shareable self-link (used on /explain). */
+    anchorId?: string
+}) {
+    const t = useTranslations('about.openness')
+    const stacked = layout === 'stacked'
+    const isReversed = layout === 'split' && index % 2 === 1
     const demoLabel = t.has(`features.${feature.id}.demoLabel`) ? t(`features.${feature.id}.demoLabel`) : undefined
     const demoUrl = demoUrlForRealm(feature, realm)
 
-    return (
-        <motion.div
-            className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 lg:gap-16 items-center"
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            viewport={{ once: true, margin: '-80px' }}
-        >
-            {/* Text */}
-            <div className={isReversed ? 'md:order-2' : ''}>
+    const text = (
+        <>
+            {/* status badge — hidden in the stacked (nested) layout */}
+            {!stacked && (
                 <div className="flex items-center gap-2 mb-3">
                     {feature.status === 'live' ? (
                         <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full">
@@ -72,24 +89,66 @@ function FeatureRow({ feature, index, t, realm }: { feature: Feature; index: num
                         </span>
                     )}
                 </div>
-                <h3 className="text-2xl md:text-3xl font-medium tracking-tight">
-                    {t(`features.${feature.id}.title`)}
-                </h3>
-                <p className="mt-3 text-base md:text-lg text-muted-foreground leading-relaxed">
-                    {t(`features.${feature.id}.description`)}
-                </p>
-                {demoUrl && feature.status === 'live' && (
-                    <Link
-                        href={demoUrl}
-                        className="inline-flex items-center gap-1.5 mt-5 text-sm font-medium text-primary hover:text-primary/80 transition-colors group"
-                    >
-                        {demoLabel ?? t('tryIt')}
-                        <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                    </Link>
+            )}
+            <h3
+                className={
+                    stacked
+                        ? 'text-lg md:text-xl font-semibold tracking-tight'
+                        : 'text-2xl md:text-3xl font-medium tracking-tight'
+                }
+            >
+                {anchorId ? (
+                    <HeadingAnchor id={anchorId}>{t(`features.${feature.id}.title`)}</HeadingAnchor>
+                ) : (
+                    t(`features.${feature.id}.title`)
                 )}
-            </div>
+            </h3>
+            <p
+                className={
+                    stacked
+                        ? 'mt-2 text-base text-muted-foreground leading-relaxed'
+                        : 'mt-3 text-base md:text-lg text-muted-foreground leading-relaxed'
+                }
+            >
+                {t(`features.${feature.id}.description`)}
+            </p>
+            {demoUrl && feature.status === 'live' && (
+                <Link
+                    href={demoUrl}
+                    className="inline-flex items-center gap-1.5 mt-5 text-sm font-medium text-primary hover:text-primary/80 transition-colors group"
+                >
+                    {demoLabel ?? t('tryIt')}
+                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+            )}
+        </>
+    )
 
-            {/* Visual */}
+    if (layout === 'stacked') {
+        return (
+            <motion.div
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                viewport={{ once: true, margin: '-80px' }}
+            >
+                <div className="max-w-2xl">{text}</div>
+                <div className="mt-6 md:mt-8">
+                    <FeatureVisual feature={feature} realm={realm} />
+                </div>
+            </motion.div>
+        )
+    }
+
+    return (
+        <motion.div
+            className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 lg:gap-16 items-center"
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            viewport={{ once: true, margin: '-80px' }}
+        >
+            <div className={isReversed ? 'md:order-2' : ''}>{text}</div>
             <div className={`transition-transform duration-300 hover:scale-[1.01] ${isReversed ? 'md:order-1' : ''}`}>
                 <FeatureVisual feature={feature} realm={realm} />
             </div>
@@ -120,7 +179,7 @@ export default function OpennessFeatures({ realm }: { realm: Realm }) {
 
             <div className="space-y-16 md:space-y-24">
                 {OPENNESS_FEATURES.map((feature, index) => (
-                    <FeatureRow key={feature.id} feature={feature} index={index} t={t} realm={realm} />
+                    <FeatureBlock key={feature.id} feature={feature} index={index} realm={realm} />
                 ))}
             </div>
         </section>

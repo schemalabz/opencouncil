@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { Video, AudioLines, LayoutList, MessageCircle, Phone, Mail, FileText, ScrollText, Scale, Globe, Search, Map, FileStack } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { LucideIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 interface StepDef {
     icon: LucideIcon
@@ -133,11 +134,12 @@ function StepCard({ step, index, delay, t }: { step: StepDef; index: number; del
     )
 }
 
-export default function HowItWorks() {
+/** `title` overrides the default heading (from translations); used on /explain. */
+export default function HowItWorks({ title }: { title?: ReactNode } = {}) {
     const t = useTranslations('about.howItWorks')
 
     return (
-            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20">
                 <motion.div
                     className="text-center mb-12 md:mb-16"
                     initial={{ opacity: 0, y: 20 }}
@@ -146,7 +148,11 @@ export default function HowItWorks() {
                     viewport={{ once: true }}
                 >
                     <h2 className="text-2xl sm:text-3xl md:text-4xl font-light tracking-tight">
-                        {t('title')} <span className="font-medium">{t('titleHighlight')}</span>
+                        {title ?? (
+                            <>
+                                {t('title')} <span className="font-medium">{t('titleHighlight')}</span>
+                            </>
+                        )}
                     </h2>
                     <p className="mt-4 text-base md:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
                         {t('subtitle')}
