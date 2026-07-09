@@ -28,7 +28,11 @@ const nextConfig = {
     // of one deploy. Falls back to Next's default (random per build) otherwise.
     generateBuildId: async () => process.env.SOURCE_COMMIT || process.env.BUILD_ID || null,
     images: {
-        domains: ['townhalls-gr.fra1.digitaloceanspaces.com', 'data.opencouncil.gr', 'fra1.digitaloceanspaces.com'],
+        remotePatterns: [
+            { protocol: 'https', hostname: 'townhalls-gr.fra1.digitaloceanspaces.com' },
+            { protocol: 'https', hostname: 'data.opencouncil.gr' },
+            { protocol: 'https', hostname: 'fra1.digitaloceanspaces.com' },
+        ],
     },
     transpilePackages: ['@'],
     // Enable custom domains - we'll handle this entirely in proxy.ts
