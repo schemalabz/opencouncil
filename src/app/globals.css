@@ -252,7 +252,9 @@ a:hover.unstyled {
 /* Map popup styles */
 .subject-popup,
 .municipality-popup {
-    z-index: 1000;
+    /* above the map markers (max z-index 4) but below the floating subject list /
+       controls (z-6), the cooperative-gestures overlay, the header and the dialog */
+    z-index: 5;
 }
 
 .subject-popup .mapboxgl-popup-content,
@@ -271,6 +273,13 @@ a:hover.unstyled {
 .subject-popup .mapboxgl-popup-content > div,
 .municipality-popup .mapboxgl-popup-content > div {
     pointer-events: auto;
+}
+
+/* Cooperative-gestures overlay ("use ctrl + scroll to zoom") must sit above the map
+   markers and our popups (which carry a high z-index of their own). */
+.mapboxgl-scroll-zoom-blocker,
+.mapboxgl-touch-pan-blocker {
+    z-index: 1500;
 }
 
 /* Gradient animation */
@@ -354,4 +363,15 @@ a:hover.unstyled {
 .ql-editor.ql-blank::before {
   color: hsl(var(--muted-foreground)) !important;
   font-style: normal !important;
+}
+
+/* Immersive landing (added by LandingScrollLock): pin html/body to the dynamic
+   viewport so the 100dvh map layout can't scroll behind mobile browser chrome.
+   body.landing-scroll-lock out-specifies the root layout's min-h-screen (100vh). */
+html.landing-scroll-lock,
+body.landing-scroll-lock {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
 }
