@@ -29,18 +29,31 @@ export interface MapFeature {
     }
 }
 
+/** Default OpenCouncil base style. */
+export const DEFAULT_MAP_STYLE = 'mapbox://styles/christosporios/cm4icyrf700f201qw75bv27fa';
+/** Mapbox satellite imagery with roads/labels — used by the landing's basemap toggle. */
+export const SATELLITE_MAP_STYLE = 'mapbox://styles/mapbox/satellite-streets-v12';
+
 interface MapProps {
     className?: string
     center?: [number, number] // Longitude, latitude coordinates
     zoom?: number
     animateRotation?: boolean
     pitch?: number
+    /** Base style URL; defaults to DEFAULT_MAP_STYLE. Change it (with a remount) to switch basemaps. */
+    mapStyle?: string
     features?: MapFeature[]
     onFeatureClick?: (feature: GeoJSON.Feature) => void
+    /** Called once with the Mapbox instance after load — e.g. to project coordinates to screen space. */
+    onMapReady?: (map: mapboxgl.Map) => void
     renderPopup?: (feature: GeoJSON.Feature) => React.ReactNode
     editingMode?: boolean
     showStreetLabels?: boolean
     drawingMode?: 'point' | 'polygon'
+    /** Overlay POI / store labels (e.g. on the simple basemap, matching the satellite one). */
+    showPois?: boolean
+    /** Require ctrl/⌘ + scroll to zoom, letting a plain wheel scroll the page over the map. */
+    cooperativeGestures?: boolean
     selectedGeometryForEdit?: string | null
     zoomToGeometry?: GeoJSON.Geometry | null
     zoomPadding?: number | { top: number; bottom: number; left: number; right: number }
@@ -61,11 +74,15 @@ const Map = memo(function Map({
     zoom = 10,
     animateRotation = true,
     pitch = 45,
+    mapStyle = DEFAULT_MAP_STYLE,
     features = [],
     onFeatureClick,
+    onMapReady,
     renderPopup,
     editingMode = false,
     showStreetLabels = false,
+    showPois = false,
+    cooperativeGestures = false,
     drawingMode = 'point',
     selectedGeometryForEdit = null,
     zoomToGeometry,
@@ -111,6 +128,8 @@ const Map = memo(function Map({
         // This prevents flickering when hovering over a point that sits on top of a polygon
         const feature = e.features.find(f => f.geometry.type === 'Point') || e.features[0];
         if (!feature.properties) return;
+        // Decorative features (e.g. the landing's city outlines) opt out of the built-in hover.
+        if (feature.properties.interactive === false) return;
 
         const featureId = feature.properties.uniqueFeatureId;
         const isSupported = feature.properties.officialSupport;
@@ -377,11 +396,19 @@ const Map = memo(function Map({
 
         map.current = new mapboxgl.Map({
             container: mapContainer.current,
-            style: 'mapbox://styles/christosporios/cm4icyrf700f201qw75bv27fa',
+            style: mapStyle,
             center: centerToUse,
             zoom: zoomToUse,
             pitch,
+            // Flat 2D map. Mapbox GL v3 defaults to the globe projection, which pulls in the
+            // terrain/hillshade path — that needs a Canvas2D pixel readback, blocked by
+            // browsers with fingerprinting protection (private browsing), producing a console
+            // warning and a fallback. Mercator is the right projection for these civic maps
+            // and avoids that path entirely.
+            projection: 'mercator',
             attributionControl: false,
+            // ctrl/⌘+scroll to zoom; a plain wheel scrolls the page past the map
+            cooperativeGestures: cooperativeGestures,
         });
 
         // Track user interactions to prevent auto-centering
@@ -409,6 +436,7 @@ const Map = memo(function Map({
         map.current.on('load', () => {
             isInitialized.current = true;
             setMapReady(true);
+            if (map.current) onMapReady?.(map.current);
 
             if (animateRotation) {
                 animationFrame.current = requestAnimationFrame(rotateCamera);
@@ -820,6 +848,50 @@ const Map = memo(function Map({
         }
     }, [shouldShowStreetLabels, mapReady]);
 
+    // POI / store labels — opt-in (the landing's simple basemap turns these on so it
+    // shows the same shops/businesses the satellite basemap renders natively). Sourced
+    // from Mapbox Streets v8 (its own source, decoupled from the street-labels effect).
+    useEffect(() => {
+        if (!map.current || !isInitialized.current) return;
+        const m = map.current;
+
+        if (showPois) {
+            if (!m.getSource('mapbox-streets-poi')) {
+                m.addSource('mapbox-streets-poi', {
+                    'type': 'vector',
+                    'url': 'mapbox://mapbox.mapbox-streets-v8'
+                });
+            }
+            if (!m.getLayer('poi-labels')) {
+                m.addLayer({
+                    'id': 'poi-labels',
+                    'type': 'symbol',
+                    'source': 'mapbox-streets-poi',
+                    'source-layer': 'poi_label',
+                    'minzoom': 15,
+                    'layout': {
+                        'text-field': ['get', 'name'],
+                        'text-font': ['Open Sans Regular', 'Arial Unicode MS Regular'],
+                        // Smaller than the street/address labels so POIs read as secondary.
+                        'text-size': ['interpolate', ['linear'], ['zoom'], 15, 8, 18, 10],
+                        'text-anchor': 'center',
+                        'text-allow-overlap': false
+                        // Text-only: the base style's sprite has no Maki icons, so an
+                        // icon-image would just log "image could not be loaded" warnings.
+                    },
+                    'paint': {
+                        'text-color': '#5b5b5b',
+                        'text-halo-color': '#ffffff',
+                        'text-halo-width': 1.2
+                    }
+                });
+            }
+        } else {
+            if (m.getLayer('poi-labels')) m.removeLayer('poi-labels');
+            if (m.getSource('mapbox-streets-poi')) m.removeSource('mapbox-streets-poi');
+        }
+    }, [showPois, mapReady]);
+
     // Handle Mapbox GL Draw setup for editing mode
     useEffect(() => {
         if (!map.current || !isInitialized.current) return;
@@ -993,6 +1065,8 @@ const Map = memo(function Map({
         prevProps.pitch === nextProps.pitch &&
         prevProps.editingMode === nextProps.editingMode &&
         prevProps.showStreetLabels === nextProps.showStreetLabels &&
+        prevProps.showPois === nextProps.showPois &&
+        prevProps.cooperativeGestures === nextProps.cooperativeGestures &&
         prevProps.drawingMode === nextProps.drawingMode &&
         prevProps.selectedGeometryForEdit === nextProps.selectedGeometryForEdit &&
         prevProps.zoomToGeometry === nextProps.zoomToGeometry &&
