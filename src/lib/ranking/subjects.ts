@@ -23,8 +23,9 @@ export interface RankableSubject {
     cityId?: string | null;
     /** Meeting date — drives recency. Missing → neutral. */
     meetingDate?: Date | string | null;
-    /** Speaker-contribution count — the discussion signal (log-damped). */
-    contributionCount: number;
+    /** Discussion magnitude — a speaker-contribution count or a discussion duration,
+     *  whichever the caller has (log-damped). Higher = more discussed. */
+    discussionSignal: number;
     /** Council > committee > community. Collapses when every subject shares one body type. */
     adminBodyType?: AdministrativeBodyType | null;
     /** Whether the subject has a map location — a weak tiebreaker. */
@@ -106,7 +107,7 @@ function zScores(values: (number | null)[]): number[] {
 
 /** Discussion signal: log-damped so a few marathon items don't dwarf the rest. */
 function discussionMetric(subject: RankableSubject): number {
-    return Math.log1p(Math.max(0, subject.contributionCount));
+    return Math.log1p(Math.max(0, subject.discussionSignal));
 }
 
 /**

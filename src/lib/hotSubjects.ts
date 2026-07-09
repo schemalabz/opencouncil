@@ -29,7 +29,7 @@ function adapt(item: HotSubject): RankableSubject {
     return {
         cityId: item.meeting.cityId,
         meetingDate: item.meeting.dateTime,
-        contributionCount: getContributionCount(item.subject),
+        discussionSignal: getContributionCount(item.subject),
         adminBodyType: item.meeting.administrativeBody?.type ?? null,
         // Weak location tiebreaker in the non-geo widget; a no-op within the
         // geo variant's homogeneous near/wide groups.
