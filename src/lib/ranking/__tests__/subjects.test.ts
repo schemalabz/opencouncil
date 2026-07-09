@@ -18,7 +18,7 @@ function subject(overrides: Partial<TestSubject> = {}): TestSubject {
         cityId: 'athens',
         meetingDate: '2026-01-01T00:00:00.000Z',
         adminBodyType: null,
-        contributionCount: 0,
+        discussionSignal: 0,
         hasLocation: false,
         ...overrides,
     };
@@ -58,8 +58,8 @@ describe('recency and discussion', () => {
     });
 
     it('ranks the more-discussed subject first when recency is equal', () => {
-        const quiet = subject({ id: 'quiet', contributionCount: 1 });
-        const loud = subject({ id: 'loud', contributionCount: 50 });
+        const quiet = subject({ id: 'quiet', discussionSignal: 1 });
+        const loud = subject({ id: 'loud', discussionSignal: 50 });
         expect(order([quiet, loud])[0]).toBe('loud');
     });
 
@@ -77,7 +77,7 @@ describe('recency and discussion', () => {
     it('uses a log-damped discussion signal (diminishing returns)', () => {
         // Equal geometric steps (10× each) → equal log-signal steps; raw counts
         // would let the biggest jump dominate.
-        const set = [9, 99, 999].map((count, i) => subject({ id: `d${i}`, contributionCount: count }));
+        const set = [9, 99, 999].map((count, i) => subject({ id: `d${i}`, discussionSignal: count }));
         const discussionSignal = (id: string) =>
             rank(set).find(r => r.item.id === id)!.components.find(c => c.key === 'discussion')!.signal;
 
@@ -89,8 +89,8 @@ describe('recency and discussion', () => {
 
 describe('municipality boost', () => {
     it('has no effect when every subject is from one municipality', () => {
-        const a = subject({ id: 'a', cityId: 'athens', contributionCount: 10 });
-        const b = subject({ id: 'b', cityId: 'athens', contributionCount: 5 });
+        const a = subject({ id: 'a', cityId: 'athens', discussionSignal: 10 });
+        const b = subject({ id: 'b', cityId: 'athens', discussionSignal: 5 });
         const muniContribution = rank([a, b]).map(r =>
             r.components.find(c => c.key === 'smallMunicipality')!.contribution);
         expect(muniContribution).toEqual([0, 0]);
@@ -139,8 +139,8 @@ describe('location boost', () => {
 
 describe('weight overrides', () => {
     it('lets callers flip the emphasis from discussion to recency', () => {
-        const recentQuiet = subject({ id: 'recentQuiet', meetingDate: '2026-06-01T00:00:00.000Z', contributionCount: 1 });
-        const staleLoud = subject({ id: 'staleLoud', meetingDate: '2025-01-01T00:00:00.000Z', contributionCount: 50 });
+        const recentQuiet = subject({ id: 'recentQuiet', meetingDate: '2026-06-01T00:00:00.000Z', discussionSignal: 1 });
+        const staleLoud = subject({ id: 'staleLoud', meetingDate: '2025-01-01T00:00:00.000Z', discussionSignal: 50 });
 
         const discussionFirst = order([recentQuiet, staleLoud], { weights: { recency: 0, discussion: 5 } });
         expect(discussionFirst[0]).toBe('staleLoud');
@@ -164,8 +164,8 @@ describe('stable ordering', () => {
     });
 
     it('rankAndSortSubjects returns best-first with breakdowns', () => {
-        const quiet = subject({ id: 'quiet', contributionCount: 1 });
-        const loud = subject({ id: 'loud', contributionCount: 50 });
+        const quiet = subject({ id: 'quiet', discussionSignal: 1 });
+        const loud = subject({ id: 'loud', discussionSignal: 50 });
         const ranked = rankAndSortSubjects([quiet, loud], identity);
         expect(ranked.map(r => r.item.id)).toEqual(['loud', 'quiet']);
         expect(ranked[0].score).toBeGreaterThan(ranked[1].score);

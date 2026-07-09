@@ -6,7 +6,7 @@ import { SubjectWithRelations } from "./db/subject";
 import { default as greekKlitiki } from "greek-name-klitiki";
 import { Transcript } from "./db/transcript";
 import { VideoIcon, AudioLines, FileText, Ban, LucideIcon } from "lucide-react";
-import { rankSubjects, type RankableSubject } from "./ranking/subjects";
+import { rankSubjects } from "./ranking/subjects";
 
 // Export time formatters from the new location
 export {
@@ -173,18 +173,13 @@ export function getContributionCount(subject: {
 // Adapt a subject for the shared ranker in single-meeting contexts: only the
 // contribution count varies (recency / municipality / admin-body all collapse
 // to zero variance within one meeting), so this degenerates to a z-scored
-// contribution count — order-equivalent to the raw count, but routed through
-// the one standard ranking primitive (src/lib/ranking/subjects.ts).
-const toRankableInMeeting = (s: SortableSubject): RankableSubject => ({
-  contributionCount: getContributionCount(s),
-});
-
 // Importance score per subject, keyed by reference. `location` weight is zeroed
 // so the existing agenda tiebreakers stay authoritative — within a single
 // meeting nothing but discussion contributes, keeping ordering behavior-preserving.
 function importanceScores<T extends SortableSubject>(subjects: T[]): Map<T, number> {
   const scores = new Map<T, number>();
-  for (const { item, score } of rankSubjects(subjects, toRankableInMeeting, { weights: { location: 0 } })) {
+  const ranked = rankSubjects(subjects, (s) => ({ discussionSignal: getContributionCount(s) }), { weights: { location: 0 } });
+  for (const { item, score } of ranked) {
     scores.set(item, score);
   }
   return scores;
