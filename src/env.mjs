@@ -49,7 +49,7 @@ export const env = createEnv({
     DISCORD_WEBHOOK_URL: z.string().url().optional(),
 
     // Bird API for WhatsApp/SMS notifications
-    BIRD_API_KEY: z.string().min(1).optional(),
+    BIRD_API_KEY: z.string().optional(),
     BIRD_WORKSPACE_ID: z.string().optional(),
     BIRD_WHATSAPP_CHANNEL_ID: z.string().optional(),
     BIRD_SMS_CHANNEL_ID: z.string().optional(),
@@ -66,7 +66,7 @@ export const env = createEnv({
     GOOGLE_CALENDAR_ENABLED: z.string().optional(),
 
     // Cron Jobs
-    CRON_SECRET: z.string().min(1).optional(),
+    CRON_SECRET: z.string().optional(),
 
     // Cache (Valkey/Redis)
     CACHE_URL: z.string().optional(),
