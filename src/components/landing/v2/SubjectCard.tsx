@@ -56,6 +56,9 @@ export function SubjectPageLink({
     return (
         <Link
             href={href!}
+            // Never prefetch: a subject page's RSC payload is multi-MB (full meeting transcript),
+            // and the list would prefetch one per card scrolled into view.
+            prefetch={false}
             onClick={(e) => {
                 e.stopPropagation();
                 track();
