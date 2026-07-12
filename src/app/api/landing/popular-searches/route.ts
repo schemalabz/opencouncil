@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getPopularSearchQueries } from '@/lib/db/searchQueries';
+import { getRealm } from '@/lib/realm.server';
+import { getPopularSearchQueriesCached } from '@/lib/db/searchQueries';
 
-// Most-repeated real search queries, for the landing's "Δημοφιλείς αναζητήσεις" chips.
-// The client falls back to a curated list when this returns too few (early on there
-// isn't enough search history to surface meaningful suggestions).
+// Most-repeated real search queries of the realm, for the landing's "Δημοφιλείς αναζητήσεις"
+// chips. The client blends these with a curated list (real ones first) while the search
+// history is still thin. Dynamic for the Host-header realm; the query itself is cached.
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-    const keywords = await getPopularSearchQueries();
+    const keywords = await getPopularSearchQueriesCached(await getRealm());
     return NextResponse.json({ keywords });
 }

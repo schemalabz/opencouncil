@@ -30,3 +30,20 @@ export function captureLandingAction(event: string, props: Record<string, unknow
     }
     captureLanding(event, props);
 }
+
+/**
+ * Persist a landing search into the SearchQuery log (feeds the popular-searches chips).
+ * Fire-and-forget; category/municipality kinds only — address queries are people typing
+ * their home address and must never enter a popularity feed, so callers don't send them
+ * and the endpoint rejects them.
+ */
+export function logLandingSearch(query: string, kind: 'category' | 'municipality'): void {
+    const q = query.trim();
+    if (!q) return;
+    void fetch('/api/landing/log-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: q, kind }),
+        keepalive: true, // survives the filter applying / a navigation right after
+    }).catch(() => {});
+}

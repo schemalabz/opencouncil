@@ -1243,6 +1243,10 @@ model SearchQuery {
   id        String   @id @default(cuid())
   query     String
   createdAt DateTime @default(now())
+  // Which surface logged the query ("search" = the /search page, "landing" = the landing search box)
+  source    String   @default("search")
+  // Tenant the query belongs to — keeps popular-searches suggestions per-realm
+  realm     Realm    @default(greece)
 
   // Relations
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -1250,6 +1254,7 @@ model SearchQuery {
 
   @@index([createdAt])
   @@index([userId])
+  @@index([realm, createdAt])
 }
 
 // QR Campaigns for short redirects

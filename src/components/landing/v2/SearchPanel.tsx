@@ -15,7 +15,7 @@ import {
 import { hasActiveFilters, SEARCH_FIELD_STYLE, type MapFilters } from '@/lib/landing/landingCore';
 import { FilterIconButton } from './controls';
 import { SearchBody } from './SearchBody';
-import { captureLandingAction } from '@/lib/landing/analytics';
+import { captureLandingAction, logLandingSearch } from '@/lib/landing/analytics';
 
 /* The search field (icon · input · clear), shared by dropdown and overlay. Enter applies a
    matched category/municipality filter (clearing the text) or geocodes an address, then calls
@@ -75,14 +75,18 @@ function SearchField({
                     captureLandingAction('search', {
                         query_length: query.trim().length,
                         kind: catId ? 'category' : municipality?.kind === 'known' ? 'municipality' : 'address',
+                        method: 'enter',
                     });
                     if (catId) {
+                        logLandingSearch(query, 'category');
                         if (!cats.includes(catId)) onToggleCat(catId);
                         onQueryChange('');
                     } else if (municipality?.kind === 'known') {
+                        logLandingSearch(query, 'municipality');
                         onFiltersChange({ ...filters, cityIds: [municipality.cityId] });
                         onQueryChange('');
                     } else {
+                        // address kind — deliberately not logged (see logLandingSearch)
                         onLocateAddress(query);
                     }
                     onAfterSubmit?.();

@@ -13,39 +13,51 @@ import { PetitionCta } from './MunicipalitiesList';
 import { BODY_TYPES, DURATION_FILTERS, EMPTY_FILTERS, toggleValue, type MapFilters } from '@/lib/landing/landingCore';
 import { CityAvatar } from './controls';
 import { useSearchMatches } from './hooks/useSearchMatches';
+import { captureLandingAction, logLandingSearch } from '@/lib/landing/analytics';
 
 /* Popular searches: most-repeated real queries (SearchQuery log), fetched once and shared
-   across dropdown/overlay. Falls back to the curated list until there's enough history. */
-let popularCache: string[] | null = null;
-let popularPromise: Promise<string[]> | null = null;
+   across dropdown/overlay. Real queries come first and the curated list fills the remaining
+   chips, so the feature degrades gracefully while the search history is still thin. Only the
+   fetched (locale-agnostic) keywords are cached module-wide; the blend happens per render
+   with the CURRENT locale's curated list, so a client-side locale switch re-fills correctly. */
+let realPopularCache: string[] | null = null;
+let realPopularPromise: Promise<string[]> | null = null;
+
+const POPULAR_CHIP_COUNT = 8;
+
+/** Real queries first, curated fill after (case/diacritics-insensitive dedup), capped. */
+function blendPopularSearches(real: string[], curated: string[]): string[] {
+    const seen = new Set(real.map((k) => normalizeText(k).trim()));
+    const fill = curated.filter((k) => !seen.has(normalizeText(k).trim()));
+    return [...real, ...fill].slice(0, POPULAR_CHIP_COUNT);
+}
 
 function usePopularSearches(): string[] {
     const t = useTranslations('landingV2');
     const fallback = t.raw('popularSearches') as string[];
-    const [keywords, setKeywords] = useState<string[]>(popularCache ?? fallback);
+    const [real, setReal] = useState<string[]>(realPopularCache ?? []);
     useEffect(() => {
-        if (popularCache) return;
-        if (!popularPromise) {
-            popularPromise = fetch('/api/landing/popular-searches')
+        if (realPopularCache) return;
+        if (!realPopularPromise) {
+            realPopularPromise = fetch('/api/landing/popular-searches')
                 .then((r) => (r.ok ? r.json() : { keywords: [] }))
                 .then((d: { keywords: string[] }) => {
-                    // Need a few to read as intentional; otherwise keep the curated list.
-                    popularCache = d.keywords.length >= 4 ? d.keywords : fallback;
-                    return popularCache;
+                    realPopularCache = Array.isArray(d.keywords) ? d.keywords : [];
+                    return realPopularCache;
                 })
                 .catch(() => {
-                    popularCache = fallback;
-                    return popularCache;
+                    realPopularCache = [];
+                    return realPopularCache;
                 });
         }
         let active = true;
-        void popularPromise.then((k) => active && setKeywords(k));
+        void realPopularPromise.then((k) => active && setReal(k));
         return () => {
             active = false;
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-    return keywords;
+    // Cheap (≤ ~20 items) — computed per render so it always uses the active locale's fill.
+    return blendPopularSearches(real, fallback);
 }
 
 /* native date input with a Greek placeholder. Browsers localise the field from the UI
@@ -151,7 +163,15 @@ export function SearchBody({
                 {matchedTopic && (
                     <button
                         type="button"
-                        onClick={() => onToggleCat(matchedTopic.id)}
+                        onClick={() => {
+                            captureLandingAction('search', {
+                                query_length: query.trim().length,
+                                kind: 'category',
+                                method: 'suggestion',
+                            });
+                            logLandingSearch(query, 'category');
+                            onToggleCat(matchedTopic.id);
+                        }}
                         className="mb-3 flex w-full items-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5 text-left text-sm transition-colors hover:border-foreground/30"
                     >
                         <span
@@ -169,7 +189,15 @@ export function SearchBody({
                 {knownMunicipality && (
                     <button
                         type="button"
-                        onClick={() => onFiltersChange({ ...filters, cityIds: [knownMunicipality.cityId] })}
+                        onClick={() => {
+                            captureLandingAction('search', {
+                                query_length: query.trim().length,
+                                kind: 'municipality',
+                                method: 'suggestion',
+                            });
+                            logLandingSearch(query, 'municipality');
+                            onFiltersChange({ ...filters, cityIds: [knownMunicipality.cityId] });
+                        }}
                         className="mb-3 flex w-full items-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5 text-left text-sm transition-colors hover:border-foreground/30"
                     >
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-foreground/70">
@@ -184,7 +212,14 @@ export function SearchBody({
                 {showAddress && (
                     <button
                         type="button"
-                        onClick={() => onLocateAddress(query)}
+                        onClick={() => {
+                            captureLandingAction('search', {
+                                query_length: query.trim().length,
+                                kind: 'address',
+                                method: 'suggestion',
+                            });
+                            onLocateAddress(query);
+                        }}
                         className="mb-3 flex w-full items-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5 text-left text-sm transition-colors hover:border-foreground/30"
                     >
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--orange))]/10 text-[hsl(var(--orange))]">
@@ -256,7 +291,10 @@ export function SearchBody({
                     <button
                         key={k}
                         type="button"
-                        onClick={() => onPickKeyword(k)}
+                        onClick={() => {
+                            captureLandingAction('popular_search_picked', { keyword: k });
+                            onPickKeyword(k);
+                        }}
                         className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-2 text-[13px] text-muted-foreground transition-colors hover:border-foreground/30"
                     >
                         <Search className="h-3.5 w-3.5" /> {k}
