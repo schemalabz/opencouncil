@@ -30,6 +30,7 @@ import type { Topic } from '@prisma/client';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import { env } from '@/env.mjs';
+import { captureLandingAction } from '@/lib/landing/analytics';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -269,6 +270,7 @@ export function MunicipalityPageButton({
     return (
         <Link
             href={`/${cityId}`}
+            onClick={() => captureLandingAction('city_opened', { city_id: cityId, source: 'page_button' })}
             className={cn(
                 'inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border-2 border-[hsl(var(--orange))] bg-white font-semibold text-foreground no-underline shadow-md transition-colors hover:bg-[hsl(24,100%,96%)] hover:no-underline',
                 large ? 'h-12 gap-2.5 px-4 text-[15px]' : 'h-10 px-3 text-[13px]',

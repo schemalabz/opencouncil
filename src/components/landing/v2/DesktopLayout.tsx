@@ -173,7 +173,7 @@ export function DesktopLayout({
                                 queryKind={queryKind}
                                 results={searchResults}
                                 loading={loading}
-                                onPickResult={selectSubject}
+                                onPickResult={(id) => selectSubject(id, 'search')}
                                 onLocateAddress={onLocateAddress}
                             />
                         </div>

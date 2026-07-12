@@ -17,6 +17,7 @@ import {
     type MapViewport,
 } from '@/lib/landing/landingData';
 import { buildSubjectPins, createGeneralCityMarker, createMunicipalityMarker } from '../mapMarkers';
+import { captureLandingAction } from '@/lib/landing/analytics';
 
 /**
  * Capture the map view on every moveend so the list + clustering react to it. Re-clusters
@@ -131,8 +132,35 @@ export function useMapViewCapture({
         };
         capture();
         mapInstance.on('moveend', capture);
+
+        // Analytics: one debounced map_moved per exploration burst (kind + zoom level only —
+        // no coordinates). User-initiated moves only: dragend is always a user gesture, and a
+        // zoomend carries originalEvent only for wheel/pinch/dblclick (programmatic easeTo/flyTo
+        // and the +/- buttons, which are tracked separately as map_zoom, don't).
+        let moveDebounce: ReturnType<typeof setTimeout> | null = null;
+        let movedKind: 'zoom' | 'pan' | null = null;
+        const queueMoveCapture = (kind: 'zoom' | 'pan') => {
+            movedKind = kind === 'zoom' ? 'zoom' : movedKind ?? 'pan'; // zoom wins over pan in a burst
+            if (moveDebounce) clearTimeout(moveDebounce);
+            moveDebounce = setTimeout(() => {
+                captureLandingAction('map_moved', { kind: movedKind, zoom: Math.round(mapInstance.getZoom()) });
+                movedKind = null;
+            }, 1000);
+        };
+        const onDragEnd = () => queueMoveCapture('pan');
+        // mapbox-gl's zoomend typing omits originalEvent, but the runtime event carries it
+        // for gesture zooms (wheel/pinch/dblclick) and omits it for programmatic ones.
+        const onZoomEnd = (e: object) => {
+            if ((e as { originalEvent?: unknown }).originalEvent) queueMoveCapture('zoom');
+        };
+        mapInstance.on('dragend', onDragEnd);
+        mapInstance.on('zoomend', onZoomEnd);
+
         return () => {
             mapInstance.off('moveend', capture);
+            mapInstance.off('dragend', onDragEnd);
+            mapInstance.off('zoomend', onZoomEnd);
+            if (moveDebounce) clearTimeout(moveDebounce);
         };
         // setters + refs are stable; re-subscribe only when the map instance changes
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -184,6 +212,7 @@ export function useSubjectMarkers({
         if (!mapInstance || !subjectsActive) return;
 
         const openCoLocated = (group: LandingSubject[]) => {
+            captureLandingAction('cluster_opened', { kind: 'co_located', size: group.length });
             // opening a "+N" box deselects any subject so its preview closes
             onClearSelectionRef.current();
             const lng = group[0].lng;
@@ -277,6 +306,7 @@ export function useGeneralCityMarkers({
         const markers: { marker: Marker; root: Root }[] = [];
         for (const city of visibleGeneralCities) {
             const { marker, root } = createGeneralCityMarker(mapInstance, city, () => {
+                captureLandingAction('cluster_opened', { kind: 'city_hall', size: city.subjects.length, city_id: city.cityId });
                 // opening the general box clears the other map previews
                 onClearSelectionRef.current();
                 closeExplainPopupRef.current?.();

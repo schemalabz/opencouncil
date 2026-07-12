@@ -355,6 +355,7 @@ export function createDonutMarker(map: MapboxMap, members: LandingSubject[], t: 
     const centerLat = members.reduce((sum, m) => sum + m.lat, 0) / members.length;
     el.addEventListener('click', (e) => {
         e.stopPropagation();
+        captureLandingAction('cluster_opened', { kind: 'donut', size: members.length });
         // always zoom in toward the cluster (fitBounds couldn't zoom in on narrow viewports)
         map.easeTo({ center: [centerLng, centerLat], zoom: Math.min(map.getZoom() + 2, 18), duration: 400 });
     });

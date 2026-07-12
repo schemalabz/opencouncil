@@ -91,8 +91,8 @@ export function MobileLayout({
         setListCollapsed(false);
     };
     // Selecting a subject (list tap / search) brings the user to the Home map to see it.
-    const selectOnMap = (id: string) => {
-        selectSubject(id);
+    const selectOnMap = (id: string, source?: 'list' | 'search') => {
+        selectSubject(id, source);
         setView('home');
     };
 
@@ -265,7 +265,7 @@ export function MobileLayout({
                     autoFocusInput={searchMode === 'search'}
                     scrollToActiveFilter={searchMode === 'filters'}
                     onPickResult={(id) => {
-                        selectOnMap(id);
+                        selectOnMap(id, 'search');
                         setSearchMode(null);
                     }}
                     onClose={() => setSearchMode(null)}
