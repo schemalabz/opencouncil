@@ -1,7 +1,7 @@
 ---
 name: test-backup
 description: Test a Snapshooter database backup by restoring it locally and verifying data integrity
-argument-hint: "<path-to-backup.sql.gz>"
+argument-hint: "[path-to-backup.sql.gz | latest]"
 ---
 
 # Test Backup Restore
@@ -10,11 +10,23 @@ Restore a Snapshooter production database backup to the local development databa
 
 ## Arguments
 
-- `$ARGUMENTS` — required: path to the downloaded `.sql.gz` backup file (e.g., `~/Downloads/production.sql.gz`)
+`$ARGUMENTS` is **optional** and selects one of two modes:
 
-## Prerequisites
+- **empty** or `latest` → **S3 fetch mode** (default, recommended): pull the most recent production dump straight from the DO Spaces backup bucket via rclone. Requires the one-time setup below.
+- **a path** to a local `.sql.gz` → **local mode**: test an already-downloaded file (e.g. a manual Snapshooter download at `~/Downloads/production.sql.gz`).
 
-The user must download the backup file manually from Snapshooter first (signed URLs expire in 1 hour and can't be automated).
+## One-Time Setup (S3 fetch mode)
+
+To let the skill pull backups directly from the `opencouncil-db-backups` DO Spaces cold-storage bucket, each contributor configures a **read-only** rclone remote named `oc-backups` once.
+
+1. In the DigitalOcean control panel, create a **read-only** Spaces access key scoped to the `opencouncil-db-backups` bucket (API → Spaces Keys → limited/read-only access).
+2. Run the setup helper **yourself, in your terminal** (not via the agent) — it prompts for the key/secret with hidden input and registers the remote:
+
+   ```bash
+   nix develop --command bash .claude/skills/test-backup/setup-remote.sh
+   ```
+
+The credential is written only to your own `~/.config/rclone/rclone.conf` — never the repo, shell history, or any agent transcript. The remote name (`oc-backups`), bucket, and endpoint are project constants baked into the script; only the key/secret are yours. If you'll only ever pass a local path, you can skip this setup.
 
 ## Step 0: Check for Nix
 
@@ -32,13 +44,36 @@ If `nix` is not found, **stop immediately** and tell the user:
 
 Do not proceed with any further steps if Nix is not available.
 
-## Step 1: Validate Input
+## Step 1: Obtain and Validate the Backup
 
-Verify the backup file exists and is a gzip file:
+Resolve the backup into a single local file that the rest of the steps operate on. **For all subsequent steps, `$BACKUP_FILE` means `/tmp/oc-test-backup.sql.gz` (S3 fetch mode) or the path the user passed (local mode).**
+
+### 1a: Fetch or locate the file
+
+**S3 fetch mode** (no argument, or `latest`) — confirm the remote exists, find the newest dump, and download it. The date-partitioned paths (`.../YYYY/MM/DD/HH-MM/production.sql.gz`) sort lexicographically, so the greatest path is the latest:
 
 ```bash
-file "$ARGUMENTS"  # Should show "gzip compressed data"
-ls -lh "$ARGUMENTS"  # Show file size for reference
+nix develop --command bash -c '
+  rclone listremotes | grep -qx "oc-backups:" || { echo "Missing '\''oc-backups'\'' rclone remote. Run: nix develop --command bash .claude/skills/test-backup/setup-remote.sh"; exit 1; }
+  LATEST=$(rclone lsf -R --files-only --include "production.sql.gz" oc-backups:opencouncil-db-backups/ | sort | tail -1)
+  [ -n "$LATEST" ] || { echo "No production.sql.gz found in bucket"; exit 1; }
+  echo "Latest backup: $LATEST"
+  rclone copyto "oc-backups:opencouncil-db-backups/$LATEST" /tmp/oc-test-backup.sql.gz
+  ls -lh /tmp/oc-test-backup.sql.gz
+'
+```
+
+Note the `$LATEST` path — it's the backup's source location for the final summary. Reads from cold storage are free up to your average daily usage each month, so an occasional test-restore costs nothing.
+
+If the `oc-backups` remote is missing, **do not try to run `setup-remote.sh` yourself** — it prompts for a secret on an interactive terminal you don't control. Tell the user to run it themselves (`nix develop --command bash .claude/skills/test-backup/setup-remote.sh`), then re-run the skill.
+
+**Local mode** (a path was given) — `$BACKUP_FILE` is simply that path; nothing to download.
+
+### 1b: Validate
+
+```bash
+file "$BACKUP_FILE"    # Should show "gzip compressed data"
+ls -lh "$BACKUP_FILE"  # Show file size for reference
 ```
 
 If the file doesn't exist or isn't gzip, stop and tell the user.
@@ -51,7 +86,7 @@ Before touching the database, extract information from the dump file to help the
 
 ```bash
 # Get the pg_dump header for version info
-gunzip -c "$ARGUMENTS" | head -10
+gunzip -c "$BACKUP_FILE" | head -10
 ```
 
 ### 2b: Check migration gap
@@ -60,7 +95,7 @@ Extract migration names from the backup and compare with the codebase:
 
 ```bash
 # Extract migration names from the dump (migration_name is the 4th tab-separated column)
-gunzip -c "$ARGUMENTS" | awk -F"\t" '/^COPY public._prisma_migrations/{found=1; next} /^\\\./{found=0} found{print $4}' | sort > /tmp/backup_migrations.txt
+gunzip -c "$BACKUP_FILE" | awk -F"\t" '/^COPY public._prisma_migrations/{found=1; next} /^\\\./{found=0} found{print $4}' | sort > /tmp/backup_migrations.txt
 
 # List codebase migrations
 ls -1 prisma/migrations/ | grep -v migration_lock | sort > /tmp/codebase_migrations.txt
@@ -149,7 +184,7 @@ psql -h /tmp/oc-pg-* -U opencouncil -d template1 -c "CREATE DATABASE opencouncil
 ### 4b: Restore the backup
 
 ```bash
-gunzip -c "$ARGUMENTS" | psql -h /tmp/oc-pg-* -U opencouncil -d opencouncil 2>&1 | grep "^ERROR:" | sort | uniq -c | sort -rn > /tmp/restore_errors.txt
+gunzip -c "$BACKUP_FILE" | psql -h /tmp/oc-pg-* -U opencouncil -d opencouncil 2>&1 | grep "^ERROR:" | sort | uniq -c | sort -rn > /tmp/restore_errors.txt
 ```
 
 ### 4c: Analyze errors
@@ -164,6 +199,7 @@ Read `/tmp/restore_errors.txt` and categorize:
 - `role "postgres" does not exist` — Aiven superuser
 - `extension "aiven_extras" is not available` — Aiven-specific extension
 - `extension "vector" is not available` — pgvector, not used locally
+- `extension "vector" does not exist` / `extension "aiven_extras" does not exist` — follow-on GRANT/COMMENT on the extension that couldn't be created above; harmless
 
 **Real errors** (indicate a problem):
 - `syntax error at or near` — data spilled out of a failed COPY; means a table creation failed
@@ -216,6 +252,12 @@ Remove the `.next` directory so the app doesn't serve stale cached data from the
 rm -rf .next
 ```
 
+In S3 fetch mode, also remove the downloaded dump (skip in local mode — don't delete a file the user provided):
+
+```bash
+rm -f /tmp/oc-test-backup.sql.gz
+```
+
 ## Step 8: Summary Report
 
 Present a final summary:
@@ -223,7 +265,7 @@ Present a final summary:
 ```
 Backup Restore Test — [DATE]
 =============================
-Backup file:      [path] ([size])
+Source:            [S3: <bucket path> | local: <path>] ([size])
 Source PG version: [version from dump header]
 Restore status:    SUCCESS / FAILED
 Errors:            [N harmless, N real]
@@ -238,7 +280,7 @@ Data:
   Subjects:    [N]
 
 Next steps:
-  - Restart `nix run .#dev` and browse the app to verify
+  - From inside `nix develop`, restart `nix run .#dev` and browse the app to verify
   - When done, run `nix run .#cleanup` to reset to seed data
 
 Post-restore:
@@ -248,7 +290,8 @@ Post-restore:
 ## Notes
 
 - The backup is a plain SQL format (`pg_dump` without `-Fc`). This means we must restore into a clean/empty database — restoring on top of existing tables causes cascading COPY errors where data spills out as syntax errors.
-- `nix run .#dev` seeds the database on startup. After a restore, the seed step may fail because tables already exist with data. This is fine — the app still works.
+- `nix run .#dev` seeds the database on startup. The seed is **idempotent** (upserts by ID), so after a restore it succeeds rather than failing — it re-applies its small fixture set (~10 cities, a few hundred people) on top of the restored data without deleting the bulk production rows. It may overwrite the handful of records whose IDs collide with seed fixtures, but the restored data is otherwise intact. To verify the restored data specifically, check counts (Step 6) rather than trusting the seed summary, whose "Global entities" numbers reflect only the fixtures.
+- Run `nix run .#dev` **from inside `nix develop`** — outside the dev shell Prisma can't detect libssl/openssl (`Prisma failed to detect the libssl/openssl version`, defaults to `openssl-1.1.x`) and misbehaves.
 - To get back to normal local development after testing, run `nix run .#cleanup` to reset the database and re-seed.
 - Use `nix run .#oc-dev-db-nix` to start only the database (with PostGIS) — not `nix run .#dev` (which also starts the app and seeds) or bare `pg_ctl` (which starts Postgres without PostGIS extensions).
 - The socket directory path is `/tmp/oc-pg-XXXXXXXX` where the hash depends on the data directory. Discover it with `ls -d /tmp/oc-pg-* 2>/dev/null | head -1`.

@@ -135,6 +135,7 @@
               process-compose
               gh             # GitHub CLI for PR/issue management
               postgresql_16  # Provides psql CLI for interactive DB access
+              rclone         # S3 client for the test-backup skill (fetch dumps from DO Spaces)
             ])
             ++ (pkgs.lib.optionals pkgs.stdenv.isLinux [
               # Provides libuuid.so.1, required by native deps like `canvas`.
