@@ -42,6 +42,7 @@
   },
   "search": {
     "placeholder": "Search for a subject or address",
+    "locationError": "There was a problem finding your location. Try granting location permissions to your browser and try again.",
     "clearSearch": "Clear search",
     "filterCategory": "Filter by category:",
     "filterMunicipality": "Filter by municipality:",

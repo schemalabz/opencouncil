@@ -22,6 +22,8 @@ type Args = {
 export function useMapActions({ mapInstance, isMobile, defaultView }: Args) {
     // Browser-geolocation dot (from the "locate me" control).
     const [geo, setGeo] = useState<LatLng | null>(null);
+    // The last "locate me" attempt failed (denied permission / timeout) → drives an error tooltip.
+    const [geoError, setGeoError] = useState(false);
     // A geocoded address search → a point marker on the map (cleared on a new search).
     const [addressPoint, setAddressPoint] = useState<LatLng | null>(null);
     // A pending fly-to (point or a municipality's bounds) consumed by the <Map>.
@@ -43,7 +45,11 @@ export function useMapActions({ mapInstance, isMobile, defaultView }: Args) {
     };
 
     const locate = () => {
-        if (typeof navigator === 'undefined' || !navigator.geolocation) return;
+        setGeoError(false);
+        if (typeof navigator === 'undefined' || !navigator.geolocation) {
+            setGeoError(true);
+            return;
+        }
         navigator.geolocation.getCurrentPosition(
             (pos) => {
                 const { latitude: lat, longitude: lng } = pos.coords;
@@ -52,10 +58,12 @@ export function useMapActions({ mapInstance, isMobile, defaultView }: Args) {
             },
             (err) => {
                 console.warn('Geolocation failed:', err.code, err.message);
+                setGeoError(true);
             },
             { enableHighAccuracy: true, timeout: 8000 },
         );
     };
+    const dismissGeoError = () => setGeoError(false);
 
     // Geocode a typed address and fly to it (Enter on an address-style query).
     const locateAddress = (q: string) => {
@@ -100,6 +108,8 @@ export function useMapActions({ mapInstance, isMobile, defaultView }: Args) {
         cameraRef,
         toggleMapStyle,
         locate,
+        geoError,
+        dismissGeoError,
         locateAddress,
         zoomIn,
         zoomOut,

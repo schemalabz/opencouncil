@@ -284,11 +284,9 @@ export function MobileSearchOverlay({
             ? 'municipalities'
             : filters.bodyTypes.length
               ? 'bodytype'
-              : filters.minDuration != null
-                ? 'duration'
-                : filters.dateFrom || filters.dateTo
-                  ? 'dates'
-                  : null;
+              : filters.dateFrom || filters.dateTo
+                ? 'dates'
+                : null;
         if (!key) return;
         const el = contentRef.current?.querySelector<HTMLElement>(`[data-filter="${key}"]`);
         el?.scrollIntoView({ block: 'start' });

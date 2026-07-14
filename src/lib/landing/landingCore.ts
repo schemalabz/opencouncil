@@ -290,6 +290,10 @@ export type LayoutProps = {
     satellite: boolean;
     toggleMapStyle: () => void;
     locate: () => void;
+    /** the last "locate me" attempt failed → show an error tooltip by the locate control */
+    geoError: boolean;
+    /** dismiss the geolocation error tooltip */
+    onDismissGeoError: () => void;
     /** geocode a typed address query and fly the map to it */
     onLocateAddress: (q: string) => void;
     zoomIn: () => void;

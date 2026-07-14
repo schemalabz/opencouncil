@@ -42,6 +42,7 @@
   },
   "search": {
     "placeholder": "Rechercher un sujet ou une adresse",
+    "locationError": "Un problème est survenu lors de la localisation. Essayez d'autoriser la localisation dans votre navigateur et réessayez.",
     "clearSearch": "Effacer la recherche",
     "filterCategory": "Filtrer par catégorie :",
     "filterMunicipality": "Filtrer par commune :",

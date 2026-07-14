@@ -10,7 +10,7 @@ import { Eyebrow } from './shared';
 import { contrastText } from './conceptShared';
 import { type LandingListCity, type LandingSubject, type QueryKind } from '@/lib/landing/landingData';
 import { PetitionCta } from './MunicipalitiesList';
-import { BODY_TYPES, DURATION_FILTERS, EMPTY_FILTERS, toggleValue, type MapFilters } from '@/lib/landing/landingCore';
+import { BODY_TYPES, EMPTY_FILTERS, toggleValue, type MapFilters } from '@/lib/landing/landingCore';
 import { CityAvatar } from './controls';
 import { useSearchMatches } from './hooks/useSearchMatches';
 
@@ -361,30 +361,6 @@ export function SearchBody({
                             )}
                         >
                             {t(`bodyType.${b.key}`)}
-                        </button>
-                    );
-                })}
-            </div>
-
-            <span data-filter="duration" />
-            <Eyebrow className="mt-7 block">{t('search.duration')}</Eyebrow>
-            <div className="mt-2.5 flex flex-wrap gap-2">
-                {DURATION_FILTERS.map((d) => {
-                    const active = (filters.minDuration ?? null) === d.minMinutes;
-                    return (
-                        <button
-                            key={d.key}
-                            type="button"
-                            aria-pressed={active}
-                            onClick={() => onFiltersChange({ ...filters, minDuration: d.minMinutes })}
-                            className={cn(
-                                'h-9 rounded-full border px-3.5 text-[13px] font-medium transition-colors',
-                                active
-                                    ? 'border-primary bg-primary text-primary-foreground'
-                                    : 'border-border bg-background text-foreground hover:border-foreground/30',
-                            )}
-                        >
-                            {t(`duration.${d.key}`)}
                         </button>
                     );
                 })}
