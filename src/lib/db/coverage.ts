@@ -5,10 +5,14 @@ import type { Realm, AdministrativeBodyType } from '@prisma/client';
  * One coverage row per (cooperating municipality × administrative body type) for
  * the /explain "Κάλυψη" subsection: since when we publicly cover that body type
  * in that city ("από" = its first released meeting) up to now ("έως" = τώρα).
+ *
+ * Prefer the cached wrapper `getCityCoverageCached` in `@/lib/cache/queries` —
+ * this scans a city's released meetings, so it shouldn't run on every request.
  */
 export interface CoverageRow {
     cityId: string;
     cityName: string; // name_municipality, e.g. "Δήμος Αθηναίων"
+    cityTimezone: string; // format `fromDate` in the municipality's own timezone
     bodyType: AdministrativeBodyType; // 'council' | 'committee' | 'community'
     /** ISO date of the first released meeting for this city + body type. */
     fromDate: string;
@@ -21,18 +25,24 @@ const TYPE_ORDER: Record<AdministrativeBodyType, number> = {
 };
 
 export async function getCityCoverage(realm: Realm): Promise<CoverageRow[]> {
+    // Only meetings that have already taken place count towards coverage — a
+    // future, pre-published meeting must not set an early "Από" date.
+    const now = new Date();
+    const releasedPast = { released: true, administrativeBody: { isNot: null }, dateTime: { lte: now } };
+
     const cities = await prisma.city.findMany({
         where: {
             realm,
             status: 'listed',
             officialSupport: true,
-            councilMeetings: { some: { released: true, administrativeBody: { isNot: null } } },
+            councilMeetings: { some: releasedPast },
         },
         select: {
             id: true,
             name_municipality: true,
+            timezone: true,
             councilMeetings: {
-                where: { released: true, administrativeBody: { isNot: null } },
+                where: releasedPast,
                 select: {
                     dateTime: true,
                     administrativeBody: { select: { type: true } },
@@ -55,6 +65,7 @@ export async function getCityCoverage(realm: Realm): Promise<CoverageRow[]> {
             rows.push({
                 cityId: c.id,
                 cityName: c.name_municipality,
+                cityTimezone: c.timezone,
                 bodyType,
                 fromDate: from.toISOString(),
             });

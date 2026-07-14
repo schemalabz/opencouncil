@@ -13,6 +13,7 @@ import { getMeetingStatus } from "@/lib/meetingStatus";
 import { getBatchStatisticsForSubjects, Statistics } from "@/lib/statistics";
 import { createCache } from "./index";
 import { fetchLatestSubstackPost } from "@/lib/db/landing";
+import { getCityCoverage } from "@/lib/db/coverage";
 
 /**
  * Cached list of all city ids (single shared cache key, tag `cities:all`).
@@ -240,5 +241,19 @@ export async function getGitHubStatsCached() {
     () => getGitHubStats(),
     ['about', 'github'],
     { tags: ['github'], revalidate: 86400 } // refresh once per day
+  )();
+}
+
+/**
+ * Cached per-city coverage for the /explain "Κάλυψη" table. Scans every released
+ * meeting of every supported city, so it must not run per request — cache it and
+ * refresh every 15 minutes (also picks up newly-past meetings). Revalidated by
+ * city/meeting changes via the `cities:all` tag.
+ */
+export async function getCityCoverageCached(realm: Realm) {
+  return createCache(
+    () => getCityCoverage(realm),
+    ['explain', 'coverage', realm],
+    { tags: ['cities:all', `realm:${realm}:cities:all`], revalidate: 900 }
   )();
 }

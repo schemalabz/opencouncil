@@ -3,7 +3,7 @@ import { Link } from "@/i18n/routing";
 import { HeadingAnchor } from "@/components/explain/HeadingAnchor";
 import { NeighborhoodIllustration } from "@/components/explain/NeighborhoodIllustration";
 import { getNeighborhoodSubjects } from "@/lib/db/neighborhood";
-import { getCityCoverage } from "@/lib/db/coverage";
+import { getCityCoverageCached } from "@/lib/cache/queries";
 import {
     PLATFORM_PRICING_TIERS,
     SESSION_PROCESSING,
@@ -95,7 +95,7 @@ export async function generateMetadata(props: {
 export default async function ExplainPage() {
     const realm = await getRealm();
     const neighborhoodSubjects = await getNeighborhoodSubjects();
-    const cityCoverage = await getCityCoverage(realm);
+    const cityCoverage = await getCityCoverageCached(realm);
 
     // Pricing shown in "Ποιος πληρώνει" — derived from the pricing config so it
     // stays in sync with offers. Per-hour = digitization + human review; the

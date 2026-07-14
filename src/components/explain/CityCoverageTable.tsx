@@ -89,7 +89,7 @@ export function CityCoverageTable({ rows }: { rows: CoverageRow[] }) {
                                             {TYPE_LABEL[r.bodyType]}
                                         </td>
                                         <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                                            {formatDate(new Date(r.fromDate))}
+                                            {formatDate(new Date(r.fromDate), r.cityTimezone)}
                                         </td>
                                         <td className="whitespace-nowrap px-4 py-3">
                                             <NowBadge />
@@ -116,7 +116,7 @@ export function CityCoverageTable({ rows }: { rows: CoverageRow[] }) {
                                     <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-muted-foreground">
                                         <span>
                                             <span className="text-foreground">Από:</span>{" "}
-                                            {formatDate(new Date(r.fromDate))}
+                                            {formatDate(new Date(r.fromDate), r.cityTimezone)}
                                         </span>
                                         <span aria-hidden>·</span>
                                         <span>
