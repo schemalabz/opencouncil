@@ -12,7 +12,7 @@ import {
     type LandingSubject,
     type QueryKind,
 } from '@/lib/landing/landingData';
-import { hasActiveFilters, SEARCH_FIELD_STYLE, type MapFilters } from '@/lib/landing/landingCore';
+import { EMPTY_FILTERS, hasActiveFilters, SEARCH_FIELD_STYLE, type MapFilters } from '@/lib/landing/landingCore';
 import { FilterIconButton } from './controls';
 import { SearchBody } from './SearchBody';
 import { captureLandingAction } from '@/lib/landing/analytics';
@@ -277,6 +277,20 @@ export function MobileSearchOverlay({
     const inputRef = useRef<HTMLInputElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
 
+    // Snapshot the filter state on open (the overlay remounts each time) so we can show a hint once
+    // the user changes anything — filters apply live, so they need to go back to see the results.
+    const snapshot = (c: string[], f: MapFilters) =>
+        JSON.stringify({
+            cats: [...c].sort(),
+            cityIds: [...f.cityIds].sort(),
+            bodyTypes: [...f.bodyTypes].sort(),
+            dateFrom: f.dateFrom,
+            dateTo: f.dateTo,
+        });
+    const initialSnapshotRef = useRef<string | null>(null);
+    if (initialSnapshotRef.current === null) initialSnapshotRef.current = snapshot(cats, filters);
+    const filtersChanged = initialSnapshotRef.current !== snapshot(cats, filters);
+
     // Opened via the filters icon → don't steal focus; scroll the first active filter into view.
     useEffect(() => {
         if (!scrollToActiveFilter) return;
@@ -284,11 +298,9 @@ export function MobileSearchOverlay({
             ? 'municipalities'
             : filters.bodyTypes.length
               ? 'bodytype'
-              : filters.minDuration != null
-                ? 'duration'
-                : filters.dateFrom || filters.dateTo
-                  ? 'dates'
-                  : null;
+              : filters.dateFrom || filters.dateTo
+                ? 'dates'
+                : null;
         if (!key) return;
         const el = contentRef.current?.querySelector<HTMLElement>(`[data-filter="${key}"]`);
         el?.scrollIntoView({ block: 'start' });
@@ -344,6 +356,30 @@ export function MobileSearchOverlay({
                     }}
                 />
             </div>
+
+            {/* filters apply live — once the user tweaks anything (and something is still applied),
+                offer to clear or go back for results. Clearing everything hides the bar again. */}
+            {filtersChanged && (hasActiveFilters(filters) || cats.length > 0) && (
+                <div className="flex shrink-0 items-center justify-end gap-3 border-t border-border bg-card px-4 py-3">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            onClearCats();
+                            onFiltersChange(EMPTY_FILTERS);
+                        }}
+                        className="rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                        {t('common.clear')}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-xl bg-foreground px-6 py-2 text-sm font-semibold text-background transition hover:brightness-110"
+                    >
+                        {t('common.apply')}
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

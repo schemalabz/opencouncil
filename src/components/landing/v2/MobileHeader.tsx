@@ -10,20 +10,33 @@ import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger, SheetClose, SheetTitle } from '@/components/ui/sheet';
 import { FOOTER_GROUPS, isInternalHref, reopenCookiePreferences, type FooterLink } from './navLinks';
 
-/* Mobile top bar: burger (opens the left nav drawer) · brand · search icon. */
-export function MobileHeader({ onOpenSearch }: { onOpenSearch: () => void }) {
+/* Mobile top bar — a pill with the burger nav-drawer trigger + logo on the left and a separate
+   bordered keyword-search box on the right. Tapping search opens the search overlay (owned by the
+   layout). */
+export function MobileHeader({
+    onOpenSearch,
+    searchActive,
+}: {
+    onOpenSearch: () => void;
+    /** a keyword search is active — the search icon goes orange with a dot */
+    searchActive?: boolean;
+}) {
     const t = useTranslations('landingV2');
     const { data: session, status } = useSession();
     return (
-        <div className="absolute inset-x-3 top-3 z-[9] flex items-center gap-1.5 rounded-2xl border border-black/40 bg-card px-2 py-1.5 shadow-sm">
+        <div className="absolute inset-x-3 top-3 z-[9] flex items-center gap-1.5">
+            {/* header pill: burger + logo + brand (both the burger/logo open the nav drawer) */}
+            <div className="flex h-11 min-w-0 flex-1 items-center gap-1.5 rounded-2xl border border-black/40 bg-card px-1 shadow-sm">
+            {/* burger + logo — grouped and both open the nav drawer, no box */}
             <Sheet>
                 <SheetTrigger asChild>
                     <button
                         type="button"
                         aria-label={t('nav.menu')}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        className="flex shrink-0 items-center gap-0.5 rounded-xl px-1 py-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     >
-                        <Menu className="h-5 w-5" />
+                        <Menu className="h-3.5 w-3.5 shrink-0" />
+                        <Image src="/logo.png" alt="" width={120} height={120} className="h-9 w-9 shrink-0 object-contain" priority />
                     </button>
                 </SheetTrigger>
                 <SheetContent
@@ -114,17 +127,26 @@ export function MobileHeader({ onOpenSearch }: { onOpenSearch: () => void }) {
                 </SheetContent>
             </Sheet>
 
-            <Image src="/logo.png" alt="" width={120} height={120} className="h-8 w-8 shrink-0 object-contain" priority />
-            <span className="text-lg font-bold tracking-tight text-foreground">OpenCouncil</span>
+            <span className="truncate text-lg font-bold tracking-tight text-foreground">OpenCouncil</span>
+            </div>
 
-            {/* search — icon only, opens the overlay */}
+            {/* keyword search — a SEPARATE bordered box beside the header pill; turns orange with a
+                dot once a search is active */}
             <button
                 type="button"
                 aria-label={t('common.search')}
                 onClick={onOpenSearch}
-                className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className={cn(
+                    'relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border bg-card shadow-sm transition-colors',
+                    searchActive
+                        ? 'border-[hsl(var(--orange))] bg-[hsl(24,100%,96%)] text-[hsl(var(--orange))]'
+                        : 'border-black/40 text-muted-foreground hover:bg-muted hover:text-foreground',
+                )}
             >
                 <Search className="h-5 w-5" />
+                {searchActive && (
+                    <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-card bg-[hsl(var(--orange))]" />
+                )}
             </button>
         </div>
     );

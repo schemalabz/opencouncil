@@ -224,15 +224,16 @@ export function parseInitialUrlState(search: string): InitialUrlState {
     const body = p.get('body');
     const from = p.get('from');
     const to = p.get('to');
-    const dur = p.get('dur');
+    // The discussion-duration filter has no UI anymore; ignore a legacy `dur=` param so it can't
+    // silently apply an invisible, unclearable constraint from a shared/restored URL.
     const filters: MapFilters =
-        city || body || from || to || dur
+        city || body || from || to
             ? {
                   cityIds: city ? [city] : [],
                   bodyTypes: body ? body.split(',').filter(Boolean) : [],
                   dateFrom: from || null,
                   dateTo: to || null,
-                  minDuration: dur && Number.isFinite(Number(dur)) ? Number(dur) : null,
+                  minDuration: null,
               }
             : EMPTY_FILTERS;
 
@@ -290,6 +291,10 @@ export type LayoutProps = {
     satellite: boolean;
     toggleMapStyle: () => void;
     locate: () => void;
+    /** the last "locate me" attempt failed → show an error tooltip by the locate control */
+    geoError: boolean;
+    /** dismiss the geolocation error tooltip */
+    onDismissGeoError: () => void;
     /** geocode a typed address query and fly the map to it */
     onLocateAddress: (q: string) => void;
     zoomIn: () => void;

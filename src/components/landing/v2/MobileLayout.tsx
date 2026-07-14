@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Landmark, ArrowRight, LocateFixed, X, Map as MapIcon, ChevronDown, HelpCircle, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
@@ -51,6 +51,8 @@ export function MobileLayout({
     satellite,
     toggleMapStyle,
     locate,
+    geoError,
+    onDismissGeoError,
     zoomOut,
     onLocateAddress,
     explainOpen,
@@ -62,6 +64,12 @@ export function MobileLayout({
     const t = useTranslations('landingV2');
     // null = closed; 'search'/'filters' = which icon opened the overlay.
     const [searchMode, setSearchMode] = useState<'search' | 'filters' | null>(null);
+    // Auto-dismiss the geolocation error tooltip a few seconds after it appears.
+    useEffect(() => {
+        if (!geoError) return;
+        const id = setTimeout(onDismissGeoError, 6000);
+        return () => clearTimeout(id);
+    }, [geoError, onDismissGeoError]);
     // Whether the active tab's list is collapsed. Collapsing keeps the tab's view and map layer,
     // just hiding the list so the map shows underneath. Starts collapsed: the landing opens on
     // the subjects map with the Θέματα tab active but its list closed.
@@ -157,7 +165,7 @@ export function MobileLayout({
                 </section>
             )}
 
-            <MobileHeader onOpenSearch={() => setSearchMode('search')} />
+            <MobileHeader onOpenSearch={() => setSearchMode('search')} searchActive={query.trim().length > 0} />
 
             {/* map extras — only when the map is the visible/interactive surface */}
             {mapVisible && (
@@ -171,24 +179,46 @@ export function MobileLayout({
                         </div>
                     )}
                     {/* floating date range + filter icon, below the header */}
-                    <div className="absolute inset-x-3 top-[78px] z-[7] flex items-center justify-end gap-2">
-                        {(hasActiveFilters(filters) || cats.length > 0 || query.trim().length > 0) && (
+                    <div className="absolute inset-x-3 top-[68px] z-[7] flex items-center justify-end gap-2">
+                        {(hasActiveFilters(filters) || cats.length > 0) && (
                             <FilterIconButton compact active onClick={() => setSearchMode('filters')} />
                         )}
                         <DateRangePill value={range} onChange={setRange} />
                     </div>
 
-                    {/* bottom-right map controls — locate, with the basemap toggle below it */}
+                    {/* bottom-right map controls — locate (with an error tooltip on its left), then
+                        the basemap toggle below it */}
                     {!selectedSubject && (
                         <div className="absolute bottom-[88px] right-3 z-[7] flex flex-col items-end gap-2">
-                            <button
-                                type="button"
-                                onClick={locate}
-                                aria-label={t('map.locate')}
-                                className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-accent text-accent-foreground shadow-md transition hover:brightness-95"
-                            >
-                                <LocateFixed className="h-4 w-4" />
-                            </button>
+                            <div className="relative">
+                                {geoError && (
+                                    <div className="absolute right-[calc(100%+10px)] top-1/2 w-56 max-w-[70vw] -translate-y-1/2 rounded-xl border border-red-500/40 bg-card py-2 pl-3 pr-7 text-xs font-medium text-red-500 shadow-lg">
+                                        {t('search.locationError')}
+                                        {/* close */}
+                                        <button
+                                            type="button"
+                                            onClick={onDismissGeoError}
+                                            aria-label={t('common.close')}
+                                            className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-red-500/70 transition-colors hover:bg-red-500/10 hover:text-red-500"
+                                        >
+                                            <X className="h-3.5 w-3.5" />
+                                        </button>
+                                        {/* pointer toward the locate icon */}
+                                        <span
+                                            aria-hidden
+                                            className="absolute right-[-5px] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rotate-45 border-r border-t border-red-500/40 bg-card"
+                                        />
+                                    </div>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={locate}
+                                    aria-label={t('map.locate')}
+                                    className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-accent text-accent-foreground shadow-md transition hover:brightness-95"
+                                >
+                                    <LocateFixed className="h-4 w-4" />
+                                </button>
+                            </div>
                             <MapStyleToggle satellite={satellite} onToggle={toggleMapStyle} iconOnly />
                         </div>
                     )}

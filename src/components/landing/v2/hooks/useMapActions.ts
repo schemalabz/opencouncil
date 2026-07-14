@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { Map as MapboxMap } from 'mapbox-gl';
 import { DEFAULT_MAP_STYLE, SATELLITE_MAP_STYLE } from '@/components/map/map';
 import { EXPLAIN_LNGLAT, SUBJECT_FOCUS_ZOOM, type FlyTarget } from '@/lib/landing/landingCore';
@@ -22,6 +22,8 @@ type Args = {
 export function useMapActions({ mapInstance, isMobile, defaultView }: Args) {
     // Browser-geolocation dot (from the "locate me" control).
     const [geo, setGeo] = useState<LatLng | null>(null);
+    // The last "locate me" attempt failed (denied permission / timeout) → drives an error tooltip.
+    const [geoError, setGeoError] = useState(false);
     // A geocoded address search → a point marker on the map (cleared on a new search).
     const [addressPoint, setAddressPoint] = useState<LatLng | null>(null);
     // A pending fly-to (point or a municipality's bounds) consumed by the <Map>.
@@ -42,20 +44,33 @@ export function useMapActions({ mapInstance, isMobile, defaultView }: Args) {
         setMapStyle((s) => (s === SATELLITE_MAP_STYLE ? DEFAULT_MAP_STYLE : SATELLITE_MAP_STYLE));
     };
 
+    // Bumped per locate() call so only the latest request's callback wins (rapid clicks otherwise
+    // race — an older failure could flag an error beside a map a newer request already moved).
+    const locateReqRef = useRef(0);
     const locate = () => {
-        if (typeof navigator === 'undefined' || !navigator.geolocation) return;
+        setGeoError(false);
+        if (typeof navigator === 'undefined' || !navigator.geolocation) {
+            setGeoError(true);
+            return;
+        }
+        const reqId = ++locateReqRef.current;
         navigator.geolocation.getCurrentPosition(
             (pos) => {
+                if (reqId !== locateReqRef.current) return;
                 const { latitude: lat, longitude: lng } = pos.coords;
                 setGeo({ lat, lng });
                 setFlyTo({ type: 'Point', coordinates: [lng, lat] });
             },
             (err) => {
+                if (reqId !== locateReqRef.current) return;
                 console.warn('Geolocation failed:', err.code, err.message);
+                setGeoError(true);
             },
             { enableHighAccuracy: true, timeout: 8000 },
         );
     };
+    // Stable identity so the tooltip's auto-dismiss timer isn't restarted on every parent render.
+    const dismissGeoError = useCallback(() => setGeoError(false), []);
 
     // Geocode a typed address and fly to it (Enter on an address-style query).
     const locateAddress = (q: string) => {
@@ -100,6 +115,8 @@ export function useMapActions({ mapInstance, isMobile, defaultView }: Args) {
         cameraRef,
         toggleMapStyle,
         locate,
+        geoError,
+        dismissGeoError,
         locateAddress,
         zoomIn,
         zoomOut,
