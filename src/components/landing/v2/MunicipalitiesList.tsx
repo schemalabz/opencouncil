@@ -46,11 +46,14 @@ function MuniPanelCard({
     next?: UpcomingMeeting;
 }) {
     const t = useTranslations('landingV2');
+    // The landing → municipality-page conversion; all three anchors of the card count.
+    const trackOpen = () => captureLandingAction('city_opened', { city_id: city.id, source: 'municipalities_list' });
     return (
         <div className="group flex shrink-0 flex-col gap-3 rounded-2xl border border-black/40 bg-card p-4 shadow-sm transition-colors hover:border-black/60">
             <div className="flex items-center gap-2.5">
                 <Link
                     href={`/${city.id}`}
+                    onClick={trackOpen}
                     className="flex min-w-0 items-center gap-2.5 no-underline hover:no-underline"
                 >
                     <CityAvatar city={city} />
@@ -75,12 +78,13 @@ function MuniPanelCard({
                 <Link
                     href={`/${city.id}`}
                     aria-label={city.name}
+                    onClick={trackOpen}
                     className="ml-auto shrink-0 no-underline hover:no-underline"
                 >
                     <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                 </Link>
             </div>
-            <Link href={`/${city.id}`} className="flex flex-col gap-3 no-underline hover:no-underline">
+            <Link href={`/${city.id}`} onClick={trackOpen} className="flex flex-col gap-3 no-underline hover:no-underline">
                 <div className="grid grid-cols-3 gap-2">
                     <MuniStat label={t('municipality.subjects')} value={subjectCount} />
                     <MuniStat label={t('municipality.meetings')} value={city._count.councilMeetings} />

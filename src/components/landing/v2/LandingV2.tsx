@@ -365,6 +365,15 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         setMapView,
     });
 
+    // Selection funnel: every user-initiated selection fires subject_selected with where it came
+    // from. NOT inside selectSubject itself — the deep-link effect also calls that, and a page
+    // load must not count as the session's first action.
+    const trackedSelectSubject = (id: string, source: 'list' | 'search' | 'map_pin' | 'cluster' | 'city_hall') => {
+        const s = findSubject(id);
+        captureLandingAction('subject_selected', { subject_id: id, city_id: s?.cityId ?? null, source });
+        selectSubject(id);
+    };
+
     // Subject pins (+ "+N" co-located markers and donut clusters) for the current viewport.
     useSubjectMarkers({
         mapInstance,
@@ -372,7 +381,7 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         visibleSubjects,
         clusterCell,
         selectedId,
-        onSelect: selectSubject,
+        onSelect: (id) => trackedSelectSubject(id, 'map_pin'),
         onClearSelection: clearSelection,
         suppressViewCaptureRef,
         pendingCoLocatedRef,
@@ -400,7 +409,10 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         mapInstance,
         view,
         mapCities,
-        onOpenCity: (cityId) => router.push(`/${cityId}`),
+        onOpenCity: (cityId) => {
+            captureLandingAction('city_opened', { city_id: cityId, source: 'map_marker' });
+            router.push(`/${cityId}`);
+        },
     });
 
     // Map overlays: desktop subject tooltip, OpenCouncil badge + popup, and the clicked
@@ -484,6 +496,10 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         captureLandingAction('map_zoom', { direction: 'out', method: 'button' });
         zoomOut();
     };
+    const trackedToggleMapStyle = () => {
+        captureLandingAction('map_style_changed', { to: satellite ? 'map' : 'satellite' });
+        toggleMapStyle();
+    };
 
     const layoutProps: LayoutProps = {
         // desktop has no 'home' tab → render 'home' as its 'subjects' split; mobile keeps all three
@@ -507,7 +523,7 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         upcoming,
         loading,
         selectedId,
-        selectSubject,
+        selectSubject: (id: string, source: 'list' | 'search' = 'list') => trackedSelectSubject(id, source),
         clearSelection,
         selectedSubject,
         ordered: listSubjects,
@@ -516,18 +532,18 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         searchResults,
         coLocated,
         onCoLocatedSelect: (id: string) => {
-            selectSubject(id);
+            trackedSelectSubject(id, 'cluster');
             setCoLocated(null);
         },
         onCoLocatedClose: () => setCoLocated(null),
         generalBox,
         onGeneralSelect: (id: string) => {
-            selectSubject(id);
+            trackedSelectSubject(id, 'city_hall');
             setGeneralBox(null);
         },
         onGeneralBoxClose: () => setGeneralBox(null),
         satellite,
-        toggleMapStyle,
+        toggleMapStyle: trackedToggleMapStyle,
         locate,
         geoError,
         onDismissGeoError: dismissGeoError,

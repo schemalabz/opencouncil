@@ -268,7 +268,8 @@ export type LayoutProps = {
     upcoming: UpcomingMeeting[];
     loading: boolean;
     selectedId: string | null;
-    selectSubject: (id: string) => void;
+    /** `source` feeds the subject_selected analytics event; defaults to 'list' */
+    selectSubject: (id: string, source?: 'list' | 'search') => void;
     clearSelection: () => void;
     selectedSubject: LandingSubject | null;
     /** in-view subjects for the desktop panel (sorted), with nearest-N fallback */

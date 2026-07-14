@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { Map as MapboxMap } from 'mapbox-gl';
 import { DEFAULT_MAP_STYLE, SATELLITE_MAP_STYLE } from '@/components/map/map';
+import { captureLanding, captureLandingAction } from '@/lib/landing/analytics';
 import { EXPLAIN_LNGLAT, SUBJECT_FOCUS_ZOOM, type FlyTarget } from '@/lib/landing/landingCore';
 import { isValidLngLat } from '@/lib/landing/landingData';
 import type { LatLng } from '@/lib/google-maps';
@@ -53,16 +54,20 @@ export function useMapActions({ mapInstance, isMobile, defaultView }: Args) {
             setGeoError(true);
             return;
         }
+        captureLandingAction('locate', {});
         const reqId = ++locateReqRef.current;
         navigator.geolocation.getCurrentPosition(
             (pos) => {
                 if (reqId !== locateReqRef.current) return;
+                captureLanding('locate_result', { status: 'granted' });
                 const { latitude: lat, longitude: lng } = pos.coords;
                 setGeo({ lat, lng });
                 setFlyTo({ type: 'Point', coordinates: [lng, lat] });
             },
             (err) => {
                 if (reqId !== locateReqRef.current) return;
+                // PERMISSION_DENIED (1) is a distinct signal from timeouts/unavailability.
+                captureLanding('locate_result', { status: err.code === 1 ? 'denied' : 'error' });
                 console.warn('Geolocation failed:', err.code, err.message);
                 setGeoError(true);
             },
