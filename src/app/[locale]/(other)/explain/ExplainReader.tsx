@@ -17,11 +17,21 @@ interface Section {
  *  - highlights the matching link in the sticky desktop table of contents;
  *  - renders the mobile prev/next navigator fixed to the bottom of the screen.
  */
-export function ExplainReader({ sections }: { sections: Section[] }) {
+export function ExplainReader({
+    sections,
+    sectionParents,
+    mainTitle,
+}: {
+    sections: Section[];
+    /** Section id → its top-level part title, shown above the sticky subtitle. */
+    sectionParents?: Record<string, string>;
+    /** Page main title — the fallback shown above top-level parts that have no parent. */
+    mainTitle?: string;
+}) {
     const [active, setActive] = useState(-1);
-    // Title of the section the reader has scrolled *past* — shown as a sticky bar
+    // Index of the section the reader has scrolled *past* — shown as a sticky bar
     // on mobile so the current subtitle stays visible while reading the content.
-    const [stickyTitle, setStickyTitle] = useState<string | null>(null);
+    const [stickyIdx, setStickyIdx] = useState(-1);
 
     // Track the section in view and pin the desktop table of contents.
     useEffect(() => {
@@ -49,7 +59,7 @@ export function ExplainReader({ sections }: { sections: Section[] }) {
             const passed = activeEl ? activeEl.getBoundingClientRect().top < 0 : false;
             // the Substack "further reading" section shouldn't pin its title
             const show = idx >= 0 && passed && sections[idx].id !== "substack";
-            setStickyTitle(show ? sections[idx].title : null);
+            setStickyIdx(show ? idx : -1);
 
             // pin the ToC: position: sticky is broken by an overflow-hidden
             // ancestor, so translate it to hold PIN_TOP while it's in range.
@@ -82,25 +92,19 @@ export function ExplainReader({ sections }: { sections: Section[] }) {
     // Reflect the active section in the ToC (aria-current) and the URL hash.
     useEffect(() => {
         const activeId = active >= 0 ? sections[active].id : null;
-        const isSub = activeId?.startsWith("oc-") ?? false;
 
         const links = document.querySelectorAll<HTMLAnchorElement>("[data-toc] a");
-        links.forEach((a) => {
-            const href = a.getAttribute("href");
-            // Highlight the active link; while a sub-section is active, also keep the
-            // parent "Πως δουλεύει το OpenCouncil;" entry highlighted.
-            const on =
-                (activeId != null && href === `#${activeId}`) || (isSub && href === "#opencouncil");
-            if (on) a.setAttribute("aria-current", "true");
-            else a.removeAttribute("aria-current");
-        });
+        links.forEach((a) => a.removeAttribute("aria-current"));
 
-        // Expand the nested OpenCouncil group once it (or one of its sub-sections)
-        // is in view; collapse it otherwise.
-        const group = document.querySelector("[data-toc-group]");
-        if (group) {
-            if (activeId === "opencouncil" || isSub) group.setAttribute("data-expanded", "true");
-            else group.removeAttribute("data-expanded");
+        if (activeId) {
+            const activeLink = document.querySelector<HTMLElement>(`[data-toc] a[href="#${activeId}"]`);
+            activeLink?.setAttribute("aria-current", "true");
+            // keep the parent top-level group ("Οι ελληνικοί δήμοι" / "Πώς δουλεύει…")
+            // highlighted while any of its sections is active
+            activeLink
+                ?.closest("[data-toc-group]")
+                ?.querySelector("[data-toc-grouphead]")
+                ?.setAttribute("aria-current", "true");
         }
 
         if (active >= 0) {
@@ -119,17 +123,24 @@ export function ExplainReader({ sections }: { sections: Section[] }) {
 
     const next = active >= 0 && active < sections.length - 1 ? sections[active + 1] : null;
 
+    const stickySection = stickyIdx >= 0 ? sections[stickyIdx] : null;
+    // the section's parent part, or the page's main title for top-level parts
+    const stickyParent = stickySection ? sectionParents?.[stickySection.id] ?? mainTitle : undefined;
+
     // Only surfaces once the reader is inside an article.
     if (active < 0) return null;
 
     return (
         <>
-            {stickyTitle && (
+            {stickySection && (
                 <div className="fixed inset-x-0 top-0 z-30 bg-background/95 backdrop-blur lg:hidden">
                     <div className="mx-auto max-w-6xl px-4 py-2.5">
-                        <span className="!text-left text-2xl !leading-none">
-                            {stickyTitle}
-                        </span>
+                        {stickyParent && (
+                            <div className="text-xs font-medium text-muted-foreground">{stickyParent}</div>
+                        )}
+                        <div className="!text-left text-xl font-normal !leading-none text-foreground sm:text-2xl">
+                            {stickySection.title}
+                        </div>
                     </div>
                 </div>
             )}

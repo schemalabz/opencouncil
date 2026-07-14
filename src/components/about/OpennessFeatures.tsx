@@ -93,7 +93,7 @@ export function FeatureBlock({
             <h3
                 className={
                     stacked
-                        ? 'text-lg md:text-xl font-semibold tracking-tight'
+                        ? '!text-left text-xl font-normal !leading-none sm:text-2xl'
                         : 'text-2xl md:text-3xl font-medium tracking-tight'
                 }
             >

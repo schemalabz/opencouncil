@@ -128,6 +128,30 @@ function DioikisiDimouBody() {
                 αρμοδιότητες του Δημοτικού Συμβουλίου και της Δημοτικής Επιτροπής που μέχρι πρότινος δεν ήταν
                 χωρισμένες.
             </p>
+            <div className="not-prose my-6 flex items-start gap-3 rounded-2xl border border-orange/30 bg-orange/5 p-5">
+                <span className="text-2xl leading-none" aria-hidden="true">
+                    ⚖️
+                </span>
+                <div>
+                    <p className="text-base font-semibold leading-relaxed text-foreground">
+                        Τι είναι ο νέος κώδικας τοπικής αυτοδιοίκησης;
+                    </p>
+                    <p className="mt-2 text-base leading-relaxed text-foreground">
+                        Ο νέος κώδικας τοπικής αυτοδιοίκησης (ν. 5314/2026), ψηφίστηκε τον Ιούνιου του 2026 και
+                        μαζεύει σε ένα ενιαίο κείμενο όλους τους κανόνες για την λειτουργία των δήμων και των
+                        περιφερειών της χώρας. Μπορείτε να διαβάσετε{" "}
+                        <a
+                            href="https://schemalabs.substack.com/p/neos-kodikas"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-orange underline underline-offset-2 hover:text-orange/80"
+                        >
+                            εδώ
+                        </a>{" "}
+                        το άρθρο που γράψαμε σχετικά με μερικές από τις αλλαγές που έφερε ο νέος κώδικας.
+                    </p>
+                </div>
+            </div>
         </>
     );
 }

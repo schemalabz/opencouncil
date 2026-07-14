@@ -65,7 +65,7 @@ export function NeighborhoodIllustration({
                 onMouseLeave={() => setActive(null)}
             >
                 <svg
-                    viewBox="0 0 1320 588"
+                    viewBox="0 0 1320 668"
                     xmlns="http://www.w3.org/2000/svg"
                     role="img"
                     style={{ width: "100%", height: "auto", display: "block" }}
@@ -78,8 +78,8 @@ export function NeighborhoodIllustration({
 .ni-el--live:hover,.ni-el--live:focus-visible{transform:translateY(-9px) scale(1.035);outline:none;}
 @media (prefers-reduced-motion:reduce){.ni-el{transition:none;}}
 `}</style>
-                    <rect x="0" y="0" width="1320" height="588" fill="#F7F3EA" />
-                    <rect x="0" y="412" width="1320" height="176" fill="#ECE5D4" />
+                    <rect x="0" y="0" width="1320" height="668" fill="#F7F3EA" />
+                    <rect x="0" y="412" width="1320" height="256" fill="#ECE5D4" />
                     <line x1="0" y1="412" x2="1320" y2="412" stroke="#14110D" strokeWidth="3" />
 
                     {/* trees & bench → environment */}
@@ -154,11 +154,15 @@ export function NeighborhoodIllustration({
 
                 {/* extra ground on small screens so the info card clears the buildings —
                     only while a panel is shown, so there's no dead space otherwise */}
-                {showPanel && <div aria-hidden className="h-24 bg-[#ECE5D4] sm:hidden" />}
+                {showPanel && <div aria-hidden className="h-16 sm:h-2 bg-[#ECE5D4] sm:hidden" />}
+
+                {/* while nothing is selected, extend the ground so the hint sits well
+                    below the buildings with room to breathe */}
+                {!showPanel && <div aria-hidden className="h-2 bg-[#ECE5D4] sm:h-1" />}
 
                 {/* hint at the bottom of the ground — hidden once an element is selected */}
                 {!showPanel && (
-                    <div className="pointer-events-none absolute inset-x-0 bottom-0 px-3 pb-2 text-center text-[11px] text-muted-foreground sm:text-xs">
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 px-3 pb-5 text-center text-[11px] text-muted-foreground sm:text-xs">
                         Πατήστε πάνω στα εικονίδια για να δείτε σχετικά θέματα
                     </div>
                 )}

@@ -1,9 +1,16 @@
 import { Metadata } from "next";
-import { ChevronRight } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import { HeadingAnchor } from "@/components/explain/HeadingAnchor";
 import { NeighborhoodIllustration } from "@/components/explain/NeighborhoodIllustration";
 import { getNeighborhoodSubjects } from "@/lib/db/neighborhood";
+import { getCityCoverage } from "@/lib/db/coverage";
+import {
+    PLATFORM_PRICING_TIERS,
+    SESSION_PROCESSING,
+    getCorrectnessPricing,
+    CURRENT_OFFER_VERSION,
+} from "@/lib/pricing/config";
+import type { ExplainPricing } from "./ExplainFeatures";
 import { buildHreflangAlternates } from "@/lib/utils/hreflang";
 import { getRealm } from "@/lib/realm.server";
 import { ARTICLES, SECTIONS } from "@/lib/explain/articles";
@@ -13,14 +20,38 @@ import { ExplainFeatures } from "./ExplainFeatures";
 import { SubstackCarousel } from "@/components/embeds/SubstackCarousel";
 import { SUBSTACK_POSTS } from "@/lib/explain/substackPosts";
 
-/** Full scroll-spy / mobile-nav order: articles, the OpenCouncil sub-sections,
- *  then the Substack "further reading" carousel as the final stop. */
 const SUBSTACK_HEADING = "Διάβασε περισσότερα στο Substack";
+
+// Two high-level parts: the local-government articles nested under "Οι ελληνικοί
+// δήμοι", and the OpenCouncil product (with its sub-sections). The part titles
+// double as the top-level table-of-contents groups.
+const GREEK_MUNICIPALITIES_TITLE = "Οι ελληνικοί δήμοι";
+const OPENCOUNCIL_TITLE = "Πώς δουλεύει το OpenCouncil";
+
+const LOCAL_GOV_SECTIONS = SECTIONS.filter((s) => s.id !== "opencouncil");
+const LOCAL_GOV_ARTICLES = ARTICLES.filter((a) => a.id !== "opencouncil");
+const OpenCouncilBody = ARTICLES.find((a) => a.id === "opencouncil")?.Body;
+
+/** Top-level ToC groups, each with its nested sections. */
+const NAV_GROUPS = [
+    { id: "greek-municipalities", title: GREEK_MUNICIPALITIES_TITLE, items: LOCAL_GOV_SECTIONS },
+    { id: "opencouncil", title: OPENCOUNCIL_TITLE, items: OPENCOUNCIL_SUBSECTIONS },
+];
+
+/** Full scroll-spy / mobile-nav order (top → bottom of the page). */
 const NAV_SECTIONS = [
-    ...SECTIONS,
+    { id: "greek-municipalities", title: GREEK_MUNICIPALITIES_TITLE },
+    ...LOCAL_GOV_SECTIONS,
+    { id: "opencouncil", title: OPENCOUNCIL_TITLE },
     ...OPENCOUNCIL_SUBSECTIONS,
     { id: "substack", title: SUBSTACK_HEADING },
 ];
+
+/** Each nested section → its top-level part title (for the mobile sticky header). */
+const SECTION_PARENTS: Record<string, string> = {
+    ...Object.fromEntries(LOCAL_GOV_SECTIONS.map((s) => [s.id, GREEK_MUNICIPALITIES_TITLE])),
+    ...Object.fromEntries(OPENCOUNCIL_SUBSECTIONS.map((s) => [s.id, OPENCOUNCIL_TITLE])),
+};
 
 const PAGE_TITLE = "Η τοπική αυτοδιοίκηση, απλά";
 const PAGE_DESCRIPTION =
@@ -64,6 +95,21 @@ export async function generateMetadata(props: {
 export default async function ExplainPage() {
     const realm = await getRealm();
     const neighborhoodSubjects = await getNeighborhoodSubjects();
+    const cityCoverage = await getCityCoverage(realm);
+
+    // Pricing shown in "Ποιος πληρώνει" — derived from the pricing config so it
+    // stays in sync with offers. Per-hour = digitization + human review; the
+    // subscription spans the cheapest platform tier to the priciest.
+    const cheapestTier = PLATFORM_PRICING_TIERS[0];
+    const priciestTier = PLATFORM_PRICING_TIERS[PLATFORM_PRICING_TIERS.length - 1];
+    const pricing: ExplainPricing = {
+        perHour: SESSION_PROCESSING.pricePerHour + getCorrectnessPricing(CURRENT_OFFER_VERSION).pricePerUnit,
+        cheapestMonthly: cheapestTier.monthlyPrice,
+        cheapestUpTo: cheapestTier.maxPopulation,
+        topMonthly: priciestTier.monthlyPrice,
+        // the priciest (open-ended) tier kicks in above the previous tier's ceiling
+        topFrom: PLATFORM_PRICING_TIERS[PLATFORM_PRICING_TIERS.length - 2]?.maxPopulation ?? null,
+    };
     const structuredData = {
         "@context": "https://schema.org",
         "@type": "Article",
@@ -111,61 +157,73 @@ export default async function ExplainPage() {
                     <h2 className="mb-3.5 text-xs font-bold uppercase tracking-wider text-muted-foreground !text-left">
                         Περιεχόμενα
                     </h2>
-                    <ol className="space-y-0.5">
-                        {SECTIONS.map((s) => {
-                            const isOc = s.id === "opencouncil";
-                            return (
-                                <li key={s.id} className={isOc ? "group" : undefined} data-toc-group={isOc ? "" : undefined}>
-                                    <a
-                                        href={`#${s.id}`}
-                                        className="flex items-center justify-between gap-2 border-l-2 border-border py-1.5 pl-3.5 pr-1 text-sm leading-snug text-muted-foreground transition-colors hover:text-foreground aria-[current=true]:border-orange aria-[current=true]:font-semibold aria-[current=true]:text-orange"
-                                    >
-                                        <span>{s.title}</span>
-                                        {isOc && (
-                                            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition-transform duration-200 group-data-[expanded=true]:rotate-90" />
-                                        )}
-                                    </a>
-                                    {/* nested sub-sections — revealed when the section is active */}
-                                    {isOc && (
-                                        <div
-                                            data-toc-nested
-                                            className="grid grid-rows-[0fr] overflow-hidden transition-[grid-template-rows] duration-300 ease-out group-data-[expanded=true]:grid-rows-[1fr]"
-                                        >
-                                            <ol className="mt-1 min-h-0 space-y-0.5 overflow-hidden pl-2">
-                                                {OPENCOUNCIL_SUBSECTIONS.map((sub) => (
-                                                    <li key={sub.id}>
-                                                        <a
-                                                            href={`#${sub.id}`}
-                                                            className="block border-l-2 border-border py-1 pl-3 text-[13px] leading-snug text-muted-foreground transition-colors hover:text-foreground aria-[current=true]:border-orange/50 aria-[current=true]:font-medium aria-[current=true]:text-orange/80"
-                                                        >
-                                                            {sub.title}
-                                                        </a>
-                                                    </li>
-                                                ))}
-                                            </ol>
-                                        </div>
-                                    )}
-                                </li>
-                            );
-                        })}
+                    <ol className="space-y-5">
+                        {NAV_GROUPS.map((g) => (
+                            <li key={g.id} data-toc-group={g.id}>
+                                <a
+                                    href={`#${g.id}`}
+                                    data-toc-grouphead
+                                    className="block py-1 text-sm font-bold text-foreground/80 transition-colors hover:text-orange aria-[current=true]:text-orange"
+                                >
+                                    {g.title}
+                                </a>
+                                <ol className="mt-1.5 space-y-0.5">
+                                    {g.items.map((it) => (
+                                        <li key={it.id}>
+                                            <a
+                                                href={`#${it.id}`}
+                                                className="block border-l-2 border-border py-1.5 pl-3.5 text-sm leading-snug text-muted-foreground transition-colors hover:text-foreground aria-[current=true]:border-orange aria-[current=true]:font-semibold aria-[current=true]:text-orange"
+                                            >
+                                                {it.title}
+                                            </a>
+                                        </li>
+                                    ))}
+                                </ol>
+                            </li>
+                        ))}
                     </ol>
                 </aside>
 
-                {/* articles */}
-                <div className="space-y-14">
-                    {ARTICLES.map(({ id, title, Body }) => (
-                        <section key={id} id={id} className="scroll-mt-24">
-                            <h2 className="!text-left text-2xl font-bold !leading-none sm:text-3xl">
-                                <HeadingAnchor id={id}>{title}</HeadingAnchor>
-                            </h2>
-                            <div className="prose prose-neutral mt-4 max-w-none prose-headings:font-bold prose-a:text-orange prose-blockquote:border-l-orange prose-blockquote:not-italic">
-                                <Body />
+                {/* two high-level parts */}
+                <div className="space-y-16">
+                    {/* Part 1 — Οι ελληνικοί δήμοι */}
+                    <section aria-labelledby="greek-municipalities">
+                        <h2
+                            id="greek-municipalities"
+                            className="!text-left scroll-mt-24 !text-3xl !font-bold tracking-tight sm:!text-4xl"
+                        >
+                            <HeadingAnchor id="greek-municipalities">{GREEK_MUNICIPALITIES_TITLE}</HeadingAnchor>
+                        </h2>
+                        <div className="mt-8 space-y-14">
+                            {LOCAL_GOV_ARTICLES.map(({ id, title, Body }) => (
+                                <section key={id} id={id} className="scroll-mt-24">
+                                    <h3 className="!text-left text-xl font-normal !leading-none sm:text-2xl">
+                                        <HeadingAnchor id={id}>{title}</HeadingAnchor>
+                                    </h3>
+                                    <div className="prose prose-neutral mt-4 max-w-none prose-headings:font-bold prose-a:text-orange prose-blockquote:border-l-orange prose-blockquote:not-italic">
+                                        <Body />
+                                    </div>
+                                </section>
+                            ))}
+                        </div>
+                    </section>
+
+                    {/* Part 2 — Πώς δουλεύει το OpenCouncil */}
+                    <section aria-labelledby="opencouncil">
+                        <h2
+                            id="opencouncil"
+                            className="!text-left scroll-mt-24 !text-3xl !font-bold tracking-tight sm:!text-4xl"
+                        >
+                            <HeadingAnchor id="opencouncil">{OPENCOUNCIL_TITLE}</HeadingAnchor>
+                        </h2>
+                        {OpenCouncilBody && (
+                            <div className="prose prose-neutral mt-8 max-w-none prose-headings:font-bold prose-a:text-orange prose-blockquote:border-l-orange prose-blockquote:not-italic">
+                                <OpenCouncilBody />
                             </div>
-                            {/* Product showcase (diagram + feature demos), reused from
-                                /about — part of the OpenCouncil section, matching its width */}
-                            {id === "opencouncil" && <ExplainFeatures realm={realm} />}
-                        </section>
-                    ))}
+                        )}
+                        {/* Product showcase (diagram + feature demos + coverage/pricing/CTA) */}
+                        <ExplainFeatures realm={realm} coverage={cityCoverage} pricing={pricing} />
+                    </section>
                 </div>
             </div>
 
@@ -173,7 +231,7 @@ export default async function ExplainPage() {
             <hr className="mt-16 border-t border-border" />
             <SubstackCarousel id="substack" posts={SUBSTACK_POSTS} heading={SUBSTACK_HEADING} />
 
-            <ExplainReader sections={NAV_SECTIONS} />
+            <ExplainReader sections={NAV_SECTIONS} sectionParents={SECTION_PARENTS} mainTitle={PAGE_TITLE} />
         </div>
     );
 }
