@@ -221,7 +221,6 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         if (filters.bodyTypes.length) p.set('body', filters.bodyTypes.join(','));
         if (filters.dateFrom) p.set('from', filters.dateFrom);
         if (filters.dateTo) p.set('to', filters.dateTo);
-        if (filters.minDuration != null) p.set('dur', String(filters.minDuration));
         const qs = p.toString();
         window.history.replaceState(null, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
     }, [view, infoOpen, selectedId, cats, query, range, filters]);

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { Map as MapboxMap } from 'mapbox-gl';
 import { DEFAULT_MAP_STYLE, SATELLITE_MAP_STYLE } from '@/components/map/map';
 import { EXPLAIN_LNGLAT, SUBJECT_FOCUS_ZOOM, type FlyTarget } from '@/lib/landing/landingCore';
@@ -44,26 +44,33 @@ export function useMapActions({ mapInstance, isMobile, defaultView }: Args) {
         setMapStyle((s) => (s === SATELLITE_MAP_STYLE ? DEFAULT_MAP_STYLE : SATELLITE_MAP_STYLE));
     };
 
+    // Bumped per locate() call so only the latest request's callback wins (rapid clicks otherwise
+    // race — an older failure could flag an error beside a map a newer request already moved).
+    const locateReqRef = useRef(0);
     const locate = () => {
         setGeoError(false);
         if (typeof navigator === 'undefined' || !navigator.geolocation) {
             setGeoError(true);
             return;
         }
+        const reqId = ++locateReqRef.current;
         navigator.geolocation.getCurrentPosition(
             (pos) => {
+                if (reqId !== locateReqRef.current) return;
                 const { latitude: lat, longitude: lng } = pos.coords;
                 setGeo({ lat, lng });
                 setFlyTo({ type: 'Point', coordinates: [lng, lat] });
             },
             (err) => {
+                if (reqId !== locateReqRef.current) return;
                 console.warn('Geolocation failed:', err.code, err.message);
                 setGeoError(true);
             },
             { enableHighAccuracy: true, timeout: 8000 },
         );
     };
-    const dismissGeoError = () => setGeoError(false);
+    // Stable identity so the tooltip's auto-dismiss timer isn't restarted on every parent render.
+    const dismissGeoError = useCallback(() => setGeoError(false), []);
 
     // Geocode a typed address and fly to it (Enter on an address-style query).
     const locateAddress = (q: string) => {
