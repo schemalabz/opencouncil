@@ -27,7 +27,7 @@ export default function MapDemo({ realm }: { realm: Realm }) {
     const t = useTranslations('about.demos.map')
 
     return (
-        <BrowserFrame url={`${getRealmDomain(realm)}/map`} className="w-full">
+        <BrowserFrame url={getRealmDomain(realm)} className="w-full">
             {/* Map area */}
             <div className="relative aspect-[4/3] overflow-hidden bg-[#f2efe9]">
                 {/* Mapbox static tile background */}
