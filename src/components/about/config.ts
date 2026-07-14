@@ -63,8 +63,9 @@ export const OPENNESS_FEATURES: Feature[] = [
     {
         id: 'map',
         status: 'live',
-        demoUrl: '/map',
-        demoUrlByRealm: { france: '/map' },
+        // the map lives on the landing page now, not the standalone /map route
+        demoUrl: '/',
+        demoUrlByRealm: { france: '/' },
     },
 ]
 
