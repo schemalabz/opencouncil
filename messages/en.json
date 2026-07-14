@@ -1017,6 +1017,8 @@
             }
         },
         "agendaItem": "Subject #{index}",
+        "beforeAgenda": "Before Agenda",
+        "outsideAgenda": "Outside Agenda",
         "backToMeetingNamed": "Back to meeting: {meeting}",
         "partOf": "Part of the meeting",
         "parties": "Parties",
@@ -1078,6 +1080,16 @@
         "voteAbsent": "Absent",
         "groupedDiscussion": "Discussion grouped with other subjects",
         "groupedDiscussionDescription": "This subject appears to have been discussed and voted on together with other subjects. See the discussion at:"
+    },
+    "SubjectSubscribe": {
+        "subscribe": "Subscribe",
+        "confirmSubscribe": "Save",
+        "subscribeSuccess": "Saved",
+        "subscribeSuccessDescription": "Your notification preferences have been updated.",
+        "manageNotifications": "Manage notifications",
+        "subscribeTo": "Get notified about:",
+        "error": "Error",
+        "subscribeErrorDescription": "An error occurred while saving your preferences. Please try again."
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {No meetings} =1 {1 meeting} other {# meetings}}",
