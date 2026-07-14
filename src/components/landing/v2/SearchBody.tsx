@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Search, MapPin, Landmark, Loader2 } from 'lucide-react';
+import { MapPin, Landmark, Loader2 } from 'lucide-react';
 import type { Topic } from '@prisma/client';
 import { cn, normalizeText } from '@/lib/utils';
 import Icon from '@/components/icon';
@@ -13,40 +12,6 @@ import { PetitionCta } from './MunicipalitiesList';
 import { BODY_TYPES, EMPTY_FILTERS, toggleValue, type MapFilters } from '@/lib/landing/landingCore';
 import { CityAvatar } from './controls';
 import { useSearchMatches } from './hooks/useSearchMatches';
-
-/* Popular searches: most-repeated real queries (SearchQuery log), fetched once and shared
-   across dropdown/overlay. Falls back to the curated list until there's enough history. */
-let popularCache: string[] | null = null;
-let popularPromise: Promise<string[]> | null = null;
-
-function usePopularSearches(): string[] {
-    const t = useTranslations('landingV2');
-    const fallback = t.raw('popularSearches') as string[];
-    const [keywords, setKeywords] = useState<string[]>(popularCache ?? fallback);
-    useEffect(() => {
-        if (popularCache) return;
-        if (!popularPromise) {
-            popularPromise = fetch('/api/landing/popular-searches')
-                .then((r) => (r.ok ? r.json() : { keywords: [] }))
-                .then((d: { keywords: string[] }) => {
-                    // Need a few to read as intentional; otherwise keep the curated list.
-                    popularCache = d.keywords.length >= 4 ? d.keywords : fallback;
-                    return popularCache;
-                })
-                .catch(() => {
-                    popularCache = fallback;
-                    return popularCache;
-                });
-        }
-        let active = true;
-        void popularPromise.then((k) => active && setKeywords(k));
-        return () => {
-            active = false;
-        };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-    return keywords;
-}
 
 /* native date input with a Greek placeholder. Browsers localise the field from the UI
    language (not `lang`), so when empty we hide the native text and overlay "ηη/μμ/εεεε". */
@@ -125,7 +90,6 @@ export function SearchBody({
     onLocateAddress: (q: string) => void;
 }) {
     const t = useTranslations('landingV2');
-    const popularSearches = usePopularSearches();
     const { unknownMunicipality, matchedTopic, knownMunicipality, showAddressOption, dateActive, anyFilterActive } = useSearchMatches({
         query,
         queryKind,
@@ -134,10 +98,14 @@ export function SearchBody({
         cats,
         filters,
     });
-    // A popular search is a curated topic/keyword, not an address — don't offer "near address" for it.
+    // Guard the "near address" option against curated topic keywords: classifySearchQuery falls back
+    // to 'address' for any keyword matching no loaded subject, so without this, typing a topic like
+    // "Προϋπολογισμός" would wrongly offer to geocode it. Uses the curated list (not the retired
+    // dynamic popular-searches feed, whose real-query data could suppress genuine address searches).
+    const curatedKeywords = t.raw('popularSearches') as string[];
     const normalizedQuery = normalizeText(query).trim();
-    const isPopular = popularSearches.some((k) => normalizeText(k).trim() === normalizedQuery);
-    const showAddress = showAddressOption && !isPopular;
+    const isCuratedKeyword = curatedKeywords.some((k) => normalizeText(k).trim() === normalizedQuery);
+    const showAddress = showAddressOption && !isCuratedKeyword;
 
     // While typing, replace the default suggestions/filters with the matching subjects.
     if (query.trim()) {
@@ -250,21 +218,9 @@ export function SearchBody({
                     {t('common.clearAll')}
                 </button>
             )}
-            <Eyebrow className="block">{t('search.popular')}</Eyebrow>
-            <div className="mt-2.5 flex flex-wrap gap-2">
-                {popularSearches.map((k) => (
-                    <button
-                        key={k}
-                        type="button"
-                        onClick={() => onPickKeyword(k)}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-2 text-[13px] text-muted-foreground transition-colors hover:border-foreground/30"
-                    >
-                        <Search className="h-3.5 w-3.5" /> {k}
-                    </button>
-                ))}
-            </div>
-
-            <div className="mt-7 flex items-center justify-between">
+            {/* Popular searches suggestions hidden — the dynamic real-query feed was low quality.
+                The curated keyword list is still used above to guard the "near address" option. */}
+            <div className="flex items-center justify-between">
                 <Eyebrow className="block">{t('search.categories')}</Eyebrow>
                 {cats.length > 0 && (
                     <button
