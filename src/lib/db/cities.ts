@@ -174,7 +174,7 @@ export type MapCityRow = {
 };
 
 /** Cooperating (officialSupport) municipalities for the landing map — centroid, logo, simplified
- *  boundary. Realm-keyed cache. Server-loaded in page.tsx (replaced the inline /api/map/cities). */
+ *  boundary. Realm-keyed cache. Server-loaded in page.tsx. */
 export async function getMapCitiesCached(realm: Realm): Promise<MapCityRow[]> {
     return createCache(
         async () => {

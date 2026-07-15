@@ -64,6 +64,20 @@ const nextConfig = {
                 destination: '/petition',
                 permanent: true,
             },
+            {
+                // The standalone map page was removed in favour of the
+                // map-based landing page. The old route was locale-
+                // parameterized, so redirect both bare and locale-prefixed
+                // forms.
+                source: '/map',
+                destination: '/',
+                permanent: true,
+            },
+            {
+                source: '/:locale(en|el|fr)/map',
+                destination: '/:locale',
+                permanent: true,
+            },
         ];
     },
     async rewrites() {
