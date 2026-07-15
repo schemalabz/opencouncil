@@ -1,7 +1,6 @@
 import { MetadataRoute } from 'next'
 import prisma from '@/lib/db/prisma'
 import { Realm } from '@prisma/client'
-import { REALMS } from '@/lib/realm'
 import { getRealm, getRealmBaseUrlFromRequest } from '@/lib/realm.server'
 
 // Resolves the realm from the request Host, so it must render per request rather
@@ -15,18 +14,6 @@ type SitemapCity = {
         id: string
         subjects: Array<{ id: string }>
     }>
-}
-
-// Each realm exposes its own default locale (unprefixed) plus English (`/en`).
-// Alternates stay within the realm's own domain — cities exist in exactly one
-// realm, so there is no cross-domain (`.gr`↔`.fr`) hreflang.
-function buildAlternates(baseUrl: string, defaultLocale: string, path: string) {
-    return {
-        languages: {
-            [defaultLocale]: `${baseUrl}${path}`,
-            en: `${baseUrl}/en${path}`
-        }
-    }
 }
 
 async function fetchSitemapData(realm: Realm): Promise<SitemapCity[]> {
@@ -50,6 +37,9 @@ async function fetchSitemapData(realm: Realm): Promise<SitemapCity[]> {
     })
 }
 
+// Only the default-locale (unprefixed) URLs are advertised: /en variants are
+// intentionally deindexed (they canonicalize to the default-locale URL), so no
+// hreflang alternates are emitted.
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     if (process.env.SKIP_FULL_SITEMAP === 'true') {
         return []
@@ -59,7 +49,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // opencouncil.gr and opencouncil.fr each emit their own realm's URLs.
     const realm = await getRealm()
     const baseUrl = await getRealmBaseUrlFromRequest()
-    const defaultLocale = REALMS[realm].defaultLocale
 
     const cities = await fetchSitemapData(realm)
 
@@ -68,25 +57,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             url: baseUrl,
             changeFrequency: 'daily',
             priority: 1,
-            alternates: buildAlternates(baseUrl, defaultLocale, '')
         },
         {
             url: `${baseUrl}/about`,
             changeFrequency: 'weekly',
             priority: 0.8,
-            alternates: buildAlternates(baseUrl, defaultLocale, '/about')
         },
         {
             url: `${baseUrl}/explain`,
             changeFrequency: 'weekly',
             priority: 0.8,
-            alternates: buildAlternates(baseUrl, defaultLocale, '/explain')
         },
         {
             url: `${baseUrl}/corrections`,
             changeFrequency: 'weekly',
             priority: 0.8,
-            alternates: buildAlternates(baseUrl, defaultLocale, '/corrections')
         }
     ]
 
@@ -94,7 +79,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         url: `${baseUrl}/${city.id}`,
         changeFrequency: 'daily',
         priority: 0.9,
-        alternates: buildAlternates(baseUrl, defaultLocale, `/${city.id}`)
     }))
 
     const meetingEntries: MetadataRoute.Sitemap = cities.flatMap(city =>
@@ -102,7 +86,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             url: `${baseUrl}/${city.id}/${meeting.id}`,
             changeFrequency: 'weekly',
             priority: 0.7,
-            alternates: buildAlternates(baseUrl, defaultLocale, `/${city.id}/${meeting.id}`)
         }))
     )
 
@@ -112,7 +95,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
                 url: `${baseUrl}/${city.id}/${meeting.id}/subjects/${subject.id}`,
                 changeFrequency: 'weekly',
                 priority: 0.6,
-                alternates: buildAlternates(baseUrl, defaultLocale, `/${city.id}/${meeting.id}/subjects/${subject.id}`)
             }))
         )
     )
