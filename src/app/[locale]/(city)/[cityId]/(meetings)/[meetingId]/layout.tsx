@@ -72,9 +72,9 @@ export async function generateMetadata(
     const data = await getMeetingDataCached(cityId, meetingId);
 
     if (!data || !data.city) {
-        return {
-            title: 'Not Found'
-        };
+        // Thrown here (not just in the body below) so crawlers, which get
+        // blocking metadata via htmlLimitedBots, receive a real HTTP 404.
+        notFound();
     }
 
     // Create an optimized title between 30-60 characters

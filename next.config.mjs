@@ -123,6 +123,16 @@ const nextConfig = {
         ];
     },
     skipTrailingSlashRedirect: true,
+    // Serve blocking (non-streamed) metadata to these crawlers, so notFound()
+    // thrown in generateMetadata produces a real HTTP 404 instead of a streamed
+    // 200 + noindex (GSC was reporting dead subject/meeting URLs as soft-404s).
+    // Overriding replaces Next's default HTML_LIMITED_BOT_UA_RE, so this is the
+    // default list copied wholesale with `Googlebot` prepended — plain Googlebot
+    // is deliberately absent from Next's default because it executes JS, but a
+    // streamed 404 still reaches it as HTTP 200.
+    // Copied from next@16.2.6 (next/dist/shared/lib/router/utils/html-bots.js);
+    // resync when upgrading Next in case upstream adds new crawlers.
+    htmlLimitedBots: /Googlebot|[\w-]+-Google|Google-[\w-]+|Chrome-Lighthouse|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|Yeti|googleweblight/i,
 };
 
 export default withPostHogConfig(withNextIntl(nextConfig), {

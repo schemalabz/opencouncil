@@ -15,7 +15,23 @@ export async function generateMetadata(
     const subject = await getSubjectFromMeetingCached(params.cityId, params.meetingId, params.subjectId);
 
     if (!subject) {
-        notFound();
+        // Dead subject IDs (subjects are regenerated when a meeting is
+        // reprocessed) can't produce a real 404: the page renders below the
+        // meeting loading.tsx Suspense boundary, so the 200 shell is already
+        // flushed when notFound() throws. Explicit noindex metadata is the
+        // reliable signal — htmlLimitedBots (next.config.mjs) puts it in the
+        // blocking <head> for crawlers. The page body still calls notFound()
+        // for the UI. The nulls clear the meeting layout's inherited
+        // canonical/OG/Twitter tags, which would otherwise describe the parent
+        // meeting on a noindex URL (and risk the noindex signal being applied
+        // to the canonical target).
+        return {
+            title: 'Not Found',
+            robots: { index: false, follow: false },
+            alternates: null,
+            openGraph: null,
+            twitter: null,
+        };
     }
 
     // Get the full meeting data for city information
@@ -56,6 +72,14 @@ export default async function SubjectPage(
     props: { params: Promise<{ cityId: string; meetingId: string; subjectId: string }> }
 ) {
     const params = await props.params;
+
+    // Also checked in generateMetadata, but the 404 must not depend on the
+    // metadata path alone (metadata streams for regular browsers).
+    const subject = await getSubjectFromMeetingCached(params.cityId, params.meetingId, params.subjectId);
+    if (!subject) {
+        notFound();
+    }
+
     return (
         <>
             <SubjectReadTracker
