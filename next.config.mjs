@@ -78,6 +78,32 @@ const nextConfig = {
                 destination: '/:locale',
                 permanent: true,
             },
+            // The sitemap wrongly emitted a phantom /meetings/ segment until
+            // 2026-05-29 (real routes are /{cityId}/{meetingId}, no /meetings/),
+            // leaving ~1.9K GSC 404s that Google keeps recrawling. 301 them to
+            // the real URLs. The (?!api/|en/|el/|fr/) lookahead keeps the real
+            // /api/meetings/* routes (redirects run before middleware and the
+            // filesystem) and defers prefixed variants to the locale rules.
+            {
+                source: '/:cityId((?!api/|en/|el/|fr/)[^/]+)/meetings/:meetingId/subjects/:subjectId',
+                destination: '/:cityId/:meetingId/subjects/:subjectId',
+                statusCode: 301,
+            },
+            {
+                source: '/:cityId((?!api/|en/|el/|fr/)[^/]+)/meetings/:meetingId',
+                destination: '/:cityId/:meetingId',
+                statusCode: 301,
+            },
+            {
+                source: '/:locale(en|el|fr)/:cityId/meetings/:meetingId/subjects/:subjectId',
+                destination: '/:locale/:cityId/:meetingId/subjects/:subjectId',
+                statusCode: 301,
+            },
+            {
+                source: '/:locale(en|el|fr)/:cityId/meetings/:meetingId',
+                destination: '/:locale/:cityId/:meetingId',
+                statusCode: 301,
+            },
         ];
     },
     async rewrites() {
