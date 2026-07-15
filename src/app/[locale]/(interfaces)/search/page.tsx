@@ -2,7 +2,7 @@
 import { default as SearchPageComponent } from "@/components/search/SearchPage";
 import { Suspense } from "react";
 import { Metadata } from "next";
-import { buildHreflangAlternates } from '@/lib/utils/hreflang';
+import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 
 export async function generateMetadata(
     props: {
@@ -57,7 +57,7 @@ export async function generateMetadata(
             creator: '@opencouncil',
             site: '@opencouncil'
         },
-        alternates: await buildHreflangAlternates('/search', locale),
+        alternates: await buildCanonicalAlternates('/search'),
         other: {
             'search:type': 'intelligent',
             'search:scope': 'municipal-councils',

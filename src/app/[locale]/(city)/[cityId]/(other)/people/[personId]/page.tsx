@@ -9,7 +9,7 @@ import { getCity } from "@/lib/db/cities";
 import { getStatisticsFor } from "@/lib/statistics";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import { Metadata } from "next";
-import { buildHreflangAlternates } from '@/lib/utils/hreflang';
+import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 
 export async function generateMetadata(
     props: { params: Promise<{ locale: string, personId: string, cityId: string }> }
@@ -79,7 +79,7 @@ export async function generateMetadata(
             description,
             images: [ogImageUrl],
         },
-        alternates: await buildHreflangAlternates(`/${params.cityId}/people/${params.personId}`, params.locale),
+        alternates: await buildCanonicalAlternates(`/${params.cityId}/people/${params.personId}`),
         other: {
             'person:name': person.name,
             'person:city': city.name,

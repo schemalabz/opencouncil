@@ -3,7 +3,7 @@ import Subject from "@/components/meetings/subject/subject";
 import SubjectReadTracker from "@/components/analytics/SubjectReadTracker";
 import { getMeetingDataCached, getSubjectFromMeetingCached } from "@/lib/getMeetingData";
 import { notFound } from "next/navigation";
-import { buildHreflangAlternates } from "@/lib/utils/hreflang";
+import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 
 export async function generateMetadata(
     props: {
@@ -36,9 +36,8 @@ export async function generateMetadata(
     return {
         title,
         description,
-        alternates: await buildHreflangAlternates(
-            `/${params.cityId}/${params.meetingId}/subjects/${params.subjectId}`,
-            params.locale
+        alternates: await buildCanonicalAlternates(
+            `/${params.cityId}/${params.meetingId}/subjects/${params.subjectId}`
         ),
         openGraph: {
             title,

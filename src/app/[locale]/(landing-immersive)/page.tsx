@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { LandingV2 } from '@/components/landing/v2/LandingV2';
-import { buildHreflangAlternates } from '@/lib/utils/hreflang';
+import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 import { getRealm } from '@/lib/realm.server';
 import { getRealmDefaultMapView } from '@/lib/realm';
 import { getMapSubjectsCached, getGeneralSubjectsCached, getSubjectCountsByCityCached } from '@/lib/db/subject';
@@ -13,7 +13,7 @@ export async function generateMetadata(props: {
 }): Promise<Metadata> {
     const { locale } = await props.params;
     return {
-        alternates: await buildHreflangAlternates('', locale),
+        alternates: await buildCanonicalAlternates(''),
     };
 }
 

@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { Landing } from "@/components/landing/landing";
 import { LandingCity } from "@/lib/db/landing";
 import { fetchLatestSubstackPostCached, getAllCitiesMinimalCached, getCouncilMeetingsForCityPublicCached } from "@/lib/cache/queries";
-import { buildHreflangAlternates } from "@/lib/utils/hreflang";
+import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getRealm } from "@/lib/realm.server";
 
 export async function generateMetadata(
@@ -17,7 +17,7 @@ export async function generateMetadata(
     } = params;
 
     return {
-        alternates: await buildHreflangAlternates('/old-landing', locale),
+        alternates: await buildCanonicalAlternates('/old-landing'),
     };
 }
 

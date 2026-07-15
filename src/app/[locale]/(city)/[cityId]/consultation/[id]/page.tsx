@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { ConsultationViewer } from "@/components/consultations";
 import { auth } from "@/auth";
 import { Suspense } from "react";
-import { buildHreflangAlternates } from '@/lib/utils/hreflang';
+import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 import { getRealmBaseUrlFromRequest } from '@/lib/realm.server';
 
 interface PageProps {
@@ -79,7 +79,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
             description,
             images: [ogImageUrl],
         },
-        alternates: await buildHreflangAlternates(`/${params.cityId}/consultation/${params.id}`, params.locale),
+        alternates: await buildCanonicalAlternates(`/${params.cityId}/consultation/${params.id}`),
         other: {
             'consultation:status': isActive ? 'active' : 'expired',
             'consultation:endDate': consultation.endDate.toISOString(),

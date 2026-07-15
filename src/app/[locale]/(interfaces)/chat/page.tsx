@@ -1,7 +1,7 @@
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { Suspense } from "react";
 import { Metadata } from "next";
-import { buildHreflangAlternates } from '@/lib/utils/hreflang';
+import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 
 export async function generateMetadata(
     props: {
@@ -52,7 +52,7 @@ export async function generateMetadata(
             creator: '@opencouncil',
             site: '@opencouncil'
         },
-        alternates: await buildHreflangAlternates('/chat', locale),
+        alternates: await buildCanonicalAlternates('/chat'),
         other: {
             'chat:type': 'ai-assistant',
             'chat:domain': 'municipal-politics',

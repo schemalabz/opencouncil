@@ -6,7 +6,7 @@ import { getParty } from "@/lib/db/parties";
 import { notFound } from "next/navigation";
 import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
 import { Metadata } from "next";
-import { buildHreflangAlternates } from "@/lib/utils/hreflang";
+import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 
 // Request-scoped dedup so generateMetadata and PartyPage share a single fetch.
 const getPartyCached = cache(getParty);
@@ -66,9 +66,8 @@ export async function generateMetadata(
             description,
             images: [ogImageUrl],
         },
-        alternates: await buildHreflangAlternates(
+        alternates: await buildCanonicalAlternates(
             `/${params.cityId}/parties/${params.partyId}`,
-            params.locale,
         ),
         other: {
             "party:name": party.name,
