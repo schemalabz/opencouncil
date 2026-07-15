@@ -4,6 +4,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { auth } from './auth'
 import { env } from '@/env.mjs';
 import { realmForHost } from './lib/realm';
+import { wwwRedirectTarget } from './lib/seo-redirects';
 
 const i18nMiddleware = createIntlMiddleware(routing);
 
@@ -29,6 +30,16 @@ export default async function proxy(req: NextRequest) {
 
     if (JUNK_PATH.test(req.nextUrl.pathname)) {
         return new NextResponse(null, { status: 404 });
+    }
+
+    // www hosts duplicate the apex domain in Google's index — 301 them away.
+    const wwwTarget = wwwRedirectTarget(
+        req.headers.get('host'),
+        req.nextUrl.pathname,
+        req.nextUrl.search,
+    );
+    if (wwwTarget) {
+        return NextResponse.redirect(wwwTarget, 301);
     }
 
     // Handle the specific case for opencouncil.chania.gr
