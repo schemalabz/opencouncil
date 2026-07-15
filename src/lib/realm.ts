@@ -59,6 +59,17 @@ export function isKnownRealmHost(host: string | null | undefined): boolean {
 }
 
 /**
+ * Default locales of every OTHER realm — "foreign" URL prefixes on this realm's
+ * host (e.g. `fr` on opencouncil.gr). The proxy 301s these to the unprefixed
+ * URL; `en` is shared by all realms and is never foreign.
+ */
+export function foreignLocalesForRealm(realm: Realm): string[] {
+    return Object.entries(REALMS)
+        .filter(([r]) => r !== realm)
+        .map(([, cfg]) => cfg.defaultLocale);
+}
+
+/**
  * Canonical absolute base URL for a realm (e.g. `https://opencouncil.fr`). Used
  * for SEO metadata, sitemaps, hreflang/canonical links and the footer switcher's
  * cross-domain redirect.

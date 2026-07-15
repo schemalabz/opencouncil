@@ -1,4 +1,5 @@
-import { wwwRedirectTarget } from '../seo-redirects';
+import { foreignLocaleRedirectPath, wwwRedirectTarget } from '../seo-redirects';
+import { foreignLocalesForRealm } from '../realm';
 
 describe('wwwRedirectTarget', () => {
     it('redirects www.opencouncil.gr to the apex, preserving path and query', () => {
@@ -36,5 +37,47 @@ describe('wwwRedirectTarget', () => {
         expect(wwwRedirectTarget('www.example.com', '/x', '')).toBeNull();
         expect(wwwRedirectTarget(null, '/x', '')).toBeNull();
         expect(wwwRedirectTarget(undefined, '/x', '')).toBeNull();
+    });
+});
+
+describe('foreignLocalesForRealm', () => {
+    it('returns the other realms\' default locales', () => {
+        expect(foreignLocalesForRealm('greece')).toEqual(['fr']);
+        expect(foreignLocalesForRealm('france')).toEqual(['el']);
+    });
+});
+
+describe('foreignLocaleRedirectPath', () => {
+    it('strips /fr on the greek host', () => {
+        expect(foreignLocaleRedirectPath('opencouncil.gr', '/fr/athens')).toBe('/athens');
+    });
+
+    it('redirects a bare foreign-locale path to the root', () => {
+        expect(foreignLocaleRedirectPath('opencouncil.gr', '/fr')).toBe('/');
+    });
+
+    it('strips /el on the french host', () => {
+        expect(foreignLocaleRedirectPath('opencouncil.fr', '/el/lyon')).toBe('/lyon');
+    });
+
+    it('leaves the realm\'s own default prefix to next-intl', () => {
+        expect(foreignLocaleRedirectPath('opencouncil.gr', '/el/athens')).toBeNull();
+    });
+
+    it('leaves /en alone on both realms', () => {
+        expect(foreignLocaleRedirectPath('opencouncil.gr', '/en/athens')).toBeNull();
+        expect(foreignLocaleRedirectPath('opencouncil.fr', '/en/lyon')).toBeNull();
+    });
+
+    it('does not touch unknown hosts, so localhost keeps all locales', () => {
+        expect(foreignLocaleRedirectPath('localhost:3000', '/fr/athens')).toBeNull();
+    });
+
+    it('does not partial-match path segments starting with a locale', () => {
+        expect(foreignLocaleRedirectPath('opencouncil.gr', '/france')).toBeNull();
+    });
+
+    it('applies on realm subdomains like preview hosts', () => {
+        expect(foreignLocaleRedirectPath('pr-7.preview.opencouncil.gr', '/fr/athens')).toBe('/athens');
     });
 });
