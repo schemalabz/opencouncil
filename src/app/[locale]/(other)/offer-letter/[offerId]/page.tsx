@@ -1,3 +1,4 @@
+import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getOffer } from '@/lib/db/offers'
 import { formatCurrency } from '@/lib/utils'
@@ -9,6 +10,12 @@ interface Props {
         offerId: string
     }>
 }
+// Private offer letter — keep it out of search indexes.
+export const metadata: Metadata = {
+    title: 'Προσφορά | OpenCouncil',
+    robots: { index: false, follow: false },
+}
+
 export default async function OfferLetterPage(props: Props) {
     const params = await props.params;
     const offer = await getOffer(params.offerId)

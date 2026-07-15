@@ -1,8 +1,15 @@
+import { Metadata } from 'next';
 import { verifyUnsubscribeToken } from '@/lib/notifications/tokens';
 import { UnsubscribeConfirm } from '@/components/unsubscribe/UnsubscribeConfirm';
 import { getUnsubscribeContext } from '@/lib/db/notifications';
 import { XCircle } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
+
+// Token-personalized page — keep it out of search indexes.
+export const metadata: Metadata = {
+    title: 'Απεγγραφή | OpenCouncil',
+    robots: { index: false, follow: false },
+};
 
 interface Props {
     searchParams: Promise<{ token?: string }>;
