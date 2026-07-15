@@ -3,12 +3,24 @@ import { OnboardingPageContent } from "@/components/onboarding/OnboardingPageCon
 import { OnboardingStage } from '@/lib/types/onboarding';
 import { Suspense } from "react";
 import { getCity } from "@/lib/db/cities";
+import { getCityCached } from "@/lib/cache";
 import { notFound, redirect } from "next/navigation";
+import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 
-export const metadata: Metadata = {
-    title: "Εγγραφή για ενημερώσεις | OpenCouncil",
-    description: "Εγγραφείτε για να λαμβάνετε ενημερώσεις για θέματα που συζητούνται στα δημοτικά συμβούλια",
-};
+export async function generateMetadata(props: { params: Promise<{ cityId: string }> }): Promise<Metadata> {
+    const params = await props.params;
+    const city = await getCityCached(params.cityId);
+
+    if (!city) {
+        notFound();
+    }
+
+    return {
+        title: "Εγγραφή για ενημερώσεις | OpenCouncil",
+        description: "Εγγραφείτε για να λαμβάνετε ενημερώσεις για θέματα που συζητούνται στα δημοτικά συμβούλια",
+        alternates: await buildCanonicalAlternates(`/${params.cityId}/notifications`),
+    };
+}
 
 interface PageProps {
     params: Promise<{ cityId: string }>;
