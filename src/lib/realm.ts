@@ -1,10 +1,14 @@
 import { Realm } from '@prisma/client';
 
 /**
- * Realm (tenant) configuration. A single deployment serves both domains off one
+ * Realm (tenant) configuration. A single deployment serves all domains off one
  * database; the realm a request belongs to is resolved from its Host header (see
  * `realmForHost`). This is the single source of truth mapping each realm to its
  * canonical production domain and default UI locale.
+ *
+ * A realm's domain may be a subdomain of another realm's domain; `realmForHost`
+ * matches the most specific domain first, so the parent realm only claims hosts
+ * no child realm does.
  *
  * Pure module — no `next/headers`/server-only imports — so it is safe to use from
  * client components (the footer country-switcher) and the edge/middleware bundle
@@ -27,24 +31,49 @@ const REALM_DEFAULT_MAP_VIEW: Record<Realm, { center: [number, number]; zoom: nu
     cyprus: { center: [33.2, 35.0], zoom: 8 },       // island of Cyprus
 };
 
-/**
- * Resolves the realm for a Host header value. The port is stripped and the host
- * lowercased so `localhost:3000`-style hosts and a spoofed `Host: opencouncil.fr`
- * both work; each realm's domain matches as the apex or any subdomain (so preview
- * hosts like `pr-7.preview.opencouncil.fr` resolve correctly). Defaults to
- * `greece` for unknown hosts (localhost, the Greek production domain).
- */
 const hostMatchesDomain = (host: string, domain: string): boolean =>
     host === domain || host.endsWith(`.${domain}`);
 
-export function realmForHost(host: string | null | undefined): Realm {
-    const normalized = (host ?? '').split(':')[0].toLowerCase();
-    for (const [realm, { domain }] of Object.entries(REALMS)) {
-        if (hostMatchesDomain(normalized, domain)) {
-            return realm as Realm;
+/**
+ * Builds a resolver mapping a Host header value to a realm of `realms`, or null
+ * when none matches. The port is stripped and the host lowercased so
+ * `localhost:3000`-style hosts and a spoofed `Host: opencouncil.fr` both work;
+ * each realm's domain matches as the apex or any subdomain (so preview hosts
+ * like `pr-7.preview.opencouncil.fr` resolve correctly). Domains are checked
+ * most-specific (longest) first — a subdomain is always longer than its parent
+ * domain — so a realm hosted on a subdomain of another realm's domain wins over
+ * the parent regardless of declaration order.
+ *
+ * A factory so the specificity ordering is computed once per realm map, not per
+ * request — resolution stays free in the proxy hot path, which is the point of
+ * keeping realm config in code. Parameterized so the ordering contract stays
+ * testable independent of the realms in production; app code should use
+ * `realmForHost`.
+ */
+export function createRealmResolver<R extends string>(
+    realms: Record<R, { domain: string }>,
+): (host: string | null | undefined) => R | null {
+    const bySpecificity = (Object.entries(realms) as [R, { domain: string }][])
+        .sort(([, a], [, b]) => b.domain.length - a.domain.length);
+    return (host) => {
+        const normalized = (host ?? '').split(':')[0].toLowerCase();
+        for (const [realm, { domain }] of bySpecificity) {
+            if (hostMatchesDomain(normalized, domain)) {
+                return realm;
+            }
         }
-    }
-    return 'greece';
+        return null;
+    };
+}
+
+const resolveRealm = createRealmResolver(REALMS);
+
+/**
+ * The realm a Host header value belongs to, defaulting to `greece` for unknown
+ * hosts (localhost, direct-IP requests).
+ */
+export function realmForHost(host: string | null | undefined): Realm {
+    return resolveRealm(host) ?? 'greece';
 }
 
 /**
