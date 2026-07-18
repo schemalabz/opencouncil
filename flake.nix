@@ -362,9 +362,12 @@ EOF
 
           oc-dev-cache = pkgs.writeShellApplication {
             name = "oc-dev-cache";
-            runtimeInputs = with pkgs; [
-              coreutils
-              valkey
+            runtimeInputs = [
+              pkgs.coreutils
+              # Skip valkey's test suite: our nixpkgs pin isn't binary-cached, and
+              # the from-source build fails on a flaky replication test
+              # (dual-channel-replication.tcl) unrelated to our single-node dev use.
+              (pkgs.valkey.overrideAttrs (_: { doCheck = false; }))
             ];
             text = ''
               set -euo pipefail
