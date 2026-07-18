@@ -1,5 +1,5 @@
 # Stage 1: Base image
-FROM node:20-alpine AS base
+FROM node:24-alpine AS base
 
 # Set the working directory in the container
 WORKDIR /app
