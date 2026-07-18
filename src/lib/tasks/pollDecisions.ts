@@ -11,7 +11,7 @@ export { getDecisionForSubject };
 import { withUserAuthorizedToEdit } from "../auth";
 import { getPeopleForMeeting } from "../db/people";
 import { isRoleActiveAt, isMayorRole } from "../utils/roles";
-import { shouldSkipPolling, getBackoffState, BACKOFF_SCHEDULE, MAX_POLLING_DAYS, LOGODOSIA_NAME_PATTERN } from "./pollDecisionsBackoff";
+import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, BACKOFF_SCHEDULE, MAX_POLLING_DAYS, LOGODOSIA_NAME_PATTERN } from "./pollDecisionsBackoff";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "../discord";
 
 export async function requestPollDecisions(
@@ -139,8 +139,9 @@ export async function pollDecisionsForMeeting(
 
 /**
  * Polls decisions for recent meetings across all cities with Diavgeia configured.
- * Called by the cron endpoint. Finds meetings from the last 90 days that still have
- * subjects without linked decisions, and dispatches pollDecisions tasks for them.
+ * Called by the cron endpoint. Finds meetings in the pollable date window
+ * (see getPollableMeetingDateRange) that still have subjects without linked
+ * decisions, and dispatches pollDecisions tasks for them.
  *
  * Uses progressive backoff based on time elapsed since the first poll for each
  * meeting (derived from TaskStatus records). This avoids endlessly polling meetings
@@ -151,15 +152,12 @@ export async function pollDecisionsForMeeting(
  * Limits to 10 dispatched tasks per invocation.
  */
 export async function pollDecisionsForRecentMeetings() {
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-
-    // Find meetings from the last 90 days in cities with diavgeiaUid,
+    // Find meetings in the pollable date window in cities with diavgeiaUid,
     // that have at least one subject with agendaItemIndex but no decision.
     // Λογοδοσία meetings are excluded — see isLogodosiaMeeting().
     const meetings = await prisma.councilMeeting.findMany({
         where: {
-            dateTime: { gte: ninetyDaysAgo },
+            dateTime: getPollableMeetingDateRange(),
             city: {
                 diavgeiaUid: { not: null },
             },
@@ -374,11 +372,10 @@ export async function getPollingStats(cityId?: string, councilMeetingId?: string
     const avg = (arr: number[]) => arr.length === 0 ? null : Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10;
 
     // Meetings still being actively polled (have unlinked subjects)
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    const pollableDateRange = getPollableMeetingDateRange();
     const stillPollingMeetings = await prisma.councilMeeting.findMany({
         where: {
-            dateTime: { gte: ninetyDaysAgo },
+            dateTime: pollableDateRange,
             city: { diavgeiaUid: { not: null } },
             subjects: {
                 some: {
@@ -473,7 +470,7 @@ export async function getPollingStats(cityId?: string, councilMeetingId?: string
         }),
         prisma.councilMeeting.findMany({
             where: {
-                dateTime: { gte: ninetyDaysAgo },
+                dateTime: pollableDateRange,
                 city: { diavgeiaUid: { not: null } },
                 subjects: { some: { agendaItemIndex: { not: null }, decision: null } },
             },
@@ -498,7 +495,7 @@ export async function getPollingStats(cityId?: string, councilMeetingId?: string
             prisma.councilMeeting.findMany({
                 where: {
                     cityId,
-                    dateTime: { gte: ninetyDaysAgo },
+                    dateTime: pollableDateRange,
                     city: { diavgeiaUid: { not: null } },
                     subjects: { some: { agendaItemIndex: { not: null }, decision: null } },
                 },

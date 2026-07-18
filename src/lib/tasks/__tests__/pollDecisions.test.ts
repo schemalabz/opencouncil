@@ -1,4 +1,4 @@
-import { shouldSkipPolling, getBackoffState, BACKOFF_SCHEDULE, MAX_POLLING_DAYS, isLogodosiaMeeting } from '../pollDecisionsBackoff';
+import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, BACKOFF_SCHEDULE, MAX_POLLING_DAYS, MEETING_POLL_DELAY_DAYS, isLogodosiaMeeting } from '../pollDecisionsBackoff';
 
 // Helper: create a Date that is `daysAgo` days before now
 const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -220,5 +220,39 @@ describe('isLogodosiaMeeting', () => {
         ['23η Τακτική Συνεδρίαση', 'numbered regular session'],
     ])('returns false for "%s" — %s', (name) => {
         expect(isLogodosiaMeeting(name)).toBe(false);
+    });
+});
+
+describe('getPollableMeetingDateRange', () => {
+    const now = new Date('2026-07-18T12:00:00Z');
+    const dayMs = 24 * 60 * 60 * 1000;
+
+    it(`upper bound is ${MEETING_POLL_DELAY_DAYS} day(s) before now`, () => {
+        const range = getPollableMeetingDateRange(now);
+        expect(range.lte.getTime()).toBe(now.getTime() - MEETING_POLL_DELAY_DAYS * dayMs);
+    });
+
+    it(`lower bound is ${MAX_POLLING_DAYS} days before now`, () => {
+        const range = getPollableMeetingDateRange(now);
+        expect(range.gte.getTime()).toBe(now.getTime() - MAX_POLLING_DAYS * dayMs);
+    });
+
+    it('excludes upcoming meetings', () => {
+        const range = getPollableMeetingDateRange(now);
+        const upcomingMeeting = new Date('2026-07-20T18:00:00Z');
+        expect(upcomingMeeting.getTime()).toBeGreaterThan(range.lte.getTime());
+    });
+
+    it('excludes meetings that happened less than a day ago', () => {
+        const range = getPollableMeetingDateRange(now);
+        const justHappened = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+        expect(justHappened.getTime()).toBeGreaterThan(range.lte.getTime());
+    });
+
+    it('includes a meeting from last week', () => {
+        const range = getPollableMeetingDateRange(now);
+        const lastWeek = new Date(now.getTime() - 7 * dayMs);
+        expect(lastWeek.getTime()).toBeGreaterThanOrEqual(range.gte.getTime());
+        expect(lastWeek.getTime()).toBeLessThanOrEqual(range.lte.getTime());
     });
 });

@@ -33,7 +33,23 @@ export const BACKOFF_SCHEDULE: Array<{ afterDays: number; minIntervalDays: numbe
 // Stop automatic polling entirely after this many days.
 // Manual fetch from the subject page still works.
 export const MAX_POLLING_DAYS = 90;
+// Don't poll meetings until this many days after they happen — decisions
+// never publish on Diavgeia before the meeting (and rarely the same day),
+// and agendas are often imported ahead of time.
+export const MEETING_POLL_DELAY_DAYS = 1;
 // ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Date range of meetings eligible for automated decision polling:
+ * from MAX_POLLING_DAYS ago up to MEETING_POLL_DELAY_DAYS ago.
+ */
+export function getPollableMeetingDateRange(now: Date = new Date()): { gte: Date; lte: Date } {
+    const dayMs = 24 * 60 * 60 * 1000;
+    return {
+        gte: new Date(now.getTime() - MAX_POLLING_DAYS * dayMs),
+        lte: new Date(now.getTime() - MEETING_POLL_DELAY_DAYS * dayMs),
+    };
+}
 
 /**
  * Determines whether a meeting should be polled based on its polling history.
