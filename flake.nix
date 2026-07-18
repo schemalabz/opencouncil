@@ -56,6 +56,55 @@
         export OPENSSL_INCLUDE_DIR="${pkgs.openssl.dev}/include"
       '';
 
+      # Shell function that prints which database a postgres URL points at,
+      # with a loud REMOTE marker for non-local hosts. Shared by the dev shell
+      # banner and the oc-dev startup announcement. Any 127.0.0.1/localhost
+      # host counts as local regardless of port (note: SSH-tunneled remote DBs
+      # surface on localhost and therefore display as local).
+      dbDisplayFn = ''
+        print_db_line() {
+          if [ -z "''${1:-}" ]; then
+            echo "DB:     not set (DATABASE_URL missing from .env)"
+            return
+          fi
+          db_line_rest="''${1#*@}"               # strip scheme://user:pass@
+          db_line_rest="''${db_line_rest%%\?*}"  # strip ?params
+          db_line_host="''${db_line_rest%%/*}"   # host:port
+          db_line_name="''${db_line_rest#*/}"    # dbname
+          case "$db_line_host" in
+            127.0.0.1|127.0.0.1:*|localhost|localhost:*)
+              echo "DB:     $db_line_name @ $db_line_host (local)" ;;
+            *)
+              echo -e "DB:     \033[1;33m$db_line_name @ $db_line_host (REMOTE)\033[0m" ;;
+          esac
+        }
+      '';
+
+      # Toolchain for anything that runs Prisma: the node stack plus the
+      # `openssl` binary Prisma's platform detection shells out to (without it,
+      # Prisma "defaults to openssl-1.1.x" and picks wrong engine variants).
+      # Spliced into the devShell and every runner script that touches Prisma,
+      # so their environments can't drift.
+      mkPrismaToolchain = pkgs: with pkgs; [
+        nodejs
+        nodePackages.npm
+        nodePackages.prisma
+        openssl
+      ];
+
+      # Runtime env parity with the dev shell for running the app/Prisma
+      # outside it (runner scripts, agents, CI): Prisma engine paths (important
+      # on NixOS), OpenSSL build hints, and libuuid for native deps like
+      # `canvas`. The shellHook uses this too, so shell and `nix run`
+      # environments stay in lockstep.
+      mkAppRuntimeEnv = pkgs: ''
+        ${mkPrismaEnv pkgs}
+        ${mkOpenSslEnv pkgs}
+        ${pkgs.lib.optionalString pkgs.stdenv.isLinux ''
+          export LD_LIBRARY_PATH="${pkgs.util-linux.lib}/lib:''${LD_LIBRARY_PATH:-}"
+        ''}
+      '';
+
       # Shared npm deps (used by opencouncil-prod and CI checks).
       # importNpmLock fetches each package using the integrity hashes already
       # in package-lock.json, so there is no aggregate npmDepsHash to keep in
@@ -121,15 +170,12 @@
       ] ++ (pkgs.lib.optionals pkgs.stdenv.isLinux [ pkgs.util-linux ]);
     in {
       # Export shared builders for use by nixosModules
-      lib = { inherit mkPostgis335 mkPostgresCompat mkPrismaEnv mkOpenSslEnv; };
+      lib = { inherit mkPostgis335 mkPostgresCompat mkPrismaEnv mkOpenSslEnv mkPrismaToolchain mkAppRuntimeEnv; };
       devShells = forAllSystems (_system: pkgs: _pkgs-unstable: {
         default = pkgs.mkShell {
           buildInputs =
-            (with pkgs; [
-              nodejs
-              nodePackages.npm
-              nodePackages.prisma
-              openssl
+            (mkPrismaToolchain pkgs)
+            ++ (with pkgs; [
               pkg-config
               prisma-engines
               process-compose
@@ -145,18 +191,10 @@
           shellHook = ''
             echo "Prisma engines path: ${pkgs.prisma-engines}"
 
-            # OpenSSL configuration
-            ${mkOpenSslEnv pkgs}
+            # Prisma engines, OpenSSL hints, libuuid — shared with the flake's
+            # runner scripts (oc-dev etc.) so shell and `nix run` can't drift.
+            ${mkAppRuntimeEnv pkgs}
             export PKG_CONFIG_PATH="${pkgs.openssl.dev}/lib/pkgconfig"
-
-            # Prisma engine binaries (important on NixOS; harmless elsewhere).
-            ${mkPrismaEnv pkgs}
-
-            # Native Node deps (e.g. `canvas`) may rely on system libraries like libuuid.
-            # Ensure the Nix-provided libuuid is discoverable at runtime on Linux.
-            ${pkgs.lib.optionalString pkgs.stdenv.isLinux ''
-              export LD_LIBRARY_PATH="${pkgs.util-linux.lib}/lib:''${LD_LIBRARY_PATH:-}"
-            ''}
 
             # Load .env if present to get DATABASE_URL
             if [ -f .env ]; then
@@ -174,20 +212,8 @@
             echo "Inside OpenCouncil Nix dev shell"
 
             # Show which database .env is pointing at
-            if [ -n "''${DATABASE_URL:-}" ]; then
-              # Parse DATABASE_URL: postgresql://user:pass@host:port/dbname?params
-              db_display="''${DATABASE_URL#*@}"  # strip user:pass@
-              db_display="''${db_display%%\?*}"   # strip ?params
-              db_host="''${db_display%%/*}"       # host:port
-              db_name="''${db_display#*/}"        # dbname
-              if [ "$db_host" = "127.0.0.1:5432" ] || [ "$db_host" = "localhost:5432" ] || [ "$db_host" = "127.0.0.1" ] || [ "$db_host" = "localhost" ]; then
-                echo "  DB: $db_name @ $db_host (local)"
-              else
-                echo -e "  DB: \033[1;33m$db_name @ $db_host (REMOTE)\033[0m"
-              fi
-            else
-              echo "  DB: not set (DATABASE_URL missing from .env)"
-            fi
+            ${dbDisplayFn}
+            print_db_line "''${DATABASE_URL:-}"
 
             echo ""
             echo "Next steps:"
@@ -389,12 +415,9 @@ EOF
 
           oc-dev-app-local = pkgs.writeShellApplication {
             name = "oc-dev-app-local";
-            runtimeInputs = with pkgs; [
-              coreutils
+            runtimeInputs = (mkPrismaToolchain pkgs) ++ [
+              pkgs.coreutils
               postgres
-              nodejs
-              nodePackages.npm
-              nodePackages.prisma
             ];
             text = ''
               set -euo pipefail
@@ -441,18 +464,19 @@ EOF
 
           oc-studio = pkgs.writeShellApplication {
             name = "oc-studio";
-            runtimeInputs = [
+            runtimeInputs = (mkPrismaToolchain pkgs) ++ [
               oc-port-utils
               pkgs.coreutils
-              pkgs.nodejs
-              pkgs.nodePackages.npm
-              pkgs.nodePackages.prisma
               pkgs.lsof
             ] ++ (pkgs.lib.optionals pkgs.stdenv.isLinux [
               pkgs.iproute2
             ]);
             text = ''
               set -euo pipefail
+
+              # Environment parity with the dev shell, so `nix run .#studio`
+              # works outside it too.
+              ${mkAppRuntimeEnv pkgs}
 
               # shellcheck source=/dev/null
               source "${oc-port-utils}/bin/oc-port-utils"
@@ -575,14 +599,15 @@ USAGE
           oc-dev = pkgs.writeShellApplication {
             name = "oc-dev";
             runtimeInputs =
-              [
+              # Toolchain on PATH here too: remote/external-mode app processes run
+              # npm directly under process-compose and inherit this environment.
+              (mkPrismaToolchain pkgs)
+              ++ [
                 oc-port-utils
                 pkgs.coreutils
                 pkgs.gnused
                 pkgs.process-compose
                 pkgs.lsof
-                pkgs.nodejs
-                pkgs.nodePackages.npm
                 pkgs.curl
                 pkgs-unstable.ngrok
                 pkgs.jq
@@ -597,6 +622,19 @@ USAGE
               ]);
             text = ''
               set -euo pipefail
+
+              # Environment parity with the dev shell's hook, so `nix run .#dev`
+              # also works from a bare shell (agents, CI) without entering
+              # `nix develop` first.
+              ${mkAppRuntimeEnv pkgs}
+
+              # Headless mode: when stdout isn't a terminal (agent- or CI-driven),
+              # default PC_DISABLE_TUI=1 so process-compose streams plain logs
+              # instead of drawing its TUI. An explicit PC_DISABLE_TUI wins.
+              if [ ! -t 1 ] && [ -z "''${PC_DISABLE_TUI:-}" ]; then
+                export PC_DISABLE_TUI=1
+                echo "No TTY: disabling process-compose TUI (logs also tee to .data/process-compose/)"
+              fi
 
               # shellcheck source=/dev/null
               source "${oc-port-utils}/bin/oc-port-utils"
@@ -1049,14 +1087,19 @@ EOF
               # On Linux with --lan, open the firewall port automatically.
               if [ "$lan_enabled" = "1" ] && command -v iptables >/dev/null 2>&1 \
                 && ! sudo -n iptables -C INPUT -p tcp --dport "$app_port" -j ACCEPT 2>/dev/null; then
-                echo ""
-                echo "Opening firewall port $app_port so your phone can reach the dev server."
-                echo "(sudo is needed to add a temporary iptables rule — it will be removed on exit)"
-                echo ""
-                sudo iptables -I INPUT -p tcp --dport "$app_port" -j ACCEPT
-                echo "Opened firewall port $app_port for LAN access"
-                needs_cleanup=true
-                cleanup_cmds="sudo iptables -D INPUT -p tcp --dport \"$app_port\" -j ACCEPT 2>/dev/null; echo \"Closed firewall port $app_port\";"
+                if [ -t 0 ]; then
+                  echo ""
+                  echo "Opening firewall port $app_port so your phone can reach the dev server."
+                  echo "(sudo is needed to add a temporary iptables rule — it will be removed on exit)"
+                  echo ""
+                  sudo iptables -I INPUT -p tcp --dport "$app_port" -j ACCEPT
+                  echo "Opened firewall port $app_port for LAN access"
+                  needs_cleanup=true
+                  cleanup_cmds="sudo iptables -D INPUT -p tcp --dport \"$app_port\" -j ACCEPT 2>/dev/null; echo \"Closed firewall port $app_port\";"
+                else
+                  # sudo would prompt for a password, which needs a terminal.
+                  echo "No TTY for sudo: skipping firewall opening for LAN access (open port $app_port manually, or use --no-lan)"
+                fi
               fi
 
               # If ngrok is running, ensure it gets cleaned up on exit.
@@ -1071,9 +1114,30 @@ EOF
                 cleanup_cmds="''${cleanup_cmds}kill $ssh_tunnel_pid 2>/dev/null || true; echo \"Stopped SSH tunnel\";"
               fi
 
+              # Announce endpoints and logs up front: in headless mode this is the
+              # machine-readable contract (agents parse ports from here), and the
+              # attach hint lets a human bring up the TUI for a headless instance.
+              # The DB line shows the database the app will actually use (the
+              # local one in nix/docker modes, whatever .env or --db-url says
+              # otherwise), matching the dev shell banner.
+              ${dbDisplayFn}
+              echo ""
+              echo "App:    http://localhost:$app_port  (log: .data/process-compose/app.log)"
+              if [ "$studio_enabled" = "1" ]; then
+                echo "Studio: http://localhost:$studio_port  (log: .data/process-compose/studio.log)"
+              fi
+              case "$db_mode" in
+                nix|docker) print_db_line "$db_url_local" ;;
+                external)   print_db_line "$db_url" ;;
+                *)          print_db_line "''${DATABASE_URL:-}" ;;
+              esac
+              echo "process-compose API on port $pc_port (attach TUI: process-compose attach --port $pc_port)"
+
               # Brief pause so startup messages are readable before TUI takes over
-              echo "Starting process-compose..."
-              sleep 5
+              if [ -t 1 ]; then
+                echo "Starting process-compose..."
+                sleep 5
+              fi
 
               if [ "$needs_cleanup" = "true" ]; then
                 cleanup_cmds="''${cleanup_cmds}rm -rf \"$tmp_dir\";"

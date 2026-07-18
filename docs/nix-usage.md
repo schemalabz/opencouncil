@@ -162,6 +162,18 @@ If you’re unfamiliar with the TUI controls, run:
 nix develop --command process-compose --help
 ```
 
+## Headless mode (agents, CI, scripts)
+
+When stdout is not a terminal, the runner automatically disables the TUI and streams plain interleaved logs instead — so backgrounding `nix run .#dev` from an AI agent, CI job, or script just works. To force headless mode in a terminal, set `PC_DISABLE_TUI=1`.
+
+Headless behavior:
+
+- The startup output announces the app/Studio ports, log paths, and the process-compose API port — parse ports from there rather than assuming 3000.
+- Readiness: wait for `Ready in` to appear in `.data/process-compose/app.log`.
+- The automatic firewall opening for LAN/mobile preview is skipped (it needs an interactive `sudo`); pass `--no-lan` to silence the note, or open the port manually if you need phone access.
+- To bring up the familiar TUI for a headless instance, use the announced API port: `process-compose attach --port <port>`.
+- **Stop with `process-compose down --port <port>`** (the announced API port). Killing the backgrounded runner process orphans its children (postgres keeps port 5432, the app keeps its port) — `down` shuts everything down gracefully, including the runner itself.
+
 ## Logs (copy/paste friendly)
 
 The runner writes logs under:
