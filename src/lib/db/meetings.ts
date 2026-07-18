@@ -320,67 +320,71 @@ export async function getLatestReleasedMeetingIdForCity(cityId: string): Promise
     return latest?.id ?? null;
 }
 
-export interface MeetingUploadMetrics {
-    needsUpload: number; // Count of meetings
-    scheduledFuture: number; // Count of future scheduled meetings
-    oldestNeedsUpload: Date | null;
-    earliestScheduledFuture: Date | null;
+export interface MeetingListItem {
+    id: string;
+    cityId: string;
+    administrativeBodyName: string | null;
+    dateTime: Date;
+}
+
+export interface MeetingUploadLists {
+    needsUpload: MeetingListItem[]; // Past meetings without a succeeded transcribe task, oldest first
+    scheduled: MeetingListItem[]; // Future meetings, soonest first
+}
+
+const meetingListItemSelect = {
+    id: true,
+    cityId: true,
+    dateTime: true,
+    administrativeBody: { select: { name: true } },
+} satisfies Prisma.CouncilMeetingSelect;
+
+type MeetingListItemRow = Prisma.CouncilMeetingGetPayload<{ select: typeof meetingListItemSelect }>;
+
+function toMeetingListItem(m: MeetingListItemRow): MeetingListItem {
+    return { id: m.id, cityId: m.cityId, administrativeBodyName: m.administrativeBody?.name ?? null, dateTime: m.dateTime };
 }
 
 /**
- * Get meeting upload metrics: meetings needing upload and scheduled future meetings
+ * Get the meetings behind the upload dashboard cards: meetings needing upload
+ * and scheduled future meetings, sorted by date ascending.
  * These metrics are not review-specific, so they belong in meetings.ts
  */
-export async function getMeetingUploadMetrics(last30Days: boolean = false): Promise<MeetingUploadMetrics> {
+export async function getMeetingUploadLists(last30Days: boolean = false): Promise<MeetingUploadLists> {
     const now = new Date();
 
-    // Build date filter for past meetings (reuse shared utility)
-    const dateFilter = buildDateFilter(last30Days);
-
-    // Needs upload: past meetings without transcribe succeeded
-    const needsUploadMeetings = await prisma.councilMeeting.findMany({
-        where: {
-            AND: [
-                {
-                    NOT: {
-                        taskStatuses: {
-                            some: {
-                                type: 'transcribe',
-                                status: 'succeeded'
+    const [needsUpload, scheduled] = await Promise.all([
+        // Needs upload: past meetings without transcribe succeeded
+        // (date filter reuses the shared last-30-days utility)
+        prisma.councilMeeting.findMany({
+            where: {
+                AND: [
+                    {
+                        NOT: {
+                            taskStatuses: {
+                                some: {
+                                    type: 'transcribe',
+                                    status: 'succeeded'
+                                }
                             }
                         }
-                    }
-                },
-                dateFilter
-            ]
-        },
-        select: {
-            dateTime: true
-        },
-        orderBy: {
-            dateTime: 'asc'
-        }
-    });
-
-    // Scheduled future: meetings with dateTime in the future
-    const scheduledFutureMeetings = await prisma.councilMeeting.findMany({
-        where: {
-            dateTime: {
-                gt: now
-            }
-        },
-        select: {
-            dateTime: true
-        },
-        orderBy: {
-            dateTime: 'asc'
-        }
-    });
+                    },
+                    buildDateFilter(last30Days)
+                ]
+            },
+            select: meetingListItemSelect,
+            orderBy: { dateTime: 'asc' }
+        }),
+        // Scheduled: meetings with dateTime in the future (not affected by the 30-day filter)
+        prisma.councilMeeting.findMany({
+            where: { dateTime: { gt: now } },
+            select: meetingListItemSelect,
+            orderBy: { dateTime: 'asc' }
+        })
+    ]);
 
     return {
-        needsUpload: needsUploadMeetings.length,
-        scheduledFuture: scheduledFutureMeetings.length,
-        oldestNeedsUpload: needsUploadMeetings.length > 0 ? needsUploadMeetings[0].dateTime : null,
-        earliestScheduledFuture: scheduledFutureMeetings.length > 0 ? scheduledFutureMeetings[0].dateTime : null,
+        needsUpload: needsUpload.map(toMeetingListItem),
+        scheduled: scheduled.map(toMeetingListItem),
     };
 }

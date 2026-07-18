@@ -146,11 +146,12 @@ export function formatNumericDateTime(date: Date, timezone?: string, locale: str
  * Formats a date and time to a standard string representation
  * @param date - The date to format
  * @param timezone - Optional timezone
+ * @param dateStyle - Optional date style (defaults to 'long'; use 'medium'/'short' for compact contexts)
  * @returns Formatted date and time string
  */
-export function formatDateTime(date: Date, timezone?: string): string {
+export function formatDateTime(date: Date, timezone?: string, dateStyle: 'long' | 'medium' | 'short' = 'long'): string {
   const options: Intl.DateTimeFormatOptions = {
-    dateStyle: 'long',
+    dateStyle,
     timeStyle: 'short'
   };
 

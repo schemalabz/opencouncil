@@ -1,5 +1,6 @@
 import { getMeetingsNeedingReview, getReviewers, type ReviewListItem } from '@/lib/db/reviews';
-import { getMeetingUploadMetrics } from '@/lib/db/meetings';
+import { getMeetingUploadLists } from '@/lib/db/meetings';
+import { ExpandableMetricCard } from '@/components/admin/reviews/ExpandableMetricCard';
 import { ReviewsTable } from '@/components/admin/reviews/ReviewsTable';
 import { ReviewFilters } from '@/components/admin/reviews/ReviewFilters';
 import { ReviewVolumeChart } from '@/components/admin/reviews/ReviewVolumeChart';
@@ -55,10 +56,10 @@ export default async function ReviewsPage(props: PageProps) {
   const last30DaysBool = last30Days !== 'false';
 
   // Fetch all meetings once (with reviewerId filter if specified), then filter client-side
-  const [allReviews, reviewers, uploadMetrics] = await Promise.all([
+  const [allReviews, reviewers, uploadLists] = await Promise.all([
     getMeetingsNeedingReview({ show: 'all', reviewerId, last30Days: last30DaysBool }),
     getReviewers(),
-    getMeetingUploadMetrics(last30DaysBool)
+    getMeetingUploadLists(last30DaysBool)
   ]);
 
   // Filter for table display
@@ -90,7 +91,7 @@ export default async function ReviewsPage(props: PageProps) {
       <Last30DaysFilter last30Days={last30DaysBool} />
 
       {/* Metrics Display */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 items-start">
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">{formatDurationMs(reviewMetrics.needsReview)}</div>
@@ -104,32 +105,22 @@ export default async function ReviewsPage(props: PageProps) {
             )}
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{uploadMetrics.needsUpload}</div>
-            <div className="text-sm text-muted-foreground mt-1">
-              Meetings need upload
-            </div>
-            {uploadMetrics.oldestNeedsUpload && (
-              <div className="text-xs text-muted-foreground mt-2">
-                Oldest: {formatDistanceToNow(uploadMetrics.oldestNeedsUpload, { addSuffix: true })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{uploadMetrics.scheduledFuture}</div>
-            <div className="text-sm text-muted-foreground mt-1">
-              Meetings scheduled
-            </div>
-            {uploadMetrics.earliestScheduledFuture && (
-              <div className="text-xs text-muted-foreground mt-2">
-                Earliest: {formatDistanceToNow(uploadMetrics.earliestScheduledFuture, { addSuffix: true })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <ExpandableMetricCard
+          items={uploadLists.needsUpload}
+          label="Meetings need upload"
+          subtext={uploadLists.needsUpload.length > 0
+            ? `Oldest: ${formatDistanceToNow(uploadLists.needsUpload[0].dateTime, { addSuffix: true })}`
+            : undefined}
+          timeDisplay="relative"
+        />
+        <ExpandableMetricCard
+          items={uploadLists.scheduled}
+          label="Meetings scheduled"
+          subtext={uploadLists.scheduled.length > 0
+            ? `Earliest: ${formatDistanceToNow(uploadLists.scheduled[0].dateTime, { addSuffix: true })}`
+            : undefined}
+          timeDisplay="absolute"
+        />
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 mb-6">

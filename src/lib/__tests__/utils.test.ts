@@ -113,6 +113,15 @@ describe('formatDateTime', () => {
     expect(() => formatDateTime(date, 'Europe/Athens')).not.toThrow();
   });
 
+  it('should use a compact month with dateStyle medium', () => {
+    const date = new Date('2024-01-15T14:30:00');
+    const result = formatDateTime(date, undefined, 'medium');
+    // The full month name only appears with the default 'long' dateStyle
+    expect(result).not.toMatch(/Ιανουαρίου/);
+    expect(result).toMatch(/2024/);
+    expect(result).toMatch(/2:30|14:30/);
+  });
+
   it('should throw error for invalid date', () => {
     // @ts-ignore - Testing invalid input
     expect(() => formatDateTime(null)).toThrow('Invalid date');
