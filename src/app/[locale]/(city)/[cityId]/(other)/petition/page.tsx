@@ -5,12 +5,17 @@ import { Suspense } from "react";
 import { getCity } from "@/lib/db/cities";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata(props: {
+    params: Promise<{ cityId: string }>;
+}): Promise<Metadata> {
+    const { cityId } = await props.params;
     const t = await getTranslations("Onboarding.petition");
     return {
         title: t("metaTitle"),
         description: t("metaDescription"),
+        alternates: await buildCanonicalAlternates(`/${cityId}/petition`),
     };
 }
 

@@ -1,3 +1,4 @@
+import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { MapPin, Calendar, Building2, ChevronRight, Bell, Mail, MessageSquare, Clock, Youtube } from 'lucide-react';
@@ -11,6 +12,12 @@ import { ColorPercentageRing } from '@/components/ui/color-percentage-ring';
 import { getNotificationForView } from '@/lib/db/notifications';
 import { stripMarkdown } from '@/lib/formatters/markdown';
 import NotificationOpenTracker from '@/components/analytics/NotificationOpenTracker';
+
+// Personalized notification view — keep it out of search indexes.
+export const metadata: Metadata = {
+    title: 'Ειδοποίηση | OpenCouncil',
+    robots: { index: false, follow: false },
+};
 
 export default async function NotificationPage(props: { params: Promise<{ id: string; locale: string }> }) {
     const params = await props.params;

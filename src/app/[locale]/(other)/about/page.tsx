@@ -2,7 +2,7 @@ import About from "@/components/about/AboutPage"
 import { Metadata } from "next"
 import { getTranslations } from 'next-intl/server'
 import { getSupportedCitiesWithLogosCached, getAboutPageStatsCached, getGitHubStatsCached } from '@/lib/cache/queries'
-import { buildHreflangAlternates } from '@/lib/utils/hreflang'
+import { buildCanonicalAlternates } from '@/lib/utils/hreflang'
 import { getRealm } from '@/lib/realm.server'
 
 export async function generateMetadata(
@@ -51,7 +51,7 @@ export async function generateMetadata(
             creator: '@opencouncil',
             site: '@opencouncil'
         },
-        alternates: await buildHreflangAlternates('/about', locale),
+        alternates: await buildCanonicalAlternates('/about'),
         other: {
             'about:mission': 'transparency',
             'about:technology': 'artificial-intelligence',

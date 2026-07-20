@@ -2,22 +2,12 @@ import { Metadata } from "next";
 import { Landing } from "@/components/landing/landing";
 import { LandingCity } from "@/lib/db/landing";
 import { fetchLatestSubstackPostCached, getAllCitiesMinimalCached, getCouncilMeetingsForCityPublicCached } from "@/lib/cache/queries";
-import { buildHreflangAlternates } from "@/lib/utils/hreflang";
+import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getRealm } from "@/lib/realm.server";
 
-export async function generateMetadata(
-    props: {
-        params: Promise<{ locale: string }>
-    }
-): Promise<Metadata> {
-    const params = await props.params;
-
-    const {
-        locale
-    } = params;
-
+export async function generateMetadata(): Promise<Metadata> {
     return {
-        alternates: await buildHreflangAlternates('/old-landing', locale),
+        alternates: await buildCanonicalAlternates('/old-landing'),
     };
 }
 

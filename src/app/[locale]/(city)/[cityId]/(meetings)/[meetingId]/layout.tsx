@@ -23,7 +23,7 @@ import { HighlightCreationPermission } from '@prisma/client';
 import { SubjectHeaderProvider } from '@/contexts/SubjectHeaderContext';
 import { NotificationPreferenceProvider } from '@/contexts/NotificationPreferenceContext';
 import { getTranslations } from 'next-intl/server';
-import { buildHreflangAlternates } from '@/lib/utils/hreflang';
+import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 
 export async function generateImageMetadata(
     props: {
@@ -72,9 +72,9 @@ export async function generateMetadata(
     const data = await getMeetingDataCached(cityId, meetingId);
 
     if (!data || !data.city) {
-        return {
-            title: 'Not Found'
-        };
+        // Thrown here (not just in the body below) so crawlers, which get
+        // blocking metadata via htmlLimitedBots, receive a real HTTP 404.
+        notFound();
     }
 
     // Create an optimized title between 30-60 characters
@@ -88,7 +88,7 @@ export async function generateMetadata(
     return {
         title: optimizedTitle,
         description,
-        alternates: await buildHreflangAlternates(`/${cityId}/${meetingId}`, locale),
+        alternates: await buildCanonicalAlternates(`/${cityId}/${meetingId}`),
         openGraph: {
             title: optimizedTitle,
             description,

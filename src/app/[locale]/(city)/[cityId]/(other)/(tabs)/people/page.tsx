@@ -3,7 +3,7 @@ import { isUserAuthorizedToEdit } from "@/lib/auth";
 import CityPeople from "@/components/cities/CityPeople";
 import { getPartiesForCityCached, getPeopleForCityCached, getAdministrativeBodiesForCityCached, getCityCached } from "@/lib/cache";
 import { Metadata } from "next";
-import { buildHreflangAlternates } from '@/lib/utils/hreflang';
+import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 
 export async function generateMetadata(props: { params: Promise<{ cityId: string; locale: string }> }): Promise<Metadata> {
     const params = await props.params;
@@ -66,7 +66,7 @@ export async function generateMetadata(props: { params: Promise<{ cityId: string
             description,
             images: [ogImageUrl],
         },
-        alternates: await buildHreflangAlternates(`/${params.cityId}/people`, params.locale),
+        alternates: await buildCanonicalAlternates(`/${params.cityId}/people`),
         other: {
             'people:count': peopleCount.toString(),
             'people:parties': partiesCount.toString(),

@@ -3,6 +3,12 @@ import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { getCityCached, getAdministrativeBodiesWithPublicMeetingsCached } from '@/lib/cache';
 import { AdministrativeBodyType } from '@prisma/client';
 import { EmbedConfigurator, type EmbedBodyGroup } from '@/components/embed/EmbedConfigurator';
+import { Metadata } from 'next';
+
+// Embed configurator for city admins — nothing to index.
+export const metadata: Metadata = {
+    robots: { index: false, follow: false },
+};
 
 const ADMIN_BODY_TYPE_ORDER: AdministrativeBodyType[] = ['council', 'committee', 'community'];
 

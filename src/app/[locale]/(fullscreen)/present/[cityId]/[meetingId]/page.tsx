@@ -7,6 +7,9 @@ import PresentationView from "@/components/presentation/PresentationView";
 
 export const metadata = {
     title: "Παρουσίαση συνεδρίασης | OpenCouncil",
+    // Fullscreen presentation of the meeting page's content — the meeting URL
+    // is the indexable version.
+    robots: { index: false, follow: false },
 };
 
 export default async function PresentationPage(

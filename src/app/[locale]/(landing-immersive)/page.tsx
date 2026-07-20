@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { LandingV2 } from '@/components/landing/v2/LandingV2';
-import { buildHreflangAlternates } from '@/lib/utils/hreflang';
+import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 import { getRealm } from '@/lib/realm.server';
 import { getRealmDefaultMapView } from '@/lib/realm';
 import { getMapSubjectsCached, getGeneralSubjectsCached, getSubjectCountsByCityCached } from '@/lib/db/subject';
@@ -8,12 +8,9 @@ import { getListedCitiesCached, getMapCitiesCached } from '@/lib/db/cities';
 import { getUpcomingMeetingsCached } from '@/lib/db/meetings';
 import { DEFAULT_RANGE, rangeToSubjectFilters } from '@/lib/landing/landingCore';
 
-export async function generateMetadata(props: {
-    params: Promise<{ locale: string }>;
-}): Promise<Metadata> {
-    const { locale } = await props.params;
+export async function generateMetadata(): Promise<Metadata> {
     return {
-        alternates: await buildHreflangAlternates('', locale),
+        alternates: await buildCanonicalAlternates(''),
     };
 }
 

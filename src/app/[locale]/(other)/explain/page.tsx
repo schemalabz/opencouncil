@@ -11,7 +11,7 @@ import {
     CURRENT_OFFER_VERSION,
 } from "@/lib/pricing/config";
 import type { ExplainPricing } from "./ExplainFeatures";
-import { buildHreflangAlternates } from "@/lib/utils/hreflang";
+import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getRealm } from "@/lib/realm.server";
 import { ARTICLES, SECTIONS } from "@/lib/explain/articles";
 import { OPENCOUNCIL_SUBSECTIONS } from "@/lib/explain/subsections";
@@ -88,7 +88,7 @@ export async function generateMetadata(props: {
             title: PAGE_TITLE,
             description: PAGE_DESCRIPTION,
         },
-        alternates: await buildHreflangAlternates("/explain", locale),
+        alternates: await buildCanonicalAlternates("/explain"),
     };
 }
 

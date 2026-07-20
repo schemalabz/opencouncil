@@ -4,7 +4,7 @@ import { isUserAuthorizedToEdit } from "@/lib/auth";
 import CityConsultations from "@/components/cities/CityConsultations";
 import { getCityCached } from "@/lib/cache";
 import { getAllConsultationsForCity, isConsultationActive } from "@/lib/db/consultations";
-import { buildHreflangAlternates } from '@/lib/utils/hreflang';
+import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 
 interface PageProps {
     params: Promise<{ cityId: string; locale: string }>;
@@ -76,7 +76,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
             description,
             images: [ogImageUrl],
         },
-        alternates: await buildHreflangAlternates(`/${params.cityId}/consultations`, params.locale),
+        alternates: await buildCanonicalAlternates(`/${params.cityId}/consultations`),
         other: {
             'consultations:total': totalConsultationsCount.toString(),
             'consultations:active': activeConsultationsCount.toString(),

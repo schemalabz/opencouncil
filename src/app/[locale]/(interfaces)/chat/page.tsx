@@ -1,19 +1,9 @@
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { Suspense } from "react";
 import { Metadata } from "next";
-import { buildHreflangAlternates } from '@/lib/utils/hreflang';
+import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 
-export async function generateMetadata(
-    props: {
-        params: Promise<{ locale: string }>
-    }
-): Promise<Metadata> {
-    const params = await props.params;
-
-    const {
-        locale
-    } = params;
-
+export async function generateMetadata(): Promise<Metadata> {
     return {
         title: "OpenCouncil AI | Συνομιλήστε για τα Δημοτικά Συμβούλια",
         description: "Συνομιλήστε με την τεχνητή νοημοσύνη του OpenCouncil για να μάθετε για δημοτικά συμβούλια, θέματα πολιτικής και την τοπική αυτοδιοίκηση. Κάντε ερωτήσεις και λάβετε εξατομικευμένες απαντήσεις.",
@@ -52,7 +42,7 @@ export async function generateMetadata(
             creator: '@opencouncil',
             site: '@opencouncil'
         },
-        alternates: await buildHreflangAlternates('/chat', locale),
+        alternates: await buildCanonicalAlternates('/chat'),
         other: {
             'chat:type': 'ai-assistant',
             'chat:domain': 'municipal-politics',

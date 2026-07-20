@@ -4,6 +4,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { auth } from './auth'
 import { env } from '@/env.mjs';
 import { realmForHost } from './lib/realm';
+import { foreignLocaleRedirectPath, wwwRedirectTarget } from './lib/seo-redirects';
 
 const i18nMiddleware = createIntlMiddleware(routing);
 
@@ -29,6 +30,16 @@ export default async function proxy(req: NextRequest) {
 
     if (JUNK_PATH.test(req.nextUrl.pathname)) {
         return new NextResponse(null, { status: 404 });
+    }
+
+    // www hosts duplicate the apex domain in Google's index — 301 them away.
+    const wwwTarget = wwwRedirectTarget(
+        req.headers.get('host'),
+        req.nextUrl.pathname,
+        req.nextUrl.search,
+    );
+    if (wwwTarget) {
+        return NextResponse.redirect(wwwTarget, 301);
     }
 
     // Handle the specific case for opencouncil.chania.gr
@@ -58,6 +69,14 @@ export default async function proxy(req: NextRequest) {
         const url = req.nextUrl.clone();
         url.pathname = '/qr/t-shirt';
         return NextResponse.rewrite(url);
+    }
+
+    // A foreign locale prefix on a realm host (/fr on .gr, /el on .fr) is an
+    // orphaned duplicate tree — 301 it to the unprefixed URL. Must run before
+    // the .fr rewrite and the i18n middleware below.
+    const strippedPath = foreignLocaleRedirectPath(req.headers.get('host'), pathname);
+    if (strippedPath !== null) {
+        return NextResponse.redirect(new URL(strippedPath + req.nextUrl.search, req.url), 301);
     }
 
     // French-domain handling: on a .fr host, serve the French UI transparently.

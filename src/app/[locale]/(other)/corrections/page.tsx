@@ -1,4 +1,13 @@
+import { Metadata } from "next";
 import DocumentViewer from "@/components/static/DocumentViewer";
+import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
+
+export async function generateMetadata(): Promise<Metadata> {
+    return {
+        title: "Διορθώσεις | OpenCouncil",
+        alternates: await buildCanonicalAlternates('/corrections'),
+    };
+}
 
 const sections = [
     {

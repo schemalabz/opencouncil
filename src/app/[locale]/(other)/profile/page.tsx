@@ -4,6 +4,12 @@ import { UserInfoForm } from "@/components/profile/UserInfoForm";
 import { AdminSection } from "@/components/profile/AdminSection";
 import { DevelopmentSection } from "@/components/profile/DevelopmentSection";
 import { redirect } from "next/navigation";
+import { Metadata } from "next";
+
+// Personalized page behind sign-in — nothing to index.
+export const metadata: Metadata = {
+    robots: { index: false, follow: false },
+};
 
 export default async function ProfilePage() {
     const user = await getCurrentUser();
