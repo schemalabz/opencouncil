@@ -17,7 +17,7 @@ import {
     ChevronLeft,
     ChevronRight,
     Check,
-    SlidersHorizontal,
+    Filter,
     Layers,
     LayoutList,
     Landmark,
@@ -59,7 +59,7 @@ export function DateRangePill({ value, onChange }: { value: DateRangeKey; onChan
             <DropdownMenuTrigger asChild>
                 <button
                     type="button"
-                    className="inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-2xl border border-border bg-background px-3 text-[13px] font-medium text-muted-foreground shadow-md transition-colors hover:border-foreground/30"
+                    className="inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-black/40 bg-card px-3 text-[13px] font-medium text-muted-foreground shadow-sm transition-colors hover:border-black/60"
                 >
                     <CalendarDays className="h-3.5 w-3.5" />
                     {t(`dateRange.${current.key}`)}
@@ -101,11 +101,16 @@ export function FilterIconButton({
             className={cn(
                 'relative inline-flex shrink-0 items-center justify-center rounded-full border bg-card transition-colors',
                 compact ? 'h-8 w-8 shadow-md' : 'h-11 w-11 shadow-lg',
-                active ? 'border-primary text-primary' : 'border-border text-muted-foreground hover:border-foreground/30',
+                // active filter matches the active search box: orange border/tint/text, with an orange dot
+                active
+                    ? 'border-[hsl(var(--orange))] bg-[hsl(24,100%,96%)] text-[hsl(var(--orange))]'
+                    : 'border-border text-muted-foreground hover:border-foreground/30',
             )}
         >
-            <SlidersHorizontal className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
-            {active && <span className="absolute right-[2px] top-[2px] h-1.5 w-1.5 rounded-full bg-primary" />}
+            <Filter className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
+            {active && (
+                <span className="absolute right-[2px] top-[2px] h-1.5 w-1.5 rounded-full bg-[hsl(var(--orange))]" />
+            )}
         </button>
     );
 }

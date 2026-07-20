@@ -132,7 +132,7 @@ function MuniStat({ label, value }: { label: string; value: number }) {
     );
 }
 
-/* petition CTA — closes the Δήμοι tab (`big`); also shown in search for an uncovered
+/* Petition CTA — closes the Δήμοι tab (`big`); also shown in search for an uncovered
    municipality (`unknownName` tailors the copy). Links to the petition page. */
 export function PetitionCta({
     unknownName,
@@ -152,6 +152,7 @@ export function PetitionCta({
             className={cn(
                 'flex shrink-0 items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-background text-center font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground',
                 big ? 'gap-3 px-6 py-6 text-base' : 'px-4 py-3 text-sm',
+                !unknownName && 'h-24'
             )}
         >
             {unknownName

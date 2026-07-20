@@ -117,11 +117,12 @@ export function SubjectCard({
                     : undefined
             }
             className={cn(
-                'relative flex flex-col overflow-hidden rounded-2xl border-2 bg-card text-left shadow-sm transition-colors',
+                'relative flex flex-col overflow-hidden rounded-2xl border bg-card text-left shadow-sm transition-colors',
                 clickable && 'cursor-pointer',
-                selected ? 'border-[hsl(var(--orange))] border-4 shadow-lg' : 'border-black/60',
+                selected ? 'border-2 shadow-lg' : 'border-black/60',
                 className,
             )}
+            style={selected ? { borderColor: subject.topic.color } : undefined}
         >
             {onClose && (
                 <button

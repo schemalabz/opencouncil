@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, HelpCircle, Loader2, LocateFixed, CalendarDays, MapPin, Bell, Clock, Landmark } from 'lucide-react';
+import { ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, HelpCircle, Loader2, LocateFixed, CalendarDays, MapPin, Bell, Clock, Landmark } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
@@ -205,17 +205,12 @@ export function MobileLayout({
                     {selectedSubject ? (
                         <MobileSubjectExpanded
                             subject={selectedSubject}
-                            // back → return to previewing this subject (re-centres the map, undoing
-                            // the select up-scroll, and keeps it highlighted in the strip)
+                            // × → return to previewing this subject (re-centres the map, undoing the
+                            // select up-scroll, and keeps it highlighted in the strip)
                             onClose={() => {
                                 const id = selectedSubject.id;
                                 clearSelection();
                                 previewSubject(id);
-                            }}
-                            onDismiss={() => {
-                                clearSelection();
-                                previewSubject(null);
-                                setListCollapsed(true);
                             }}
                         />
                     ) : explainOpen ? (
@@ -540,8 +535,13 @@ function StripCard({ subject, active, onClick }: { subject: LandingSubject; acti
             >
                 <Icon name={subject.topic.icon || 'hash'} color={topicBar.icon} size={12} />
                 <span className="min-w-0 truncate">{subject.topic.name}</span>
-                {/* previewed card: a right chevron hints "tap again to open" */}
-                {active && <ChevronRight className="ml-auto h-5 w-5 shrink-0 text-muted-foreground" />}
+                {/* previewed card: a right chevron hints "tap again to open", on the same disc the
+                    expanded card's × sits on so the two read as one control in two states */}
+                {active && (
+                    <span className="ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-card/80 text-muted-foreground backdrop-blur">
+                        <ChevronRight className="h-3.5 w-3.5" />
+                    </span>
+                )}
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col gap-1.5 p-3">
@@ -584,13 +584,10 @@ function StripCard({ subject, active, onClick }: { subject: LandingSubject; acti
 function MobileSubjectExpanded({
     subject,
     onClose,
-    onDismiss,
 }: {
     subject: LandingSubject;
-    /** back / title / logo → return to previewing this subject */
+    /** × / title / logo → return to previewing this subject */
     onClose: () => void;
-    /** the × → unselect and collapse the subjects list (back to the bare map) */
-    onDismiss: () => void;
 }) {
     const t = useTranslations('landingV2');
     const locationLine = subjectLocationLine(subject);
@@ -605,21 +602,15 @@ function MobileSubjectExpanded({
                 className="flex shrink-0 items-center gap-2 border-b border-border px-2 py-2 text-xs font-bold"
                 style={{ backgroundColor: topicBar.background, color: topicBar.icon }}
             >
+                <Icon name={subject.topic.icon || 'hash'} color={topicBar.icon} size={16} />
+                <span className="min-w-0 flex-1 truncate">{subject.topic.name}</span>
+                {/* one control, not two: the × collapses back to previewing this subject (what the
+                    back arrow used to do). Dropping the subject entirely is a tap on the map. */}
                 <button
                     type="button"
                     onClick={onClose}
                     aria-label={t('common.back')}
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                >
-                    <ChevronLeft className="h-5 w-5" />
-                </button>
-                <Icon name={subject.topic.icon || 'hash'} color={topicBar.icon} size={16} />
-                <span className="min-w-0 flex-1 truncate">{subject.topic.name}</span>
-                <button
-                    type="button"
-                    onClick={onDismiss}
-                    aria-label={t('common.close')}
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-card/80 text-muted-foreground backdrop-blur transition-colors hover:bg-card hover:text-foreground"
                 >
                     <X className="h-4 w-4" />
                 </button>
