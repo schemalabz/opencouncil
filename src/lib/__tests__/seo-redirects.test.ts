@@ -1,5 +1,5 @@
 import { foreignLocaleRedirectPath, wwwRedirectTarget } from '../seo-redirects';
-import { foreignLocalesForRealm } from '../realm';
+import { computeForeignLocales, foreignLocalesForRealm } from '../realm';
 
 describe('wwwRedirectTarget', () => {
     it('redirects www.opencouncil.gr to the apex, preserving path and query', () => {
@@ -49,6 +49,21 @@ describe('foreignLocalesForRealm', () => {
     it('returns the other realms\' default locales', () => {
         expect(foreignLocalesForRealm('greece')).toEqual(['fr']);
         expect(foreignLocalesForRealm('france')).toEqual(['el']);
+    });
+});
+
+describe('computeForeignLocales', () => {
+    it('never treats a realm\'s own default locale as foreign when another realm shares it', () => {
+        const SHARED = {
+            a: { defaultLocale: 'el' },
+            b: { defaultLocale: 'fr' },
+            c: { defaultLocale: 'el' },
+        };
+        expect(computeForeignLocales(SHARED)).toEqual({
+            a: ['fr'],
+            b: ['el'],
+            c: ['fr'],
+        });
     });
 });
 
