@@ -1721,6 +1721,9 @@ EOF
                 Type = "simple";
                 User = cfg.user;
                 Group = cfg.group;
+                # Node exits 143 on SIGTERM; without this, stopped previews
+                # are marked failed and linger in systemctl --failed.
+                SuccessExitStatus = "143";
                 Environment = [
                   "NODE_ENV=production"
                   "IS_PREVIEW=true"
