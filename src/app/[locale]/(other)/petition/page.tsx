@@ -5,11 +5,15 @@ import { PetitionMunicipalitySelector } from "@/components/onboarding/selectors/
 import { OpenCouncilDescription } from "@/components/landing/OpenCouncilDescription";
 import { getAllCitiesMinimalCached } from "@/lib/cache/queries";
 import { getRealm } from "@/lib/realm.server";
+import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 
-export const metadata: Metadata = {
-    title: "Υποστήριξη Δήμου | OpenCouncil",
-    description: "Υποστηρίξτε την προσθήκη του δήμου σας στο OpenCouncil",
-};
+export async function generateMetadata(): Promise<Metadata> {
+    return {
+        title: "Υποστήριξη Δήμου | OpenCouncil",
+        description: "Υποστηρίξτε την προσθήκη του δήμου σας στο OpenCouncil",
+        alternates: await buildCanonicalAlternates('/petition'),
+    };
+}
 
 export default async function PetitionPage() {
     // Fetch all cities
