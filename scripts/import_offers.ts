@@ -205,6 +205,9 @@ async function main() {
         data: {
           id,
           createdAt: toDate(row.createdAt),
+          // Preserve the prod timestamp — otherwise @updatedAt stamps "now"
+          // and every seeded offer looks recently touched.
+          updatedAt: toDate(row.updatedAt),
           type: row.type || "pilot",
           version: toIntOrNull(row.version),
           startDate: toDate(row.startDate),

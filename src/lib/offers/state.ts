@@ -4,6 +4,9 @@ import { monthsBetween } from '@/lib/utils';
 
 export type OfferState = 'pending' | 'active' | 'upcoming' | 'expired';
 
+/** Display-level state: 'superseded' marks a dead pending proposal. */
+export type OfferDisplayState = OfferState | 'superseded';
+
 /** True iff the offer has been signed or unofficially agreed. */
 export function isSigned(offer: Offer): boolean {
     return offer.agreed || !!offer.adam;
@@ -21,6 +24,47 @@ export function getOfferState(offer: Offer, now: Date = new Date()): OfferState 
     if (now < offer.startDate) return 'upcoming';
     if (now > offer.endDate) return 'expired';
     return 'active';
+}
+
+/** True iff the two offers' coverage periods overlap. */
+function periodsOverlap(a: Offer, b: Offer): boolean {
+    return a.startDate <= b.endDate && a.endDate >= b.startDate;
+}
+
+/**
+ * The signed offer that supersedes this pending one, if any: a signed offer
+ * for the same city whose period overlaps means the negotiation for that
+ * period is over — one of the proposals got signed, the rest are history.
+ * Returns the most recently created such offer.
+ */
+export function getSupersedingSignedOffer(
+    offer: Offer,
+    cityOffers: Offer[]
+): Offer | null {
+    if (isSigned(offer)) return null;
+    const superseders = cityOffers
+        .filter((s) => s.id !== offer.id && isSigned(s) && periodsOverlap(offer, s))
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return superseders[0] ?? null;
+}
+
+/**
+ * A pending offer is superseded (dead) when a *signed* offer for the same
+ * city covers an overlapping period. Only pending offers for a period no
+ * signed offer covers are live proposals (e.g. renewals).
+ */
+export function isSupersededPending(offer: Offer, cityOffers: Offer[]): boolean {
+    return getSupersedingSignedOffer(offer, cityOffers) !== null;
+}
+
+/** Display state: pending offers overlapped by a signed sibling show as superseded. */
+export function getDisplayState(
+    offer: Offer,
+    cityOffers: Offer[],
+    now: Date = new Date()
+): OfferDisplayState {
+    if (isSupersededPending(offer, cityOffers)) return 'superseded';
+    return getOfferState(offer, now);
 }
 
 export type CityCategory = 'active' | 'upcoming' | 'expired' | 'prospects';
@@ -100,8 +144,13 @@ export function categorizeCities(
             primaryOffer = pending!.offer;
         }
 
+        // Live proposals only — pending offers whose period is already covered
+        // by a signed offer are superseded, not renewals.
         const pendingRenewals = sorted.filter(
-            (o) => o.id !== primaryOffer.id && getOfferState(o, now) === 'pending'
+            (o) =>
+                o.id !== primaryOffer.id &&
+                getOfferState(o, now) === 'pending' &&
+                !isSupersededPending(o, sorted)
         );
 
         const group: CityGroup = {
@@ -151,4 +200,24 @@ export function calculateARR(offers: Offer[]): number {
 /** Sum of total contract value across the given offers. */
 export function calculateTotalValue(offers: Offer[]): number {
     return offers.reduce((sum, offer) => sum + calculateOfferTotals(offer).total, 0);
+}
+
+/**
+ * Live pending proposals across all cities: not signed, and not superseded by
+ * a signed offer covering the same period. Offers without a city can't be
+ * superseded (no siblings to compare against).
+ */
+export function getLivePendingOffers(offers: Offer[]): Offer[] {
+    const byCity = new Map<string, Offer[]>();
+    for (const o of offers) {
+        if (!o.cityId) continue;
+        const list = byCity.get(o.cityId) ?? [];
+        list.push(o);
+        byCity.set(o.cityId, list);
+    }
+    return offers.filter(
+        (o) =>
+            !isSigned(o) &&
+            (!o.cityId || !isSupersededPending(o, byCity.get(o.cityId) ?? []))
+    );
 }

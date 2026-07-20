@@ -33,9 +33,10 @@ import {
     calculateARR,
     calculateTotalValue,
     getOfferState,
-    isSigned,
+    getDisplayState,
+    getLivePendingOffers,
     type CityGroup as CityGroupType,
-    type OfferState,
+    type OfferDisplayState,
 } from "@/lib/offers/state";
 
 // ---------------------------------------------------------------------------
@@ -51,12 +52,13 @@ function DiscountBadge({ discount }: { discount: number }) {
     );
 }
 
-function StateBadge({ state }: { state: OfferState }) {
-    const config: Record<OfferState, { label: string; cls: string }> = {
+function StateBadge({ state }: { state: OfferDisplayState }) {
+    const config: Record<OfferDisplayState, { label: string; cls: string }> = {
         active: { label: "Active", cls: "bg-emerald-100 text-emerald-800" },
         upcoming: { label: "Upcoming", cls: "bg-sky-100 text-sky-800" },
         expired: { label: "Expired", cls: "bg-gray-100 text-gray-700" },
         pending: { label: "Pending", cls: "bg-amber-100 text-amber-800" },
+        superseded: { label: "Superseded", cls: "bg-gray-100 text-gray-500" },
     };
     const { label, cls } = config[state];
     return (
@@ -98,10 +100,12 @@ function StatCard({
     label,
     value,
     accent,
+    sublabel,
 }: {
     label: string;
     value: string;
     accent?: "emerald" | "sky" | "amber";
+    sublabel?: string;
 }) {
     const accentCls = {
         emerald: "text-emerald-700",
@@ -117,6 +121,9 @@ function StatCard({
                 >
                     {value}
                 </div>
+                {sublabel && (
+                    <div className="text-xs text-muted-foreground mt-1">{sublabel}</div>
+                )}
             </CardContent>
         </Card>
     );
@@ -128,21 +135,31 @@ function StatCard({
 
 function OfferLine({
     offer,
+    cityOffers,
     editable,
     onChanged,
+    actions,
 }: {
     offer: Offer;
+    /** All offers of the same city — used to detect superseded pendings. */
+    cityOffers?: Offer[];
     editable: boolean;
     onChanged: () => void;
+    /** Extra row-level actions (e.g. Renew on the current offer). */
+    actions?: React.ReactNode;
 }) {
     const [editOpen, setEditOpen] = useState(false);
     const totals = calculateOfferTotals(offer);
-    const state = getOfferState(offer);
+    const state = getDisplayState(offer, cityOffers ?? []);
     const showMissingAdamWarning =
         (state === "active" || state === "upcoming") && offer.agreed && !offer.adam;
 
     return (
-        <div className="flex justify-between items-center py-2 px-4 hover:bg-accent/30">
+        <div
+            className={`flex justify-between items-center py-2 px-4 hover:bg-accent/30 ${
+                state === "superseded" ? "opacity-60" : ""
+            }`}
+        >
             <div className="flex items-center gap-3 flex-wrap">
                 <a
                     href={`/offer-letter/${offer.id}`}
@@ -161,6 +178,7 @@ function OfferLine({
             </div>
             <div className="flex items-center gap-3">
                 <span className="font-medium">{formatCurrency(totals.total)}</span>
+                {actions}
                 {editable && (
                     <Sheet open={editOpen} onOpenChange={setEditOpen}>
                         <SheetTrigger asChild>
@@ -191,6 +209,38 @@ function OfferLine({
 // CityCard — one card per city in a section
 // ---------------------------------------------------------------------------
 
+function RenewSheet({
+    group,
+    onChanged,
+}: {
+    group: CityGroupType;
+    onChanged: () => void;
+}) {
+    const [open, setOpen] = useState(false);
+    return (
+        <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+                <Button variant="outline" size="sm">
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Renew
+                </Button>
+            </SheetTrigger>
+            <SheetContent className="h-full overflow-y-auto">
+                <SheetHeader>
+                    <SheetTitle>Renew Offer · {group.cityId}</SheetTitle>
+                </SheetHeader>
+                <OfferForm
+                    renewFrom={group.primaryOffer}
+                    onSuccess={() => {
+                        setOpen(false);
+                        onChanged();
+                    }}
+                />
+            </SheetContent>
+        </Sheet>
+    );
+}
+
 function CityCard({
     group,
     showRenew,
@@ -201,7 +251,6 @@ function CityCard({
     onChanged: () => void;
 }) {
     const [expanded, setExpanded] = useState(false);
-    const [renewOpen, setRenewOpen] = useState(false);
     const primary = group.primaryOffer;
     const primaryState = getOfferState(primary);
     const primaryTotals = calculateOfferTotals(primary);
@@ -239,40 +288,9 @@ function CityCard({
                         )}
                         <DiscountBadge discount={primary.discountPercentage} />
                     </div>
-                    <div className="flex items-center gap-3">
-                        <span className="font-semibold">
-                            {formatCurrency(primaryTotals.total)}
-                        </span>
-                        {showRenew && (
-                            <Sheet open={renewOpen} onOpenChange={setRenewOpen}>
-                                <SheetTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={(e) => e.stopPropagation()}
-                                    >
-                                        <RefreshCw className="h-4 w-4 mr-1" />
-                                        Renew
-                                    </Button>
-                                </SheetTrigger>
-                                <SheetContent
-                                    className="h-full overflow-y-auto"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    <SheetHeader>
-                                        <SheetTitle>Renew Offer · {group.cityId}</SheetTitle>
-                                    </SheetHeader>
-                                    <OfferForm
-                                        renewFrom={primary}
-                                        onSuccess={() => {
-                                            setRenewOpen(false);
-                                            onChanged();
-                                        }}
-                                    />
-                                </SheetContent>
-                            </Sheet>
-                        )}
-                    </div>
+                    <span className="font-semibold">
+                        {formatCurrency(primaryTotals.total)}
+                    </span>
                 </div>
             </CardHeader>
             {expanded && (
@@ -281,8 +299,14 @@ function CityCard({
                         <OfferLine
                             key={offer.id}
                             offer={offer}
+                            cityOffers={group.offers}
                             editable
                             onChanged={onChanged}
+                            actions={
+                                showRenew && offer.id === primary.id ? (
+                                    <RenewSheet group={group} onChanged={onChanged} />
+                                ) : undefined
+                            }
                         />
                     ))}
                 </CardContent>
@@ -349,7 +373,14 @@ export default function Offers({ initialOffers }: { initialOffers: Offer[] }) {
 
     // Stats
     const activeOffers = categorized.active.map((g) => g.primaryOffer);
-    const pendingOffers = offers.filter((o) => !isSigned(o));
+    // Pipeline counts live pending proposals only: not superseded by a signed
+    // offer for the same period, and touched in the last 3 months (stale
+    // proposals are effectively dead and shouldn't inflate it).
+    const pipelineCutoff = new Date();
+    pipelineCutoff.setMonth(pipelineCutoff.getMonth() - 3);
+    const pendingOffers = getLivePendingOffers(offers).filter(
+        (o) => o.createdAt > pipelineCutoff || o.updatedAt > pipelineCutoff
+    );
 
     const arr = calculateARR(activeOffers);
     const pendingPipeline = calculateTotalValue(pendingOffers);
@@ -382,6 +413,7 @@ export default function Offers({ initialOffers }: { initialOffers: Offer[] }) {
                     label="Pending pipeline"
                     value={formatCurrency(pendingPipeline)}
                     accent="amber"
+                    sublabel="Offers created or updated in the last 3 months"
                 />
             </div>
 
