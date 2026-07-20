@@ -11,7 +11,7 @@ export async function ReviewsOverviewWidget() {
     <Card>
       <CardHeader>
         <CardTitle>Transcript Reviews</CardTitle>
-        <CardDescription>Track human review progress across all meetings</CardDescription>
+        <CardDescription>Track human review progress across officially supported cities</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">

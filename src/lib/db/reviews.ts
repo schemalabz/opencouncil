@@ -915,6 +915,9 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
   // Build database filter conditions
   const conditions: Prisma.CouncilMeetingWhereInput[] = [];
 
+  // Only track reviews for officially supported cities
+  conditions.push({ city: { officialSupport: true } });
+
   // Add status filter
   conditions.push(buildStatusWhereConditions(show));
 
@@ -999,6 +1002,7 @@ export async function getReviewStats(): Promise<ReviewStats> {
     prisma.councilMeeting.count({
       where: {
         AND: [
+          { city: { officialSupport: true } },
           baseNeedsAttentionWhere,
           {
             NOT: {
@@ -1022,6 +1026,7 @@ export async function getReviewStats(): Promise<ReviewStats> {
     prisma.councilMeeting.count({
       where: {
         AND: [
+          { city: { officialSupport: true } },
           baseNeedsAttentionWhere,
           {
             speakerSegments: {
@@ -1052,6 +1057,7 @@ export async function getReviewStats(): Promise<ReviewStats> {
     where: {
       type: 'humanReview',
       status: 'succeeded',
+      councilMeeting: { city: { officialSupport: true } },
       createdAt: {
         gte: startOfWeek
       }

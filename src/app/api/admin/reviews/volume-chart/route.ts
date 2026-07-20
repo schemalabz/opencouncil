@@ -24,7 +24,8 @@ export async function GET() {
       where: {
         dateTime: {
           gte: twelveWeeksAgo
-        }
+        },
+        city: { officialSupport: true }
       },
       include: {
         taskStatuses: {
