@@ -71,9 +71,11 @@ export function DesktopLayout({
         setPanelOpen(true);
     };
 
-    // Selecting a subject (map pin, search, deep link) opens the panel to reveal it.
     useEffect(() => {
-        if (selectedId) setPanelOpen(true);
+        if (!selectedId) return;
+        setPanelOpen(true);
+        if (view !== 'subjects') setView('subjects');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedId]);
 
     // Floating search/controls clear the rail (panel closed) or the rail + panel (open — the info
@@ -124,7 +126,16 @@ export function DesktopLayout({
                         <InfoPanel />
                     ) : view === 'municipalities' ? (
                         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-muted/50 mb-3 px-4 py-4">
-                            <MunicipalitiesList cities={cities} subjectCountByCity={subjectCountByCity} upcoming={upcoming} />
+                            <MunicipalitiesList
+                                cities={cities}
+                                subjectCountByCity={subjectCountByCity}
+                                upcoming={upcoming}
+                                selectedCityId={filters.cityIds[0] ?? null}
+                                // like picking the δήμος in the filters — filter to it, stay on Δήμοι
+                                onSelect={(id) =>
+                                    setFilters({ ...filters, cityIds: filters.cityIds[0] === id ? [] : [id] })
+                                }
+                            />
                         </div>
                     ) : (
                         <SubjectList

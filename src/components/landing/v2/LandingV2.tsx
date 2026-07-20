@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type Map as MapboxMap } from 'mapbox-gl';
 import { useSession } from 'next-auth/react';
 import { useMediaQuery } from '@/hooks/use-media-query';
@@ -15,13 +15,15 @@ import { useSubjectSelection } from './hooks/useSubjectSelection';
 import {
     useGeneralCityMarkers,
     useMapViewCapture,
-    useMunicipalityMarkers,
+    useMunicipalityCountMarkers,
     useSubjectMarkers,
 } from './hooks/useMapMarkers';
 import { useMapPopups } from './hooks/useMapPopups';
 import { captureLanding, captureLandingAction, setLandingContext } from '@/lib/landing/analytics';
 import {
+    aggregateMunicipalityCounts,
     detectMunicipalityQuery,
+    isValidLngLat,
     type CenterMunicipality,
     type ClickedMunicipality,
     type CoLocatedBox,
@@ -34,8 +36,9 @@ import {
 import {
     DEFAULT_RANGE,
     EMPTY_FILTERS,
+    MUNICIPALITY_COUNT_MAX_ZOOM,
     MUNICIPALITY_PAGE_BUTTON_MIN_ZOOM,
-    clusterCellDegrees,
+    SUBJECT_FOCUS_ZOOM,
     desktopView,
     flyToMunicipality,
     parseInitialUrlState,
@@ -44,6 +47,8 @@ import {
     type LayoutProps,
     type MapFilters,
 } from '@/lib/landing/landingCore';
+import { readSavedView, writeSavedView } from '@/lib/landing/savedView';
+import { calculateGeometryBounds, isInSupportedMunicipality } from '@/lib/geo';
 import { useRouter } from '@/i18n/routing';
 import { NotifyPrompt } from './NotifyPrompt';
 import { DesktopLayout } from './DesktopLayout';
@@ -64,23 +69,36 @@ export type LandingV2Props = {
 };
 
 export function LandingV2({ defaultView, initial }: LandingV2Props) {
+    // Where the map opens. A view the visitor themselves left is better evidence of what they want
+    // than the realm's generic framing, so it wins over `defaultView`.
+    const [initialView] = useState(() => {
+        // A `?subject=` link owns the camera — it flies to the subject on mount, so restoring a
+        // saved view first would only add a detour on the way.
+        if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('subject')) {
+            return defaultView;
+        }
+        const saved = readSavedView();
+        // Only restore a view over a δήμος we actually cover.
+        if (!saved || !isInSupportedMunicipality(saved.center, initial.mapCities)) return defaultView;
+        return saved;
+    });
     // Selected topic ids — empty means "all".
     const [cats, setCats] = useState<string[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
-    // 'home'/'subjects' show subject pins, 'municipalities' logo markers. Desktop has no 'home'
-    // (iteration 1); mobile keeps it (restored on mount in the URL-init effect).
+    // Which panel/list is showing. The map is unaffected — it always shows subject pins; the Δήμοι
+    // tab picks a δήμος to filter them by. Desktop has no 'home' (iteration 1); mobile keeps it
+    // (restored on mount in the URL-init effect).
     const [view, setView] = useState<LandingView>('subjects');
     // The "?" info drawer — an overlay explaining the map, independent of `view` (map markers stay).
     const [infoOpen, setInfoOpen] = useState(false);
     // Mobile: the OpenCouncil badge shows a card preview (like a subject), not a tooltip.
     const [explainOpen, setExplainOpen] = useState(false);
-    // Captured on moveend — drives the in-view list and clustering.
+    // Mobile: the strip's in-view subject — its map pin gets an orange preview outline.
+    const [previewId, setPreviewId] = useState<string | null>(null);
+    // Captured on moveend — drives the in-view list.
     const [mapView, setMapView] = useState<MapViewport | null>(null);
     // Non-located subjects show in the list only while zoomed out (< this).
-    const [mapZoom, setMapZoom] = useState(defaultView.zoom);
-    // Cluster-cell size for the current zoom. Only re-clusters when this changes (crossing a
-    // level), not on every pan/zoom — else the donuts rebuild and visibly flip.
-    const [clusterCell, setClusterCell] = useState(() => clusterCellDegrees(defaultView.zoom));
+    const [mapZoom, setMapZoom] = useState(initialView.zoom);
     // Subjects at one point + screen position.
     const [coLocated, setCoLocated] = useState<CoLocatedBox | null>(null);
     // A municipality's non-located subjects + screen position.
@@ -111,9 +129,6 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         setLandingContext({ device: isMobile ? 'mobile' : 'desktop', view });
     }, [isMobile, view]);
 
-    // Whether subject data/pins are active (subjects + 'home' both show pins; municipalities not).
-    const subjectsActive = view === 'subjects' || view === 'home';
-
     // Subject pins are HTML markers added onto this (to carry the topic's lucide icon); the zoom
     // buttons drive it directly.
     const [mapInstance, setMapInstance] = useState<MapboxMap | null>(null);
@@ -137,7 +152,7 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         zoomIn,
         zoomOut,
         showExplainLocation,
-    } = useMapActions({ mapInstance, isMobile, defaultView });
+    } = useMapActions({ mapInstance, isMobile, defaultView: initialView });
     // Set before a selection-triggered pan so the next moveend doesn't refilter the list.
     const suppressViewCaptureRef = useRef(false);
     // A co-located "+N" pan centers the point first, then opens the box on the next moveend.
@@ -162,7 +177,6 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
     // A free-text search ignores the range dropdown so it spans every subject (see useLandingData).
     const searching = query.trim().length > 0;
     const { cities, upcoming, subjectCountByCity, mapCities, mapSubjects, generalRows, loading } = useLandingData({
-        subjectsActive,
         range,
         filters,
         searching,
@@ -249,7 +263,17 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         mapView,
         mapZoom,
         selectedId,
+        previewId,
     });
+
+    // Total subjects per δήμος (located + non-located), from the same filtered sets the list uses.
+    const municipalityCounts = useMemo(
+        () => aggregateMunicipalityCounts(visibleSubjects, visibleGeneralCities, mapCities),
+        [visibleSubjects, visibleGeneralCities, mapCities],
+    );
+    // Zoomed out, the map shows the per-δήμος count numbers instead of individual subject pins; past
+    // MUNICIPALITY_COUNT_MAX_ZOOM the subjects (pins/dots) take over.
+    const showMunicipalityCounts = mapZoom <= MUNICIPALITY_COUNT_MAX_ZOOM;
 
     const { selectSubject, clearSelection, onToggleCat, clearCats } = useSubjectSelection({
         mapInstance,
@@ -262,9 +286,13 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         setInterested,
     });
 
-    // Selecting a subject (map pin, search) closes the info drawer so its preview is visible.
+    // Selecting a subject (map pin, search) closes the info drawer so its preview is visible, and
+    // drops any strip-preview outline (the selected pin's own highlight takes over).
     useEffect(() => {
-        if (selectedId) setInfoOpen(false);
+        if (selectedId) {
+            setInfoOpen(false);
+            setPreviewId(null);
+        }
     }, [selectedId]);
 
     // Interest also follows the municipality filter (last selected) and "δήμος X" searches.
@@ -319,7 +347,9 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         if (!filterCityId) return;
         const geom = cityGeometries[filterCityId];
         if (!geom) return;
-        if (mapInstance) flyToMunicipality(mapInstance, geom, isMobile);
+        // floor the zoom past the count threshold so a large δήμος shows its subjects, not a count
+        // bubble — the same floor the donut-click path uses (out-of-network clicks pass no floor).
+        if (mapInstance) flyToMunicipality(mapInstance, geom, isMobile, MUNICIPALITY_COUNT_MAX_ZOOM + 1);
         else setFlyTo(geom);
         // fit when the filter or its geometry changes — not on map remount (basemap toggle)
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -357,13 +387,55 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         suppressViewCaptureRef,
         pendingCoLocatedRef,
         pendingGeneralRef,
-        setClusterCell,
         setMapZoom,
         setCenterMunicipality,
         setCoLocated,
         setGeneralBox,
         setMapView,
+        // Navigating the map drops any strip preview (so the map doesn't snap back to it).
+        onUserNavigate: () => setPreviewId(null),
     });
+
+    // Remember the camera so a return visit opens where this one ended. Written on every settled
+    // move rather than on leave: moveend fires once per gesture (cheap), while leave-events are
+    // unreliable — pagehide/unload are skipped by bfcache and can be missed entirely when a
+    // mobile OS kills a backgrounded tab, losing the whole session's exploration.
+    //
+    // Deliberately every move, not just user gestures: flying to a subject or to "my location"
+    // is equally "where they were last", and that's what they'd expect to come back to.
+    //
+    // Only saved when a covered δήμος is in the viewport, so panning off to empty areas (the sea,
+    // abroad) doesn't overwrite the last useful view with one that would just be rejected on return.
+    const mapCitiesRef = useRef(mapCities);
+    mapCitiesRef.current = mapCities;
+    useEffect(() => {
+        if (!mapInstance) return;
+        const save = () => {
+            const b = mapInstance.getBounds();
+            if (!b) return;
+            const municipalityInView = mapCitiesRef.current.some(
+                (city) =>
+                    city.lng >= b.getWest() &&
+                    city.lng <= b.getEast() &&
+                    city.lat >= b.getSouth() &&
+                    city.lat <= b.getNorth(),
+            );
+            if (!municipalityInView) return;
+            const c = mapInstance.getCenter();
+            writeSavedView({ center: [c.lng, c.lat], zoom: mapInstance.getZoom() });
+        };
+        mapInstance.on('moveend', save);
+        return () => {
+            mapInstance.off('moveend', save);
+        };
+    }, [mapInstance]);
+
+    // Record where we actually landed. Without this a rejected saved view (uncovered δήμος, or
+    // another country) would sit in storage being re-rejected on every future visit; writing the
+    // view we fell back to retires it. From here the moveend handler above takes over.
+    useEffect(() => {
+        writeSavedView(initialView);
+    }, [initialView]);
 
     // Selection funnel: every user-initiated selection fires subject_selected with where it came
     // from. NOT inside selectSubject itself — the deep-link effect also calls that, and a page
@@ -374,24 +446,50 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         selectSubject(id);
     };
 
-    // Subject pins (+ "+N" co-located markers and donut clusters) for the current viewport.
+    // Preview a subject (mobile): highlight its pin, navigate the map to it (like a selection, but
+    // no box), and keep the strip list order unchanged (the strip just scrolls to it). The pan is
+    // suppressed so the moveend neither refilters the list nor clears the preview.
+    const previewSubject = (id: string | null) => {
+        setPreviewId(id);
+        if (!id || !mapInstance) return;
+        const s = findSubject(id);
+        if (!s || !isValidLngLat(s.lng, s.lat)) return;
+        suppressViewCaptureRef.current = true;
+        mapInstance.easeTo({
+            center: [s.lng, s.lat],
+            zoom: Math.max(mapInstance.getZoom(), SUBJECT_FOCUS_ZOOM),
+            duration: 500,
+        });
+    };
+
+    // A marker tap: mobile previews it (highlight + navigate, no box); desktop selects it (opens the
+    // tooltip/preview) and reports the funnel source.
+    const onMarkerClick = (id: string, source: 'map_pin' | 'cluster' | 'city_hall') => {
+        if (isMobile) previewSubject(id);
+        else trackedSelectSubject(id, source);
+    };
+
+    // Subject pins (+ "+N" co-located markers and donut clusters) for the current viewport. Yields
+    // to the per-δήμος count bubbles while zoomed out.
     useSubjectMarkers({
         mapInstance,
-        subjectsActive,
+        active: !showMunicipalityCounts,
         visibleSubjects,
-        clusterCell,
         selectedId,
-        onSelect: (id) => trackedSelectSubject(id, 'map_pin'),
+        previewId,
+        isMobile,
+        onSelect: (id) => onMarkerClick(id, 'map_pin'),
         onClearSelection: clearSelection,
         suppressViewCaptureRef,
         pendingCoLocatedRef,
         setCoLocated,
     });
 
-    // City-hall markers for municipalities with non-located subjects in view.
+    // City-hall markers for municipalities with non-located subjects in view. Also yields to the
+    // count bubbles while zoomed out (their totals already include these non-located subjects).
     useGeneralCityMarkers({
         mapInstance,
-        subjectsActive,
+        active: !showMunicipalityCounts,
         visibleGeneralCities,
         isMobile,
         onClearSelection: clearSelection,
@@ -404,14 +502,34 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         setGeneralBox,
     });
 
-    // Municipality logo markers (only in the 'municipalities' view).
-    useMunicipalityMarkers({
+    // Zoomed-out per-δήμος count bubbles — click frames the δήμος (past the count threshold, into
+    // the pin/donut view). Falls back to a centroid ease when the δήμος has no boundary in the payload.
+    useMunicipalityCountMarkers({
         mapInstance,
-        view,
-        mapCities,
-        onOpenCity: (cityId) => {
-            captureLandingAction('city_opened', { city_id: cityId, source: 'map_marker' });
-            router.push(`/${cityId}`);
+        active: showMunicipalityCounts,
+        municipalityCounts,
+        onZoomToCity: (muni) => {
+            if (!mapInstance) return;
+            // cameraForBounds gives the fit zoom for the boundary (large δήμος → lower, small → higher);
+            // floor it one past MUNICIPALITY_COUNT_MAX_ZOOM so the δήμος's subjects always show (mobile
+            // goes a touch closer still). Desktop offsets the δήμος to the right ~2/3 of the screen, so
+            // it sits clear of the floating list on the left rather than under it.
+            const offset: [number, number] = isMobile ? [0, 0] : [mapInstance.getContainer().clientWidth / 6, 0];
+            const { bounds } = muni.geometry ? calculateGeometryBounds(muni.geometry) : { bounds: null };
+            const fit = bounds
+                ? mapInstance.cameraForBounds(
+                      [
+                          [bounds.minLng, bounds.minLat],
+                          [bounds.maxLng, bounds.maxLat],
+                      ],
+                      { padding: isMobile ? 40 : 50 },
+                  )
+                : null;
+            const zoom =
+                fit?.zoom != null
+                    ? Math.max(fit.zoom + (isMobile ? 1 : 0), MUNICIPALITY_COUNT_MAX_ZOOM + 1)
+                    : MUNICIPALITY_PAGE_BUTTON_MIN_ZOOM;
+            mapInstance.easeTo({ center: [muni.lng, muni.lat], zoom, offset, duration: 600 });
         },
     });
 
@@ -423,6 +541,9 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         selectedId,
         selectedSubject,
         clickedMunicipality,
+        // Hide the office badge in the zoomed-out count view (it would pile onto Athens' number) and
+        // while the Δήμοι tab is open, where the map is about the δήμοι themselves.
+        showExplainMarker: !showMunicipalityCounts && view !== 'municipalities',
         navigate: (path) => router.push(path),
         onClearSelection: clearSelection,
         onShowExplainLocation: showExplainLocation,
@@ -509,6 +630,7 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         onToggleInfo: toggleInfo,
         cats,
         onToggleCat: trackedToggleCat,
+        setCats,
         onClearCats: clearCats,
         range,
         setRange: trackedSetRange,
@@ -531,14 +653,15 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         count: listSubjects.length,
         searchResults,
         coLocated,
+        // mobile: a co-located / general subject opens the preview (not the full selection)
         onCoLocatedSelect: (id: string) => {
-            trackedSelectSubject(id, 'cluster');
+            onMarkerClick(id, 'cluster');
             setCoLocated(null);
         },
         onCoLocatedClose: () => setCoLocated(null),
         generalBox,
         onGeneralSelect: (id: string) => {
-            trackedSelectSubject(id, 'city_hall');
+            onMarkerClick(id, 'city_hall');
             setGeneralBox(null);
         },
         onGeneralBoxClose: () => setGeneralBox(null),
@@ -550,6 +673,9 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         onLocateAddress: locateAddress,
         zoomIn: trackedZoomIn,
         zoomOut: trackedZoomOut,
+        overviewActive: showMunicipalityCounts,
+        previewId,
+        previewSubject,
         explainOpen,
         onCloseExplain: () => setExplainOpen(false),
         displayedMunicipality,

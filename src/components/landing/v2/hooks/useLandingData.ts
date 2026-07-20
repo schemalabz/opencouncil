@@ -21,8 +21,6 @@ export type LandingInitialData = {
 };
 
 type Args = {
-    /** subject data only loads once the subjects map is active (desktop subjects; mobile home) */
-    subjectsActive: boolean;
     range: DateRangeKey;
     filters: MapFilters;
     /** a free-text query is active → fetch every subject (ignore the range dropdown) so the
@@ -124,11 +122,11 @@ function useKeyedList<T>(
  * range and refetch only when the range or server-applied filters change (minDuration is
  * client-side, so buildSubjectParams excludes it and the key doesn't change).
  */
-export function useLandingData({ subjectsActive, range, filters, searching, initial }: Args): LandingData {
+export function useLandingData({ range, filters, searching, initial }: Args): LandingData {
     const key = buildSubjectParams(range, filters, searching);
     // Located subjects (map pins) drive the map's loading pill; the general list refreshes silently.
-    const { data: mapSubjects, loading } = useKeyedList<MapSubject>(key, initial.subjects, subjectsUrl, subjectsActive);
-    const { data: generalRows } = useKeyedList<GeneralCityRow>(key, initial.generalRows, generalUrl, subjectsActive);
+    const { data: mapSubjects, loading } = useKeyedList<MapSubject>(key, initial.subjects, subjectsUrl, true);
+    const { data: generalRows } = useKeyedList<GeneralCityRow>(key, initial.generalRows, generalUrl, true);
 
     return {
         cities: initial.cities,

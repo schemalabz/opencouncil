@@ -20,7 +20,7 @@ type Args = {
 
 /**
  * The `<Map>` feature layer: orange outlines for OC municipalities, a blue-gray overlay for
- * the filtered δήμος, a purple shade for a clicked out-of-network one, and the geolocation /
+ * the filtered δήμος, a gray shade for a clicked out-of-network one, and the geolocation /
  * searched-address dots. Subject pins are imperative HTML markers, not part of this layer.
  */
 export function useMapFeatures({
@@ -33,7 +33,7 @@ export function useMapFeatures({
 }: Args): MapFeature[] {
     return useMemo(() => {
         const list: MapFeature[] = [];
-        // Orange outlines for every OC municipality — non-interactive, hidden once one is filtered.
+        // Outlines for every OC municipality — non-interactive, hidden once one is filtered.
         if (!filterCityId) {
             for (const c of mapCities) {
                 if (!c.geometry) continue;
@@ -68,17 +68,17 @@ export function useMapFeatures({
                 },
             });
         }
-        // A clicked out-of-network municipality — shaded purple, distinct from the orange
-        // OC borders and the blue filter selection.
+        // A clicked out-of-network municipality — shaded gray, distinct from the orange OC borders
+        // and the muted blue-gray filter selection.
         if (clickedMunicipality) {
             list.push({
                 id: `__clicked-city__${clickedMunicipality.id}`,
                 geometry: clickedMunicipality.geometry,
                 properties: { featureType: 'city', officialSupport: false },
                 style: {
-                    fillColor: 'hsl(280, 65%, 60%)',
+                    fillColor: 'hsl(0, 0%, 45%)',
                     fillOpacity: 0.2,
-                    strokeColor: 'hsl(280, 65%, 60%)',
+                    strokeColor: 'hsl(0, 0%, 45%)',
                     strokeWidth: 1.5,
                     strokeOpacity: 0.9,
                 },

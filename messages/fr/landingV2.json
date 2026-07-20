@@ -104,7 +104,7 @@
   "marker": {
     "samePoint": "{count} sujets au même endroit",
     "seeSamePoint": "Voir {count} sujets au même endroit",
-    "clusterZoom": "{count} sujets — zoomez"
+    "municipalityZoom": "{name} — {count} sujets, zoomez"
   },
   "dateRange": {
     "7d": "7 jours",

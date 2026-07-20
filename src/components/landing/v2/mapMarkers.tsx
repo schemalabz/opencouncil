@@ -9,47 +9,17 @@ import Icon from '@/components/icon';
 /** Translate function shape — passed into the plain-DOM marker factories, which run outside
  *  React and so can't call useTranslations themselves. */
 type TFn = (key: string, values?: Record<string, string | number>) => string;
-import type { LandingGeneralCity, LandingMapCity, LandingSubject } from '@/lib/landing/landingData';
-import { CLUSTER_THRESHOLD, clusterCellDegrees, stylePin, type SubjectPin } from '@/lib/landing/landingCore';
+import type { LandingGeneralCity, LandingSubject, MunicipalitySubjectCount } from '@/lib/landing/landingData';
+import { stylePin, type SubjectPin } from '@/lib/landing/landingCore';
 import { SubjectCard } from './SubjectCard';
 import { captureLandingAction } from '@/lib/landing/analytics';
-import { computeDonutSegments, donutDiameter, donutSegmentIcons, donutSvg } from '@/lib/landing/donut';
-
-/**
- * Donut cluster marker — a topic-segmented ring with the total count on a centre disc and
- * each topic's icon on its segment. Geometry/SVG live in ./donut.ts.
- */
-export function DonutCluster({ members }: { members: LandingSubject[] }) {
-    const segments = computeDonutSegments(members);
-    const total = members.length;
-    const diameter = donutDiameter(total);
-    const placements = donutSegmentIcons(segments, total);
-    return (
-        <div style={{ position: 'relative', width: diameter, height: diameter, lineHeight: 0 }}>
-            <div
-                style={{ width: diameter, height: diameter, borderRadius: '50%', boxShadow: '0 1px 3px rgb(0 0 0 / 0.25)' }}
-                dangerouslySetInnerHTML={{ __html: donutSvg(segments, total) }}
-            />
-            {placements.map((p, i) => (
-                <span
-                    key={i}
-                    style={{
-                        position: 'absolute',
-                        left: p.x,
-                        top: p.y,
-                        width: p.size,
-                        height: p.size,
-                        transform: 'translate(-50%,-50%)',
-                        lineHeight: 0,
-                        pointerEvents: 'none',
-                    }}
-                >
-                    <Icon name={p.icon || 'hash'} color="#ffffff" size={p.size} />
-                </span>
-            ))}
-        </div>
-    );
-}
+import {
+    MUNICIPALITY_DONUT_COUNT_Y,
+    MUNICIPALITY_DONUT_DIAMETER,
+    MUNICIPALITY_DONUT_LOGO_SIZE,
+    computeMunicipalityDonutSegments,
+    municipalityDonutSvg,
+} from '@/lib/landing/donut';
 
 /* Desktop floating tooltip above the selected subject's pin. Rendered into a Mapbox popup
    (createRoot), so navigation goes through onView/onClose callbacks, not router context. */
@@ -293,6 +263,8 @@ export function createSubjectPin(
     group: LandingSubject[],
     opts: {
         selected: boolean;
+        /** filled category style (mobile preview / mobile selection) */
+        intense: boolean;
         onSelect: (id: string) => void;
         onOpenCoLocated: (group: LandingSubject[]) => void;
         t: TFn;
@@ -305,9 +277,10 @@ export function createSubjectPin(
     el.type = 'button';
     el.setAttribute('aria-label', group.length > 1 ? t('marker.samePoint', { count: group.length }) : rep.title);
     rootEl.appendChild(el);
-    stylePin({ el, rootEl }, rep, opts.selected);
+    stylePin({ el, rootEl }, rep, opts.selected, opts.intense);
     const root = createRoot(el);
-    root.render(<Icon name={rep.topic.icon || 'hash'} color={rep.topic.color} size={rep.hot ? 18 : 14} />);
+    // currentColor so stylePin's `el.style.color` controls the icon (topic colour, or white when intense)
+    root.render(<Icon name={rep.topic.icon || 'hash'} color="currentColor" size={rep.hot ? 18 : 14} />);
 
     if (group.length > 1) {
         // Size a co-located pin like the city-hall markers (h-9) so the "+N" badge sits at
@@ -340,76 +313,117 @@ export function createSubjectPin(
     return { el, rootEl, root, marker, subject: group.length > 1 ? null : rep };
 }
 
-/** A donut cluster marker (a proximity cell with members from >1 location) — click zooms in. */
-export function createDonutMarker(map: MapboxMap, members: LandingSubject[], t: TFn): SubjectPin {
+/**
+ * A single-δήμος donut for the zoomed-out view: the δήμος's topic mix as coloured arcs across the top
+ * of the ring, its total subject count in the gap at the bottom of that ring, and the municipality
+ * logo in the middle. A click zooms into the δήμος. Anchored at the δήμος centroid, shifted by
+ * `offset` when a neighbour's donut would otherwise overlap it. The boundaries are drawn by
+ * useMapFeatures; the ring geometry lives in ./donut.ts.
+ */
+export function createMunicipalityCountMarker(
+    map: MapboxMap,
+    muni: MunicipalitySubjectCount,
+    onZoom: (muni: MunicipalitySubjectCount) => void,
+    t: TFn,
+    /** pixel nudge keeping this donut clear of its neighbours' (see spreadOverlappingMarkers) */
+    offset: [number, number] = [0, 0],
+): mapboxgl.Marker {
     const rootEl = document.createElement('div');
+    rootEl.style.zIndex = '2';
     const el = document.createElement('button');
     el.type = 'button';
-    el.setAttribute('aria-label', t('marker.clusterZoom', { count: members.length }));
-    el.className = 'grid cursor-pointer place-items-center border-0 bg-transparent p-0 transition-transform hover:scale-105';
-    rootEl.style.zIndex = '3';
-    rootEl.appendChild(el);
-    const root = createRoot(el);
-    root.render(<DonutCluster members={members} />);
-    const centerLng = members.reduce((sum, m) => sum + m.lng, 0) / members.length;
-    const centerLat = members.reduce((sum, m) => sum + m.lat, 0) / members.length;
+    el.setAttribute('aria-label', t('marker.municipalityZoom', { name: muni.nameMunicipality, count: muni.count }));
+    el.className =
+        'relative block cursor-pointer border-0 bg-transparent p-0 leading-none transition-transform hover:scale-110';
+    el.style.width = `${MUNICIPALITY_DONUT_DIAMETER}px`;
+    el.style.height = `${MUNICIPALITY_DONUT_DIAMETER}px`;
+
+    // Topic ring. Same segment model as the subject donuts, so a δήμος and a cluster inside it read
+    // as the same kind of thing.
+    const ring = document.createElement('div');
+    ring.innerHTML = municipalityDonutSvg(computeMunicipalityDonutSegments(muni.members));
+    el.appendChild(ring);
+
+    // δήμος logo (or its initial when there's none), at the centre of the arc. The white ring is its
+    // own — the arc is a hairline out at the rim, so there's no disc behind the logo to back it.
+    const logo = document.createElement('span');
+    logo.className =
+        'absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center overflow-hidden rounded-full bg-white';
+    logo.style.width = `${MUNICIPALITY_DONUT_LOGO_SIZE}px`;
+    logo.style.height = `${MUNICIPALITY_DONUT_LOGO_SIZE}px`;
+    logo.style.boxShadow = '0 0 0 1px #fff, 0 1px 3px rgba(0,0,0,0.25)';
+    if (muni.logoImage) {
+        const img = document.createElement('img');
+        img.src = muni.logoImage;
+        img.alt = '';
+        img.className = 'h-full w-full object-contain';
+        logo.appendChild(img);
+    } else {
+        logo.textContent = muni.cityName.slice(0, 1);
+        logo.classList.add('text-base', 'font-bold', 'text-foreground');
+    }
+    el.appendChild(logo);
+
+    // The total, on the ring's white bottom band. Painted last so it stays legible where it laps over
+    // the logo — the band is thinner than the number is tall. A white halo carries it across the
+    // seam between band and logo.
+    const count = document.createElement('span');
+    count.textContent = String(muni.count);
+    count.className = 'absolute left-1/2 -translate-x-1/2 -translate-y-1/2 text-[15px] font-bold leading-none';
+    count.style.top = `${MUNICIPALITY_DONUT_COUNT_Y}px`;
+    count.style.color = '#0c0a09';
+    count.style.textShadow = '0 0 3px #fff, 0 0 3px #fff, 0 1px 2px #fff, 0 -1px 2px #fff';
+    el.appendChild(count);
+
     el.addEventListener('click', (e) => {
         e.stopPropagation();
-        captureLandingAction('cluster_opened', { kind: 'donut', size: members.length });
-        // always zoom in toward the cluster (fitBounds couldn't zoom in on narrow viewports)
-        map.easeTo({ center: [centerLng, centerLat], zoom: Math.min(map.getZoom() + 2, 18), duration: 400 });
+        captureLandingAction('municipality_count_opened', { city_id: muni.cityId, count: muni.count });
+        onZoom(muni);
     });
-    const marker = new mapboxgl.Marker({ element: rootEl }).setLngLat([centerLng, centerLat]).addTo(map);
-    return { el, rootEl, root, marker, subject: null };
+    rootEl.appendChild(el);
+    return new mapboxgl.Marker({ element: rootEl, offset }).setLngLat([muni.lng, muni.lat]).addTo(map);
 }
 
 /**
- * Build all subject pins for the current viewport. Buckets location groups into geographic
- * cells; a cell over CLUSTER_THRESHOLD collapses into a donut, else individual pins / "+N"
- * markers. The selected group is pulled out of clustering and always drawn as its own
- * highlighted pin, so a selection stays visible even when zoomed out.
+ * Build all subject pins for the current viewport: one pin per location group, with co-located
+ * subjects sharing a "+N" marker. The selected subject is pulled out and drawn last so its
+ * highlighted pin sits above its neighbours.
  */
 export function buildSubjectPins(
     map: MapboxMap,
     locationGroups: LandingSubject[][],
     opts: {
         selectedId: string | null;
+        /** mobile only: the previewed subject + whether we're on mobile (intense selection) */
+        previewId: string | null;
+        isMobile: boolean;
         onSelect: (id: string) => void;
         onOpenCoLocated: (group: LandingSubject[]) => void;
         t: TFn;
     },
 ): SubjectPin[] {
-    const cell = clusterCellDegrees(map.getZoom());
     const selId = opts.selectedId;
     let selectedGroup: LandingSubject[] | null = null;
-    // plain object, not Map() — the imported <Map> component shadows the global
-    const cells: Record<string, LandingSubject[][]> = {};
+    const rest: LandingSubject[][] = [];
     for (const group of locationGroups) {
-        if (selId && !selectedGroup && group.some((s) => s.id === selId)) {
-            selectedGroup = group;
-            continue;
-        }
-        const rep = group[0];
-        const key = `${Math.floor(rep.lng / cell)}:${Math.floor(rep.lat / cell)}`;
-        (cells[key] ??= []).push(group);
+        if (selId && !selectedGroup && group.some((s) => s.id === selId)) selectedGroup = group;
+        else rest.push(group);
     }
-    const makePin = (group: LandingSubject[]) =>
-        createSubjectPin(map, group, {
-            selected: !!selId && group.some((s) => s.id === selId),
+    const makePin = (group: LandingSubject[]) => {
+        const selected = !!selId && group.some((s) => s.id === selId);
+        // A selected subject (desktop or mobile) and the mobile preview both get the intense filled
+        // style — category-colour fill + category border, consistent across viewports.
+        const intense = selected || (!!opts.previewId && group.some((s) => s.id === opts.previewId));
+        return createSubjectPin(map, group, {
+            selected,
+            intense,
             onSelect: opts.onSelect,
             onOpenCoLocated: opts.onOpenCoLocated,
             t: opts.t,
         });
+    };
 
-    const pins: SubjectPin[] = [];
-    for (const cellGroups of Object.values(cells)) {
-        const subjectCount = cellGroups.reduce((sum, g) => sum + g.length, 0);
-        if (subjectCount > CLUSTER_THRESHOLD) {
-            pins.push(createDonutMarker(map, cellGroups.flat(), opts.t));
-        } else {
-            for (const group of cellGroups) pins.push(makePin(group));
-        }
-    }
+    const pins: SubjectPin[] = rest.map(makePin);
     if (selectedGroup) pins.push(makePin(selectedGroup));
     return pins;
 }
@@ -454,26 +468,3 @@ export function createGeneralCityMarker(
     return { marker, root };
 }
 
-/** A logo marker for a cooperating δήμος in the "municipalities" view; click runs `onClick`. */
-export function createMunicipalityMarker(map: MapboxMap, city: LandingMapCity, onClick: () => void): mapboxgl.Marker {
-    const el = document.createElement('button');
-    el.type = 'button';
-    el.setAttribute('aria-label', city.nameMunicipality);
-    el.className =
-        'flex h-11 w-11 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-white bg-white shadow-md transition-transform hover:scale-110';
-    if (city.logoImage) {
-        const img = document.createElement('img');
-        img.src = city.logoImage;
-        img.alt = '';
-        img.className = 'h-full w-full object-contain';
-        el.appendChild(img);
-    } else {
-        el.textContent = city.name.slice(0, 1);
-        el.classList.add('text-sm', 'font-bold', 'text-foreground');
-    }
-    el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        onClick();
-    });
-    return new mapboxgl.Marker({ element: el }).setLngLat([city.lng, city.lat]).addTo(map);
-}

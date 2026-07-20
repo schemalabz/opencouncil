@@ -36,8 +36,6 @@ const rankVisible = (subjects: LandingSubject[]): LandingSubject[] =>
         RANKING_DEBUG ? { ...r.item, _debugRanking: { score: r.score, components: r.components } } : r.item,
     );
 
-// Non-located subjects appear in the list only while zoomed out below this level.
-const NONLOCATED_MAX_ZOOM = 14;
 // Address search narrows the list + pins to subjects within this radius (km) of the geocoded point.
 const ADDRESS_RADIUS_KM = 2;
 
@@ -57,6 +55,8 @@ type Args = {
     mapView: MapViewport | null;
     mapZoom: number;
     selectedId: string | null;
+    /** mobile: the previewed subject — kept in the list even if outside the viewport */
+    previewId: string | null;
 };
 
 export type FilteredSubjects = {
@@ -87,8 +87,8 @@ export function useFilteredSubjects({
     filters,
     addressPoint,
     mapView,
-    mapZoom,
     selectedId,
+    previewId,
 }: Args): FilteredSubjects {
     const t = useTranslations('landingV2');
     const generalLabel = t('topic.general');
@@ -156,9 +156,9 @@ export function useFilteredSubjects({
         allSubjects.find((s) => s.id === id) ?? allGeneralSubjects.find((s) => s.id === id) ?? null;
 
     // The list shows ONLY subjects whose pin is inside the current map view, so panning to an
-    // empty area empties it. Non-located subjects (anchored at their city centroid, empty
-    // `where`) join in rank order while zoomed out below NONLOCATED_MAX_ZOOM — zoomed in, a
-    // municipality-wide subject isn't "in this view". Exception: the selected subject is
+    // empty area empties it. Non-located subjects (anchored at their city centroid, empty `where`)
+    // join in rank order at any zoom, so zooming in on a δήμος whose subjects are all
+    // municipality-wide still lists them. Exceptions: the selected and previewed subjects are
     // always kept in the list.
     const listSubjects = useMemo(() => {
         let list: LandingSubject[];
@@ -167,19 +167,23 @@ export function useFilteredSubjects({
             // (a city-wide subject isn't "near this address").
             list = ordered;
         } else {
-            const includeNonLocated = mapZoom < NONLOCATED_MAX_ZOOM;
-            list = orderedMerged.filter((s) => {
-                if (!s.where.trim() && !includeNonLocated) return false;
-                return !mapView || subjectInViewport(s, mapView);
-            });
+            // Non-located subjects join in rank order at every zoom (their δήμος centroid still has
+            // to be in view), so zooming in on a δήμος that only has general subjects still lists them.
+            list = orderedMerged.filter((s) => !mapView || subjectInViewport(s, mapView));
         }
         if (selectedId && !list.some((s) => s.id === selectedId)) {
             const sel = findSubject(selectedId);
             if (sel) list = [sel, ...list];
         }
+        // A previewed subject (e.g. tapped on the map, or from a co-located / general box) may be
+        // outside the current viewport — keep it in the list so the strip can highlight it.
+        if (previewId && previewId !== selectedId && !list.some((s) => s.id === previewId)) {
+            const prev = findSubject(previewId);
+            if (prev) list = [...list, prev];
+        }
         return list;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [ordered, orderedMerged, mapView, mapZoom, selectedId, allSubjects, allGeneralSubjects, addressPoint]);
+    }, [ordered, orderedMerged, mapView, selectedId, previewId, allSubjects, allGeneralSubjects, addressPoint]);
 
     // Free-text search-panel results, independent of the category filter / viewport. Searches
     // located AND municipality-wide subjects (the latter would otherwise be invisible to search).
