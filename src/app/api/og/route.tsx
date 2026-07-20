@@ -803,6 +803,84 @@ const AboutOGImage = () => {
     );
 };
 
+// Explain Page OG Image (/explain — "Η τοπική αυτοδιοίκηση, απλά")
+const ExplainOGImage = () => {
+    return (
+        <div style={{
+            width: '1200px',
+            height: '630px',
+            display: 'flex',
+            flexDirection: 'column',
+            backgroundColor: '#0a0a0a',
+            padding: '60px 72px',
+        }}>
+            {/* Logo / wordmark top-left */}
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '56px' }}>
+                <div style={{
+                    fontSize: '22px',
+                    fontWeight: '600',
+                    color: '#ffffff',
+                }}>
+                    OpenCouncil
+                </div>
+            </div>
+
+            {/* Main content */}
+            <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center', gap: '32px' }}>
+                {/* Headline — two lines to avoid flexWrap */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{
+                        fontSize: '56px',
+                        fontWeight: '300',
+                        color: '#ffffff',
+                        lineHeight: 1.15,
+                        letterSpacing: '-0.02em',
+                    }}>
+                        Η τοπική αυτοδιοίκηση,
+                    </div>
+                    <div style={{
+                        fontSize: '56px',
+                        fontWeight: '500',
+                        color: '#f97316',
+                        lineHeight: 1.15,
+                        letterSpacing: '-0.02em',
+                    }}>
+                        απλά
+                    </div>
+                </div>
+
+                <div style={{
+                    fontSize: '24px',
+                    color: 'rgba(255,255,255,0.75)',
+                    lineHeight: 1.4,
+                    maxWidth: '900px',
+                }}>
+                    Πώς λειτουργούν οι δήμοι στην Ελλάδα — και πώς το OpenCouncil τους κάνει κατανοητούς
+                </div>
+            </div>
+
+            {/* Section tags bottom */}
+            <div style={{ display: 'flex', gap: '12px', marginTop: '40px' }}>
+                {['Έσοδα των δήμων', 'Όργανα & συνεδριάσεις', 'Αποφάσεις', 'Πώς δουλεύει το OpenCouncil'].map((tag) => (
+                    <div key={tag} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        backgroundColor: 'rgba(249,115,22,0.12)',
+                        border: '1px solid rgba(249,115,22,0.3)',
+                        borderRadius: '6px',
+                        padding: '6px 14px',
+                        fontSize: '16px',
+                        color: '#f97316',
+                        fontWeight: '500',
+                    }}>
+                        {tag}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 // Search Page OG Image
 const SearchOGImage = () => {
     return (
@@ -918,7 +996,7 @@ export async function GET(request: Request) {
     const consultationId = searchParams.get('consultationId');
     const personId = searchParams.get('personId');
     const subjectId = searchParams.get('subjectId');
-    const pageType = searchParams.get('pageType'); // 'people', 'about', 'search', 'chat'
+    const pageType = searchParams.get('pageType'); // 'people', 'about', 'explain', 'search', 'chat'
     const variant = searchParams.get('variant'); // 'feed' for 1:1, default is landscape (story is client-side now)
 
     // Short per-request id so concurrent requests' logs can be untangled by grepping a tag.
@@ -967,6 +1045,8 @@ export async function GET(request: Request) {
             element = await PeopleOGImage(cityId);
         } else if (pageType === 'about') {
             element = AboutOGImage();
+        } else if (pageType === 'explain') {
+            element = ExplainOGImage();
         } else if (pageType === 'search') {
             element = SearchOGImage();
         } else if (pageType === 'chat') {
