@@ -22,12 +22,16 @@ export function isSigned(offer: Offer): boolean {
 export function getOfferState(offer: Offer, now: Date = new Date()): OfferState {
     if (!isSigned(offer)) return 'pending';
     if (now < offer.startDate) return 'upcoming';
-    if (now > offer.endDate) return 'expired';
+    // End dates are stored at midnight (start of day) — a contract is still in
+    // effect on its final day, so compare against end-of-day.
+    const endOfDay = new Date(offer.endDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    if (now > endOfDay) return 'expired';
     return 'active';
 }
 
 /** True iff the two offers' coverage periods overlap. */
-function periodsOverlap(a: Offer, b: Offer): boolean {
+export function periodsOverlap(a: Offer, b: Offer): boolean {
     return a.startDate <= b.endDate && a.endDate >= b.startDate;
 }
 
@@ -55,6 +59,33 @@ export function getSupersedingSignedOffer(
  */
 export function isSupersededPending(offer: Offer, cityOffers: Offer[]): boolean {
     return getSupersedingSignedOffer(offer, cityOffers) !== null;
+}
+
+/**
+ * The offer that supersedes this one for redirect purposes, if any.
+ * Signed offers are permanent records and are never superseded. A pending
+ * offer is superseded by, in order of precedence:
+ *   1. a signed offer covering an overlapping period (the negotiation for
+ *      that period is over), or
+ *   2. a newer pending offer covering an overlapping period (draft
+ *      iteration for the same term).
+ * Pending offers for non-overlapping periods (e.g. a renewal for a future
+ * term vs. a draft for the current one) never supersede each other.
+ */
+export function getSupersedingOffer(offer: Offer, cityOffers: Offer[]): Offer | null {
+    if (isSigned(offer)) return null;
+    const signedSuperseder = getSupersedingSignedOffer(offer, cityOffers);
+    if (signedSuperseder) return signedSuperseder;
+    const newerPendingOverlapping = cityOffers
+        .filter(
+            (o) =>
+                o.id !== offer.id &&
+                !isSigned(o) &&
+                o.createdAt > offer.createdAt &&
+                periodsOverlap(offer, o)
+        )
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return newerPendingOverlapping[0] ?? null;
 }
 
 /** Display state: pending offers overlapped by a signed sibling show as superseded. */

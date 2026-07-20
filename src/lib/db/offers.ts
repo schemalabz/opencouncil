@@ -3,7 +3,7 @@ import { Offer } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { validateAdam } from "../zod-schemas/offer";
-import { isSigned, getSupersedingSignedOffer } from "../offers/state";
+import { isSigned, getSupersedingOffer } from "../offers/state";
 
 export async function createOffer(offerData: Omit<Offer, 'id' | 'createdAt' | 'updatedAt'>): Promise<Offer> {
     await withUserAuthorizedToEdit({});
@@ -61,22 +61,14 @@ export async function getOffer(id: string): Promise<Offer | OfferSupersededBy | 
         }
 
         // Signed offers (agreed or with ΑΔΑΜ) are permanent records and never
-        // redirect. A *pending* offer is superseded by:
-        //   1. a signed offer covering an overlapping period (the negotiation
-        //      for that period is over), or
-        //   2. a newer pending offer (draft iteration) — falls back to the
-        //      most recent one.
+        // redirect. Pending offers redirect to their superseder — see
+        // getSupersedingOffer for the exact semantics (period overlap matters).
         if (offer.cityId && !isSigned(offer)) {
             const cityOffers = await prisma.offer.findMany({
                 where: { cityId: offer.cityId },
             });
 
-            const signedSuperseder = getSupersedingSignedOffer(offer, cityOffers);
-            const newerPending = cityOffers
-                .filter((o) => !isSigned(o) && o.createdAt > offer.createdAt)
-                .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
-
-            const superseder = signedSuperseder ?? newerPending;
+            const superseder = getSupersedingOffer(offer, cityOffers);
             if (superseder) {
                 return {
                     oldId: offer.id,

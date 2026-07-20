@@ -226,6 +226,7 @@ const pageStyle = {
 function Brand() {
     return (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+            {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img; alt is not a valid prop */}
             <Image src={`${ASSET_BASE}/logo.png`} style={{ width: LOGO_W, height: LOGO_H }} />
             <Text style={{ fontSize: 10, color: C.ink }}>OpenCouncil</Text>
         </View>

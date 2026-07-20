@@ -230,6 +230,10 @@ async function main() {
           respondToEmail: row.respondToEmail,
           respondToPhone: row.respondToPhone,
           respondToName: row.respondToName,
+          // Lifecycle columns — absent in pre-migration exports, in which
+          // case they default to unsigned.
+          agreed: row.agreed !== undefined ? toBool(row.agreed) : false,
+          adam: row.adam !== undefined ? toStringOrNull(row.adam) : null,
         },
       });
       created++;

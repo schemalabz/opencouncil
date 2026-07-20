@@ -143,7 +143,9 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
     // Source for pre-filling: existing offer (edit) or renewFrom (renewal create) or empty (fresh create)
     const source: Partial<Offer> | undefined = offer || renewFrom
 
-    // Renewal default dates: start = max(today, prev.endDate + 1 day), end = start + 12 months
+    // Renewal default dates: start = max(today, prev.endDate + 1 day),
+    // end = day before the first anniversary — a 12-month inclusive term,
+    // consistent with fresh-offer defaults (e.g. 2027-02-28 → 2028-02-27).
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const renewStart = renewFrom
@@ -157,6 +159,7 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
         ? (() => {
               const e = new Date(renewStart)
               e.setFullYear(e.getFullYear() + 1)
+              e.setDate(e.getDate() - 1)
               return e
           })()
         : null
