@@ -223,6 +223,16 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                 {/* CTA */}
                 <CTABox offer={offer} />
 
+                {/* About link */}
+                <p className="text-center text-sm text-neutral-600">
+                    <a
+                        href="/about"
+                        className="underline decoration-neutral-300 underline-offset-2 hover:text-neutral-900"
+                    >
+                        Μάθετε περισσότερα για το OpenCouncil
+                    </a>
+                </p>
+
                 {/* Signature + company */}
                 <footer className="pt-8 border-t border-neutral-200 grid sm:grid-cols-2 gap-8 text-sm">
                     <div className="text-neutral-600 space-y-1">

@@ -659,29 +659,57 @@ export function OfferPdfDocument({
                 {/* Spacer pushes CTA + signature to the bottom */}
                 <View style={{ flexGrow: 1 }} />
 
-                {/* CTA */}
+                {/* CTA + about QR */}
                 <View
                     style={{
                         backgroundColor: C.accentSoft,
                         padding: 13,
                         borderRadius: 6,
                         marginBottom: 18,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 12,
                     }}
                 >
-                    <Text style={{ ...T.h3, marginBottom: 3 }}>
-                        Για να απαντήσετε σε αυτή τη προσφορά
-                    </Text>
-                    <Text style={{ fontSize: 9, color: C.body, lineHeight: 1.5 }}>
-                        Στείλτε email στο{" "}
-                        <Link src={`mailto:${offer.respondToEmail}`} style={{ color: C.body }}>
-                            {offer.respondToEmail}
-                        </Link>{" "}
-                        ή καλέστε στο{" "}
-                        <Link src={`tel:${offer.respondToPhone}`} style={{ color: C.body }}>
-                            {offer.respondToPhone}
-                        </Link>
-                        .
-                    </Text>
+                    <View style={{ flex: 1 }}>
+                        <Text style={{ ...T.h3, marginBottom: 3 }}>
+                            Για να απαντήσετε σε αυτή τη προσφορά
+                        </Text>
+                        <Text style={{ fontSize: 9, color: C.body, lineHeight: 1.5 }}>
+                            Στείλτε email στο{" "}
+                            <Link src={`mailto:${offer.respondToEmail}`} style={{ color: C.body }}>
+                                {offer.respondToEmail}
+                            </Link>{" "}
+                            ή καλέστε στο{" "}
+                            <Link src={`tel:${offer.respondToPhone}`} style={{ color: C.body }}>
+                                {offer.respondToPhone}
+                            </Link>
+                            .
+                        </Text>
+                    </View>
+                    <View style={{ width: 84, alignItems: "center" }}>
+                        <View
+                            style={{
+                                padding: 4,
+                                borderWidth: 1,
+                                borderColor: C.line,
+                                borderRadius: 4,
+                                backgroundColor: "#ffffff",
+                            }}
+                        >
+                            <QRCode value={`${baseUrl.replace(/\/$/, "")}/about`} size={52} />
+                        </View>
+                        <Text
+                            style={{
+                                ...T.micro,
+                                marginTop: 4,
+                                textAlign: "center",
+                                maxWidth: 84,
+                            }}
+                        >
+                            {greekUpper("Μάθετε περισσότερα για το OpenCouncil")}
+                        </Text>
+                    </View>
                 </View>
 
                 {/* Company + signature */}
