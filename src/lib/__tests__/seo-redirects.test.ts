@@ -1,5 +1,5 @@
 import { foreignLocaleRedirectPath, wwwRedirectTarget } from '../seo-redirects';
-import { foreignLocalesForRealm } from '../realm';
+import { computeForeignLocales, foreignLocalesForRealm } from '../realm';
 
 describe('wwwRedirectTarget', () => {
     it('redirects www.opencouncil.gr to the apex, preserving path and query', () => {
@@ -50,6 +50,27 @@ describe('foreignLocalesForRealm', () => {
         expect(foreignLocalesForRealm('greece')).toEqual(['fr']);
         expect(foreignLocalesForRealm('france')).toEqual(['el']);
     });
+
+    it('does not treat el as foreign on either el realm', () => {
+        // greece and cyprus share el as their default locale.
+        expect(foreignLocalesForRealm('cyprus')).toEqual(['fr']);
+        expect(foreignLocalesForRealm('greece')).not.toContain('el');
+    });
+});
+
+describe('computeForeignLocales', () => {
+    it('never treats a realm\'s own default locale as foreign when another realm shares it', () => {
+        const SHARED = {
+            a: { defaultLocale: 'el' },
+            b: { defaultLocale: 'fr' },
+            c: { defaultLocale: 'el' },
+        };
+        expect(computeForeignLocales(SHARED)).toEqual({
+            a: ['fr'],
+            b: ['el'],
+            c: ['fr'],
+        });
+    });
 });
 
 describe('foreignLocaleRedirectPath', () => {
@@ -67,6 +88,11 @@ describe('foreignLocaleRedirectPath', () => {
 
     it('leaves the realm\'s own default prefix to next-intl', () => {
         expect(foreignLocaleRedirectPath('opencouncil.gr', '/el/athens')).toBeNull();
+        expect(foreignLocaleRedirectPath('opencouncil.cy', '/el/nicosia')).toBeNull();
+    });
+
+    it('strips /fr on the cypriot host', () => {
+        expect(foreignLocaleRedirectPath('opencouncil.cy', '/fr/nicosia')).toBe('/nicosia');
     });
 
     it('leaves /en alone on both realms', () => {

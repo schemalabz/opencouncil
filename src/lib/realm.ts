@@ -13,6 +13,7 @@ import { Realm } from '@prisma/client';
 export const REALMS = {
     greece: { domain: 'opencouncil.gr', defaultLocale: 'el', country: 'gr' },
     france: { domain: 'opencouncil.fr', defaultLocale: 'fr', country: 'fr' },
+    cyprus: { domain: 'opencouncil.cy', defaultLocale: 'el', country: 'cy' },
 } as const satisfies Record<Realm, { domain: string; defaultLocale: 'el' | 'fr'; country: string }>;
 
 /**
@@ -23,6 +24,7 @@ export const REALMS = {
 const REALM_DEFAULT_MAP_VIEW: Record<Realm, { center: [number, number]; zoom: number }> = {
     greece: { center: [23.7275, 37.9838], zoom: 6 }, // Athens
     france: { center: [2.4, 46.6], zoom: 5 },        // metropolitan France
+    cyprus: { center: [33.2, 35.0], zoom: 8 },       // island of Cyprus
 };
 
 /**
@@ -59,14 +61,36 @@ export function isKnownRealmHost(host: string | null | undefined): boolean {
 }
 
 /**
- * Default locales of every OTHER realm — "foreign" URL prefixes on this realm's
- * host (e.g. `fr` on opencouncil.gr). The proxy 301s these to the unprefixed
- * URL; `en` is shared by all realms and is never foreign.
+ * Derives each realm's foreign locale prefixes: default locales of other realms
+ * that differ from the realm's own default (e.g. `fr` on opencouncil.gr). The
+ * proxy 301s these to the unprefixed URL; `en` is shared by all realms and is
+ * never foreign.
+ *
+ * Filtered by locale rather than by realm: realms may share a default locale,
+ * and a realm's own default is never foreign on its host no matter which other
+ * realm also uses it. Parameterized so that property stays testable
+ * independent of the realms production defines; app code should use
+ * `foreignLocalesForRealm`, which reads the result precomputed from `REALMS`
+ * at module load — this runs in the proxy hot path, and the realm config being
+ * static is what keeps per-request work at zero.
  */
+export function computeForeignLocales<R extends string>(
+    realms: Record<R, { defaultLocale: string }>,
+): Record<R, string[]> {
+    const allLocales = Object.values<{ defaultLocale: string }>(realms)
+        .map(({ defaultLocale }) => defaultLocale);
+    const entries = (Object.keys(realms) as R[]).map((realm) => {
+        const own = realms[realm].defaultLocale;
+        return [realm, [...new Set(allLocales.filter((locale) => locale !== own))]];
+    });
+    return Object.fromEntries(entries) as Record<R, string[]>;
+}
+
+const FOREIGN_LOCALES = computeForeignLocales(REALMS);
+
+/** A realm's foreign locale prefixes, precomputed from `REALMS`. */
 export function foreignLocalesForRealm(realm: Realm): string[] {
-    return Object.entries(REALMS)
-        .filter(([r]) => r !== realm)
-        .map(([, cfg]) => cfg.defaultLocale);
+    return FOREIGN_LOCALES[realm];
 }
 
 /**

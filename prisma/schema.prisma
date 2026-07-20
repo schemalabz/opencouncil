@@ -74,6 +74,7 @@ enum CityLanguage {
 enum Realm {
   greece
   france
+  cyprus
 }
 
 enum CityStatus {
