@@ -13,6 +13,12 @@ export const routing = defineRouting({
 
     // Disable automatic locale detection from Accept-Language header
     localeDetection: false,
+
+    // Don't emit the hreflang `Link` response header (on by default). It
+    // advertises every locale variant as a distinct indexable alternate, which
+    // contradicts the canonical-to-default-locale scheme (hreflang via HTTP
+    // header carries the same weight for Google as <link> tags or the sitemap).
+    alternateLinks: false,
 });
 
 // Request header used to pass an explicit locale from the proxy to the root
