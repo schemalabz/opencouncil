@@ -359,6 +359,7 @@ export async function getMeetingUploadLists(last30Days: boolean = false): Promis
         prisma.councilMeeting.findMany({
             where: {
                 AND: [
+                    { city: { officialSupport: true } },
                     {
                         NOT: {
                             taskStatuses: {
@@ -377,7 +378,10 @@ export async function getMeetingUploadLists(last30Days: boolean = false): Promis
         }),
         // Scheduled: meetings with dateTime in the future (not affected by the 30-day filter)
         prisma.councilMeeting.findMany({
-            where: { dateTime: { gt: now } },
+            where: {
+                dateTime: { gt: now },
+                city: { officialSupport: true }
+            },
             select: meetingListItemSelect,
             orderBy: { dateTime: 'asc' }
         })
