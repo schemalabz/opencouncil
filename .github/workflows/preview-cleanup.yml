@@ -8,6 +8,7 @@ on:
 permissions:
   pull-requests: write
   issues: write
+  actions: write
 
 # Ensure only one cleanup runs at a time per PR
 concurrency:
@@ -15,10 +16,70 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Decide whether a preview was ever deployed for this PR, and cancel any
+  # deploy runs still waiting for approval. Runs without an environment so
+  # closing an undeployed PR never triggers an approval prompt.
+  check:
+    name: Check Cleanup Eligibility
+    runs-on: ubuntu-latest
+    outputs:
+      deployed: ${{ steps.check-deploy.outputs.deployed }}
+    steps:
+      - name: Check whether a preview was deployed
+        id: check-deploy
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+
+            // The deploy job's first step (which only runs after approval)
+            // posts a comment containing "Preview deployment" — its presence
+            // means a deploy was approved and a preview may exist on the host.
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' && comment.body.includes('Preview deployment')
+            );
+
+            core.setOutput('deployed', botComment ? 'true' : 'false');
+            console.log(botComment
+              ? 'Deploy comment found - preview cleanup is needed'
+              : 'No deploy comment found - skipping cleanup');
+
+      - name: Cancel deploy runs pending approval
+        uses: actions/github-script@v9
+        with:
+          script: |
+            // A deploy run waiting for environment approval would otherwise
+            // linger in the Actions tab for 30 days after the PR closes.
+            const headSha = context.payload.pull_request.head.sha;
+
+            const { data: { workflow_runs: runs } } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'preview-deploy.yml',
+              head_sha: headSha,
+            });
+
+            for (const run of runs.filter(run => run.status !== 'completed')) {
+              console.log(`Cancelling deploy run ${run.id} (status: ${run.status})`);
+              await github.rest.actions.cancelWorkflowRun({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: run.id,
+              });
+            }
+
   cleanup:
     name: Destroy Preview Instance
     runs-on: ubuntu-latest
-    environment: preview
+    needs: check
+    if: needs.check.outputs.deployed == 'true'
+    environment: preview-cleanup
     steps:
       - name: Cleanup preview deployment
         env:
