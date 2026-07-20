@@ -69,6 +69,7 @@ export function SearchBody({
     loading,
     onPickResult,
     onLocateAddress,
+    forceFilters = false,
 }: {
     topics: Topic[];
     cities: LandingListCity[];
@@ -89,6 +90,9 @@ export function SearchBody({
     onPickResult: (id: string) => void;
     /** geocode the query as an address and fly there (also closes the dropdown) */
     onLocateAddress: (q: string) => void;
+    /** opened via the filters icon → show the filters even if a query is present (until the input is
+     *  focused), so the icon reliably lands on the filters rather than the query's results */
+    forceFilters?: boolean;
 }) {
     const t = useTranslations('landingV2');
     const { unknownMunicipality, matchedTopic, knownMunicipality, showAddressOption, dateActive, anyFilterActive } = useSearchMatches({
@@ -108,8 +112,9 @@ export function SearchBody({
     const isCuratedKeyword = curatedKeywords.some((k) => normalizeText(k).trim() === normalizedQuery);
     const showAddress = showAddressOption && !isCuratedKeyword;
 
-    // While typing, replace the default suggestions/filters with the matching subjects.
-    if (query.trim()) {
+    // While typing, replace the default suggestions/filters with the matching subjects — unless the
+    // panel was opened via the filters icon, which wants the filters shown even with a query present.
+    if (query.trim() && !forceFilters) {
         return (
             <>
                 {unknownMunicipality && (

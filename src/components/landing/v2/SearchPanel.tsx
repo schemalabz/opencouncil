@@ -276,6 +276,9 @@ export function MobileSearchOverlay({
     const t = useTranslations('landingV2');
     const inputRef = useRef<HTMLInputElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
+    // Opened via the filters icon → show the filters even with a query present. Focusing the input
+    // switches to the query's results.
+    const [showFilters, setShowFilters] = useState(scrollToActiveFilter);
 
     // Snapshot the filter state on open (the overlay remounts each time) so we can show a hint once
     // the user changes anything — filters apply live, so they need to go back to see the results.
@@ -331,6 +334,7 @@ export function MobileSearchOverlay({
                     onAfterSubmit={onClose}
                     inputRef={inputRef}
                     autoFocus={autoFocusInput}
+                    onFocus={() => setShowFilters(false)}
                     className="shadow-sm"
                 />
             </div>
@@ -354,6 +358,7 @@ export function MobileSearchOverlay({
                         onLocateAddress(q);
                         onClose();
                     }}
+                    forceFilters={showFilters}
                 />
             </div>
 
