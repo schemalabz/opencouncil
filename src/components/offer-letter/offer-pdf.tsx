@@ -1,12 +1,16 @@
 /**
  * Client-side PDF generation for offer letters using @react-pdf/renderer.
  *
- * Generates a vector PDF (crisp at any zoom, searchable, copyable text) with
- * explicit page break boundaries, embedded Inter font (Greek subset), and an
- * inline-SVG QR code linking back to the live offer page.
+ * A tight two-page document: cover + costs on page 1, features + signature on
+ * page 2. Vector QR code links back to the live offer page.
  *
- * Trigger via `pdf(<OfferPdfDocument offer={offer} />).toBlob()` from a browser
- * context — never imported into a server bundle.
+ * IMPORTANT react-pdf gotcha: never set `lineHeight` on the Page style. It is
+ * inherited as a *computed* value (page fontSize × multiplier), so any larger
+ * text gets squeezed into a tiny line box and overlaps its neighbours. Line
+ * heights here are always set together with the fontSize they apply to.
+ *
+ * Renders both in the browser (lazy-loaded by DownloadPdfButton) and in Node
+ * (scripts/tests via renderToFile) — asset URLs resolve accordingly.
  */
 import {
     Document,
@@ -16,34 +20,42 @@ import {
     Image,
     Svg,
     Path,
+    Circle,
     Link,
     Font,
 } from "@react-pdf/renderer";
 import qrcode from "qrcode-generator";
 import type { Offer } from "@prisma/client";
-import { calculateOfferTotals, PHYSICAL_PRESENCE } from "@/lib/pricing";
+import {
+    offerGrammar,
+    offerHasEquipment,
+    offerHasPhysicalPresence,
+    getOfferCostBreakdown,
+} from "@/lib/offers/display";
 
-// ─── Font registration ──────────────────────────────────────────────────────
-// Inter (Greek subset) served from our own /public/fonts/pdf/ — same font
-// family as the rest of the app, no third-party CDN dependency at PDF time.
-const FONT_BASE =
-    typeof window !== "undefined" ? `${window.location.origin}/fonts/pdf` : "/fonts/pdf";
+// ─── Assets (browser: same-origin URLs · Node: filesystem paths) ────────────
+const ASSET_BASE =
+    typeof window !== "undefined"
+        ? window.location.origin
+        : `${process.cwd()}/public`;
+
+// Full-charset static Inter TTFs (Latin + Greek). The app itself uses
+// Inter Variable (woff2), which react-pdf can't consume — these statics are
+// the same family at the same weights, so the PDF matches the site.
 Font.register({
     family: "Inter",
     fonts: [
-        { src: `${FONT_BASE}/inter-greek-400-normal.woff` },
-        { src: `${FONT_BASE}/inter-greek-500-normal.woff`, fontWeight: 500 },
-        { src: `${FONT_BASE}/inter-greek-600-normal.woff`, fontWeight: 600 },
-        { src: `${FONT_BASE}/inter-greek-700-normal.woff`, fontWeight: 700 },
+        { src: `${ASSET_BASE}/fonts/pdf/inter-400.ttf` },
+        { src: `${ASSET_BASE}/fonts/pdf/inter-500.ttf`, fontWeight: 500 },
+        { src: `${ASSET_BASE}/fonts/pdf/inter-600.ttf`, fontWeight: 600 },
+        { src: `${ASSET_BASE}/fonts/pdf/inter-700.ttf`, fontWeight: 700 },
     ],
 });
 // Greek shouldn't be hyphenated mid-word.
 Font.registerHyphenationCallback((word) => [word]);
 
-// ─── Greek typography helpers ───────────────────────────────────────────────
-// Greek convention: ALL CAPS drops the tonos (acute accent). e.g.
-// "Φεβρουαρίου" → "ΦΕΒΡΟΥΑΡΙΟΥ" (not "ΦΕΒΡΟΥΑΡΊΟΥ"). textTransform:uppercase
-// would keep the accent, so we transform manually.
+// ─── Greek typography ────────────────────────────────────────────────────────
+// Greek ALL CAPS drops the tonos: "Φεβρουαρίου" → "ΦΕΒΡΟΥΑΡΙΟΥ".
 function greekUpper(s: string): string {
     return s
         .normalize("NFD")
@@ -60,36 +72,19 @@ const C = {
     light: "#a3a3a3",
     line: "#e5e5e5",
     surface: "#fafafa",
-    // Brand orange (matches --orange in globals.css: hsl(24 100% 50%))
+    // Brand orange (--orange: hsl(24 100% 50%))
     accent: "#ff8000",
     accentSoft: "#fff4eb",
 };
 
+const MARGIN_X = 48;
 
-const A4 = { w: 595.28, h: 841.89 };
-const PAGE_MARGIN = { top: 44, bottom: 44, x: 48 };
-
-// Logo aspect ratio (1606×1354 px → ~1.186:1)
-const LOGO_W = 22;
+// Logo intrinsic ratio: 1606 × 1354
+const LOGO_W = 18;
 const LOGO_H = (LOGO_W * 1354) / 1606;
 
-// ─── Greek grammar fudge for region vs municipality ─────────────────────────
-function genderArticle(offer: Offer): { articleAcc: string; def: string; possessive: string; demonym: string; bodyAdj: string } {
-    const isRegion = offer.recipientName.startsWith("Περιφέρεια");
-    return isRegion
-        ? { articleAcc: "την", def: "την περιφέρεια", possessive: "της περιφέρειας", demonym: "πολίτες", bodyAdj: "περιφερειακό" }
-        : { articleAcc: "τον", def: "τον δήμο", possessive: "του δήμου", demonym: "δημότες", bodyAdj: "δημοτικό" };
-}
-
-// ─── Formatting helpers (local, locale-aware, no Intl in PDF context issues) ─
+// ─── Formatting ─────────────────────────────────────────────────────────────
 const fmtEur = (n: number) =>
-    new Intl.NumberFormat("el-GR", {
-        style: "currency",
-        currency: "EUR",
-        maximumFractionDigits: 0,
-    }).format(Math.round(n));
-
-const fmtEurExact = (n: number) =>
     new Intl.NumberFormat("el-GR", {
         style: "currency",
         currency: "EUR",
@@ -99,8 +94,8 @@ const fmtEurExact = (n: number) =>
 const fmtDate = (d: Date) =>
     new Intl.DateTimeFormat("el-GR", { day: "numeric", month: "long", year: "numeric" }).format(d);
 
-// ─── QR via qrcode-generator → inline <Svg> (vector, perfect scaling) ───────
-function QRCode({ value, size, color = C.ink }: { value: string; size: number; color?: string }) {
+// ─── QR (vector) ────────────────────────────────────────────────────────────
+function QRCode({ value, size }: { value: string; size: number }) {
     const qr = qrcode(0, "M");
     qr.addData(value);
     qr.make();
@@ -113,105 +108,237 @@ function QRCode({ value, size, color = C.ink }: { value: string; size: number; c
     }
     return (
         <Svg width={size} height={size} viewBox={`0 0 ${n} ${n}`}>
-            <Path d={d} fill={color} />
+            <Path d={d} fill={C.ink} />
         </Svg>
     );
 }
 
-// ─── Building blocks ────────────────────────────────────────────────────────
-const styles = {
-    page: {
-        backgroundColor: "#ffffff",
-        color: C.body,
-        fontFamily: "Inter",
-        fontSize: 9,
-        lineHeight: 1.45,
-        paddingTop: PAGE_MARGIN.top,
-        paddingBottom: PAGE_MARGIN.bottom,
-        paddingHorizontal: PAGE_MARGIN.x,
+// ─── Lucide icons (stroke paths, mirrors the web page's lucide-react) ───────
+const ICON_PATHS: Record<string, { paths: string[]; circles?: [number, number, number][] }> = {
+    // lucide FileText
+    fileText: {
+        paths: [
+            "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z",
+            "M14 2v4a2 2 0 0 0 2 2h4",
+            "M10 9H8",
+            "M16 13H8",
+            "M16 17H8",
+        ],
     },
-    h1: { fontSize: 18, fontWeight: 600, color: C.ink, lineHeight: 1.15 },
-    h2: { fontSize: 12, fontWeight: 600, color: C.ink, marginBottom: 8 },
-    h3: { fontSize: 10, fontWeight: 600, color: C.ink, marginBottom: 4 },
-    small: { fontSize: 7.5, color: C.mid },
-    micro: { fontSize: 7, color: C.light },
-    mid: { color: C.mid },
-    rule: { height: 1, backgroundColor: C.line, marginVertical: 10 },
+    // lucide Building2
+    building2: {
+        paths: [
+            "M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z",
+            "M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2",
+            "M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2",
+            "M10 6h4",
+            "M10 10h4",
+            "M10 14h4",
+            "M10 18h4",
+        ],
+    },
+    // lucide Package
+    package: {
+        paths: [
+            "m7.5 4.27 9 5.15",
+            "M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z",
+            "M3.3 7 12 12l8.7-5",
+            "M12 22V12",
+        ],
+    },
+    // lucide Clock
+    clock: {
+        paths: ["M12 6v6l4 2"],
+        circles: [[12, 12, 10]],
+    },
+    // lucide Receipt
+    receipt: {
+        paths: [
+            "M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z",
+            "M14 8H8",
+            "M16 12H8",
+            "M13 16H8",
+        ],
+    },
+};
+
+function LucideIcon({
+    name,
+    size,
+    color = C.accent,
+}: {
+    name: keyof typeof ICON_PATHS;
+    size: number;
+    color?: string;
+}) {
+    const icon = ICON_PATHS[name];
+    return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+            {icon.circles?.map(([cx, cy, r], i) => (
+                <Circle
+                    key={`c${i}`}
+                    cx={cx}
+                    cy={cy}
+                    r={r}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth={2}
+                />
+            ))}
+            {icon.paths.map((d, i) => (
+                <Path
+                    key={i}
+                    d={d}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                />
+            ))}
+        </Svg>
+    );
+}
+
+// ─── Text styles (fontSize + lineHeight always paired) ──────────────────────
+const T = {
+    micro: { fontSize: 6.5, color: C.light, letterSpacing: 0.8 },
+    small: { fontSize: 8, color: C.mid, lineHeight: 1.4 },
+    body: { fontSize: 9, color: C.body, lineHeight: 1.5 },
+    para: { fontSize: 9.5, color: C.mid, lineHeight: 1.55 },
+    h2: { fontSize: 13, fontWeight: 600 as const, color: C.ink },
+    h3: { fontSize: 9.5, fontWeight: 600 as const, color: C.ink },
 } as const;
 
-function PageFooter({ offerUrl, pageLabel }: { offerUrl: string; pageLabel?: string }) {
+const pageStyle = {
+    backgroundColor: "#ffffff",
+    color: C.body,
+    fontFamily: "Inter",
+    fontSize: 9,
+    paddingTop: 44,
+    paddingBottom: 56,
+    paddingHorizontal: MARGIN_X,
+    display: "flex" as const,
+    flexDirection: "column" as const,
+};
+
+// ─── Shared blocks ──────────────────────────────────────────────────────────
+function Brand() {
+    return (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+            <Image src={`${ASSET_BASE}/logo.png`} style={{ width: LOGO_W, height: LOGO_H }} />
+            <Text style={{ fontSize: 10, color: C.ink }}>OpenCouncil</Text>
+        </View>
+    );
+}
+
+function MicroLabel({ children }: { children: string }) {
+    return <Text style={{ ...T.micro, marginBottom: 4 }}>{greekUpper(children)}</Text>;
+}
+
+function PageFooter({ offerUrl }: { offerUrl: string }) {
     return (
         <View
             fixed
             style={{
                 position: "absolute",
-                bottom: 18,
-                left: PAGE_MARGIN.x,
-                right: PAGE_MARGIN.x,
+                bottom: 26,
+                left: MARGIN_X,
+                right: MARGIN_X,
                 flexDirection: "row",
                 justifyContent: "space-between",
-                fontSize: 7,
-                color: C.light,
+                borderTopWidth: 0.5,
+                borderTopColor: C.line,
+                paddingTop: 8,
             }}
         >
-            <Text>OpenCouncil · {offerUrl.replace(/^https?:\/\//, "")}</Text>
+            <Text style={{ fontSize: 7, color: C.light }}>
+                OpenCouncil · {offerUrl.replace(/^https?:\/\//, "")}
+            </Text>
             <Text
-                render={({ pageNumber, totalPages }) =>
-                    pageLabel ?? `${pageNumber} / ${totalPages}`
-                }
+                style={{ fontSize: 7, color: C.light }}
+                render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`}
             />
-        </View>
-    );
-}
-
-// Cost table row
-function Row({
-    label,
-    qty,
-    rate,
-    total,
-    emphasize,
-    isTotal,
-    isDiscount,
-}: {
-    label: string;
-    qty?: string;
-    rate?: string;
-    total: string;
-    emphasize?: boolean;
-    isTotal?: boolean;
-    isDiscount?: boolean;
-}) {
-    const weight = isTotal ? 700 : emphasize ? 600 : 400;
-    const color = isTotal ? C.ink : isDiscount ? C.accent : C.body;
-    return (
-        <View
-            style={{
-                flexDirection: "row",
-                paddingVertical: 5,
-                borderTopWidth: isTotal ? 1.2 : 0.5,
-                borderTopColor: isTotal ? C.ink : C.line,
-            }}
-        >
-            <Text style={{ flex: 3, fontWeight: weight, color, fontSize: 9 }}>{label}</Text>
-            <Text style={{ flex: 1, textAlign: "right", color: C.mid, fontSize: 8 }}>
-                {qty ?? ""}
-            </Text>
-            <Text style={{ flex: 1, textAlign: "right", color: C.mid, fontSize: 8 }}>
-                {rate ?? ""}
-            </Text>
-            <Text style={{ flex: 1.1, textAlign: "right", fontWeight: weight, color, fontSize: 9 }}>
-                {total}
-            </Text>
         </View>
     );
 }
 
 function Bullet({ children }: { children: React.ReactNode }) {
     return (
-        <View style={{ flexDirection: "row", marginBottom: 3 }}>
-            <Text style={{ width: 10, color: C.light, fontSize: 9 }}>·</Text>
-            <Text style={{ flex: 1, fontSize: 9 }}>{children}</Text>
+        <View style={{ flexDirection: "row", marginBottom: 3.5 }}>
+            <Text style={{ width: 10, fontSize: 8.5, color: C.accent }}>·</Text>
+            <Text style={{ flex: 1, fontSize: 8.5, color: C.body, lineHeight: 1.45 }}>
+                {children}
+            </Text>
+        </View>
+    );
+}
+
+// Table row: 4 columns (label stretches, others fixed-ish right-aligned)
+function CostHeaderRow() {
+    const th = { fontSize: 6.5, color: C.light, letterSpacing: 0.8 } as const;
+    return (
+        <View
+            style={{
+                flexDirection: "row",
+                paddingBottom: 5,
+                borderBottomWidth: 1,
+                borderBottomColor: C.ink,
+            }}
+        >
+            <Text style={{ ...th, flex: 3 }}>{greekUpper("Υπηρεσία")}</Text>
+            <Text style={{ ...th, flex: 1.1, textAlign: "right" }}>{greekUpper("Μονάδα")}</Text>
+            <Text style={{ ...th, flex: 1.3, textAlign: "right" }}>{greekUpper("Τιμή")}</Text>
+            <Text style={{ ...th, flex: 1.3, textAlign: "right" }}>{greekUpper("Σύνολο")}</Text>
+        </View>
+    );
+}
+
+function CostRow({
+    label,
+    qty,
+    rate,
+    total,
+    variant = "normal",
+}: {
+    label: string;
+    qty?: string;
+    rate?: string;
+    total: string;
+    variant?: "normal" | "subtotal" | "discount" | "total";
+}) {
+    const isTotal = variant === "total";
+    const labelStyle = {
+        flex: 3,
+        fontSize: 9,
+        lineHeight: 1.35,
+        color: variant === "discount" ? C.accent : isTotal ? C.ink : C.body,
+        fontWeight: (isTotal || variant === "subtotal" ? 600 : 400) as 400 | 600,
+    };
+    const numStyle = {
+        fontSize: isTotal ? 10.5 : 9,
+        color: variant === "discount" ? C.accent : isTotal ? C.ink : C.body,
+        fontWeight: (isTotal || variant === "subtotal" ? 600 : 400) as 400 | 600,
+    };
+    return (
+        <View
+            style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingVertical: isTotal ? 7 : 5.5,
+                borderTopWidth: isTotal ? 1.2 : 0.5,
+                borderTopColor: isTotal ? C.ink : C.line,
+                backgroundColor: isTotal ? C.surface : undefined,
+            }}
+        >
+            <Text style={labelStyle}>{label}</Text>
+            <Text style={{ flex: 1.1, textAlign: "right", fontSize: 8, color: C.mid }}>
+                {qty ?? ""}
+            </Text>
+            <Text style={{ flex: 1.3, textAlign: "right", fontSize: 8, color: C.mid }}>
+                {rate ?? ""}
+            </Text>
+            <Text style={{ ...numStyle, flex: 1.3, textAlign: "right" }}>{total}</Text>
         </View>
     );
 }
@@ -224,14 +351,13 @@ export function OfferPdfDocument({
     offer: Offer;
     baseUrl: string;
 }) {
-    const totals = calculateOfferTotals(offer);
-    const G = genderArticle(offer);
+    const breakdown = getOfferCostBreakdown(offer);
+    const totals = breakdown.totals;
+    const G = offerGrammar(offer);
     const offerUrl = `${baseUrl.replace(/\/$/, "")}/offer-letter/${offer.id}`;
 
-    const hasEquipment =
-        !!(offer.equipmentRentalName || offer.equipmentRentalDescription);
-    const hasPresence =
-        !!(offer.physicalPresenceHours && offer.physicalPresenceHours > 0);
+    const hasEquipment = offerHasEquipment(offer);
+    const hasPresence = offerHasPhysicalPresence(offer);
 
     return (
         <Document
@@ -239,44 +365,38 @@ export function OfferPdfDocument({
             author="OpenCouncil"
             subject="Οικονομική Προσφορά"
         >
-            {/* ─── Cover ──────────────────────────────────────────────── */}
-            <Page size="A4" style={styles.page}>
-                <View
-                    style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 8,
-                        marginBottom: 36,
-                    }}
-                >
-                    <Image src="/logo.png" style={{ width: LOGO_W, height: LOGO_H }} />
-                    <Text style={{ fontSize: 11, color: C.ink }}>OpenCouncil</Text>
+            {/* ════════ Page 1 — cover + costs ════════ */}
+            <Page size="A4" style={pageStyle}>
+                <Brand />
+
+                {/* Title block */}
+                <View style={{ marginTop: 28 }}>
+                    <Text style={{ fontSize: 9, color: C.mid, lineHeight: 1.4 }}>
+                        Ενημέρωση για οικονομική προσφορά για {G.articleAcc}
+                    </Text>
+                    <Text
+                        style={{
+                            fontSize: 22,
+                            lineHeight: 1.25,
+                            color: C.accent,
+                            marginTop: 2,
+                        }}
+                    >
+                        {offer.recipientName}
+                    </Text>
+                    <Text style={{ ...T.micro, marginTop: 8 }}>
+                        {greekUpper(fmtDate(offer.createdAt))}
+                    </Text>
+                    <Text style={{ ...T.para, marginTop: 10, maxWidth: 400 }}>
+                        Για την πλατφόρμα OpenCouncil και τη ψηφιοποίηση των δημόσιων
+                        συνεδριάσεων των συλλογικών οργάνων {G.possessive}.
+                    </Text>
                 </View>
 
-                <Text style={{ fontSize: 8.5, color: C.mid, marginBottom: 4 }}>
-                    Ενημέρωση για οικονομική προσφορά για {G.articleAcc}
-                </Text>
-                <Text
-                    style={{
-                        fontSize: 24,
-                        color: C.accent,
-                        marginBottom: 4,
-                        lineHeight: 1.1,
-                    }}
-                >
-                    {offer.recipientName}
-                </Text>
-                <Text style={{ ...styles.micro, letterSpacing: 0.6, marginBottom: 14 }}>
-                    {greekUpper(fmtDate(offer.createdAt))}
-                </Text>
-                <Text style={{ color: C.mid, fontSize: 10, marginBottom: 24, lineHeight: 1.5 }}>
-                    Για την πλατφόρμα OpenCouncil και τη ψηφιοποίηση των δημόσιων
-                    συνεδριάσεων των συλλογικών οργάνων {G.possessive}.
-                </Text>
-
-                {/* Hero summary — 2 cols */}
+                {/* Hero summary */}
                 <View
                     style={{
+                        marginTop: 20,
                         borderWidth: 1,
                         borderColor: C.line,
                         borderRadius: 6,
@@ -284,15 +404,11 @@ export function OfferPdfDocument({
                     }}
                 >
                     <View style={{ flex: 1, padding: 14 }}>
-                        <Text style={{ ...styles.micro, letterSpacing: 0.6, marginBottom: 4 }}>
-                            {greekUpper("Συνολικό κόστος")}
+                        <MicroLabel>Συνολικό κόστος</MicroLabel>
+                        <Text style={{ fontSize: 17, lineHeight: 1.3, fontWeight: 600, color: C.ink }}>
+                            {fmtEur(totals.total)}
                         </Text>
-                        <Text style={{ fontSize: 20, fontWeight: 600, color: C.ink }}>
-                            {fmtEurExact(totals.total)}
-                        </Text>
-                        <Text style={{ ...styles.small, marginTop: 2 }}>
-                            πλέον ΦΠΑ 24%
-                        </Text>
+                        <Text style={{ ...T.small, marginTop: 1 }}>πλέον ΦΠΑ 24%</Text>
                     </View>
                     <View
                         style={{
@@ -302,357 +418,296 @@ export function OfferPdfDocument({
                             borderLeftColor: C.line,
                         }}
                     >
-                        <Text style={{ ...styles.micro, letterSpacing: 0.6, marginBottom: 4 }}>
-                            {greekUpper("Διάρκεια")}
-                        </Text>
-                        <Text style={{ fontSize: 20, fontWeight: 600, color: C.ink }}>
+                        <MicroLabel>Διάρκεια</MicroLabel>
+                        <Text style={{ fontSize: 17, lineHeight: 1.3, fontWeight: 600, color: C.ink }}>
                             {totals.months} μήνες
                         </Text>
-                        <Text style={{ ...styles.small, marginTop: 2 }}>
+                        <Text style={{ ...T.small, marginTop: 1 }}>
                             {fmtDate(offer.startDate)} — {fmtDate(offer.endDate)}
                         </Text>
                     </View>
                 </View>
 
-                {/* QR + meta */}
-                <View
-                    style={{
-                        flexDirection: "row",
-                        alignItems: "flex-end",
-                        marginTop: 36,
-                    }}
-                >
-                    <View style={{ flex: 1 }}>
-                        <Text style={{ ...styles.micro, letterSpacing: 0.6, marginBottom: 4 }}>
-                            {greekUpper("Επικοινωνία")}
-                        </Text>
-                        <Text style={{ color: C.body, fontSize: 9.5 }}>{offer.respondToName}</Text>
-                        <Text style={{ color: C.mid, fontSize: 8.5 }}>
-                            {offer.respondToEmail} · {offer.respondToPhone}
-                        </Text>
-                    </View>
-                    <View style={{ width: 90, alignItems: "center" }}>
-                        <View
-                            style={{
-                                padding: 4,
-                                backgroundColor: "#ffffff",
-                                borderWidth: 1,
-                                borderColor: C.line,
-                                borderRadius: 4,
-                            }}
-                        >
-                            <QRCode value={offerUrl} size={72} />
-                        </View>
-                        <Text
-                            style={{
-                                ...styles.micro,
-                                marginTop: 4,
-                                textAlign: "center",
-                            }}
-                        >
-                            Πιο πρόσφατη έκδοση
-                        </Text>
-                    </View>
-                </View>
-
-                <PageFooter offerUrl={offerUrl} />
-            </Page>
-
-            {/* ─── Cost + payment plan ────────────────────────────────── */}
-            <Page size="A4" style={styles.page}>
-                <Text style={{ ...styles.h2, marginBottom: 16 }}>Κόστος</Text>
-
-                {/* Column headers */}
-                <View
-                    style={{
-                        flexDirection: "row",
-                        paddingBottom: 6,
-                        borderBottomWidth: 1,
-                        borderBottomColor: C.ink,
-                    }}
-                >
-                    <Text style={{ flex: 3, fontSize: 7, color: C.mid, letterSpacing: 0.6 }}>
-                        {greekUpper("Υπηρεσία")}
-                    </Text>
-                    <Text style={{ flex: 1, fontSize: 7, color: C.mid, letterSpacing: 0.6, textAlign: "right" }}>
-                        {greekUpper("Μονάδα")}
-                    </Text>
-                    <Text style={{ flex: 1, fontSize: 7, color: C.mid, letterSpacing: 0.6, textAlign: "right" }}>
-                        {greekUpper("Τιμή")}
-                    </Text>
-                    <Text style={{ flex: 1.1, fontSize: 7, color: C.mid, letterSpacing: 0.6, textAlign: "right" }}>
-                        {greekUpper("Σύνολο")}
+                {/* Costs — line items come from the shared breakdown, same as the web page */}
+                <View style={{ marginTop: 26 }}>
+                    <Text style={{ ...T.h2, marginBottom: 10 }}>Κόστος</Text>
+                    <CostHeaderRow />
+                    {breakdown.lines.map((line) => (
+                        <CostRow
+                            key={line.key}
+                            label={line.label}
+                            qty={line.qty}
+                            rate={line.rate}
+                            total={line.amount}
+                        />
+                    ))}
+                    <CostRow
+                        label="Μερικό σύνολο"
+                        variant="subtotal"
+                        total={breakdown.subtotal}
+                    />
+                    {breakdown.discountAmount && (
+                        <CostRow
+                            label={breakdown.discountLabel!}
+                            variant="discount"
+                            // ASCII hyphen — keeps working even with subset fonts (no U+2212)
+                            total={`-${breakdown.discountAmount}`}
+                        />
+                    )}
+                    <CostRow label="Σύνολο" variant="total" total={breakdown.total} />
+                    <Text style={{ ...T.micro, marginTop: 6, textAlign: "right" }}>
+                        {greekUpper("Οι τιμές δεν περιλαμβάνουν ΦΠΑ")}
                     </Text>
                 </View>
-
-                <Row
-                    label="Πλατφόρμα OpenCouncil"
-                    qty={`${totals.months} μήνες`}
-                    rate={`${fmtEurExact(offer.platformPrice)}/μήνα`}
-                    total={fmtEurExact(totals.platformTotal)}
-                />
-                <Row
-                    label="Ψηφιοποίηση συνεδριάσεων"
-                    qty={`${offer.hoursToIngest} ώρες`}
-                    rate={`${fmtEurExact(offer.ingestionPerHourPrice)}/ώρα`}
-                    total={fmtEurExact(totals.ingestionTotal)}
-                />
-                {hasEquipment && (
-                    <Row
-                        label={offer.equipmentRentalName || "Παροχή εξοπλισμού"}
-                        qty={`${totals.months} μήνες`}
-                        rate={`${fmtEurExact(offer.equipmentRentalPrice || 0)}/μήνα`}
-                        total={fmtEurExact(totals.equipmentRentalTotal)}
-                    />
-                )}
-                {hasPresence && (
-                    <Row
-                        label="Φυσική παρουσία σε συνεδριάσεις"
-                        qty={`${offer.physicalPresenceHours} ώρες`}
-                        rate={`${fmtEurExact(PHYSICAL_PRESENCE.pricePerHour)}/ώρα`}
-                        total={fmtEurExact(totals.physicalPresenceTotal)}
-                    />
-                )}
-                {offer.correctnessGuarantee && totals.hoursToGuarantee > 0 && (
-                    <Row
-                        label="Έλεγχος απομαγνητοφωνήσεων από άνθρωπο"
-                        qty={
-                            offer.version && offer.version > 1
-                                ? `${totals.hoursToGuarantee} ώρες`
-                                : `${totals.hoursToGuarantee} συνεδριάσεις`
-                        }
-                        rate={
-                            offer.version && offer.version > 1
-                                ? `${fmtEurExact(offer.version === 2 ? 20 : 11)}/ώρα`
-                                : `${fmtEurExact(80)}/συνεδρίαση`
-                        }
-                        total={fmtEurExact(totals.correctnessGuaranteeCost)}
-                    />
-                )}
-                <Row label="Μερικό Σύνολο" emphasize total={fmtEurExact(totals.subtotal)} />
-                {totals.discount > 0 && (
-                    <Row
-                        label={`Έκπτωση (${offer.discountPercentage}%)`}
-                        isDiscount
-                        total={`−${fmtEurExact(totals.discount)}`}
-                    />
-                )}
-                <Row label="Σύνολο (χωρίς ΦΠΑ)" isTotal total={fmtEurExact(totals.total)} />
-
-                <Text style={{ ...styles.small, marginTop: 6, textAlign: "right" }}>
-                    Οι τιμές δεν περιλαμβάνουν ΦΠΑ.
-                </Text>
 
                 {/* Payment plan */}
-                <View style={{ marginTop: 36 }}>
-                    <Text style={styles.h2}>Πλάνο πληρωμών</Text>
-                    <View
-                        style={{
-                            flexDirection: "row",
-                            paddingBottom: 6,
-                            borderBottomWidth: 1,
-                            borderBottomColor: C.ink,
-                        }}
-                    >
-                        <Text style={{ flex: 1, fontSize: 7, color: C.mid, letterSpacing: 0.6 }}>
-                            {greekUpper("Ημερομηνία")}
-                        </Text>
-                        <Text style={{ flex: 1, fontSize: 7, color: C.mid, letterSpacing: 0.6, textAlign: "right" }}>
-                            {greekUpper("Ποσό")}
-                        </Text>
-                    </View>
+                <View style={{ marginTop: 22 }}>
+                    <Text style={{ ...T.h2, marginBottom: 8 }}>Πλάνο πληρωμών</Text>
                     {totals.paymentPlan.map((p, i) => (
                         <View
                             key={i}
                             style={{
                                 flexDirection: "row",
-                                paddingVertical: 7,
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                paddingVertical: 5,
                                 borderTopWidth: 0.5,
                                 borderTopColor: C.line,
                             }}
                         >
-                            <Text style={{ flex: 1 }}>{fmtDate(p.dueDate)}</Text>
-                            <Text style={{ flex: 1, textAlign: "right" }}>
-                                {fmtEurExact(p.amount)}
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                                <LucideIcon name="receipt" size={9} color={C.light} />
+                                <Text style={{ fontSize: 9, color: C.body }}>
+                                    {i + 1}η δόση · {fmtDate(p.dueDate)}
+                                </Text>
+                            </View>
+                            <Text style={{ fontSize: 9, color: C.ink, fontWeight: 500 }}>
+                                {fmtEur(p.amount)}
                             </Text>
                         </View>
                     ))}
                 </View>
 
+                {/* Spacer pushes contact + QR to the bottom of the page */}
+                <View style={{ flexGrow: 1 }} />
+
+                <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+                    <View style={{ flex: 1 }}>
+                        <MicroLabel>Επικοινωνία</MicroLabel>
+                        <Text style={{ fontSize: 9.5, color: C.body }}>
+                            {offer.respondToName}
+                        </Text>
+                        <Text style={{ ...T.small, marginTop: 1 }}>
+                            {offer.respondToEmail} · {offer.respondToPhone}
+                        </Text>
+                    </View>
+                    <View style={{ width: 84, alignItems: "center" }}>
+                        <View
+                            style={{
+                                padding: 4,
+                                borderWidth: 1,
+                                borderColor: C.line,
+                                borderRadius: 4,
+                                backgroundColor: "#ffffff",
+                            }}
+                        >
+                            <QRCode value={offerUrl} size={62} />
+                        </View>
+                        <Text style={{ ...T.micro, marginTop: 4, textAlign: "center" }}>
+                            {greekUpper("Πιο πρόσφατη έκδοση")}
+                        </Text>
+                    </View>
+                </View>
+
                 <PageFooter offerUrl={offerUrl} />
             </Page>
 
-            {/* ─── What's included ────────────────────────────────────── */}
-            <Page size="A4" style={styles.page}>
-                <Text style={styles.h2}>Τι περιλαμβάνει</Text>
-                <Text style={{ marginBottom: 18, color: C.mid }}>
+            {/* ════════ Page 2 — what's included + signature ════════ */}
+            <Page size="A4" style={pageStyle}>
+                <Text style={{ ...T.h2, marginBottom: 6 }}>Τι περιλαμβάνει</Text>
+                <Text style={{ ...T.para, marginBottom: 16, maxWidth: 440 }}>
                     Δύο βασικές υπηρεσίες: η ψηφιοποίηση δημόσιων συνεδριάσεων και η
-                    ελεύθερη χρήση της πλατφόρμας OpenCouncil από {G.def} και τους {G.demonym}{" "}
-                    {G.possessive}.
+                    ελεύθερη χρήση της πλατφόρμας OpenCouncil από {G.def} και τους{" "}
+                    {G.demonym} {G.possessive}.
                 </Text>
 
-                <View style={{ marginBottom: 22 }}>
-                    <Text style={styles.h3}>Ψηφιοποίηση συνεδριάσεων</Text>
-                    <Text style={{ ...styles.small, marginBottom: 8 }}>
-                        Μέχρι {offer.hoursToIngest} ώρες δημόσιων συνεδριάσεων.
-                    </Text>
-                    <Bullet>Απομαγνητοφώνηση και αναγνώριση ομιλητών</Bullet>
-                    <Bullet>Συνόψεις κάθε τοποθέτησης</Bullet>
-                    <Bullet>Αναγνώριση θεμάτων και σύνδεση με την ημερήσια διάταξη</Bullet>
-                    <Bullet>Μετατροπή σε MP4, MP3 και adaptive bitrate streaming</Bullet>
-                    {offer.correctnessGuarantee ? (
+                {/* Two columns */}
+                <View style={{ flexDirection: "row", gap: 20 }}>
+                    <View style={{ flex: 1 }}>
+                        <View
+                            style={{
+                                flexDirection: "row",
+                                alignItems: "flex-start",
+                                gap: 7,
+                                marginBottom: 7,
+                            }}
+                        >
+                            <LucideIcon name="fileText" size={16} />
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ ...T.h3, marginBottom: 2 }}>
+                                    Ψηφιοποίηση συνεδριάσεων
+                                </Text>
+                                <Text style={T.micro}>
+                                    {greekUpper(`Έως ${offer.hoursToIngest} ώρες συνεδριάσεων`)}
+                                </Text>
+                            </View>
+                        </View>
+                        <Bullet>Απομαγνητοφώνηση και αναγνώριση ομιλητών</Bullet>
+                        <Bullet>Συνόψεις κάθε τοποθέτησης</Bullet>
+                        <Bullet>Αναγνώριση θεμάτων και σύνδεση με την ημερήσια διάταξη</Bullet>
+                        <Bullet>Μετατροπή σε MP4, MP3 και adaptive bitrate streaming</Bullet>
+                        {offer.correctnessGuarantee ? (
+                            <Bullet>Ανθρώπινος έλεγχος της απομαγνητοφώνησης εντός 36 ωρών</Bullet>
+                        ) : (
+                            <Bullet>Αυτόματη διαδικασία · διορθώσεις κατόπιν αιτήματος</Bullet>
+                        )}
+                        <Bullet>Ολοκλήρωση εντός 24 ωρών από τη διαθεσιμότητα του βίντεο</Bullet>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <View
+                            style={{
+                                flexDirection: "row",
+                                alignItems: "flex-start",
+                                gap: 7,
+                                marginBottom: 7,
+                            }}
+                        >
+                            <LucideIcon name="building2" size={16} />
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ ...T.h3, marginBottom: 2 }}>
+                                    Πλατφόρμα OpenCouncil
+                                </Text>
+                                <Text style={T.micro}>
+                                    {greekUpper("Απεριόριστη χρήση για όλους")}
+                                </Text>
+                            </View>
+                        </View>
                         <Bullet>
-                            Ανθρώπινος έλεγχος της απομαγνητοφώνησης εντός 36 ωρών
+                            Σελίδα {G.possessive} στο opencouncil.gr/{offer.cityId}
                         </Bullet>
-                    ) : (
-                        <Bullet>
-                            Αυτόματη διαδικασία· διορθώσεις κατόπιν αιτήματος (πολιτική
-                            διορθώσεων)
-                        </Bullet>
-                    )}
-                    <Bullet>Ολοκλήρωση εντός 24 ωρών από τη διαθεσιμότητα του βίντεο</Bullet>
-                </View>
-
-                <View>
-                    <Text style={styles.h3}>Πλατφόρμα OpenCouncil</Text>
-                    <Text style={{ ...styles.small, marginBottom: 8 }}>
-                        Απεριόριστη χρήση για όλους.
-                    </Text>
-                    <Bullet>
-                        Σελίδα {G.possessive} στο opencouncil.gr/{offer.cityId}
-                    </Bullet>
-                    <Bullet>Πρόσβαση σε απομαγνητοφωνήσεις, θέματα και συνόψεις</Bullet>
-                    <Bullet>Στατιστικά παρατάξεων, ομιλητών και θεμάτων</Bullet>
-                    <Bullet>Ενημερώσεις {G.demonym} μέσω SMS, WhatsApp και Email</Bullet>
-                    <Bullet>Εξαγωγή βίντεο για τα social media</Bullet>
-                    <Bullet>Εξαγωγή απομαγνητοφωνήσεων σε PDF</Bullet>
-                    <Bullet>Σελίδες παρατάξεων και ομιλητών</Bullet>
-                    <Bullet>Αναζήτηση σε θέματα και απομαγνητοφωνήσεις</Bullet>
-                    <Bullet>Adaptive bitrate streaming, ανοιχτά δεδομένα (API)</Bullet>
+                        <Bullet>Πρόσβαση σε απομαγνητοφωνήσεις, θέματα και συνόψεις</Bullet>
+                        <Bullet>Στατιστικά παρατάξεων, ομιλητών και θεμάτων</Bullet>
+                        <Bullet>Ενημερώσεις {G.demonym} μέσω SMS, WhatsApp και Email</Bullet>
+                        <Bullet>Εξαγωγή βίντεο για τα social media</Bullet>
+                        <Bullet>Εξαγωγή απομαγνητοφωνήσεων σε PDF</Bullet>
+                        <Bullet>Αναζήτηση σε θέματα και απομαγνητοφωνήσεις</Bullet>
+                        <Bullet>Ανοιχτά δεδομένα μέσω API</Bullet>
+                    </View>
                 </View>
 
                 {(hasEquipment || hasPresence) && (
-                    <View style={{ marginTop: 22 }}>
-                        <Text style={styles.h3}>Επιπλέον υπηρεσίες</Text>
+                    <View style={{ marginTop: 18 }}>
+                        <Text style={{ ...T.h3, marginBottom: 6 }}>Επιπλέον υπηρεσίες</Text>
                         {hasEquipment && (
-                            <View style={{ marginBottom: 10 }}>
-                                <Text style={{ fontWeight: 600, marginBottom: 2 }}>
-                                    {offer.equipmentRentalName || "Παροχή εξοπλισμού"}
-                                </Text>
-                                {offer.equipmentRentalDescription && (
-                                    <Text style={styles.mid}>{offer.equipmentRentalDescription}</Text>
-                                )}
+                            <View
+                                style={{
+                                    flexDirection: "row",
+                                    alignItems: "flex-start",
+                                    gap: 7,
+                                    marginBottom: 6,
+                                }}
+                            >
+                                <LucideIcon name="package" size={13} />
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{ fontSize: 9, fontWeight: 500, color: C.ink }}>
+                                        {offer.equipmentRentalName || "Παροχή εξοπλισμού"}
+                                    </Text>
+                                    {offer.equipmentRentalDescription && (
+                                        <Text style={{ ...T.small, marginTop: 1 }}>
+                                            {offer.equipmentRentalDescription}
+                                        </Text>
+                                    )}
+                                </View>
                             </View>
                         )}
                         {hasPresence && (
-                            <View>
-                                <Text style={{ fontWeight: 600, marginBottom: 2 }}>
-                                    Φυσική παρουσία σε συνεδριάσεις
-                                </Text>
-                                <Text style={styles.mid}>
-                                    Εξειδικευμένο προσωπικό για τεχνική υποστήριξη της
-                                    καταγραφής κατά τη διάρκεια των συνεδριάσεων.
-                                </Text>
+                            <View
+                                style={{
+                                    flexDirection: "row",
+                                    alignItems: "flex-start",
+                                    gap: 7,
+                                }}
+                            >
+                                <LucideIcon name="clock" size={13} />
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{ fontSize: 9, fontWeight: 500, color: C.ink }}>
+                                        Φυσική παρουσία σε συνεδριάσεις
+                                    </Text>
+                                    <Text style={{ ...T.small, marginTop: 1 }}>
+                                        Εξειδικευμένο προσωπικό για τεχνική υποστήριξη της
+                                        καταγραφής κατά τη διάρκεια των συνεδριάσεων.
+                                    </Text>
+                                </View>
                             </View>
                         )}
                     </View>
                 )}
 
-                <PageFooter offerUrl={offerUrl} />
-            </Page>
+                <View style={{ marginTop: 18 }}>
+                    <Text style={{ ...T.h3, marginBottom: 7 }}>Τεχνικές προδιαγραφές</Text>
+                    <Bullet>Cloud στη Digital Ocean, με servers στην Ευρωπαϊκή Ένωση</Bullet>
+                    <Bullet>Whisper (OpenAI) και PyAnnote για την απομαγνητοφώνηση</Bullet>
+                    <Bullet>Claude (Anthropic) για συνόψεις και εξαγωγή θεμάτων</Bullet>
+                    <Bullet>Adaptive bitrate streaming μέσω mux.com, έως 720p</Bullet>
+                    <Bullet>Διαθέσιμη σε όλους τους σύγχρονους περιηγητές</Bullet>
+                    <Bullet>
+                        Πολιτική απορρήτου: opencouncil.gr/privacy · Όροι χρήσης:
+                        opencouncil.gr/terms
+                    </Bullet>
+                </View>
 
-            {/* ─── Pilot features + tech specs ────────────────────────── */}
-            <Page size="A4" style={styles.page}>
-                <Text style={styles.h2}>Τεχνικές προδιαγραφές</Text>
-                <Bullet>Cloud στη Digital Ocean (servers στην ΕΕ)</Bullet>
-                <Bullet>Whisper (OpenAI) + PyAnnote για απομαγνητοφώνηση</Bullet>
-                <Bullet>Claude (Anthropic) για συνόψεις και εξαγωγή θεμάτων</Bullet>
-                <Bullet>Adaptive bitrate streaming μέσω mux.com έως 720p</Bullet>
-                <Bullet>Διαθέσιμη σε όλους τους σύγχρονους περιηγητές</Bullet>
-                <Bullet>
-                    Πολιτική απορρήτου: opencouncil.gr/privacy · Όροι χρήσης:
-                    opencouncil.gr/terms
-                </Bullet>
+                {/* Spacer pushes CTA + signature to the bottom */}
+                <View style={{ flexGrow: 1 }} />
 
-                <PageFooter offerUrl={offerUrl} />
-            </Page>
-
-            {/* ─── Last page: signature, company, QR ──────────────────── */}
-            <Page size="A4" style={styles.page}>
+                {/* CTA */}
                 <View
                     style={{
                         backgroundColor: C.accentSoft,
-                        padding: 14,
+                        padding: 13,
                         borderRadius: 6,
-                        marginBottom: 22,
+                        marginBottom: 18,
                     }}
                 >
-                    <Text style={{ ...styles.h3, color: C.ink, marginBottom: 4 }}>
+                    <Text style={{ ...T.h3, marginBottom: 3 }}>
                         Για να απαντήσετε σε αυτή τη προσφορά
                     </Text>
-                    <Text style={{ color: C.body, fontSize: 9 }}>
+                    <Text style={{ fontSize: 9, color: C.body, lineHeight: 1.5 }}>
                         Στείλτε email στο{" "}
-                        <Link src={`mailto:${offer.respondToEmail}`} style={{ color: C.body, textDecoration: "underline" }}>
+                        <Link src={`mailto:${offer.respondToEmail}`} style={{ color: C.body }}>
                             {offer.respondToEmail}
-                        </Link>
-                        {" "}ή καλέστε στο{" "}
-                        <Link src={`tel:${offer.respondToPhone}`} style={{ color: C.body, textDecoration: "underline" }}>
+                        </Link>{" "}
+                        ή καλέστε στο{" "}
+                        <Link src={`tel:${offer.respondToPhone}`} style={{ color: C.body }}>
                             {offer.respondToPhone}
                         </Link>
                         .
                     </Text>
                 </View>
 
-                <Text style={styles.h3}>Στοιχεία εταιρείας</Text>
-                <Text style={{ color: C.body, fontSize: 9 }}>
-                    OpenCouncil Μονοπρόσωπη Ι.Κ.Ε.
-                </Text>
-                <Text style={{ color: C.mid, fontSize: 8 }}>
-                    Λαλέχου 1, Νέο Ψυχικό 15451
-                </Text>
-                <Text style={{ color: C.mid, fontSize: 8 }}>
-                    ΑΦΜ 802666391 (ΚΕΦΟΔΕ Αττικής) · ΓΕΜΗ 180529301000
-                </Text>
-                <Text style={{ color: C.mid, fontSize: 8, marginTop: 4 }}>
-                    Η OpenCouncil ανήκει στην Schema Labs ΑΜΚΕ (schemalabs.gr).
-                </Text>
-
-                <View
-                    style={{
-                        marginTop: 42,
-                        flexDirection: "row",
-                        alignItems: "flex-end",
-                    }}
-                >
+                {/* Company + signature */}
+                <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
                     <View style={{ flex: 1 }}>
-                        <Text style={{ color: C.mid, marginBottom: 10, fontSize: 9 }}>
-                            Με εκτίμηση, εκ μέρους της OpenCouncil,
+                        <MicroLabel>Στοιχεία εταιρείας</MicroLabel>
+                        <Text style={{ fontSize: 9, color: C.body }}>
+                            OpenCouncil Μονοπρόσωπη Ι.Κ.Ε.
                         </Text>
-                        <Text style={{ color: C.ink, fontSize: 10 }}>
-                            {offer.respondToName}
+                        <Text style={T.small}>Λαλέχου 1, Νέο Ψυχικό 15451</Text>
+                        <Text style={T.small}>
+                            ΑΦΜ 802666391 (ΚΕΦΟΔΕ Αττικής) · ΓΕΜΗ 180529301000
                         </Text>
-                        <Text style={{ color: C.mid, fontSize: 8 }}>
-                            {offer.respondToEmail}
-                        </Text>
-                        <Text style={{ color: C.mid, fontSize: 8 }}>
-                            {offer.respondToPhone}
+                        <Text style={{ ...T.small, marginTop: 3 }}>
+                            Η OpenCouncil ανήκει στην Schema Labs ΑΜΚΕ (schemalabs.gr).
                         </Text>
                     </View>
-                    <View style={{ width: 90, alignItems: "center" }}>
-                        <View
-                            style={{
-                                padding: 4,
-                                backgroundColor: "#ffffff",
-                                borderWidth: 1,
-                                borderColor: C.line,
-                                borderRadius: 4,
-                            }}
-                        >
-                            <QRCode value={offerUrl} size={64} />
-                        </View>
-                        <Text style={{ ...styles.micro, marginTop: 4, textAlign: "center" }}>
-                            Πιο πρόσφατη έκδοση
+                    <View style={{ alignItems: "flex-end" }}>
+                        <Text style={{ ...T.small, marginBottom: 12 }}>
+                            Με εκτίμηση, εκ μέρους της OpenCouncil,
                         </Text>
+                        <Text style={{ fontSize: 10, color: C.ink }}>
+                            {offer.respondToName}
+                        </Text>
+                        <Text style={T.small}>{offer.respondToEmail}</Text>
+                        <Text style={T.small}>{offer.respondToPhone}</Text>
                     </View>
                 </View>
 

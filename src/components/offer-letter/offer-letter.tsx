@@ -18,34 +18,42 @@ import {
 } from "lucide-react";
 
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { calculateOfferTotals, PHYSICAL_PRESENCE } from "@/lib/pricing";
+import { calculateOfferTotals } from "@/lib/pricing";
+import { getOfferState, type OfferState } from "@/lib/offers/state";
+import {
+    offerGrammar,
+    offerHasEquipment,
+    offerHasPhysicalPresence,
+    getOfferCostBreakdown,
+} from "@/lib/offers/display";
 import type { Offer } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { DownloadPdfButton } from "./download-pdf-button";
 
-const isRegionFor = (offer: Offer) => offer.recipientName.startsWith("Περιφέρεια");
-
-const grammar = (offer: Offer) => {
-    const isRegion = isRegionFor(offer);
-    return {
-        // Article for "για τον/την [recipient]" — recipientName already starts
-        // with "Δήμο" (masc. acc.) or "Περιφέρεια" (fem. acc.).
-        articleAcc: isRegion ? "την" : "τον",
-        accusative: isRegion ? "την" : "το",
-        def: isRegion ? "την περιφέρεια" : "τον δήμο",
-        possessive: isRegion ? "της περιφέρειας" : "του δήμου",
-        possessivePronoun: isRegion ? "της" : "του",
-        demonym: isRegion ? "πολίτες" : "δημότες",
-        bodyAdj: isRegion ? "περιφερειακού" : "δημοτικού",
+function OfferStatePill({ offer }: { offer: Offer }) {
+    const state = getOfferState(offer);
+    const config: Record<OfferState, { label: string; cls: string }> = {
+        active: { label: "Σε ισχύ", cls: "bg-emerald-100 text-emerald-800" },
+        upcoming: {
+            label: `Ξεκινά ${formatDate(offer.startDate)}`,
+            cls: "bg-sky-100 text-sky-800",
+        },
+        expired: { label: "Έχει λήξει", cls: "bg-gray-200 text-gray-700" },
+        pending: { label: "Εκκρεμεί αποδοχή", cls: "bg-amber-100 text-amber-800" },
     };
-};
+    const { label, cls } = config[state];
+    return (
+        <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full ${cls}`}>
+            {label}
+        </span>
+    );
+}
 
 export default function OfferLetter({ offer }: { offer: Offer }) {
-    const totals = calculateOfferTotals(offer);
-    const G = grammar(offer);
+    const G = offerGrammar(offer);
 
-    const hasEquipment = !!(offer.equipmentRentalName || offer.equipmentRentalDescription);
-    const hasPresence = !!(offer.physicalPresenceHours && offer.physicalPresenceHours > 0);
+    const hasEquipment = offerHasEquipment(offer);
+    const hasPresence = offerHasPhysicalPresence(offer);
 
     return (
         <div className="min-h-screen bg-neutral-50">
@@ -61,9 +69,12 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                     <h1 className="text-4xl sm:text-5xl tracking-tight text-orange leading-tight">
                         {offer.recipientName}
                     </h1>
-                    <p className="text-xs text-neutral-500 uppercase tracking-wider">
-                        {formatDate(offer.createdAt)}
-                    </p>
+                    <div className="flex items-center gap-3">
+                        <p className="text-xs text-neutral-500 uppercase tracking-wider">
+                            {formatDate(offer.createdAt)}
+                        </p>
+                        <OfferStatePill offer={offer} />
+                    </div>
                     <p className="text-lg text-neutral-600 max-w-2xl pt-2">
                         Για την πλατφόρμα OpenCouncil και τη ψηφιοποίηση των δημόσιων
                         συνεδριάσεων των συλλογικών οργάνων {G.possessive}.
@@ -75,7 +86,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
 
                 {/* Cost table */}
                 <Section title="Κόστος">
-                    <CostTable offer={offer} hasEquipment={hasEquipment} hasPresence={hasPresence} />
+                    <CostTable offer={offer} />
                 </Section>
 
                 {/* Payment plan */}
@@ -314,17 +325,10 @@ function Section({
     );
 }
 
-function CostTable({
-    offer,
-    hasEquipment,
-    hasPresence,
-}: {
-    offer: Offer;
-    hasEquipment: boolean;
-    hasPresence: boolean;
-}) {
-    const t = calculateOfferTotals(offer);
-    const G = grammar(offer);
+function CostTable({ offer }: { offer: Offer }) {
+    // All line items, labels and amounts come from the shared breakdown —
+    // the PDF renders the exact same data.
+    const b = getOfferCostBreakdown(offer);
 
     return (
         <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
@@ -338,68 +342,32 @@ function CostTable({
                     </tr>
                 </thead>
                 <tbody>
-                    <CostRow
-                        label="Πλατφόρμα OpenCouncil"
-                        qty={`${t.months} μήνες`}
-                        rate={`${formatCurrency(offer.platformPrice)}/μήνα`}
-                        amount={formatCurrency(t.platformTotal)}
-                    />
-                    <CostRow
-                        label="Ψηφιοποίηση συνεδριάσεων"
-                        qty={`${offer.hoursToIngest} ώρες`}
-                        rate={`${formatCurrency(offer.ingestionPerHourPrice)}/ώρα`}
-                        amount={formatCurrency(t.ingestionTotal)}
-                    />
-                    {hasEquipment && (
+                    {b.lines.map((line) => (
                         <CostRow
-                            label={offer.equipmentRentalName || "Παροχή εξοπλισμού"}
-                            qty={`${t.months} μήνες`}
-                            rate={`${formatCurrency(offer.equipmentRentalPrice || 0)}/μήνα`}
-                            amount={formatCurrency(t.equipmentRentalTotal)}
+                            key={line.key}
+                            label={line.label}
+                            qty={line.qty}
+                            rate={line.rate}
+                            amount={line.amount}
                         />
-                    )}
-                    {hasPresence && (
-                        <CostRow
-                            label="Φυσική παρουσία σε συνεδριάσεις"
-                            qty={`${offer.physicalPresenceHours} ώρες`}
-                            rate={`${formatCurrency(PHYSICAL_PRESENCE.pricePerHour)}/ώρα`}
-                            amount={formatCurrency(t.physicalPresenceTotal)}
-                        />
-                    )}
-                    {offer.correctnessGuarantee && t.hoursToGuarantee > 0 && (
-                        <CostRow
-                            label="Έλεγχος απομαγνητοφωνήσεων από άνθρωπο"
-                            qty={
-                                offer.version && offer.version > 1
-                                    ? `${t.hoursToGuarantee} ώρες`
-                                    : `${t.hoursToGuarantee} συνεδριάσεις`
-                            }
-                            rate={
-                                offer.version && offer.version > 1
-                                    ? `${formatCurrency(offer.version === 2 ? 20 : 11)}/ώρα`
-                                    : `${formatCurrency(80)}/συνεδρίαση`
-                            }
-                            amount={formatCurrency(t.correctnessGuaranteeCost)}
-                        />
-                    )}
+                    ))}
                     {/* Subtotal */}
                     <tr className="border-t border-neutral-200">
                         <td className="px-5 py-3 text-right text-neutral-600" colSpan={3}>
                             Μερικό σύνολο
                         </td>
                         <td className="px-5 py-3 text-right font-medium">
-                            {formatCurrency(t.subtotal)}
+                            {b.subtotal}
                         </td>
                     </tr>
 
-                    {t.discount > 0 && (
+                    {b.discountAmount && (
                         <tr>
                             <td className="px-5 py-3 text-right text-orange" colSpan={3}>
-                                Έκπτωση για {G.accusative} {offer.recipientName}{" "}
-                                ({offer.discountPercentage}%)
+                                {b.discountLabel}
                             </td>
                             <td className="px-5 py-3 text-right font-medium text-orange">
-                                −{formatCurrency(t.discount)}
+                                −{b.discountAmount}
                             </td>
                         </tr>
                     )}
@@ -410,7 +378,7 @@ function CostTable({
                             Σύνολο
                         </td>
                         <td className="px-5 py-4 text-right text-xl font-bold text-neutral-900">
-                            {formatCurrency(t.total)}
+                            {b.total}
                         </td>
                     </tr>
                 </tbody>
@@ -438,15 +406,17 @@ function CostRow({
     const txt = muted ? "text-neutral-400" : "text-neutral-700";
     return (
         <tr className="border-t border-neutral-100">
-            <td className={`px-5 py-3 ${muted ? "text-neutral-500" : "text-neutral-900"}`}>
+            {/* The service name is the only column allowed to wrap — numeric
+                columns stay on one line so amounts read cleanly. */}
+            <td className={`px-5 py-3 w-full ${muted ? "text-neutral-500" : "text-neutral-900"}`}>
                 {label}
                 <div className="sm:hidden text-xs text-muted-foreground mt-0.5">
                     {qty} · {rate}
                 </div>
             </td>
-            <td className={`px-3 py-3 text-right hidden sm:table-cell ${txt}`}>{qty}</td>
-            <td className={`px-3 py-3 text-right hidden sm:table-cell ${txt}`}>{rate}</td>
-            <td className={`px-5 py-3 text-right font-medium ${muted ? "text-neutral-500" : "text-neutral-900"}`}>
+            <td className={`px-3 py-3 text-right hidden sm:table-cell whitespace-nowrap ${txt}`}>{qty}</td>
+            <td className={`px-3 py-3 text-right hidden sm:table-cell whitespace-nowrap ${txt}`}>{rate}</td>
+            <td className={`px-5 py-3 text-right font-medium whitespace-nowrap ${muted ? "text-neutral-500" : "text-neutral-900"}`}>
                 {amount}
             </td>
         </tr>
