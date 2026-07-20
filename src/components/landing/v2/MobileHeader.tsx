@@ -16,17 +16,27 @@ import { FOOTER_GROUPS, isInternalHref, reopenCookiePreferences, type FooterLink
 export function MobileHeader({
     onOpenSearch,
     searchActive,
+    query,
 }: {
     onOpenSearch: () => void;
-    /** a keyword search is active — the search icon goes orange with a dot */
+    /** a keyword search is active — the search box goes orange and shows the query */
     searchActive?: boolean;
+    /** the active search text, shown (truncated) inside the search box while searchActive */
+    query?: string;
 }) {
     const t = useTranslations('landingV2');
     const { data: session, status } = useSession();
     return (
         <div className="absolute inset-x-3 top-3 z-[9] flex items-center gap-1.5">
-            {/* header pill: burger + logo + brand (both the burger/logo open the nav drawer) */}
-            <div className="flex h-11 min-w-0 flex-1 items-center gap-1.5 rounded-2xl border border-black/40 bg-card px-1 shadow-sm">
+            {/* header pill: burger + logo + brand (both the burger/logo open the nav drawer). While a
+                search is active it shrinks to fit its content, giving the width to the search box. */}
+            <div
+                className={cn(
+                    'flex h-11 min-w-0 items-center gap-1.5 rounded-2xl border border-black/40 bg-card pl-1 pr-3 shadow-sm',
+                    // active search splits the bar ~70/30 with the search box; otherwise fill the width.
+                    searchActive ? 'flex-[7]' : 'flex-1',
+                )}
+            >
             {/* burger + logo — grouped and both open the nav drawer, no box */}
             <Sheet>
                 <SheetTrigger asChild>
@@ -137,15 +147,15 @@ export function MobileHeader({
                 aria-label={t('common.search')}
                 onClick={onOpenSearch}
                 className={cn(
-                    'relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border bg-card shadow-sm transition-colors',
+                    'flex h-11 items-center rounded-2xl border bg-card shadow-sm transition-colors',
                     searchActive
-                        ? 'border-[hsl(var(--orange))] bg-[hsl(24,100%,96%)] text-[hsl(var(--orange))]'
-                        : 'border-black/40 text-muted-foreground hover:bg-muted hover:text-foreground',
+                        ? 'min-w-0 flex-[3] justify-start gap-2 px-3 border-[hsl(var(--orange))] bg-[hsl(24,100%,96%)] text-[hsl(var(--orange))]'
+                        : 'w-11 shrink-0 justify-center border-black/40 text-muted-foreground hover:bg-muted hover:text-foreground',
                 )}
             >
-                <Search className="h-5 w-5" />
-                {searchActive && (
-                    <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-card bg-[hsl(var(--orange))]" />
+                <Search className="h-5 w-5 shrink-0" />
+                {searchActive && query && (
+                    <span className="min-w-0 truncate text-sm font-medium">{query}</span>
                 )}
             </button>
         </div>

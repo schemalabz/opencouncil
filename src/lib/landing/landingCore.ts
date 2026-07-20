@@ -22,6 +22,9 @@ export const SUBJECT_FOCUS_ZOOM = 14;
 // the view.
 export const MUNICIPALITY_PAGE_BUTTON_MIN_ZOOM = 12;
 
+// At or below this zoom the map shows the per-δήμος count numbers; above it, subject pins take over.
+export const MUNICIPALITY_COUNT_MAX_ZOOM = 9;
+
 export const SEARCH_FIELD_STYLE = {
     borderColor: 'hsl(var(--orange))',
     backgroundColor: '#ffffff',
@@ -109,23 +112,6 @@ export function hasActiveFilters(f: MapFilters): boolean {
  */
 export const CENTER_QUERY_MOVE_RATIO = 0.2;
 
-/** Subjects in view above which nearby ones merge into donut clusters. */
-export const CLUSTER_THRESHOLD = 25;
-/**
- * Subjects farther apart than this never merge into one donut, so distant regions stay separate.
- * ~111 km per degree of latitude → 100 km ≈ 0.9°.
- */
-export const MAX_MERGE_KM = 100;
-export const MAX_CLUSTER_CELL_DEG = MAX_MERGE_KM / 111;
-
-/**
- * Cluster cell size (degrees) for the current zoom. Tied to the integer zoom level so clusters
- * stay stable within a level; coarse (~half a tile) but capped at MAX_CLUSTER_CELL_DEG.
- */
-export function clusterCellDegrees(zoom: number): number {
-    return Math.min(360 / Math.pow(2, Math.floor(zoom) + 1), MAX_CLUSTER_CELL_DEG);
-}
-
 /** An HTML map marker handle: a subject icon badge (`subject` set) or a cluster count circle (null). */
 export type SubjectPin = {
     el: HTMLButtonElement;
@@ -139,30 +125,58 @@ export type SubjectPin = {
  * Styles a map pin like the TopicChip badge, minus the label. Styling goes on the inner button
  * (Mapbox owns the root's transform); only z-index touches the root.
  */
-export function stylePin({ el, rootEl }: { el: HTMLButtonElement; rootEl: HTMLDivElement }, subject: LandingSubject, selected: boolean) {
+export function stylePin(
+    { el, rootEl }: { el: HTMLButtonElement; rootEl: HTMLDivElement },
+    subject: LandingSubject,
+    selected: boolean,
+    /** the "intense" fill (category colour bg + white icon) — the mobile preview and mobile
+     *  selected pins both use it (the pin icon is rendered with currentColor, so el.style.color
+     *  drives it). */
+    intense = false,
+) {
     const color = subject.topic.color;
     el.className = cn(
         'flex cursor-pointer items-center justify-center rounded-full border shadow-md transition-transform',
         subject.hot ? 'h-9 w-9' : 'h-7 w-7',
-        selected && 'scale-110',
+        (selected || intense) && 'scale-110',
     );
-    el.style.color = color;
-    // solid tint so map tiles don't bleed through
-    el.style.backgroundColor = `color-mix(in srgb, ${color} 10%, white)`;
-    el.style.borderColor = selected ? '#171A20' : `${color}38`;
-    el.style.borderWidth = selected ? '2px' : '1px';
-    rootEl.style.zIndex = selected ? '2' : subject.hot ? '1' : '0';
+    if (intense) {
+        // filled with the category colour + white icon, like a selected filter chip
+        el.style.color = '#ffffff';
+        el.style.backgroundColor = color;
+        el.style.borderColor = color;
+        el.style.borderWidth = '2px';
+    } else {
+        // unselected: solid tint so map tiles don't bleed through, faint category ring. (A selection
+        // always takes the intense branch above — same on desktop and mobile.)
+        el.style.color = color;
+        el.style.backgroundColor = `color-mix(in srgb, ${color} 10%, white)`;
+        el.style.borderColor = `${color}38`;
+        el.style.borderWidth = '1px';
+    }
+    rootEl.style.zIndex = selected || intense ? '2' : subject.hot ? '1' : '0';
 }
 
 /**
  * Center the map on a municipality's geometry, offset right of center to clear the desktop
  * floating list. Fits the whole δήμος when it has bounds; falls back to easeTo for a bare Point.
  */
-export function flyToMunicipality(map: mapboxgl.Map, geometry: GeoJSON.Geometry, isMobile: boolean) {
-    const { bounds } = calculateGeometryBounds(geometry);
+export function flyToMunicipality(map: mapboxgl.Map, geometry: GeoJSON.Geometry, isMobile: boolean, minZoom?: number) {
+    const { bounds, center } = calculateGeometryBounds(geometry);
     // desktop: shift right of center, but less than a subject focus (which uses 210)
     const offset: [number, number] = isMobile ? [0, 0] : [120, 0];
     if (bounds) {
+        if (minZoom != null) {
+            const fit = map.cameraForBounds(
+                [
+                    [bounds.minLng, bounds.minLat],
+                    [bounds.maxLng, bounds.maxLat],
+                ],
+                { padding: isMobile ? 120 : 80, maxZoom: 17 },
+            );
+            map.easeTo({ center, zoom: fit?.zoom != null ? Math.max(fit.zoom, minZoom) : minZoom, offset, duration: 600 });
+            return;
+        }
         map.fitBounds(
             [
                 [bounds.minLng, bounds.minLat],
@@ -252,6 +266,8 @@ export type LayoutProps = {
     cats: string[];
     /** toggle a category in/out of the selection (also clears any selected subject) */
     onToggleCat: (id: string) => void;
+    /** replace the whole category selection (mobile filter sheet "apply") */
+    setCats: (ids: string[]) => void;
     /** clear the category selection */
     onClearCats: () => void;
     range: DateRangeKey;
@@ -300,6 +316,13 @@ export type LayoutProps = {
     onLocateAddress: (q: string) => void;
     zoomIn: () => void;
     zoomOut: () => void;
+    /** the map is in the zoomed-out municipality overview (cluster numbers, no subject detail) — mobile
+     *  keeps the subjects list collapsed while true and opens it on drilling into a δήμος */
+    overviewActive: boolean;
+    /** mobile: the previewed subject (tapped on the map) — highlighted + brought to the strip's front */
+    previewId: string | null;
+    /** mobile: set the previewed subject (first tap on a strip card previews; null clears) */
+    previewSubject: (id: string | null) => void;
     /** Mobile: the OpenCouncil badge's card preview is open. */
     explainOpen: boolean;
     onCloseExplain: () => void;

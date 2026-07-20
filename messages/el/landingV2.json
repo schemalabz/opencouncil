@@ -104,7 +104,7 @@
   "marker": {
     "samePoint": "{count} θέματα στο ίδιο σημείο",
     "seeSamePoint": "Δες {count} θέματα στο ίδιο σημείο",
-    "clusterZoom": "{count} θέματα — μεγέθυνση"
+    "municipalityZoom": "{name} — {count} θέματα, μεγέθυνση"
   },
   "dateRange": {
     "7d": "7 ημέρες",

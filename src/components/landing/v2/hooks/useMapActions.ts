@@ -77,6 +77,21 @@ export function useMapActions({ mapInstance, isMobile, defaultView }: Args) {
     // Stable identity so the tooltip's auto-dismiss timer isn't restarted on every parent render.
     const dismissGeoError = useCallback(() => setGeoError(false), []);
 
+    // Fly the camera to an address point and zoom in to street level (or defer to the map if it
+    // isn't ready yet). Desktop offsets right to clear the floating list.
+    const flyToAddress = (lng: number, lat: number) => {
+        if (mapInstance) {
+            mapInstance.easeTo({
+                center: [lng, lat],
+                zoom: Math.max(mapInstance.getZoom(), 15),
+                duration: 600,
+                offset: isMobile ? [0, 0] : [210, 0],
+            });
+        } else {
+            setFlyTo({ type: 'Point', coordinates: [lng, lat] });
+        }
+    };
+
     // Geocode a typed address and fly to it (Enter on an address-style query).
     const locateAddress = (q: string) => {
         if (!q.trim()) return;
@@ -86,7 +101,7 @@ export function useMapActions({ mapInstance, isMobile, defaultView }: Args) {
             .then((res: { lng?: number; lat?: number } | null) => {
                 if (res && res.lng != null && res.lat != null && isValidLngLat(res.lng, res.lat)) {
                     setAddressPoint({ lat: res.lat, lng: res.lng });
-                    setFlyTo({ type: 'Point', coordinates: [res.lng, res.lat] });
+                    flyToAddress(res.lng, res.lat);
                 }
             });
     };

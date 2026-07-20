@@ -39,6 +39,7 @@ export function useMapPopups({
     selectedId,
     selectedSubject,
     clickedMunicipality,
+    showExplainMarker,
     navigate,
     onClearSelection,
     onShowExplainLocation,
@@ -52,6 +53,9 @@ export function useMapPopups({
     selectedId: string | null;
     selectedSubject: LandingSubject | null;
     clickedMunicipality: ClickedMunicipality | null;
+    /** whether the OpenCouncil office badge is shown — hidden when zoomed out, where it would just
+     *  stack onto Athens' cluster number */
+    showExplainMarker: boolean;
     /** navigate to a path (router.push) — popups have no router context of their own */
     navigate: (path: string) => void;
     onClearSelection: () => void;
@@ -120,10 +124,11 @@ export function useMapPopups({
         return cleanup;
     }, [mapInstance, selectedSubject, isMobile]);
 
-    // Persistent OpenCouncil badge — a white logo circle at the info card's location. Clicking
-    // it opens a tooltip linking to /explain.
+    // OpenCouncil badge — a white logo circle at the info card's location. Clicking it opens a
+    // tooltip linking to /explain. Hidden while zoomed out, where it would only pile onto the Athens
+    // cluster number.
     useEffect(() => {
-        if (!mapInstance) return;
+        if (!mapInstance || !showExplainMarker) return;
         let popup: mapboxgl.Popup | null = null;
         let root: ReturnType<typeof createRoot> | null = null;
         const teardownPopup = () => {
@@ -193,7 +198,7 @@ export function useMapPopups({
             marker.remove();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mapInstance]);
+    }, [mapInstance, showExplainMarker]);
 
     // Selecting any subject closes the OpenCouncil preview (desktop popup or mobile card)
     // and the clicked-municipality preview.
