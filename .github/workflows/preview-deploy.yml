@@ -62,6 +62,11 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+          # Building/previewing a PR requires checking out its (possibly fork)
+          # head. checkout v6.1.0 blocks this under pull_request_target by
+          # default; the deploy job is gated behind the reviewer-approved
+          # 'preview' environment, so opt back in explicitly.
+          allow-unsafe-pr-checkout: true
 
       - name: Check for migration files
         id: check-migrations
@@ -169,6 +174,9 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          # See note on the preflight checkout: opt back into fork-PR checkout
+          # under pull_request_target (blocked by default since checkout v6.1.0).
+          allow-unsafe-pr-checkout: true
 
       - name: Install Nix
         uses: cachix/install-nix-action@v31
