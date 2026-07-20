@@ -24,6 +24,11 @@ describe('wwwRedirectTarget', () => {
             .toBe('https://opencouncil.gr/x');
     });
 
+    it('matches hosts case-insensitively', () => {
+        expect(wwwRedirectTarget('WWW.OPENCOUNCIL.GR', '/athens', ''))
+            .toBe('https://opencouncil.gr/athens');
+    });
+
     it('leaves the apex domains alone', () => {
         expect(wwwRedirectTarget('opencouncil.gr', '/athens', '')).toBeNull();
     });
@@ -75,6 +80,9 @@ describe('foreignLocaleRedirectPath', () => {
 
     it('does not partial-match path segments starting with a locale', () => {
         expect(foreignLocaleRedirectPath('opencouncil.gr', '/france')).toBeNull();
+        // /el is the foreign prefix on the french host; a city id starting
+        // with the same letters must not be mistaken for it.
+        expect(foreignLocaleRedirectPath('opencouncil.fr', '/elefsina')).toBeNull();
     });
 
     it('applies on realm subdomains like preview hosts', () => {
