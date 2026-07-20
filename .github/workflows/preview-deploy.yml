@@ -18,6 +18,38 @@ env:
   CACHIX_CACHE_NAME: ${{ secrets.CACHIX_CACHE_NAME || 'opencouncil' }}
 
 jobs:
+  # Route the deploy through the right environment: PRs authored by users
+  # with write access deploy automatically via 'preview-auto', everyone
+  # else (forks, dependabot) goes through the reviewer-gated 'preview'.
+  gate:
+    name: Determine Deploy Environment
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.select.outputs.environment }}
+    steps:
+      - name: Check PR author permission
+        id: select
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const author = context.payload.pull_request.user.login;
+            let permission = 'none';
+            try {
+              const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                username: author,
+              });
+              permission = data.permission;
+            } catch (error) {
+              console.log(`Could not resolve permission for ${author}: ${error.message}`);
+            }
+
+            const trusted = ['admin', 'write'].includes(permission);
+            core.setOutput('environment', trusted ? 'preview-auto' : 'preview');
+            console.log(`Author ${author} has '${permission}' permission - `
+              + (trusted ? 'deploying automatically' : 'deploy requires approval'));
+
   # Pre-flight checks (fast, run before expensive nix build)
   preflight:
     name: Pre-flight Checks
@@ -79,8 +111,8 @@ jobs:
   deploy:
     name: Build and Deploy Preview
     runs-on: ubuntu-latest
-    needs: preflight
-    environment: preview
+    needs: [preflight, gate]
+    environment: ${{ needs.gate.outputs.environment }}
     steps:
       - name: Comment on PR (building)
         id: pr-comment
