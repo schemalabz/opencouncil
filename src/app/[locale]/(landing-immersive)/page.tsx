@@ -8,10 +8,7 @@ import { getListedCitiesCached, getMapCitiesCached } from '@/lib/db/cities';
 import { getUpcomingMeetingsCached } from '@/lib/db/meetings';
 import { DEFAULT_RANGE, rangeToSubjectFilters } from '@/lib/landing/landingCore';
 
-export async function generateMetadata(props: {
-    params: Promise<{ locale: string }>;
-}): Promise<Metadata> {
-    const { locale } = await props.params;
+export async function generateMetadata(): Promise<Metadata> {
     return {
         alternates: await buildCanonicalAlternates(''),
     };

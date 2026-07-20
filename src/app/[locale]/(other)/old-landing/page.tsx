@@ -5,17 +5,7 @@ import { fetchLatestSubstackPostCached, getAllCitiesMinimalCached, getCouncilMee
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getRealm } from "@/lib/realm.server";
 
-export async function generateMetadata(
-    props: {
-        params: Promise<{ locale: string }>
-    }
-): Promise<Metadata> {
-    const params = await props.params;
-
-    const {
-        locale
-    } = params;
-
+export async function generateMetadata(): Promise<Metadata> {
     return {
         alternates: await buildCanonicalAlternates('/old-landing'),
     };
