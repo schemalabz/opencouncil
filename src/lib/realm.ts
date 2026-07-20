@@ -13,6 +13,7 @@ import { Realm } from '@prisma/client';
 export const REALMS = {
     greece: { domain: 'opencouncil.gr', defaultLocale: 'el', country: 'gr' },
     france: { domain: 'opencouncil.fr', defaultLocale: 'fr', country: 'fr' },
+    cyprus: { domain: 'opencouncil.cy', defaultLocale: 'el', country: 'cy' },
 } as const satisfies Record<Realm, { domain: string; defaultLocale: 'el' | 'fr'; country: string }>;
 
 /**
@@ -23,6 +24,7 @@ export const REALMS = {
 const REALM_DEFAULT_MAP_VIEW: Record<Realm, { center: [number, number]; zoom: number }> = {
     greece: { center: [23.7275, 37.9838], zoom: 6 }, // Athens
     france: { center: [2.4, 46.6], zoom: 5 },        // metropolitan France
+    cyprus: { center: [33.2, 35.0], zoom: 8 },       // island of Cyprus
 };
 
 /**

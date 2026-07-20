@@ -13,10 +13,11 @@ import {
 
 // Country names shown in their own language (endonyms), matching the realm order
 // used elsewhere in the app.
-const REALM_ORDER: Realm[] = ["greece", "france"]
+const REALM_ORDER: Realm[] = ["greece", "france", "cyprus"]
 const COUNTRY_LABEL: Record<Realm, string> = {
     greece: "Ελλάδα",
     france: "France",
+    cyprus: "Κύπρος",
 }
 
 /**
