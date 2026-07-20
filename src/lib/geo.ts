@@ -232,3 +232,47 @@ export function haversineDistance(a: [number, number], b: [number, number]): num
     const h = sinDLat * sinDLat + Math.cos(a[1] * Math.PI / 180) * Math.cos(b[1] * Math.PI / 180) * sinDLng * sinDLng;
     return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
+
+/** Ray-casting test against one linear ring. Treats coordinates as planar, which is fine at a
+ *  municipality's scale. */
+function pointInRing([lng, lat]: [number, number], ring: GeoJSON.Position[]): boolean {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const [xi, yi] = ring[i];
+        const [xj, yj] = ring[j];
+        // Does the ring's edge straddle the ray's latitude, and lie to the right of the point?
+        if (yi > lat !== yj > lat && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+}
+
+/** A polygon's outer ring minus its holes. */
+function pointInPolygonRings(point: [number, number], rings: GeoJSON.Position[][]): boolean {
+    if (!rings.length || !pointInRing(point, rings[0])) return false;
+    return !rings.slice(1).some((hole) => pointInRing(point, hole));
+}
+
+/**
+ * Whether a [lng, lat] point falls inside a Polygon or MultiPolygon. The client-side counterpart
+ * of PostGIS's ST_Covers, for deciding containment against geometry already in the payload rather
+ * than paying a round trip. Any other geometry type is not an area, so nothing contains the point.
+ */
+export function isPointInGeometry(point: [number, number], geometry: GeoJSON.Geometry): boolean {
+    if (geometry.type === 'Polygon') return pointInPolygonRings(point, geometry.coordinates);
+    if (geometry.type === 'MultiPolygon') {
+        return geometry.coordinates.some((rings) => pointInPolygonRings(point, rings));
+    }
+    return false;
+}
+
+/**
+ * Whether a [lng, lat] centre falls inside any of the given δήμος boundaries — i.e. sits in a
+ * municipality OpenCouncil covers. Takes the geometries structurally (anything with a `geometry`)
+ * rather than a landing type, so this generic geo helper doesn't depend on the landing layer.
+ */
+export function isInSupportedMunicipality(
+    center: [number, number],
+    cities: { geometry: GeoJSON.Geometry | null }[],
+): boolean {
+    return cities.some((c) => c.geometry != null && isPointInGeometry(center, c.geometry));
+}
