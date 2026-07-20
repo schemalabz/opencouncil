@@ -1,7 +1,7 @@
 "use client"
 
 import { Link } from "@/i18n/routing"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import Logo from "./Logo"
 import CountrySwitcher from "./CountrySwitcher"
 import { Phone, Mail, ExternalLink } from "lucide-react"
@@ -17,6 +17,7 @@ interface FooterProps {
 
 export default function Footer({ className }: FooterProps = {}) {
     const t = useTranslations("Footer")
+    const locale = useLocale()
     return (
         <footer className={cn("w-full bg-muted border-t print:hidden", className)}>
             <div className="container mx-auto px-4 py-12">
@@ -50,6 +51,8 @@ export default function Footer({ className }: FooterProps = {}) {
                         <nav className="flex flex-col items-center md:items-start space-y-2">
                             {[
                                 { href: "/", label: t("linkHome") },
+                                // /explain is written in Greek, about Greek municipalities — only link it on the Greek locale
+                                ...(locale === "el" ? [{ href: "/explain", label: t("linkLearnMore") }] : []),
                                 { href: "/about", label: t("linkForMunicipalities") },
                                 { href: "/search", label: t("linkSearch") },
                                 { href: "/chat", label: "OpenCouncil AI" },
