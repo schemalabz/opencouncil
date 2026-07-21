@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { el } from "date-fns/locale";
 import { OpenCouncilWatermark } from "../shared-components";
 import type { PreviewSubject, PreviewData } from "./types";
-import { PRIMARY_PILL_FALLBACK, STORY_FONT_FAMILY, TopicIcon, uppercaseGreek } from "./shared";
+import { PRIMARY_PILL_FALLBACK, STORY_FONT_FAMILY, StoryTopicIcon, uppercaseGreek } from "./shared";
 
 // One subject rendered as a tilted, full-color sticker with letter circle, number, and name.
 const SubjectSticker = ({
@@ -44,7 +44,7 @@ const SubjectSticker = ({
                     flexShrink: 0,
                 }}
             >
-                <TopicIcon name={subject.topic?.icon} color="#FFFFFF" size={28} />
+                <StoryTopicIcon name={subject.topic?.icon} color="#FFFFFF" size={28} />
             </div>
             <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
                 {subject.agendaItemIndex && (
