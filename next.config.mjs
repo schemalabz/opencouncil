@@ -19,6 +19,12 @@ const withNextIntl = createNextIntlPlugin();
 const nextConfig = {
     reactStrictMode: false,
     output: 'standalone',
+    // ImageResponse loads @vercel/og via dynamic import, which file tracing
+    // misses — without this the standalone output (nix previews, Dockerfile)
+    // 500s on every OG image. Prod (buildpack, full node_modules) is unaffected.
+    outputFileTracingIncludes: {
+        '/api/og': ['./node_modules/next/dist/compiled/@vercel/og/**/*'],
+    },
     cacheHandler: process.env.NODE_ENV === 'production'
         ? new URL('./cache-handler.mjs', import.meta.url).pathname
         : undefined,
