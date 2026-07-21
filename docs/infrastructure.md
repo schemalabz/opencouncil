@@ -44,7 +44,7 @@ graph TB
 
     es["🔍 Elasticsearch"]
     spaces["☁️ DO Spaces + CDN<br/><i>data.opencouncil.gr</i>"]
-    external["🔌 External APIs<br/><i>Gladia · Pyannote · Claude · Mux<br/>Resend · Bird · Mapbox</i>"]
+    external["🔌 External APIs<br/><i>ElevenLabs · Pyannote · Claude · Mux<br/>Resend · Bird · Mapbox</i>"]
 
     B_prod -->|"DO App Platform<br/>(auto-deploy)"| app_prod
     B_main -->|"DO App Platform<br/>(auto-deploy)"| app_staging

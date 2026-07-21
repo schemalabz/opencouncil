@@ -196,7 +196,10 @@ export interface ProcessAgendaResult {
 
 /*
  * Transcript
- * see https://docs.gladia.io/api-reference/v2/transcription/get#response-result
+ * Shape produced by the opencouncil-tasks transcribe task (see Transcript in
+ * opencouncil-tasks src/types.ts). Historically derived from Gladia's v2
+ * response format; audio is now transcribed with ElevenLabs Scribe and
+ * converted to this shape.
  */
 
 export interface Transcript {
