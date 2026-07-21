@@ -29,6 +29,7 @@ import {
 import type { Offer } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { DownloadPdfButton } from "./download-pdf-button";
+import { DocumentsDropdown } from "./documents-dropdown";
 
 function OfferStatePill({ offer }: { offer: Offer }) {
     const state = getOfferState(offer);
@@ -271,6 +272,7 @@ function ActionBar({ offer }: { offer: Offer }) {
                 </a>
                 <div className="flex items-center gap-2">
                     <CopyLinkButton offer={offer} />
+                    <DocumentsDropdown offer={offer} />
                     <DownloadPdfButton offer={offer} />
                 </div>
             </div>
