@@ -12,6 +12,7 @@ import {
 } from "@/lib/pricing/config";
 import type { ExplainPricing } from "./ExplainFeatures";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
+import { getRealmBaseUrl } from "@/lib/realm";
 import { getRealm } from "@/lib/realm.server";
 import { ARTICLES, SECTIONS } from "@/lib/explain/articles";
 import { OPENCOUNCIL_SUBSECTIONS } from "@/lib/explain/subsections";
@@ -54,6 +55,8 @@ const SECTION_PARENTS: Record<string, string> = {
 };
 
 const PAGE_TITLE = "Η τοπική αυτοδιοίκηση, απλά";
+/** Shown in the visible breadcrumb nav and mirrored in the BreadcrumbList JSON-LD. */
+const BREADCRUMB_LABEL = "Σχετικά με την τοπική αυτοδιοίκηση";
 const PAGE_DESCRIPTION =
     "Πώς λειτουργούν οι δήμοι στην Ελλάδα — έσοδα, όργανα, συνεδριάσεις και αποφάσεις — και πώς το OpenCouncil τα κάνει κατανοητά, αναζητήσιμα και προσβάσιμα.";
 
@@ -61,6 +64,8 @@ export async function generateMetadata(props: {
     params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
     const { locale } = await props.params;
+
+    const ogImageUrl = "/api/og?pageType=explain";
 
     return {
         title: `${PAGE_TITLE} | OpenCouncil`,
@@ -82,11 +87,20 @@ export async function generateMetadata(props: {
             type: "article",
             siteName: "OpenCouncil",
             locale: locale === "en" ? "en_US" : "el_GR",
+            images: [
+                {
+                    url: ogImageUrl,
+                    width: 1200,
+                    height: 630,
+                    alt: PAGE_TITLE,
+                },
+            ],
         },
         twitter: {
             card: "summary_large_image",
             title: PAGE_TITLE,
             description: PAGE_DESCRIPTION,
+            images: [ogImageUrl],
         },
         alternates: await buildCanonicalAlternates("/explain"),
     };
@@ -110,15 +124,43 @@ export default async function ExplainPage() {
         // the priciest (open-ended) tier kicks in above the previous tier's ceiling
         topFrom: PLATFORM_PRICING_TIERS[PLATFORM_PRICING_TIERS.length - 2]?.maxPopulation ?? null,
     };
+    // Canonical, realm-scoped URL — the JSON-LD must reference the same URL the
+    // page canonicalizes to, so search engines tie the structured data to the
+    // indexed document (fragments are never separate index entries).
+    const baseUrl = getRealmBaseUrl(realm);
+    const pageUrl = `${baseUrl}/explain`;
+    const organization = {
+        "@type": "Organization",
+        name: "OpenCouncil",
+        url: baseUrl,
+        logo: { "@type": "ImageObject", url: `${baseUrl}/logo.png` },
+    };
     const structuredData = {
         "@context": "https://schema.org",
-        "@type": "Article",
-        headline: PAGE_TITLE,
-        description: PAGE_DESCRIPTION,
-        about: "Τοπική αυτοδιοίκηση",
-        inLanguage: "el",
-        author: { "@type": "Organization", name: "OpenCouncil" },
-        publisher: { "@type": "Organization", name: "OpenCouncil" },
+        "@graph": [
+            {
+                "@type": "Article",
+                "@id": `${pageUrl}#article`,
+                mainEntityOfPage: pageUrl,
+                url: pageUrl,
+                headline: PAGE_TITLE,
+                description: PAGE_DESCRIPTION,
+                image: `${baseUrl}/api/og?pageType=explain`,
+                about: "Τοπική αυτοδιοίκηση",
+                inLanguage: "el",
+                author: organization,
+                publisher: organization,
+            },
+            // Mirrors the visual breadcrumb so results can show the site hierarchy.
+            {
+                "@type": "BreadcrumbList",
+                "@id": `${pageUrl}#breadcrumb`,
+                itemListElement: [
+                    { "@type": "ListItem", position: 1, name: "Αρχική", item: baseUrl },
+                    { "@type": "ListItem", position: 2, name: BREADCRUMB_LABEL, item: pageUrl },
+                ],
+            },
+        ],
     };
 
     return (
@@ -134,7 +176,7 @@ export default async function ExplainPage() {
                     Αρχική
                 </Link>
                 <span className="text-border">/</span>
-                <span>Σχετικά με την τοπική αυτοδιοίκηση</span>
+                <span>{BREADCRUMB_LABEL}</span>
             </nav>
 
             {/* title + description */}

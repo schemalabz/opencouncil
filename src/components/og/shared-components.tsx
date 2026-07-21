@@ -287,6 +287,110 @@ export const SubjectPills = ({
     );
 };
 
+// Dark 1200x630 hero scaffold shared by the marketing-page OG images
+// (about, explain): wordmark top-left, two-line headline with an orange accent
+// line, an optional middle band (stat pills and/or subtitle), and a row of
+// orange tags along the bottom.
+interface DarkHeroOGImageProps {
+    /** Headline as two pre-split lines (white, then orange) to avoid flexWrap. */
+    headline: [string, string];
+    /** Neutral stat pills under the headline, e.g. "10 δήμοι". */
+    statPills?: string[];
+    /** One-sentence subtitle under the headline. */
+    subtitle?: string;
+    /** Orange tags along the bottom edge. */
+    tags: string[];
+}
+
+const darkHeroHeadlineStyle = {
+    fontSize: "56px",
+    lineHeight: 1.15,
+    letterSpacing: "-0.02em",
+};
+
+export const DarkHeroOGImage = ({ headline, statPills, subtitle, tags }: DarkHeroOGImageProps) => (
+    <div
+        style={{
+            width: "1200px",
+            height: "630px",
+            display: "flex",
+            flexDirection: "column",
+            backgroundColor: "#0a0a0a",
+            padding: "60px 72px",
+        }}
+    >
+        {/* Logo / wordmark top-left */}
+        <div style={{ display: "flex", alignItems: "center", marginBottom: "56px" }}>
+            <div style={{ fontSize: "22px", fontWeight: "600", color: "#ffffff" }}>OpenCouncil</div>
+        </div>
+
+        {/* Main content */}
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, justifyContent: "center", gap: "32px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                <div style={{ ...darkHeroHeadlineStyle, fontWeight: "300", color: "#ffffff" }}>{headline[0]}</div>
+                <div style={{ ...darkHeroHeadlineStyle, fontWeight: "500", color: "#f97316" }}>{headline[1]}</div>
+            </div>
+
+            {statPills && (
+                <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
+                    {statPills.map((label) => (
+                        <div
+                            key={label}
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                backgroundColor: "rgba(255,255,255,0.07)",
+                                border: "1px solid rgba(255,255,255,0.12)",
+                                borderRadius: "100px",
+                                padding: "8px 20px",
+                                fontSize: "20px",
+                                color: "rgba(255,255,255,0.75)",
+                            }}
+                        >
+                            {label}
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {subtitle && (
+                <div
+                    style={{
+                        fontSize: "24px",
+                        color: "rgba(255,255,255,0.75)",
+                        lineHeight: 1.4,
+                        maxWidth: "900px",
+                    }}
+                >
+                    {subtitle}
+                </div>
+            )}
+        </div>
+
+        {/* Tags bottom */}
+        <div style={{ display: "flex", gap: "12px", marginTop: "40px" }}>
+            {tags.map((tag) => (
+                <div
+                    key={tag}
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        backgroundColor: "rgba(249,115,22,0.12)",
+                        border: "1px solid rgba(249,115,22,0.3)",
+                        borderRadius: "6px",
+                        padding: "6px 14px",
+                        fontSize: "16px",
+                        color: "#f97316",
+                        fontWeight: "500",
+                    }}
+                >
+                    {tag}
+                </div>
+            ))}
+        </div>
+    </div>
+);
+
 // Shared OG Header component
 interface OgHeaderProps {
     city: {
