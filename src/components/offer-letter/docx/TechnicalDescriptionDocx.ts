@@ -29,7 +29,6 @@ import {
     Table,
     TableCell,
     TableRow,
-    TableOfContents,
     TextRun,
     VerticalAlign,
     WidthType,
@@ -279,6 +278,11 @@ export function buildTechnicalDescriptionDoc(offer: Offer): Document {
         }),
         new Paragraph({
             alignment: AlignmentType.CENTER,
+            spacing: { after: 240 },
+            children: [new TextRun({ text: `CPV: ${cpv}`, size: SIZE.COVER_SUB })],
+        }),
+        new Paragraph({
+            alignment: AlignmentType.CENTER,
             spacing: { after: 720 },
             children: [
                 new TextRun({
@@ -287,21 +291,6 @@ export function buildTechnicalDescriptionDoc(offer: Offer): Document {
                     bold: true,
                 }),
             ],
-        }),
-        // Intentionally-literal fields, completed by hand before sending.
-        body(`[ΠΡΟΣ: ${offer.recipientName}]`),
-        body("[Πληροφορίες δήμου: ____________]"),
-        body("[Αρμόδιος υπάλληλος: ____________]"),
-        body(`[CPV: ${cpv}]`),
-        body("[Α.Μ.: ____________]"),
-        new Paragraph({ children: [new PageBreak()] }),
-    ];
-
-    // ── Table of contents ────────────────────────────────────────────────
-    const toc = [
-        new TableOfContents("Πίνακας Περιεχομένων", {
-            hyperlink: true,
-            headingStyleRange: "1-3",
         }),
         new Paragraph({ children: [new PageBreak()] }),
     ];
@@ -549,7 +538,6 @@ export function buildTechnicalDescriptionDoc(offer: Offer): Document {
     return new Document({
         creator: "OpenCouncil",
         title: `Τεχνική Περιγραφή — ${offer.recipientName}`,
-        features: { updateFields: true },
         numbering: {
             config: [
                 {
@@ -586,7 +574,6 @@ export function buildTechnicalDescriptionDoc(offer: Offer): Document {
                 properties: {},
                 children: [
                     ...cover,
-                    ...toc,
                     ...intro,
                     ...livestream,
                     ...equipment,
