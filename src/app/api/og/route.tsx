@@ -12,7 +12,7 @@ import { getPartiesForCity } from '@/lib/db/parties';
 import { getPeopleForCity, getPerson } from '@/lib/db/people';
 import { getInitials } from '@/lib/formatters/name';
 import { sortSubjectsByImportance } from '@/lib/utils';
-import { Container, MeetingMetaRow, OgHeader, SubjectPills, formatCityDisplayName } from '@/components/og/shared-components';
+import { Container, DarkHeroOGImage, MeetingMetaRow, OgHeader, SubjectPills, formatCityDisplayName } from '@/components/og/shared-components';
 import { tryAcquireOgSlot, getOgConcurrencyStats } from '@/lib/og/concurrency';
 import { LOGO_BLACK_DATA_URI } from '@/lib/og/serverAssets';
 import SubjectOgImage from '@/app/[locale]/(city)/[cityId]/(meetings)/[meetingId]/subjects/[subjectId]/opengraph-image';
@@ -717,169 +717,22 @@ const PeopleOGImage = async (cityId: string) => {
 };
 
 // About Page OG Image
-const AboutOGImage = () => {
-    return (
-        <div style={{
-            width: '1200px',
-            height: '630px',
-            display: 'flex',
-            flexDirection: 'column',
-            backgroundColor: '#0a0a0a',
-            padding: '60px 72px',
-        }}>
-            {/* Logo / wordmark top-left */}
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '56px' }}>
-                <div style={{
-                    fontSize: '22px',
-                    fontWeight: '600',
-                    color: '#ffffff',
-                }}>
-                    OpenCouncil
-                </div>
-            </div>
-
-            {/* Main content */}
-            <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center', gap: '32px' }}>
-                {/* Headline — two lines to avoid flexWrap */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{
-                        fontSize: '56px',
-                        fontWeight: '300',
-                        color: '#ffffff',
-                        lineHeight: 1.15,
-                        letterSpacing: '-0.02em',
-                    }}>
-                        Το λειτουργικό σύστημα
-                    </div>
-                    <div style={{
-                        fontSize: '56px',
-                        fontWeight: '500',
-                        color: '#f97316',
-                        lineHeight: 1.15,
-                        letterSpacing: '-0.02em',
-                    }}>
-                        των συλλογικών οργάνων
-                    </div>
-                </div>
-
-                {/* Stat pills */}
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                    {['10 δήμοι', '5.000+ θέματα', '400+ ώρες συνεδριάσεων'].map((label) => (
-                        <div key={label} style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            backgroundColor: 'rgba(255,255,255,0.07)',
-                            border: '1px solid rgba(255,255,255,0.12)',
-                            borderRadius: '100px',
-                            padding: '8px 20px',
-                            fontSize: '20px',
-                            color: 'rgba(255,255,255,0.75)',
-                        }}>
-                            {label}
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Feature tags bottom */}
-            <div style={{ display: 'flex', gap: '12px', marginTop: '40px' }}>
-                {['Απομαγνητοφωνήσεις', 'Πρακτικά', 'Ειδοποιήσεις δημοτών', 'Χάρτης θεμάτων'].map((tag) => (
-                    <div key={tag} style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        backgroundColor: 'rgba(249,115,22,0.12)',
-                        border: '1px solid rgba(249,115,22,0.3)',
-                        borderRadius: '6px',
-                        padding: '6px 14px',
-                        fontSize: '16px',
-                        color: '#f97316',
-                        fontWeight: '500',
-                    }}>
-                        {tag}
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-};
+const AboutOGImage = () => (
+    <DarkHeroOGImage
+        headline={['Το λειτουργικό σύστημα', 'των συλλογικών οργάνων']}
+        statPills={['10 δήμοι', '5.000+ θέματα', '400+ ώρες συνεδριάσεων']}
+        tags={['Απομαγνητοφωνήσεις', 'Πρακτικά', 'Ειδοποιήσεις δημοτών', 'Χάρτης θεμάτων']}
+    />
+);
 
 // Explain Page OG Image (/explain — "Η τοπική αυτοδιοίκηση, απλά")
-const ExplainOGImage = () => {
-    return (
-        <div style={{
-            width: '1200px',
-            height: '630px',
-            display: 'flex',
-            flexDirection: 'column',
-            backgroundColor: '#0a0a0a',
-            padding: '60px 72px',
-        }}>
-            {/* Logo / wordmark top-left */}
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '56px' }}>
-                <div style={{
-                    fontSize: '22px',
-                    fontWeight: '600',
-                    color: '#ffffff',
-                }}>
-                    OpenCouncil
-                </div>
-            </div>
-
-            {/* Main content */}
-            <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center', gap: '32px' }}>
-                {/* Headline — two lines to avoid flexWrap */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{
-                        fontSize: '56px',
-                        fontWeight: '300',
-                        color: '#ffffff',
-                        lineHeight: 1.15,
-                        letterSpacing: '-0.02em',
-                    }}>
-                        Η τοπική αυτοδιοίκηση,
-                    </div>
-                    <div style={{
-                        fontSize: '56px',
-                        fontWeight: '500',
-                        color: '#f97316',
-                        lineHeight: 1.15,
-                        letterSpacing: '-0.02em',
-                    }}>
-                        απλά
-                    </div>
-                </div>
-
-                <div style={{
-                    fontSize: '24px',
-                    color: 'rgba(255,255,255,0.75)',
-                    lineHeight: 1.4,
-                    maxWidth: '900px',
-                }}>
-                    Πώς λειτουργούν οι δήμοι στην Ελλάδα — και πώς το OpenCouncil τους κάνει κατανοητούς
-                </div>
-            </div>
-
-            {/* Section tags bottom */}
-            <div style={{ display: 'flex', gap: '12px', marginTop: '40px' }}>
-                {['Έσοδα των δήμων', 'Όργανα & συνεδριάσεις', 'Αποφάσεις', 'Πώς δουλεύει το OpenCouncil'].map((tag) => (
-                    <div key={tag} style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        backgroundColor: 'rgba(249,115,22,0.12)',
-                        border: '1px solid rgba(249,115,22,0.3)',
-                        borderRadius: '6px',
-                        padding: '6px 14px',
-                        fontSize: '16px',
-                        color: '#f97316',
-                        fontWeight: '500',
-                    }}>
-                        {tag}
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-};
+const ExplainOGImage = () => (
+    <DarkHeroOGImage
+        headline={['Η τοπική αυτοδιοίκηση,', 'απλά']}
+        subtitle="Πώς λειτουργούν οι δήμοι στην Ελλάδα — και πώς το OpenCouncil τους κάνει κατανοητούς"
+        tags={['Έσοδα των δήμων', 'Όργανα & συνεδριάσεις', 'Αποφάσεις', 'Πώς δουλεύει το OpenCouncil']}
+    />
+);
 
 // Search Page OG Image
 const SearchOGImage = () => {
