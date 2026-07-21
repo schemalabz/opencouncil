@@ -6,6 +6,8 @@ import prisma from "../db/prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { buildUnknownSpeakerLabel } from "../utils";
 import { requestTranscribeInternal, deleteExistingSpeakerData } from "./transcribeInternal";
+import { requestFixTranscript } from "./fixTranscript";
+import { sendTaskAdminAlert } from "../discord";
 
 /**
  * Public entry point for transcription. Authorizes the caller, then delegates to
@@ -31,6 +33,11 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
         include: {
             councilMeeting: {
                 include: {
+                    city: {
+                        select: {
+                            name_en: true
+                        }
+                    },
                     speakerSegments: {
                         select: {
                             id: true
@@ -210,6 +217,31 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
     });
 
     console.log(`Transaction completed successfully`);
+
+    // Auto-chain the next pipeline step: a fresh transcript always needs fixing.
+    // force bypasses the already-succeeded idempotency guard on re-transcribes,
+    // where the prior fixTranscript applies to utterances that no longer exist.
+    // Guarded so a trigger failure never fails the transcribe import itself —
+    // an uncaught throw here would mark the transcribe task as failed.
+    try {
+        await requestFixTranscript(task.councilMeetingId, task.cityId, { force: true });
+        console.log(`Auto-triggered fixTranscript for ${task.cityId}/${task.councilMeetingId}`);
+    } catch (error) {
+        console.error(`Failed to auto-trigger fixTranscript for ${task.cityId}/${task.councilMeetingId}:`, error);
+        // Nothing may escape this catch — a throw here would fail the succeeded
+        // transcribe import. The alert's taskId is the transcribe task's: the
+        // fixTranscript task may not have been created at all.
+        await sendTaskAdminAlert({
+            status: 'failed',
+            taskType: 'fixTranscript',
+            cityName: task.councilMeeting.city.name_en,
+            meetingName: task.councilMeeting.name_en,
+            taskId,
+            cityId: task.cityId,
+            meetingId: task.councilMeetingId,
+            error: `Failed to auto-trigger after successful transcribe (task ID is the transcribe task's): ${error instanceof Error ? error.message : String(error)}`,
+        }).catch((alertError) => console.error('Failed to send auto-trigger failure alert:', alertError));
+    }
 }
 
 let getSpeakerSegmentsFromUtterances = (utterances: ApiUtterance[]): SpeakerSegment[] => {
