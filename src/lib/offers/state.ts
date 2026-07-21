@@ -53,24 +53,19 @@ export function getSupersedingSignedOffer(
 }
 
 /**
- * A pending offer is superseded (dead) when a *signed* offer for the same
- * city covers an overlapping period. Only pending offers for a period no
- * signed offer covers are live proposals (e.g. renewals).
- */
-export function isSupersededPending(offer: Offer, cityOffers: Offer[]): boolean {
-    return getSupersedingSignedOffer(offer, cityOffers) !== null;
-}
-
-/**
- * The offer that supersedes this one for redirect purposes, if any.
- * Signed offers are permanent records and are never superseded. A pending
- * offer is superseded by, in order of precedence:
+ * The offer that supersedes this one, if any. Signed offers are permanent
+ * records and are never superseded. A pending offer is superseded by, in
+ * order of precedence:
  *   1. a signed offer covering an overlapping period (the negotiation for
  *      that period is over), or
  *   2. a newer pending offer covering an overlapping period (draft
  *      iteration for the same term).
  * Pending offers for non-overlapping periods (e.g. a renewal for a future
  * term vs. a draft for the current one) never supersede each other.
+ *
+ * This single definition drives the public offer-letter redirect, the admin
+ * "Superseded" badges, the renewal chips, and the pipeline stat — keep them
+ * consistent by never special-casing one of them.
  */
 export function getSupersedingOffer(offer: Offer, cityOffers: Offer[]): Offer | null {
     if (isSigned(offer)) return null;
@@ -86,6 +81,11 @@ export function getSupersedingOffer(offer: Offer, cityOffers: Offer[]): Offer | 
         )
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     return newerPendingOverlapping[0] ?? null;
+}
+
+/** A pending offer is superseded (dead) when any superseder exists. */
+export function isSupersededPending(offer: Offer, cityOffers: Offer[]): boolean {
+    return getSupersedingOffer(offer, cityOffers) !== null;
 }
 
 /** Display state: pending offers overlapped by a signed sibling show as superseded. */
