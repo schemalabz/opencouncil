@@ -13,8 +13,6 @@
     "columnMeetings": "Séances",
     "columnPeople": "Personnes",
     "columnParties": "Groupes",
-    "realmGreece": "Grèce",
-    "realmFrance": "France",
     "languageGreek": "Grec",
     "languageFrench": "Français",
     "cityCount": "{count, plural, one {# commune} other {# communes}}"

@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/select";
 import { useEffect, useState } from "react";
 import { Realm, Topic } from "@prisma/client";
+import { useLocale } from "next-intl";
+import { ALL_REALMS, getRealmDisplayName } from "@/lib/realm";
 import { toast } from "@/hooks/use-toast";
 import { IconInput, isValidIconName } from "@/components/admin/icon-input";
 import { Sparkles } from "lucide-react";
@@ -37,12 +39,13 @@ interface TopicDialogProps {
     onSaved: () => void;
 }
 const NONE_ICON = "__none__";
-const REALM_OPTIONS: Realm[] = ["greece", "france"];
-const realmLabel = (realm: Realm) => (realm === "france" ? "France" : "Greece");
 
 export function TopicDialog({ open, onOpenChange, topic, defaultRealm, existingColors, onSaved }: TopicDialogProps) {
     const isEditing = !!topic;
+    const locale = useLocale();
     const [loading, setLoading] = useState(false);
+
+    const realmLabel = (realm: Realm) => getRealmDisplayName(realm, locale);
 
     const [name, setName] = useState("");
     const [nameEn, setNameEn] = useState("");
@@ -243,7 +246,7 @@ export function TopicDialog({ open, onOpenChange, topic, defaultRealm, existingC
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                {REALM_OPTIONS.map((r) => (
+                                {ALL_REALMS.map((r) => (
                                     <SelectItem key={r} value={r}>
                                         {realmLabel(r)}
                                     </SelectItem>

@@ -13,8 +13,6 @@
     "columnMeetings": "Meetings",
     "columnPeople": "People",
     "columnParties": "Parties",
-    "realmGreece": "Greece",
-    "realmFrance": "France",
     "languageGreek": "Greek",
     "languageFrench": "French",
     "cityCount": "{count, plural, one {# city} other {# cities}}"

@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { City, CityStatus, Realm } from "@prisma/client";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { ALL_REALMS, getRealmDisplayName } from "@/lib/realm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     Table,
@@ -24,9 +25,6 @@ interface CitiesAdminTableProps {
     cities: CityRow[];
 }
 
-// Render strata in a stable, meaningful order.
-const REALM_ORDER: Realm[] = ["greece", "france"];
-
 const STATUS_VARIANT: Record<CityStatus, "default" | "secondary" | "outline"> = {
     listed: "default",
     unlisted: "secondary",
@@ -35,6 +33,7 @@ const STATUS_VARIANT: Record<CityStatus, "default" | "secondary" | "outline"> = 
 
 export function CitiesAdminTable({ cities }: CitiesAdminTableProps) {
     const t = useTranslations("admin.cities");
+    const locale = useLocale();
     const [searchTerm, setSearchTerm] = useState("");
 
     const filteredCities = useMemo(() => {
@@ -49,14 +48,13 @@ export function CitiesAdminTable({ cities }: CitiesAdminTableProps) {
     }, [cities, searchTerm]);
 
     const groupedByRealm = useMemo(() => {
-        // Realm is a closed enum, so iterate it in fixed order and drop empty groups.
-        return REALM_ORDER
+        // Iterate every realm in config order and drop empty groups.
+        return ALL_REALMS
             .map((realm) => ({ realm, cities: filteredCities.filter((c) => c.realm === realm) }))
             .filter((group) => group.cities.length > 0);
     }, [filteredCities]);
 
-    const realmLabel = (realm: Realm) =>
-        realm === "france" ? t("realmFrance") : t("realmGreece");
+    const realmLabel = (realm: Realm) => getRealmDisplayName(realm, locale);
     const languageLabel = (language: City["language"]) =>
         language === "fr" ? t("languageFrench") : t("languageGreek");
 

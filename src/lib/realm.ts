@@ -21,6 +21,23 @@ export const REALMS = {
 } as const satisfies Record<Realm, { domain: string; defaultLocale: 'el' | 'fr'; country: string }>;
 
 /**
+ * All realms in `REALMS` declaration order, for UIs that enumerate realms
+ * (admin tables, selects). Derive such lists from here — a hardcoded subset
+ * silently drops rows for realms it doesn't know about.
+ */
+export const ALL_REALMS = Object.keys(REALMS) as Realm[];
+
+/**
+ * Localized display name of a realm's country (e.g. "Ελλάδα" in el, "Grèce"
+ * in fr), derived via `Intl.DisplayNames` from the country code already in
+ * `REALMS` — no per-realm labels or translation keys to maintain anywhere.
+ */
+export function getRealmDisplayName(realm: Realm, locale: string): string {
+    const country = REALMS[realm].country.toUpperCase();
+    return new Intl.DisplayNames([locale], { type: 'region' }).of(country) ?? country;
+}
+
+/**
  * Fallback map view (center `[lng, lat]` + zoom) for a realm, used when a city has
  * no stored geometry so the map still opens over the right country rather than
  * defaulting to Greece. A city with geometry always overrides this.

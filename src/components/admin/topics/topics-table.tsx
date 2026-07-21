@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Realm } from "@prisma/client";
+import { useLocale } from "next-intl";
+import { ALL_REALMS, getRealmDisplayName } from "@/lib/realm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -40,20 +42,19 @@ interface TopicsTableProps {
     defaultRealm: Realm;
 }
 
-// Render realms in a stable, meaningful order (mirrors the cities admin).
-const REALM_ORDER: Realm[] = ["greece", "france"];
-const realmLabel = (realm: Realm) => (realm === "france" ? "France" : "Greece");
-
 export function TopicsTable({ initialTopics: topics, defaultRealm }: TopicsTableProps) {
     const router = useRouter();
+    const locale = useLocale();
     const [dialogOpen, setDialogOpen] = useState(false);
     const [selectedTopic, setSelectedTopic] = useState<TopicWithSubjectCount | undefined>();
     const [topicToDelete, setTopicToDelete] = useState<TopicWithSubjectCount | null>(null);
     const [deleting, setDeleting] = useState(false);
 
+    const realmLabel = (realm: Realm) => getRealmDisplayName(realm, locale);
+
     const groupedByRealm = useMemo(() => {
-        // Realm is a closed enum, so iterate it in fixed order and drop empty groups.
-        return REALM_ORDER
+        // Iterate every realm in config order and drop empty groups.
+        return ALL_REALMS
             .map((realm) => ({ realm, topics: topics.filter((t) => t.realm === realm) }))
             .filter((group) => group.topics.length > 0);
     }, [topics]);

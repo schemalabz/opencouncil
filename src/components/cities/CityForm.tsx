@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { cityFormSchema, CITY_DEFAULTS } from "@/lib/zod-schemas/city"
+import { ALL_REALMS, getRealmDisplayName } from "@/lib/realm"
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -24,7 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Switch } from "@/components/ui/switch"
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import InputWithDerivatives from '@/components/InputWithDerivatives'
 // @ts-ignore
@@ -54,6 +55,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
     const [isDetailsOpen, setIsDetailsOpen] = useState(false)
     const [timezones, setTimezones] = useState<string[]>([])
     const t = useTranslations('CityForm')
+    const locale = useLocale()
     const [administrativeBodies, setAdministrativeBodies] = useState<Array<{
         id: string;
         name: string;
@@ -596,8 +598,9 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value="greece">{t('realmGreece')}</SelectItem>
-                                                <SelectItem value="france">{t('realmFrance')}</SelectItem>
+                                                {ALL_REALMS.map((realm) => (
+                                                    <SelectItem key={realm} value={realm}>{getRealmDisplayName(realm, locale)}</SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                         <FormDescription>

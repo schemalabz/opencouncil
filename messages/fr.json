@@ -166,8 +166,6 @@
         "realm": "Groupe (realm)",
         "selectRealm": "Sélectionnez le groupe",
         "realmDescription": "Le groupe/locataire auquel appartient cette commune.",
-        "realmGreece": "Grèce",
-        "realmFrance": "France",
         "language": "Langue",
         "selectLanguage": "Sélectionnez la langue",
         "languageDescription": "La langue de contenu de cette commune (métadonnée uniquement ; ne change pas la langue de l'interface).",
