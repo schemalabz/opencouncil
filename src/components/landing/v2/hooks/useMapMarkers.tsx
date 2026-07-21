@@ -178,9 +178,9 @@ export function useSubjectMarkers({
     mapInstance,
     active,
     visibleSubjects,
+    dots,
     selectedId,
     previewId,
-    isMobile,
     onSelect,
     onClearSelection,
     suppressViewCaptureRef,
@@ -191,11 +191,11 @@ export function useSubjectMarkers({
     /** gates the whole layer — off while the zoomed-out δήμος donuts have the map */
     active: boolean;
     visibleSubjects: LandingSubject[];
+    /** viewport is crowded → draw dots instead of icon badges (see SUBJECT_DOT_THRESHOLD) */
+    dots: boolean;
     selectedId: string | null;
     /** the mobile strip's previewed subject — its pin gets the intense filled style */
     previewId: string | null;
-    /** mobile: the selected pin uses the same intense style as the preview */
-    isMobile: boolean;
     onSelect: (id: string) => void;
     onClearSelection: () => void;
     suppressViewCaptureRef: MutableRefObject<boolean>;
@@ -207,8 +207,6 @@ export function useSubjectMarkers({
     selectedIdRef.current = selectedId;
     const previewIdRef = useRef(previewId);
     previewIdRef.current = previewId;
-    const isMobileRef = useRef(isMobile);
-    isMobileRef.current = isMobile;
     const onSelectRef = useRef(onSelect);
     onSelectRef.current = onSelect;
     const onClearSelectionRef = useRef(onClearSelection);
@@ -249,7 +247,7 @@ export function useSubjectMarkers({
         const pins = buildSubjectPins(mapInstance, groupByLocation(visibleSubjects), {
             selectedId: selectedIdRef.current,
             previewId: previewIdRef.current,
-            isMobile: isMobileRef.current,
+            dot: dots,
             onSelect: (id) => onSelectRef.current(id),
             onOpenCoLocated: openCoLocated,
             t: tRef.current,
@@ -264,18 +262,19 @@ export function useSubjectMarkers({
             });
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mapInstance, visibleSubjects, active]);
+    }, [mapInstance, visibleSubjects, dots, active]);
 
-    // Selection / strip-preview restyle the existing subject markers in place (no rebuild). On mobile
-    // both the previewed and the selected pin get the intense filled style.
+    // Selection / strip-preview restyle the existing subject markers in place (no rebuild). The
+    // selected pin and the mobile strip's previewed pin both get the intense filled style (previewId
+    // is only ever set on mobile, so this reads the same on both viewports).
     useEffect(() => {
         pinsRef.current.forEach((pin) => {
             if (!pin.subject) return;
             const selected = pin.subject.id === selectedId;
             const intense = selected || pin.subject.id === previewId;
-            stylePin(pin, pin.subject, selected, intense);
+            stylePin(pin, pin.subject, selected, intense, pin.dot);
         });
-    }, [selectedId, previewId, isMobile]);
+    }, [selectedId, previewId]);
 }
 
 /**

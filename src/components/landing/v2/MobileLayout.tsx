@@ -17,6 +17,7 @@ import { CoLocatedBox, GeneralSubjectsBox } from './mapMarkers';
 import { MobileHeader } from './MobileHeader';
 import { InfoPanel } from './InfoPanel';
 import { PetitionCta } from './MunicipalitiesList';
+import { topicStyle } from '@/lib/topicStyle';
 
 /* ============================ MOBILE LAYOUT ============================ */
 export function MobileLayout({
@@ -519,6 +520,7 @@ function MuniStat({ label, value }: { label: string; value: number }) {
 function StripCard({ subject, active, onClick }: { subject: LandingSubject; active: boolean; onClick: () => void }) {
     const t = useTranslations('landingV2');
     const locationLine = subjectLocationLine(subject);
+    const topicBar = topicStyle(subject.topic.color);
     return (
         <button
             type="button"
@@ -534,9 +536,9 @@ function StripCard({ subject, active, onClick }: { subject: LandingSubject; acti
             {/* full-width category bar */}
             <div
                 className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold"
-                style={{ backgroundColor: `${subject.topic.color}14`, color: subject.topic.color }}
+                style={{ backgroundColor: topicBar.background, color: topicBar.icon }}
             >
-                <Icon name={subject.topic.icon || 'hash'} color={subject.topic.color} size={12} />
+                <Icon name={subject.topic.icon || 'hash'} color={topicBar.icon} size={12} />
                 <span className="min-w-0 truncate">{subject.topic.name}</span>
                 {/* previewed card: a right chevron hints "tap again to open" */}
                 {active && <ChevronRight className="ml-auto h-5 w-5 shrink-0 text-muted-foreground" />}
@@ -592,6 +594,7 @@ function MobileSubjectExpanded({
 }) {
     const t = useTranslations('landingV2');
     const locationLine = subjectLocationLine(subject);
+    const topicBar = topicStyle(subject.topic.color);
     return (
         <div
             className="absolute inset-x-3 bottom-[10px] z-[9] flex max-h-[68dvh] animate-in flex-col overflow-hidden rounded-2xl border-2 bg-card shadow-xl duration-300 fade-in slide-in-from-bottom-4"
@@ -600,7 +603,7 @@ function MobileSubjectExpanded({
             {/* full-width category bar: back · category */}
             <div
                 className="flex shrink-0 items-center gap-2 border-b border-border px-2 py-2 text-xs font-bold"
-                style={{ backgroundColor: `${subject.topic.color}12` }}
+                style={{ backgroundColor: topicBar.background, color: topicBar.icon }}
             >
                 <button
                     type="button"
@@ -610,10 +613,8 @@ function MobileSubjectExpanded({
                 >
                     <ChevronLeft className="h-5 w-5" />
                 </button>
-                <Icon name={subject.topic.icon || 'hash'} color={subject.topic.color} size={16} />
-                <span className="min-w-0 flex-1 truncate" style={{ color: subject.topic.color }}>
-                    {subject.topic.name}
-                </span>
+                <Icon name={subject.topic.icon || 'hash'} color={topicBar.icon} size={16} />
+                <span className="min-w-0 flex-1 truncate">{subject.topic.name}</span>
                 <button
                     type="button"
                     onClick={onDismiss}

@@ -57,7 +57,7 @@ const TOPIC_ICONS: Record<string, LucideIcon> = {
     "wallet": Wallet,
 };
 
-export function TopicIcon({
+export function StoryTopicIcon({
     name,
     color,
     size,
@@ -130,7 +130,7 @@ export const SubjectRow = ({ subject, palette }: PillProps) => {
                     flexShrink: 0,
                 }}
             >
-                <TopicIcon name={subject.topic?.icon} color="#FFFFFF" size={28} />
+                <StoryTopicIcon name={subject.topic?.icon} color="#FFFFFF" size={28} />
             </div>
             <span
                 style={{

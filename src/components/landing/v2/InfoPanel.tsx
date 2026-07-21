@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { captureLandingAction } from '@/lib/landing/analytics';
+import { topicStyle } from '@/lib/topicStyle';
 
 const PIN_BLUE = '#2A6FDB';
 const SAMPLE_COLOR = '#16a34a'; // green — the sample "Καθαριότητα" topic (pin + preview card)
@@ -107,13 +108,16 @@ function LegendRow({ glyph, title, body }: { glyph: ReactNode; title: string; bo
 /* Replica of the real topic pin (createSubjectPin / stylePin): a tinted circle with the topic
    icon; `extra` adds the orange "+N" badge of a co-located group. */
 function TopicPin({ color, extra }: { color: string; extra?: number }) {
+    // Draw from topicStyle so the legend stays honest with the real pin (createSubjectPin / stylePin):
+    // same wash, same ring, same darkened icon — not a hand-tuned copy that drifts when the pin changes.
+    const s = topicStyle(color, 'soft');
     return (
         <span className="relative inline-flex shrink-0">
             <span
                 className="flex h-8 w-8 items-center justify-center rounded-full shadow-md"
-                style={{ backgroundColor: `color-mix(in srgb, ${color} 12%, white)`, border: `1.5px solid ${color}` }}
+                style={{ backgroundColor: s.background, border: `1.5px solid ${s.border}` }}
             >
-                <Trash2 color={color} size={15} />
+                <Trash2 color={s.icon} size={15} />
             </span>
             {extra != null && (
                 <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full border border-white bg-[hsl(var(--orange))] px-1 text-[10px] font-bold leading-none text-white shadow">

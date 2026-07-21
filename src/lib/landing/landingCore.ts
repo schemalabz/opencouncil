@@ -3,6 +3,7 @@ import type mapboxgl from 'mapbox-gl';
 import type { Topic } from '@prisma/client';
 import { cn } from '@/lib/utils';
 import { calculateGeometryBounds } from '@/lib/geo';
+import { topicStyle } from '@/lib/topicStyle';
 import type {
     LandingListCity,
     LandingSubject,
@@ -112,6 +113,13 @@ export function hasActiveFilters(f: MapFilters): boolean {
  */
 export const CENTER_QUERY_MOVE_RATIO = 0.2;
 
+/**
+ * Subjects in view at or above which pins drop to plain topic-coloured dots. Fewer than this and the
+ * map keeps the icon badges; past it the icons are touching anyway, so the badge shape stops
+ * carrying information and only costs legibility (and a React root each) — the colour still reads.
+ */
+export const SUBJECT_DOT_THRESHOLD = 150;
+
 /** An HTML map marker handle: a subject icon badge (`subject` set) or a cluster count circle (null). */
 export type SubjectPin = {
     el: HTMLButtonElement;
@@ -119,11 +127,20 @@ export type SubjectPin = {
     root: Root | null;
     marker: mapboxgl.Marker;
     subject: LandingSubject | null;
+    /** drawn as a bare dot (dense viewport) — kept so the selection restyle keeps the same shape */
+    dot: boolean;
 };
 
 /**
  * Styles a map pin like the TopicChip badge, minus the label. Styling goes on the inner button
  * (Mapbox owns the root's transform); only z-index touches the root.
+ *
+ * `dot` is the dense-viewport shape: the same circle, minus the icon and at a fraction of the size.
+ * Only the size differs — the fill, ring and selected treatment all come from the shared colour
+ * block below, so a dot reads as a small pin rather than a different kind of marker. It has to live
+ * here rather than only in the factory so the selection restyle keeps a dot a dot: pins are rebuilt
+ * on viewport change, not on selection, so a dot that restyled into a full badge would have no icon
+ * inside it.
  */
 export function stylePin(
     { el, rootEl }: { el: HTMLButtonElement; rootEl: HTMLDivElement },
@@ -133,27 +150,21 @@ export function stylePin(
      *  selected pins both use it (the pin icon is rendered with currentColor, so el.style.color
      *  drives it). */
     intense = false,
+    dot = false,
 ) {
-    const color = subject.topic.color;
+    // Same recipe as <TopicIcon> — see @/lib/topicStyle for why the soft icon is darkened.
+    const { background, border, icon } = topicStyle(subject.topic.color, intense ? 'solid' : 'soft');
     el.className = cn(
         'flex cursor-pointer items-center justify-center rounded-full border shadow-md transition-transform',
-        subject.hot ? 'h-9 w-9' : 'h-7 w-7',
+        // A dot ignores `hot` — at this density the extra size would just read as noise.
+        dot ? (intense ? 'h-4 w-4' : 'h-3 w-3') : subject.hot ? 'h-9 w-9' : 'h-7 w-7',
         (selected || intense) && 'scale-110',
     );
-    if (intense) {
-        // filled with the category colour + white icon, like a selected filter chip
-        el.style.color = '#ffffff';
-        el.style.backgroundColor = color;
-        el.style.borderColor = color;
-        el.style.borderWidth = '2px';
-    } else {
-        // unselected: solid tint so map tiles don't bleed through, faint category ring. (A selection
-        // always takes the intense branch above — same on desktop and mobile.)
-        el.style.color = color;
-        el.style.backgroundColor = `color-mix(in srgb, ${color} 10%, white)`;
-        el.style.borderColor = `${color}38`;
-        el.style.borderWidth = '1px';
-    }
+    // the pin icon renders with currentColor, so `el.style.color` drives it
+    el.style.color = icon;
+    el.style.backgroundColor = background;
+    el.style.borderColor = border;
+    el.style.borderWidth = intense ? '2px' : '1px';
     rootEl.style.zIndex = selected || intense ? '2' : subject.hot ? '1' : '0';
 }
 

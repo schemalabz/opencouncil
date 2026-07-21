@@ -24,6 +24,7 @@ import {
     aggregateMunicipalityCounts,
     detectMunicipalityQuery,
     isValidLngLat,
+    subjectInViewport,
     type CenterMunicipality,
     type ClickedMunicipality,
     type CoLocatedBox,
@@ -38,6 +39,7 @@ import {
     EMPTY_FILTERS,
     MUNICIPALITY_COUNT_MAX_ZOOM,
     MUNICIPALITY_PAGE_BUTTON_MIN_ZOOM,
+    SUBJECT_DOT_THRESHOLD,
     SUBJECT_FOCUS_ZOOM,
     desktopView,
     flyToMunicipality,
@@ -275,6 +277,17 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
     // MUNICIPALITY_COUNT_MAX_ZOOM the subjects (pins/dots) take over.
     const showMunicipalityCounts = mapZoom <= MUNICIPALITY_COUNT_MAX_ZOOM;
 
+    // Crowded viewport → the pins drop to plain topic-coloured dots. Counted over the subjects
+    // actually on screen: `visibleSubjects` is filter-scoped, not viewport-scoped, so it holds
+    // off-screen subjects too and never changes as you zoom. Reduced to a boolean here so the marker
+    // layer only rebuilds when the answer flips, not on every pan.
+    const subjectDots = useMemo(() => {
+        const inView = mapView
+            ? visibleSubjects.reduce((n, s) => n + (subjectInViewport(s, mapView) ? 1 : 0), 0)
+            : visibleSubjects.length;
+        return inView >= SUBJECT_DOT_THRESHOLD;
+    }, [visibleSubjects, mapView]);
+
     const { selectSubject, clearSelection, onToggleCat, clearCats } = useSubjectSelection({
         mapInstance,
         isMobile,
@@ -475,9 +488,9 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         mapInstance,
         active: !showMunicipalityCounts,
         visibleSubjects,
+        dots: subjectDots,
         selectedId,
         previewId,
-        isMobile,
         onSelect: (id) => onMarkerClick(id, 'map_pin'),
         onClearSelection: clearSelection,
         suppressViewCaptureRef,

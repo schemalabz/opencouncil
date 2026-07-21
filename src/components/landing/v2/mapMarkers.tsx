@@ -1,7 +1,7 @@
 'use client';
 
 import mapboxgl, { type Map as MapboxMap } from 'mapbox-gl';
-import { createRoot } from 'react-dom/client';
+import { createRoot, type Root } from 'react-dom/client';
 import { useTranslations } from 'next-intl';
 import { ArrowRight, Landmark, X } from 'lucide-react';
 import Icon from '@/components/icon';
@@ -20,6 +20,7 @@ import {
     computeMunicipalityDonutSegments,
     municipalityDonutSvg,
 } from '@/lib/landing/donut';
+import { TopicIcon } from '@/components/TopicIcon';
 
 /* Desktop floating tooltip above the selected subject's pin. Rendered into a Mapbox popup
    (createRoot), so navigation goes through onView/onClose callbacks, not router context. */
@@ -173,12 +174,12 @@ export function GeneralSubjectsBox({
                                 onClick={() => onSelect(s.id)}
                                 className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted"
                             >
-                                <span
-                                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
-                                    style={{ backgroundColor: `${s.topic.color}1a` }}
-                                >
-                                    <Icon name={s.topic.icon || 'hash'} color={s.topic.color} size={13} />
-                                </span>
+                                <TopicIcon
+                                    color={s.topic.color}
+                                    icon={s.topic.icon}
+                                    size="sm"
+                                    className="h-6 w-6 p-0"
+                                />
                                 <span className="line-clamp-2 text-[13px] font-medium leading-snug text-foreground">
                                     {s.title}
                                 </span>
@@ -236,12 +237,12 @@ export function CoLocatedBox({
                                 onClick={() => onSelect(s.id)}
                                 className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted"
                             >
-                                <span
-                                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
-                                    style={{ backgroundColor: `${s.topic.color}1a` }}
-                                >
-                                    <Icon name={s.topic.icon || 'hash'} color={s.topic.color} size={13} />
-                                </span>
+                                <TopicIcon
+                                    color={s.topic.color}
+                                    icon={s.topic.icon}
+                                    size="sm"
+                                    className="h-6 w-6 p-0"
+                                />
                                 <span className="line-clamp-2 text-[13px] font-medium leading-snug text-foreground">
                                     {s.title}
                                 </span>
@@ -265,6 +266,8 @@ export function createSubjectPin(
         selected: boolean;
         /** filled category style (mobile preview / mobile selection) */
         intense: boolean;
+        /** dense viewport — draw a bare topic-coloured dot instead of an icon badge */
+        dot: boolean;
         onSelect: (id: string) => void;
         onOpenCoLocated: (group: LandingSubject[]) => void;
         t: TFn;
@@ -277,12 +280,24 @@ export function createSubjectPin(
     el.type = 'button';
     el.setAttribute('aria-label', group.length > 1 ? t('marker.samePoint', { count: group.length }) : rep.title);
     rootEl.appendChild(el);
-    stylePin({ el, rootEl }, rep, opts.selected, opts.intense);
-    const root = createRoot(el);
-    // currentColor so stylePin's `el.style.color` controls the icon (topic colour, or white when intense)
-    root.render(<Icon name={rep.topic.icon || 'hash'} color="currentColor" size={rep.hot ? 18 : 14} />);
+    stylePin({ el, rootEl }, rep, opts.selected, opts.intense, opts.dot);
+    // A dot has no icon, so it also needs no React root — which is the point at this density:
+    // hundreds of roots is what made a crowded viewport expensive, not the markers themselves.
+    let root: Root | null = null;
+    if (!opts.dot) {
+        root = createRoot(el);
+        // currentColor so stylePin's `el.style.color` controls the icon (topic colour, or white when intense)
+        root.render(<Icon name={rep.topic.icon || 'hash'} color="currentColor" size={rep.hot ? 18 : 14} />);
+    }
 
-    if (group.length > 1) {
+    if (group.length > 1 && opts.dot) {
+        // No room for a "+N" badge on a dot; the click still opens the co-located box.
+        rootEl.style.zIndex = '4';
+        el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            opts.onOpenCoLocated(group);
+        });
+    } else if (group.length > 1) {
         // Size a co-located pin like the city-hall markers (h-9) so the "+N" badge sits at
         // the same corner offset as their count badge, not overlapping a smaller (h-7) circle.
         el.classList.remove('h-7', 'w-7');
@@ -310,7 +325,7 @@ export function createSubjectPin(
         });
     }
     const marker = new mapboxgl.Marker({ element: rootEl }).setLngLat([rep.lng, rep.lat]).addTo(map);
-    return { el, rootEl, root, marker, subject: group.length > 1 ? null : rep };
+    return { el, rootEl, root, marker, subject: group.length > 1 ? null : rep, dot: opts.dot };
 }
 
 /**
@@ -388,21 +403,28 @@ export function createMunicipalityCountMarker(
  * Build all subject pins for the current viewport: one pin per location group, with co-located
  * subjects sharing a "+N" marker. The selected subject is pulled out and drawn last so its
  * highlighted pin sits above its neighbours.
+ *
+ * `dot` collapses every pin to a plain topic-coloured dot — the whole layer at once, so the map
+ * doesn't read as two kinds of thing at the same zoom. The caller decides, since only it knows how
+ * many subjects are actually in the viewport (this function is handed the filter-scoped set, which
+ * includes off-screen ones and doesn't change as you zoom).
  */
 export function buildSubjectPins(
     map: MapboxMap,
     locationGroups: LandingSubject[][],
     opts: {
         selectedId: string | null;
-        /** mobile only: the previewed subject + whether we're on mobile (intense selection) */
+        /** mobile only: the previewed subject, drawn with the intense selection style */
         previewId: string | null;
-        isMobile: boolean;
+        /** dense viewport — draw every pin as a bare topic-coloured dot */
+        dot: boolean;
         onSelect: (id: string) => void;
         onOpenCoLocated: (group: LandingSubject[]) => void;
         t: TFn;
     },
 ): SubjectPin[] {
     const selId = opts.selectedId;
+    const dot = opts.dot;
     let selectedGroup: LandingSubject[] | null = null;
     const rest: LandingSubject[][] = [];
     for (const group of locationGroups) {
@@ -417,6 +439,7 @@ export function buildSubjectPins(
         return createSubjectPin(map, group, {
             selected,
             intense,
+            dot,
             onSelect: opts.onSelect,
             onOpenCoLocated: opts.onOpenCoLocated,
             t: opts.t,
