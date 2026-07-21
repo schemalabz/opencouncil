@@ -39,12 +39,12 @@ export function DocumentsDropdown({ offer }: { offer: Offer }) {
             <DropdownMenuTrigger asChild>
                 <Button variant="outline">
                     {busy ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" />
                     ) : (
-                        <FileText className="w-4 h-4 mr-2" />
+                        <FileText className="w-4 h-4 sm:mr-2" />
                     )}
-                    Έγγραφα
-                    <ChevronDown className="w-4 h-4 ml-2" />
+                    <span className="hidden sm:inline">Έγγραφα</span>
+                    <ChevronDown className="w-4 h-4 ml-1 sm:ml-2" />
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-72">

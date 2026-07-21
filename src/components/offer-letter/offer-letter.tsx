@@ -561,8 +561,10 @@ function CopyLinkButton({ offer }: { offer: Offer }) {
     };
     return (
         <Button variant="outline" onClick={handleClick}>
-            {copied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
-            {copied ? "Αντιγράφηκε" : "Αντιγραφή link"}
+            {copied ? <Check className="w-4 h-4 sm:mr-2" /> : <Copy className="w-4 h-4 sm:mr-2" />}
+            <span className="hidden sm:inline">
+                {copied ? "Αντιγράφηκε" : "Αντιγραφή link"}
+            </span>
         </Button>
     );
 }
