@@ -36,7 +36,6 @@ export function TaskStatusComponent({ task, onDelete, showMeetingInfo }: TaskSta
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [showJsonDialog, setShowJsonDialog] = useState(false);
     const [isReprocessing, setIsReprocessing] = useState(false);
-    const [activeReprocessAction, setActiveReprocessAction] = useState<'reprocess' | 'delete' | null>(null);
     const [reprocessError, setReprocessError] = useState<string | null>(null);
     const [reprocessSuccess, setReprocessSuccess] = useState(false);
 
@@ -48,12 +47,11 @@ export function TaskStatusComponent({ task, onDelete, showMeetingInfo }: TaskSta
         return () => clearInterval(timer);
     }, [task.createdAt]);
 
-    const handleReprocess = async (force: boolean, action: 'reprocess' | 'delete' = 'reprocess') => {
+    const handleReprocess = async (force: boolean) => {
         setIsReprocessing(true);
-        setActiveReprocessAction(action);
         setReprocessError(null);
         setReprocessSuccess(false);
-        
+
         try {
             await processTaskResponse(task.type, task.id, { force });
             setReprocessSuccess(true);
@@ -61,7 +59,6 @@ export function TaskStatusComponent({ task, onDelete, showMeetingInfo }: TaskSta
             setReprocessError(error instanceof Error ? error.message : t('feedback.error'));
         } finally {
             setIsReprocessing(false);
-            setActiveReprocessAction(null);
         }
     };
 
@@ -283,51 +280,29 @@ export function TaskStatusComponent({ task, onDelete, showMeetingInfo }: TaskSta
                         </Button>
                         
                         {isTranscribeTask ? (
-                            <>
-                                <Button 
-                                    variant="secondary" 
-                                    onClick={() => handleReprocess(false, 'reprocess')}
-                                    disabled={isReprocessing || reprocessSuccess}
-                                    className="w-full sm:w-auto whitespace-normal text-center"
-                                >
-                                    {isReprocessing && activeReprocessAction === 'reprocess' ? (
-                                        <>
-                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                            {t('buttons.reprocessing')}
-                                        </>
-                                    ) : reprocessSuccess ? (
-                                        <>
-                                            <CheckCircle2 className="h-4 w-4 mr-2" />
-                                            {t('buttons.done')}
-                                        </>
-                                    ) : (
-                                        t('buttons.reprocessOnly')
-                                    )}
-                                </Button>
-                                <Button 
-                                    variant="destructive" 
-                                    onClick={() => handleReprocess(true, 'delete')}
-                                    disabled={isReprocessing || reprocessSuccess}
-                                    className="w-full sm:w-auto whitespace-normal text-center"
-                                >
-                                    {isReprocessing && activeReprocessAction === 'delete' ? (
-                                        <>
-                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                            {t('buttons.processing')}
-                                        </>
-                                    ) : reprocessSuccess ? (
-                                        <>
-                                            <CheckCircle2 className="h-4 w-4 mr-2" />
-                                            {t('buttons.done')}
-                                        </>
-                                    ) : (
-                                        t('buttons.deleteAndReprocess')
-                                    )}
-                                </Button>
-                            </>
+                            <Button
+                                variant="destructive"
+                                onClick={() => handleReprocess(true)}
+                                disabled={isReprocessing || reprocessSuccess}
+                                className="w-full sm:w-auto whitespace-normal text-center"
+                            >
+                                {isReprocessing ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        {t('buttons.processing')}
+                                    </>
+                                ) : reprocessSuccess ? (
+                                    <>
+                                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                                        {t('buttons.done')}
+                                    </>
+                                ) : (
+                                    t('buttons.deleteAndReprocess')
+                                )}
+                            </Button>
                         ) : (
-                            <Button 
-                                onClick={() => handleReprocess(false, 'reprocess')}
+                            <Button
+                                onClick={() => handleReprocess(false)}
                                 disabled={isReprocessing || reprocessSuccess}
                                 className="w-full sm:w-auto whitespace-normal text-center"
                             >

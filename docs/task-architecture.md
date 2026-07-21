@@ -310,10 +310,8 @@ The `TaskStatus` component (`src/components/meetings/admin/TaskStatus.tsx`) prov
 - Success/error feedback messages
 
 **Task-specific behavior:**
-- **For transcribe tasks:** Shows two action buttons:
-  - "Reprocess Only" - Attempts reprocessing without cleanup (may create duplicates)
-  - "Delete & Reprocess" - Cleans up existing data first (recommended)
-  
+- **For transcribe tasks:** Shows a single "Delete & Reprocess" button — existing transcript data is always deleted first, since transcribe creates data that cannot be updated in place
+
 - **For other tasks:** Shows single "Reprocess from Database" button
   - Uses upsert operations to safely update existing data
   - No risk of duplicates

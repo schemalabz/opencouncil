@@ -35,8 +35,8 @@
       "title": "Retraitement depuis la base de données : {taskType}",
       "explanation": "Lorsqu'une tâche s'exécute, nous enregistrons toujours son résultat brut dans la base de données, afin que vous puissiez le retraiter ultérieurement, sans avoir à relancer la tâche sur le serveur de tâches.",
       "transcribe": {
-        "description": "Voulez-vous supprimer les données existantes avant le retraitement ?",
-        "warning": "Pour les tâches de transcription, nous recommandons de supprimer d'abord afin d'éviter la création de contenu en double."
+        "description": "Le retraitement d'une tâche de transcription supprime d'abord les données de transcription existantes de la séance (locuteurs, segments, énoncés), puis les recrée à partir du résultat enregistré.",
+        "warning": "Toute correction manuelle de la transcription sera perdue."
       },
       "default": {
         "description": "Le résultat enregistré sera retraité depuis la base de données.",
@@ -44,7 +44,6 @@
       },
       "buttons": {
         "cancel": "Annuler",
-        "reprocessOnly": "Retraiter uniquement",
         "deleteAndReprocess": "Supprimer & Retraiter",
         "reprocess": "Retraiter depuis la base de données",
         "reprocessing": "Traitement...",

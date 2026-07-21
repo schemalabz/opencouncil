@@ -80,8 +80,9 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
     const transactionStartTime = Date.now();
 
     await prisma.$transaction(async (tx) => {
-        // Delete existing data only when force=true. When force=false we keep existing
-        // segments (allowing duplicates) to match the "Reprocess Only" flow.
+        // Delete existing data only when force=true. No UI flow reaches this handler
+        // with force=false while segments exist (the admin Reprocess dialog always
+        // deletes first); the preserve-and-log branch below is a defensive fallback.
         // Note: We delete SpeakerTags (not SpeakerSegments) because the cascade relationship
         // goes from SpeakerTag -> SpeakerSegment, so deleting SpeakerTags will automatically
         // delete their associated SpeakerSegments via onDelete: Cascade
