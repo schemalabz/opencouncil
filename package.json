@@ -161,7 +161,7 @@
     "@testing-library/react": "^16.3.2",
     "@types/jest": "^29.5.14",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^20",
+    "@types/node": "^26",
     "@types/pdf-parse": "^1.1.5",
     "@types/pg": "^8.11.10",
     "@types/proj4": "^2.19.0",
