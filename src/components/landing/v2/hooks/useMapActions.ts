@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import type { Map as MapboxMap } from 'mapbox-gl';
-import { DEFAULT_MAP_STYLE, SATELLITE_MAP_STYLE } from '@/components/map/map';
+import { DEFAULT_MAP_STYLE, SATELLITE_MAP_STYLE } from '@/components/map/constants';
 import { captureLanding, captureLandingAction } from '@/lib/landing/analytics';
 import { EXPLAIN_LNGLAT, SUBJECT_FOCUS_ZOOM, type FlyTarget } from '@/lib/landing/landingCore';
 import { isValidLngLat } from '@/lib/landing/landingData';
