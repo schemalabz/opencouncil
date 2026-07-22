@@ -126,6 +126,7 @@ export function MobileLayout({
             <MobileHeader
                         onOpenSearch={() => setSearchMode('search')}
                         onToggleInfo={onToggleInfo}
+                        cities={cities}
                         searchActive={query.trim().length > 0}
                         query={query}
                     />
@@ -630,7 +631,7 @@ function MobileSubjectExpanded({
                 type="button"
                 onClick={onClose}
                 aria-label={t('common.back')}
-                className="flex shrink-0 items-start gap-2 px-4 pt-2.5 text-left"
+                className="flex shrink-0 items-start gap-2 px-4 pt-2.5 pb-1 text-left"
             >
                 {subject.cityLogo && (
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-card">

@@ -12,6 +12,8 @@ export type FooterLink = {
     external?: boolean;
     /** re-opens the analytics consent prompt instead of navigating */
     cookie?: boolean;
+    /** opens the "pick your δήμος" notifications dialog instead of navigating */
+    notify?: boolean;
     /** contact rows render a leading icon and are not hoverable */
     icon?: 'phone' | 'mail';
     /** highlighted as a CTA (accent colour + arrow) in the desktop "Περισσότερα" popover */
@@ -26,6 +28,7 @@ export const FOOTER_GROUPS: FooterGroup[] = [
         titleKey: 'footer.groups.links',
         links: [
             { label: 'Για δήμους', labelKey: 'footer.links.forMunicipalities', href: '/about', featured: true },
+            { label: 'Ειδοποιήσεις', labelKey: 'footer.links.notifications', notify: true },
             { label: 'Αναζήτηση', labelKey: 'footer.links.search', href: '/search' },
             { label: 'OpenCouncil AI', labelKey: 'footer.links.ai', href: '/chat' },
             { label: 'API', labelKey: 'footer.links.api', href: '/docs' },
