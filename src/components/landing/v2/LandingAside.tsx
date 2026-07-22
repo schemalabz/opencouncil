@@ -64,7 +64,8 @@ export function LandingAside({
                     label={t('nav.municipalities')}
                 />
                 {/* the "?" guide — icon only, with a circular black selected state (distinct from
-                    the rounded-square tabs above) */}
+                    the rounded-square tabs above). Carries the orange accent at rest rather than
+                    sitting greyed out: it read as decoration before and went unclicked. */}
                 <button
                     type="button"
                     onClick={onToggleInfo}
@@ -76,7 +77,9 @@ export function LandingAside({
                     <span
                         className={cn(
                             'flex h-11 w-11 items-center justify-center rounded-full transition-colors',
-                            infoOpen ? 'bg-foreground text-background' : 'text-muted-foreground/50 hover:bg-muted hover:text-foreground',
+                            infoOpen
+                                ? 'bg-foreground text-background'
+                                : 'bg-[hsl(var(--orange))]/10 text-[hsl(var(--orange))] hover:bg-[hsl(var(--orange))]/20',
                         )}
                     >
                         <HelpCircle className="h-7 w-7" />

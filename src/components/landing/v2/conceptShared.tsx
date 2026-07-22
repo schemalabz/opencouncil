@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, ChevronDown, Plus, Minus } from 'lucide-react';
+import { ArrowLeft, X, Plus, Minus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Topic } from '@prisma/client';
 import { cn } from '@/lib/utils';
@@ -47,8 +47,8 @@ export function ListHeader({
     onBack?: () => void;
     backLabel?: string;
     trailing?: React.ReactNode;
-    /** when set, the whole header row becomes a button that calls this (collapses the panel),
-     *  rendering a ▼ on the right; takes precedence over `trailing`. */
+    /** when set, the whole header row becomes a button that calls this (closes the panel),
+     *  rendering an × on the right; takes precedence over `trailing`. */
     onToggle?: () => void;
     /** 'brand' switches to light text, for sitting over an intense gradient / dark fill */
     tone?: 'default' | 'brand';
@@ -91,7 +91,9 @@ export function ListHeader({
                 </h2>
             </div>
             {onToggle ? (
-                <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground">
+                    <X className="h-5 w-5" />
+                </span>
             ) : (
                 trailing
             )}
@@ -103,7 +105,7 @@ export function ListHeader({
         <button
             type="button"
             onClick={onToggle}
-            aria-label={t('nav.collapse')}
+            aria-label={t('common.close')}
             className={cn(rowClass, 'w-full text-left transition-colors hover:bg-background/40')}
         >
             {inner}
