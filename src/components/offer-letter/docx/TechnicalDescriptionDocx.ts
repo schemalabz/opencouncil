@@ -82,17 +82,27 @@ function cell(
 }
 
 /** Budget table with ΦΠΑ columns, shared column model with Οικονομική. */
+/**
+ * Budget table for procurement documents.
+ *
+ * Per-line figures are presentational: unit prices are shown post-discount,
+ * rounded to the cent, and each row multiplies out. The Σύνολα row, however,
+ * comes from `subtotal` — pass `calculateOfferTotals(offer).total` — so the
+ * legally-binding totals always equal the negotiated amount on the offer
+ * letter to the cent, even when discounted unit prices don't round exactly
+ * (per-line double-rounding can otherwise drift by cents).
+ */
 export function buildBudgetTable(
     lines: ProcurementLine[],
     labels: Record<ProcurementLine["key"], string>,
-    opts: { includePilotRow?: boolean } = {}
+    opts: { includePilotRow?: boolean; subtotal: number }
 ): {
     table: Table;
     subtotal: number;
     vat: number;
     totalWithVat: number;
 } {
-    const { includePilotRow = true } = opts;
+    const { includePilotRow = true, subtotal: authoritativeSubtotal } = opts;
     const headers = ["Είδος", "Μονάδα", "Ποσότητα", "Κόστος", "Σύνολο", "ΦΠΑ 24%", "Σύνολο με ΦΠΑ"];
     const headerRow = new TableRow({
         tableHeader: true,
@@ -101,12 +111,8 @@ export function buildBudgetTable(
         ),
     });
 
-    let subtotal = 0;
-    let vatTotal = 0;
     const dataRows = lines.map((line) => {
         const vat = round2(line.total * VAT_RATE);
-        subtotal = round2(subtotal + line.total);
-        vatTotal = round2(vatTotal + vat);
         return new TableRow({
             children: [
                 cell(labels[line.key], { width: COL_WIDTHS[0] }),
@@ -135,6 +141,8 @@ export function buildBudgetTable(
         ],
     });
 
+    const subtotal = round2(authoritativeSubtotal);
+    const vatTotal = round2(subtotal * VAT_RATE);
     const totalWithVat = round2(subtotal + vatTotal);
     const totalRow = new TableRow({
         children: [
@@ -420,7 +428,9 @@ export const DOC_STYLES = {
 
 export function buildTechnicalDescriptionDoc(offer: Offer): Document {
     const lines = getOfferProcurementLines(offer);
-    const { table, totalWithVat } = buildBudgetTable(lines, BUDGET_LABELS);
+    const { table, totalWithVat } = buildBudgetTable(lines, BUDGET_LABELS, {
+        subtotal: calculateOfferTotals(offer).total,
+    });
     const cpv = deriveOfferCpv(offer);
 
     const cover: Paragraph[] = [

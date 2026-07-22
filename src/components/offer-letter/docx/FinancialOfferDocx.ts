@@ -13,6 +13,7 @@ import { Document, PageBreak, Packer, Paragraph, TextRun } from "docx";
 import type { Offer } from "@prisma/client";
 import { downloadBlob } from "@/lib/utils/download";
 import { getOfferProcurementLines, type ProcurementLine } from "@/lib/offers/display";
+import { calculateOfferTotals } from "@/lib/pricing";
 import { euroAmountInWords } from "@/lib/formatters/currencyWords";
 import {
     body,
@@ -42,8 +43,11 @@ export async function buildFinancialOfferDoc(
 ): Promise<Document> {
     const logo = await getLogoData();
     const lines = getOfferProcurementLines(offer);
+    // Binding totals come from calculateOfferTotals so the stated contract
+    // price matches the offer letter to the cent; lines are presentational.
     const { table, subtotal, totalWithVat } = buildBudgetTable(lines, FINANCIAL_LABELS, {
         includePilotRow: false,
+        subtotal: calculateOfferTotals(offer).total,
     });
 
     const totalSentence = new Paragraph({
