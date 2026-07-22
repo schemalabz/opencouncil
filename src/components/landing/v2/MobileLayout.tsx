@@ -123,7 +123,12 @@ export function MobileLayout({
                 </section>
             )}
 
-            <MobileHeader onOpenSearch={() => setSearchMode('search')} searchActive={query.trim().length > 0} query={query} />
+            <MobileHeader
+                        onOpenSearch={() => setSearchMode('search')}
+                        onToggleInfo={onToggleInfo}
+                        searchActive={query.trim().length > 0}
+                        query={query}
+                    />
 
             {/* map extras — only when the map is the visible/interactive surface */}
             {mapVisible && (
@@ -155,7 +160,11 @@ export function MobileLayout({
                                 onClick={onToggleInfo}
                                 aria-pressed={infoOpen}
                                 aria-label={t('nav.info')}
-                                className="absolute bottom-[10px] left-3 z-[10] flex h-10 w-10 items-center justify-center rounded-full border border-black/40 bg-card text-muted-foreground/60 shadow-md"
+                                className="absolute bottom-[10px] left-5 z-[10] flex h-10 w-10 items-center justify-center rounded-full border border-[hsl(var(--orange))]/50 text-[hsl(var(--orange))] shadow-md"
+                                // opaque wash rather than the `/10` tint used on the desktop rail: this
+                                // one floats over the map, and a translucent fill would pick up the
+                                // tiles underneath — muddy over satellite.
+                                style={{ backgroundColor: 'color-mix(in srgb, hsl(var(--orange)) 12%, white)' }}
                             >
                                 <HelpCircle className="h-5 w-5" />
                             </button>

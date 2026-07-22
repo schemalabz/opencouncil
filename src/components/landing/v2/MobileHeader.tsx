@@ -3,7 +3,7 @@
 import { type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Menu, Home, ChevronDown, User, Bell, LogOut, LogIn, Search, Phone, Mail, ArrowRight } from 'lucide-react';
+import { Menu, Home, ChevronDown, User, Bell, LogOut, LogIn, Search, Phone, Mail, ArrowRight, HelpCircle } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
@@ -15,10 +15,14 @@ import { FOOTER_GROUPS, isInternalHref, reopenCookiePreferences, type FooterLink
    layout). */
 export function MobileHeader({
     onOpenSearch,
+    onToggleInfo,
     searchActive,
     query,
 }: {
     onOpenSearch: () => void;
+    /** opens the "Τι είναι αυτό;" guide — the same panel the map's "?" opens. Offered here too
+     *  because that is where people looked for it and didn't find it. */
+    onToggleInfo: () => void;
     /** a keyword search is active — the search box goes orange and shows the query */
     searchActive?: boolean;
     /** the active search text, shown (truncated) inside the search box while searchActive */
@@ -67,6 +71,9 @@ export function MobileHeader({
                     {/* primary nav + expandable link groups */}
                     <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2">
                         <DrawerLink href="/" icon={<Home className="h-[18px] w-[18px]" />}>{t('nav.home')}</DrawerLink>
+                        <DrawerAction onClick={onToggleInfo} icon={<HelpCircle className="h-[18px] w-[18px]" />}>
+                            {t('info.title')}
+                        </DrawerAction>
                         {FOOTER_GROUPS.map((group) => (
                             <details key={group.title} className="group">
                                 <summary className="flex cursor-pointer list-none items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted [&::-webkit-details-marker]:hidden">
@@ -159,6 +166,24 @@ export function MobileHeader({
                 )}
             </button>
         </div>
+    );
+}
+
+/* Same row as DrawerLink, but it runs an action instead of navigating (and still closes the drawer). */
+function DrawerAction({ onClick, icon, children }: { onClick: () => void; icon?: ReactNode; children: ReactNode }) {
+    return (
+        <SheetClose asChild>
+            <button
+                type="button"
+                onClick={onClick}
+                // carries the brand accent rather than the muted grey of the links around it: this is
+                // the entry people went looking for and missed, so it should not read as one more link
+                className="flex w-full items-center gap-3 rounded-xl border border-[hsl(var(--orange))]/50 px-3 py-2.5 text-left text-sm font-medium text-[hsl(var(--orange))] transition-colors hover:bg-[hsl(var(--orange))]/10"
+            >
+                {icon && <span className="shrink-0">{icon}</span>}
+                {children}
+            </button>
+        </SheetClose>
     );
 }
 
