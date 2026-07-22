@@ -169,10 +169,12 @@ export function categorizeCities(
         } else if (expired) {
             category = 'expired';
             primaryOffer = expired.offer;
-        } else {
+        } else if (pending) {
             category = 'prospects';
             // most-recent pending wins
-            primaryOffer = pending!.offer;
+            primaryOffer = pending.offer;
+        } else {
+            continue; // unreachable: every offer falls in one of the buckets
         }
 
         // Live proposals only — pending offers whose period is already covered

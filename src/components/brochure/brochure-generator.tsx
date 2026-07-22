@@ -9,7 +9,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { FileDown, Loader2 } from "lucide-react";
-import { downloadBlob } from "@/lib/utils/download";
+import { usePdfDownload } from "@/hooks/use-pdf-download";
 import type { BrochureCity, BrochureData } from "./brochure-pdf";
 
 const GENERIC = "generic";
@@ -35,18 +35,14 @@ export function BrochureGenerator({
     contactEmail: string;
     contactPhone: string;
 }) {
-    const [busy, setBusy] = useState(false);
     const [cityId, setCityId] = useState<string>(GENERIC);
+    const { busy, download } = usePdfDownload();
 
-    async function handleDownload() {
-        setBusy(true);
-        try {
-            const [{ pdf }, { BrochurePdf }] = await Promise.all([
-                import("@react-pdf/renderer"),
-                import("./brochure-pdf"),
-            ]);
-            const city = cities.find(c => c.id === cityId);
-            const blob = await pdf(
+    function handleDownload() {
+        const city = cities.find(c => c.id === cityId);
+        download(async () => {
+            const { BrochurePdf } = await import("./brochure-pdf");
+            return (
                 <BrochurePdf
                     data={{
                         stats,
@@ -57,19 +53,8 @@ export function BrochureGenerator({
                         city,
                     }}
                 />
-            ).toBlob();
-            downloadBlob(
-                blob,
-                city
-                    ? `OpenCouncil-Τρίπτυχο-${city.nameMunicipality}.pdf`
-                    : "OpenCouncil-Τρίπτυχο.pdf"
             );
-        } catch (err) {
-            console.error("Failed to generate PDF:", err);
-            alert("Δεν ήταν δυνατή η δημιουργία του PDF. Δοκιμάστε ξανά.");
-        } finally {
-            setBusy(false);
-        }
+        }, city ? `OpenCouncil-Τρίπτυχο-${city.nameMunicipality}.pdf` : "OpenCouncil-Τρίπτυχο.pdf");
     }
 
     return (

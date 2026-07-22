@@ -23,56 +23,9 @@
 import { PrismaClient } from "@prisma/client";
 import fs from "fs";
 import path from "path";
+import { parseCsvFile } from "./lib/csv";
 
 const prisma = new PrismaClient();
-
-function parseCSVLine(line: string): string[] {
-    const fields: string[] = [];
-    let current = "";
-    let inQuotes = false;
-
-    for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (inQuotes) {
-            if (ch === '"') {
-                if (i + 1 < line.length && line[i + 1] === '"') {
-                    current += '"';
-                    i++;
-                } else {
-                    inQuotes = false;
-                }
-            } else {
-                current += ch;
-            }
-        } else {
-            if (ch === '"') {
-                inQuotes = true;
-            } else if (ch === ",") {
-                fields.push(current);
-                current = "";
-            } else {
-                current += ch;
-            }
-        }
-    }
-    fields.push(current);
-    return fields;
-}
-
-function parseCSV(filePath: string): Record<string, string>[] {
-    const content = fs.readFileSync(filePath, "utf-8");
-    const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
-    if (lines.length === 0) throw new Error("CSV is empty");
-    const headers = parseCSVLine(lines[0]).map((h) => h.trim());
-    return lines.slice(1).map((line) => {
-        const values = parseCSVLine(line);
-        const record: Record<string, string> = {};
-        headers.forEach((h, i) => {
-            record[h] = (values[i] ?? "").trim();
-        });
-        return record;
-    });
-}
 
 async function main() {
     const csvPath = process.argv[2];
@@ -87,7 +40,7 @@ async function main() {
         process.exit(1);
     }
 
-    const rows = parseCSV(resolved);
+    const rows = await parseCsvFile(resolved);
     console.log(`Parsed ${rows.length} rows from CSV`);
 
     const cities = await prisma.city.findMany({

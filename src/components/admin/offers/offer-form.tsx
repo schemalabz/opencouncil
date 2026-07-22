@@ -1,5 +1,5 @@
 "use client"
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -22,11 +22,9 @@ import { useTranslations } from 'next-intl'
 import { useToast } from "@/hooks/use-toast"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { Slider } from '@/components/ui/slider'
-import { createOffer } from '@/lib/db/offers'
-import { updateOffer } from '@/lib/db/offers'
+import { createOffer, updateOffer } from '@/lib/db/offers'
 import { getCities } from '@/lib/db/cities'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useEffect } from 'react'
 import { formatCurrency } from '@/lib/utils'
 import {
     calculateOfferTotals,
@@ -86,7 +84,7 @@ const formSchema = z.object({
 
 interface OfferFormProps {
     offer?: Offer
-    onSuccess?: (data: any) => void
+    onSuccess?: () => void
     cityId?: string
     /** Pre-fill values from a previous offer (used for renewals). */
     renewFrom?: Offer
@@ -108,14 +106,57 @@ function defaultStartDate(now: Date = new Date()): Date {
 }
 
 /**
- * Default end date for a 12-month contract: last day of the month immediately
- * before the same month next year. e.g. start=2026-05-01 → end=2027-04-30.
+ * End date for a 12-month inclusive term: the day before the first
+ * anniversary of the start. e.g. start=2026-05-01 → end=2027-04-30,
+ * start=2027-02-28 → end=2028-02-27. Used by fresh creates (whose default
+ * start is always the 1st of a month, so this equals the old
+ * last-day-of-previous-month behavior) and renewals alike.
  */
-function defaultEndDate(start: Date): Date {
-    return new Date(start.getFullYear() + 1, start.getMonth(), 0)
+function endDateForTerm(start: Date): Date {
+    const end = new Date(start)
+    end.setFullYear(end.getFullYear() + 1)
+    end.setDate(end.getDate() - 1)
+    return end
 }
 
 const DEFAULT_HOURS_TO_INGEST = 100
+
+/**
+ * The empty field shape, shared by useForm defaultValues and the post-submit
+ * reset so new fields only need to be added in one place (plus the schema).
+ */
+const EMPTY_OFFER_DEFAULTS = {
+    recipientName: "",
+    platformPrice: 0,
+    ingestionPerHourPrice: 0,
+    hoursToIngest: 1,
+    discountPercentage: 0,
+    type: "pilot",
+    respondToName: "",
+    respondToEmail: "",
+    respondToPhone: "",
+    cityId: undefined,
+    correctnessGuarantee: false,
+    meetingsToIngest: 1,
+    hoursToGuarantee: 1,
+    includeEquipmentRental: false,
+    equipmentRentalPrice: 0,
+    equipmentRentalName: "",
+    equipmentRentalDescription: "",
+    includePhysicalPresence: false,
+    physicalPresenceHours: 0,
+    agreed: false,
+    adam: "",
+} satisfies Partial<z.infer<typeof formSchema>>
+
+/** Responder contact prefill from the signed-in session (fresh creates). */
+function sessionContactValues(session: ReturnType<typeof useSession>['data']) {
+    return {
+        respondToName: session?.user?.name || "",
+        respondToEmail: session?.user?.email || "",
+        respondToPhone: session?.user?.phone || "",
+    }
+}
 
 export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: OfferFormProps) {
     const router = useRouter()
@@ -155,22 +196,17 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
               return dayAfter > today ? dayAfter : today
           })()
         : null
-    const renewEnd = renewStart
-        ? (() => {
-              const e = new Date(renewStart)
-              e.setFullYear(e.getFullYear() + 1)
-              e.setDate(e.getDate() - 1)
-              return e
-          })()
-        : null
+    const renewEnd = renewStart ? endDateForTerm(renewStart) : null
 
     // Defaults for fresh creates only (offer/renewFrom override these)
     const freshStart = defaultStartDate()
-    const freshEnd = defaultEndDate(freshStart)
+    const freshEnd = endDateForTerm(freshStart)
 
+    const contact = sessionContactValues(session)
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
+            ...EMPTY_OFFER_DEFAULTS,
             recipientName: source?.recipientName || "",
             platformPrice: source?.platformPrice || 0,
             ingestionPerHourPrice: source?.ingestionPerHourPrice ?? (isFreshCreate ? SESSION_PROCESSING.pricePerHour : 0),
@@ -179,9 +215,9 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
             type: source?.type || "pilot",
             startDate: renewStart || offer?.startDate || (isFreshCreate ? freshStart : new Date()),
             endDate: renewEnd || offer?.endDate || (isFreshCreate ? freshEnd : new Date()),
-            respondToName: source?.respondToName || (isFreshCreate ? session?.user?.name || "" : ""),
-            respondToEmail: source?.respondToEmail || (isFreshCreate ? session?.user?.email || "" : ""),
-            respondToPhone: source?.respondToPhone || (isFreshCreate ? session?.user?.phone || "" : ""),
+            respondToName: source?.respondToName || (isFreshCreate ? contact.respondToName : ""),
+            respondToEmail: source?.respondToEmail || (isFreshCreate ? contact.respondToEmail : ""),
+            respondToPhone: source?.respondToPhone || (isFreshCreate ? contact.respondToPhone : ""),
             cityId: cityId || source?.cityId || undefined,
             correctnessGuarantee: source?.correctnessGuarantee ?? isFreshCreate,
             meetingsToIngest: source?.meetingsToIngest || 1,
@@ -210,26 +246,34 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
     // Once the session loads, fill responder fields if still empty (fresh create only).
     useEffect(() => {
         if (!isFreshCreate || !session?.user) return
-        if (!form.getValues('respondToName') && session.user.name) {
-            form.setValue('respondToName', session.user.name)
-        }
-        if (!form.getValues('respondToEmail') && session.user.email) {
-            form.setValue('respondToEmail', session.user.email)
-        }
-        if (!form.getValues('respondToPhone') && session.user.phone) {
-            form.setValue('respondToPhone', session.user.phone)
+        const loaded = sessionContactValues(session)
+        for (const field of ['respondToName', 'respondToEmail', 'respondToPhone'] as const) {
+            if (!form.getValues(field) && loaded[field]) {
+                form.setValue(field, loaded[field])
+            }
         }
     }, [session, isFreshCreate, form])
 
 
     const watchedValues = form.watch()
     const { total } = calculateOfferTotals({
-        ...watchedValues,
+        startDate: watchedValues.startDate,
+        endDate: watchedValues.endDate,
+        platformPrice: watchedValues.platformPrice,
+        ingestionPerHourPrice: watchedValues.ingestionPerHourPrice,
+        hoursToIngest: watchedValues.hoursToIngest,
+        discountPercentage: watchedValues.discountPercentage,
+        correctnessGuarantee: watchedValues.correctnessGuarantee,
         version: CURRENT_OFFER_VERSION,
-        id: 'temp',
-        createdAt: new Date(),
-        updatedAt: new Date()
-    } as unknown as Offer)
+        hoursToGuarantee: watchedValues.hoursToGuarantee ?? null,
+        meetingsToIngest: watchedValues.meetingsToIngest ?? null,
+        equipmentRentalPrice: watchedValues.includeEquipmentRental
+            ? watchedValues.equipmentRentalPrice ?? null
+            : null,
+        physicalPresenceHours: watchedValues.includePhysicalPresence
+            ? watchedValues.physicalPresenceHours ?? null
+            : null,
+    })
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsSubmitting(true)
@@ -276,33 +320,13 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
             setIsSuccess(true)
             setTimeout(() => setIsSuccess(false), 1000)
             if (onSuccess) {
-                onSuccess(values)
+                onSuccess()
             }
             router.refresh()
             form.reset({
-                recipientName: "",
-                platformPrice: 0,
-                ingestionPerHourPrice: 0,
-                hoursToIngest: 1,
-                discountPercentage: 0,
-                type: "pilot",
+                ...EMPTY_OFFER_DEFAULTS,
                 startDate: new Date(),
                 endDate: new Date(),
-                respondToName: "",
-                respondToEmail: "",
-                respondToPhone: "",
-                cityId: undefined,
-                correctnessGuarantee: false,
-                meetingsToIngest: 1,
-                hoursToGuarantee: 1,
-                includeEquipmentRental: false,
-                equipmentRentalPrice: 0,
-                equipmentRentalName: "",
-                equipmentRentalDescription: "",
-                includePhysicalPresence: false,
-                physicalPresenceHours: 0,
-                agreed: false,
-                adam: "",
             })
             toast({
                 title: t('success'),

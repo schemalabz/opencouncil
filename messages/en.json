@@ -796,7 +796,7 @@
         "agreed": "Agreed",
         "agreedDescription": "Offer has been accepted (officially or unofficially). When set, the offer counts as a signed contract.",
         "adam": "ΑΔΑΜ",
-        "adamDescription": "Diavgeia public-procurement identifier (e.g. 24ΑΩΡΔ123456). Setting this marks the offer as formally signed."
+        "adamDescription": "ΚΗΜΔΗΣ public-procurement identifier (e.g. 24PROC015123456). Setting this marks the offer as formally signed."
     },
     "Offer": {
         "title": "Offers",

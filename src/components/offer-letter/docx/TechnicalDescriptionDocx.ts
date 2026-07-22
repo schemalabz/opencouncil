@@ -17,21 +17,7 @@
  * are post-discount (see getOfferProcurementLines), so line totals and the
  * final total match the contracted amount.
  */
-import {
-    AlignmentType,
-    Document,
-    LevelFormat,
-    PageBreak,
-    Packer,
-    Paragraph,
-    ShadingType,
-    Table,
-    TableCell,
-    TableRow,
-    TextRun,
-    VerticalAlign,
-    WidthType,
-} from "docx";
+import { AlignmentType, Document, PageBreak, Packer, Paragraph, TextRun } from "docx";
 import type { Offer } from "@prisma/client";
 import { downloadBlob } from "@/lib/utils/download";
 import { calculateOfferTotals } from "@/lib/pricing";
@@ -43,11 +29,17 @@ import {
     type ProcurementLine,
 } from "@/lib/offers/display";
 import { formatDate } from "@/lib/utils";
-import { body, bullet, eur, h1, h2, h3, round2, SIZE } from "./shared";
-
-const VAT_RATE = 0.24;
-
-// ─── Budget table ───────────────────────────────────────────────────────────
+import {
+    body,
+    buildBudgetTable,
+    bullet,
+    eur,
+    h1,
+    h2,
+    h3,
+    procurementDocument,
+    SIZE,
+} from "./shared";
 
 const BUDGET_LABELS: Record<ProcurementLine["key"], string> = {
     presence: "Μαγνητοσκόπηση και ζωντανή μετάδοση",
@@ -56,122 +48,6 @@ const BUDGET_LABELS: Record<ProcurementLine["key"], string> = {
     platform: "Παροχή διαδικτυακής πλατφόρμας",
     correctness: "Έλεγχος απομαγνητοφωνήσεων από άνθρωπο",
 };
-
-// Column widths in DXA — must sum to the table width (A4 content ≈ 9026).
-const COL_WIDTHS = [2626, 1300, 900, 1050, 1050, 1050, 1050];
-const TABLE_WIDTH = COL_WIDTHS.reduce((a, b) => a + b, 0);
-
-function cell(
-    text: string,
-    opts: { bold?: boolean; header?: boolean; right?: boolean; width: number }
-) {
-    return new TableCell({
-        width: { size: opts.width, type: WidthType.DXA },
-        verticalAlign: VerticalAlign.CENTER,
-        shading: opts.header ? { type: ShadingType.CLEAR, fill: "F2F2F2" } : undefined,
-        margins: { top: 60, bottom: 60, left: 100, right: 100 },
-        children: [
-            new Paragraph({
-                alignment: opts.right ? AlignmentType.RIGHT : AlignmentType.LEFT,
-                children: [
-                    new TextRun({ text, size: SIZE.SMALL, bold: opts.bold || opts.header }),
-                ],
-            }),
-        ],
-    });
-}
-
-/** Budget table with ΦΠΑ columns, shared column model with Οικονομική. */
-/**
- * Budget table for procurement documents.
- *
- * Per-line figures are presentational: unit prices are shown post-discount,
- * rounded to the cent, and each row multiplies out. The Σύνολα row, however,
- * comes from `subtotal` — pass `calculateOfferTotals(offer).total` — so the
- * legally-binding totals always equal the negotiated amount on the offer
- * letter to the cent, even when discounted unit prices don't round exactly
- * (per-line double-rounding can otherwise drift by cents).
- */
-export function buildBudgetTable(
-    lines: ProcurementLine[],
-    labels: Record<ProcurementLine["key"], string>,
-    opts: { includePilotRow?: boolean; subtotal: number }
-): {
-    table: Table;
-    subtotal: number;
-    vat: number;
-    totalWithVat: number;
-} {
-    const { includePilotRow = true, subtotal: authoritativeSubtotal } = opts;
-    const headers = ["Είδος", "Μονάδα", "Ποσότητα", "Κόστος", "Σύνολο", "ΦΠΑ 24%", "Σύνολο με ΦΠΑ"];
-    const headerRow = new TableRow({
-        tableHeader: true,
-        children: headers.map((t, i) =>
-            cell(t, { header: true, width: COL_WIDTHS[i], right: i >= 2 })
-        ),
-    });
-
-    const dataRows = lines.map((line) => {
-        const vat = round2(line.total * VAT_RATE);
-        return new TableRow({
-            children: [
-                cell(labels[line.key], { width: COL_WIDTHS[0] }),
-                cell(line.unitLabel, { width: COL_WIDTHS[1] }),
-                cell(String(line.qty), { width: COL_WIDTHS[2], right: true }),
-                cell(eur(line.unitPrice), { width: COL_WIDTHS[3], right: true }),
-                cell(eur(line.total), { width: COL_WIDTHS[4], right: true }),
-                cell(eur(vat), { width: COL_WIDTHS[5], right: true }),
-                cell(eur(round2(line.total + vat)), { width: COL_WIDTHS[6], right: true }),
-            ],
-        });
-    });
-
-    // Pilot features row — always €0, signals they're bundled.
-    const pilotRow = new TableRow({
-        children: [
-            cell("Πιλοτικές λειτουργίες, επιπλέον προδιαγραφές και υπηρεσίες", {
-                width: COL_WIDTHS[0],
-            }),
-            cell("Όπως περιγράφονται", { width: COL_WIDTHS[1] }),
-            cell("—", { width: COL_WIDTHS[2], right: true }),
-            cell("—", { width: COL_WIDTHS[3], right: true }),
-            cell(eur(0), { width: COL_WIDTHS[4], right: true }),
-            cell(eur(0), { width: COL_WIDTHS[5], right: true }),
-            cell(eur(0), { width: COL_WIDTHS[6], right: true }),
-        ],
-    });
-
-    const subtotal = round2(authoritativeSubtotal);
-    const vatTotal = round2(subtotal * VAT_RATE);
-    const totalWithVat = round2(subtotal + vatTotal);
-    const totalRow = new TableRow({
-        children: [
-            cell("Σύνολα", { bold: true, width: COL_WIDTHS[0] }),
-            cell("", { width: COL_WIDTHS[1] }),
-            cell("", { width: COL_WIDTHS[2] }),
-            cell("", { width: COL_WIDTHS[3] }),
-            cell(eur(subtotal), { bold: true, width: COL_WIDTHS[4], right: true }),
-            cell(eur(vatTotal), { bold: true, width: COL_WIDTHS[5], right: true }),
-            cell(eur(totalWithVat), { bold: true, width: COL_WIDTHS[6], right: true }),
-        ],
-    });
-
-    return {
-        table: new Table({
-            width: { size: TABLE_WIDTH, type: WidthType.DXA },
-            columnWidths: COL_WIDTHS,
-            rows: [
-                headerRow,
-                ...dataRows,
-                ...(includePilotRow ? [pilotRow] : []),
-                totalRow,
-            ],
-        }),
-        subtotal,
-        vat: vatTotal,
-        totalWithVat,
-    };
-}
 
 // ─── Descriptive sections (shared with Τεχνική Προσφορά) ────────────────────
 
@@ -392,38 +268,6 @@ export function buildTechnicalSectionChildren(offer: Offer): Paragraph[] {
     ];
 }
 
-// ─── Shared Document assembly options ───────────────────────────────────────
-
-export const DOC_NUMBERING = {
-    config: [
-        {
-            reference: "tech-bullets",
-            levels: [
-                {
-                    level: 0,
-                    format: LevelFormat.BULLET,
-                    text: "•",
-                    alignment: AlignmentType.LEFT,
-                    style: {
-                        paragraph: {
-                            indent: { left: 504, hanging: 259 },
-                        },
-                    },
-                },
-            ],
-        },
-    ],
-};
-
-export const DOC_STYLES = {
-    default: {
-        document: { run: { size: SIZE.BODY } },
-        heading1: { run: { size: 30, bold: true, color: "000000" } },
-        heading2: { run: { size: 26, bold: true, color: "000000" } },
-        heading3: { run: { size: 23, bold: true, color: "000000" } },
-    },
-};
-
 // ─── Document ───────────────────────────────────────────────────────────────
 
 export function buildTechnicalDescriptionDoc(offer: Offer): Document {
@@ -470,23 +314,15 @@ export function buildTechnicalDescriptionDoc(offer: Offer): Document {
         new Paragraph({ children: [new PageBreak()] }),
     ];
 
-    return new Document({
-        creator: "OpenCouncil",
+    return procurementDocument({
         title: `Τεχνική Περιγραφή — ${offer.recipientName}`,
-        numbering: DOC_NUMBERING,
-        styles: DOC_STYLES,
-        sections: [
-            {
-                properties: {},
-                children: [
-                    ...cover,
-                    ...buildTechnicalSectionChildren(offer),
-                    h2("Προϋπολογισμός"),
-                    table,
-                    h2("Πληρωμή"),
-                    body("Η πληρωμή θα γίνει σε δύο ισόποσες δόσεις."),
-                ],
-            },
+        children: [
+            ...cover,
+            ...buildTechnicalSectionChildren(offer),
+            h2("Προϋπολογισμός"),
+            table,
+            h2("Πληρωμή"),
+            body("Η πληρωμή θα γίνει σε δύο ισόποσες δόσεις."),
         ],
     });
 }

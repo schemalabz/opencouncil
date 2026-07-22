@@ -9,16 +9,24 @@
  */
 import {
     AlignmentType,
+    Document,
     Footer,
     Header,
     HeadingLevel,
     ImageRun,
+    LevelFormat,
     PageNumber,
     Paragraph,
+    ShadingType,
+    Table,
+    TableCell,
+    TableRow,
     TextRun,
+    VerticalAlign,
+    WidthType,
 } from "docx";
 import type { Offer } from "@prisma/client";
-import { offerGrammar } from "@/lib/offers/display";
+import { offerGrammar, type ProcurementLine } from "@/lib/offers/display";
 
 // ─── Typography (half-points) ───────────────────────────────────────────────
 
@@ -258,4 +266,186 @@ export function buildSignature(): Paragraph[] {
         line("ο νόμιμος εκπρόσωπος"),
         line("Χρήστος Πόριος", true),
     ];
+}
+
+// ─── Budget table (shared by Τεχνική Περιγραφή and Οικονομική Προσφορά) ─────
+
+const VAT_RATE = 0.24;
+
+// Column widths in DXA — must sum to the table width (A4 content ≈ 9026).
+const COL_WIDTHS = [2626, 1300, 900, 1050, 1050, 1050, 1050];
+const TABLE_WIDTH = COL_WIDTHS.reduce((a, b) => a + b, 0);
+
+function cell(
+    text: string,
+    opts: { bold?: boolean; header?: boolean; right?: boolean; width: number }
+) {
+    return new TableCell({
+        width: { size: opts.width, type: WidthType.DXA },
+        verticalAlign: VerticalAlign.CENTER,
+        shading: opts.header ? { type: ShadingType.CLEAR, fill: "F2F2F2" } : undefined,
+        margins: { top: 60, bottom: 60, left: 100, right: 100 },
+        children: [
+            new Paragraph({
+                alignment: opts.right ? AlignmentType.RIGHT : AlignmentType.LEFT,
+                children: [
+                    new TextRun({ text, size: SIZE.SMALL, bold: opts.bold || opts.header }),
+                ],
+            }),
+        ],
+    });
+}
+
+/** Budget table with ΦΠΑ columns, shared column model with Οικονομική. */
+/**
+ * Budget table for procurement documents.
+ *
+ * Per-line figures are presentational: unit prices are shown post-discount,
+ * rounded to the cent, and each row multiplies out. The Σύνολα row, however,
+ * comes from `subtotal` — pass `calculateOfferTotals(offer).total` — so the
+ * legally-binding totals always equal the negotiated amount on the offer
+ * letter to the cent, even when discounted unit prices don't round exactly
+ * (per-line double-rounding can otherwise drift by cents).
+ */
+export function buildBudgetTable(
+    lines: ProcurementLine[],
+    labels: Record<ProcurementLine["key"], string>,
+    opts: { includePilotRow?: boolean; subtotal: number }
+): {
+    table: Table;
+    subtotal: number;
+    vat: number;
+    totalWithVat: number;
+} {
+    const { includePilotRow = true, subtotal: authoritativeSubtotal } = opts;
+    const headers = ["Είδος", "Μονάδα", "Ποσότητα", "Κόστος", "Σύνολο", "ΦΠΑ 24%", "Σύνολο με ΦΠΑ"];
+    const headerRow = new TableRow({
+        tableHeader: true,
+        children: headers.map((t, i) =>
+            cell(t, { header: true, width: COL_WIDTHS[i], right: i >= 2 })
+        ),
+    });
+
+    const dataRows = lines.map((line) => {
+        const vat = round2(line.total * VAT_RATE);
+        return new TableRow({
+            children: [
+                cell(labels[line.key], { width: COL_WIDTHS[0] }),
+                cell(line.unitLabel, { width: COL_WIDTHS[1] }),
+                cell(String(line.qty), { width: COL_WIDTHS[2], right: true }),
+                cell(eur(line.unitPrice), { width: COL_WIDTHS[3], right: true }),
+                cell(eur(line.total), { width: COL_WIDTHS[4], right: true }),
+                cell(eur(vat), { width: COL_WIDTHS[5], right: true }),
+                cell(eur(round2(line.total + vat)), { width: COL_WIDTHS[6], right: true }),
+            ],
+        });
+    });
+
+    // Pilot features row — always €0, signals they're bundled.
+    const pilotRow = new TableRow({
+        children: [
+            cell("Πιλοτικές λειτουργίες, επιπλέον προδιαγραφές και υπηρεσίες", {
+                width: COL_WIDTHS[0],
+            }),
+            cell("Όπως περιγράφονται", { width: COL_WIDTHS[1] }),
+            cell("—", { width: COL_WIDTHS[2], right: true }),
+            cell("—", { width: COL_WIDTHS[3], right: true }),
+            cell(eur(0), { width: COL_WIDTHS[4], right: true }),
+            cell(eur(0), { width: COL_WIDTHS[5], right: true }),
+            cell(eur(0), { width: COL_WIDTHS[6], right: true }),
+        ],
+    });
+
+    const subtotal = round2(authoritativeSubtotal);
+    const vatTotal = round2(subtotal * VAT_RATE);
+    const totalWithVat = round2(subtotal + vatTotal);
+    const totalRow = new TableRow({
+        children: [
+            cell("Σύνολα", { bold: true, width: COL_WIDTHS[0] }),
+            cell("", { width: COL_WIDTHS[1] }),
+            cell("", { width: COL_WIDTHS[2] }),
+            cell("", { width: COL_WIDTHS[3] }),
+            cell(eur(subtotal), { bold: true, width: COL_WIDTHS[4], right: true }),
+            cell(eur(vatTotal), { bold: true, width: COL_WIDTHS[5], right: true }),
+            cell(eur(totalWithVat), { bold: true, width: COL_WIDTHS[6], right: true }),
+        ],
+    });
+
+    return {
+        table: new Table({
+            width: { size: TABLE_WIDTH, type: WidthType.DXA },
+            columnWidths: COL_WIDTHS,
+            rows: [
+                headerRow,
+                ...dataRows,
+                ...(includePilotRow ? [pilotRow] : []),
+                totalRow,
+            ],
+        }),
+        subtotal,
+        vat: vatTotal,
+        totalWithVat,
+    };
+}
+
+// ─── Shared Document assembly options ───────────────────────────────────────
+
+export const DOC_NUMBERING = {
+    config: [
+        {
+            reference: "tech-bullets",
+            levels: [
+                {
+                    level: 0,
+                    format: LevelFormat.BULLET,
+                    text: "•",
+                    alignment: AlignmentType.LEFT,
+                    style: {
+                        paragraph: {
+                            indent: { left: 504, hanging: 259 },
+                        },
+                    },
+                },
+            ],
+        },
+    ],
+};
+
+export const DOC_STYLES = {
+    default: {
+        document: { run: { size: SIZE.BODY } },
+        heading1: { run: { size: 30, bold: true, color: "000000" } },
+        heading2: { run: { size: 26, bold: true, color: "000000" } },
+        heading3: { run: { size: 23, bold: true, color: "000000" } },
+    },
+};
+
+/**
+ * Common Document envelope for the procurement .docx generators: OpenCouncil
+ * metadata, shared numbering/styles, a single section, and optionally the
+ * company letterhead header + page-number footer.
+ */
+export function procurementDocument(opts: {
+    title: string;
+    children: (Paragraph | Table)[];
+    letterhead?: boolean;
+}): Document {
+    return new Document({
+        creator: "OpenCouncil",
+        title: opts.title,
+        numbering: DOC_NUMBERING,
+        styles: DOC_STYLES,
+        sections: [
+            {
+                properties: {},
+                ...(opts.letterhead
+                    ? {
+                          headers: { default: buildLetterheadHeader() },
+                          footers: { default: buildPageFooter() },
+                      }
+                    : {}),
+                children: opts.children,
+            },
+        ],
+    });
 }

@@ -13,6 +13,7 @@ import React from "react";
 import { renderToFile } from "@react-pdf/renderer";
 import { PrismaClient } from "@prisma/client";
 import { BrochurePdf } from "@/components/brochure/brochure-pdf";
+import { toBrochurePartners } from "@/lib/brochure";
 
 // Same queries as getAboutPageStats() in src/lib/db/cities.ts, on a plain
 // PrismaClient — the lib module drags in Next.js-only imports under tsx.
@@ -51,14 +52,7 @@ async function main() {
         select: { logoImage: true, name_municipality: true },
         orderBy: { name: "asc" },
     });
-    // react-pdf can only draw PNG/JPEG — skip legacy SVG logos that predate
-    // the raster-only upload restriction (re-upload the logo to fix).
-    const partners = supportedCities
-        .filter(
-            (c): c is { logoImage: string; name_municipality: string } =>
-                !!c.logoImage && !c.logoImage.toLowerCase().endsWith(".svg")
-        )
-        .map(c => ({ name: c.name_municipality, logo: c.logoImage }));
+    const partners = toBrochurePartners(supportedCities);
     console.log(`Partner logos: ${partners.length}/${supportedCities.length}`);
 
     let city;

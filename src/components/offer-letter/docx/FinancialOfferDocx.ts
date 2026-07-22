@@ -9,25 +9,24 @@
  * Project parameters (όνομα έργου, αριθμός μελέτης, αριθμός πρωτοκόλλου,
  * CPV) come from the user via the documents dialog.
  */
-import { Document, PageBreak, Packer, Paragraph, TextRun } from "docx";
+import { PageBreak, Packer, Paragraph, TextRun } from "docx";
+import type { Document } from "docx";
 import type { Offer } from "@prisma/client";
 import { downloadBlob } from "@/lib/utils/download";
 import { getOfferProcurementLines, type ProcurementLine } from "@/lib/offers/display";
 import { calculateOfferTotals } from "@/lib/pricing";
 import { euroAmountInWords } from "@/lib/formatters/currencyWords";
 import {
-    body,
+    buildBudgetTable,
     buildDocTitle,
-    buildLetterheadHeader,
-    buildPageFooter,
     buildProcurementIntro,
     buildSignature,
     eur,
     getLogoData,
+    procurementDocument,
     SIZE,
     type ProcurementDocParams,
 } from "./shared";
-import { buildBudgetTable, DOC_NUMBERING, DOC_STYLES } from "./TechnicalDescriptionDocx";
 
 const FINANCIAL_LABELS: Record<ProcurementLine["key"], string> = {
     presence: "Μαγνητοσκόπηση και ζωντανή μετάδοση συνεδριάσεων",
@@ -72,25 +71,16 @@ export async function buildFinancialOfferDoc(
         ],
     });
 
-    return new Document({
-        creator: "OpenCouncil",
+    return procurementDocument({
         title: `Οικονομική Προσφορά — ${offer.recipientName}`,
-        numbering: DOC_NUMBERING,
-        styles: DOC_STYLES,
-        sections: [
-            {
-                properties: {},
-                headers: { default: buildLetterheadHeader() },
-                footers: { default: buildPageFooter() },
-                children: [
-                    ...buildDocTitle(logo, "ΟΙΚΟΝΟΜΙΚΗ ΠΡΟΣΦΟΡΑ"),
-                    ...buildProcurementIntro(offer, params, "οικονομική"),
-                    totalSentence,
-                    new Paragraph({ children: [new PageBreak()] }),
-                    table,
-                    ...buildSignature(),
-                ],
-            },
+        letterhead: true,
+        children: [
+            ...buildDocTitle(logo, "ΟΙΚΟΝΟΜΙΚΗ ΠΡΟΣΦΟΡΑ"),
+            ...buildProcurementIntro(offer, params, "οικονομική"),
+            totalSentence,
+            new Paragraph({ children: [new PageBreak()] }),
+            table,
+            ...buildSignature(),
         ],
     });
 }

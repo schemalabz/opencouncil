@@ -7,24 +7,20 @@
  * περιγραφής) and the legal-representative signature. Pricing is deferred
  * to the financial offer.
  */
-import { Document, Packer } from "docx";
+import { Packer } from "docx";
+import type { Document } from "docx";
 import type { Offer } from "@prisma/client";
 import { downloadBlob } from "@/lib/utils/download";
 import {
     body,
     buildDocTitle,
-    buildLetterheadHeader,
-    buildPageFooter,
     buildProcurementIntro,
     buildSignature,
     getLogoData,
+    procurementDocument,
     type ProcurementDocParams,
 } from "./shared";
-import {
-    buildTechnicalSectionChildren,
-    DOC_NUMBERING,
-    DOC_STYLES,
-} from "./TechnicalDescriptionDocx";
+import { buildTechnicalSectionChildren } from "./TechnicalDescriptionDocx";
 
 export async function buildTechnicalOfferDoc(
     offer: Offer,
@@ -32,26 +28,17 @@ export async function buildTechnicalOfferDoc(
 ): Promise<Document> {
     const logo = await getLogoData();
 
-    return new Document({
-        creator: "OpenCouncil",
+    return procurementDocument({
         title: `Τεχνική Προσφορά — ${offer.recipientName}`,
-        numbering: DOC_NUMBERING,
-        styles: DOC_STYLES,
-        sections: [
-            {
-                properties: {},
-                headers: { default: buildLetterheadHeader() },
-                footers: { default: buildPageFooter() },
-                children: [
-                    ...buildDocTitle(logo, "ΤΕΧΝΙΚΗ ΠΡΟΣΦΟΡΑ"),
-                    ...buildProcurementIntro(offer, params, "τεχνική"),
-                    body(
-                        `Αυτή η τεχνική προσφορά είναι σύμφωνη με τις τεχνικές προδιαγραφές της υπ' αριθμ. ${params.studyNumber} μελέτης, και τιμολογείται από την εταιρεία στην οικονομική προσφορά που υποβάλλεται σε ξεχωριστό έγγραφο.`
-                    ),
-                    ...buildTechnicalSectionChildren(offer),
-                    ...buildSignature(),
-                ],
-            },
+        letterhead: true,
+        children: [
+            ...buildDocTitle(logo, "ΤΕΧΝΙΚΗ ΠΡΟΣΦΟΡΑ"),
+            ...buildProcurementIntro(offer, params, "τεχνική"),
+            body(
+                `Αυτή η τεχνική προσφορά είναι σύμφωνη με τις τεχνικές προδιαγραφές της υπ' αριθμ. ${params.studyNumber} μελέτης, και τιμολογείται από την εταιρεία στην οικονομική προσφορά που υποβάλλεται σε ξεχωριστό έγγραφο.`
+            ),
+            ...buildTechnicalSectionChildren(offer),
+            ...buildSignature(),
         ],
     });
 }

@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import Image from "next/image";
 import { getAboutPageStatsCached, getSupportedCitiesWithLogosCached } from "@/lib/cache/queries";
 import { getActiveContractAdamByCity } from "@/lib/db/offers";
+import { toBrochurePartners } from "@/lib/brochure";
 import { env } from "@/env.mjs";
 import { BrochureGenerator } from "@/components/brochure/brochure-generator";
 
@@ -18,11 +19,7 @@ export default async function BrochurePage() {
         getActiveContractAdamByCity(),
     ]);
 
-    // react-pdf can only draw PNG/JPEG — skip legacy SVG logos that predate
-    // the raster-only upload restriction (re-upload the logo to fix).
-    const partners = supportedCities
-        .filter(city => !city.logoImage.toLowerCase().endsWith(".svg"))
-        .map(city => ({ name: city.name_municipality, logo: city.logoImage }));
+    const partners = toBrochurePartners(supportedCities);
 
     return (
         <div className="min-h-screen flex items-center justify-center px-4 py-16">
