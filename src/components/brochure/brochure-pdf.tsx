@@ -12,8 +12,10 @@
  * injected by the caller.
  */
 import { Document, Page, View, Text, Image } from "@react-pdf/renderer";
+import type { AdministrativeBodyType } from "@prisma/client";
 import { ASSET_BASE, Brand, C, greekUpper, LucideIcon, QRCode } from "@/components/pdf/shared";
 import type { ICON_PATHS } from "@/components/pdf/shared";
+import { bodyTypesPhrase } from "@/lib/brochure";
 
 export interface BrochureCity {
     id: string;
@@ -21,6 +23,13 @@ export interface BrochureCity {
     nameMunicipality: string;
     /** ΑΔΑΜ of the currently in-effect contract, if the city has one. */
     adam?: string;
+    /**
+     * Administrative body types with at least one released meeting (from the
+     * /explain coverage data). Narrows the cover subtitle to what we actually
+     * cover in this municipality; empty/undefined falls back to the generic
+     * phrase.
+     */
+    coveredBodyTypes?: AdministrativeBodyType[];
 }
 
 export interface BrochureData {
@@ -46,6 +55,22 @@ export interface BrochureData {
 // "Δήμος Αργιθέας" → "στον Δήμο Αργιθέας"
 function municipalityAccusative(nameMunicipality: string): string {
     return nameMunicipality.replace(/^Δήμος /, "Δήμο ");
+}
+
+/**
+ * Cover subtitle. The city variant names only the administrative body types
+ * we actually cover there (per the /explain coverage data), with matching
+ * Greek agreement; the generic variant lists all three.
+ */
+function coverSubtitle(data: BrochureData): string {
+    const types = data.city?.coveredBodyTypes;
+    if (types && types.length > 0) {
+        const { subject, feminine } = bodyTypesPhrase(types);
+        return feminine
+            ? `${subject} — πιο ανοιχτές για τους δημότες, πιο αποδοτικές για τις υπηρεσίες.`
+            : `${subject} — πιο ανοιχτά για τους δημότες, πιο αποδοτικά για τις υπηρεσίες.`;
+    }
+    return "Δημοτικά συμβούλια, επιτροπές και κοινότητες — πιο ανοιχτά για τους δημότες, πιο αποδοτικά για τις υπηρεσίες.";
 }
 
 // A4 landscape: 841.89 × 595.28pt → three equal panels.
@@ -533,8 +558,7 @@ function FrontPanel({ data }: { data: BrochureData }) {
                     </>
                 )}
                 <Text style={{ fontSize: 9, color: C.mid, lineHeight: 1.55, marginTop: 10 }}>
-                    Δημοτικά συμβούλια, επιτροπές και κοινότητες — πιο ανοιχτά για τους
-                    δημότες, πιο αποδοτικά για τις υπηρεσίες.
+                    {coverSubtitle(data)}
                 </Text>
                 <View style={{ marginTop: 16 }}>
                     <BrowserFrame

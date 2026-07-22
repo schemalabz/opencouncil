@@ -13,7 +13,8 @@ import React from "react";
 import { renderToFile } from "@react-pdf/renderer";
 import { PrismaClient } from "@prisma/client";
 import { BrochurePdf } from "@/components/brochure/brochure-pdf";
-import { toBrochurePartners } from "@/lib/brochure";
+import { coveredBodyTypesByCity, toBrochurePartners } from "@/lib/brochure";
+import { getCityCoverage } from "@/lib/db/coverage";
 
 // Same queries as getAboutPageStats() in src/lib/db/cities.ts, on a plain
 // PrismaClient — the lib module drags in Next.js-only imports under tsx.
@@ -79,12 +80,19 @@ async function main() {
             select: { adam: true },
         });
 
+        // Same coverage source as /explain — body types with released meetings.
+        const coverage = coveredBodyTypesByCity(await getCityCoverage("greece"));
         city = {
             id: record.id,
             nameMunicipality: record.name_municipality,
             adam: contract?.adam ?? undefined,
+            coveredBodyTypes: coverage[record.id],
         };
-        console.log("City variant:", city.nameMunicipality, "ΑΔΑΜ:", city.adam ?? "—");
+        console.log(
+            "City variant:", city.nameMunicipality,
+            "ΑΔΑΜ:", city.adam ?? "—",
+            "bodies:", (city.coveredBodyTypes ?? []).join(",") || "—"
+        );
     }
     await prisma.$disconnect();
 

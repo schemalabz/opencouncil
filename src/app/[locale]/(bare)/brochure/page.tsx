@@ -1,8 +1,9 @@
 import { Metadata } from "next";
 import Image from "next/image";
-import { getAboutPageStatsCached, getSupportedCitiesWithLogosCached } from "@/lib/cache/queries";
+import { getAboutPageStatsCached, getCityCoverageCached, getSupportedCitiesWithLogosCached } from "@/lib/cache/queries";
 import { getActiveContractAdamByCity } from "@/lib/db/offers";
-import { toBrochurePartners } from "@/lib/brochure";
+import { coveredBodyTypesByCity, toBrochurePartners } from "@/lib/brochure";
+import { getRealm } from "@/lib/realm.server";
 import { env } from "@/env.mjs";
 import { BrochureGenerator } from "@/components/brochure/brochure-generator";
 
@@ -13,13 +14,16 @@ export const metadata: Metadata = {
 };
 
 export default async function BrochurePage() {
-    const [stats, supportedCities, adamByCity] = await Promise.all([
+    const realm = await getRealm();
+    const [stats, supportedCities, adamByCity, coverage] = await Promise.all([
         getAboutPageStatsCached(),
         getSupportedCitiesWithLogosCached(),
         getActiveContractAdamByCity(),
+        getCityCoverageCached(realm),
     ]);
 
     const partners = toBrochurePartners(supportedCities);
+    const bodyTypesByCity = coveredBodyTypesByCity(coverage);
 
     return (
         <div className="min-h-screen flex items-center justify-center px-4 py-16">
@@ -47,6 +51,7 @@ export default async function BrochurePage() {
                         id: city.id,
                         nameMunicipality: city.name_municipality,
                         adam: adamByCity[city.id],
+                        coveredBodyTypes: bodyTypesByCity[city.id],
                     }))}
                     contactEmail={env.NEXT_PUBLIC_CONTACT_EMAIL ?? "christos@opencouncil.gr"}
                     contactPhone={env.NEXT_PUBLIC_CONTACT_PHONE ?? "+30 6980586851"}
