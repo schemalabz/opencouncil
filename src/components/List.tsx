@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import FormSheet from './FormSheet';
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
@@ -39,6 +39,10 @@ interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
     renderAfterFilters?: React.ReactNode | ((selectedValues: F[]) => React.ReactNode);
 }
 
+// Stable default so an absent `filterAvailableValues` prop doesn't produce a
+// fresh array identity on every render (which would defeat memoization below).
+const EMPTY_FILTER_VALUES: never[] = [];
+
 export default function List<T extends { id: string }, P = {}, F = string | undefined>({
     items,
     editable,
@@ -47,7 +51,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     formProps,
     t,
     itemProps,
-    filterAvailableValues = [],
+    filterAvailableValues = EMPTY_FILTER_VALUES,
     filter,
     smColumns = 1,
     mdColumns = 2,
@@ -69,8 +73,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     // Get filter and search values from URL
     const searchQuery = searchParams.get('search') || '';
     const rawFilters = searchParams.get('filters');
-    const explicitlyAll = rawFilters === '*';
-    const selectedFilterLabels = explicitlyAll ? [] : (rawFilters?.split(',').filter(Boolean) || []);
+    const hasRenderFilter = !!renderFilter;
 
     // Local state for search input
     const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
@@ -88,13 +91,17 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     // - URL has specific labels → use those
     // - URL has '*' → explicitly all (empty array = no filtering)
     // - URL has nothing → use defaultFilterValues if provided, otherwise all
-    const selectedFilters = selectedFilterLabels.length > 0
-        ? selectedFilterLabels.map(label =>
-            filterAvailableValues.find(f => f.label === label)?.value
-        ).filter((value): value is F => value !== undefined)
-        : explicitlyAll
-            ? [] as F[]
-            : (defaultFilterValues || (renderFilter ? [] as F[] : filterAvailableValues.map(f => f.value)));
+    const selectedFilters = useMemo(() => {
+        const explicitlyAll = rawFilters === '*';
+        const selectedFilterLabels = explicitlyAll ? [] : (rawFilters?.split(',').filter(Boolean) || []);
+        return selectedFilterLabels.length > 0
+            ? selectedFilterLabels.map(label =>
+                filterAvailableValues.find(f => f.label === label)?.value
+            ).filter((value): value is F => value !== undefined)
+            : explicitlyAll
+                ? [] as F[]
+                : (defaultFilterValues || (hasRenderFilter ? [] as F[] : filterAvailableValues.map(f => f.value)));
+    }, [rawFilters, filterAvailableValues, defaultFilterValues, hasRenderFilter]);
 
     const scrollCarouselLeft = useCallback(() => {
         if (carouselRef.current) {
@@ -126,7 +133,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
         layout === 'carousel' && `w-[${carouselItemWidth}px]`
     );
 
-    const filteredItems = items.filter((item) => {
+    const filteredItems = useMemo(() => items.filter((item) => {
         // First check search query
         if (searchQuery && showSearch) {
             const normalizedQuery = normalizeText(searchQuery);
@@ -145,7 +152,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
         }
 
         return true;
-    });
+    }), [items, searchQuery, showSearch, filter, selectedFilters]);
 
     // Client-side pagination — read current page from URL to avoid
     // depending on server component re-renders for page changes.

@@ -39,6 +39,7 @@ export function CityCard({ city }: CityCardProps) {
                                     src={city.logoImage || '/default-city-logo.jpg'}
                                     alt={`${localizedName} logo`}
                                     fill
+                                    sizes="(max-width: 768px) 50vw, (max-width: 1024px) 25vw, 17vw"
                                     className="opacity-20 object-contain"
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-l from-transparent to-background"></div>
