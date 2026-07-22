@@ -3,7 +3,8 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/routing";
-import Map, { MapFeature } from "@/components/map/map";
+import Map from "@/components/map/DynamicMap";
+import type { MapFeature } from "@/components/map/map";
 import { cn } from "@/lib/utils";
 import { RegulationData, RegulationItem, Geometry, ReferenceFormat, StaticGeometry, DerivedGeometry, BufferOperation, DifferenceOperation, CurrentUser, GeoSetData, SEARCH_COLORS } from "./types";
 import LayerControlsButton from "./LayerControlsButton";
