@@ -64,7 +64,12 @@ export function offerGrammar(offer: Offer): OfferGrammar {
 
 // A priced rental counts even without name/description — pricing charges it
 // (calculateOfferTotals), so display and procurement lines must include it.
-export function offerHasEquipment(offer: Offer): boolean {
+// Accepts partial offers too (the admin form prefills from Partial<Offer>).
+export function offerHasEquipment(offer: {
+    equipmentRentalPrice?: Offer["equipmentRentalPrice"];
+    equipmentRentalName?: Offer["equipmentRentalName"];
+    equipmentRentalDescription?: Offer["equipmentRentalDescription"];
+}): boolean {
     return !!(
         (offer.equipmentRentalPrice && offer.equipmentRentalPrice > 0) ||
         offer.equipmentRentalName ||

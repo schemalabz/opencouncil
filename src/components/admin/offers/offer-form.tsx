@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -34,6 +34,7 @@ import {
 } from '@/lib/pricing'
 import { Switch } from "@/components/ui/switch"
 import { adamSchema } from '@/lib/zod-schemas/offer'
+import { offerHasEquipment } from '@/lib/offers/display'
 import { useSession } from 'next-auth/react'
 
 const formSchema = z.object({
@@ -222,7 +223,7 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
             correctnessGuarantee: source?.correctnessGuarantee ?? isFreshCreate,
             meetingsToIngest: source?.meetingsToIngest || 1,
             hoursToGuarantee: source?.hoursToGuarantee || (isFreshCreate ? DEFAULT_HOURS_TO_INGEST : 1),
-            includeEquipmentRental: !!(source?.equipmentRentalPrice && source.equipmentRentalPrice > 0),
+            includeEquipmentRental: !!source && offerHasEquipment(source),
             equipmentRentalPrice: source?.equipmentRentalPrice || 0,
             equipmentRentalName: source?.equipmentRentalName || "",
             equipmentRentalDescription: source?.equipmentRentalDescription || "",
@@ -233,12 +234,18 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
         },
     })
 
-    // Auto-prefill platform price from population when a city is picked on a fresh create.
+    // Auto-prefill platform price from population when a city is picked on a
+    // fresh create. Prefill at most once per selected city — the effect also
+    // fires when the city list finishes loading, and must not clobber a price
+    // the user already edited by hand.
     const watchedCityId = form.watch('cityId')
+    const prefilledForCityId = useRef<string | null>(null)
     useEffect(() => {
         if (!isFreshCreate || !watchedCityId) return
+        if (prefilledForCityId.current === watchedCityId) return
         const population = cities.find(c => c.id === watchedCityId)?.population
         if (population != null) {
+            prefilledForCityId.current = watchedCityId
             form.setValue('platformPrice', getPlatformMonthlyPrice(population))
         }
     }, [watchedCityId, isFreshCreate, cities, form])
