@@ -1,5 +1,6 @@
 /** @jest-environment node */
 import {
+    buildDedupeId,
     extractBody,
     extractChannel,
     extractDirection,
@@ -9,6 +10,7 @@ import {
     extractPhone,
     unwrapEvent,
     type BirdMessageLike,
+    type ExtractedMessageFields,
 } from '../extract';
 
 // ---------------------------------------------------------------------------
@@ -469,5 +471,58 @@ describe('extractMessageFields', () => {
         expect(() => extractMessageFields(null, channelIds)).not.toThrow();
         expect(() => extractMessageFields({}, channelIds)).not.toThrow();
         expect(() => extractMessageFields('not an object', channelIds)).not.toThrow();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// buildDedupeId
+// ---------------------------------------------------------------------------
+
+describe('buildDedupeId', () => {
+    const fields = (overrides: Partial<ExtractedMessageFields> = {}): ExtractedMessageFields => ({
+        direction: 'inbound',
+        body: 'hi',
+        channel: 'whatsapp',
+        status: 'delivered',
+        birdMessageId: 'msg-1',
+        ...overrides,
+    });
+
+    it('composes payload.id, message id and status joined by "|"', () => {
+        expect(buildDedupeId({ payload: { id: 'evt-1' } }, fields())).toBe('evt-1|msg-1|delivered');
+    });
+
+    it('prefers payload.id over data.id', () => {
+        expect(buildDedupeId({ payload: { id: 'p' }, data: { id: 'd' } }, fields())).toBe(
+            'p|msg-1|delivered',
+        );
+    });
+
+    it('falls back to data.id when payload.id is absent', () => {
+        expect(buildDedupeId({ data: { id: 'd-2' } }, fields())).toBe('d-2|msg-1|delivered');
+    });
+
+    it('falls back to "-" for the event id when neither payload.id nor data.id is present', () => {
+        expect(buildDedupeId({}, fields())).toBe('-|msg-1|delivered');
+        expect(buildDedupeId(null, fields())).toBe('-|msg-1|delivered');
+    });
+
+    it('falls back to "-" for a missing birdMessageId', () => {
+        expect(buildDedupeId({ payload: { id: 'evt-1' } }, fields({ birdMessageId: undefined }))).toBe(
+            'evt-1|-|delivered',
+        );
+    });
+
+    it('keeps distinct keys across status progressions of the same message', () => {
+        const sent = buildDedupeId({ payload: { id: 'evt-1' } }, fields({ status: 'sent' }));
+        const delivered = buildDedupeId({ payload: { id: 'evt-1' } }, fields({ status: 'delivered' }));
+        expect(sent).not.toBe(delivered);
+    });
+
+    it('does not let a value containing the legacy ":" forge a collision', () => {
+        // With ":" the keys "a:b" + "c" and "a" + "b:c" used to collide; "|" keeps them distinct.
+        const a = buildDedupeId({ payload: { id: 'a:b' } }, fields({ birdMessageId: 'c' }));
+        const b = buildDedupeId({ payload: { id: 'a' } }, fields({ birdMessageId: 'b:c' }));
+        expect(a).not.toBe(b);
     });
 });
