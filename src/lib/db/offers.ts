@@ -84,6 +84,38 @@ export async function getOffer(id: string): Promise<Offer | OfferSupersededBy | 
     }
 }
 
+/**
+ * ΑΔΑΜ of the currently in-effect signed contract per city, for cities that
+ * have one. Public — ΑΔΑΜ identifiers are published on ΚΗΜΔΗΣ anyway. When
+ * several contracts cover today, the most recently started one wins.
+ */
+export async function getActiveContractAdamByCity(): Promise<Record<string, string>> {
+    const now = new Date();
+    // End dates are stored at midnight — a contract is still in effect on its
+    // final day, so include offers whose endDate is today or later.
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const offers = await prisma.offer.findMany({
+        where: {
+            adam: { not: null },
+            cityId: { not: null },
+            startDate: { lte: now },
+            endDate: { gte: startOfToday },
+        },
+        select: { cityId: true, adam: true },
+        orderBy: { startDate: "desc" },
+    });
+
+    const adamByCity: Record<string, string> = {};
+    for (const offer of offers) {
+        if (offer.cityId && offer.adam && !(offer.cityId in adamByCity)) {
+            adamByCity[offer.cityId] = offer.adam;
+        }
+    }
+    return adamByCity;
+}
+
 export async function getOffers(): Promise<Offer[]> {
     await withUserAuthorizedToEdit({});
     try {
