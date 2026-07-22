@@ -1,7 +1,7 @@
 "use client"
 import { useRef, useEffect, useCallback, useMemo, memo, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
-import MapboxDraw from '@mapbox/mapbox-gl-draw'
+import type MapboxDraw from '@mapbox/mapbox-gl-draw'
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { useTranslations } from 'next-intl'
@@ -12,6 +12,7 @@ import { env } from '@/env.mjs'
 import { isWebGLSupported } from '@/lib/webgl'
 import MapFallback from './MapFallback'
 import MapErrorBoundary from './MapErrorBoundary'
+import { DEFAULT_MAP_STYLE } from './constants';
 
 mapboxgl.accessToken = env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
@@ -32,10 +33,9 @@ export interface MapFeature {
     }
 }
 
-/** Default OpenCouncil base style. */
-export const DEFAULT_MAP_STYLE = 'mapbox://styles/christosporios/cm4icyrf700f201qw75bv27fa';
-/** Mapbox satellite imagery with roads/labels — used by the landing's basemap toggle. */
-export const SATELLITE_MAP_STYLE = 'mapbox://styles/mapbox/satellite-streets-v12';
+// Style constants live in ./constants so light consumers don't pull mapbox-gl;
+// re-exported here for backward compatibility.
+export { DEFAULT_MAP_STYLE, SATELLITE_MAP_STYLE } from './constants';
 
 interface MapProps {
     className?: string
@@ -101,6 +101,9 @@ const Map = memo(function Map({
     const isInitialized = useRef(false)
     const [mapReady, setMapReady] = useState(false)
     const draw = useRef<MapboxDraw | null>(null)
+    // Flipped after the lazily-imported Draw control is created, so effects
+    // that need draw.current re-run once it becomes available.
+    const [drawReady, setDrawReady] = useState(false)
     const hoverTimeout = useRef<NodeJS.Timeout | null>(null)
     const currentHoveredFeature = useRef<string | null>(null)
 
@@ -355,7 +358,7 @@ const Map = memo(function Map({
                 }
             }
         }
-    }, [selectedGeometryForEdit, features]);
+    }, [selectedGeometryForEdit, features, drawReady]);
 
     // Initialize map only once
     useEffect(() => {
@@ -866,110 +869,136 @@ const Map = memo(function Map({
         }
     }, [showPois, mapReady]);
 
-    // Handle Mapbox GL Draw setup for editing mode
+    // Handle Mapbox GL Draw setup for editing mode. The draw library (~200KB)
+    // is loaded lazily on first entry into editing mode, so plain map viewers
+    // never download it.
     useEffect(() => {
         if (!map.current || !isInitialized.current) return;
 
         if (editingMode && selectedGeometryForEdit) {
-            // Initialize Mapbox GL Draw if not already done
-            if (!draw.current) {
-                draw.current = new MapboxDraw({
-                    displayControlsDefault: false,
-                    controls: {},
-                    styles: [
-                        // Custom styles for drawing
-                        {
-                            'id': 'gl-draw-polygon-fill-inactive',
-                            'type': 'fill',
-                            'filter': ['all', ['==', 'active', 'false'], ['==', '$type', 'Polygon'], ['!=', 'mode', 'static']],
-                            'paint': {
-                                'fill-color': '#3f90ff',
-                                'fill-outline-color': '#3f90ff',
-                                'fill-opacity': 0.1
-                            }
-                        },
-                        {
-                            'id': 'gl-draw-polygon-fill-active',
-                            'type': 'fill',
-                            'filter': ['all', ['==', 'active', 'true'], ['==', '$type', 'Polygon']],
-                            'paint': {
-                                'fill-color': '#fbb03b',
-                                'fill-outline-color': '#fbb03b',
-                                'fill-opacity': 0.1
-                            }
-                        },
-                        {
-                            'id': 'gl-draw-polygon-stroke-inactive',
-                            'type': 'line',
-                            'filter': ['all', ['==', 'active', 'false'], ['==', '$type', 'Polygon'], ['!=', 'mode', 'static']],
-                            'layout': {
-                                'line-cap': 'round',
-                                'line-join': 'round'
+            let cancelled = false;
+
+            const setupDraw = async () => {
+                // Initialize Mapbox GL Draw if not already done
+                if (!draw.current) {
+                    let MapboxDrawCtor: typeof MapboxDraw;
+                    try {
+                        MapboxDrawCtor = (await import('@mapbox/mapbox-gl-draw')).default;
+                    } catch (error) {
+                        // Chunk failed to load (offline / deploy skew). Leave draw
+                        // unset — the effect retries on the next dep change.
+                        console.error('Failed to load mapbox-gl-draw:', error);
+                        return;
+                    }
+                    // Bail if the effect was cleaned up (unmount, mode toggle,
+                    // Strict Mode double-invoke) while the chunk was loading.
+                    if (cancelled || !map.current || draw.current) return;
+                    draw.current = new MapboxDrawCtor({
+                        displayControlsDefault: false,
+                        controls: {},
+                        styles: [
+                            // Custom styles for drawing
+                            {
+                                'id': 'gl-draw-polygon-fill-inactive',
+                                'type': 'fill',
+                                'filter': ['all', ['==', 'active', 'false'], ['==', '$type', 'Polygon'], ['!=', 'mode', 'static']],
+                                'paint': {
+                                    'fill-color': '#3f90ff',
+                                    'fill-outline-color': '#3f90ff',
+                                    'fill-opacity': 0.1
+                                }
                             },
-                            'paint': {
-                                'line-color': '#3f90ff',
-                                'line-width': 2
-                            }
-                        },
-                        {
-                            'id': 'gl-draw-polygon-stroke-active',
-                            'type': 'line',
-                            'filter': ['all', ['==', 'active', 'true'], ['==', '$type', 'Polygon']],
-                            'layout': {
-                                'line-cap': 'round',
-                                'line-join': 'round'
+                            {
+                                'id': 'gl-draw-polygon-fill-active',
+                                'type': 'fill',
+                                'filter': ['all', ['==', 'active', 'true'], ['==', '$type', 'Polygon']],
+                                'paint': {
+                                    'fill-color': '#fbb03b',
+                                    'fill-outline-color': '#fbb03b',
+                                    'fill-opacity': 0.1
+                                }
                             },
-                            'paint': {
-                                'line-color': '#fbb03b',
-                                'line-width': 2
+                            {
+                                'id': 'gl-draw-polygon-stroke-inactive',
+                                'type': 'line',
+                                'filter': ['all', ['==', 'active', 'false'], ['==', '$type', 'Polygon'], ['!=', 'mode', 'static']],
+                                'layout': {
+                                    'line-cap': 'round',
+                                    'line-join': 'round'
+                                },
+                                'paint': {
+                                    'line-color': '#3f90ff',
+                                    'line-width': 2
+                                }
+                            },
+                            {
+                                'id': 'gl-draw-polygon-stroke-active',
+                                'type': 'line',
+                                'filter': ['all', ['==', 'active', 'true'], ['==', '$type', 'Polygon']],
+                                'layout': {
+                                    'line-cap': 'round',
+                                    'line-join': 'round'
+                                },
+                                'paint': {
+                                    'line-color': '#fbb03b',
+                                    'line-width': 2
+                                }
+                            },
+                            {
+                                'id': 'gl-draw-point-inactive',
+                                'type': 'circle',
+                                'filter': ['all', ['==', 'active', 'false'], ['==', '$type', 'Point'], ['!=', 'mode', 'static']],
+                                'paint': {
+                                    'circle-radius': 8,
+                                    'circle-color': '#3f90ff'
+                                }
+                            },
+                            {
+                                'id': 'gl-draw-point-active',
+                                'type': 'circle',
+                                'filter': ['all', ['==', 'active', 'true'], ['==', '$type', 'Point']],
+                                'paint': {
+                                    'circle-radius': 8,
+                                    'circle-color': '#fbb03b'
+                                }
                             }
-                        },
-                        {
-                            'id': 'gl-draw-point-inactive',
-                            'type': 'circle',
-                            'filter': ['all', ['==', 'active', 'false'], ['==', '$type', 'Point'], ['!=', 'mode', 'static']],
-                            'paint': {
-                                'circle-radius': 8,
-                                'circle-color': '#3f90ff'
-                            }
-                        },
-                        {
-                            'id': 'gl-draw-point-active',
-                            'type': 'circle',
-                            'filter': ['all', ['==', 'active', 'true'], ['==', '$type', 'Point']],
-                            'paint': {
-                                'circle-radius': 8,
-                                'circle-color': '#fbb03b'
-                            }
-                        }
-                    ]
-                });
+                        ]
+                    });
 
-                map.current.addControl(draw.current, 'top-left');
-            }
-
-            // IMPORTANT: Always refresh event listeners when selectedGeometryForEdit changes
-            // This ensures the handlers capture the latest geometry ID
-            if (draw.current && map.current) {
-                // Remove existing listeners
-                map.current.off('draw.create', handleDrawCreate);
-                map.current.off('draw.update', handleDrawUpdate);
-
-                // Add fresh listeners with updated callback references
-                map.current.on('draw.create', handleDrawCreate);
-                map.current.on('draw.update', handleDrawUpdate);
-            }
-
-            // Change drawing mode based on drawingMode prop
-            if (draw.current) {
-                const currentMode = draw.current.getMode();
-
-                if (drawingMode === 'point' && currentMode !== 'draw_point') {
-                    draw.current.changeMode('draw_point');
-                } else if (drawingMode === 'polygon' && currentMode !== 'draw_polygon') {
-                    draw.current.changeMode('draw_polygon');
+                    map.current.addControl(draw.current, 'top-left');
+                    setDrawReady(true);
                 }
-            }
+
+                // A cleanup (mode exit / unmount) may have run while awaiting the
+                // chunk — don't re-attach listeners on a torn-down effect.
+                if (cancelled) return;
+
+                // IMPORTANT: Always refresh event listeners when selectedGeometryForEdit changes
+                // This ensures the handlers capture the latest geometry ID
+                if (draw.current && map.current) {
+                    // Remove existing listeners
+                    map.current.off('draw.create', handleDrawCreate);
+                    map.current.off('draw.update', handleDrawUpdate);
+
+                    // Add fresh listeners with updated callback references
+                    map.current.on('draw.create', handleDrawCreate);
+                    map.current.on('draw.update', handleDrawUpdate);
+                }
+
+                // Change drawing mode based on drawingMode prop
+                if (draw.current) {
+                    const currentMode = draw.current.getMode();
+
+                    if (drawingMode === 'point' && currentMode !== 'draw_point') {
+                        draw.current.changeMode('draw_point');
+                    } else if (drawingMode === 'polygon' && currentMode !== 'draw_polygon') {
+                        draw.current.changeMode('draw_polygon');
+                    }
+                }
+            };
+            setupDraw();
+
+            return () => { cancelled = true; };
         } else {
             // Remove drawing control when exiting editing mode
             if (draw.current && map.current) {
@@ -977,6 +1006,7 @@ const Map = memo(function Map({
                 map.current.off('draw.create', handleDrawCreate);
                 map.current.off('draw.update', handleDrawUpdate);
                 draw.current = null;
+                setDrawReady(false);
             }
         }
     }, [editingMode, drawingMode, selectedGeometryForEdit, handleDrawCreate, handleDrawUpdate]);

@@ -1,5 +1,5 @@
 "use client"
-import MapView from "@/components/map/map";
+import MapView from "@/components/map/DynamicMap";
 import { captureEvent } from '@/lib/analytics/capture';
 import { cityBoundaryFeature } from '@/components/map/cityBoundary';
 import { TOPICLESS_COLOR } from '@/lib/topicStyle';

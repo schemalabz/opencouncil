@@ -3,7 +3,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { Map as MapboxMap } from 'mapbox-gl';
 import { useTranslations } from 'next-intl';
-import Map, { type MapFeature } from '@/components/map/map';
+import Map from '@/components/map/DynamicMap';
+import type { MapFeature } from '@/components/map/map';
 import { cityBoundaryFeature } from '@/components/map/cityBoundary';
 import { TOPICLESS_COLOR } from '@/lib/topicStyle';
 import { captureEvent } from '@/lib/analytics/capture';
