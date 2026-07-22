@@ -62,8 +62,14 @@ export function offerGrammar(offer: Offer): OfferGrammar {
 
 // ─── Optional services ──────────────────────────────────────────────────────
 
+// A priced rental counts even without name/description — pricing charges it
+// (calculateOfferTotals), so display and procurement lines must include it.
 export function offerHasEquipment(offer: Offer): boolean {
-    return !!(offer.equipmentRentalName || offer.equipmentRentalDescription);
+    return !!(
+        (offer.equipmentRentalPrice && offer.equipmentRentalPrice > 0) ||
+        offer.equipmentRentalName ||
+        offer.equipmentRentalDescription
+    );
 }
 
 export function offerHasPhysicalPresence(offer: Offer): boolean {

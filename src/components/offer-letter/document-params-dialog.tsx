@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -36,10 +36,13 @@ export function DocumentParamsDialog({
     const [params, setParams] = useState<ProcurementDocParams>(initial);
     const [busy, setBusy] = useState(false);
 
-    // Re-seed the fields each time the dialog opens (e.g. with the params
-    // saved from a previous document).
+    // Re-seed the fields only when the dialog transitions to open (e.g. with
+    // the params saved from a previous document) — never while it's already
+    // open, so a parent re-render can't clear in-progress input.
+    const wasOpen = useRef(false);
     useEffect(() => {
-        if (open) setParams(initial);
+        if (open && !wasOpen.current) setParams(initial);
+        wasOpen.current = open;
     }, [open, initial]);
 
     const valid =

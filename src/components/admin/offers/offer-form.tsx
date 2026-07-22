@@ -268,8 +268,8 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
                     ...commonData,
                     meetingsToIngest: null,
                     hoursToGuarantee: values.correctnessGuarantee ? values.hoursToGuarantee! : null,
-                    agreed: false,
-                    adam: null,
+                    agreed: values.agreed,
+                    adam: values.adam || null,
                 });
             }
 

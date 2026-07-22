@@ -2,7 +2,7 @@
  * Import municipality populations from a CSV into the City table.
  *
  * Usage:
- *   npx tsx scripts/import_populations.ts data/greek_municipalities.csv
+ *   npx tsx scripts/import_populations.ts data/greek_municipalities.csv [--write-ids]
  *
  * CSV format (header row required):
  *   id,name_el,population
@@ -11,9 +11,13 @@
  * - `name_el` matches `City.name` or `City.name_municipality` as a fallback.
  * - `population` is an integer.
  *
- * Rows whose city isn't in the DB are reported but skipped (the CSV is the
- * source of truth for all 332 municipalities; only those onboarded onto the
- * platform are persisted).
+ * `--write-ids` backfills the CSV's empty `id` column from the connected
+ * database's City ids (matched by name) and rewrites the file in place.
+ * Production has every Greek municipality (including non-partnered ones), so
+ * run it once against production and commit the enriched CSV — after that,
+ * imports match by id alone and name drift can't cause silent skips.
+ *
+ * Rows whose city isn't in the DB are reported but skipped.
  */
 
 import { PrismaClient } from "@prisma/client";
@@ -72,8 +76,9 @@ function parseCSV(filePath: string): Record<string, string>[] {
 
 async function main() {
     const csvPath = process.argv[2];
+    const writeIds = process.argv.includes("--write-ids");
     if (!csvPath) {
-        console.error("Usage: npx tsx scripts/import_populations.ts <path-to-csv>");
+        console.error("Usage: npx tsx scripts/import_populations.ts <path-to-csv> [--write-ids]");
         process.exit(1);
     }
     const resolved = path.resolve(csvPath);
@@ -98,6 +103,7 @@ async function main() {
     let updated = 0;
     let unchanged = 0;
     let unmatched = 0;
+    let idsWritten = 0;
     const matchedCityIds = new Set<string>();
 
     for (const row of rows) {
@@ -120,6 +126,11 @@ async function main() {
             continue;
         }
 
+        if (writeIds && !row.id) {
+            row.id = city.id;
+            idsWritten++;
+        }
+
         matchedCityIds.add(city.id);
 
         if (city.population === population) {
@@ -134,11 +145,24 @@ async function main() {
         updated++;
     }
 
+    if (writeIds && idsWritten > 0) {
+        // Rewrite the CSV in place, preserving column order and row order.
+        const out = ["id,name_el,population"];
+        for (const row of rows) {
+            const quote = (v: string) => (/[",]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+            out.push([row.id || "", row.name_el || "", row.population || ""].map(quote).join(","));
+        }
+        fs.writeFileSync(resolved, out.join("\n") + "\n");
+    }
+
     const missingFromCsv = cities.filter((c) => !matchedCityIds.has(c.id));
 
     console.log(`\nDone!`);
     console.log(`  Updated:   ${updated}`);
     console.log(`  Unchanged: ${unchanged}`);
+    if (writeIds) {
+        console.log(`  Ids written back to CSV: ${idsWritten}`);
+    }
     if (unmatched > 0) {
         console.log(`  Unmatched in CSV (no DB row): ${unmatched}`);
     }
