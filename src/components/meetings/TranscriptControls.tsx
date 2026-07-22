@@ -6,7 +6,7 @@ import { cn, formatTimestamp, getPartyFromRoles } from "@/lib/utils";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import { useTranscriptOptions } from "./options/OptionsContext";
 import { useHighlight } from "./HighlightContext";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Video } from "./Video";
 
 export default function TranscriptControls({ className }: { className?: string }) {
@@ -139,21 +139,22 @@ export default function TranscriptControls({ className }: { className?: string }
         setHoveredSpeaker(null);
     };
 
-    // Find current speaker
-    const currentSpeaker = (() => {
+    // Find current speaker. Memoized so unrelated re-renders (hover, touch,
+    // expand state) don't rescan all segments — only time/data changes do.
+    const currentSpeaker = useMemo(() => {
         for (const segment of speakerSegments) {
             if (currentTime >= segment.startTimestamp && currentTime <= segment.endTimestamp) {
                 const speakerTag = getSpeakerTag(segment.speakerTagId);
                 const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
                 const party = person ? getPartyFromRoles(person.roles, meetingDate) : null;
-                let speakerColor = party?.colorHex || '#D3D3D3';
-                let speakerName = person ? person.name_short : speakerTag?.label || 'Unknown';
+                const speakerColor = party?.colorHex || '#D3D3D3';
+                const speakerName = person ? person.name_short : speakerTag?.label || 'Unknown';
 
                 return { name: speakerName, color: speakerColor };
             }
         }
         return null;
-    })();
+    }, [currentTime, speakerSegments, getSpeakerTag, getPerson, meetingDate]);
 
     // Calculate tooltip position
     const getTooltipPosition = () => {
