@@ -786,10 +786,17 @@
         "meetingsToIngest": "Meetings with correctness guarantee",
         "meetingsToIngestDescription": "The number of meetings to be reviewed",
         "meetingsToIngestDisabledDescription": "Enable correctness guarantee to set number of meetings",
+        "hoursToGuarantee": "Hours with correctness guarantee",
+        "hoursToGuaranteeDescription": "The number of hours that will be human-reviewed for accuracy",
+        "hoursToGuaranteeDisabledDescription": "Enable correctness guarantee to set the number of hours",
         "startDate": "Start Date",
         "startDateDescription": "The contract start date",
         "endDate": "End Date",
-        "endDateDescription": "The contract end date"
+        "endDateDescription": "The contract end date",
+        "agreed": "Agreed",
+        "agreedDescription": "Offer has been accepted (officially or unofficially). When set, the offer counts as a signed contract.",
+        "adam": "ΑΔΑΜ",
+        "adamDescription": "ΚΗΜΔΗΣ public-procurement identifier (e.g. 24PROC015123456). Setting this marks the offer as formally signed."
     },
     "Offer": {
         "title": "Offers",

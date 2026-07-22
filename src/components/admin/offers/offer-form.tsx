@@ -1,5 +1,5 @@
 "use client"
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -22,14 +22,20 @@ import { useTranslations } from 'next-intl'
 import { useToast } from "@/hooks/use-toast"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { Slider } from '@/components/ui/slider'
-import { createOffer } from '@/lib/db/offers'
-import { updateOffer } from '@/lib/db/offers'
+import { createOffer, updateOffer } from '@/lib/db/offers'
 import { getCities } from '@/lib/db/cities'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useEffect } from 'react'
 import { formatCurrency } from '@/lib/utils'
-import { calculateOfferTotals, CURRENT_OFFER_VERSION } from '@/lib/pricing'
+import {
+    calculateOfferTotals,
+    CURRENT_OFFER_VERSION,
+    getPlatformMonthlyPrice,
+    SESSION_PROCESSING,
+} from '@/lib/pricing'
 import { Switch } from "@/components/ui/switch"
+import { adamSchema } from '@/lib/zod-schemas/offer'
+import { offerHasEquipment } from '@/lib/offers/display'
+import { useSession } from 'next-auth/react'
 
 const formSchema = z.object({
     recipientName: z.string().min(2, {
@@ -72,28 +78,103 @@ const formSchema = z.object({
     equipmentRentalName: z.string().optional(),
     equipmentRentalDescription: z.string().optional(),
     includePhysicalPresence: z.boolean().default(false),
-    physicalPresenceHours: z.number().int().min(0).optional()
+    physicalPresenceHours: z.number().int().min(0).optional(),
+    agreed: z.boolean().default(false),
+    adam: adamSchema,
 })
 
 interface OfferFormProps {
     offer?: Offer
-    onSuccess?: (data: any) => void
+    onSuccess?: () => void
     cityId?: string
+    /** Pre-fill values from a previous offer (used for renewals). */
+    renewFrom?: Offer
 }
 
-export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) {
+/**
+ * Default start date: 1st of next month, unless that's less than 5 days
+ * away — in which case the 1st of the month after.
+ */
+function defaultStartDate(now: Date = new Date()): Date {
+    const today = new Date(now)
+    today.setHours(0, 0, 0, 0)
+    const firstOfNextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1)
+    const daysAway = (firstOfNextMonth.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    if (daysAway < 5) {
+        return new Date(today.getFullYear(), today.getMonth() + 2, 1)
+    }
+    return firstOfNextMonth
+}
+
+/**
+ * End date for a 12-month inclusive term: the day before the first
+ * anniversary of the start. e.g. start=2026-05-01 → end=2027-04-30,
+ * start=2027-02-28 → end=2028-02-27. Used by fresh creates (whose default
+ * start is always the 1st of a month, so this equals the old
+ * last-day-of-previous-month behavior) and renewals alike.
+ */
+function endDateForTerm(start: Date): Date {
+    const end = new Date(start)
+    end.setFullYear(end.getFullYear() + 1)
+    end.setDate(end.getDate() - 1)
+    return end
+}
+
+const DEFAULT_HOURS_TO_INGEST = 100
+
+/**
+ * The empty field shape, shared by useForm defaultValues and the post-submit
+ * reset so new fields only need to be added in one place (plus the schema).
+ */
+const EMPTY_OFFER_DEFAULTS = {
+    recipientName: "",
+    platformPrice: 0,
+    ingestionPerHourPrice: 0,
+    hoursToIngest: 1,
+    discountPercentage: 0,
+    type: "pilot",
+    respondToName: "",
+    respondToEmail: "",
+    respondToPhone: "",
+    cityId: undefined,
+    correctnessGuarantee: false,
+    meetingsToIngest: 1,
+    hoursToGuarantee: 1,
+    includeEquipmentRental: false,
+    equipmentRentalPrice: 0,
+    equipmentRentalName: "",
+    equipmentRentalDescription: "",
+    includePhysicalPresence: false,
+    physicalPresenceHours: 0,
+    agreed: false,
+    adam: "",
+} satisfies Partial<z.infer<typeof formSchema>>
+
+/** Responder contact prefill from the signed-in session (fresh creates). */
+function sessionContactValues(session: ReturnType<typeof useSession>['data']) {
+    return {
+        respondToName: session?.user?.name || "",
+        respondToEmail: session?.user?.email || "",
+        respondToPhone: session?.user?.phone || "",
+    }
+}
+
+export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: OfferFormProps) {
     const router = useRouter()
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isSuccess, setIsSuccess] = useState(false)
-    const [cities, setCities] = useState<{ id: string, name: string }[]>([])
+    const [cities, setCities] = useState<{ id: string, name: string, population: number | null }[]>([])
     const t = useTranslations('OfferForm')
     const { toast } = useToast()
+    const { data: session } = useSession()
+
+    const isFreshCreate = !offer && !renewFrom
 
     useEffect(() => {
         const loadCities = async () => {
             try {
                 const citiesData = await getCities({ includeUnlisted: true })
-                setCities(citiesData.map(city => ({ id: city.id, name: city.name })))
+                setCities(citiesData.map(city => ({ id: city.id, name: city.name, population: city.population })))
             } catch (error) {
                 console.error('Failed to load cities:', error)
             }
@@ -101,41 +182,105 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
         loadCities()
     }, [])
 
+    // Source for pre-filling: existing offer (edit) or renewFrom (renewal create) or empty (fresh create)
+    const source: Partial<Offer> | undefined = offer || renewFrom
+
+    // Renewal default dates: start = max(today, prev.endDate + 1 day),
+    // end = day before the first anniversary — a 12-month inclusive term,
+    // consistent with fresh-offer defaults (e.g. 2027-02-28 → 2028-02-27).
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const renewStart = renewFrom
+        ? (() => {
+              const dayAfter = new Date(renewFrom.endDate)
+              dayAfter.setDate(dayAfter.getDate() + 1)
+              return dayAfter > today ? dayAfter : today
+          })()
+        : null
+    const renewEnd = renewStart ? endDateForTerm(renewStart) : null
+
+    // Defaults for fresh creates only (offer/renewFrom override these)
+    const freshStart = defaultStartDate()
+    const freshEnd = endDateForTerm(freshStart)
+
+    const contact = sessionContactValues(session)
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            recipientName: offer?.recipientName || "",
-            platformPrice: offer?.platformPrice || 0,
-            ingestionPerHourPrice: offer?.ingestionPerHourPrice || 0,
-            hoursToIngest: offer?.hoursToIngest || 1,
-            discountPercentage: offer?.discountPercentage || 0,
-            type: offer?.type || "pilot",
-            startDate: offer?.startDate || new Date(),
-            endDate: offer?.endDate || new Date(),
-            respondToName: offer?.respondToName || "",
-            respondToEmail: offer?.respondToEmail || "",
-            respondToPhone: offer?.respondToPhone || "",
-            cityId: cityId || offer?.cityId || undefined,
-            correctnessGuarantee: offer?.correctnessGuarantee || false,
-            meetingsToIngest: offer?.meetingsToIngest || 1,
-            hoursToGuarantee: offer?.hoursToGuarantee || 1,
-            includeEquipmentRental: ((offer as any)?.equipmentRentalPrice && (offer as any)?.equipmentRentalPrice > 0) || false,
-            equipmentRentalPrice: (offer as any)?.equipmentRentalPrice || 0,
-            equipmentRentalName: (offer as any)?.equipmentRentalName || "",
-            equipmentRentalDescription: (offer as any)?.equipmentRentalDescription || "",
-            includePhysicalPresence: ((offer as any)?.physicalPresenceHours && (offer as any)?.physicalPresenceHours > 0) || false,
-            physicalPresenceHours: (offer as any)?.physicalPresenceHours || 0
+            ...EMPTY_OFFER_DEFAULTS,
+            recipientName: source?.recipientName || "",
+            platformPrice: source?.platformPrice || 0,
+            ingestionPerHourPrice: source?.ingestionPerHourPrice ?? (isFreshCreate ? SESSION_PROCESSING.pricePerHour : 0),
+            hoursToIngest: source?.hoursToIngest || (isFreshCreate ? DEFAULT_HOURS_TO_INGEST : 1),
+            discountPercentage: source?.discountPercentage || 0,
+            type: source?.type || "pilot",
+            startDate: renewStart || offer?.startDate || (isFreshCreate ? freshStart : new Date()),
+            endDate: renewEnd || offer?.endDate || (isFreshCreate ? freshEnd : new Date()),
+            respondToName: source?.respondToName || (isFreshCreate ? contact.respondToName : ""),
+            respondToEmail: source?.respondToEmail || (isFreshCreate ? contact.respondToEmail : ""),
+            respondToPhone: source?.respondToPhone || (isFreshCreate ? contact.respondToPhone : ""),
+            cityId: cityId || source?.cityId || undefined,
+            correctnessGuarantee: source?.correctnessGuarantee ?? isFreshCreate,
+            meetingsToIngest: source?.meetingsToIngest || 1,
+            hoursToGuarantee: source?.hoursToGuarantee || (isFreshCreate ? DEFAULT_HOURS_TO_INGEST : 1),
+            includeEquipmentRental: !!source && offerHasEquipment(source),
+            equipmentRentalPrice: source?.equipmentRentalPrice || 0,
+            equipmentRentalName: source?.equipmentRentalName || "",
+            equipmentRentalDescription: source?.equipmentRentalDescription || "",
+            includePhysicalPresence: !!(source?.physicalPresenceHours && source.physicalPresenceHours > 0),
+            physicalPresenceHours: source?.physicalPresenceHours || 0,
+            agreed: offer?.agreed || false,
+            adam: offer?.adam || "",
         },
     })
 
+    // Auto-prefill platform price from population when a city is picked on a
+    // fresh create. Prefill at most once per selected city — the effect also
+    // fires when the city list finishes loading, and must not clobber a price
+    // the user already edited by hand.
+    const watchedCityId = form.watch('cityId')
+    const prefilledForCityId = useRef<string | null>(null)
+    useEffect(() => {
+        if (!isFreshCreate || !watchedCityId) return
+        if (prefilledForCityId.current === watchedCityId) return
+        const population = cities.find(c => c.id === watchedCityId)?.population
+        if (population != null) {
+            prefilledForCityId.current = watchedCityId
+            form.setValue('platformPrice', getPlatformMonthlyPrice(population))
+        }
+    }, [watchedCityId, isFreshCreate, cities, form])
+
+    // Once the session loads, fill responder fields if still empty (fresh create only).
+    useEffect(() => {
+        if (!isFreshCreate || !session?.user) return
+        const loaded = sessionContactValues(session)
+        for (const field of ['respondToName', 'respondToEmail', 'respondToPhone'] as const) {
+            if (!form.getValues(field) && loaded[field]) {
+                form.setValue(field, loaded[field])
+            }
+        }
+    }, [session, isFreshCreate, form])
+
+
     const watchedValues = form.watch()
     const { total } = calculateOfferTotals({
-        ...watchedValues,
+        startDate: watchedValues.startDate,
+        endDate: watchedValues.endDate,
+        platformPrice: watchedValues.platformPrice,
+        ingestionPerHourPrice: watchedValues.ingestionPerHourPrice,
+        hoursToIngest: watchedValues.hoursToIngest,
+        discountPercentage: watchedValues.discountPercentage,
+        correctnessGuarantee: watchedValues.correctnessGuarantee,
         version: CURRENT_OFFER_VERSION,
-        id: 'temp',
-        createdAt: new Date(),
-        updatedAt: new Date()
-    } as unknown as Offer)
+        hoursToGuarantee: watchedValues.hoursToGuarantee ?? null,
+        meetingsToIngest: watchedValues.meetingsToIngest ?? null,
+        equipmentRentalPrice: watchedValues.includeEquipmentRental
+            ? watchedValues.equipmentRentalPrice ?? null
+            : null,
+        physicalPresenceHours: watchedValues.includePhysicalPresence
+            ? watchedValues.physicalPresenceHours ?? null
+            : null,
+    })
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsSubmitting(true)
@@ -166,43 +311,29 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
                     ...commonData,
                     meetingsToIngest: values.correctnessGuarantee && offer.version === 1 ? values.meetingsToIngest : null,
                     hoursToGuarantee: values.correctnessGuarantee && offer.version !== null && offer.version > 1 ? values.hoursToGuarantee : null,
+                    agreed: values.agreed,
+                    adam: values.adam || null,
                 });
             } else {
                 await createOffer({
                     ...commonData,
                     meetingsToIngest: null,
                     hoursToGuarantee: values.correctnessGuarantee ? values.hoursToGuarantee! : null,
+                    agreed: values.agreed,
+                    adam: values.adam || null,
                 });
             }
 
             setIsSuccess(true)
             setTimeout(() => setIsSuccess(false), 1000)
             if (onSuccess) {
-                onSuccess(values)
+                onSuccess()
             }
             router.refresh()
             form.reset({
-                recipientName: "",
-                platformPrice: 0,
-                ingestionPerHourPrice: 0,
-                hoursToIngest: 1,
-                discountPercentage: 0,
-                type: "pilot",
+                ...EMPTY_OFFER_DEFAULTS,
                 startDate: new Date(),
                 endDate: new Date(),
-                respondToName: "",
-                respondToEmail: "",
-                respondToPhone: "",
-                cityId: undefined,
-                correctnessGuarantee: false,
-                meetingsToIngest: 1,
-                hoursToGuarantee: 1,
-                includeEquipmentRental: false,
-                equipmentRentalPrice: 0,
-                equipmentRentalName: "",
-                equipmentRentalDescription: "",
-                includePhysicalPresence: false,
-                physicalPresenceHours: 0
             })
             toast({
                 title: t('success'),
@@ -227,6 +358,7 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
                     <h3 className="font-semibold text-lg mb-2">{t('totalPrice')}</h3>
                     <p className="text-2xl font-bold">{formatCurrency(total)}</p>
                 </div>
+
 
                 {Object.keys(form.formState.errors).length > 0 && (
                     <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
@@ -287,22 +419,30 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
                 <FormField
                     control={form.control}
                     name="platformPrice"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>{t('platformPrice')}</FormLabel>
-                            <FormControl>
-                                <Input
-                                    type="number"
-                                    {...field}
-                                    onChange={e => field.onChange(parseFloat(e.target.value))}
-                                />
-                            </FormControl>
-                            <FormDescription>
-                                {t('platformPriceDescription')}
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
+                    render={({ field }) => {
+                        const selectedPopulation = cities.find(c => c.id === watchedCityId)?.population;
+                        return (
+                            <FormItem>
+                                <FormLabel>{t('platformPrice')}</FormLabel>
+                                <FormControl>
+                                    <Input
+                                        type="number"
+                                        {...field}
+                                        onChange={e => field.onChange(parseFloat(e.target.value))}
+                                    />
+                                </FormControl>
+                                <FormDescription>
+                                    {t('platformPriceDescription')}
+                                    {watchedCityId && (
+                                        selectedPopulation != null
+                                            ? <> · Πληθυσμός: {selectedPopulation.toLocaleString('el-GR')}</>
+                                            : <> · Πληθυσμός: <span className="text-amber-700">άγνωστος</span></>
+                                    )}
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        );
+                    }}
                 />
 
                 <FormField
@@ -615,7 +755,6 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
                                             form.setValue('endDate', range.to ?? range.from);
                                         }
                                     }}
-                                    disabled={(date) => date < new Date()}
                                     placeholder={t('startDateDescription')}
                                 />
                             </FormControl>
@@ -674,6 +813,55 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
                         </FormItem>
                     )}
                 />
+
+                {/* Lifecycle fields — edit mode only. Hidden on create and renewal. */}
+                {offer && (
+                    <div className="space-y-4 border-t pt-4">
+                        <FormField
+                            control={form.control}
+                            name="agreed"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                    <div className="space-y-0.5">
+                                        <FormLabel className="text-base">
+                                            {t('agreed')}
+                                        </FormLabel>
+                                        <FormDescription>
+                                            {t('agreedDescription')}
+                                        </FormDescription>
+                                    </div>
+                                    <FormControl>
+                                        <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="adam"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('adam')}</FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            {...field}
+                                            value={field.value || ""}
+                                            placeholder="24PROC015123456"
+                                        />
+                                    </FormControl>
+                                    <FormDescription>
+                                        {t('adamDescription')}
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                )}
 
                 <div className="flex justify-between">
                     <Button type="submit" disabled={isSubmitting}>

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { z } from 'zod'
 import { uploadFile } from '@/lib/s3'
+import { ALLOWED_LOGO_CONTENT_TYPES } from '@/types/upload'
 import { deleteCity, editCity, getCity } from '@/lib/db/cities'
 import { upsertCityMessage, deleteCityMessage } from '@/lib/db/cityMessages'
 import { isUserAuthorizedToEdit, getCurrentUser } from '@/lib/auth'
@@ -51,6 +52,12 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
         const removeLogoImage = formData.get('removeLogoImage') === 'true'
         let logoImageUrl: string | undefined = undefined
         if (data.logoImage) {
+            if (!ALLOWED_LOGO_CONTENT_TYPES.includes(data.logoImage.type)) {
+                return NextResponse.json(
+                    { error: `Logo must be one of: ${ALLOWED_LOGO_CONTENT_TYPES.join(', ')}` },
+                    { status: 400 }
+                )
+            }
             try {
                 const result = await uploadFile(data.logoImage, { prefix: 'city-logos' })
                 logoImageUrl = result.url

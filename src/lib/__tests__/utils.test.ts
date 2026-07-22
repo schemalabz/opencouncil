@@ -736,7 +736,9 @@ describe('calculateOfferTotals', () => {
       respondToEmail: 'test@example.com',
       respondToName: 'Test Person',
       cityId: '1',
-      respondToPhone: '+30123456789'
+      respondToPhone: '+30123456789',
+      agreed: false,
+      adam: null,
     } as const;
 
     const result = calculateOfferTotals(offer);
@@ -781,7 +783,9 @@ describe('calculateOfferTotals', () => {
       respondToEmail: 'test@example.com',
       respondToName: 'Test Person',
       cityId: '1',
-      respondToPhone: '+30123456789'
+      respondToPhone: '+30123456789',
+      agreed: false,
+      adam: null,
     } as const;
 
     const result = calculateOfferTotals(offer);
@@ -816,7 +820,9 @@ describe('calculateOfferTotals', () => {
       respondToEmail: 'test@example.com',
       respondToName: 'Test Person',
       cityId: '1',
-      respondToPhone: '+30123456789'
+      respondToPhone: '+30123456789',
+      agreed: false,
+      adam: null,
     } as const;
 
     const result = calculateOfferTotals(offer);

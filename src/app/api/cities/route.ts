@@ -8,6 +8,7 @@ import { isUserAuthorizedToEdit, validateBearerAuth } from '@/lib/auth'
 import { createCityFormDataSchema } from '@/lib/zod-schemas/city'
 import { parseFormData } from '@/lib/api/form-data-parser'
 import { handleApiError } from '@/lib/api/errors'
+import { ALLOWED_LOGO_CONTENT_TYPES } from '@/types/upload'
 
 const getCitiesQuerySchema = z.object({
     includeUnlisted: z.string()
@@ -53,6 +54,13 @@ export async function POST(request: Request) {
         const formData = await request.formData();
         const data = await parseFormData(formData, createCityFormDataSchema);
 
+        if (!ALLOWED_LOGO_CONTENT_TYPES.includes(data.logoImage.type)) {
+            return NextResponse.json(
+                { error: `Logo must be one of: ${ALLOWED_LOGO_CONTENT_TYPES.join(', ')}` },
+                { status: 400 }
+            );
+        }
+
         const result = await uploadFile(data.logoImage, {
             prefix: 'city-logos',
             useCdn: true
@@ -78,6 +86,7 @@ export async function POST(request: Request) {
             diavgeiaUid: data.diavgeiaUid || null,
             language: data.language,
             realm: data.realm,
+            population: null,
         });
 
         // Bust the all-cities caches so the new city is immediately visible —

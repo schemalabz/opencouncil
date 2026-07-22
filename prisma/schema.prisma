@@ -35,6 +35,7 @@ model City {
   diavgeiaUid String?
   language CityLanguage @default(el)
   realm  Realm      @default(greece)
+  population Int?     // Used to determine platform pricing tier
 
   parties        Party[]
   persons        Person[]
@@ -787,6 +788,10 @@ model Offer {
   respondToEmail String
   respondToPhone String
   respondToName String
+
+  // Lifecycle
+  agreed Boolean @default(false) // Unofficially accepted (no ΑΔΑΜ yet)
+  adam   String?                  // ΑΔΑΜ identifier; setting this implies signed
 }
 
 // Users and authentication

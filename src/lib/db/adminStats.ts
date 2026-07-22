@@ -33,6 +33,14 @@ export interface AdminDashboardStats {
     };
 }
 
+export interface CitySubscriberStats {
+    cityId: string;
+    name: string;
+    subscribers: number;
+    population: number;
+    perMille: number;
+}
+
 function percentChange(current: number, previous: number): number {
     if (previous === 0) return current > 0 ? 100 : 0;
     return ((current - previous) / previous) * 100;
@@ -133,4 +141,41 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
         },
         engagement,
     };
+}
+
+/**
+ * Notification subscribers per supported municipality, as thousandths (‰) of
+ * its population — the marketing penetration metric. Sorted highest to lowest.
+ * Supported cities without a recorded population are omitted (the ratio is
+ * undefined for them).
+ */
+export async function getNotificationSubscribersByCity(): Promise<CitySubscriberStats[]> {
+    await withUserAuthorizedToEdit({});
+
+    const [cities, subscriberCounts] = await Promise.all([
+        prisma.city.findMany({
+            where: { officialSupport: true },
+            select: { id: true, name: true, population: true },
+        }),
+        prisma.notificationPreference.groupBy({
+            by: ["cityId"],
+            _count: { _all: true },
+        }),
+    ]);
+
+    const subscribersByCity = new Map(subscriberCounts.map(c => [c.cityId, c._count._all]));
+
+    return cities
+        .filter((city): city is typeof city & { population: number } => !!city.population)
+        .map(city => {
+            const subscribers = subscribersByCity.get(city.id) ?? 0;
+            return {
+                cityId: city.id,
+                name: city.name,
+                subscribers,
+                population: city.population,
+                perMille: (subscribers / city.population) * 1000,
+            };
+        })
+        .sort((a, b) => b.perMille - a.perMille);
 }

@@ -4,10 +4,14 @@ import { StatsCard } from '@/components/ui/stats-card';
 // errors under data growth (see investigation issue). Re-enable once the
 // reviews queries are fixed.
 // import { ReviewsOverviewWidget } from '@/components/admin/reviews/ReviewsOverviewWidget';
-import { getAdminDashboardStats } from '@/lib/db/adminStats';
+import { NotificationSubscribersChart } from '@/components/admin/NotificationSubscribersChart';
+import { getAdminDashboardStats, getNotificationSubscribersByCity } from '@/lib/db/adminStats';
 
 export default async function Page() {
-    const stats = await getAdminDashboardStats();
+    const [stats, citySubscribers] = await Promise.all([
+        getAdminDashboardStats(),
+        getNotificationSubscribersByCity(),
+    ]);
 
     const round1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -51,6 +55,9 @@ export default async function Page() {
                         },
                     ]}
                 />
+                <div className="mt-4">
+                    <NotificationSubscribersChart data={citySubscribers} />
+                </div>
             </section>
 
             <section>

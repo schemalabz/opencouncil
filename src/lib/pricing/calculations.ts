@@ -16,6 +16,26 @@ import {
 } from './config';
 import { monthsBetween } from '../utils';
 
+/**
+ * The Offer fields pricing actually reads — callers with form values (not a
+ * persisted Offer) can satisfy this without casting.
+ */
+export type OfferPricingInput = Pick<
+    Offer,
+    | 'startDate'
+    | 'endDate'
+    | 'platformPrice'
+    | 'ingestionPerHourPrice'
+    | 'hoursToIngest'
+    | 'discountPercentage'
+    | 'correctnessGuarantee'
+    | 'version'
+    | 'hoursToGuarantee'
+    | 'meetingsToIngest'
+    | 'equipmentRentalPrice'
+    | 'physicalPresenceHours'
+>;
+
 export interface OfferTotals {
     months: number;
     platformTotal: number;
@@ -40,16 +60,16 @@ export interface PricingEstimate {
 /**
  * Calculate comprehensive offer totals including payment plan
  */
-export function calculateOfferTotals(offer: Offer): OfferTotals {
+export function calculateOfferTotals(offer: OfferPricingInput): OfferTotals {
     const months = monthsBetween(offer.startDate, offer.endDate);
     const platformTotal = offer.platformPrice * months;
     const ingestionTotal = offer.ingestionPerHourPrice * offer.hoursToIngest;
 
     // Calculate equipment rental cost
-    const equipmentRentalTotal = ((offer as any).equipmentRentalPrice || 0) * months;
+    const equipmentRentalTotal = (offer.equipmentRentalPrice || 0) * months;
 
     // Calculate physical presence cost
-    const physicalPresenceTotal = ((offer as any).physicalPresenceHours || 0) * PHYSICAL_PRESENCE.pricePerHour;
+    const physicalPresenceTotal = (offer.physicalPresenceHours || 0) * PHYSICAL_PRESENCE.pricePerHour;
 
     // Calculate correctness guarantee cost based on version
     let correctnessGuaranteeCost = 0;

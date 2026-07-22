@@ -39,6 +39,7 @@ function makeCity(overrides: Partial<CityRow> & Pick<CityRow, "id" | "name" | "n
         highlightCreationPermission: "ADMINS_ONLY",
         diavgeiaUid: null,
         language: "el",
+        population: null,
         _count: { persons: 0, parties: 0, councilMeetings: 0 },
         ...overrides,
     };
