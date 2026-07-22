@@ -21,7 +21,7 @@ export function normalizeGreekName(name: string): string {
 }
 
 /** Build a sorted token key from a normalized name string. */
-function buildSortKey(normalized: string): string {
+export function buildSortKey(normalized: string): string {
     return normalized
         .replace(/[-–—]/g, ' ')
         .split(/\s+/)
