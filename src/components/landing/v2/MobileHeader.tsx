@@ -1,6 +1,6 @@
 'use client';
 
-import { type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Menu, Home, ChevronDown, User, Bell, LogOut, LogIn, Search, Phone, Mail, ArrowRight, HelpCircle } from 'lucide-react';
@@ -9,6 +9,8 @@ import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger, SheetClose, SheetTitle } from '@/components/ui/sheet';
 import { FOOTER_GROUPS, isInternalHref, reopenCookiePreferences, type FooterLink } from './navLinks';
+import { NotifyMunicipalityDialog, openAfterMenuCloses } from './NotifyMunicipalityDialog';
+import type { LandingListCity } from '@/lib/landing/landingData';
 
 /* Mobile top bar — a pill with the burger nav-drawer trigger + logo on the left and a separate
    bordered keyword-search box on the right. Tapping search opens the search overlay (owned by the
@@ -16,6 +18,7 @@ import { FOOTER_GROUPS, isInternalHref, reopenCookiePreferences, type FooterLink
 export function MobileHeader({
     onOpenSearch,
     onToggleInfo,
+    cities,
     searchActive,
     query,
 }: {
@@ -23,14 +26,19 @@ export function MobileHeader({
     /** opens the "Τι είναι αυτό;" guide — the same panel the map's "?" opens. Offered here too
      *  because that is where people looked for it and didn't find it. */
     onToggleInfo: () => void;
+    /** cooperating δήμοι, for the "which δήμος?" notifications dialog opened from the menu */
+    cities: LandingListCity[];
     /** a keyword search is active — the search box goes orange and shows the query */
     searchActive?: boolean;
     /** the active search text, shown (truncated) inside the search box while searchActive */
     query?: string;
 }) {
     const t = useTranslations('landingV2');
+    const [notifyOpen, setNotifyOpen] = useState(false);
     const { data: session, status } = useSession();
     return (
+        <>
+        <NotifyMunicipalityDialog open={notifyOpen} onOpenChange={setNotifyOpen} cities={cities} />
         <div className="absolute inset-x-3 top-3 z-[9] flex items-center gap-1.5">
             {/* header pill: burger + logo + brand (both the burger/logo open the nav drawer). While a
                 search is active it shrinks to fit its content, giving the width to the search box. */}
@@ -82,7 +90,7 @@ export function MobileHeader({
                                 </summary>
                                 <div className="flex flex-col gap-0.5 py-0.5 pl-3">
                                     {group.links.map((link) => (
-                                        <DrawerFooterLink key={link.label} link={link} />
+                                        <DrawerFooterLink key={link.label} link={link} onNotify={() => openAfterMenuCloses(() => setNotifyOpen(true))} />
                                     ))}
                                 </div>
                             </details>
@@ -166,6 +174,7 @@ export function MobileHeader({
                 )}
             </button>
         </div>
+        </>
     );
 }
 
@@ -203,7 +212,7 @@ function DrawerLink({ href, icon, children }: { href: string; icon?: ReactNode; 
 
 /* an expandable-group link row (internal Link / external-mailto-tel anchor / cookie button),
    closes the drawer on tap */
-function DrawerFooterLink({ link }: { link: FooterLink }) {
+function DrawerFooterLink({ link, onNotify }: { link: FooterLink; onNotify: () => void }) {
     const t = useTranslations('landingV2');
     const cls =
         'rounded-lg px-3 py-2 text-sm text-muted-foreground no-underline transition-colors hover:bg-muted hover:text-foreground hover:no-underline';
@@ -220,6 +229,15 @@ function DrawerFooterLink({ link }: { link: FooterLink }) {
         return (
             <SheetClose asChild>
                 <button type="button" onClick={reopenCookiePreferences} className={cn('text-left', cls)}>
+                    {t(link.labelKey!)}
+                </button>
+            </SheetClose>
+        );
+    }
+    if (link.notify) {
+        return (
+            <SheetClose asChild>
+                <button type="button" onClick={onNotify} className={cn('text-left', cls)}>
                     {t(link.labelKey!)}
                 </button>
             </SheetClose>

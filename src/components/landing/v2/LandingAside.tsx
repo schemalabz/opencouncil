@@ -17,6 +17,8 @@ import {
 import Image from 'next/image';
 import type { LandingView } from '@/lib/landing/landingCore';
 import { FOOTER_GROUPS, isInternalHref, reopenCookiePreferences } from './navLinks';
+import { NotifyMunicipalityDialog, openAfterMenuCloses } from './NotifyMunicipalityDialog';
+import type { LandingListCity } from '@/lib/landing/landingData';
 
 /* The desktop landing's left nav rail: brand at the top, the three view items centered,
    and a Policy popover + Account control at the bottom. Selecting an item opens the
@@ -26,14 +28,18 @@ export function LandingAside({
     onSelect,
     infoOpen,
     onToggleInfo,
+    cities,
 }: {
     view: LandingView;
     onSelect: (v: LandingView) => void;
     /** the "?" info drawer is open — highlights the "?" item and de-highlights the view tabs */
     infoOpen: boolean;
     onToggleInfo: () => void;
+    /** cooperating δήμοι, for the "which δήμος?" notifications dialog opened from "Περισσότερα" */
+    cities: LandingListCity[];
 }) {
     const t = useTranslations('landingV2');
+    const [notifyOpen, setNotifyOpen] = useState(false);
     const { data: session, status } = useSession();
     // Auth UI depends on the client session, which differs server vs. first client render
     // (unseeded SessionProvider) → React #418. Gate on a mounted flag so both render null first.
@@ -42,6 +48,8 @@ export function LandingAside({
 
     return (
         // Inner nav-rail column of the unified aside card (DesktopLayout owns the card chrome).
+        <>
+        <NotifyMunicipalityDialog open={notifyOpen} onOpenChange={setNotifyOpen} cities={cities} />
         <div className="flex w-[80px] shrink-0 flex-col items-center bg-card pb-3 pt-1">
             {/* brand */}
             <Link href="/" className="shrink-0 hover:opacity-90" aria-label="OpenCouncil">
@@ -135,6 +143,14 @@ export function LandingAside({
                                         >
                                             {t(link.labelKey!)}
                                         </DropdownMenuItem>
+                                    ) : link.notify ? (
+                                        <DropdownMenuItem
+                                            key={link.label}
+                                            onSelect={() => openAfterMenuCloses(() => setNotifyOpen(true))}
+                                            className="rounded-lg text-muted-foreground focus:bg-muted focus:text-foreground"
+                                        >
+                                            {t(link.labelKey!)}
+                                        </DropdownMenuItem>
                                     ) : link.featured ? (
                                         // CTA: accent fill + arrow, stands out from the rest
                                         <DropdownMenuItem
@@ -207,6 +223,7 @@ export function LandingAside({
                 )}
             </div>
         </div>
+        </>
     );
 }
 
