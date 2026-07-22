@@ -150,9 +150,18 @@ async function main() {
 
     const missingFromCsv = cities.filter((c) => !matchedCityIds.has(c.id));
 
+    // The CSV holds all 332 Greek municipalities — after a clean run against
+    // production this count should be exactly 332.
+    const greekMunicipalitiesWithPopulation = await prisma.city.count({
+        where: { authorityType: "municipality", realm: "greece", population: { not: null } },
+    });
+
     console.log(`\nDone!`);
     console.log(`  Updated:   ${updated}`);
     console.log(`  Unchanged: ${unchanged}`);
+    console.log(
+        `  Greek municipalities with population in DB: ${greekMunicipalitiesWithPopulation} (expected 332)`
+    );
     if (writeIds) {
         console.log(`  Ids written back to CSV: ${idsWritten}`);
     }
