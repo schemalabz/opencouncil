@@ -4,27 +4,14 @@
  * A tight two-page document: cover + costs on page 1, features + signature on
  * page 2. Vector QR code links back to the live offer page.
  *
- * IMPORTANT react-pdf gotcha: never set `lineHeight` on the Page style. It is
- * inherited as a *computed* value (page fontSize × multiplier), so any larger
- * text gets squeezed into a tiny line box and overlaps its neighbours. Line
- * heights here are always set together with the fontSize they apply to.
+ * Fonts, colors, Greek typography, the QR code and lucide icons come from
+ * the shared PDF primitives in @/components/pdf/shared (see the react-pdf
+ * lineHeight gotcha documented there).
  *
  * Renders both in the browser (lazy-loaded by DownloadPdfButton) and in Node
  * (scripts/tests via renderToFile) — asset URLs resolve accordingly.
  */
-import {
-    Document,
-    Page,
-    View,
-    Text,
-    Image,
-    Svg,
-    Path,
-    Circle,
-    Link,
-    Font,
-} from "@react-pdf/renderer";
-import qrcode from "qrcode-generator";
+import { Document, Page, View, Text, Image, Link } from "@react-pdf/renderer";
 import type { Offer } from "@prisma/client";
 import {
     offerGrammar,
@@ -32,56 +19,9 @@ import {
     offerHasPhysicalPresence,
     getOfferCostBreakdown,
 } from "@/lib/offers/display";
-
-// ─── Assets (browser: same-origin URLs · Node: filesystem paths) ────────────
-const ASSET_BASE =
-    typeof window !== "undefined"
-        ? window.location.origin
-        : `${process.cwd()}/public`;
-
-// Full-charset static Inter TTFs (Latin + Greek). The app itself uses
-// Inter Variable (woff2), which react-pdf can't consume — these statics are
-// the same family at the same weights, so the PDF matches the site.
-Font.register({
-    family: "Inter",
-    fonts: [
-        { src: `${ASSET_BASE}/fonts/pdf/inter-400.ttf` },
-        { src: `${ASSET_BASE}/fonts/pdf/inter-500.ttf`, fontWeight: 500 },
-        { src: `${ASSET_BASE}/fonts/pdf/inter-600.ttf`, fontWeight: 600 },
-        { src: `${ASSET_BASE}/fonts/pdf/inter-700.ttf`, fontWeight: 700 },
-    ],
-});
-// Greek shouldn't be hyphenated mid-word.
-Font.registerHyphenationCallback((word) => [word]);
-
-// ─── Greek typography ────────────────────────────────────────────────────────
-// Greek ALL CAPS drops the tonos: "Φεβρουαρίου" → "ΦΕΒΡΟΥΑΡΙΟΥ".
-function greekUpper(s: string): string {
-    return s
-        .normalize("NFD")
-        .replace(/[̀-ͯ]/g, "")
-        .normalize("NFC")
-        .toUpperCase();
-}
-
-// ─── Design tokens ──────────────────────────────────────────────────────────
-const C = {
-    ink: "#0a0a0a",
-    body: "#262626",
-    mid: "#525252",
-    light: "#a3a3a3",
-    line: "#e5e5e5",
-    surface: "#fafafa",
-    // Brand orange (--orange: hsl(24 100% 50%))
-    accent: "#ff8000",
-    accentSoft: "#fff4eb",
-};
+import { ASSET_BASE, Brand, C, greekUpper, LucideIcon, QRCode } from "@/components/pdf/shared";
 
 const MARGIN_X = 48;
-
-// Logo intrinsic ratio: 1606 × 1354
-const LOGO_W = 18;
-const LOGO_H = (LOGO_W * 1354) / 1606;
 
 // ─── Formatting ─────────────────────────────────────────────────────────────
 const fmtEur = (n: number) =>
@@ -93,112 +33,6 @@ const fmtEur = (n: number) =>
 
 const fmtDate = (d: Date) =>
     new Intl.DateTimeFormat("el-GR", { day: "numeric", month: "long", year: "numeric" }).format(d);
-
-// ─── QR (vector) ────────────────────────────────────────────────────────────
-function QRCode({ value, size }: { value: string; size: number }) {
-    const qr = qrcode(0, "M");
-    qr.addData(value);
-    qr.make();
-    const n = qr.getModuleCount();
-    let d = "";
-    for (let r = 0; r < n; r++) {
-        for (let c = 0; c < n; c++) {
-            if (qr.isDark(r, c)) d += `M${c} ${r}h1v1h-1z`;
-        }
-    }
-    return (
-        <Svg width={size} height={size} viewBox={`0 0 ${n} ${n}`}>
-            <Path d={d} fill={C.ink} />
-        </Svg>
-    );
-}
-
-// ─── Lucide icons (stroke paths, mirrors the web page's lucide-react) ───────
-const ICON_PATHS: Record<string, { paths: string[]; circles?: [number, number, number][] }> = {
-    // lucide FileText
-    fileText: {
-        paths: [
-            "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z",
-            "M14 2v4a2 2 0 0 0 2 2h4",
-            "M10 9H8",
-            "M16 13H8",
-            "M16 17H8",
-        ],
-    },
-    // lucide Building2
-    building2: {
-        paths: [
-            "M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z",
-            "M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2",
-            "M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2",
-            "M10 6h4",
-            "M10 10h4",
-            "M10 14h4",
-            "M10 18h4",
-        ],
-    },
-    // lucide Package
-    package: {
-        paths: [
-            "m7.5 4.27 9 5.15",
-            "M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z",
-            "M3.3 7 12 12l8.7-5",
-            "M12 22V12",
-        ],
-    },
-    // lucide Clock
-    clock: {
-        paths: ["M12 6v6l4 2"],
-        circles: [[12, 12, 10]],
-    },
-    // lucide Receipt
-    receipt: {
-        paths: [
-            "M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z",
-            "M14 8H8",
-            "M16 12H8",
-            "M13 16H8",
-        ],
-    },
-};
-
-function LucideIcon({
-    name,
-    size,
-    color = C.accent,
-}: {
-    name: keyof typeof ICON_PATHS;
-    size: number;
-    color?: string;
-}) {
-    const icon = ICON_PATHS[name];
-    return (
-        <Svg width={size} height={size} viewBox="0 0 24 24">
-            {icon.circles?.map(([cx, cy, r], i) => (
-                <Circle
-                    key={`c${i}`}
-                    cx={cx}
-                    cy={cy}
-                    r={r}
-                    fill="none"
-                    stroke={color}
-                    strokeWidth={2}
-                />
-            ))}
-            {icon.paths.map((d, i) => (
-                <Path
-                    key={i}
-                    d={d}
-                    fill="none"
-                    stroke={color}
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                />
-            ))}
-        </Svg>
-    );
-}
 
 // ─── Text styles (fontSize + lineHeight always paired) ──────────────────────
 const T = {
@@ -223,16 +57,6 @@ const pageStyle = {
 };
 
 // ─── Shared blocks ──────────────────────────────────────────────────────────
-function Brand() {
-    return (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
-            {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img; alt is not a valid prop */}
-            <Image src={`${ASSET_BASE}/logo.png`} style={{ width: LOGO_W, height: LOGO_H }} />
-            <Text style={{ fontSize: 10, color: C.ink }}>OpenCouncil</Text>
-        </View>
-    );
-}
-
 function MicroLabel({ children }: { children: string }) {
     return <Text style={{ ...T.micro, marginBottom: 4 }}>{greekUpper(children)}</Text>;
 }

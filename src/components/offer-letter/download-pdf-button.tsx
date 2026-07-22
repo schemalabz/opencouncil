@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FileDown, Loader2 } from "lucide-react";
+import { downloadBlob } from "@/lib/utils/download";
 import type { Offer } from "@prisma/client";
 
 /**
@@ -30,14 +31,7 @@ export function DownloadPdfButton({
             const blob = await pdf(
                 <OfferPdfDocument offer={offer} baseUrl={baseUrl} />
             ).toBlob();
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = `OpenCouncil-Προσφορά-${offer.recipientName}.pdf`;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            URL.revokeObjectURL(url);
+            downloadBlob(blob, `OpenCouncil-Προσφορά-${offer.recipientName}.pdf`);
         } catch (err) {
             console.error("Failed to generate PDF:", err);
             alert("Δεν ήταν δυνατή η δημιουργία του PDF. Δοκιμάστε ξανά.");

@@ -11,6 +11,7 @@
  */
 import { Document, PageBreak, Packer, Paragraph, TextRun } from "docx";
 import type { Offer } from "@prisma/client";
+import { downloadBlob } from "@/lib/utils/download";
 import { getOfferProcurementLines, type ProcurementLine } from "@/lib/offers/display";
 import { euroAmountInWords } from "@/lib/formatters/currencyWords";
 import {
@@ -97,12 +98,5 @@ export async function downloadFinancialOffer(
 ): Promise<void> {
     const doc = await buildFinancialOfferDoc(offer, params);
     const blob = await Packer.toBlob(doc);
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `Οικονομική Προσφορά - ${offer.recipientName}.docx`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, `Οικονομική Προσφορά - ${offer.recipientName}.docx`);
 }

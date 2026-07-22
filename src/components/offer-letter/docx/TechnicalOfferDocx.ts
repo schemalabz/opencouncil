@@ -9,6 +9,7 @@
  */
 import { Document, Packer } from "docx";
 import type { Offer } from "@prisma/client";
+import { downloadBlob } from "@/lib/utils/download";
 import {
     body,
     buildDocTitle,
@@ -62,12 +63,5 @@ export async function downloadTechnicalOffer(
 ): Promise<void> {
     const doc = await buildTechnicalOfferDoc(offer, params);
     const blob = await Packer.toBlob(doc);
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `Τεχνική Προσφορά - ${offer.recipientName}.docx`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, `Τεχνική Προσφορά - ${offer.recipientName}.docx`);
 }

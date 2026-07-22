@@ -33,6 +33,7 @@ import {
     WidthType,
 } from "docx";
 import type { Offer } from "@prisma/client";
+import { downloadBlob } from "@/lib/utils/download";
 import { calculateOfferTotals } from "@/lib/pricing";
 import {
     deriveOfferCpv,
@@ -484,12 +485,5 @@ export function buildTechnicalDescriptionDoc(offer: Offer): Document {
 export async function downloadTechnicalDescription(offer: Offer): Promise<void> {
     const doc = buildTechnicalDescriptionDoc(offer);
     const blob = await Packer.toBlob(doc);
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `Τεχνική Περιγραφή - ${offer.recipientName}.docx`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, `Τεχνική Περιγραφή - ${offer.recipientName}.docx`);
 }
