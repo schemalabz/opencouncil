@@ -162,15 +162,14 @@
   },
   "team": {
     "title": "The team behind OpenCouncil",
-    "subtitle": "7 people, building technology for local democracy. OpenCouncil IKE is wholly owned by <link>Schema Labs</link>, a non-profit company.",
+    "subtitle": "6 people, building technology for local democracy. OpenCouncil IKE is wholly owned by <link>Schema Labs</link>, a non-profit company.",
     "members": {
       "christos": "Christos Porios",
       "andreas": "Andreas Kouloumos",
       "eliza": "Eliza Gkimitzoudi",
       "thanos": "Thanos Papadogiannis",
       "vasia": "Vasiliki Koumarela",
-      "myrto": "Myrto Plemmenou",
-      "alexandra": "Alexandra Ranunkel"
+      "myrto": "Myrto Plemmenou"
     },
     "office": {
       "title": "Our space",
