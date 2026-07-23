@@ -3,10 +3,10 @@
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useOnboarding } from '@/contexts/OnboardingContext';
-import { MapFeature } from '@/components/map/map';
+import type { MapFeature } from '@/components/map/map';
 import { calculateMapView } from '@/lib/geo';
 import { getRealmDefaultMapView } from '@/lib/realm';
-import Map from '@/components/map/map';
+import Map from '@/components/map/DynamicMap';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Eye, EyeOff, Map as MapIcon } from 'lucide-react';
