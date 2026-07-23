@@ -45,6 +45,7 @@ import {
     flyToMunicipality,
     parseInitialUrlState,
     type DateRangeKey,
+    type InfoSurface,
     type LandingView,
     type LayoutProps,
     type MapFilters,
@@ -594,9 +595,12 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         setInfoOpen(false); // switching to a real tab closes the info drawer
         setView(v);
     };
-    const toggleInfo = () => {
+    // `surface` records which entry point opened the drawer — the always-visible "?" (the desktop
+    // rail button or the mobile floating one) vs the "Τι είναι αυτό;" item in a nav menu. Only the
+    // open leg is tracked, so the close call sites (drawer header ×) pass nothing.
+    const toggleInfo = (surface?: InfoSurface) => {
         if (!infoOpen) {
-            captureLandingAction('info_opened', {});
+            captureLandingAction('info_opened', { surface: surface ?? null });
             // The drawer explains the subjects map, so anchor it to that view (e.g. opening it from
             // the municipalities tab): the legend and the map underneath always agree.
             setView('subjects');
@@ -604,7 +608,14 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         setInfoOpen((o) => !o);
     };
     const trackedToggleCat = (id: string) => {
-        captureLandingAction('filter', { type: 'topic', topic_id: id, active: !cats.includes(id) });
+        // topic_name rides along so "which category" is legible in PostHog without an id→name join.
+        const topic = topics.find((t) => t.id === id);
+        captureLandingAction('filter', {
+            type: 'topic',
+            topic_id: id,
+            topic_name: topic?.name ?? null,
+            active: !cats.includes(id),
+        });
         onToggleCat(id);
     };
     const trackedSetRange = (v: DateRangeKey) => {

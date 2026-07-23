@@ -118,7 +118,7 @@ export function MobileLayout({
             {/* "?" info drawer — explains the map */}
             {infoOpen && (
                 <section className="absolute inset-x-3 bottom-[10px] top-[76px] z-[8] flex flex-col overflow-hidden rounded-2xl border border-black/40 bg-muted shadow-xl">
-                    <ListHeader title={t('info.title')} className="bg-card" onToggle={onToggleInfo} />
+                    <ListHeader title={t('info.title')} className="bg-card" onToggle={() => onToggleInfo()} />
                     <InfoPanel />
                 </section>
             )}
@@ -158,7 +158,7 @@ export function MobileLayout({
                         <>
                             <button
                                 type="button"
-                                onClick={onToggleInfo}
+                                onClick={() => onToggleInfo('float')}
                                 aria-pressed={infoOpen}
                                 aria-label={t('nav.info')}
                                 className="absolute bottom-[10px] left-5 z-[10] flex h-10 w-10 items-center justify-center rounded-full border border-[hsl(var(--orange))]/50 text-[hsl(var(--orange))] shadow-md"

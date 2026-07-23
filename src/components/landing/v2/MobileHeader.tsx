@@ -10,6 +10,8 @@ import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger, SheetClose, SheetTitle } from '@/components/ui/sheet';
 import { FOOTER_GROUPS, isInternalHref, reopenCookiePreferences, type FooterLink } from './navLinks';
 import { NotifyMunicipalityDialog, openAfterMenuCloses } from './NotifyMunicipalityDialog';
+import { captureLandingAction } from '@/lib/landing/analytics';
+import type { InfoSurface } from '@/lib/landing/landingCore';
 import type { LandingListCity } from '@/lib/landing/landingData';
 
 /* Mobile top bar — a pill with the burger nav-drawer trigger + logo on the left and a separate
@@ -25,7 +27,7 @@ export function MobileHeader({
     onOpenSearch: () => void;
     /** opens the "Τι είναι αυτό;" guide — the same panel the map's "?" opens. Offered here too
      *  because that is where people looked for it and didn't find it. */
-    onToggleInfo: () => void;
+    onToggleInfo: (surface?: InfoSurface) => void;
     /** cooperating δήμοι, for the "which δήμος?" notifications dialog opened from the menu */
     cities: LandingListCity[];
     /** a keyword search is active — the search box goes orange and shows the query */
@@ -79,7 +81,7 @@ export function MobileHeader({
                     {/* primary nav + expandable link groups */}
                     <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2">
                         <DrawerLink href="/" icon={<Home className="h-[18px] w-[18px]" />}>{t('nav.home')}</DrawerLink>
-                        <DrawerAction onClick={onToggleInfo} icon={<HelpCircle className="h-[18px] w-[18px]" />}>
+                        <DrawerAction onClick={() => onToggleInfo('menu')} icon={<HelpCircle className="h-[18px] w-[18px]" />}>
                             {t('info.title')}
                         </DrawerAction>
                         {FOOTER_GROUPS.map((group) => (
@@ -90,7 +92,14 @@ export function MobileHeader({
                                 </summary>
                                 <div className="flex flex-col gap-0.5 py-0.5 pl-3">
                                     {group.links.map((link) => (
-                                        <DrawerFooterLink key={link.label} link={link} onNotify={() => openAfterMenuCloses(() => setNotifyOpen(true))} />
+                                        <DrawerFooterLink
+                                            key={link.label}
+                                            link={link}
+                                            onNotify={() => {
+                                                captureLandingAction('notify_dialog_opened', { surface: 'menu' });
+                                                openAfterMenuCloses(() => setNotifyOpen(true));
+                                            }}
+                                        />
                                     ))}
                                 </div>
                             </details>
