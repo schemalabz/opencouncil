@@ -721,6 +721,11 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
             {showNotifyPrompt && interested && (
                 <NotifyPrompt
                     interest={interested}
+                    logoImage={
+                        interested.kind === 'known'
+                            ? cities.find((c) => c.id === interested.cityId)?.logoImage ?? null
+                            : null
+                    }
                     nextMeeting={interestNextMeeting}
                     onClose={onCloseNotify}
                     onOptOut={optOutNotify}
