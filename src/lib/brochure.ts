@@ -3,6 +3,18 @@
  */
 import type { AdministrativeBodyType } from "@prisma/client";
 import type { CoverageRow } from "@/lib/db/coverage";
+import { TEAM_MEMBERS } from "@/components/about/config";
+import elAbout from "../../messages/el/about.json";
+
+/**
+ * Team roster for the brochure's back panel — ids and photos from the shared
+ * about-page config, Greek names from the el messages (the brochure is
+ * Greek-only) — so the brochure can't drift from the /about page.
+ */
+const memberNames: Record<string, string> = elAbout.team.members;
+export const BROCHURE_TEAM: Array<{ name: string; image: string }> = TEAM_MEMBERS.map(
+    member => ({ name: memberNames[member.id], image: member.image })
+);
 
 const BODY_TYPE_ORDER: AdministrativeBodyType[] = ["council", "committee", "community"];
 

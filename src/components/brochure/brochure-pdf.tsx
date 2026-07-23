@@ -15,7 +15,7 @@ import { Document, Page, View, Text, Image } from "@react-pdf/renderer";
 import type { AdministrativeBodyType } from "@prisma/client";
 import { ASSET_BASE, Brand, C, greekUpper, LucideIcon, QRCode } from "@/components/pdf/shared";
 import type { ICON_PATHS } from "@/components/pdf/shared";
-import { bodyTypesPhrase } from "@/lib/brochure";
+import { bodyTypesPhrase, BROCHURE_TEAM } from "@/lib/brochure";
 
 export interface BrochureCity {
     id: string;
@@ -78,16 +78,6 @@ const PAGE_W = 841.89;
 const PAGE_H = 595.28;
 const PANEL_W = PAGE_W / 3;
 const PANEL_PAD = 26;
-
-const TEAM: Array<{ name: string; image: string }> = [
-    { name: "Χρήστος Πορίος", image: "/people/christos.jpg" },
-    { name: "Ανδρέας Κούλουμος", image: "/people/andreas.jpg" },
-    { name: "Ελίζα Γκιμιτζούδη", image: "/people/eliza.jpeg" },
-    { name: "Θάνος Παπαδογιάννης", image: "/people/thanos.png" },
-    { name: "Βασιλική Κουμαρέλα", image: "/people/vasia.jpg" },
-    { name: "Μυρτώ Πλεμμένου", image: "/people/myrto.jpg" },
-    { name: "Αλεξάνδρα Ρανούνκελ", image: "/people/alexandra.jpg" },
-];
 
 // Round down to the nearest `step` and present as "1.900+".
 function approx(n: number, step: number): string {
@@ -438,7 +428,7 @@ function BackPanel({ data }: { data: BrochureData }) {
             <PanelTitle kicker="Η ομάδα" title="Οι άνθρωποι πίσω από το OpenCouncil" />
 
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
-                {TEAM.map(member => (
+                {BROCHURE_TEAM.map(member => (
                     <View key={member.name} style={{ width: 50, alignItems: "center" }}>
                         {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image */}
                         <Image
