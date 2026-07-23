@@ -2,6 +2,7 @@
 
 import { Bell, CalendarDays } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import Image from 'next/image';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -13,11 +14,14 @@ import { captureLanding, captureLandingAction } from '@/lib/landing/analytics';
    or a petition to add their municipality (out-of-network) */
 export function NotifyPrompt({
     interest,
+    logoImage,
     nextMeeting,
     onClose,
     onOptOut,
 }: {
     interest: MunicipalityInterest;
+    /** the known δήμος's logo, shown in the header badge in place of the bell (null → bell fallback) */
+    logoImage?: string | null;
     nextMeeting?: UpcomingMeeting;
     /** dismiss for this session (backdrop click) */
     onClose: () => void;
@@ -40,11 +44,25 @@ export function NotifyPrompt({
                 <div className="flex items-center gap-4">
                     <span
                         className={cn(
-                            'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl sm:h-14 sm:w-14',
-                            known ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
+                            'flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl sm:h-20 sm:w-20',
+                            known && logoImage
+                                ? 'border border-border bg-card p-1.5'
+                                : known
+                                  ? 'bg-primary/10 text-primary'
+                                  : 'bg-muted text-muted-foreground',
                         )}
                     >
-                        <Bell className="h-6 w-6 sm:h-7 sm:w-7" />
+                        {known && logoImage ? (
+                            <Image
+                                src={logoImage}
+                                alt=""
+                                width={80}
+                                height={80}
+                                className="h-full w-full object-contain"
+                            />
+                        ) : (
+                            <Bell className="h-7 w-7 sm:h-9 sm:w-9" />
+                        )}
                     </span>
                     <h3 className="min-w-0 flex-1 text-xl font-bold leading-tight tracking-tight text-foreground sm:text-2xl">
                         {t('notify.interested')}{' '}
