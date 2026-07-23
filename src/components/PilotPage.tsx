@@ -37,7 +37,13 @@ export default function PilotPage({ cities }: { cities: (City & { councilMeeting
                     </div>
                     <div className="flex flex-1 flex-col">
                         {cities.map((city) => (
-                            <CityCard key={city.id} city={city} />
+                            <CityCard
+                                key={city.id}
+                                city={city}
+                                // Cards stack full-width inside max-w-6xl below lg,
+                                // then sit in one of two columns above it.
+                                logoSizes="(max-width: 1024px) 50vw, (max-width: 1152px) 25vw, 288px"
+                            />
                         ))}
                     </div>
                 </div >

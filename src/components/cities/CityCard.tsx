@@ -8,11 +8,20 @@ import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { OfficialSupportBadge } from '@/components/cities/OfficialSupportBadge';
 
+// Matches CitiesList: 1 column below md, 2 up to lg, 3 above. The logo
+// occupies half the card, so each entry is half the card's width.
+const DEFAULT_LOGO_SIZES = '(max-width: 768px) 50vw, (max-width: 1024px) 25vw, 17vw';
+
 interface CityCardProps {
     city: City & { councilMeetings: CouncilMeeting[] };
+    /**
+     * Width of the logo slot per breakpoint. Override when the card is not in
+     * the CitiesList grid, otherwise Next picks a source for the wrong layout.
+     */
+    logoSizes?: string;
 }
 
-export function CityCard({ city }: CityCardProps) {
+export function CityCard({ city, logoSizes = DEFAULT_LOGO_SIZES }: CityCardProps) {
     let locale = useLocale();
     let localizedName = locale === 'en' ? city.name_en : city.name;
     const router = useRouter();
@@ -39,7 +48,7 @@ export function CityCard({ city }: CityCardProps) {
                                     src={city.logoImage || '/default-city-logo.jpg'}
                                     alt={`${localizedName} logo`}
                                     fill
-                                    sizes="(max-width: 768px) 50vw, (max-width: 1024px) 25vw, 17vw"
+                                    sizes={logoSizes}
                                     className="opacity-20 object-contain"
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-l from-transparent to-background"></div>
