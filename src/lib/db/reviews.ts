@@ -715,6 +715,13 @@ function getEmptyAggregatedMeetingStats(): AggregatedMeetingStats {
   };
 }
 
+// Each meeting pair contributes 2 bind variables (cityId, meetingId) to the
+// raw queries below. PostgreSQL caps a prepared statement at 32767 bind
+// variables, so an unbounded VALUES list (e.g. when the "last 30 days" filter
+// is off and every reviewed meeting is included) overflows that limit and the
+// query throws. Chunking keeps each query well under the cap and bounds cost.
+const MEETING_STATS_BATCH_SIZE = 500;
+
 async function getAggregatedMeetingStatsBatch(
   meetings: MeetingId[]
 ): Promise<Map<string, AggregatedMeetingStats>> {
@@ -727,6 +734,18 @@ async function getAggregatedMeetingStatsBatch(
     statsByMeeting.set(getMeetingMapKey(meeting), getEmptyAggregatedMeetingStats());
   }
 
+  for (let i = 0; i < meetings.length; i += MEETING_STATS_BATCH_SIZE) {
+    const chunk = meetings.slice(i, i + MEETING_STATS_BATCH_SIZE);
+    await aggregateMeetingStatsChunk(chunk, statsByMeeting);
+  }
+
+  return statsByMeeting;
+}
+
+async function aggregateMeetingStatsChunk(
+  meetings: MeetingId[],
+  statsByMeeting: Map<string, AggregatedMeetingStats>
+): Promise<void> {
   const meetingPairs = Prisma.join(
     meetings.map((m) => Prisma.sql`(${m.cityId}::text, ${m.meetingId}::text)`)
   );
@@ -901,8 +920,6 @@ async function getAggregatedMeetingStatsBatch(
       primaryReviewer: reviewers.length > 0 ? reviewers[0] : null,
     });
   }
-
-  return statsByMeeting;
 }
 
 /**
