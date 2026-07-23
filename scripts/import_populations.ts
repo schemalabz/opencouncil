@@ -24,8 +24,23 @@ import { PrismaClient } from "@prisma/client";
 import fs from "fs";
 import path from "path";
 import { parseCsvFile } from "./lib/csv";
+import { buildSortKey, normalizeGreekName } from "./lib/greek-name-matching";
 
 const prisma = new PrismaClient();
+
+/** Normalized token set of a municipality name, without the "δήμος" prefix. */
+function nameTokens(name: string): Set<string> {
+    return new Set(
+        buildSortKey(normalizeGreekName(name))
+            .split(" ")
+            .filter(t => t && t !== "δημοσ")
+    );
+}
+
+function isSubset(a: Set<string>, b: Set<string>): boolean {
+    for (const t of a) if (!b.has(t)) return false;
+    return a.size > 0;
+}
 
 async function main() {
     const csvPath = process.argv[2];
@@ -48,9 +63,32 @@ async function main() {
     });
     const byId = new Map(cities.map((c) => [c.id, c]));
     const byName = new Map<string, typeof cities[0]>();
+    const byNormalizedName = new Map<string, typeof cities[0]>();
     for (const c of cities) {
         byName.set(c.name, c);
         byName.set(c.name_municipality, c);
+        byNormalizedName.set(buildSortKey(normalizeGreekName(c.name_municipality)), c);
+    }
+
+    /**
+     * Match layers: exact name → normalized token-sort (tonos, hyphen and
+     * spacing variants) → unique token subset (official long names, e.g.
+     * CSV "Δήμος Νάουσας" ⊂ DB "Δήμος Ηρωικής Πόλεως Νάουσας"). Subset
+     * matches are only accepted when exactly one candidate qualifies.
+     */
+    function matchByNameLayered(nameEl: string): typeof cities[0] | undefined {
+        const exact = byName.get(nameEl);
+        if (exact) return exact;
+
+        const normalized = byNormalizedName.get(buildSortKey(normalizeGreekName(nameEl)));
+        if (normalized) return normalized;
+
+        const csvTokens = nameTokens(nameEl);
+        const candidates = cities.filter((c) => {
+            const dbTokens = nameTokens(c.name_municipality);
+            return isSubset(csvTokens, dbTokens) || isSubset(dbTokens, csvTokens);
+        });
+        return candidates.length === 1 ? candidates[0] : undefined;
     }
 
     let updated = 0;
@@ -58,6 +96,7 @@ async function main() {
     let unmatched = 0;
     let idsWritten = 0;
     const matchedCityIds = new Set<string>();
+    const unmatchedRows: string[] = [];
 
     for (const row of rows) {
         const id = row.id || "";
@@ -72,10 +111,11 @@ async function main() {
         }
 
         let city = id ? byId.get(id) : undefined;
-        if (!city && nameEl) city = byName.get(nameEl);
+        if (!city && nameEl) city = matchByNameLayered(nameEl);
 
         if (!city) {
             unmatched++;
+            unmatchedRows.push(nameEl || id);
             continue;
         }
 
@@ -110,14 +150,26 @@ async function main() {
 
     const missingFromCsv = cities.filter((c) => !matchedCityIds.has(c.id));
 
+    // The CSV holds all 332 Greek municipalities — after a clean run against
+    // production this count should be exactly 332.
+    const greekMunicipalitiesWithPopulation = await prisma.city.count({
+        where: { authorityType: "municipality", realm: "greece", population: { not: null } },
+    });
+
     console.log(`\nDone!`);
     console.log(`  Updated:   ${updated}`);
     console.log(`  Unchanged: ${unchanged}`);
+    console.log(
+        `  Greek municipalities with population in DB: ${greekMunicipalitiesWithPopulation} (expected 332)`
+    );
     if (writeIds) {
         console.log(`  Ids written back to CSV: ${idsWritten}`);
     }
     if (unmatched > 0) {
         console.log(`  Unmatched in CSV (no DB row): ${unmatched}`);
+        for (const name of unmatchedRows) {
+            console.log(`    - ${name}`);
+        }
     }
     if (missingFromCsv.length > 0) {
         console.log(`\n  ${missingFromCsv.length} cities in DB have no population data in the CSV:`);
