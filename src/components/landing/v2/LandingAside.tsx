@@ -15,9 +15,10 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import Image from 'next/image';
-import type { LandingView } from '@/lib/landing/landingCore';
+import type { InfoSurface, LandingView } from '@/lib/landing/landingCore';
 import { FOOTER_GROUPS, isInternalHref, reopenCookiePreferences } from './navLinks';
 import { NotifyMunicipalityDialog, openAfterMenuCloses } from './NotifyMunicipalityDialog';
+import { captureLandingAction } from '@/lib/landing/analytics';
 import type { LandingListCity } from '@/lib/landing/landingData';
 
 /* The desktop landing's left nav rail: brand at the top, the three view items centered,
@@ -34,7 +35,7 @@ export function LandingAside({
     onSelect: (v: LandingView) => void;
     /** the "?" info drawer is open — highlights the "?" item and de-highlights the view tabs */
     infoOpen: boolean;
-    onToggleInfo: () => void;
+    onToggleInfo: (surface?: InfoSurface) => void;
     /** cooperating δήμοι, for the "which δήμος?" notifications dialog opened from "Περισσότερα" */
     cities: LandingListCity[];
 }) {
@@ -76,7 +77,7 @@ export function LandingAside({
                     sitting greyed out: it read as decoration before and went unclicked. */}
                 <button
                     type="button"
-                    onClick={onToggleInfo}
+                    onClick={() => onToggleInfo('rail')}
                     aria-pressed={infoOpen}
                     aria-label={t('nav.info')}
                     className="flex h-16 w-16 items-center justify-center"
@@ -118,6 +119,15 @@ export function LandingAside({
                             <span className="text-[18px] font-bold text-foreground">OpenCouncil</span>
                         </div>
                         <DropdownMenuSeparator className="bg-muted" />
+                        {/* the "?" guide — parity with the mobile menu's info action */}
+                        <DropdownMenuItem
+                            onSelect={() => onToggleInfo('menu')}
+                            className="flex items-center gap-2 rounded-lg text-muted-foreground focus:bg-muted focus:text-foreground"
+                        >
+                            <HelpCircle className="h-4 w-4" />
+                            {t('info.title')}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator className="bg-muted" />
                         {FOOTER_GROUPS.map((group, gi) => (
                             <div key={group.title}>
                                 {gi > 0 && <DropdownMenuSeparator className="bg-muted" />}
@@ -146,7 +156,10 @@ export function LandingAside({
                                     ) : link.notify ? (
                                         <DropdownMenuItem
                                             key={link.label}
-                                            onSelect={() => openAfterMenuCloses(() => setNotifyOpen(true))}
+                                            onSelect={() => {
+                                                captureLandingAction('notify_dialog_opened', { surface: 'menu' });
+                                                openAfterMenuCloses(() => setNotifyOpen(true));
+                                            }}
                                             className="rounded-lg text-muted-foreground focus:bg-muted focus:text-foreground"
                                         >
                                             {t(link.labelKey!)}

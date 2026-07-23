@@ -204,6 +204,11 @@ export function flyToMunicipality(map: mapboxgl.Map, geometry: GeoJSON.Geometry,
  *  'home' = intro panel; 'subjects' = subjects list + pins; 'municipalities' = δήμοι + logo markers. */
 export type LandingView = 'home' | 'subjects' | 'municipalities';
 
+/** Where the "?" info drawer was opened from: the desktop rail button, the mobile floating button,
+ *  or a nav menu item (either viewport — the event's `device` context tells them apart). Passed only
+ *  when opening; the drawer's own × close passes nothing. */
+export type InfoSurface = 'rail' | 'float' | 'menu';
+
 /** Map the shared view onto the desktop tab set: desktop has no 'home', so it collapses to 'subjects'. */
 export function desktopView(view: LandingView): LandingView {
     return view === 'home' ? 'subjects' : view;
@@ -272,7 +277,7 @@ export type LayoutProps = {
     setView: (v: LandingView) => void;
     /** the "?" info/help drawer is open — independent of the map view (doesn't change markers) */
     infoOpen: boolean;
-    onToggleInfo: () => void;
+    onToggleInfo: (surface?: InfoSurface) => void;
     /** selected category (topic) ids — empty means "all" */
     cats: string[];
     /** toggle a category in/out of the selection (also clears any selected subject) */
