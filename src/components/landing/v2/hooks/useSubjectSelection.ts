@@ -45,14 +45,14 @@ export function useSubjectSelection({
                 Math.abs(c.lng - s.lng) > 1e-6 ||
                 Math.abs(c.lat - s.lat) > 1e-6 ||
                 targetZoom - mapInstance.getZoom() > 1e-3;
-            if (willMove) {
-                mapInstance.easeTo({
-                    center: [s.lng, s.lat],
-                    zoom: targetZoom,
-                    duration: 500,
-                    // desktop: shift right to clear the floating list (one-time offset)
-                    offset: isMobile ? [0, 0] : [210, 0],
-                });
+            // mobile (select mode): lift the subject into the top of the viewport so its location is
+            // visible above the expanded card. Always ease on mobile — a preview may have already
+            // centred it, but the top-offset still needs applying. Desktop keeps the willMove guard.
+            const mobileTopOffset = -Math.round((typeof window !== 'undefined' ? window.innerHeight : 800) * 0.24);
+            if (isMobile) {
+                mapInstance.easeTo({ center: [s.lng, s.lat], zoom: targetZoom, duration: 500, offset: [0, mobileTopOffset] });
+            } else if (willMove) {
+                mapInstance.easeTo({ center: [s.lng, s.lat], zoom: targetZoom, duration: 500, offset: [210, 0] });
             }
         } else {
             setFlyTo({ type: 'Point', coordinates: [s.lng, s.lat] });

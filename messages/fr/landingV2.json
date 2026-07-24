@@ -86,6 +86,7 @@
     "known": "Si vous le souhaitez, activez les notifications pour suivre les sujets débattus.",
     "unknown": "Malheureusement, elle ne fait pas encore partie de notre réseau. Vous pouvez demander qu'elle le rejoigne et nous vous préviendrons dès que ce sera le cas.",
     "enable": "Activer les notifications",
+    "pickMunicipality": "Choisissez la commune qui vous intéresse, pour recevoir des mises à jour sur ce qui y est débattu",
     "notNow": "Plus tard"
   },
   "explain": {
@@ -104,7 +105,7 @@
   "marker": {
     "samePoint": "{count} sujets au même endroit",
     "seeSamePoint": "Voir {count} sujets au même endroit",
-    "clusterZoom": "{count} sujets — zoomez"
+    "municipalityZoom": "{name} — {count} sujets, zoomez"
   },
   "dateRange": {
     "7d": "7 jours",
@@ -157,6 +158,7 @@
       "api": "API",
       "jobs": "Emplois",
       "status": "État du service",
+      "notifications": "Notifications",
       "corrections": "Corrections",
       "privacy": "Politique de confidentialité",
       "terms": "Conditions d'utilisation",

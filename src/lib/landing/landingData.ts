@@ -81,6 +81,104 @@ export type LandingGeneralCity = {
     subjects: LandingSubject[];
 };
 
+/** One δήμος's total subjects, for the zoomed-out per-municipality markers: a donut of its topic mix
+ *  with the total in the ring's bottom gap and the municipality logo in the middle. `geometry` (from
+ *  mapCities) frames the zoom-in on click; null when the δήμος has no boundary in the payload.
+ *  `logoImage` null → the marker falls back to the city's initial. */
+export type MunicipalitySubjectCount = {
+    cityId: string;
+    /** plain name — the initial-letter fallback when there's no logo */
+    cityName: string;
+    /** genitive form (e.g. "Δήμος Χανίων") — used for the marker's accessible label */
+    nameMunicipality: string;
+    logoImage: string | null;
+    count: number;
+    /** the counted subjects themselves — the marker's donut derives its topic arcs from these */
+    members: LandingSubject[];
+    /** where the donut sits — the δήμος centroid, or the mean of its subjects as a fallback */
+    lng: number;
+    lat: number;
+    geometry: GeoJSON.Geometry | null;
+};
+
+/**
+ * Totals per δήμος for the zoomed-out view: located + non-located subjects summed by city, placed at
+ * the δήμος centroid (from mapCities) so every number sits on its municipality rather than drifting
+ * with the subjects. Name/logo/geometry come from mapCities (authoritative); a δήμος not in mapCities
+ * falls back to the mean of its own points and the first logo/name seen on its subjects. Pure.
+ */
+export function aggregateMunicipalityCounts(
+    located: LandingSubject[],
+    general: LandingGeneralCity[],
+    mapCities: MapCityRow[],
+): MunicipalitySubjectCount[] {
+    const known = new Map(mapCities.map((c) => [c.id, c]));
+    const acc = new Map<
+        string,
+        {
+            cityId: string;
+            cityName: string;
+            nameMunicipality: string;
+            logoImage: string | null;
+            count: number;
+            members: LandingSubject[];
+            lngSum: number;
+            latSum: number;
+            n: number;
+        }
+    >();
+    const bump = (s: {
+        cityId: string;
+        cityName: string;
+        nameMunicipality: string;
+        cityLogo: string | null;
+        members: LandingSubject[];
+        lng: number;
+        lat: number;
+    }) => {
+        const e = acc.get(s.cityId);
+        if (e) {
+            e.count += s.members.length;
+            e.members.push(...s.members);
+            e.lngSum += s.lng;
+            e.latSum += s.lat;
+            e.n += 1;
+            e.logoImage ??= s.cityLogo;
+        } else {
+            acc.set(s.cityId, {
+                cityId: s.cityId,
+                cityName: s.cityName,
+                nameMunicipality: s.nameMunicipality,
+                logoImage: s.cityLogo,
+                count: s.members.length,
+                members: [...s.members],
+                lngSum: s.lng,
+                latSum: s.lat,
+                n: 1,
+            });
+        }
+    };
+    for (const s of located)
+        bump({ cityId: s.cityId, cityName: s.cityName, nameMunicipality: s.nameMunicipality, cityLogo: s.cityLogo, members: [s], lng: s.lng, lat: s.lat });
+    for (const c of general)
+        bump({ cityId: c.cityId, cityName: c.cityName, nameMunicipality: c.nameMunicipality, cityLogo: c.subjects[0]?.cityLogo ?? null, members: c.subjects, lng: c.lng, lat: c.lat });
+
+    return Array.from(acc.values()).map((e) => {
+        const city = known.get(e.cityId);
+        return {
+            cityId: e.cityId,
+            cityName: e.cityName,
+            nameMunicipality: e.nameMunicipality,
+            logoImage: city?.logoImage ?? e.logoImage,
+            count: e.count,
+            members: e.members,
+            lng: city?.lng ?? e.lngSum / e.n,
+            lat: city?.lat ?? e.latSum / e.n,
+            geometry: city?.geometry ?? null,
+        };
+    });
+}
+
 /** The municipality under the map center — drives the "view its page" button. */
 export type CenterMunicipality = { id: string; name: string; nameMunicipality: string; officialSupport: boolean };
 /** An out-of-network δήμος the visitor clicked on the map (shaded orange, "request it"). */

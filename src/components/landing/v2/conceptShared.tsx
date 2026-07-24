@@ -1,25 +1,17 @@
 'use client';
 
-import { ArrowLeft, ChevronDown, Plus, Minus } from 'lucide-react';
+import { ArrowLeft, X, Plus, Minus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Topic } from '@prisma/client';
 import { cn } from '@/lib/utils';
 import Icon from '@/components/icon';
 import { type SubjectTopic } from '@/lib/landing/landingData';
+import { topicStyle } from '@/lib/topicStyle';
 
-/** Readable text colour (near-black or white) over a solid hex fill. */
-export function contrastText(hex: string): string {
-    const c = hex.replace('#', '');
-    if (c.length < 6) return '#ffffff';
-    const r = parseInt(c.slice(0, 2), 16);
-    const g = parseInt(c.slice(2, 4), 16);
-    const b = parseInt(c.slice(4, 6), 16);
-    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return luminance > 0.62 ? '#0c0a09' : '#ffffff';
-}
 
 /* topic chip (icon + name in the topic's accent color); `iconOnly` drops the label */
 export function TopicChip({ topic, small, iconOnly }: { topic: SubjectTopic; small?: boolean; iconOnly?: boolean }) {
+    const style = topicStyle(topic.color);
     return (
         <span
             className={cn(
@@ -28,9 +20,9 @@ export function TopicChip({ topic, small, iconOnly }: { topic: SubjectTopic; sma
                     ? (small ? 'p-1' : 'p-1.5')
                     : (small ? 'px-2 py-1 text-[11px]' : 'px-2.5 py-1 text-xs'),
             )}
-            style={{ color: topic.color, backgroundColor: `${topic.color}1a`, borderColor: `${topic.color}38` }}
+            style={{ color: style.icon, backgroundColor: style.background, borderColor: style.border }}
         >
-            <Icon name={topic.icon || 'hash'} color={topic.color} size={small ? 12 : 14} />
+            <Icon name={topic.icon || 'hash'} color={style.icon} size={small ? 12 : 14} />
             {!iconOnly && topic.name}
         </span>
     );
@@ -55,8 +47,8 @@ export function ListHeader({
     onBack?: () => void;
     backLabel?: string;
     trailing?: React.ReactNode;
-    /** when set, the whole header row becomes a button that calls this (collapses the panel),
-     *  rendering a ▼ on the right; takes precedence over `trailing`. */
+    /** when set, the whole header row becomes a button that calls this (closes the panel),
+     *  rendering an × on the right; takes precedence over `trailing`. */
     onToggle?: () => void;
     /** 'brand' switches to light text, for sitting over an intense gradient / dark fill */
     tone?: 'default' | 'brand';
@@ -99,7 +91,9 @@ export function ListHeader({
                 </h2>
             </div>
             {onToggle ? (
-                <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground">
+                    <X className="h-5 w-5" />
+                </span>
             ) : (
                 trailing
             )}
@@ -111,7 +105,7 @@ export function ListHeader({
         <button
             type="button"
             onClick={onToggle}
-            aria-label={t('nav.collapse')}
+            aria-label={t('common.close')}
             className={cn(rowClass, 'w-full text-left transition-colors hover:bg-background/40')}
         >
             {inner}
@@ -144,7 +138,7 @@ export function FilterBar({
                 const active = selected.includes(t.id);
                 return (
                     <FilterPill key={t.id} active={active} color={t.colorHex} onClick={() => onToggle(t.id)}>
-                        <Icon name={t.icon || 'hash'} color={active ? contrastText(t.colorHex) : t.colorHex} size={14} />
+                        <Icon name={t.icon || 'hash'} color={topicStyle(t.colorHex, active ? 'solid' : 'soft').icon} size={14} />
                         {t.name}
                     </FilterPill>
                 );
@@ -165,11 +159,10 @@ export function FilterPill({
     color?: string;
     children: React.ReactNode;
 }) {
-    // Topic pills: tinted border when idle, solid fill when selected.
-    const colorStyle = color
-        ? active
-            ? { backgroundColor: color, borderColor: color, color: contrastText(color) }
-            : { backgroundColor: '#ffffff', borderColor: `${color}38`, color }
+    // Topic pills: the shared topic recipe — soft wash when idle, solid fill when selected.
+    const style = color ? topicStyle(color, active ? 'solid' : 'soft') : null;
+    const colorStyle = style
+        ? { backgroundColor: style.background, borderColor: style.border, color: style.icon }
         : undefined;
     return (
         <button
