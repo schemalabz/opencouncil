@@ -11,6 +11,7 @@ import Icon from '@/components/icon';
 type TFn = (key: string, values?: Record<string, string | number>) => string;
 import type { LandingGeneralCity, LandingSubject, MunicipalitySubjectCount } from '@/lib/landing/landingData';
 import { stylePin, type SubjectPin } from '@/lib/landing/landingCore';
+import { PETITION_BLUE, type PetitionBucket } from '@/lib/landing/petitions';
 import { SubjectCard } from './SubjectCard';
 import { captureLandingAction } from '@/lib/landing/analytics';
 import {
@@ -82,10 +83,13 @@ export function ExplainTooltip({ onView, onClose }: { onView: () => void; onClos
    and links to the petition. Rendered into a Mapbox popup via createRoot. */
 export function MunicipalityTooltip({
     name,
+    petitionBucket,
     onView,
     onClose,
 }: {
     name: string;
+    /** the δήμος is on the petition layer — show how many petitions it already has */
+    petitionBucket?: PetitionBucket | null;
     onView: () => void;
     onClose: () => void;
 }) {
@@ -103,6 +107,11 @@ export function MunicipalityTooltip({
                 </button>
                 <div className="flex w-full flex-col gap-2 p-3.5 pr-9">
                     <h3 className="text-[15px] font-bold leading-snug text-foreground">{name}</h3>
+                    {petitionBucket != null && (
+                        <p className="text-sm font-semibold" style={{ color: PETITION_BLUE.deep }}>
+                            {t('municipalityTooltip.petitions', { count: petitionBucket })}
+                        </p>
+                    )}
                     <p className="text-sm text-muted-foreground">{t('municipalityTooltip.body')}</p>
                     <button
                         type="button"
@@ -392,7 +401,7 @@ export function createSubjectPin(
  * the easing runs at frame rate. Scale stays a CSS transform on an inner wrapper, which is safe
  * because it is always ≤ 1: the paint only ever shrinks inside the box.
  */
-function packedMarkerShell(offset: [number, number], scale: number) {
+function packedMarkerShell(offset: [number, number], scale: number, baseScale = 1) {
     const rootEl = document.createElement('div');
     rootEl.style.zIndex = '2';
     // The wrappers are pointer-transparent; the factory re-enables pointer events on the drawn
@@ -404,7 +413,9 @@ function packedMarkerShell(offset: [number, number], scale: number) {
     rootEl.className = 'oc-packed-marker';
     const scaleEl = document.createElement('div');
     scaleEl.style.pointerEvents = 'none';
-    scaleEl.style.transform = `scale(${scale})`;
+    // `baseScale` is a constant visual demotion (e.g. petitioned bubbles render smaller than
+    // cooperating ones) — multiplied under the packing scale, invisible to the layout maths.
+    scaleEl.style.transform = `scale(${scale * baseScale})`;
     scaleEl.style.transition = 'transform 200ms ease';
     rootEl.appendChild(scaleEl);
 
@@ -438,7 +449,7 @@ function packedMarkerShell(offset: [number, number], scale: number) {
             target.y = y;
             if (s !== target.s) {
                 target.s = s;
-                scaleEl.style.transform = `scale(${s})`;
+                scaleEl.style.transform = `scale(${s * baseScale})`;
             }
             if (!frame) frame = requestAnimationFrame(step);
         },
@@ -539,6 +550,94 @@ export function createMunicipalityCountMarker(
     });
     shell.scaleEl.appendChild(el);
     const marker = new mapboxgl.Marker({ element: shell.rootEl, offset }).setLngLat([muni.lng, muni.lat]).addTo(map);
+    shell.attach(marker);
+    return { marker, setPlacement: shell.setPlacement, dispose: shell.dispose };
+}
+
+/* ---- Δήμοι-view markers (logo bubbles + the petition layer) --------------------------- */
+
+/** Diameter (px) of a Δήμοι-view bubble — sized to the donut's central logo plus its ring, so the
+ *  two views read as the same markers with the subject ring taken off. */
+export const MUNICIPALITY_VIEW_MARKER_DIAMETER = MUNICIPALITY_DONUT_LOGO_SIZE + 6;
+
+/** How far (px) the bubble's ring shadows paint beyond the element box — the packing extent must
+ *  include it or "touching" bubbles overlap their rings (cooperating: 2px orange + 2px white). */
+export const MUNICIPALITY_VIEW_MARKER_RING_SPREAD = 4;
+
+/** The petition colour ramp: brand blue, deeper the higher the δήμος sits in the displayed
+ *  distribution. The floor keeps even the palest marker clearly blue rather than near-white. */
+function petitionFill(intensity: number): { background: string; text: string } {
+    const pct = Math.round(25 + 75 * intensity);
+    return {
+        background: `color-mix(in srgb, ${PETITION_BLUE.deep} ${pct}%, ${PETITION_BLUE.pale})`,
+        // white text once the mix goes dark enough to carry it
+        text: pct >= 55 ? '#ffffff' : '#1c2a3a',
+    };
+}
+
+/**
+ * A Δήμοι-view bubble: the municipality's logo (or its initial) in a white disc. A cooperating
+ * δήμος gets a plain white ring; a petition-layer δήμος gets a ring on the petition ramp —
+ * deeper blue, more petitions — while its boundary carries the matching fill (see
+ * useMapFeatures). No counts and no topic ring: this view is about the δήμοι themselves.
+ * Packs with the same bubble-cluster logic as the count donuts (see packedMarkerShell).
+ */
+export function createMunicipalityViewMarker(
+    map: MapboxMap,
+    muni: {
+        name: string;
+        nameMunicipality: string;
+        lng: number;
+        lat: number;
+        logoImage?: string | null;
+        /** set for petition-layer markers — colours the ring by distribution intensity */
+        petition?: { intensity: number } | null;
+    },
+    onClick: () => void,
+    ariaLabel: string,
+    offset: [number, number] = [0, 0],
+    scale = 1,
+): PackedMarker {
+    // Petitioned bubbles are visually subordinate: rendered smaller (a constant demotion under the
+    // packing scale) and slightly faded, under the cooperating bubbles — the map should read
+    // "these δήμοι are in OpenCouncil, those are asked-for", at a glance.
+    const shell = packedMarkerShell(offset, scale, muni.petition ? 0.8 : 1);
+    const { rootEl, scaleEl } = shell;
+    rootEl.style.zIndex = muni.petition ? '1' : '2';
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.setAttribute('aria-label', ariaLabel);
+    el.className =
+        'flex cursor-pointer items-center justify-center overflow-hidden rounded-full bg-white transition-transform hover:scale-110';
+    el.style.pointerEvents = 'auto'; // the drawn disc is the click target (wrappers are transparent)
+    el.style.width = `${MUNICIPALITY_VIEW_MARKER_DIAMETER}px`;
+    el.style.height = `${MUNICIPALITY_VIEW_MARKER_DIAMETER}px`;
+    if (muni.petition) {
+        // Clearly secondary: well faded on top of the size demotion — present, not competing.
+        el.style.opacity = '0.65';
+        el.style.boxShadow = `0 0 0 3px ${petitionFill(muni.petition.intensity).background}, 0 1px 3px rgba(0,0,0,0.2)`;
+    } else {
+        // Cooperating δήμοι carry the brand: an orange ring inside the white halo.
+        el.style.boxShadow = '0 0 0 2px hsl(var(--orange)), 0 0 0 4px #fff, 0 1px 4px rgba(0,0,0,0.3)';
+    }
+
+    if (muni.logoImage) {
+        const img = document.createElement('img');
+        img.src = muni.logoImage;
+        img.alt = '';
+        img.className = 'h-full w-full object-contain p-0.5';
+        el.appendChild(img);
+    } else {
+        el.classList.add('text-base', 'font-bold', 'text-foreground');
+        el.textContent = muni.name.slice(0, 1);
+    }
+
+    el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onClick();
+    });
+    scaleEl.appendChild(el);
+    const marker = new mapboxgl.Marker({ element: rootEl, offset }).setLngLat([muni.lng, muni.lat]).addTo(map);
     shell.attach(marker);
     return { marker, setPlacement: shell.setPlacement, dispose: shell.dispose };
 }
