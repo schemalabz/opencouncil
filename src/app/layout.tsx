@@ -55,6 +55,11 @@ export const viewport = {
     initialScale: 1,
     maximumScale: 1,
     userScalable: false,
+    // The app has no dark theme — `darkMode: ["class"]` is configured but the class is never
+    // applied. Without a declared color scheme, Chrome's Auto Dark Theme (and Samsung Internet,
+    // and in-app WebViews) assume the page simply hasn't been updated and algorithmically invert
+    // it, which darkens some surfaces and not others. `only light` is the documented opt-out.
+    colorScheme: 'only light',
 }
 
 export default async function RootLayout(
