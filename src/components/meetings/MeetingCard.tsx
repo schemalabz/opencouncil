@@ -6,7 +6,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { format, formatDistanceToNow, isFuture } from 'date-fns';
 import { el, enUS } from 'date-fns/locale';
 import { CalendarIcon, Clock, Loader2, ChevronRight, Building } from 'lucide-react';
-import { sortSubjectsByImportance, formatDateTime, formatDate, IS_DEV } from '@/lib/utils';
+import { sortSubjectsByImportance, formatDateTime, IS_DEV } from '@/lib/utils';
 import SubjectBadge from '../subject-badge';
 import { cn } from '@/lib/utils';
 import { Link } from '@/i18n/routing';
@@ -188,10 +188,7 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                             )}
                             <div className="flex items-center gap-1">
                                 <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground/70" />
-                                <span>{(isUpcoming || isToday)
-                                    ? formatDateTime(meeting.dateTime, cityTimezone)
-                                    : formatDate(meeting.dateTime, cityTimezone)}
-                                </span>
+                                <span>{formatDateTime(meeting.dateTime, cityTimezone)}</span>
                             </div>
                         </div>
 
