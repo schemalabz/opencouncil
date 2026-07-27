@@ -4,6 +4,7 @@ import prisma from "./prisma";
 import { createCache } from "../cache";
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getCurrentUser } from "../auth";
 import { UnauthorizedError } from "../api/errors";
+import { PETITION_DISPLAY_THRESHOLD, petitionBucket, petitionIntensities, type PetitionBucket } from "../landing/petitions";
 
 export type CityGeometryOptions = {
     includeGeometry?: boolean;
@@ -210,6 +211,75 @@ export async function getMapCitiesCached(realm: Realm): Promise<MapCityRow[]> {
         },
         ['cities', 'map-centroids', realm],
         { tags: ['cities:all', `realm:${realm}:cities:all`] },
+    )();
+}
+
+/** An out-of-network municipality with enough resident petitions to show on the Δήμοι map.
+ *  Carries the coarse public bucket and its place in the displayed distribution — never the raw
+ *  count, which stays server-side. */
+export type PetitionedMapCityRow = {
+    id: string;
+    name: string;
+    nameMunicipality: string;
+    logoImage: string | null;
+    lng: number;
+    lat: number;
+    geometry: GeoJSON.Geometry | null;
+    /** the "N+" the visitor may see (see PETITION_BUCKETS) */
+    bucket: PetitionBucket;
+    /** 0..1 position in the displayed set's own (log-scaled) distribution — drives the colour ramp */
+    intensity: number;
+};
+
+/**
+ * Out-of-network municipalities with at least PETITION_DISPLAY_THRESHOLD petitions, for the
+ * landing's Δήμοι map. Realm-keyed cache with an hourly refresh — petition counts move on their
+ * own (no city mutation to invalidate on), and the display is coarse buckets anyway.
+ */
+export async function getPetitionedMapCitiesCached(realm: Realm): Promise<PetitionedMapCityRow[]> {
+    return createCache(
+        async () => {
+            const rows = await prisma.$queryRaw<
+                Array<{
+                    id: string;
+                    name: string;
+                    name_municipality: string;
+                    logoImage: string | null;
+                    lng: number;
+                    lat: number;
+                    geometry: string | null;
+                    petitions: number;
+                }>
+            >`
+                SELECT c.id, c.name, c.name_municipality, c."logoImage",
+                       ST_X(ST_Centroid(c.geometry)) AS lng,
+                       ST_Y(ST_Centroid(c.geometry)) AS lat,
+                       ST_AsGeoJSON(ST_SimplifyPreserveTopology(c.geometry, 0.001)) AS geometry,
+                       COUNT(p.id)::int AS petitions
+                FROM "City" c
+                JOIN "Petition" p ON p."cityId" = c.id
+                WHERE c."officialSupport" = false
+                  AND c.realm = ${realm}::"Realm"
+                  AND c.geometry IS NOT NULL
+                GROUP BY c.id
+                HAVING COUNT(p.id) >= ${PETITION_DISPLAY_THRESHOLD}
+            `;
+            const intensities = petitionIntensities(rows.map((r) => Number(r.petitions)));
+            return rows.map((r, i) => ({
+                id: r.id,
+                name: r.name,
+                nameMunicipality: r.name_municipality,
+                logoImage: r.logoImage,
+                lng: Number(r.lng),
+                lat: Number(r.lat),
+                geometry: r.geometry ? (JSON.parse(r.geometry) as GeoJSON.Geometry) : null,
+                // non-null by the HAVING clause
+                bucket: petitionBucket(Number(r.petitions))!,
+                intensity: intensities[i],
+            }));
+        },
+        ['cities', 'petitioned-map', realm],
+        { tags: ['cities:all', `realm:${realm}:cities:all`], revalidate: 3600 },
     )();
 }
 

@@ -17,6 +17,8 @@ import {
     groupByLocation,
     subjectInViewport,
     type CenterMunicipality,
+    type LandingMapCity,
+    type LandingPetitionedCity,
     type CoLocatedBox,
     type GeneralBox,
     type LandingGeneralCity,
@@ -28,8 +30,11 @@ import {
     buildSubjectPins,
     createGeneralCityMarker,
     createMunicipalityCountMarker,
+    createMunicipalityViewMarker,
     DONUT_INK_HEIGHT,
     DONUT_INK_WIDTH,
+    MUNICIPALITY_VIEW_MARKER_DIAMETER,
+    MUNICIPALITY_VIEW_MARKER_RING_SPREAD,
 } from '../mapMarkers';
 import { captureLandingAction } from '@/lib/landing/analytics';
 import {
@@ -577,4 +582,130 @@ function attachLiveRepack(map: MapboxMap, reposition: () => void): () => void {
         map.off('zoom', onZoom);
         map.off('moveend', onMoveEnd);
     };
+}
+
+// The Δήμοι-view bubbles are plain circles (no count hanging below), so their ink extent is the
+// disc plus the ring drawn around it as box-shadow (MUNICIPALITY_VIEW_MARKER_RING_SPREAD) —
+// shadows paint outside the element box, so ignoring them held rings overlapping while the discs
+// "touched".
+const MUNICIPALITY_VIEW_EXTENT = {
+    rx: MUNICIPALITY_VIEW_MARKER_DIAMETER / 2 + MUNICIPALITY_VIEW_MARKER_RING_SPREAD,
+    ry: MUNICIPALITY_VIEW_MARKER_DIAMETER / 2 + MUNICIPALITY_VIEW_MARKER_RING_SPREAD,
+    cy: 0,
+};
+
+/**
+ * The Δήμοι view's marker layer: one logo bubble per cooperating municipality — no counts and no
+ * topic rings, this view is about the δήμοι themselves — plus a brand-blue bubble for every
+ * out-of-network municipality with enough petitions, coloured deeper the higher it sits in the
+ * petition distribution. Both kinds pack with the same live bubble-cluster logic as the count
+ * donuts (busiest-anchored, azimuth-true, hysteresis + transitions); cooperating δήμοι always
+ * outrank petitioned ones for the anchor spot.
+ */
+export function useMunicipalitiesViewMarkers({
+    mapInstance,
+    active,
+    mapCities,
+    petitionedCities,
+    subjectCountByCity,
+    onOpenCity,
+    onOpenPetitioned,
+}: {
+    mapInstance: MapboxMap | null;
+    /** gates the whole layer — on only while the Δήμοι view has the map */
+    active: boolean;
+    mapCities: LandingMapCity[];
+    petitionedCities: LandingPetitionedCity[];
+    /** unfiltered totals per δήμος — the packing priority among cooperating municipalities */
+    subjectCountByCity: Record<string, number>;
+    onOpenCity: (city: LandingMapCity) => void;
+    onOpenPetitioned: (city: LandingPetitionedCity) => void;
+}) {
+    const t = useTranslations('landingV2');
+    const tRef = useRef(t);
+    tRef.current = t;
+    const onOpenCityRef = useRef(onOpenCity);
+    onOpenCityRef.current = onOpenCity;
+    const onOpenPetitionedRef = useRef(onOpenPetitioned);
+    onOpenPetitionedRef.current = onOpenPetitioned;
+
+    useEffect(() => {
+        if (!mapInstance || !active) return;
+
+        // One packed set: cooperating δήμοι first, then the petition layer. Priorities keep every
+        // cooperating δήμος above every petitioned one (a cluster's anchor should always be a real
+        // OpenCouncil municipality), ordered by subject volume / petition intensity within each.
+        const entries = [
+            ...mapCities.map((c) => ({
+                kind: 'city' as const,
+                city: c,
+                lng: c.lng,
+                lat: c.lat,
+                priority: 1_000_000 + (subjectCountByCity[c.id] ?? 0),
+            })),
+            ...petitionedCities.map((c) => ({
+                kind: 'petitioned' as const,
+                city: c,
+                lng: c.lng,
+                lat: c.lat,
+                priority: c.intensity * 1000,
+            })),
+        ];
+
+        const computePlacements = createPackPlanner(
+            () => entries.map((e) => mapInstance.project([e.lng, e.lat])),
+            entries.map((e) => e.priority),
+            MUNICIPALITY_VIEW_EXTENT,
+            MUNICIPALITY_SATELLITE_SCALE,
+        );
+
+        const initial = computePlacements();
+        const markers = entries.map((entry, i) =>
+            createMunicipalityViewMarker(
+                mapInstance,
+                entry.kind === 'city'
+                    ? {
+                          name: entry.city.name,
+                          nameMunicipality: entry.city.nameMunicipality,
+                          lng: entry.lng,
+                          lat: entry.lat,
+                          logoImage: entry.city.logoImage,
+                      }
+                    : {
+                          name: entry.city.name,
+                          nameMunicipality: entry.city.nameMunicipality,
+                          lng: entry.lng,
+                          lat: entry.lat,
+                          logoImage: entry.city.logoImage,
+                          petition: { intensity: entry.city.intensity },
+                      },
+                () =>
+                    entry.kind === 'city'
+                        ? onOpenCityRef.current(entry.city)
+                        : onOpenPetitionedRef.current(entry.city),
+                entry.kind === 'city'
+                    ? entry.city.nameMunicipality
+                    : tRef.current('marker.petitionedAria', {
+                          name: entry.city.nameMunicipality,
+                          count: entry.city.bucket,
+                      }),
+                [initial[i].offset.x, initial[i].offset.y],
+                initial[i].scale,
+            ),
+        );
+
+        const reposition = () => {
+            const placements = computePlacements();
+            markers.forEach((m, i) => m.setPlacement([placements[i].offset.x, placements[i].offset.y], placements[i].scale));
+        };
+        const detach = attachLiveRepack(mapInstance, reposition);
+
+        return () => {
+            detach();
+            markers.forEach((m) => {
+                m.dispose();
+                m.marker.remove();
+            });
+        };
+    }, [mapInstance, active, mapCities, petitionedCities, subjectCountByCity]);
 }

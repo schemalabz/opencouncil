@@ -96,7 +96,8 @@
     "body": "We're working to bring citizens closer to local government"
   },
   "municipalityTooltip": {
-    "body": "This municipality isn't on OpenCouncil yet."
+    "body": "This municipality isn't on OpenCouncil yet.",
+    "petitions": "{count}+ petitions to add it"
   },
   "general": {
     "title": "General subjects · {count}",
@@ -107,7 +108,8 @@
   "marker": {
     "samePoint": "{count} subjects at the same point",
     "seeSamePoint": "See {count} subjects at the same point",
-    "municipalityZoom": "{name} — {count} subjects, zoom in"
+    "municipalityZoom": "{name} — {count} subjects, zoom in",
+    "petitionedAria": "{name}: {count}+ petitions"
   },
   "dateRange": {
     "7d": "7 days",

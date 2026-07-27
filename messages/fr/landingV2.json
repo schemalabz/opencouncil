@@ -96,7 +96,8 @@
     "body": "Nous œuvrons pour rapprocher les citoyens de leur administration locale"
   },
   "municipalityTooltip": {
-    "body": "Cette commune n'est pas encore sur OpenCouncil."
+    "body": "Cette commune n'est pas encore sur OpenCouncil.",
+    "petitions": "{count}+ demandes pour l'ajouter"
   },
   "general": {
     "title": "Sujets généraux · {count}",
@@ -107,7 +108,8 @@
   "marker": {
     "samePoint": "{count} sujets au même endroit",
     "seeSamePoint": "Voir {count} sujets au même endroit",
-    "municipalityZoom": "{name} — {count} sujets, zoomez"
+    "municipalityZoom": "{name} — {count} sujets, zoomez",
+    "petitionedAria": "{name} : {count}+ demandes"
   },
   "dateRange": {
     "7d": "7 jours",

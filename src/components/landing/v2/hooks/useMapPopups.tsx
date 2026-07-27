@@ -6,6 +6,7 @@ import { NextIntlClientProvider, useLocale, useMessages, type AbstractIntlMessag
 import mapboxgl, { type Map as MapboxMap } from 'mapbox-gl';
 import { EXPLAIN_LNGLAT, flyToMunicipality } from '@/lib/landing/landingCore';
 import type { ClickedMunicipality, LandingSubject } from '@/lib/landing/landingData';
+import type { PetitionBucket } from '@/lib/landing/petitions';
 import { DesktopSubjectTooltip, ExplainTooltip, MunicipalityTooltip } from '../mapMarkers';
 
 /**
@@ -47,6 +48,7 @@ export function useMapPopups({
     setClickedMunicipality,
     setGeneralBox,
     closeExplainPopupRef,
+    petitionBucketFor,
 }: {
     mapInstance: MapboxMap | null;
     isMobile: boolean;
@@ -65,10 +67,15 @@ export function useMapPopups({
     setGeneralBox: (v: null) => void;
     /** set by the badge effect so other effects/markers can close the OpenCouncil popup */
     closeExplainPopupRef: MutableRefObject<(() => void) | null>;
+    /** the δήμος's petition bucket when it's on the petition layer (see LandingPetitionedCity) —
+     *  lets a plain map click on its boundary carry the count into the preview too */
+    petitionBucketFor: (cityId: string) => PetitionBucket | null;
 }) {
     // Latest-value refs so the popup effects don't re-run and rebuild popups on every render.
     const navigateRef = useRef(navigate);
     navigateRef.current = navigate;
+    const petitionBucketForRef = useRef(petitionBucketFor);
+    petitionBucketForRef.current = petitionBucketFor;
     const clearSelectionRef = useRef(onClearSelection);
     clearSelectionRef.current = onClearSelection;
     const showExplainLocationRef = useRef(onShowExplainLocation);
@@ -243,7 +250,14 @@ export function useMapPopups({
                     if (seq !== mapClickSeq.current) return;
                     if (city && city.officialSupport === false && city.geometry) {
                         // out-of-network δήμος → make it the focus
-                        setClickedMunicipality({ id: city.id, name: city.name, geometry: city.geometry, lng, lat });
+                        setClickedMunicipality({
+                            id: city.id,
+                            name: city.name,
+                            geometry: city.geometry,
+                            lng,
+                            lat,
+                            petitionBucket: petitionBucketForRef.current(city.id),
+                        });
                         flyToMunicipality(mapInstance, city.geometry, isMobileRef.current);
                     } else {
                         setClickedMunicipality(null);
@@ -264,6 +278,7 @@ export function useMapPopups({
             intlRef.current,
             <MunicipalityTooltip
                 name={clickedMunicipality.name}
+                petitionBucket={clickedMunicipality.petitionBucket}
                 onView={() => navigateRef.current('/petition')}
                 onClose={() => setClickedMunicipality(null)}
             />,
