@@ -58,7 +58,7 @@ jobs:
       has-migrations: ${{ steps.check-migrations.outputs.has-migrations }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
@@ -171,7 +171,7 @@ jobs:
             core.setOutput('comment-id', commentId);
 
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           # See note on the preflight checkout: opt back into fork-PR checkout
