@@ -355,7 +355,9 @@ export function filterSubjectsByQuery(subjects: LandingSubject[], query: string)
 /** Current map view: bounds (west/south/east/north) + centre, in lng/lat degrees. */
 export type MapViewport = { w: number; s: number; e: number; n: number; clng: number; clat: number };
 
-export function subjectInViewport(s: LandingSubject, v: MapViewport): boolean {
+/** Whether the subject's point falls inside the viewport bounds. Takes only the bounds so callers
+ *  that have no meaningful centre (e.g. counting against live map bounds) don't fabricate one. */
+export function subjectInViewport(s: LandingSubject, v: Pick<MapViewport, 'w' | 's' | 'e' | 'n'>): boolean {
     return s.lng >= v.w && s.lng <= v.e && s.lat >= v.s && s.lat <= v.n;
 }
 

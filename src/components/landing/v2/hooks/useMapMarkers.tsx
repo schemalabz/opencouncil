@@ -5,9 +5,17 @@ import { useTranslations } from 'next-intl';
 import type { Map as MapboxMap, Marker } from 'mapbox-gl';
 import type { Root } from 'react-dom/client';
 import type { LatLng } from '@/lib/google-maps';
-import { CENTER_QUERY_MOVE_RATIO, SUBJECT_FOCUS_ZOOM, stylePin, type SubjectPin } from '@/lib/landing/landingCore';
+import {
+    CENTER_QUERY_MOVE_RATIO,
+    SUBJECT_DOT_THRESHOLD,
+    SUBJECT_FOCUS_ZOOM,
+    nextDotMode,
+    stylePin,
+    type SubjectPin,
+} from '@/lib/landing/landingCore';
 import {
     groupByLocation,
+    subjectInViewport,
     type CenterMunicipality,
     type CoLocatedBox,
     type GeneralBox,
@@ -190,7 +198,6 @@ export function useSubjectMarkers({
     mapInstance,
     active,
     visibleSubjects,
-    dots,
     selectedId,
     previewId,
     onSelect,
@@ -203,8 +210,6 @@ export function useSubjectMarkers({
     /** gates the whole layer — off while the zoomed-out δήμος donuts have the map */
     active: boolean;
     visibleSubjects: LandingSubject[];
-    /** viewport is crowded → draw dots instead of icon badges (see SUBJECT_DOT_THRESHOLD) */
-    dots: boolean;
     selectedId: string | null;
     /** the mobile strip's previewed subject — its pin gets the intense filled style */
     previewId: string | null;
@@ -256,16 +261,61 @@ export function useSubjectMarkers({
             }
         };
 
+        // Crowded viewport → the pins drop to plain topic-coloured dots. Counted over the subjects
+        // actually on screen right now (`visibleSubjects` is filter-scoped, so it holds off-screen
+        // subjects too). Re-evaluated live on every frame of a pan/zoom — the flip is applied to
+        // the existing pins in place (a CSS-transitioned morph, see SubjectPin.setDot), never by
+        // rebuilding the layer. The exit threshold sits below the entry one so a count hovering at
+        // the boundary can't flap the whole layer between shapes mid-gesture.
+        const countInView = () => {
+            const b = mapInstance.getBounds();
+            if (!b) return visibleSubjects.length;
+            const vp = { w: b.getWest(), s: b.getSouth(), e: b.getEast(), n: b.getNorth() };
+            // This runs on every frame of a pan/zoom, so stop counting at the entry threshold:
+            // both mode decisions only compare against thresholds at or below it, and a dense
+            // viewport (the common case for large filter sets) exits after ~150 hits.
+            let n = 0;
+            for (const s of visibleSubjects) {
+                if (subjectInViewport(s, vp) && ++n >= SUBJECT_DOT_THRESHOLD) break;
+            }
+            return n;
+        };
+        let dotMode = countInView() >= SUBJECT_DOT_THRESHOLD;
+
         const pins = buildSubjectPins(mapInstance, groupByLocation(visibleSubjects), {
             selectedId: selectedIdRef.current,
             previewId: previewIdRef.current,
-            dot: dots,
+            dot: dotMode,
             onSelect: (id) => onSelectRef.current(id),
             onOpenCoLocated: openCoLocated,
             t: tRef.current,
         });
         pinsRef.current = pins;
+
+        const syncDotMode = () => {
+            const n = countInView();
+            const next = nextDotMode(n, dotMode);
+            if (next === dotMode) return;
+            dotMode = next;
+            pins.forEach((pin) => pin.setDot(next, selectedIdRef.current, previewIdRef.current));
+        };
+        // rAF-coalesced so a burst of move events costs one count per frame; 'move' rather than
+        // 'zoom' because panning changes what's in the viewport too.
+        let frame = 0;
+        const onMove = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(() => {
+                frame = 0;
+                syncDotMode();
+            });
+        };
+        mapInstance.on('move', onMove);
+        mapInstance.on('moveend', syncDotMode);
+
         return () => {
+            if (frame) cancelAnimationFrame(frame);
+            mapInstance.off('move', onMove);
+            mapInstance.off('moveend', syncDotMode);
             pinsRef.current = [];
             pins.forEach(({ marker, root }) => {
                 marker.remove();
@@ -274,7 +324,7 @@ export function useSubjectMarkers({
             });
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mapInstance, visibleSubjects, dots, active]);
+    }, [mapInstance, visibleSubjects, active]);
 
     // Selection / strip-preview restyle the existing subject markers in place (no rebuild). The
     // selected pin and the mobile strip's previewed pin both get the intense filled style (previewId
