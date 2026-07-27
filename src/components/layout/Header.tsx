@@ -15,8 +15,8 @@ import { useState, useRef, useEffect } from "react"
 import { createPortal } from "react-dom"
 import { useSubjectHeaderOptional, SubjectHeaderInfo } from "@/contexts/SubjectHeaderContext"
 import { AutoScrollText } from "@/components/ui/auto-scroll-text"
-import Icon from "@/components/icon"
 import { getMeetingPageSegments } from "@/lib/utils/meetingPages"
+import { TopicIcon } from '@/components/TopicIcon';
 
 export interface PathElement {
     name: string
@@ -85,16 +85,12 @@ function TopicIconBadge({ subjectInfo }: {
     subjectInfo: SubjectHeaderInfo
 }) {
     return (
-        <div
-            className="h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-full shrink-0"
-            style={{ backgroundColor: subjectInfo.topicColor ? subjectInfo.topicColor + "20" : "#e5e7eb" }}
-        >
-            <Icon
-                name={subjectInfo.topicIcon || "hash"}
-                color={subjectInfo.topicColor || "#9ca3af"}
-                size={18}
-            />
-        </div>
+        <TopicIcon
+            color={subjectInfo.topicColor}
+            icon={subjectInfo.topicIcon}
+            size="lg"
+            className="h-9 w-9 p-0 sm:h-10 sm:w-10"
+        />
     )
 }
 

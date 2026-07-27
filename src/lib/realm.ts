@@ -43,7 +43,7 @@ export function getRealmDisplayName(realm: Realm, locale: string): string {
  * defaulting to Greece. A city with geometry always overrides this.
  */
 const REALM_DEFAULT_MAP_VIEW: Record<Realm, { center: [number, number]; zoom: number }> = {
-    greece: { center: [23.7275, 37.9838], zoom: 6 }, // Athens
+    greece: { center: [23.7275, 37.9838], zoom: 5 }, // Athens
     france: { center: [2.4, 46.6], zoom: 5 },        // metropolitan France
     cyprus: { center: [33.2, 35.0], zoom: 8 },       // island of Cyprus
 };

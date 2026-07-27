@@ -39,6 +39,7 @@ export function useMapPopups({
     selectedId,
     selectedSubject,
     clickedMunicipality,
+    showExplainMarker,
     navigate,
     onClearSelection,
     onShowExplainLocation,
@@ -52,6 +53,9 @@ export function useMapPopups({
     selectedId: string | null;
     selectedSubject: LandingSubject | null;
     clickedMunicipality: ClickedMunicipality | null;
+    /** whether the OpenCouncil office badge is shown — hidden when zoomed out, where it would just
+     *  stack onto Athens' cluster number */
+    showExplainMarker: boolean;
     /** navigate to a path (router.push) — popups have no router context of their own */
     navigate: (path: string) => void;
     onClearSelection: () => void;
@@ -71,6 +75,11 @@ export function useMapPopups({
     showExplainLocationRef.current = onShowExplainLocation;
     const isMobileRef = useRef(isMobile);
     isMobileRef.current = isMobile;
+    // A monotonic token for the map-click municipality lookup. The fetch is async, so a later click
+    // — or a subject selection landing before it resolves — bumps this; the stale response then sees
+    // its token is no longer current and drops its result instead of re-opening a box over whatever
+    // took its place.
+    const mapClickSeq = useRef(0);
     const subjectPopupRef = useRef<mapboxgl.Popup | null>(null);
     const subjectPopupRootRef = useRef<ReturnType<typeof createRoot> | null>(null);
     // Tooltips render outside React's tree, so messages/locale are ref'd to re-wrap them in a
@@ -120,10 +129,11 @@ export function useMapPopups({
         return cleanup;
     }, [mapInstance, selectedSubject, isMobile]);
 
-    // Persistent OpenCouncil badge — a white logo circle at the info card's location. Clicking
-    // it opens a tooltip linking to /explain.
+    // OpenCouncil badge — a white logo circle at the info card's location. Clicking it opens a
+    // tooltip linking to /explain. Hidden while zoomed out, where it would only pile onto the Athens
+    // cluster number.
     useEffect(() => {
-        if (!mapInstance) return;
+        if (!mapInstance || !showExplainMarker) return;
         let popup: mapboxgl.Popup | null = null;
         let root: ReturnType<typeof createRoot> | null = null;
         const teardownPopup = () => {
@@ -193,12 +203,15 @@ export function useMapPopups({
             marker.remove();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mapInstance]);
+    }, [mapInstance, showExplainMarker]);
 
     // Selecting any subject closes the OpenCouncil preview (desktop popup or mobile card)
     // and the clicked-municipality preview.
     useEffect(() => {
         if (selectedId) {
+            // Invalidate any in-flight map-click lookup so its late response can't re-open a
+            // municipality box on top of the subject just selected.
+            mapClickSeq.current++;
             closeExplainPopupRef.current?.();
             setExplainOpen(false);
             setClickedMunicipality(null);
@@ -207,21 +220,29 @@ export function useMapPopups({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedId]);
 
-    // Clicking the map looks up the municipality there; an out-of-network δήμος gets shaded and
-    // shows a "request it" preview. Any other click clears it and dismisses subject/OC previews.
+    // Clicking the map dismisses whatever preview is open (selected subject, OpenCouncil card) and
+    // looks up the municipality there; an out-of-network δήμος gets shaded and shows a "request it"
+    // preview.
     useEffect(() => {
         if (!mapInstance) return;
         const onClick = (e: mapboxgl.MapMouseEvent) => {
             const { lng, lat } = e.lngLat;
+            // Clicking the map background is a dismissal, whatever is underneath: drop the selected
+            // subject and the OC preview up front rather than inside the branch below, so it happens
+            // on the click instead of a network round-trip later. Marker and popup clicks never get
+            // here — they land on their own DOM elements, not the canvas.
+            clearSelectionRef.current();
+            closeExplainPopupRef.current?.();
+            setExplainOpen(false);
+            const seq = ++mapClickSeq.current;
             fetch(`/api/cities/at?lng=${lng}&lat=${lat}`)
                 .then((r) => (r.ok ? r.json() : null))
                 .catch(() => null)
                 .then((city: { id: string; name: string; officialSupport: boolean; geometry: GeoJSON.Geometry } | null) => {
+                    // A newer click or a subject selection superseded this lookup — drop it.
+                    if (seq !== mapClickSeq.current) return;
                     if (city && city.officialSupport === false && city.geometry) {
-                        // out-of-network δήμος → make it the focus, dismiss other previews
-                        clearSelectionRef.current();
-                        closeExplainPopupRef.current?.();
-                        setExplainOpen(false);
+                        // out-of-network δήμος → make it the focus
                         setClickedMunicipality({ id: city.id, name: city.name, geometry: city.geometry, lng, lat });
                         flyToMunicipality(mapInstance, city.geometry, isMobileRef.current);
                     } else {

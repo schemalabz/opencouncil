@@ -1,32 +1,56 @@
 'use client';
 
-import { type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Menu, Home, ChevronDown, User, Bell, LogOut, LogIn, Search, Phone, Mail, ArrowRight } from 'lucide-react';
+import { Menu, Home, ChevronDown, User, Bell, LogOut, LogIn, Search, Phone, Mail, ArrowRight, HelpCircle } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger, SheetClose, SheetTitle } from '@/components/ui/sheet';
 import { FOOTER_GROUPS, isInternalHref, reopenCookiePreferences, type FooterLink } from './navLinks';
+import { NotifyMunicipalityDialog, openAfterMenuCloses } from './NotifyMunicipalityDialog';
+import { captureLandingAction } from '@/lib/landing/analytics';
+import type { InfoSurface } from '@/lib/landing/landingCore';
+import type { LandingListCity } from '@/lib/landing/landingData';
 
 /* Mobile top bar — a pill with the burger nav-drawer trigger + logo on the left and a separate
    bordered keyword-search box on the right. Tapping search opens the search overlay (owned by the
    layout). */
 export function MobileHeader({
     onOpenSearch,
+    onToggleInfo,
+    cities,
     searchActive,
+    query,
 }: {
     onOpenSearch: () => void;
-    /** a keyword search is active — the search icon goes orange with a dot */
+    /** opens the "Τι είναι αυτό;" guide — the same panel the map's "?" opens. Offered here too
+     *  because that is where people looked for it and didn't find it. */
+    onToggleInfo: (surface?: InfoSurface) => void;
+    /** cooperating δήμοι, for the "which δήμος?" notifications dialog opened from the menu */
+    cities: LandingListCity[];
+    /** a keyword search is active — the search box goes orange and shows the query */
     searchActive?: boolean;
+    /** the active search text, shown (truncated) inside the search box while searchActive */
+    query?: string;
 }) {
     const t = useTranslations('landingV2');
+    const [notifyOpen, setNotifyOpen] = useState(false);
     const { data: session, status } = useSession();
     return (
+        <>
+        <NotifyMunicipalityDialog open={notifyOpen} onOpenChange={setNotifyOpen} cities={cities} />
         <div className="absolute inset-x-3 top-3 z-[9] flex items-center gap-1.5">
-            {/* header pill: burger + logo + brand (both the burger/logo open the nav drawer) */}
-            <div className="flex h-11 min-w-0 flex-1 items-center gap-1.5 rounded-2xl border border-black/40 bg-card px-1 shadow-sm">
+            {/* header pill: burger + logo + brand (both the burger/logo open the nav drawer). While a
+                search is active it shrinks to fit its content, giving the width to the search box. */}
+            <div
+                className={cn(
+                    'flex h-11 min-w-0 items-center gap-1.5 rounded-2xl border border-black/40 bg-card pl-1 pr-3 shadow-sm',
+                    // active search splits the bar ~70/30 with the search box; otherwise fill the width.
+                    searchActive ? 'flex-[7]' : 'flex-1',
+                )}
+            >
             {/* burger + logo — grouped and both open the nav drawer, no box */}
             <Sheet>
                 <SheetTrigger asChild>
@@ -57,6 +81,9 @@ export function MobileHeader({
                     {/* primary nav + expandable link groups */}
                     <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2">
                         <DrawerLink href="/" icon={<Home className="h-[18px] w-[18px]" />}>{t('nav.home')}</DrawerLink>
+                        <DrawerAction onClick={() => onToggleInfo('menu')} icon={<HelpCircle className="h-[18px] w-[18px]" />}>
+                            {t('info.title')}
+                        </DrawerAction>
                         {FOOTER_GROUPS.map((group) => (
                             <details key={group.title} className="group">
                                 <summary className="flex cursor-pointer list-none items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted [&::-webkit-details-marker]:hidden">
@@ -65,7 +92,14 @@ export function MobileHeader({
                                 </summary>
                                 <div className="flex flex-col gap-0.5 py-0.5 pl-3">
                                     {group.links.map((link) => (
-                                        <DrawerFooterLink key={link.label} link={link} />
+                                        <DrawerFooterLink
+                                            key={link.label}
+                                            link={link}
+                                            onNotify={() => {
+                                                captureLandingAction('notify_dialog_opened', { surface: 'menu' });
+                                                openAfterMenuCloses(() => setNotifyOpen(true));
+                                            }}
+                                        />
                                     ))}
                                 </div>
                             </details>
@@ -137,18 +171,37 @@ export function MobileHeader({
                 aria-label={t('common.search')}
                 onClick={onOpenSearch}
                 className={cn(
-                    'relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border bg-card shadow-sm transition-colors',
+                    'flex h-11 items-center rounded-2xl border bg-card shadow-sm transition-colors',
                     searchActive
-                        ? 'border-[hsl(var(--orange))] bg-[hsl(24,100%,96%)] text-[hsl(var(--orange))]'
-                        : 'border-black/40 text-muted-foreground hover:bg-muted hover:text-foreground',
+                        ? 'min-w-0 flex-[3] justify-start gap-2 px-3 border-[hsl(var(--orange))] bg-[hsl(24,100%,96%)] text-[hsl(var(--orange))]'
+                        : 'w-11 shrink-0 justify-center border-black/40 text-muted-foreground hover:bg-muted hover:text-foreground',
                 )}
             >
-                <Search className="h-5 w-5" />
-                {searchActive && (
-                    <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-card bg-[hsl(var(--orange))]" />
+                <Search className="h-5 w-5 shrink-0" />
+                {searchActive && query && (
+                    <span className="min-w-0 truncate text-sm font-medium">{query}</span>
                 )}
             </button>
         </div>
+        </>
+    );
+}
+
+/* Same row as DrawerLink, but it runs an action instead of navigating (and still closes the drawer). */
+function DrawerAction({ onClick, icon, children }: { onClick: () => void; icon?: ReactNode; children: ReactNode }) {
+    return (
+        <SheetClose asChild>
+            <button
+                type="button"
+                onClick={onClick}
+                // carries the brand accent rather than the muted grey of the links around it: this is
+                // the entry people went looking for and missed, so it should not read as one more link
+                className="flex w-full items-center gap-3 rounded-xl border border-[hsl(var(--orange))]/50 px-3 py-2.5 text-left text-sm font-medium text-[hsl(var(--orange))] transition-colors hover:bg-[hsl(var(--orange))]/10"
+            >
+                {icon && <span className="shrink-0">{icon}</span>}
+                {children}
+            </button>
+        </SheetClose>
     );
 }
 
@@ -168,7 +221,7 @@ function DrawerLink({ href, icon, children }: { href: string; icon?: ReactNode; 
 
 /* an expandable-group link row (internal Link / external-mailto-tel anchor / cookie button),
    closes the drawer on tap */
-function DrawerFooterLink({ link }: { link: FooterLink }) {
+function DrawerFooterLink({ link, onNotify }: { link: FooterLink; onNotify: () => void }) {
     const t = useTranslations('landingV2');
     const cls =
         'rounded-lg px-3 py-2 text-sm text-muted-foreground no-underline transition-colors hover:bg-muted hover:text-foreground hover:no-underline';
@@ -185,6 +238,15 @@ function DrawerFooterLink({ link }: { link: FooterLink }) {
         return (
             <SheetClose asChild>
                 <button type="button" onClick={reopenCookiePreferences} className={cn('text-left', cls)}>
+                    {t(link.labelKey!)}
+                </button>
+            </SheetClose>
+        );
+    }
+    if (link.notify) {
+        return (
+            <SheetClose asChild>
+                <button type="button" onClick={onNotify} className={cn('text-left', cls)}>
                     {t(link.labelKey!)}
                 </button>
             </SheetClose>

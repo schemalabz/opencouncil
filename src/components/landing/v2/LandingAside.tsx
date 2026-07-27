@@ -15,8 +15,11 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import Image from 'next/image';
-import type { LandingView } from '@/lib/landing/landingCore';
+import type { InfoSurface, LandingView } from '@/lib/landing/landingCore';
 import { FOOTER_GROUPS, isInternalHref, reopenCookiePreferences } from './navLinks';
+import { NotifyMunicipalityDialog, openAfterMenuCloses } from './NotifyMunicipalityDialog';
+import { captureLandingAction } from '@/lib/landing/analytics';
+import type { LandingListCity } from '@/lib/landing/landingData';
 
 /* The desktop landing's left nav rail: brand at the top, the three view items centered,
    and a Policy popover + Account control at the bottom. Selecting an item opens the
@@ -26,14 +29,18 @@ export function LandingAside({
     onSelect,
     infoOpen,
     onToggleInfo,
+    cities,
 }: {
     view: LandingView;
     onSelect: (v: LandingView) => void;
     /** the "?" info drawer is open — highlights the "?" item and de-highlights the view tabs */
     infoOpen: boolean;
-    onToggleInfo: () => void;
+    onToggleInfo: (surface?: InfoSurface) => void;
+    /** cooperating δήμοι, for the "which δήμος?" notifications dialog opened from "Περισσότερα" */
+    cities: LandingListCity[];
 }) {
     const t = useTranslations('landingV2');
+    const [notifyOpen, setNotifyOpen] = useState(false);
     const { data: session, status } = useSession();
     // Auth UI depends on the client session, which differs server vs. first client render
     // (unseeded SessionProvider) → React #418. Gate on a mounted flag so both render null first.
@@ -42,6 +49,8 @@ export function LandingAside({
 
     return (
         // Inner nav-rail column of the unified aside card (DesktopLayout owns the card chrome).
+        <>
+        <NotifyMunicipalityDialog open={notifyOpen} onOpenChange={setNotifyOpen} cities={cities} />
         <div className="flex w-[80px] shrink-0 flex-col items-center bg-card pb-3 pt-1">
             {/* brand */}
             <Link href="/" className="shrink-0 hover:opacity-90" aria-label="OpenCouncil">
@@ -64,10 +73,11 @@ export function LandingAside({
                     label={t('nav.municipalities')}
                 />
                 {/* the "?" guide — icon only, with a circular black selected state (distinct from
-                    the rounded-square tabs above) */}
+                    the rounded-square tabs above). Carries the orange accent at rest rather than
+                    sitting greyed out: it read as decoration before and went unclicked. */}
                 <button
                     type="button"
-                    onClick={onToggleInfo}
+                    onClick={() => onToggleInfo('rail')}
                     aria-pressed={infoOpen}
                     aria-label={t('nav.info')}
                     className="flex h-16 w-16 items-center justify-center"
@@ -76,7 +86,9 @@ export function LandingAside({
                     <span
                         className={cn(
                             'flex h-11 w-11 items-center justify-center rounded-full transition-colors',
-                            infoOpen ? 'bg-foreground text-background' : 'text-muted-foreground/50 hover:bg-muted hover:text-foreground',
+                            infoOpen
+                                ? 'bg-foreground text-background'
+                                : 'bg-[hsl(var(--orange))]/10 text-[hsl(var(--orange))] hover:bg-[hsl(var(--orange))]/20',
                         )}
                     >
                         <HelpCircle className="h-7 w-7" />
@@ -107,6 +119,15 @@ export function LandingAside({
                             <span className="text-[18px] font-bold text-foreground">OpenCouncil</span>
                         </div>
                         <DropdownMenuSeparator className="bg-muted" />
+                        {/* the "?" guide — parity with the mobile menu's info action */}
+                        <DropdownMenuItem
+                            onSelect={() => onToggleInfo('menu')}
+                            className="flex items-center gap-2 rounded-lg text-muted-foreground focus:bg-muted focus:text-foreground"
+                        >
+                            <HelpCircle className="h-4 w-4" />
+                            {t('info.title')}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator className="bg-muted" />
                         {FOOTER_GROUPS.map((group, gi) => (
                             <div key={group.title}>
                                 {gi > 0 && <DropdownMenuSeparator className="bg-muted" />}
@@ -128,6 +149,17 @@ export function LandingAside({
                                         <DropdownMenuItem
                                             key={link.label}
                                             onSelect={reopenCookiePreferences}
+                                            className="rounded-lg text-muted-foreground focus:bg-muted focus:text-foreground"
+                                        >
+                                            {t(link.labelKey!)}
+                                        </DropdownMenuItem>
+                                    ) : link.notify ? (
+                                        <DropdownMenuItem
+                                            key={link.label}
+                                            onSelect={() => {
+                                                captureLandingAction('notify_dialog_opened', { surface: 'menu' });
+                                                openAfterMenuCloses(() => setNotifyOpen(true));
+                                            }}
                                             className="rounded-lg text-muted-foreground focus:bg-muted focus:text-foreground"
                                         >
                                             {t(link.labelKey!)}
@@ -204,6 +236,7 @@ export function LandingAside({
                 )}
             </div>
         </div>
+        </>
     );
 }
 

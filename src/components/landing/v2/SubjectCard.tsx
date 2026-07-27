@@ -8,6 +8,7 @@ import Icon from '@/components/icon';
 import { formatDate } from '@/lib/formatters/time';
 import { subjectLocationLine, type LandingSubject } from '@/lib/landing/landingData';
 import { captureLandingAction } from '@/lib/landing/analytics';
+import { topicStyle } from '@/lib/topicStyle';
 
 /* "view the subject's page" affordance. A Link by default; renders a button when `onView` is
    given — for contexts without router context (e.g. a Mapbox popup). `source` = list vs preview. */
@@ -94,6 +95,7 @@ export function SubjectCard({
     className?: string;
 }) {
     const t = useTranslations('landingV2');
+    const topicBar = topicStyle(subject.topic.color);
     const preview = variant === 'preview';
     const clickable = !!onClick;
     const locationLine = subjectLocationLine(subject);
@@ -115,11 +117,12 @@ export function SubjectCard({
                     : undefined
             }
             className={cn(
-                'relative flex flex-col overflow-hidden rounded-2xl border-2 bg-card text-left shadow-sm transition-colors',
+                'relative flex flex-col overflow-hidden rounded-2xl border bg-card text-left shadow-sm transition-colors',
                 clickable && 'cursor-pointer',
-                selected ? 'border-[hsl(var(--orange))] border-4 shadow-lg' : 'border-black/60',
+                selected ? 'border-2 shadow-lg' : 'border-black/60',
                 className,
             )}
+            style={selected ? { borderColor: subject.topic.color } : undefined}
         >
             {onClose && (
                 <button
@@ -141,10 +144,10 @@ export function SubjectCard({
                     'flex items-center gap-2 border-b border-border font-bold text-xs',
                     preview ? 'px-3 py-2' : 'px-4 py-2.5',
                 )}
-                style={{ backgroundColor: `${subject.topic.color}12` }}
+                style={{ backgroundColor: topicBar.background, color: topicBar.icon }}
             >
-                <Icon name={subject.topic.icon || 'hash'} color={subject.topic.color} size={16} />
-                <span style={{ color: subject.topic.color }}>{subject.topic.name}</span>
+                <Icon name={subject.topic.icon || 'hash'} color={topicBar.icon} size={16} />
+                <span>{subject.topic.name}</span>
             </div>
 
             <div className={cn('flex min-w-0 flex-col gap-2', preview ? 'px-3 py-2' : 'px-3 pt-2 pb-3')}>

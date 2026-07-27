@@ -6,7 +6,8 @@ import type { Topic } from '@prisma/client';
 import { cn, normalizeText } from '@/lib/utils';
 import Icon from '@/components/icon';
 import { Eyebrow } from './shared';
-import { contrastText } from './conceptShared';
+import { topicStyle } from '@/lib/topicStyle';
+import { TopicIcon } from '@/components/TopicIcon';
 import { type LandingListCity, type LandingSubject, type QueryKind } from '@/lib/landing/landingData';
 import { PetitionCta } from './MunicipalitiesList';
 import { BODY_TYPES, EMPTY_FILTERS, toggleValue, type MapFilters } from '@/lib/landing/landingCore';
@@ -68,6 +69,7 @@ export function SearchBody({
     loading,
     onPickResult,
     onLocateAddress,
+    forceFilters = false,
 }: {
     topics: Topic[];
     cities: LandingListCity[];
@@ -88,6 +90,9 @@ export function SearchBody({
     onPickResult: (id: string) => void;
     /** geocode the query as an address and fly there (also closes the dropdown) */
     onLocateAddress: (q: string) => void;
+    /** opened via the filters icon → show the filters even if a query is present (until the input is
+     *  focused), so the icon reliably lands on the filters rather than the query's results */
+    forceFilters?: boolean;
 }) {
     const t = useTranslations('landingV2');
     const { unknownMunicipality, matchedTopic, knownMunicipality, showAddressOption, dateActive, anyFilterActive } = useSearchMatches({
@@ -107,8 +112,9 @@ export function SearchBody({
     const isCuratedKeyword = curatedKeywords.some((k) => normalizeText(k).trim() === normalizedQuery);
     const showAddress = showAddressOption && !isCuratedKeyword;
 
-    // While typing, replace the default suggestions/filters with the matching subjects.
-    if (query.trim()) {
+    // While typing, replace the default suggestions/filters with the matching subjects — unless the
+    // panel was opened via the filters icon, which wants the filters shown even with a query present.
+    if (query.trim() && !forceFilters) {
         return (
             <>
                 {unknownMunicipality && (
@@ -122,12 +128,12 @@ export function SearchBody({
                         onClick={() => onToggleCat(matchedTopic.id)}
                         className="mb-3 flex w-full items-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5 text-left text-sm transition-colors hover:border-foreground/30"
                     >
-                        <span
-                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-                            style={{ backgroundColor: `${matchedTopic.colorHex}1a` }}
-                        >
-                            <Icon name={matchedTopic.icon || 'hash'} color={matchedTopic.colorHex} size={14} />
-                        </span>
+                        <TopicIcon
+                            color={matchedTopic.colorHex}
+                            icon={matchedTopic.icon}
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                        />
                         <span className="min-w-0 flex-1 text-muted-foreground">
                             {t('search.filterCategory')}{' '}
                             <span className="font-semibold text-foreground">{matchedTopic.name}</span>
@@ -181,12 +187,12 @@ export function SearchBody({
                                 onClick={() => onPickResult(s.id)}
                                 className="flex w-full items-start gap-2.5 rounded-xl px-2 py-2 text-left transition-colors hover:bg-muted"
                             >
-                                <span
-                                    className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-                                    style={{ backgroundColor: `${s.topic.color}1a` }}
-                                >
-                                    <Icon name={s.topic.icon || 'hash'} color={s.topic.color} size={14} />
-                                </span>
+                                <TopicIcon
+                                    color={s.topic.color}
+                                    icon={s.topic.icon}
+                                    size="sm"
+                                    className="mt-0.5 h-7 w-7 p-0"
+                                />
                                 <span className="min-w-0 flex-1">
                                     <span className="line-clamp-2 text-[14px] font-medium leading-snug text-foreground">
                                         {s.title}
@@ -235,6 +241,7 @@ export function SearchBody({
             <div className="mt-2.5 flex flex-wrap gap-2">
                 {topics.map((t) => {
                     const active = cats.includes(t.id);
+                    const s = topicStyle(t.colorHex, active ? 'solid' : 'soft');
                     return (
                         <button
                             key={t.id}
@@ -243,13 +250,9 @@ export function SearchBody({
                             onClick={() => onToggleCat(t.id)}
                             // idle: the subject-card TopicChip look (tinted bg); selected: solid fill
                             className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-bold transition-colors"
-                            style={
-                                active
-                                    ? { backgroundColor: t.colorHex, borderColor: t.colorHex, color: contrastText(t.colorHex) }
-                                    : { backgroundColor: `${t.colorHex}1a`, borderColor: `${t.colorHex}38`, color: t.colorHex }
-                            }
+                            style={{ backgroundColor: s.background, borderColor: s.border, color: s.icon }}
                         >
-                            <Icon name={t.icon || 'hash'} color={active ? contrastText(t.colorHex) : t.colorHex} size={14} />
+                            <Icon name={t.icon || 'hash'} color={s.icon} size={14} />
                             {t.name}
                         </button>
                     );

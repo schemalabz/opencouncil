@@ -4,7 +4,6 @@ import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FileText, Clock } from "lucide-react";
-import Icon from "@/components/icon";
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 import { FormattedTextDisplay } from "@/components/FormattedTextDisplay";
@@ -16,6 +15,7 @@ import { formatTimestamp, formatDate } from "@/lib/formatters/time";
 import { PersonWithRelations } from "@/lib/db/people";
 import { getPartyFromRoles } from "@/lib/utils";
 import useSWR from "swr";
+import { TopicIcon } from '@/components/TopicIcon';
 
 interface UtteranceTimeRange {
     startTimestamp: number;
@@ -106,20 +106,11 @@ export const ContributionCard = memo(function ContributionCard({
                             href={subjectUrl!}
                             className="inline-flex items-center gap-2 group"
                         >
-                            <div
-                                className="p-1.5 rounded-full"
-                                style={{
-                                    backgroundColor: contextHeader.topic?.colorHex
-                                        ? contextHeader.topic.colorHex + "20"
-                                        : "#e5e7eb",
-                                }}
-                            >
-                                <Icon
-                                    name={contextHeader.topic?.icon || "hash"}
-                                    color={contextHeader.topic?.colorHex || "#9ca3af"}
-                                    size={20}
-                                />
-                            </div>
+                            <TopicIcon
+                                color={contextHeader.topic?.colorHex}
+                                icon={contextHeader.topic?.icon}
+                                size="md"
+                            />
                             <span className="text-lg sm:text-xl font-semibold leading-tight group-hover:underline">
                                 {contextHeader.subjectName}
                             </span>

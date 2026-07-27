@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { Topic } from '@prisma/client';
-import Icon from '@/components/icon';
+import { TopicIcon } from '@/components/TopicIcon';
+import { topicStyle } from '@/lib/topicStyle';
 
 interface TopicFilterProps {
     /** All available topics. */
@@ -101,6 +102,7 @@ export function TopicFilter({
             )}>
                 {topics.map(topic => {
                     const isSelected = isTopicSelected(topic);
+                    const s = topicStyle(topic.colorHex);
                     return (
                         <motion.div
                             key={topic.id}
@@ -118,22 +120,19 @@ export function TopicFilter({
                                     "hover:shadow-sm"
                                 )}
                                 style={{
-                                    borderColor: `${topic.colorHex}${isSelected ? 'FF' : '80'}`,
-                                    backgroundColor: `${topic.colorHex}${isSelected ? '20' : '10'}`,
+                                    borderColor: s.border,
+                                    backgroundColor: s.background,
                                     '--tw-ring-color': topic.colorHex
                                 } as React.CSSProperties}
                                 onClick={() => handleTopicClick(topic)}
                             >
-                                <div
-                                    className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-                                    style={{ backgroundColor: topic.colorHex }}
-                                >
-                                    <Icon
-                                        name={topic.icon || "hash"}
-                                        color="#ffffff"
-                                        size={16}
-                                    />
-                                </div>
+                                <TopicIcon
+                                    color={topic.colorHex}
+                                    icon={topic.icon}
+                                    size="md"
+                                    solid
+                                    className="w-8 h-8 p-0"
+                                />
                                 <div className="flex flex-col items-start overflow-hidden flex-1">
                                     <span className="font-medium truncate w-full text-sm">{topic.name}</span>
                                     {topic.name_en && (

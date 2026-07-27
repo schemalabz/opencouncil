@@ -5,48 +5,50 @@ import { useTranslations } from 'next-intl';
 import type { Map as MapboxMap, Marker } from 'mapbox-gl';
 import type { Root } from 'react-dom/client';
 import type { LatLng } from '@/lib/google-maps';
-import { CENTER_QUERY_MOVE_RATIO, SUBJECT_FOCUS_ZOOM, clusterCellDegrees, stylePin, type LandingView, type SubjectPin } from '@/lib/landing/landingCore';
+import { CENTER_QUERY_MOVE_RATIO, SUBJECT_FOCUS_ZOOM, stylePin, type SubjectPin } from '@/lib/landing/landingCore';
 import {
     groupByLocation,
     type CenterMunicipality,
     type CoLocatedBox,
     type GeneralBox,
     type LandingGeneralCity,
-    type LandingMapCity,
     type LandingSubject,
     type MapViewport,
+    type MunicipalitySubjectCount,
 } from '@/lib/landing/landingData';
-import { buildSubjectPins, createGeneralCityMarker, createMunicipalityMarker } from '../mapMarkers';
+import { buildSubjectPins, createGeneralCityMarker, createMunicipalityCountMarker } from '../mapMarkers';
 import { captureLandingAction } from '@/lib/landing/analytics';
+import { spreadOverlappingMarkers } from '@/lib/landing/markerDeclutter';
+import { MUNICIPALITY_DONUT_FOOTPRINT } from '@/lib/landing/donut';
 
 /**
- * Capture the map view on every moveend so the list + clustering react to it. Re-clusters
- * only when the cell size changes; resolves the municipality under the center; finishes a
- * pending co-located / city-hall pan by opening its box; otherwise closes the boxes and
- * publishes the new viewport. Selection pans set `suppressViewCapture` to skip refiltering.
+ * Capture the map view on every moveend so the list reacts to it. Resolves the municipality under
+ * the center; finishes a pending co-located / city-hall pan by opening its box; otherwise closes the
+ * boxes and publishes the new viewport. Selection pans set `suppressViewCapture` to skip refiltering.
  */
 export function useMapViewCapture({
     mapInstance,
     suppressViewCaptureRef,
     pendingCoLocatedRef,
     pendingGeneralRef,
-    setClusterCell,
     setMapZoom,
     setCenterMunicipality,
     setCoLocated,
     setGeneralBox,
     setMapView,
+    onUserNavigate,
 }: {
     mapInstance: MapboxMap | null;
     suppressViewCaptureRef: MutableRefObject<boolean>;
     pendingCoLocatedRef: MutableRefObject<LandingSubject[] | null>;
     pendingGeneralRef: MutableRefObject<LandingGeneralCity | null>;
-    setClusterCell: (v: number) => void;
     setMapZoom: (v: number) => void;
     setCenterMunicipality: (v: CenterMunicipality | null) => void;
     setCoLocated: (v: CoLocatedBox | null) => void;
     setGeneralBox: (v: GeneralBox | null) => void;
     setMapView: (v: MapViewport) => void;
+    /** fired on a genuine user pan/zoom (not a suppressed programmatic move) */
+    onUserNavigate?: () => void;
 }) {
     const centerReqRef = useRef(0);
     // Center of the last /api/cities/at query — the gate below re-queries only after the
@@ -55,8 +57,6 @@ export function useMapViewCapture({
     useEffect(() => {
         if (!mapInstance) return;
         const capture = () => {
-            // re-cluster only when the cell size changes, so small zooms don't rebuild the donuts
-            setClusterCell(clusterCellDegrees(mapInstance.getZoom()));
             setMapZoom(mapInstance.getZoom());
 
             const center = mapInstance.getCenter();
@@ -120,6 +120,8 @@ export function useMapViewCapture({
                 suppressViewCaptureRef.current = false;
                 return;
             }
+            // a genuine user pan/zoom — drop any strip preview
+            onUserNavigate?.();
             if (!bounds) return;
             setMapView({
                 w: bounds.getWest(),
@@ -168,16 +170,17 @@ export function useMapViewCapture({
 }
 
 /**
- * Build the subject pins for the current viewport and keep them in sync. Co-located subjects
- * merge into a "+N" marker; dense cells collapse into donuts; the selected subject keeps its
- * own highlighted pin (see buildSubjectPins). A separate effect restyles pins on selection.
+ * Build the subject pins for the current viewport and keep them in sync. Co-located subjects merge
+ * into a "+N" marker; the selected subject keeps its own highlighted pin (see buildSubjectPins).
+ * A separate effect restyles pins on selection.
  */
 export function useSubjectMarkers({
     mapInstance,
-    subjectsActive,
+    active,
     visibleSubjects,
-    clusterCell,
+    dots,
     selectedId,
+    previewId,
     onSelect,
     onClearSelection,
     suppressViewCaptureRef,
@@ -185,11 +188,14 @@ export function useSubjectMarkers({
     setCoLocated,
 }: {
     mapInstance: MapboxMap | null;
-    subjectsActive: boolean;
+    /** gates the whole layer — off while the zoomed-out δήμος donuts have the map */
+    active: boolean;
     visibleSubjects: LandingSubject[];
-    /** the current cluster-cell size — a dep so markers rebuild when zoom crosses a level */
-    clusterCell: number;
+    /** viewport is crowded → draw dots instead of icon badges (see SUBJECT_DOT_THRESHOLD) */
+    dots: boolean;
     selectedId: string | null;
+    /** the mobile strip's previewed subject — its pin gets the intense filled style */
+    previewId: string | null;
     onSelect: (id: string) => void;
     onClearSelection: () => void;
     suppressViewCaptureRef: MutableRefObject<boolean>;
@@ -199,6 +205,8 @@ export function useSubjectMarkers({
     const pinsRef = useRef<SubjectPin[]>([]);
     const selectedIdRef = useRef(selectedId);
     selectedIdRef.current = selectedId;
+    const previewIdRef = useRef(previewId);
+    previewIdRef.current = previewId;
     const onSelectRef = useRef(onSelect);
     onSelectRef.current = onSelect;
     const onClearSelectionRef = useRef(onClearSelection);
@@ -209,7 +217,7 @@ export function useSubjectMarkers({
     tRef.current = t;
 
     useEffect(() => {
-        if (!mapInstance || !subjectsActive) return;
+        if (!mapInstance || !active) return;
 
         const openCoLocated = (group: LandingSubject[]) => {
             captureLandingAction('cluster_opened', { kind: 'co_located', size: group.length });
@@ -238,6 +246,8 @@ export function useSubjectMarkers({
 
         const pins = buildSubjectPins(mapInstance, groupByLocation(visibleSubjects), {
             selectedId: selectedIdRef.current,
+            previewId: previewIdRef.current,
+            dot: dots,
             onSelect: (id) => onSelectRef.current(id),
             onOpenCoLocated: openCoLocated,
             t: tRef.current,
@@ -252,14 +262,19 @@ export function useSubjectMarkers({
             });
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mapInstance, visibleSubjects, clusterCell, subjectsActive]);
+    }, [mapInstance, visibleSubjects, dots, active]);
 
-    // Selection restyles the existing subject markers in place (no rebuild).
+    // Selection / strip-preview restyle the existing subject markers in place (no rebuild). The
+    // selected pin and the mobile strip's previewed pin both get the intense filled style (previewId
+    // is only ever set on mobile, so this reads the same on both viewports).
     useEffect(() => {
         pinsRef.current.forEach((pin) => {
-            if (pin.subject) stylePin(pin, pin.subject, pin.subject.id === selectedId);
+            if (!pin.subject) return;
+            const selected = pin.subject.id === selectedId;
+            const intense = selected || pin.subject.id === previewId;
+            stylePin(pin, pin.subject, selected, intense, pin.dot);
         });
-    }, [selectedId]);
+    }, [selectedId, previewId]);
 }
 
 /**
@@ -268,7 +283,7 @@ export function useSubjectMarkers({
  */
 export function useGeneralCityMarkers({
     mapInstance,
-    subjectsActive,
+    active,
     visibleGeneralCities,
     isMobile,
     onClearSelection,
@@ -281,7 +296,8 @@ export function useGeneralCityMarkers({
     setGeneralBox,
 }: {
     mapInstance: MapboxMap | null;
-    subjectsActive: boolean;
+    /** gates the whole layer — off while the zoomed-out δήμος donuts have the map */
+    active: boolean;
     visibleGeneralCities: LandingGeneralCity[];
     isMobile: boolean;
     onClearSelection: () => void;
@@ -302,7 +318,7 @@ export function useGeneralCityMarkers({
     tRef.current = t;
 
     useEffect(() => {
-        if (!mapInstance || !subjectsActive) return;
+        if (!mapInstance || !active) return;
         const markers: { marker: Marker; root: Root }[] = [];
         for (const city of visibleGeneralCities) {
             const { marker, root } = createGeneralCityMarker(mapInstance, city, () => {
@@ -314,21 +330,16 @@ export function useGeneralCityMarkers({
                 setClickedMunicipality(null);
                 setCoLocated(null);
                 const c = mapInstance.getCenter();
-                // Focus like a single-pin selection: center AND zoom in (a zoom delta still counts
-                // as movement, so an already-centered centroid eases in and fires moveend).
-                const targetZoom = Math.max(mapInstance.getZoom(), SUBJECT_FOCUS_ZOOM);
-                const willMove =
-                    Math.abs(c.lng - city.lng) > 1e-6 ||
-                    Math.abs(c.lat - city.lat) > 1e-6 ||
-                    Math.abs(mapInstance.getZoom() - targetZoom) > 1e-3;
+                // Only centre on the centroid — keep the current zoom (no zoom-in); the box opens
+                // after the pan.
+                const willMove = Math.abs(c.lng - city.lng) > 1e-6 || Math.abs(c.lat - city.lat) > 1e-6;
                 if (willMove) {
-                    // center + zoom the centroid; the box opens after the pan. desktop: shift right to
-                    // clear the floating list. mobile: drop below center to clear the top controls.
+                    // centre the centroid without zooming. desktop: shift right to clear the floating
+                    // list. mobile: drop below center to clear the top controls.
                     suppressViewCaptureRef.current = true;
                     pendingGeneralRef.current = city;
                     mapInstance.easeTo({
                         center: [city.lng, city.lat],
-                        zoom: targetZoom,
                         duration: 400,
                         offset: isMobileRef.current ? [0, 120] : [210, 100],
                     });
@@ -347,33 +358,76 @@ export function useGeneralCityMarkers({
             });
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mapInstance, visibleGeneralCities, subjectsActive]);
+    }, [mapInstance, visibleGeneralCities, active]);
 }
 
+// Closest two donuts may sit, centre to centre: their drawn footprint plus a small gap, so
+// neighbours read as separate objects instead of touching. Keyed to the footprint rather than the
+// element box, whose lower half is empty reserve for the count. Fixed px — the donuts are a fixed
+// size, so only the distance between their anchors changes with zoom.
+const MUNICIPALITY_MARKER_SPACING = MUNICIPALITY_DONUT_FOOTPRINT + 4;
+
 /**
- * "Municipalities map" mode: one logo marker per cooperating δήμος at its centroid; clicking
- * one runs `onOpenCity`. Only mounted in the 'municipalities' view.
+ * Per-δήμος count labels for the zoomed-out view (see MUNICIPALITY_COUNT_MAX_ZOOM). `active` gates the
+ * whole layer so it swaps cleanly with the pin/donut layer as the map crosses the zoom threshold.
+ *
+ * Every δήμος draws its own orange logo + number — the same marker, at the same size, meaning the
+ * same thing at every zoom. Neighbours are never merged into a combined total and none are hidden.
+ * Far out their centroids project close enough that the labels would pile up, so overlapping ones
+ * are nudged aside just far enough to stay readable, and the nudge unwinds to nothing as zooming in
+ * pulls the real positions apart. The nudge is recomputed on every moveend (the overlap follows the
+ * projection); the markers themselves are built once per counts change and only repositioned.
  */
-export function useMunicipalityMarkers({
+export function useMunicipalityCountMarkers({
     mapInstance,
-    view,
-    mapCities,
-    onOpenCity,
+    active,
+    municipalityCounts,
+    onZoomToCity,
 }: {
     mapInstance: MapboxMap | null;
-    view: LandingView;
-    mapCities: LandingMapCity[];
-    onOpenCity: (cityId: string) => void;
+    active: boolean;
+    municipalityCounts: MunicipalitySubjectCount[];
+    onZoomToCity: (muni: MunicipalitySubjectCount) => void;
 }) {
-    const onOpenCityRef = useRef(onOpenCity);
-    onOpenCityRef.current = onOpenCity;
+    const t = useTranslations('landingV2');
+    const tRef = useRef(t);
+    tRef.current = t;
+    const onZoomRef = useRef(onZoomToCity);
+    onZoomRef.current = onZoomToCity;
+
     useEffect(() => {
-        if (!mapInstance || view !== 'municipalities') return;
-        const markers = mapCities.map((city) =>
-            createMunicipalityMarker(mapInstance, city, () => onOpenCityRef.current(city.id)),
+        if (!mapInstance || !active) return;
+        const municipalities = municipalityCounts;
+
+        // The declutter nudge is a pure function of where the centroids currently project, so it's
+        // recomputed on every move — but that's all that changes per move. The donut SVG, logo and
+        // count depend only on `municipalityCounts` (this effect's dep), so the markers are built
+        // once here and repositioned via setOffset, never torn down and rebuilt on pan/zoom.
+        const computeOffsets = () => {
+            const points = municipalities.map((m) => mapInstance.project([m.lng, m.lat]));
+            return spreadOverlappingMarkers(points, municipalities.map((m) => m.count), MUNICIPALITY_MARKER_SPACING);
+        };
+
+        const initial = computeOffsets();
+        const markers = municipalities.map((muni, i) =>
+            createMunicipalityCountMarker(
+                mapInstance,
+                muni,
+                (m) => onZoomRef.current(m),
+                tRef.current,
+                [initial[i].x, initial[i].y],
+            ),
         );
+
+        const reposition = () => {
+            const offsets = computeOffsets();
+            markers.forEach((m, i) => m.setOffset([offsets[i].x, offsets[i].y]));
+        };
+        mapInstance.on('moveend', reposition);
+
         return () => {
+            mapInstance.off('moveend', reposition);
             markers.forEach((m) => m.remove());
         };
-    }, [mapInstance, mapCities, view]);
+    }, [mapInstance, active, municipalityCounts]);
 }

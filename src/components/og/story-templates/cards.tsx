@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import { OpenCouncilWatermark } from "../shared-components";
 import type { PreviewSubject, PreviewData } from "./types";
-import { SectionLabel, RemainderLine, PRIMARY_PILL_FALLBACK, STORY_FONT_FAMILY, TopicIcon, uppercaseGreek } from "./shared";
+import { SectionLabel, RemainderLine, PRIMARY_PILL_FALLBACK, STORY_FONT_FAMILY, StoryTopicIcon, uppercaseGreek } from "./shared";
 
 // Card showing one subject with its topic icon + color + name.
 // Topic color drives the border + a very light tint of the background; icon sits on the right.
@@ -35,7 +35,7 @@ const SubjectCard = ({ subject }: { subject: PreviewSubject }) => {
                     marginRight: 18,
                 }}
             >
-                <TopicIcon name={subject.topic?.icon} color="#FFFFFF" size={36} />
+                <StoryTopicIcon name={subject.topic?.icon} color="#FFFFFF" size={36} />
             </div>
             {/* Right: text */}
             <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>

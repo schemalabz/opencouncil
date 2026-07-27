@@ -1,7 +1,6 @@
 'use client';
 import { Subject, Topic, Party, Person } from "@prisma/client";
 import { cn } from "@/lib/utils";
-import Icon from "./icon";
 import { PersonAvatarList } from "./persons/PersonAvatarList";
 import { useRouter } from "@/i18n/routing";
 import { stripMarkdown } from "@/lib/formatters/markdown";
@@ -12,6 +11,7 @@ import {
 } from "@/components/ui/popover";
 import { Statistics } from "@/lib/statistics";
 import { useCouncilMeetingData } from "./meetings/CouncilMeetingDataContext";
+import { TopicIcon } from '@/components/TopicIcon';
 
 interface SubjectBadgeProps {
     subject: Subject & {
@@ -33,9 +33,7 @@ export default function SubjectBadge({ subject, className }: SubjectBadgeProps) 
                 className
             )}
         >
-            <div className="p-1 rounded-full" style={{ backgroundColor: subject.topic?.colorHex ? subject.topic.colorHex + "20" : "#e5e7eb" }}>
-                <Icon name={subject.topic?.icon || "hash"} color={subject.topic?.colorHex || "#9ca3af"} size={16} />
-            </div>
+            <TopicIcon color={subject.topic?.colorHex} icon={subject.topic?.icon} size="md" />
             <span className="text-sm" >{subject.name}</span>
         </div>
     );
@@ -54,9 +52,7 @@ export default function SubjectBadge({ subject, className }: SubjectBadgeProps) 
             >
                 <div className="flex flex-col gap-4">
                     <div className="flex items-center gap-2">
-                        <div className="p-2 rounded-full" style={{ backgroundColor: subject.topic?.colorHex ? subject.topic.colorHex + "20" : "#e5e7eb" }}>
-                            <Icon name={subject.topic?.icon || "hash"} color={subject.topic?.colorHex || "#9ca3af"} size={24} />
-                        </div>
+                        <TopicIcon color={subject.topic?.colorHex} icon={subject.topic?.icon} size="lg" />
                         <div>
                             <div className="font-semibold">{subject.name}</div>
                             {subject.description && (

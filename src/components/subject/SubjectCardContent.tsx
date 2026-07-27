@@ -1,7 +1,7 @@
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import Icon from "@/components/icon";
 import { MapPin, ScrollText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TopicIcon } from '@/components/TopicIcon';
 
 export interface SubjectCardContentProps {
     /** Subject title. */
@@ -63,12 +63,12 @@ export function SubjectCardContent({
                 {/* Header: topic icon + title + meta */}
                 <CardHeader className={cn("flex flex-col gap-1.5 pb-2", compact && "p-3 pb-1.5")}>
                     <div className="flex flex-row items-center gap-1.5">
-                        <div
-                            className="p-1.5 rounded-full shrink-0 transition-colors duration-300"
-                            style={{ backgroundColor: topic?.colorHex ? topic.colorHex + "20" : "#e5e7eb" }}
-                        >
-                            <Icon name={topic?.icon || "hash"} color={topic?.colorHex || "#9ca3af"} size={compact ? 14 : 16} />
-                        </div>
+                        <TopicIcon
+                            color={topic?.colorHex}
+                            icon={topic?.icon}
+                            size={compact ? 'sm' : 'md'}
+                            className="transition-colors duration-300"
+                        />
                         <CardTitle className={cn("text-sm sm:text-base line-clamp-2 flex-1 group-hover/card:text-accent-foreground transition-colors duration-300", compact && "sm:text-sm")}>
                             {title}
                         </CardTitle>
