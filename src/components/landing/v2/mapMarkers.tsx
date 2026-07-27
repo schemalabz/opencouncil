@@ -16,6 +16,9 @@ import { captureLandingAction } from '@/lib/landing/analytics';
 import {
     MUNICIPALITY_DONUT_COUNT_Y,
     MUNICIPALITY_DONUT_DIAMETER,
+    MUNICIPALITY_DONUT_INK_HEIGHT,
+    MUNICIPALITY_DONUT_INK_TOP,
+    MUNICIPALITY_DONUT_INK_WIDTH,
     MUNICIPALITY_DONUT_LOGO_SIZE,
     computeMunicipalityDonutSegments,
     municipalityDonutSvg,
@@ -332,30 +335,130 @@ export function createSubjectPin(
  * A single-δήμος donut for the zoomed-out view: the δήμος's topic mix as coloured arcs across the top
  * of the ring, its total subject count in the gap at the bottom of that ring, and the municipality
  * logo in the middle. A click zooms into the δήμος. Anchored at the δήμος centroid, shifted by
- * `offset` when a neighbour's donut would otherwise overlap it. The boundaries are drawn by
- * useMapFeatures; the ring geometry lives in ./donut.ts.
+ * `offset` and shrunk by `scale` when it packs into a neighbour cluster (see
+ * packMunicipalityMarkers). The boundaries are drawn by useMapFeatures; the ring geometry lives in
+ * ./donut.ts.
+ *
+ * The positioning shell every packed (bubble-cluster) marker shares.
+ *
+ * HIT-AREA INVARIANT — anything Mapbox positions must have its hit area coincide with what's
+ * drawn. The packing displacement therefore goes through `Marker.setOffset()`, which moves the
+ * marker's element — box and paint together. It must NEVER be a CSS translate on an inner
+ * wrapper: that moves only the paint, leaving an invisible click-swallowing box at the anchor
+ * whose clicks fall through to the map (shipped once, broke donut clicking in production).
+ *
+ * The packing is intentionally discrete (a satellite is either home or on the cluster ring), so
+ * placement changes animate: `setPlacement` sets a target and a self-terminating rAF loop eases
+ * the real offset toward it — smooth motion with the hit area correct on every frame. This also
+ * decouples repacking from rendering: targets may arrive at any rate (see attachLiveRepack) while
+ * the easing runs at frame rate. Scale stays a CSS transform on an inner wrapper, which is safe
+ * because it is always ≤ 1: the paint only ever shrinks inside the box.
+ */
+function packedMarkerShell(offset: [number, number], scale: number) {
+    const rootEl = document.createElement('div');
+    rootEl.style.zIndex = '2';
+    // The wrappers are pointer-transparent; the factory re-enables pointer events on the drawn
+    // button. A scaled-down marker's wrappers keep their UNSCALED layout boxes, and a plain div
+    // hit-tests — so without this, the margin around a shrunken satellite silently swallows
+    // clicks that should reach the map. Same invariant as the offset rule: only painted pixels
+    // may capture clicks. Via the !important class in globals.css, because mapbox-gl re-sets
+    // inline pointer-events on marker elements during its own occlusion updates.
+    rootEl.className = 'oc-packed-marker';
+    const scaleEl = document.createElement('div');
+    scaleEl.style.pointerEvents = 'none';
+    scaleEl.style.transform = `scale(${scale})`;
+    scaleEl.style.transition = 'transform 200ms ease';
+    rootEl.appendChild(scaleEl);
+
+    let marker: mapboxgl.Marker | null = null;
+    const current = { x: offset[0], y: offset[1] };
+    const target = { x: offset[0], y: offset[1], s: scale };
+    let frame = 0;
+    const step = () => {
+        frame = 0;
+        // Exponential approach — ~90% of the way in ~7 frames (≈120ms at 60Hz), then snap.
+        current.x += (target.x - current.x) * 0.3;
+        current.y += (target.y - current.y) * 0.3;
+        const settled = Math.abs(target.x - current.x) < 0.5 && Math.abs(target.y - current.y) < 0.5;
+        if (settled) {
+            current.x = target.x;
+            current.y = target.y;
+        }
+        marker?.setOffset([current.x, current.y]);
+        if (!settled) frame = requestAnimationFrame(step);
+    };
+
+    return {
+        rootEl,
+        scaleEl,
+        /** the shell drives this Marker's offset — create it with the same initial `offset` */
+        attach: (m: mapboxgl.Marker) => {
+            marker = m;
+        },
+        setPlacement: ([x, y]: [number, number], s: number) => {
+            target.x = x;
+            target.y = y;
+            if (s !== target.s) {
+                target.s = s;
+                scaleEl.style.transform = `scale(${s})`;
+            }
+            if (!frame) frame = requestAnimationFrame(step);
+        },
+        /** cancel any in-flight easing — call before Marker.remove() */
+        dispose: () => {
+            if (frame) cancelAnimationFrame(frame);
+            frame = 0;
+        },
+    };
+}
+
+/** A packed marker's handle: the Marker, the shell's animated `setPlacement`, and `dispose` to
+ *  cancel in-flight easing before removal. */
+export type PackedMarker = {
+    marker: mapboxgl.Marker;
+    setPlacement: (offset: [number, number], scale: number) => void;
+    dispose: () => void;
+};
+
+// The donut's ink bounding box (see donut.ts): the clickable element is exactly this box — not
+// the 68×68 SVG canvas, whose margins would overlap neighbouring tangent donuts' boxes by ~15px
+// and mis-route their clicks.
+const DONUT_INK_TOP = MUNICIPALITY_DONUT_INK_TOP;
+export const DONUT_INK_WIDTH = MUNICIPALITY_DONUT_INK_WIDTH;
+export const DONUT_INK_HEIGHT = MUNICIPALITY_DONUT_INK_HEIGHT;
+
+/**
+ * Returns the Marker plus the shell's animated `setPlacement` (see packedMarkerShell). The
+ * element is the donut's ink box, centred on the anchor — so the packing extent for this marker
+ * is {rx: DONUT_INK_WIDTH/2, ry: DONUT_INK_HEIGHT/2, cy: 0}.
  */
 export function createMunicipalityCountMarker(
     map: MapboxMap,
     muni: MunicipalitySubjectCount,
     onZoom: (muni: MunicipalitySubjectCount) => void,
     t: TFn,
-    /** pixel nudge keeping this donut clear of its neighbours' (see spreadOverlappingMarkers) */
+    /** pixel nudge keeping this donut clear of its neighbours' (see packMunicipalityMarkers) */
     offset: [number, number] = [0, 0],
-): mapboxgl.Marker {
-    const rootEl = document.createElement('div');
-    rootEl.style.zIndex = '2';
+    /** initial size class — 1 full, <1 for a cluster satellite */
+    scale = 1,
+): PackedMarker {
+    const shell = packedMarkerShell(offset, scale);
     const el = document.createElement('button');
     el.type = 'button';
     el.setAttribute('aria-label', t('marker.municipalityZoom', { name: muni.nameMunicipality, count: muni.count }));
     el.className =
         'relative block cursor-pointer border-0 bg-transparent p-0 leading-none transition-transform hover:scale-110';
-    el.style.width = `${MUNICIPALITY_DONUT_DIAMETER}px`;
-    el.style.height = `${MUNICIPALITY_DONUT_DIAMETER}px`;
+    el.style.pointerEvents = 'auto'; // the drawn box is the click target (wrappers are transparent)
+    el.style.width = `${DONUT_INK_WIDTH}px`;
+    el.style.height = `${DONUT_INK_HEIGHT}px`;
 
     // Topic ring. Same segment model as the subject donuts, so a δήμος and a cluster inside it read
-    // as the same kind of thing.
+    // as the same kind of thing. The SVG keeps its own 68×68 canvas, shifted so its ink lands in
+    // this element's box.
     const ring = document.createElement('div');
+    ring.className = 'pointer-events-none absolute';
+    ring.style.left = `${-(MUNICIPALITY_DONUT_DIAMETER - DONUT_INK_WIDTH) / 2}px`;
+    ring.style.top = `${-DONUT_INK_TOP}px`;
     ring.innerHTML = municipalityDonutSvg(computeMunicipalityDonutSegments(muni.members));
     el.appendChild(ring);
 
@@ -363,7 +466,8 @@ export function createMunicipalityCountMarker(
     // own — the arc is a hairline out at the rim, so there's no disc behind the logo to back it.
     const logo = document.createElement('span');
     logo.className =
-        'absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center overflow-hidden rounded-full bg-white';
+        'absolute left-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center overflow-hidden rounded-full bg-white';
+    logo.style.top = `${MUNICIPALITY_DONUT_DIAMETER / 2 - DONUT_INK_TOP}px`;
     logo.style.width = `${MUNICIPALITY_DONUT_LOGO_SIZE}px`;
     logo.style.height = `${MUNICIPALITY_DONUT_LOGO_SIZE}px`;
     logo.style.boxShadow = '0 0 0 1px #fff, 0 1px 3px rgba(0,0,0,0.25)';
@@ -385,7 +489,7 @@ export function createMunicipalityCountMarker(
     const count = document.createElement('span');
     count.textContent = String(muni.count);
     count.className = 'absolute left-1/2 -translate-x-1/2 -translate-y-1/2 text-[15px] font-bold leading-none';
-    count.style.top = `${MUNICIPALITY_DONUT_COUNT_Y}px`;
+    count.style.top = `${MUNICIPALITY_DONUT_COUNT_Y - DONUT_INK_TOP}px`;
     count.style.color = '#0c0a09';
     count.style.textShadow = '0 0 3px #fff, 0 0 3px #fff, 0 1px 2px #fff, 0 -1px 2px #fff';
     el.appendChild(count);
@@ -395,8 +499,10 @@ export function createMunicipalityCountMarker(
         captureLandingAction('municipality_count_opened', { city_id: muni.cityId, count: muni.count });
         onZoom(muni);
     });
-    rootEl.appendChild(el);
-    return new mapboxgl.Marker({ element: rootEl, offset }).setLngLat([muni.lng, muni.lat]).addTo(map);
+    shell.scaleEl.appendChild(el);
+    const marker = new mapboxgl.Marker({ element: shell.rootEl, offset }).setLngLat([muni.lng, muni.lat]).addTo(map);
+    shell.attach(marker);
+    return { marker, setPlacement: shell.setPlacement, dispose: shell.dispose };
 }
 
 /**
