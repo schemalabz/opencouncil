@@ -11,14 +11,11 @@ import {
 } from "../ui/dropdown-menu";
 import { Input } from "../ui/input";
 import { Checkbox } from "../ui/checkbox";
-import { CheckCircle, CopyIcon, Share, FileDown, Loader2, Instagram } from "lucide-react";
+import { CheckCircle, CopyIcon, Share, Instagram } from "lucide-react";
 import { useVideo } from './VideoProvider';
 import { usePathname } from 'next/navigation';
-import { useTranslations } from 'next-intl';
 import { useShare } from '@/contexts/ShareContext';
 import { formatTimestamp } from '@/lib/utils';
-import { downloadFile } from '@/lib/export/meetings';
-import { useToast } from '@/hooks/use-toast';
 import StoryTemplatePickerDialog from './StoryTemplatePickerDialog';
 import posthog from 'posthog-js';
 
@@ -45,12 +42,9 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const [url, setUrl] = useState('');
     const [includeTimestamp, setIncludeTimestamp] = useState(false);
     const [copySuccess, setCopySuccess] = useState(false);
-    const [downloading, setDownloading] = useState<string | null>(null);
     const { currentTime } = useVideo();
     const { isOpen, targetTimestamp, shouldTriggerCopy, closeShareDropdown, resetCopyTrigger } = useShare();
     const pathname = usePathname();
-    const t = useTranslations();
-    const { toast } = useToast();
     const [internalOpen, setInternalOpen] = useState(false);
     const [storyPickerOpen, setStoryPickerOpen] = useState(false);
 
@@ -102,14 +96,6 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
         setTimeout(() => setCopySuccess(false), 3000);
     };
 
-    const errorToast = () => {
-        toast({
-            title: 'Αποτυχία λήψης',
-            description: 'Δεν ήταν δυνατή η δημιουργία της εικόνας. Δοκίμασε ξανά.',
-            variant: 'destructive',
-        });
-    };
-
     const openStoryPicker = () => {
         // Close the dropdown when opening the dialog so they don't stack.
         if (isOpen) {
@@ -118,33 +104,6 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
             setInternalOpen(false);
         }
         setStoryPickerOpen(true);
-    };
-
-    const downloadFeed = async () => {
-        setDownloading('feed');
-        const imageUrl = `${window.location.origin}/api/og?cityId=${cityId}&meetingId=${meetingId}&variant=feed`;
-        try {
-            const response = await fetch(imageUrl);
-            if (!response.ok) {
-                if (response.status === 429) {
-                    toast({
-                        title: 'Αποτυχία δημιουργίας εικόνας',
-                        description: 'Δεν είναι διαθέσιμη αυτή τη στιγμή η δημιουργία εικόνων. Δοκίμασε ξανά αργότερα.',
-                        variant: 'destructive',
-                    });
-                } else {
-                    errorToast();
-                }
-                return;
-            }
-            const blob = await response.blob();
-            downloadFile(blob, `meeting-feed-${meetingId}.png`);
-        } catch (error) {
-            console.error('Error downloading feed image:', error);
-            errorToast();
-        } finally {
-            setDownloading(null);
-        }
     };
 
     // Determine what's being shared based on the current path
@@ -294,7 +253,6 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
 
                             <Button
                                 onClick={openStoryPicker}
-                                disabled={downloading !== null}
                                 variant="outline"
                                 size="sm"
                                 className="w-full h-8 flex items-center gap-1.5"
@@ -302,22 +260,6 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                                 <Instagram className="w-3 h-3" />
                                 <span className="text-xs">Story</span>
                                 <span className="text-[10px] text-muted-foreground">(9:16)</span>
-                            </Button>
-
-                            <Button
-                                onClick={() => downloadFeed()}
-                                disabled={downloading !== null}
-                                variant="outline"
-                                size="sm"
-                                className="w-full h-8 flex items-center gap-1.5"
-                            >
-                                {downloading === 'feed' ? (
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                ) : (
-                                    <FileDown className="w-3 h-3" />
-                                )}
-                                <span className="text-xs">Post</span>
-                                <span className="text-[10px] text-muted-foreground">(1:1)</span>
                             </Button>
                         </div>
                     </>
