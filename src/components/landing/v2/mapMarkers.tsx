@@ -278,57 +278,89 @@ export function createSubjectPin(
 ): SubjectPin {
     const { t } = opts;
     const rep = group[0];
+    const coLocated = group.length > 1;
     const rootEl = document.createElement('div');
     const el = document.createElement('button');
     el.type = 'button';
-    el.setAttribute('aria-label', group.length > 1 ? t('marker.samePoint', { count: group.length }) : rep.title);
+    el.setAttribute('aria-label', coLocated ? t('marker.samePoint', { count: group.length }) : rep.title);
     rootEl.appendChild(el);
-    stylePin({ el, rootEl }, rep, opts.selected, opts.intense, opts.dot);
-    // A dot has no icon, so it also needs no React root — which is the point at this density:
-    // hundreds of roots is what made a crowded viewport expensive, not the markers themselves.
-    let root: Root | null = null;
-    if (!opts.dot) {
-        root = createRoot(el);
-        // currentColor so stylePin's `el.style.color` controls the icon (topic colour, or white when intense)
-        root.render(<Icon name={rep.topic.icon || 'hash'} color="currentColor" size={rep.hot ? 18 : 14} />);
-    }
 
-    if (group.length > 1 && opts.dot) {
-        // No room for a "+N" badge on a dot; the click still opens the co-located box.
-        rootEl.style.zIndex = '4';
-        el.addEventListener('click', (e) => {
-            e.stopPropagation();
-            opts.onOpenCoLocated(group);
-        });
-    } else if (group.length > 1) {
-        // Size a co-located pin like the city-hall markers (h-9) so the "+N" badge sits at
-        // the same corner offset as their count badge, not overlapping a smaller (h-7) circle.
-        el.classList.remove('h-7', 'w-7');
-        el.classList.add('h-9', 'w-9');
-        rootEl.style.zIndex = '4';
-        el.addEventListener('click', (e) => {
-            e.stopPropagation();
-            opts.onOpenCoLocated(group);
-        });
-        const badge = document.createElement('button');
+    // The icon's own container: faded rather than unmounted on the dot↔badge morph, so with the
+    // button's size transition the pin visibly grows out of (or melts into) its dot. Its React root
+    // mounts lazily on the first badge appearance — a dot needs none, which is the point at
+    // density: hundreds of roots is what made a crowded viewport expensive, not the markers.
+    const iconEl = document.createElement('span');
+    iconEl.className = 'flex items-center justify-center transition-opacity duration-200';
+    el.appendChild(iconEl);
+
+    // Co-located groups keep their "+N" badge through dot mode (hidden, scaled away) so the morph
+    // is a style change, not a rebuild. Clicks behave the same in both shapes.
+    let badge: HTMLButtonElement | null = null;
+    if (coLocated) {
+        badge = document.createElement('button');
         badge.type = 'button';
         badge.textContent = `+${group.length - 1}`;
         badge.setAttribute('aria-label', t('marker.seeSamePoint', { count: group.length }));
         badge.className =
-            'absolute -right-2 -top-2 z-[1] flex h-4 min-w-4 cursor-pointer items-center justify-center rounded-full border border-white bg-[hsl(var(--orange))] px-1 text-[10px] font-bold leading-none text-white shadow';
+            'absolute -right-2 -top-2 z-[1] flex h-4 min-w-4 cursor-pointer items-center justify-center rounded-full border border-white bg-[hsl(var(--orange))] px-1 text-[10px] font-bold leading-none text-white shadow transition-all duration-200';
         badge.addEventListener('click', (e) => {
             e.stopPropagation();
             opts.onOpenCoLocated(group);
         });
         rootEl.appendChild(badge);
-    } else {
-        el.addEventListener('click', (e) => {
-            e.stopPropagation();
-            opts.onSelect(rep.id);
-        });
     }
-    const marker = new mapboxgl.Marker({ element: rootEl }).setLngLat([rep.lng, rep.lat]).addTo(map);
-    return { el, rootEl, root, marker, subject: group.length > 1 ? null : rep, dot: opts.dot };
+
+    const pin: SubjectPin = {
+        el,
+        rootEl,
+        root: null,
+        marker: null as unknown as mapboxgl.Marker,
+        subject: coLocated ? null : rep,
+        dot: opts.dot,
+        setDot: () => {},
+    };
+
+    const applyMode = (dot: boolean, selected: boolean, intense: boolean) => {
+        pin.dot = dot;
+        stylePin({ el, rootEl }, rep, selected, intense, dot);
+        if (coLocated) {
+            // Above single pins in both shapes (stylePin writes a selection-based z-index).
+            rootEl.style.zIndex = '4';
+            if (!dot) {
+                // Size a co-located pin like the city-hall markers (h-9) so the "+N" badge sits at
+                // the same corner offset as their count badge, not overlapping a smaller circle.
+                el.classList.remove('h-7', 'w-7');
+                el.classList.add('h-9', 'w-9');
+            }
+            // No room for the badge on a dot — scaled away (and unclickable) instead of removed.
+            badge?.classList.toggle('scale-0', dot);
+            badge?.classList.toggle('opacity-0', dot);
+            badge?.classList.toggle('pointer-events-none', dot);
+        }
+        if (dot) {
+            iconEl.style.opacity = '0';
+        } else {
+            if (!pin.root) {
+                pin.root = createRoot(iconEl);
+                // currentColor so stylePin's `el.style.color` controls the icon (topic colour, or
+                // white when intense)
+                pin.root.render(<Icon name={rep.topic.icon || 'hash'} color="currentColor" size={rep.hot ? 18 : 14} />);
+            }
+            iconEl.style.opacity = '1';
+        }
+    };
+    pin.setDot = (dot, selected, intense) => {
+        if (dot !== pin.dot) applyMode(dot, selected, intense);
+    };
+    applyMode(opts.dot, opts.selected, opts.intense);
+
+    el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (coLocated) opts.onOpenCoLocated(group);
+        else opts.onSelect(rep.id);
+    });
+    pin.marker = new mapboxgl.Marker({ element: rootEl }).setLngLat([rep.lng, rep.lat]).addTo(map);
+    return pin;
 }
 
 /**
