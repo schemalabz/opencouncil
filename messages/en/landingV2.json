@@ -81,7 +81,10 @@
     "notSeeing": "Don't see your municipality?",
     "unavailable": "The Municipality of {name} isn't available yet — request to add it",
     "notify": "Notifications for the municipality of {name}",
-    "notifyMeeting": "Notifications for the upcoming meeting of {name}"
+    "notifyMeeting": "Notifications for the upcoming meeting of {name}",
+    "petitionedTitle": "Petitions to add",
+    "petitionedMore": "and {count, plural, one {one more municipality} other {# more municipalities}} with fewer than {threshold} petitions",
+    "petitionedOverflow": "and {count, plural, one {one more municipality} other {# more municipalities}} with {threshold}+ petitions"
   },
   "notify": {
     "interested": "It looks like you're interested in ",

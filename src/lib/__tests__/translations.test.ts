@@ -1,7 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import en from '../../../messages/en.json';
-import el from '../../../messages/el.json';
 
 function getAllKeys(obj: object, prefix = ''): string[] {
     return Object.entries(obj).flatMap(([k, v]) => {
@@ -14,46 +12,43 @@ function getAllKeys(obj: object, prefix = ''): string[] {
 
 const messagesDir = path.join(__dirname, '..', '..', '..', 'messages');
 
+// en is the reference; every other shipped locale must mirror its key set exactly.
+const REFERENCE = 'en';
+const LOCALES = ['el', 'fr'];
+
 function getModularFiles(): string[] {
-    const enDir = path.join(messagesDir, 'en');
-    const elDir = path.join(messagesDir, 'el');
-    const enFiles = fs.existsSync(enDir) ? fs.readdirSync(enDir).filter(f => f.endsWith('.json')) : [];
-    const elFiles = fs.existsSync(elDir) ? fs.readdirSync(elDir).filter(f => f.endsWith('.json')) : [];
-    return [...new Set([...enFiles, ...elFiles])].sort();
+    const files = [REFERENCE, ...LOCALES].flatMap((locale) => {
+        const dir = path.join(messagesDir, locale);
+        return fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith('.json')) : [];
+    });
+    return [...new Set(files)].sort();
 }
 
 function loadJson(filePath: string): object {
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    return fs.existsSync(filePath) ? JSON.parse(fs.readFileSync(filePath, 'utf8')) : {};
+}
+
+function expectMatchingKeys(reference: object, other: object) {
+    const refKeys = new Set(getAllKeys(reference));
+    const otherKeys = new Set(getAllKeys(other));
+    expect([...otherKeys].filter(k => !refKeys.has(k))).toEqual([]);
+    expect([...refKeys].filter(k => !otherKeys.has(k))).toEqual([]);
 }
 
 describe('translations sync', () => {
-    it('en.json and el.json should have matching keys (bidirectional, deep)', () => {
-        const enKeys = new Set(getAllKeys(en));
-        const elKeys = new Set(getAllKeys(el));
-
-        const missingInEn = [...elKeys].filter(k => !enKeys.has(k));
-        const missingInEl = [...enKeys].filter(k => !elKeys.has(k));
-
-        expect(missingInEn).toEqual([]);
-        expect(missingInEl).toEqual([]);
+    it.each(LOCALES)('%s.json should mirror en.json (bidirectional, deep)', (locale) => {
+        expectMatchingKeys(
+            loadJson(path.join(messagesDir, `${REFERENCE}.json`)),
+            loadJson(path.join(messagesDir, `${locale}.json`)),
+        );
     });
 
-    const modularFiles = getModularFiles();
+    const cases = getModularFiles().flatMap((file) => LOCALES.map((locale) => [locale, file] as const));
 
-    it.each(modularFiles)('modular file %s should have matching keys (bidirectional, deep)', (file) => {
-        const enPath = path.join(messagesDir, 'en', file);
-        const elPath = path.join(messagesDir, 'el', file);
-
-        const enObj = fs.existsSync(enPath) ? loadJson(enPath) : {};
-        const elObj = fs.existsSync(elPath) ? loadJson(elPath) : {};
-
-        const enKeys = new Set(getAllKeys(enObj));
-        const elKeys = new Set(getAllKeys(elObj));
-
-        const missingInEn = [...elKeys].filter(k => !enKeys.has(k));
-        const missingInEl = [...enKeys].filter(k => !elKeys.has(k));
-
-        expect(missingInEn).toEqual([]);
-        expect(missingInEl).toEqual([]);
+    it.each(cases)('%s/%s should mirror en (bidirectional, deep)', (locale, file) => {
+        expectMatchingKeys(
+            loadJson(path.join(messagesDir, REFERENCE, file)),
+            loadJson(path.join(messagesDir, locale, file)),
+        );
     });
 });

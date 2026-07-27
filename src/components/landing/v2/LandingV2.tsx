@@ -30,6 +30,7 @@ import {
     type CoLocatedBox,
     type GeneralBox,
     type LandingGeneralCity,
+    type LandingPetitionedCity,
     type LandingSubject,
     type MapViewport,
     type MunicipalityInterest,
@@ -184,7 +185,7 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
     const [query, setQuery] = useState('');
     // A free-text search ignores the range dropdown so it spans every subject (see useLandingData).
     const searching = query.trim().length > 0;
-    const { cities, upcoming, subjectCountByCity, mapCities, petitionedCities, mapSubjects, generalRows, loading } = useLandingData({
+    const { cities, upcoming, subjectCountByCity, mapCities, petitionedCities, petitionedBelowThreshold, mapSubjects, generalRows, loading } = useLandingData({
         range,
         filters,
         searching,
@@ -570,10 +571,28 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         setGeneralBox(null);
     };
 
+    // Focus a petitioned δήμος: shaded boundary + the "request it" preview (which says how many
+    // petitions it already has). Shared by its map bubble and its Δήμοι-tab leaderboard row.
+    const openPetitioned = (city: LandingPetitionedCity, source: 'map_marker' | 'list') => {
+        // A boundary-less δήμος can't be focused (nothing to shade or fly to) — its leaderboard
+        // row is disabled, so this is only a type guard in practice. Checked before the analytics
+        // fire, so a dead click never counts as an open.
+        if (!city.geometry || city.lng == null || city.lat == null) return;
+        captureLandingAction('petitioned_municipality_opened', { city_id: city.id, bucket: city.bucket, source });
+        clearMapFocus();
+        setClickedMunicipality({
+            id: city.id,
+            name: city.name,
+            geometry: city.geometry,
+            lng: city.lng,
+            lat: city.lat,
+            petitionBucket: city.bucket,
+        });
+        if (mapInstance) flyToMunicipality(mapInstance, city.geometry, isMobile);
+    };
+
     // Δήμοι view: plain logo bubbles for cooperating municipalities plus the brand-blue petition
-    // layer. A logo click filters the map to that δήμος (exactly like picking it in the list); a
-    // petitioned bubble becomes the clicked-municipality focus — shaded boundary and the "request
-    // it" preview, which also says how many petitions it already has.
+    // layer. A logo click filters the map to that δήμος (exactly like picking it in the list).
     useMunicipalitiesViewMarkers({
         mapInstance,
         active: municipalitiesMapMode,
@@ -585,22 +604,7 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
             clearMapFocus();
             setFilters({ ...filters, cityIds: filters.cityIds[0] === city.id ? [] : [city.id] });
         },
-        onOpenPetitioned: (city) => {
-            // Nothing to shade or fly to without a boundary. Checked before the analytics fire,
-            // so a dead click never counts as an open.
-            if (!city.geometry) return;
-            captureLandingAction('petitioned_municipality_opened', { city_id: city.id, bucket: city.bucket });
-            clearMapFocus();
-            setClickedMunicipality({
-                id: city.id,
-                name: city.name,
-                geometry: city.geometry,
-                lng: city.lng,
-                lat: city.lat,
-                petitionBucket: city.bucket,
-            });
-            if (mapInstance) flyToMunicipality(mapInstance, city.geometry, isMobile);
-        },
+        onOpenPetitioned: (city) => openPetitioned(city, 'map_marker'),
     });
 
     // Map overlays: desktop subject tooltip, OpenCouncil badge + popup, and the clicked
@@ -735,6 +739,9 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         topics,
         cities,
         subjectCountByCity,
+        petitionedCities,
+        petitionedBelowThreshold,
+        onOpenPetitioned: (city: LandingPetitionedCity) => openPetitioned(city, 'list'),
         upcoming,
         loading,
         selectedId,

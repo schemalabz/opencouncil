@@ -30,6 +30,9 @@ export function DesktopLayout({
     topics,
     cities,
     subjectCountByCity,
+    petitionedCities,
+    petitionedBelowThreshold,
+    onOpenPetitioned,
     upcoming,
     loading,
     selectedId,
@@ -146,6 +149,9 @@ export function DesktopLayout({
                                 onSelect={(id) =>
                                     setFilters({ ...filters, cityIds: filters.cityIds[0] === id ? [] : [id] })
                                 }
+                                petitionedCities={petitionedCities}
+                                petitionedBelowThreshold={petitionedBelowThreshold}
+                                onOpenPetitioned={onOpenPetitioned}
                             />
                         </div>
                     ) : (

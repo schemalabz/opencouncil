@@ -9,14 +9,15 @@ import Icon from '@/components/icon';
 import { formatDate, formatDateTime } from '@/lib/formatters/time';
 import { captureLandingAction } from '@/lib/landing/analytics';
 import { ListHeader, RankedListHint } from './conceptShared';
-import { subjectLocationLine, type LandingSubject, type LandingListCity, type UpcomingMeeting } from '@/lib/landing/landingData';
+import { subjectLocationLine, type LandingSubject, type LandingListCity, type LandingPetitionedCity, type UpcomingMeeting } from '@/lib/landing/landingData';
+import { PETITION_DISPLAY_THRESHOLD } from '@/lib/landing/petitions';
 import { hasActiveFilters, type LayoutProps } from '@/lib/landing/landingCore';
 import { DateRangePill, FilterIconButton, MapStyleToggle, CityAvatar } from './controls';
 import { MobileSearchOverlay } from './SearchPanel';
 import { CoLocatedBox, GeneralSubjectsBox } from './mapMarkers';
 import { MobileHeader } from './MobileHeader';
 import { InfoPanel } from './InfoPanel';
-import { PetitionCta } from './MunicipalitiesList';
+import { PetitionCta, PetitionedRow } from './MunicipalitiesList';
 import { topicStyle } from '@/lib/topicStyle';
 
 /* ============================ MOBILE LAYOUT ============================ */
@@ -63,6 +64,9 @@ export function MobileLayout({
     infoOpen,
     onToggleInfo,
     infoHint,
+    petitionedCities,
+    petitionedBelowThreshold,
+    onOpenPetitioned,
     mapNode,
 }: LayoutProps) {
     const t = useTranslations('landingV2');
@@ -278,6 +282,13 @@ export function MobileLayout({
                                                 // like picking the δήμος in the filters — filter to it, stay on Δήμοι
                                                 setFilters({ ...filters, cityIds: filters.cityIds[0] === id ? [] : [id] });
                                             }}
+                                            petitionedCities={petitionedCities}
+                                            petitionedBelowThreshold={petitionedBelowThreshold}
+                                            onOpenPetitioned={(c) => {
+                                                // collapse the strip so the map focus + preview are visible
+                                                setListCollapsed(true);
+                                                onOpenPetitioned(c);
+                                            }}
                                         />
                                     )}
                                 </div>
@@ -422,12 +433,20 @@ function MobileMunicipalityStrip({
     upcoming,
     selectedCityId,
     onSelect,
+    petitionedCities,
+    petitionedBelowThreshold,
+    onOpenPetitioned,
 }: {
     cities: LandingListCity[];
     subjectCountByCity: Record<string, number>;
     upcoming: UpcomingMeeting[];
     /** the currently filter-selected δήμος — gets the orange border */
     selectedCityId: string | null;
+    /** out-of-network δήμοι with enough petitions — thin leaderboard cards at the strip's end */
+    petitionedCities: LandingPetitionedCity[];
+    /** δήμοι with petitions under the display threshold — aggregate count only */
+    petitionedBelowThreshold: number;
+    onOpenPetitioned: (city: LandingPetitionedCity) => void;
     /** tapping the card body filters to that δήμος (the arrow still opens its page) */
     onSelect: (id: string) => void;
 }) {
@@ -446,11 +465,14 @@ function MobileMunicipalityStrip({
         return () => cancelAnimationFrame(raf);
     }, [selectedCityId, cities.length]);
 
-    if (!cities.length) return null;
+    // No early return on an empty `cities`: the petitioned leaderboard and the petition CTA must
+    // render regardless — in a young deployment they may be the only content this strip has.
     return (
         <div
             ref={scrollRef}
-            className="flex items-stretch gap-3 overflow-x-auto px-3 pb-1 [&::-webkit-scrollbar]:hidden"
+            // items-end (like the subjects strip): cards keep their natural heights, bottom-aligned
+            // above the tab bar — so the taller leaderboard card never stretches the δήμος cards.
+            className="flex items-end gap-3 overflow-x-auto px-3 pb-1 [&::-webkit-scrollbar]:hidden"
             style={{ scrollbarWidth: 'none' }}
         >
             {cities.map((c) => (
@@ -463,10 +485,69 @@ function MobileMunicipalityStrip({
                     onSelect={onSelect}
                 />
             ))}
+            {/* petitioned-δήμοι leaderboard — one card holding the whole ranking + the tail line.
+                Shown even with no ranked rows: the below-threshold tail may be the only signal. */}
+            {(petitionedCities.length > 0 || petitionedBelowThreshold > 0) && (
+                <PetitionedStripLeaderboard
+                    cities={petitionedCities}
+                    belowThreshold={petitionedBelowThreshold}
+                    onOpen={onOpenPetitioned}
+                />
+            )}
             {/* "Δεν βλέπεις τον δήμο σου;" — same CTA as the desktop Δήμοι list */}
             <div className="flex w-[220px] shrink-0 items-center">
                 <PetitionCta source="municipalities_list" />
             </div>
+        </div>
+    );
+}
+
+/* How many ranked rows the mobile leaderboard card shows. A strip card can't grow with the list
+   (and nested vertical scroll inside a horizontal strip is miserable on touch), so past this the
+   remainder folds into an honest "και N ακόμα δήμοι με 10+ αιτήματα" line. */
+const MOBILE_LEADERBOARD_MAX_ROWS = 5;
+
+/* The petitioned-δήμοι leaderboard as ONE strip card: header, the top ranked rows (rank · name ·
+   "N+" badge on the petition ramp), an overflow line when the ranking is longer than the card,
+   and the "και N ακόμα δήμοι…" below-threshold tail. Deliberately a single compact card so it
+   reads as one sidebar of the strip, not a parade of near-empty cards. Tapping a row focuses
+   that δήμος on the map (collapsing the strip), same as its blue bubble. */
+function PetitionedStripLeaderboard({
+    cities,
+    belowThreshold,
+    onOpen,
+}: {
+    cities: LandingPetitionedCity[];
+    /** δήμοι with petitions under the display threshold — an aggregate count, never a list */
+    belowThreshold: number;
+    onOpen: (city: LandingPetitionedCity) => void;
+}) {
+    const t = useTranslations('landingV2');
+    const overflow = cities.length - MOBILE_LEADERBOARD_MAX_ROWS;
+    return (
+        // Natural height — the strip bottom-aligns cards without stretching (see items-end on the
+        // container), so this card is the only one that grows with its content; the top-5 cap
+        // bounds how far.
+        <div className="flex w-[230px] shrink-0 flex-col gap-1.5 rounded-2xl border border-black/30 bg-card p-3 shadow-sm">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {t('municipality.petitionedTitle')}
+            </div>
+            <div className="flex flex-col gap-0.5">
+                {/* server order IS the ranking — rows shared with the desktop leaderboard */}
+                {cities.slice(0, MOBILE_LEADERBOARD_MAX_ROWS).map((c, i) => (
+                    <PetitionedRow key={c.id} city={c} rank={i + 1} onOpen={onOpen} dense />
+                ))}
+            </div>
+            {overflow > 0 && (
+                <p className="text-[11px] leading-snug text-muted-foreground">
+                    {t('municipality.petitionedOverflow', { count: overflow, threshold: PETITION_DISPLAY_THRESHOLD })}
+                </p>
+            )}
+            {belowThreshold > 0 && (
+                <p className="text-[11px] leading-snug text-muted-foreground">
+                    {t('municipality.petitionedMore', { count: belowThreshold, threshold: PETITION_DISPLAY_THRESHOLD })}
+                </p>
+            )}
         </div>
     );
 }

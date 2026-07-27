@@ -6,6 +6,7 @@ import { calculateGeometryBounds } from '@/lib/geo';
 import { topicStyle } from '@/lib/topicStyle';
 import type {
     LandingListCity,
+    LandingPetitionedCity,
     LandingSubject,
     LandingGeneralCity,
     QueryKind,
@@ -323,6 +324,12 @@ export type LayoutProps = {
     cities: LandingListCity[];
     /** unfiltered total subjects per cityId (for the Δήμοι tab stats) */
     subjectCountByCity: Record<string, number>;
+    /** out-of-network δήμοι with enough petitions — the Δήμοι tab's leaderboard */
+    petitionedCities: LandingPetitionedCity[];
+    /** δήμοι with petitions under the display threshold — an aggregate count, never a list */
+    petitionedBelowThreshold: number;
+    /** focus a petitioned δήμος on the map (shade + "request it" preview), as its bubble does */
+    onOpenPetitioned: (city: LandingPetitionedCity) => void;
     upcoming: UpcomingMeeting[];
     loading: boolean;
     selectedId: string | null;
