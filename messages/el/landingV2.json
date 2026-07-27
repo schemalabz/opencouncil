@@ -81,7 +81,10 @@
     "notSeeing": "Δεν βλέπεις τον δήμο σου;",
     "unavailable": "Ο Δήμος {name} δεν είναι ακόμη διαθέσιμος — κάνε αίτημα να προστεθεί",
     "notify": "Ειδοποιήσεις για τον δήμο {name}",
-    "notifyMeeting": "Ειδοποιήσεις για τη συνεδρίαση του δήμου {name}"
+    "notifyMeeting": "Ειδοποιήσεις για τη συνεδρίαση του δήμου {name}",
+    "petitionedTitle": "Αιτήματα προσθήκης",
+    "petitionedMore": "και {count, plural, one {ένας ακόμα δήμος} other {# ακόμα δήμοι}} με λιγότερα από {threshold} αιτήματα",
+    "petitionedOverflow": "και {count, plural, one {ένας ακόμα δήμος} other {# ακόμα δήμοι}} με {threshold}+ αιτήματα"
   },
   "notify": {
     "interested": "Φαίνεται πως σε ενδιαφέρει ο ",

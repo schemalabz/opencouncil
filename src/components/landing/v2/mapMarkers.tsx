@@ -11,7 +11,7 @@ import Icon from '@/components/icon';
 type TFn = (key: string, values?: Record<string, string | number>) => string;
 import type { LandingGeneralCity, LandingSubject, MunicipalitySubjectCount } from '@/lib/landing/landingData';
 import { stylePin, type SubjectPin } from '@/lib/landing/landingCore';
-import { PETITION_BLUE, type PetitionBucket } from '@/lib/landing/petitions';
+import { PETITION_BLUE, petitionFill, type PetitionBucket } from '@/lib/landing/petitions';
 import { SubjectCard } from './SubjectCard';
 import { captureLandingAction } from '@/lib/landing/analytics';
 import {
@@ -557,17 +557,6 @@ export const MUNICIPALITY_VIEW_MARKER_DIAMETER = MUNICIPALITY_DONUT_LOGO_SIZE + 
 /** How far (px) the bubble's ring shadows paint beyond the element box — the packing extent must
  *  include it or "touching" bubbles overlap their rings (cooperating: 2px orange + 2px white). */
 export const MUNICIPALITY_VIEW_MARKER_RING_SPREAD = 4;
-
-/** The petition colour ramp: brand blue, deeper the higher the δήμος sits in the displayed
- *  distribution. The floor keeps even the palest marker clearly blue rather than near-white. */
-function petitionFill(intensity: number): { background: string; text: string } {
-    const pct = Math.round(25 + 75 * intensity);
-    return {
-        background: `color-mix(in srgb, ${PETITION_BLUE.deep} ${pct}%, ${PETITION_BLUE.pale})`,
-        // white text once the mix goes dark enough to carry it
-        text: pct >= 55 ? '#ffffff' : '#1c2a3a',
-    };
-}
 
 /**
  * A Δήμοι-view bubble: the municipality's logo (or its initial) in a white disc. A cooperating

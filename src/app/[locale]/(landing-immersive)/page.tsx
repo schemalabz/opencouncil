@@ -18,7 +18,7 @@ export default async function HomePage() {
     const realm = await getRealm();
     const initialFilters = rangeToSubjectFilters(DEFAULT_RANGE);
 
-    const [subjects, generalRows, cities, upcoming, subjectCountByCity, mapCities, petitionedCities] = await Promise.all([
+    const [subjects, generalRows, cities, upcoming, subjectCountByCity, mapCities, petitioned] = await Promise.all([
         getMapSubjectsCached(realm, initialFilters),
         getGeneralSubjectsCached(realm, initialFilters),
         getListedCitiesCached(realm),
@@ -60,7 +60,8 @@ export default async function HomePage() {
                 })),
                 subjectCountByCity,
                 mapCities,
-                petitionedCities,
+                petitionedCities: petitioned.cities,
+                petitionedBelowThreshold: petitioned.belowThresholdCount,
             }}
         />
     );

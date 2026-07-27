@@ -446,6 +446,7 @@ const MUNICIPALITY_MARKER_EXTENT = {
     cy: 0,
 };
 
+
 /**
  * Per-δήμος count labels for the zoomed-out view (see MUNICIPALITY_COUNT_MAX_ZOOM). `active` gates the
  * whole layer so it swaps cleanly with the pin/donut layer as the map crosses the zoom threshold.
@@ -635,6 +636,8 @@ export function useMunicipalitiesViewMarkers({
         // One packed set: cooperating δήμοι first, then the petition layer. Priorities keep every
         // cooperating δήμος above every petitioned one (a cluster's anchor should always be a real
         // OpenCouncil municipality), ordered by subject volume / petition intensity within each.
+        // A petitioned δήμος without a boundary has no centroid — it lives on the leaderboard
+        // only, never on the map.
         const entries = [
             ...mapCities.map((c) => ({
                 kind: 'city' as const,
@@ -643,13 +646,15 @@ export function useMunicipalitiesViewMarkers({
                 lat: c.lat,
                 priority: 1_000_000 + (subjectCountByCity[c.id] ?? 0),
             })),
-            ...petitionedCities.map((c) => ({
-                kind: 'petitioned' as const,
-                city: c,
-                lng: c.lng,
-                lat: c.lat,
-                priority: c.intensity * 1000,
-            })),
+            ...petitionedCities
+                .filter((c) => c.lng != null && c.lat != null)
+                .map((c) => ({
+                    kind: 'petitioned' as const,
+                    city: c,
+                    lng: c.lng!,
+                    lat: c.lat!,
+                    priority: c.intensity * 1000,
+                })),
         ];
 
         const computePlacements = createPackPlanner(

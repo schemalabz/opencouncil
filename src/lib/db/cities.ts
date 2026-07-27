@@ -4,7 +4,12 @@ import prisma from "./prisma";
 import { createCache } from "../cache";
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getCurrentUser } from "../auth";
 import { UnauthorizedError } from "../api/errors";
-import { PETITION_DISPLAY_THRESHOLD, petitionBucket, petitionIntensities, type PetitionBucket } from "../landing/petitions";
+import {
+    PETITION_DISPLAY_THRESHOLD,
+    buildPetitionedCities,
+    type PetitionedCity,
+    type PetitionedCityQueryRow,
+} from "../landing/petitions";
 
 export type CityGeometryOptions = {
     includeGeometry?: boolean;
@@ -174,6 +179,15 @@ export type MapCityRow = {
     geometry: GeoJSON.Geometry | null;
 };
 
+/** The landing map's boundary projection: centroid + simplified polygon. One definition, shared
+ *  by the cooperating-cities and petitioned-cities readers so they can never diverge on how a
+ *  boundary is projected. Unqualified `geometry` — only "City" carries one in either query. */
+const CITY_MAP_PROJECTION = Prisma.sql`
+    ST_X(ST_Centroid(geometry)) AS lng,
+    ST_Y(ST_Centroid(geometry)) AS lat,
+    ST_AsGeoJSON(ST_SimplifyPreserveTopology(geometry, 0.001)) AS geometry
+`;
+
 /** Cooperating (officialSupport) municipalities for the landing map — centroid, logo, simplified
  *  boundary. Realm-keyed cache. Server-loaded in page.tsx. */
 export async function getMapCitiesCached(realm: Realm): Promise<MapCityRow[]> {
@@ -190,10 +204,7 @@ export async function getMapCitiesCached(realm: Realm): Promise<MapCityRow[]> {
                     geometry: string | null;
                 }>
             >`
-                SELECT id, name, name_municipality, "logoImage",
-                       ST_X(ST_Centroid(geometry)) AS lng,
-                       ST_Y(ST_Centroid(geometry)) AS lat,
-                       ST_AsGeoJSON(ST_SimplifyPreserveTopology(geometry, 0.001)) AS geometry
+                SELECT id, name, name_municipality, "logoImage", ${CITY_MAP_PROJECTION}
                 FROM "City"
                 WHERE "officialSupport" = true
                   AND realm = ${realm}::"Realm"
@@ -214,69 +225,63 @@ export async function getMapCitiesCached(realm: Realm): Promise<MapCityRow[]> {
     )();
 }
 
-/** An out-of-network municipality with enough resident petitions to show on the Δήμοι map.
- *  Carries the coarse public bucket and its place in the displayed distribution — never the raw
- *  count, which stays server-side. */
-export type PetitionedMapCityRow = {
-    id: string;
-    name: string;
-    nameMunicipality: string;
-    logoImage: string | null;
-    lng: number;
-    lat: number;
-    geometry: GeoJSON.Geometry | null;
-    /** the "N+" the visitor may see (see PETITION_BUCKETS) */
-    bucket: PetitionBucket;
-    /** 0..1 position in the displayed set's own (log-scaled) distribution — drives the colour ramp */
-    intensity: number;
+/** An out-of-network municipality with enough petitions to show on the Δήμοι map — the shape
+ *  itself (and the privacy reasoning behind it) lives in lib/landing/petitions. */
+export type PetitionedMapCityRow = PetitionedCity;
+
+/** The Δήμοι map's petition payload: the displayable (≥ threshold) municipalities, plus how many
+ *  more have petitions but sit below the display threshold — the leaderboard's tail line. */
+export type PetitionedMapCities = {
+    cities: PetitionedMapCityRow[];
+    belowThresholdCount: number;
 };
 
 /**
  * Out-of-network municipalities with at least PETITION_DISPLAY_THRESHOLD petitions, for the
- * landing's Δήμοι map. Realm-keyed cache with an hourly refresh — petition counts move on their
- * own (no city mutation to invalidate on), and the display is coarse buckets anyway.
+ * landing's Δήμοι map — plus the count of those still under it. Realm-keyed cache with an hourly
+ * refresh — petition counts move on their own (no city mutation to invalidate on), and the
+ * display is coarse buckets anyway.
+ *
+ * PRIVACY: both queries aggregate with COUNT only — no petitioner column (user id, name, email,
+ * per-petition timestamps) is ever selected, and below-threshold δήμοι are returned solely as one
+ * integer. See the invariants in lib/landing/petitions before touching either query.
  */
-export async function getPetitionedMapCitiesCached(realm: Realm): Promise<PetitionedMapCityRow[]> {
+export async function getPetitionedMapCitiesCached(realm: Realm): Promise<PetitionedMapCities> {
     return createCache(
         async () => {
-            const rows = await prisma.$queryRaw<
-                Array<{
-                    id: string;
-                    name: string;
-                    name_municipality: string;
-                    logoImage: string | null;
-                    lng: number;
-                    lat: number;
-                    geometry: string | null;
-                    petitions: number;
-                }>
-            >`
-                SELECT c.id, c.name, c.name_municipality, c."logoImage",
-                       ST_X(ST_Centroid(c.geometry)) AS lng,
-                       ST_Y(ST_Centroid(c.geometry)) AS lat,
-                       ST_AsGeoJSON(ST_SimplifyPreserveTopology(c.geometry, 0.001)) AS geometry,
-                       COUNT(p.id)::int AS petitions
-                FROM "City" c
-                JOIN "Petition" p ON p."cityId" = c.id
-                WHERE c."officialSupport" = false
-                  AND c.realm = ${realm}::"Realm"
-                  AND c.geometry IS NOT NULL
-                GROUP BY c.id
-                HAVING COUNT(p.id) >= ${PETITION_DISPLAY_THRESHOLD}
-            `;
-            const intensities = petitionIntensities(rows.map((r) => Number(r.petitions)));
-            return rows.map((r, i) => ({
-                id: r.id,
-                name: r.name,
-                nameMunicipality: r.name_municipality,
-                logoImage: r.logoImage,
-                lng: Number(r.lng),
-                lat: Number(r.lat),
-                geometry: r.geometry ? (JSON.parse(r.geometry) as GeoJSON.Geometry) : null,
-                // non-null by the HAVING clause
-                bucket: petitionBucket(Number(r.petitions))!,
-                intensity: intensities[i],
-            }));
+            // Independent queries — run in parallel; this sits on the landing's first render.
+            // No geometry requirement: a boundary-less δήμος with enough petitions still makes
+            // the leaderboard (its lng/lat/geometry come back null → no map bubble).
+            const [rows, below] = await Promise.all([
+                prisma.$queryRaw<PetitionedCityQueryRow[]>`
+                    SELECT c.id, c.name, c.name_municipality, c."logoImage", ${CITY_MAP_PROJECTION},
+                           COUNT(p.id)::int AS petitions
+                    FROM "City" c
+                    JOIN "Petition" p ON p."cityId" = c.id
+                    WHERE c."officialSupport" = false
+                      AND c.realm = ${realm}::"Realm"
+                    GROUP BY c.id
+                    HAVING COUNT(p.id) >= ${PETITION_DISPLAY_THRESHOLD}
+                    ORDER BY COUNT(p.id) DESC, c.name ASC
+                `,
+                // How many more δήμοι have petitions but sit under the display threshold. PRIVACY:
+                // this is the only thing the client ever learns about them — one aggregate integer,
+                // never which municipalities they are (see the invariants in lib/landing/petitions).
+                prisma.$queryRaw<Array<{ count: number }>>`
+                    SELECT COUNT(*)::int AS count FROM (
+                        SELECT p."cityId"
+                        FROM "Petition" p
+                        JOIN "City" c ON c.id = p."cityId"
+                        WHERE c."officialSupport" = false AND c.realm = ${realm}::"Realm"
+                        GROUP BY p."cityId"
+                        HAVING COUNT(p.id) < ${PETITION_DISPLAY_THRESHOLD}
+                    ) sub
+                `,
+            ]);
+            return {
+                cities: buildPetitionedCities(rows),
+                belowThresholdCount: Number(below[0]?.count ?? 0),
+            };
         },
         ['cities', 'petitioned-map', realm],
         { tags: ['cities:all', `realm:${realm}:cities:all`], revalidate: 3600 },
