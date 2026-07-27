@@ -76,7 +76,7 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
                 />
                 <ImageOrInitials
                     imageUrl={person?.image || null}
-                    name={person?.name || "Unknown"}
+                    name={person?.name}
                     width={imageSize}
                     height={imageSize}
                     color={partyColor}
