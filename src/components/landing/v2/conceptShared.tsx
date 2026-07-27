@@ -1,10 +1,12 @@
 'use client';
 
-import { ArrowLeft, X, Plus, Minus } from 'lucide-react';
+import { ArrowLeft, X, Plus, Minus, Flame, Info } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Topic } from '@prisma/client';
 import { cn } from '@/lib/utils';
 import Icon from '@/components/icon';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { captureLandingAction } from '@/lib/landing/analytics';
 import { type SubjectTopic } from '@/lib/landing/landingData';
 import { topicStyle } from '@/lib/topicStyle';
 
@@ -25,6 +27,38 @@ export function TopicChip({ topic, small, iconOnly }: { topic: SubjectTopic; sma
             <Icon name={topic.icon || 'hash'} color={style.icon} size={small ? 12 : 14} />
             {!iconOnly && topic.name}
         </span>
+    );
+}
+
+/* "Πρόσφατα πολυσυζητημένα" — names the subject list's ordering and explains it on demand.
+   A Popover rather than a tooltip so the ⓘ works on tap (mobile) as well as hover-less desktops.
+   `floating` wraps it as a self-contained pill for sitting over the map (mobile strip); without
+   it, it renders as a plain inline row for the desktop panel header. */
+export function RankedListHint({ floating }: { floating?: boolean }) {
+    const t = useTranslations('landingV2');
+    return (
+        <Popover onOpenChange={(open) => open && captureLandingAction('ranking_explain_opened', {})}>
+            <PopoverTrigger asChild>
+                <button
+                    type="button"
+                    className={cn(
+                        'inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground',
+                        floating && 'rounded-full border border-border bg-card/95 px-3 py-1.5 shadow-md backdrop-blur',
+                    )}
+                >
+                    <Flame className="h-3.5 w-3.5 text-[hsl(var(--orange))]" aria-hidden />
+                    {t('list.rankedTitle')}
+                    <Info className="h-3.5 w-3.5 opacity-60" aria-hidden />
+                </button>
+            </PopoverTrigger>
+            <PopoverContent
+                side={floating ? 'top' : 'bottom'}
+                align="start"
+                className="w-72 rounded-xl border-border p-3 text-xs leading-relaxed text-muted-foreground shadow-lg"
+            >
+                {t('list.rankedExplain')}
+            </PopoverContent>
+        </Popover>
     );
 }
 

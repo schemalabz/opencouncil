@@ -62,7 +62,9 @@
   },
   "list": {
     "loading": "Chargement des sujets…",
-    "emptyLocated": "Aucun sujet avec une localisation trouvé."
+    "emptyLocated": "Aucun sujet avec une localisation trouvé.",
+    "rankedTitle": "Récemment très débattus",
+    "rankedExplain": "Les sujets de la zone affichée sur la carte, en commençant par ceux débattus le plus récemment et le plus longuement en séance."
   },
   "filters": {
     "all": "Tous"

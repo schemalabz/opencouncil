@@ -62,7 +62,9 @@
   },
   "list": {
     "loading": "Loading subjects…",
-    "emptyLocated": "No subjects with a location found."
+    "emptyLocated": "No subjects with a location found.",
+    "rankedTitle": "Recently much-discussed",
+    "rankedExplain": "Showing subjects in the current map area, starting with those discussed most recently and at greatest length in council meetings."
   },
   "filters": {
     "all": "All"

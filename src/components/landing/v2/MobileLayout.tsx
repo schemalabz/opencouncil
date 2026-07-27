@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import Icon from '@/components/icon';
 import { formatDate, formatDateTime } from '@/lib/formatters/time';
 import { captureLandingAction } from '@/lib/landing/analytics';
-import { ListHeader } from './conceptShared';
+import { ListHeader, RankedListHint } from './conceptShared';
 import { subjectLocationLine, type LandingSubject, type LandingListCity, type UpcomingMeeting } from '@/lib/landing/landingData';
 import { hasActiveFilters, type LayoutProps } from '@/lib/landing/landingCore';
 import { DateRangePill, FilterIconButton, MapStyleToggle, CityAvatar } from './controls';
@@ -253,6 +253,14 @@ export function MobileLayout({
                             {/* the list (horizontal cards) sits above the tabs, only while expanded */}
                             {!listCollapsed && (
                                 <div className="absolute inset-x-0 bottom-[62px] z-[9]">
+                                    {/* what the strip actually is — a small pill floating over the
+                                        map (costs no layout space). Hidden while a text search
+                                        re-purposes the list into plain matches. */}
+                                    {tab === 'subjects' && !query.trim() && trending.length > 0 && (
+                                        <div className="mb-2 px-3">
+                                            <RankedListHint floating />
+                                        </div>
+                                    )}
                                     {tab === 'subjects' ? (
                                         <MobileSubjectStrip
                                             subjects={trending}

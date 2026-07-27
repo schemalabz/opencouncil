@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { LocateFixed, Loader2, PanelLeftClose } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { ListHeader, ZoomGroup } from './conceptShared';
+import { ListHeader, RankedListHint, ZoomGroup } from './conceptShared';
 import { type LayoutProps, type LandingView } from '@/lib/landing/landingCore';
 import { CategoryFilterBar, DateRangePill, FewResultsHint, MapStyleToggle, MunicipalityPageButton } from './controls';
 import { DesktopSearch } from './SearchPanel';
@@ -122,6 +122,16 @@ export function DesktopLayout({
                                 </button>
                             }
                         />
+
+                    {/* what the list actually is — "Πρόσφατα πολυσυζητημένα" + on-demand explainer.
+                        Part of the white header block; hidden while a text search re-purposes the
+                        list into plain matches, and while there is no ranked list to describe —
+                        an empty or still-loading list must not be captioned "most-discussed". */}
+                    {!infoOpen && view === 'subjects' && !query.trim() && !loading && count > 0 && (
+                        <div className="-mt-2 bg-card px-4 pb-2.5">
+                            <RankedListHint />
+                        </div>
+                    )}
 
                     {infoOpen ? (
                         <InfoPanel />
