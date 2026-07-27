@@ -16,10 +16,22 @@ import {
     type MapViewport,
     type MunicipalitySubjectCount,
 } from '@/lib/landing/landingData';
-import { buildSubjectPins, createGeneralCityMarker, createMunicipalityCountMarker } from '../mapMarkers';
+import {
+    buildSubjectPins,
+    createGeneralCityMarker,
+    createMunicipalityCountMarker,
+    DONUT_INK_HEIGHT,
+    DONUT_INK_WIDTH,
+} from '../mapMarkers';
 import { captureLandingAction } from '@/lib/landing/analytics';
-import { spreadOverlappingMarkers } from '@/lib/landing/markerDeclutter';
-import { MUNICIPALITY_DONUT_FOOTPRINT } from '@/lib/landing/donut';
+import {
+    packMunicipalityMarkers,
+    type MarkerExtent,
+    type MarkerPlacement,
+    type PackMemory,
+    type Point,
+} from '@/lib/landing/markerDeclutter';
+import { MUNICIPALITY_SATELLITE_SCALE } from '@/lib/landing/donut';
 
 /**
  * Capture the map view on every moveend so the list reacts to it. Resolves the municipality under
@@ -361,22 +373,33 @@ export function useGeneralCityMarkers({
     }, [mapInstance, visibleGeneralCities, active]);
 }
 
-// Closest two donuts may sit, centre to centre: their drawn footprint plus a small gap, so
-// neighbours read as separate objects instead of touching. Keyed to the footprint rather than the
-// element box, whose lower half is empty reserve for the count. Fixed px — the donuts are a fixed
-// size, so only the distance between their anchors changes with zoom.
-const MUNICIPALITY_MARKER_SPACING = MUNICIPALITY_DONUT_FOOTPRINT + 4;
+// The ink ellipse of a full-size donut: half a ring plus a hairline across (so adjacent rings
+// touch without their strokes merging), ring-plus-count down. The marker element IS this box,
+// centred on the anchor (see createMunicipalityCountMarker), so the extent carries no ink drop.
+// Fixed px — the donuts are a fixed size, so only the distance between their anchors changes
+// with zoom.
+const MUNICIPALITY_MARKER_EXTENT = {
+    rx: DONUT_INK_WIDTH / 2,
+    ry: DONUT_INK_HEIGHT / 2,
+    cy: 0,
+};
 
 /**
  * Per-δήμος count labels for the zoomed-out view (see MUNICIPALITY_COUNT_MAX_ZOOM). `active` gates the
  * whole layer so it swaps cleanly with the pin/donut layer as the map crosses the zoom threshold.
  *
- * Every δήμος draws its own orange logo + number — the same marker, at the same size, meaning the
- * same thing at every zoom. Neighbours are never merged into a combined total and none are hidden.
- * Far out their centroids project close enough that the labels would pile up, so overlapping ones
- * are nudged aside just far enough to stay readable, and the nudge unwinds to nothing as zooming in
- * pulls the real positions apart. The nudge is recomputed on every moveend (the overlap follows the
- * projection); the markers themselves are built once per counts change and only repositioned.
+ * Every δήμος draws its own logo + ring + number — the same marker meaning the same thing at every
+ * zoom. Neighbours are never merged into a combined total and none are hidden. Far out their
+ * centroids project close enough that the donuts would pile up, so each pile packs into a bubble
+ * cluster instead: the busiest δήμος anchors it full-size on its real spot, the rest shrink a step
+ * and pack touching it (see packMunicipalityMarkers), and it all unwinds as zooming in pulls the
+ * real positions apart.
+ *
+ * The packing is a pure function of the projection, and it's translation-invariant — panning moves
+ * the geo-anchored markers natively and never changes the layout. Only zoom changes it, so the
+ * layout is recomputed live during zoom (rAF-coalesced 'zoom' events, with a 'moveend' backstop),
+ * not just when the gesture ends. The markers themselves are built once per counts change and only
+ * repositioned/rescaled.
  */
 export function useMunicipalityCountMarkers({
     mapInstance,
@@ -399,35 +422,102 @@ export function useMunicipalityCountMarkers({
         if (!mapInstance || !active) return;
         const municipalities = municipalityCounts;
 
-        // The declutter nudge is a pure function of where the centroids currently project, so it's
-        // recomputed on every move — but that's all that changes per move. The donut SVG, logo and
-        // count depend only on `municipalityCounts` (this effect's dep), so the markers are built
-        // once here and repositioned via setOffset, never torn down and rebuilt on pan/zoom.
-        const computeOffsets = () => {
-            const points = municipalities.map((m) => mapInstance.project([m.lng, m.lat]));
-            return spreadOverlappingMarkers(points, municipalities.map((m) => m.count), MUNICIPALITY_MARKER_SPACING);
-        };
+        // The packing is a pure function of where the centroids currently project, so it's
+        // recomputed as the projection changes — but that's all that changes. The donut SVG, logo
+        // and count depend only on `municipalityCounts` (this effect's dep), so the markers are
+        // built once here and repositioned/rescaled, never torn down and rebuilt on pan/zoom.
+        const computePlacements = createPackPlanner(
+            () => municipalities.map((m) => mapInstance.project([m.lng, m.lat])),
+            municipalities.map((m) => m.count),
+            MUNICIPALITY_MARKER_EXTENT,
+            MUNICIPALITY_SATELLITE_SCALE,
+        );
 
-        const initial = computeOffsets();
+        const initial = computePlacements();
         const markers = municipalities.map((muni, i) =>
             createMunicipalityCountMarker(
                 mapInstance,
                 muni,
                 (m) => onZoomRef.current(m),
                 tRef.current,
-                [initial[i].x, initial[i].y],
+                [initial[i].offset.x, initial[i].offset.y],
+                initial[i].scale,
             ),
         );
 
         const reposition = () => {
-            const offsets = computeOffsets();
-            markers.forEach((m, i) => m.setOffset([offsets[i].x, offsets[i].y]));
+            const placements = computePlacements();
+            markers.forEach((m, i) => m.setPlacement([placements[i].offset.x, placements[i].offset.y], placements[i].scale));
         };
-        mapInstance.on('moveend', reposition);
+        const detach = attachLiveRepack(mapInstance, reposition);
 
         return () => {
-            mapInstance.off('moveend', reposition);
-            markers.forEach((m) => m.remove());
+            detach();
+            markers.forEach((m) => {
+                m.dispose();
+                m.marker.remove();
+            });
         };
     }, [mapInstance, active, municipalityCounts]);
+}
+
+/**
+ * A layer's packing planner: projects the entries, packs them, and feeds each layout's discrete
+ * choices back into the next (see PackMemory) so per-frame recomputation can't dither a satellite
+ * between two spots mid-gesture. The memory-threading protocol lives here once, not per layer.
+ */
+function createPackPlanner(
+    project: () => Point[],
+    priorities: number[],
+    extent: MarkerExtent,
+    satelliteScale: number,
+): () => MarkerPlacement[] {
+    let memory: PackMemory[] | undefined;
+    return () => {
+        const result = packMunicipalityMarkers(project(), priorities, extent, satelliteScale, memory);
+        memory = result.memory;
+        return result.placements;
+    };
+}
+
+/** How often a packed layer recomputes its layout during a zoom gesture. The repack is ~O(n²)
+ *  (measured ~9ms at n=60), so it must not run per frame; the marker shells ease toward the last
+ *  targets at frame rate regardless (see packedMarkerShell), so a coarser target cadence stays
+ *  visually smooth. */
+const REPACK_MIN_INTERVAL_MS = 100;
+
+/**
+ * Live layout for a packed marker layer: the packing only ever changes with zoom (it's
+ * translation-invariant, and pitch/rotation are disabled on the landing map), so 'zoom' — which
+ * fires every animation frame of a wheel/pinch/easeTo — is the one signal that matters. Repacks
+ * are rAF-coalesced AND time-gated to REPACK_MIN_INTERVAL_MS — the shells' easing carries the
+ * motion between targets — with an ungated 'moveend' pass so every gesture settles on an exact
+ * final layout. Returns the detach function.
+ */
+function attachLiveRepack(map: MapboxMap, reposition: () => void): () => void {
+    let frame = 0;
+    let lastPack = 0;
+    const onZoom = () => {
+        if (frame) return;
+        frame = requestAnimationFrame(() => {
+            frame = 0;
+            const now = performance.now();
+            // Skipped ticks need no retry: 'zoom' keeps firing while the gesture continues, and
+            // the trailing end is covered by the moveend pass below.
+            if (now - lastPack < REPACK_MIN_INTERVAL_MS) return;
+            lastPack = now;
+            reposition();
+        });
+    };
+    const onMoveEnd = () => {
+        lastPack = performance.now();
+        reposition();
+    };
+    map.on('zoom', onZoom);
+    map.on('moveend', onMoveEnd);
+    return () => {
+        if (frame) cancelAnimationFrame(frame);
+        map.off('zoom', onZoom);
+        map.off('moveend', onMoveEnd);
+    };
 }

@@ -254,6 +254,14 @@ a:hover.unstyled {
   display: none !important;
 }
 
+/* Packed landing markers (bubble clusters): only painted pixels may capture clicks. The marker
+   element's layout box does not shrink with the scale transform inside it, so the element must be
+   pointer-transparent (the drawn button re-enables itself). !important because mapbox-gl re-sets
+   inline pointer-events on marker elements during its own occlusion updates. */
+.oc-packed-marker {
+  pointer-events: none !important;
+}
+
 /* Map popup styles */
 .subject-popup,
 .municipality-popup {

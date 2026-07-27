@@ -53,9 +53,10 @@ export const MUNICIPALITY_DONUT_DIAMETER = 68;
 /**
  * Outer diameter (px) of the coloured arc. Sized so its inner edge lands exactly on the logo's white
  * ring — the arc sits on the logo rather than floating out at the rim. Separate from the marker box,
- * which is larger because it also has to reserve room below the logo for the count.
+ * which is larger because it also has to reserve room below the logo for the count. Exported for the
+ * marker packing, whose horizontal extent is the ring — not the box.
  */
-const MUNICIPALITY_DONUT_RING_DIAMETER = 46;
+export const MUNICIPALITY_DONUT_RING_DIAMETER = 46;
 
 /**
  * Radial width (px) of the coloured band — a hairline, so the marker reads as the municipality's logo
@@ -126,6 +127,18 @@ export const MUNICIPALITY_DONUT_COUNT_Y = MUNICIPALITY_DONUT_DIAMETER / 2 + MUNI
  */
 export const MUNICIPALITY_DONUT_FOOTPRINT =
     MUNICIPALITY_DONUT_COUNT_Y + 8 - (MUNICIPALITY_DONUT_DIAMETER - MUNICIPALITY_DONUT_RING_DIAMETER) / 2;
+
+/* The donut's ink bounding box — the ring (plus a hairline each side) across, ring-top to
+   count-bottom down. The marker's clickable element is exactly this box, and the packing extent
+   is derived from it, so the three can never drift apart. */
+export const MUNICIPALITY_DONUT_INK_TOP = (MUNICIPALITY_DONUT_DIAMETER - MUNICIPALITY_DONUT_RING_DIAMETER) / 2;
+export const MUNICIPALITY_DONUT_INK_WIDTH = MUNICIPALITY_DONUT_RING_DIAMETER + 2;
+export const MUNICIPALITY_DONUT_INK_HEIGHT = MUNICIPALITY_DONUT_FOOTPRINT;
+
+/** Size of a cluster satellite relative to its full-size anchor — small enough to read as
+ *  "supporting" the anchor and save real space, big enough that the logo and count stay legible.
+ *  Lives here (pure geometry) so the packing tests exercise the exact shipped value. */
+export const MUNICIPALITY_SATELLITE_SCALE = 0.75;
 
 /**
  * A δήμος's overview donut as an SVG string: its topic mix as coloured arcs sweeping around the top,
