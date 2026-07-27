@@ -5,6 +5,9 @@ export type SavedView = { center: [number, number]; zoom: number };
 
 const KEY = 'oc:landing:view';
 
+/** Set once the visitor has opened the "?" guide — after that the first-visit hint stays off. */
+const INFO_HINT_KEY = 'oc:landing:info-hint-seen';
+
 /**
  * Views go stale. Someone returning a month later is starting a new errand, not resuming the old
  * one, and dropping them somewhere they don't remember choosing reads as a bug. Past this age the
@@ -62,5 +65,28 @@ export function writeSavedView(view: SavedView): void {
         window.localStorage.setItem(KEY, JSON.stringify(stored));
     } catch {
         // quota exceeded / private mode / storage disabled — the map works fine without this
+    }
+}
+
+/** Whether the "?" guide has been opened before. Defaults to "seen" whenever we can't tell (server
+ *  render, or storage unavailable — see readSavedView): a returning visitor briefly missing the
+ *  hint is a far smaller cost than hinting at someone who has already read it. */
+export function readInfoHintSeen(): boolean {
+    if (typeof window === 'undefined') return true;
+    try {
+        return window.localStorage.getItem(INFO_HINT_KEY) === 'true';
+    } catch {
+        return true;
+    }
+}
+
+/** Retire the first-visit hint. Best-effort for the same reason as writeSavedView — a blocked
+ *  localStorage must never break the guide toggle; the hint simply returns on the next visit. */
+export function markInfoHintSeen(): void {
+    if (typeof window === 'undefined') return;
+    try {
+        window.localStorage.setItem(INFO_HINT_KEY, 'true');
+    } catch {
+        // storage disabled — the hint reappears next visit, which beats throwing from a click handler
     }
 }

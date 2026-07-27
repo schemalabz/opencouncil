@@ -278,6 +278,9 @@ export type LayoutProps = {
     /** the "?" info/help drawer is open — independent of the map view (doesn't change markers) */
     infoOpen: boolean;
     onToggleInfo: (surface?: InfoSurface) => void;
+    /** show the one-time "Τι είναι αυτό;" hint on the "?" guide button (signed-out visitors who
+     *  have never opened the guide) */
+    infoHint: boolean;
     /** selected category (topic) ids — empty means "all" */
     cats: string[];
     /** toggle a category in/out of the selection (also clears any selected subject) */

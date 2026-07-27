@@ -50,7 +50,7 @@ import {
     type LayoutProps,
     type MapFilters,
 } from '@/lib/landing/landingCore';
-import { readSavedView, writeSavedView } from '@/lib/landing/savedView';
+import { markInfoHintSeen, readInfoHintSeen, readSavedView, writeSavedView } from '@/lib/landing/savedView';
 import { calculateGeometryBounds, isInSupportedMunicipality } from '@/lib/geo';
 import { useRouter } from '@/i18n/routing';
 import { NotifyPrompt } from './NotifyPrompt';
@@ -94,6 +94,12 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
     const [view, setView] = useState<LandingView>('subjects');
     // The "?" info drawer — an overlay explaining the map, independent of `view` (map markers stay).
     const [infoOpen, setInfoOpen] = useState(false);
+    // Whether the "?" guide has ever been opened (localStorage). Starts true (no hint) so the
+    // server and first client render agree; the mount effect flips it for new visitors.
+    const [infoHintSeen, setInfoHintSeen] = useState(true);
+    useEffect(() => {
+        setInfoHintSeen(readInfoHintSeen());
+    }, []);
     // Mobile: the OpenCouncil badge shows a card preview (like a subject), not a tooltip.
     const [explainOpen, setExplainOpen] = useState(false);
     // Mobile: the strip's in-view subject — its map pin gets an orange preview outline.
@@ -604,6 +610,11 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
             // The drawer explains the subjects map, so anchor it to that view (e.g. opening it from
             // the municipalities tab): the legend and the map underneath always agree.
             setView('subjects');
+            // First open retires the "Τι είναι αυτό;" hint for good.
+            if (!infoHintSeen) {
+                setInfoHintSeen(true);
+                markInfoHintSeen();
+            }
         }
         setInfoOpen((o) => !o);
     };
@@ -652,6 +663,8 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         setView: trackedSetView,
         infoOpen,
         onToggleInfo: toggleInfo,
+        // Hint the "?" guide only to signed-out visitors who have never opened it.
+        infoHint: !infoHintSeen && sessionStatus === 'unauthenticated',
         cats,
         onToggleCat: trackedToggleCat,
         setCats,

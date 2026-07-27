@@ -62,6 +62,7 @@ export function MobileLayout({
     onCloseExplain,
     infoOpen,
     onToggleInfo,
+    infoHint,
     mapNode,
 }: LayoutProps) {
     const t = useTranslations('landingV2');
@@ -156,16 +157,38 @@ export function MobileLayout({
                         Hidden while a subject card or the OpenCouncil office card covers the bottom. */}
                     {!selectedSubject && !explainOpen && (
                         <>
+                            {/* first-visit "Τι είναι αυτό;" hint — a bubble just above the "?".
+                                Gated to the collapsed-list map state with no co-located/general box
+                                open, so it can never cover another element; pointer-events-none
+                                keeps the map behind it interactive. */}
+                            {infoHint && listCollapsed && !coLocated && !generalBox && (
+                                <div className="pointer-events-none absolute bottom-[58px] left-3 z-[10]">
+                                    <div className="relative rounded-full bg-[hsl(var(--orange))] px-3 py-1.5 text-[13px] font-bold text-white shadow-lg">
+                                        {t('info.title')}
+                                        {/* pointer toward the "?" button below */}
+                                        <span
+                                            aria-hidden
+                                            className="absolute -bottom-1 left-[19px] h-2.5 w-2.5 rotate-45 bg-[hsl(var(--orange))]"
+                                        />
+                                    </div>
+                                </div>
+                            )}
                             <button
                                 type="button"
                                 onClick={() => onToggleInfo('float')}
                                 aria-pressed={infoOpen}
                                 aria-label={t('nav.info')}
-                                className="absolute bottom-[10px] left-5 z-[10] flex h-10 w-10 items-center justify-center rounded-full border border-[hsl(var(--orange))]/50 text-[hsl(var(--orange))] shadow-md"
+                                className={cn(
+                                    'absolute bottom-[10px] left-5 z-[10] flex h-10 w-10 items-center justify-center rounded-full border shadow-md',
+                                    infoHint
+                                        ? 'border-[hsl(var(--orange))] bg-[hsl(var(--orange))] text-white'
+                                        : 'border-[hsl(var(--orange))]/50 text-[hsl(var(--orange))]',
+                                )}
                                 // opaque wash rather than the `/10` tint used on the desktop rail: this
                                 // one floats over the map, and a translucent fill would pick up the
-                                // tiles underneath — muddy over satellite.
-                                style={{ backgroundColor: 'color-mix(in srgb, hsl(var(--orange)) 12%, white)' }}
+                                // tiles underneath — muddy over satellite. (Solid orange while the
+                                // first-visit hint is on.)
+                                style={infoHint ? undefined : { backgroundColor: 'color-mix(in srgb, hsl(var(--orange)) 12%, white)' }}
                             >
                                 <HelpCircle className="h-5 w-5" />
                             </button>

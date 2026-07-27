@@ -29,6 +29,7 @@ export function LandingAside({
     onSelect,
     infoOpen,
     onToggleInfo,
+    infoHint,
     cities,
 }: {
     view: LandingView;
@@ -36,6 +37,8 @@ export function LandingAside({
     /** the "?" info drawer is open — highlights the "?" item and de-highlights the view tabs */
     infoOpen: boolean;
     onToggleInfo: (surface?: InfoSurface) => void;
+    /** show the one-time "Τι είναι αυτό;" hint: solid-fill the "?" and label it (see LandingV2) */
+    infoHint: boolean;
     /** cooperating δήμοι, for the "which δήμος?" notifications dialog opened from "Περισσότερα" */
     cities: LandingListCity[];
 }) {
@@ -74,13 +77,17 @@ export function LandingAside({
                 />
                 {/* the "?" guide — icon only, with a circular black selected state (distinct from
                     the rounded-square tabs above). Carries the orange accent at rest rather than
-                    sitting greyed out: it read as decoration before and went unclicked. */}
+                    sitting greyed out: it read as decoration before and went unclicked. While the
+                    first-visit hint is on, the tint becomes a solid fill and a "Τι είναι αυτό;"
+                    label appears below — in the rail's own flow, so it covers nothing. */}
                 <button
                     type="button"
                     onClick={() => onToggleInfo('rail')}
                     aria-pressed={infoOpen}
-                    aria-label={t('nav.info')}
-                    className="flex h-16 w-16 items-center justify-center"
+                    // While the hint is showing, the visible "Τι είναι αυτό;" label is the button's
+                    // name — an aria-label would override it and break speech activation (WCAG 2.5.3).
+                    aria-label={infoHint ? undefined : t('nav.info')}
+                    className={cn('flex w-16 flex-col items-center justify-center', infoHint ? 'gap-1 py-1' : 'h-16')}
                 >
                     {/* inner circle hugs the icon, so the selected black fill has little padding */}
                     <span
@@ -88,11 +95,18 @@ export function LandingAside({
                             'flex h-11 w-11 items-center justify-center rounded-full transition-colors',
                             infoOpen
                                 ? 'bg-foreground text-background'
-                                : 'bg-[hsl(var(--orange))]/10 text-[hsl(var(--orange))] hover:bg-[hsl(var(--orange))]/20',
+                                : infoHint
+                                  ? 'bg-[hsl(var(--orange))] text-white shadow-md'
+                                  : 'bg-[hsl(var(--orange))]/10 text-[hsl(var(--orange))] hover:bg-[hsl(var(--orange))]/20',
                         )}
                     >
                         <HelpCircle className="h-7 w-7" />
                     </span>
+                    {infoHint && (
+                        <span className="text-center text-[12px] font-bold leading-tight text-[hsl(var(--orange))]">
+                            {t('info.title')}
+                        </span>
+                    )}
                 </button>
             </nav>
 
