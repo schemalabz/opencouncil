@@ -249,7 +249,6 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
                                     { key: 'people', label: 'People', items: groupedEntities.people },
                                 ]}
                                 disabled={loadingEntities}
-                                className="w-full"
                             />
                             <div className="flex flex-wrap gap-2 mt-2">
                                 {selectedEntities.map(entity => (

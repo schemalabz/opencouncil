@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button"
 import { ChevronsUpDown, Search, X } from "lucide-react"
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList, CommandGroup } from "@/components/ui/command"
@@ -192,12 +192,8 @@ export default function Combobox<T>({
         </Command>
     );
 
-    // Keep a ref to the trigger to discover the nearest dialog container for portalling
-    const triggerRef = useRef<HTMLDivElement | null>(null);
-
     const trigger = (
-        <div 
-            ref={triggerRef}
+        <div
             onClick={() => !disabled && !loading && setOpen(true)}
             className={disabled ? "pointer-events-none" : undefined}
         >
@@ -235,19 +231,13 @@ export default function Combobox<T>({
         );
     }
 
-    // Mount popover inside nearest dialog content to avoid modal aria-hidden/inert issues
-    const dialogContainer = triggerRef.current
-        ? (triggerRef.current.closest('[data-oc-dialog-content="true"]') as HTMLElement | null)
-        : null;
-
     return (
-        // Non-modal prevents the parent Dialog from making the popover subtree inert
-        <Popover open={open} onOpenChange={setOpen} modal={false}>
+        // Modal keeps the popover clickable when the trigger is inside a modal Dialog
+        <Popover open={open} onOpenChange={setOpen} modal={true}>
             <PopoverTrigger asChild>
                 {trigger}
             </PopoverTrigger>
-            {/* Portal inside the dialog so pointer events are not blocked by the modal overlay */}
-            <PopoverContent className={cn("p-0", className)} container={dialogContainer ?? undefined}>
+            <PopoverContent className={cn("w-[var(--radix-popover-trigger-width)] p-0", className)}>
                 {renderContent()}
             </PopoverContent>
         </Popover>

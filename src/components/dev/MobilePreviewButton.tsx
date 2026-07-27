@@ -28,7 +28,7 @@ interface ConnectedDevice {
   isOnline: boolean
 }
 
-export default function MobilePreviewButton({ barRef }: { barRef: React.RefObject<HTMLDivElement | null> }) {
+export default function MobilePreviewButton() {
   const [isOpen, setIsOpen] = useState(false)
   const [lanInfo, setLanInfo] = useState<LanInfo | null>(null)
   const [devices, setDevices] = useState<ConnectedDevice[]>([])
@@ -101,7 +101,6 @@ export default function MobilePreviewButton({ barRef }: { barRef: React.RefObjec
         align="end"
         sideOffset={12}
         className="w-72 p-3"
-        container={barRef.current ?? undefined}
       >
         {lanInfo === null && (
           <div className="text-xs text-muted-foreground text-center py-2">Loading...</div>
