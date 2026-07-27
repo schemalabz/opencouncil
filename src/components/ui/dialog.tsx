@@ -44,8 +44,6 @@ const DialogContent = React.forwardRef<
         align === "center" ? "justify-items-center text-center" : "justify-items-start",
         className
       )}
-      // Marker used by components (e.g., Combobox) to portal overlays inside this dialog
-      data-oc-dialog-content="true"
       {...props}
     >
       {children}

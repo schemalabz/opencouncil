@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { 
@@ -40,7 +40,6 @@ export default function QuickLogin({ isPreview = false }: { isPreview?: boolean 
   const router = useRouter()
   const pathname = usePathname()
   const { isVisible, isLoaded, hide } = useQuickLoginVisibility()
-  const barRef = useRef<HTMLDivElement>(null)
 
   // Check if test users exist when dialog opens
   useEffect(() => {
@@ -181,9 +180,9 @@ export default function QuickLogin({ isPreview = false }: { isPreview?: boolean 
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <div ref={barRef} className="fixed bottom-4 right-4 z-50">
+      <div className="fixed bottom-4 right-4 z-50">
         <div className="relative flex items-stretch bg-red-600 text-white rounded-md shadow-lg text-sm">
-          <MobilePreviewButton barRef={barRef} />
+          <MobilePreviewButton />
           <div className="w-px bg-red-400/40 my-1.5" />
           <DialogTrigger asChild>
             <button className="flex items-center gap-2 px-3 py-1.5 hover:bg-red-700/50 transition-colors rounded-r-md">
