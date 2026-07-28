@@ -1,26 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db/prisma';
-import { routing } from '@/i18n/routing';
+import { DEFAULT_LOCALE, LOCALES, urlPrefixForLocale } from '@/i18n/config';
 import { env } from '@/env.mjs';
 
+// URL prefixes of the non-default locales (en, fr, sr, lat) — the segment is
+// matched from the referer path and echoed back into the redirect URL, so it
+// must be compared as a URL prefix, not a locale id (sr-Latn lives at /lat).
+const NON_DEFAULT_LOCALE_PREFIXES = new Set(
+    LOCALES.filter((locale) => locale !== DEFAULT_LOCALE).map(urlPrefixForLocale),
+);
+
 /**
- * Extracts locale from the Referer header
- * Returns the locale if it's non-default, otherwise returns null
+ * Extracts the locale URL prefix from the Referer header
+ * Returns the prefix if it's non-default, otherwise returns null
  */
-function getLocaleFromReferer(referer: string | null): string | null {
+function getLocalePrefixFromReferer(referer: string | null): string | null {
     if (!referer) return null;
 
     try {
         const url = new URL(referer);
         const pathSegments = url.pathname.split('/').filter(Boolean);
 
-        // Check if first segment is a supported locale
-        if (pathSegments.length > 0) {
-            const potentialLocale = pathSegments[0];
-            if (routing.locales.includes(potentialLocale as any) &&
-                potentialLocale !== routing.defaultLocale) {
-                return potentialLocale;
-            }
+        // Check if first segment is a supported locale prefix
+        if (pathSegments.length > 0 && NON_DEFAULT_LOCALE_PREFIXES.has(pathSegments[0])) {
+            return pathSegments[0];
         }
     } catch {
         // Invalid URL, ignore
@@ -60,11 +63,11 @@ export async function GET(request: NextRequest, props: { params: Promise<{ utter
 
         // Get locale from Referer header to preserve user's language preference
         const referer = request.headers.get('referer');
-        const locale = getLocaleFromReferer(referer);
+        const localePrefix = getLocalePrefixFromReferer(referer);
 
         // Build redirect URL with locale prefix if needed (non-default locale)
-        const redirectUrl = locale
-            ? `/${locale}/${cityId}/${meetingId}/transcript?t=${time}`
+        const redirectUrl = localePrefix
+            ? `/${localePrefix}/${cityId}/${meetingId}/transcript?t=${time}`
             : `/${cityId}/${meetingId}/transcript?t=${time}`;
 
         return NextResponse.redirect(new URL(redirectUrl, env.NEXTAUTH_URL));

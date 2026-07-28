@@ -46,14 +46,15 @@ describe('wwwRedirectTarget', () => {
 });
 
 describe('foreignLocalesForRealm', () => {
-    it('returns the other realms\' default locales', () => {
-        expect(foreignLocalesForRealm('greece')).toEqual(['fr']);
-        expect(foreignLocalesForRealm('france')).toEqual(['el']);
+    it('returns the other realms\' locales', () => {
+        expect(foreignLocalesForRealm('greece')).toEqual(['fr', 'sr', 'sr-Latn']);
+        expect(foreignLocalesForRealm('france')).toEqual(['el', 'sr', 'sr-Latn']);
+        expect(foreignLocalesForRealm('serbia')).toEqual(['el', 'fr']);
     });
 
     it('does not treat el as foreign on either el realm', () => {
         // greece and cyprus share el as their default locale.
-        expect(foreignLocalesForRealm('cyprus')).toEqual(['fr']);
+        expect(foreignLocalesForRealm('cyprus')).toEqual(['fr', 'sr', 'sr-Latn']);
         expect(foreignLocalesForRealm('greece')).not.toContain('el');
     });
 });
@@ -113,5 +114,26 @@ describe('foreignLocaleRedirectPath', () => {
 
     it('applies on realm subdomains like preview hosts', () => {
         expect(foreignLocaleRedirectPath('pr-7.preview.opencouncil.gr', '/fr/athens')).toBe('/athens');
+    });
+
+    it('strips Serbian prefixes on non-Serbian hosts, using the /lat URL prefix for sr-Latn', () => {
+        expect(foreignLocaleRedirectPath('opencouncil.gr', '/sr/athens')).toBe('/athens');
+        expect(foreignLocaleRedirectPath('opencouncil.gr', '/lat/athens')).toBe('/athens');
+        expect(foreignLocaleRedirectPath('opencouncil.fr', '/lat')).toBe('/');
+        // The locale id must NOT be matched for a custom-prefixed locale.
+        expect(foreignLocaleRedirectPath('opencouncil.gr', '/sr-Latn/athens')).toBeNull();
+    });
+
+    it('strips el and fr on the serbian host but leaves its own locales alone', () => {
+        expect(foreignLocaleRedirectPath('opencouncil.rs', '/el/beograd')).toBe('/beograd');
+        expect(foreignLocaleRedirectPath('opencouncil.rs', '/fr/beograd')).toBe('/beograd');
+        expect(foreignLocaleRedirectPath('opencouncil.rs', '/sr/beograd')).toBeNull();
+        expect(foreignLocaleRedirectPath('opencouncil.rs', '/lat/beograd')).toBeNull();
+        expect(foreignLocaleRedirectPath('opencouncil.rs', '/en/beograd')).toBeNull();
+    });
+
+    it('does not partial-match Serbian-looking path segments', () => {
+        expect(foreignLocaleRedirectPath('opencouncil.gr', '/srbija')).toBeNull();
+        expect(foreignLocaleRedirectPath('opencouncil.gr', '/latinika')).toBeNull();
     });
 });

@@ -1,4 +1,5 @@
 import { REALMS, foreignLocalesForRealm, isKnownRealmHost, realmForHost } from '@/lib/realm';
+import { urlPrefixForLocale } from '@/i18n/config';
 
 /**
  * SEO-motivated redirect decisions for the proxy. Pure module (no
@@ -31,10 +32,11 @@ export function wwwRedirectTarget(host: string | null | undefined, pathname: str
 
 /**
  * Path to 301 to when the request carries a foreign locale prefix on a known
- * realm host (`/fr/x` on `.gr` → `/x`, `/el/x` on `.fr` → `/x`), else null.
- * Kills the orphaned duplicate tree the foreign locale creates (it has no
- * hreflang entry and no UI entry point).
+ * realm host (`/fr/x` on `.gr` → `/x`, `/el/x` on `.fr` → `/x`, `/lat/x` on
+ * `.gr` → `/x`), else null. Kills the orphaned duplicate tree the foreign
+ * locale creates (it has no hreflang entry and no UI entry point).
  *
+ * - Matches by URL prefix, not locale id — `sr-Latn` lives at `/lat`.
  * - Only on known realm hosts, so localhost keeps serving all locale prefixes
  *   for development.
  * - The realm's own default prefix (`/el` on `.gr`) is next-intl's job — its
@@ -45,8 +47,9 @@ export function foreignLocaleRedirectPath(host: string | null | undefined, pathn
     if (!isKnownRealmHost(host)) return null;
     const realm = realmForHost(host);
     for (const locale of foreignLocalesForRealm(realm)) {
-        if (pathname === `/${locale}`) return '/';
-        if (pathname.startsWith(`/${locale}/`)) return pathname.slice(locale.length + 1);
+        const prefix = urlPrefixForLocale(locale);
+        if (pathname === `/${prefix}`) return '/';
+        if (pathname.startsWith(`/${prefix}/`)) return pathname.slice(prefix.length + 1);
     }
     return null;
 }

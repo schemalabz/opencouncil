@@ -33,6 +33,22 @@ describe('next.config.mjs redirect sources', () => {
         expect(matchesAnyRedirect('/athens/meetings/jan15_2024/subjects/abc')).toBe(true);
         expect(matchesAnyRedirect('/en/athens/meetings/jan15_2024')).toBe(true);
         expect(matchesAnyRedirect('/fr/athens/meetings/jan15_2024/subjects/abc')).toBe(true);
+        expect(matchesAnyRedirect('/sr/athens/meetings/jan15_2024')).toBe(true);
+        expect(matchesAnyRedirect('/lat/athens/meetings/jan15_2024')).toBe(true);
+    });
+
+    it('keeps the hardcoded locale alternations in sync with the shared prefix set', () => {
+        // next.config.mjs can't import TS, so its regexes inline the locale
+        // URL prefixes. This pins them to src/i18n/config.ts.
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { localePrefixPattern } = require('../../i18n/config');
+        for (const source of sources.filter((s) => s.includes(':locale('))) {
+            expect(source).toContain(`:locale(${localePrefixPattern})`);
+        }
+        for (const source of sources.filter((s) => s.includes('(?!api/'))) {
+            const expected = `(?!api/|${localePrefixPattern.split('|').join('/|')}/)`;
+            expect(source).toContain(expected);
+        }
     });
 
     it('does not touch the real /api/meetings/* routes', () => {

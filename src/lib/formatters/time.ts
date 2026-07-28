@@ -1,12 +1,29 @@
 import { formatDistanceToNow } from 'date-fns';
-import { el, enUS, type Locale } from 'date-fns/locale';
+import { el, enUS, fr, sr, srLatn, type Locale } from 'date-fns/locale';
+
+const DATE_FNS_LOCALES: Record<string, Locale> = {
+    el,
+    en: enUS,
+    fr,
+    sr,
+    'sr-Latn': srLatn,
+};
+
+// BCP 47 tags for Intl.DateTimeFormat, per app locale.
+const INTL_LOCALES: Record<string, string> = {
+    el: 'el-GR',
+    en: 'en-US',
+    fr: 'fr-FR',
+    sr: 'sr-Cyrl-RS',
+    'sr-Latn': 'sr-Latn-RS',
+};
 
 /**
- * Map a next-intl locale string ('el' | 'en') to the corresponding
- * date-fns Locale object. Defaults to Greek to match the app's default locale.
+ * Map a next-intl locale string to the corresponding date-fns Locale object.
+ * Defaults to Greek to match the app's default locale.
  */
 export function getDateFnsLocale(locale: string): Locale {
-    return locale === 'en' ? enUS : el;
+    return DATE_FNS_LOCALES[locale] ?? el;
 }
 
 /**
@@ -17,7 +34,7 @@ export function getDateFnsLocale(locale: string): Locale {
  * numeric output stays day-first in every locale.
  */
 export function getIntlLocale(locale: string): string {
-    return locale === 'en' ? 'en-US' : locale === 'fr' ? 'fr-FR' : 'el-GR';
+    return INTL_LOCALES[locale] ?? 'el-GR';
 }
 
 /**
@@ -146,7 +163,8 @@ export function formatNumericDateTime(date: Date, timezone?: string, locale: str
     };
     if (timezone) options.timeZone = timezone;
 
-    const intlLocale = locale === 'en' ? 'en-GB' : 'el-GR';
+    // en-GB rather than en-US so English output stays day-first numeric.
+    const intlLocale = locale === 'en' ? 'en-GB' : getIntlLocale(locale);
     return new Intl.DateTimeFormat(intlLocale, options).format(date).replace(', ', ' ');
 }
 
