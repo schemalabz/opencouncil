@@ -42,6 +42,7 @@ export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
         phone: user.phone || "",
         allowProductUpdates: user.allowProductUpdates,
         allowPetitionUpdates: user.allowPetitionUpdates,
+        allowFeedbackCalls: user.allowFeedbackCalls,
     });
 
     const phoneSubmitBlocked = phoneValidity.isActive && !phoneValidity.isEmpty && !phoneValidity.isValid;
@@ -78,6 +79,7 @@ export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
         await saveToApi({
             allowProductUpdates: formData.allowProductUpdates,
             allowPetitionUpdates: formData.allowPetitionUpdates,
+            allowFeedbackCalls: formData.allowFeedbackCalls,
         });
     }
 
@@ -216,6 +218,21 @@ export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
                                         <Label htmlFor="allowPetitionUpdates">{t("allowPetitionUpdates")}</Label>
                                         <p className="text-sm text-muted-foreground">
                                             {t("allowPetitionUpdatesDescription")}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start space-x-3">
+                                    <Checkbox
+                                        id="allowFeedbackCalls"
+                                        checked={formData.allowFeedbackCalls}
+                                        onCheckedChange={(checked) =>
+                                            setFormData({ ...formData, allowFeedbackCalls: checked as boolean })
+                                        }
+                                    />
+                                    <div className="space-y-1 leading-none">
+                                        <Label htmlFor="allowFeedbackCalls">{t("allowFeedbackCalls")}</Label>
+                                        <p className="text-sm text-muted-foreground">
+                                            {t("allowFeedbackCallsDescription")}
                                         </p>
                                     </div>
                                 </div>

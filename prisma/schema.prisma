@@ -805,6 +805,7 @@ model User {
   onboarded     Boolean         @default(false)
   allowProductUpdates  Boolean  @default(true)
   allowPetitionUpdates Boolean  @default(false)
+  allowFeedbackCalls   Boolean  @default(true)
   isSuperAdmin  Boolean         @default(false)
   accounts      Account[]
   sessions      Session[]

@@ -718,6 +718,8 @@
         "allowProductUpdatesDescription": "I allow OpenCouncil to contact me for important updates and announcements.",
         "allowPetitionUpdates": "Petition updates",
         "allowPetitionUpdatesDescription": "I allow OpenCouncil to notify me about the progress of petitions I submitted to support new municipalities.",
+        "allowFeedbackCalls": "Help us get better",
+        "allowFeedbackCallsDescription": "We may occasionally call you to hear your thoughts on OpenCouncil.",
         "saving": "Saving...",
         "saveProfile": "Save Profile",
         "savePersonalInfo": "Save personal info",
