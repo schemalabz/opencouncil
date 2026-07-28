@@ -1,0 +1,406 @@
+{
+    "nav": {
+        "openness": "Otvorenost",
+        "internal": "Za zaposlene",
+        "how-it-works": "Kako funkcioniše",
+        "recognition": "Nagrade i priznanja",
+        "pricing": "Cene",
+        "team": "Tim"
+    },
+    "metadata": {
+        "title": "OpenCouncil — Operativni sistem za opštinske skupštine",
+        "description": "Skupštine gradova, odbori i mesne zajednice — otvorenije za građane, efikasnije za zaposlene. U 10 opština širom Grčke.",
+        "keywords": "OpenCouncil,veštačka inteligencija,skupštine gradova,transparentnost,demokratija,lokalna samouprava,automatizacija,građansko učešće,građani"
+    },
+    "hero": {
+        "title": "Operativni sistem",
+        "titleHighlight": "za opštinske skupštine",
+        "subtitle": "Skupštine gradova, odbori i mesne zajednice — otvorenije za građane, efikasnije za zaposlene.",
+        "scheduleCall": "Zakažite razgovor",
+        "counters": {
+            "municipalities": "opština",
+            "subjects": "tema",
+            "meetingHours": "sati sednica"
+        }
+    },
+    "socialProof": {
+        "prefix": "U",
+        "municipalities": "{count} opština",
+        "suffix": "širom Grčke, od Samotrake do Atine."
+    },
+    "openness": {
+        "title": "Svaka sednica,",
+        "titleHighlight": "otvorena za sve",
+        "subtitle": "OpenCouncil pretvara višesatne sednice u razumljiv, pretraživ i pristupačan sadržaj — automatski.",
+        "comingSoon": "Uskoro",
+        "tryIt": "Isprobajte",
+        "features": {
+            "subjects": {
+                "title": "Teme i sažeci",
+                "description": "Svaka sednica se automatski deli na teme. Za svaku temu — sažetak stava svakog govornika, sa video-snimkom, tekstom i glasanjem."
+            },
+            "search": {
+                "title": "Pretraga",
+                "description": "Pretražite sve što je izrečeno na svakoj sednici, u svakoj opštini."
+            },
+            "notifications": {
+                "title": "Obaveštenja",
+                "description": "Kada skupština raspravlja o nečemu što se tiče Vaše ulice ili Vašeg kvarta, saznaćete — putem WhatsApp-a, SMS-a ili imejla.",
+                "demoLabel": "Prijavite se za obaveštenja za Atinu"
+            },
+            "map": {
+                "title": "Mapa tema",
+                "description": "Svaka rasprava u skupštini označena je na mapi — uvećajte bilo koji kvart da vidite šta je odlučeno o mestima do kojih Vam je stalo.",
+                "demoLabel": "Pogledajte mapu"
+            }
+        }
+    },
+    "internal": {
+        "title": "Ono što je trajalo danima,",
+        "titleHighlight": "sada traje nekoliko sati",
+        "subtitle": "Transkripti, zapisnici, odluke — automatski ili uz minimalnu ljudsku intervenciju.",
+        "seeExample": "Pogledajte primer",
+        "comingSoon": "Uskoro",
+        "bottomNote": "OpenCouncil može da zameni Vašeg dosadašnjeg pružaoca usluge izrade zapisnika po sličnoj ceni — uz deset puta veću funkcionalnost i brzinu.",
+        "features": {
+            "transcription": {
+                "title": "Transkripti za 48 sati",
+                "description": "Tačni transkripti svake sednice, provereni od strane ljudi, spremni u roku od 48 sati. Automatsko prepoznavanje govornika."
+            },
+            "minutes": {
+                "title": "Automatska izrada zapisnika",
+                "description": "Automatski zapisnici sa sednica, spremni za pregled i potpisivanje. Ušteda više dana rada."
+            },
+            "diavgeia": {
+                "title": "Odluke za Di@vgeia",
+                "description": "Automatska izrada dokumenata odluka, spremnih za objavljivanje na platformi Di@vgeia.",
+                "targetDate": "Decembar 2026."
+            },
+            "printArchive": {
+                "title": "Isporuka štampane arhive",
+                "description": "Isporuka arhive transkripata u štampanom obliku, prema specifikacijama svake opštine."
+            }
+        }
+    },
+    "howItWorks": {
+        "title": "Kako",
+        "titleHighlight": "funkcioniše",
+        "subtitle": "Od sednice do opštine i građanina — automatski",
+        "inputs": {
+            "recording": {
+                "title": "Snimak sednice",
+                "description": "Snima se uživo ili se otprema sa YouTube-a — dovoljan je samo video ili audio fajl."
+            },
+            "documents": {
+                "title": "Dokumenti sednice",
+                "description": "Dnevni redovi, odluke sa platforme Di@vgeia i sav prateći materijal."
+            }
+        },
+        "processing": {
+            "transcription": {
+                "title": "Transkripcija",
+                "description": "Transkripcija pomoću veštačke inteligencije sa prepoznavanjem govornika, proverena od strane ljudi u roku od 48 sati."
+            },
+            "analysis": {
+                "title": "Analiza i struktura",
+                "description": "Kategorije, sažeci, stavovi po govorniku i odluke — automatski izdvojeni."
+            }
+        },
+        "branches": {
+            "notifications": {
+                "title": "Obaveštenja za građane",
+                "description": "Građani se obaveštavaju o temama koje su im važne, putem WhatsApp-a, SMS-a i imejla."
+            },
+            "openByDefault": {
+                "title": "Podrazumevano otvoreno",
+                "description": "Transparentnost kao infrastruktura — sažeci tema, izlaganja govornika, interaktivne mape i pretraga celog teksta."
+            },
+            "tools": {
+                "title": "Alati za funkcionere i zaposlene",
+                "description": "Zapisnici, transkripti i odluke — spremni za upotrebu."
+            }
+        }
+    },
+    "quotes": {
+        "whatMunicipalitiesSay": "Šta kažu opštine",
+        "items": {
+            "chania": {
+                "quote": "Već u prvih pet minuta znao sam da je ovo nešto drugačije.",
+                "name": "Rukovodilac za planiranje, organizaciju i informatiku",
+                "role": "Opština Hanja"
+            }
+        }
+    },
+    "recognition": {
+        "title": "Nagrade i priznanja",
+        "items": {
+            "ministryAward": {
+                "title": "Nagrada Ministarstva digitalne uprave",
+                "subtitle": "Najbolja primenjena ideja — lokalna samouprava"
+            },
+            "oecd": {
+                "title": "OECD",
+                "subtitle": "Navedeno u izveštaju OECD-a o veštačkoj inteligenciji i građanskom učešću"
+            },
+            "innovationInPolitics": {
+                "title": "Innovation in Politics Awards 2026",
+                "subtitle": "Finalisti"
+            },
+            "epsa": {
+                "title": "EPSA 2025-26",
+                "subtitle": "Sertifikat dobre prakse"
+            },
+            "kede": {
+                "title": "KEDE",
+                "subtitle": "Članak o veštačkoj inteligenciji u lokalnoj demokratiji na kede.gr"
+            },
+            "wired": {
+                "title": "WIRED Greece",
+                "subtitle": "Članak"
+            }
+        }
+    },
+    "team": {
+        "title": "Tim iza OpenCouncil-a",
+        "subtitle": "6 ljudi koji grade tehnologiju za lokalnu demokratiju. OpenCouncil IKE je u potpunom vlasništvu kompanije <link>Schema Labs</link>, neprofitne organizacije.",
+        "members": {
+            "christos": "Hristos Porios",
+            "andreas": "Andreas Kulumos",
+            "eliza": "Eliza Gimidžudi",
+            "thanos": "Tanos Papadojanis",
+            "myrto": "Mirto Plemenu"
+        },
+        "office": {
+            "title": "Naš prostor",
+            "imageAlt": "Naš prostor — Smolenski 22, Atina",
+            "description": "Otvoren prostor za razgovor i stvaralaštvo u centru Atine. Svratite da se pozdravimo, ili nam pišite na <email>space@opencouncil.gr</email> da zajedno organizujemo događaj.",
+            "address": "Smolenski 22, Atina"
+        },
+        "roadmap": {
+            "title": "Stalno gradimo",
+            "viewRoadmap": "Pogledajte plan razvoja",
+            "items": {
+                "diavgeia": {
+                    "title": "Automatske odluke za Di@vgeia"
+                },
+                "bidirectional": {
+                    "title": "Dvosmerna obaveštenja"
+                },
+                "fineTuned": {
+                    "title": "Fino podešen model za transkripciju"
+                }
+            }
+        },
+        "openSource": {
+            "title": "Naš kod je otvoren",
+            "description": "Transparentan razvoj pod licencom GPL v3. Svaka linija koda je javna.",
+            "viewOnGithub": "Pogledajte na GitHub-u",
+            "contributorsLastWeeks": "{count} saradnika · Poslednjih 12 nedelja"
+        }
+    },
+    "cta": {
+        "title": "Izvucite maksimum iz svake sednice skupštine.",
+        "subtitle": "Integracija za nekoliko dana, ne meseci.",
+        "scheduleCall": "Zakažite razgovor"
+    },
+    "demos": {
+        "subject": {
+            "meetingLabel": "Sednica skupštine grada 15/01/26",
+            "subjectLabel": "Tema",
+            "subjectName": "Rekonstrukcija trga Gradske pijace",
+            "speakers": "{count} govornika",
+            "minutes": "{count} minuta",
+            "introducer": "Izvestilac:",
+            "summary": "Sažetak",
+            "summaryText": "Raspravljano je o predlogu za rekonstrukciju trga Gradske pijace, sa budžetom od €1.2M. Većina je glasala za, uz rezerve u pogledu finansiranja. Odobreno je raspisivanje arhitektonskog konkursa u roku od tri meseca.",
+            "contributions": "Izlaganja",
+            "decision": "Odluka",
+            "decisionTitle": "Naslov",
+            "decisionTitleText": "Usvajanje arhitektonskog konkursa za rekonstrukciju trga",
+            "decisionAda": "ADA",
+            "decisionProtocol": "Protokol",
+            "viewRealSubject": "Pogledajte stvarnu stranicu teme",
+            "callouts": {
+                "header": "Prepoznavanje svih tema — pre dnevnog reda, van dnevnog reda i sa dnevnog reda",
+                "stats": "Statistika po strankama",
+                "summary": "Sažetak sa izvorima direktno iz transkripta",
+                "contributions": "Sažetak stava svakog govornika",
+                "decision": "Veza ka odluci na platformi Di@vgeia"
+            },
+            "parties": {
+                "dimotikiKinisi": "Opštinski pokret",
+                "laikiSyspirosi": "Narodna koalicija",
+                "anexartitoi": "Nezavisni"
+            },
+            "people": {
+                "georgiou": {
+                    "name": "Marija Georgiu",
+                    "initials": "MG",
+                    "role": "Zamenica gradonačelnika za tehničke poslove",
+                    "roleShort": "Zamenica gradonačelnika"
+                },
+                "papadakis": {
+                    "name": "Nikos Papadakis",
+                    "initials": "NP",
+                    "role": "Odbornik"
+                }
+            },
+            "contributionTexts": {
+                "georgiou": "Rekonstrukcija trga je prioritet. Budžet je pokriven sredstvima iz programa ESPA, a konkurs će biti raspisan u roku od tri meseca.",
+                "papadakis": "Imamo rezerve u pogledu načina finansiranja. Tražimo javnu raspravu sa stanovnicima pre nego što se plan finalizuje."
+            }
+        },
+        "search": {
+            "allMunicipalities": "Sve opštine",
+            "resultsCount": "{count} rezultata u 3 opštine",
+            "results": {
+                "0": {
+                    "subject": "Rekonstrukcija trga Gradske pijace",
+                    "city": "Opština Hanja",
+                    "speaker": "Marija Georgiu",
+                    "location": "Trg Gradske pijace",
+                    "highlight": "...budžet je pokriven sredstvima iz programa <mark>ESPA</mark>, a konkurs će biti raspisan u roku od tri meseca..."
+                },
+                "1": {
+                    "subject": "Finansiranje sportskih objekata",
+                    "city": "Opština Halandri",
+                    "speaker": "Dimitris Konstantinu",
+                    "location": "Sportski centar N. Halandri",
+                    "highlight": "...odobreno je uključivanje u program <mark>ESPA</mark> za bazen i višenamenske sale..."
+                },
+                "2": {
+                    "subject": "Energetska obnova škola",
+                    "city": "Opština Atina",
+                    "speaker": "Eleni Papandreu",
+                    "location": "Centralni sektor",
+                    "highlight": "...podnet je predlog za program <mark>ESPA</mark> 2021-2027 za solarne panele na 12 školskih zgrada..."
+                }
+            }
+        },
+        "notification": {
+            "today": "DANAS",
+            "senderName": "OpenCouncil · Halandri",
+            "messageBody": "Na jučerašnjoj sednici skupštine grada raspravljano je o temama koje se tiču Vašeg kvarta:",
+            "item1Title": "Produženje radnog vremena prodavnica",
+            "item1Location": "Bulevar Pentelis 42",
+            "item2Title": "Regulisanje saobraćaja",
+            "item2Location": "Ulica Heraklita",
+            "viewSummaries": "Pogledajte sažetke →",
+            "reply": "Hvala! 👍",
+            "inputPlaceholder": "Unesite poruku"
+        },
+        "map": {
+            "mapAlt": "Mapa Hanje",
+            "filters": "Filteri",
+            "subjectCount": "{count} tema · Poslednjih 6 meseci",
+            "subjects": {
+                "0": {
+                    "title": "Rekonstrukcija trga Gradske pijace",
+                    "location": "Trg Gradske pijace",
+                    "topic": "Infrastruktura"
+                },
+                "1": {
+                    "title": "Regulisanje saobraćaja u Ulici Skalidi",
+                    "location": "Ulica Skalidi",
+                    "topic": "Saobraćaj"
+                },
+                "2": {
+                    "title": "Izdavanje dozvola za prodavnice",
+                    "location": "Bulevar Halepa 15",
+                    "topic": "Dozvole"
+                },
+                "3": {
+                    "title": "Održavanje školskih zgrada",
+                    "location": "4. osnovna škola",
+                    "topic": "Obrazovanje"
+                }
+            }
+        }
+    },
+    "pricing": {
+        "title": "Transparentne cene",
+        "subtitle": "Uporediv ili niži trošak od transkripcije koju već radite — uz 10 puta veću funkcionalnost. Za opštine svih veličina.",
+        "sessionProcessing": "Obrada sednica",
+        "sessionProcessingDesc": "Uključuje digitalizaciju i ispravku transkripta proverenu od strane ljudi",
+        "perHour": "/ sat",
+        "platformUsage": "Korišćenje platforme",
+        "platformUsageDesc": "Cena prema veličini opštine",
+        "tiers": [
+            "Do 2.000 stanovnika",
+            "2.001 - 10.000 stanovnika",
+            "10.001 - 30.000 stanovnika",
+            "30.001 - 50.000 stanovnika",
+            "50.001 - 100.000 stanovnika",
+            "100.001+ stanovnika"
+        ],
+        "free": "Besplatno",
+        "perMonth": "/ mesečno",
+        "showMore": "Prikaži više",
+        "showLess": "Prikaži manje",
+        "sessionChecklist": [
+            "Automatska transkripcija i prepoznavanje govornika",
+            "Ispravka transkripta proverena od strane ljudi",
+            "Automatski sažeci za svako izlaganje govornika"
+        ],
+        "sessionChecklistExtra": [
+            "Generisanje embedinga za svako izlaganje govornika",
+            "Izdvajanje statistike"
+        ],
+        "platformChecklist": [
+            "Besplatan pristup za sve",
+            "Sve funkcionalnosti platforme",
+            "Tehnička podrška"
+        ],
+        "archiveNote": "Starije sednice bez ljudske ispravke: {price} / sat",
+        "vatNote": "Cene ne uključuju PDV. Naše postojeće ugovore možete pronaći na platformama Di@vgeia ili KIMDIS pomoću našeg poreskog broja 802666391.",
+        "calculateContract": "Izračunajte svoj ugovor",
+        "extras": {
+            "title": "Dodatne pogodnosti",
+            "subtitle": "Svaka pretplata uključuje",
+            "items": [
+                "Besplatan probni period, koliko god Vam je potrebno",
+                "Sve sadašnje i buduće funkcionalnosti",
+                "Telefonska podrška za građane, zaposlene i izabrane funkcionere",
+                "Mogućnost uključivanja starijih sednica",
+                "Isporuka štampane arhive ili CD-a, jednom godišnje",
+                "Predlažite nove funkcionalnosti i oblikujte OpenCouncil zajedno sa nama",
+                "Jednostavne i transparentne cene za sve opštine",
+                "Promocija OpenCouncil-a građanima, onlajn i uživo"
+            ],
+            "additionalCharges": "Dodatni opcioni troškovi:",
+            "additionalItems": [
+                "Oprema za snimanje sednica (npr. opštinskog veća, skupština gradova ili saveta mesnih zajednica)",
+                "Tehnička podrška na licu mesta za svaku sednicu"
+            ]
+        },
+        "calculator": {
+            "title": "Izračunajte godišnji trošak",
+            "subtitle": "Prilagodite podatke svoje opštine",
+            "councilsPerYear": "Broj sednica godišnje",
+            "averageDuration": "Prosečno trajanje (sati)",
+            "population": "Broj stanovnika",
+            "populationUpTo": "do 2.000",
+            "populationOver": "200.000+",
+            "calculate": "Izračunaj"
+        }
+    },
+    "contactForm": {
+        "title": "Kontaktirajte nas",
+        "subtitle": "Popunite svoje podatke i javićemo Vam se u najkraćem roku.",
+        "estimatedCost": "Procenjeni godišnji trošak",
+        "vatSuffix": "+ PDV",
+        "name": "Ime",
+        "namePlaceholder": "Vaše ime",
+        "position": "Funkcija",
+        "positionPlaceholder": "npr. direktor službe za podršku skupštini",
+        "municipality": "Opština",
+        "municipalityPlaceholder": "Naziv opštine",
+        "submit": "Zatražite prezentaciju",
+        "thankYou": "Hvala Vam!",
+        "thankYouMessage": "Uskoro ćemo Vam se javiti na <strong>{email}</strong>.",
+        "close": "Zatvori",
+        "errorTitle": "Došlo je do greške",
+        "errorMessage": "Pokušajte ponovo ili nam pišite na <email>sales@touvlo.co</email>",
+        "errorClose": "Zatvori"
+    }
+}

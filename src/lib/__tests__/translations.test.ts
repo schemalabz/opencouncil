@@ -13,8 +13,9 @@ function getAllKeys(obj: object, prefix = ''): string[] {
 const messagesDir = path.join(__dirname, '..', '..', '..', 'messages');
 
 // en is the reference; every other shipped locale must mirror its key set exactly.
+// sr-Latn is generated from sr and checked by sr-latn-catalog.test.ts instead.
 const REFERENCE = 'en';
-const LOCALES = ['el', 'fr'];
+const LOCALES = ['el', 'fr', 'sr'];
 
 function getModularFiles(): string[] {
     const files = [REFERENCE, ...LOCALES].flatMap((locale) => {

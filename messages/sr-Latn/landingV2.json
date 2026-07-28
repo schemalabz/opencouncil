@@ -1,0 +1,206 @@
+{
+    "common": {
+        "back": "Nazad",
+        "close": "Zatvori",
+        "clear": "Obriši",
+        "apply": "Primeni",
+        "clearAll": "Obriši sve",
+        "search": "Pretraga",
+        "learnMore": "Saznajte više",
+        "requestToAdd": "Zatražite njeno dodavanje",
+        "dimosName": "Opština {name}"
+    },
+    "nav": {
+        "home": "Početna",
+        "subjects": "Teme",
+        "municipalities": "Opštine",
+        "more": "Više",
+        "menu": "Meni",
+        "menuTitle": "Navigacioni meni",
+        "subjectsNearYou": "Teme u Vašoj blizini",
+        "collapse": "Skupi",
+        "backToMap": "Nazad na mapu",
+        "info": "Vodič"
+    },
+    "account": {
+        "profile": "Profil",
+        "logout": "Odjava",
+        "signOut": "Odjavite se",
+        "signIn": "Prijavite se",
+        "signInAria": "Prijava / registracija",
+        "notifications": "Obaveštenja"
+    },
+    "map": {
+        "locate": "Moja lokacija",
+        "zoomIn": "Uvećaj",
+        "zoomOut": "Umanji",
+        "plainMap": "Obična mapa",
+        "satelliteView": "Satelitski prikaz",
+        "satellite": "Satelit",
+        "filters": "Filteri",
+        "prevCategories": "Prethodne kategorije",
+        "nextCategories": "Sledeće kategorije"
+    },
+    "search": {
+        "placeholder": "Pretražite temu ili adresu",
+        "locationError": "Došlo je do problema pri određivanju Vaše lokacije. Pokušajte da dozvolite pristup lokaciji u svom pregledaču i pokušajte ponovo.",
+        "clearSearch": "Obriši pretragu",
+        "filterCategory": "Filtriraj po kategoriji:",
+        "filterMunicipality": "Filtriraj po opštini:",
+        "subjectsNearAddress": "Teme u blizini adrese:",
+        "noResults": "Nisu pronađene teme.",
+        "popular": "Popularne pretrage",
+        "categories": "Kategorije",
+        "municipalities": "Opštine",
+        "body": "Telo",
+        "duration": "Trajanje rasprave",
+        "dateRange": "Vremenski period",
+        "from": "Od",
+        "to": "Do",
+        "datesOverride": "Datumi imaju prednost nad brzim izborom perioda",
+        "datePlaceholder": "DD/MM/GGGG"
+    },
+    "list": {
+        "loading": "Učitavanje tema…",
+        "emptyLocated": "Nisu pronađene teme sa lokacijom.",
+        "rankedTitle": "Nedavno najviše razmatrano",
+        "rankedExplain": "Prikazuju se teme iz trenutnog područja mape, počevši od onih o kojima se nedavno najviše i najduže raspravljalo na sednicama."
+    },
+    "filters": {
+        "all": "Sve"
+    },
+    "subject": {
+        "view": "Pogledaj temu",
+        "discussionMinutes": "{min}′ rasprave"
+    },
+    "municipality": {
+        "subjects": "Teme",
+        "meetings": "Sednice",
+        "persons": "Osobe",
+        "nextMeeting": "Sledeća sednica:",
+        "notSeeing": "Ne vidite svoju opštinu?",
+        "unavailable": "Opština {name} još nije dostupna — zatražite njeno dodavanje",
+        "notify": "Obaveštenja za opštinu {name}",
+        "notifyMeeting": "Obaveštenja za predstojeću sednicu opštine {name}",
+        "petitionedTitle": "Zahtevi za dodavanje",
+        "petitionedMore": "i još {count, plural, one {# opština/grad} few {# opštine/grada} other {# opština/gradova}} sa manje od {threshold} zahteva",
+        "petitionedOverflow": "i još {count, plural, one {# opština/grad} few {# opštine/grada} other {# opština/gradova}} sa {threshold}+ zahteva"
+    },
+    "notify": {
+        "interested": "Čini se da Vas zanima ",
+        "known": "Ako želite, uključite obaveštenja da biste bili u toku sa temama o kojima se raspravlja.",
+        "unknown": "Nažalost, još nije u našoj mreži. Možete zatražiti da se pridruži, a mi ćemo Vas obavestiti čim se to dogodi.",
+        "enable": "Uključi obaveštenja",
+        "pickMunicipality": "Izaberite opštinu koja Vas zanima, da biste dobijali novosti o tome o čemu se raspravlja",
+        "notNow": "Ne sada"
+    },
+    "explain": {
+        "title": "Ovo je naša kancelarija!",
+        "body": "Radimo na tome da približimo građane lokalnoj samoupravi"
+    },
+    "municipalityTooltip": {
+        "body": "Ova opština još nije na OpenCouncil-u.",
+        "petitions": "{count}+ zahteva za dodavanje"
+    },
+    "general": {
+        "title": "Opšte teme · {count}",
+        "subtitle": "Teme bez određene lokacije na mapi.",
+        "coLocated": "{count} tema ovde",
+        "cityAria": "Opšte teme · {name} ({count})"
+    },
+    "marker": {
+        "samePoint": "{count} tema na istoj tački",
+        "seeSamePoint": "Pogledajte {count} tema na istoj tački",
+        "municipalityZoom": "{name} — {count} tema, uvećajte prikaz",
+        "petitionedAria": "{name}: {count}+ zahteva"
+    },
+    "dateRange": {
+        "7d": "7 dana",
+        "14d": "14 dana",
+        "30d": "30 dana",
+        "3m": "3 meseca",
+        "6m": "6 meseci",
+        "12m": "12 meseci",
+        "all": "Sve vreme"
+    },
+    "dateRangeMenu": {
+        "7d": "Poslednjih 7 dana",
+        "14d": "Poslednjih 14 dana",
+        "30d": "Poslednjih 30 dana",
+        "3m": "Poslednja 3 meseca",
+        "6m": "Poslednjih 6 meseci",
+        "12m": "Poslednjih 12 meseci",
+        "all": "Sve vreme"
+    },
+    "bodyType": {
+        "council": "Skupština",
+        "committee": "Odbor",
+        "community": "Mesna zajednica"
+    },
+    "duration": {
+        "5": "5′+",
+        "15": "15′+",
+        "30": "30′+",
+        "any": "Sve",
+        "discussed": "Sa raspravom"
+    },
+    "fewResults": {
+        "widenRange": "Pokušajte da proširite vremenski period da biste videli više tema",
+        "clearFilters": "Pokušajte da obrišete filtere da biste videli više tema",
+        "zoomOut": "Pokušajte da umanjite prikaz da biste videli više tema"
+    },
+    "topic": {
+        "general": "Opšte"
+    },
+    "footer": {
+        "groups": {
+            "links": "Veze",
+            "policies": "Politike i uslovi",
+            "contact": "Kontakt"
+        },
+        "links": {
+            "forMunicipalities": "Za opštine",
+            "search": "Pretraga",
+            "ai": "OpenCouncil AI",
+            "api": "API",
+            "jobs": "Zaposlenje",
+            "status": "Status",
+            "notifications": "Obaveštenja",
+            "corrections": "Ispravke",
+            "privacy": "Politika privatnosti",
+            "terms": "Uslovi korišćenja",
+            "cookies": "Podešavanja kolačića"
+        }
+    },
+    "popularSearches": [
+        "Budžet",
+        "Parkiranje",
+        "Pešačke zone",
+        "Zelenilo i drveće",
+        "Pijace",
+        "Zaštita od poplava",
+        "Škole",
+        "Čistoća"
+    ],
+    "info": {
+        "title": "Šta je ovo?",
+        "intro": "Mapa prikazuje teme o kojima se raspravlja na sednicama opštinskih skupština. One koje Vas zanimaju možete pronaći po kategoriji, po području ili direktno na mapi.",
+        "pins": {
+            "title": "Teme na mapi",
+            "body": "Svaka tačka je jedna tema. Dodirnite je da biste otvorili pregled i pročitali njen opis."
+        },
+        "cluster": {
+            "title": "Više tema na jednom mestu",
+            "body": "Kada na jednom mestu postoji više tema, prikazuje se broj. Dodirnite ga i izaberite temu koju želite."
+        },
+        "general": {
+            "title": "Teme od opšteg interesa",
+            "body": "One nemaju određenu lokaciju, pa ćete ih pronaći ispod ikonice svake opštine."
+        },
+        "moreBody": "Želite da saznate više o lokalnoj samoupravi — kako radi skupština, kako se finansiraju opštine i još mnogo toga?",
+        "moreCta": "Saznajte više",
+        "sampleTopic": "Čistoća",
+        "sampleSubject": "Odvoženje otpada u centru",
+        "sampleDesc": "Skupština je raspravljala o novom rasporedu i rutama odvoženja otpada."
+    }
+}

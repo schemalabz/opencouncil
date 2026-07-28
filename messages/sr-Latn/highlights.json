@@ -1,0 +1,314 @@
+{
+    "common": {
+        "utterances": "iskazi",
+        "speakers": "govornici",
+        "duration": "trajanje",
+        "close": "Zatvori",
+        "cancel": "Otkaži",
+        "error": "Greška",
+        "success": "Uspeh",
+        "play": "Pusti",
+        "pause": "Pauziraj",
+        "previousClip": "Prethodni klip",
+        "nextClip": "Sledeći klip",
+        "connectedSubject": "Povezana tema",
+        "noConnectedSubject": "Nema povezane teme"
+    },
+    "title": "Istaknuti snimci sa sednice",
+    "description": "Kreirajte video istaknute snimke sa ove sednice i upravljajte njima. Kliknite na istaknuti snimak da biste videli detalje ili kreirajte novi da biste počeli.",
+    "tabs": {
+        "myHighlights": "Moji istaknuti snimci",
+        "othersHighlights": "Istaknuti snimci drugih",
+        "aiGenerated": "Generisano veštačkom inteligencijom"
+    },
+    "sections": {
+        "showcased": "Izdvojeni istaknuti snimci",
+        "video": "Video istaknuti snimci",
+        "draft": "Nacrti istaknutih snimaka"
+    },
+    "emptyState": {
+        "title": "Još uvek nema istaknutih snimaka",
+        "description": "Kreirajte svoj prvi istaknuti snimak da biste počeli. Možete izabrati određene delove transkripta sednice i generisati video klipove.",
+        "action": "Kreiraj istaknuti snimak"
+    },
+    "editing": {
+        "currentlyEditing": "Trenutno uređujete istaknuti snimak:",
+        "description": "Kliknite na iskaze u transkriptu da biste ih dodali u ovaj istaknuti snimak ili uklonili iz njega. Koristite kontrole ispod za navigaciju između klipova.",
+        "noUtterances": "Nema izabranih iskaza",
+        "emptyHighlight": "Ovaj istaknuti snimak je prazan"
+    },
+    "preview": {
+        "title": "Pregled",
+        "contentPreview": "Pregled sadržaja",
+        "videoPreview": "Pregled videa",
+        "utterance": "iskaz",
+        "utteranceCount": "{count, plural, one {# iskaz} few {# iskaza} other {# iskaza}}",
+        "speakerCount": "{count, plural, one {# govornik} few {# govornika} other {# govornika}}",
+        "clip": "Klip {current} od {total}"
+    },
+    "generation": {
+        "format": "Format:",
+        "default": "Standardni (16:9)",
+        "social": "Društvene mreže (9:16)",
+        "captions": "Titlovi",
+        "speakerOverlay": "Govornici",
+        "generate": "Generiši video",
+        "regenerate": "Ponovo generiši video",
+        "started": "Generisanje je počelo",
+        "startedDescription": "Vaš video istaknutog snimka se generiše.",
+        "failed": "Generisanje videa nije uspelo. Molimo pokušajte ponovo.",
+        "whatNext": "Šta biste želeli da uradite sledeće?",
+        "trackProgress": "Pratite napredak",
+        "trackProgressDescription": "Pogledajte ovaj istaknuti snimak",
+        "viewAll": "Prikaži sve istaknute snimke",
+        "viewAllDescription": "Pregledajte istaknute snimke",
+        "returnToTranscript": "Povratak na transkript",
+        "returnToTranscriptDescription": "Nastavite sa čitanjem"
+    },
+    "details": {
+        "name": "Naziv",
+        "showcased": "Izdvojen",
+        "created": "Kreiran",
+        "contentVideo": "Sadržaj i video",
+        "content": "Sadržaj",
+        "video": "Video",
+        "editContent": "Uredi sadržaj",
+        "toggleShowcase": "Uključi/isključi izdvajanje",
+        "download": "Preuzmi",
+        "downloading": "Preuzimanje...",
+        "delete": "Obriši",
+        "backToHighlights": "Nazad na istaknute snimke",
+        "generating": "Generisanje videa...",
+        "generatingDescription": "Vaš video istaknutog snimka se obrađuje. Ovo može potrajati nekoliko minuta."
+    },
+    "dialog": {
+        "createTitle": "Kreiraj novi istaknuti snimak",
+        "editTitle": "Uredi istaknuti snimak",
+        "highlightName": "Naziv istaknutog snimka",
+        "namePlaceholder": "Unesite naziv istaknutog snimka",
+        "subjectPlaceholder": "Izaberite temu (opciono)",
+        "subjectSearchPlaceholder": "Pretražite teme...",
+        "noSubjectsFound": "Nisu pronađene teme",
+        "cancel": "Otkaži",
+        "create": "Kreiraj istaknuti snimak",
+        "save": "Sačuvaj izmene",
+        "nameRequired": "Molimo unesite naziv istaknutog snimka."
+    },
+    "buttons": {
+        "createHighlight": "Kreiraj istaknuti snimak",
+        "createNewHighlight": "Kreiraj novi istaknuti snimak",
+        "creating": "Kreiranje istaknutog snimka...",
+        "currentlyEditing": "Trenutno uređujete istaknuti snimak",
+        "addHighlight": "Dodaj istaknuti snimak"
+    },
+    "toasts": {
+        "highlightCreated": "Istaknuti snimak je kreiran",
+        "highlightCreatedDescription": "Počnite da birate iskaze da biste sastavili svoj istaknuti snimak.",
+        "highlightUpdated": "Istaknuti snimak je uspešno ažuriran.",
+        "highlightDeleted": "Istaknuti snimak je uspešno obrisan.",
+        "deleteError": "Brisanje istaknutog snimka nije uspelo. Molimo pokušajte ponovo.",
+        "generationStarted": "Generisanje videa je počelo. Ovo može potrajati nekoliko minuta. Dobićete imejl kada bude spreman.",
+        "generationError": "Generisanje videa nije uspelo. Molimo pokušajte ponovo.",
+        "showcaseAdded": "Istaknuti snimak je dodat u izdvojene.",
+        "showcaseRemoved": "Istaknuti snimak je uklonjen iz izdvojenih.",
+        "showcaseError": "Promena statusa izdvajanja nije uspela. Molimo pokušajte ponovo.",
+        "downloadStarted": "Preuzimanje je uspešno počelo.",
+        "downloadError": "Preuzimanje videa nije uspelo. Molimo pokušajte ponovo.",
+        "saveFailed": "Čuvanje nije uspelo",
+        "saveFailedDescription": "Molimo rešite probleme i pokušajte ponovo."
+    },
+    "confirmations": {
+        "deleteHighlight": "Da li ste sigurni da želite da obrišete ovaj istaknuti snimak?"
+    },
+    "modeBar": {
+        "currentlyEditing": "Trenutno uređujete istaknuti snimak:",
+        "currentlyPreviewing": "Trenutno pregledate",
+        "currentlyEditingMode": "Trenutno uređujete",
+        "editingDescription": "Kliknite na iskaze u transkriptu da biste ih dodali u ovaj istaknuti snimak ili uklonili iz njega. Koristite kontrole ispod za navigaciju između klipova.",
+        "unsavedChanges": "Nesačuvane izmene",
+        "preview": "Pregled",
+        "save": "Sačuvaj",
+        "reset": "Poništi",
+        "exit": "Izađi iz uređivanja",
+        "duration": "Trajanje",
+        "speakers": "Govornici",
+        "utterances": "Iskazi",
+        "clip": "Klip {current} od {total}",
+        "previousClip": "Prethodni",
+        "nextClip": "Sledeći",
+        "saving": "Čuvanje…",
+        "saveNow": "Sačuvaj odmah",
+        "resetChanges": "Poništi izmene",
+        "openPreview": "Otvori pregled",
+        "exitEditingMode": "Izađi iz režima uređivanja",
+        "guide": "Vodič"
+    },
+    "reset": {
+        "confirmReset": "Da li ste sigurni da želite da poništite sve izmene? Ovo se ne može opozvati.",
+        "changesReset": "Izmene su poništene",
+        "changesResetDescription": "Sve nesačuvane izmene su odbačene."
+    },
+    "exit": {
+        "confirmExitTitle": "Odbaciti ovaj istaknuti snimak?",
+        "confirmExitDescription": "Ako sada izađete, istaknuti snimak koji pravite biće otkazan, a iskazi koje ste izabrali biće izgubljeni. Ovo se ne može opozvati.",
+        "confirmExitEditsTitle": "Odbaciti nesačuvane izmene?",
+        "confirmExitEditsDescription": "Ako sada izađete, vaše nesačuvane izmene ovog istaknutog snimka biće izgubljene. Sam istaknuti snimak neće biti obrisan.",
+        "confirmDiscard": "Odbaci i izađi",
+        "keepEditing": "Nastavi uređivanje",
+        "exitedEditMode": "Izašli ste iz režima uređivanja",
+        "noChangesSaved": "Nijedna izmena nije sačuvana.",
+        "deleteErrorTitle": "Odbacivanje istaknutog snimka nije uspelo",
+        "deleteErrorDescription": "Nesačuvani istaknuti snimak se možda i dalje prikazuje na vašoj listi. Molimo osvežite stranicu."
+    },
+    "previewDialog": {
+        "title": "Pregled istaknutog snimka",
+        "description": "Pregledajte izabrane klipove. Koristite kontrole za navigaciju između klipova. Kada budete spremni, podesite opcije i generišite.",
+        "contentPreview": "Pregled sadržaja",
+        "videoPreview": "Pregled videa",
+        "noUtterancesSelected": "Nema izabranih iskaza",
+        "highlightEmpty": "Ovaj istaknuti snimak je prazan",
+        "format": "Format:",
+        "defaultAspectRatio": "Standardni (16:9)",
+        "socialAspectRatio": "Društvene mreže (9:16)",
+        "contentOptions": "Opcije sadržaja:",
+        "settings": "Podešavanja",
+        "size": "Veličina",
+        "formatting": "Formatiranje",
+        "aspectDesktop": "16:9 (ekran računara)",
+        "aspectMobile": "9:16 (ekran mobilnog telefona)",
+        "captions": "Titlovi",
+        "captionsVerified": "Transkript je pregledan — titlovi će biti tačni",
+        "captionsUnverified": "Transkript još nije pregledan — neki titlovi mogu biti netačni",
+        "speakerOverlays": "Govornici",
+        "generateVideo": "Generiši video",
+        "regenerateVideo": "Ponovo generiši video",
+        "generationStarted": "Generisanje je počelo",
+        "whatNext": "Šta biste želeli da uradite sledeće?",
+        "trackProgress": "Pratite napredak",
+        "trackProgressDescription": "Pogledajte stranicu svog istaknutog snimka",
+        "viewAllHighlights": "Prikaži sve istaknute snimke",
+        "viewAllHighlightsDescription": "Pregledajte istaknute snimke",
+        "returnToTranscript": "Povratak na transkript",
+        "returnToTranscriptDescription": "Nastavite tamo gde ste stali",
+        "clip": "Klip {current} od {total}"
+    },
+    "highlightCard": {
+        "subjectConnected": "Tema je povezana",
+        "allHighlightsProcessed": "Svi istaknuti snimci su obrađeni u video zapise",
+        "currentlyEditing": "Trenutno uređujete istaknuti snimak:",
+        "finishEditingDescription": "Završite uređivanje ovog istaknutog snimka pre nego što kreirate novi."
+    },
+    "highlightView": {
+        "lastUpdated": "Poslednje ažuriranje {relativeTime}",
+        "generating": "Generisanje...",
+        "generateVideo": "Generiši video",
+        "generatingVideo": "Generisanje videa istaknutog snimka... Ovo može potrajati nekoliko minuta. Dobićete imejl kada bude završeno.",
+        "contentAndVideo": "Sadržaj i video",
+        "contentPreview": "Pregled sadržaja",
+        "video": "Video"
+    },
+    "guide": {
+        "title": "Vodič za istaknute snimke",
+        "description": "Naučite kako da kreirate video istaknute snimke iz transkripata sednica i upravljate njima",
+        "hint": {
+            "title": "Prvi put koristite istaknute snimke?",
+            "description": "Kliknite ovde za kratak vodič o kreiranju istaknutih snimaka i upravljanju njima"
+        },
+        "tabs": {
+            "quickStart": "Brzi početak",
+            "selection": "Izbor",
+            "preview": "Pregled i generisanje",
+            "visualGuide": "Vizuelni vodič"
+        },
+        "quickStart": {
+            "whatIsIt": {
+                "title": "Šta su istaknuti snimci?",
+                "description": "Istaknuti snimci Vam omogućavaju da izaberete određene trenutke iz transkripta sednice i spojite ih u video klip koji možete deliti. Možete dodati titlove i oznake govornika, kao i izabrati horizontalni ili vertikalni format za društvene mreže."
+            },
+            "workflow": {
+                "title": "Osnovni tok rada",
+                "step1": "Kreirajte novi istaknuti snimak pomoću dugmeta u zaglavlju ili sa liste istaknutih snimaka",
+                "step2": "Kliknite na iskaze u transkriptu (ili klik i Shift+klik za opsege) da biste ih dodali u svoj istaknuti snimak ili uklonili iz njega",
+                "step3": "Koristite pregled da proverite svoj izbor i podesite opcije generisanja videa",
+                "step4": "Generišite svoj video i podelite ga"
+            },
+            "creationMethods": {
+                "title": "Načini kreiranja istaknutog snimka",
+                "headerButton": "Kliknite na dugme „Kreiraj istaknuti snimak“ u zaglavlju sednice",
+                "contextMenu": "Kliknite desnim tasterom na bilo koji iskaz i izaberite „Započni istaknuti snimak odavde“",
+                "listButton": "Kliknite na „+ Dodaj istaknuti snimak“ na listi istaknutih snimaka"
+            }
+        },
+        "selection": {
+            "adding": {
+                "title": "Dodavanje i uklanjanje iskaza",
+                "clickToAdd": "Dodajte iskaz u istaknuti snimak",
+                "clickToRemove": "Uklonite iskaz iz istaknutog snimka",
+                "clickBadge": "Klik",
+                "selectRange": "Izaberite opseg iskaza",
+                "selectRangeBadge": "Klik i Shift+klik",
+                "deselectRange": "Uklonite opseg iskaza",
+                "deselectRangeBadge": "Klik i Shift+klik"
+            },
+            "navigation": {
+                "title": "Navigacija kroz klipove",
+                "subtitle": "Ove opcije su dostupne na vremenskoj liniji",
+                "previousClip": "Pređite na prethodni izabrani klip",
+                "previousButton": "Prethodni",
+                "nextClip": "Pređite na sledeći izabrani klip",
+                "nextButton": "Sledeći"
+            },
+            "saving": {
+                "title": "Čuvanje izmena",
+                "subtitle": "Ove opcije su dostupne na traci režima",
+                "saveNow": "Sačuvajte trenutne izmene",
+                "saveButton": "Sačuvaj (padajući meni)",
+                "reset": "Odbacite nesačuvane izmene",
+                "resetButton": "Poništi",
+                "autoSave": "Automatski čuva pre generisanja videa",
+                "autoSaveBadge": "Automatski"
+            }
+        },
+        "previewTab": {
+            "openPreview": {
+                "question": "Kako da pregledam svoj istaknuti snimak?",
+                "answer": "Kliknite na dugme „Pregled“ na traci režima. Otvoriće se dijalog u kome možete pogledati izabrane klipove kako se reprodukuju jedan za drugim i videti tekstualni pregled sadržaja."
+            },
+            "aspectRatio": {
+                "question": "Koji video formati su dostupni?",
+                "answer": "Izaberite između standardnog (16:9) za horizontalni video ili formata za društvene mreže (9:16) — vertikalnog formata optimizovanog za TikTok, Instagram Stories i YouTube Shorts."
+            },
+            "contentOptions": {
+                "question": "Koje opcije sadržaja mogu da podesim?",
+                "answer": "Možete uključiti titlove (tekstualni prikaz izgovorenog sadržaja) i oznake govornika (vizuelnu identifikaciju onoga ko govori tokom svojih segmenata). Napomena: ove opcije su vidljive samo u konačnom generisanom videu, a ne u pregledu."
+            },
+            "generate": {
+                "question": "Kako da generišem video?",
+                "answer": "Kliknite na „Generiši video“ u dijalogu za pregled. Sistem će automatski sačuvati Vaše izmene, a zatim kreirati video. Dobićete imejl kada bude spreman, a napredak možete pratiti i na stranici istaknutog snimka."
+            },
+            "editDetails": {
+                "question": "Kako da promenim naziv istaknutog snimka ili povežem temu?",
+                "answer": "Kliknite na ikonu za uređivanje pored naziva istaknutog snimka na traci režima. Otvoriće se dijalog u kome možete ažurirati naziv i po želji povezati istaknuti snimak sa temom sednice radi bolje organizacije."
+            }
+        },
+        "visual": {
+            "selected": {
+                "title": "Izabrani iskazi",
+                "description": "Iskazi uključeni u Vaš istaknuti snimak prikazani su podebljanim i podvučenim tekstom. Kliknite na njih ponovo da biste ih uklonili iz istaknutog snimka.",
+                "example": "Ovaj iskaz je izabran"
+            },
+            "timeline": {
+                "title": "Prikaz na vremenskoj liniji",
+                "description": "Izabrani klipovi se prikazuju kao žute trake na vremenskoj liniji iznad video plejera. Kliknite na ove trake da biste prešli direktno na taj klip u videu."
+            },
+            "unsaved": {
+                "title": "Indikator nesačuvanih izmena",
+                "description": "Mala crvena tačka se pojavljuje pored naziva istaknutog snimka kada imate nesačuvane izmene. Koristite opciju „Sačuvaj“ iz padajućeg menija da biste trajno sačuvali izmene."
+            },
+            "modeBar": {
+                "title": "Traka režima",
+                "description": "Žuta traka na vrhu označava da ste u režimu uređivanja istaknutog snimka. Prikazuje statistiku u realnom vremenu (trajanje, broj govornika, broj iskaza) i omogućava pristup svim kontrolama za uređivanje."
+            }
+        }
+    }
+}

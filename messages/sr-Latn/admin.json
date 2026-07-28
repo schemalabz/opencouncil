@@ -1,0 +1,285 @@
+{
+    "cities": {
+        "title": "Gradovi",
+        "description": "Svi gradovi grupisani po domenu.",
+        "addCity": "Dodaj grad",
+        "editCity": "Izmeni grad",
+        "searchPlaceholder": "Pretražite gradove...",
+        "noCities": "Nisu pronađeni gradovi",
+        "columnName": "Naziv",
+        "columnId": "ID",
+        "columnLanguage": "Jezik",
+        "columnStatus": "Status",
+        "columnMeetings": "Sednice",
+        "columnPeople": "Osobe",
+        "columnParties": "Stranke",
+        "languageGreek": "Grčki",
+        "languageFrench": "Francuski",
+        "cityCount": "{count, plural, one {# grad} few {# grada} other {# gradova}}"
+    },
+    "taskStatus": {
+        "pending": "Na čekanju",
+        "succeeded": "Uspešno",
+        "failed": "Neuspešno",
+        "unknownError": "Nepoznata greška",
+        "deleteDialog": {
+            "title": "Obrisati zadatak?",
+            "description": "Ovo će trajno ukloniti status zadatka i sve povezane informacije o napretku.",
+            "warning": "Ova radnja se ne može opozvati.",
+            "cancel": "Otkaži",
+            "confirm": "Obriši zadatak"
+        },
+        "reprocessDialog": {
+            "title": "Ponovna obrada iz baze podataka: {taskType}",
+            "explanation": "Kada se zadatak izvrši, njegov rezultat uvek čuvamo u bazi podataka, tako da ga kasnije možete ponovo obraditi bez ponovnog pokretanja zadatka na serveru zadataka.",
+            "transcribe": {
+                "description": "Ponovna obrada zadatka transkripcije najpre briše postojeće podatke transkripta sednice (govornike, segmente, iskaze), a zatim ih ponovo kreira iz sačuvanog rezultata.",
+                "warning": "Sve ručne izmene transkripta biće izgubljene."
+            },
+            "default": {
+                "description": "Ovo će ponovo obraditi sačuvani rezultat iz baze podataka.",
+                "info": "Svi postojeći podaci biće automatski ažurirani."
+            },
+            "buttons": {
+                "cancel": "Otkaži",
+                "deleteAndReprocess": "Obriši i ponovo obradi",
+                "reprocess": "Ponovna obrada iz baze podataka",
+                "reprocessing": "Obrada u toku...",
+                "processing": "Obrada u toku...",
+                "done": "Gotovo"
+            },
+            "feedback": {
+                "success": "Zadatak je uspešno ponovo obrađen!",
+                "error": "Ponovna obrada zadatka nije uspela"
+            }
+        }
+    },
+    "taskList": {
+        "noTasks": "Nema pokrenutih zadataka"
+    },
+    "adminActions": {
+        "sections": {
+            "meetingDetails": "Detalji upravljanja sednicom",
+            "meetingDetailsSubtitle": "Izmenite osnovne podatke o ovoj sednici.",
+            "taskStatuses": "Statusi zadataka",
+            "taskStatusesSubtitle": "Pratite zadatke koji se izvršavaju na serveru.",
+            "requestNewTasks": "Zatraži nove zadatke",
+            "requestNewTasksSubtitle": "Pokrenite nove zadatke obrade na serveru.",
+            "meetingRelease": "Objavljivanje sednice",
+            "meetingReleaseSubtitle": "Odredite da li je ova sednica javno vidljiva.",
+            "notifications": "Obaveštenja",
+            "notificationsSubtitle": "Kreirajte obaveštenja za korisnike zainteresovane za teme ove sednice.",
+            "cacheManagement": "Upravljanje kešom",
+            "cacheManagementSubtitle": "Prinudno osvežite keširane podatke da biste odmah videli najnovije izmene.",
+            "podcastSpecs": "Specifikacije podkasta",
+            "podcastSpecsSubtitle": "Upravljajte specifikacijama za generisanje podkasta za ovu sednicu.",
+            "decisions": "Odluke",
+            "decisionsSubtitle": "Povežite odluke iz sistema Diavgeia sa temama sednice.",
+            "minutes": "Pregled zapisnika",
+            "minutesSubtitle": "Pregledajte i izvezite zapisnik sednice kao DOCX iz podataka u bazi.",
+            "export": "Izvoz",
+            "exportSubtitle": "Preuzmite podatke sednice u različitim formatima."
+        },
+        "buttons": {
+            "editMeeting": "Izmeni sednicu",
+            "transcribe": "transcribe",
+            "processAgenda": "processAgenda",
+            "summarize": "summarize",
+            "fixTranscript": "fixTranscript",
+            "beforeMeeting": "beforeMeeting",
+            "afterMeeting": "afterMeeting",
+            "refreshMeetingCache": "Osveži keš sednice",
+            "refreshCityCache": "Osveži keš grada",
+            "addTopic": "Dodaj kategoriju",
+            "starting": "Pokretanje...",
+            "syncing": "Sinhronizacija...",
+            "process": "Obradi",
+            "manageDecisions": "Upravljaj odlukama",
+            "extractDecisions": "Izdvoji odluke",
+            "previewMinutes": "Pregled zapisnika",
+            "exportMinutesDocx": "Izvezi DOCX"
+        },
+        "forms": {
+            "enterMediaUrl": "Unesite URL medija",
+            "enterAgendaUrl": "Unesite URL dnevnog reda",
+            "enterTopics": "Unesite kategorije",
+            "additionalInstructions": "Dodatna uputstva",
+            "mediaUrlPlaceholder": "https://... (YouTube, mp4, mp3)",
+            "agendaUrlPlaceholder": "https://...",
+            "topicPlaceholder": "Kategorija {number}",
+            "force": "Prinudno",
+            "forceDescription": {
+                "transcribe": "Briše sve segmente govornika, iskaze i sažetke za ovu sednicu, a zatim ponovo vrši transkripciju iz početka.",
+                "processAgenda": "Briše sve teme i automatski generisane istaknute delove za ovu sednicu, a zatim ponovo obrađuje dnevni red iz početka. Istaknuti delovi koje su kreirali korisnici se zadržavaju (uklanja se njihova veza sa temama).",
+                "summarize": "Teme sa dnevnog reda se zadržavaju i ažuriraju; teme van dnevnog reda se zamenjuju. Briše oznake kategorija i resetuje praćenje rasprave po iskazima (status i veze sa temama)."
+            },
+            "released": "Objavljena"
+        },
+        "toasts": {
+            "transcriptionRequested": {
+                "title": "Transkripcija zatražena",
+                "description": "Proces transkripcije je započeo."
+            },
+            "errorRequestingTranscription": {
+                "title": "Greška pri zahtevanju transkripcije"
+            },
+            "summarizationRequested": {
+                "title": "Sažimanje zatraženo",
+                "description": "Proces sažimanja je započeo."
+            },
+            "errorRequestingSummarization": {
+                "title": "Greška pri zahtevanju sažimanja"
+            },
+            "fixTranscriptRequested": {
+                "title": "Ispravka transkripta zatražena",
+                "description": "Proces ispravke transkripta je započeo."
+            },
+            "errorRequestingTranscriptFix": {
+                "title": "Greška pri zahtevanju ispravke transkripta"
+            },
+            "taskDeleted": {
+                "title": "Zadatak obrisan",
+                "description": "Zadatak {taskId} je uspešno obrisan."
+            },
+            "errorDeletingTask": {
+                "title": "Greška pri brisanju zadatka"
+            },
+            "meetingReleased": {
+                "title": "Sednica objavljena",
+                "description": "Sednica je objavljena."
+            },
+            "meetingUnreleased": {
+                "title": "Objava sednice povučena",
+                "description": "Objava sednice je povučena."
+            },
+            "errorTogglingRelease": {
+                "title": "Greška pri promeni statusa objave sednice"
+            },
+            "agendaProcessingRequested": {
+                "title": "Obrada dnevnog reda zatražena",
+                "description": "Obrada dnevnog reda je započela."
+            },
+            "errorProcessingAgenda": {
+                "title": "Greška pri obradi dnevnog reda"
+            },
+            "notificationsCreated": {
+                "title": "Obaveštenja kreirana",
+                "description": "Kreirano je {count} obaveštenja za {total} tema. {immediate}"
+            },
+            "sentImmediately": "Odmah poslato.",
+            "pendingApproval": "Čeka odobrenje administratora.",
+            "errorCreatingNotifications": {
+                "title": "Greška pri kreiranju obaveštenja"
+            },
+            "errorFetchingTaskStatuses": {
+                "title": "Greška pri preuzimanju statusa zadataka"
+            },
+            "unknownError": "Došlo je do nepoznate greške",
+            "meetingCacheInvalidated": {
+                "title": "Keš sednice poništen",
+                "description": "Podaci sednice biće osveženi pri sledećem zahtevu."
+            },
+            "cityCacheInvalidated": {
+                "title": "Keš grada poništen",
+                "description": "Podaci grada biće osveženi pri sledećem zahtevu."
+            },
+            "error": {
+                "title": "Greška",
+                "failedToInvalidateMeetingCache": "Poništavanje keša sednice nije uspelo",
+                "failedToInvalidateCityCache": "Poništavanje keša grada nije uspelo"
+            },
+            "decisionLinked": {
+                "title": "Odluka povezana"
+            },
+            "decisionUnlinked": {
+                "title": "Veza sa odlukom uklonjena"
+            },
+            "errorSavingDecision": {
+                "title": "Greška pri čuvanju odluke"
+            },
+            "errorRemovingDecision": {
+                "title": "Greška pri uklanjanju odluke"
+            },
+            "extractDecisionsRequested": {
+                "title": "Izdvajanje odluka zatraženo",
+                "description": "Izdvajanje podataka iz PDF dokumenata odluka."
+            },
+            "errorExtractingDecisions": {
+                "title": "Greška pri izdvajanju odluka"
+            }
+        },
+        "minutes": {
+            "title": "Pregled zapisnika",
+            "loading": "Generisanje pregleda zapisnika...",
+            "noSubjects": "Nisu pronađene teme za ovu sednicu.",
+            "exportSuccess": "Zapisnik je izvezen kao DOCX",
+            "exportError": "Greška pri izvozu zapisnika"
+        },
+        "decisions": {
+            "title": "Upravljanje odlukama (Diavgeia)",
+            "description": "Povežite odluke iz sistema Diavgeia sa temama sednice. Koristite automatsko preuzimanje ili dodajte ručno.",
+            "noSubjects": "Nisu pronađene teme za ovu sednicu.",
+            "noDecision": "Nema odluke",
+            "adaLabel": "ADA",
+            "adaPlaceholder": "npr. 91ΥΔΩΡΦ-ΓΥ6",
+            "protocolNumberLabel": "Broj protokola",
+            "protocolNumberPlaceholder": "npr. 261/2024",
+            "titleLabel": "Naslov odluke",
+            "titlePlaceholder": "Naslov odluke",
+            "pdfUrlLabel": "URL PDF dokumenta",
+            "pdfUrlPlaceholder": "https://diavgeia.gov.gr/...",
+            "viewPdf": "Pogledaj PDF",
+            "linked": "povezano",
+            "save": "Sačuvaj",
+            "moreOptions": "Više opcija",
+            "autoPdfHint": "PDF će biti preuzet sa diavgeia.gov.gr/doc/{ada}",
+            "validation": {
+                "adaRequired": "ADA je obavezan",
+                "pdfUrlRequired": "URL PDF dokumenta je obavezan",
+                "pdfUrlInvalid": "Unesite važeći URL"
+            },
+            "sourceTask": "Dodato automatski",
+            "addManually": "Dodaj ručno",
+            "tabAll": "Sve",
+            "tabUnlinked": "Nepovezane",
+            "allLinked": "Sve teme imaju povezane odluke.",
+            "pollTitle": "Preuzmi i izdvoji odluke",
+            "pollDescription": "Pretražite Diavgeia, uparite odluke sa temama i izdvojte podatke iz PDF dokumenata.",
+            "pollButton": "Pretraži Diavgeia",
+            "pollButtonSkipCache": "Pretraži (zaobiđi keš)",
+            "pollRequested": "Preuzimanje odluka započeto",
+            "pollError": "Pokretanje preuzimanja nije uspelo",
+            "skipCacheLabel": "Zaobiđi keš",
+            "skipCacheHint": "Server zadataka kešira rezultate izdvajanja iz PDF dokumenata — ovo zaobilazi taj keš",
+            "resetExtractions": "Resetuj izdvajanja",
+            "resetExtractionsDescription": "Uklonite sve izdvojene podatke (izvode, prisustvo, glasove) za svaku temu. Veze sa odlukama se zadržavaju.",
+            "resetExtractionsConfirm": "Resetovati sve izdvojene podatke (izvode, prisustvo, glasove) za ovu sednicu? Veze sa odlukama biće zadržane.",
+            "tabExtracted": "Izdvojene",
+            "excerpt": "Izvod",
+            "references": "Pravne reference",
+            "attendance": "Prisustvo",
+            "votes": "Glasanje",
+            "present": "prisutno",
+            "absent": "odsutno",
+            "showNames": "Prikaži imena",
+            "hideNames": "Sakrij imena",
+            "voteFor": "za",
+            "voteAgainst": "protiv",
+            "voteAbstain": "uzdržan",
+            "votePresent": "prisutan",
+            "voteDidNotVote": "nije glasao",
+            "showMore": "Prikaži više",
+            "showLess": "Prikaži manje",
+            "unanimous": "Jednoglasno ({count} za)",
+            "majorityVote": "Većinom glasova ({for} za, {against} protiv)",
+            "rejected": "Odbijeno ({against} protiv, {for} za)",
+            "noExtractedData": "Nema tema sa izdvojenim podacima.",
+            "resetExtraction": "Resetuj izdvajanje",
+            "resetExtractionDescription": "Obrišite izdvojene podatke, zadržite vezu sa odlukom. Sledeće preuzimanje će ponovo izdvojiti podatke.",
+            "removeDecision": "Ukloni odluku",
+            "removeDecisionDescription": "Uklonite vezu sa odlukom i obrišite sve izdvojene podatke.",
+            "extractionReset": "Izdvajanje resetovano",
+            "decisionRemoved": "Odluka uklonjena"
+        }
+    }
+}
