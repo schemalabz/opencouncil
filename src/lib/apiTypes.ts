@@ -18,7 +18,7 @@ export interface TaskRequest {
 // Content language of the city a task runs for. Kept as a self-contained string
 // union (this file is the backend contract and has no Prisma imports); mirrors
 // the Prisma `CityLanguage` enum.
-export type CityLanguage = 'el' | 'fr';
+export type CityLanguage = 'el' | 'fr' | 'sr';
 
 /*
  * System endpoints

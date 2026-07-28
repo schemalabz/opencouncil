@@ -9,6 +9,7 @@ import { OnboardingStepTemplate } from './OnboardingStepTemplate';
 import { findOsektutuNeighbourhood } from '@/lib/osektutu';
 import { OsektutuBanner } from './OsektutuBanner';
 import { useTranslations, useLocale } from 'next-intl';
+import { localizeText } from '@/lib/serbian';
 
 export function CompleteStep() {
   const { data: session, status: sessionStatus } = useSession();
@@ -16,7 +17,7 @@ export function CompleteStep() {
   const { stage, city, selectedLocations } = useOnboarding();
   const t = useTranslations('Onboarding.complete');
   const locale = useLocale();
-  const municipalityName = (locale === 'en' ? city?.name_municipality_en : city?.name_municipality) ?? '';
+  const municipalityName = localizeText((locale === 'en' ? city?.name_municipality_en : city?.name_municipality) ?? '', locale);
 
   const isPetitionFlow = stage === OnboardingStage.PETITION_COMPLETE;
 

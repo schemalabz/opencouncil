@@ -7,6 +7,12 @@ jest.mock('next/navigation', () => ({
     useRouter: () => ({ push: jest.fn() }),
 }));
 
+// next-intl ships ESM that Jest doesn't transform; PersonBadge only reaches it
+// via useLocalizeText → useLocale. Greek keeps localization a no-op.
+jest.mock('next-intl', () => ({
+    useLocale: () => 'el',
+}));
+
 // The avatar and role rendering aren't under test here; keep them out of the
 // way so the picker's own text is the only thing we assert on.
 jest.mock('@/components/ImageOrInitials', () => ({

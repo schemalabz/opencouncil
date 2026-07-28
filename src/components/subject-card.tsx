@@ -15,7 +15,9 @@ import { stripMarkdown } from "@/lib/formatters/markdown";
 import { formatDate } from "@/lib/formatters/time";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { useLocalizeText } from "@/hooks/useLocalizeText";
+import { getLocalizedName } from "@/lib/formatters/name";
 
 interface SubjectCardProps {
     subject: SubjectWithRelations & { statistics?: Statistics };
@@ -34,6 +36,8 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
     const router = useRouter();
     const pathname = usePathname();
     const t = useTranslations("Subject");
+    const locale = useLocale();
+    const localize = useLocalizeText();
     const [isLoading, setIsLoading] = useState(false);
     const [isCardHovered, setIsCardHovered] = useState(false);
 
@@ -98,20 +102,20 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
     return (
         <Link {...linkProps} onClick={handleClick} onMouseEnter={() => setIsCardHovered(true)} onMouseLeave={() => setIsCardHovered(false)}>
             <SubjectCardContent
-                title={subject.name}
+                title={localize(subject.name)}
                 topic={subject.topic}
                 context={showContext ? {
-                    meta: [city.name, meeting.administrativeBody?.name, formatDate(new Date(meeting.dateTime))].filter(Boolean).join(" · "),
-                    meetingName: meeting.name,
+                    meta: [getLocalizedName(city, locale), meeting.administrativeBody ? getLocalizedName(meeting.administrativeBody, locale) : null, formatDate(new Date(meeting.dateTime), undefined, locale)].filter(Boolean).join(" · "),
+                    meetingName: getLocalizedName(meeting, locale),
                 } : null}
-                locationText={subject.location?.text || t("noLocation")}
+                locationText={subject.location?.text ? localize(subject.location.text) : t("noLocation")}
                 agendaLabel={getAgendaLabel(t, subject)}
-                description={subject.description ? stripMarkdown(subject.description) : null}
+                description={subject.description ? localize(stripMarkdown(subject.description)) : null}
                 mediaSlot={highlight?.muxPlaybackId ? (
                     <div className="mb-4" onClick={(e) => e.stopPropagation()}>
                         <HighlightVideo
                             id={highlight.id}
-                            title={highlight.name}
+                            title={localize(highlight.name)}
                             playbackId={highlight.muxPlaybackId}
                             videoUrl={highlight.videoUrl || undefined}
                         />

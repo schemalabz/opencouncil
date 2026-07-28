@@ -11,6 +11,7 @@ import { Plus, Trash2, FileJson, MessageSquarePlus, ChevronDown, ChevronUp, Copy
 import { getPartyFromRoles, buildUnknownSpeakerLabel, UNKNOWN_SPEAKER_LABEL, formatTimestamp } from "@/lib/utils";
 import { AIGeneratedBadge } from '@/components/AIGeneratedBadge';
 import { stripMarkdown } from '@/lib/formatters/markdown';
+import { useLocalizeText } from '@/hooks/useLocalizeText';
 import SpeakerSegmentMetadataDialog from "./SpeakerSegmentMetadataDialog";
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
@@ -184,6 +185,7 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
     const { toast } = useToast();
     const tCopy = useTranslations('transcript.copySegment');
     const tCommon = useTranslations('Common');
+    const localize = useLocalizeText();
     const isSuperAdmin = session?.user?.isSuperAdmin;
     const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
 
@@ -258,7 +260,9 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
     };
 
     const handleCopySegment = () => {
-        const mainText = segment.utterances.map(u => u.text).join(' ');
+        // Copy what the reader sees: the displayed utterances are localized to
+        // the active Serbian script, so the clipboard must match.
+        const mainText = segment.utterances.map(u => localize(u.text)).join(' ');
         const attribution = tCopy('copySourceAttribution');
         const text = mainText ? `${mainText}\n\n${attribution}` : attribution;
         navigator.clipboard.writeText(text).then(() => {
@@ -393,7 +397,7 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
                                     {summary?.text && (
                                         <div className='px-2.5 sm:px-4 space-y-2'>
                                             <div className='text-xs sm:text-sm'>
-                                                {stripMarkdown(summary.text)}
+                                                {localize(stripMarkdown(summary.text))}
                                             </div>
                                             <div className='flex flex-col gap-2'>
                                                 {segment.topicLabels.length > 0 && (

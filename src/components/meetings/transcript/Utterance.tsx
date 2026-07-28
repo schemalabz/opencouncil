@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useEditing } from "../EditingContext";
 import { formatTimestamp } from "@/lib/formatters/time";
+import { useLocalizeText } from "@/hooks/useLocalizeText";
 
 /**
  * Resolve the character offset of a click within a text span.
@@ -66,6 +67,8 @@ const UtteranceC: React.FC<{
     const [editedEndTime, setEditedEndTime] = useState(utterance.endTimestamp);
     const { toast } = useToast();
     const t = useTranslations('transcript.utterance');
+    // Stable across renders (locale is constant per page) — memo-safe.
+    const localize = useLocalizeText();
 
     // Check if selected in Editing Context
     const isSelected = selectedUtteranceIds.has(localUtterance.id);
@@ -399,9 +402,12 @@ const UtteranceC: React.FC<{
 
     // Show placeholder for empty utterances in editing mode
     const isEmptyUtterance = !localUtterance.text.trim();
+    // Display-only transliteration to the active Serbian script (no-op
+    // elsewhere). The edit textarea keeps binding the stored text, so edits
+    // always write back the canonical script.
     const displayText = options.editable && isEmptyUtterance
         ? '[Empty utterance - click to edit]'
-        : localUtterance.text + ' ';
+        : localize(localUtterance.text) + ' ';
 
     const emptyUtteranceClass = options.editable && isEmptyUtterance
         ? 'text-muted-foreground italic'

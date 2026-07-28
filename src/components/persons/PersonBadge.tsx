@@ -14,6 +14,7 @@ import { Button } from "../ui/button";
 import { PersonWithRelations } from '@/lib/db/people';
 import { RoleDisplay } from './RoleDisplay';
 import { formatSurnameFirst } from '@/lib/formatters/name';
+import { useLocalizeText } from '@/hooks/useLocalizeText';
 
 interface PersonDisplayProps {
     person?: PersonWithRelations;
@@ -32,6 +33,7 @@ interface PersonDisplayProps {
 
 // A simpler version of PersonBadge used in search results
 function PersonDisplay({ person, speakerTag, segmentCount, short = false, preferFullName = false, size = 'md', editable = false, onClick, nonInteractive = false, date }: PersonDisplayProps) {
+    const localize = useLocalizeText();
     const activeRoles = person ? filterActiveRoles(person.roles) : [];
     const party = person ? getPartyFromRoles(person.roles, date) : null;
     const partyColor = party?.colorHex || 'gray';
@@ -86,9 +88,9 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
                 <div className="flex flex-col justify-center min-w-0 flex-1">
                     <div className={cn("font-medium text-foreground truncate sm:whitespace-normal sm:break-words", nameTextSize, size === 'sm' && "text-sm sm:text-base")}>
                         {person ? (
-                            preferFullName ? person.name : formatSurnameFirst(person.name)
+                            localize(preferFullName ? person.name : formatSurnameFirst(person.name))
                         ) : (
-                            speakerTag?.label
+                            speakerTag?.label && localize(speakerTag.label)
                         )}
                         {editable && segmentCount !== undefined && (
                             <span className="hidden sm:inline ml-2 text-muted-foreground font-normal">
@@ -148,6 +150,7 @@ function PersonBadge({
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [editMode, setEditMode] = useState(false);
+    const localize = useLocalizeText();
     const router = useRouter();
     const listRef = useRef<HTMLDivElement>(null);
 
@@ -208,9 +211,9 @@ function PersonBadge({
                 )}
                 <span className="text-sm font-medium truncate">
                     {person ? (
-                        preferFullName ? person.name : formatSurnameFirst(person.name)
+                        localize(preferFullName ? person.name : formatSurnameFirst(person.name))
                     ) : (
-                        speakerTag?.label
+                        speakerTag?.label && localize(speakerTag.label)
                     )}
                 </span>
             </div>

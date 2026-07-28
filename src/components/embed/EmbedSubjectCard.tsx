@@ -1,12 +1,14 @@
 import { formatDate } from '@/lib/formatters/time';
 import { stripMarkdown } from '@/lib/formatters/markdown';
+import { getLocalizedName } from '@/lib/formatters/name';
 import { getAgendaLabel } from '@/lib/utils/subjects';
 import { CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
 import { SubjectCardContent } from '@/components/subject/SubjectCardContent';
 import { SubjectCardFooter } from '@/components/subject/SubjectCardFooter';
 import type { SubjectCardStats } from '@/lib/subjectCardStats';
 import type { PersonWithRelations } from '@/lib/db/people';
-import { routing } from '@/i18n/routing';
+import { routing, urlPrefixForLocale } from '@/i18n/routing';
+import { localizeText } from '@/lib/serbian';
 import { useTranslations } from 'next-intl';
 
 type EmbedSubject = CouncilMeetingWithAdminBodyAndSubjects['subjects'][number];
@@ -26,7 +28,7 @@ interface EmbedSubjectCardProps {
 }
 
 function localize<T extends { name: string; name_en: string }>(obj: T, locale: string): string {
-    return locale === 'en' ? obj.name_en : obj.name;
+    return getLocalizedName(obj, locale);
 }
 
 /**
@@ -38,19 +40,20 @@ function localize<T extends { name: string; name_en: string }>(obj: T, locale: s
 export function EmbedSubjectCard({ subject, meeting, locationText, speakers, stats, locale, baseUrl, cityTimezone }: EmbedSubjectCardProps) {
     const t = useTranslations('Subject');
     // next-intl uses `as-needed` prefixing: the default locale has no prefix,
-    // others do. Keeping the locale here makes English iframes link to English pages.
-    const localePrefix = locale === routing.defaultLocale ? '' : `/${locale}`;
+    // others do (by URL prefix, not locale id — sr-Latn lives under /lat).
+    // Keeping the locale here makes English iframes link to English pages.
+    const localePrefix = locale === routing.defaultLocale ? '' : `/${urlPrefixForLocale(locale)}`;
     const subjectUrl = `${baseUrl}${localePrefix}/${meeting.cityId}/${meeting.id}/subjects/${subject.id}`;
 
     return (
         <a href={subjectUrl} target="_blank" rel="noopener noreferrer" className="block hover:no-underline">
             <SubjectCardContent
-                title={subject.name}
+                title={localizeText(subject.name, locale)}
                 topic={subject.topic}
                 context={{ meta: formatDate(meeting.dateTime, cityTimezone, locale), meetingName: localize(meeting, locale) }}
-                locationText={locationText || t('noLocation')}
+                locationText={locationText ? localizeText(locationText, locale) : t('noLocation')}
                 agendaLabel={getAgendaLabel(t, subject)}
-                description={subject.description ? stripMarkdown(subject.description) : null}
+                description={subject.description ? localizeText(stripMarkdown(subject.description), locale) : null}
                 footer={<SubjectCardFooter stats={stats} speakers={speakers} />}
                 disableHover
                 compact

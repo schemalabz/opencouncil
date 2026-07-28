@@ -1,3 +1,39 @@
+import { localizeText } from '@/lib/serbian';
+
+/**
+ * An entity with the `name`/`name_en` localized-column pair (City, Person,
+ * Party, CouncilMeeting, Topic, AdministrativeBody, Role).
+ */
+type LocalizedNamed = { name: string; name_en?: string | null };
+
+/**
+ * The display name of an entity for a locale: `name_en` for English (when
+ * present), the native `name` otherwise — then transliterated to the active
+ * Serbian script when the locale is `sr`/`sr-Latn` (a no-op for all other
+ * locales). Use this instead of inlining `locale === 'en' ? … : …`.
+ */
+export function getLocalizedName(entity: LocalizedNamed, locale: string): string {
+    const base = locale === 'en' && entity.name_en ? entity.name_en : entity.name;
+    return localizeText(base, locale);
+}
+
+/**
+ * `getLocalizedName` for the `name_short`/`name_short_en` pair (Person,
+ * Party), falling back to the long-name pair when no short form is stored.
+ */
+export function getLocalizedShortName(
+    entity: LocalizedNamed & { name_short?: string | null; name_short_en?: string | null },
+    locale: string,
+): string {
+    // || rather than ??: the *_en columns are non-nullable in the schema, so
+    // an empty string is the realistic "unset" value (same as getLocalizedName).
+    const base =
+        locale === 'en'
+            ? entity.name_short_en || entity.name_en || entity.name_short || entity.name
+            : entity.name_short || entity.name;
+    return localizeText(base, locale);
+}
+
 /**
  * Reorders a name from "Firstname Lastname" to "Lastname Firstname".
  * For names with more than two parts (e.g., "Firstname Middle Lastname"),

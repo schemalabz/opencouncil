@@ -28,12 +28,15 @@ import { useSession } from "next-auth/react";
 import { getWithdrawnLabel } from "@/lib/utils/subjects";
 import { SubjectAdminControls } from "./SubjectAdminControls";
 import { useTranscriptOptions } from "../options/OptionsContext";
+import { useLocalizeText } from "@/hooks/useLocalizeText";
+import { getLocalizedName } from "@/lib/formatters/name";
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
     const { subjects, getSpeakerTag, getPerson, getParty, meeting, city } = useCouncilMeetingData();
     const { seekToAndPlay } = useVideo();
     const t = useTranslations("Subject");
     const locale = useLocale();
+    const localize = useLocalizeText();
     const { setSubjectHeader } = useSubjectHeader();
     const { data: session } = useSession();
     const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
@@ -97,15 +100,15 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     // The effective decision: local override (from polling) or server-rendered
     const decision = localDecision || subject.decision;
 
-    // Push subject info to the header breadcrumb
+    // Push subject info to the header breadcrumb (display-only, so localized)
     useEffect(() => {
         setSubjectHeader({
-            name,
+            name: localize(name),
             topicIcon: topic?.icon ?? undefined,
             topicColor: topic?.colorHex ?? undefined,
         });
         return () => setSubjectHeader(null);
-    }, [name, topic?.icon, topic?.colorHex, setSubjectHeader]);
+    }, [name, topic?.icon, topic?.colorHex, setSubjectHeader, localize]);
 
     // Fetch last poll time on mount when there's no decision
     useEffect(() => {
@@ -166,18 +169,18 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                 >
                     <Link
                         href={`/${meeting.cityId}/${meeting.id}`}
-                        aria-label={t("backToMeetingNamed", { meeting: meeting.name })}
+                        aria-label={t("backToMeetingNamed", { meeting: getLocalizedName(meeting, locale) })}
                         className="inline-flex items-center gap-1.5 font-medium text-foreground hover:text-primary transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
                         <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
-                        <span>{meeting.name}</span>
+                        <span>{getLocalizedName(meeting, locale)}</span>
                     </Link>
                     <span className="text-muted-foreground" aria-hidden="true">·</span>
                     <Link
                         href={`/${meeting.cityId}`}
                         className="text-muted-foreground hover:text-primary transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
-                        {city.name}
+                        {getLocalizedName(city, locale)}
                     </Link>
                     <span className="text-muted-foreground">
                         {formatDate(new Date(meeting.dateTime), undefined, locale)}
@@ -244,7 +247,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                                             className="w-3 h-3 rounded-sm shrink-0"
                                                             style={{ backgroundColor: p.item.colorHex }}
                                                         />
-                                                        <span className="font-medium">{p.item.name}</span>
+                                                        <span className="font-medium">{getLocalizedName(p.item, locale)}</span>
                                                     </div>
                                                 ))}
                                             </div>

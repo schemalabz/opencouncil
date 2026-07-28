@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { PersonAvatarList } from "./persons/PersonAvatarList";
 import { useRouter } from "@/i18n/routing";
 import { stripMarkdown } from "@/lib/formatters/markdown";
+import { useLocalizeText } from "@/hooks/useLocalizeText";
 import {
     Popover,
     PopoverContent,
@@ -22,6 +23,7 @@ interface SubjectBadgeProps {
 }
 
 export default function SubjectBadge({ subject, className }: SubjectBadgeProps) {
+    const localize = useLocalizeText();
     const router = useRouter();
     const backgroundColor = subject.topic?.colorHex ? subject.topic.colorHex + "15" : "transparent";
 
@@ -34,7 +36,7 @@ export default function SubjectBadge({ subject, className }: SubjectBadgeProps) 
             )}
         >
             <TopicIcon color={subject.topic?.colorHex} icon={subject.topic?.icon} size="md" />
-            <span className="text-sm" >{subject.name}</span>
+            <span className="text-sm" >{localize(subject.name)}</span>
         </div>
     );
 
@@ -54,9 +56,9 @@ export default function SubjectBadge({ subject, className }: SubjectBadgeProps) 
                     <div className="flex items-center gap-2">
                         <TopicIcon color={subject.topic?.colorHex} icon={subject.topic?.icon} size="lg" />
                         <div>
-                            <div className="font-semibold">{subject.name}</div>
+                            <div className="font-semibold">{localize(subject.name)}</div>
                             {subject.description && (
-                                <div className="text-sm text-muted-foreground line-clamp-2">{stripMarkdown(subject.description)}</div>
+                                <div className="text-sm text-muted-foreground line-clamp-2">{localize(stripMarkdown(subject.description))}</div>
                             )}
                         </div>
                     </div>
