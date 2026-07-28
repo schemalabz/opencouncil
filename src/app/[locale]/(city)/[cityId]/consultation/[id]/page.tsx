@@ -7,6 +7,8 @@ import { auth } from "@/auth";
 import { Suspense } from "react";
 import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 import { getRealmBaseUrlFromRequest } from '@/lib/realm.server';
+import { getLocalizedName } from '@/lib/formatters/name';
+import { localizeText } from '@/lib/serbian';
 
 interface PageProps {
     params: Promise<{ cityId: string; id: string; locale: string }>;
@@ -39,27 +41,28 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
     const statusText = isActive ? 'ενεργή' : 'έχει λήξει';
 
     // Generate rich description
-    const title = regulationData?.title || consultation.name;
-    const description = `${isActive ? 'Ενεργή δημόσια διαβούλευση' : 'Δημόσια διαβούλευση που έχει λήξει'} για "${title}" στον Δήμο ${city.name}. ${chaptersCount > 0 ? `Περιλαμβάνει ${chaptersCount} κεφάλαια${geosetsCount > 0 ? ` και ${geosetsCount} γεωγραφικές περιοχές` : ''}.` : ''} Μάθετε περισσότερα και συμμετέχετε στη διαβούλευση.`;
+    const title = localizeText(regulationData?.title || consultation.name, params.locale);
+    const cityName = getLocalizedName(city, params.locale);
+    const description = `${isActive ? 'Ενεργή δημόσια διαβούλευση' : 'Δημόσια διαβούλευση που έχει λήξει'} για "${title}" στον Δήμο ${cityName}. ${chaptersCount > 0 ? `Περιλαμβάνει ${chaptersCount} κεφάλαια${geosetsCount > 0 ? ` και ${geosetsCount} γεωγραφικές περιοχές` : ''}.` : ''} Μάθετε περισσότερα και συμμετέχετε στη διαβούλευση.`;
 
     // Generate OG image URL
     const ogImageUrl = `/api/og?cityId=${params.cityId}&consultationId=${params.id}`;
 
     return {
-        title: `${title} | ${city.name} | OpenCouncil`,
+        title: `${title} | ${cityName} | OpenCouncil`,
         description,
         keywords: [
             'διαβούλευση',
             'δημόσια διαβούλευση',
             'κανονισμός',
             'τοπική αυτοδιοίκηση',
-            city.name,
+            cityName,
             'OpenCouncil',
             ...(isActive ? ['ενεργή διαβούλευση'] : ['παλαιότερη διαβούλευση'])
         ],
-        authors: [{ name: `Δήμος ${city.name}` }],
+        authors: [{ name: `Δήμος ${cityName}` }],
         openGraph: {
-            title: `${title} | ${city.name}`,
+            title: `${title} | ${cityName}`,
             description,
             type: 'website',
             siteName: 'OpenCouncil',
@@ -68,14 +71,14 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
                     url: ogImageUrl,
                     width: 1200,
                     height: 630,
-                    alt: `Διαβούλευση για ${title} στον Δήμο ${city.name}`,
+                    alt: `Διαβούλευση για ${title} στον Δήμο ${cityName}`,
                 }
             ],
             locale: 'el_GR',
         },
         twitter: {
             card: 'summary_large_image',
-            title: `${title} | ${city.name}`,
+            title: `${title} | ${cityName}`,
             description,
             images: [ogImageUrl],
         },

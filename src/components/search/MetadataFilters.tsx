@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { getLocalizedName, getLocalizedShortName } from "@/lib/formatters/name";
 import Combobox from "../Combobox";
 import { cn, getPartyFromRoles } from "@/lib/utils";
 import { getCities, getCity } from "@/lib/db/cities";
@@ -20,6 +21,7 @@ export type Filters = {
 
 export default function MetadataFilters({ className, filters, setFilters, disabled = false }: { className?: string, filters: Filters, setFilters: (filters: Filters) => void, disabled?: boolean }) {
     const t = useTranslations('search.filters');
+    const locale = useLocale();
     const [cities, setCities] = useState<City[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
     const [people, setPeople] = useState<PersonWithRelations[]>([]);
@@ -148,7 +150,7 @@ export default function MetadataFilters({ className, filters, setFilters, disabl
                     placeholder={t('cityPlaceholder')}
                     loading={cities.length === 0}
                     className="w-full"
-                    getItemLabel={(city) => city.name}
+                    getItemLabel={(city) => getLocalizedName(city, locale)}
                     getItemValue={(city) => city.name}
                     disabled={disabled}
                 />
@@ -163,7 +165,7 @@ export default function MetadataFilters({ className, filters, setFilters, disabl
                     disabled={!filters.cityId || disabled}
                     loading={filters.cityId !== undefined && parties.length === 0}
                     className="w-full"
-                    getItemLabel={(party) => party.name_short}
+                    getItemLabel={(party) => getLocalizedShortName(party, locale)}
                     getItemValue={(party) => party.name_short}
                 />
             </div>
@@ -177,7 +179,7 @@ export default function MetadataFilters({ className, filters, setFilters, disabl
                     disabled={!filters.cityId || disabled}
                     loading={filters.cityId !== undefined && people.length === 0}
                     className="w-full"
-                    getItemLabel={(person) => person.name_short}
+                    getItemLabel={(person) => getLocalizedShortName(person, locale)}
                     getItemValue={(person) => person.name_short}
                 />
             </div>

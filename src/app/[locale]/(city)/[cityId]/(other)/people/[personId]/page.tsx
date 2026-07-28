@@ -10,6 +10,7 @@ import { getStatisticsFor } from "@/lib/statistics";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import { Metadata } from "next";
 import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
+import { getLocalizedName } from "@/lib/formatters/name";
 
 export async function generateMetadata(
     props: { params: Promise<{ locale: string, personId: string, cityId: string }> }
@@ -35,31 +36,34 @@ export async function generateMetadata(
     });
 
     const currentParty = currentRole?.party;
-    const roleDescription = currentParty ? ` (${currentParty.name})` : '';
+    const personName = getLocalizedName(person, params.locale);
+    const cityName = getLocalizedName(city, params.locale);
+    const partyName = currentParty ? getLocalizedName(currentParty, params.locale) : null;
+    const roleDescription = partyName ? ` (${partyName})` : '';
 
     // Generate rich description
-    const description = `Προφίλ του προσώπου ${person.name} ${roleDescription} | ${city.name} | Στατιστικά συμμετοχής, τοποθετήσεις, δραστηριότητα στο δημοτικό συμβούλιο.`;
+    const description = `Προφίλ του προσώπου ${personName} ${roleDescription} | ${cityName} | Στατιστικά συμμετοχής, τοποθετήσεις, δραστηριότητα στο δημοτικό συμβούλιο.`;
 
     // Generate OG image URL
     const ogImageUrl = `/api/og?cityId=${params.cityId}&personId=${params.personId}`;
 
     return {
-        title: `${person.name} | ${city.name} | OpenCouncil`,
+        title: `${personName} | ${cityName} | OpenCouncil`,
         description,
         keywords: [
             'δημοτικός σύμβουλος',
             'δημοτικό συμβούλιο',
             'τοπική αυτοδιοίκηση',
-            person.name,
-            city.name,
+            personName,
+            cityName,
             'OpenCouncil',
-            ...(currentParty ? [currentParty.name, 'πολιτικό κόμμα'] : []),
+            ...(partyName ? [partyName, 'πολιτικό κόμμα'] : []),
             'στατιστικά συμμετοχής',
             'τοποθετήσεις'
         ],
-        authors: [{ name: person.name }],
+        authors: [{ name: personName }],
         openGraph: {
-            title: `${person.name} | ${city.name}`,
+            title: `${personName} | ${cityName}`,
             description,
             type: 'profile',
             siteName: 'OpenCouncil',
@@ -68,14 +72,14 @@ export async function generateMetadata(
                     url: ogImageUrl,
                     width: 1200,
                     height: 630,
-                    alt: `${person.name} (${city.name})`,
+                    alt: `${personName} (${cityName})`,
                 }
             ],
             locale: 'el_GR',
         },
         twitter: {
             card: 'summary_large_image',
-            title: `${person.name} | ${city.name}`,
+            title: `${personName} | ${cityName}`,
             description,
             images: [ogImageUrl],
         },

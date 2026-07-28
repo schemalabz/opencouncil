@@ -3,6 +3,7 @@ import { PathElement } from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { getCityCached } from "@/lib/cache";
 import { notFound } from "next/navigation";
+import { getLocalizedName } from "@/lib/formatters/name";
 
 export default async function CityInnerLayout(
     props: {
@@ -27,7 +28,7 @@ export default async function CityInnerLayout(
     // Build the path elements
     const pathElements: PathElement[] = [
         {
-            name: city.name,
+            name: getLocalizedName(city, locale),
             link: `/${cityId}`,
             city: city
         }

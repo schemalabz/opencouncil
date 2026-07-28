@@ -8,9 +8,11 @@ import { formatDate } from "@/lib/utils";
 import { ExternalLink } from "lucide-react";
 import PrintButton from "@/components/consultations/PrintButton";
 import { env } from "@/env.mjs";
+import { getLocalizedName } from "@/lib/formatters/name";
+import { localizeText } from "@/lib/serbian";
 
 interface PageProps {
-    params: Promise<{ cityId: string; id: string }>;
+    params: Promise<{ cityId: string; id: string; locale: string }>;
 }
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
@@ -28,11 +30,12 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
     }
 
     const regulationData = await fetchRegulationData(consultation.jsonUrl);
-    const title = regulationData?.title || consultation.name;
+    const title = localizeText(regulationData?.title || consultation.name, params.locale);
+    const cityName = getLocalizedName(city, params.locale);
 
     return {
-        title: `Σχόλια - ${title} | ${city.name} | OpenCouncil`,
-        description: `Σύνοψη όλων των σχολίων για τη διαβούλευση "${title}" στον Δήμο ${city.name}.`,
+        title: `Σχόλια - ${title} | ${cityName} | OpenCouncil`,
+        description: `Σύνοψη όλων των σχολίων για τη διαβούλευση "${title}" στον Δήμο ${cityName}.`,
         robots: {
             index: false, // Don't index the print page
             follow: false,

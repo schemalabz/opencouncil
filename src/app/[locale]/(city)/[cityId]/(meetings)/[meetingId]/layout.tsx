@@ -28,10 +28,10 @@ import { getLocalizedName } from '@/lib/formatters/name';
 
 export async function generateImageMetadata(
     props: {
-        params: Promise<{ meetingId: string; cityId: string }>
+        params: Promise<{ meetingId: string; cityId: string; locale: string }>
     }
 ) {
-    const { meetingId, cityId } = await props.params;
+    const { meetingId, cityId, locale } = await props.params;
 
     const data = await getMeetingDataCached(cityId, meetingId);
 
@@ -39,19 +39,21 @@ export async function generateImageMetadata(
         return [];
     }
 
+    const meetingName = getLocalizedName(data.meeting, locale);
+
     return [
         {
             contentType: 'image/png',
             size: { width: 1200, height: 630 },
             id: 'og',
-            alt: data.meeting.name,
+            alt: meetingName,
             url: `/api/og?meetingId=${meetingId}&cityId=${cityId}`
         },
         {
             contentType: 'image/png',
             size: { width: 32, height: 32 },
             id: 'icon',
-            alt: data.meeting.name,
+            alt: meetingName,
             url: `/api/icon?meetingId=${meetingId}&cityId=${cityId}`
         }
     ];

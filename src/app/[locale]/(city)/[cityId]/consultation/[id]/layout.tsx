@@ -4,6 +4,8 @@ import Footer from "@/components/layout/Footer";
 import { getCityCached } from "@/lib/cache";
 import { getConsultationById } from "@/lib/db/consultations";
 import { notFound } from "next/navigation";
+import { getLocalizedName } from "@/lib/formatters/name";
+import { localizeText } from "@/lib/serbian";
 
 interface ConsultationLayoutProps {
     children: React.ReactNode;
@@ -44,7 +46,7 @@ export default async function ConsultationLayout(props: ConsultationLayoutProps)
     // Build the path elements
     const pathElements: PathElement[] = [
         {
-            name: city.name,
+            name: getLocalizedName(city, locale),
             link: `/${cityId}`,
             city: city
         },
@@ -53,7 +55,7 @@ export default async function ConsultationLayout(props: ConsultationLayoutProps)
             link: `/${cityId}/consultations`,
         },
         {
-            name: consultation.name,
+            name: localizeText(consultation.name, locale),
             link: `/${cityId}/consultation/${consultation.id}`,
         }
     ];

@@ -5,8 +5,11 @@ import { formatInTimeZone } from 'date-fns-tz';
 import sanitizeHtml from 'sanitize-html';
 import { getCityCached, getCouncilMeetingsForCityPublicCached } from '@/lib/cache/queries';
 import { stripMarkdown } from '@/lib/formatters/markdown';
+import { getLocalizedName } from '@/lib/formatters/name';
+import { localizeText } from '@/lib/serbian';
 import { REALMS } from '@/lib/realm';
 import { getRealm, getRealmBaseUrlFromRequest } from '@/lib/realm.server';
+import { urlPrefixForLocale } from '@/i18n/config';
 
 export async function GET(
     request: NextRequest,
@@ -35,21 +38,26 @@ export async function GET(
     // greece, fr for france) is the unprefixed one.
     const baseUrl = await getRealmBaseUrlFromRequest();
     const isDefaultLocale = locale === REALMS[realm].defaultLocale;
+    // URL prefix, not locale id — sr-Latn lives under /lat.
+    const localePrefix = urlPrefixForLocale(locale);
     const cityUrl = isDefaultLocale
         ? `${baseUrl}/${cityId}`
-        : `${baseUrl}/${locale}/${cityId}`;
+        : `${baseUrl}/${localePrefix}/${cityId}`;
     const feedUrl = isDefaultLocale
         ? `${baseUrl}/${cityId}/feed`
-        : `${baseUrl}/${locale}/${cityId}/feed`;
+        : `${baseUrl}/${localePrefix}/${cityId}/feed`;
 
     // Get translations
     const t = await getTranslations({ locale, namespace: 'RSS' });
 
     // Create feed instance
     const feed = new Feed({
-        title: t('title', { city: isDefaultLocale ? city.name : city.name_en }),
+        title: t('title', { city: getLocalizedName(city, locale) }),
         description: t('description', {
-            municipality: isDefaultLocale ? city.name_municipality : city.name_municipality_en
+            municipality: getLocalizedName(
+                { name: city.name_municipality, name_en: city.name_municipality_en },
+                locale,
+            )
         }),
         id: feedUrl,
         link: cityUrl,
@@ -67,12 +75,12 @@ export async function GET(
         const meetingDate = new Date(meeting.dateTime);
         const meetingUrl = isDefaultLocale
             ? `${baseUrl}/${cityId}/${meeting.id}`
-            : `${baseUrl}/${locale}/${cityId}/${meeting.id}`;
+            : `${baseUrl}/${localePrefix}/${cityId}/${meeting.id}`;
 
-        const cityName = isDefaultLocale ? city.name : city.name_en;
+        const cityName = getLocalizedName(city, locale);
         const dateStr = formatInTimeZone(meetingDate, city.timezone, 'yyyy-MM-dd');
         const meetingTitle = t('meetingTitle', {
-            meetingName: meeting.name,
+            meetingName: getLocalizedName(meeting, locale),
             cityName,
             date: dateStr,
         });
@@ -80,7 +88,7 @@ export async function GET(
         // Build description (short summary)
         let description = '';
         if (meeting.subjects.length > 0) {
-            const subjectNames = meeting.subjects.slice(0, 3).map(s => s.name);
+            const subjectNames = meeting.subjects.slice(0, 3).map(s => localizeText(s.name, locale));
             description = subjectNames.join(', ');
             if (meeting.subjects.length > 3) {
                 description += '...';
@@ -95,14 +103,14 @@ export async function GET(
             const subjectsList = meeting.subjects.map(subject => {
                 const subjectUrl = isDefaultLocale
                     ? `${baseUrl}/${cityId}/${meeting.id}/subjects/${subject.id}`
-                    : `${baseUrl}/${locale}/${cityId}/${meeting.id}/subjects/${subject.id}`;
+                    : `${baseUrl}/${localePrefix}/${cityId}/${meeting.id}/subjects/${subject.id}`;
 
                 const sanitizeOptions = { allowedTags: [], allowedAttributes: {} };
                 const subjectDescription = subject.description
-                    ? `<p style="margin:0">${sanitizeHtml(stripMarkdown(subject.description), sanitizeOptions)}</p>`
+                    ? `<p style="margin:0">${sanitizeHtml(localizeText(stripMarkdown(subject.description), locale), sanitizeOptions)}</p>`
                     : '';
 
-                return `<li><a href="${subjectUrl}">${sanitizeHtml(subject.name, sanitizeOptions)}</a>${subjectDescription}</li><br/>`;
+                return `<li><a href="${subjectUrl}">${sanitizeHtml(localizeText(subject.name, locale), sanitizeOptions)}</a>${subjectDescription}</li><br/>`;
             }).join('');
 
             content = `<h3>${t('subjects')}</h3><ul>${subjectsList}</ul>`;
