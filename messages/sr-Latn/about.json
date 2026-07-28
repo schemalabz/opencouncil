@@ -8,14 +8,14 @@
         "team": "Tim"
     },
     "metadata": {
-        "title": "OpenCouncil — Operativni sistem za opštinske skupštine",
-        "description": "Skupštine gradova, odbori i mesne zajednice — otvorenije za građane, efikasnije za zaposlene. U 10 opština širom Grčke.",
+        "title": "OpenCouncil — Operativni sistem za skupštine jedinica lokalnih samouprava",
+        "description": "Skupštine gradova i opština — otvorenije za građane, efikasnije za zaposlene. U 10 opština širom Grčke.",
         "keywords": "OpenCouncil,veštačka inteligencija,skupštine gradova,transparentnost,demokratija,lokalna samouprava,automatizacija,građansko učešće,građani"
     },
     "hero": {
         "title": "Operativni sistem",
-        "titleHighlight": "za opštinske skupštine",
-        "subtitle": "Skupštine gradova, odbori i mesne zajednice — otvorenije za građane, efikasnije za zaposlene.",
+        "titleHighlight": "za skupštine jedinica lokalnih samouprava",
+        "subtitle": "Skupštine gradova i opština — otvorenije za građane, efikasnije za zaposlene.",
         "scheduleCall": "Zakažite razgovor",
         "counters": {
             "municipalities": "opština",
@@ -41,16 +41,16 @@
             },
             "search": {
                 "title": "Pretraga",
-                "description": "Pretražite sve što je izrečeno na svakoj sednici, u svakoj opštini."
+                "description": "Pretražite sve što je rečeno na svakoj sednici, u svakoj opštini/gradu."
             },
             "notifications": {
                 "title": "Obaveštenja",
-                "description": "Kada skupština raspravlja o nečemu što se tiče Vaše ulice ili Vašeg kvarta, saznaćete — putem WhatsApp-a, SMS-a ili imejla.",
-                "demoLabel": "Prijavite se za obaveštenja za Atinu"
+                "description": "Kada skupština raspravlja o nečemu što se tiče vaše ulice ili vašeg kvarta, saznaćete — putem WhatsApp-a, SMS-a ili imejla.",
+                "demoLabel": "Prijavite se za obaveštenja za Beograd"
             },
             "map": {
                 "title": "Mapa tema",
-                "description": "Svaka rasprava u skupštini označena je na mapi — uvećajte bilo koji kvart da vidite šta je odlučeno o mestima do kojih Vam je stalo.",
+                "description": "Svaka rasprava u skupštini označena je na mapi — uvećajte kako biste videli šta je odlučeno u mestima do kojih vam je stalo.",
                 "demoLabel": "Pogledajte mapu"
             }
         }
@@ -61,7 +61,7 @@
         "subtitle": "Transkripti, zapisnici, odluke — automatski ili uz minimalnu ljudsku intervenciju.",
         "seeExample": "Pogledajte primer",
         "comingSoon": "Uskoro",
-        "bottomNote": "OpenCouncil može da zameni Vašeg dosadašnjeg pružaoca usluge izrade zapisnika po sličnoj ceni — uz deset puta veću funkcionalnost i brzinu.",
+        "bottomNote": "OpenCouncil može da zameni vašeg dosadašnjeg pružaoca usluge izrade zapisnika po sličnoj ceni — uz deset puta veću funkcionalnost i brzinu.",
         "features": {
             "transcription": {
                 "title": "Transkripti za 48 sati",
@@ -219,7 +219,7 @@
             "decisionTitleText": "Usvajanje arhitektonskog konkursa za rekonstrukciju trga",
             "decisionAda": "ADA",
             "decisionProtocol": "Protokol",
-            "viewRealSubject": "Pogledajte stvarnu stranicu teme",
+            "viewRealSubject": "Pogledajte stranicu teme",
             "callouts": {
                 "header": "Prepoznavanje svih tema — pre dnevnog reda, van dnevnog reda i sa dnevnog reda",
                 "stats": "Statistika po strankama",
@@ -279,12 +279,12 @@
         },
         "notification": {
             "today": "DANAS",
-            "senderName": "OpenCouncil · Halandri",
-            "messageBody": "Na jučerašnjoj sednici skupštine grada raspravljano je o temama koje se tiču Vašeg kvarta:",
+            "senderName": "OpenCouncil · Stari grad",
+            "messageBody": "Na jučerašnjoj sednici skupštine grada raspravljano je o temama koje se tiču vašeg kvarta:",
             "item1Title": "Produženje radnog vremena prodavnica",
-            "item1Location": "Bulevar Pentelis 42",
+            "item1Location": "Bulevar kralja Aleksandra 42",
             "item2Title": "Regulisanje saobraćaja",
-            "item2Location": "Ulica Heraklita",
+            "item2Location": "Knez Mihailova ulica",
             "viewSummaries": "Pogledajte sažetke →",
             "reply": "Hvala! 👍",
             "inputPlaceholder": "Unesite poruku"
@@ -353,12 +353,12 @@
         ],
         "archiveNote": "Starije sednice bez ljudske ispravke: {price} / sat",
         "vatNote": "Cene ne uključuju PDV. Naše postojeće ugovore možete pronaći na platformama Di@vgeia ili KIMDIS pomoću našeg poreskog broja 802666391.",
-        "calculateContract": "Izračunajte svoj ugovor",
+        "calculateContract": "Proverite cenu",
         "extras": {
             "title": "Dodatne pogodnosti",
             "subtitle": "Svaka pretplata uključuje",
             "items": [
-                "Besplatan probni period, koliko god Vam je potrebno",
+                "Besplatan probni period, koliko god vam je potrebno",
                 "Sve sadašnje i buduće funkcionalnosti",
                 "Telefonska podrška za građane, zaposlene i izabrane funkcionere",
                 "Mogućnost uključivanja starijih sednica",
@@ -386,7 +386,7 @@
     },
     "contactForm": {
         "title": "Kontaktirajte nas",
-        "subtitle": "Popunite svoje podatke i javićemo Vam se u najkraćem roku.",
+        "subtitle": "Popunite svoje podatke i javićemo vam se u najkraćem roku.",
         "estimatedCost": "Procenjeni godišnji trošak",
         "vatSuffix": "+ PDV",
         "name": "Ime",
@@ -396,8 +396,8 @@
         "municipality": "Opština",
         "municipalityPlaceholder": "Naziv opštine",
         "submit": "Zatražite prezentaciju",
-        "thankYou": "Hvala Vam!",
-        "thankYouMessage": "Uskoro ćemo Vam se javiti na <strong>{email}</strong>.",
+        "thankYou": "Hvala vam!",
+        "thankYouMessage": "Uskoro ćemo vam se javiti na <strong>{email}</strong>.",
         "close": "Zatvori",
         "errorTitle": "Došlo je do greške",
         "errorMessage": "Pokušajte ponovo ili nam pišite na <email>sales@touvlo.co</email>",

@@ -223,7 +223,7 @@
         "quickStart": {
             "whatIsIt": {
                 "title": "Šta su istaknuti snimci?",
-                "description": "Istaknuti snimci Vam omogućavaju da izaberete određene trenutke iz transkripta sednice i spojite ih u video klip koji možete deliti. Možete dodati titlove i oznake govornika, kao i izabrati horizontalni ili vertikalni format za društvene mreže."
+                "description": "Istaknuti snimci vam omogućavaju da izaberete određene trenutke iz transkripta sednice i spojite ih u video klip koji možete deliti. Možete dodati titlove i oznake govornika, kao i izabrati horizontalni ili vertikalni format za društvene mreže."
             },
             "workflow": {
                 "title": "Osnovni tok rada",
@@ -284,7 +284,7 @@
             },
             "generate": {
                 "question": "Kako da generišem video?",
-                "answer": "Kliknite na „Generiši video“ u dijalogu za pregled. Sistem će automatski sačuvati Vaše izmene, a zatim kreirati video. Dobićete imejl kada bude spreman, a napredak možete pratiti i na stranici istaknutog snimka."
+                "answer": "Kliknite na „Generiši video“ u dijalogu za pregled. Sistem će automatski sačuvati vaše izmene, a zatim kreirati video. Dobićete imejl kada bude spreman, a napredak možete pratiti i na stranici istaknutog snimka."
             },
             "editDetails": {
                 "question": "Kako da promenim naziv istaknutog snimka ili povežem temu?",
@@ -294,7 +294,7 @@
         "visual": {
             "selected": {
                 "title": "Izabrani iskazi",
-                "description": "Iskazi uključeni u Vaš istaknuti snimak prikazani su podebljanim i podvučenim tekstom. Kliknite na njih ponovo da biste ih uklonili iz istaknutog snimka.",
+                "description": "Iskazi uključeni u vaš istaknuti snimak prikazani su podebljanim i podvučenim tekstom. Kliknite na njih ponovo da biste ih uklonili iz istaknutog snimka.",
                 "example": "Ovaj iskaz je izabran"
             },
             "timeline": {

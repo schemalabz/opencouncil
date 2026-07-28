@@ -13,11 +13,11 @@
     "nav": {
         "home": "Početna",
         "subjects": "Teme",
-        "municipalities": "Opštine",
+        "municipalities": "Opštine/gradovi",
         "more": "Više",
         "menu": "Meni",
         "menuTitle": "Navigacioni meni",
-        "subjectsNearYou": "Teme u Vašoj blizini",
+        "subjectsNearYou": "Teme u vašoj blizini",
         "collapse": "Skupi",
         "backToMap": "Nazad na mapu",
         "info": "Vodič"
@@ -43,7 +43,7 @@
     },
     "search": {
         "placeholder": "Pretražite temu ili adresu",
-        "locationError": "Došlo je do problema pri određivanju Vaše lokacije. Pokušajte da dozvolite pristup lokaciji u svom pregledaču i pokušajte ponovo.",
+        "locationError": "Došlo je do problema pri određivanju vaše lokacije. Pokušajte da dozvolite pristup lokaciji u svom pregledaču i pokušajte ponovo.",
         "clearSearch": "Obriši pretragu",
         "filterCategory": "Filtriraj po kategoriji:",
         "filterMunicipality": "Filtriraj po opštini:",
@@ -51,7 +51,7 @@
         "noResults": "Nisu pronađene teme.",
         "popular": "Popularne pretrage",
         "categories": "Kategorije",
-        "municipalities": "Opštine",
+        "municipalities": "Opštine/gradovi",
         "body": "Telo",
         "duration": "Trajanje rasprave",
         "dateRange": "Vremenski period",
@@ -62,7 +62,7 @@
     },
     "list": {
         "loading": "Učitavanje tema…",
-        "emptyLocated": "Nisu pronađene teme sa lokacijom.",
+        "emptyLocated": "Nema tema sa lokacijom.",
         "rankedTitle": "Nedavno najviše razmatrano",
         "rankedExplain": "Prikazuju se teme iz trenutnog područja mape, počevši od onih o kojima se nedavno najviše i najduže raspravljalo na sednicama."
     },
@@ -87,11 +87,11 @@
         "petitionedOverflow": "i još {count, plural, one {# opština/grad} few {# opštine/grada} other {# opština/gradova}} sa {threshold}+ zahteva"
     },
     "notify": {
-        "interested": "Čini se da Vas zanima ",
+        "interested": "Čini se da vas zanima ",
         "known": "Ako želite, uključite obaveštenja da biste bili u toku sa temama o kojima se raspravlja.",
-        "unknown": "Nažalost, još nije u našoj mreži. Možete zatražiti da se pridruži, a mi ćemo Vas obavestiti čim se to dogodi.",
+        "unknown": "Nažalost, još nije u našoj mreži. Možete zatražiti da se pridruži, a mi ćemo vas obavestiti čim se to dogodi.",
         "enable": "Uključi obaveštenja",
-        "pickMunicipality": "Izaberite opštinu koja Vas zanima, da biste dobijali novosti o tome o čemu se raspravlja",
+        "pickMunicipality": "Izaberite opštinu koja vas zanima, da biste dobijali novosti o tome o čemu se raspravlja",
         "notNow": "Ne sada"
     },
     "explain": {
@@ -184,10 +184,10 @@
     ],
     "info": {
         "title": "Šta je ovo?",
-        "intro": "Mapa prikazuje teme o kojima se raspravlja na sednicama opštinskih skupština. One koje Vas zanimaju možete pronaći po kategoriji, po području ili direktno na mapi.",
+        "intro": "Na mapi možete pronaći teme o kojima se raspravlja na sednicama skupština opština/gradova. One koje vas zanimaju možete pretražiti po kategoriji, po lokaciji ili direktno na mapi.",
         "pins": {
             "title": "Teme na mapi",
-            "body": "Svaka tačka je jedna tema. Dodirnite je da biste otvorili pregled i pročitali njen opis."
+            "body": "Svaka tačka predstavlja jednu temu. Kliknite na željenu temu da biste saznali više o njoj."
         },
         "cluster": {
             "title": "Više tema na jednom mestu",
@@ -195,7 +195,7 @@
         },
         "general": {
             "title": "Teme od opšteg interesa",
-            "body": "One nemaju određenu lokaciju, pa ćete ih pronaći ispod ikonice svake opštine."
+            "body": "One nemaju određenu lokaciju, pa ćete ih pronaći ispod ikonice svake opštine/grada."
         },
         "moreBody": "Želite da saznate više o lokalnoj samoupravi — kako radi skupština, kako se finansiraju opštine i još mnogo toga?",
         "moreCta": "Saznajte više",
