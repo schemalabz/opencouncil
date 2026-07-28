@@ -18,7 +18,13 @@ export const REALMS = {
     greece: { domain: 'opencouncil.gr', defaultLocale: 'el', country: 'gr' },
     france: { domain: 'opencouncil.fr', defaultLocale: 'fr', country: 'fr' },
     cyprus: { domain: 'opencouncil.cy', defaultLocale: 'el', country: 'cy' },
-} as const satisfies Record<Realm, { domain: string; defaultLocale: 'el' | 'fr'; country: string }>;
+    // Serbian is digraphic: `sr` (Cyrillic) is the default, `sr-Latn` is the
+    // realm-exclusive Latin variant reachable via the script switcher.
+    serbia: { domain: 'opencouncil.rs', defaultLocale: 'sr', extraLocales: ['sr-Latn'], country: 'rs' },
+} as const satisfies Record<
+    Realm,
+    { domain: string; defaultLocale: 'el' | 'fr' | 'sr'; country: string; extraLocales?: readonly string[] }
+>;
 
 /**
  * All realms in `REALMS` declaration order, for UIs that enumerate realms
@@ -46,6 +52,7 @@ const REALM_DEFAULT_MAP_VIEW: Record<Realm, { center: [number, number]; zoom: nu
     greece: { center: [23.7275, 37.9838], zoom: 5 }, // Athens
     france: { center: [2.4, 46.6], zoom: 5 },        // metropolitan France
     cyprus: { center: [33.2, 35.0], zoom: 8 },       // island of Cyprus
+    serbia: { center: [20.457, 44.817], zoom: 6 },   // Belgrade
 };
 
 const hostMatchesDomain = (host: string, domain: string): boolean =>
@@ -107,27 +114,30 @@ export function isKnownRealmHost(host: string | null | undefined): boolean {
 }
 
 /**
- * Derives each realm's foreign locale prefixes: default locales of other realms
- * that differ from the realm's own default (e.g. `fr` on opencouncil.gr). The
- * proxy 301s these to the unprefixed URL; `en` is shared by all realms and is
- * never foreign.
+ * Derives each realm's foreign locales: locales belonging to other realms
+ * (their default plus any `extraLocales`, e.g. `sr-Latn` on serbia) that the
+ * realm doesn't own itself (e.g. `fr` on opencouncil.gr). The proxy 301s their
+ * URL prefixes to the unprefixed URL; `en` is shared by all realms, belongs to
+ * none, and is never foreign.
  *
  * Filtered by locale rather than by realm: realms may share a default locale,
- * and a realm's own default is never foreign on its host no matter which other
- * realm also uses it. Parameterized so that property stays testable
+ * and a realm's own locales are never foreign on its host no matter which
+ * other realm also uses them. Parameterized so that property stays testable
  * independent of the realms production defines; app code should use
  * `foreignLocalesForRealm`, which reads the result precomputed from `REALMS`
  * at module load — this runs in the proxy hot path, and the realm config being
  * static is what keeps per-request work at zero.
  */
 export function computeForeignLocales<R extends string>(
-    realms: Record<R, { defaultLocale: string }>,
+    realms: Record<R, { defaultLocale: string; extraLocales?: readonly string[] }>,
 ): Record<R, string[]> {
-    const allLocales = Object.values<{ defaultLocale: string }>(realms)
-        .map(({ defaultLocale }) => defaultLocale);
+    const ownLocales = (realm: { defaultLocale: string; extraLocales?: readonly string[] }) =>
+        [realm.defaultLocale, ...(realm.extraLocales ?? [])];
+    const allLocales = Object.values<{ defaultLocale: string; extraLocales?: readonly string[] }>(realms)
+        .flatMap(ownLocales);
     const entries = (Object.keys(realms) as R[]).map((realm) => {
-        const own = realms[realm].defaultLocale;
-        return [realm, [...new Set(allLocales.filter((locale) => locale !== own))]];
+        const own = new Set(ownLocales(realms[realm]));
+        return [realm, [...new Set(allLocales.filter((locale) => !own.has(locale)))]];
     });
     return Object.fromEntries(entries) as Record<R, string[]>;
 }

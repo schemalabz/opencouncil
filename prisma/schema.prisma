@@ -69,6 +69,7 @@ enum AuthorityType {
 enum CityLanguage {
   el
   fr
+  sr
 }
 
 // Tenant/grouping a city belongs to (e.g. the Greek vs. French deployment).
@@ -76,6 +77,7 @@ enum Realm {
   greece
   france
   cyprus
+  serbia
 }
 
 enum CityStatus {
