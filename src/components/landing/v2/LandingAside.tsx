@@ -18,6 +18,7 @@ import Image from 'next/image';
 import type { InfoSurface, LandingView } from '@/lib/landing/landingCore';
 import { FOOTER_GROUPS, isInternalHref, reopenCookiePreferences } from './navLinks';
 import { NotifyMunicipalityDialog, openAfterMenuCloses } from './NotifyMunicipalityDialog';
+import ScriptSwitcher from '@/components/layout/ScriptSwitcher';
 import { captureLandingAction } from '@/lib/landing/analytics';
 import type { LandingListCity } from '@/lib/landing/landingData';
 
@@ -110,8 +111,9 @@ export function LandingAside({
                 </button>
             </nav>
 
-            {/* bottom: policy popover + account */}
+            {/* bottom: script toggle (serbian realm only) + policy popover + account */}
             <div className="flex shrink-0 flex-col items-center gap-2">
+                <ScriptSwitcher />
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <button
