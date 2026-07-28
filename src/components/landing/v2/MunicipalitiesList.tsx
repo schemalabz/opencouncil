@@ -110,11 +110,11 @@ function MuniPanelCard({
             {next && (
                 <>
                     <div className="h-px bg-border" />
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <CalendarDays className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate">
-                            <span className="font-medium text-foreground/80">{t('municipality.nextMeeting')}</span>{' '}
-                            {formatDateTime(new Date(next.dateTime))}
+                    <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                        <CalendarDays className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        <span className="min-w-0">
+                            <span className="font-medium text-foreground/80">{t('municipality.nextMeeting')}</span>
+                            <span className="block">{formatDateTime(new Date(next.dateTime))}</span>
                         </span>
                     </div>
                 </>
