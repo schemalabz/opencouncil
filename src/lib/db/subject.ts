@@ -522,7 +522,7 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
         });
 
         // Then get the coordinates for locations that exist
-        const locationIds = subjects.filter(s => s.location).map(s => s.location!.id);
+        const locationIds = subjects.flatMap(s => s.location ? [s.location.id] : []);
 
         if (locationIds.length > 0) {
             const locationCoordinates = await prisma.$queryRaw<Array<{ id: string; x: number; y: number }>>`
@@ -531,6 +531,7 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
                 WHERE id = ANY(${locationIds}::text[])
                 AND type = 'point'
             `;
+            const coordinatesByLocationId = new Map(locationCoordinates.map(l => [l.id, l]));
 
             // Merge coordinates into the subjects
             return subjects.map(subject => ({
@@ -538,7 +539,7 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
                 location: subject.location
                     ? {
                         ...subject.location,
-                        coordinates: locationCoordinates.find(l => l.id === subject.location!.id),
+                        coordinates: coordinatesByLocationId.get(subject.location.id),
                     }
                     : null,
             }));
