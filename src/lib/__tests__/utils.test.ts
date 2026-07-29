@@ -107,10 +107,17 @@ describe('formatDateTime', () => {
     expect(formatDateTime(date)).toMatch(/2:30|14:30/);
   });
 
-  it('should handle timezone parameter', () => {
+  it('should render the time in the given timezone', () => {
     const date = new Date('2024-01-15T14:30:00Z');
-    // Just testing that it doesn't throw when timezone is provided
-    expect(() => formatDateTime(date, 'Europe/Athens')).not.toThrow();
+    // January is EET (UTC+2), so Athens runs two hours ahead of the UTC baseline.
+    expect(formatDateTime(date, 'Europe/Athens')).toMatch(/4:30/);
+    expect(formatDateTime(date, 'UTC')).toMatch(/2:30/);
+  });
+
+  it('should follow the locale parameter', () => {
+    const date = new Date('2024-01-15T14:30:00Z');
+    expect(formatDateTime(date, 'Europe/Athens', 'long', 'en')).toMatch(/January 15, 2024/);
+    expect(formatDateTime(date, 'Europe/Athens', 'long', 'el')).toMatch(/Ιανουαρίου/);
   });
 
   it('should use a compact month with dateStyle medium', () => {

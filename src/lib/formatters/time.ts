@@ -10,6 +10,17 @@ export function getDateFnsLocale(locale: string): Locale {
 }
 
 /**
+ * Map a next-intl locale string to the BCP 47 tag passed to `Intl.DateTimeFormat`.
+ * Defaults to Greek to match the app's default locale.
+ *
+ * `formatNumericDateTime` deliberately does not use this — it pins `en-GB` so its
+ * numeric output stays day-first in every locale.
+ */
+export function getIntlLocale(locale: string): string {
+    return locale === 'en' ? 'en-US' : locale === 'fr' ? 'fr-FR' : 'el-GR';
+}
+
+/**
  * Formats time in seconds to a human-readable string
  * @param time - Time in seconds
  * @returns Formatted string like "5:30" or "1:23:45"
@@ -85,12 +96,9 @@ export function formatDurationMs(ms: number): string {
  * @returns Formatted relative time string in the specified locale
  */
 export function formatRelativeTime(date: Date, locale: string = 'el'): string {
-  // Map locale to date-fns locale
-  const dateFnsLocale = locale === 'en' ? undefined : el;
-  
   return formatDistanceToNow(date, {
     addSuffix: true,
-    locale: dateFnsLocale
+    locale: getDateFnsLocale(locale)
   });
 }
 
@@ -107,7 +115,7 @@ export function formatDate(date: Date, timezone?: string, locale: string = 'el')
     options.timeZone = timezone;
   }
 
-  const intlLocale = locale === 'en' ? 'en-US' : locale === 'fr' ? 'fr-FR' : 'el-GR';
+  const intlLocale = getIntlLocale(locale);
   if (date instanceof Date) {
     return new Intl.DateTimeFormat(intlLocale, options).format(date);
   } else if (typeof date === 'string') {
@@ -147,9 +155,10 @@ export function formatNumericDateTime(date: Date, timezone?: string, locale: str
  * @param date - The date to format
  * @param timezone - Optional timezone
  * @param dateStyle - Optional date style (defaults to 'long'; use 'medium'/'short' for compact contexts)
+ * @param locale - Optional locale (defaults to 'el' to match the app's default locale)
  * @returns Formatted date and time string
  */
-export function formatDateTime(date: Date, timezone?: string, dateStyle: 'long' | 'medium' | 'short' = 'long'): string {
+export function formatDateTime(date: Date, timezone?: string, dateStyle: 'long' | 'medium' | 'short' = 'long', locale: string = 'el'): string {
   const options: Intl.DateTimeFormatOptions = {
     dateStyle,
     timeStyle: 'short'
@@ -159,10 +168,11 @@ export function formatDateTime(date: Date, timezone?: string, dateStyle: 'long' 
     options.timeZone = timezone;
   }
 
+  const intlLocale = getIntlLocale(locale);
   if (date instanceof Date) {
-    return new Intl.DateTimeFormat('el-GR', options).format(date);
+    return new Intl.DateTimeFormat(intlLocale, options).format(date);
   } else if (typeof date === 'string') {
-    return new Intl.DateTimeFormat('el-GR', options).format(new Date(date));
+    return new Intl.DateTimeFormat(intlLocale, options).format(new Date(date));
   } else {
     throw new Error(`Invalid date: ${date}`);
   }
