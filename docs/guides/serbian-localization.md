@@ -62,6 +62,23 @@ Style conventions:
   script in both catalogs.
 - ICU plurals use Serbian categories `one`/`few`/`other` (paucal 2–4 → `few`).
 
+## Viewing the serbia realm
+
+`opencouncil.rs` has no DNS yet, so use the `?realm=serbia` override on any
+non-production host (see the preview deployments guide):
+
+- **PR preview**: open `https://pr-N.preview.opencouncil.gr/?realm=serbia`.
+  The seed data includes a Belgrade review fixture — open `/beograd` for a
+  released meeting with a Cyrillic-stored and a Latin-stored speaker segment,
+  agenda subjects and Serbian topics; use the Ћир | Lat switcher (or the
+  `/lat` URL prefix) to check both scripts.
+- **Local dev**: `http://localhost:3000/?realm=serbia` after `npx prisma db
+  seed` (the fixture seeds idempotently alongside the dump).
+- Alternatively, spoof the Host header: `curl -H 'Host: opencouncil.rs'
+  localhost:3000/beograd`.
+
+Switch back with `?realm=greece`.
+
 ## Reviewer workflow
 
 1. Edit **only** `messages/sr.json` and `messages/sr/*.json` (PRs welcome —
