@@ -34,6 +34,11 @@ Technical but accessible. Concise. No marketing language. Factual.
 <!-- Bulleted list of refactors, dependency updates, CI changes. -->
 <!-- Keep this brief — one line per item. -->
 <!-- Omit this section if there's nothing notable. -->
+
+## Contributors
+
+<!-- One line thanking everyone who authored code in this release, by @username: -->
+<!-- "Thanks to @user1, @user2 and @user3 for contributing to this release." -->
 ```
 
 ## Rules
@@ -42,5 +47,5 @@ Technical but accessible. Concise. No marketing language. Factual.
 - **Lead with user impact**, not implementation: "Meeting search now supports date range filters" not "Add date range params to SearchQuery type"
 - **Reference PRs/issues** where relevant: `(#123)`
 - **Skip trivial changes** — typo fixes, formatting, minor refactors don't need individual bullets unless they're the only changes
-- **No "Contributors" section** — GitHub generates this automatically
+- **Always include the "Contributors" section** — GitHub builds the release page's contributor avatar list from the users @-mentioned in the release body, not from the commits. Without mentions, only the release author is shown. Use the usernames collected in Step 2 of the skill; never guess usernames from commit author names
 - **Empty sections should be omitted entirely**, not left with "None" or "N/A"

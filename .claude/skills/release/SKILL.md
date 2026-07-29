@@ -78,23 +78,37 @@ If there are no commits between source branch and production, stop and tell the 
 
 ### Create backup branches
 
-Before any destructive operations, snapshot the current state of both branches:
+Back up only what a release can actually lose, and clear the previous release's backups first — nothing in this workflow ever reads a backup older than one cycle.
 
 ```bash
+# Detect hotfixes now: it decides whether production needs a backup, and it must be
+# evaluated BEFORE the rebase below, which folds these commits into the source branch
+HOTFIXES=$(git log --oneline $REMOTE/$SOURCE_BRANCH..$REMOTE/production)
+
+# Previous releases' backups are dead weight once this release starts
+git branch --list 'backup/*-pre-release-*' | tr -d ' ' | xargs -r git branch -D
+
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+
+# Source branch: the hotfix rebase below rewrites these commits to new SHAs
 git branch backup/$SOURCE_BRANCH-pre-release-$TIMESTAMP $REMOTE/$SOURCE_BRANCH
-git branch backup/production-pre-release-$TIMESTAMP $REMOTE/production
+
+# Production: only when it carries commits that may exist nowhere else
+if [ -n "$HOTFIXES" ]; then
+  git branch backup/production-pre-release-$TIMESTAMP $REMOTE/production
+fi
 ```
 
-Tell the user the backup branch names so they can recover if anything goes wrong.
+**Why production is usually skipped:** the release only ever fast-forwards production, so its pre-release tip stays reachable as an ancestor of the new tip — a backup pointer adds nothing. The exception is a hotfix applied directly to production: every other commit in a release arrived via a PR and so has a second home on a PR branch, but a direct hotfix may exist on no other ref anywhere.
+
+Tell the user which backup branches were created. Note that a deleted branch's commits stay recoverable by SHA from the reflog, which git enables by default in any non-bare repo (`core.logAllRefUpdates`); once unreachable they survive `gc.reflogExpireUnreachable`, 30 days by default. These branches exist for discoverability — finding a commit by name instead of digging through `git reflog` — not as the only safety net.
 
 ### Check for production-only commits (hotfixes)
 
-Production may have commits that source branch doesn't (e.g., hotfixes applied directly to production):
+Production may have commits that source branch doesn't (e.g., hotfixes applied directly to production) — captured as `$HOTFIXES` above:
 
 ```bash
-# Commits on production that are NOT on source branch
-git log --oneline $REMOTE/$SOURCE_BRANCH..$REMOTE/production
+echo "${HOTFIXES:-none}"
 ```
 
 If this returns any commits, **source branch must be rebased on top of production before proceeding**. Tell the user:
@@ -141,6 +155,19 @@ git diff $RANGE
 ```
 
 **Important**: Commit messages are a signal, not the source of truth. Always cross-reference messages against the actual diff to understand what really changed. Commits may understate, overstate, or mislabel changes.
+
+### Collect contributors
+
+GitHub populates the release page's "Contributors" avatar list from the users @-mentioned in the release body — it does not derive it from the commits. Collect the GitHub username of everyone who authored code in the range so the release notes can credit them:
+
+```bash
+# PR authors — squash-merge subjects carry the PR number
+for pr in $(git log --format="%s" $RANGE | grep -oE '#[0-9]+' | tr -d '#' | sort -un); do
+  gh pr view $pr --json author -q .author.login
+done | sort -u
+```
+
+For commits without a PR reference (e.g. direct pushes, hotfixes), check `git log --format='%an <%ae>' $RANGE` for authors not already covered. GitHub noreply emails (`12345+username@users.noreply.github.com`) contain the username directly; otherwise resolve via `gh api "search/users?q=<email>+in:email" -q '.items[].login'` or ask the user — **never guess a username from a display name**, since a wrong @mention credits a stranger.
 
 ## Step 3: Determine Version
 
