@@ -4,9 +4,9 @@ import { Card, CardContent } from "../ui/card";
 import { useLocale, useTranslations } from 'next-intl';
 import React, { useEffect, useState, useMemo } from 'react';
 import { format, formatDistanceToNow, isFuture } from 'date-fns';
-import { el, enUS } from 'date-fns/locale';
 import { CalendarIcon, Clock, Loader2, ChevronRight, Building } from 'lucide-react';
-import { sortSubjectsByImportance, formatDateTime, IS_DEV } from '@/lib/utils';
+import { sortSubjectsByImportance, IS_DEV } from '@/lib/utils';
+import { formatDateTime, getDateFnsLocale } from '@/lib/formatters/time';
 import SubjectBadge from '../subject-badge';
 import { cn } from '@/lib/utils';
 import { Link } from '@/i18n/routing';
@@ -25,7 +25,7 @@ interface MeetingCardProps {
     item: CouncilMeetingWithAdminBodyAndSubjects;
     editable: boolean;
     mostRecent?: boolean;
-    cityTimezone?: string;
+    cityTimezone: string;
     headingLevel?: 'h2' | 'h3';
 }
 
@@ -152,7 +152,7 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                                     <span className="relative z-10 flex items-center gap-1.5">
                                         <Clock className="w-3.5 h-3.5" />
                                         {isUpcoming ? (
-                                            <>{t('upcoming')}: {formatDistanceToNow(meeting.dateTime, { locale: locale === 'el' ? el : enUS })}</>
+                                            <>{t('upcoming')}: {formatDistanceToNow(meeting.dateTime, { locale: getDateFnsLocale(locale) })}</>
                                         ) : (
                                             t('today')
                                         )}
@@ -188,7 +188,7 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                             )}
                             <div className="flex items-center gap-1">
                                 <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground/70" />
-                                <span>{formatDateTime(meeting.dateTime, cityTimezone)}</span>
+                                <span>{formatDateTime(meeting.dateTime, cityTimezone, 'long', locale)}</span>
                             </div>
                         </div>
 
