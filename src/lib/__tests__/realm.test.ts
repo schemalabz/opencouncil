@@ -1,4 +1,14 @@
-import { realmForHost, createRealmResolver, isKnownRealmHost, computeForeignLocales, foreignLocalesForRealm } from '../realm';
+import {
+    realmForHost,
+    createRealmResolver,
+    isKnownRealmHost,
+    computeForeignLocales,
+    foreignLocalesForRealm,
+    isRealm,
+    isRealmApexHost,
+    realmOverride,
+    effectiveRealm,
+} from '../realm';
 
 describe('createRealmResolver', () => {
     // Parent declared first so a naive first-match would wrongly return it for
@@ -72,6 +82,55 @@ describe('isKnownRealmHost', () => {
         expect(isKnownRealmHost('localhost')).toBe(false);
         expect(isKnownRealmHost('')).toBe(false);
         expect(isKnownRealmHost(null)).toBe(false);
+    });
+});
+
+describe('isRealm', () => {
+    it('accepts configured realm names and rejects everything else', () => {
+        expect(isRealm('greece')).toBe(true);
+        expect(isRealm('serbia')).toBe(true);
+        expect(isRealm('atlantis')).toBe(false);
+        expect(isRealm('')).toBe(false);
+        expect(isRealm(null)).toBe(false);
+        expect(isRealm(undefined)).toBe(false);
+        // Object prototype keys must not slip through the `in` check.
+        expect(isRealm('toString')).toBe(false);
+    });
+});
+
+describe('isRealmApexHost', () => {
+    it('matches only the exact production apex, port-insensitive', () => {
+        expect(isRealmApexHost('opencouncil.gr')).toBe(true);
+        expect(isRealmApexHost('OpenCouncil.RS:443')).toBe(true);
+    });
+
+    it('rejects subdomains (previews), localhost and unknown hosts', () => {
+        expect(isRealmApexHost('pr-7.preview.opencouncil.gr')).toBe(false);
+        expect(isRealmApexHost('www.opencouncil.gr')).toBe(false);
+        expect(isRealmApexHost('localhost:3000')).toBe(false);
+        expect(isRealmApexHost('evil.com')).toBe(false);
+        expect(isRealmApexHost(null)).toBe(false);
+    });
+});
+
+describe('realmOverride / effectiveRealm', () => {
+    it('honors a valid override cookie on preview hosts and localhost', () => {
+        expect(realmOverride('pr-7.preview.opencouncil.gr', 'serbia')).toBe('serbia');
+        expect(effectiveRealm('pr-7.preview.opencouncil.gr', 'serbia')).toBe('serbia');
+        expect(effectiveRealm('localhost:3000', 'france')).toBe('france');
+    });
+
+    it('ignores the override on production apex hosts', () => {
+        expect(realmOverride('opencouncil.gr', 'serbia')).toBeUndefined();
+        expect(effectiveRealm('opencouncil.gr', 'serbia')).toBe('greece');
+        expect(effectiveRealm('opencouncil.rs', 'greece')).toBe('serbia');
+    });
+
+    it('ignores invalid or absent cookie values and falls back to the host realm', () => {
+        expect(realmOverride('pr-7.preview.opencouncil.gr', 'atlantis')).toBeUndefined();
+        expect(effectiveRealm('pr-7.preview.opencouncil.gr', 'atlantis')).toBe('greece');
+        expect(effectiveRealm('pr-7.preview.opencouncil.fr', undefined)).toBe('france');
+        expect(effectiveRealm('localhost:3000', undefined)).toBe('greece');
     });
 });
 

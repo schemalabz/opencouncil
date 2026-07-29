@@ -136,4 +136,15 @@ describe('foreignLocaleRedirectPath', () => {
         expect(foreignLocaleRedirectPath('opencouncil.gr', '/srbija')).toBeNull();
         expect(foreignLocaleRedirectPath('opencouncil.gr', '/latinika')).toBeNull();
     });
+
+    it('with a realm override, treats the host as that realm', () => {
+        // Preview host (greece by Host) overridden to serbia: Serbian locales
+        // become native, Greek becomes foreign — mirroring opencouncil.rs.
+        expect(foreignLocaleRedirectPath('pr-7.preview.opencouncil.gr', '/lat/beograd', 'serbia')).toBeNull();
+        expect(foreignLocaleRedirectPath('pr-7.preview.opencouncil.gr', '/el/beograd', 'serbia')).toBe('/beograd');
+        // Even on unknown hosts (localhost) the override applies, so the
+        // emulation is faithful in local dev too.
+        expect(foreignLocaleRedirectPath('localhost:3000', '/el/beograd', 'serbia')).toBe('/beograd');
+        expect(foreignLocaleRedirectPath('localhost:3000', '/lat/beograd', 'serbia')).toBeNull();
+    });
 });

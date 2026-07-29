@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useLocale } from "next-intl"
 import { usePathname } from "@/i18n/routing"
-import { realmForHost } from "@/lib/realm"
+import { realmForBrowser } from "@/lib/realm.client"
 import { isSerbianLocale } from "@/lib/serbian"
 import { cn } from "@/lib/utils"
 
@@ -35,7 +35,7 @@ export default function ScriptSwitcher({ className }: { className?: string }) {
     // navigations that don't remount this component. setState bails out when
     // the value is unchanged, so this settles immediately.
     useEffect(() => {
-        setOnSerbianHost(realmForHost(window.location.hostname) === "serbia")
+        setOnSerbianHost(realmForBrowser() === "serbia")
         setSearch(window.location.search)
     })
 

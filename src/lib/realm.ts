@@ -114,6 +114,54 @@ export function isKnownRealmHost(host: string | null | undefined): boolean {
 }
 
 /**
+ * Cookie carrying a realm override on non-production hosts (see
+ * `isRealmApexHost`). Set by the proxy when a request arrives with
+ * `?realm=<realm>`; read by the proxy, `getRealm()` and `realmForBrowser()` so
+ * previews and localhost can be viewed as any realm despite their Host
+ * resolving elsewhere (preview hosts are subdomains of opencouncil.gr, and
+ * some realm domains — e.g. opencouncil.rs — have no DNS yet).
+ */
+export const REALM_OVERRIDE_COOKIE = 'oc-realm';
+
+/** Type guard: whether an arbitrary string names a configured realm. */
+export function isRealm(value: string | null | undefined): value is Realm {
+    // hasOwnProperty, not `in`: the value is attacker-controlled (a cookie)
+    // and `in` walks the prototype chain ('toString' in REALMS is true).
+    return typeof value === 'string' && Object.prototype.hasOwnProperty.call(REALMS, value);
+}
+
+/**
+ * Whether a Host header value is exactly a realm's canonical production apex
+ * (`opencouncil.gr`, not `pr-7.preview.opencouncil.gr` or `localhost`). The
+ * realm override is honored only on non-apex hosts: production domains must
+ * stay deterministic per-Host for SEO and CDN sanity, while previews and local
+ * dev — which can't reach other realms by Host at all — get the escape hatch.
+ */
+export function isRealmApexHost(host: string | null | undefined): boolean {
+    const normalized = (host ?? '').split(':')[0].toLowerCase();
+    if (!normalized) return false;
+    return Object.values(REALMS).some(({ domain }) => normalized === domain);
+}
+
+/**
+ * The active realm override, or undefined when there is none: the override
+ * cookie's value when it names a realm and the host is not a production apex.
+ * The single decision point for whether an override applies — shared by the
+ * proxy, `getRealm()` and `realmForBrowser()` so the gating rule can't drift.
+ */
+export function realmOverride(
+    host: string | null | undefined,
+    overrideCookie: string | null | undefined,
+): Realm | undefined {
+    return !isRealmApexHost(host) && isRealm(overrideCookie) ? overrideCookie : undefined;
+}
+
+/** The realm to treat a request as belonging to: the override if active, else the host's realm. */
+export function effectiveRealm(host: string | null | undefined, overrideCookie: string | null | undefined): Realm {
+    return realmOverride(host, overrideCookie) ?? realmForHost(host);
+}
+
+/**
  * Derives each realm's foreign locales: locales belonging to other realms
  * (their default plus any `extraLocales`, e.g. `sr-Latn` on serbia) that the
  * realm doesn't own itself (e.g. `fr` on opencouncil.gr). The proxy 301s their

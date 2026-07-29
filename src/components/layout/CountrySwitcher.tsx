@@ -3,7 +3,8 @@
 import { useState } from "react"
 import { Globe, ChevronDown } from "lucide-react"
 import { Realm } from "@prisma/client"
-import { ALL_REALMS, REALMS, getRealmBaseUrl, getRealmDisplayName, realmForHost } from "@/lib/realm"
+import { ALL_REALMS, REALMS, getRealmBaseUrl, getRealmDisplayName } from "@/lib/realm"
+import { realmForBrowser } from "@/lib/realm.client"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -27,7 +28,7 @@ export default function CountrySwitcher() {
     // country (no flash). SSR has no window and renders greece; the trigger label
     // is suppressHydrationWarning so the .fr client value doesn't warn on mismatch.
     const [realm] = useState<Realm>(() =>
-        typeof window !== "undefined" ? realmForHost(window.location.hostname) : "greece"
+        typeof window !== "undefined" ? realmForBrowser() : "greece"
     )
 
     function switchTo(target: Realm) {

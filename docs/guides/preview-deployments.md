@@ -358,6 +358,26 @@ Each isolated DB runs on port `5432 + PR_NUMBER` (e.g., PR 288 → port 5720), u
 psql -h 127.0.0.1 -p $((5432 + PR_NUM)) -U opencouncil -d opencouncil
 ```
 
+## Testing Other Realms
+
+Preview hosts are subdomains of `opencouncil.gr`, so every preview resolves to
+the **greece** realm by Host header — and some realm domains (e.g.
+`opencouncil.rs`) have no DNS at all yet. To review another realm, append
+`?realm=<realm>` to any preview URL:
+
+```
+https://pr-288.preview.opencouncil.gr/?realm=serbia
+```
+
+The proxy stores the realm in an `oc-realm` cookie (30 days) and redirects to
+the clean URL; from then on the whole app — landing page city list, realm
+guards, default locale, locale redirects, script switcher — behaves as that
+realm. Switch back with `?realm=greece`, or clear the cookie.
+
+The override works on any non-production host (previews, localhost) and is
+ignored on the production apex domains. See `realmOverride` in
+`src/lib/realm.ts`.
+
 ## Troubleshooting
 
 **Amended migration files (schema mismatch after force-push):**

@@ -3,7 +3,7 @@ import { routing, LOCALE_OVERRIDE_HEADER } from './i18n/routing';
 import { NextResponse, NextRequest } from 'next/server';
 import { auth } from './auth'
 import { env } from '@/env.mjs';
-import { REALMS, realmForHost } from './lib/realm';
+import { REALMS, REALM_OVERRIDE_COOKIE, isRealm, isRealmApexHost, realmForHost, realmOverride } from './lib/realm';
 import { foreignLocaleRedirectPath, wwwRedirectTarget } from './lib/seo-redirects';
 import { localePrefixPattern } from './i18n/config';
 
@@ -76,10 +76,32 @@ export default async function proxy(req: NextRequest) {
         return NextResponse.rewrite(url);
     }
 
+    // Realm override for non-production hosts: `?realm=serbia` persists the
+    // realm in a cookie and redirects to the clean URL; from then on the
+    // request is treated as that realm end-to-end (this proxy, `getRealm()`,
+    // client components). Previews are subdomains of opencouncil.gr and some
+    // realm domains have no DNS yet, so this is the only way to review other
+    // realms there. Ignored on production apex hosts — see `isRealmApexHost`.
+    const host = req.headers.get('host');
+    const realmParam = req.nextUrl.searchParams.get('realm');
+    if (realmParam !== null && isRealm(realmParam) && !isRealmApexHost(host)) {
+        const cleanUrl = req.nextUrl.clone();
+        cleanUrl.searchParams.delete('realm');
+        const response = NextResponse.redirect(cleanUrl, 302);
+        response.cookies.set(REALM_OVERRIDE_COOKIE, realmParam, {
+            path: '/',
+            maxAge: 60 * 60 * 24 * 30,
+            sameSite: 'lax',
+        });
+        return response;
+    }
+    const override = realmOverride(host, req.cookies.get(REALM_OVERRIDE_COOKIE)?.value);
+    const realm = override ?? realmForHost(host);
+
     // A foreign locale prefix on a realm host (/fr on .gr, /el on .fr) is an
     // orphaned duplicate tree — 301 it to the unprefixed URL. Must run before
     // the .fr rewrite and the i18n middleware below.
-    const strippedPath = foreignLocaleRedirectPath(req.headers.get('host'), pathname);
+    const strippedPath = foreignLocaleRedirectPath(host, pathname, override);
     if (strippedPath !== null) {
         return NextResponse.redirect(new URL(strippedPath + req.nextUrl.search, req.url), 301);
     }
@@ -92,8 +114,9 @@ export default async function proxy(req: NextRequest) {
     // messages load without next-intl's middleware running for these requests.
     // Only applies when the path has no explicit locale prefix, so an explicit
     // /en (or /lat on .rs) is still respected. Unknown hosts (localhost)
-    // resolve to greece, whose default is the app default — dev is unaffected.
-    const realmDefaultLocale = REALMS[realmForHost(req.headers.get('host'))].defaultLocale;
+    // resolve to greece, whose default is the app default — dev is unaffected
+    // unless a realm override cookie says otherwise.
+    const realmDefaultLocale = REALMS[realm].defaultLocale;
     if (
         realmDefaultLocale !== routing.defaultLocale &&
         !LOCALE_PREFIX_RE.test(pathname) &&

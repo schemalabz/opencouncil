@@ -4,6 +4,8 @@ let currentHost: string;
 
 jest.mock('next/headers', () => ({
     headers: async () => new Headers({ host: currentHost }),
+    // getRealm() also consults the realm-override cookie; no override here.
+    cookies: async () => ({ get: () => undefined }),
 }));
 
 describe('buildCanonicalAlternates', () => {

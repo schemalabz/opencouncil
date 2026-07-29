@@ -1,3 +1,4 @@
+import { Realm } from '@prisma/client';
 import { REALMS, foreignLocalesForRealm, isKnownRealmHost, realmForHost } from '@/lib/realm';
 import { urlPrefixForLocale } from '@/i18n/config';
 
@@ -38,14 +39,20 @@ export function wwwRedirectTarget(host: string | null | undefined, pathname: str
  *
  * - Matches by URL prefix, not locale id — `sr-Latn` lives at `/lat`.
  * - Only on known realm hosts, so localhost keeps serving all locale prefixes
- *   for development.
+ *   for development — unless `realmOverride` is set (the `?realm=` escape
+ *   hatch, see `realmOverride` in `realm.ts`), in which case the host is
+ *   treated as that realm's host so the emulation is faithful everywhere.
  * - The realm's own default prefix (`/el` on `.gr`) is next-intl's job — its
  *   middleware already redirects it away. `/en` intentionally keeps serving
  *   200 (it canonicalizes to the default-locale URL instead).
  */
-export function foreignLocaleRedirectPath(host: string | null | undefined, pathname: string): string | null {
-    if (!isKnownRealmHost(host)) return null;
-    const realm = realmForHost(host);
+export function foreignLocaleRedirectPath(
+    host: string | null | undefined,
+    pathname: string,
+    realmOverride?: Realm,
+): string | null {
+    if (realmOverride === undefined && !isKnownRealmHost(host)) return null;
+    const realm = realmOverride ?? realmForHost(host);
     for (const locale of foreignLocalesForRealm(realm)) {
         const prefix = urlPrefixForLocale(locale);
         if (pathname === `/${prefix}`) return '/';
