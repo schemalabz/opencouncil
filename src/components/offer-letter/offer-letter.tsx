@@ -363,37 +363,18 @@ function CostTable({ offer }: { offer: Offer }) {
                             amount={line.amount}
                         />
                     ))}
-                    {/* Subtotal */}
-                    <tr className="border-t border-neutral-200">
-                        <td className="px-5 py-3 text-right text-neutral-600" colSpan={3}>
-                            Μερικό σύνολο
-                        </td>
-                        <td className="px-5 py-3 text-right font-medium">
-                            {b.subtotal}
-                        </td>
-                    </tr>
-
-                    {b.discountAmount && (
-                        <tr>
-                            <td className="px-5 py-3 text-right text-orange" colSpan={3}>
-                                {b.discountLabel}
-                            </td>
-                            <td className="px-5 py-3 text-right font-medium text-orange">
-                                −{b.discountAmount}
-                            </td>
-                        </tr>
-                    )}
-
-                    {/* Total */}
-                    <tr className="border-t-2 border-neutral-900 bg-neutral-50">
-                        <td className="px-5 py-4 text-right font-semibold text-neutral-900" colSpan={3}>
-                            Σύνολο
-                        </td>
-                        <td className="px-5 py-4 text-right text-xl font-bold text-neutral-900">
-                            {b.total}
-                        </td>
-                    </tr>
                 </tbody>
+                <tfoot>
+                    <SummaryRow variant="subtotal" label="Μερικό σύνολο" amount={b.subtotal} />
+                    {b.discountAmount && (
+                        <SummaryRow
+                            variant="discount"
+                            label={b.discountLabel!}
+                            amount={`−${b.discountAmount}`}
+                        />
+                    )}
+                    <SummaryRow variant="total" label="Σύνολο" amount={b.total} />
+                </tfoot>
             </table>
             <p className="px-5 py-3 text-xs text-muted-foreground italic border-t border-neutral-200 text-right">
                 Οι τιμές δεν περιλαμβάνουν ΦΠΑ.
@@ -429,6 +410,54 @@ function CostRow({
             <td className={`px-3 py-3 text-right hidden sm:table-cell whitespace-nowrap ${txt}`}>{qty}</td>
             <td className={`px-3 py-3 text-right hidden sm:table-cell whitespace-nowrap ${txt}`}>{rate}</td>
             <td className={`px-5 py-3 text-right font-medium whitespace-nowrap ${muted ? "text-neutral-500" : "text-neutral-900"}`}>
+                {amount}
+            </td>
+        </tr>
+    );
+}
+
+function SummaryRow({
+    variant,
+    label,
+    amount,
+}: {
+    variant: "subtotal" | "discount" | "total";
+    label: string;
+    amount: string;
+}) {
+    const config: Record<typeof variant, { row?: string; cell: string; label: string; amount: string }> = {
+        subtotal: {
+            row: "border-t border-neutral-200",
+            cell: "py-3",
+            label: "text-neutral-600",
+            amount: "font-medium",
+        },
+        discount: {
+            cell: "py-3",
+            label: "text-orange",
+            amount: "font-medium text-orange",
+        },
+        total: {
+            row: "border-t-2 border-neutral-900 bg-neutral-50",
+            cell: "py-4",
+            label: "font-semibold text-neutral-900",
+            amount: "text-xl font-bold text-neutral-900",
+        },
+    };
+    const s = config[variant];
+    const labelCell = `px-5 ${s.cell} text-right ${s.label}`;
+    // The label cell spans the numeric columns on desktop, but those columns
+    // don't exist on mobile — a colSpan there would force phantom columns and
+    // push the amount off-screen, so we render a separate mobile label cell.
+    return (
+        <tr className={s.row}>
+            <td className={`${labelCell} hidden sm:table-cell`} colSpan={3}>
+                {label}
+            </td>
+            <td className={`${labelCell} sm:hidden`}>
+                {label}
+            </td>
+            <td className={`px-5 ${s.cell} text-right whitespace-nowrap ${s.amount}`}>
                 {amount}
             </td>
         </tr>
