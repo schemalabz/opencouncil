@@ -7,6 +7,7 @@ const profileFields = {
     phone: z.string().nullable(),
     allowProductUpdates: z.boolean(),
     allowPetitionUpdates: z.boolean(),
+    allowFeedbackCalls: z.boolean(),
     onboarded: z.boolean(),
 };
 

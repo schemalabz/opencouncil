@@ -699,6 +699,8 @@
         "allowProductUpdatesDescription": "Επιτρέπω στο OpenCouncil να επικοινωνήσει μαζί μου για σημαντικές ενημερώσεις και ανακοινώσεις.",
         "allowPetitionUpdates": "Ενημερώσεις αιτημάτων",
         "allowPetitionUpdatesDescription": "Επιτρέπω στο OpenCouncil να με ενημερώνει για την πορεία των αιτημάτων που υπέβαλα για την υποστήριξη νέων δήμων.",
+        "allowFeedbackCalls": "Βοήθησέ μας να γίνουμε καλύτεροι",
+        "allowFeedbackCallsDescription": "Μπορεί πού και πού να σε καλούμε για να μας πεις τη γνώμη σου για το OpenCouncil.",
         "saving": "Αποθήκευση...",
         "saveProfile": "Αποθήκευση Προφίλ",
         "savePersonalInfo": "Αποθήκευση προσωπικών στοιχείων",

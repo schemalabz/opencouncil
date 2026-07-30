@@ -690,6 +690,8 @@
         "allowProductUpdatesDescription": "J'autorise OpenCouncil à me contacter pour des mises à jour et annonces importantes.",
         "allowPetitionUpdates": "Mises à jour des pétitions",
         "allowPetitionUpdatesDescription": "J'autorise OpenCouncil à m'informer de l'avancement des pétitions que j'ai soumises pour soutenir de nouvelles communes.",
+        "allowFeedbackCalls": "Aidez-nous à nous améliorer",
+        "allowFeedbackCallsDescription": "Nous pouvons vous appeler de temps en temps pour connaître votre avis sur OpenCouncil.",
         "saving": "Enregistrement...",
         "saveProfile": "Enregistrer le profil",
         "savePersonalInfo": "Enregistrer les informations personnelles",

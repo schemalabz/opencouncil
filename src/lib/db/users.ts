@@ -200,7 +200,7 @@ export async function deleteCurrentUser(): Promise<void> {
     await prisma.user.delete({ where: { id: user.id } });
 }
 
-export type UserProfileUpdateData = Partial<Pick<User, 'name' | 'phone' | 'allowProductUpdates' | 'allowPetitionUpdates' | 'onboarded'>>;
+export type UserProfileUpdateData = Partial<Pick<User, 'name' | 'phone' | 'allowProductUpdates' | 'allowPetitionUpdates' | 'allowFeedbackCalls' | 'onboarded'>>;
 
 export async function updateUserProfile(id: string, data: UserProfileUpdateData): Promise<User> {
     try {
