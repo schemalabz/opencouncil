@@ -114,94 +114,6 @@ const MeetingOGImage = async (cityId: string, meetingId: string, reqId: string) 
     );
 };
 
-// Meeting Feed OG Image (Square - 1080x1080)
-const MeetingFeedOGImage = async (cityId: string, meetingId: string, reqId: string) => {
-    const fetchT0 = Date.now();
-    console.log(`[og:${reqId}] fetching variant=feed city=${cityId} meeting=${meetingId}`);
-    const data = await getMeetingDataForOG(cityId, meetingId);
-    if (!data) {
-        console.log(`[og:${reqId}] not-found variant=feed city=${cityId} meeting=${meetingId}`);
-        return null;
-    }
-    logSubjectCounts(reqId, 'feed', data.subjects ?? [], Date.now() - fetchT0);
-
-    const meetingDate = new Date(data.dateTime);
-    const formattedDate = meetingDate.toLocaleDateString('el-GR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-    });
-
-    const sortT0 = Date.now();
-    const sortedSubjects = sortSubjectsByImportance(data.subjects);
-    console.log(`[og:${reqId}] sorted variant=feed in ${Date.now() - sortT0}ms`);
-
-    const cityDisplayName = formatCityDisplayName(data.city.name_municipality, data.administrativeBody?.name);
-
-    return (
-        <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI} watermarkProps={{ logoOnly: true, size: 120 }}>
-            <OgHeader
-                city={{
-                    name: cityDisplayName,
-                    logoImage: data.city.logoImage
-                }}
-            />
-
-            <div style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '28px',
-                paddingTop: '8px',
-            }}>
-                <h1 style={{
-                    fontSize: 64,
-                    fontWeight: 800,
-                    color: '#111827',
-                    lineHeight: 1.25,
-                    margin: 0,
-                    maxWidth: '98%',
-                }}>
-                    {data.name}
-                </h1>
-
-                <MeetingMetaRow
-                    formattedDate={formattedDate}
-                    subjectsCount={data.subjects?.length || 0}
-                    fontSize={32}
-                    gap={24}
-                    iconGap={8}
-                />
-
-                {sortedSubjects.length > 0 && (
-                    <SubjectPills
-                        subjects={sortedSubjects}
-                        limit={6}
-                        styles={{
-                            containerGap: 14,
-                            containerMarginTop: 14,
-                            pillPadding: [16, 30],
-                            pillRadius: 9999,
-                            pillFontSize: 30,
-                            pillFontWeight: 800,
-                            pillBoxShadow: '0 3px 6px rgba(0, 0, 0, 0.08)',
-                            pillMaxWidth: '95%',
-                            remainingFontSize: 20,
-                            remainingMarginTop: 4,
-                            remainingColor: '#6b7280',
-                        }}
-                    />
-                )}
-            </div>
-        </Container>
-    );
-};
-
-// Meeting Story OG Image (1080×1920) is now rendered client-side via
-// src/lib/export/storyImage.tsx + ShareDropdown to avoid the satori/yoga
-// hang on Athens-scale data. The four templates are only invoked from the
-// browser — `?variant=story` is no longer handled by this route.
-
 // City OG Image
 const CityOGImage = async (cityId: string) => {
     // Fetch only the data we need in parallel
@@ -850,16 +762,15 @@ export async function GET(request: Request) {
     const personId = searchParams.get('personId');
     const subjectId = searchParams.get('subjectId');
     const pageType = searchParams.get('pageType'); // 'people', 'about', 'explain', 'search', 'chat'
-    const variant = searchParams.get('variant'); // 'feed' for 1:1, default is landscape (story is client-side now)
 
     // Short per-request id so concurrent requests' logs can be untangled by grepping a tag.
     const reqId = crypto.randomUUID().slice(0, 8);
-    console.log(`[og:${reqId}] enter variant=${variant ?? 'default'} city=${cityId ?? '-'} meeting=${meetingId ?? '-'} subject=${subjectId ?? '-'} pageType=${pageType ?? '-'}`);
+    console.log(`[og:${reqId}] enter city=${cityId ?? '-'} meeting=${meetingId ?? '-'} subject=${subjectId ?? '-'} pageType=${pageType ?? '-'}`);
 
     const slot = tryAcquireOgSlot();
     if (!slot) {
         const stats = getOgConcurrencyStats();
-        console.warn(`[og:${reqId}] 429 capacity ${stats.active}/${stats.max} variant=${variant ?? 'default'}`);
+        console.warn(`[og:${reqId}] 429 capacity ${stats.active}/${stats.max}`);
         return new Response('OG image generator at capacity — try again shortly.', {
             status: 429,
             headers: { 'Retry-After': '5' },
@@ -869,8 +780,8 @@ export async function GET(request: Request) {
     const t0 = Date.now();
     try {
         let element;
-        let width = 1200;
-        let height = 630;
+        const width = 1200;
+        const height = 630;
 
         if (consultationId && cityId) {
             element = await ConsultationOGImage(cityId, consultationId);
@@ -879,19 +790,13 @@ export async function GET(request: Request) {
             // Note: locale doesn't affect the image content, so we use 'el' as default
             return await SubjectOgImage({ params: Promise.resolve({ locale: 'el', cityId, meetingId, subjectId }) });
         } else if (meetingId && cityId) {
-            // Handle variant for meeting images. ?variant=story is no longer served here —
-            // story exports render client-side via src/lib/export/storyImage.tsx. A stray
-            // story request falls through to the default landscape, which is a reasonable
-            // fallback for any external caller still on the old URL shape.
-            if (variant === 'feed') {
-                // Square format for feed posts
-                element = await MeetingFeedOGImage(cityId, meetingId, reqId);
-                width = 1080;
-                height = 1080;
-            } else {
-                // Default landscape format
-                element = await MeetingOGImage(cityId, meetingId, reqId);
-            }
+            // ?variant=story and ?variant=feed are no longer served here — story exports
+            // render client-side via src/lib/export/storyImage.tsx (moved off the server
+            // to avoid the satori/yoga hang on Athens-scale data), and the square feed
+            // export was removed with the "Post" share option. A stray variant request
+            // falls through to the default landscape, which is a reasonable fallback for
+            // any external caller still on the old URL shape.
+            element = await MeetingOGImage(cityId, meetingId, reqId);
         } else if (personId && cityId) {
             element = await PersonOGImage(cityId, personId);
         } else if (pageType === 'people' && cityId) {
@@ -919,7 +824,7 @@ export async function GET(request: Request) {
         // when the body is consumed. Force it to complete here (inside the slot) by
         // awaiting arrayBuffer(), so the concurrency cap actually caps satori work
         // instead of just capping handler invocations.
-        console.log(`[og:${reqId}] image-construct variant=${variant ?? 'default'} dim=${width}x${height} t=${Date.now() - t0}ms`);
+        console.log(`[og:${reqId}] image-construct dim=${width}x${height} t=${Date.now() - t0}ms`);
         const satoriT0 = Date.now();
         const imageResponse = new ImageResponse(element, { width, height });
         // Heartbeat while waiting for satori. If these logs FIRE during a hang, the
@@ -935,7 +840,7 @@ export async function GET(request: Request) {
         } finally {
             clearInterval(heartbeat);
         }
-        console.log(`[og:${reqId}] rendered variant=${variant ?? 'default'} bytes=${buffer.byteLength} satori=${Date.now() - satoriT0}ms`);
+        console.log(`[og:${reqId}] rendered bytes=${buffer.byteLength} satori=${Date.now() - satoriT0}ms`);
         // Restore the Cache-Control that next/og's ImageResponse sets by default —
         // dropping it would make every crawler unfurl re-render, defeating the cap.
         // Matches next/og's exact defaults including the dev no-cache branch.
@@ -955,6 +860,6 @@ export async function GET(request: Request) {
         slot.release();
         const stats = getOgConcurrencyStats();
         // Now includes the satori render itself (we awaited arrayBuffer() above).
-        console.log(`[og:${reqId}] exit variant=${variant ?? 'default'} t=${Date.now() - t0}ms slots=${stats.active}/${stats.max}`);
+        console.log(`[og:${reqId}] exit t=${Date.now() - t0}ms slots=${stats.active}/${stats.max}`);
     }
 }
