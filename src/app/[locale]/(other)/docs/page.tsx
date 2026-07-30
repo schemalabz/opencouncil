@@ -1,8 +1,9 @@
-import fs from 'fs';
-import yaml from 'js-yaml';
 import { Metadata } from 'next';
 import ReactSwagger from '@/components/ReactSwagger';
 import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
+import { getCurrentUser } from '@/lib/auth';
+import { getOpenApiSpec } from '@/lib/openapi';
+import { filterSpecByAccessLevel, getUserAccessLevel } from '@/lib/utils/openapi';
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
@@ -11,18 +12,14 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-async function getSpec() {
-  const yamlString = fs.readFileSync('./swagger.yaml', 'utf8');
-  const spec = yaml.load(yamlString);
-  return spec as Record<string, any>;
-}
-
 export default async function ApiDoc() {
-  const spec = await getSpec();
+  const user = await getCurrentUser();
+  const userLevel = getUserAccessLevel(user);
+  const filteredSpec = filterSpecByAccessLevel(getOpenApiSpec(), userLevel);
 
   return (
     <div className="container mx-auto py-10">
-      <ReactSwagger spec={spec} />
+      <ReactSwagger spec={filteredSpec as Record<string, unknown>} />
     </div>
   );
 }

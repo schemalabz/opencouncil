@@ -1,9 +1,11 @@
-import fs from 'fs';
-import { NextRequest, NextResponse } from "next/server";
-import yaml from 'js-yaml';
+import { NextResponse } from "next/server";
+import { getCurrentUser } from '@/lib/auth';
+import { getOpenApiSpec } from '@/lib/openapi';
+import { filterSpecByAccessLevel, getUserAccessLevel } from '@/lib/utils/openapi';
 
-export async function GET(request: NextRequest) {
-    const spec = fs.readFileSync('./swagger.yaml', 'utf8');
-    const yamlSpec = yaml.load(spec);
-    return NextResponse.json(yamlSpec);
+export async function GET() {
+    const user = await getCurrentUser();
+    const userLevel = getUserAccessLevel(user);
+
+    return NextResponse.json(filterSpecByAccessLevel(getOpenApiSpec(), userLevel));
 }
