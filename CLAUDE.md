@@ -53,6 +53,13 @@ When you need to query the database directly (e.g. to find test data, verify sta
 **Restarting the DB (nix setup only):**
 - `nix develop --command bash -c 'pg_ctl -D .data/postgres -l .data/process-compose/db.log start'`
 
+### Dev Authentication (manual & browser verification)
+
+To verify a change in a running app (e.g. during PR review) without the magic-link email round-trip:
+- **Dev login**: `POST /api/dev/quick-login` with `{ email }` sets a session cookie directly. Dev/preview only (gated by `DEV_TOOLS_ALLOWED`); the user must already exist.
+- **Test users**: predefined roles (superadmin, city/party/person admin, read-only) in `src/lib/dev/test-users.ts`. Seed them via `POST /api/dev/seed-test-users` or the QuickLogin dev bar. Pick the role the change requires.
+- **Seeding data**: follow the write-safety rules in [Direct Database Access](#direct-database-access) — never production; local/staging are fine.
+
 ### Utility Scripts
 - `npm run lint` - Run ESLint
 - `npm run email` - Test municipality email sending
