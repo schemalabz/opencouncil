@@ -78,3 +78,7 @@ CLAUDE.local.md
 
 # PostHog wizard agent-docs (kept locally for agent use, not part of the app)
 .claude/skills/integration-nextjs-app-router/
+
+# Generated OpenAPI spec (built in-process from the Zod registry; `npm run generate-openapi` for optional export)
+swagger.yaml
+openapi.json
