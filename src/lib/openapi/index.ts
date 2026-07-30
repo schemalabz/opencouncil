@@ -5,6 +5,7 @@ import './routes/meetings';
 import './routes/search';
 import './routes/parties';
 import './routes/people';
+import './routes/utterances';
 
 import { registry, generateSpec } from './registry';
 import type { OpenApiSpec } from '@/lib/utils/openapi';
