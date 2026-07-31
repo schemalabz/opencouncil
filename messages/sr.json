@@ -237,7 +237,12 @@
             "manageSubtitle": "Већ примате обавештења од ове скупштине. Своја подешавања можете да ажурирате или да у било ком тренутку зауставите обавештења.",
             "manageAction": "Идите на страницу за управљање обавештењима"
         },
-        "petitionCta": "Затражите подршку своје општине/града"
+        "petitionCta": "Затражите подршку своје општине/града",
+        "supportBadgeOfficialAthens": "Уз подршку града и компаније ДАЕМ",
+        "supportBadgeOfficialMunicipality": "Уз подршку општине/града",
+        "supportBadgeOfficialRegion": "Уз подршку округа",
+        "supportBadgeUnofficialMunicipality": "Без званичне подршке општине/града",
+        "supportBadgeUnofficialRegion": "Без званичне подршке округа"
     },
     "EmbedConfigurator": {
         "title": "Виџет за ваш веб-сајт",
@@ -891,7 +896,12 @@
         "tabPeople": "Особе",
         "tabPeopleShort": "Чланови",
         "tabSegments": "Изјаве",
-        "tabSegmentsShort": "Изјаве"
+        "tabSegmentsShort": "Изјаве",
+        "breakdownMayor": "Градоначелник",
+        "breakdownCouncil": "{count} у скупштини",
+        "breakdownCommittees": "{count} у одборима",
+        "breakdownCommunities": "{count} у месним заједницама",
+        "breakdownOthers": "{count, plural, one {# остали} few {# остала} other {# осталих}}"
     },
     "MeetingStatus": {
         "scheduled": "Заказана",

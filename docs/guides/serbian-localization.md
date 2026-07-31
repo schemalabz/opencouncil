@@ -137,6 +137,9 @@ goes live.**
   extensible `PROTECTED_WORDS` list. Only affects Latin-stored content —
   Cyrillic-stored content (the canonical direction) is unaffected, and
   Cyrillic→Latin is lossless.
+- OG/social-share images (`src/app/api/og/route.tsx`) still render the
+  official-support badge in Greek — the route runs outside the next-intl request
+  scope; localizing it needs the city's language wired in explicitly.
 - Elasticsearch uses a Greek analyzer — Serbian full-text search quality will be
   poor and script-blind until a Serbian analyzer + Cyrillic/Latin folding is added.
 - Sorting utilities use locale-default `localeCompare` — Serbian collation

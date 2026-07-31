@@ -251,7 +251,12 @@
             "manageSubtitle": "Λαμβάνετε ήδη ειδοποιήσεις από αυτόν τον δήμο. Μπορείτε να αλλάξετε τις προτιμήσεις σας ή να σταματήσετε τις ειδοποιήσεις όποτε θέλετε.",
             "manageAction": "Μεταφερθείτε στη σελίδα διαχείρισης ειδοποιήσεων"
         },
-        "petitionCta": "Ζητήστε την υποστήριξη του δήμου"
+        "petitionCta": "Ζητήστε την υποστήριξη του δήμου",
+        "supportBadgeOfficialAthens": "Με την υποστήριξη του δήμου και της ΔΑΕΜ Α.Ε.",
+        "supportBadgeOfficialMunicipality": "Με την υποστήριξη του δήμου",
+        "supportBadgeOfficialRegion": "Με την υποστήριξη της περιφέρειας",
+        "supportBadgeUnofficialMunicipality": "Χωρίς επίσημη υποστήριξη του δήμου",
+        "supportBadgeUnofficialRegion": "Χωρίς επίσημη υποστήριξη της περιφέρειας"
     },
     "EmbedConfigurator": {
         "title": "Widget για την ιστοσελίδα σας",
@@ -507,7 +512,12 @@
         "tabPeople": "Πρόσωπα",
         "tabPeopleShort": "Μέλη",
         "tabSegments": "Τοποθετήσεις",
-        "tabSegmentsShort": "Τοποθετήσεις"
+        "tabSegmentsShort": "Τοποθετήσεις",
+        "breakdownMayor": "Δήμαρχος",
+        "breakdownCouncil": "{count} στο Δημοτικό Συμβούλιο",
+        "breakdownCommittees": "{count} σε επιτροπές",
+        "breakdownCommunities": "{count} σε κοινότητες",
+        "breakdownOthers": "{count} άλλοι"
     },
     "ImageCropDialog": {
         "title": "Προσαρμογή εικόνας",

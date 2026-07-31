@@ -237,7 +237,12 @@
             "manageSubtitle": "You're already receiving notifications from this council. You can update your preferences or stop notifications anytime.",
             "manageAction": "Go to the notification management page"
         },
-        "petitionCta": "Request your municipality's support"
+        "petitionCta": "Request your municipality's support",
+        "supportBadgeOfficialAthens": "With the support of the municipality and DAEM S.A.",
+        "supportBadgeOfficialMunicipality": "With the municipality's support",
+        "supportBadgeOfficialRegion": "With the region's support",
+        "supportBadgeUnofficialMunicipality": "No official municipality support",
+        "supportBadgeUnofficialRegion": "No official region support"
     },
     "EmbedConfigurator": {
         "title": "Widget for your website",
@@ -891,7 +896,12 @@
         "tabPeople": "People",
         "tabPeopleShort": "Members",
         "tabSegments": "Statements",
-        "tabSegmentsShort": "Statements"
+        "tabSegmentsShort": "Statements",
+        "breakdownMayor": "Mayor",
+        "breakdownCouncil": "{count} on the city council",
+        "breakdownCommittees": "{count} on committees",
+        "breakdownCommunities": "{count} in communities",
+        "breakdownOthers": "{count} others"
     },
     "MeetingStatus": {
         "scheduled": "Scheduled",

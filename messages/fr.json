@@ -251,7 +251,12 @@
       "manageSubtitle": "Vous recevez déjà des notifications de cette commune. Vous pouvez modifier vos préférences ou arrêter les notifications à tout moment.",
       "manageAction": "Accéder à la page de gestion des notifications"
     },
-    "petitionCta": "Demandez le soutien de votre commune"
+    "petitionCta": "Demandez le soutien de votre commune",
+    "supportBadgeOfficialAthens": "Avec le soutien de la municipalité et de DAEM S.A.",
+    "supportBadgeOfficialMunicipality": "Avec le soutien de la municipalité",
+    "supportBadgeOfficialRegion": "Avec le soutien de la région",
+    "supportBadgeUnofficialMunicipality": "Sans soutien officiel de la municipalité",
+    "supportBadgeUnofficialRegion": "Sans soutien officiel de la région"
   },
   "EmbedConfigurator": {
     "title": "Widget pour votre site web",
@@ -507,7 +512,12 @@
     "tabPeople": "Personnes",
     "tabPeopleShort": "Membres",
     "tabSegments": "Interventions",
-    "tabSegmentsShort": "Interventions"
+    "tabSegmentsShort": "Interventions",
+    "breakdownMayor": "Maire",
+    "breakdownCouncil": "{count} au conseil municipal",
+    "breakdownCommittees": "{count} en commissions",
+    "breakdownCommunities": "{count} en communautés",
+    "breakdownOthers": "{count} autres"
   },
   "ImageCropDialog": {
     "title": "Ajuster l'image",

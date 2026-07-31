@@ -59,13 +59,13 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
         const breakdownParts: string[] = [];
 
         if (memberCountsByType.council > 0) {
-            breakdownParts.push(`${memberCountsByType.council} στο Δημοτικό Συμβούλιο`);
+            breakdownParts.push(t('breakdownCouncil', { count: memberCountsByType.council }));
         }
         if (memberCountsByType.committee > 0) {
-            breakdownParts.push(`${memberCountsByType.committee} σε επιτροπές`);
+            breakdownParts.push(t('breakdownCommittees', { count: memberCountsByType.committee }));
         }
         if (memberCountsByType.community > 0) {
-            breakdownParts.push(`${memberCountsByType.community} σε κοινότητες`);
+            breakdownParts.push(t('breakdownCommunities', { count: memberCountsByType.community }));
         }
 
         const mayorCount = activePeople.filter(person =>
@@ -79,19 +79,19 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
         const othersCount = Math.max(0, peopleWithoutAdminCount - mayorCount);
 
         if (othersCount > 0) {
-            breakdownParts.push(`${othersCount} άλλοι`);
+            breakdownParts.push(t('breakdownOthers', { count: othersCount }));
         }
 
         if (breakdownParts.length === 0) {
-            return mayorCount > 0 ? 'Δήμαρχος' : '';
+            return mayorCount > 0 ? t('breakdownMayor') : '';
         }
 
         if (mayorCount > 0) {
-            return `Δήμαρχος, ${breakdownParts.join(', ')}`;
+            return `${t('breakdownMayor')}, ${breakdownParts.join(', ')}`;
         }
 
         return breakdownParts.join(', ');
-    }, [activePeople, memberCountsByType]);
+    }, [activePeople, memberCountsByType, t]);
 
     // Transform people into PersonWithRelations for PersonAvatarList
     const activePersonsForAvatarList = useMemo(() =>
