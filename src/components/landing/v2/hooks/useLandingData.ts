@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
     type LandingListCity,
     type LandingMapCity,
+    type LandingPetitionedCity,
     type MapSubject,
     type GeneralCityRow,
     type UpcomingMeeting,
@@ -14,6 +15,11 @@ export type LandingInitialData = {
     upcoming: UpcomingMeeting[];
     subjectCountByCity: Record<string, number>;
     mapCities: LandingMapCity[];
+    /** out-of-network municipalities with enough petitions for the Δήμοι map's petition layer */
+    petitionedCities: LandingPetitionedCity[];
+    /** how many MORE δήμοι have petitions but sit under the display threshold — an aggregate
+     *  integer only, never which ones (see lib/landing/petitions privacy invariants) */
+    petitionedBelowThreshold: number;
     /** located subjects for the default range (DEFAULT_RANGE) — first paint, no client fetch */
     subjects: MapSubject[];
     /** non-located subjects for the default range */
@@ -37,6 +43,10 @@ export type LandingData = {
     subjectCountByCity: Record<string, number>;
     /** cooperating municipalities with centroids + boundary geometry */
     mapCities: LandingMapCity[];
+    /** out-of-network municipalities with enough petitions (Δήμοι map's petition layer) */
+    petitionedCities: LandingPetitionedCity[];
+    /** δήμοι with petitions under the display threshold — aggregate count only */
+    petitionedBelowThreshold: number;
     /** located subjects for the current range/filters */
     mapSubjects: MapSubject[];
     /** non-located subjects grouped per municipality */
@@ -133,6 +143,8 @@ export function useLandingData({ range, filters, searching, initial }: Args): La
         upcoming: initial.upcoming,
         subjectCountByCity: initial.subjectCountByCity,
         mapCities: initial.mapCities,
+        petitionedCities: initial.petitionedCities,
+        petitionedBelowThreshold: initial.petitionedBelowThreshold,
         mapSubjects,
         generalRows,
         loading,

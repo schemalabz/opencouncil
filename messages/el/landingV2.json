@@ -81,7 +81,10 @@
     "notSeeing": "Δεν βλέπεις τον δήμο σου;",
     "unavailable": "Ο Δήμος {name} δεν είναι ακόμη διαθέσιμος — κάνε αίτημα να προστεθεί",
     "notify": "Ειδοποιήσεις για τον δήμο {name}",
-    "notifyMeeting": "Ειδοποιήσεις για τη συνεδρίαση του δήμου {name}"
+    "notifyMeeting": "Ειδοποιήσεις για τη συνεδρίαση του δήμου {name}",
+    "petitionedTitle": "Αιτήματα προσθήκης",
+    "petitionedMore": "και {count, plural, one {ένας ακόμα δήμος} other {# ακόμα δήμοι}} με λιγότερα από {threshold} αιτήματα",
+    "petitionedOverflow": "και {count, plural, one {ένας ακόμα δήμος} other {# ακόμα δήμοι}} με {threshold}+ αιτήματα"
   },
   "notify": {
     "interested": "Φαίνεται πως σε ενδιαφέρει ο ",
@@ -96,7 +99,8 @@
     "body": "Δουλεύουμε στο να φέρουμε πιο κοντά τους πολίτες, στην τοπική αυτοδιοίκηση"
   },
   "municipalityTooltip": {
-    "body": "Αυτός ο δήμος δεν είναι ακόμα στο OpenCouncil."
+    "body": "Αυτός ο δήμος δεν είναι ακόμα στο OpenCouncil.",
+    "petitions": "{count}+ αιτήματα για να προστεθεί"
   },
   "general": {
     "title": "Γενικά θέματα · {count}",
@@ -107,7 +111,8 @@
   "marker": {
     "samePoint": "{count} θέματα στο ίδιο σημείο",
     "seeSamePoint": "Δες {count} θέματα στο ίδιο σημείο",
-    "municipalityZoom": "{name} — {count} θέματα, μεγέθυνση"
+    "municipalityZoom": "{name} — {count} θέματα, μεγέθυνση",
+    "petitionedAria": "{name}: {count}+ αιτήματα"
   },
   "dateRange": {
     "7d": "7 ημέρες",

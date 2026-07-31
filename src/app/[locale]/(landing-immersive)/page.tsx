@@ -4,7 +4,7 @@ import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 import { getRealm } from '@/lib/realm.server';
 import { getRealmDefaultMapView } from '@/lib/realm';
 import { getMapSubjectsCached, getGeneralSubjectsCached, getSubjectCountsByCityCached } from '@/lib/db/subject';
-import { getListedCitiesCached, getMapCitiesCached } from '@/lib/db/cities';
+import { getListedCitiesCached, getMapCitiesCached, getPetitionedMapCitiesCached } from '@/lib/db/cities';
 import { getUpcomingMeetingsCached } from '@/lib/db/meetings';
 import { DEFAULT_RANGE, rangeToSubjectFilters } from '@/lib/landing/landingCore';
 
@@ -18,13 +18,14 @@ export default async function HomePage() {
     const realm = await getRealm();
     const initialFilters = rangeToSubjectFilters(DEFAULT_RANGE);
 
-    const [subjects, generalRows, cities, upcoming, subjectCountByCity, mapCities] = await Promise.all([
+    const [subjects, generalRows, cities, upcoming, subjectCountByCity, mapCities, petitioned] = await Promise.all([
         getMapSubjectsCached(realm, initialFilters),
         getGeneralSubjectsCached(realm, initialFilters),
         getListedCitiesCached(realm),
         getUpcomingMeetingsCached(realm),
         getSubjectCountsByCityCached(realm),
         getMapCitiesCached(realm),
+        getPetitionedMapCitiesCached(realm),
     ]);
 
     return (
@@ -59,6 +60,8 @@ export default async function HomePage() {
                 })),
                 subjectCountByCity,
                 mapCities,
+                petitionedCities: petitioned.cities,
+                petitionedBelowThreshold: petitioned.belowThresholdCount,
             }}
         />
     );

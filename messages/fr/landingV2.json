@@ -81,7 +81,10 @@
     "notSeeing": "Vous ne voyez pas votre commune ?",
     "unavailable": "La commune de {name} n'est pas encore disponible — demandez à l'ajouter",
     "notify": "Notifications pour la commune de {name}",
-    "notifyMeeting": "Notifications pour la prochaine séance de {name}"
+    "notifyMeeting": "Notifications pour la prochaine séance de {name}",
+    "petitionedTitle": "Demandes d'ajout",
+    "petitionedMore": "et {count, plural, one {une autre commune} other {# autres communes}} avec moins de {threshold} demandes",
+    "petitionedOverflow": "et {count, plural, one {une autre commune} other {# autres communes}} avec {threshold}+ demandes"
   },
   "notify": {
     "interested": "Il semble que vous vous intéressiez à ",
@@ -96,7 +99,8 @@
     "body": "Nous œuvrons pour rapprocher les citoyens de leur administration locale"
   },
   "municipalityTooltip": {
-    "body": "Cette commune n'est pas encore sur OpenCouncil."
+    "body": "Cette commune n'est pas encore sur OpenCouncil.",
+    "petitions": "{count}+ demandes pour l'ajouter"
   },
   "general": {
     "title": "Sujets généraux · {count}",
@@ -107,7 +111,8 @@
   "marker": {
     "samePoint": "{count} sujets au même endroit",
     "seeSamePoint": "Voir {count} sujets au même endroit",
-    "municipalityZoom": "{name} — {count} sujets, zoomez"
+    "municipalityZoom": "{name} — {count} sujets, zoomez",
+    "petitionedAria": "{name} : {count}+ demandes"
   },
   "dateRange": {
     "7d": "7 jours",

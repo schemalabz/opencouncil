@@ -5,10 +5,20 @@ import { useTranslations } from 'next-intl';
 import type { Map as MapboxMap, Marker } from 'mapbox-gl';
 import type { Root } from 'react-dom/client';
 import type { LatLng } from '@/lib/google-maps';
-import { CENTER_QUERY_MOVE_RATIO, SUBJECT_FOCUS_ZOOM, stylePin, type SubjectPin } from '@/lib/landing/landingCore';
+import {
+    CENTER_QUERY_MOVE_RATIO,
+    SUBJECT_DOT_THRESHOLD,
+    SUBJECT_FOCUS_ZOOM,
+    nextDotMode,
+    stylePin,
+    type SubjectPin,
+} from '@/lib/landing/landingCore';
 import {
     groupByLocation,
+    subjectInViewport,
     type CenterMunicipality,
+    type LandingMapCity,
+    type LandingPetitionedCity,
     type CoLocatedBox,
     type GeneralBox,
     type LandingGeneralCity,
@@ -16,10 +26,25 @@ import {
     type MapViewport,
     type MunicipalitySubjectCount,
 } from '@/lib/landing/landingData';
-import { buildSubjectPins, createGeneralCityMarker, createMunicipalityCountMarker } from '../mapMarkers';
+import {
+    buildSubjectPins,
+    createGeneralCityMarker,
+    createMunicipalityCountMarker,
+    createMunicipalityViewMarker,
+    DONUT_INK_HEIGHT,
+    DONUT_INK_WIDTH,
+    MUNICIPALITY_VIEW_MARKER_DIAMETER,
+    MUNICIPALITY_VIEW_MARKER_RING_SPREAD,
+} from '../mapMarkers';
 import { captureLandingAction } from '@/lib/landing/analytics';
-import { spreadOverlappingMarkers } from '@/lib/landing/markerDeclutter';
-import { MUNICIPALITY_DONUT_FOOTPRINT } from '@/lib/landing/donut';
+import {
+    packMunicipalityMarkers,
+    type MarkerExtent,
+    type MarkerPlacement,
+    type PackMemory,
+    type Point,
+} from '@/lib/landing/markerDeclutter';
+import { MUNICIPALITY_SATELLITE_SCALE } from '@/lib/landing/donut';
 
 /**
  * Capture the map view on every moveend so the list reacts to it. Resolves the municipality under
@@ -178,7 +203,6 @@ export function useSubjectMarkers({
     mapInstance,
     active,
     visibleSubjects,
-    dots,
     selectedId,
     previewId,
     onSelect,
@@ -191,8 +215,6 @@ export function useSubjectMarkers({
     /** gates the whole layer — off while the zoomed-out δήμος donuts have the map */
     active: boolean;
     visibleSubjects: LandingSubject[];
-    /** viewport is crowded → draw dots instead of icon badges (see SUBJECT_DOT_THRESHOLD) */
-    dots: boolean;
     selectedId: string | null;
     /** the mobile strip's previewed subject — its pin gets the intense filled style */
     previewId: string | null;
@@ -244,16 +266,61 @@ export function useSubjectMarkers({
             }
         };
 
+        // Crowded viewport → the pins drop to plain topic-coloured dots. Counted over the subjects
+        // actually on screen right now (`visibleSubjects` is filter-scoped, so it holds off-screen
+        // subjects too). Re-evaluated live on every frame of a pan/zoom — the flip is applied to
+        // the existing pins in place (a CSS-transitioned morph, see SubjectPin.setDot), never by
+        // rebuilding the layer. The exit threshold sits below the entry one so a count hovering at
+        // the boundary can't flap the whole layer between shapes mid-gesture.
+        const countInView = () => {
+            const b = mapInstance.getBounds();
+            if (!b) return visibleSubjects.length;
+            const vp = { w: b.getWest(), s: b.getSouth(), e: b.getEast(), n: b.getNorth() };
+            // This runs on every frame of a pan/zoom, so stop counting at the entry threshold:
+            // both mode decisions only compare against thresholds at or below it, and a dense
+            // viewport (the common case for large filter sets) exits after ~150 hits.
+            let n = 0;
+            for (const s of visibleSubjects) {
+                if (subjectInViewport(s, vp) && ++n >= SUBJECT_DOT_THRESHOLD) break;
+            }
+            return n;
+        };
+        let dotMode = countInView() >= SUBJECT_DOT_THRESHOLD;
+
         const pins = buildSubjectPins(mapInstance, groupByLocation(visibleSubjects), {
             selectedId: selectedIdRef.current,
             previewId: previewIdRef.current,
-            dot: dots,
+            dot: dotMode,
             onSelect: (id) => onSelectRef.current(id),
             onOpenCoLocated: openCoLocated,
             t: tRef.current,
         });
         pinsRef.current = pins;
+
+        const syncDotMode = () => {
+            const n = countInView();
+            const next = nextDotMode(n, dotMode);
+            if (next === dotMode) return;
+            dotMode = next;
+            pins.forEach((pin) => pin.setDot(next, selectedIdRef.current, previewIdRef.current));
+        };
+        // rAF-coalesced so a burst of move events costs one count per frame; 'move' rather than
+        // 'zoom' because panning changes what's in the viewport too.
+        let frame = 0;
+        const onMove = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(() => {
+                frame = 0;
+                syncDotMode();
+            });
+        };
+        mapInstance.on('move', onMove);
+        mapInstance.on('moveend', syncDotMode);
+
         return () => {
+            if (frame) cancelAnimationFrame(frame);
+            mapInstance.off('move', onMove);
+            mapInstance.off('moveend', syncDotMode);
             pinsRef.current = [];
             pins.forEach(({ marker, root }) => {
                 marker.remove();
@@ -262,7 +329,7 @@ export function useSubjectMarkers({
             });
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mapInstance, visibleSubjects, dots, active]);
+    }, [mapInstance, visibleSubjects, active]);
 
     // Selection / strip-preview restyle the existing subject markers in place (no rebuild). The
     // selected pin and the mobile strip's previewed pin both get the intense filled style (previewId
@@ -361,22 +428,34 @@ export function useGeneralCityMarkers({
     }, [mapInstance, visibleGeneralCities, active]);
 }
 
-// Closest two donuts may sit, centre to centre: their drawn footprint plus a small gap, so
-// neighbours read as separate objects instead of touching. Keyed to the footprint rather than the
-// element box, whose lower half is empty reserve for the count. Fixed px — the donuts are a fixed
-// size, so only the distance between their anchors changes with zoom.
-const MUNICIPALITY_MARKER_SPACING = MUNICIPALITY_DONUT_FOOTPRINT + 4;
+// The ink ellipse of a full-size donut: half a ring plus a hairline across (so adjacent rings
+// touch without their strokes merging), ring-plus-count down. The marker element IS this box,
+// centred on the anchor (see createMunicipalityCountMarker), so the extent carries no ink drop.
+// Fixed px — the donuts are a fixed size, so only the distance between their anchors changes
+// with zoom.
+const MUNICIPALITY_MARKER_EXTENT = {
+    rx: DONUT_INK_WIDTH / 2,
+    ry: DONUT_INK_HEIGHT / 2,
+    cy: 0,
+};
+
 
 /**
  * Per-δήμος count labels for the zoomed-out view (see MUNICIPALITY_COUNT_MAX_ZOOM). `active` gates the
  * whole layer so it swaps cleanly with the pin/donut layer as the map crosses the zoom threshold.
  *
- * Every δήμος draws its own orange logo + number — the same marker, at the same size, meaning the
- * same thing at every zoom. Neighbours are never merged into a combined total and none are hidden.
- * Far out their centroids project close enough that the labels would pile up, so overlapping ones
- * are nudged aside just far enough to stay readable, and the nudge unwinds to nothing as zooming in
- * pulls the real positions apart. The nudge is recomputed on every moveend (the overlap follows the
- * projection); the markers themselves are built once per counts change and only repositioned.
+ * Every δήμος draws its own logo + ring + number — the same marker meaning the same thing at every
+ * zoom. Neighbours are never merged into a combined total and none are hidden. Far out their
+ * centroids project close enough that the donuts would pile up, so each pile packs into a bubble
+ * cluster instead: the busiest δήμος anchors it full-size on its real spot, the rest shrink a step
+ * and pack touching it (see packMunicipalityMarkers), and it all unwinds as zooming in pulls the
+ * real positions apart.
+ *
+ * The packing is a pure function of the projection, and it's translation-invariant — panning moves
+ * the geo-anchored markers natively and never changes the layout. Only zoom changes it, so the
+ * layout is recomputed live during zoom (rAF-coalesced 'zoom' events, with a 'moveend' backstop),
+ * not just when the gesture ends. The markers themselves are built once per counts change and only
+ * repositioned/rescaled.
  */
 export function useMunicipalityCountMarkers({
     mapInstance,
@@ -399,35 +478,232 @@ export function useMunicipalityCountMarkers({
         if (!mapInstance || !active) return;
         const municipalities = municipalityCounts;
 
-        // The declutter nudge is a pure function of where the centroids currently project, so it's
-        // recomputed on every move — but that's all that changes per move. The donut SVG, logo and
-        // count depend only on `municipalityCounts` (this effect's dep), so the markers are built
-        // once here and repositioned via setOffset, never torn down and rebuilt on pan/zoom.
-        const computeOffsets = () => {
-            const points = municipalities.map((m) => mapInstance.project([m.lng, m.lat]));
-            return spreadOverlappingMarkers(points, municipalities.map((m) => m.count), MUNICIPALITY_MARKER_SPACING);
-        };
+        // The packing is a pure function of where the centroids currently project, so it's
+        // recomputed as the projection changes — but that's all that changes. The donut SVG, logo
+        // and count depend only on `municipalityCounts` (this effect's dep), so the markers are
+        // built once here and repositioned/rescaled, never torn down and rebuilt on pan/zoom.
+        const computePlacements = createPackPlanner(
+            () => municipalities.map((m) => mapInstance.project([m.lng, m.lat])),
+            municipalities.map((m) => m.count),
+            MUNICIPALITY_MARKER_EXTENT,
+            MUNICIPALITY_SATELLITE_SCALE,
+        );
 
-        const initial = computeOffsets();
+        const initial = computePlacements();
         const markers = municipalities.map((muni, i) =>
             createMunicipalityCountMarker(
                 mapInstance,
                 muni,
                 (m) => onZoomRef.current(m),
                 tRef.current,
-                [initial[i].x, initial[i].y],
+                [initial[i].offset.x, initial[i].offset.y],
+                initial[i].scale,
             ),
         );
 
         const reposition = () => {
-            const offsets = computeOffsets();
-            markers.forEach((m, i) => m.setOffset([offsets[i].x, offsets[i].y]));
+            const placements = computePlacements();
+            markers.forEach((m, i) => m.setPlacement([placements[i].offset.x, placements[i].offset.y], placements[i].scale));
         };
-        mapInstance.on('moveend', reposition);
+        const detach = attachLiveRepack(mapInstance, reposition);
 
         return () => {
-            mapInstance.off('moveend', reposition);
-            markers.forEach((m) => m.remove());
+            detach();
+            markers.forEach((m) => {
+                m.dispose();
+                m.marker.remove();
+            });
         };
     }, [mapInstance, active, municipalityCounts]);
+}
+
+/**
+ * A layer's packing planner: projects the entries, packs them, and feeds each layout's discrete
+ * choices back into the next (see PackMemory) so per-frame recomputation can't dither a satellite
+ * between two spots mid-gesture. The memory-threading protocol lives here once, not per layer.
+ */
+function createPackPlanner(
+    project: () => Point[],
+    priorities: number[],
+    extent: MarkerExtent,
+    satelliteScale: number,
+): () => MarkerPlacement[] {
+    let memory: PackMemory[] | undefined;
+    return () => {
+        const result = packMunicipalityMarkers(project(), priorities, extent, satelliteScale, memory);
+        memory = result.memory;
+        return result.placements;
+    };
+}
+
+/** How often a packed layer recomputes its layout during a zoom gesture. The repack is ~O(n²)
+ *  (measured ~9ms at n=60), so it must not run per frame; the marker shells ease toward the last
+ *  targets at frame rate regardless (see packedMarkerShell), so a coarser target cadence stays
+ *  visually smooth. */
+const REPACK_MIN_INTERVAL_MS = 100;
+
+/**
+ * Live layout for a packed marker layer: the packing only ever changes with zoom (it's
+ * translation-invariant, and pitch/rotation are disabled on the landing map), so 'zoom' — which
+ * fires every animation frame of a wheel/pinch/easeTo — is the one signal that matters. Repacks
+ * are rAF-coalesced AND time-gated to REPACK_MIN_INTERVAL_MS — the shells' easing carries the
+ * motion between targets — with an ungated 'moveend' pass so every gesture settles on an exact
+ * final layout. Returns the detach function.
+ */
+function attachLiveRepack(map: MapboxMap, reposition: () => void): () => void {
+    let frame = 0;
+    let lastPack = 0;
+    const onZoom = () => {
+        if (frame) return;
+        frame = requestAnimationFrame(() => {
+            frame = 0;
+            const now = performance.now();
+            // Skipped ticks need no retry: 'zoom' keeps firing while the gesture continues, and
+            // the trailing end is covered by the moveend pass below.
+            if (now - lastPack < REPACK_MIN_INTERVAL_MS) return;
+            lastPack = now;
+            reposition();
+        });
+    };
+    const onMoveEnd = () => {
+        lastPack = performance.now();
+        reposition();
+    };
+    map.on('zoom', onZoom);
+    map.on('moveend', onMoveEnd);
+    return () => {
+        if (frame) cancelAnimationFrame(frame);
+        map.off('zoom', onZoom);
+        map.off('moveend', onMoveEnd);
+    };
+}
+
+// The Δήμοι-view bubbles are plain circles (no count hanging below), so their ink extent is the
+// disc plus the ring drawn around it as box-shadow (MUNICIPALITY_VIEW_MARKER_RING_SPREAD) —
+// shadows paint outside the element box, so ignoring them held rings overlapping while the discs
+// "touched".
+const MUNICIPALITY_VIEW_EXTENT = {
+    rx: MUNICIPALITY_VIEW_MARKER_DIAMETER / 2 + MUNICIPALITY_VIEW_MARKER_RING_SPREAD,
+    ry: MUNICIPALITY_VIEW_MARKER_DIAMETER / 2 + MUNICIPALITY_VIEW_MARKER_RING_SPREAD,
+    cy: 0,
+};
+
+/**
+ * The Δήμοι view's marker layer: one logo bubble per cooperating municipality — no counts and no
+ * topic rings, this view is about the δήμοι themselves — plus a brand-blue bubble for every
+ * out-of-network municipality with enough petitions, coloured deeper the higher it sits in the
+ * petition distribution. Both kinds pack with the same live bubble-cluster logic as the count
+ * donuts (busiest-anchored, azimuth-true, hysteresis + transitions); cooperating δήμοι always
+ * outrank petitioned ones for the anchor spot.
+ */
+export function useMunicipalitiesViewMarkers({
+    mapInstance,
+    active,
+    mapCities,
+    petitionedCities,
+    subjectCountByCity,
+    onOpenCity,
+    onOpenPetitioned,
+}: {
+    mapInstance: MapboxMap | null;
+    /** gates the whole layer — on only while the Δήμοι view has the map */
+    active: boolean;
+    mapCities: LandingMapCity[];
+    petitionedCities: LandingPetitionedCity[];
+    /** unfiltered totals per δήμος — the packing priority among cooperating municipalities */
+    subjectCountByCity: Record<string, number>;
+    onOpenCity: (city: LandingMapCity) => void;
+    onOpenPetitioned: (city: LandingPetitionedCity) => void;
+}) {
+    const t = useTranslations('landingV2');
+    const tRef = useRef(t);
+    tRef.current = t;
+    const onOpenCityRef = useRef(onOpenCity);
+    onOpenCityRef.current = onOpenCity;
+    const onOpenPetitionedRef = useRef(onOpenPetitioned);
+    onOpenPetitionedRef.current = onOpenPetitioned;
+
+    useEffect(() => {
+        if (!mapInstance || !active) return;
+
+        // One packed set: cooperating δήμοι first, then the petition layer. Priorities keep every
+        // cooperating δήμος above every petitioned one (a cluster's anchor should always be a real
+        // OpenCouncil municipality), ordered by subject volume / petition intensity within each.
+        // A petitioned δήμος without a boundary has no centroid — it lives on the leaderboard
+        // only, never on the map.
+        const entries = [
+            ...mapCities.map((c) => ({
+                kind: 'city' as const,
+                city: c,
+                lng: c.lng,
+                lat: c.lat,
+                priority: 1_000_000 + (subjectCountByCity[c.id] ?? 0),
+            })),
+            ...petitionedCities
+                .filter((c) => c.lng != null && c.lat != null)
+                .map((c) => ({
+                    kind: 'petitioned' as const,
+                    city: c,
+                    lng: c.lng!,
+                    lat: c.lat!,
+                    priority: c.intensity * 1000,
+                })),
+        ];
+
+        const computePlacements = createPackPlanner(
+            () => entries.map((e) => mapInstance.project([e.lng, e.lat])),
+            entries.map((e) => e.priority),
+            MUNICIPALITY_VIEW_EXTENT,
+            MUNICIPALITY_SATELLITE_SCALE,
+        );
+
+        const initial = computePlacements();
+        const markers = entries.map((entry, i) =>
+            createMunicipalityViewMarker(
+                mapInstance,
+                entry.kind === 'city'
+                    ? {
+                          name: entry.city.name,
+                          nameMunicipality: entry.city.nameMunicipality,
+                          lng: entry.lng,
+                          lat: entry.lat,
+                          logoImage: entry.city.logoImage,
+                      }
+                    : {
+                          name: entry.city.name,
+                          nameMunicipality: entry.city.nameMunicipality,
+                          lng: entry.lng,
+                          lat: entry.lat,
+                          logoImage: entry.city.logoImage,
+                          petition: { intensity: entry.city.intensity },
+                      },
+                () =>
+                    entry.kind === 'city'
+                        ? onOpenCityRef.current(entry.city)
+                        : onOpenPetitionedRef.current(entry.city),
+                entry.kind === 'city'
+                    ? entry.city.nameMunicipality
+                    : tRef.current('marker.petitionedAria', {
+                          name: entry.city.nameMunicipality,
+                          count: entry.city.bucket,
+                      }),
+                [initial[i].offset.x, initial[i].offset.y],
+                initial[i].scale,
+            ),
+        );
+
+        const reposition = () => {
+            const placements = computePlacements();
+            markers.forEach((m, i) => m.setPlacement([placements[i].offset.x, placements[i].offset.y], placements[i].scale));
+        };
+        const detach = attachLiveRepack(mapInstance, reposition);
+
+        return () => {
+            detach();
+            markers.forEach((m) => {
+                m.dispose();
+                m.marker.remove();
+            });
+        };
+    }, [mapInstance, active, mapCities, petitionedCities, subjectCountByCity]);
 }

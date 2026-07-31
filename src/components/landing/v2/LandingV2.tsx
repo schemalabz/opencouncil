@@ -15,6 +15,7 @@ import { useSubjectSelection } from './hooks/useSubjectSelection';
 import {
     useGeneralCityMarkers,
     useMapViewCapture,
+    useMunicipalitiesViewMarkers,
     useMunicipalityCountMarkers,
     useSubjectMarkers,
 } from './hooks/useMapMarkers';
@@ -24,12 +25,12 @@ import {
     aggregateMunicipalityCounts,
     detectMunicipalityQuery,
     isValidLngLat,
-    subjectInViewport,
     type CenterMunicipality,
     type ClickedMunicipality,
     type CoLocatedBox,
     type GeneralBox,
     type LandingGeneralCity,
+    type LandingPetitionedCity,
     type LandingSubject,
     type MapViewport,
     type MunicipalityInterest,
@@ -39,7 +40,6 @@ import {
     EMPTY_FILTERS,
     MUNICIPALITY_COUNT_MAX_ZOOM,
     MUNICIPALITY_PAGE_BUTTON_MIN_ZOOM,
-    SUBJECT_DOT_THRESHOLD,
     SUBJECT_FOCUS_ZOOM,
     desktopView,
     flyToMunicipality,
@@ -185,7 +185,7 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
     const [query, setQuery] = useState('');
     // A free-text search ignores the range dropdown so it spans every subject (see useLandingData).
     const searching = query.trim().length > 0;
-    const { cities, upcoming, subjectCountByCity, mapCities, mapSubjects, generalRows, loading } = useLandingData({
+    const { cities, upcoming, subjectCountByCity, mapCities, petitionedCities, petitionedBelowThreshold, mapSubjects, generalRows, loading } = useLandingData({
         range,
         filters,
         searching,
@@ -283,17 +283,14 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
     // Zoomed out, the map shows the per-δήμος count numbers instead of individual subject pins; past
     // MUNICIPALITY_COUNT_MAX_ZOOM the subjects (pins/dots) take over.
     const showMunicipalityCounts = mapZoom <= MUNICIPALITY_COUNT_MAX_ZOOM;
-
-    // Crowded viewport → the pins drop to plain topic-coloured dots. Counted over the subjects
-    // actually on screen: `visibleSubjects` is filter-scoped, not viewport-scoped, so it holds
-    // off-screen subjects too and never changes as you zoom. Reduced to a boolean here so the marker
-    // layer only rebuilds when the answer flips, not on every pan.
-    const subjectDots = useMemo(() => {
-        const inView = mapView
-            ? visibleSubjects.reduce((n, s) => n + (subjectInViewport(s, mapView) ? 1 : 0), 0)
-            : visibleSubjects.length;
-        return inView >= SUBJECT_DOT_THRESHOLD;
-    }, [visibleSubjects, mapView]);
+    // The Δήμοι view swaps the map to plain municipality bubbles (+ the petition layer) at every
+    // zoom — the subject layers below all yield to it.
+    const municipalitiesView = view === 'municipalities';
+    // …unless a city filter is active: picking a δήμος (card or logo bubble) means "show me this
+    // δήμος", and the answer is its subjects — so the map hands back to the subject layers (the
+    // count donuts included, if zoomed far out) instead of drawing one bubble in an empty
+    // boundary. Clearing the filter returns the bubble map. The tab itself stays on Δήμοι.
+    const municipalitiesMapMode = municipalitiesView && filters.cityIds.length === 0;
 
     const { selectSubject, clearSelection, onToggleCat, clearCats } = useSubjectSelection({
         mapInstance,
@@ -381,7 +378,16 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
 
     // The map's feature layer (OC outlines, filter overlay, clicked-municipality shade, geo/address
     // dots). Subject pins are HTML markers (see the effect below).
-    const features = useMapFeatures({ geo, addressPoint, filterCityId, cityGeometries, clickedMunicipality, mapCities });
+    const features = useMapFeatures({
+        geo,
+        addressPoint,
+        filterCityId,
+        cityGeometries,
+        clickedMunicipality,
+        mapCities,
+        petitionedCities,
+        showPetitioned: municipalitiesMapMode,
+    });
 
     // A ref keeps the latest selectSubject for the deep-link effect without re-firing it.
     const router = useRouter();
@@ -493,9 +499,8 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
     // to the per-δήμος count bubbles while zoomed out.
     useSubjectMarkers({
         mapInstance,
-        active: !showMunicipalityCounts,
+        active: !showMunicipalityCounts && !municipalitiesMapMode,
         visibleSubjects,
-        dots: subjectDots,
         selectedId,
         previewId,
         onSelect: (id) => onMarkerClick(id, 'map_pin'),
@@ -509,7 +514,7 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
     // count bubbles while zoomed out (their totals already include these non-located subjects).
     useGeneralCityMarkers({
         mapInstance,
-        active: !showMunicipalityCounts,
+        active: !showMunicipalityCounts && !municipalitiesMapMode,
         visibleGeneralCities,
         isMobile,
         onClearSelection: clearSelection,
@@ -526,7 +531,7 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
     // the pin/donut view). Falls back to a centroid ease when the δήμος has no boundary in the payload.
     useMunicipalityCountMarkers({
         mapInstance,
-        active: showMunicipalityCounts,
+        active: showMunicipalityCounts && !municipalitiesMapMode,
         municipalityCounts,
         onZoomToCity: (muni) => {
             if (!mapInstance) return;
@@ -553,6 +558,55 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         },
     });
 
+    // The map shows at most ONE focus at a time — a selected subject, the OpenCouncil card, a
+    // co-located/general box, or a focused municipality. Every path that opens or switches focus
+    // clears through here first, so a previous focus can never leak into the next view or stack
+    // under a new one (petition previews used to survive tab switches and subject selections).
+    const clearMapFocus = () => {
+        clearSelection();
+        closeExplainPopupRef.current?.();
+        setExplainOpen(false);
+        setClickedMunicipality(null);
+        setCoLocated(null);
+        setGeneralBox(null);
+    };
+
+    // Focus a petitioned δήμος: shaded boundary + the "request it" preview (which says how many
+    // petitions it already has). Shared by its map bubble and its Δήμοι-tab leaderboard row.
+    const openPetitioned = (city: LandingPetitionedCity, source: 'map_marker' | 'list') => {
+        // A boundary-less δήμος can't be focused (nothing to shade or fly to) — its leaderboard
+        // row is disabled, so this is only a type guard in practice. Checked before the analytics
+        // fire, so a dead click never counts as an open.
+        if (!city.geometry || city.lng == null || city.lat == null) return;
+        captureLandingAction('petitioned_municipality_opened', { city_id: city.id, bucket: city.bucket, source });
+        clearMapFocus();
+        setClickedMunicipality({
+            id: city.id,
+            name: city.name,
+            geometry: city.geometry,
+            lng: city.lng,
+            lat: city.lat,
+            petitionBucket: city.bucket,
+        });
+        if (mapInstance) flyToMunicipality(mapInstance, city.geometry, isMobile);
+    };
+
+    // Δήμοι view: plain logo bubbles for cooperating municipalities plus the brand-blue petition
+    // layer. A logo click filters the map to that δήμος (exactly like picking it in the list).
+    useMunicipalitiesViewMarkers({
+        mapInstance,
+        active: municipalitiesMapMode,
+        mapCities,
+        petitionedCities,
+        subjectCountByCity,
+        onOpenCity: (city) => {
+            captureLandingAction('municipality_marker_opened', { city_id: city.id });
+            clearMapFocus();
+            setFilters({ ...filters, cityIds: filters.cityIds[0] === city.id ? [] : [city.id] });
+        },
+        onOpenPetitioned: (city) => openPetitioned(city, 'map_marker'),
+    });
+
     // Map overlays: desktop subject tooltip, OpenCouncil badge + popup, and the clicked
     // out-of-network municipality preview (Mapbox popups rendered via createRoot).
     useMapPopups({
@@ -571,6 +625,7 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         setClickedMunicipality,
         setGeneralBox,
         closeExplainPopupRef,
+        petitionBucketFor: (cityId) => petitionedCities.find((c) => c.id === cityId)?.bucket ?? null,
     });
 
     const mapNode = (
@@ -597,7 +652,12 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
     // Analytics-tracked wrappers — used ONLY in layoutProps, so the internal setState calls above
     // stay untracked; only user actions fire.
     const trackedSetView = (v: LandingView) => {
-        if (v !== view) captureLandingAction('view_changed', { to: v });
+        if (v !== view) {
+            captureLandingAction('view_changed', { to: v });
+            // A view switch drops whatever the map was focused on — a petition preview or subject
+            // card from the old view means nothing over the new one's layers.
+            clearMapFocus();
+        }
         setInfoOpen(false); // switching to a real tab closes the info drawer
         setView(v);
     };
@@ -679,6 +739,9 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         topics,
         cities,
         subjectCountByCity,
+        petitionedCities,
+        petitionedBelowThreshold,
+        onOpenPetitioned: (city: LandingPetitionedCity) => openPetitioned(city, 'list'),
         upcoming,
         loading,
         selectedId,

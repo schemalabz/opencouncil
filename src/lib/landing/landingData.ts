@@ -9,7 +9,8 @@ import { normalizeText } from '@/lib/utils';
 import { haversineDistance } from '@/lib/geo';
 import type { RankingComponent } from '@/lib/ranking/subjects';
 import type { MapSubjectRow, GeneralSubjectRow as DbGeneralSubjectRow, GeneralCityRow as DbGeneralCityRow } from '@/lib/db/subject';
-import type { MapCityRow, CityMinimalWithCounts } from '@/lib/db/cities';
+import type { MapCityRow, CityMinimalWithCounts, PetitionedMapCityRow } from '@/lib/db/cities';
+import type { PetitionBucket } from './petitions';
 import type { UpcomingMeetingWithCity } from '@/lib/db/meetings';
 import type { LatLng } from '@/lib/google-maps';
 
@@ -19,6 +20,9 @@ export type GeneralCityRow = DbGeneralCityRow;
 
 /** A cooperating municipality with its centroid + logo, for the "Municipalities map" mode. */
 export type LandingMapCity = MapCityRow;
+
+/** An out-of-network municipality with enough petitions to show on the Δήμοι map. */
+export type LandingPetitionedCity = PetitionedMapCityRow;
 
 /** Cities the landing lists — a subset of CityMinimalWithCounts. Named to avoid colliding with
  *  src/lib/db/landing.ts's LandingCity. */
@@ -181,8 +185,15 @@ export function aggregateMunicipalityCounts(
 
 /** The municipality under the map center — drives the "view its page" button. */
 export type CenterMunicipality = { id: string; name: string; nameMunicipality: string; officialSupport: boolean };
-/** An out-of-network δήμος the visitor clicked on the map (shaded orange, "request it"). */
-export type ClickedMunicipality = { id: string; name: string; geometry: GeoJSON.Geometry } & LatLng;
+/** An out-of-network δήμος the visitor clicked on the map (shaded orange, "request it").
+ *  `petitionBucket` rides along when the δήμος is on the petition layer, so the preview can say
+ *  how many petitions it already has. */
+export type ClickedMunicipality = {
+    id: string;
+    name: string;
+    geometry: GeoJSON.Geometry;
+    petitionBucket?: PetitionBucket | null;
+} & LatLng;
 /** Open "co-located subjects" box — the subjects at one map point + its screen position. */
 export type CoLocatedBox = { subjects: LandingSubject[]; x: number; y: number };
 /** Open "general subjects" box — a municipality's non-located subjects + screen position. */
@@ -355,7 +366,9 @@ export function filterSubjectsByQuery(subjects: LandingSubject[], query: string)
 /** Current map view: bounds (west/south/east/north) + centre, in lng/lat degrees. */
 export type MapViewport = { w: number; s: number; e: number; n: number; clng: number; clat: number };
 
-export function subjectInViewport(s: LandingSubject, v: MapViewport): boolean {
+/** Whether the subject's point falls inside the viewport bounds. Takes only the bounds so callers
+ *  that have no meaningful centre (e.g. counting against live map bounds) don't fabricate one. */
+export function subjectInViewport(s: LandingSubject, v: Pick<MapViewport, 'w' | 's' | 'e' | 'n'>): boolean {
     return s.lng >= v.w && s.lng <= v.e && s.lat >= v.s && s.lat <= v.n;
 }
 

@@ -6,6 +6,7 @@ import { calculateGeometryBounds } from '@/lib/geo';
 import { topicStyle } from '@/lib/topicStyle';
 import type {
     LandingListCity,
+    LandingPetitionedCity,
     LandingSubject,
     LandingGeneralCity,
     QueryKind,
@@ -120,15 +121,36 @@ export const CENTER_QUERY_MOVE_RATIO = 0.2;
  */
 export const SUBJECT_DOT_THRESHOLD = 150;
 
+/**
+ * Fraction of SUBJECT_DOT_THRESHOLD the in-view count must drop back below before dots grow back
+ * into badges. The mode is re-evaluated every frame of a pan/zoom, so a count hovering right at the
+ * threshold would otherwise flap the whole layer between shapes mid-gesture.
+ */
+export const SUBJECT_DOT_EXIT_RATIO = 0.85;
+
+/**
+ * The dot-mode decision for the subject-pin layer: enter dots at SUBJECT_DOT_THRESHOLD subjects in
+ * view, leave them only once the count drops below the exit ratio of it. Pure so the asymmetric
+ * thresholds are unit-testable; the marker layer re-evaluates this every frame of a pan/zoom.
+ */
+export function nextDotMode(inView: number, dot: boolean): boolean {
+    return dot ? inView >= SUBJECT_DOT_THRESHOLD * SUBJECT_DOT_EXIT_RATIO : inView >= SUBJECT_DOT_THRESHOLD;
+}
+
 /** An HTML map marker handle: a subject icon badge (`subject` set) or a cluster count circle (null). */
 export type SubjectPin = {
     el: HTMLButtonElement;
     rootEl: HTMLDivElement;
+    /** the icon's React root — mounted lazily the first time the pin shows as a badge */
     root: Root | null;
     marker: mapboxgl.Marker;
     subject: LandingSubject | null;
     /** drawn as a bare dot (dense viewport) — kept so the selection restyle keeps the same shape */
     dot: boolean;
+    /** morph between dot and icon badge in place (CSS-transitioned, no marker rebuild). Takes the
+     *  current selection/preview ids — the pin resolves its own highlight, because only it knows
+     *  its members ("+N" pins carry a whole group and `subject` is null). */
+    setDot: (dot: boolean, selectedId: string | null, previewId: string | null) => void;
 };
 
 /**
@@ -155,7 +177,9 @@ export function stylePin(
     // Same recipe as <TopicIcon> — see @/lib/topicStyle for why the soft icon is darkened.
     const { background, border, icon } = topicStyle(subject.topic.color, intense ? 'solid' : 'soft');
     el.className = cn(
-        'flex cursor-pointer items-center justify-center rounded-full border shadow-md transition-transform',
+        // transition-all: the dot↔badge morph is a live size + colour change on the same element
+        // (see SubjectPin.setDot), so the box glides between shapes instead of snapping.
+        'flex cursor-pointer items-center justify-center overflow-hidden rounded-full border shadow-md transition-all duration-200',
         // A dot ignores `hot` — at this density the extra size would just read as noise.
         dot ? (intense ? 'h-4 w-4' : 'h-3 w-3') : subject.hot ? 'h-9 w-9' : 'h-7 w-7',
         (selected || intense) && 'scale-110',
@@ -300,6 +324,12 @@ export type LayoutProps = {
     cities: LandingListCity[];
     /** unfiltered total subjects per cityId (for the Δήμοι tab stats) */
     subjectCountByCity: Record<string, number>;
+    /** out-of-network δήμοι with enough petitions — the Δήμοι tab's leaderboard */
+    petitionedCities: LandingPetitionedCity[];
+    /** δήμοι with petitions under the display threshold — an aggregate count, never a list */
+    petitionedBelowThreshold: number;
+    /** focus a petitioned δήμος on the map (shade + "request it" preview), as its bubble does */
+    onOpenPetitioned: (city: LandingPetitionedCity) => void;
     upcoming: UpcomingMeeting[];
     loading: boolean;
     selectedId: string | null;
