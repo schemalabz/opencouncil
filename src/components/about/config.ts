@@ -167,13 +167,6 @@ export const TEAM_MEMBERS: TeamMember[] = [
         },
     },
     {
-        id: 'vasia',
-        image: '/people/vasia.jpg',
-        socials: {
-            linkedin: 'https://www.linkedin.com/in/vasiliki-koumarela/',
-        },
-    },
-    {
         id: 'myrto',
         image: '/people/myrto.jpg',
         socials: {
