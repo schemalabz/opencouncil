@@ -570,53 +570,56 @@ function MunicipalityCard({
 }) {
     const t = useTranslations('landingV2');
     return (
-        <div
-            role="button"
-            tabIndex={0}
-            data-city-id={city.id}
-            onClick={() => onSelect(city.id)}
-            className={cn(
-                'group flex w-[264px] shrink-0 cursor-pointer flex-col gap-2.5 rounded-2xl border bg-card p-3 shadow-md transition-colors',
-                selected ? 'border-[hsl(var(--orange))] border-2' : 'border-black/20 hover:border-black/40',
-            )}
-        >
-            <div className="flex items-center gap-2">
-                <CityAvatar city={city} />
-                <span className="min-w-0 flex-1 text-sm font-bold text-foreground">{city.name}</span>
-                <Link
-                    href={`/${city.id}/notifications`}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        captureLandingAction('notify_cta', { surface: 'municipalities_list', city_id: city.id });
-                    }}
-                    aria-label={next ? t('municipality.notifyMeeting', { name: city.name }) : t('municipality.notify', { name: city.name })}
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[hsl(var(--orange))] no-underline transition-colors hover:bg-muted/80 hover:no-underline"
-                >
-                    <Bell className="h-3.5 w-3.5" />
-                </Link>
-                <Link
-                    href={`/${city.id}`}
-                    onClick={(e) => e.stopPropagation()}
-                    aria-label={city.name}
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground no-underline transition-transform hover:no-underline group-hover:translate-x-0.5"
-                >
-                    <ArrowRight className="h-4 w-4" />
-                </Link>
-            </div>
-            <div className="grid grid-cols-3 gap-1.5">
-                <MuniStat label={t('municipality.subjects')} value={subjectCount} />
-                <MuniStat label={t('municipality.meetings')} value={city._count.councilMeetings} />
-                <MuniStat label={t('municipality.persons')} value={city._count.persons} />
-            </div>
-            {next && (
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                    <CalendarDays className="h-3 w-3 shrink-0" />
-                    <span className="truncate">
-                        <span className="font-medium text-foreground/80">{t('municipality.nextMeeting')}</span>{' '}
-                        {formatDateTime(new Date(next.dateTime))}
+        <div className="flex w-[264px] shrink-0 flex-col">
+            {next && selected && (
+                <div className="flex items-start gap-1.5 rounded-t-2xl bg-[hsl(var(--orange))] px-3 pt-2 pb-5 text-[11px] font-medium text-white">
+                    <CalendarDays className="mt-0.5 h-3 w-3 shrink-0" />
+                    <span className="min-w-0">
+                        {t('municipality.nextMeeting')}
+                        <span className="block">{formatDateTime(new Date(next.dateTime))}</span>
                     </span>
                 </div>
             )}
+            <div
+                role="button"
+                tabIndex={0}
+                data-city-id={city.id}
+                onClick={() => onSelect(city.id)}
+                className={cn(
+                    'group relative flex cursor-pointer flex-col gap-2 rounded-2xl border bg-card p-3 shadow-md transition-colors',
+                    next && selected && '-mt-4',
+                    selected ? 'border-[hsl(var(--orange))] border-2' : 'border-black/20 hover:border-black/40',
+                )}
+            >
+                <div className="flex items-center gap-2">
+                    <CityAvatar city={city} />
+                    <span className="min-w-0 flex-1 text-sm font-bold text-foreground">{city.name}</span>
+                    <Link
+                        href={`/${city.id}/notifications`}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            captureLandingAction('notify_cta', { surface: 'municipalities_list', city_id: city.id });
+                        }}
+                        aria-label={next ? t('municipality.notifyMeeting', { name: city.name }) : t('municipality.notify', { name: city.name })}
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[hsl(var(--orange))] no-underline transition-colors hover:bg-muted/80 hover:no-underline"
+                    >
+                        <Bell className="h-3.5 w-3.5" />
+                    </Link>
+                    <Link
+                        href={`/${city.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={city.name}
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground no-underline transition-transform hover:no-underline group-hover:translate-x-0.5"
+                    >
+                        <ArrowRight className="h-4 w-4" />
+                    </Link>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                    <MuniStat label={t('municipality.subjects')} value={subjectCount} />
+                    <MuniStat label={t('municipality.meetings')} value={city._count.councilMeetings} />
+                    <MuniStat label={t('municipality.persons')} value={city._count.persons} />
+                </div>
+            </div>
         </div>
     );
 }
