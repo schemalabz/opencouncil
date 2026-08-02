@@ -1,4 +1,27 @@
 {
+  "findReplace": {
+    "searchPlaceholder": "Εύρεση",
+    "replacePlaceholder": "Αντικατάσταση",
+    "caseSensitive": "Διάκριση πεζών/κεφαλαίων",
+    "previous": "Προηγούμενο (Shift+Enter)",
+    "next": "Επόμενο (Enter)",
+    "close": "Κλείσιμο (Esc)",
+    "replaceOne": "Αντικατάσταση",
+    "replaceAll": "Όλα",
+    "noResults": "0 αποτελέσματα",
+    "counter": "{current} / {total}",
+    "confirmTitle": "Αντικατάσταση όλων;",
+    "confirmDescription": "Θα αντικατασταθούν {count} εμφανίσεις του «{search}» με «{replacement}». Η ενέργεια δεν μπορεί να αναιρεθεί.",
+    "confirmCancel": "Άκυρο",
+    "confirmReplace": "Αντικατάσταση όλων",
+    "toastTitleSingular": "{count} εμφάνιση αντικαταστάθηκε",
+    "toastTitlePlural": "{count} εμφανίσεις αντικαταστάθηκαν",
+    "toastDescriptionSingular": "Σε {count} πρόταση",
+    "toastDescriptionPlural": "Σε {count} προτάσεις",
+    "errorTitle": "Σφάλμα",
+    "errorReplaceFailed": "Η αντικατάσταση απέτυχε",
+    "errorReplaceOneFailed": "Δεν ήταν δυνατή η αντικατάσταση"
+  },
   "utterance": {
     "editing": {
       "saveShortcut": "Αποθήκευση (Enter)",

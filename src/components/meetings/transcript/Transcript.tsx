@@ -11,6 +11,8 @@ import { useHighlight } from "../HighlightContext";
 import { useTranslations } from 'next-intl';
 import { UnverifiedTranscriptBanner, BANNER_HEIGHT_FULL } from "./UnverifiedTranscriptBanner";
 import { UtteranceContextMenu } from "./UtteranceContextMenu";
+import { FindReplaceProvider, useFindReplace } from "./FindReplaceContext";
+import { FindReplacePanel } from "./FindReplacePanel";
 
 // Helper functions for speaker segment identification and parsing
 const SPEAKER_SEGMENT_PREFIX = 'speaker-segment-';
@@ -26,6 +28,40 @@ const parseSegmentIndex = (elementId: string): number => {
 const createSegmentId = (index: number): string => {
     return `${SPEAKER_SEGMENT_PREFIX}${index}`;
 };
+
+// Cmd/Ctrl+F shortcut. Listens at the document level so it works regardless
+// of focus, but only when editing mode is active — outside edit mode we let
+// the browser's native find dialog handle it.
+function FindShortcut() {
+    const { openWithPrefill } = useFindReplace();
+    const { options } = useTranscriptOptions();
+    useEffect(() => {
+        if (!options.editable) return;
+        const onKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') {
+                e.preventDefault();
+                // Browser-like behaviour: if the user has selected text either
+                // on the page (e.g. inside Highlight mode) OR inside an
+                // edit-mode textarea, pre-fill the search box with it and
+                // focus the replace input. Otherwise focus the search input.
+                let selected = window.getSelection()?.toString() ?? '';
+                if (!selected) {
+                    const active = document.activeElement;
+                    if (active instanceof HTMLTextAreaElement || active instanceof HTMLInputElement) {
+                        const { selectionStart, selectionEnd, value } = active;
+                        if (selectionStart != null && selectionEnd != null && selectionEnd > selectionStart) {
+                            selected = value.slice(selectionStart, selectionEnd);
+                        }
+                    }
+                }
+                openWithPrefill(selected);
+            }
+        };
+        document.addEventListener('keydown', onKeyDown);
+        return () => document.removeEventListener('keydown', onKeyDown);
+    }, [openWithPrefill, options.editable]);
+    return null;
+}
 
 export default function Transcript() {
     const { transcript: speakerSegments, getHighlight, taskStatus, transcriptHiddenForReview } = useCouncilMeetingData();
@@ -164,31 +200,35 @@ export default function Transcript() {
     }
 
     return (
-        <div className="container px-2 sm:px-4 md:px-6" style={isUnverified ? { '--banner-offset': bannerHeight } as React.CSSProperties : undefined}>
-            <h2 className="sr-only">{t('transcript')}</h2>
-            {isUnverified && (
-                <UnverifiedTranscriptBanner
-                    isScrolled={isScrolled}
-                    onBannerHeightChange={setBannerHeight}
-                />
-            )}
-            <UtteranceContextMenu>
-                <div ref={containerRef} role="list" aria-label={t('transcript')}>
-                {displayedSegments.map((segment, index: number) => (
-                    <div
-                        key={index}
-                        id={createSegmentId(index)}
-                        className="content-visibility-auto"
-                        role="listitem"
-                    >
-                        <SpeakerSegment
-                            segment={segment}
-                            isFirstSegment={index === 0}
-                        />
+        <FindReplaceProvider>
+            <div className="container px-2 sm:px-4 md:px-6" style={isUnverified ? { '--banner-offset': bannerHeight } as React.CSSProperties : undefined}>
+                <h2 className="sr-only">{t('transcript')}</h2>
+                {isUnverified && (
+                    <UnverifiedTranscriptBanner
+                        isScrolled={isScrolled}
+                        onBannerHeightChange={setBannerHeight}
+                    />
+                )}
+                <FindShortcut />
+                <FindReplacePanel />
+                <UtteranceContextMenu>
+                    <div ref={containerRef} role="list" aria-label={t('transcript')}>
+                    {displayedSegments.map((segment, index: number) => (
+                        <div
+                            key={index}
+                            id={createSegmentId(index)}
+                            className="content-visibility-auto"
+                            role="listitem"
+                        >
+                            <SpeakerSegment
+                                segment={segment}
+                                isFirstSegment={index === 0}
+                            />
+                        </div>
+                    ))}
                     </div>
-                ))}
-                </div>
-            </UtteranceContextMenu>
-        </div>
+                </UtteranceContextMenu>
+            </div>
+        </FindReplaceProvider>
     );
 }

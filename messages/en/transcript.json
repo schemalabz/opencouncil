@@ -1,4 +1,27 @@
 {
+  "findReplace": {
+    "searchPlaceholder": "Find",
+    "replacePlaceholder": "Replace",
+    "caseSensitive": "Case sensitive",
+    "previous": "Previous (Shift+Enter)",
+    "next": "Next (Enter)",
+    "close": "Close (Esc)",
+    "replaceOne": "Replace",
+    "replaceAll": "All",
+    "noResults": "0 results",
+    "counter": "{current} / {total}",
+    "confirmTitle": "Replace all?",
+    "confirmDescription": "{count} occurrences of «{search}» will be replaced with «{replacement}». This action cannot be undone.",
+    "confirmCancel": "Cancel",
+    "confirmReplace": "Replace all",
+    "toastTitleSingular": "{count} occurrence replaced",
+    "toastTitlePlural": "{count} occurrences replaced",
+    "toastDescriptionSingular": "In {count} utterance",
+    "toastDescriptionPlural": "In {count} utterances",
+    "errorTitle": "Error",
+    "errorReplaceFailed": "Replacement failed",
+    "errorReplaceOneFailed": "Could not replace"
+  },
   "utterance": {
     "editing": {
       "saveShortcut": "Save (Enter)",
