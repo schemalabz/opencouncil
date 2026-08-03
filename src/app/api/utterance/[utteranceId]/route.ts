@@ -68,12 +68,14 @@ export async function GET(request: NextRequest, props: { params: Promise<{ utter
             ? `/${localePrefix}/${cityId}/${meetingId}/transcript?t=${time}`
             : `/${cityId}/${meetingId}/transcript?t=${time}`;
 
-        // Base on the requesting origin, not NEXTAUTH_URL: one deployment
-        // serves every realm domain, and the only caller is a same-origin
-        // component link — an absolute URL on NEXTAUTH_URL would bounce
-        // opencouncil.fr/.rs readers onto the .gr domain (and the wrong
-        // locale, since the prefix is realm-relative).
-        return NextResponse.redirect(new URL(redirectUrl, request.url));
+        // Relative Location on purpose: no absolute base is correct here.
+        // One deployment serves every realm domain, so NEXTAUTH_URL (a single
+        // per-deployment value) bounced .fr/.rs readers onto .gr — and
+        // request.url resolves to the server's bind address behind the
+        // reverse proxy (0.0.0.0:PORT on previews). The browser resolves a
+        // relative Location against the origin it is already on, which is
+        // exactly right for this route's same-origin caller.
+        return new NextResponse(null, { status: 307, headers: { Location: redirectUrl } });
     } catch (error) {
         console.error('Error redirecting utterance:', error);
         return NextResponse.json(
