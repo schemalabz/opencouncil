@@ -15,6 +15,12 @@ export const REOPEN_CONSENT_EVENT = "oc-reopen-cookie-consent";
 // internal and test users" setting excludes. Clearing site data unmarks.
 export const INTERNAL_USER_KEY = "oc-internal-user";
 
+// Holds the user id of the team member whose `$internal_or_test_user` person
+// property was last sent from this device, so the (billable) $set goes out
+// once per account instead of on every page load — and still fires when a
+// different team member signs in on the same browser — see identifyUser.ts.
+export const INTERNAL_PERSON_KEY = "oc-internal-person";
+
 // Re-applies the stored ConsentChip answer whenever PostHog's own consent
 // state is back to 'pending' — on initial load, and right after
 // posthog.reset() on sign-out. In on_reject mode 'pending' DROPS all events,
