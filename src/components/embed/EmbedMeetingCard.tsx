@@ -22,10 +22,6 @@ export interface EmbedTranslations {
     watchLive: string;
 }
 
-function localize<T extends { name: string; name_en: string }>(obj: T, locale: string): string {
-    return getLocalizedName(obj, locale);
-}
-
 export function EmbedMeetingCard({ meeting, locale, showSubjects, baseUrl, cityTimezone, translations: t, isUpcoming }: EmbedMeetingCardProps) {
     const meetingUrl = `${baseUrl}/${meeting.cityId}/${meeting.id}`;
     const sortedSubjects = sortSubjectsByImportance(meeting.subjects, 'importance');
@@ -48,14 +44,14 @@ export function EmbedMeetingCard({ meeting, locale, showSubjects, baseUrl, cityT
                 className="embed-card-link"
             >
                 <div className="embed-card-title">
-                    {localize(meeting, locale)}
+                    {getLocalizedName(meeting, locale)}
                 </div>
 
                 <div className="embed-card-meta">
                     {meeting.administrativeBody && (
                         <span className="embed-card-meta-item">
                             <Building size={13} />
-                            {localize(meeting.administrativeBody, locale)}
+                            {getLocalizedName(meeting.administrativeBody, locale)}
                         </span>
                     )}
                     <span className="embed-card-meta-item">

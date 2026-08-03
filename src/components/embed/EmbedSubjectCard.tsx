@@ -27,10 +27,6 @@ interface EmbedSubjectCardProps {
     cityTimezone?: string;
 }
 
-function localize<T extends { name: string; name_en: string }>(obj: T, locale: string): string {
-    return getLocalizedName(obj, locale);
-}
-
 /**
  * Subjects-widget card. Renders the shared {@link SubjectCardContent} (same look
  * as the app's SubjectCard) wrapped in a plain new-tab link. The only client
@@ -50,7 +46,7 @@ export function EmbedSubjectCard({ subject, meeting, locationText, speakers, sta
             <SubjectCardContent
                 title={localizeText(subject.name, locale)}
                 topic={subject.topic}
-                context={{ meta: formatDate(meeting.dateTime, cityTimezone, locale), meetingName: localize(meeting, locale) }}
+                context={{ meta: formatDate(meeting.dateTime, cityTimezone, locale), meetingName: getLocalizedName(meeting, locale) }}
                 locationText={locationText ? localizeText(locationText, locale) : t('noLocation')}
                 agendaLabel={getAgendaLabel(t, subject)}
                 description={subject.description ? localizeText(stripMarkdown(subject.description), locale) : null}
