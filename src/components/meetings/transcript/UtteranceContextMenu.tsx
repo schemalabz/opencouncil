@@ -1,7 +1,7 @@
 "use client";
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ArrowLeftToLine, ArrowRightToLine, ClipboardCopy, Copy, ListEnd, ListStart, Loader2, Scissors, Star } from 'lucide-react';
+import { ArrowLeftToLine, ArrowRightToLine, ClipboardCopy, Copy, ListEnd, ListStart, Loader2, Scissors, Star, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -58,7 +58,7 @@ export function UtteranceContextMenu({ children }: { children: React.ReactNode }
 
     const { options } = useTranscriptOptions();
     const { editingHighlight, createHighlight, addUtteranceRangeToHighlight } = useHighlight();
-    const { selectedUtteranceIds, isProcessing, toggleSelection, clearSelection, extractSelectedSegment } = useEditing();
+    const { selectedUtteranceIds, isProcessing, toggleSelection, clearSelection, extractSelectedSegment, confirmDeleteSelected } = useEditing();
     const { moveUtterancesToPrevious, moveUtterancesToNext } = useCouncilMeetingActions();
     const { openShareDropdownAndCopy } = useShare();
     const { toast } = useToast();
@@ -288,6 +288,33 @@ export function UtteranceContextMenu({ children }: { children: React.ReactNode }
                             <DropdownMenuItem onClick={handleMoveToNext}>
                                 <ArrowRightToLine className="h-4 w-4 mr-2" />
                                 {t('contextMenu.moveToNextSegment')}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                                onClick={() => {
+                                    // Snapshot ids synchronously: the menu's
+                                    // close handler (handleOpenChange) will clear
+                                    // the temp-selection before our deferred call
+                                    // runs, so we can't rely on selectedUtteranceIds
+                                    // being intact inside setTimeout.
+                                    const ids = selectedUtteranceIds.size > 0
+                                        ? Array.from(selectedUtteranceIds)
+                                        : [target!.id];
+                                    // Defer dialog opening so the Radix DropdownMenu's
+                                    // DismissableLayer fully unmounts and restores
+                                    // body.style.pointerEvents first. Mounting the
+                                    // Dialog while pointer-events:'none' is still on
+                                    // <body> causes Radix to cache 'none' as the
+                                    // original and re-apply it on close, freezing
+                                    // the page.
+                                    setTimeout(() => confirmDeleteSelected(ids), 0);
+                                }}
+                                disabled={isProcessing}
+                            >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                {selectedUtteranceIds.size > 1
+                                    ? t('contextMenu.deleteSelectedUtterances', { count: selectedUtteranceIds.size })
+                                    : t('contextMenu.deleteUtterance')}
                             </DropdownMenuItem>
                         </>
                     )}
