@@ -148,4 +148,88 @@ describe('createNotificationsForMeeting - end-to-end', () => {
         expect(byEmail('sms@example.com').deliveries.map(d => d.medium).sort()).toEqual(['message'])
         expect(notifs.find(n => n.user.email === 'none@example.com')).toBeUndefined()
     })
+
+    // Regression test for issue #308: a meeting processed with NO agenda items
+    // (typical of Λογοδοσία/accountability sessions) must still send an upcoming-meeting
+    // announcement to every city subscriber, instead of silently notifying nobody.
+    test('creates beforeMeeting announcements for a zero-subject meeting (issue #308)', async () => {
+        const city = await createCity({ id: 'c5', name_municipality: 'Χανιά', name_municipality_en: 'Chania' })
+        const body = await createAdministrativeBody(city.id)
+        const meeting = await createMeeting(city.id, { id: 'm3', administrativeBodyId: body.id })
+        // No subjects created — this is the λογοδοσία / empty-agenda case.
+
+        const uEmail = await createUser('a-email@example.com')
+        await createNotificationPreference({ userId: uEmail.id, cityId: city.id })
+        await prisma.notificationPreference.update({
+            where: { userId_cityId: { userId: uEmail.id, cityId: city.id } },
+            data: { notifyByEmail: true, notifyByPhone: false },
+        })
+
+        const uPhone = await createUser('a-phone@example.com', { phone: '+306900000010' })
+        await createNotificationPreference({ userId: uPhone.id, cityId: city.id })
+        await prisma.notificationPreference.update({
+            where: { userId_cityId: { userId: uPhone.id, cityId: city.id } },
+            data: { notifyByEmail: false, notifyByPhone: true },
+        })
+
+        const uNone = await createUser('a-none@example.com', { phone: '+306900000011' })
+        await createNotificationPreference({ userId: uNone.id, cityId: city.id })
+        await prisma.notificationPreference.update({
+            where: { userId_cityId: { userId: uNone.id, cityId: city.id } },
+            data: { notifyByEmail: false, notifyByPhone: false },
+        })
+
+        const result = await createNotificationsForMeeting(city.id, meeting.id, 'beforeMeeting')
+
+        // Two users opted into a channel; the third (no channel) is skipped.
+        expect(result.notificationsCreated).toBe(2)
+        // Announcement notifications carry no subjects.
+        expect(result.subjectsTotal).toBe(0)
+
+        const notifs = await prisma.notification.findMany({
+            where: { cityId: city.id, meetingId: meeting.id, type: 'beforeMeeting' },
+            include: { subjects: true, deliveries: true, user: true },
+        })
+        expect(notifs).toHaveLength(2)
+        for (const n of notifs) {
+            expect(n.subjects).toHaveLength(0)
+        }
+
+        const byEmail = (e: string) => notifs.find(n => n.user.email === e)!
+        // Channel preferences are still respected.
+        expect(byEmail('a-email@example.com').deliveries.map(d => d.medium).sort()).toEqual(['email'])
+        expect(byEmail('a-phone@example.com').deliveries.map(d => d.medium).sort()).toEqual(['message'])
+        expect(notifs.find(n => n.user.email === 'a-none@example.com')).toBeUndefined()
+        // Note: the user-facing announcement copy (no "0 νέα θέματα" / subject-list heading)
+        // is asserted in the unit tests for content/template rendering, since integration
+        // tests mock @/lib/notifications/content.
+
+        // Idempotency: a re-run (e.g. force re-processing the agenda) creates no duplicates.
+        const rerun = await createNotificationsForMeeting(city.id, meeting.id, 'beforeMeeting')
+        expect(rerun.notificationsCreated).toBe(0)
+        const afterRerun = await prisma.notification.count({
+            where: { cityId: city.id, meetingId: meeting.id, type: 'beforeMeeting' },
+        })
+        expect(afterRerun).toBe(2)
+    })
+
+    // afterMeeting with zero subjects must stay a no-op: a post-meeting summary with
+    // nothing to report should not generate announcement notifications.
+    test('does not create afterMeeting notifications for a zero-subject meeting (issue #308)', async () => {
+        const city = await createCity({ id: 'c6', name_municipality: 'Y', name_municipality_en: 'Y' })
+        const body = await createAdministrativeBody(city.id)
+        const meeting = await createMeeting(city.id, { id: 'm4', administrativeBodyId: body.id })
+
+        const u = await createUser('after@example.com')
+        await createNotificationPreference({ userId: u.id, cityId: city.id })
+
+        const result = await createNotificationsForMeeting(city.id, meeting.id, 'afterMeeting')
+        expect(result.notificationsCreated).toBe(0)
+        expect(result.subjectsTotal).toBe(0)
+
+        const count = await prisma.notification.count({
+            where: { cityId: city.id, meetingId: meeting.id },
+        })
+        expect(count).toBe(0)
+    })
 })

@@ -35,6 +35,10 @@ export const NotificationEmail = ({
         ? 'Ειδοποίηση επερχόμενης συνεδρίασης'
         : 'Ειδοποίηση πρόσφατης συνεδρίασης';
 
+    // Announcement-only notification: the meeting has no agenda items yet (e.g. Λογοδοσία).
+    // We still inform subscribers about the upcoming session, without a subject list.
+    const isAnnouncementOnly = subjects.length === 0 && type === 'beforeMeeting';
+
     const meetingDateFormatted = meetingDate.toLocaleDateString('el-GR', {
         day: 'numeric',
         month: 'long',
@@ -75,17 +79,31 @@ export const NotificationEmail = ({
                     {cityName}
                 </Text>
 
-                <Heading
-                    style={{
-                        color: '#1f2937',
-                        fontSize: '18px',
-                        fontWeight: '600',
-                        margin: '32px 0 16px 0',
-                        textAlign: 'left',
-                    }}
-                >
-                    Θέματα που σας αφορούν:
-                </Heading>
+                {isAnnouncementOnly ? (
+                    <Text
+                        style={{
+                            color: '#4b5563',
+                            fontSize: '15px',
+                            margin: '24px 0',
+                            lineHeight: '22px',
+                        }}
+                    >
+                        Η ημερήσια διάταξη δεν περιλαμβάνει συγκεκριμένα θέματα. Δείτε
+                        περισσότερες πληροφορίες για τη συνεδρίαση παρακάτω.
+                    </Text>
+                ) : (
+                    <Heading
+                        style={{
+                            color: '#1f2937',
+                            fontSize: '18px',
+                            fontWeight: '600',
+                            margin: '32px 0 16px 0',
+                            textAlign: 'left',
+                        }}
+                    >
+                        Θέματα που σας αφορούν:
+                    </Heading>
+                )}
 
                 {subjects.map((subject) => (
                     <Container

@@ -76,6 +76,12 @@ export async function generateSmsContent(notification: NotificationData): Promis
     const adminBody = notification.meeting.administrativeBody?.name || 'συνεδρίαση';
     const notificationUrl = `${env.NEXTAUTH_URL || 'https://opencouncil.gr'}/el/notifications/${notification.id}`;
 
+    // Announcement-only notification: the meeting has no agenda items (e.g. Λογοδοσία).
+    // Announce the upcoming session without referencing a subject count.
+    if (subjectCount === 0 && notification.type === 'beforeMeeting') {
+        return `${notification.city.name_municipality} - ${adminBody} στις ${meetingDateFormatted}. Δείτε περισσότερα: ${notificationUrl}`;
+    }
+
     const subjectNames =
         subjectCount > 3
             ? `${notification.subjects.slice(0, 3).map(s => s.name).join(', ')} και άλλα`
