@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useLocale } from "next-intl"
+import { urlPrefixForLocale } from "@/i18n/config"
 import { usePathname } from "@/i18n/routing"
 import { realmForBrowser } from "@/lib/realm.client"
 import { isSerbianLocale } from "@/lib/serbian"
@@ -44,9 +45,10 @@ export default function ScriptSwitcher({ className }: { className?: string }) {
     // On a non-Serbian locale (an explicit /en path on the Serbian host),
     // neither script is active — the toggle is then an entry point into
     // Serbian, not an indicator of the current one.
-    const active: "sr" | "sr-Latn" | null = isSerbianLocale(locale) ? (locale === "sr-Latn" ? "sr-Latn" : "sr") : null
+    const active: "sr" | "sr-Latn" | null = isSerbianLocale(locale) ? locale : null
+    const latPrefix = `/${urlPrefixForLocale("sr-Latn")}`
     const hrefFor = (target: "sr" | "sr-Latn") => {
-        const path = target === "sr" ? pathname || "/" : pathname === "/" ? "/lat" : `/lat${pathname}`
+        const path = target === "sr" ? pathname || "/" : pathname === "/" ? latPrefix : `${latPrefix}${pathname}`
         return `${path}${search}`
     }
 
