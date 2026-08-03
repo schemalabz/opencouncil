@@ -1,7 +1,7 @@
 'use client';
 
 import { Bell, CalendarDays } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
@@ -29,6 +29,7 @@ export function NotifyPrompt({
     onOptOut: () => void;
 }) {
     const t = useTranslations('landingV2');
+    const locale = useLocale();
     const known = interest.kind === 'known';
     return (
         <div
@@ -81,7 +82,7 @@ export function NotifyPrompt({
                         <CalendarDays className="h-5 w-5 shrink-0 text-primary" />
                         <span className="text-foreground/80">
                             <span className="font-semibold text-primary">{t('municipality.nextMeeting')}</span>{' '}
-                            {formatDateTime(new Date(nextMeeting.dateTime))}
+                            {formatDateTime(new Date(nextMeeting.dateTime), undefined, 'long', locale)}
                         </span>
                     </div>
                 )}

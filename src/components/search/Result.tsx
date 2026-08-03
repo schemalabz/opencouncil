@@ -8,11 +8,14 @@ import { FileText } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import { format } from "date-fns";
 import { useLocale, useTranslations } from "next-intl";
-import { el, enUS } from "date-fns/locale";
+import { getDateFnsLocale } from "@/lib/formatters/time";
+import { getLocalizedName } from "@/lib/formatters/name";
+import { useLocalizeText } from "@/hooks/useLocalizeText";
 
 export function Result({ result, className }: { result: SegmentWithRelations, className?: string }) {
     const [isExpanded, setIsExpanded] = useState(false);
     const locale = useLocale();
+    const localize = useLocalizeText();
     const t = useTranslations('search.result');
 
     const party = result.person ? getPartyFromRoles(result.person.roles) : null;
@@ -41,14 +44,14 @@ export function Result({ result, className }: { result: SegmentWithRelations, cl
                                 href={`/${result.meeting.city.id}`}
                                 className="text-sm text-muted-foreground hover:text-foreground"
                             >
-                                {result.meeting.city.name}
+                                {getLocalizedName(result.meeting.city, locale)}
                             </Link>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                 <Link
                                     href={`/${result.meeting.city.id}/${result.meeting.id}`}
                                     className="hover:text-foreground"
                                 >
-                                    {format(new Date(result.meeting.dateTime), 'PPP', { locale: locale === 'el' ? el : enUS })}
+                                    {format(new Date(result.meeting.dateTime), 'PPP', { locale: getDateFnsLocale(locale) })}
                                 </Link>
                                 <span>•</span>
                                 <span>{formatTimestamp(result.startTimestamp)}</span>
@@ -64,7 +67,7 @@ export function Result({ result, className }: { result: SegmentWithRelations, cl
                         {result.summary && (
                             <div className="pl-4 border-l-2 border-muted mb-4">
                                 <p className="text-muted-foreground">
-                                    {result.summary.text}
+                                    {localize(result.summary.text)}
                                 </p>
                             </div>
                         )}
@@ -72,7 +75,7 @@ export function Result({ result, className }: { result: SegmentWithRelations, cl
                             "text-sm text-gray-600 whitespace-pre-wrap",
                             !isExpanded && "line-clamp-3"
                         )}>
-                            {result.text}
+                            {localize(result.text)}
                         </p>
                         {result.text.length > 200 && (
                             <button

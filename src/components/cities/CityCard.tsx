@@ -7,6 +7,7 @@ import { useRouter } from '@/i18n/routing';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { OfficialSupportBadge } from '@/components/cities/OfficialSupportBadge';
+import { getLocalizedName } from '@/lib/formatters/name';
 
 interface CityCardProps {
     city: City & { councilMeetings: CouncilMeeting[] };
@@ -14,7 +15,7 @@ interface CityCardProps {
 
 export function CityCard({ city }: CityCardProps) {
     let locale = useLocale();
-    let localizedName = locale === 'en' ? city.name_en : city.name;
+    let localizedName = getLocalizedName(city, locale);
     const router = useRouter();
     const t = useTranslations('City');
     const [isLoading, setIsLoading] = useState(false);

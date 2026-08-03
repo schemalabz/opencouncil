@@ -20,6 +20,7 @@ import { ExplainReader } from "./ExplainReader";
 import { ExplainFeatures } from "./ExplainFeatures";
 import { SubstackCarousel } from "@/components/embeds/SubstackCarousel";
 import { SUBSTACK_POSTS } from "@/lib/explain/substackPosts";
+import { getOgLocale } from '@/i18n/config';
 
 const SUBSTACK_HEADING = "Διάβασε περισσότερα στο Substack";
 
@@ -86,7 +87,7 @@ export async function generateMetadata(props: {
             description: PAGE_DESCRIPTION,
             type: "article",
             siteName: "OpenCouncil",
-            locale: locale === "en" ? "en_US" : "el_GR",
+            locale: getOgLocale(locale),
             images: [
                 {
                     url: ogImageUrl,

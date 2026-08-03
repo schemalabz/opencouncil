@@ -4,6 +4,8 @@ import { isUserAuthorizedToEdit } from "@/lib/auth";
 import CityMeetings from "@/components/cities/CityMeetings";
 import { getCityCached, getCouncilMeetingsForCityCached } from "@/lib/cache";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
+import { getLocalizedName } from "@/lib/formatters/name";
+import { getOgLocale } from '@/i18n/config';
 
 export async function generateMetadata(
     props: {
@@ -27,22 +29,23 @@ export async function generateMetadata(
         };
     }
 
-    const description = `Συνεδριάσεις του Δήμου ${city.name}: βίντεο, απομαγνητοφωνήσεις, θέματα ημερήσιας διάταξης και αποφάσεις, εξηγημένα απλά.`;
+    const cityName = getLocalizedName(city, locale);
+    const description = `Συνεδριάσεις του Δήμου ${cityName}: βίντεο, απομαγνητοφωνήσεις, θέματα ημερήσιας διάταξης και αποφάσεις, εξηγημένα απλά.`;
     const ogImageUrl = `/api/og?cityId=${cityId}`;
 
     return {
-        title: `${city.name} | OpenCouncil`,
+        title: `${cityName} | OpenCouncil`,
         description,
         keywords: [
-            city.name,
+            cityName,
             "δημοτικό συμβούλιο",
             "συνεδριάσεις",
             "τοπική αυτοδιοίκηση",
             "OpenCouncil",
         ],
-        authors: [{ name: `Δήμος ${city.name}` }],
+        authors: [{ name: `Δήμος ${cityName}` }],
         openGraph: {
-            title: `${city.name} | OpenCouncil`,
+            title: `${cityName} | OpenCouncil`,
             description,
             type: "website",
             siteName: "OpenCouncil",
@@ -51,14 +54,14 @@ export async function generateMetadata(
                     url: ogImageUrl,
                     width: 1200,
                     height: 630,
-                    alt: `OpenCouncil — Συνεδριάσεις του Δήμου ${city.name}`,
+                    alt: `OpenCouncil — Συνεδριάσεις του Δήμου ${cityName}`,
                 },
             ],
-            locale: locale === "en" ? "en_US" : "el_GR",
+            locale: getOgLocale(locale),
         },
         twitter: {
             card: "summary_large_image",
-            title: `${city.name} | OpenCouncil`,
+            title: `${cityName} | OpenCouncil`,
             description,
             images: [ogImageUrl],
         },

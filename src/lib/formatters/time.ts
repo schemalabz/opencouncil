@@ -1,23 +1,35 @@
 import { formatDistanceToNow } from 'date-fns';
-import { el, enUS, type Locale } from 'date-fns/locale';
+import { el, enUS, fr, sr, srLatn, type Locale } from 'date-fns/locale';
+import { type AppLocale, DEFAULT_LOCALE, LOCALE_TAGS } from '@/i18n/config';
+
+// Typed against AppLocale (like LOCALE_TAGS) so adding a locale to LOCALES
+// fails compilation until its date-fns locale is declared.
+const DATE_FNS_LOCALES: Record<AppLocale, Locale> = {
+    el,
+    en: enUS,
+    fr,
+    sr,
+    'sr-Latn': srLatn,
+};
 
 /**
- * Map a next-intl locale string ('el' | 'en') to the corresponding
- * date-fns Locale object. Defaults to Greek to match the app's default locale.
+ * Map a next-intl locale string to the corresponding date-fns Locale object.
+ * Defaults to Greek to match the app's default locale.
  */
 export function getDateFnsLocale(locale: string): Locale {
-    return locale === 'en' ? enUS : el;
+    return DATE_FNS_LOCALES[locale as AppLocale] ?? el;
 }
 
 /**
- * Map a next-intl locale string to the BCP 47 tag passed to `Intl.DateTimeFormat`.
- * Defaults to Greek to match the app's default locale.
+ * Map a next-intl locale string to the BCP 47 tag passed to `Intl.DateTimeFormat`
+ * (the canonical tags live in `LOCALE_TAGS`). Defaults to Greek to match the
+ * app's default locale.
  *
  * `formatNumericDateTime` deliberately does not use this — it pins `en-GB` so its
  * numeric output stays day-first in every locale.
  */
 export function getIntlLocale(locale: string): string {
-    return locale === 'en' ? 'en-US' : locale === 'fr' ? 'fr-FR' : 'el-GR';
+    return LOCALE_TAGS[locale as AppLocale] ?? LOCALE_TAGS[DEFAULT_LOCALE];
 }
 
 /**
@@ -146,7 +158,8 @@ export function formatNumericDateTime(date: Date, timezone?: string, locale: str
     };
     if (timezone) options.timeZone = timezone;
 
-    const intlLocale = locale === 'en' ? 'en-GB' : 'el-GR';
+    // en-GB rather than en-US so English output stays day-first numeric.
+    const intlLocale = locale === 'en' ? 'en-GB' : getIntlLocale(locale);
     return new Intl.DateTimeFormat(intlLocale, options).format(date).replace(', ', ' ');
 }
 

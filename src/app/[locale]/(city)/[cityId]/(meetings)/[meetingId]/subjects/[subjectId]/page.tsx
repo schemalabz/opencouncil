@@ -4,6 +4,8 @@ import SubjectReadTracker from "@/components/analytics/SubjectReadTracker";
 import { getMeetingDataCached, getSubjectFromMeetingCached } from "@/lib/getMeetingData";
 import { notFound } from "next/navigation";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
+import { getLocalizedName } from "@/lib/formatters/name";
+import { localizeText } from "@/lib/serbian";
 
 export async function generateMetadata(
     props: {
@@ -37,17 +39,20 @@ export async function generateMetadata(
     // Get the full meeting data for city information
     const meetingData = await getMeetingDataCached(params.cityId, params.meetingId);
 
+    const subjectName = localizeText(subject.name, params.locale);
+
     if (!meetingData) {
-        return { title: subject.name };
+        return { title: subjectName };
     }
 
     // Create a concise title
-    const title = `${meetingData.city.name} - ${subject.name} | OpenCouncil`;
+    const cityName = getLocalizedName(meetingData.city, params.locale);
+    const title = `${cityName} - ${subjectName} | OpenCouncil`;
 
     // Create a meaningful description
-    const description =
-        subject.description ||
-        `Θέμα που συζητήθηκε | ${meetingData.city.name} | ${new Date(meetingData.meeting.dateTime).toLocaleDateString("el-GR")}`;
+    const description = subject.description
+        ? localizeText(subject.description, params.locale)
+        : `Θέμα που συζητήθηκε | ${cityName} | ${new Date(meetingData.meeting.dateTime).toLocaleDateString("el-GR")}`;
 
     return {
         title,

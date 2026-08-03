@@ -4,6 +4,7 @@ import { Link } from '@/i18n/routing'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import UserDropdown from "./user-dropdown"
+import ScriptSwitcher from "./ScriptSwitcher"
 import { motion, AnimatePresence } from 'framer-motion'
 import { SidebarTrigger } from '../ui/sidebar'
 import { City } from '@prisma/client'
@@ -278,6 +279,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
         <div className={cn("flex items-center gap-1 sm:gap-2 md:gap-4 flex-shrink-0 ml-auto", isMeetingContext && "sm:ml-1 md:ml-4")}>
             {children}
             <div className="flex items-center gap-1 sm:gap-2">
+                <ScriptSwitcher className="mr-1" />
                 <button
                     onClick={() => setIsSearchOpen(true)}
                     className="flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 rounded-full hover:bg-accent transition-colors"

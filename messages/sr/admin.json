@@ -1,0 +1,285 @@
+{
+    "cities": {
+        "title": "Градови",
+        "description": "Сви градови груписани по домену.",
+        "addCity": "Додај град",
+        "editCity": "Измени град",
+        "searchPlaceholder": "Претражите градове...",
+        "noCities": "Нису пронађени градови",
+        "columnName": "Назив",
+        "columnId": "ID",
+        "columnLanguage": "Језик",
+        "columnStatus": "Статус",
+        "columnMeetings": "Седнице",
+        "columnPeople": "Особе",
+        "columnParties": "Странке",
+        "languageGreek": "Грчки",
+        "languageFrench": "Француски",
+        "cityCount": "{count, plural, one {# град} few {# града} other {# градова}}"
+    },
+    "taskStatus": {
+        "pending": "На чекању",
+        "succeeded": "Успешно",
+        "failed": "Неуспешно",
+        "unknownError": "Непозната грешка",
+        "deleteDialog": {
+            "title": "Обрисати задатак?",
+            "description": "Ово ће трајно уклонити статус задатка и све повезане информације о напретку.",
+            "warning": "Ова радња се не може опозвати.",
+            "cancel": "Откажи",
+            "confirm": "Обриши задатак"
+        },
+        "reprocessDialog": {
+            "title": "Поновна обрада из базе података: {taskType}",
+            "explanation": "Када се задатак изврши, његов резултат увек чувамо у бази података, тако да га касније можете поново обрадити без поновног покретања задатка на серверу задатака.",
+            "transcribe": {
+                "description": "Поновна обрада задатка транскрипције најпре брише постојеће податке транскрипта седнице (говорнике, сегменте, исказе), а затим их поново креира из сачуваног резултата.",
+                "warning": "Све ручне измене транскрипта биће изгубљене."
+            },
+            "default": {
+                "description": "Ово ће поново обрадити сачувани резултат из базе података.",
+                "info": "Сви постојећи подаци биће аутоматски ажурирани."
+            },
+            "buttons": {
+                "cancel": "Откажи",
+                "deleteAndReprocess": "Обриши и поново обради",
+                "reprocess": "Поновна обрада из базе података",
+                "reprocessing": "Обрада у току...",
+                "processing": "Обрада у току...",
+                "done": "Готово"
+            },
+            "feedback": {
+                "success": "Задатак је успешно поново обрађен!",
+                "error": "Поновна обрада задатка није успела"
+            }
+        }
+    },
+    "taskList": {
+        "noTasks": "Нема покренутих задатака"
+    },
+    "adminActions": {
+        "sections": {
+            "meetingDetails": "Детаљи управљања седницом",
+            "meetingDetailsSubtitle": "Измените основне податке о овој седници.",
+            "taskStatuses": "Статуси задатака",
+            "taskStatusesSubtitle": "Пратите задатке који се извршавају на серверу.",
+            "requestNewTasks": "Затражи нове задатке",
+            "requestNewTasksSubtitle": "Покрените нове задатке обраде на серверу.",
+            "meetingRelease": "Објављивање седнице",
+            "meetingReleaseSubtitle": "Одредите да ли је ова седница јавно видљива.",
+            "notifications": "Обавештења",
+            "notificationsSubtitle": "Креирајте обавештења за кориснике заинтересоване за теме ове седнице.",
+            "cacheManagement": "Управљање кешом",
+            "cacheManagementSubtitle": "Принудно освежите кеширане податке да бисте одмах видели најновије измене.",
+            "podcastSpecs": "Спецификације подкаста",
+            "podcastSpecsSubtitle": "Управљајте спецификацијама за генерисање подкаста за ову седницу.",
+            "decisions": "Одлуке",
+            "decisionsSubtitle": "Повежите одлуке из система Diavgeia са темама седнице.",
+            "minutes": "Преглед записника",
+            "minutesSubtitle": "Прегледајте и извезите записник седнице као DOCX из података у бази.",
+            "export": "Извоз",
+            "exportSubtitle": "Преузмите податке седнице у различитим форматима."
+        },
+        "buttons": {
+            "editMeeting": "Измени седницу",
+            "transcribe": "transcribe",
+            "processAgenda": "processAgenda",
+            "summarize": "summarize",
+            "fixTranscript": "fixTranscript",
+            "beforeMeeting": "beforeMeeting",
+            "afterMeeting": "afterMeeting",
+            "refreshMeetingCache": "Освежи кеш седнице",
+            "refreshCityCache": "Освежи кеш града",
+            "addTopic": "Додај категорију",
+            "starting": "Покретање...",
+            "syncing": "Синхронизација...",
+            "process": "Обради",
+            "manageDecisions": "Управљај одлукама",
+            "extractDecisions": "Издвоји одлуке",
+            "previewMinutes": "Преглед записника",
+            "exportMinutesDocx": "Извези DOCX"
+        },
+        "forms": {
+            "enterMediaUrl": "Унесите URL медија",
+            "enterAgendaUrl": "Унесите URL дневног реда",
+            "enterTopics": "Унесите категорије",
+            "additionalInstructions": "Додатна упутства",
+            "mediaUrlPlaceholder": "https://... (YouTube, mp4, mp3)",
+            "agendaUrlPlaceholder": "https://...",
+            "topicPlaceholder": "Категорија {number}",
+            "force": "Принудно",
+            "forceDescription": {
+                "transcribe": "Брише све сегменте говорника, исказе и сажетке за ову седницу, а затим поново врши транскрипцију из почетка.",
+                "processAgenda": "Брише све теме и аутоматски генерисане истакнуте делове за ову седницу, а затим поново обрађује дневни ред из почетка. Истакнути делови које су креирали корисници се задржавају (уклања се њихова веза са темама).",
+                "summarize": "Теме са дневног реда се задржавају и ажурирају; теме ван дневног реда се замењују. Брише ознаке категорија и ресетује праћење расправе по исказима (статус и везе са темама)."
+            },
+            "released": "Објављена"
+        },
+        "toasts": {
+            "transcriptionRequested": {
+                "title": "Транскрипција затражена",
+                "description": "Процес транскрипције је започео."
+            },
+            "errorRequestingTranscription": {
+                "title": "Грешка при захтевању транскрипције"
+            },
+            "summarizationRequested": {
+                "title": "Сажимање затражено",
+                "description": "Процес сажимања је започео."
+            },
+            "errorRequestingSummarization": {
+                "title": "Грешка при захтевању сажимања"
+            },
+            "fixTranscriptRequested": {
+                "title": "Исправка транскрипта затражена",
+                "description": "Процес исправке транскрипта је започео."
+            },
+            "errorRequestingTranscriptFix": {
+                "title": "Грешка при захтевању исправке транскрипта"
+            },
+            "taskDeleted": {
+                "title": "Задатак обрисан",
+                "description": "Задатак {taskId} је успешно обрисан."
+            },
+            "errorDeletingTask": {
+                "title": "Грешка при брисању задатка"
+            },
+            "meetingReleased": {
+                "title": "Седница објављена",
+                "description": "Седница је објављена."
+            },
+            "meetingUnreleased": {
+                "title": "Објава седнице повучена",
+                "description": "Објава седнице је повучена."
+            },
+            "errorTogglingRelease": {
+                "title": "Грешка при промени статуса објаве седнице"
+            },
+            "agendaProcessingRequested": {
+                "title": "Обрада дневног реда затражена",
+                "description": "Обрада дневног реда је започела."
+            },
+            "errorProcessingAgenda": {
+                "title": "Грешка при обради дневног реда"
+            },
+            "notificationsCreated": {
+                "title": "Обавештења креирана",
+                "description": "Креирано је {count} обавештења за {total} тема. {immediate}"
+            },
+            "sentImmediately": "Одмах послато.",
+            "pendingApproval": "Чека одобрење администратора.",
+            "errorCreatingNotifications": {
+                "title": "Грешка при креирању обавештења"
+            },
+            "errorFetchingTaskStatuses": {
+                "title": "Грешка при преузимању статуса задатака"
+            },
+            "unknownError": "Дошло је до непознате грешке",
+            "meetingCacheInvalidated": {
+                "title": "Кеш седнице поништен",
+                "description": "Подаци седнице биће освежени при следећем захтеву."
+            },
+            "cityCacheInvalidated": {
+                "title": "Кеш града поништен",
+                "description": "Подаци града биће освежени при следећем захтеву."
+            },
+            "error": {
+                "title": "Грешка",
+                "failedToInvalidateMeetingCache": "Поништавање кеша седнице није успело",
+                "failedToInvalidateCityCache": "Поништавање кеша града није успело"
+            },
+            "decisionLinked": {
+                "title": "Одлука повезана"
+            },
+            "decisionUnlinked": {
+                "title": "Веза са одлуком уклоњена"
+            },
+            "errorSavingDecision": {
+                "title": "Грешка при чувању одлуке"
+            },
+            "errorRemovingDecision": {
+                "title": "Грешка при уклањању одлуке"
+            },
+            "extractDecisionsRequested": {
+                "title": "Издвајање одлука затражено",
+                "description": "Издвајање података из PDF докумената одлука."
+            },
+            "errorExtractingDecisions": {
+                "title": "Грешка при издвајању одлука"
+            }
+        },
+        "minutes": {
+            "title": "Преглед записника",
+            "loading": "Генерисање прегледа записника...",
+            "noSubjects": "Нису пронађене теме за ову седницу.",
+            "exportSuccess": "Записник је извезен као DOCX",
+            "exportError": "Грешка при извозу записника"
+        },
+        "decisions": {
+            "title": "Управљање одлукама (Diavgeia)",
+            "description": "Повежите одлуке из система Diavgeia са темама седнице. Користите аутоматско преузимање или додајте ручно.",
+            "noSubjects": "Нису пронађене теме за ову седницу.",
+            "noDecision": "Нема одлуке",
+            "adaLabel": "ADA",
+            "adaPlaceholder": "нпр. 91ΥΔΩΡΦ-ΓΥ6",
+            "protocolNumberLabel": "Број протокола",
+            "protocolNumberPlaceholder": "нпр. 261/2024",
+            "titleLabel": "Наслов одлуке",
+            "titlePlaceholder": "Наслов одлуке",
+            "pdfUrlLabel": "URL PDF документа",
+            "pdfUrlPlaceholder": "https://diavgeia.gov.gr/...",
+            "viewPdf": "Погледај PDF",
+            "linked": "повезано",
+            "save": "Сачувај",
+            "moreOptions": "Више опција",
+            "autoPdfHint": "PDF ће бити преузет са diavgeia.gov.gr/doc/{ada}",
+            "validation": {
+                "adaRequired": "ADA је обавезан",
+                "pdfUrlRequired": "URL PDF документа је обавезан",
+                "pdfUrlInvalid": "Унесите важећи URL"
+            },
+            "sourceTask": "Додато аутоматски",
+            "addManually": "Додај ручно",
+            "tabAll": "Све",
+            "tabUnlinked": "Неповезане",
+            "allLinked": "Све теме имају повезане одлуке.",
+            "pollTitle": "Преузми и издвоји одлуке",
+            "pollDescription": "Претражите Diavgeia, упарите одлуке са темама и издвојте податке из PDF докумената.",
+            "pollButton": "Претражи Diavgeia",
+            "pollButtonSkipCache": "Претражи (заобиђи кеш)",
+            "pollRequested": "Преузимање одлука започето",
+            "pollError": "Покретање преузимања није успело",
+            "skipCacheLabel": "Заобиђи кеш",
+            "skipCacheHint": "Сервер задатака кешира резултате издвајања из PDF докумената — ово заобилази тај кеш",
+            "resetExtractions": "Ресетуј издвајања",
+            "resetExtractionsDescription": "Уклоните све издвојене податке (изводе, присуство, гласове) за сваку тему. Везе са одлукама се задржавају.",
+            "resetExtractionsConfirm": "Ресетовати све издвојене податке (изводе, присуство, гласове) за ову седницу? Везе са одлукама биће задржане.",
+            "tabExtracted": "Издвојене",
+            "excerpt": "Извод",
+            "references": "Правне референце",
+            "attendance": "Присуство",
+            "votes": "Гласање",
+            "present": "присутно",
+            "absent": "одсутно",
+            "showNames": "Прикажи имена",
+            "hideNames": "Сакриј имена",
+            "voteFor": "за",
+            "voteAgainst": "против",
+            "voteAbstain": "уздржан",
+            "votePresent": "присутан",
+            "voteDidNotVote": "није гласао",
+            "showMore": "Прикажи више",
+            "showLess": "Прикажи мање",
+            "unanimous": "Једногласно ({count} за)",
+            "majorityVote": "Већином гласова ({for} за, {against} против)",
+            "rejected": "Одбијено ({against} против, {for} за)",
+            "noExtractedData": "Нема тема са издвојеним подацима.",
+            "resetExtraction": "Ресетуј издвајање",
+            "resetExtractionDescription": "Обришите издвојене податке, задржите везу са одлуком. Следеће преузимање ће поново издвојити податке.",
+            "removeDecision": "Уклони одлуку",
+            "removeDecisionDescription": "Уклоните везу са одлуком и обришите све издвојене податке.",
+            "extractionReset": "Издвајање ресетовано",
+            "decisionRemoved": "Одлука уклоњена"
+        }
+    }
+}

@@ -4,6 +4,7 @@ import { Card, CardContent } from "../ui/card";
 import { useLocale, useTranslations } from 'next-intl';
 import React, { useEffect, useState, useMemo } from 'react';
 import { format, formatDistanceToNow, isFuture } from 'date-fns';
+import { getLocalizedName } from '@/lib/formatters/name';
 import { CalendarIcon, Clock, Loader2, ChevronRight, Building } from 'lucide-react';
 import { sortSubjectsByImportance, IS_DEV } from '@/lib/utils';
 import { formatDateTime, getDateFnsLocale } from '@/lib/formatters/time';
@@ -174,7 +175,7 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                                     isHovered ? "text-primary" : ""
                                 )}
                             >
-                                {meeting.name}
+                                {getLocalizedName(meeting, locale)}
                             </Heading>
                         </div>
 
@@ -183,7 +184,7 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                             {meeting.administrativeBody && (
                                 <div className="flex items-center gap-1">
                                     <Building className="w-3.5 h-3.5 text-muted-foreground/70" />
-                                    <span>{meeting.administrativeBody.name}</span>
+                                    <span>{getLocalizedName(meeting.administrativeBody, locale)}</span>
                                 </div>
                             )}
                             <div className="flex items-center gap-1">

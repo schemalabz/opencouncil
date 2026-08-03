@@ -6,6 +6,8 @@ import { AdministrativeBodyType } from '@prisma/client';
 // @ts-ignore
 import { HexColorPicker, HexColorInput } from 'react-colorful';
 import { Button } from '@/components/ui/button';
+import { getLocalizedName } from '@/lib/formatters/name';
+import { urlPrefixForLocale } from '@/i18n/config';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
@@ -53,7 +55,7 @@ export function EmbedConfigurator({ cityId, cityName, bodyGroups }: EmbedConfigu
         () => bodyGroups.map(g => ({
             type: g.type,
             typeLabel: tCommon(`adminBodyType_${g.type}`),
-            bodies: g.bodies.map(b => ({ value: b.id, label: locale === 'en' ? b.name_en : b.name })),
+            bodies: g.bodies.map(b => ({ value: b.id, label: getLocalizedName(b, locale) })),
         })),
         [bodyGroups, tCommon, locale]
     );
@@ -88,7 +90,7 @@ export function EmbedConfigurator({ cityId, cityName, bodyGroups }: EmbedConfigu
         if (widgetType === 'subjects' && geoLocation) {
             params.set('geohash', geoLocation.geohash);
         }
-        return `${origin}/${locale}/embed/${widgetType}?${params.toString()}`;
+        return `${origin}/${urlPrefixForLocale(locale)}/embed/${widgetType}?${params.toString()}`;
     }, [origin, locale, cityId, widgetType, accent, mode, limit, showSubjects, radius, selectedType, selectedBodyId, geoLocation]);
 
     const embedCode = `<iframe\n  src="${embedUrl}"\n  width="100%"\n  height="600"\n  frameborder="0"\n  style="border-radius: 8px; border: 1px solid #e5e7eb;"\n  title="OpenCouncil"\n></iframe>`;

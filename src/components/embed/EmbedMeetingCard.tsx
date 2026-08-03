@@ -1,5 +1,7 @@
 import { sortSubjectsByImportance } from '@/lib/utils';
 import { formatDate } from '@/lib/formatters/time';
+import { getLocalizedName } from '@/lib/formatters/name';
+import { localizeText } from '@/lib/serbian';
 import Icon from '@/components/icon';
 import { CalendarIcon, Building, ChevronRight, Youtube } from 'lucide-react';
 import { CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
@@ -18,10 +20,6 @@ export interface EmbedTranslations {
     subjects: string;
     more: string;
     watchLive: string;
-}
-
-function localize<T extends { name: string; name_en: string }>(obj: T, locale: string): string {
-    return locale === 'en' ? obj.name_en : obj.name;
 }
 
 export function EmbedMeetingCard({ meeting, locale, showSubjects, baseUrl, cityTimezone, translations: t, isUpcoming }: EmbedMeetingCardProps) {
@@ -46,14 +44,14 @@ export function EmbedMeetingCard({ meeting, locale, showSubjects, baseUrl, cityT
                 className="embed-card-link"
             >
                 <div className="embed-card-title">
-                    {localize(meeting, locale)}
+                    {getLocalizedName(meeting, locale)}
                 </div>
 
                 <div className="embed-card-meta">
                     {meeting.administrativeBody && (
                         <span className="embed-card-meta-item">
                             <Building size={13} />
-                            {localize(meeting.administrativeBody, locale)}
+                            {getLocalizedName(meeting.administrativeBody, locale)}
                         </span>
                     )}
                     <span className="embed-card-meta-item">
@@ -82,7 +80,7 @@ export function EmbedMeetingCard({ meeting, locale, showSubjects, baseUrl, cityT
                                             size={14}
                                         />
                                     </div>
-                                    <span>{subject.name}</span>
+                                    <span>{localizeText(subject.name, locale)}</span>
                                 </li>
                             ))}
                         </ol>

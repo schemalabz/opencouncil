@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
 import { BadgeCheck, BadgeX } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -19,6 +20,7 @@ export function OfficialSupportBadge({
     className,
     size = 'md'
 }: OfficialSupportBadgeProps) {
+    const t = useTranslations('City');
     const sizeClasses = {
         sm: 'text-xs px-2 py-0.5',
         md: 'text-xs px-2 py-1',
@@ -32,15 +34,15 @@ export function OfficialSupportBadge({
     };
 
     const getSupportText = () => {
-        // Hardcoded text for Athens
+        // Athens credits its co-funding partner in the badge
         if (officialSupport && cityId === 'athens') {
-            return 'Με την υποστήριξη του δήμου και της ΔΑΕΜ Α.Ε.';
+            return t('supportBadgeOfficialAthens');
         }
 
-        const entityText = authorityType === 'municipality' ? 'του δήμου' : 'της περιφέρειας';
-        return officialSupport
-            ? `Με την υποστήριξη ${entityText}`
-            : `Χωρίς επίσημη υποστήριξη ${entityText}`;
+        if (authorityType === 'municipality') {
+            return officialSupport ? t('supportBadgeOfficialMunicipality') : t('supportBadgeUnofficialMunicipality');
+        }
+        return officialSupport ? t('supportBadgeOfficialRegion') : t('supportBadgeUnofficialRegion');
     };
 
     if (officialSupport) {

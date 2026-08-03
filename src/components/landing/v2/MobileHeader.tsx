@@ -9,6 +9,7 @@ import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger, SheetClose, SheetTitle } from '@/components/ui/sheet';
 import { FOOTER_GROUPS, isInternalHref, reopenCookiePreferences, type FooterLink } from './navLinks';
+import ScriptSwitcher from '@/components/layout/ScriptSwitcher';
 import { NotifyMunicipalityDialog, openAfterMenuCloses } from './NotifyMunicipalityDialog';
 import { captureLandingAction } from '@/lib/landing/analytics';
 import type { InfoSurface } from '@/lib/landing/landingCore';
@@ -104,6 +105,9 @@ export function MobileHeader({
                                 </div>
                             </details>
                         ))}
+
+                        {/* script toggle (serbian realm only) */}
+                        <ScriptSwitcher className="px-3 py-2.5" />
                     </nav>
 
                     {/* account */}

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, HelpCircle, Loader2, LocateFixed, CalendarDays, MapPin, Bell, Clock, Landmark } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import Icon from '@/components/icon';
@@ -569,6 +569,7 @@ function MunicipalityCard({
     onSelect: (id: string) => void;
 }) {
     const t = useTranslations('landingV2');
+    const locale = useLocale();
     return (
         <div
             role="button"
@@ -613,7 +614,7 @@ function MunicipalityCard({
                     <CalendarDays className="h-3 w-3 shrink-0" />
                     <span className="truncate">
                         <span className="font-medium text-foreground/80">{t('municipality.nextMeeting')}</span>{' '}
-                        {formatDateTime(new Date(next.dateTime))}
+                        {formatDateTime(new Date(next.dateTime), undefined, 'long', locale)}
                     </span>
                 </div>
             )}
@@ -636,6 +637,7 @@ function MuniStat({ label, value }: { label: string; value: number }) {
    sits at the bottom. */
 function StripCard({ subject, active, onClick }: { subject: LandingSubject; active: boolean; onClick: () => void }) {
     const t = useTranslations('landingV2');
+    const locale = useLocale();
     const locationLine = subjectLocationLine(subject);
     const topicBar = topicStyle(subject.topic.color);
     return (
@@ -686,7 +688,7 @@ function StripCard({ subject, active, onClick }: { subject: LandingSubject; acti
                     )}
                     {subject.date && (
                         <span className="flex items-center gap-1">
-                            <CalendarDays className="h-3 w-3 shrink-0" /> {formatDate(new Date(subject.date))}
+                            <CalendarDays className="h-3 w-3 shrink-0" /> {formatDate(new Date(subject.date), undefined, locale)}
                         </span>
                     )}
                     {locationLine && (
@@ -712,6 +714,7 @@ function MobileSubjectExpanded({
     onClose: () => void;
 }) {
     const t = useTranslations('landingV2');
+    const locale = useLocale();
     const locationLine = subjectLocationLine(subject);
     const topicBar = topicStyle(subject.topic.color);
     return (
@@ -765,7 +768,7 @@ function MobileSubjectExpanded({
                     )}
                     {subject.date && (
                         <div className="flex items-center gap-1 text-xs font-medium text-foreground/80">
-                            <CalendarDays className="h-3 w-3 shrink-0" /> {formatDate(new Date(subject.date))}
+                            <CalendarDays className="h-3 w-3 shrink-0" /> {formatDate(new Date(subject.date), undefined, locale)}
                         </div>
                     )}
                     {locationLine && (

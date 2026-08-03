@@ -1,7 +1,7 @@
 'use client';
 
 import { ArrowRight, Bell, CalendarDays } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import { formatDateTime } from '@/lib/formatters/time';
@@ -154,6 +154,7 @@ function MuniPanelCard({
     onSelect: (id: string) => void;
 }) {
     const t = useTranslations('landingV2');
+    const locale = useLocale();
     return (
         <div
             role="button"
@@ -211,7 +212,7 @@ function MuniPanelCard({
                         <CalendarDays className="h-3.5 w-3.5 shrink-0" />
                         <span className="truncate">
                             <span className="font-medium text-foreground/80">{t('municipality.nextMeeting')}</span>{' '}
-                            {formatDateTime(new Date(next.dateTime))}
+                            {formatDateTime(new Date(next.dateTime), undefined, 'long', locale)}
                         </span>
                     </div>
                 </>

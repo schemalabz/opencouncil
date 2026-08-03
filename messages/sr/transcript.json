@@ -1,0 +1,80 @@
+{
+    "utterance": {
+        "editing": {
+            "saveShortcut": "Сачувајте (Enter)",
+            "cancelShortcut": "Откажите (Escape)",
+            "timestamps": "Временске ознаке",
+            "useCurrent": "Употребите тренутно",
+            "setStartTime": "Поставите на тренутно време видео-снимка ([)",
+            "setEndTime": "Поставите на тренутно време видео-снимка (])"
+        },
+        "contextMenu": {
+            "copyText": "Копирајте текст",
+            "selectFromHere": "Изаберите одавде",
+            "selectUntilHere": "Изаберите довде",
+            "startHighlightFromHere": "Започните истакнути исечак одавде",
+            "moveToPreviousSegment": "Преместите у претходни сегмент",
+            "moveToNextSegment": "Преместите у следећи сегмент",
+            "shareFromHere": "Поделите одавде",
+            "extractSegment": "Издвојте сегмент"
+        },
+        "toasts": {
+            "moveUtterances": "Преместити исказе?",
+            "moveToPreviousDescription": "Да ли желите да преместите овај и претходне исказе у претходни сегмент?",
+            "moveToNextDescription": "Да ли желите да преместите овај и наредне исказе у следећи сегмент?",
+            "confirm": "Потврдите",
+            "utterancesMovedSuccessfully": "Искази су успешно премештени",
+            "highlightCreated": "Истакнути исечак је направљен",
+            "highlightCreatedDescription": "Истакнути исечак почиње овим исказом. Додајте још исказа да бисте га допунили.",
+            "error": "Грешка",
+            "createHighlightError": "Прављење истакнутог исечка није успело. Молимо покушајте поново.",
+            "editError": "Чување измена није успело. Молимо покушајте поново.",
+            "copyError": "Копирање текста није успело",
+            "deleteUtterance": "Избрисати исказ?",
+            "deleteUtteranceDescription": "Ова радња се не може опозвати.",
+            "utteranceDeletedSuccessfully": "Исказ је успешно избрисан",
+            "deleteError": "Брисање исказа није успело"
+        },
+        "common": {
+            "error": "Грешка"
+        }
+    },
+    "controls": {
+        "hideControls": "Сакријте контроле",
+        "showControls": "Прикажите контроле",
+        "pause": "Паузирајте",
+        "play": "Пустите",
+        "previousClip": "Претходни исечак",
+        "nextClip": "Следећи исечак",
+        "timeline": "Временска линија репродукције",
+        "playbackProgress": "Ток репродукције"
+    },
+    "unverifiedBanner": {
+        "title": "Аутоматски транскрипт",
+        "description": "Овај транскрипт је аутоматски генерисан и може садржати грешке. Тренутно се прегледа и биће ажуриран у року од 48 сати од седнице."
+    },
+    "emptySegment": {
+        "noUtterances": "Нема исказа у овом сегменту",
+        "addUtterance": "Додајте исказ",
+        "adding": "Додавање..."
+    },
+    "addUtterance": {
+        "button": "Додајте исказ",
+        "tooltip": "Додајте нови исказ на крај овог сегмента"
+    },
+    "miniTranscript": {
+        "play": "Пустите",
+        "pause": "Паузирајте",
+        "seekTo": "Премотајте на",
+        "transcript": "Транскрипт"
+    },
+    "hiddenForReview": {
+        "title": "Транскрипт још увек није доступан",
+        "description": "Наш тим тренутно прегледа транскрипт и он ће ускоро бити доступан."
+    },
+    "copySegment": {
+        "button": "Копирајте сегмент",
+        "segmentCopied": "Сегмент је копиран",
+        "copySourceAttribution": "Копирано са OpenCouncil · opencouncil.gr"
+    }
+}

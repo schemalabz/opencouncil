@@ -1,4 +1,14 @@
-import { realmForHost, createRealmResolver, isKnownRealmHost } from '../realm';
+import {
+    realmForHost,
+    createRealmResolver,
+    isKnownRealmHost,
+    computeForeignLocales,
+    foreignLocalesForRealm,
+    isRealm,
+    isRealmApexHost,
+    realmOverride,
+    effectiveRealm,
+} from '../realm';
 
 describe('createRealmResolver', () => {
     // Parent declared first so a naive first-match would wrongly return it for
@@ -41,12 +51,14 @@ describe('realmForHost', () => {
         expect(realmForHost('opencouncil.gr')).toBe('greece');
         expect(realmForHost('opencouncil.fr')).toBe('france');
         expect(realmForHost('opencouncil.cy')).toBe('cyprus');
+        expect(realmForHost('opencouncil.rs')).toBe('serbia');
     });
 
     it('resolves preview subdomains of a realm domain to that realm', () => {
         expect(realmForHost('pr-7.preview.opencouncil.gr')).toBe('greece');
         expect(realmForHost('pr-7.preview.opencouncil.fr')).toBe('france');
         expect(realmForHost('pr-7.preview.opencouncil.cy')).toBe('cyprus');
+        expect(realmForHost('pr-7.preview.opencouncil.rs')).toBe('serbia');
     });
 
     it.each([null, undefined, '', 'localhost:3000', 'example.com'])(
@@ -70,5 +82,88 @@ describe('isKnownRealmHost', () => {
         expect(isKnownRealmHost('localhost')).toBe(false);
         expect(isKnownRealmHost('')).toBe(false);
         expect(isKnownRealmHost(null)).toBe(false);
+    });
+});
+
+describe('isRealm', () => {
+    it('accepts configured realm names and rejects everything else', () => {
+        expect(isRealm('greece')).toBe(true);
+        expect(isRealm('serbia')).toBe(true);
+        expect(isRealm('atlantis')).toBe(false);
+        expect(isRealm('')).toBe(false);
+        expect(isRealm(null)).toBe(false);
+        expect(isRealm(undefined)).toBe(false);
+        // Object prototype keys must not slip through the `in` check.
+        expect(isRealm('toString')).toBe(false);
+    });
+});
+
+describe('isRealmApexHost', () => {
+    it('matches only the exact production apex, port-insensitive', () => {
+        expect(isRealmApexHost('opencouncil.gr')).toBe(true);
+        expect(isRealmApexHost('OpenCouncil.RS:443')).toBe(true);
+    });
+
+    it('rejects subdomains (previews), localhost and unknown hosts', () => {
+        expect(isRealmApexHost('pr-7.preview.opencouncil.gr')).toBe(false);
+        expect(isRealmApexHost('www.opencouncil.gr')).toBe(false);
+        expect(isRealmApexHost('localhost:3000')).toBe(false);
+        expect(isRealmApexHost('evil.com')).toBe(false);
+        expect(isRealmApexHost(null)).toBe(false);
+    });
+});
+
+describe('realmOverride / effectiveRealm', () => {
+    it('honors a valid override cookie on preview hosts and localhost', () => {
+        expect(realmOverride('pr-7.preview.opencouncil.gr', 'serbia')).toBe('serbia');
+        expect(effectiveRealm('pr-7.preview.opencouncil.gr', 'serbia')).toBe('serbia');
+        expect(effectiveRealm('localhost:3000', 'france')).toBe('france');
+    });
+
+    it('ignores the override on production apex hosts', () => {
+        expect(realmOverride('opencouncil.gr', 'serbia')).toBeUndefined();
+        expect(effectiveRealm('opencouncil.gr', 'serbia')).toBe('greece');
+        expect(effectiveRealm('opencouncil.rs', 'greece')).toBe('serbia');
+    });
+
+    it('ignores invalid or absent cookie values and falls back to the host realm', () => {
+        expect(realmOverride('pr-7.preview.opencouncil.gr', 'atlantis')).toBeUndefined();
+        expect(effectiveRealm('pr-7.preview.opencouncil.gr', 'atlantis')).toBe('greece');
+        expect(effectiveRealm('pr-7.preview.opencouncil.fr', undefined)).toBe('france');
+        expect(effectiveRealm('localhost:3000', undefined)).toBe('greece');
+    });
+});
+
+describe('computeForeignLocales', () => {
+    it('includes other realms\' extraLocales as foreign, but never a realm\'s own', () => {
+        const foreign = computeForeignLocales({
+            alpha: { defaultLocale: 'el' },
+            beta: { defaultLocale: 'sr', extraLocales: ['sr-Latn'] },
+        });
+        expect(foreign.alpha).toEqual(['sr', 'sr-Latn']);
+        expect(foreign.beta).toEqual(['el']);
+    });
+
+    it('never marks a shared default locale as foreign', () => {
+        const foreign = computeForeignLocales({
+            alpha: { defaultLocale: 'el' },
+            beta: { defaultLocale: 'el' },
+            gamma: { defaultLocale: 'fr' },
+        });
+        expect(foreign.alpha).toEqual(['fr']);
+        expect(foreign.beta).toEqual(['fr']);
+        expect(foreign.gamma).toEqual(['el']);
+    });
+});
+
+describe('foreignLocalesForRealm', () => {
+    it('marks both Serbian locales foreign on non-Serbian realms', () => {
+        expect(foreignLocalesForRealm('greece').sort()).toEqual(['fr', 'sr', 'sr-Latn']);
+        expect(foreignLocalesForRealm('cyprus').sort()).toEqual(['fr', 'sr', 'sr-Latn']);
+        expect(foreignLocalesForRealm('france').sort()).toEqual(['el', 'sr', 'sr-Latn']);
+    });
+
+    it('marks only el and fr foreign on serbia (en is shared, never foreign)', () => {
+        expect(foreignLocalesForRealm('serbia').sort()).toEqual(['el', 'fr']);
     });
 });

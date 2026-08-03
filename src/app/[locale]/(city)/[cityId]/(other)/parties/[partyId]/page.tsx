@@ -7,6 +7,8 @@ import { notFound } from "next/navigation";
 import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
 import { Metadata } from "next";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
+import { getLocalizedName, getLocalizedShortName } from "@/lib/formatters/name";
+import { getOgLocale } from '@/i18n/config';
 
 // Request-scoped dedup so generateMetadata and PartyPage share a single fetch.
 const getPartyCached = cache(getParty);
@@ -29,24 +31,26 @@ export async function generateMetadata(
         };
     }
 
-    const description = `Η παράταξη ${party.name} στο Δημοτικό Συμβούλιο του Δήμου ${city.name}. Δείτε τα μέλη, τις τοποθετήσεις και τη δραστηριότητά της στις συνεδριάσεις.`;
+    const partyName = getLocalizedName(party, params.locale);
+    const cityName = getLocalizedName(city, params.locale);
+    const description = `Η παράταξη ${partyName} στο Δημοτικό Συμβούλιο του Δήμου ${cityName}. Δείτε τα μέλη, τις τοποθετήσεις και τη δραστηριότητά της στις συνεδριάσεις.`;
     const ogImageUrl = `/api/og?cityId=${params.cityId}`;
 
     return {
-        title: `${party.name} | ${city.name} | OpenCouncil`,
+        title: `${partyName} | ${cityName} | OpenCouncil`,
         description,
         keywords: [
-            party.name,
-            party.name_short,
+            partyName,
+            getLocalizedShortName(party, params.locale),
             "παράταξη",
             "δημοτικό συμβούλιο",
             "τοπική αυτοδιοίκηση",
-            city.name,
+            cityName,
             "OpenCouncil",
         ],
-        authors: [{ name: `Δήμος ${city.name}` }],
+        authors: [{ name: `Δήμος ${cityName}` }],
         openGraph: {
-            title: `${party.name} | ${city.name}`,
+            title: `${partyName} | ${cityName}`,
             description,
             type: "website",
             siteName: "OpenCouncil",
@@ -55,14 +59,14 @@ export async function generateMetadata(
                     url: ogImageUrl,
                     width: 1200,
                     height: 630,
-                    alt: `${party.name} — Δήμος ${city.name}`,
+                    alt: `${partyName} — Δήμος ${cityName}`,
                 },
             ],
-            locale: params.locale === "en" ? "en_US" : "el_GR",
+            locale: getOgLocale(params.locale),
         },
         twitter: {
             card: "summary_large_image",
-            title: `${party.name} | ${city.name}`,
+            title: `${partyName} | ${cityName}`,
             description,
             images: [ogImageUrl],
         },

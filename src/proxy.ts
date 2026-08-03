@@ -3,8 +3,9 @@ import { routing, LOCALE_OVERRIDE_HEADER } from './i18n/routing';
 import { NextResponse, NextRequest } from 'next/server';
 import { auth } from './auth'
 import { env } from '@/env.mjs';
-import { realmForHost } from './lib/realm';
+import { REALMS, REALM_OVERRIDE_COOKIE, isRealm, isRealmApexHost, realmForHost, realmOverride } from './lib/realm';
 import { foreignLocaleRedirectPath, wwwRedirectTarget } from './lib/seo-redirects';
+import { localePrefixPattern } from './i18n/config';
 
 const i18nMiddleware = createIntlMiddleware(routing);
 
@@ -16,8 +17,12 @@ const i18nMiddleware = createIntlMiddleware(routing);
 const JUNK_PATH = /^\/(wp-admin|wp-login|wp-content|wp-includes|wordpress|xmlrpc|administrator|phpmyadmin|cgi-bin)(\/|$)/i;
 
 // Page paths that go through i18n routing (i.e. not api/_next/_vercel/qr or
-// dotted asset paths). Both the .fr rewrite and the i18n handoff gate on this.
+// dotted asset paths). Both the realm-locale rewrite and the i18n handoff
+// gate on this.
 const APP_PATH = /^\/(?!api|_next|_vercel|qr\/|\..+).*/;
+
+// Any explicit locale URL prefix (/en, /el, /fr, /sr, /lat).
+const LOCALE_PREFIX_RE = new RegExp(`^/(${localePrefixPattern})(/|$)`);
 
 export default async function proxy(req: NextRequest) {
     // Basic auth check
@@ -71,36 +76,62 @@ export default async function proxy(req: NextRequest) {
         return NextResponse.rewrite(url);
     }
 
+    // Realm override for non-production hosts: `?realm=serbia` persists the
+    // realm in a cookie and redirects to the clean URL; from then on the
+    // request is treated as that realm end-to-end (this proxy, `getRealm()`,
+    // client components). Previews are subdomains of opencouncil.gr and some
+    // realm domains have no DNS yet, so this is the only way to review other
+    // realms there. Ignored on production apex hosts — see `isRealmApexHost`.
+    const host = req.headers.get('host');
+    const realmParam = req.nextUrl.searchParams.get('realm');
+    if (realmParam !== null && isRealm(realmParam) && !isRealmApexHost(host)) {
+        const cleanUrl = req.nextUrl.clone();
+        cleanUrl.searchParams.delete('realm');
+        const response = NextResponse.redirect(cleanUrl, 302);
+        response.cookies.set(REALM_OVERRIDE_COOKIE, realmParam, {
+            path: '/',
+            maxAge: 60 * 60 * 24 * 30,
+            sameSite: 'lax',
+        });
+        return response;
+    }
+    const override = realmOverride(host, req.cookies.get(REALM_OVERRIDE_COOKIE)?.value);
+    const realm = override ?? realmForHost(host);
+
     // A foreign locale prefix on a realm host (/fr on .gr, /el on .fr) is an
     // orphaned duplicate tree — 301 it to the unprefixed URL. Must run before
     // the .fr rewrite and the i18n middleware below.
-    const strippedPath = foreignLocaleRedirectPath(req.headers.get('host'), pathname);
+    const strippedPath = foreignLocaleRedirectPath(host, pathname, override);
     if (strippedPath !== null) {
         return NextResponse.redirect(new URL(strippedPath + req.nextUrl.search, req.url), 301);
     }
 
-    // French-domain handling: on a .fr host, serve the French UI transparently.
-    // Rewrite (not redirect) unprefixed app paths to the /fr locale segment so the
-    // [locale] route resolves to 'fr' while the browser's address bar stays on the
-    // .fr domain. The [locale] layout calls setRequestLocale('fr'), so messages
-    // load as French without next-intl's middleware running for these requests.
+    // Realm-locale handling: on a host whose realm default differs from the
+    // app default (.fr → fr, .rs → sr), serve that locale's UI transparently.
+    // Rewrite (not redirect) unprefixed app paths to the locale segment so the
+    // [locale] route resolves correctly while the browser's address bar stays
+    // on the realm domain. The [locale] layout calls setRequestLocale, so
+    // messages load without next-intl's middleware running for these requests.
     // Only applies when the path has no explicit locale prefix, so an explicit
-    // /en or /el on a .fr host is still respected.
+    // /en (or /lat on .rs) is still respected. Unknown hosts (localhost)
+    // resolve to greece, whose default is the app default — dev is unaffected
+    // unless a realm override cookie says otherwise.
+    const realmDefaultLocale = REALMS[realm].defaultLocale;
     if (
-        isFrenchHost(req) &&
-        !/^\/(en|el|fr)(\/|$)/.test(pathname) &&
+        realmDefaultLocale !== routing.defaultLocale &&
+        !LOCALE_PREFIX_RE.test(pathname) &&
         APP_PATH.test(pathname)
     ) {
-        const frUrl = req.nextUrl.clone();
-        frUrl.pathname = pathname === '/' ? '/fr' : `/fr${pathname}`;
-        // The [locale] segment handles French rendering via setRequestLocale,
-        // but the root layout sits above it and (since we bypass next-intl's
+        const localeUrl = req.nextUrl.clone();
+        localeUrl.pathname = pathname === '/' ? `/${realmDefaultLocale}` : `/${realmDefaultLocale}${pathname}`;
+        // The [locale] segment handles rendering via setRequestLocale, but the
+        // root layout sits above it and (since we bypass next-intl's
         // middleware here) has no locale to read for the <html lang> attr. Pass
         // it via our own header, which the root layout reads explicitly — no
         // dependency on next-intl's undocumented internal locale header.
         const requestHeaders = new Headers(req.headers);
-        requestHeaders.set(LOCALE_OVERRIDE_HEADER, 'fr');
-        return NextResponse.rewrite(frUrl, { request: { headers: requestHeaders } });
+        requestHeaders.set(LOCALE_OVERRIDE_HEADER, realmDefaultLocale);
+        return NextResponse.rewrite(localeUrl, { request: { headers: requestHeaders } });
     }
 
     // Handle i18n first (skip for /qr/* paths to allow direct route handler)
@@ -152,17 +183,6 @@ function isHttpBasicAuthAuthenticated(req: Request) {
     const username = decoded.slice(0, sep);
     const password = decoded.slice(sep + 1);
     return username === env.BASIC_AUTH_USERNAME && password === env.BASIC_AUTH_PASSWORD;
-}
-
-/**
- * Whether the request arrived on the French domain (`opencouncil.fr` or a
- * subdomain of it). Delegates to the shared `realmForHost` mapping (the single
- * source of truth for host→realm), which strips the port and matches the apex or
- * any subdomain — so `localhost`-style `host:port`, real domains and a spoofed
- * `Host: opencouncil.fr` header all work for local testing.
- */
-function isFrenchHost(req: NextRequest): boolean {
-    return realmForHost(req.headers.get('host')) === 'france';
 }
 
 /**

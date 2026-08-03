@@ -1,12 +1,14 @@
 // Server-only by convention: uses next/headers, so it can only run in a request
 // scope (server components / route handlers / generateMetadata). Keep it out of
 // client bundles and out of unstable_cache callbacks.
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { Realm } from '@prisma/client';
-import { getRealmBaseUrl, realmForHost } from './realm';
+import { REALM_OVERRIDE_COOKIE, effectiveRealm, getRealmBaseUrl } from './realm';
 
 /**
- * Resolves the current request's realm from its Host header.
+ * Resolves the current request's realm from its Host header, honoring the
+ * `oc-realm` override cookie on non-production hosts (the `?realm=` escape
+ * hatch for previews/localhost — see `realmOverride` in `realm.ts`).
  *
  * Server-only: reads `headers()`, so it cannot be called inside `unstable_cache`
  * (`createCache`). Resolve realm at the call site (server component / route
@@ -18,7 +20,8 @@ import { getRealmBaseUrl, realmForHost } from './realm';
  */
 export async function getRealm(): Promise<Realm> {
     const host = (await headers()).get('host');
-    return realmForHost(host);
+    const overrideCookie = (await cookies()).get(REALM_OVERRIDE_COOKIE)?.value;
+    return effectiveRealm(host, overrideCookie);
 }
 
 /** Canonical absolute base URL for the current request's realm. */

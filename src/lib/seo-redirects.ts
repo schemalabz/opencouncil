@@ -1,4 +1,6 @@
+import { Realm } from '@prisma/client';
 import { REALMS, foreignLocalesForRealm, isKnownRealmHost, realmForHost } from '@/lib/realm';
+import { urlPrefixForLocale } from '@/i18n/config';
 
 /**
  * SEO-motivated redirect decisions for the proxy. Pure module (no
@@ -31,22 +33,29 @@ export function wwwRedirectTarget(host: string | null | undefined, pathname: str
 
 /**
  * Path to 301 to when the request carries a foreign locale prefix on a known
- * realm host (`/fr/x` on `.gr` → `/x`, `/el/x` on `.fr` → `/x`), else null.
- * Kills the orphaned duplicate tree the foreign locale creates (it has no
- * hreflang entry and no UI entry point).
+ * realm host (`/fr/x` on `.gr` → `/x`, `/el/x` on `.fr` → `/x`, `/lat/x` on
+ * `.gr` → `/x`), else null. Kills the orphaned duplicate tree the foreign
+ * locale creates (it has no hreflang entry and no UI entry point).
  *
  * - Only on known realm hosts, so localhost keeps serving all locale prefixes
- *   for development.
+ *   for development — unless `realmOverride` is set (the `?realm=` escape
+ *   hatch, see `realmOverride` in `realm.ts`), in which case the host is
+ *   treated as that realm's host so the emulation is faithful everywhere.
  * - The realm's own default prefix (`/el` on `.gr`) is next-intl's job — its
  *   middleware already redirects it away. `/en` intentionally keeps serving
  *   200 (it canonicalizes to the default-locale URL instead).
  */
-export function foreignLocaleRedirectPath(host: string | null | undefined, pathname: string): string | null {
-    if (!isKnownRealmHost(host)) return null;
-    const realm = realmForHost(host);
+export function foreignLocaleRedirectPath(
+    host: string | null | undefined,
+    pathname: string,
+    realmOverride?: Realm,
+): string | null {
+    if (realmOverride === undefined && !isKnownRealmHost(host)) return null;
+    const realm = realmOverride ?? realmForHost(host);
     for (const locale of foreignLocalesForRealm(realm)) {
-        if (pathname === `/${locale}`) return '/';
-        if (pathname.startsWith(`/${locale}/`)) return pathname.slice(locale.length + 1);
+        const prefix = urlPrefixForLocale(locale);
+        if (pathname === `/${prefix}`) return '/';
+        if (pathname.startsWith(`/${prefix}/`)) return pathname.slice(prefix.length + 1);
     }
     return null;
 }

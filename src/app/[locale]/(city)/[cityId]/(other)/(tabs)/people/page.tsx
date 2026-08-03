@@ -4,6 +4,8 @@ import CityPeople from "@/components/cities/CityPeople";
 import { getPartiesForCityCached, getPeopleForCityCached, getAdministrativeBodiesForCityCached, getCityCached } from "@/lib/cache";
 import { Metadata } from "next";
 import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
+import { getLocalizedName } from "@/lib/formatters/name";
+import { getOgLocale } from '@/i18n/config';
 
 export async function generateMetadata(props: { params: Promise<{ cityId: string; locale: string }> }): Promise<Metadata> {
     const params = await props.params;
@@ -24,13 +26,14 @@ export async function generateMetadata(props: { params: Promise<{ cityId: string
     const partiesCount = parties?.length || 0;
 
     // Generate rich description
-    const description = `Λίστα όλων των δημοτικών συμβούλων και αντιδημάρχων | ${city.name}. ${peopleCount} συμβούλους από ${partiesCount} κόμματα και παρατάξεις, τα προφίλ τους και τη δραστηριότητά τους στο δημοτικό συμβούλιο.`;
+    const cityName = getLocalizedName(city, params.locale);
+    const description = `Λίστα όλων των δημοτικών συμβούλων και αντιδημάρχων | ${cityName}. ${peopleCount} συμβούλους από ${partiesCount} κόμματα και παρατάξεις, τα προφίλ τους και τη δραστηριότητά τους στο δημοτικό συμβούλιο.`;
 
     // Generate OG image URL
     const ogImageUrl = `/api/og?cityId=${params.cityId}&pageType=people`;
 
     return {
-        title: `Δημοτικοί Σύμβουλοι | ${city.name} | OpenCouncil`,
+        title: `Δημοτικοί Σύμβουλοι | ${cityName} | OpenCouncil`,
         description,
         keywords: [
             'δημοτικοί σύμβουλοι',
@@ -39,14 +42,14 @@ export async function generateMetadata(props: { params: Promise<{ cityId: string
             'αντιδημαρχοι',
             'κόμματα',
             'παρατάξεις',
-            city.name,
+            cityName,
             'OpenCouncil',
             'λίστα συμβούλων',
             'πολιτικές παρατάξεις'
         ],
-        authors: [{ name: `Δήμος ${city.name}` }],
+        authors: [{ name: `Δήμος ${cityName}` }],
         openGraph: {
-            title: `Δημοτικοί Σύμβουλοι | ${city.name}`,
+            title: `Δημοτικοί Σύμβουλοι | ${cityName}`,
             description,
             type: 'website',
             siteName: 'OpenCouncil',
@@ -55,14 +58,14 @@ export async function generateMetadata(props: { params: Promise<{ cityId: string
                     url: ogImageUrl,
                     width: 1200,
                     height: 630,
-                    alt: `Δημοτικοί σύμβουλοι του Δήμου ${city.name}`,
+                    alt: `Δημοτικοί σύμβουλοι του Δήμου ${cityName}`,
                 }
             ],
-            locale: 'el_GR',
+            locale: getOgLocale(params.locale),
         },
         twitter: {
             card: 'summary_large_image',
-            title: `Δημοτικοί Σύμβουλοι | ${city.name}`,
+            title: `Δημοτικοί Σύμβουλοι | ${cityName}`,
             description,
             images: [ogImageUrl],
         },

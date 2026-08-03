@@ -24,13 +24,14 @@ import { SubjectHeaderProvider } from '@/contexts/SubjectHeaderContext';
 import { NotificationPreferenceProvider } from '@/contexts/NotificationPreferenceContext';
 import { getTranslations } from 'next-intl/server';
 import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
+import { getLocalizedName } from '@/lib/formatters/name';
 
 export async function generateImageMetadata(
     props: {
-        params: Promise<{ meetingId: string; cityId: string }>
+        params: Promise<{ meetingId: string; cityId: string; locale: string }>
     }
 ) {
-    const { meetingId, cityId } = await props.params;
+    const { meetingId, cityId, locale } = await props.params;
 
     const data = await getMeetingDataCached(cityId, meetingId);
 
@@ -38,19 +39,21 @@ export async function generateImageMetadata(
         return [];
     }
 
+    const meetingName = getLocalizedName(data.meeting, locale);
+
     return [
         {
             contentType: 'image/png',
             size: { width: 1200, height: 630 },
             id: 'og',
-            alt: data.meeting.name,
+            alt: meetingName,
             url: `/api/og?meetingId=${meetingId}&cityId=${cityId}`
         },
         {
             contentType: 'image/png',
             size: { width: 32, height: 32 },
             id: 'icon',
-            alt: data.meeting.name,
+            alt: meetingName,
             url: `/api/icon?meetingId=${meetingId}&cityId=${cityId}`
         }
     ];
@@ -78,7 +81,7 @@ export async function generateMetadata(
     }
 
     // Create an optimized title between 30-60 characters
-    const optimizedTitle = `${data.city.name} - ${data.meeting.name} | OpenCouncil`;
+    const optimizedTitle = `${getLocalizedName(data.city, locale)} - ${getLocalizedName(data.meeting, locale)} | OpenCouncil`;
 
     // Use the hero text for description, which is already optimized for Greek audience
     const description = "To OpenCouncil χρησιμοποιεί τεχνητή νοημοσύνη για να παρακολουθεί τα δημοτικά συμβούλια και να τα κάνει απλά και κατανοητά";
@@ -96,7 +99,7 @@ export async function generateMetadata(
                 url: imageUrl,
                 width: 1200,
                 height: 630,
-                alt: `${data.meeting.name} - ${data.city.name} Δημοτικό Συμβούλιο`
+                alt: `${getLocalizedName(data.meeting, locale)} - ${getLocalizedName(data.city, locale)}`
             }]
         },
         twitter: {
@@ -156,8 +159,10 @@ export default async function CouncilMeetingPage(
     // Build admin body breadcrumb link with proper filter params
     const adminBody = data.meeting.administrativeBody;
     const tCommon = await getTranslations({ locale, namespace: 'Common' });
+    // Display name is localized; the `body` query param stays canonical — it
+    // filters against stored values.
     const adminBodyPath = adminBody ? {
-        name: adminBody.name,
+        name: getLocalizedName(adminBody, locale),
         link: `/${cityId}?filters=${encodeURIComponent(tCommon(`adminBodyType_${adminBody.type}`))}&body=${encodeURIComponent(adminBody.name)}`
     } : null;
 
@@ -177,13 +182,13 @@ export default async function CouncilMeetingPage(
                                 <Header
                                     path={[
                                         {
-                                            name: data.city.name,
+                                            name: getLocalizedName(data.city, locale),
                                             link: `/${cityId}`,
                                             city: data.city
                                         },
                                         ...(adminBodyPath ? [adminBodyPath] : []),
                                         {
-                                            name: data.meeting.name,
+                                            name: getLocalizedName(data.meeting, locale),
                                             link: `/${cityId}/${meetingId}`
                                         }
                                     ]}

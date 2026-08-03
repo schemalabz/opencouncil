@@ -18,7 +18,13 @@ export const REALMS = {
     greece: { domain: 'opencouncil.gr', defaultLocale: 'el', country: 'gr' },
     france: { domain: 'opencouncil.fr', defaultLocale: 'fr', country: 'fr' },
     cyprus: { domain: 'opencouncil.cy', defaultLocale: 'el', country: 'cy' },
-} as const satisfies Record<Realm, { domain: string; defaultLocale: 'el' | 'fr'; country: string }>;
+    // Serbian is digraphic: `sr` (Cyrillic) is the default, `sr-Latn` is the
+    // realm-exclusive Latin variant reachable via the script switcher.
+    serbia: { domain: 'opencouncil.rs', defaultLocale: 'sr', extraLocales: ['sr-Latn'], country: 'rs' },
+} as const satisfies Record<
+    Realm,
+    { domain: string; defaultLocale: 'el' | 'fr' | 'sr'; country: string; extraLocales?: readonly string[] }
+>;
 
 /**
  * All realms in `REALMS` declaration order, for UIs that enumerate realms
@@ -46,6 +52,7 @@ const REALM_DEFAULT_MAP_VIEW: Record<Realm, { center: [number, number]; zoom: nu
     greece: { center: [23.7275, 37.9838], zoom: 5 }, // Athens
     france: { center: [2.4, 46.6], zoom: 5 },        // metropolitan France
     cyprus: { center: [33.2, 35.0], zoom: 8 },       // island of Cyprus
+    serbia: { center: [20.457, 44.817], zoom: 6 },   // Belgrade
 };
 
 const hostMatchesDomain = (host: string, domain: string): boolean =>
@@ -107,27 +114,78 @@ export function isKnownRealmHost(host: string | null | undefined): boolean {
 }
 
 /**
- * Derives each realm's foreign locale prefixes: default locales of other realms
- * that differ from the realm's own default (e.g. `fr` on opencouncil.gr). The
- * proxy 301s these to the unprefixed URL; `en` is shared by all realms and is
- * never foreign.
+ * Cookie carrying a realm override on non-production hosts (see
+ * `isRealmApexHost`). Set by the proxy when a request arrives with
+ * `?realm=<realm>`; read by the proxy, `getRealm()` and `realmForBrowser()` so
+ * previews and localhost can be viewed as any realm despite their Host
+ * resolving elsewhere (preview hosts are subdomains of opencouncil.gr, and
+ * some realm domains — e.g. opencouncil.rs — have no DNS yet).
+ */
+export const REALM_OVERRIDE_COOKIE = 'oc-realm';
+
+/** Type guard: whether an arbitrary string names a configured realm. */
+export function isRealm(value: string | null | undefined): value is Realm {
+    // hasOwnProperty, not `in`: the value is attacker-controlled (a cookie)
+    // and `in` walks the prototype chain ('toString' in REALMS is true).
+    return typeof value === 'string' && Object.prototype.hasOwnProperty.call(REALMS, value);
+}
+
+/**
+ * Whether a Host header value is exactly a realm's canonical production apex
+ * (`opencouncil.gr`, not `pr-7.preview.opencouncil.gr` or `localhost`). The
+ * realm override is honored only on non-apex hosts: production domains must
+ * stay deterministic per-Host for SEO and CDN sanity, while previews and local
+ * dev — which can't reach other realms by Host at all — get the escape hatch.
+ */
+export function isRealmApexHost(host: string | null | undefined): boolean {
+    const normalized = (host ?? '').split(':')[0].toLowerCase();
+    if (!normalized) return false;
+    return Object.values(REALMS).some(({ domain }) => normalized === domain);
+}
+
+/**
+ * The active realm override, or undefined when there is none: the override
+ * cookie's value when it names a realm and the host is not a production apex.
+ * The single decision point for whether an override applies — shared by the
+ * proxy, `getRealm()` and `realmForBrowser()` so the gating rule can't drift.
+ */
+export function realmOverride(
+    host: string | null | undefined,
+    overrideCookie: string | null | undefined,
+): Realm | undefined {
+    return !isRealmApexHost(host) && isRealm(overrideCookie) ? overrideCookie : undefined;
+}
+
+/** The realm to treat a request as belonging to: the override if active, else the host's realm. */
+export function effectiveRealm(host: string | null | undefined, overrideCookie: string | null | undefined): Realm {
+    return realmOverride(host, overrideCookie) ?? realmForHost(host);
+}
+
+/**
+ * Derives each realm's foreign locales: locales belonging to other realms
+ * (their default plus any `extraLocales`, e.g. `sr-Latn` on serbia) that the
+ * realm doesn't own itself (e.g. `fr` on opencouncil.gr). The proxy 301s their
+ * URL prefixes to the unprefixed URL; `en` is shared by all realms, belongs to
+ * none, and is never foreign.
  *
  * Filtered by locale rather than by realm: realms may share a default locale,
- * and a realm's own default is never foreign on its host no matter which other
- * realm also uses it. Parameterized so that property stays testable
+ * and a realm's own locales are never foreign on its host no matter which
+ * other realm also uses them. Parameterized so that property stays testable
  * independent of the realms production defines; app code should use
  * `foreignLocalesForRealm`, which reads the result precomputed from `REALMS`
  * at module load — this runs in the proxy hot path, and the realm config being
  * static is what keeps per-request work at zero.
  */
 export function computeForeignLocales<R extends string>(
-    realms: Record<R, { defaultLocale: string }>,
+    realms: Record<R, { defaultLocale: string; extraLocales?: readonly string[] }>,
 ): Record<R, string[]> {
-    const allLocales = Object.values<{ defaultLocale: string }>(realms)
-        .map(({ defaultLocale }) => defaultLocale);
+    const ownLocales = (realm: { defaultLocale: string; extraLocales?: readonly string[] }) =>
+        [realm.defaultLocale, ...(realm.extraLocales ?? [])];
+    const allLocales = Object.values<{ defaultLocale: string; extraLocales?: readonly string[] }>(realms)
+        .flatMap(ownLocales);
     const entries = (Object.keys(realms) as R[]).map((realm) => {
-        const own = realms[realm].defaultLocale;
-        return [realm, [...new Set(allLocales.filter((locale) => locale !== own))]];
+        const own = new Set(ownLocales(realms[realm]));
+        return [realm, [...new Set(allLocales.filter((locale) => !own.has(locale)))]];
     });
     return Object.fromEntries(entries) as Record<R, string[]>;
 }

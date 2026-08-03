@@ -1,26 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db/prisma';
-import { routing } from '@/i18n/routing';
-import { env } from '@/env.mjs';
+import { DEFAULT_LOCALE, LOCALES, urlPrefixForLocale } from '@/i18n/config';
+
+// URL prefixes of the non-default locales, matched from the referer path and
+// echoed back into the redirect URL.
+const NON_DEFAULT_LOCALE_PREFIXES = new Set(
+    LOCALES.filter((locale) => locale !== DEFAULT_LOCALE).map(urlPrefixForLocale),
+);
 
 /**
- * Extracts locale from the Referer header
- * Returns the locale if it's non-default, otherwise returns null
+ * Extracts the locale URL prefix from the Referer header
+ * Returns the prefix if it's non-default, otherwise returns null
  */
-function getLocaleFromReferer(referer: string | null): string | null {
+function getLocalePrefixFromReferer(referer: string | null): string | null {
     if (!referer) return null;
 
     try {
         const url = new URL(referer);
         const pathSegments = url.pathname.split('/').filter(Boolean);
 
-        // Check if first segment is a supported locale
-        if (pathSegments.length > 0) {
-            const potentialLocale = pathSegments[0];
-            if (routing.locales.includes(potentialLocale as any) &&
-                potentialLocale !== routing.defaultLocale) {
-                return potentialLocale;
-            }
+        // Check if first segment is a supported locale prefix
+        if (pathSegments.length > 0 && NON_DEFAULT_LOCALE_PREFIXES.has(pathSegments[0])) {
+            return pathSegments[0];
         }
     } catch {
         // Invalid URL, ignore
@@ -60,14 +61,21 @@ export async function GET(request: NextRequest, props: { params: Promise<{ utter
 
         // Get locale from Referer header to preserve user's language preference
         const referer = request.headers.get('referer');
-        const locale = getLocaleFromReferer(referer);
+        const localePrefix = getLocalePrefixFromReferer(referer);
 
         // Build redirect URL with locale prefix if needed (non-default locale)
-        const redirectUrl = locale
-            ? `/${locale}/${cityId}/${meetingId}/transcript?t=${time}`
+        const redirectUrl = localePrefix
+            ? `/${localePrefix}/${cityId}/${meetingId}/transcript?t=${time}`
             : `/${cityId}/${meetingId}/transcript?t=${time}`;
 
-        return NextResponse.redirect(new URL(redirectUrl, env.NEXTAUTH_URL));
+        // Relative Location on purpose: no absolute base is correct here.
+        // One deployment serves every realm domain, so NEXTAUTH_URL (a single
+        // per-deployment value) bounced .fr/.rs readers onto .gr — and
+        // request.url resolves to the server's bind address behind the
+        // reverse proxy (0.0.0.0:PORT on previews). The browser resolves a
+        // relative Location against the origin it is already on, which is
+        // exactly right for this route's same-origin caller.
+        return new NextResponse(null, { status: 307, headers: { Location: redirectUrl } });
     } catch (error) {
         console.error('Error redirecting utterance:', error);
         return NextResponse.json(

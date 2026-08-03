@@ -1,5 +1,6 @@
 import { getRequestConfig } from 'next-intl/server';
 import { routing } from './routing';
+import { transliterateCatalog } from '@/lib/serbian/catalog';
 import fs from 'fs';
 import path from 'path';
 
@@ -41,11 +42,23 @@ async function loadModularTranslations(locale: string): Promise<Record<string, a
     return modularMessages;
 }
 
+// sr-Latn has no catalog files: it is derived from the Cyrillic (sr) catalogs
+// at load time (`transliterateCatalog` — deterministic and ICU-safe by
+// construction). Memoized per process; recomputed in dev so sr catalog edits
+// show up without a restart.
+let srLatnMessages: Record<string, unknown> | null = null;
+
 /**
  * Loads and merges translations from both monolithic JSON files and modular files
  * This allows for gradual migration from monolithic to modular translation structure
  */
-async function loadTranslations(locale: string) {
+async function loadTranslations(locale: string): Promise<Record<string, unknown>> {
+    if (locale === 'sr-Latn') {
+        if (!srLatnMessages || process.env.NODE_ENV === 'development') {
+            srLatnMessages = transliterateCatalog(await loadTranslations('sr')) as Record<string, unknown>;
+        }
+        return srLatnMessages;
+    }
     try {
         // Load the main JSON file (existing system)
         const mainMessages = (await import(`../../messages/${locale}.json`)).default;

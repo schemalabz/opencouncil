@@ -1,10 +1,26 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useMemo } from "react";
+import { useLocale } from "next-intl";
 import { ReferenceType } from "@/lib/utils/references";
 import { Badge } from "./ui/badge";
 import ReactMarkdown from 'react-markdown';
 import { UtteranceReferenceLink } from "./meetings/subject/UtteranceReferenceLink";
+import { serbianScriptForLocale, toScript, type SerbianScript } from "@/lib/serbian";
+
+// Rehype plugin transliterating only TEXT nodes to the active Serbian script.
+// Operating on the hast tree (rather than the raw markdown string) keeps
+// hrefs — REF:TYPE:<id> links whose ids must stay byte-exact, external URLs —
+// untouched while link labels and all prose are converted.
+const makeRehypeTransliterate = (script: SerbianScript) => () => (tree: { type: string; value?: string; children?: unknown[] }) => {
+    const walk = (node: { type: string; value?: string; children?: unknown[] }) => {
+        if (node.type === 'text' && typeof node.value === 'string') {
+            node.value = toScript(node.value, script);
+        }
+        node.children?.forEach((child) => walk(child as { type: string; value?: string; children?: unknown[] }));
+    };
+    walk(tree);
+};
 
 interface FormattedTextDisplayProps {
     text: string; // Markdown with REF:TYPE:ID links
@@ -27,6 +43,9 @@ export const FormattedTextDisplay = memo(function FormattedTextDisplay({
     linkColor = 'blue',
     disableUtteranceExpansion = false,
 }: FormattedTextDisplayProps) {
+    const locale = useLocale();
+    const script = serbianScriptForLocale(locale);
+    const rehypePlugins = useMemo(() => (script ? [makeRehypeTransliterate(script)] : []), [script]);
     const linkClassName = linkColor === 'black'
         ? 'text-foreground underline hover:opacity-80'
         : 'underline hover:opacity-80';
@@ -59,6 +78,7 @@ export const FormattedTextDisplay = memo(function FormattedTextDisplay({
         <div className="prose prose-sm max-w-none dark:prose-invert">
             <ReactMarkdown
                 urlTransform={(url) => url} // Pass through all URLs unchanged
+                rehypePlugins={rehypePlugins}
                 components={{
                     // Custom link renderer to handle REF:TYPE:ID links
                     a: ({ href, children }) => {

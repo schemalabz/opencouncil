@@ -2,8 +2,10 @@ import { ChatInterface } from "@/components/chat/ChatInterface";
 import { Suspense } from "react";
 import { Metadata } from "next";
 import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
+import { getOgLocale } from '@/i18n/config';
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+    const { locale } = await props.params;
     return {
         title: "OpenCouncil AI | Συνομιλήστε για τα Δημοτικά Συμβούλια",
         description: "Συνομιλήστε με την τεχνητή νοημοσύνη του OpenCouncil για να μάθετε για δημοτικά συμβούλια, θέματα πολιτικής και την τοπική αυτοδιοίκηση. Κάντε ερωτήσεις και λάβετε εξατομικευμένες απαντήσεις.",
@@ -32,7 +34,7 @@ export async function generateMetadata(): Promise<Metadata> {
                     alt: "OpenCouncil AI - Συνομιλήστε για τα Δημοτικά Συμβούλια",
                 }
             ],
-            locale: 'el_GR',
+            locale: getOgLocale(locale),
         },
         twitter: {
             card: 'summary_large_image',
