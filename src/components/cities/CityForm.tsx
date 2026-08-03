@@ -625,6 +625,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                                             <SelectContent>
                                                 <SelectItem value="el">{t('languageGreek')}</SelectItem>
                                                 <SelectItem value="fr">{t('languageFrench')}</SelectItem>
+                                                <SelectItem value="sr">{t('languageSerbian')}</SelectItem>
                                             </SelectContent>
                                         </Select>
                                         <FormDescription>

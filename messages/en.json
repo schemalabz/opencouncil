@@ -157,6 +157,7 @@
         "languageDescription": "The content language of this city (metadata only; does not change the UI locale).",
         "languageGreek": "Greek",
         "languageFrench": "French",
+        "languageSerbian": "Serbian",
         "adminSettings": "Admin Settings",
         "officialSupport": "Official Support",
         "officialSupportDescription": "Cities with official support are prioritized in listings and appear on the landing page with meeting data. They also display a special badge.",
