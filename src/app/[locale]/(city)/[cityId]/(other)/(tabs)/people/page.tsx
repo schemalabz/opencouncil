@@ -5,6 +5,7 @@ import { getPartiesForCityCached, getPeopleForCityCached, getAdministrativeBodie
 import { Metadata } from "next";
 import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 import { getLocalizedName } from "@/lib/formatters/name";
+import { getOgLocale } from '@/i18n/config';
 
 export async function generateMetadata(props: { params: Promise<{ cityId: string; locale: string }> }): Promise<Metadata> {
     const params = await props.params;
@@ -60,7 +61,7 @@ export async function generateMetadata(props: { params: Promise<{ cityId: string
                     alt: `Δημοτικοί σύμβουλοι του Δήμου ${cityName}`,
                 }
             ],
-            locale: 'el_GR',
+            locale: getOgLocale(params.locale),
         },
         twitter: {
             card: 'summary_large_image',

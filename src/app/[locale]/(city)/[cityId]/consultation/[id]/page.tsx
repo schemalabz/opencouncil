@@ -9,6 +9,7 @@ import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 import { getRealmBaseUrlFromRequest } from '@/lib/realm.server';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
+import { getOgLocale } from '@/i18n/config';
 
 interface PageProps {
     params: Promise<{ cityId: string; id: string; locale: string }>;
@@ -74,7 +75,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
                     alt: `Διαβούλευση για ${title} στον Δήμο ${cityName}`,
                 }
             ],
-            locale: 'el_GR',
+            locale: getOgLocale(params.locale),
         },
         twitter: {
             card: 'summary_large_image',

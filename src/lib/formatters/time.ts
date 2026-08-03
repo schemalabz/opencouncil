@@ -1,7 +1,10 @@
 import { formatDistanceToNow } from 'date-fns';
 import { el, enUS, fr, sr, srLatn, type Locale } from 'date-fns/locale';
+import { type AppLocale, DEFAULT_LOCALE, LOCALE_TAGS } from '@/i18n/config';
 
-const DATE_FNS_LOCALES: Record<string, Locale> = {
+// Typed against AppLocale (like LOCALE_TAGS) so adding a locale to LOCALES
+// fails compilation until its date-fns locale is declared.
+const DATE_FNS_LOCALES: Record<AppLocale, Locale> = {
     el,
     en: enUS,
     fr,
@@ -9,32 +12,24 @@ const DATE_FNS_LOCALES: Record<string, Locale> = {
     'sr-Latn': srLatn,
 };
 
-// BCP 47 tags for Intl.DateTimeFormat, per app locale.
-const INTL_LOCALES: Record<string, string> = {
-    el: 'el-GR',
-    en: 'en-US',
-    fr: 'fr-FR',
-    sr: 'sr-Cyrl-RS',
-    'sr-Latn': 'sr-Latn-RS',
-};
-
 /**
  * Map a next-intl locale string to the corresponding date-fns Locale object.
  * Defaults to Greek to match the app's default locale.
  */
 export function getDateFnsLocale(locale: string): Locale {
-    return DATE_FNS_LOCALES[locale] ?? el;
+    return DATE_FNS_LOCALES[locale as AppLocale] ?? el;
 }
 
 /**
- * Map a next-intl locale string to the BCP 47 tag passed to `Intl.DateTimeFormat`.
- * Defaults to Greek to match the app's default locale.
+ * Map a next-intl locale string to the BCP 47 tag passed to `Intl.DateTimeFormat`
+ * (the canonical tags live in `LOCALE_TAGS`). Defaults to Greek to match the
+ * app's default locale.
  *
  * `formatNumericDateTime` deliberately does not use this — it pins `en-GB` so its
  * numeric output stays day-first in every locale.
  */
 export function getIntlLocale(locale: string): string {
-    return INTL_LOCALES[locale] ?? 'el-GR';
+    return LOCALE_TAGS[locale as AppLocale] ?? LOCALE_TAGS[DEFAULT_LOCALE];
 }
 
 /**

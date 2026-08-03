@@ -5,6 +5,7 @@ import CityMeetings from "@/components/cities/CityMeetings";
 import { getCityCached, getCouncilMeetingsForCityCached } from "@/lib/cache";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getLocalizedName } from "@/lib/formatters/name";
+import { getOgLocale } from '@/i18n/config';
 
 export async function generateMetadata(
     props: {
@@ -56,7 +57,7 @@ export async function generateMetadata(
                     alt: `OpenCouncil — Συνεδριάσεις του Δήμου ${cityName}`,
                 },
             ],
-            locale: locale === "en" ? "en_US" : "el_GR",
+            locale: getOgLocale(locale),
         },
         twitter: {
             card: "summary_large_image",

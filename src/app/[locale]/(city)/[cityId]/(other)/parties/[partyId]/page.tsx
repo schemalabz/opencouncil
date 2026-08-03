@@ -8,6 +8,7 @@ import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
 import { Metadata } from "next";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getLocalizedName, getLocalizedShortName } from "@/lib/formatters/name";
+import { getOgLocale } from '@/i18n/config';
 
 // Request-scoped dedup so generateMetadata and PartyPage share a single fetch.
 const getPartyCached = cache(getParty);
@@ -61,7 +62,7 @@ export async function generateMetadata(
                     alt: `${partyName} — Δήμος ${cityName}`,
                 },
             ],
-            locale: params.locale === "en" ? "en_US" : "el_GR",
+            locale: getOgLocale(params.locale),
         },
         twitter: {
             card: "summary_large_image",

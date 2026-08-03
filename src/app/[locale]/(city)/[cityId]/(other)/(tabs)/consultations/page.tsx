@@ -6,6 +6,7 @@ import { getCityCached } from "@/lib/cache";
 import { getAllConsultationsForCity, isConsultationActive } from "@/lib/db/consultations";
 import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 import { getLocalizedName } from "@/lib/formatters/name";
+import { getOgLocale } from '@/i18n/config';
 
 interface PageProps {
     params: Promise<{ cityId: string; locale: string }>;
@@ -70,7 +71,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
                     alt: `Δημόσιες διαβουλεύσεις | ${cityName}`,
                 }
             ],
-            locale: 'el_GR',
+            locale: getOgLocale(params.locale),
         },
         twitter: {
             card: 'summary_large_image',

@@ -38,3 +38,28 @@ export function urlPrefixForLocale(locale: string): string {
  * inline the same set (it can't import TS); a test guards against drift.
  */
 export const localePrefixPattern = LOCALES.map(urlPrefixForLocale).join('|');
+
+/**
+ * Canonical BCP 47 tag (language-script-region) per app locale — the single
+ * place a new locale's full identity is declared. `Intl` consumers
+ * (`getIntlLocale` in formatters/time.ts) use it directly; derived formats
+ * (`getOgLocale`) are computed from it. Typed against `AppLocale` so adding a
+ * locale to `LOCALES` fails compilation until its tag is declared.
+ */
+export const LOCALE_TAGS: Record<AppLocale, string> = {
+    el: 'el-GR',
+    en: 'en-US',
+    fr: 'fr-FR',
+    sr: 'sr-Cyrl-RS',
+    'sr-Latn': 'sr-Latn-RS',
+};
+
+/**
+ * The `og:locale` value for an app locale, for `generateMetadata`: `ll_CC`
+ * per the OG protocol (underscore, no script subtag — both Serbian scripts
+ * yield sr_RS). Derived from `LOCALE_TAGS`, so new locales get it for free.
+ */
+export function getOgLocale(locale: string): string {
+    const tag = new Intl.Locale(LOCALE_TAGS[locale as AppLocale] ?? LOCALE_TAGS[DEFAULT_LOCALE]);
+    return tag.region ? `${tag.language}_${tag.region}` : tag.language;
+}

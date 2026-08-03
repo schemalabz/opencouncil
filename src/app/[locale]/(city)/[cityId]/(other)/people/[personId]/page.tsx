@@ -11,6 +11,7 @@ import { isUserAuthorizedToEdit } from "@/lib/auth";
 import { Metadata } from "next";
 import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 import { getLocalizedName } from "@/lib/formatters/name";
+import { getOgLocale } from '@/i18n/config';
 
 export async function generateMetadata(
     props: { params: Promise<{ locale: string, personId: string, cityId: string }> }
@@ -75,7 +76,7 @@ export async function generateMetadata(
                     alt: `${personName} (${cityName})`,
                 }
             ],
-            locale: 'el_GR',
+            locale: getOgLocale(params.locale),
         },
         twitter: {
             card: 'summary_large_image',
