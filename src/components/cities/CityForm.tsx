@@ -32,6 +32,7 @@ import InputWithDerivatives from '@/components/InputWithDerivatives'
 import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 import AdministrativeBodiesList from './AdministrativeBodiesList'
 import CityMessageForm, { MessageFormState } from './CityMessageForm'
+import CityBoundaryEditor from './CityBoundaryEditor'
 import { ImageCropDialog } from '@/components/ui/ImageCropDialog'
 
 // Use shared schema from lib/schemas/city.ts
@@ -67,6 +68,8 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
     }>>([])
     const [isAdminBodiesOpen, setIsAdminBodiesOpen] = useState(false)
     const [isAdminSettingsOpen, setIsAdminSettingsOpen] = useState(false)
+    const [isBoundaryOpen, setIsBoundaryOpen] = useState(false)
+    const [boundary, setBoundary] = useState<GeoJSON.Polygon | GeoJSON.MultiPolygon | null>(null)
 
     // Message data for form submission - only stored when message component updates
     const [messageData, setMessageData] = useState<MessageFormState | null>(null);
@@ -152,6 +155,9 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         formData.append('diavgeiaUid', values.diavgeiaUid || '')
         formData.append('language', values.language)
         formData.append('realm', values.realm)
+        if (boundary) {
+            formData.append('geometry', JSON.stringify(boundary))
+        }
         if (logoImage) {
             formData.append('logoImage', logoImage)
         }
@@ -490,6 +496,31 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                                 </FormItem>
                             )}
                         />
+                    </CollapsibleContent>
+                </Collapsible>
+                <Collapsible
+                    open={isBoundaryOpen}
+                    onOpenChange={setIsBoundaryOpen}
+                    className="space-y-2"
+                >
+                    <div className="flex items-center justify-between space-x-4 px-4">
+                        <h4 className="text-sm font-semibold">
+                            {t('boundary')}
+                        </h4>
+                        <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="sm" className="w-9 p-0">
+                                {isBoundaryOpen ? (
+                                    <ChevronUp className="h-4 w-4" />
+                                ) : (
+                                    <ChevronDown className="h-4 w-4" />
+                                )}
+                                <span className="sr-only">{t('toggle')}</span>
+                            </Button>
+                        </CollapsibleTrigger>
+                    </div>
+                    <CollapsibleContent className="space-y-2">
+                        <p className="text-sm text-muted-foreground">{t('boundaryDescription')}</p>
+                        <CityBoundaryEditor cityId={city?.id} onBoundaryChange={setBoundary} />
                     </CollapsibleContent>
                 </Collapsible>
                 {isSuperAdmin && (

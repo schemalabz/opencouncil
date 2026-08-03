@@ -3,7 +3,8 @@ import { revalidatePath, revalidateTag } from 'next/cache'
 import { z } from 'zod'
 import { uploadFile } from '@/lib/s3'
 import { ALLOWED_LOGO_CONTENT_TYPES } from '@/types/upload'
-import { deleteCity, editCity, getCity } from '@/lib/db/cities'
+import { deleteCity, editCity, getCity, updateCityGeometry } from '@/lib/db/cities'
+import { parseBoundaryInput } from '@/lib/utils/geojson'
 import { upsertCityMessage, deleteCityMessage } from '@/lib/db/cityMessages'
 import { isUserAuthorizedToEdit, getCurrentUser } from '@/lib/auth'
 import { updateCityFormDataSchema } from '@/lib/zod-schemas/city'
@@ -105,7 +106,21 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
             }
         }
 
+        // Boundary paste: validate before touching anything so a bad polygon
+        // fails the whole request instead of half-applying the update.
+        let boundary: ReturnType<typeof parseBoundaryInput> | null = null;
+        if (data.geometry) {
+            boundary = parseBoundaryInput(data.geometry);
+            if (!boundary.ok) {
+                return NextResponse.json({ error: `Invalid boundary GeoJSON: ${boundary.error}` }, { status: 400 });
+            }
+        }
+
         const city = await editCity(params.cityId, updateData);
+
+        if (boundary?.ok) {
+            await updateCityGeometry(params.cityId, boundary.geometry);
+        }
 
         // Handle message operations
         try {

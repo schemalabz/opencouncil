@@ -95,6 +95,26 @@ export async function editCity(id: string, cityData: Partial<Omit<City, 'id' | '
     }
 }
 
+/**
+ * Replaces a city's boundary polygon. Raw SQL because `geometry` is
+ * `Unsupported("geometry")` in the Prisma schema — it never travels through
+ * prisma.city.create/update. Input must already be normalized (the API routes
+ * run pasted text through `parseBoundaryInput` first); PostGIS still rejects
+ * anything structurally invalid, which surfaces as a thrown error.
+ */
+export async function updateCityGeometry(
+    id: string,
+    geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon
+): Promise<void> {
+    await withUserAuthorizedToEdit({ cityId: id });
+    await prisma.$executeRaw`
+        UPDATE "City"
+        SET geometry = ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(geometry)}), 4326),
+            "updatedAt" = NOW()
+        WHERE id = ${id}
+    `;
+}
+
 async function attachGeometryToCity<T extends Pick<City, 'id'>>(
     city: T | null
 ): Promise<(T & { geometry?: GeoJSON.Geometry }) | null> {

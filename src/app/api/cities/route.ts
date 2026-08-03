@@ -1,7 +1,8 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { revalidateTag } from 'next/cache'
 import { z } from 'zod'
-import { createCity, getCities } from '@/lib/db/cities'
+import { createCity, getCities, updateCityGeometry } from '@/lib/db/cities'
+import { parseBoundaryInput } from '@/lib/utils/geojson'
 import { getAllCitiesAsServiceKey } from '@/lib/db/citiesAdmin'
 import { uploadFile } from '@/lib/s3'
 import { isUserAuthorizedToEdit, validateBearerAuth } from '@/lib/auth'
@@ -54,6 +55,15 @@ export async function POST(request: Request) {
         const formData = await request.formData();
         const data = await parseFormData(formData, createCityFormDataSchema);
 
+        // Boundary paste: validate before any side effects (logo upload, insert).
+        let boundary: ReturnType<typeof parseBoundaryInput> | null = null;
+        if (data.geometry) {
+            boundary = parseBoundaryInput(data.geometry);
+            if (!boundary.ok) {
+                return NextResponse.json({ error: `Invalid boundary GeoJSON: ${boundary.error}` }, { status: 400 });
+            }
+        }
+
         if (!ALLOWED_LOGO_CONTENT_TYPES.includes(data.logoImage.type)) {
             return NextResponse.json(
                 { error: `Logo must be one of: ${ALLOWED_LOGO_CONTENT_TYPES.join(', ')}` },
@@ -88,6 +98,10 @@ export async function POST(request: Request) {
             realm: data.realm,
             population: null,
         });
+
+        if (boundary?.ok) {
+            await updateCityGeometry(city.id, boundary.geometry);
+        }
 
         // Bust the all-cities caches so the new city is immediately visible —
         // notably getAllCityIdsCached, which the [cityId] layout uses to validate

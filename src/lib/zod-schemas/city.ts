@@ -82,6 +82,10 @@ export const baseCityFormDataSchema = z.object({
   supportsNotifications: stringToBoolean,
   consultationsEnabled: stringToBoolean,
   diavgeiaUid: emptyStringToNull.optional(),
+  // Pasted boundary GeoJSON, still as text: routes parse it with
+  // parseBoundaryInput (shared with the form) and write via PostGIS.
+  // Absent/empty = leave the stored geometry unchanged.
+  geometry: emptyStringToNull.optional(),
 });
 
 // Create schema for FormData (POST route)
