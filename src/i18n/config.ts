@@ -5,8 +5,8 @@
  */
 
 // `sr` is Serbian Cyrillic (CLDR's default script for bare `sr`); `sr-Latn` is
-// Serbian Latin, whose UI catalog is generated from the Cyrillic one
-// (scripts/generate-sr-latn.ts).
+// Serbian Latin, whose UI catalog is derived from the Cyrillic one at load
+// time (src/i18n/request.ts).
 export const LOCALES = ['en', 'el', 'fr', 'sr', 'sr-Latn'] as const;
 
 export type AppLocale = (typeof LOCALES)[number];

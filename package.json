@@ -26,7 +26,6 @@
     "import:import": "tsx prisma/import_administrations.ts --mode import",
     "test:og": "tsx scripts/test_og_images.ts",
     "generate-seed": "tsx scripts/generate_seed_dump.ts",
-    "generate:sr-latn": "tsx scripts/generate-sr-latn.ts",
     "convert-regulation": "tsx scripts/convert-regulation-pdf.ts",
     "transform-regulation": "tsx scripts/transform-regulation-coordinates.ts",
     "generate-openapi": "tsx scripts/generate-openapi.ts"

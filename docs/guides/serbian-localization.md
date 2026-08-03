@@ -7,9 +7,9 @@ sign-off gates the serbia realm launch.
 
 Serbian is digraphic. **Cyrillic is canonical everywhere**: the hand-maintained
 UI catalogs are `messages/sr.json` + `messages/sr/*.json`, and the Latin
-catalogs (`messages/sr-Latn.json` + `messages/sr-Latn/*`) are **generated** from
-them by `npm run generate:sr-latn` — never edit them by hand; a CI test fails
-when they are stale. Dynamic content (transcripts, AI summaries, names) is
+catalogs are **derived from them at load time** (`src/i18n/request.ts` →
+`transliterateCatalog`) — there are no `sr-Latn` files to edit or regenerate.
+Dynamic content (transcripts, AI summaries, names) is
 stored in whatever script it arrives in and transliterated **at render time**
 to the viewer's chosen script (the Ћир | Lat toggle in the header); the
 database is never rewritten. The transliterator lives in `src/lib/serbian/`
@@ -82,16 +82,16 @@ Switch back with `?realm=greece`.
 ## Reviewer workflow
 
 1. Edit **only** `messages/sr.json` and `messages/sr/*.json` (PRs welcome —
-   the JSON diffs are the review artifact).
-2. Run `npm run generate:sr-latn` to refresh the Latin catalogs, and commit
-   both.
-3. Run `npm test` — guards that protect you:
+   the JSON diffs are the review artifact). The Latin variant needs no step:
+   it is derived from these files at load time.
+2. Run `npm test` — guards that protect you:
    - key parity with English (`translations.test.ts`)
-   - Latin catalogs not stale + ICU syntax intact (`sr-latn-catalog.test.ts`)
+   - the Latin derivation transliterates fully and keeps ICU syntax intact
+     (`sr-latn-catalog.test.ts`)
    - every message parses as ICU with English-matching arguments
      (`scripts/validate-sr-catalogs.ts`, run inside the test suite)
    - glossary bans/requirements (`sr-glossary.test.ts`) — extend as you decide terms
-4. The transliterator's word lists are also yours to extend as real content
+3. The transliterator's word lists are also yours to extend as real content
    surfaces errors:
    - `src/lib/serbian/exceptions.ts` → `EXCEPTION_STEMS`: words where nj/dž are
      two letters (инјекција, наджанр, …)

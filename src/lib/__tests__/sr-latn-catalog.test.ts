@@ -1,16 +1,18 @@
 /**
- * Guards the generated Serbian Latin catalogs:
- * 1. Staleness — messages/sr-Latn* must equal an in-memory regeneration from
- *    messages/sr*; when this fails, run `npm run generate:sr-latn`.
- * 2. ICU invariance — the sr → sr-Latn transform must never touch ICU
- *    MessageFormat syntax, only Cyrillic literals.
- * 3. ICU validity — every Serbian message must parse as ICU MessageFormat and
- *    use exactly the argument set of its English counterpart.
+ * Guards the load-time sr-Latn catalog derivation (there are no sr-Latn files
+ * on disk — src/i18n/request.ts derives them from messages/sr* via
+ * `transliterateCatalog`):
+ * 1. Structure — the transform transliterates every string value and touches
+ *    nothing else (keys, nesting, non-string values).
+ * 2. Completeness — no Serbian Cyrillic survives derivation of the real corpus.
+ * 3. ICU invariance — the transform never touches ICU MessageFormat syntax.
+ * 4. ICU validity — every Serbian source message parses as ICU MessageFormat
+ *    and uses exactly the argument set of its English counterpart.
  */
 import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
-import { transliterateCatalog } from '../../../scripts/generate-sr-latn';
+import { transliterateCatalog } from '../serbian/catalog';
 
 const messagesDir = path.join(__dirname, '../../../messages');
 
@@ -21,39 +23,46 @@ const modularFiles = fs
     .filter((f) => f.endsWith('.json'))
     .sort();
 
-describe('sr-Latn generated catalogs', () => {
-    it('messages/sr-Latn.json is up to date (else run npm run generate:sr-latn)', () => {
-        expect(readJson(path.join(messagesDir, 'sr-Latn.json'))).toEqual(
-            transliterateCatalog(readJson(path.join(messagesDir, 'sr.json'))),
-        );
+const collectStrings = (value: unknown, out: string[]): string[] => {
+    if (typeof value === 'string') out.push(value);
+    else if (Array.isArray(value)) value.forEach((v) => collectStrings(v, out));
+    else if (value && typeof value === 'object') Object.values(value).forEach((v) => collectStrings(v, out));
+    return out;
+};
+
+const loadCorpus = (): string[] => {
+    const sources = collectStrings(readJson(path.join(messagesDir, 'sr.json')), []);
+    for (const file of modularFiles) collectStrings(readJson(path.join(messagesDir, 'sr', file)), sources);
+    return sources;
+};
+
+describe('sr-Latn catalog derivation', () => {
+    it('transliterates string values and preserves keys, nesting and non-strings', () => {
+        expect(
+            transliterateCatalog({
+                'Наслов': 'Добродошли',
+                nested: { count: '{count, plural, one {# глас} few {# гласа} other {# гласова}}' },
+                untouched: [42, true, null],
+            }),
+        ).toEqual({
+            'Наслов': 'Dobrodošli',
+            nested: { count: '{count, plural, one {# glas} few {# glasa} other {# glasova}}' },
+            untouched: [42, true, null],
+        });
     });
 
-    it.each(modularFiles)('messages/sr-Latn/%s is up to date (else run npm run generate:sr-latn)', (file) => {
-        expect(readJson(path.join(messagesDir, 'sr-Latn', file))).toEqual(
-            transliterateCatalog(readJson(path.join(messagesDir, 'sr', file))),
-        );
+    it('leaves no Serbian Cyrillic in the derived corpus', () => {
+        const corpus = loadCorpus();
+        expect(corpus.length).toBeGreaterThan(1000); // vacuity guard
+        const serbianCyrillic = /[а-шђћџљњА-ШЂЋЏЉЊ]/u;
+        for (const source of corpus) {
+            expect(transliterateCatalog(source)).not.toMatch(serbianCyrillic);
+        }
     });
 
-    it('generates no orphan files (every sr-Latn file has an sr source)', () => {
-        const generated = fs
-            .readdirSync(path.join(messagesDir, 'sr-Latn'))
-            .filter((f) => f.endsWith('.json'))
-            .sort();
-        expect(generated).toEqual(modularFiles);
-    });
-
-    it('the transform preserves ICU syntax characters in every message', () => {
-        const collect = (value: unknown, out: string[]): string[] => {
-            if (typeof value === 'string') out.push(value);
-            else if (Array.isArray(value)) value.forEach((v) => collect(v, out));
-            else if (value && typeof value === 'object') Object.values(value).forEach((v) => collect(v, out));
-            return out;
-        };
-        const sources = collect(readJson(path.join(messagesDir, 'sr.json')), []);
-        for (const file of modularFiles) collect(readJson(path.join(messagesDir, 'sr', file)), sources);
-
+    it('preserves ICU syntax characters in every message', () => {
         const syntaxCount = (s: string) => (s.match(/[{}#<>]/g) ?? []).length;
-        for (const source of sources) {
+        for (const source of loadCorpus()) {
             const out = transliterateCatalog(source) as string;
             expect(syntaxCount(out)).toBe(syntaxCount(source));
         }

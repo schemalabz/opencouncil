@@ -1,9 +1,11 @@
 /**
- * Validates the Serbian message catalogs against the English source:
- * every message in messages/sr*, both scripts, must (a) parse as ICU
- * MessageFormat and (b) use exactly the argument set of its English
- * counterpart — the two failure modes machine translation can introduce that
- * key-parity checks can't see. Exits non-zero with a per-message report.
+ * Validates the Serbian message catalogs against the English source: every
+ * message in messages/sr* must (a) parse as ICU MessageFormat and (b) use
+ * exactly the argument set of its English counterpart — the two failure modes
+ * machine translation can introduce that key-parity checks can't see. Exits
+ * non-zero with a per-message report. Only the Cyrillic source is checked:
+ * sr-Latn is derived from it at load time by an ICU-safe transform
+ * (src/lib/serbian/catalog.ts).
  *
  * Run directly (`npx tsx scripts/validate-sr-catalogs.ts`) or via the jest
  * wrapper in src/lib/__tests__/sr-latn-catalog.test.ts (the parser is
@@ -43,11 +45,7 @@ const modularFiles = fs
 
 const filePairs: Array<[string, string]> = [
     ['en.json', 'sr.json'],
-    ['en.json', 'sr-Latn.json'],
-    ...modularFiles.flatMap((f): Array<[string, string]> => [
-        [path.join('en', f), path.join('sr', f)],
-        [path.join('en', f), path.join('sr-Latn', f)],
-    ]),
+    ...modularFiles.map((f): [string, string] => [path.join('en', f), path.join('sr', f)]),
 ];
 
 const errors: string[] = [];
