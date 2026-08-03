@@ -84,6 +84,19 @@ const nextConfig = {
                 destination: '/:locale',
                 permanent: true,
             },
+            {
+                // The chat page was replaced by the MCP server; its
+                // instructions page lives at /mcp. Locale-parameterized like
+                // /map above.
+                source: '/chat',
+                destination: '/mcp',
+                permanent: true,
+            },
+            {
+                source: '/:locale(en|el|fr|sr|lat)/chat',
+                destination: '/:locale/mcp',
+                permanent: true,
+            },
             // The sitemap wrongly emitted a phantom /meetings/ segment until
             // 2026-05-29 (real routes are /{cityId}/{meetingId}, no /meetings/),
             // leaving ~1.9K GSC 404s that Google keeps recrawling. 301 them to

@@ -169,14 +169,6 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
         }
     };
 
-    const handleChatClick = () => {
-        const chatUrl = currentEntity?.cityId
-            ? `/chat?cityId=${currentEntity.cityId}`
-            : '/chat';
-        router.push(chatUrl);
-        setIsSearchOpen(false);
-    };
-
     // Lightweight scroll tracking — replaces framer-motion useScroll/useTransform
     // to avoid keeping the framer-motion frame loop alive on every page
     useEffect(() => {
@@ -437,14 +429,6 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                                         autoFocus
                                     />
                                 </form>
-                                <div className="px-3 sm:px-4 pb-3 sm:pb-4">
-                                    <button
-                                        onClick={handleChatClick}
-                                        className="w-full text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors flex justify-end underline decoration-1 underline-offset-4"
-                                    >
-                                        ή συνομιλήστε με το OpenCouncil AI
-                                    </button>
-                                </div>
                             </motion.div>
                         </div>
                     </div>

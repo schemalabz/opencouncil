@@ -30,7 +30,7 @@ export const FOOTER_GROUPS: FooterGroup[] = [
             { label: 'Για δήμους', labelKey: 'footer.links.forMunicipalities', href: '/about', featured: true },
             { label: 'Ειδοποιήσεις', labelKey: 'footer.links.notifications', notify: true },
             { label: 'Αναζήτηση', labelKey: 'footer.links.search', href: '/search' },
-            { label: 'OpenCouncil AI', labelKey: 'footer.links.ai', href: '/chat' },
+            { label: 'OpenCouncil AI', labelKey: 'footer.links.ai', href: '/mcp' },
             { label: 'API', labelKey: 'footer.links.api', href: '/docs' },
             { label: 'Θέσεις εργασίας', labelKey: 'footer.links.jobs', href: 'https://schemalabs.gr/jobs', external: true },
             { label: 'Status', labelKey: 'footer.links.status', href: 'https://status.opencouncil.gr', external: true },

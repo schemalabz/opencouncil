@@ -700,60 +700,6 @@ const SearchOGImage = () => {
     );
 };
 
-// Chat Page OG Image
-const ChatOGImage = () => {
-    return (
-        <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI}>
-            <div style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '32px',
-                textAlign: 'center',
-            }}>
-                <div style={{
-                    width: '120px',
-                    height: '120px',
-                    borderRadius: '60px',
-                    backgroundColor: '#f3f4f6',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '48px',
-                }}>
-                    🤖
-                </div>
-
-                <div style={{
-                    fontSize: '48px',
-                    fontWeight: 'bold',
-                    color: '#1f2937',
-                }}>
-                    OpenCouncil AI
-                </div>
-
-                <div style={{
-                    fontSize: '24px',
-                    color: '#6b7280',
-                    maxWidth: '600px',
-                    lineHeight: 1.4,
-                }}>
-                    Συνομιλήστε με την τεχνητή νοημοσύνη για να μάθετε για δημοτικά συμβούλια και θέματα πολιτικής
-                </div>
-
-                <div style={{
-                    fontSize: '18px',
-                    color: '#9ca3af',
-                }}>
-                    OpenCouncil • Powered by AI
-                </div>
-            </div>
-        </Container>
-    );
-};
-
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const cityId = searchParams.get('cityId');
@@ -761,7 +707,7 @@ export async function GET(request: Request) {
     const consultationId = searchParams.get('consultationId');
     const personId = searchParams.get('personId');
     const subjectId = searchParams.get('subjectId');
-    const pageType = searchParams.get('pageType'); // 'people', 'about', 'explain', 'search', 'chat'
+    const pageType = searchParams.get('pageType'); // 'people', 'about', 'explain', 'search'
 
     // Short per-request id so concurrent requests' logs can be untangled by grepping a tag.
     const reqId = crypto.randomUUID().slice(0, 8);
@@ -807,8 +753,6 @@ export async function GET(request: Request) {
             element = ExplainOGImage();
         } else if (pageType === 'search') {
             element = SearchOGImage();
-        } else if (pageType === 'chat') {
-            element = ChatOGImage();
         } else if (cityId) {
             element = await CityOGImage(cityId);
         } else {

@@ -354,37 +354,3 @@ export async function aiChat<T>(
         throw e;
     }
 }
-
-export async function aiChatStream(
-    systemPrompt: string,
-    messages: Anthropic.Messages.MessageParam[],
-    config: Partial<AIConfig> = {}
-): Promise<AsyncIterable<Anthropic.Messages.MessageStreamEvent>> {
-    // Merge with default config
-    const mergedConfig = { ...DEFAULT_CONFIG, ...config };
-
-    // Log the prompt if enabled
-    logPromptToFile(systemPrompt, messages, mergedConfig, { streaming: true });
-
-    const requestConfig: Anthropic.Messages.MessageCreateParams = {
-        model: mergedConfig.model!,
-        max_tokens: mergedConfig.maxTokens!,
-        system: systemPrompt,
-        messages,
-        temperature: mergedConfig.temperature,
-        stream: true,
-    };
-
-    // Add web search tool if enabled
-    if (mergedConfig.enableWebSearch) {
-        requestConfig.tools = [
-            {
-                type: "web_search_20250305",
-                name: "web_search",
-                max_uses: mergedConfig.webSearchMaxUses!
-            }
-        ];
-    }
-
-    return anthropic.messages.create(requestConfig);
-}
