@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db/prisma';
 import { DEFAULT_LOCALE, LOCALES, urlPrefixForLocale } from '@/i18n/config';
-import { env } from '@/env.mjs';
 
 // URL prefixes of the non-default locales (en, fr, sr, lat) — the segment is
 // matched from the referer path and echoed back into the redirect URL, so it
@@ -70,7 +69,12 @@ export async function GET(request: NextRequest, props: { params: Promise<{ utter
             ? `/${localePrefix}/${cityId}/${meetingId}/transcript?t=${time}`
             : `/${cityId}/${meetingId}/transcript?t=${time}`;
 
-        return NextResponse.redirect(new URL(redirectUrl, env.NEXTAUTH_URL));
+        // Base on the requesting origin, not NEXTAUTH_URL: one deployment
+        // serves every realm domain, and the only caller is a same-origin
+        // component link — an absolute URL on NEXTAUTH_URL would bounce
+        // opencouncil.fr/.rs readers onto the .gr domain (and the wrong
+        // locale, since the prefix is realm-relative).
+        return NextResponse.redirect(new URL(redirectUrl, request.url));
     } catch (error) {
         console.error('Error redirecting utterance:', error);
         return NextResponse.json(
