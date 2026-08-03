@@ -1,4 +1,4 @@
-import { foreignLocaleRedirectPath, wwwRedirectTarget } from '../seo-redirects';
+import { foreignLocaleRedirectPath, serbianScriptRedirectPath, wwwRedirectTarget } from '../seo-redirects';
 import { computeForeignLocales, foreignLocalesForRealm } from '../realm';
 
 describe('wwwRedirectTarget', () => {
@@ -146,5 +146,35 @@ describe('foreignLocaleRedirectPath', () => {
         // emulation is faithful in local dev too.
         expect(foreignLocaleRedirectPath('localhost:3000', '/el/beograd', 'serbia')).toBe('/beograd');
         expect(foreignLocaleRedirectPath('localhost:3000', '/lat/beograd', 'serbia')).toBeNull();
+    });
+});
+
+describe('serbianScriptRedirectPath', () => {
+    it('redirects unprefixed serbia-realm paths to /lat while the cookie says latn', () => {
+        expect(serbianScriptRedirectPath('serbia', '/nis', 'latn')).toBe('/lat/nis');
+        expect(serbianScriptRedirectPath('serbia', '/nis/mar17-2026', 'latn')).toBe('/lat/nis/mar17-2026');
+        expect(serbianScriptRedirectPath('serbia', '/', 'latn')).toBe('/lat');
+    });
+
+    it('lets any explicit locale prefix win over the cookie', () => {
+        expect(serbianScriptRedirectPath('serbia', '/lat/nis', 'latn')).toBeNull();
+        expect(serbianScriptRedirectPath('serbia', '/lat', 'latn')).toBeNull();
+        expect(serbianScriptRedirectPath('serbia', '/en/nis', 'latn')).toBeNull();
+        expect(serbianScriptRedirectPath('serbia', '/sr/nis', 'latn')).toBeNull();
+    });
+
+    it('does nothing without a latn cookie', () => {
+        expect(serbianScriptRedirectPath('serbia', '/nis', undefined)).toBeNull();
+        expect(serbianScriptRedirectPath('serbia', '/nis', 'cyrl')).toBeNull();
+        expect(serbianScriptRedirectPath('serbia', '/nis', 'garbage')).toBeNull();
+    });
+
+    it('does nothing outside the serbia realm', () => {
+        expect(serbianScriptRedirectPath('greece', '/athens', 'latn')).toBeNull();
+        expect(serbianScriptRedirectPath('france', '/paris', 'latn')).toBeNull();
+    });
+
+    it('does not partial-match path segments that merely start with lat', () => {
+        expect(serbianScriptRedirectPath('serbia', '/latinika', 'latn')).toBe('/lat/latinika');
     });
 });

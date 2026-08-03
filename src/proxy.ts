@@ -4,8 +4,8 @@ import { NextResponse, NextRequest } from 'next/server';
 import { auth } from './auth'
 import { env } from '@/env.mjs';
 import { REALMS, REALM_OVERRIDE_COOKIE, isRealm, isRealmApexHost, realmForHost, realmOverride } from './lib/realm';
-import { foreignLocaleRedirectPath, wwwRedirectTarget } from './lib/seo-redirects';
-import { localePrefixPattern } from './i18n/config';
+import { SERBIAN_SCRIPT_COOKIE, foreignLocaleRedirectPath, serbianScriptRedirectPath, wwwRedirectTarget } from './lib/seo-redirects';
+import { localePrefixPattern, urlPrefixForLocale } from './i18n/config';
 
 const i18nMiddleware = createIntlMiddleware(routing);
 
@@ -106,6 +106,40 @@ export default async function proxy(req: NextRequest) {
         return NextResponse.redirect(new URL(strippedPath + req.nextUrl.search, req.url), 301);
     }
 
+    // Script persistence for the digraphic Serbian realm: a reader who chose
+    // Latin (Ћир | Lat switcher → 'latn' cookie) stays in the /lat tree even
+    // when a link, bookmark or share points at an unprefixed URL.
+    //
+    // The switcher's Ћир link carries `?script=cyrl` (mirroring `?realm=`):
+    // the choice must live in the URL, not in an onClick cookie write,
+    // because middle-click / open-in-new-tab never runs the click handler —
+    // and a bare unprefixed GET with a stale 'latn' cookie would bounce
+    // straight back to /lat, making Cyrillic unreachable. Consuming the
+    // param here persists the cookie for every click type. Not gated on
+    // method or path: the param only ever arrives on a switcher <a href> GET
+    // and is stripped on first sight, so it never survives into a POST.
+    const scriptParam = req.nextUrl.searchParams.get('script');
+    if (realm === 'serbia' && (scriptParam === 'cyrl' || scriptParam === 'latn')) {
+        const cleanUrl = req.nextUrl.clone();
+        cleanUrl.searchParams.delete('script');
+        const response = NextResponse.redirect(cleanUrl, 302);
+        response.cookies.set(SERBIAN_SCRIPT_COOKIE, scriptParam, {
+            path: '/',
+            maxAge: 60 * 60 * 24 * 365,
+            sameSite: 'lax',
+        });
+        return response;
+    }
+    // Page navigations only: GET (a 302 on a server-action POST would re-issue
+    // it as a bodyless GET) and app paths (never /api, /qr, static assets).
+    const scriptCookie = req.cookies.get(SERBIAN_SCRIPT_COOKIE)?.value;
+    if (req.method === 'GET' && APP_PATH.test(pathname)) {
+        const scriptRedirect = serbianScriptRedirectPath(realm, pathname, scriptCookie);
+        if (scriptRedirect !== null) {
+            return NextResponse.redirect(new URL(scriptRedirect + req.nextUrl.search, req.url), 302);
+        }
+    }
+
     // Realm-locale handling: on a host whose realm default differs from the
     // app default (.fr → fr, .rs → sr), serve that locale's UI transparently.
     // Rewrite (not redirect) unprefixed app paths to the locale segment so the
@@ -137,7 +171,27 @@ export default async function proxy(req: NextRequest) {
     // Handle i18n first (skip for /qr/* paths to allow direct route handler)
     if (APP_PATH.test(pathname)) {
         const response = await i18nMiddleware(req);
-        if (response) return response;
+        if (response) {
+            // Entering the /lat tree by any route (external link, share)
+            // adopts Latin as the persisted choice, so onward navigation
+            // through unprefixed links keeps the script (redirect above).
+            // Unprefixed visits deliberately do NOT set 'cyrl': with a 'latn'
+            // cookie they never reach here (redirected), and without one the
+            // default needs no cookie — only the switcher sets 'cyrl'.
+            const latPrefix = `/${urlPrefixForLocale('sr-Latn')}`;
+            if (
+                realm === 'serbia' &&
+                scriptCookie !== 'latn' &&
+                (pathname === latPrefix || pathname.startsWith(`${latPrefix}/`))
+            ) {
+                response.cookies.set(SERBIAN_SCRIPT_COOKIE, 'latn', {
+                    path: '/',
+                    maxAge: 60 * 60 * 24 * 365,
+                    sameSite: 'lax',
+                });
+            }
+            return response;
+        }
     }
 
     return auth(req as any);

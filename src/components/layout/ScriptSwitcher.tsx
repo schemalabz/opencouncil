@@ -47,9 +47,20 @@ export default function ScriptSwitcher({ className }: { className?: string }) {
     // Serbian, not an indicator of the current one.
     const active: "sr" | "sr-Latn" | null = isSerbianLocale(locale) ? locale : null
     const latPrefix = `/${urlPrefixForLocale("sr-Latn")}`
+    // The choice must ride in the URL, not an onClick cookie write: onClick
+    // never fires for middle-click / open-in-new-tab, and with a stored
+    // 'latn' cookie a bare unprefixed GET bounces straight back to /lat. The
+    // Ћир href carries ?script=cyrl, which the proxy consumes into the
+    // oc-script cookie (mirroring ?realm=). The Lat href needs no param: the
+    // /lat prefix wins over any cookie, and visiting it persists 'latn'.
     const hrefFor = (target: "sr" | "sr-Latn") => {
-        const path = target === "sr" ? pathname || "/" : pathname === "/" ? latPrefix : `${latPrefix}${pathname}`
-        return `${path}${search}`
+        if (target === "sr-Latn") {
+            const path = pathname === "/" ? latPrefix : `${latPrefix}${pathname}`
+            return `${path}${search}`
+        }
+        const params = new URLSearchParams(search)
+        params.set("script", "cyrl")
+        return `${pathname || "/"}?${params.toString()}`
     }
 
     const linkClass = (target: "sr" | "sr-Latn") =>

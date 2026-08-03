@@ -1,6 +1,6 @@
 import { Realm } from '@prisma/client';
 import { REALMS, foreignLocalesForRealm, isKnownRealmHost, realmForHost } from '@/lib/realm';
-import { urlPrefixForLocale } from '@/i18n/config';
+import { localePrefixPattern, urlPrefixForLocale } from '@/i18n/config';
 
 /**
  * SEO-motivated redirect decisions for the proxy. Pure module (no
@@ -58,4 +58,44 @@ export function foreignLocaleRedirectPath(
         if (pathname.startsWith(`/${prefix}/`)) return pathname.slice(prefix.length + 1);
     }
     return null;
+}
+
+/**
+ * Cookie persisting the reader's Serbian script choice across navigations.
+ * Set by the Ћир | Lat switcher (and refreshed by the proxy on explicit /lat
+ * visits); read only by the proxy. Values: 'latn' | 'cyrl'. Meaningless
+ * outside the serbia realm.
+ */
+export const SERBIAN_SCRIPT_COOKIE = 'oc-script';
+
+const ANY_LOCALE_PREFIX_RE = new RegExp(`^/(${localePrefixPattern})(/|$)`);
+
+/**
+ * Path to 302 to when a reader who chose Latin script (cookie `latn`) hits an
+ * unprefixed URL on the serbia realm, else null. Serbian is digraphic and the
+ * script variant lives in the URL (`/lat` prefix ↔ `sr-Latn`), so without
+ * this any link to an unprefixed URL — internal navigation, bookmarks, shared
+ * links — silently reverts the reader to Cyrillic.
+ *
+ * - Cookie-gated, so crawlers (cookieless) always see the canonical tree:
+ *   unprefixed Cyrillic, with the /lat variant canonicalised back to it (no
+ *   hreflang cluster is emitted anywhere — see `buildCanonicalAlternates`).
+ *   A 302 rather than a 301 because the response varies by cookie, so it must
+ *   never be treated as permanent; no effect on indexing either way.
+ * - Any explicit locale prefix wins over the cookie (`/lat` needs no
+ *   redirect; `/en` stays the escape hatch into English). The reverse choice
+ *   needs no redirect at all: Ћир sets the cookie to 'cyrl' and unprefixed
+ *   URLs already serve Cyrillic.
+ * - The caller gates on page-navigation requests (GET + app path): redirecting
+ *   a server-action POST would break it.
+ */
+export function serbianScriptRedirectPath(
+    realm: Realm,
+    pathname: string,
+    scriptCookie: string | undefined,
+): string | null {
+    if (realm !== 'serbia' || scriptCookie !== 'latn') return null;
+    if (ANY_LOCALE_PREFIX_RE.test(pathname)) return null;
+    const latPrefix = `/${urlPrefixForLocale('sr-Latn')}`;
+    return pathname === '/' ? latPrefix : `${latPrefix}${pathname}`;
 }
