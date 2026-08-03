@@ -1,0 +1,61 @@
+{
+    "metadata": {
+        "title": "OpenCouncil AI — Interrogez votre assistant IA sur votre commune",
+        "description": "Connectez Claude, ChatGPT ou tout assistant IA que vous utilisez à OpenCouncil et demandez ce qui se discute et se décide dans les conseils municipaux."
+    },
+    "home": "Accueil",
+    "breadcrumb": "OpenCouncil AI",
+    "hero": {
+        "title": "Interrogez votre assistant IA sur votre commune",
+        "lead": "Connectez Claude, ChatGPT ou tout assistant IA que vous utilisez à OpenCouncil. Votre assistant accède à la recherche, aux communes, aux élus et aux transcriptions complètes des séances — et répond avec des références à la source.",
+        "standard": "Fonctionne via MCP (Model Context Protocol), le standard ouvert par lequel les assistants IA se connectent à des sources externes.",
+        "examplesTitle": "Par exemple",
+        "example1": "Quels ont été les sujets les plus importants dans les communes la semaine dernière ?",
+        "example2": "Qu'a dit la municipalité au sujet des crèches ? Montre-moi exactement ce qui a été dit.",
+        "example3": "Rédige un post pour les réseaux sociaux avec les positions clés de la dernière séance du conseil."
+    },
+    "url": {
+        "title": "Connexion",
+        "intro": "L'adresse du serveur MCP est publique — aucun compte n'est nécessaire pour la lecture :",
+        "copy": "Copier",
+        "copied": "Copié"
+    },
+    "clients": {
+        "claude": {
+            "title": "Claude",
+            "step1": "Dans claude.ai, ouvrez Settings → Connectors.",
+            "step2": "Cliquez sur « Add custom connector ».",
+            "step3": "Nommez-le OpenCouncil et collez l'adresse.",
+            "openSettings": "Ouvrir les réglages claude.ai"
+        },
+        "chatgpt": {
+            "title": "ChatGPT",
+            "step1": "Dans ChatGPT, ouvrez Settings → Apps & Connectors et activez le Developer mode (sous Advanced).",
+            "step2": "Cliquez sur « Create » pour ajouter un connecteur.",
+            "step3": "Nommez-le OpenCouncil, collez l'adresse et choisissez « No authentication ».",
+            "openSettings": "Ouvrir les réglages ChatGPT"
+        },
+        "claudeCode": {
+            "title": "Claude Code et autres outils",
+            "description": "Tout client MCP compatible streamable HTTP se connecte en une commande — par exemple dans Claude Code :"
+        }
+    },
+    "tokens": {
+        "title": "Accès personnel",
+        "description": "Avec un compte OpenCouncil, votre assistant peut en plus enregistrer des moments forts en votre nom : des extraits choisis des transcriptions d'une séance. Créez une adresse MCP personnelle et utilisez-la à la place de l'adresse publique.",
+        "signInPrompt": "Connectez-vous pour créer votre adresse personnelle.",
+        "signIn": "Se connecter",
+        "namePlaceholder": "Nom, p. ex. « Claude »",
+        "create": "Créer l'adresse",
+        "creating": "Création…",
+        "createdTitle": "Votre adresse MCP personnelle",
+        "createdNote": "Copiez-la maintenant — elle n'est affichée qu'une seule fois. Traitez-la comme un mot de passe : quiconque la possède agit en votre nom sur OpenCouncil. Vous pouvez la révoquer à tout moment.",
+        "yourTokens": "Vos adresses",
+        "createdAt": "Créée",
+        "lastUsed": "Dernière utilisation",
+        "never": "jamais",
+        "revoke": "Révoquer",
+        "revoked": "Révoquée",
+        "empty": "Vous n'avez pas encore créé d'adresse personnelle."
+    }
+}
