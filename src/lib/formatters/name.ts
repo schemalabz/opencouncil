@@ -18,6 +18,17 @@ export function getLocalizedName(entity: LocalizedNamed, locale: string): string
 }
 
 /**
+ * `getLocalizedName` for a City's `name_municipality`/`name_municipality_en`
+ * pair (the "Municipality of X" long form).
+ */
+export function getLocalizedMunicipalityName(
+    city: { name_municipality: string; name_municipality_en?: string | null },
+    locale: string,
+): string {
+    return getLocalizedName({ name: city.name_municipality, name_en: city.name_municipality_en }, locale);
+}
+
+/**
  * `getLocalizedName` for the `name_short`/`name_short_en` pair (Person,
  * Party), falling back to the long-name pair when no short form is stored.
  */

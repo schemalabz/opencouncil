@@ -15,7 +15,7 @@ import { useMediaQuery } from '@/hooks/use-media-query';
 import { PetitionFormStep } from '../steps/petition/PetitionFormStep';
 import { NotificationInfoStep } from '../steps/notification/NotificationInfoStep';
 import { useLocale } from 'next-intl';
-import { localizeText } from '@/lib/serbian';
+import { getLocalizedMunicipalityName } from '@/lib/formatters/name';
 
 export function FormContainer() {
     const {
@@ -31,10 +31,7 @@ export function FormContainer() {
     const locale = useLocale();
     const isDesktop = useMediaQuery('(min-width: 1024px)');
 
-    // `name_municipality` holds the native-language name; English uses the
-    // dedicated `_en` field. Other locales (e.g. fr) fall back to the native
-    // name, matching the convention used across the app.
-    const municipalityName = localizeText((locale === 'en' ? city?.name_municipality_en : city?.name_municipality) ?? '', locale);
+    const municipalityName = city ? getLocalizedMunicipalityName(city, locale) : '';
 
     const currentFlow = getCurrentFlow(stage);
     const currentStep = getCurrentStep(stage);

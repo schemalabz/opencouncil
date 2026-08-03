@@ -5,7 +5,7 @@ import { formatInTimeZone } from 'date-fns-tz';
 import sanitizeHtml from 'sanitize-html';
 import { getCityCached, getCouncilMeetingsForCityPublicCached } from '@/lib/cache/queries';
 import { stripMarkdown } from '@/lib/formatters/markdown';
-import { getLocalizedName } from '@/lib/formatters/name';
+import { getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
 import { REALMS } from '@/lib/realm';
 import { getRealm, getRealmBaseUrlFromRequest } from '@/lib/realm.server';
@@ -54,10 +54,7 @@ export async function GET(
     const feed = new Feed({
         title: t('title', { city: getLocalizedName(city, locale) }),
         description: t('description', {
-            municipality: getLocalizedName(
-                { name: city.name_municipality, name_en: city.name_municipality_en },
-                locale,
-            )
+            municipality: getLocalizedMunicipalityName(city, locale)
         }),
         id: feedUrl,
         link: cityUrl,
