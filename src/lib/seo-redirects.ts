@@ -37,7 +37,6 @@ export function wwwRedirectTarget(host: string | null | undefined, pathname: str
  * `.gr` → `/x`), else null. Kills the orphaned duplicate tree the foreign
  * locale creates (it has no hreflang entry and no UI entry point).
  *
- * - Matches by URL prefix, not locale id — `sr-Latn` lives at `/lat`.
  * - Only on known realm hosts, so localhost keeps serving all locale prefixes
  *   for development — unless `realmOverride` is set (the `?realm=` escape
  *   hatch, see `realmOverride` in `realm.ts`), in which case the host is

@@ -90,7 +90,6 @@ export function EmbedConfigurator({ cityId, cityName, bodyGroups }: EmbedConfigu
         if (widgetType === 'subjects' && geoLocation) {
             params.set('geohash', geoLocation.geohash);
         }
-        // URL prefix, not locale id — sr-Latn embeds live under /lat.
         return `${origin}/${urlPrefixForLocale(locale)}/embed/${widgetType}?${params.toString()}`;
     }, [origin, locale, cityId, widgetType, accent, mode, limit, showSubjects, radius, selectedType, selectedBodyId, geoLocation]);
 

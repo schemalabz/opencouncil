@@ -38,7 +38,6 @@ export async function GET(
     // greece, fr for france) is the unprefixed one.
     const baseUrl = await getRealmBaseUrlFromRequest();
     const isDefaultLocale = locale === REALMS[realm].defaultLocale;
-    // URL prefix, not locale id — sr-Latn lives under /lat.
     const localePrefix = urlPrefixForLocale(locale);
     const cityUrl = isDefaultLocale
         ? `${baseUrl}/${cityId}`

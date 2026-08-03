@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db/prisma';
 import { DEFAULT_LOCALE, LOCALES, urlPrefixForLocale } from '@/i18n/config';
 
-// URL prefixes of the non-default locales (en, fr, sr, lat) — the segment is
-// matched from the referer path and echoed back into the redirect URL, so it
-// must be compared as a URL prefix, not a locale id (sr-Latn lives at /lat).
+// URL prefixes of the non-default locales, matched from the referer path and
+// echoed back into the redirect URL.
 const NON_DEFAULT_LOCALE_PREFIXES = new Set(
     LOCALES.filter((locale) => locale !== DEFAULT_LOCALE).map(urlPrefixForLocale),
 );

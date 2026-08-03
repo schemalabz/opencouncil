@@ -67,7 +67,6 @@ const UtteranceC: React.FC<{
     const [editedEndTime, setEditedEndTime] = useState(utterance.endTimestamp);
     const { toast } = useToast();
     const t = useTranslations('transcript.utterance');
-    // Stable across renders (locale is constant per page) — memo-safe.
     const localize = useLocalizeText();
 
     // Check if selected in Editing Context

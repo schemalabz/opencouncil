@@ -35,8 +35,7 @@ interface EmbedSubjectCardProps {
  */
 export function EmbedSubjectCard({ subject, meeting, locationText, speakers, stats, locale, baseUrl, cityTimezone }: EmbedSubjectCardProps) {
     const t = useTranslations('Subject');
-    // next-intl uses `as-needed` prefixing: the default locale has no prefix,
-    // others do (by URL prefix, not locale id — sr-Latn lives under /lat).
+    // next-intl uses `as-needed` prefixing: the default locale has no prefix.
     // Keeping the locale here makes English iframes link to English pages.
     const localePrefix = locale === routing.defaultLocale ? '' : `/${urlPrefixForLocale(locale)}`;
     const subjectUrl = `${baseUrl}${localePrefix}/${meeting.cityId}/${meeting.id}/subjects/${subject.id}`;

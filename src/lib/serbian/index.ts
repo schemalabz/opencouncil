@@ -1,11 +1,9 @@
 import { toScript, type SerbianScript } from './transliterate';
 
-export { cyrillicToLatin, latinToCyrillic, toScript, type SerbianScript } from './transliterate';
-
-export type SerbianLocale = 'sr' | 'sr-Latn';
+export { toScript, type SerbianScript } from './transliterate';
 
 /** `sr` is Serbian Cyrillic (CLDR's default script for bare `sr`); `sr-Latn` is Serbian Latin. */
-export function isSerbianLocale(locale: string): locale is SerbianLocale {
+export function isSerbianLocale(locale: string): locale is 'sr' | 'sr-Latn' {
     return locale === 'sr' || locale === 'sr-Latn';
 }
 
