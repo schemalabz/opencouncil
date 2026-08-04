@@ -832,6 +832,7 @@ model User {
   subjectVotes SubjectVote[]
   meetingAttendance MeetingAttendance[]
   serviceApiKeys ServiceApiKey[]
+  mcpTokens UserMcpToken[]
   searchQueries SearchQuery[]
 }
  
@@ -920,6 +921,22 @@ model ServiceApiKey {
 
   createdBy   User      @relation(fields: [createdById], references: [id])
   createdById String
+}
+
+// Personal access token for the MCP server. Unlike ServiceApiKey (superadmin,
+// service-level), an MCP token acts as the owning user: highlight creation is
+// attributed to them and limited by their per-city permissions.
+model UserMcpToken {
+  id         String    @id @default(cuid())
+  name       String    @default("MCP token")
+  hashedKey  String    @unique // SHA-256 hash of the raw token
+  keyPrefix  String    // First 10 chars for display (e.g. "mcp_a1b2c3")
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
 }
 
 model UtteranceEdit {
