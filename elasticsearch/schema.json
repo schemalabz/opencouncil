@@ -81,36 +81,6 @@
       "updated_at": { "type": "date" },
       "context": { "type": "text", "analyzer": "greek" },
       "context_citation_urls": { "type": "keyword" },
-      "speaker_segments": {
-        "type": "nested",
-        "properties": {
-          "segment_id": { "type": "keyword" },
-          "speaker_person_id": { "type": "keyword" },
-          "speaker_person_name": {
-            "type": "text",
-            "analyzer": "greek",
-            "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
-          },
-          "speaker_person_name_en": {
-            "type": "text",
-            "analyzer": "standard",
-            "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
-          },
-          "speaker_party_id": { "type": "keyword" },
-          "speaker_party_name": {
-            "type": "text",
-            "analyzer": "greek",
-            "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
-          },
-          "speaker_party_name_en": {
-            "type": "text",
-            "analyzer": "standard",
-            "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
-          },
-          "text": { "type": "text", "analyzer": "greek" },
-          "summary": { "type": "text", "analyzer": "greek" }
-        }
-      },
       "speaker_contributions": {
         "type": "nested",
         "properties": {
@@ -336,34 +306,6 @@
             "variant": "scalar",
             "type": "one_to_one",
             "foreign_key": { "parent": ["locationId"], "child": ["id"] }
-          }
-        },
-        {
-          "table": "SubjectSpeakerSegmentSearchView",
-          "schema": "public",
-          "base_tables": ["SubjectSpeakerSegment", "SpeakerSegment", "SpeakerTag", "Person", "Party", "Role", "Utterance"],
-          "primary_key": ["id"],
-          "label": "speaker_segments",
-          "relationship": {
-            "variant": "object",
-            "type": "one_to_many",
-            "foreign_key": { "parent": ["id"], "child": ["subject_id"] }
-          },
-          "columns": [
-            "id",
-            "text",
-            "summary",
-            "speaker_person_id",
-            "speaker_person_name",
-            "speaker_person_name_en",
-            "speaker_party_id",
-            "speaker_party_name",
-            "speaker_party_name_en"
-          ],
-          "transform": {
-            "rename": {
-              "id": "segment_id"
-            }
           }
         },
         {

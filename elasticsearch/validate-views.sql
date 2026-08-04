@@ -21,9 +21,8 @@ SELECT
 FROM pg_views 
 WHERE schemaname = 'public' 
   AND viewname IN (
-    'LocationSearchView', 
-    'IntroducedByPartyView', 
-    'SubjectSpeakerSegmentSearchView',
+    'LocationSearchView',
+    'IntroducedByPartyView',
     'SubjectSearchView',
     'SpeakerContributionSearchView'
   )
@@ -87,23 +86,9 @@ LIMIT 3;
 \echo ''
 
 -- ============================================================================
--- 4. Validate SubjectSpeakerSegmentSearchView - party resolution
+-- 4. Validate IntroducedByPartyView - party resolution
 -- ============================================================================
-\echo '4. Validating SubjectSpeakerSegmentSearchView...'
-SELECT 
-  COUNT(*) AS total_segments,
-  COUNT(speaker_person_id) AS with_speaker,
-  COUNT(speaker_party_id) AS with_party,
-  COUNT(text) AS with_text,
-  COUNT(summary) AS with_summary
-FROM "SubjectSpeakerSegmentSearchView";
-
-\echo ''
-
--- ============================================================================
--- 5. Validate IntroducedByPartyView - party resolution
--- ============================================================================
-\echo '5. Validating IntroducedByPartyView...'
+\echo '4. Validating IntroducedByPartyView...'
 SELECT 
   COUNT(*) AS total_mappings,
   COUNT(DISTINCT person_id) AS unique_persons,
@@ -114,9 +99,9 @@ FROM "IntroducedByPartyView";
 \echo ''
 
 -- ============================================================================
--- 6. Validate LocationSearchView - GeoJSON conversion
+-- 5. Validate LocationSearchView - GeoJSON conversion
 -- ============================================================================
-\echo '6. Validating LocationSearchView...'
+\echo '5. Validating LocationSearchView...'
 SELECT 
   COUNT(*) AS total_locations,
   COUNT(geojson) AS with_geojson,

@@ -1,8 +1,6 @@
 import prisma from './prisma';
 import {
     Subject,
-    SubjectSpeakerSegment,
-    SpeakerSegment,
     SpeakerContribution,
     Decision,
     Highlight,
@@ -98,10 +96,6 @@ export type SubjectWithRelations = Subject & {
     contributions: (SpeakerContribution & {
         speaker: PersonWithRelations | null;
     })[];
-    // Keep speakerSegments for backward compatibility during transition
-    speakerSegments: (SubjectSpeakerSegment & {
-        speakerSegment: SpeakerSegment;
-    })[];
     highlights: Highlight[];
     location: LocationWithCoordinates | null;
     topic: Topic | null;
@@ -143,17 +137,16 @@ export async function getSubjectCountsByCityCached(realm: Realm): Promise<Record
 
 /**
  * Discussion seconds per subject, matching the subject page exactly (getStatisticsForTranscript
- * in statistics.ts): tagged SUBJECT_DISCUSSION utterance durations over non-procedural segments,
- * falling back to legacy SubjectSpeakerSegment only for subjects with no tagged utterance at all.
- * Two GROUP BY aggregates, so it scales to the landing's large subject sets.
+ * in statistics.ts): tagged SUBJECT_DISCUSSION utterance durations over non-procedural segments.
+ * A single GROUP BY aggregate, so it scales to the landing's large subject sets.
  */
 export async function getDiscussionSecondsForSubjects(subjectIds: string[]): Promise<Map<string, number>> {
     const seconds = new Map<string, number>();
     if (subjectIds.length === 0) return seconds;
 
-    // A subject with a tagged utterance gets a row (so it never falls back); the sum excludes
-    // procedural segments, so it can legitimately be 0.
-    const newRows = await prisma.$queryRaw<{ subjectId: string; seconds: number }[]>`
+    // A subject with a tagged utterance gets a row; the sum excludes procedural segments,
+    // so it can legitimately be 0.
+    const rows = await prisma.$queryRaw<{ subjectId: string; seconds: number }[]>`
         SELECT u."discussionSubjectId" AS "subjectId",
                COALESCE(SUM(u."endTimestamp" - u."startTimestamp")
                         FILTER (WHERE sm.type IS NULL OR sm.type::text <> 'procedural'), 0)::float8 AS seconds
@@ -164,23 +157,7 @@ export async function getDiscussionSecondsForSubjects(subjectIds: string[]): Pro
           AND u."discussionStatus"::text = 'SUBJECT_DISCUSSION'
         GROUP BY u."discussionSubjectId"
     `;
-    for (const r of newRows) seconds.set(r.subjectId, Math.max(0, Number(r.seconds)));
-
-    // Legacy fallback: only subjects with no tagged utterance at all.
-    const missing = subjectIds.filter((id) => !seconds.has(id));
-    if (missing.length > 0) {
-        const oldRows = await prisma.$queryRaw<{ subjectId: string; seconds: number }[]>`
-            SELECT sss."subjectId" AS "subjectId",
-                   COALESCE(SUM(ss."endTimestamp" - ss."startTimestamp")
-                            FILTER (WHERE sm.type IS NULL OR sm.type::text <> 'procedural'), 0)::float8 AS seconds
-            FROM "SubjectSpeakerSegment" sss
-            JOIN "SpeakerSegment" ss ON ss.id = sss."speakerSegmentId"
-            LEFT JOIN "Summary" sm ON sm."speakerSegmentId" = ss.id
-            WHERE sss."subjectId" IN (${Prisma.join(missing)})
-            GROUP BY sss."subjectId"
-        `;
-        for (const r of oldRows) seconds.set(r.subjectId, Math.max(0, Number(r.seconds)));
-    }
+    for (const r of rows) seconds.set(r.subjectId, Math.max(0, Number(r.seconds)));
     return seconds;
 }
 
@@ -276,17 +253,7 @@ const mapSubjectInclude = {
     },
     topic: { select: { name: true, name_en: true, colorHex: true, icon: true } },
     location: { select: { text: true, type: true } },
-    speakerSegments: {
-        select: {
-            speakerSegment: {
-                select: {
-                    startTimestamp: true,
-                    endTimestamp: true,
-                    speakerTag: { select: { id: true } },
-                },
-            },
-        },
-    },
+    contributions: { select: { speakerId: true } },
 } satisfies Prisma.SubjectInclude;
 
 type MapSubjectPayload = Prisma.SubjectGetPayload<{ include: typeof mapSubjectInclude }>;
@@ -326,9 +293,9 @@ export function buildMapSubjectWhere(realm: Realm, f: MapSubjectFilters): Prisma
     };
 }
 
-/** Unique speaker count for a subject from its (legacy) speaker-segment join. */
+/** Speaker count for a subject: one contribution per speaker (unique on subjectId+speakerId). */
 function speakerCountOf(s: MapSubjectPayload): number {
-    return new Set((s.speakerSegments ?? []).map((sss) => sss.speakerSegment.speakerTag.id)).size;
+    return s.contributions.length;
 }
 
 /** The wire fields shared by located + non-located rows (everything except geometry/location). */
@@ -460,11 +427,6 @@ export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
         const subjects = await prisma.subject.findMany({
             include: {
                 contributions: contributionsInclude,
-                speakerSegments: {
-                    include: {
-                        speakerSegment: true,
-                    },
-                },
                 highlights: true,
                 location: true,
                 topic: true,
@@ -496,16 +458,6 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
             },
             include: {
                 contributions: contributionsInclude,
-                speakerSegments: {
-                    include: {
-                        speakerSegment: true,
-                    },
-                    orderBy: {
-                        speakerSegment: {
-                            startTimestamp: 'asc',
-                        },
-                    },
-                },
                 introducedBy: introducedByInclude,
                 highlights: true,
                 location: true,
@@ -562,16 +514,6 @@ export async function getSubject(subjectId: string): Promise<SubjectWithRelation
             },
             include: {
                 contributions: contributionsInclude,
-                speakerSegments: {
-                    include: {
-                        speakerSegment: true,
-                    },
-                    orderBy: {
-                        speakerSegment: {
-                            startTimestamp: 'asc',
-                        },
-                    },
-                },
                 introducedBy: introducedByInclude,
                 highlights: true,
                 location: true,

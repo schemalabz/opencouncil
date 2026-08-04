@@ -39,9 +39,9 @@ When searching:
 ### Search Components
 
 1. **Traditional Text Search**
-   - Full-text search on subject names, descriptions, and speaker segments
+   - Full-text search on subject names, descriptions, and speaker contributions
    - Greek language support with proper analysis
-   - Nested queries for speaker segments
+   - Nested queries for speaker contributions
    - Filtering by city, person, party, date, and location
 
 2. **Semantic Search**
@@ -50,7 +50,6 @@ When searching:
    - Supports semantic search on:
      - Subject names
      - Subject descriptions
-     - Concatenated speaker segment text
 
 3. **Hybrid Search**
    - Combines both traditional and semantic search results
@@ -159,7 +158,8 @@ PGSync requires helper views to denormalize complex relationships and handle Pos
 
 1. **LocationSearchView** - Converts PostGIS geometry to GeoJSON format
 2. **IntroducedByPartyView** - Resolves party affiliation through the `Role` table
-3. **SubjectSpeakerSegmentSearchView** - Denormalizes speaker segments with concatenated utterances
+3. **SubjectSearchView** - Strips markdown references from subject descriptions
+4. **SpeakerContributionSearchView** - Denormalizes speaker contributions with party details
 
 ### Create the Views
 
@@ -170,7 +170,7 @@ psql "$DATABASE_URL" < elasticsearch/views.sql
 ```
 
 The script will:
-- Create all three required views
+- Create all four required views
 - Run verification checks on each view
 - Display sample data to confirm everything works
 - Show statistics about data coverage
@@ -196,7 +196,7 @@ The `elasticsearch/schema.json` file defines:
 - **Index mapping**: Elasticsearch field types, analyzers
 - **Nodes**: PostgreSQL tables and their relationships  
 - **Transform rules**: Field renaming, scalar vs object variants
-- **Children**: Nested relationships (e.g., speaker_segments)
+- **Children**: Nested relationships (e.g., speaker_contributions)
 
 **Resources for understanding the schema:**
 - [PGSync Schema Documentation](https://pgsync.com/schema/) - Official guide to schema configuration
@@ -452,7 +452,7 @@ nix run .#cleanup
 
 ### 1. Simple Text Search
 
-This example demonstrates a basic text search query that searches across subject names, descriptions, and speaker segments:
+This example demonstrates a basic text search query that searches across subject names, descriptions, and speaker contributions:
 
 ```json
 GET subjects/_search
@@ -473,32 +473,17 @@ GET subjects/_search
         },
         {
           "nested": {
-            "path": "speaker_segments",
+            "path": "speaker_contributions",
             "query": {
-              "bool": {
-                "should": [
-                  {
-                    "match": {
-                      "speaker_segments.text": {
-                        "query": "ηλεκτρικά πατίνια",
-                        "boost": 2
-                      }
-                    }
-                  },
-                  {
-                    "match": {
-                      "speaker_segments.summary": {
-                        "query": "ηλεκτρικά πατίνια",
-                        "boost": 2
-                      }
-                    }
-                  }
-                ],
-                "minimum_should_match": 1
+              "match": {
+                "speaker_contributions.text": {
+                  "query": "ηλεκτρικά πατίνια",
+                  "boost": 2
+                }
               }
             },
             "inner_hits": {
-              "_source": ["speaker_segments.segment_id"]
+              "_source": ["speaker_contributions.contribution_id"]
             }
           }
         }
@@ -524,9 +509,8 @@ GET subjects/_search
 Key features of this query:
 - Uses `multi_match` with `operator: "or"` for more lenient matching
 - Boosts subject name matches (^4) and description matches (^3)
-- Uses `nested` query to search within speaker segments
-- Searches both `text` and `summary` fields in speaker segments
-- Uses `inner_hits` to get IDs of matching speaker segments
+- Uses `nested` query to search within speaker contributions
+- Uses `inner_hits` to get IDs of matching speaker contributions
 - Filters by `meeting_released: true` to show only subjects from released meetings
 - Filters results by city IDs
 
@@ -558,32 +542,17 @@ GET subjects/_search
                   },
                   {
                     "nested": {
-                      "path": "speaker_segments",
+                      "path": "speaker_contributions",
                       "query": {
-                        "bool": {
-                          "should": [
-                            {
-                              "match": {
-                                "speaker_segments.text": {
-                                  "query": "ηλεκτρικά πατίνια",
-                                  "boost": 2
-                                }
-                              }
-                            },
-                            {
-                              "match": {
-                                "speaker_segments.summary": {
-                                  "query": "ηλεκτρικά πατίνια",
-                                  "boost": 2
-                                }
-                              }
-                            }
-                          ],
-                          "minimum_should_match": 1
+                        "match": {
+                          "speaker_contributions.text": {
+                            "query": "ηλεκτρικά πατίνια",
+                            "boost": 2
+                          }
                         }
                       },
                       "inner_hits": {
-                        "_source": ["speaker_segments.segment_id"]
+                        "_source": ["speaker_contributions.contribution_id"]
                       }
                     }
                   }
@@ -645,8 +614,8 @@ Key features of this hybrid query:
 - Combines traditional text search with semantic search
 - Uses RRF to merge and rank results from both searches
 - Maintains field boosting for traditional search
-- Properly handles nested speaker segments search
-- Uses `inner_hits` to get IDs of matching speaker segments
+- Properly handles nested speaker contributions search
+- Uses `inner_hits` to get IDs of matching speaker contributions
 - Includes semantic search on description field
 - Filters by `meeting_released: true` to show only subjects from released meetings
 - Applies the same filters to both searches
@@ -702,14 +671,11 @@ A: PGSync's live sync receives WAL events with the base table's original column 
 
 This ensures bootstrap (reads from view) and live sync (reads from WAL) both work correctly.
 
-**Q: How is the speaker segments text concatenated?**  
-A: The `SubjectSpeakerSegmentSearchView` view concatenates all utterance texts within each speaker segment using `string_agg()`, ordered by timestamp. PGSync reads from this view and indexes the concatenated text.
+**Q: How do I handle updates to speaker contributions?**  
+A: PGSync automatically detects changes to related tables (SpeakerContribution, Person, etc.) and updates the corresponding Subject document in Elasticsearch. No manual intervention needed.
 
-**Q: How do I handle updates to speaker segments?**  
-A: PGSync automatically detects changes to related tables (Utterance, SpeakerSegment, etc.) and updates the corresponding Subject document in Elasticsearch. No manual intervention needed.
-
-**Q: Can I search for specific speaker segments after finding a semantic match?**  
-A: Yes, you can use the nested query on `speaker_segments` to find specific segments within a subject that matched semantically. The search implementation supports both approaches.
+**Q: Can I search for specific speaker contributions after finding a semantic match?**  
+A: Yes, you can use the nested query on `speaker_contributions` to find specific contributions within a subject that matched semantically. The search implementation supports both approaches.
 
 **Q: How do I optimize semantic search performance?**  
 A: Use dedicated inference endpoints for ingestion and search, and configure appropriate chunking settings for your text. The current implementation uses the `opencouncil-multilingual-e5-small-elasticsearch` model.
@@ -724,7 +690,7 @@ A: PGSync tracks its position in the WAL stream using Redis. When it restarts, i
 A: See <https://pgsync.com/advanced/re-indexing>
 
 **Q: Why use views instead of direct table joins in PGSync?**  
-A: Views handle complex logic (PostGIS conversion, role-based party resolution, utterance concatenation) in PostgreSQL where it's more efficient. PGSync sees views as simple tables, keeping the sync configuration clean.
+A: Views handle complex logic (PostGIS conversion, role-based party resolution, markdown reference stripping) in PostgreSQL where it's more efficient. PGSync sees views as simple tables, keeping the sync configuration clean.
 
 **Q: Can I combine semantic search with traditional text search?**  
 A: Yes, the implementation uses RRF (Reciprocal Rank Fusion) to combine both traditional and semantic search results. You can control this with the `enableSemanticSearch` config option.

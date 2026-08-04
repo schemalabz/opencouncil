@@ -58,7 +58,6 @@ TABLES=(
     "SubjectVote"
     "MeetingAttendance"
     "SpeakerSegment"
-    "SubjectSpeakerSegment"
     "SpeakerContribution"
     "Utterance"
     "Word"

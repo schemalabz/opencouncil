@@ -1,10 +1,9 @@
 "use client";
 import Map from "@/components/map/map";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
-import { useVideo } from "../VideoProvider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, FileText, MapPin, ScrollText, CheckSquare, Landmark, ExternalLink, Loader2, ArrowLeft } from "lucide-react";
+import { FileText, MapPin, ScrollText, CheckSquare, Landmark, ExternalLink, Loader2, ArrowLeft } from "lucide-react";
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
@@ -32,8 +31,7 @@ import { useLocalizeText } from "@/hooks/useLocalizeText";
 import { getLocalizedName } from "@/lib/formatters/name";
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
-    const { subjects, getSpeakerTag, getPerson, getParty, meeting, city } = useCouncilMeetingData();
-    const { seekToAndPlay } = useVideo();
+    const { subjects, getPerson, getParty, meeting, city } = useCouncilMeetingData();
     const t = useTranslations("Subject");
     const locale = useLocale();
     const localize = useLocalizeText();
@@ -65,7 +63,6 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
         location,
         description,
         name,
-        speakerSegments,
         agendaItemIndex,
         introducedBy,
         contributions,
@@ -73,9 +70,6 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
         proximityImportance,
         discussedIn
     } = subject;
-
-    // Use contributions if available, fallback to speaker segments
-    const hasContributions = contributions && contributions.length > 0;
 
     const colorPercentages = subject.statistics?.parties?.map(p => ({
         color: p.item.colorHex,
@@ -253,7 +247,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                             </div>
 
                                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                <span>{t("speakers", { count: subject.statistics?.people?.length || (hasContributions ? contributions.length : speakerSegments?.length || 0) })}</span>
+                                                <span>{t("speakers", { count: subject.statistics?.people?.length || contributions?.length || 0 })}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -421,99 +415,32 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                     <SubjectContext subject={subject} />
                 )}
 
-                {/* Speaker Contributions OR Speaker Segments */}
+                {/* Speaker Contributions */}
                 <CollapsibleCard
                     icon={<ScrollText className="w-4 h-4" />}
-                    title={`${t("statements")} (${hasContributions ? contributions.length : speakerSegments?.length || 0})`}
+                    title={`${t("statements")} (${contributions?.length || 0})`}
                     defaultOpen={true}
                 >
-                    {hasContributions ? (
-                        /* NEW: Render Contributions */
-                        contributions.length === 0 ? (
-                            <div className="p-8 text-center">
-                                <p className="text-sm text-muted-foreground">
-                                    {t("noStatements")}
-                                </p>
-                            </div>
-                        ) : (
-                            <>
-                                {contributions.map((contribution, index) => (
-                                    <div key={contribution.id}>
-                                        {index > 0 && <div className="border-t border-border" />}
-                                        <ContributionCard
-                                            contribution={contribution}
-                                            subjectId={subject.id}
-                                            meeting={meeting}
-                                            speaker={contribution.speakerId ? getPerson(contribution.speakerId) ?? null : null}
-                                        />
-                                    </div>
-                                ))}
-                            </>
-                        )
+                    {(!contributions || contributions.length === 0) ? (
+                        <div className="p-8 text-center">
+                            <p className="text-sm text-muted-foreground">
+                                {t("noStatements")}
+                            </p>
+                        </div>
                     ) : (
-                        /* FALLBACK: Render Speaker Segments (old format) */
-                        (!speakerSegments || speakerSegments.length === 0) ? (
-                            <div className="p-8 text-center">
-                                <p className="text-sm text-muted-foreground">
-                                    {t("noStatements")}
-                                </p>
-                            </div>
-                        ) : (
-                            <>
-                                {speakerSegments.map((segment, index) => {
-                                    const speakerTag = getSpeakerTag(segment.speakerSegment.speakerTagId);
-                                    const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
-                                    if (!speakerTag) return null;
-
-                                    const timeParam = `t=${Math.floor(segment.speakerSegment.startTimestamp)}`;
-                                    const transcriptUrl = `/${meeting.cityId}/${meeting.id}/transcript?${timeParam}`;
-
-                                    return (
-                                        <div key={segment.speakerSegmentId}>
-                                            {index > 0 && <div className="border-t border-border" />}
-                                            <div className="p-4">
-                                                <div className="flex flex-col md:flex-row md:items-center gap-4">
-                                                    <PersonBadge
-                                                        person={person}
-                                                        speakerTag={speakerTag}
-                                                    />
-                                                    <div className="flex gap-2 md:ml-auto">
-                                                        <Button
-                                                            onClick={() => seekToAndPlay(segment.speakerSegment.startTimestamp)}
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="transition-colors hover:bg-primary hover:text-primary-foreground"
-                                                        >
-                                                            <Play className="h-4 w-4" />
-                                                        </Button>
-                                                        <Button
-                                                            asChild
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="transition-colors hover:bg-primary hover:text-primary-foreground"
-                                                        >
-                                                            <Link href={transcriptUrl}>
-                                                                <FileText className="h-4 w-4 mr-1.5" />
-                                                                {t("transcript")}
-                                                            </Link>
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                                {segment.summary ? (
-                                                    <div className="mt-4 pl-4 border-l-2 border-muted">
-                                                        <p className="text-sm text-muted-foreground leading-relaxed">{segment.summary}</p>
-                                                    </div>
-                                                ) : (
-                                                    <p className="text-center text-sm mt-6 text-muted-foreground italic">
-                                                        {t("noSummary")}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </>
-                        )
+                        <>
+                            {contributions.map((contribution, index) => (
+                                <div key={contribution.id}>
+                                    {index > 0 && <div className="border-t border-border" />}
+                                    <ContributionCard
+                                        contribution={contribution}
+                                        subjectId={subject.id}
+                                        meeting={meeting}
+                                        speaker={contribution.speakerId ? getPerson(contribution.speakerId) ?? null : null}
+                                    />
+                                </div>
+                            ))}
+                        </>
                     )}
                 </CollapsibleCard>
 

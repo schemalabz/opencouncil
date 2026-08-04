@@ -79,7 +79,6 @@ function subjectToSearchResult(
     const subjectWithRelations: SubjectWithRelations = {
         ...subject,
         contributions: [],
-        speakerSegments: [],
         highlights: [],
         location: null,
         topic: null,
@@ -94,7 +93,6 @@ function subjectToSearchResult(
     return {
         ...subjectWithRelations,
         score,
-        matchedSpeakerSegmentIds: [],
         councilMeeting: {
             ...meeting,
             city

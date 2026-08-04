@@ -6,7 +6,6 @@ interface CategorizableSubject {
     nonAgendaReason: string | null;
     agendaItemIndex: number | null;
     statistics?: Statistics;
-    speakerSegments?: unknown[];
     _count?: { contributions?: number };
 }
 
