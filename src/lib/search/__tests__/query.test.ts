@@ -5,7 +5,15 @@ import type { SearchRequest } from '../types';
 // itself does not read env, only the module-level import does.
 jest.mock('@/env.mjs', () => ({ env: { ELASTICSEARCH_INDEX: 'test-index' } }));
 
-import { buildFilters } from '../query';
+import { buildFilters, buildSearchQuery } from '../query';
+import type { ExtractedFilters } from '../types';
+
+const NO_EXTRACTED_FILTERS: ExtractedFilters = {
+    cityIds: null,
+    dateRange: null,
+    isLatest: null,
+    locationName: null,
+};
 
 type BoolQuery = estypes.QueryDslBoolQuery;
 
@@ -101,5 +109,45 @@ describe('buildFilters person filter', () => {
         const filters = buildFilters(request);
 
         expect(findPersonFilter(filters)).toBeUndefined();
+    });
+});
+
+describe('buildSearchQuery filter-only mode', () => {
+    it('builds a ranked rrf query when query text is present', () => {
+        const q = buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS);
+
+        expect(q.retriever).toBeDefined();
+        expect(q.sort).toBeUndefined();
+    });
+
+    it.each([undefined, '', '   '])(
+        'builds a filter-only, date-sorted query when query is %p',
+        (query) => {
+            const q = buildSearchQuery(
+                {
+                    query,
+                    personIds: ['p1'],
+                    dateRange: { start: '2026-07-01', end: '2026-07-31' },
+                },
+                NO_EXTRACTED_FILTERS
+            );
+
+            // No ranking retrievers (they require query text)...
+            expect(q.retriever).toBeUndefined();
+            // ...instead a pure filtered query sorted newest-first.
+            expect(q.sort).toEqual([{ meeting_date: { order: 'desc' } }]);
+
+            const filter = (q.query!.bool!.filter ?? []) as estypes.QueryDslQueryContainer[];
+            expect(filter.some((f) => f.term?.['meeting_released'] !== undefined)).toBe(true);
+            expect(findPersonFilter(filter)).toBeDefined();
+            expect(filter.some((f) => f.range?.['meeting_date'] !== undefined)).toBe(true);
+        }
+    );
+
+    it('respects pagination config in the filter-only branch', () => {
+        const q = buildSearchQuery({ config: { size: 5, from: 10 } }, NO_EXTRACTED_FILTERS);
+
+        expect(q.size).toBe(5);
+        expect(q.from).toBe(10);
     });
 });

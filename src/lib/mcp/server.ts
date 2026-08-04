@@ -53,10 +53,12 @@ export function registerOpenCouncilServer(server: McpServer) {
             title: 'Search subjects',
             description:
                 'Full-text and semantic search over council meeting subjects (agenda items). ' +
-                'Filter by city, person, party, topic or date range. Returns compact results with URLs; ' +
+                'Filter by city, person, party, topic or date range. Omit the query to list ' +
+                'everything matching the filters, newest first — e.g. all subjects a person ' +
+                'spoke about, or all subjects in a date range. Returns compact results with URLs; ' +
                 'use get_subject / get_subject_transcript with a result id for details.',
             inputSchema: z.object({
-                query: z.string().min(1).describe('Search query (Greek works best)'),
+                query: z.string().optional().describe('Search query (Greek works best). Omit for a filter-only listing sorted by date'),
                 cityIds: z.array(z.string()).optional().describe('Restrict to these city IDs (see list_cities)'),
                 personIds: z.array(z.string()).optional().describe('Restrict to subjects a person spoke about'),
                 partyIds: z.array(z.string()).optional().describe('Restrict to subjects a party spoke about'),

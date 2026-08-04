@@ -38,9 +38,10 @@ export async function search(
 ): Promise<SearchResponse> {
     try {
         // Persist the query for usage analytics. Skipped for paginated requests
-        // (same query, next page) and for internal callers like the AI chat.
-        if (!options?.skipQueryLog && (request.config?.from ?? 0) === 0) {
-            void logSearchQuery(request.query);
+        // (same query, next page), filter-only searches and internal callers.
+        const queryText = request.query?.trim() ?? '';
+        if (!options?.skipQueryLog && queryText && (request.config?.from ?? 0) === 0) {
+            void logSearchQuery(queryText);
         }
 
         // Get default city IDs if none provided
@@ -71,11 +72,13 @@ export async function search(
             locationName: null,
         };
         let extractedFilters = defaultFilters;
-        try {
-            extractedFilters = await extractFilters(request.query);
-            logEssential('[Search] Extracted filters:', extractedFilters);
-        } catch (error) {
-            console.error('[Search] AI filter extraction failed, continuing without AI filters:', error);
+        if (queryText) {
+            try {
+                extractedFilters = await extractFilters(queryText);
+                logEssential('[Search] Extracted filters:', extractedFilters);
+            } catch (error) {
+                console.error('[Search] AI filter extraction failed, continuing without AI filters:', error);
+            }
         }
 
         // Process filters and resolve locations (non-fatal)
@@ -239,7 +242,9 @@ export async function search(
             void reportOrphanedHits({
                 orphanedIds,
                 droppedWithoutSource,
-                query: request.query,
+                // Filter-only searches have no query text; label them so the
+                // alert reads sensibly instead of showing an empty string.
+                query: queryText || '(filter-only)',
                 index: env.ELASTICSEARCH_INDEX,
             });
         }

@@ -404,7 +404,7 @@ async function resolveTopicIds(labels: string[]): Promise<string[]> {
 
 export async function mcpSearch(
     args: {
-        query: string;
+        query?: string;
         cityIds?: string[];
         personIds?: string[];
         partyIds?: string[];

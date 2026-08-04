@@ -131,6 +131,26 @@ export function buildSearchQuery(
         dateRange: extractedFilters.dateRange || request.dateRange
     };
 
+    // Filter-only search: no query text to rank on, so skip the rrf/semantic
+    // retrievers (they require a query) and return the filtered set newest-first.
+    // Used e.g. for "everything a person spoke about" or "all subjects in a
+    // date range".
+    const queryText = mergedRequest.query?.trim();
+    if (!queryText) {
+        return {
+            index: env.ELASTICSEARCH_INDEX,
+            size: request.config?.size || 10,
+            from: request.config?.from || 0,
+            track_total_hits: true,
+            query: {
+                bool: {
+                    filter: buildFilters(mergedRequest)
+                }
+            },
+            sort: [{ 'meeting_date': { order: 'desc' } }]
+        };
+    }
+
     return {
         index: env.ELASTICSEARCH_INDEX,
         size: request.config?.size || 10,
@@ -147,7 +167,7 @@ export function buildSearchQuery(
                                         {
                                             // Multi-match query for regular fields
                                             multi_match: {
-                                                query: mergedRequest.query,
+                                                query: queryText,
                                                 fields: [
                                                     'name^4',           // Highest boost - most important identifier
                                                     'description^3',    // High boost - detailed content
@@ -167,7 +187,7 @@ export function buildSearchQuery(
                                                             {
                                                                 match: {
                                                                     'speaker_segments.text': {
-                                                                        query: mergedRequest.query,
+                                                                        query: queryText,
                                                                         boost: 2
                                                                     }
                                                                 }
@@ -175,7 +195,7 @@ export function buildSearchQuery(
                                                             {
                                                                 match: {
                                                                     'speaker_segments.summary': {
-                                                                        query: mergedRequest.query,
+                                                                        query: queryText,
                                                                         boost: 2
                                                                     }
                                                                 }
@@ -196,7 +216,7 @@ export function buildSearchQuery(
                                                 query: {
                                                     match: {
                                                         'speaker_contributions.text': {
-                                                            query: mergedRequest.query,
+                                                            query: queryText,
                                                             boost: 2
                                                         }
                                                     }
@@ -221,14 +241,14 @@ export function buildSearchQuery(
                                         should: [
                                             {
                                                 semantic: {
-                                                    query: mergedRequest.query,
+                                                    query: queryText,
                                                     field: 'name.semantic',
                                                     boost: 2.0  // Higher boost for name
                                                 }
                                             },
                                             {
                                                 semantic: {
-                                                    query: mergedRequest.query,
+                                                    query: queryText,
                                                     field: 'description.semantic',
                                                     boost: 1.5  // Medium boost for description
                                                 }
