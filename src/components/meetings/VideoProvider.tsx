@@ -47,6 +47,7 @@ interface VideoContextType {
     onTimeUpdate: (time: SyntheticEvent<HTMLVideoElement, Event>) => void;
     onSeeked: () => void;
     onSeeking: () => void;
+    onLoadedMetadata: () => void;
 }
 
 const VideoContext = createContext<VideoContextType | undefined>(undefined);
@@ -136,22 +137,15 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     }, [utterances]);
 
     // === VIDEO METADATA SETUP ===
-    useEffect(() => {
+    // Passed as a prop to the media element (like onTimeUpdate) rather than
+    // bound with addEventListener at mount, so it keeps working when the
+    // element is swapped (e.g. Mux → S3 fallback in Video.tsx).
+    const handleLoadedMetadata = useCallback(() => {
         const player = playerRef.current;
-        const updateDuration = () => {
-            if (player && !isNaN(player.duration)) {
-                setDuration(player.duration);
-            }
-        };
-
-        // Listen for when video metadata is loaded to get duration
-        player?.addEventListener('loadedmetadata', updateDuration);
-        updateDuration();
-
-        return () => {
-            player?.removeEventListener('loadedmetadata', updateDuration);
-        };
-    }, [utterances]);
+        if (player && !isNaN(player.duration)) {
+            setDuration(player.duration);
+        }
+    }, []);
 
     // === URL PARAMETER HANDLING ===
     const timeParam = searchParams.get('t');
@@ -504,6 +498,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         onTimeUpdate: handleTimeUpdate,
         onSeeked: stableHandleSeeked,
         onSeeking: stableHandleSeeking,
+        onLoadedMetadata: handleLoadedMetadata,
         setIsPlaying: stableSetIsPlaying,
         meeting,
         // `currentTime` (state, throttled to ~2s) is intentionally a dep so
@@ -519,6 +514,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         currentScrollInterval,
         isSeeking,
         handleTimeUpdate,
+        handleLoadedMetadata,
         meeting,
         stableTogglePlayPause,
         stableHandleSpeedChange,

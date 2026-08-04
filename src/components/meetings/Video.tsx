@@ -189,7 +189,7 @@ const VideoElement = ({ id, title, playbackId, fallbackSrc, onMuxError, isExpand
     onMuxError: () => void;
     isExpanded?: boolean;
 }) => {
-    const { onSeeked, onSeeking, onTimeUpdate, playerRef, currentTimeRef } = useVideo();
+    const { onSeeked, onSeeking, onTimeUpdate, onLoadedMetadata, playerRef, currentTimeRef } = useVideo();
 
     const sharedProps = {
         playsInline: true,
@@ -205,6 +205,7 @@ const VideoElement = ({ id, title, playbackId, fallbackSrc, onMuxError, isExpand
         onSeeked,
         onSeeking,
         onTimeUpdate,
+        onLoadedMetadata,
     };
 
     return (
@@ -232,13 +233,14 @@ const VideoElement = ({ id, title, playbackId, fallbackSrc, onMuxError, isExpand
                     src={fallbackSrc ?? undefined}
                     title={title}
                     preload="metadata"
+                    {...sharedProps}
                     onLoadedMetadata={(e) => {
                         // Resume from where the Mux player left off before it errored
                         if (currentTimeRef.current > 0) {
                             e.currentTarget.currentTime = currentTimeRef.current;
                         }
+                        onLoadedMetadata();
                     }}
-                    {...sharedProps}
                 />
             )}
         </div>
