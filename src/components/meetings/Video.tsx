@@ -7,6 +7,7 @@ import { motion, useAnimation } from 'framer-motion';
 
 export const Video: React.FC<{ className?: string, expandable?: boolean, onExpandChange?: (expanded: boolean) => void }> = ({ className, expandable = false, onExpandChange }) => {
     const { playerRef, meeting, isPlaying, currentTime, setIsPlaying, seekTo } = useVideo();
+    const [muxFailed, setMuxFailed] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
     const [dimensions, setDimensions] = useState({ width: 320, height: 180 });
@@ -82,8 +83,19 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, onExpan
         document.addEventListener('mouseup', handleMouseUp);
     };
 
+    // S3 originals to fall back to when the Mux asset can't be played
+    // (e.g. the asset was deleted or never provisioned on Mux).
+    const fallbackSrc = meeting.videoUrl ?? meeting.audioUrl ?? null;
+
     const renderVideoElement = () => {
-        return <VideoElement id={meeting.id} title={meeting.name} playbackId={meeting.muxPlaybackId!} isExpanded={isExpanded} />
+        return <VideoElement
+            id={meeting.id}
+            title={meeting.name}
+            playbackId={!muxFailed ? meeting.muxPlaybackId : null}
+            fallbackSrc={fallbackSrc}
+            onMuxError={() => setMuxFailed(true)}
+            isExpanded={isExpanded}
+        />
     };
 
     if (isExpanded) {
@@ -169,32 +181,66 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, onExpan
     );
 };
 
-const VideoElement = ({ id, title, playbackId, isExpanded }: { id: string; title: string; playbackId: string; isExpanded?: boolean }) => {
-    const { onSeeked, onSeeking, onTimeUpdate, playerRef } = useVideo();
+const VideoElement = ({ id, title, playbackId, fallbackSrc, onMuxError, isExpanded }: {
+    id: string;
+    title: string;
+    playbackId: string | null;
+    fallbackSrc: string | null;
+    onMuxError: () => void;
+    isExpanded?: boolean;
+}) => {
+    const { onSeeked, onSeeking, onTimeUpdate, playerRef, currentTimeRef } = useVideo();
+
+    const sharedProps = {
+        playsInline: true,
+        disablePictureInPicture: true,
+        className: cn(
+            "w-full h-full object-contain",
+            isExpanded && "absolute inset-0"
+        ),
+        style: {
+            width: '100%',
+            height: '100%',
+        },
+        onSeeked,
+        onSeeking,
+        onTimeUpdate,
+    };
+
     return (
         <div className="w-full h-full flex items-center justify-center bg-black">
-            <MuxVideo
-                ref={playerRef as any}
-                streamType="on-demand"
-                playbackId={playbackId}
-                metadata={{
-                    video_id: id,
-                    video_title: title,
-                }}
-                playsInline
-                disablePictureInPicture
-                className={cn(
-                    "w-full h-full object-contain",
-                    isExpanded && "absolute inset-0"
-                )}
-                style={{
-                    width: '100%',
-                    height: '100%',
-                }}
-                onSeeked={onSeeked}
-                onSeeking={onSeeking}
-                onTimeUpdate={onTimeUpdate}
-            />
+            {playbackId ? (
+                <MuxVideo
+                    ref={playerRef as any}
+                    streamType="on-demand"
+                    playbackId={playbackId}
+                    metadata={{
+                        video_id: id,
+                        video_title: title,
+                    }}
+                    onError={() => {
+                        if (fallbackSrc) {
+                            console.warn(`Mux playback failed for meeting ${id}, falling back to ${fallbackSrc}`);
+                            onMuxError();
+                        }
+                    }}
+                    {...sharedProps}
+                />
+            ) : (
+                <video
+                    ref={playerRef}
+                    src={fallbackSrc ?? undefined}
+                    title={title}
+                    preload="metadata"
+                    onLoadedMetadata={(e) => {
+                        // Resume from where the Mux player left off before it errored
+                        if (currentTimeRef.current > 0) {
+                            e.currentTarget.currentTime = currentTimeRef.current;
+                        }
+                    }}
+                    {...sharedProps}
+                />
+            )}
         </div>
     );
 };
