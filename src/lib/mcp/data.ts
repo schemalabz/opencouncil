@@ -8,10 +8,18 @@ import { getPeopleForCity, getPerson, type PersonWithRelations } from '@/lib/db/
 import { getPartiesForCity, getParty } from '@/lib/db/parties';
 import { getSubject, getDiscussionSecondsForSubjects } from '@/lib/db/subject';
 import { getTranscript } from '@/lib/db/transcript';
-import { upsertHighlightCore } from '@/lib/db/highlights-core';
-import { canUserEditCity } from '@/lib/db/highlights-core';
+import { upsertHighlightCore, canActorManageHighlight } from '@/lib/db/highlights-core';
+import { requestGenerateHighlightCore } from '@/lib/tasks/generateHighlight-core';
+import { sendErrorAdminAlert } from '@/lib/discord';
 import { NotFoundError, UnauthorizedError, BadRequestError } from '@/lib/api/errors';
-import { requireVisibleMeeting } from './gate';
+import { canSeeUnreleased, requireVisibleMeeting } from './gate';
+import {
+    renderOptionsFromRequestBody,
+    resolveRenderOptions,
+    sameRenderOptions,
+    toGenerateOptions,
+    type HighlightRenderOptions,
+} from './render';
 import { isSuperIdentity, type McpIdentity } from './auth';
 
 const AUTH_HINT = 'Authentication required: create a personal MCP URL at https://opencouncil.gr/mcp and reconnect with it to create highlights.';
@@ -160,7 +168,7 @@ export async function mcpListMeetings(
     identity: McpIdentity
 ) {
     const meetings = await getCouncilMeetingsForCity(cityId, {
-        includeUnreleased: isSuperIdentity(identity),
+        includeUnreleased: await canSeeUnreleased(identity, cityId),
         page: options.page,
         pageSize: options.pageSize,
         from: options.from ? new Date(options.from) : undefined,
@@ -438,14 +446,26 @@ export async function mcpSearch(
         },
     });
 
-    // Defense in depth: the ES index should only contain released content,
-    // but never let an unreleased subject through to non-super callers. The
-    // reported total shrinks with anything filtered here, so callers can't
-    // infer the existence of unreleased subjects from a count mismatch.
-    const visible = isSuperIdentity(identity)
-        ? response.results
-        : response.results.filter(result => result.councilMeeting.released);
-    const total = Math.max(0, response.total - (response.results.length - visible.length));
+    // Defense in depth: the ES query already filters on meeting_released, so
+    // an unreleased hit can only appear if the index is stale (a meeting was
+    // unreleased after indexing). The DB is the source of truth: drop such
+    // hits for callers who may not see drafts. When anything was dropped, the
+    // ES total may count hidden hits on other pages too — omit it entirely
+    // rather than report a number that leaks their existence, and flag the
+    // stale index to admins.
+    const editorCityIds = await draftVisibleCityIds(identity, response.results.map(r => r.cityId));
+    const visible = response.results.filter(
+        result => result.councilMeeting.released || editorCityIds.has(result.cityId)
+    );
+    const removed = response.results.length - visible.length;
+    if (removed > 0) {
+        console.warn(`[MCP] search returned ${removed} unreleased subject(s) — the ES index is stale`);
+        sendErrorAdminAlert({
+            source: 'MCP search',
+            error: `ES index returned ${removed} unreleased subject(s); reindex needed`,
+            context: { query: args.query ?? '(filter-only)' },
+        }).catch(() => {});
+    }
 
     return {
         results: visible.map(result => ({
@@ -460,9 +480,29 @@ export async function mcpSearch(
             score: result.score,
             url: urls.subject(result.cityId, result.councilMeetingId, result.id),
         })),
-        total,
+        ...(removed === 0
+            ? { total: response.total }
+            : { note: 'Some results on this page were unavailable; the total count is unknown.' }),
         page: args.page,
     };
+}
+
+/**
+ * Of the given cityIds, the ones whose drafts this identity may see: all of
+ * them for service keys, the user's editable cities for personal tokens
+ * (one query), none for anonymous callers.
+ */
+async function draftVisibleCityIds(identity: McpIdentity, cityIds: string[]): Promise<Set<string>> {
+    if (isSuperIdentity(identity)) return new Set(cityIds);
+    if (identity?.type !== 'user' || cityIds.length === 0) return new Set();
+
+    const user = await prisma.user.findUnique({
+        where: { id: identity.userId },
+        select: { isSuperAdmin: true, administers: { select: { cityId: true } } },
+    });
+    if (!user) return new Set();
+    if (user.isSuperAdmin) return new Set(cityIds);
+    return new Set(user.administers.map(a => a.cityId).filter((id): id is string => !!id));
 }
 
 // --- Fetch (OpenAI deep-research compatible) ------------------------------
@@ -551,15 +591,9 @@ export async function mcpCreateHighlight(
         throw new UnauthorizedError(AUTH_HINT);
     }
 
-    // Users may only highlight released meetings unless they can edit the city
-    const meeting = await prisma.councilMeeting.findUnique({
-        where: { cityId_id: { cityId: args.cityId, id: args.meetingId } },
-        select: { released: true },
-    });
-    if (!meeting) throw new NotFoundError('Meeting not found');
-    if (!meeting.released && identity.type === 'user' && !(await canUserEditCity(identity.userId, args.cityId))) {
-        throw new NotFoundError('Meeting not found');
-    }
+    // Same visibility as the read tools: released, or a draft the identity
+    // may see (city editors, service keys).
+    await requireVisibleMeeting(args.cityId, args.meetingId, identity);
 
     const highlight = await upsertHighlightCore(identity, {
         name: args.name,
@@ -573,6 +607,172 @@ export async function mcpCreateHighlight(
         id: highlight.id,
         name: highlight.name,
         utteranceCount: highlight.highlightedUtterances.length,
+        video: { status: 'not_generated' as const },
+        next: 'Render a shareable video with generate_highlight_video, then poll get_highlight until the video is ready.',
         url: urls.highlights(args.cityId, args.meetingId),
+    };
+}
+
+async function requireManagedHighlight(identity: McpIdentity, highlightId: string) {
+    if (!identity) {
+        throw new UnauthorizedError(AUTH_HINT);
+    }
+
+    const highlight = await prisma.highlight.findUnique({
+        where: { id: highlightId },
+        include: {
+            _count: { select: { highlightedUtterances: true } },
+            meeting: { select: { videoUrl: true } },
+        },
+    });
+    if (!highlight) throw new NotFoundError('Highlight not found');
+
+    if (!(await canActorManageHighlight(identity, highlight))) {
+        throw new NotFoundError('Highlight not found');
+    }
+
+    return highlight;
+}
+
+/**
+ * The video-render pipeline is asynchronous: a generateHighlight TaskStatus is
+ * queued for the backend, and on success the callback writes videoUrl /
+ * muxPlaybackId onto the highlight (see handleGenerateHighlightResult). Tasks
+ * are matched to a highlight through requestBody.parts[0].id, same as
+ * getGenerateHighlightTasksForHighlight in src/lib/db/tasks.ts.
+ */
+/** Every generateHighlight task for this highlight, newest first. */
+async function generationTasksFor(highlight: { id: string; cityId: string; meetingId: string }) {
+    const tasks = await prisma.taskStatus.findMany({
+        where: {
+            type: 'generateHighlight',
+            cityId: highlight.cityId,
+            councilMeetingId: highlight.meetingId,
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { status: true, stage: true, percentComplete: true, requestBody: true },
+    });
+
+    return tasks.filter(task => {
+        try {
+            const body = JSON.parse(task.requestBody) as { parts?: Array<{ id?: string }> };
+            return body.parts?.[0]?.id === highlight.id;
+        } catch {
+            return false;
+        }
+    });
+}
+
+type HighlightVideoStatus =
+    | { status: 'ready'; videoUrl: string; streamUrl?: string; format?: HighlightRenderOptions }
+    | {
+        status: 'generating';
+        stage?: string;
+        percentComplete?: number;
+        format?: HighlightRenderOptions;
+        /** The old clip, still playable until the new one replaces it. */
+        replacingVideoUrl?: string;
+    }
+    | { status: 'failed' }
+    | { status: 'not_generated' };
+
+async function highlightVideoStatus(highlight: {
+    id: string;
+    cityId: string;
+    meetingId: string;
+    videoUrl: string | null;
+    muxPlaybackId: string | null;
+}): Promise<HighlightVideoStatus> {
+    const tasks = await generationTasksFor(highlight);
+
+    // Check for a running render first: during a re-render the highlight still
+    // holds the previous clip, and reporting that as "ready" would hand callers
+    // the old format while the one they asked for is still rendering.
+    const inFlight = tasks.find(task => task.status !== 'failed' && task.status !== 'succeeded');
+    if (inFlight) {
+        const format = renderOptionsFromRequestBody(inFlight.requestBody);
+        return {
+            status: 'generating',
+            ...(inFlight.stage && { stage: inFlight.stage }),
+            ...(inFlight.percentComplete != null && { percentComplete: inFlight.percentComplete }),
+            ...(format && { format }),
+            ...(highlight.videoUrl && { replacingVideoUrl: highlight.videoUrl }),
+        };
+    }
+
+    if (highlight.videoUrl) {
+        // Report the settings the existing clip was rendered with, so callers
+        // can tell whether it needs re-rendering in another format.
+        const succeeded = tasks.find(task => task.status === 'succeeded');
+        const format = succeeded ? renderOptionsFromRequestBody(succeeded.requestBody) : null;
+        return {
+            status: 'ready',
+            videoUrl: highlight.videoUrl,
+            ...(highlight.muxPlaybackId && { streamUrl: `https://stream.mux.com/${highlight.muxPlaybackId}.m3u8` }),
+            ...(format && { format }),
+        };
+    }
+
+    const task = tasks[0];
+    if (!task) return { status: 'not_generated' };
+    // Failed, or succeeded without producing a video — both are a failed render.
+    return { status: 'failed' };
+}
+
+export async function mcpGetHighlight(identity: McpIdentity, highlightId: string) {
+    const highlight = await requireManagedHighlight(identity, highlightId);
+    const video = await highlightVideoStatus(highlight);
+
+    return {
+        id: highlight.id,
+        name: highlight.name,
+        cityId: highlight.cityId,
+        meetingId: highlight.meetingId,
+        subjectId: highlight.subjectId,
+        utteranceCount: highlight._count.highlightedUtterances,
+        video,
+        ...(video.status === 'generating' && {
+            note: 'Video generation takes a few minutes. Poll get_highlight again later; the creator is also emailed when it finishes.',
+        }),
+        url: urls.highlights(highlight.cityId, highlight.meetingId),
+    };
+}
+
+export async function mcpGenerateHighlightVideo(
+    identity: McpIdentity,
+    highlightId: string,
+    options?: Partial<HighlightRenderOptions>
+) {
+    const highlight = await requireManagedHighlight(identity, highlightId);
+    const requested = resolveRenderOptions(options);
+    const tasks = await generationTasksFor(highlight);
+
+    // A second concurrent render would race the first to write videoUrl on the
+    // same highlight, so let the one in flight finish.
+    const inFlight = tasks.find(task => task.status !== 'failed' && task.status !== 'succeeded');
+    if (inFlight) {
+        return mcpGetHighlight(identity, highlightId);
+    }
+
+    // Re-render only when the existing clip is in a different format.
+    if (highlight.videoUrl) {
+        const succeeded = tasks.find(task => task.status === 'succeeded');
+        const current = succeeded ? renderOptionsFromRequestBody(succeeded.requestBody) : null;
+        if (current && sameRenderOptions(current, requested)) {
+            return mcpGetHighlight(identity, highlightId);
+        }
+    }
+
+    if (!highlight.meeting.videoUrl) {
+        throw new BadRequestError('This meeting has no video, so a highlight video cannot be rendered.');
+    }
+
+    await requestGenerateHighlightCore(highlightId, toGenerateOptions(requested));
+
+    return {
+        id: highlight.id,
+        name: highlight.name,
+        video: { status: 'generating' as const, format: requested },
+        note: 'Video generation started — it takes a few minutes. Poll get_highlight for the result; the creator is also emailed when it finishes.',
     };
 }

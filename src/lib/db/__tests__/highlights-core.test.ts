@@ -17,7 +17,7 @@ jest.mock('../prisma', () => ({
     },
 }));
 
-import { upsertHighlightCore, canUserEditCity } from '../highlights-core';
+import { upsertHighlightCore, canUserEditCity, canActorManageHighlight } from '../highlights-core';
 import { ForbiddenError, NotFoundError, BadRequestError } from '../../api/errors';
 
 const DATA = {
@@ -63,6 +63,31 @@ describe('canUserEditCity', () => {
 
         setUser(null);
         expect(await canUserEditCity('u1', 'athens')).toBe(false);
+    });
+});
+
+describe('canActorManageHighlight', () => {
+    const highlight = { cityId: 'athens', createdById: 'u1' };
+
+    it('allows service actors unconditionally', async () => {
+        expect(await canActorManageHighlight(SERVICE, highlight)).toBe(true);
+        expect(mockUserFindUnique).not.toHaveBeenCalled();
+    });
+
+    it('allows the owner without a city-permission lookup', async () => {
+        expect(await canActorManageHighlight(USER, highlight)).toBe(true);
+        expect(mockUserFindUnique).not.toHaveBeenCalled();
+    });
+
+    it('allows city editors and rejects unrelated users', async () => {
+        setUser({ administers: [{ cityId: 'athens' }] });
+        expect(await canActorManageHighlight(OTHER_USER, highlight)).toBe(true);
+
+        setUser({ administers: [] });
+        expect(await canActorManageHighlight(OTHER_USER, highlight)).toBe(false);
+
+        // unattributed (service-created) highlight: only editors may manage
+        expect(await canActorManageHighlight(USER, { cityId: 'athens', createdById: null })).toBe(false);
     });
 });
 

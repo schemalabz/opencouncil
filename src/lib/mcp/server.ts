@@ -5,6 +5,8 @@ import { identityFromContext } from './auth';
 import {
     mcpCreateHighlight,
     mcpFetch,
+    mcpGenerateHighlightVideo,
+    mcpGetHighlight,
     mcpGetCity,
     mcpGetMeeting,
     mcpGetParty,
@@ -240,9 +242,12 @@ export function registerOpenCouncilServer(server: McpServer) {
         {
             title: 'Create highlight',
             description:
-                'Create a highlight from consecutive utterances of a meeting (get utterance ids from ' +
-                'get_subject_transcript). Requires a personal MCP URL or bearer token from ' +
-                'https://opencouncil.gr/mcp. Confirm the selection with the user before calling.',
+                'Create a highlight from a selection of a meeting\'s utterances (get utterance ids ' +
+                'from get_subject_transcript). The utterances need not be consecutive — skip filler ' +
+                'and interruptions, or cut together moments like a question and its answer; playback ' +
+                'is always in meeting order. Requires a personal MCP URL or bearer token from ' +
+                'https://opencouncil.gr/mcp. Confirm the selection with the user before calling. ' +
+                'A shareable video can then be rendered with generate_highlight_video.',
             inputSchema: z.object({
                 cityId: z.string().min(1),
                 meetingId: z.string().min(1),
@@ -252,6 +257,52 @@ export function registerOpenCouncilServer(server: McpServer) {
             }),
         },
         (args, ctx: ServerContext) => run(() => mcpCreateHighlight(identityFromContext(ctx), args))
+    );
+
+    server.registerTool(
+        'generate_highlight_video',
+        {
+            title: 'Generate highlight video',
+            description:
+                'Start rendering a highlight into a shareable video clip, in landscape or vertical ' +
+                '(9:16) format, with optional burnt-in subtitles and speaker name/party overlays — ' +
+                'the same options the website offers. Generation is asynchronous and takes a few ' +
+                'minutes: poll get_highlight for the result. Calling this again with different ' +
+                'options re-renders the clip in the new format; calling it with the same options ' +
+                'returns the existing video. Requires the same authentication as create_highlight; ' +
+                'ask the user before starting a render.',
+            inputSchema: z.object({
+                highlightId: z.string().min(1),
+                aspectRatio: z.enum(['default', 'social-9x16']).default('default')
+                    .describe('"default" is landscape (16:9); "social-9x16" is vertical, for Reels/TikTok/Stories'),
+                includeCaptions: z.boolean().default(true).describe('Burn subtitles into the video'),
+                includeSpeakerOverlay: z.boolean().default(true)
+                    .describe('Show the speaker\'s name, role and party on screen'),
+            }),
+        },
+        (args, ctx: ServerContext) =>
+            run(() =>
+                mcpGenerateHighlightVideo(identityFromContext(ctx), args.highlightId, {
+                    aspectRatio: args.aspectRatio,
+                    includeCaptions: args.includeCaptions,
+                    includeSpeakerOverlay: args.includeSpeakerOverlay,
+                })
+            )
+    );
+
+    server.registerTool(
+        'get_highlight',
+        {
+            title: 'Get highlight',
+            description:
+                'Get a highlight and the status of its video: not_generated, generating (with progress), ' +
+                'failed, or ready with the final video URL and the format it was rendered in. Use this ' +
+                'to poll after generate_highlight_video.',
+            inputSchema: z.object({
+                highlightId: z.string().min(1),
+            }),
+        },
+        (args, ctx: ServerContext) => run(() => mcpGetHighlight(identityFromContext(ctx), args.highlightId))
     );
 
     // --- Prompts ----------------------------------------------------------
@@ -331,7 +382,7 @@ export function registerOpenCouncilServer(server: McpServer) {
                             `For the ${meetingHint || 'latest'} council meeting of ${cityName}: find the meeting ` +
                             `(list_cities, list_meetings), pick the 3 most important subjects from get_meeting — rank them ` +
                             `by discussionSeconds, not agenda order — and for each ` +
-                            `use get_subject_transcript to select a short run of consecutive utterances that best captures ` +
+                            `use get_subject_transcript to select the utterances that best capture ` +
                             `the moment. Show me your proposed highlights (subject, speakers, quoted text) and, once I ` +
                             `confirm, create them with create_highlight.`,
                     },

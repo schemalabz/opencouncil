@@ -65,6 +65,20 @@ export async function canUserEditCity(userId: string, cityId: City["id"]): Promi
     return user.administers.some(a => a.cityId === cityId);
 }
 
+/**
+ * Whether an actor may manage (view status of / render) a highlight: service
+ * actors always may, users may when they own it or can edit its city. Mirrors
+ * canViewHighlight in highlights.ts, without the session.
+ */
+export async function canActorManageHighlight(
+    actor: HighlightActor,
+    highlight: { cityId: City["id"]; createdById: string | null }
+): Promise<boolean> {
+    if (actor.type === 'service') return true;
+    if (highlight.createdById === actor.userId) return true;
+    return canUserEditCity(actor.userId, highlight.cityId);
+}
+
 async function getCityHighlightPermission(cityId: City["id"]) {
     const city = await prisma.city.findUnique({
         where: { id: cityId },

@@ -57,7 +57,7 @@ export function McpTokenManager({ initialTokens, mcpBaseUrl }: { initialTokens: 
                     value={name}
                     onChange={event => setName(event.target.value)}
                     placeholder={t("namePlaceholder")}
-                    className="h-10 w-full max-w-xs rounded-full border border-white/15 bg-white/5 px-4 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-orange/60"
+                    className="h-10 min-w-0 flex-1 rounded-full border border-white/15 bg-white/5 px-4 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-orange/60 sm:max-w-sm"
                 />
                 <button
                     type="button"
@@ -70,16 +70,18 @@ export function McpTokenManager({ initialTokens, mcpBaseUrl }: { initialTokens: 
             </div>
 
             {createdUrl && (
-                <div className="rounded-xl border border-orange/40 bg-white/5 p-4">
-                    <p className="text-sm font-semibold text-white">{t("createdTitle")}</p>
-                    <div className="mt-2 flex items-center gap-3">
-                        <code className="min-w-0 flex-1 break-all font-mono text-xs text-white/90">{createdUrl}</code>
+                <div className="rounded-xl border border-orange/40 bg-white/5 p-4 sm:p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-white">{t("createdTitle")}</p>
                         <CopyButton
                             value={createdUrl}
                             className="border-white/25 bg-transparent text-white/90 hover:bg-white/10"
                         />
                     </div>
-                    <p className="mt-2 text-xs leading-relaxed text-white/60">{t("createdNote")}</p>
+                    <code className="mt-3 block break-all rounded-lg bg-black/40 px-3 py-2.5 font-mono text-xs leading-relaxed text-white/90">
+                        {createdUrl}
+                    </code>
+                    <p className="mt-3 text-xs leading-relaxed text-white/50">{t("createdNote")}</p>
                 </div>
             )}
 
@@ -92,27 +94,31 @@ export function McpTokenManager({ initialTokens, mcpBaseUrl }: { initialTokens: 
                     </h3>
                     <ul className="mt-2 divide-y divide-white/10 rounded-xl border border-white/10">
                         {tokens.map(token => (
-                            <li key={token.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 p-3 text-sm">
-                                <span className="font-medium text-white">{token.name}</span>
-                                <code className="font-mono text-xs text-white/50">{token.keyPrefix}…</code>
-                                <span className="text-xs text-white/50">
-                                    {t("createdAt")}: {formatDate(token.createdAt)}
-                                    {" · "}
-                                    {t("lastUsed")}: {token.lastUsedAt ? formatDate(token.lastUsedAt) : t("never")}
-                                </span>
-                                <span className="ml-auto">
-                                    {token.revokedAt ? (
-                                        <span className="text-xs text-white/40">{t("revoked")}</span>
-                                    ) : (
-                                        <button
-                                            type="button"
-                                            onClick={() => revoke(token.id)}
-                                            className="rounded-full px-3 py-1 text-xs text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-                                        >
-                                            {t("revoke")}
-                                        </button>
-                                    )}
-                                </span>
+                            <li key={token.id} className="flex items-center justify-between gap-4 px-4 py-3">
+                                <div className="min-w-0">
+                                    <div className="flex items-baseline gap-2.5">
+                                        <span className={`truncate text-sm font-medium ${token.revokedAt ? "text-white/40 line-through" : "text-white"}`}>
+                                            {token.name}
+                                        </span>
+                                        <code className="shrink-0 font-mono text-[11px] text-white/40">{token.keyPrefix}…</code>
+                                    </div>
+                                    <p className="mt-0.5 text-xs text-white/50">
+                                        {t("createdAt")}: {formatDate(token.createdAt)}
+                                        {" · "}
+                                        {t("lastUsed")}: {token.lastUsedAt ? formatDate(token.lastUsedAt) : t("never")}
+                                    </p>
+                                </div>
+                                {token.revokedAt ? (
+                                    <span className="shrink-0 text-xs text-white/40">{t("revoked")}</span>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() => revoke(token.id)}
+                                        className="shrink-0 rounded-full border border-white/15 px-3.5 py-1.5 text-xs text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                                    >
+                                        {t("revoke")}
+                                    </button>
+                                )}
                             </li>
                         ))}
                     </ul>

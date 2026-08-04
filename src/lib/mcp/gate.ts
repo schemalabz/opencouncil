@@ -1,6 +1,18 @@
 import prisma from '@/lib/db/prisma';
 import { NotFoundError } from '@/lib/api/errors';
+import { canUserEditCity } from '@/lib/db/highlights-core';
 import { isSuperIdentity, type McpIdentity } from './auth';
+
+/**
+ * Whether the identity may see a city's unreleased (draft) meetings: service
+ * keys always, personal tokens when their user can edit the city — the same
+ * people who see drafts on the site.
+ */
+export async function canSeeUnreleased(identity: McpIdentity, cityId: string): Promise<boolean> {
+    if (isSuperIdentity(identity)) return true;
+    if (identity?.type === 'user') return canUserEditCity(identity.userId, cityId);
+    return false;
+}
 
 /**
  * Visibility gate for the MCP server. The underlying db functions
@@ -9,8 +21,8 @@ import { isSuperIdentity, type McpIdentity } from './auth';
  * next-auth, which is meaningless here — so every MCP tool that touches
  * meeting-scoped data must pass through this gate first.
  *
- * Unreleased meetings 404 for anonymous and user identities; service
- * identities (superadmin bot) see everything.
+ * Unreleased meetings 404 unless the identity can see drafts for the city
+ * (see canSeeUnreleased) — mirroring the site's visibility rules.
  */
 export async function requireVisibleMeeting(
     cityId: string,
@@ -22,7 +34,7 @@ export async function requireVisibleMeeting(
         select: { released: true },
     });
 
-    if (!meeting || (!meeting.released && !isSuperIdentity(identity))) {
+    if (!meeting || (!meeting.released && !(await canSeeUnreleased(identity, cityId)))) {
         throw new NotFoundError('Meeting not found');
     }
 
