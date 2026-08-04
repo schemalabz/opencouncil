@@ -56,49 +56,6 @@ ORDER BY r."personId", pa."cityId", r."isHead" DESC, r."startDate" DESC NULLS LA
 \echo '✓ IntroducedByPartyView created'
 \echo ''
 
--- View 3: Speaker segments with party details via Role
--- Why this view? This view:
---   - Concatenates all utterance texts within a speaker segment (ordered by timestamp)
---   - Includes the segment summary from SubjectSpeakerSegment
---   - Resolves speaker party through active roles (same logic as IntroducedByPartyView)
-\echo 'Creating SubjectSpeakerSegmentSearchView...'
-CREATE OR REPLACE VIEW "SubjectSpeakerSegmentSearchView" AS
-SELECT
-  sss."subjectId" AS subject_id,
-  ss.id,  -- Keep as `id` for WAL compatibility; renamed to segment_id in schema.json
-  u.utterances_text AS text,
-  sss.summary AS summary,
-  sp.id AS speaker_person_id,
-  sp.name AS speaker_person_name,
-  sp.name_en AS speaker_person_name_en,
-  r_party.party_id AS speaker_party_id,
-  r_party.party_name AS speaker_party_name,
-  r_party.party_name_en AS speaker_party_name_en
-FROM "SubjectSpeakerSegment" sss
-LEFT JOIN "SpeakerSegment" ss ON ss.id = sss."speakerSegmentId"
-LEFT JOIN "SpeakerTag" st ON ss."speakerTagId" = st.id
-LEFT JOIN "Person" sp ON st."personId" = sp.id
-LEFT JOIN LATERAL (
-  SELECT string_agg(u.text, ' ' ORDER BY u."startTimestamp") AS utterances_text
-  FROM "Utterance" u
-  WHERE u."speakerSegmentId" = ss.id
-) u ON true
-LEFT JOIN LATERAL (
-  SELECT 
-    pa.id AS party_id,
-    pa.name AS party_name,
-    pa.name_en AS party_name_en
-  FROM "Role" r
-  INNER JOIN "Party" pa ON r."partyId" = pa.id
-  WHERE r."personId" = sp.id
-    AND pa."cityId" = sp."cityId"
-    AND (r."endDate" IS NULL OR r."endDate" > NOW())
-  ORDER BY r."isHead" DESC, r."startDate" DESC NULLS LAST
-  LIMIT 1
-) r_party ON true;
-\echo '✓ SubjectSpeakerSegmentSearchView created'
-\echo ''
-
 -- View 4: Speaker contributions with party details via Role
 -- Why this view? This view:
 --   - Resolves speaker party through active roles (same logic as other views)
@@ -154,21 +111,21 @@ LEFT JOIN LATERAL (
 -- reads only the tables the aggregates come from.
 --
 -- contributor_count counts SpeakerContribution rows, which matches getContributionCount() in
--- src/lib/utils.ts. Both feed the same discussion signal, so they must agree. The count comes
--- from SpeakerContribution, the model that replaces SubjectSpeakerSegment, so a subject that
+-- src/lib/utils.ts. Both feed the same discussion signal, so they must agree. A subject that
 -- predates the contribution pipeline reports zero contributors.
 --
 -- discussion_speaking_seconds must equal what the subject page shows, so it repeats
 -- getDiscussionSecondsForSubjects in src/lib/db/subject.ts:
---   - Tagged SUBJECT_DISCUSSION utterances are the primary source. The summarize task writes
---     them inside the subject transaction; it no longer writes SubjectSpeakerSegment.
+--   - Tagged SUBJECT_DISCUSSION utterances are the only source. The summarize task writes them
+--     inside the subject transaction.
 --   - Procedural segments do not count towards a discussion.
---   - SubjectSpeakerSegment is the fallback, and only for a subject with no tagged utterance at
---     all. A subject whose tagged utterances are all procedural reports 0 rather than falling
---     back, which is why each branch uses HAVING COUNT(*) > 0.
--- Both branches sum the parts, so a subject that the council revisits reports the time spent on
--- it, not the span from the first mention to the last. The name says "speaking" because
--- "duration" already means a wall-clock span here (see calculateMeetingDurationMs).
+--   - A subject with no tagged utterance reports 0. HAVING COUNT(*) > 0 returns no row, and the
+--     outer COALESCE turns that into 0.
+-- The sum covers the tagged utterances, not the segments that contain them. So a subject that
+-- the council revisits reports the time spent on it, not the span from the first mention to the
+-- last, and a segment that covers two subjects gives each subject only its own part. The name
+-- says "speaking" because "duration" already means a wall-clock span here (see
+-- calculateMeetingDurationMs).
 \echo 'Creating SubjectMetricsView...'
 CREATE OR REPLACE VIEW "SubjectMetricsView" AS
 SELECT
@@ -178,7 +135,7 @@ SELECT
     FROM "SpeakerContribution" sc
     WHERE sc."subjectId" = s.id
   ) AS contributor_count,
-  COALESCE(tagged.seconds, legacy.seconds, 0) AS discussion_speaking_seconds
+  COALESCE(tagged.seconds, 0) AS discussion_speaking_seconds
 FROM "Subject" s
 LEFT JOIN LATERAL (
   SELECT COALESCE(
@@ -192,19 +149,7 @@ LEFT JOIN LATERAL (
   WHERE u."discussionSubjectId" = s.id
     AND u."discussionStatus"::text = 'SUBJECT_DISCUSSION'
   HAVING COUNT(*) > 0
-) tagged ON true
-LEFT JOIN LATERAL (
-  SELECT COALESCE(
-    SUM(ss."endTimestamp" - ss."startTimestamp")
-      FILTER (WHERE sm.type IS NULL OR sm.type::text <> 'procedural'),
-    0
-  ) AS seconds
-  FROM "SubjectSpeakerSegment" sss
-  INNER JOIN "SpeakerSegment" ss ON ss.id = sss."speakerSegmentId"
-  LEFT JOIN "Summary" sm ON sm."speakerSegmentId" = ss.id
-  WHERE sss."subjectId" = s.id
-  HAVING COUNT(*) > 0
-) legacy ON true;
+) tagged ON true;
 \echo '✓ SubjectMetricsView created'
 \echo ''
 
@@ -272,7 +217,7 @@ SELECT
   END AS result
 FROM pg_views
 WHERE schemaname = 'public'
-  AND viewname IN ('LocationSearchView', 'IntroducedByPartyView', 'SubjectSpeakerSegmentSearchView', 'SpeakerContributionSearchView', 'SubjectMetricsView', 'MeetingAdministrativeBodyView', 'CitySearchView');
+  AND viewname IN ('LocationSearchView', 'IntroducedByPartyView', 'SpeakerContributionSearchView', 'SubjectMetricsView', 'MeetingAdministrativeBodyView', 'CitySearchView');
 \echo ''
 
 -- Check 2: LocationSearchView - verify it returns data
@@ -303,29 +248,6 @@ FROM "IntroducedByPartyView";
 \echo '   Sample data from IntroducedByPartyView:'
 SELECT person_id, city_id, party_name
 FROM "IntroducedByPartyView"
-LIMIT 3;
-\echo ''
-
--- Check 4: SubjectSpeakerSegmentSearchView - verify speaker segments
-\echo '4. Checking SubjectSpeakerSegmentSearchView data...'
-SELECT 
-  COUNT(*) AS total_segments,
-  COUNT(speaker_person_id) AS segments_with_speaker,
-  COUNT(speaker_party_id) AS segments_with_party,
-  COUNT(text) AS segments_with_text,
-  COUNT(summary) AS segments_with_summary
-FROM "SubjectSpeakerSegmentSearchView";
-\echo ''
-
-\echo '   Sample data from SubjectSpeakerSegmentSearchView:'
-SELECT 
-  subject_id,
-  id AS segment_id,
-  speaker_person_name,
-  speaker_party_name,
-  LEFT(text, 50) || '...' AS text_preview
-FROM "SubjectSpeakerSegmentSearchView"
-WHERE speaker_party_id IS NOT NULL
 LIMIT 3;
 \echo ''
 
@@ -373,19 +295,15 @@ FROM "SubjectMetricsView";
 \echo ''
 
 \echo '   Source of discussion_speaking_seconds:'
-\echo '   (production data is mostly tagged utterances; seeded data is mostly the fallback)'
+\echo '   (a subject reports 0 until the summarize task tags its utterances)'
 SELECT
   COUNT(*) FILTER (WHERE u.n > 0) AS from_tagged_utterances,
-  COUNT(*) FILTER (WHERE u.n = 0 AND sss.n > 0) AS from_legacy_fallback,
-  COUNT(*) FILTER (WHERE u.n = 0 AND sss.n = 0) AS no_timing_source
+  COUNT(*) FILTER (WHERE u.n = 0) AS no_timing_source
 FROM "Subject" s
 LEFT JOIN LATERAL (
   SELECT COUNT(*) AS n FROM "Utterance" x
   WHERE x."discussionSubjectId" = s.id AND x."discussionStatus"::text = 'SUBJECT_DISCUSSION'
-) u ON true
-LEFT JOIN LATERAL (
-  SELECT COUNT(*) AS n FROM "SubjectSpeakerSegment" x WHERE x."subjectId" = s.id
-) sss ON true;
+) u ON true;
 \echo ''
 
 -- Check 8: MeetingAdministrativeBodyView - verify administrative body resolution

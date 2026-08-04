@@ -38,13 +38,13 @@ export function buildFilters(request: SearchRequest): estypes.QueryDslQueryConta
                             'introduced_by_person_id': request.personIds
                         }
                     },
-                    // Spoke in the subject (nested speaker segments)
+                    // Spoke in the subject (nested speaker contributions)
                     {
                         nested: {
-                            path: 'speaker_segments',
+                            path: 'speaker_contributions',
                             query: {
                                 terms: {
-                                    'speaker_segments.speaker_person_id': request.personIds
+                                    'speaker_contributions.speaker_person_id': request.personIds
                                 }
                             }
                         }
@@ -175,38 +175,6 @@ export function buildSearchQuery(
                                                 ],
                                                 type: 'best_fields',
                                                 operator: 'or'
-                                            }
-                                        },
-                                        {
-                                            // Nested query for speaker segments
-                                            nested: {
-                                                path: 'speaker_segments',
-                                                query: {
-                                                    bool: {
-                                                        should: [
-                                                            {
-                                                                match: {
-                                                                    'speaker_segments.text': {
-                                                                        query: queryText,
-                                                                        boost: 2
-                                                                    }
-                                                                }
-                                                            },
-                                                            {
-                                                                match: {
-                                                                    'speaker_segments.summary': {
-                                                                        query: queryText,
-                                                                        boost: 2
-                                                                    }
-                                                                }
-                                                            }
-                                                        ],
-                                                        minimum_should_match: 1
-                                                    }
-                                                },
-                                                inner_hits: {
-                                                    _source: ['speaker_segments.segment_id']
-                                                }
                                             }
                                         },
                                         {

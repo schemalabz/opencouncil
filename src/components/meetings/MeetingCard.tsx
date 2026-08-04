@@ -75,7 +75,7 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                 topSubjects: topThree.map(s => ({
                     id: s.id,
                     name: s.name,
-                    segmentCount: s.speakerSegments?.length || 0,
+                    contributionCount: s._count?.contributions || 0,
                     agendaItemIndex: s.agendaItemIndex,
                     hasTopic: !!s.topic
                 }))

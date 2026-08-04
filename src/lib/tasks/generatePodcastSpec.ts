@@ -29,7 +29,6 @@ export async function requestGeneratePodcastSpec(cityId: string, councilMeetingI
         const dbSubject = await prisma.subject.findUnique({
             where: { id: subject.id },
             include: {
-                speakerSegments: { include: { speakerSegment: true } },
                 highlights: { include: { highlightedUtterances: true } }
             }
         });
@@ -38,10 +37,17 @@ export async function requestGeneratePodcastSpec(cityId: string, councilMeetingI
             throw new Error(`Subject with id ${subject.id} not found`);
         }
 
+        // Segments discussing the subject, via utterances tagged with discussionSubjectId
+        const taggedUtterances = await prisma.utterance.findMany({
+            where: { discussionSubjectId: subject.id },
+            select: { speakerSegmentId: true },
+            distinct: ['speakerSegmentId']
+        });
+
         return {
             name: dbSubject.name,
             description: dbSubject.description,
-            speakerSegmentIds: dbSubject.speakerSegments.map(ss => ss.speakerSegment.id),
+            speakerSegmentIds: taggedUtterances.map(u => u.speakerSegmentId),
             highlightedUtteranceIds: dbSubject.highlights.flatMap(h => h.highlightedUtterances.map(hu => hu.utteranceId)),
             allocation: subject.allocation === 'onlyMention' || subject.allocation === 'skip'
                 ? subject.allocation

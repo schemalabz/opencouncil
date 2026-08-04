@@ -161,11 +161,10 @@ PGSync requires helper views to denormalize complex relationships and handle Pos
 
 1. **LocationSearchView** - Converts PostGIS geometry to GeoJSON format
 2. **IntroducedByPartyView** - Resolves party affiliation through the `Role` table
-3. **SubjectSpeakerSegmentSearchView** - Denormalizes speaker segments with concatenated utterances
-4. **SpeakerContributionSearchView** - Denormalizes speaker contributions
-5. **SubjectMetricsView** - Precomputes the per-subject discussion metrics
-6. **MeetingAdministrativeBodyView** - Flattens the Subject → CouncilMeeting → AdministrativeBody join and casts the type enum to text. Exposes only the id and the type, because search results hydrate the full body from PostgreSQL
-7. **CitySearchView** - Casts the `Realm` enum to text. Every other `City` column reaches the index as a direct column
+3. **SpeakerContributionSearchView** - Denormalizes speaker contributions
+4. **SubjectMetricsView** - Precomputes the per-subject discussion metrics
+5. **MeetingAdministrativeBodyView** - Flattens the Subject → CouncilMeeting → AdministrativeBody join and casts the type enum to text. Exposes only the id and the type, because search results hydrate the full body from PostgreSQL
+6. **CitySearchView** - Casts the `Realm` enum to text. Every other `City` column reaches the index as a direct column
 
 ### Realm, Not Country
 
@@ -175,7 +174,7 @@ PostgreSQL holds no country column. `REALMS` in `src/lib/realm.ts` maps a realm 
 `getRealmCountry()` reads that map. A `CASE` expression in SQL would copy the map into a second place
 that no test covers, so a new realm would sync an empty or wrong country. A caller that needs the
 country resolves it from `city_realm` in application code.
-7. **CitySearchView** - Casts the `Realm` enum to text. Every other `City` column reaches the index as a direct column
+6. **CitySearchView** - Casts the `Realm` enum to text. Every other `City` column reaches the index as a direct column
 
 ### Realm, Not Country
 
@@ -197,18 +196,17 @@ aggregate at search time. They exist for score rescoring. The search API exposes
 | `discussion_speaking_seconds` | Time the council spent speaking about the subject |
 
 `contributor_count` counts rows, the same measure as `getContributionCount()` in `src/lib/utils.ts`.
-The count comes from `SpeakerContribution`, the model that replaces `SubjectSpeakerSegment`, so a
-subject that predates the contribution pipeline reports zero contributors.
+A subject that predates the contribution pipeline reports zero contributors.
 
 `discussion_speaking_seconds` repeats `getDiscussionSecondsForSubjects()` in `src/lib/db/subject.ts`, so
 the index agrees with the number the subject page shows:
 
-- **Primary source**: utterances tagged `SUBJECT_DISCUSSION`. The summarize task writes these tags.
+- **Source**: utterances tagged `SUBJECT_DISCUSSION`. The summarize task writes these tags.
 - **Excluded**: procedural segments, which are not part of a discussion.
-- **Fallback**: `SubjectSpeakerSegment`, and only for a subject with no tagged utterance at all. A
-  subject whose tagged utterances are all procedural reports 0 instead of falling back.
+- **No tags**: a subject with no tagged utterance reports 0. Re-run the summarize task to populate
+  the tags for a subject that predates them.
 
-Both sources sum the parts rather than measure the span from the first mention to the last, so a
+The sum covers the tagged utterances rather than the span from the first mention to the last, so a
 subject that the council revisits reports the time spent on it. The name avoids the word "duration"
 because `calculateMeetingDurationMs()` uses it for a wall-clock span.
 
@@ -247,7 +245,7 @@ Subject descriptions, speaker contributions, and segment summaries contain markd
 
 An Elasticsearch [ingest pipeline](https://www.elastic.co/guide/en/elasticsearch/reference/current/ingest.html) named `strip-refs` removes the links at index time. PGSync attaches the pipeline to every document it writes, through the top-level `"pipeline": "strip-refs"` key in `elasticsearch/schema.json`. The pipeline runs before analysis and before `semantic_text` inference, so tokens and embeddings both come out clean. Delete operations do not use the pipeline and are unaffected.
 
-The pipeline definition lives in [`elasticsearch/pipeline.json`](./pipeline.json). It uses one `gsub` processor for `description` and `foreach` processors for the nested arrays (`speaker_contributions.text`, `speaker_segments.summary`), because a plain `gsub` does not iterate arrays of objects.
+The pipeline definition lives in [`elasticsearch/pipeline.json`](./pipeline.json). It uses one `gsub` processor for `description` and a `foreach` processor for the nested array (`speaker_contributions.text`), because a plain `gsub` does not iterate arrays of objects.
 
 ### Create or Update the Pipeline
 
@@ -310,7 +308,7 @@ The `elasticsearch/schema.json` file defines:
 - **Ingest pipeline**: the top-level `pipeline` key names the pipeline that Elasticsearch runs on every indexed document (see [Configure the Ingest Pipeline](#configure-the-ingest-pipeline))
 - **Nodes**: PostgreSQL tables and their relationships  
 - **Transform rules**: Field renaming, scalar vs object variants
-- **Children**: Nested relationships (e.g., speaker_segments)
+- **Children**: Nested relationships (e.g., speaker_contributions)
 
 **Resources for understanding the schema:**
 - [PGSync Schema Documentation](https://pgsync.com/schema/) - Official guide to schema configuration
@@ -695,32 +693,17 @@ GET subjects/_search
         },
         {
           "nested": {
-            "path": "speaker_segments",
+            "path": "speaker_contributions",
             "query": {
-              "bool": {
-                "should": [
-                  {
-                    "match": {
-                      "speaker_segments.text": {
-                        "query": "ηλεκτρικά πατίνια",
-                        "boost": 2
-                      }
-                    }
-                  },
-                  {
-                    "match": {
-                      "speaker_segments.summary": {
-                        "query": "ηλεκτρικά πατίνια",
-                        "boost": 2
-                      }
-                    }
-                  }
-                ],
-                "minimum_should_match": 1
+              "match": {
+                "speaker_contributions.text": {
+                  "query": "ηλεκτρικά πατίνια",
+                  "boost": 2
+                }
               }
             },
             "inner_hits": {
-              "_source": ["speaker_segments.segment_id"]
+              "_source": ["speaker_contributions.contribution_id"]
             }
           }
         }
@@ -780,32 +763,17 @@ GET subjects/_search
                   },
                   {
                     "nested": {
-                      "path": "speaker_segments",
+                      "path": "speaker_contributions",
                       "query": {
-                        "bool": {
-                          "should": [
-                            {
-                              "match": {
-                                "speaker_segments.text": {
-                                  "query": "ηλεκτρικά πατίνια",
-                                  "boost": 2
-                                }
-                              }
-                            },
-                            {
-                              "match": {
-                                "speaker_segments.summary": {
-                                  "query": "ηλεκτρικά πατίνια",
-                                  "boost": 2
-                                }
-                              }
-                            }
-                          ],
-                          "minimum_should_match": 1
+                        "match": {
+                          "speaker_contributions.text": {
+                            "query": "ηλεκτρικά πατίνια",
+                            "boost": 2
+                          }
                         }
                       },
                       "inner_hits": {
-                        "_source": ["speaker_segments.segment_id"]
+                        "_source": ["speaker_contributions.contribution_id"]
                       }
                     }
                   }
@@ -954,13 +922,13 @@ stale, and it self-heals on the next write to the meeting or the subject. Update
 force it sooner.
 
 **Q: How is the speaker segments text concatenated?**  
-A: The `SubjectSpeakerSegmentSearchView` view concatenates all utterance texts within each speaker segment using `string_agg()`, ordered by timestamp. PGSync reads from this view and indexes the concatenated text.
+A: The `SpeakerContributionSearchView` view exposes one row per speaker per subject. PGSync reads from this view and indexes the contribution text.
 
 **Q: How do I handle updates to speaker segments?**  
 A: PGSync automatically detects changes to related tables (Utterance, SpeakerSegment, etc.) and updates the corresponding Subject document in Elasticsearch. No manual intervention needed.
 
 **Q: Can I search for specific speaker segments after finding a semantic match?**  
-A: Yes, you can use the nested query on `speaker_segments` to find specific segments within a subject that matched semantically. The search implementation supports both approaches.
+A: Yes, you can use the nested query on `speaker_contributions` to find the contributions within a subject that matched semantically. The search implementation supports both approaches.
 
 **Q: How do I optimize semantic search performance?**  
 A: Use dedicated inference endpoints for ingestion and search, and configure appropriate chunking settings for your text. The current implementation uses the `opencouncil-multilingual-e5-small-elasticsearch` model.

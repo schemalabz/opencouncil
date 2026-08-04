@@ -78,7 +78,7 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
 
     const stats = subjectCardStats(
         subject.statistics,
-        subject.contributions?.length || subject.speakerSegments?.length
+        subject.contributions?.length
     );
 
     const linkProps = {

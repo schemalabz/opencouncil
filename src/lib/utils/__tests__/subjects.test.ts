@@ -20,7 +20,6 @@ function makeSubject(overrides: Partial<{
         agendaItemIndex: null as number | null,
         withdrawn: false,
         statistics: { speakingSeconds: 0 },
-        speakerSegments: [],
         _count: { contributions: 0 },
         ...overrides,
     };

@@ -23,7 +23,6 @@ WHERE schemaname = 'public'
   AND viewname IN (
     'LocationSearchView',
     'IntroducedByPartyView',
-    'SubjectSpeakerSegmentSearchView',
     'SpeakerContributionSearchView',
     'SubjectMetricsView',
     'MeetingAdministrativeBodyView',
@@ -58,23 +57,9 @@ LIMIT 3;
 \echo ''
 
 -- ============================================================================
--- 3. Validate SubjectSpeakerSegmentSearchView - party resolution
+-- 3. Validate IntroducedByPartyView - party resolution
 -- ============================================================================
-\echo '3. Validating SubjectSpeakerSegmentSearchView...'
-SELECT
-  COUNT(*) AS total_segments,
-  COUNT(speaker_person_id) AS with_speaker,
-  COUNT(speaker_party_id) AS with_party,
-  COUNT(text) AS with_text,
-  COUNT(summary) AS with_summary
-FROM "SubjectSpeakerSegmentSearchView";
-
-\echo ''
-
--- ============================================================================
--- 4. Validate IntroducedByPartyView - party resolution
--- ============================================================================
-\echo '4. Validating IntroducedByPartyView...'
+\echo '3. Validating IntroducedByPartyView...'
 SELECT
   COUNT(*) AS total_mappings,
   COUNT(DISTINCT person_id) AS unique_persons,
@@ -85,9 +70,9 @@ FROM "IntroducedByPartyView";
 \echo ''
 
 -- ============================================================================
--- 5. Validate LocationSearchView - GeoJSON conversion
+-- 4. Validate LocationSearchView - GeoJSON conversion
 -- ============================================================================
-\echo '5. Validating LocationSearchView...'
+\echo '4. Validating LocationSearchView...'
 SELECT
   COUNT(*) AS total_locations,
   COUNT(geojson) AS with_geojson,
@@ -97,9 +82,9 @@ FROM "LocationSearchView";
 \echo ''
 
 -- ============================================================================
--- 6. Validate SubjectMetricsView - discussion metrics
+-- 5. Validate SubjectMetricsView - discussion metrics
 -- ============================================================================
-\echo '6. Validating SubjectMetricsView (discussion metrics)...'
+\echo '5. Validating SubjectMetricsView (discussion metrics)...'
 SELECT
   COUNT(*) AS total_subjects,
   COUNT(CASE WHEN contributor_count IS NULL OR discussion_speaking_seconds IS NULL THEN 1 END) AS null_metrics,
@@ -115,8 +100,8 @@ FROM "SubjectMetricsView";
 
 \echo ''
 \echo '   Checking the speaking time reads the current source (tagged utterances)...'
--- The regression this catches: the view sums SubjectSpeakerSegment, which the summarize task
--- no longer writes, so every subject from the contribution pipeline reports 0 seconds.
+-- The regression this catches: the view stops reading tagged utterances, so every subject
+-- reports 0 seconds.
 WITH tagged AS (
   SELECT u."discussionSubjectId" AS id,
          SUM(u."endTimestamp" - u."startTimestamp")
@@ -145,9 +130,9 @@ WHERE tagged.seconds > 0;
 \echo ''
 
 -- ============================================================================
--- 7. Validate MeetingAdministrativeBodyView - two-hop join and enum cast
+-- 6. Validate MeetingAdministrativeBodyView - two-hop join and enum cast
 -- ============================================================================
-\echo '7. Validating MeetingAdministrativeBodyView...'
+\echo '6. Validating MeetingAdministrativeBodyView...'
 -- The expected values come from pg_enum, not a hardcoded list, so a new AdministrativeBodyType
 -- flows through the cast on its own instead of failing this check.
 SELECT
@@ -170,9 +155,9 @@ FROM "MeetingAdministrativeBodyView";
 \echo ''
 
 -- ============================================================================
--- 8. Validate CitySearchView - realm enum cast
+-- 7. Validate CitySearchView - realm enum cast
 -- ============================================================================
-\echo '8. Validating CitySearchView...'
+\echo '7. Validating CitySearchView...'
 -- The expected values come from pg_enum, not from a hardcoded list. A new realm must
 -- flow through the cast on its own, so this check must not fail when someone adds one.
 SELECT

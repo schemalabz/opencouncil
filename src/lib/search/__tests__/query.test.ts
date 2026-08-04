@@ -52,12 +52,12 @@ describe('buildFilters person filter', () => {
         const introducedBy = should.find((c) => c.terms?.['introduced_by_person_id']);
         expect(introducedBy?.terms?.['introduced_by_person_id']).toEqual(['p1']);
 
-        // Clause 2: spoke in the subject (nested speaker segments).
+        // Clause 2: spoke in the subject (nested speaker contributions).
         const spokeIn = should.find((c) => c.nested);
-        expect(spokeIn?.nested?.path).toBe('speaker_segments');
+        expect(spokeIn?.nested?.path).toBe('speaker_contributions');
         expect(
             (spokeIn?.nested?.query as estypes.QueryDslQueryContainer).terms?.[
-                'speaker_segments.speaker_person_id'
+                'speaker_contributions.speaker_person_id'
             ]
         ).toEqual(['p1']);
     });
@@ -74,7 +74,7 @@ describe('buildFilters person filter', () => {
         );
         const topLevelNested = filters.filter(
             (f) =>
-                f.nested?.path === 'speaker_segments' &&
+                f.nested?.path === 'speaker_contributions' &&
                 JSON.stringify(f).includes('speaker_person_id')
         );
         expect(topLevelIntroduced).toHaveLength(0);

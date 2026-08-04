@@ -26,7 +26,6 @@ const meetingWithSubjectsInclude = {
         ],
         include: {
             topic: true,
-            speakerSegments: true,
             _count: { select: { contributions: true } },
         },
     },

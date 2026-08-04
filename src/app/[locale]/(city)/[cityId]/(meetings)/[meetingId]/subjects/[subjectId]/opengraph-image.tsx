@@ -189,8 +189,7 @@ export default async function SubjectOgImage({
     const statisticsRecord = await getSubjectStatisticsCached(cityId, meetingId, subjects, meeting.dateTime);
     const statistics = statisticsRecord[subject.id];
 
-    // Use statistics.speakingSeconds (same as subject page) — handles both
-    // utterance-based (new) and SubjectSpeakerSegment (old) systems
+    // Use statistics.speakingSeconds (same as subject page)
     const totalMinutes = Math.round(
         statistics?.speakingSeconds ? statistics.speakingSeconds / 60 : 0
     );

@@ -16,9 +16,6 @@ jest.mock('../db/prisma', () => ({
     councilMeeting: {
       findUnique: jest.fn()
     },
-    subjectSpeakerSegment: {
-      findMany: jest.fn()
-    },
     speakerSegment: {
       findMany: jest.fn()
     }
@@ -118,8 +115,7 @@ describe('Statistics', () => {
       }));
     });
 
-    it('should call prisma with correct parameters for subject statistics (new system)', async () => {
-      // Mock utterances query (new system)
+    it('should call prisma with correct parameters for subject statistics', async () => {
       (prisma.utterance.findMany as jest.Mock).mockResolvedValue([
         {
           speakerSegmentId: 'segment-1',
@@ -131,7 +127,7 @@ describe('Statistics', () => {
 
       await getStatisticsFor({ subjectId: 'subject-1' }, ['person', 'party', 'topic']);
 
-      // Verify new system was used
+      // Verify utterances tagged with the subject were used
       expect(prisma.utterance.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {
@@ -151,31 +147,13 @@ describe('Statistics', () => {
       );
     });
 
-    it('should fall back to old system when no utterances found', async () => {
-      // Mock empty utterances (trigger fallback)
+    it('should return empty statistics when the subject has no tagged utterances', async () => {
       (prisma.utterance.findMany as jest.Mock).mockResolvedValue([]);
-      // Mock old system query
-      (prisma.subjectSpeakerSegment.findMany as jest.Mock).mockResolvedValue([
-        { speakerSegmentId: 'segment-2' }
-      ]);
-      (prisma.speakerSegment.findMany as jest.Mock).mockResolvedValue([]);
 
-      await getStatisticsFor({ subjectId: 'subject-1' }, ['person', 'party', 'topic']);
+      const stats = await getStatisticsFor({ subjectId: 'subject-1' }, ['person', 'party', 'topic']);
 
-      // Verify fallback to old system
-      expect(prisma.subjectSpeakerSegment.findMany).toHaveBeenCalledWith({
-        where: { subjectId: 'subject-1' },
-        select: { speakerSegmentId: true }
-      });
-
-      // Verify speaker segments were queried with old system IDs
-      expect(prisma.speakerSegment.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            id: { in: ['segment-2'] }
-          })
-        })
-      );
+      expect(stats.speakingSeconds).toBe(0);
+      expect(prisma.speakerSegment.findMany).not.toHaveBeenCalled();
     });
 
     it('should call prisma with correct parameters for administrative body statistics', async () => {
