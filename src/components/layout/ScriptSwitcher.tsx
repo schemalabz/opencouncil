@@ -71,7 +71,9 @@ export default function ScriptSwitcher({ className }: { className?: string }) {
 
     return (
         <div className={cn("inline-flex items-center gap-1.5 text-xs whitespace-nowrap", className)}>
-            <a href={hrefFor("sr")} className={linkClass("sr")} aria-label="Ћирилица" aria-current={active === "sr" ? "true" : undefined}>
+            {/* nofollow: the ?script=cyrl href is a crawlable twin of every
+                page — the cookie 302 means nothing to a cookieless crawler. */}
+            <a href={hrefFor("sr")} rel="nofollow" className={linkClass("sr")} aria-label="Ћирилица" aria-current={active === "sr" ? "true" : undefined}>
                 Ћир
             </a>
             <span className="text-muted-foreground/40" aria-hidden="true">|</span>

@@ -4,8 +4,8 @@ import { NextResponse, NextRequest } from 'next/server';
 import { auth } from './auth'
 import { env } from '@/env.mjs';
 import { REALMS, REALM_OVERRIDE_COOKIE, isRealm, isRealmApexHost, realmForHost, realmOverride } from './lib/realm';
-import { SERBIAN_SCRIPT_COOKIE, foreignLocaleRedirectPath, serbianScriptRedirectPath, wwwRedirectTarget } from './lib/seo-redirects';
-import { localePrefixPattern, urlPrefixForLocale } from './i18n/config';
+import { LOCALE_PREFIX_RE, SERBIAN_SCRIPT_COOKIE, foreignLocaleRedirectPath, serbianScriptAdoption, serbianScriptParamTarget, serbianScriptRedirectPath, wwwRedirectTarget } from './lib/seo-redirects';
+import { isSerbianScript } from './lib/serbian/transliterate';
 
 const i18nMiddleware = createIntlMiddleware(routing);
 
@@ -21,8 +21,6 @@ const JUNK_PATH = /^\/(wp-admin|wp-login|wp-content|wp-includes|wordpress|xmlrpc
 // gate on this.
 const APP_PATH = /^\/(?!api|_next|_vercel|qr\/|\..+).*/;
 
-// Any explicit locale URL prefix (/en, /el, /fr, /sr, /lat).
-const LOCALE_PREFIX_RE = new RegExp(`^/(${localePrefixPattern})(/|$)`);
 
 export default async function proxy(req: NextRequest) {
     // Basic auth check
@@ -119,9 +117,12 @@ export default async function proxy(req: NextRequest) {
     // method or path: the param only ever arrives on a switcher <a href> GET
     // and is stripped on first sight, so it never survives into a POST.
     const scriptParam = req.nextUrl.searchParams.get('script');
-    if (realm === 'serbia' && (scriptParam === 'cyrl' || scriptParam === 'latn')) {
+    if (realm === 'serbia' && isSerbianScript(scriptParam)) {
         const cleanUrl = req.nextUrl.clone();
         cleanUrl.searchParams.delete('script');
+        // Land on the tree that agrees with the requested script (one hop) —
+        // see serbianScriptParamTarget for the /lat/…?script=cyrl case.
+        cleanUrl.pathname = serbianScriptParamTarget(pathname, scriptParam);
         const response = NextResponse.redirect(cleanUrl, 302);
         response.cookies.set(SERBIAN_SCRIPT_COOKIE, scriptParam, {
             path: '/',
@@ -130,10 +131,11 @@ export default async function proxy(req: NextRequest) {
         });
         return response;
     }
-    // Page navigations only: GET (a 302 on a server-action POST would re-issue
-    // it as a bodyless GET) and app paths (never /api, /qr, static assets).
+    // Page navigations only: GET/HEAD (a 302 on a server-action POST would
+    // re-issue it as a bodyless GET; HEAD must agree with GET on the same
+    // URL) and app paths (never /api, /qr, static assets).
     const scriptCookie = req.cookies.get(SERBIAN_SCRIPT_COOKIE)?.value;
-    if (req.method === 'GET' && APP_PATH.test(pathname)) {
+    if ((req.method === 'GET' || req.method === 'HEAD') && APP_PATH.test(pathname)) {
         const scriptRedirect = serbianScriptRedirectPath(realm, pathname, scriptCookie);
         if (scriptRedirect !== null) {
             return NextResponse.redirect(new URL(scriptRedirect + req.nextUrl.search, req.url), 302);
@@ -173,18 +175,11 @@ export default async function proxy(req: NextRequest) {
         const response = await i18nMiddleware(req);
         if (response) {
             // Entering the /lat tree by any route (external link, share)
-            // adopts Latin as the persisted choice, so onward navigation
-            // through unprefixed links keeps the script (redirect above).
-            // Unprefixed visits deliberately do NOT set 'cyrl': with a 'latn'
-            // cookie they never reach here (redirected), and without one the
-            // default needs no cookie — only the switcher sets 'cyrl'.
-            const latPrefix = `/${urlPrefixForLocale('sr-Latn')}`;
-            if (
-                realm === 'serbia' &&
-                scriptCookie !== 'latn' &&
-                (pathname === latPrefix || pathname.startsWith(`${latPrefix}/`))
-            ) {
-                response.cookies.set(SERBIAN_SCRIPT_COOKIE, 'latn', {
+            // adopts Latin as the persisted choice — policy and rationale in
+            // serbianScriptAdoption (embeds exempt).
+            const adopted = serbianScriptAdoption(realm, pathname, scriptCookie);
+            if (adopted !== null) {
+                response.cookies.set(SERBIAN_SCRIPT_COOKIE, adopted, {
                     path: '/',
                     maxAge: 60 * 60 * 24 * 365,
                     sameSite: 'lax',

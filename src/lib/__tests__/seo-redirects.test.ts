@@ -1,4 +1,4 @@
-import { foreignLocaleRedirectPath, serbianScriptRedirectPath, wwwRedirectTarget } from '../seo-redirects';
+import { foreignLocaleRedirectPath, serbianScriptAdoption, serbianScriptParamTarget, serbianScriptRedirectPath, wwwRedirectTarget } from '../seo-redirects';
 import { computeForeignLocales, foreignLocalesForRealm } from '../realm';
 
 describe('wwwRedirectTarget', () => {
@@ -176,5 +176,61 @@ describe('serbianScriptRedirectPath', () => {
 
     it('does not partial-match path segments that merely start with lat', () => {
         expect(serbianScriptRedirectPath('serbia', '/latinika', 'latn')).toBe('/lat/latinika');
+    });
+});
+
+describe('serbianScriptRedirectPath embed exemption', () => {
+    it('never redirects embed routes, whose URL the embedding site chose', () => {
+        expect(serbianScriptRedirectPath('serbia', '/embed/meetings', 'latn')).toBeNull();
+        expect(serbianScriptRedirectPath('serbia', '/embed', 'latn')).toBeNull();
+    });
+});
+
+describe('serbianScriptAdoption', () => {
+    it('adopts latn when entering the /lat tree without it persisted', () => {
+        expect(serbianScriptAdoption('serbia', '/lat/nis', undefined)).toBe('latn');
+        expect(serbianScriptAdoption('serbia', '/lat', 'cyrl')).toBe('latn');
+    });
+
+    it('is a no-op when latn is already persisted', () => {
+        expect(serbianScriptAdoption('serbia', '/lat/nis', 'latn')).toBeNull();
+    });
+
+    it('adopts nothing outside the /lat tree', () => {
+        expect(serbianScriptAdoption('serbia', '/nis', undefined)).toBeNull();
+        expect(serbianScriptAdoption('serbia', '/latinika', undefined)).toBeNull();
+        expect(serbianScriptAdoption('serbia', '/en/nis', undefined)).toBeNull();
+    });
+
+    it('never lets an embed iframe set a site-wide preference', () => {
+        expect(serbianScriptAdoption('serbia', '/lat/embed/meetings', undefined)).toBeNull();
+        expect(serbianScriptAdoption('serbia', '/lat/embed', 'cyrl')).toBeNull();
+    });
+
+    it('does nothing outside the serbia realm', () => {
+        expect(serbianScriptAdoption('greece', '/lat/nis', undefined)).toBeNull();
+    });
+});
+
+describe('serbianScriptParamTarget', () => {
+    it('strips the /lat prefix when the param asks for cyrl', () => {
+        expect(serbianScriptParamTarget('/lat/nis', 'cyrl')).toBe('/nis');
+        expect(serbianScriptParamTarget('/lat', 'cyrl')).toBe('/');
+        expect(serbianScriptParamTarget('/nis', 'cyrl')).toBe('/nis');
+    });
+
+    it('enters the /lat tree in one hop when the param asks for latn', () => {
+        expect(serbianScriptParamTarget('/nis', 'latn')).toBe('/lat/nis');
+        expect(serbianScriptParamTarget('/', 'latn')).toBe('/lat');
+        expect(serbianScriptParamTarget('/lat/nis', 'latn')).toBe('/lat/nis');
+    });
+
+    it('leaves explicit non-Serbian prefixes alone in both directions', () => {
+        expect(serbianScriptParamTarget('/en/nis', 'latn')).toBe('/en/nis');
+        expect(serbianScriptParamTarget('/en/nis', 'cyrl')).toBe('/en/nis');
+    });
+
+    it('does not partial-match segments that merely start with lat', () => {
+        expect(serbianScriptParamTarget('/latinika', 'cyrl')).toBe('/latinika');
     });
 });
