@@ -139,6 +139,11 @@ export function latinToCyrillic(text: string): string {
 
 export type SerbianScript = 'cyrl' | 'latn';
 
+/** Type guard for untrusted script identifiers (cookies, query params). */
+export function isSerbianScript(value: string | null | undefined): value is SerbianScript {
+    return value === 'cyrl' || value === 'latn';
+}
+
 /**
  * Transliterates Serbian text to the target script; text already in the target
  * script — and any non-Serbian text — comes back unchanged.
