@@ -7,6 +7,7 @@ import { buildSearchQuery } from './query';
 import { extractFilters, processFilters } from './filters';
 import { sendErrorAdminAlert } from '@/lib/discord';
 import { executeElasticsearchWithRetry } from './retry';
+import { partitionHits, reportOrphanedHits } from './hits';
 import { getCities } from '@/lib/db/cities';
 import { logSearchQuery } from '@/lib/db/searchQueries';
 import { env } from '@/env.mjs';
@@ -105,7 +106,7 @@ export async function search(
         });
 
         const response = await executeElasticsearchWithRetry(
-            () => client.search(searchQuery),
+            () => client.search<SubjectDocument>(searchQuery),
             'Search'
         );
 
@@ -125,7 +126,7 @@ export async function search(
         });
 
         // Process the results
-        const subjectIds = (response.hits.hits as Array<any>)
+        const subjectIds = response.hits.hits
             .map(hit => hit._source?.id)
             .filter((id): id is string => id !== undefined);
 
@@ -228,22 +229,23 @@ export async function search(
             locationCoordinates.map(loc => [loc.id, { x: loc.x, y: loc.y }])
         );
 
+        const { resolved, orphanedIds, droppedWithoutSource } = partitionHits(
+            response.hits.hits,
+            subjectMap,
+        );
+
+        if (orphanedIds.length > 0 || droppedWithoutSource > 0) {
+            logEssential('[Search] Dropped unresolvable hits', { orphanedIds, droppedWithoutSource });
+            void reportOrphanedHits({
+                orphanedIds,
+                droppedWithoutSource,
+                query: request.query,
+                index: env.ELASTICSEARCH_INDEX,
+            });
+        }
+
         const results = await Promise.all(
-            (response.hits.hits as Array<any>).map(async (hit, index) => {
-                if (!hit._source) {
-                    logEssential('[Search] Invalid hit source', { index, score: hit._score });
-                    throw new Error('Elasticsearch hit source is undefined');
-                }
-
-                const subject = subjectMap.get(hit._source.id);
-                if (!subject) {
-                    logEssential('[Search] Subject not found', {
-                        subjectId: hit._source.id,
-                        score: hit._score
-                    });
-                    throw new Error(`Subject ${hit._source.id} not found`);
-                }
-
+            resolved.map(async ({ hit, subject }) => {
                 // Get location coordinates if available
                 let locationWithCoordinates = null;
                 if (subject.location) {
@@ -258,8 +260,8 @@ export async function search(
 
                 // Process inner hits for speaker segments
                 const matchedSpeakerSegmentIds = hit.inner_hits?.['speaker_segments']?.hits?.hits
-                    .map((innerHit: { _source?: { segment_id?: string } }) => innerHit._source?.segment_id)
-                    .filter((id: string | undefined): id is string => id !== undefined);
+                    ?.map(innerHit => innerHit._source?.segment_id)
+                    .filter((id): id is string => id !== undefined);
 
                 // Base result with common fields
                 const baseResult: SearchResultLight = {
@@ -303,9 +305,12 @@ export async function search(
             })
         );
 
+        // ES's total includes hits we dropped; subtract this page's drops so the
+        // count degrades along with the results. Still approximate — other pages
+        // may hold more orphans, so a trailing page can come up short.
         return {
             results,
-            total: totalHits
+            total: totalHits - (response.hits.hits.length - resolved.length)
         };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
