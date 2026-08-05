@@ -15,6 +15,7 @@ import {
     mcpGetSubjectTranscript,
     mcpGetTranscript,
     mcpListCities,
+    mcpListHotSubjects,
     mcpListMeetings,
     mcpListPeople,
     mcpSearch,
@@ -73,6 +74,27 @@ export function registerOpenCouncilServer(server: McpServer) {
             }),
         },
         (args, ctx: ServerContext) => run(() => mcpSearch(args, identityFromContext(ctx)))
+    );
+
+    server.registerTool(
+        'list_hot_subjects',
+        {
+            title: 'List hot subjects',
+            description:
+                'The most-discussed subjects across all municipalities over a recent period, ranked ' +
+                'by debate time — start here for "what is happening in the councils", a weekly ' +
+                'roundup, or picking topics worth clipping. Covers every municipality at once (no ' +
+                'city id needed) and does not depend on the search index.',
+            inputSchema: z.object({
+                daysBack: z.number().int().min(1).max(365).default(7)
+                    .describe('How far back to look, in days'),
+                cityIds: z.array(z.string()).optional()
+                    .describe('Restrict to these municipalities (omit for all of them)'),
+                topics: z.array(z.string()).optional().describe('Restrict to these topic labels'),
+                limit: z.number().int().min(1).max(50).default(10),
+            }),
+        },
+        args => run(() => mcpListHotSubjects(args))
     );
 
     server.registerTool(
@@ -216,11 +238,14 @@ export function registerOpenCouncilServer(server: McpServer) {
             title: 'Get meeting transcript',
             description:
                 'The full transcript of a meeting as speaker segments, paginated. Long — prefer ' +
-                'get_subject_transcript when you care about one subject. Set includeUtteranceIds ' +
-                'to get utterance ids for highlight creation.',
+                'get_subject_transcript when you care about one subject. Pass personId for ' +
+                'everything one councillor said in the meeting (the way to gather their own ' +
+                'moments). Set includeUtteranceIds to get utterance ids for highlight creation.',
             inputSchema: z.object({
                 cityId: z.string().min(1),
                 meetingId: z.string().min(1),
+                personId: z.string().optional()
+                    .describe('Only this person\'s segments (see list_people)'),
                 segmentsPerPage: z.number().int().min(1).max(100).default(40),
                 includeUtteranceIds: z.boolean().default(false),
                 ...paginationShape,
@@ -231,7 +256,12 @@ export function registerOpenCouncilServer(server: McpServer) {
                 mcpGetTranscript(
                     args.cityId,
                     args.meetingId,
-                    { page: args.page, segmentsPerPage: args.segmentsPerPage, includeUtteranceIds: args.includeUtteranceIds },
+                    {
+                        page: args.page,
+                        segmentsPerPage: args.segmentsPerPage,
+                        includeUtteranceIds: args.includeUtteranceIds,
+                        personId: args.personId,
+                    },
                     identityFromContext(ctx)
                 )
             )

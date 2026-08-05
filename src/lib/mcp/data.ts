@@ -6,7 +6,9 @@ import { getCities, getCity } from '@/lib/db/cities';
 import { getCouncilMeetingsForCity } from '@/lib/db/meetings';
 import { getPeopleForCity, getPerson, type PersonWithRelations } from '@/lib/db/people';
 import { getPartiesForCity, getParty } from '@/lib/db/parties';
-import { getSubject, getDiscussionSecondsForSubjects } from '@/lib/db/subject';
+import { getSubject, getDiscussionSecondsForSubjects, getHotSubjectsCached } from '@/lib/db/subject';
+import { getRealm } from '@/lib/realm.server';
+import { Realm } from '@prisma/client';
 import { getTranscript } from '@/lib/db/transcript';
 import { upsertHighlightCore, canActorManageHighlight } from '@/lib/db/highlights-core';
 import { requestGenerateHighlightCore } from '@/lib/tasks/generateHighlight-core';
@@ -61,6 +63,18 @@ function mapRoles(person: PersonWithRelations) {
         startDate: role.startDate ? isoDate(role.startDate) : null,
         endDate: role.endDate ? isoDate(role.endDate) : null,
     }));
+}
+
+/**
+ * The realm this request belongs to, from its Host header. Falls back to the
+ * default rather than failing a read if the tool runs outside a request scope.
+ */
+async function currentRealm(): Promise<Realm> {
+    try {
+        return await getRealm();
+    } catch {
+        return Realm.greece;
+    }
 }
 
 // --- Cities ---------------------------------------------------------------
@@ -328,12 +342,28 @@ export async function mcpGetSubjectTranscript(subjectId: string, page: number, i
 export async function mcpGetTranscript(
     cityId: string,
     meetingId: string,
-    options: { page: number; segmentsPerPage: number; includeUtteranceIds: boolean },
+    options: { page: number; segmentsPerPage: number; includeUtteranceIds: boolean; personId?: string },
     identity: McpIdentity
 ) {
     await requireVisibleMeeting(cityId, meetingId, identity);
 
-    const segments = await getTranscript(meetingId, cityId);
+    const allSegments = await getTranscript(meetingId, cityId);
+
+    // Speaker filter: "everything this councillor said in this meeting", which
+    // is otherwise unreachable — a long meeting runs to 100+ transcript pages.
+    let speakerName: string | null = null;
+    if (options.personId) {
+        const person = await prisma.person.findUnique({
+            where: { id: options.personId },
+            select: { name: true },
+        });
+        if (!person) throw new NotFoundError('Person not found');
+        speakerName = person.name;
+    }
+    const segments = options.personId
+        ? allSegments.filter(segment => segment.speakerTag.personId === options.personId)
+        : allSegments;
+
     const totalPages = Math.max(1, Math.ceil(segments.length / options.segmentsPerPage));
     const pageSegments = segments.slice(
         (options.page - 1) * options.segmentsPerPage,
@@ -353,6 +383,7 @@ export async function mcpGetTranscript(
         meetingId,
         page: options.page,
         totalPages,
+        ...(options.personId && { speaker: speakerName, segmentCount: segments.length }),
         segments: pageSegments.map(segment => ({
             speaker: (segment.speakerTag.personId && personNames.get(segment.speakerTag.personId))
                 || segment.speakerTag.label,
@@ -408,6 +439,48 @@ async function resolveTopicIds(labels: string[]): Promise<string[]> {
     }
 
     return ids;
+}
+
+/**
+ * "What was hot in the councils lately" — the one call a journalist or social
+ * editor starts from, and the only discovery path that doesn't need
+ * Elasticsearch. Ranking and visibility rules come from the landing map.
+ */
+export async function mcpListHotSubjects(args: {
+    daysBack: number;
+    cityIds?: string[];
+    topics?: string[];
+    limit: number;
+}) {
+    const [realm, topicIds] = await Promise.all([
+        currentRealm(),
+        args.topics?.length ? resolveTopicIds(args.topics) : Promise.resolve(undefined),
+    ]);
+
+    const rows = await getHotSubjectsCached(
+        realm,
+        { daysBack: args.daysBack, cityIds: args.cityIds, topicIds },
+        args.limit
+    );
+
+    return {
+        daysBack: args.daysBack,
+        subjects: rows.map(row => ({
+            id: row.id,
+            title: row.name,
+            snippet: truncate(row.description, 300),
+            cityId: row.cityId,
+            cityName: row.cityName,
+            meetingId: row.councilMeetingId,
+            meetingDate: row.meetingDate?.slice(0, 10) ?? null,
+            topic: row.topicName ?? null,
+            discussionSeconds: row.discussionTimeSeconds ?? 0,
+            // speakerCount is deliberately not exposed: toGeneralSubjectRow
+            // derives it from the deprecated SubjectSpeakerSegment join, which
+            // most subjects no longer populate, so it reads 0 for them.
+            url: urls.subject(row.cityId, row.councilMeetingId, row.id),
+        })),
+    };
 }
 
 export async function mcpSearch(

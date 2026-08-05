@@ -7,10 +7,11 @@ export const MCP_INSTRUCTIONS = `OpenCouncil publishes transcribed, structured r
 Data model: cities (municipalities) hold council meetings; each meeting has subjects (agenda items); each subject is discussed in speaker segments made of utterances (the transcript). People (councillors) belong to parties and hold roles.
 
 How to work:
-- Start with the \`search\` tool to find subjects by topic, person, party, city or date range. Use \`list_cities\` / \`list_people\` to resolve names to IDs first. Omit the query text for a filter-only listing (e.g. everything a person spoke about, newest first).
+- For "what is happening in the councils lately", start with \`list_hot_subjects\` — every municipality at once, ranked by debate time.
+- Use the \`search\` tool to find subjects by topic, person, party, city or date range. Use \`list_cities\` / \`list_people\` to resolve names to IDs first. Omit the query text for a filter-only listing (e.g. everything a person spoke about, newest first).
 - Use \`get_subject\` for a subject's details and \`get_subject_transcript\` for exactly what was said about it, with utterance IDs.
 - To find which subjects of a meeting mattered, rank \`get_meeting\`'s subjects by \`discussionSeconds\` (debate time) — agenda order says nothing about importance, and most items pass without discussion.
-- Full meeting transcripts (\`get_transcript\`) are long and paginated — prefer per-subject transcripts.
+- Full meeting transcripts (\`get_transcript\`) are long and paginated — prefer per-subject transcripts, or pass \`personId\` for just one councillor's segments.
 - Most content is in Greek; answer in the user's language but quote transcripts verbatim.
 - Always cite the \`url\` fields returned by tools when presenting results.
 - Only released (published) meetings are visible — unless the connected token belongs to a city administrator, who also sees that city's drafts.
