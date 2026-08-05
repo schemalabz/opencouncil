@@ -1,6 +1,6 @@
 "use client"
 
-import { LayoutDashboard, Users, FileText, Files, FileOutput, UserRound, List, RefreshCw, Search, Bell, QrCode, ClipboardCheck, MessageSquareText, Landmark, Tag, KeyRound, MessageCircle, Building2 } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Files, FileOutput, UserRound, List, RefreshCw, Search, Bell, QrCode, ClipboardCheck, MessageSquareText, Landmark, Tag, KeyRound, MessageCircle, Building2, Network } from "lucide-react";
 import { Link, usePathname } from "@/i18n/routing";
 import {
     Sidebar,
@@ -51,6 +51,7 @@ const menuGroups = [
         items: [
             { title: "Tasks", icon: List, url: "/admin/tasks" },
             { title: "Elasticsearch", icon: Search, url: "/admin/elasticsearch" },
+            { title: "Related Subjects", icon: Network, url: "/admin/related-subjects" },
             { title: "Cache", icon: RefreshCw, url: "/admin/cache" },
             { title: "API Keys", icon: KeyRound, url: "/admin/settings/api-keys" },
         ],

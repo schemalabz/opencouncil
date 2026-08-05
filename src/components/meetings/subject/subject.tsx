@@ -21,6 +21,7 @@ import { ContributionCard } from "./ContributionCard";
 import { VotingSection } from "./VotingSection";
 import { formatDate, formatRelativeTime } from "@/lib/formatters/time";
 import { calculateVoteResult } from "@/lib/utils/votes";
+import { RelatedSubjects } from "./related-subjects";
 import { useTranslations, useLocale } from "next-intl";
 import { requestPollDecisionForSubject, getLastPollTimeForMeeting, getDecisionForSubject } from "@/lib/tasks/pollDecisions";
 import { useSubjectHeader } from "@/contexts/SubjectHeaderContext";
@@ -357,19 +358,21 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                         {t("searchingDecision")}
                                     </div>
                                 ) : (
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleFetchDecision}
-                                    >
-                                        <Landmark className="w-4 h-4 mr-2" />
-                                        {t("fetchDecision")}
-                                    </Button>
-                                )}
-                                {lastSearchedAt && !isFetchingDecision && (
-                                    <p className="text-xs text-muted-foreground">
-                                        {t("lastSearched", { time: formatRelativeTime(new Date(lastSearchedAt), locale) })}
-                                    </p>
+                                    <>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={handleFetchDecision}
+                                        >
+                                            <Landmark className="w-4 h-4 mr-2" />
+                                            {t("fetchDecision")}
+                                        </Button>
+                                        {lastSearchedAt && (
+                                            <p className="text-xs text-muted-foreground">
+                                                {t("lastSearched", { time: formatRelativeTime(new Date(lastSearchedAt), locale) })}
+                                            </p>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         )}
@@ -540,6 +543,9 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                 >
                     <VotingSection subjectId={subject.id} votes={subject.votes} attendance={subject.attendance} />
                 </CollapsibleCard>}
+
+                {/* Related Subjects Section */}
+                <RelatedSubjects subjectId={subject.id} />
 
                 {/* Admin Section - internal signals, only for users authorized to edit */}
                 {options.editsAllowed && (topicImportance || proximityImportance) && (
