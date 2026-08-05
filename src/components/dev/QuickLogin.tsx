@@ -25,10 +25,7 @@ import MobilePreviewButton from '@/components/dev/MobilePreviewButton'
 // Get predefined test users from shared definition
 const PREDEFINED_USERS = getTestUsersForDisplay()
 
-// `isPreview` is passed from the server (layout.tsx reads process.env.IS_PREVIEW
-// at runtime). It can't be read here directly: IS_PREVIEW is not a NEXT_PUBLIC_
-// var and is only set at runtime by the preview systemd unit, so it's undefined
-// in the client bundle.
+// `isPreview` comes from the server (DEPLOYMENT_ENV is server-only — see src/env.mjs).
 export default function QuickLogin({ isPreview = false }: { isPreview?: boolean }) {
   const [isOpen, setIsOpen] = useState(false)
   const [email, setEmail] = useState('')

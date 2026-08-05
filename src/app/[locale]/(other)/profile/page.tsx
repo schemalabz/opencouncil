@@ -5,6 +5,7 @@ import { AdminSection } from "@/components/profile/AdminSection";
 import { DevelopmentSection } from "@/components/profile/DevelopmentSection";
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
+import { env } from "@/env.mjs";
 
 // Personalized page behind sign-in — nothing to index.
 export const metadata: Metadata = {
@@ -20,7 +21,7 @@ export default async function ProfilePage() {
     return (
         <div className="container max-w-2xl py-8 space-y-8 !px-3 sm:!px-8">
             <h1 className="text-3xl font-bold">{t("title")}</h1>
-            <DevelopmentSection isPreview={process.env.IS_PREVIEW === 'true'} />
+            <DevelopmentSection isPreview={env.DEPLOYMENT_ENV === 'preview'} />
             {user.onboarded && (user.isSuperAdmin || user.administers.length > 0) && <AdminSection user={user} t={t} />}
             <UserInfoForm user={user} isOnboarded={!!user.onboarded} />
         </div>

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { PrismaAdapter } from "@auth/prisma-adapter"
-import { IS_DEV, DEV_TOOLS_ALLOWED } from '@/lib/utils'
+import { IS_DEV } from '@/lib/utils'
+import { DEV_TOOLS_ALLOWED } from '@/lib/deployment'
 
 export async function POST(request: NextRequest) {
   // Only allow in development or on preview deployments — never on real production

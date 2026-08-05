@@ -45,6 +45,12 @@ export const env = createEnv({
     ELASTICSEARCH_API_KEY: z.string().min(1),
     ELASTICSEARCH_INDEX: z.string().default('subjects'), // Override for testing (e.g., 'subjects_test')
 
+    // Deployment target, resolved here once — read it via env.DEPLOYMENT_ENV
+    // (server-only). Previews and staging declare themselves (flake.nix unit /
+    // DO app env); everywhere else it defaults from NODE_ENV.
+    DEPLOYMENT_ENV: z.enum(['development', 'preview', 'staging', 'production'])
+        .default(process.env.NODE_ENV === 'development' ? 'development' : 'production'),
+
     // Discord Admin Alerts
     DISCORD_WEBHOOK_URL: z.string().url().optional(),
 
@@ -122,6 +128,7 @@ export const env = createEnv({
     ELASTICSEARCH_URL: process.env.ELASTICSEARCH_URL,
     ELASTICSEARCH_API_KEY: process.env.ELASTICSEARCH_API_KEY,
     ELASTICSEARCH_INDEX: process.env.ELASTICSEARCH_INDEX,
+    DEPLOYMENT_ENV: process.env.DEPLOYMENT_ENV,
     DISCORD_WEBHOOK_URL: process.env.DISCORD_WEBHOOK_URL,
     BIRD_API_KEY: process.env.BIRD_API_KEY,
     BIRD_WORKSPACE_ID: process.env.BIRD_WORKSPACE_ID,

@@ -6,12 +6,14 @@ import { routing } from '@/i18n/routing';
 import { notFound } from "next/navigation";
 import { Toaster } from "@/components/ui/toaster";
 import ConsentChip from "@/components/analytics/ConsentChip";
+import { env } from "@/env.mjs";
 
-// Only import in development or on preview deployments — excluded from real
-// production bundles entirely. Both branches use literal `process.env.X === '...'`
-// comparisons so the bundler can dead-code-eliminate QuickLogin when neither flag
-// is set (i.e. real production).
-const QuickLogin = process.env.NODE_ENV === 'development' || process.env.IS_PREVIEW === 'true'
+// Dev-only UI. MobilePreviewReporter's literal NODE_ENV comparison lets the
+// bundler drop it from production builds; QuickLogin must instead be gated at
+// runtime on the server, because previews run production builds and only
+// declare themselves via DEPLOYMENT_ENV — it ships in the bundle but is never
+// rendered on staging or real production.
+const QuickLogin = process.env.NODE_ENV === 'development' || env.DEPLOYMENT_ENV === 'preview'
     ? require("@/components/dev/QuickLogin").default
     : null;
 const MobilePreviewReporter = process.env.NODE_ENV === 'development'
@@ -51,7 +53,7 @@ export default async function LocaleLayout(
 
             <Toaster />
             <ConsentChip />
-            {QuickLogin && <QuickLogin isPreview={process.env.IS_PREVIEW === 'true'} />}
+            {QuickLogin && <QuickLogin isPreview={env.DEPLOYMENT_ENV === 'preview'} />}
             {MobilePreviewReporter && <MobilePreviewReporter />}
         </NextIntlClientProvider>
     );

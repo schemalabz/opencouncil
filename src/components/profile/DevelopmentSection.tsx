@@ -8,10 +8,7 @@ import { Settings, Eye, EyeOff } from "lucide-react"
 import { useQuickLoginVisibility } from "@/hooks/useQuickLoginVisibility"
 import { IS_DEV } from "@/lib/utils"
 
-// `isPreview` is passed from the server (profile/page.tsx reads
-// process.env.IS_PREVIEW at runtime). It can't be read here directly: IS_PREVIEW
-// is not a NEXT_PUBLIC_ var and is only set at runtime by the preview systemd
-// unit, so it's undefined in the client bundle.
+// `isPreview` comes from the server (DEPLOYMENT_ENV is server-only — see src/env.mjs).
 export function DevelopmentSection({ isPreview = false }: { isPreview?: boolean }) {
   const { isVisible, isLoaded, toggle } = useQuickLoginVisibility()
 

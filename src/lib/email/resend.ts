@@ -69,9 +69,8 @@ export async function sendEmail(params: EmailParams) {
     let { from, to, cc, replyTo, subject, html, text, attachments, tags } = params;
 
     // Development/preview email override: redirect all emails to a single address
-    // Works in dev mode (NODE_ENV !== 'production') or preview deployments (IS_PREVIEW=true)
     const isDev = process.env.NODE_ENV !== 'production';
-    const isPreview = process.env.IS_PREVIEW === 'true';
+    const isPreview = env.DEPLOYMENT_ENV === 'preview';
     const devEmailOverride = env.DEV_EMAIL_OVERRIDE;
 
     if ((isDev || isPreview) && devEmailOverride) {
@@ -150,7 +149,7 @@ export async function sendEmailBatch(
     }
 
     const isDev = process.env.NODE_ENV !== 'production';
-    const isPreview = process.env.IS_PREVIEW === 'true';
+    const isPreview = env.DEPLOYMENT_ENV === 'preview';
     const devEmailOverride = env.DEV_EMAIL_OVERRIDE;
     const useOverride = (isDev || isPreview) && !!devEmailOverride;
 

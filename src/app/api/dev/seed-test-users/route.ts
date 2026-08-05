@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/db/prisma'
 import { TEST_USERS } from '@/lib/dev/test-users'
-import { DEV_TOOLS_ALLOWED } from '@/lib/utils'
+import { DEV_TOOLS_ALLOWED } from '@/lib/deployment'
 import { env } from '@/env.mjs'
 import { createUser } from '@/lib/db/users'
 

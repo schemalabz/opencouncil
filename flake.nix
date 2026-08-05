@@ -1726,7 +1726,7 @@ EOF
                 SuccessExitStatus = "143";
                 Environment = [
                   "NODE_ENV=production"
-                  "IS_PREVIEW=true"
+                  "DEPLOYMENT_ENV=preview"
                   "PORT=%i"
                   "HOSTNAME=0.0.0.0"
                 ];
