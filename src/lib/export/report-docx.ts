@@ -11,6 +11,7 @@ import {
     TableCell,
     WidthType,
     BorderStyle,
+    TableLayoutType,
 } from 'docx';
 import { Offer } from '@prisma/client';
 import { format } from 'date-fns';
@@ -90,17 +91,30 @@ function calculateReportPricing(offer: Offer, startDate: Date, endDate: Date, ac
     return { months, platformCost, ingestionCost, correctnessCost, equipmentRentalCost, physicalPresenceCost, subtotal, discount, total, totalWithVat };
 }
 
-function headerCell(text: string): TableCell {
+// Page geometry, in twips. Declared explicitly so the table column widths below
+// are known to add up to the text column: A4 minus one-inch margins.
+const PAGE_WIDTH = 11906;
+const PAGE_HEIGHT = 16838;
+const PAGE_MARGIN = 1440;
+const CONTENT_WIDTH = PAGE_WIDTH - 2 * PAGE_MARGIN;
+
+// Column widths per table, summing to CONTENT_WIDTH. Word autofits tables, but
+// Pages and Google Docs lay them out from the declared grid — without one the
+// library writes a 100-twip grid and the tables render collapsed there.
+const PRICING_COLUMNS = [2600, 4626, 1800];
+const MEETINGS_COLUMNS = [1500, 3026, 1500, 1200, 1800];
+
+function headerCell(text: string, width: number): TableCell {
     return new TableCell({
         children: [new Paragraph({ children: [new TextRun({ text, bold: true, size: 20 })] })],
-        width: { size: 100, type: WidthType.AUTO },
+        width: { size: width, type: WidthType.DXA },
     });
 }
 
-function cell(text: string): TableCell {
+function cell(text: string, width: number): TableCell {
     return new TableCell({
         children: [new Paragraph({ children: [new TextRun({ text, size: 20 })] })],
-        width: { size: 100, type: WidthType.AUTO },
+        width: { size: width, type: WidthType.DXA },
     });
 }
 
@@ -114,13 +128,13 @@ const TABLE_BORDERS = {
     insideVertical: THIN_BORDER,
 };
 
-function rightAlignedCell(text: string, bold = false): TableCell {
+function rightAlignedCell(text: string, width: number, bold = false): TableCell {
     return new TableCell({
         children: [new Paragraph({
             alignment: AlignmentType.RIGHT,
             children: [new TextRun({ text, size: 20, bold })],
         })],
-        width: { size: 100, type: WidthType.AUTO },
+        width: { size: width, type: WidthType.DXA },
     });
 }
 
@@ -140,12 +154,14 @@ interface PricingBreakdown {
 function createPricingTable(pricing: PricingBreakdown, offer: Offer, actualHours: number, meetingCount: number, operatorHours: number): Table {
     const rows: TableRow[] = [];
 
+    const [labelWidth, detailWidth, amountWidth] = PRICING_COLUMNS;
+
     const addRow = (label: string, detail: string, amount: number) => {
         rows.push(new TableRow({
             children: [
-                cell(label),
-                cell(detail),
-                rightAlignedCell(formatCurrency(amount)),
+                cell(label, labelWidth),
+                cell(detail, detailWidth),
+                rightAlignedCell(formatCurrency(amount), amountWidth),
             ],
         }));
     };
@@ -174,35 +190,35 @@ function createPricingTable(pricing: PricingBreakdown, offer: Offer, actualHours
     // Subtotal
     rows.push(new TableRow({
         children: [
-            headerCell('Μερικό σύνολο'),
-            headerCell(''),
-            rightAlignedCell(formatCurrency(pricing.subtotal), true),
+            headerCell('Μερικό σύνολο', labelWidth),
+            headerCell('', detailWidth),
+            rightAlignedCell(formatCurrency(pricing.subtotal), amountWidth, true),
         ],
     }));
 
     if (pricing.discount > 0) {
         rows.push(new TableRow({
             children: [
-                cell('Έκπτωση'),
-                cell(`${offer.discountPercentage}%`),
-                rightAlignedCell(`-${formatCurrency(pricing.discount)}`),
+                cell('Έκπτωση', labelWidth),
+                cell(`${offer.discountPercentage}%`, detailWidth),
+                rightAlignedCell(`-${formatCurrency(pricing.discount)}`, amountWidth),
             ],
         }));
     }
 
     rows.push(new TableRow({
         children: [
-            headerCell('Σύνολο (χωρίς ΦΠΑ)'),
-            headerCell(''),
-            rightAlignedCell(formatCurrency(pricing.total), true),
+            headerCell('Σύνολο (χωρίς ΦΠΑ)', labelWidth),
+            headerCell('', detailWidth),
+            rightAlignedCell(formatCurrency(pricing.total), amountWidth, true),
         ],
     }));
 
     rows.push(new TableRow({
         children: [
-            headerCell('Σύνολο (με ΦΠΑ 24%)'),
-            headerCell(''),
-            rightAlignedCell(formatCurrency(pricing.totalWithVat), true),
+            headerCell('Σύνολο (με ΦΠΑ 24%)', labelWidth),
+            headerCell('', detailWidth),
+            rightAlignedCell(formatCurrency(pricing.totalWithVat), amountWidth, true),
         ],
     }));
 
@@ -210,26 +226,30 @@ function createPricingTable(pricing: PricingBreakdown, offer: Offer, actualHours
         rows: [
             new TableRow({
                 children: [
-                    headerCell('Κατηγορία'),
-                    headerCell('Ανάλυση'),
-                    headerCell('Ποσό'),
+                    headerCell('Κατηγορία', labelWidth),
+                    headerCell('Ανάλυση', detailWidth),
+                    headerCell('Ποσό', amountWidth),
                 ],
             }),
             ...rows,
         ],
-        width: { size: 100, type: WidthType.PERCENTAGE },
+        width: { size: CONTENT_WIDTH, type: WidthType.DXA },
+        columnWidths: PRICING_COLUMNS,
+        layout: TableLayoutType.FIXED,
         borders: TABLE_BORDERS,
     });
 }
 
 function createMeetingsTable(meetings: ReportMeeting[], totalDurationMs: number): Table {
+    const [idWidth, nameWidth, dateWidth, durationWidth, operatorWidth] = MEETINGS_COLUMNS;
+
     const headerRow = new TableRow({
         children: [
-            headerCell('ID'),
-            headerCell('Όνομα'),
-            headerCell('Ημερομηνία'),
-            headerCell('Διάρκεια'),
-            headerCell('Χειριστής'),
+            headerCell('ID', idWidth),
+            headerCell('Όνομα', nameWidth),
+            headerCell('Ημερομηνία', dateWidth),
+            headerCell('Διάρκεια', durationWidth),
+            headerCell('Χειριστής', operatorWidth),
         ],
     });
 
@@ -237,28 +257,30 @@ function createMeetingsTable(meetings: ReportMeeting[], totalDurationMs: number)
         const durationText = m.durationMs ? formatTimestamp(m.durationMs / 1000) : '—';
         return new TableRow({
             children: [
-                cell(m.id),
-                cell(m.name),
-                cell(format(new Date(m.dateTime), 'd MMM yyyy', { locale: el })),
-                cell(durationText),
-                cell(m.operatorName || '—'),
+                cell(m.id, idWidth),
+                cell(m.name, nameWidth),
+                cell(format(new Date(m.dateTime), 'd MMM yyyy', { locale: el }), dateWidth),
+                cell(durationText, durationWidth),
+                cell(m.operatorName || '—', operatorWidth),
             ],
         });
     });
 
     const sumRow = new TableRow({
         children: [
-            headerCell(''),
-            headerCell(`Σύνολο (${meetings.length} συνεδριάσεις)`),
-            headerCell(''),
-            headerCell(totalDurationMs > 0 ? formatTimestamp(totalDurationMs / 1000) : '—'),
-            headerCell(''),
+            headerCell('', idWidth),
+            headerCell(`Σύνολο (${meetings.length} συνεδριάσεις)`, nameWidth),
+            headerCell('', dateWidth),
+            headerCell(totalDurationMs > 0 ? formatTimestamp(totalDurationMs / 1000) : '—', durationWidth),
+            headerCell('', operatorWidth),
         ],
     });
 
     return new Table({
         rows: [headerRow, ...rows, sumRow],
-        width: { size: 100, type: WidthType.PERCENTAGE },
+        width: { size: CONTENT_WIDTH, type: WidthType.DXA },
+        columnWidths: MEETINGS_COLUMNS,
+        layout: TableLayoutType.FIXED,
         borders: TABLE_BORDERS,
     });
 }
@@ -361,7 +383,12 @@ export async function renderReportDocx(data: ReportData): Promise<Blob> {
         description: `Report for ${city.name_municipality}`,
         title: `Αναφορά προόδου – ${city.name_municipality}`,
         sections: [{
-            properties: {},
+            properties: {
+                page: {
+                    size: { width: PAGE_WIDTH, height: PAGE_HEIGHT },
+                    margin: { top: PAGE_MARGIN, right: PAGE_MARGIN, bottom: PAGE_MARGIN, left: PAGE_MARGIN },
+                },
+            },
             children: [...page1, ...page2],
         }],
     });
