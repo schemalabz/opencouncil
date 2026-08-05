@@ -448,6 +448,20 @@ curl -X DELETE "$ELASTICSEARCH_URL/subjects_test" -H "Authorization: ApiKey ..."
 nix run .#cleanup
 ```
 
+## Staging
+
+Staging has **read-only search against the production `subjects` index** — there is no staging index and no staging sync pipeline. This works because the staging database is hydrated from production (`scripts/copy_db.sh`), so the production index approximately matches it.
+
+Configuration on the staging app:
+- `ELASTICSEARCH_URL`: the production Elastic Cloud endpoint
+- `ELASTICSEARCH_API_KEY`: a dedicated key restricted to `read` on `subjects` (staging structurally cannot mutate the index)
+- `ELASTICSEARCH_INDEX`: unset (defaults to `subjects`)
+- `DEPLOYMENT_ENV=staging`
+
+**Drift semantics:** hits whose subject no longer exists in the connected database are dropped from results (see `src/lib/search/hits.ts`). On production such orphans indicate a sync bug and trigger a Discord alert; on staging/preview they are expected (anything indexed after the last hydration) and only log a warning. Data edited on staging does not appear in staging search results.
+
+**What staging does NOT cover:** changes to the indexing pipeline itself (`schema.json`, `views.sql`) — use the local E2E workflow above. If rehearsing a full re-index against staging-scale data ever becomes necessary, the options are a one-shot PGSync bootstrap against the staging DB into a separate index (drop the replication slot afterwards!) or a server-side `_reindex` copy of the prod index.
+
 ## Search Examples
 
 ### 1. Simple Text Search

@@ -121,4 +121,4 @@ The app queues a task in the database and sends a request to the tasks server. T
 
 ## Known Limitations
 
-**Elasticsearch is production-only.** There is a single Elasticsearch index used by production. Staging, previews, and local development do not have search — search features will be hidden or return empty results.
+**Search runs against a single production Elasticsearch index.** Staging points at that same index read-only; since the staging database is hydrated from production, the index approximately matches it, and search drops hits that don't resolve against the database — so data edited on staging does not appear in staging search results. Previews and local development have no search. Setup, drift semantics, and what staging does not cover: [elasticsearch/README.md](../elasticsearch/README.md#staging).

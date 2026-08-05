@@ -106,6 +106,12 @@ Copy the output and set it as your `NEXTAUTH_SECRET` in your `.env` file.
 |----------|-------------|----------|---------|
 | `ELASTICSEARCH_URL` | Elasticsearch server URL. | Yes | - |
 | `ELASTICSEARCH_API_KEY` | Elasticsearch API key. | Yes | - |
+| `ELASTICSEARCH_INDEX` | Search index name. Override for the local E2E harness (`subjects_test`). | No | `subjects` |
+
+### Deployment
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `DEPLOYMENT_ENV` | Deployment target: `development`, `preview`, `staging`, or `production`. Set by the preview service (`preview`) and the staging app (`staging`); everywhere else it defaults from `NODE_ENV`. Gates dev tooling and orphaned-search-hit alerting. | No | from `NODE_ENV` |
 
 ### Storage (e.g., Digital Ocean Spaces)
 | Variable | Description | Required | Default |
