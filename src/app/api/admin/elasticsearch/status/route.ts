@@ -71,7 +71,7 @@ export async function GET() {
 
         // 2. Fetch recent indexed documents (all fields) to get true last sync time
         const recentDocsResponse = await client.search({
-            index: 'subjects',
+            index: env.ELASTICSEARCH_INDEX,
             size: 20,
             sort: [{ 'updated_at': { order: 'desc' } }]
         });
@@ -93,7 +93,7 @@ export async function GET() {
 
         // 2b. Fetch city aggregations (only released meetings to match PostgreSQL query)
         const esResponse = await client.search({
-            index: 'subjects',
+            index: env.ELASTICSEARCH_INDEX,
             size: 0,
             query: {
                 term: {
