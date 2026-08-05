@@ -15,7 +15,9 @@ import {
     mcpGetSubjectTranscript,
     mcpGetTranscript,
     mcpListCities,
+    mcpListHighlights,
     mcpListHotSubjects,
+    mcpSetHighlightShowcase,
     mcpListMeetings,
     mcpListPeople,
     mcpSearch,
@@ -318,6 +320,40 @@ export function registerOpenCouncilServer(server: McpServer) {
                     includeSpeakerOverlay: args.includeSpeakerOverlay,
                 })
             )
+    );
+
+    server.registerTool(
+        'list_highlights',
+        {
+            title: 'List highlights',
+            description:
+                'The highlights you can manage, newest first — your own, plus every highlight in ' +
+                'municipalities you administer. Use it to pick up work from a previous session ' +
+                'instead of needing an id you no longer have.',
+            inputSchema: z.object({
+                cityId: z.string().optional(),
+                meetingId: z.string().optional(),
+                limit: z.number().int().min(1).max(100).default(20),
+            }),
+        },
+        (args, ctx: ServerContext) => run(() => mcpListHighlights(identityFromContext(ctx), args))
+    );
+
+    server.registerTool(
+        'set_highlight_showcase',
+        {
+            title: 'Showcase a highlight',
+            description:
+                'Publish (or unpublish) a rendered highlight on the municipality\'s pages on ' +
+                'opencouncil.gr. Needs a rendered video and city-administrator rights. Ask the ' +
+                'user before publishing.',
+            inputSchema: z.object({
+                highlightId: z.string().min(1),
+                showcased: z.boolean().default(true).describe('false unpublishes it again'),
+            }),
+        },
+        (args, ctx: ServerContext) =>
+            run(() => mcpSetHighlightShowcase(identityFromContext(ctx), args.highlightId, args.showcased))
     );
 
     server.registerTool(

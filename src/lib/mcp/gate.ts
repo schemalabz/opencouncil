@@ -2,6 +2,7 @@ import prisma from '@/lib/db/prisma';
 import { NotFoundError } from '@/lib/api/errors';
 import { canUserEditCity } from '@/lib/db/highlights-core';
 import { isSuperIdentity, type McpIdentity } from './auth';
+import { currentRealm } from './realm-context';
 
 /**
  * Whether the identity may see a city's unreleased (draft) meetings: service
@@ -29,8 +30,11 @@ export async function requireVisibleMeeting(
     meetingId: string,
     identity: McpIdentity
 ): Promise<{ released: boolean }> {
-    const meeting = await prisma.councilMeeting.findUnique({
-        where: { cityId_id: { cityId, id: meetingId } },
+    const meeting = await prisma.councilMeeting.findFirst({
+        // Realm-scoped: a connector added on one domain must not reach another
+        // realm's councils. Covers meetings, subjects and transcripts, which
+        // all pass through here.
+        where: { cityId, id: meetingId, city: { realm: currentRealm() } },
         select: { released: true },
     });
 

@@ -1,7 +1,10 @@
 import { createMcpHandler, withMcpAuth } from 'mcp-handler';
+import { Realm } from '@prisma/client';
 import { registerOpenCouncilServer } from '@/lib/mcp/server';
 import { verifyMcpToken } from '@/lib/mcp/auth';
 import { MCP_INSTRUCTIONS } from '@/lib/mcp/instructions';
+import { mcpRealmStore, requestContext } from '@/lib/mcp/realm-context';
+import { getRealm } from '@/lib/realm.server';
 
 // The public entry points are opencouncil.gr/mcp and opencouncil.gr/mcp/{token}
 // (rewritten here by src/proxy.ts). /api/mcp works directly too — useful on
@@ -22,8 +25,20 @@ async function handler(
 ): Promise<Response> {
     const segments = (await params).token ?? [];
 
+    // An MCP URL belongs to one realm (opencouncil.gr / .fr / .rs). Resolve it
+    // here — the only place guaranteed to be in a request scope — and make it
+    // available to every tool below.
+    let realm: Realm = Realm.greece;
+    try {
+        realm = await getRealm();
+    } catch {
+        // not in a request scope (shouldn't happen in a route handler); keep the default
+    }
+    const context = requestContext(realm, req.headers.get('host'));
+    const withRealm = <T>(fn: () => Promise<T>) => mcpRealmStore.run(context, fn);
+
     if (segments.length === 0) {
-        return authedHandler(req);
+        return withRealm(() => authedHandler(req));
     }
 
     // /api/mcp/{token}: move the URL-embedded token into the Authorization
@@ -43,7 +58,7 @@ async function handler(
             // Node's fetch requires duplex for streamed request bodies
             duplex: 'half',
         } as RequestInit);
-        return authedHandler(request);
+        return withRealm(() => authedHandler(request));
     }
 
     return new Response('Not found', { status: 404 });

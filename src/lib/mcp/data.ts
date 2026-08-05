@@ -1,19 +1,17 @@
 import prisma from '@/lib/db/prisma';
 import { Prisma, DiscussionStatus } from '@prisma/client';
-import { env } from '@/env.mjs';
 import { search } from '@/lib/search';
 import { getCities, getCity } from '@/lib/db/cities';
 import { getCouncilMeetingsForCity } from '@/lib/db/meetings';
 import { getPeopleForCity, getPerson, type PersonWithRelations } from '@/lib/db/people';
 import { getPartiesForCity, getParty } from '@/lib/db/parties';
 import { getSubject, getDiscussionSecondsForSubjects, getHotSubjectsCached } from '@/lib/db/subject';
-import { getRealm } from '@/lib/realm.server';
-import { Realm } from '@prisma/client';
+import { currentBaseUrl, currentRealm } from './realm-context';
 import { getTranscript } from '@/lib/db/transcript';
-import { upsertHighlightCore, canActorManageHighlight } from '@/lib/db/highlights-core';
+import { upsertHighlightCore, canUserEditCity, canActorManageHighlight } from '@/lib/db/highlights-core';
 import { requestGenerateHighlightCore } from '@/lib/tasks/generateHighlight-core';
 import { sendErrorAdminAlert } from '@/lib/discord';
-import { NotFoundError, UnauthorizedError, BadRequestError } from '@/lib/api/errors';
+import { NotFoundError, UnauthorizedError, BadRequestError, ForbiddenError } from '@/lib/api/errors';
 import { canSeeUnreleased, requireVisibleMeeting } from './gate';
 import {
     renderOptionsFromRequestBody,
@@ -26,18 +24,21 @@ import { isSuperIdentity, type McpIdentity } from './auth';
 
 const AUTH_HINT = 'Authentication required: create a personal MCP URL at https://opencouncil.gr/mcp and reconnect with it to create highlights.';
 
-function baseUrl(): string {
-    return env.NEXTAUTH_URL.replace(/\/$/, '');
-}
-
+/**
+ * Absolute URLs on the origin this request arrived on — a connector added from
+ * opencouncil.fr must cite .fr links, never .gr ones.
+ */
 const urls = {
-    city: (cityId: string) => `${baseUrl()}/${cityId}`,
-    meeting: (cityId: string, meetingId: string) => `${baseUrl()}/${cityId}/${meetingId}`,
+    city: (cityId: string) => `${currentBaseUrl()}/${cityId}`,
+    meeting: (cityId: string, meetingId: string) => `${currentBaseUrl()}/${cityId}/${meetingId}`,
     subject: (cityId: string, meetingId: string, subjectId: string) =>
-        `${baseUrl()}/${cityId}/${meetingId}/subjects/${subjectId}`,
-    person: (cityId: string, personId: string) => `${baseUrl()}/${cityId}/people/${personId}`,
-    party: (cityId: string, partyId: string) => `${baseUrl()}/${cityId}/parties/${partyId}`,
-    highlights: (cityId: string, meetingId: string) => `${baseUrl()}/${cityId}/${meetingId}/highlights`,
+        `${currentBaseUrl()}/${cityId}/${meetingId}/subjects/${subjectId}`,
+    person: (cityId: string, personId: string) => `${currentBaseUrl()}/${cityId}/people/${personId}`,
+    party: (cityId: string, partyId: string) => `${currentBaseUrl()}/${cityId}/parties/${partyId}`,
+    highlights: (cityId: string, meetingId: string) => `${currentBaseUrl()}/${cityId}/${meetingId}/highlights`,
+    /** Deep-link to the moment something was said — the site's player seeks to ?t=. */
+    moment: (cityId: string, meetingId: string, seconds: number) =>
+        `${currentBaseUrl()}/${cityId}/${meetingId}?t=${Math.floor(seconds)}`,
 };
 
 /** Turn contribution markdown ("[text](REF:UTTERANCE:id)") into plain text. */
@@ -65,22 +66,10 @@ function mapRoles(person: PersonWithRelations) {
     }));
 }
 
-/**
- * The realm this request belongs to, from its Host header. Falls back to the
- * default rather than failing a read if the tool runs outside a request scope.
- */
-async function currentRealm(): Promise<Realm> {
-    try {
-        return await getRealm();
-    } catch {
-        return Realm.greece;
-    }
-}
-
 // --- Cities ---------------------------------------------------------------
 
 export async function mcpListCities() {
-    const cities = await getCities({});
+    const cities = await getCities({}, currentRealm());
     return {
         cities: cities.map(city => ({
             id: city.id,
@@ -99,7 +88,30 @@ export async function mcpListCities() {
     };
 }
 
+/**
+ * Reject municipalities outside this connector's realm, so no tool — including
+ * ones that take caller-supplied city ids — can reach across realms.
+ */
+async function assertCitiesInRealm(cityIds: string[]): Promise<void> {
+    if (cityIds.length === 0) return;
+
+    const inRealm = await prisma.city.findMany({
+        where: { id: { in: cityIds }, realm: currentRealm() },
+        select: { id: true },
+    });
+    const allowed = new Set(inRealm.map(city => city.id));
+    const unknown = cityIds.filter(id => !allowed.has(id));
+    if (unknown.length > 0) {
+        throw new NotFoundError(`Unknown municipality: ${unknown.join(', ')}. See list_cities.`);
+    }
+}
+
+async function requireRealmCity(cityId: string): Promise<void> {
+    return assertCitiesInRealm([cityId]);
+}
+
 export async function mcpGetCity(cityId: string) {
+    await requireRealmCity(cityId);
     const city = await getCity(cityId);
     if (!city) throw new NotFoundError('City not found');
 
@@ -129,6 +141,7 @@ export async function mcpGetCity(cityId: string) {
 // --- People & parties -----------------------------------------------------
 
 export async function mcpListPeople(cityId: string, activeOnly: boolean) {
+    await requireRealmCity(cityId);
     const people = await getPeopleForCity(cityId, activeOnly);
     return {
         people: people.map(person => ({
@@ -144,6 +157,7 @@ export async function mcpListPeople(cityId: string, activeOnly: boolean) {
 export async function mcpGetPerson(personId: string) {
     const person = await getPerson(personId);
     if (!person) throw new NotFoundError('Person not found');
+    await requireRealmCity(person.cityId);
 
     return {
         id: person.id,
@@ -159,6 +173,7 @@ export async function mcpGetPerson(personId: string) {
 export async function mcpGetParty(partyId: string) {
     const party = await getParty(partyId);
     if (!party) throw new NotFoundError('Party not found');
+    await requireRealmCity(party.cityId);
 
     return {
         id: party.id,
@@ -181,6 +196,7 @@ export async function mcpListMeetings(
     options: { page: number; pageSize: number; from?: string; to?: string; timeFilter?: 'upcoming' | 'past' },
     identity: McpIdentity
 ) {
+    await requireRealmCity(cityId);
     const meetings = await getCouncilMeetingsForCity(cityId, {
         includeUnreleased: await canSeeUnreleased(identity, cityId),
         page: options.page,
@@ -332,6 +348,8 @@ export async function mcpGetSubjectTranscript(subjectId: string, page: number, i
             startSec: utterance.startTimestamp,
             endSec: utterance.endTimestamp,
             text: utterance.text,
+            // Cite or preview the exact moment — the site's player seeks here.
+            url: urls.moment(subject.cityId, subject.councilMeetingId, utterance.startTimestamp),
         })),
         url: urls.subject(subject.cityId, subject.councilMeetingId, subject.id),
     };
@@ -351,13 +369,15 @@ export async function mcpGetTranscript(
 
     // Speaker filter: "everything this councillor said in this meeting", which
     // is otherwise unreachable — a long meeting runs to 100+ transcript pages.
+    // Scoped to the meeting's own municipality, so this can't confirm the
+    // existence of people in other cities (or realms).
     let speakerName: string | null = null;
     if (options.personId) {
-        const person = await prisma.person.findUnique({
-            where: { id: options.personId },
+        const person = await prisma.person.findFirst({
+            where: { id: options.personId, cityId },
             select: { name: true },
         });
-        if (!person) throw new NotFoundError('Person not found');
+        if (!person) throw new NotFoundError('Person not found in this municipality');
         speakerName = person.name;
     }
     const segments = options.personId
@@ -392,12 +412,14 @@ export async function mcpGetTranscript(
             summary: segment.summary?.text ?? null,
             topics: segment.topicLabels.map(label => label.topic.name),
             text: segment.utterances.map(u => u.text).join(' '),
+            url: urls.moment(cityId, meetingId, segment.startTimestamp),
             ...(options.includeUtteranceIds && {
                 utterances: segment.utterances.map(utterance => ({
                     utteranceId: utterance.id,
                     startSec: utterance.startTimestamp,
                     endSec: utterance.endTimestamp,
                     text: utterance.text,
+                    url: urls.moment(cityId, meetingId, utterance.startTimestamp),
                 })),
             }),
         })),
@@ -415,7 +437,7 @@ export async function mcpGetTranscript(
  */
 async function resolveTopicIds(labels: string[]): Promise<string[]> {
     const topics = await prisma.topic.findMany({
-        where: { deprecated: false },
+        where: { deprecated: false, realm: currentRealm() },
         select: { id: true, name: true, name_en: true },
     });
 
@@ -452,13 +474,11 @@ export async function mcpListHotSubjects(args: {
     topics?: string[];
     limit: number;
 }) {
-    const [realm, topicIds] = await Promise.all([
-        currentRealm(),
-        args.topics?.length ? resolveTopicIds(args.topics) : Promise.resolve(undefined),
-    ]);
+    const topicIds = args.topics?.length ? await resolveTopicIds(args.topics) : undefined;
+    await assertCitiesInRealm(args.cityIds ?? []);
 
     const rows = await getHotSubjectsCached(
-        realm,
+        currentRealm(),
         { daysBack: args.daysBack, cityIds: args.cityIds, topicIds },
         args.limit
     );
@@ -499,9 +519,17 @@ export async function mcpSearch(
 ) {
     const topicIds = args.topics?.length ? await resolveTopicIds(args.topics) : undefined;
 
+    // The index has no notion of realms, so the city filter is what keeps a
+    // connector inside its own: caller-supplied ids are checked, and an absent
+    // filter defaults to this realm's municipalities rather than all of them.
+    await assertCitiesInRealm(args.cityIds ?? []);
+    const cityIds = args.cityIds?.length
+        ? args.cityIds
+        : (await getCities({}, currentRealm())).map(city => city.id);
+
     const response = await search({
         query: args.query,
-        cityIds: args.cityIds,
+        cityIds,
         personIds: args.personIds,
         partyIds: args.partyIds,
         topicIds,
@@ -526,9 +554,9 @@ export async function mcpSearch(
     // ES total may count hidden hits on other pages too — omit it entirely
     // rather than report a number that leaks their existence, and flag the
     // stale index to admins.
-    const editorCityIds = await draftVisibleCityIds(identity, response.results.map(r => r.cityId));
+    const editable = await editableCities(identity);
     const visible = response.results.filter(
-        result => result.councilMeeting.released || editorCityIds.has(result.cityId)
+        result => result.councilMeeting.released || canReach(editable, result.cityId)
     );
     const removed = response.results.length - visible.length;
     if (removed > 0) {
@@ -561,21 +589,32 @@ export async function mcpSearch(
 }
 
 /**
- * Of the given cityIds, the ones whose drafts this identity may see: all of
- * them for service keys, the user's editable cities for personal tokens
- * (one query), none for anonymous callers.
+ * The municipalities whose non-public content this identity may reach —
+ * everything for service keys and superadmins, the administered ones for a
+ * personal token, none for anonymous callers. One query, shared by the search
+ * release filter and the highlight listing.
  */
-async function draftVisibleCityIds(identity: McpIdentity, cityIds: string[]): Promise<Set<string>> {
-    if (isSuperIdentity(identity)) return new Set(cityIds);
-    if (identity?.type !== 'user' || cityIds.length === 0) return new Set();
+type EditableCities = { all: boolean; cityIds: Set<string> };
+
+async function editableCities(identity: McpIdentity): Promise<EditableCities> {
+    if (isSuperIdentity(identity)) return { all: true, cityIds: new Set() };
+    if (identity?.type !== 'user') return { all: false, cityIds: new Set() };
 
     const user = await prisma.user.findUnique({
         where: { id: identity.userId },
         select: { isSuperAdmin: true, administers: { select: { cityId: true } } },
     });
-    if (!user) return new Set();
-    if (user.isSuperAdmin) return new Set(cityIds);
-    return new Set(user.administers.map(a => a.cityId).filter((id): id is string => !!id));
+    if (!user) return { all: false, cityIds: new Set() };
+    if (user.isSuperAdmin) return { all: true, cityIds: new Set() };
+
+    return {
+        all: false,
+        cityIds: new Set(user.administers.map(a => a.cityId).filter((id): id is string => !!id)),
+    };
+}
+
+function canReach(scope: EditableCities, cityId: string): boolean {
+    return scope.all || scope.cityIds.has(cityId);
 }
 
 // --- Fetch (OpenAI deep-research compatible) ------------------------------
@@ -668,6 +707,30 @@ export async function mcpCreateHighlight(
     // may see (city editors, service keys).
     await requireVisibleMeeting(args.cityId, args.meetingId, identity);
 
+    // Agents assemble utterance ids by hand, so a wrong one is routine. Say
+    // which ids are wrong instead of letting the insert fail opaquely.
+    const found = await prisma.utterance.findMany({
+        where: { id: { in: args.utteranceIds } },
+        select: { id: true, speakerSegment: { select: { cityId: true, meetingId: true } } },
+    });
+    const foundIds = new Set(found.map(utterance => utterance.id));
+    const unknown = args.utteranceIds.filter(id => !foundIds.has(id));
+    if (unknown.length > 0) {
+        throw new BadRequestError(
+            `Unknown utterance id(s): ${unknown.join(', ')}. Utterance ids come from get_subject_transcript, or get_transcript with includeUtteranceIds.`
+        );
+    }
+    const foreign = found.filter(
+        utterance =>
+            utterance.speakerSegment.cityId !== args.cityId ||
+            utterance.speakerSegment.meetingId !== args.meetingId
+    );
+    if (foreign.length > 0) {
+        throw new BadRequestError(
+            `Utterance(s) ${foreign.map(u => u.id).join(', ')} belong to a different meeting — a highlight can only span one meeting.`
+        );
+    }
+
     const highlight = await upsertHighlightCore(identity, {
         name: args.name,
         meetingId: args.meetingId,
@@ -683,6 +746,96 @@ export async function mcpCreateHighlight(
         video: { status: 'not_generated' as const },
         next: 'Render a shareable video with generate_highlight_video, then poll get_highlight until the video is ready.',
         url: urls.highlights(args.cityId, args.meetingId),
+    };
+}
+
+export async function mcpListHighlights(
+    identity: McpIdentity,
+    args: { cityId?: string; meetingId?: string; limit: number }
+) {
+    if (!identity) throw new UnauthorizedError(AUTH_HINT);
+    if (args.cityId) await requireRealmCity(args.cityId);
+
+    // Editors see their cities' highlights, everyone else only their own —
+    // the same rule canViewHighlight applies on the site.
+    const scope = await editableCities(identity);
+    const ownership: Prisma.HighlightWhereInput[] = [
+        ...(identity.type === 'user' ? [{ createdById: identity.userId }] : []),
+        ...(scope.cityIds.size > 0 ? [{ cityId: { in: [...scope.cityIds] } }] : []),
+    ];
+
+    const where: Prisma.HighlightWhereInput = {
+        meeting: { city: { realm: currentRealm() } },
+        ...(args.cityId && { cityId: args.cityId }),
+        ...(args.meetingId && { meetingId: args.meetingId }),
+        ...(scope.all ? {} : { OR: ownership }),
+    };
+
+    const highlights = await prisma.highlight.findMany({
+        where,
+        orderBy: { updatedAt: 'desc' },
+        take: args.limit,
+        select: {
+            id: true,
+            name: true,
+            cityId: true,
+            meetingId: true,
+            subjectId: true,
+            videoUrl: true,
+            muxPlaybackId: true,
+            isShowcased: true,
+            updatedAt: true,
+            _count: { select: { highlightedUtterances: true } },
+        },
+    });
+
+    return {
+        highlights: highlights.map(highlight => ({
+            id: highlight.id,
+            name: highlight.name,
+            cityId: highlight.cityId,
+            meetingId: highlight.meetingId,
+            subjectId: highlight.subjectId,
+            utteranceCount: highlight._count.highlightedUtterances,
+            hasVideo: Boolean(highlight.videoUrl),
+            showcased: highlight.isShowcased,
+            updatedAt: highlight.updatedAt.toISOString(),
+            url: urls.highlights(highlight.cityId, highlight.meetingId),
+        })),
+    };
+}
+
+/**
+ * Showcasing publishes a clip on the municipality's pages, so it takes
+ * city-editor rights rather than mere ownership — matching the website.
+ */
+export async function mcpSetHighlightShowcase(identity: McpIdentity, highlightId: string, showcased: boolean) {
+    if (!identity) throw new UnauthorizedError(AUTH_HINT);
+
+    const highlight = await prisma.highlight.findUnique({
+        where: { id: highlightId },
+        select: { cityId: true, meetingId: true, name: true, muxPlaybackId: true },
+    });
+    if (!highlight) throw new NotFoundError('Highlight not found');
+    await requireRealmCity(highlight.cityId);
+
+    const canEdit = identity.type === 'service' || (await canUserEditCity(identity.userId, highlight.cityId));
+    if (!canEdit) {
+        throw new ForbiddenError('Only city administrators can showcase highlights');
+    }
+    if (showcased && !highlight.muxPlaybackId) {
+        throw new BadRequestError(
+            'This highlight has no rendered video yet — run generate_highlight_video and wait for it to be ready.'
+        );
+    }
+
+    await prisma.highlight.update({ where: { id: highlightId }, data: { isShowcased: showcased } });
+
+    return {
+        id: highlightId,
+        name: highlight.name,
+        showcased,
+        url: urls.highlights(highlight.cityId, highlight.meetingId),
     };
 }
 
