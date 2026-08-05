@@ -339,15 +339,6 @@ async function extractMeetings(prisma: PrismaClient, pairs: { cityId: string; me
                 topicId: true,
                 // Don't include the full topic object
               }
-            },
-            // Include subject connections with minimal data
-            subjects: {
-              select: {
-                id: true,
-                subjectId: true,
-                summary: true,
-                // Don't include full subject object
-              }
             }
           }
         },
@@ -398,13 +389,6 @@ async function extractMeetings(prisma: PrismaClient, pairs: { cityId: string; me
             highlights: {
               select: {
                 id: true,
-              }
-            },
-            // Just include IDs for speakerSegments
-            speakerSegments: {
-              select: {
-                id: true,
-                speakerSegmentId: true,
               }
             },
             // Include speaker contributions for ES indexing

@@ -69,11 +69,6 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
                     where: { speakerSegmentId: { in: segmentIds } }
                 });
 
-                // Delete subject speaker segments
-                await tx.subjectSpeakerSegment.deleteMany({
-                    where: { speakerSegmentId: { in: segmentIds } }
-                });
-
                 // Delete speaker segments
                 await tx.speakerSegment.deleteMany({
                     where: { cityId: params.cityId }

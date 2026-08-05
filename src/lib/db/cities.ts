@@ -346,11 +346,6 @@ export async function getFullCity(
                 include: {
                     subjects: {
                         include: {
-                            speakerSegments: {
-                                include: {
-                                    speakerSegment: true
-                                }
-                            },
                             highlights: true,
                             location: true,
                             topic: true,

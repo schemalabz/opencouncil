@@ -916,27 +916,6 @@ async function seedSpeakerSegments(segments: any[], meeting: any) {
     track('Topic Labels', topicLabels.length)
   }
 
-  // Create subject connections for segments
-  const subjectConnections = segments
-    .filter(segment => segment.subjects && segment.subjects.length > 0)
-    .flatMap(segment =>
-      segment.subjects.map((subjectConnection: any) => ({
-        id: subjectConnection.id,
-        subjectId: subjectConnection.subjectId,
-        speakerSegmentId: segment.id,
-        summary: subjectConnection.summary,
-      }))
-    )
-
-  if (subjectConnections.length > 0) {
-    console.log(`Creating ${subjectConnections.length} subject connections...`)
-    await prisma.subjectSpeakerSegment.createMany({
-      data: subjectConnections,
-      skipDuplicates: true,
-    })
-    track('Subject Connections', subjectConnections.length)
-  }
-
   // Create all utterances and then their words
   // First collect all utterances from all segments
   // Spread all scalar fields from dump, exclude relation objects

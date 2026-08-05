@@ -1,6 +1,7 @@
 "use server";
 
 import { Client } from '@elastic/elasticsearch';
+import { Prisma } from '@prisma/client';
 import prisma from "@/lib/db/prisma";
 import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument, ExtractedFilters } from './types';
 import { buildSearchQuery } from './query';
@@ -30,6 +31,34 @@ const client = new Client({
 const logEssential = (message: string, data?: any) => {
     console.log(`[Search Analytics] ${message}`, data || '');
 };
+
+// Relations needed to turn a speaker segment into a detailed search result entry
+const subjectDiscussionSegmentInclude = {
+    meeting: {
+        include: {
+            city: true
+        }
+    },
+    speakerTag: {
+        include: {
+            person: {
+                include: {
+                    roles: {
+                        include: {
+                            party: true,
+                            city: true,
+                            administrativeBody: true
+                        }
+                    }
+                }
+            }
+        }
+    },
+    utterances: true,
+    summary: true
+} satisfies Prisma.SpeakerSegmentInclude;
+
+type SubjectDiscussionSegment = Prisma.SpeakerSegmentGetPayload<{ include: typeof subjectDiscussionSegmentInclude }>;
 
 export async function search(
     request: SearchRequest,
@@ -133,36 +162,6 @@ export async function search(
         const subjects = await prisma.subject.findMany({
             where: { id: { in: subjectIds } },
             include: {
-                speakerSegments: {
-                    include: {
-                        speakerSegment: {
-                            include: {
-                                meeting: {
-                                    include: {
-                                        city: true
-                                    }
-                                },
-                                speakerTag: {
-                                    include: {
-                                        person: {
-                                            include: {
-                                                roles: {
-                                                    include: {
-                                                        party: true,
-                                                        city: true,
-                                                        administrativeBody: true
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                },
-                                utterances: true,
-                                summary: true
-                            }
-                        }
-                    }
-                },
                 location: true,
                 topic: true,
                 councilMeeting: {
@@ -210,6 +209,35 @@ export async function search(
         // Create a map of subjects by ID for efficient lookup
         const subjectMap = new Map(subjects.map(subject => [subject.id, subject]));
 
+        // For detailed results, fetch the speaker segments discussing each subject
+        // (segments whose utterances are tagged with the subject via discussionSubjectId)
+        const segmentsBySubject = new Map<string, SubjectDiscussionSegment[]>();
+        if (request.config?.detailed && subjectIds.length > 0) {
+            const subjectIdSet = new Set(subjectIds);
+            const segments = await prisma.speakerSegment.findMany({
+                where: {
+                    utterances: { some: { discussionSubjectId: { in: subjectIds } } }
+                },
+                include: subjectDiscussionSegmentInclude,
+                orderBy: { startTimestamp: 'asc' }
+            });
+            for (const segment of segments) {
+                const discussedSubjectIds = new Set(
+                    segment.utterances
+                        .map(u => u.discussionSubjectId)
+                        .filter((id): id is string => id !== null && subjectIdSet.has(id))
+                );
+                for (const discussedSubjectId of discussedSubjectIds) {
+                    const list = segmentsBySubject.get(discussedSubjectId);
+                    if (list) {
+                        list.push(segment);
+                    } else {
+                        segmentsBySubject.set(discussedSubjectId, [segment]);
+                    }
+                }
+            }
+        }
+
         // Get all location IDs for coordinates query
         const locationIds = subjects
             .map(subject => subject.location?.id)
@@ -256,17 +284,11 @@ export async function search(
                     }
                 }
 
-                // Process inner hits for speaker segments
-                const matchedSpeakerSegmentIds = hit.inner_hits?.['speaker_segments']?.hits?.hits
-                    .map((innerHit: { _source?: { segment_id?: string } }) => innerHit._source?.segment_id)
-                    .filter((id: string | undefined): id is string => id !== undefined);
-
                 // Base result with common fields
                 const baseResult: SearchResultLight = {
                     ...subject,
                     location: locationWithCoordinates,
                     score: hit._score || 0,
-                    matchedSpeakerSegmentIds,
                     councilMeeting: subject.councilMeeting,
                     votes: [],
                     attendance: []
@@ -274,8 +296,7 @@ export async function search(
 
                 // If detailed results are requested, add speaker segment text
                 if (request.config?.detailed) {
-                    const speakerSegments = subject.speakerSegments
-                        .map(ss => ss.speakerSegment)
+                    const speakerSegments = (segmentsBySubject.get(subject.id) ?? [])
                         .filter(segment => {
                             const text = segment.utterances.map(u => u.text).join(' ');
                             const hasPerson = segment.speakerTag?.person != null;

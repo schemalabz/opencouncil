@@ -26,7 +26,6 @@ interface ExtractedSubject {
     description: string;
     topic?: string;
     context?: string;
-    keySegments: ExtractedSegment[];
     speakerSegments: ExtractedSegment[];
 }
 
@@ -43,7 +42,6 @@ const searchConfig: SearchConfig = {
 const CONTEXT_CONFIG = {
     maxMessages: 10,
     maxTokens: 10000,
-    useAllSegments: true,
 };
 
 // AI Configuration
@@ -72,27 +70,17 @@ function extractRelevantContent(searchResults: SearchResultDetailed[]): Extracte
     logDev(`[Content Extraction] Processing ${searchResults.length} search results`);
     
     const extracted = searchResults.map(result => {
-        // Get matched segments from the detailed results
-        const matchedSegments = (result.speakerSegments as SegmentWithRelations[])
-            .filter(segment => result.matchedSpeakerSegmentIds?.includes(segment.id));
-            
         logDev(`[Content Extraction] Subject "${result.name}":`, {
             score: result.score,
             totalSegments: result.speakerSegments.length,
-            matchedSegments: matchedSegments.length,
             hasContext: result.context ? 'Yes' : 'No'
         });
-        
+
         return {
             name: result.name,
             description: result.description,
             topic: result.topic?.name,
             context: result.context,
-            keySegments: matchedSegments.map(segment => ({
-                speaker: segment.person?.name || 'Unknown',
-                text: segment.text,
-                person: segment.person
-            })),
             speakerSegments: (result.speakerSegments as SegmentWithRelations[]).map(segment => ({
                 speaker: segment.person?.name || 'Unknown',
                 text: segment.text,
@@ -101,7 +89,7 @@ function extractRelevantContent(searchResults: SearchResultDetailed[]): Extracte
         };
     });
 
-    logDev(`[Content Extraction] Total segments extracted: ${extracted.reduce((acc, curr) => acc + curr.keySegments.length, 0)}`);
+    logDev(`[Content Extraction] Total segments extracted: ${extracted.reduce((acc, curr) => acc + curr.speakerSegments.length, 0)}`);
     return extracted;
 }
 
@@ -190,7 +178,7 @@ ${Object.entries(peopleByParty)
  * Περιγραφή: Προτάσεις για αναβάθμιση των δημοτικών πάρκων
  * 
  * Αποσπάσματα ομιλιών:
- * 🔹 Γιώργος Παπαδάκης (Νέα Δημοκρατία): "Πρότεινα την αναβάθμιση του κεντρικού πάρκου..."
+ * • Γιώργος Παπαδάκης (Νέα Δημοκρατία): "Πρότεινα την αναβάθμιση του κεντρικού πάρκου..."
  * • Μαρία Κουτσογιάννη (Νέα Δημοκρατία): "Συμφωνώ με την πρόταση..."
  * 
  * ----------------------------------------
@@ -200,7 +188,6 @@ async function enhancePrompt(messages: ChatMessage[], context: ReturnType<typeof
     logDev(`[Prompt Enhancement] Enhancing prompt with:`, {
         messages: messages.length,
         contextSubjects: context.length,
-        useAllSegments: CONTEXT_CONFIG.useAllSegments,
         cityId
     });
     
@@ -221,10 +208,9 @@ ${cityContext}
 ${context.map((subject, index) => {
     logDev(`[Prompt Enhancement] Processing subject ${index + 1}:`, {
         totalSegments: subject.speakerSegments.length,
-        keySegments: subject.keySegments.length,
         hasContext: subject.context ? 'Yes' : 'No'
     });
-    
+
     return `
 ----------------------------------------
 [${index + 1}] Θέμα: ${subject.name}
@@ -233,19 +219,10 @@ ${subject.topic ? `Κατηγορία: ${subject.topic}` : ''}
 ${subject.context ? `\nΠρόσθετο περιεχόμενο για το θέμα: ${cleanContextReferences(subject.context)}` : ''}
 
 Αποσπάσματα ομιλιών:
-${CONTEXT_CONFIG.useAllSegments 
-    ? subject.speakerSegments.map(segment => {
-        const isKeySegment = subject.keySegments.some(keySeg => keySeg.text === segment.text);
-        const prefix = isKeySegment && CONTEXT_CONFIG.useAllSegments ? '🔹 ' : '• ';
-        return `${prefix}${segment.speaker}: "${segment.text}"`;
-    }).join('\n')
-    : subject.keySegments.map(segment => {
-        return `• ${segment.speaker}: "${segment.text}"`;
-    }).join('\n')
-}
-----------------------------------------`}).join('\n\n')}
-
-${CONTEXT_CONFIG.useAllSegments ? 'Σημείωση: Τα αποσπάσματα με 🔹 είναι τα πιο σχετικά με την ερώτησή σας.' : ''}`;
+${subject.speakerSegments.map(segment => {
+    return `• ${segment.speaker}: "${segment.text}"`;
+}).join('\n')}
+----------------------------------------`}).join('\n\n')}`;
 
     // Log approximate token count
     const approximateTokens = systemPrompt.split(/\s+/).length;
@@ -350,7 +327,6 @@ export async function POST(req: NextRequest) {
                         ...subject,
                         score: 1.0,
                         speakerSegments: mockSegments,
-                        matchedSpeakerSegmentIds: mockSegments.map(s => s.id),
                         context: subject.context || null,
                         highlights: [],
                         location: null,
