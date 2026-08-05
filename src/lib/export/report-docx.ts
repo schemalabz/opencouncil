@@ -49,7 +49,16 @@ function getOfferPhysicalPresenceHours(offer: Offer): number {
     return offer.physicalPresenceHours ?? 0;
 }
 
-function calculateReportPricing(offer: Offer, startDate: Date, endDate: Date, actualHoursProcessed: number, meetingCount: number) {
+/** Hours of meetings that had an operator present — what physical presence is billed on. */
+function calculateOperatorHours(meetings: ReportMeeting[]): number {
+    const operatorMs = meetings.reduce(
+        (sum, m) => sum + (m.operatorName ? (m.durationMs || 0) : 0),
+        0
+    );
+    return operatorMs / (1000 * 60 * 60);
+}
+
+function calculateReportPricing(offer: Offer, startDate: Date, endDate: Date, actualHoursProcessed: number, meetingCount: number, operatorHours: number) {
     const months = monthsBetween(startDate, endDate);
 
     const platformCost = offer.platformPrice * months;
@@ -67,10 +76,11 @@ function calculateReportPricing(offer: Offer, startDate: Date, endDate: Date, ac
 
     const equipmentRentalCost = getOfferEquipmentRentalPrice(offer) * months;
 
-    // Physical presence: prorate by period/contract ratio
-    const contractMonths = monthsBetween(offer.startDate, offer.endDate);
-    const periodRatio = contractMonths > 0 ? months / contractMonths : 1;
-    const physicalPresenceCost = getOfferPhysicalPresenceHours(offer) * PHYSICAL_PRESENCE.pricePerHour * periodRatio;
+    // Physical presence: billed on the hours actually covered by an operator,
+    // for contracts that include physical presence.
+    const physicalPresenceCost = getOfferPhysicalPresenceHours(offer) > 0
+        ? operatorHours * PHYSICAL_PRESENCE.pricePerHour
+        : 0;
 
     const subtotal = platformCost + ingestionCost + correctnessCost + equipmentRentalCost + physicalPresenceCost;
     const discount = subtotal * (offer.discountPercentage / 100);
@@ -127,7 +137,7 @@ interface PricingBreakdown {
     totalWithVat: number;
 }
 
-function createPricingTable(pricing: PricingBreakdown, offer: Offer, actualHours: number, meetingCount: number): Table {
+function createPricingTable(pricing: PricingBreakdown, offer: Offer, actualHours: number, meetingCount: number, operatorHours: number): Table {
     const rows: TableRow[] = [];
 
     const addRow = (label: string, detail: string, amount: number) => {
@@ -158,7 +168,7 @@ function createPricingTable(pricing: PricingBreakdown, offer: Offer, actualHours
     }
 
     if (pricing.physicalPresenceCost > 0) {
-        addRow('Φυσική παρουσία', `${formatCurrency(PHYSICAL_PRESENCE.pricePerHour)}/ώρα (αναλογία περιόδου)`, pricing.physicalPresenceCost);
+        addRow('Φυσική παρουσία', `${formatCurrency(PHYSICAL_PRESENCE.pricePerHour)}/ώρα × ${roundToOneDecimal(operatorHours)} ώρες με χειριστή`, pricing.physicalPresenceCost);
     }
 
     // Subtotal
@@ -260,7 +270,8 @@ export async function renderReportDocx(data: ReportData): Promise<Blob> {
     const totalHours = totalDurationMs / (1000 * 60 * 60);
     const totalHoursRounded = roundToOneDecimal(totalHours);
 
-    const pricing = calculateReportPricing(offer, startDate, endDate, totalHours, meetings.length);
+    const operatorHours = calculateOperatorHours(meetings);
+    const pricing = calculateReportPricing(offer, startDate, endDate, totalHours, meetings.length, operatorHours);
 
     const reportDate = format(new Date(), 'd MMMM yyyy', { locale: el });
     const periodStart = format(new Date(startDate), 'd MMMM yyyy', { locale: el });
@@ -290,7 +301,7 @@ export async function renderReportDocx(data: ReportData): Promise<Blob> {
             spacing: { before: 360, after: 240 },
             children: [new TextRun({ text: 'Ανάλυση κόστους', size: 28, bold: true })],
         }),
-        createPricingTable(pricing, offer, totalHours, meetings.length),
+        createPricingTable(pricing, offer, totalHours, meetings.length, operatorHours),
         new Paragraph({
             heading: HeadingLevel.HEADING_2,
             spacing: { before: 480, after: 240 },

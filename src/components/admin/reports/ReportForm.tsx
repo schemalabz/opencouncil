@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { startOfMonth, subMonths, endOfMonth, format } from 'date-fns';
+import { startOfMonth, subMonths, endOfMonth, addMonths, subDays, isSameDay, format } from 'date-fns';
 import { monthsBetween } from '@/lib/utils';
 import { Loader2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -30,17 +30,47 @@ const formSchema = z.object({
     contractReference: z.string().min(1, 'Απαιτείται αριθμός σύμβασης'),
 });
 
+/** The offer a report is about: its coverage period and ΑΔΑΜ (ISO date strings). */
+export interface ReportContract {
+    startDate: string;
+    endDate: string;
+    adam: string | null;
+}
+
 interface ReportFormProps {
     cities: Array<{ id: string; name: string; name_municipality: string }>;
-    /** Map of cityId → most recent offer startDate (ISO string) */
-    offerStartDates: Record<string, string>;
+    /** Map of cityId → the contract the report is about */
+    contracts: Record<string, ReportContract>;
 }
 
 function getEndOfLastMonth(): Date {
     return endOfMonth(subMonths(startOfMonth(new Date()), 1));
 }
 
-export function ReportForm({ cities, offerStartDates }: ReportFormProps) {
+type HalfYear = { label: string; from: Date; to: Date };
+
+/**
+ * The contract's period split into six-month chunks. Contracts are usually a
+ * year (two halves) but not always — the last chunk is clipped to the
+ * contract's end date, so a 9-month contract yields a full and a 3-month one.
+ */
+function getHalfYears(contract: ReportContract): HalfYear[] {
+    const start = new Date(contract.startDate);
+    const end = new Date(contract.endDate);
+    const halves: HalfYear[] = [];
+
+    for (let i = 0; i < 20; i++) {
+        const from = addMonths(start, i * 6);
+        if (from > end) break;
+        const nextStart = addMonths(start, (i + 1) * 6);
+        const to = nextStart > end ? end : subDays(nextStart, 1);
+        halves.push({ label: `${i + 1}ο εξάμηνο`, from, to });
+    }
+
+    return halves;
+}
+
+export function ReportForm({ cities, contracts }: ReportFormProps) {
     const [isGenerating, setIsGenerating] = useState(false);
     const { toast } = useToast();
 
@@ -52,15 +82,20 @@ export function ReportForm({ cities, offerStartDates }: ReportFormProps) {
         },
     });
 
+    const selectedCityId = form.watch('cityId');
+    const selectedContract = contracts[selectedCityId];
+    const halfYears = selectedContract ? getHalfYears(selectedContract) : [];
+
     function handleCityChange(cityId: string, fieldOnChange: (value: string) => void) {
         fieldOnChange(cityId);
-        const offerStart = offerStartDates[cityId];
-        if (offerStart) {
+        const contract = contracts[cityId];
+        if (contract) {
             form.setValue('dateRange', {
-                from: new Date(offerStart),
+                from: new Date(contract.startDate),
                 to: getEndOfLastMonth(),
             });
         }
+        form.setValue('contractReference', contract?.adam ?? '');
     }
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -166,6 +201,29 @@ export function ReportForm({ cities, offerStartDates }: ReportFormProps) {
                                         }}
                                     />
                                 </FormControl>
+                                {halfYears.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 pt-1">
+                                        {halfYears.map(half => {
+                                            const isSelected = !!field.value?.from && !!field.value?.to
+                                                && isSameDay(field.value.from, half.from)
+                                                && isSameDay(field.value.to, half.to);
+                                            return (
+                                                <Button
+                                                    key={half.label}
+                                                    type="button"
+                                                    variant={isSelected ? 'default' : 'outline'}
+                                                    size="sm"
+                                                    onClick={() => field.onChange({ from: half.from, to: half.to })}
+                                                >
+                                                    {half.label}
+                                                    <span className="ml-2 text-xs opacity-70">
+                                                        {format(half.from, 'dd/MM/yy')} – {format(half.to, 'dd/MM/yy')}
+                                                    </span>
+                                                </Button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                                 {field.value?.from && field.value?.to && (
                                     <p className="text-xs text-muted-foreground">
                                         {monthsBetween(field.value.from, field.value.to)} μήνες
