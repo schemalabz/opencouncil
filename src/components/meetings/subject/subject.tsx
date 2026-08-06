@@ -1,5 +1,5 @@
 "use client";
-import Map from "@/components/map/map";
+import Map from "@/components/map/DynamicMap";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { useVideo } from "../VideoProvider";
 import { Button } from "@/components/ui/button";

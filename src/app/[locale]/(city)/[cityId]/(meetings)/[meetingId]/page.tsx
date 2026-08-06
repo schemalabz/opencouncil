@@ -1,5 +1,5 @@
 "use client"
-import MapView from "@/components/map/map";
+import MapView from "@/components/map/DynamicMap";
 import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataContext";
 import { SubjectSection } from "@/components/meetings/subject-section";
 import { TopicFilter } from "@/components/TopicFilter";

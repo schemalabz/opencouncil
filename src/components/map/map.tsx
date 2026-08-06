@@ -1,7 +1,7 @@
 "use client"
 import { useRef, useEffect, useCallback, useMemo, memo, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
-import MapboxDraw from '@mapbox/mapbox-gl-draw'
+import type MapboxDraw from '@mapbox/mapbox-gl-draw'
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { useTranslations } from 'next-intl'
@@ -29,10 +29,10 @@ export interface MapFeature {
     }
 }
 
-/** Default OpenCouncil base style. */
-export const DEFAULT_MAP_STYLE = 'mapbox://styles/christosporios/cm4icyrf700f201qw75bv27fa';
-/** Mapbox satellite imagery with roads/labels — used by the landing's basemap toggle. */
-export const SATELLITE_MAP_STYLE = 'mapbox://styles/mapbox/satellite-streets-v12';
+// Style constants live in ./constants so light consumers don't pull mapbox-gl;
+// re-exported here for backward compatibility.
+import { DEFAULT_MAP_STYLE } from './constants';
+export { DEFAULT_MAP_STYLE, SATELLITE_MAP_STYLE } from './constants';
 
 interface MapProps {
     className?: string
@@ -98,6 +98,9 @@ const Map = memo(function Map({
     const isInitialized = useRef(false)
     const [mapReady, setMapReady] = useState(false)
     const draw = useRef<MapboxDraw | null>(null)
+    // Flipped after the lazily-imported Draw control is created, so effects
+    // that need draw.current re-run once it becomes available.
+    const [drawReady, setDrawReady] = useState(false)
     const hoverTimeout = useRef<NodeJS.Timeout | null>(null)
     const currentHoveredFeature = useRef<string | null>(null)
 
@@ -385,7 +388,7 @@ const Map = memo(function Map({
                 }
             }
         }
-    }, [selectedGeometryForEdit, features]);
+    }, [selectedGeometryForEdit, features, drawReady]);
 
     // Initialize map only once
     useEffect(() => {
@@ -892,14 +895,31 @@ const Map = memo(function Map({
         }
     }, [showPois, mapReady]);
 
-    // Handle Mapbox GL Draw setup for editing mode
+    // Handle Mapbox GL Draw setup for editing mode. The draw library (~200KB)
+    // is loaded lazily on first entry into editing mode, so plain map viewers
+    // never download it.
     useEffect(() => {
         if (!map.current || !isInitialized.current) return;
 
         if (editingMode && selectedGeometryForEdit) {
+            let cancelled = false;
+
+            const setupDraw = async () => {
             // Initialize Mapbox GL Draw if not already done
             if (!draw.current) {
-                draw.current = new MapboxDraw({
+                let MapboxDrawCtor: typeof MapboxDraw;
+                try {
+                    MapboxDrawCtor = (await import('@mapbox/mapbox-gl-draw')).default;
+                } catch (error) {
+                    // Chunk failed to load (offline / deploy skew). Leave draw
+                    // unset — the effect retries on the next dep change.
+                    console.error('Failed to load mapbox-gl-draw:', error);
+                    return;
+                }
+                // Bail if the effect was cleaned up (unmount, mode toggle,
+                // Strict Mode double-invoke) while the chunk was loading.
+                if (cancelled || !map.current || draw.current) return;
+                draw.current = new MapboxDrawCtor({
                     displayControlsDefault: false,
                     controls: {},
                     styles: [
@@ -972,7 +992,12 @@ const Map = memo(function Map({
                 });
 
                 map.current.addControl(draw.current, 'top-left');
+                setDrawReady(true);
             }
+
+            // A cleanup (mode exit / unmount) may have run while awaiting the
+            // chunk — don't re-attach listeners on a torn-down effect.
+            if (cancelled) return;
 
             // IMPORTANT: Always refresh event listeners when selectedGeometryForEdit changes
             // This ensures the handlers capture the latest geometry ID
@@ -996,6 +1021,10 @@ const Map = memo(function Map({
                     draw.current.changeMode('draw_polygon');
                 }
             }
+            };
+            setupDraw();
+
+            return () => { cancelled = true; };
         } else {
             // Remove drawing control when exiting editing mode
             if (draw.current && map.current) {
@@ -1003,6 +1032,7 @@ const Map = memo(function Map({
                 map.current.off('draw.create', handleDrawCreate);
                 map.current.off('draw.update', handleDrawUpdate);
                 draw.current = null;
+                setDrawReady(false);
             }
         }
     }, [editingMode, drawingMode, selectedGeometryForEdit, handleDrawCreate, handleDrawUpdate]);
