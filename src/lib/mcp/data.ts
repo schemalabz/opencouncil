@@ -10,7 +10,6 @@ import { currentBaseUrl, currentRealm } from './realm-context';
 import { getTranscript } from '@/lib/db/transcript';
 import { upsertHighlightCore, canUserEditCity, canActorManageHighlight } from '@/lib/db/highlights-core';
 import { requestGenerateHighlightCore } from '@/lib/tasks/generateHighlight-core';
-import { sendErrorAdminAlert } from '@/lib/discord';
 import { NotFoundError, UnauthorizedError, BadRequestError, ForbiddenError } from '@/lib/api/errors';
 import { canSeeUnreleased, requireVisibleMeeting } from './gate';
 import {
@@ -547,29 +546,12 @@ export async function mcpSearch(
         },
     });
 
-    // Defense in depth: the ES query already filters on meeting_released, so
-    // an unreleased hit can only appear if the index is stale (a meeting was
-    // unreleased after indexing). The DB is the source of truth: drop such
-    // hits for callers who may not see drafts. When anything was dropped, the
-    // ES total may count hidden hits on other pages too — omit it entirely
-    // rather than report a number that leaks their existence, and flag the
-    // stale index to admins.
-    const editable = await editableCities(identity);
-    const visible = response.results.filter(
-        result => result.councilMeeting.released || canReach(editable, result.cityId)
-    );
-    const removed = response.results.length - visible.length;
-    if (removed > 0) {
-        console.warn(`[MCP] search returned ${removed} unreleased subject(s) — the ES index is stale`);
-        sendErrorAdminAlert({
-            source: 'MCP search',
-            error: `ES index returned ${removed} unreleased subject(s); reindex needed`,
-            context: { query: args.query ?? '(filter-only)' },
-        }).catch(() => {});
-    }
-
+    // Stale-index hits (unreleased/deleted after indexing) are dropped inside
+    // search() at the DB-hydration boundary, which also alerts admins. When
+    // anything was dropped, the total may still count hidden hits on other
+    // pages — omit it rather than report a number that leaks their existence.
     return {
-        results: visible.map(result => ({
+        results: response.results.map(result => ({
             id: result.id,
             title: result.name,
             snippet: truncate(result.description, 300),
@@ -581,7 +563,7 @@ export async function mcpSearch(
             score: result.score,
             url: urls.subject(result.cityId, result.councilMeetingId, result.id),
         })),
-        ...(removed === 0
+        ...(response.dropped === 0
             ? { total: response.total }
             : { note: 'Some results on this page were unavailable; the total count is unknown.' }),
         page: args.page,
@@ -611,10 +593,6 @@ async function editableCities(identity: McpIdentity): Promise<EditableCities> {
         all: false,
         cityIds: new Set(user.administers.map(a => a.cityId).filter((id): id is string => !!id)),
     };
-}
-
-function canReach(scope: EditableCities, cityId: string): boolean {
-    return scope.all || scope.cityIds.has(cityId);
 }
 
 // --- Fetch (OpenAI deep-research compatible) ------------------------------

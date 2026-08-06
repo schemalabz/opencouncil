@@ -59,6 +59,26 @@ describe('partitionHits', () => {
         expect(orphanedIds).toEqual([]);
         expect(droppedWithoutSource).toBe(0);
     });
+
+    it('drops resolved hits the visibility predicate rejects (stale unreleased)', () => {
+        const subjectMap = new Map([
+            ['a', { name: 'A', released: true }],
+            ['b', { name: 'B', released: false }],
+        ]);
+        const { resolved, unreleasedIds, orphanedIds } = partitionHits(
+            [hit('a'), hit('b')], subjectMap, subject => subject.released,
+        );
+        expect(resolved.map(r => r.subject.name)).toEqual(['A']);
+        expect(unreleasedIds).toEqual(['b']);
+        expect(orphanedIds).toEqual([]);
+    });
+
+    it('keeps everything when no visibility predicate is given', () => {
+        const subjectMap = new Map([['b', { name: 'B', released: false }]]);
+        const { resolved, unreleasedIds } = partitionHits([hit('b')], subjectMap);
+        expect(resolved).toHaveLength(1);
+        expect(unreleasedIds).toEqual([]);
+    });
 });
 
 describe('reportOrphanedHits', () => {
@@ -99,6 +119,22 @@ describe('reportOrphanedHits', () => {
 
         await reportOrphanedHits({ orphanedIds: [], droppedWithoutSource: 5, query: 'q2', index: 'subjects' });
         expect(alert).toHaveBeenCalledTimes(1);
+    });
+
+    it('alerts for stale unreleased hits, deduped separately from orphans', async () => {
+        const { reportOrphanedHits, alert } = load('production');
+        await reportOrphanedHits({ orphanedIds: [], unreleasedIds: ['u1'], query: 'q', index: 'subjects' });
+        expect(alert).toHaveBeenCalledTimes(1);
+        expect(alert.mock.calls[0][0].error).toContain('stale unreleased');
+        expect(alert.mock.calls[0][0].context?.unreleasedSubjectIds).toBe('u1');
+
+        // The same id repeated does not re-alert…
+        await reportOrphanedHits({ orphanedIds: [], unreleasedIds: ['u1'], query: 'q2', index: 'subjects' });
+        expect(alert).toHaveBeenCalledTimes(1);
+
+        // …but the same id later showing up as an orphan (subject deleted) does.
+        await reportOrphanedHits({ orphanedIds: ['u1'], query: 'q3', index: 'subjects' });
+        expect(alert).toHaveBeenCalledTimes(2);
     });
 
     it('only warns (no Discord) outside production', async () => {

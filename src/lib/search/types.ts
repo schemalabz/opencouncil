@@ -58,7 +58,14 @@ export type SearchResultDetailed = SearchResultLight & {
 // Search response type
 export type SearchResponse = {
     results: SearchResultLight[] | SearchResultDetailed[];
+    /** ES total minus this page's drops — approximate while the index is stale
+     *  (other pages may hold more drops). See `dropped`. */
     total: number;
+    /** Hits ES returned for this page that hydration dropped (orphaned, stale
+     *  unreleased, or source-less). When > 0, `total` may still count hidden
+     *  matches on other pages — callers that must not leak the existence of
+     *  non-public content should omit the total instead of reporting it. */
+    dropped: number;
 };
 
 // Extracted filters from query
