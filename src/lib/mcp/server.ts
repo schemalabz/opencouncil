@@ -69,8 +69,8 @@ export function registerOpenCouncilServer(server: McpServer) {
                 partyIds: z.array(z.string()).optional().describe('Restrict to subjects a party spoke about'),
                 topics: z.array(z.string()).optional()
                     .describe('Restrict to these topic labels, as returned in results (e.g. "Παιδεία", "Συγκοινωνίες"). An unknown label answers with the full list'),
-                dateFrom: z.string().optional().describe('ISO date, inclusive'),
-                dateTo: z.string().optional().describe('ISO date, inclusive'),
+                dateFrom: z.iso.date().optional().describe('ISO date (YYYY-MM-DD), inclusive'),
+                dateTo: z.iso.date().optional().describe('ISO date (YYYY-MM-DD), inclusive'),
                 pageSize: z.number().int().min(1).max(20).default(10),
                 ...paginationShape,
             }),
@@ -173,8 +173,8 @@ export function registerOpenCouncilServer(server: McpServer) {
             description: 'List a municipality\'s council meetings, newest first (or soonest first for upcoming).',
             inputSchema: z.object({
                 cityId: z.string().min(1),
-                from: z.string().optional().describe('ISO date, inclusive'),
-                to: z.string().optional().describe('ISO date, inclusive'),
+                from: z.iso.date().optional().describe('ISO date (YYYY-MM-DD), inclusive'),
+                to: z.iso.date().optional().describe('ISO date (YYYY-MM-DD), inclusive'),
                 timeFilter: z.enum(['upcoming', 'past']).optional(),
                 pageSize: z.number().int().min(1).max(50).default(10),
                 ...paginationShape,
@@ -277,8 +277,8 @@ export function registerOpenCouncilServer(server: McpServer) {
                 'Create a highlight from a selection of a meeting\'s utterances (get utterance ids ' +
                 'from get_subject_transcript). The utterances need not be consecutive — skip filler ' +
                 'and interruptions, or cut together moments like a question and its answer; playback ' +
-                'is always in meeting order. Requires a personal MCP URL or bearer token from ' +
-                'https://opencouncil.gr/mcp. Confirm the selection with the user before calling. ' +
+                'is always in meeting order. Requires a personal MCP URL or bearer token, created on ' +
+                "this site's /mcp page. Confirm the selection with the user before calling. " +
                 'A shareable video can then be rendered with generate_highlight_video.',
             inputSchema: z.object({
                 cityId: z.string().min(1),

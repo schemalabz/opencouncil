@@ -21,7 +21,10 @@ import {
 } from './render';
 import { isSuperIdentity, type McpIdentity } from './auth';
 
-const AUTH_HINT = 'Authentication required: create a personal MCP URL at https://opencouncil.gr/mcp and reconnect with it to create highlights.';
+/** Built per request: the hint must point at the host the caller is using. */
+function authHint(): string {
+    return `Authentication required: create a personal MCP URL at ${currentBaseUrl()}/mcp and reconnect with it to create highlights.`;
+}
 
 /**
  * Absolute URLs on the origin this request arrived on — a connector added from
@@ -678,7 +681,7 @@ export async function mcpCreateHighlight(
     }
 ) {
     if (!identity) {
-        throw new UnauthorizedError(AUTH_HINT);
+        throw new UnauthorizedError(authHint());
     }
 
     // Same visibility as the read tools: released, or a draft the identity
@@ -731,7 +734,7 @@ export async function mcpListHighlights(
     identity: McpIdentity,
     args: { cityId?: string; meetingId?: string; limit: number }
 ) {
-    if (!identity) throw new UnauthorizedError(AUTH_HINT);
+    if (!identity) throw new UnauthorizedError(authHint());
     if (args.cityId) await requireRealmCity(args.cityId);
 
     // Editors see their cities' highlights, everyone else only their own —
@@ -788,7 +791,7 @@ export async function mcpListHighlights(
  * city-editor rights rather than mere ownership — matching the website.
  */
 export async function mcpSetHighlightShowcase(identity: McpIdentity, highlightId: string, showcased: boolean) {
-    if (!identity) throw new UnauthorizedError(AUTH_HINT);
+    if (!identity) throw new UnauthorizedError(authHint());
 
     const highlight = await prisma.highlight.findUnique({
         where: { id: highlightId },
@@ -819,7 +822,7 @@ export async function mcpSetHighlightShowcase(identity: McpIdentity, highlightId
 
 async function requireManagedHighlight(identity: McpIdentity, highlightId: string) {
     if (!identity) {
-        throw new UnauthorizedError(AUTH_HINT);
+        throw new UnauthorizedError(authHint());
     }
 
     const highlight = await prisma.highlight.findUnique({
@@ -919,8 +922,11 @@ async function highlightVideoStatus(highlight: {
 
     const task = tasks[0];
     if (!task) return { status: 'not_generated' };
-    // Failed, or succeeded without producing a video — both are a failed render.
-    return { status: 'failed' };
+    if (task.status === 'failed') return { status: 'failed' };
+    // Succeeded, but no videoUrl yet: the task is marked succeeded before the
+    // callback writes the url, so this is the gap between the two. Calling it
+    // failed here would stop an agent polling seconds before the clip lands.
+    return { status: 'generating' };
 }
 
 export async function mcpGetHighlight(identity: McpIdentity, highlightId: string) {
