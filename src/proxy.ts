@@ -6,6 +6,7 @@ import { env } from '@/env.mjs';
 import { REALMS, REALM_OVERRIDE_COOKIE, isRealm, isRealmApexHost, realmForHost, realmOverride } from './lib/realm';
 import { LOCALE_PREFIX_RE, SERBIAN_SCRIPT_COOKIE, foreignLocaleRedirectPath, serbianScriptAdoption, serbianScriptParamTarget, serbianScriptRedirectPath, wwwRedirectTarget } from './lib/seo-redirects';
 import { isSerbianScript } from './lib/serbian/transliterate';
+import { mcpRewriteTarget } from './lib/mcp/rewrite';
 
 const i18nMiddleware = createIntlMiddleware(routing);
 
@@ -71,6 +72,17 @@ export default async function proxy(req: NextRequest) {
     if (pathname === '/t-shirt') {
         const url = req.nextUrl.clone();
         url.pathname = '/qr/t-shirt';
+        return NextResponse.rewrite(url);
+    }
+
+    // MCP protocol requests share the memorable /mcp URL with the human
+    // instructions page: JSON-RPC traffic (and tokened /mcp/{token} URLs) is
+    // rewritten to the API handler, browser GETs fall through to i18n and
+    // render the page.
+    const mcpTarget = mcpRewriteTarget(pathname, req.method, req.headers.get('accept'), req.headers.get('content-type'));
+    if (mcpTarget) {
+        const url = req.nextUrl.clone();
+        url.pathname = mcpTarget;
         return NextResponse.rewrite(url);
     }
 

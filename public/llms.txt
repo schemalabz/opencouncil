@@ -14,8 +14,19 @@
 - [Homepage](https://opencouncil.gr/): overview of supported municipalities.
 - [About](https://opencouncil.gr/about): what OpenCouncil is, who runs it, and how it works.
 - [Search](https://opencouncil.gr/search): full-text search across all transcribed council meetings, filterable by city, person, party, topic, location, and date.
-- [Chat](https://opencouncil.gr/chat): an AI assistant for questions about council meetings and local government.
+- [OpenCouncil AI](https://opencouncil.gr/mcp): how to connect an AI assistant to this data over MCP (see below).
 - [Sitemap](https://opencouncil.gr/sitemap.xml): the authoritative list of all indexable cities, meetings, and subjects.
+
+## Querying this data directly (MCP)
+
+If you are an AI assistant, you can query OpenCouncil directly instead of fetching and parsing these pages. The Model Context Protocol server at `https://opencouncil.gr/mcp` (streamable HTTP) needs no authentication to read, and exposes:
+
+- search over agenda subjects, filterable by city, councillor, party, topic and date — or filter-only, to list everything matching without a query.
+- the most-discussed subjects across every municipality over a recent period, ranked by debate time.
+- municipalities, councillors and parties; meeting agendas, where each subject carries how long it was actually debated.
+- full transcripts, per subject or per councillor, where every utterance carries a link that opens the video at that moment — use these when quoting.
+
+Setup instructions for Claude, ChatGPT and other clients are on that page. With a personal token from it, an assistant can also create highlights and render them as shareable video clips.
 
 ## Notes
 

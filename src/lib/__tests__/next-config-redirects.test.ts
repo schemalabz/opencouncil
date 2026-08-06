@@ -62,4 +62,16 @@ describe('next.config.mjs redirect sources', () => {
         expect(matchesAnyRedirect('/athens/jan15_2024')).toBe(false);
         expect(matchesAnyRedirect('/athens/jan15_2024/subjects/abc')).toBe(false);
     });
+
+    it('redirects the removed /chat page (bare and locale-prefixed)', () => {
+        expect(matchesAnyRedirect('/chat')).toBe(true);
+        expect(matchesAnyRedirect('/el/chat')).toBe(true);
+        expect(matchesAnyRedirect('/en/chat')).toBe(true);
+        expect(matchesAnyRedirect('/fr/chat')).toBe(true);
+        expect(matchesAnyRedirect('/sr/chat')).toBe(true);
+        expect(matchesAnyRedirect('/lat/chat')).toBe(true);
+        // the MCP endpoint and page must not be redirected
+        expect(matchesAnyRedirect('/mcp')).toBe(false);
+        expect(matchesAnyRedirect('/mcp/mcp_token123')).toBe(false);
+    });
 });

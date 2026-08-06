@@ -86,7 +86,7 @@ For deeper context on architecture, features, operations, and product specs, see
 - **ORM**: Prisma with type-safe queries
 - **Authentication**: Auth.js (NextAuth v5) with Resend email provider
 - **Search**: Elasticsearch for full-text search
-- **AI**: Anthropic Claude for summaries and chat
+- **AI**: Anthropic Claude for summaries; MCP server for AI assistants
 - **Storage**: DigitalOcean Spaces (S3-compatible)
 - **Styling**: Tailwind CSS + Radix UI components
 - **i18n**: next-intl for internationalization
@@ -96,10 +96,10 @@ For deeper context on architecture, features, operations, and product specs, see
 src/
 ├── app/              # Next.js App Router
 │   ├── [locale]/    # Locale-parameterized routes
-│   └── api/         # API routes (cities, search, chat, admin, etc.)
+│   └── api/         # API routes (cities, search, mcp, admin, etc.)
 ├── components/       # React components
 │   ├── ui/          # Base UI components (Radix + Tailwind)
-│   └── ...          # Domain-specific components (meetings, chat, map, etc.)
+│   └── ...          # Domain-specific components (meetings, map, mcp, etc.)
 ├── lib/             # Business logic & services
 │   ├── db/          # Data access layer (Prisma queries)
 │   ├── tasks/       # Task management for async jobs
@@ -188,7 +188,8 @@ Multi-channel delivery in `src/lib/notifications/`:
 
 | Service | Purpose | Key Files |
 |---------|---------|-----------|
-| Anthropic Claude | AI summaries, chat | `src/lib/ai.ts` |
+| Anthropic Claude | AI summaries | `src/lib/ai.ts` |
+| MCP server | AI-assistant access (opencouncil.gr/mcp) | `src/lib/mcp/` |
 | Elasticsearch | Full-text search | `src/lib/search/` |
 | Resend | Email auth & notifications | Auth config, `src/lib/notifications/` |
 | Bird API | WhatsApp/SMS | `src/lib/notifications/bird.ts` |

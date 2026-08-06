@@ -38,9 +38,10 @@ export async function search(
 ): Promise<SearchResponse> {
     try {
         // Persist the query for usage analytics. Skipped for paginated requests
-        // (same query, next page) and for internal callers like the AI chat.
-        if (!options?.skipQueryLog && (request.config?.from ?? 0) === 0) {
-            void logSearchQuery(request.query);
+        // (same query, next page), filter-only searches and internal callers.
+        const queryText = request.query?.trim() ?? '';
+        if (!options?.skipQueryLog && queryText && (request.config?.from ?? 0) === 0) {
+            void logSearchQuery(queryText);
         }
 
         // Get default city IDs if none provided
@@ -71,11 +72,13 @@ export async function search(
             locationName: null,
         };
         let extractedFilters = defaultFilters;
-        try {
-            extractedFilters = await extractFilters(request.query);
-            logEssential('[Search] Extracted filters:', extractedFilters);
-        } catch (error) {
-            console.error('[Search] AI filter extraction failed, continuing without AI filters:', error);
+        if (queryText) {
+            try {
+                extractedFilters = await extractFilters(queryText);
+                logEssential('[Search] Extracted filters:', extractedFilters);
+            } catch (error) {
+                console.error('[Search] AI filter extraction failed, continuing without AI filters:', error);
+            }
         }
 
         // Process filters and resolve locations (non-fatal)
@@ -229,17 +232,26 @@ export async function search(
             locationCoordinates.map(loc => [loc.id, { x: loc.x, y: loc.y }])
         );
 
-        const { resolved, orphanedIds, droppedWithoutSource } = partitionHits(
+        // The ES query filters on the indexed released flag, but the database
+        // is the source of truth: a meeting unreleased after indexing (PGSync
+        // lag or outage) must not surface. Re-checked here, at the hydration
+        // boundary, so every search consumer gets the defense and the drop
+        // counts below see it.
+        const { resolved, orphanedIds, unreleasedIds, droppedWithoutSource } = partitionHits(
             response.hits.hits,
             subjectMap,
+            subject => subject.councilMeeting.released,
         );
 
-        if (orphanedIds.length > 0 || droppedWithoutSource > 0) {
-            logEssential('[Search] Dropped unresolvable hits', { orphanedIds, droppedWithoutSource });
+        if (orphanedIds.length > 0 || unreleasedIds.length > 0 || droppedWithoutSource > 0) {
+            logEssential('[Search] Dropped unresolvable hits', { orphanedIds, unreleasedIds, droppedWithoutSource });
             void reportOrphanedHits({
                 orphanedIds,
+                unreleasedIds,
                 droppedWithoutSource,
-                query: request.query,
+                // Filter-only searches have no query text; label them so the
+                // alert reads sensibly instead of showing an empty string.
+                query: queryText || '(filter-only)',
                 index: env.ELASTICSEARCH_INDEX,
             });
         }
@@ -307,10 +319,13 @@ export async function search(
 
         // ES's total includes hits we dropped; subtract this page's drops so the
         // count degrades along with the results. Still approximate — other pages
-        // may hold more orphans, so a trailing page can come up short.
+        // may hold more drops, so callers that must not leak the existence of
+        // hidden content should withhold the total whenever `dropped` > 0.
+        const dropped = response.hits.hits.length - resolved.length;
         return {
             results,
-            total: totalHits - (response.hits.hits.length - resolved.length)
+            total: totalHits - dropped,
+            dropped,
         };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';

@@ -197,7 +197,8 @@ export type MapSubjectFilters = {
     bodyTypes?: AdministrativeBodyType[];
     dateFrom?: string | null;
     dateTo?: string | null;
-    /** true → located subjects (map pins); false → non-located (general/city list). */
+    /** true → located subjects (map pins); false → non-located (general/city list);
+     *  omitted → both (the "hot subjects" ranking doesn't care where a subject is). */
     located?: boolean;
 };
 
@@ -312,7 +313,8 @@ export function buildMapSubjectWhere(realm: Realm, f: MapSubjectFilters): Prisma
         dateTime.gte = threshold;
     }
     return {
-        locationId: f.located === false ? null : { not: null },
+        // undefined → no constraint (both located and non-located subjects)
+        locationId: f.located === undefined ? undefined : f.located === false ? null : { not: null },
         // only subjects actually discussed (≥1 speaker contribution)
         contributions: { some: {} },
         ...(f.topicIds?.length ? { topicId: { in: f.topicIds } } : {}),
@@ -397,6 +399,36 @@ export async function getMapSubjectsCached(realm: Realm, filters: MapSubjectFilt
             }));
         },
         ['map-subjects', realm, subjectFilterKey(filters)],
+        { revalidate: LANDING_SUBJECTS_TTL, tags: [landingSubjectsTag(realm)] },
+    )();
+}
+
+/**
+ * The most-discussed subjects of a realm over a date range — the landing map's ranking without
+ * its located/non-located split, so "what was hot in the councils lately" is one query. Shares
+ * the map's where-clause (released, officially supported cities, actually discussed) and its wire
+ * fields, so the ordering agrees with what the map shows. Backs the MCP's hot-subjects tool.
+ */
+export async function getHotSubjectsCached(
+    realm: Realm,
+    filters: MapSubjectFilters,
+    limit: number,
+): Promise<GeneralSubjectRow[]> {
+    return createCache(
+        async () => {
+            const subjects = await prisma.subject.findMany({
+                where: buildMapSubjectWhere(realm, filters),
+                include: mapSubjectInclude,
+            });
+            if (subjects.length === 0) return [];
+
+            const discussionSeconds = await getDiscussionSecondsForSubjects(subjects.map((s) => s.id));
+            return subjects
+                .map((s) => toGeneralSubjectRow(s, discussionSeconds))
+                .sort((a, b) => (b.discussionTimeSeconds ?? 0) - (a.discussionTimeSeconds ?? 0))
+                .slice(0, limit);
+        },
+        ['hot-subjects', realm, subjectFilterKey(filters), String(limit)],
         { revalidate: LANDING_SUBJECTS_TTL, tags: [landingSubjectsTag(realm)] },
     )();
 }

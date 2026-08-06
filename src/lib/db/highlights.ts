@@ -1,37 +1,11 @@
 "use server";
-import { City, CouncilMeeting, Highlight, Subject, Utterance, Prisma, HighlightCreationPermission } from '@prisma/client';
+import { City, CouncilMeeting, Highlight, Subject, Utterance, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { getCurrentUser, isUserAuthorizedToEdit, withUserAuthorizedToEdit } from "../auth";
 import { UnauthorizedError, ForbiddenError, NotFoundError, BadRequestError } from "../api/errors";
+import { highlightWithUtterancesInclude, upsertHighlightCore, type HighlightWithUtterances } from "./highlights-core";
 
-// Define the include structure for highlights with utterances
-// This includes the highlightedUtterances relation with nested utterance data
-// and orders them by startTimestamp for consistent display
-const highlightWithUtterancesInclude = {
-    highlightedUtterances: {
-        include: {
-            utterance: true
-        },
-        orderBy: {
-            utterance: {
-                startTimestamp: 'asc'
-            }
-        }
-    },
-    createdBy: {
-        select: {
-            id: true,
-            name: true,
-            email: true
-        }
-    }
-} satisfies Prisma.HighlightInclude;
-
-// Define the type using the include structure
-// This ensures type safety and makes the query structure explicit
-export type HighlightWithUtterances = Prisma.HighlightGetPayload<{ 
-    include: typeof highlightWithUtterancesInclude 
-}>;
+export type { HighlightWithUtterances } from "./highlights-core";
 
 /**
  * Gets the current user's permission context for highlights.
@@ -67,19 +41,6 @@ export async function canViewHighlight(highlight: { cityId: string; createdById:
     
     // Regular users see only their own highlights
     return highlight.createdById === permissions.userId;
-}
-
-async function getCityHighlightPermission(cityId: City["id"]) {
-    const city = await prisma.city.findUnique({
-        where: { id: cityId },
-        select: { highlightCreationPermission: true }
-    });
-
-    if (!city) {
-        throw new NotFoundError('City not found');
-    }
-
-    return city.highlightCreationPermission;
 }
 
 export async function getHighlight(
@@ -139,79 +100,12 @@ export async function upsertHighlight(
         subjectId?: Subject["id"] | null;
     }
 ): Promise<HighlightWithUtterances> {
-    const { id, name, meetingId, cityId, utteranceIds, subjectId } = highlightData;
-
     const currentUser = await getCurrentUser();
     if (!currentUser) {
         throw new UnauthorizedError('Authentication required');
     }
 
-    // Check permissions
-    const [highlightPermission, canEditCity, existingHighlight] = await Promise.all([
-        getCityHighlightPermission(cityId),
-        isUserAuthorizedToEdit({ cityId }),
-        id ? prisma.highlight.findUnique({
-            where: { id },
-            select: { cityId: true, createdById: true }
-        }) : Promise.resolve(null)
-    ]);
-
-    // Validate existing highlight
-    if (existingHighlight && existingHighlight.cityId !== cityId) {
-        throw new BadRequestError('Highlight does not belong to the specified city');
-    }
-
-    // Authorization checks
-    if (highlightPermission === HighlightCreationPermission.ADMINS_ONLY) {
-        // ADMINS_ONLY: must be city editor
-        if (!canEditCity) {
-            throw new ForbiddenError('Not authorized - only city administrators can manage highlights');
-        }
-    } else {
-        // EVERYONE: city editors can edit anything, regular users can only edit their own
-        if (!canEditCity) {
-            if (existingHighlight && existingHighlight.createdById !== currentUser.id) {
-                throw new ForbiddenError('Not authorized to edit this highlight');
-            }
-            // For new highlights when EVERYONE is allowed, no additional check needed
-            // User is authenticated and city allows everyone to create
-        }
-    }
-
-    // Generate auto name if no name provided
-    const finalName = name || "Unnamed Highlight";
-
-    // Prepare utterance connections
-    const utteranceConnections = utteranceIds.map(utteranceId => ({
-        utterance: { connect: { id: utteranceId } }
-    }));
-
-    // Prepare subject connection
-    const subjectConnection = subjectId !== undefined
-        ? (subjectId ? { connect: { id: subjectId } } : { disconnect: true })
-        : undefined;
-
-    const highlight = await prisma.highlight.upsert({
-        where: { id: id || 'new' }, // Use 'new' as placeholder for new records
-        update: {
-            name: finalName,
-            highlightedUtterances: {
-                deleteMany: {}, // Only for updates - delete existing records
-                create: utteranceConnections
-            },
-            ...(subjectConnection && { subject: subjectConnection })
-        },
-        create: {
-            name: finalName,
-            meeting: { connect: { cityId_id: { id: meetingId, cityId } } },
-            createdBy: { connect: { id: currentUser.id } },
-            highlightedUtterances: { create: utteranceConnections },
-            ...(subjectId && { subject: { connect: { id: subjectId } } })
-        },
-        include: highlightWithUtterancesInclude
-    });
-
-    return highlight;
+    return upsertHighlightCore({ type: 'user', userId: currentUser.id }, highlightData);
 }
 
 export async function deleteHighlight(id: Highlight["id"]) {

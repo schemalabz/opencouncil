@@ -1,131 +1,31 @@
 "use server";
 
 import prisma from '@/lib/db/prisma';
-import { startTask } from './tasks';
 import { GenerateHighlightRequest, GenerateHighlightResult } from '@/lib/apiTypes';
-import { getSpeakerDisplayInfo } from '@/lib/utils';
 import { canViewHighlight } from '@/lib/db/highlights';
 import { sendHighlightCompleteEmail } from '@/lib/email/highlightComplete';
+import { requestGenerateHighlightCore, type GenerateHighlightOptions } from './generateHighlight-core';
 
-export async function requestGenerateHighlight(
-    highlightId: string,
-    options?: Pick<GenerateHighlightRequest['render'], 'includeCaptions' | 'includeSpeakerOverlay' | 'aspectRatio' | 'socialOptions'> & { 
-        force?: boolean;
-    }
-) {
+export async function requestGenerateHighlight(highlightId: string, options?: GenerateHighlightOptions) {
     const highlight = await prisma.highlight.findUnique({
         where: { id: highlightId },
-        include: {
-            meeting: true,
-            highlightedUtterances: {
-                orderBy: {
-                    utterance: {
-                        startTimestamp: 'asc'
-                    }
-                },
-                include: {
-                    utterance: {
-                        include: {
-                            speakerSegment: {
-                                include: {
-                                    speakerTag: {
-                                        include: {
-                                                                                person: {
-                                        include: {
-                                            roles: {
-                                                include: { party: true },
-                                            },
-                                        },
-                                    },
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-            },
-        },
+        select: { cityId: true, createdById: true },
     });
 
     if (!highlight) {
         throw new Error('Highlight not found');
     }
 
-    const authorized = await canViewHighlight({ 
-        cityId: highlight.cityId, 
-        createdById: highlight.createdById 
+    const authorized = await canViewHighlight({
+        cityId: highlight.cityId,
+        createdById: highlight.createdById
     });
-    
+
     if (!authorized) {
         throw new Error('Not authorized to generate this highlight');
     }
 
-    if (!highlight.meeting.videoUrl) {
-        throw new Error('Meeting media not found: videoUrl is required');
-    }
-
-    const utterances = highlight.highlightedUtterances.map(hu => {
-        const u = hu.utterance;
-        const speakerTag = u.speakerSegment.speakerTag;
-        const person = speakerTag.person;
-        
-        let partyColorHex: string | undefined;
-        let partyLabel: string | undefined;
-        let roleLabel: string | undefined;
-        
-        if (person && person.roles) {
-            const { party, role, isIndependent } = getSpeakerDisplayInfo(person.roles, highlight.meeting.dateTime);
-
-            if (party) {
-                partyColorHex = party.colorHex || undefined;
-                partyLabel = party.name_short || party.name;
-            }
-
-            if (role) {
-                roleLabel = role.name || undefined;
-            } else if (isIndependent) {
-                roleLabel = "Ανεξάρτητος Δημοτικός Σύμβουλος";
-            }
-        }
-        
-        return {
-            utteranceId: u.id,
-            startTimestamp: u.startTimestamp,
-            endTimestamp: u.endTimestamp,
-            text: u.text,
-            speaker: {
-                id: person?.id,
-                name: person?.name || speakerTag.label || undefined,
-                partyColorHex,
-                partyLabel,
-                roleLabel,
-            },
-        };
-    });
-
-    const requestBody: Omit<GenerateHighlightRequest, 'callbackUrl'> = {
-        media: {
-            type: 'video',
-            videoUrl: highlight.meeting.videoUrl,
-        },
-        parts: [
-            {
-                id: highlight.id,
-                utterances,
-            },
-        ],
-        render: {
-            includeCaptions: options?.includeCaptions,
-            includeSpeakerOverlay: options?.includeSpeakerOverlay,
-            aspectRatio: options?.aspectRatio || 'default',
-            ...(options?.aspectRatio === 'social-9x16' && options?.socialOptions && {
-                socialOptions: options.socialOptions
-            }),
-        },
-    };
-
-    return startTask('generateHighlight', requestBody, highlight.meetingId, highlight.cityId, { force: options?.force });
+    return requestGenerateHighlightCore(highlightId, options);
 }
 
 export async function handleGenerateHighlightResult(taskId: string, result: GenerateHighlightResult) {

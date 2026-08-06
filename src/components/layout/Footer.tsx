@@ -56,7 +56,7 @@ export default function Footer({ className }: FooterProps = {}) {
                                 ...(locale === "el" ? [{ href: "/explain", label: t("linkLearnMore") }] : []),
                                 { href: "/about", label: t("linkForMunicipalities") },
                                 { href: "/search", label: t("linkSearch") },
-                                { href: "/chat", label: "OpenCouncil AI" },
+                                { href: "/mcp", label: "OpenCouncil AI" },
                                 { href: "/docs", label: "API" },
                                 { href: "https://schemalabs.gr/jobs", label: t("linkJobs"), external: true },
                                 { href: "https://status.opencouncil.gr", label: "Status", external: true },
