@@ -11,6 +11,7 @@ import { useHighlight } from "../HighlightContext";
 import { useTranslations } from 'next-intl';
 import { UnverifiedTranscriptBanner, BANNER_HEIGHT_FULL } from "./UnverifiedTranscriptBanner";
 import { UtteranceContextMenu } from "./UtteranceContextMenu";
+import { getScrollContainer } from "@/lib/utils/scrollAnchor";
 
 // Helper functions for speaker segment identification and parsing
 const SPEAKER_SEGMENT_PREFIX = 'speaker-segment-';
@@ -49,7 +50,7 @@ export default function Transcript() {
 
     // Track scroll state for banner minimization via scroll container
     useEffect(() => {
-        const container = containerRef.current?.closest('[data-scroll-container]');
+        const container = getScrollContainer(containerRef.current);
         if (!container) return;
 
         const handleScroll = () => {
