@@ -61,7 +61,9 @@ export function registerOpenCouncilServer(server: McpServer) {
                 'Filter by city, person, party, topic or date range. Omit the query to list ' +
                 'everything matching the filters, newest first — e.g. all subjects a person ' +
                 'spoke about, or all subjects in a date range. Returns compact results with URLs; ' +
-                'use get_subject / get_subject_transcript with a result id for details.',
+                'use get_subject / get_subject_transcript with a result id for details. `total` is ' +
+                'the search index\'s own match count — report it as approximate ("about N"), and ' +
+                'note it is omitted entirely when results had to be withheld.',
             inputSchema: z.object({
                 query: z.string().optional().describe('Search query (Greek works best). Omit for a filter-only listing sorted by date'),
                 cityIds: z.array(z.string()).optional().describe('Restrict to these city IDs (see list_cities)'),
