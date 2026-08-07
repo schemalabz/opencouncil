@@ -13,6 +13,7 @@ import { Subject as DbSubject } from "@prisma/client";
 import { getPartyFromRoles, getRoleNameForPerson } from "../utils";
 import { roleWithRelationsInclude } from "./types";
 import { categorizeSubjectsForUpsert } from "./subject-helpers";
+import { getRealmCountry } from "@/lib/realm";
 
 // Type for the Prisma interactive transaction client
 type PrismaTxClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
@@ -74,6 +75,8 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
         topicLabels: topics.map(t => ({ name: t.name, description: t.description })),
         cityName: city.name,
         cityLanguage: city.language,
+        // Scopes geocoding of subject locations to the right country.
+        country: getRealmCountry(city.realm),
         administrativeBodyName: councilMeeting.administrativeBody?.name || null,
         partiesWithPeople: parties.map(p => ({
             name: p.name,

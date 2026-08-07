@@ -20,6 +20,12 @@ export interface TaskRequest {
 // the Prisma `CityLanguage` enum.
 export type CityLanguage = 'el' | 'fr' | 'sr';
 
+// ISO 3166-1 alpha-2 code (uppercase) of the country a task's city is in. The
+// backend restricts geocoding of subject locations to it; without it everything
+// is geocoded as if it were in Greece. Comes from the city's realm, not its
+// language — see `getRealmCountry`.
+export type Country = 'GR' | 'FR' | 'CY' | 'RS';
+
 /*
  * System endpoints
  */
@@ -125,6 +131,7 @@ export interface ProcessAgendaRequest extends TaskRequest {
     topicLabels: TopicLabelInfo[];
     cityName: string;
     cityLanguage: CityLanguage;
+    country: Country;
     date: string;
 }
 
@@ -258,6 +265,7 @@ export interface RequestOnTranscript extends TaskRequest {
     topicLabels: TopicLabelInfo[];
     cityName: string;
     cityLanguage: CityLanguage;
+    country: Country;
     administrativeBodyName: string | null;
     partiesWithPeople: {
         name: string;

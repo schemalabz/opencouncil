@@ -1,4 +1,5 @@
 import { Realm } from '@prisma/client';
+import type { Country } from '@/lib/apiTypes';
 
 /**
  * Realm (tenant) configuration. A single deployment serves all domains off one
@@ -15,15 +16,15 @@ import { Realm } from '@prisma/client';
  * (`proxy.ts`). The request-scoped resolver lives in `realm.server.ts`.
  */
 export const REALMS = {
-    greece: { domain: 'opencouncil.gr', defaultLocale: 'el', country: 'gr' },
-    france: { domain: 'opencouncil.fr', defaultLocale: 'fr', country: 'fr' },
-    cyprus: { domain: 'opencouncil.cy', defaultLocale: 'el', country: 'cy' },
+    greece: { domain: 'opencouncil.gr', defaultLocale: 'el', country: 'GR' },
+    france: { domain: 'opencouncil.fr', defaultLocale: 'fr', country: 'FR' },
+    cyprus: { domain: 'opencouncil.cy', defaultLocale: 'el', country: 'CY' },
     // Serbian is digraphic: `sr` (Cyrillic) is the default, `sr-Latn` is the
     // realm-exclusive Latin variant reachable via the script switcher.
-    serbia: { domain: 'opencouncil.rs', defaultLocale: 'sr', extraLocales: ['sr-Latn'], country: 'rs' },
+    serbia: { domain: 'opencouncil.rs', defaultLocale: 'sr', extraLocales: ['sr-Latn'], country: 'RS' },
 } as const satisfies Record<
     Realm,
-    { domain: string; defaultLocale: 'el' | 'fr' | 'sr'; country: string; extraLocales?: readonly string[] }
+    { domain: string; defaultLocale: 'el' | 'fr' | 'sr'; country: Country; extraLocales?: readonly string[] }
 >;
 
 /**
@@ -39,7 +40,7 @@ export const ALL_REALMS = Object.keys(REALMS) as Realm[];
  * `REALMS` — no per-realm labels or translation keys to maintain anywhere.
  */
 export function getRealmDisplayName(realm: Realm, locale: string): string {
-    const country = REALMS[realm].country.toUpperCase();
+    const country = REALMS[realm].country;
     return new Intl.DisplayNames([locale], { type: 'region' }).of(country) ?? country;
 }
 
@@ -218,6 +219,17 @@ export function getRealmDomain(realm: Realm): string {
  */
 export function getRealmGeocoding(realm: Realm): { country: string; language: string } {
     return { country: REALMS[realm].country, language: REALMS[realm].defaultLocale };
+}
+
+/**
+ * ISO 3166-1 alpha-2 country code of a realm (uppercase), as the tasks backend
+ * expects it on /summarize and /processAgenda to restrict geocoding of subject
+ * locations. Derived from the realm rather than the city's language: `fr` spans
+ * France/Belgium/Switzerland and `sr` spans Serbia/Bosnia/Montenegro, while a
+ * realm is exactly one country.
+ */
+export function getRealmCountry(realm: Realm): Country {
+    return REALMS[realm].country;
 }
 
 /** Fallback map center/zoom for a realm, used when a city has no stored geometry. */

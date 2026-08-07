@@ -8,6 +8,9 @@ import {
     isRealmApexHost,
     realmOverride,
     effectiveRealm,
+    getRealmCountry,
+    getRealmGeocoding,
+    ALL_REALMS,
 } from '../realm';
 
 describe('createRealmResolver', () => {
@@ -165,5 +168,27 @@ describe('foreignLocalesForRealm', () => {
 
     it('marks only el and fr foreign on serbia (en is shared, never foreign)', () => {
         expect(foreignLocalesForRealm('serbia').sort()).toEqual(['el', 'fr']);
+    });
+});
+
+describe('getRealmCountry', () => {
+    it('maps each realm to its uppercase ISO 3166-1 alpha-2 code', () => {
+        expect(getRealmCountry('greece')).toBe('GR');
+        expect(getRealmCountry('france')).toBe('FR');
+        expect(getRealmCountry('cyprus')).toBe('CY');
+        expect(getRealmCountry('serbia')).toBe('RS');
+    });
+
+    it('covers every realm, so a new one cannot silently geocode as Greece', () => {
+        for (const realm of ALL_REALMS) {
+            expect(getRealmCountry(realm)).toMatch(/^[A-Z]{2}$/);
+        }
+    });
+});
+
+describe('getRealmGeocoding', () => {
+    it('pairs each realm with its own country and default locale', () => {
+        expect(getRealmGeocoding('france')).toEqual({ country: 'FR', language: 'fr' });
+        expect(getRealmGeocoding('serbia')).toEqual({ country: 'RS', language: 'sr' });
     });
 });
