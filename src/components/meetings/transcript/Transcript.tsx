@@ -158,7 +158,7 @@ export default function Transcript() {
         return <div className="container py-8">
             <ScrollText className="w-12 h-12 mx-auto text-muted-foreground" />
             <div className="text-center text-base text-muted-foreground py-8">
-                Η απομαγνητοφώνηση δεν είναι ακόμη διαθέσιμη.
+                {tTranscript('notAvailable')}
             </div>
         </div>
     }

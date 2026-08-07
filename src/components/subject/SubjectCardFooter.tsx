@@ -9,6 +9,8 @@ interface SubjectCardFooterProps {
     speakers: PersonWithRelations[];
     withdrawn?: boolean;
     withdrawnLabel?: string;
+    /** Localized speaking-time text, already pluralized (e.g. "12 minutes"). */
+    minutesText: string;
     /** Avatar auto-scroll (app card); left off in the static widget. */
     avatarsAutoScroll?: boolean;
     avatarsHovered?: boolean;
@@ -26,6 +28,7 @@ export function SubjectCardFooter({
     speakers,
     withdrawn,
     withdrawnLabel,
+    minutesText,
     avatarsAutoScroll,
     avatarsHovered,
     onAvatarsClick,
@@ -37,7 +40,7 @@ export function SubjectCardFooter({
                 <div className="flex items-center gap-3 w-full text-[11px] text-muted-foreground">
                     <div className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        <span>{stats.minutes} λεπτά</span>
+                        <span>{minutesText}</span>
                     </div>
                     {stats.speakerCount > 0 && (
                         <div className="flex items-center gap-1">

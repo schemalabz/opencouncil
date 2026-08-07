@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { Button } from "../ui/button";
 import {
     DropdownMenu,
@@ -26,19 +27,25 @@ interface ShareDropdownProps {
     className?: string;
 }
 
-const SHARE_CONTEXT_LABELS: Record<string, string> = {
-    transcript: 'την απομαγνητοφώνηση',
-    statistics: 'τα στατιστικά',
-    subject: 'αυτό το θέμα',
-    highlights: 'τα highlights',
-    share: 'τις επιλογές κοινοποίησης',
-    settings: 'τις ρυθμίσεις',
-    admin: 'τη σελίδα διαχείρισης',
-    map: 'τον χάρτη',
-    meeting: 'τη συνεδρίαση',
+/**
+ * Maps a page context to its translation key. The description is a full
+ * sentence per context rather than "Share" + a noun, because the noun needs
+ * case agreement in Greek and Serbian.
+ */
+const SHARE_CONTEXT_KEYS: Record<string, string> = {
+    transcript: 'shareTranscript',
+    statistics: 'shareStatistics',
+    subject: 'shareSubject',
+    highlights: 'shareHighlights',
+    share: 'shareShare',
+    settings: 'shareSettings',
+    admin: 'shareAdmin',
+    map: 'shareMap',
+    meeting: 'shareMeeting',
 };
 
 export default function ShareDropdown({ meetingId, cityId, className }: ShareDropdownProps) {
+    const t = useTranslations('ShareDropdown');
     const [url, setUrl] = useState('');
     const [includeTimestamp, setIncludeTimestamp] = useState(false);
     const [copySuccess, setCopySuccess] = useState(false);
@@ -130,7 +137,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     };
 
     const shareContextKey = getShareContextKey();
-    const shareContext = SHARE_CONTEXT_LABELS[shareContextKey];
+    const shareContext = t(SHARE_CONTEXT_KEYS[shareContextKey]);
 
     // Use a single controlled state - prioritize context state when active
     const dropdownOpen = isOpen || internalOpen;
@@ -175,7 +182,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                     variant="ghost"
                     size="icon"
                     className={`w-9 h-9 rounded-full hover:bg-accent transition-colors shrink-0 ${className || ''}`}
-                    title="Κοινοποίηση"
+                    title={t('title')}
                 >
                     <Share className="h-4 w-4" />
                 </Button>
@@ -183,9 +190,9 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
             <DropdownMenuContent className="w-80 sm:w-96" align="end">
                 <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">Κοινοποίηση</p>
+                        <p className="text-sm font-medium leading-none">{t('title')}</p>
                         <p className="text-xs leading-none text-muted-foreground">
-                            Μοιραστείτε {shareContext}
+                            {shareContext}
                         </p>
                     </div>
                 </DropdownMenuLabel>
@@ -195,7 +202,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                     {/* URL Input and Copy Button */}
                     <div className="space-y-2">
                         <label className="text-xs font-medium text-muted-foreground">
-                            Σύνδεσμος
+                            {t('link')}
                         </label>
                         <div className="flex gap-2">
                             <Input
@@ -213,12 +220,12 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                                 {copySuccess ? (
                                     <>
                                         <CheckCircle className="w-3 h-3 mr-1" />
-                                        <span className="text-xs">Αντιγράφηκε</span>
+                                        <span className="text-xs">{t('copied')}</span>
                                     </>
                                 ) : (
                                     <>
                                         <CopyIcon className="w-3 h-3 mr-1" />
-                                        <span className="text-xs">Αντιγραφή</span>
+                                        <span className="text-xs">{t('copy')}</span>
                                     </>
                                 )}
                             </Button>
@@ -237,7 +244,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                                 htmlFor="timestamp"
                                 className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-1"
                             >
-                                <span>Ξεκίνημα από το {formatTimestamp(targetTimestamp !== null ? targetTimestamp : currentTime)}</span>
+                                <span>{t('startFrom', { timestamp: formatTimestamp(targetTimestamp !== null ? targetTimestamp : currentTime) })}</span>
                             </label>
                         </div>
                     )}
@@ -248,7 +255,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                         <DropdownMenuSeparator />
                         <div className="p-3 space-y-2">
                             <label className="text-xs font-medium text-muted-foreground block">
-                                Εξαγωγή Προεπισκόπησης ως Εικόνα
+                                {t('exportPreviewAsImage')}
                             </label>
 
                             <Button

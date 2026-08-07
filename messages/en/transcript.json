@@ -76,5 +76,7 @@
     "button": "Copy segment",
     "segmentCopied": "Segment copied",
     "copySourceAttribution": "Copied from OpenCouncil · opencouncil.gr"
-  }
+  },
+  "notAvailable": "The transcript is not available yet.",
+  "procedural": "Procedural"
 }

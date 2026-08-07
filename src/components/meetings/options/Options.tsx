@@ -47,16 +47,16 @@ export function Options({ editable }: { editable: boolean }) {
                             <CardHeader>
                                 <div className="flex items-center gap-2">
                                     <PlayCircle className="w-4 h-4" />
-                                    <CardTitle>Ρυθμίσεις αναπαραγωγής</CardTitle>
+                                    <CardTitle>{t('playbackTitle')}</CardTitle>
                                 </div>
                                 <CardDescription>
-                                    Ρυθμίσεις για την αναπαραγωγή του βίντεο
+                                    {t('playbackDescription')}
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <Setting
-                                    label="Ταχύτητα αναπαραγωγής"
-                                    description="Προσαρμόστε την ταχύτητα αναπαραγωγής του βίντεο"
+                                    label={t('playbackSpeedLabel')}
+                                    description={t('playbackSpeedDescription')}
                                 >
                                     <div className="relative flex items-center gap-4">
                                         <Slider
@@ -80,10 +80,10 @@ export function Options({ editable }: { editable: boolean }) {
                             <CardHeader>
                                 <div className="flex items-center gap-2">
                                     <Mic2 className="w-4 h-4" />
-                                    <CardTitle>Ρυθμίσεις απομαγνητοφώνησης</CardTitle>
+                                    <CardTitle>{t('transcriptTitle')}</CardTitle>
                                 </div>
                                 <CardDescription>
-                                    Ρυθμίσεις της απομαγνητοφώνησης
+                                    {t('transcriptDescription')}
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -117,10 +117,10 @@ export function Options({ editable }: { editable: boolean }) {
                                 <CardHeader>
                                     <div className="flex items-center gap-2">
                                         <SlidersHorizontal className="w-4 h-4" />
-                                        <CardTitle>Προχωρημένες ρυθμίσεις</CardTitle>
+                                        <CardTitle>{t('advancedTitle')}</CardTitle>
                                     </div>
                                     <CardDescription>
-                                        Τεχνικές ρυθμίσεις για προχωρημένους χρήστες
+                                        {t('advancedDescription')}
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>

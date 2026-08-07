@@ -75,11 +75,12 @@ export function getAgendaLabel(t: Translate, subject: { agendaItemIndex: number 
  * Returns the withdrawn label for a subject based on whether it's an IN_AGENDA
  * item that was withdrawn/postponed, or an OUT_OF_AGENDA item that was rejected.
  * "short" for compact UI (cards, TOC), "long" for detail pages with full sentence.
+ * Pass a translator scoped to the `Subject` namespace (e.g. `useTranslations('Subject')`).
  */
-export function getWithdrawnLabel(subject: { nonAgendaReason: string | null }, mode: 'short' | 'long' = 'short'): string {
+export function getWithdrawnLabel(t: Translate, subject: { nonAgendaReason: string | null }, mode: 'short' | 'long' = 'short'): string {
     if (subject.nonAgendaReason === 'outOfAgenda') {
-        return mode === 'short' ? 'Δεν εγκρίθηκε' : 'Το θέμα δεν εγκρίθηκε ως έκτακτο.';
+        return mode === 'short' ? t('notApprovedShort') : t('notApprovedLong');
     }
-    return mode === 'short' ? 'Αποσύρθηκε' : 'Το θέμα αποσύρθηκε και δεν συζητήθηκε.';
+    return mode === 'short' ? t('withdrawnShort') : t('withdrawnLong');
 }
 

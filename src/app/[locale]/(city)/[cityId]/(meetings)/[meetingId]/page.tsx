@@ -142,6 +142,7 @@ export default function MeetingPage() {
 }
 
 function MeetingInfo() {
+    const tMeeting = useTranslations("CouncilMeeting");
     const { meeting, subjects } = useCouncilMeetingData();
     const locale = useLocale();
     return (
@@ -158,7 +159,7 @@ function MeetingInfo() {
                         <div className="flex items-center">
                             <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />
                             <Link href={meeting.agendaUrl} target="_blank" className="hover:text-primary transition-colors inline-flex items-center">
-                                Ημερήσια Διάταξη
+                                {tMeeting('agendaDocument')}
                                 <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1.5" />
                             </Link>
                         </div>
@@ -166,7 +167,7 @@ function MeetingInfo() {
 
                     <div className="flex items-center">
                         <FileIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />
-                        {subjects.length > 0 ? `${subjects.length} θέματα` : "Χωρίς θέματα"}
+                        {tMeeting('subjectsCount', { count: subjects.length })}
                     </div>
                 </div>
             </div>
@@ -175,6 +176,7 @@ function MeetingInfo() {
 }
 
 function UpcomingMeetingCard() {
+    const tMeeting = useTranslations("CouncilMeeting");
     const { meeting, city } = useCouncilMeetingData();
     const notificationPreference = useNotificationPreference();
     const locale = useLocale();
@@ -205,18 +207,18 @@ function UpcomingMeetingCard() {
         return (
             <div className="max-w-2xl mx-auto mb-8 p-6 sm:p-8 rounded-lg border bg-muted/50 text-center">
                 <p className="font-medium mb-2">
-                    Η συνεδρίαση θα είναι σύντομα διαθέσιμη
+                    {tMeeting('availableSoon')}
                 </p>
                 {notificationPreference ? (
                     <p className="text-sm text-muted-foreground">
-                        Θα λάβετε σύντομα ενημέρωση για τα θέματα συζήτησης
+                        {tMeeting('notificationComing')}
                     </p>
                 ) : (
                     <Link
                         href={`/${city.id}/notifications`}
                         className="text-sm text-muted-foreground underline hover:text-foreground transition-colors"
                     >
-                        Γραφτείτε στις ειδοποιήσεις για να λαμβάνετε τα θέματα συζήτησης πριν και μετά τις συνεδριάσεις
+                        {tMeeting('subscribeForSubjects')}
                     </Link>
                 )}
             </div>
@@ -242,7 +244,7 @@ function UpcomingMeetingCard() {
                     className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border font-medium transition-colors hover:bg-accent"
                 >
                     <FileText className="w-4 h-4" />
-                    Ημερήσια Διάταξη
+                    {tMeeting('agendaDocument')}
                 </Link>
             )}
         </div>
@@ -255,7 +257,7 @@ function UpcomingMeetingCard() {
                     <div className="flex items-center justify-center gap-2 mb-3">
                         <CalendarIcon className="w-5 h-5 text-primary" />
                         <p className="font-medium">
-                            Η συνεδρίαση θα πραγματοποιηθεί {formatRelativeTime(meetingDate, locale)}
+                            {tMeeting('scheduledFor', { when: formatRelativeTime(meetingDate, locale) })}
                         </p>
                     </div>
                     <p className="text-lg font-semibold mb-4">
@@ -264,7 +266,7 @@ function UpcomingMeetingCard() {
                 </>
             ) : (
                 <p className="font-medium mb-4">
-                    Παρακολουθήστε τη συνεδρίαση
+                    {tMeeting('watchMeeting')}
                 </p>
             )}
             {links}

@@ -185,6 +185,7 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
     const { toast } = useToast();
     const tCopy = useTranslations('transcript.copySegment');
     const tCommon = useTranslations('Common');
+    const tTranscript = useTranslations('transcript');
     const localize = useLocalizeText();
     const isSuperAdmin = session?.user?.isSuperAdmin;
     const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
@@ -410,7 +411,7 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
                                                 <div className='flex items-center gap-2 text-[10px] sm:text-xs text-muted-foreground'>
                                                     {summary?.type === 'procedural' && (
                                                         <span className="bg-muted/50 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium whitespace-nowrap">
-                                                            Διαδικαστικό
+                                                            {tTranscript('procedural')}
                                                         </span>
                                                     )}
                                                         <AIGeneratedBadge className="text-[10px] sm:text-xs whitespace-nowrap" />

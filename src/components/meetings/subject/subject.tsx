@@ -198,7 +198,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                 {/* Withdrawn notice */}
                 {subject.withdrawn && (
                     <div className="rounded-lg border border-muted bg-muted/30 px-4 py-3 text-sm text-muted-foreground italic">
-                        {getWithdrawnLabel(subject, 'long')}
+                        {getWithdrawnLabel(t, subject, 'long')}
                     </div>
                 )}
 

@@ -12,8 +12,7 @@ import { formatTimestamp } from '@/lib/utils';
 
 import { getAbsentLabel, extractFirstName } from '@/lib/formatters/name';
 import { markdownToDocxParagraphs } from '@/lib/minutes/markdownToDocx';
-import { getWithdrawnLabel } from '@/lib/utils/subjects';
-import { interleaveSubstitutes, formatSubjectLabel } from '@/lib/minutes/builders';
+import { interleaveSubstitutes, formatSubjectLabel, getWithdrawnLabelGreek } from '@/lib/minutes/builders';
 import {
     MinutesData,
     MinutesSubject,
@@ -542,7 +541,7 @@ function createTOCTable(subjects: MinutesSubject[], useSequentialNumbers: boolea
     const dataRows = subjects.map((subject, index) => {
         const seqNum = useSequentialNumbers ? `${index + 1}` : `${subject.agendaItemIndex ?? ''}`;
         const decisionText = subject.withdrawn
-            ? getWithdrawnLabel(subject)
+            ? getWithdrawnLabelGreek(subject)
             : (subject.decision?.protocolNumber ?? '');
 
         return new TableRow({

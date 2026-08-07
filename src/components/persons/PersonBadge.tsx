@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { SpeakerTag } from "@prisma/client";
 import { ImageOrInitials } from "../ImageOrInitials";
-import { cn, filterActiveRoles, getPartyFromRoles, relevanceScore } from "@/lib/utils";
+import { cn, filterActiveRoles, getPartyFromRoles, relevanceScore, UNKNOWN_SPEAKER_LABEL } from "@/lib/utils";
 import {
     Popover,
     PopoverContent,
@@ -292,13 +292,13 @@ function PersonBadge({
                             {!searchQuery && (
                                 <CommandGroup>
                                     <CommandItem
-                                        onSelect={() => handleSetLabel(nextUnknownLabel || "Άγνωστος Ομιλητής")}
+                                        onSelect={() => handleSetLabel(nextUnknownLabel || UNKNOWN_SPEAKER_LABEL)}
                                         className="flex items-center gap-2"
                                     >
                                         <div className="w-10 h-10 relative shrink-0 flex items-center justify-center bg-muted rounded-full">
                                             <span className="text-xs font-medium">?</span>
                                         </div>
-                                        <span className="font-medium">{nextUnknownLabel || "Άγνωστος Ομιλητής"}</span>
+                                        <span className="font-medium">{nextUnknownLabel || UNKNOWN_SPEAKER_LABEL}</span>
                                     </CommandItem>
                                 </CommandGroup>
                             )}

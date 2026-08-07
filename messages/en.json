@@ -67,7 +67,11 @@
         "adminBodyType_community": "Communities",
         "allPeople": "All",
         "allBodies": "All",
-        "backToHome": "Back to home"
+        "backToHome": "Back to home",
+        "loadingError": "Loading error",
+        "all": "All",
+        "searchPlaceholder": "Search...",
+        "genericError": "An error occurred"
     },
     "PilotPage": {
         "title": "OpenCouncil is running a pilot with some of the latest city council meetings of the Municipality of Athens.",
@@ -462,7 +466,15 @@
         "maxUtteranceDrift": {
             "label": "Maximum Utterance Drift",
             "description": "Maximum allowed time drift for each utterance in seconds"
-        }
+        },
+        "playbackTitle": "Playback settings",
+        "playbackDescription": "Settings for video playback",
+        "playbackSpeedLabel": "Playback speed",
+        "playbackSpeedDescription": "Adjust the video playback speed",
+        "transcriptTitle": "Transcript settings",
+        "transcriptDescription": "Transcript settings",
+        "advancedTitle": "Advanced settings",
+        "advancedDescription": "Technical settings for advanced users"
     },
     "Chat": {
         "items": "Related topics discussed ({count})"
@@ -845,7 +857,8 @@
         "loading": "Loading...",
         "notPublic": "Not public",
         "upcoming": "Upcoming",
-        "today": "Today's meeting"
+        "today": "Today's meeting",
+        "noSubjects": "No subjects"
     },
     "Person": {
         "partyLeader": "Party Leader",
@@ -879,7 +892,10 @@
         "loading": "Loading...",
         "loadMore": "Load more",
         "recentContributions": "Recent Contributions",
-        "tryDifferentFilter": "Try changing the filters"
+        "tryDifferentFilter": "Try changing the filters",
+        "breadcrumbHome": "Home",
+        "independentCouncilMember": "Independent Council Member",
+        "biography": "Biography"
     },
     "Party": {
         "currentMembers": "Current Members",
@@ -911,7 +927,8 @@
         "breakdownCouncil": "{count} on the city council",
         "breakdownCommittees": "{count} on committees",
         "breakdownCommunities": "{count} in communities",
-        "breakdownOthers": "{count} others"
+        "breakdownOthers": "{count} others",
+        "peopleWithoutParties": "People not in a group:"
     },
     "MeetingStatus": {
         "scheduled": "Scheduled",
@@ -1105,7 +1122,12 @@
         "voteDidNotVote": "Did not vote",
         "voteAbsent": "Absent",
         "groupedDiscussion": "Discussion grouped with other subjects",
-        "groupedDiscussionDescription": "This subject appears to have been discussed and voted on together with other subjects. See the discussion at:"
+        "groupedDiscussionDescription": "This subject appears to have been discussed and voted on together with other subjects. See the discussion at:",
+        "notApprovedShort": "Not approved",
+        "notApprovedLong": "The subject was not approved as urgent.",
+        "withdrawnShort": "Withdrawn",
+        "withdrawnLong": "The subject was withdrawn and not discussed.",
+        "minutesCount": "{count, plural, one {# minute} other {# minutes}}"
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {No meetings} =1 {1 meeting} other {# meetings}}",
@@ -1123,7 +1145,14 @@
         "addItem": "Add Meeting",
         "noItems": "There are no meetings in OpenCouncil.",
         "previous": "Previous",
-        "next": "Next"
+        "next": "Next",
+        "agendaDocument": "Agenda",
+        "subjectsCount": "{count, plural, =0 {No subjects} one {# subject} other {# subjects}}",
+        "availableSoon": "The meeting will be available soon",
+        "notificationComing": "You will receive an update on the discussion subjects soon",
+        "subscribeForSubjects": "Subscribe to notifications to receive discussion subjects before and after meetings",
+        "scheduledFor": "The meeting will take place {when}",
+        "watchMeeting": "Watch the meeting"
     },
     "ProductUpdates": {
         "triggerButton": "Send product update",
@@ -1152,5 +1181,29 @@
         "successSummary": "Sent: {sent}, failed: {failed}.",
         "failedListWithCount": "Failed addresses ({count})",
         "errorTitle": "Send failed"
+    },
+    "SignIn": {
+        "title": "Sign in to OpenCouncil",
+        "emailPlaceholder": "Enter your email",
+        "submit": "Continue with Email",
+        "loading": "Please wait...",
+        "error": "There was a problem sending the email. Please try again later."
+    },
+    "ShareDropdown": {
+        "title": "Share",
+        "shareTranscript": "Share the transcript",
+        "shareStatistics": "Share the statistics",
+        "shareSubject": "Share this subject",
+        "shareHighlights": "Share the highlights",
+        "shareShare": "Share the sharing options",
+        "shareSettings": "Share the settings",
+        "shareAdmin": "Share the admin page",
+        "shareMap": "Share the map",
+        "shareMeeting": "Share the meeting",
+        "link": "Link",
+        "copied": "Copied",
+        "copy": "Copy",
+        "startFrom": "Start from {timestamp}",
+        "exportPreviewAsImage": "Export preview as image"
     }
 }

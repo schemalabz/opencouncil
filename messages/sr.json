@@ -67,7 +67,11 @@
         "adminBodyType_community": "Заједнице",
         "allPeople": "Сви",
         "allBodies": "Сва",
-        "backToHome": "Назад на почетну"
+        "backToHome": "Назад на почетну",
+        "loadingError": "Грешка при учитавању",
+        "all": "Све",
+        "searchPlaceholder": "Претрага...",
+        "genericError": "Дошло је до грешке"
     },
     "PilotPage": {
         "title": "OpenCouncil спроводи пилот-пројекат са неколико најновијих седница скупштине Општине Атине.",
@@ -462,7 +466,15 @@
         "maxUtteranceDrift": {
             "label": "Максимално одступање исказа",
             "description": "Максимално дозвољено временско одступање за сваки исказ, у секундама"
-        }
+        },
+        "playbackTitle": "Подешавања репродукције",
+        "playbackDescription": "Подешавања за репродукцију видеа",
+        "playbackSpeedLabel": "Брзина репродукције",
+        "playbackSpeedDescription": "Прилагодите брзину репродукције видеа",
+        "transcriptTitle": "Подешавања транскрипта",
+        "transcriptDescription": "Подешавања транскрипта",
+        "advancedTitle": "Напредна подешавања",
+        "advancedDescription": "Техничка подешавања за напредне кориснике"
     },
     "Chat": {
         "items": "Повезане теме о којима се расправљало ({count})"
@@ -845,7 +857,8 @@
         "loading": "Учитавање...",
         "notPublic": "Није јавна",
         "upcoming": "Предстојећа",
-        "today": "Данашња седница"
+        "today": "Данашња седница",
+        "noSubjects": "Нема тема"
     },
     "Person": {
         "partyLeader": "Шеф одборничке групе",
@@ -879,7 +892,10 @@
         "loading": "Учитавање...",
         "loadMore": "Учитај још",
         "recentContributions": "Недавна учешћа",
-        "tryDifferentFilter": "Покушајте да промените филтере"
+        "tryDifferentFilter": "Покушајте да промените филтере",
+        "breadcrumbHome": "Почетна",
+        "independentCouncilMember": "Независни одборник",
+        "biography": "Биографија"
     },
     "Party": {
         "currentMembers": "Тренутни чланови",
@@ -911,7 +927,8 @@
         "breakdownCouncil": "{count} у скупштини",
         "breakdownCommittees": "{count} у одборима",
         "breakdownCommunities": "{count} у месним заједницама",
-        "breakdownOthers": "{count, plural, one {# остали} few {# остала} other {# осталих}}"
+        "breakdownOthers": "{count, plural, one {# остали} few {# остала} other {# осталих}}",
+        "peopleWithoutParties": "Особе изван одборничких група:"
     },
     "MeetingStatus": {
         "scheduled": "Заказана",
@@ -1105,7 +1122,12 @@
         "voteDidNotVote": "Није гласао",
         "voteAbsent": "Одсутан",
         "groupedDiscussion": "Расправа обједињена са другим темама",
-        "groupedDiscussionDescription": "Чини се да се о овој теми расправљало и гласало заједно са другим темама. Погледајте расправу на:"
+        "groupedDiscussionDescription": "Чини се да се о овој теми расправљало и гласало заједно са другим темама. Погледајте расправу на:",
+        "notApprovedShort": "Није усвојено",
+        "notApprovedLong": "Тема није усвојена као хитна.",
+        "withdrawnShort": "Повучено",
+        "withdrawnLong": "Тема је повучена и није разматрана.",
+        "minutesCount": "{count, plural, one {# минут} few {# минута} other {# минута}}"
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {Нема седница} one {# седница} few {# седнице} other {# седница}}",
@@ -1123,7 +1145,14 @@
         "addItem": "Додај седницу",
         "noItems": "На платформи OpenCouncil нема седница.",
         "previous": "Претходна",
-        "next": "Следећа"
+        "next": "Следећа",
+        "agendaDocument": "Дневни ред",
+        "subjectsCount": "{count, plural, =0 {Нема тема} one {# тема} few {# теме} other {# тема}}",
+        "availableSoon": "Седница ће ускоро бити доступна",
+        "notificationComing": "Ускоро ћете добити обавештење о темама расправе",
+        "subscribeForSubjects": "Пријавите се на обавештења да бисте добијали теме расправе пре и после седница",
+        "scheduledFor": "Седница ће се одржати {when}",
+        "watchMeeting": "Пратите седницу"
     },
     "ProductUpdates": {
         "triggerButton": "Пошаљи новости о производу",
@@ -1152,5 +1181,29 @@
         "successSummary": "Послато: {sent}, неуспешно: {failed}.",
         "failedListWithCount": "Неуспешне адресе ({count})",
         "errorTitle": "Слање није успело"
+    },
+    "SignIn": {
+        "title": "Пријава на OpenCouncil",
+        "emailPlaceholder": "Унесите своју имејл адресу",
+        "submit": "Настави путем имејла",
+        "loading": "Молимо сачекајте...",
+        "error": "Дошло је до проблема при слању имејла. Молимо покушајте поново касније."
+    },
+    "ShareDropdown": {
+        "title": "Дељење",
+        "shareTranscript": "Поделите транскрипт",
+        "shareStatistics": "Поделите статистику",
+        "shareSubject": "Поделите ову тему",
+        "shareHighlights": "Поделите издвојене тренутке",
+        "shareShare": "Поделите опције дељења",
+        "shareSettings": "Поделите подешавања",
+        "shareAdmin": "Поделите административну страницу",
+        "shareMap": "Поделите мапу",
+        "shareMeeting": "Поделите седницу",
+        "link": "Линк",
+        "copied": "Копирано",
+        "copy": "Копирај",
+        "startFrom": "Почни од {timestamp}",
+        "exportPreviewAsImage": "Извези преглед као слику"
     }
 }

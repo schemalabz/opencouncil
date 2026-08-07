@@ -130,19 +130,19 @@ describe('getSubjectCategories', () => {
 });
 
 describe('getWithdrawnLabel', () => {
-    it('returns "Αποσύρθηκε" for IN_AGENDA withdrawn (short)', () => {
-        expect(getWithdrawnLabel({ nonAgendaReason: null })).toBe('Αποσύρθηκε');
+    it('returns the withdrawn key for IN_AGENDA withdrawn (short)', () => {
+        expect(getWithdrawnLabel(t, { nonAgendaReason: null })).toBe('withdrawnShort');
     });
 
-    it('returns "Δεν εγκρίθηκε" for OUT_OF_AGENDA withdrawn (short)', () => {
-        expect(getWithdrawnLabel({ nonAgendaReason: 'outOfAgenda' })).toBe('Δεν εγκρίθηκε');
+    it('returns the not-approved key for OUT_OF_AGENDA withdrawn (short)', () => {
+        expect(getWithdrawnLabel(t, { nonAgendaReason: 'outOfAgenda' })).toBe('notApprovedShort');
     });
 
     it('returns long label for IN_AGENDA withdrawn', () => {
-        expect(getWithdrawnLabel({ nonAgendaReason: null }, 'long')).toBe('Το θέμα αποσύρθηκε και δεν συζητήθηκε.');
+        expect(getWithdrawnLabel(t, { nonAgendaReason: null }, 'long')).toBe('withdrawnLong');
     });
 
     it('returns long label for OUT_OF_AGENDA withdrawn', () => {
-        expect(getWithdrawnLabel({ nonAgendaReason: 'outOfAgenda' }, 'long')).toBe('Το θέμα δεν εγκρίθηκε ως έκτακτο.');
+        expect(getWithdrawnLabel(t, { nonAgendaReason: 'outOfAgenda' }, 'long')).toBe('notApprovedLong');
     });
 });
