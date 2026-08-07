@@ -393,6 +393,20 @@ export function sortSubjectsByDiscussionOrder<T extends SortableSubject>(
     return result;
 }
 
+/**
+ * Withdrawn/rejected label for the minutes table of contents.
+ *
+ * The minutes are Greek by construction — Greek headings, Greek date locale,
+ * ΑΔΑ/ΚΗΜΔΗΣ identifiers — and are never rendered outside the Greek realm, so
+ * this stays out of the i18n catalogue. Shared by the docx renderer and the
+ * on-screen preview, which draw the same table and must not drift apart. The
+ * localised equivalent for the rest of the app is getWithdrawnLabel in
+ * @/lib/utils/subjects.
+ */
+export function getWithdrawnLabelGreek(subject: { nonAgendaReason: string | null }): string {
+    return subject.nonAgendaReason === 'outOfAgenda' ? 'Δεν εγκρίθηκε' : 'Αποσύρθηκε';
+}
+
 /** Formats a subject reference for display in attendance change sections. */
 export function formatSubjectLabel(atSubject: MinutesAttendanceChange['atSubject']): string {
     if (atSubject.nonAgendaReason === 'outOfAgenda' && atSubject.outOfAgendaIndex != null) {

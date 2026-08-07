@@ -60,7 +60,7 @@ export default function CityParties({
             {peopleWithoutParties && peopleWithoutParties.length > 0 && (
                 <div className="mt-8 px-4">
                     <p className="text-gray-600 dark:text-gray-400">
-                        Πρόσωπα εκτός παρατάξεων:{' '}
+                        {t('peopleWithoutParties')}{' '}
                         {peopleWithoutParties.map((person, index) => (
                             <>
                                 <a

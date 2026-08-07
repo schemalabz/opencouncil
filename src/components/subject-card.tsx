@@ -92,7 +92,8 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
             stats={stats}
             speakers={fullDisplayedSpeakers}
             withdrawn={subject.withdrawn}
-            withdrawnLabel={getWithdrawnLabel(subject)}
+            withdrawnLabel={getWithdrawnLabel(t, subject)}
+            minutesText={t('minutesCount', { count: stats.minutes })}
             avatarsAutoScroll
             avatarsHovered={isCardHovered}
             onAvatarsClick={(e) => e.stopPropagation()}

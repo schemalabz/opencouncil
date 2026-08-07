@@ -31,6 +31,9 @@ const allMessages: Array<[string, string]> = serbianFiles.flatMap((f) => {
 const BANNED: Array<{ pattern: RegExp; use: string }> = [
     // English calque; the statutory term (Zakon o lokalnoj samoupravi) is јавна расправа.
     { pattern: /[Кк]онсултациј/, use: 'јавна расправа' },
+    // Councillors sit in assembly groups, which may be coalitions of several
+    // parties, so странка names the wrong entity for everything the UI shows.
+    { pattern: /[Сс]транк|[Сс]транак/, use: 'одборничка група' },
 ];
 
 // Load-bearing labels pinned to their approved stem (not exact strings, so the
@@ -38,6 +41,14 @@ const BANNED: Array<{ pattern: RegExp; use: string }> = [
 const REQUIRED: Array<{ key: string; stem: RegExp }> = [
     { key: 'sr.json.City.consultations', stem: /расправ/ },
     { key: 'sr.json.CityForm.consultationsEnabled', stem: /расправ/ },
+    { key: 'sr.json.Party.item', stem: /[Оо]дборничк/ },
+    { key: 'sr.json.PersonCard.party', stem: /[Оо]дборничк/ },
+    // Pinned to Шеф rather than banning Председник outright: Person.president
+    // is the assembly president, a different office that keeps that title.
+    { key: 'sr.json.Person.partyLeader', stem: /Шеф/ },
+    { key: 'sr.json.Person.partyLeaderShort', stem: /Шеф/ },
+    { key: 'sr.json.Party.partyLeader', stem: /Шеф/ },
+    { key: 'sr.json.Party.leaderLabel', stem: /Шеф/ },
 ];
 
 describe('Serbian glossary', () => {

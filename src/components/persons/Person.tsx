@@ -164,7 +164,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                         <BreadcrumbList>
                             <BreadcrumbItem>
                                 <BreadcrumbLink asChild>
-                                    <Link href="/">Αρχική</Link>
+                                    <Link href="/">{t('breadcrumbHome')}</Link>
                                 </BreadcrumbLink>
                             </BreadcrumbItem>
                             <BreadcrumbSeparator />
@@ -229,7 +229,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                     {/* Independent Council Member */}
                                     {isIndependentCouncilMember && (
                                         <div className="text-sm sm:text-base text-muted-foreground italic">
-                                            Ανεξάρτητος Δημοτικός Σύμβουλος
+                                            {t('independentCouncilMember')}
                                         </div>
                                     )}
                                 </motion.div>
@@ -245,7 +245,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                         transition={{ delay: 0.5 }}
                                     >
                                         <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4" />
-                                        <span>Βιογραφικό</span>
+                                        <span>{t('biography')}</span>
                                     </motion.a>
                                 )}
                             </div>
@@ -412,7 +412,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                         <FileText className="w-8 h-8 sm:w-12 sm:h-12 text-muted-foreground mb-4" />
                                         <div className="text-muted-foreground text-center space-y-2">
                                             <p className="text-sm sm:text-base">{t('noSegmentsFound')}</p>
-                                            <p className="text-xs sm:text-sm max-w-md mx-auto">{t('tryDifferentFilter', { fallback: 'Δοκιμάστε να αλλάξετε το φίλτρο ή ελέγξτε αργότερα για νέες τοποθετήσεις.' })}</p>
+                                            <p className="text-xs sm:text-sm max-w-md mx-auto">{t('tryDifferentFilter')}</p>
                                         </div>
                                     </div>
                                 )}

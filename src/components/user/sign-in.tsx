@@ -3,11 +3,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card"
 import { useSearchParams } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { signInWithEmail } from "@/lib/serverSignIn"
 import { useState } from "react"
 import posthog from "posthog-js"
 
 export function SignIn() {
+    const t = useTranslations("SignIn")
     const searchParams = useSearchParams()
     const email = searchParams.get("email")
     const callbackUrl = searchParams.get("callbackUrl")
@@ -27,7 +29,7 @@ export function SignIn() {
             await signInWithEmail(formData)
         } catch (err) {
             posthog.captureException(err)
-            setError("Υπήρξε πρόβλημα κατά την αποστολή του email. Παρακαλώ δοκιμάστε ξανά αργότερα.")
+            setError(t("error"))
             console.error("Sign in error:", err)
         } finally {
             setIsLoading(false)
@@ -37,7 +39,7 @@ export function SignIn() {
     return (
         <Card className="max-w-xl">
             <CardHeader>
-                <h2 className="text-2xl font-semibold text-center">Σύνδεση στο OpenCouncil</h2>
+                <h2 className="text-2xl font-semibold text-center">{t("title")}</h2>
             </CardHeader>
             <form onSubmit={handleSubmit}>
                 <CardContent>
@@ -45,7 +47,7 @@ export function SignIn() {
                         <Input
                             type="email"
                             name="email"
-                            placeholder="Εισάγετε το email σας"
+                            placeholder={t("emailPlaceholder")}
                             className="w-full"
                             required
                             defaultValue={email || ""}
@@ -61,7 +63,7 @@ export function SignIn() {
                 </CardContent>
                 <CardFooter>
                     <Button type="submit" className="w-full" disabled={isLoading}>
-                        {isLoading ? "Παρακαλώ περιμένετε..." : "Συνέχεια με Email"}
+                        {isLoading ? t("loading") : t("submit")}
                     </Button>
                 </CardFooter>
             </form>

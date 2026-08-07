@@ -29,7 +29,7 @@ export function MultiSelectDropdown<T>({
     defaultValues = [],
     className,
     placeholder = "Select options...",
-    allText = "Όλα"
+    allText = "All"
 }: MultiSelectDropdownProps<T>) {
     const [selectedValues, setSelectedValues] = useState<T[]>(defaultValues);
 

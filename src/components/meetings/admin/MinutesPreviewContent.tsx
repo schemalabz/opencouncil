@@ -14,8 +14,8 @@ import {
     MinutesTranscriptEntry,
     MinutesAttendanceChange,
 } from '@/lib/minutes/types';
-import { interleaveSubstitutes, formatSubjectLabel } from '@/lib/minutes/builders';
-import { getWithdrawnLabel } from '@/lib/utils/subjects';
+import { interleaveSubstitutes, formatSubjectLabel, getWithdrawnLabelGreek } from '@/lib/minutes/builders';
+
 
 type DebugCategory = 'SUBJECT_DISCUSSION' | 'VOTE' | 'PROCEDURAL_VOTE' | 'ATTENDANCE' | 'OTHER' | 'CROSS_SUBJECT';
 
@@ -418,7 +418,7 @@ function TOCTable({ subjects, useSequentialNumbers }: { subjects: MinutesSubject
                         </td>
                         <td className="py-1 pr-2 text-gray-500">
                             {subject.withdrawn
-                                ? getWithdrawnLabel(subject)
+                                ? getWithdrawnLabelGreek(subject)
                                 : (subject.decision?.protocolNumber ?? '')}
                         </td>
                     </tr>

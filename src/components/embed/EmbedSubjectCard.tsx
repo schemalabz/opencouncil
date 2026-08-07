@@ -49,7 +49,7 @@ export function EmbedSubjectCard({ subject, meeting, locationText, speakers, sta
                 locationText={locationText ? localizeText(locationText, locale) : t('noLocation')}
                 agendaLabel={getAgendaLabel(t, subject)}
                 description={subject.description ? localizeText(stripMarkdown(subject.description), locale) : null}
-                footer={<SubjectCardFooter stats={stats} speakers={speakers} />}
+                footer={<SubjectCardFooter stats={stats} speakers={speakers} minutesText={t('minutesCount', { count: stats.minutes })} />}
                 disableHover
                 compact
             />

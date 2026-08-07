@@ -67,7 +67,11 @@
         "adminBodyType_community": "Κοινότητες",
         "allPeople": "Όλα",
         "allBodies": "Όλες",
-        "backToHome": "Πίσω στην αρχική σελίδα"
+        "backToHome": "Πίσω στην αρχική σελίδα",
+        "loadingError": "Σφάλμα φόρτωσης",
+        "all": "Όλα",
+        "searchPlaceholder": "Αναζήτηση...",
+        "genericError": "Παρουσιάστηκε σφάλμα"
     },
     "MeetingCard": {
         "noVideo": "Χωρίς μέσα",
@@ -81,7 +85,8 @@
         "loading": "Φόρτωση...",
         "notPublic": "Μη δημόσια",
         "upcoming": "Επερχόμενη",
-        "today": "Σημερινή συνεδρίαση"
+        "today": "Σημερινή συνεδρίαση",
+        "noSubjects": "Χωρίς θέματα"
     },
     "PilotPage": {
         "title": "To OpenCouncil λειτουργεί δοκιμαστικά με μερικά από τα τελευταία δημοτικά συμβούλια του Δήμου Αθηναίων.",
@@ -495,7 +500,10 @@
         "loading": "Φόρτωση...",
         "loadMore": "Περισσότερα",
         "recentContributions": "Περιλήψεις Τοποθετήσεων",
-        "tryDifferentFilter": "Προσπαθήστε να αλλάξετε τα φίλτρα"
+        "tryDifferentFilter": "Προσπαθήστε να αλλάξετε τα φίλτρα",
+        "breadcrumbHome": "Αρχική",
+        "independentCouncilMember": "Ανεξάρτητος Δημοτικός Σύμβουλος",
+        "biography": "Βιογραφικό"
     },
     "Party": {
         "currentMembers": "Μέλη",
@@ -527,7 +535,8 @@
         "breakdownCouncil": "{count} στο Δημοτικό Συμβούλιο",
         "breakdownCommittees": "{count} σε επιτροπές",
         "breakdownCommunities": "{count} σε κοινότητες",
-        "breakdownOthers": "{count} άλλοι"
+        "breakdownOthers": "{count} άλλοι",
+        "peopleWithoutParties": "Πρόσωπα εκτός παρατάξεων:"
     },
     "ImageCropDialog": {
         "title": "Προσαρμογή εικόνας",
@@ -640,7 +649,14 @@
         "addItem": "Προσθήκη Συνεδρίασης",
         "noItems": "Δεν υπάρχουν συνεδριάσεις στο OpenCouncil.",
         "previous": "Προηγούμενο",
-        "next": "Επόμενο"
+        "next": "Επόμενο",
+        "agendaDocument": "Ημερήσια Διάταξη",
+        "subjectsCount": "{count, plural, =0 {Χωρίς θέματα} one {# θέμα} other {# θέματα}}",
+        "availableSoon": "Η συνεδρίαση θα είναι σύντομα διαθέσιμη",
+        "notificationComing": "Θα λάβετε σύντομα ενημέρωση για τα θέματα συζήτησης",
+        "subscribeForSubjects": "Γραφτείτε στις ειδοποιήσεις για να λαμβάνετε τα θέματα συζήτησης πριν και μετά τις συνεδριάσεις",
+        "scheduledFor": "Η συνεδρίαση θα πραγματοποιηθεί {when}",
+        "watchMeeting": "Παρακολουθήστε τη συνεδρίαση"
     },
     "Unsubscribe": {
         "invalidLinkTitle": "Μη έγκυρος σύνδεσμος",
@@ -814,7 +830,15 @@
         "maxUtteranceDrift": {
             "label": "Μέγιστη Απόκλιση Εκφωνήσεων",
             "description": "Μέγιστη επιτρεπόμενη χρονική απόκλιση για κάθε εκφώνηση σε δευτερόλεπτα"
-        }
+        },
+        "playbackTitle": "Ρυθμίσεις αναπαραγωγής",
+        "playbackDescription": "Ρυθμίσεις για την αναπαραγωγή του βίντεο",
+        "playbackSpeedLabel": "Ταχύτητα αναπαραγωγής",
+        "playbackSpeedDescription": "Προσαρμόστε την ταχύτητα αναπαραγωγής του βίντεο",
+        "transcriptTitle": "Ρυθμίσεις απομαγνητοφώνησης",
+        "transcriptDescription": "Ρυθμίσεις της απομαγνητοφώνησης",
+        "advancedTitle": "Προχωρημένες ρυθμίσεις",
+        "advancedDescription": "Τεχνικές ρυθμίσεις για προχωρημένους χρήστες"
     },
     "Chat": {
         "items": "Σχετικά θέματα που συζητήθηκαν ({count})"
@@ -1093,7 +1117,12 @@
         "voteAbstain": "Λευκό",
         "votePresent": "Παρών",
         "voteDidNotVote": "Αποχή",
-        "voteAbsent": "Απόντες"
+        "voteAbsent": "Απόντες",
+        "notApprovedShort": "Δεν εγκρίθηκε",
+        "notApprovedLong": "Το θέμα δεν εγκρίθηκε ως έκτακτο.",
+        "withdrawnShort": "Αποσύρθηκε",
+        "withdrawnLong": "Το θέμα αποσύρθηκε και δεν συζητήθηκε.",
+        "minutesCount": "{count, plural, one {# λεπτό} other {# λεπτά}}"
     },
     "PersonCard": {
         "party": "Παράταξη",
@@ -1152,5 +1181,29 @@
         "successSummary": "Εστάλησαν: {sent}, απέτυχαν: {failed}.",
         "failedListWithCount": "Διευθύνσεις που απέτυχαν ({count})",
         "errorTitle": "Η αποστολή απέτυχε"
+    },
+    "SignIn": {
+        "title": "Σύνδεση στο OpenCouncil",
+        "emailPlaceholder": "Εισάγετε το email σας",
+        "submit": "Συνέχεια με Email",
+        "loading": "Παρακαλώ περιμένετε...",
+        "error": "Υπήρξε πρόβλημα κατά την αποστολή του email. Παρακαλώ δοκιμάστε ξανά αργότερα."
+    },
+    "ShareDropdown": {
+        "title": "Κοινοποίηση",
+        "shareTranscript": "Μοιραστείτε την απομαγνητοφώνηση",
+        "shareStatistics": "Μοιραστείτε τα στατιστικά",
+        "shareSubject": "Μοιραστείτε αυτό το θέμα",
+        "shareHighlights": "Μοιραστείτε τα highlights",
+        "shareShare": "Μοιραστείτε τις επιλογές κοινοποίησης",
+        "shareSettings": "Μοιραστείτε τις ρυθμίσεις",
+        "shareAdmin": "Μοιραστείτε τη σελίδα διαχείρισης",
+        "shareMap": "Μοιραστείτε τον χάρτη",
+        "shareMeeting": "Μοιραστείτε τη συνεδρίαση",
+        "link": "Σύνδεσμος",
+        "copied": "Αντιγράφηκε",
+        "copy": "Αντιγραφή",
+        "startFrom": "Ξεκίνημα από το {timestamp}",
+        "exportPreviewAsImage": "Εξαγωγή Προεπισκόπησης ως Εικόνα"
     }
 }

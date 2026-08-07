@@ -164,6 +164,7 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
     const { toast } = useToast();
     const { subjects, meeting, people, getPerson } = useCouncilMeetingData();
     const t = useTranslations('admin.adminActions');
+    const tSubject = useTranslations('Subject');
     const administrativeBodyId = meeting.administrativeBodyId ?? null;
     const meetingDate = new Date(meeting.dateTime);
     const mayorPersonId = people.find(p =>
@@ -587,7 +588,7 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                     <Fragment key={subject.id}>
                                         {showOutOfAgendaSeparator && (
                                             <div className="pt-3 pb-1 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                                                Εκτός Ημ. Διάταξης
+                                                {tSubject('categories.outOfAgenda.shortLabel')}
                                             </div>
                                         )}
                                     <div
@@ -657,7 +658,7 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                             <div className="flex items-center gap-2 shrink-0">
                                                 {subject.withdrawn ? (
                                                     <Badge variant="secondary" className="text-xs text-muted-foreground italic">
-                                                        {getWithdrawnLabel(subject)}
+                                                        {getWithdrawnLabel(tSubject, subject)}
                                                     </Badge>
                                                 ) : decision ? (
                                                     <>

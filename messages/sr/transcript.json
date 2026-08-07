@@ -76,5 +76,7 @@
         "button": "Копирајте сегмент",
         "segmentCopied": "Сегмент је копиран",
         "copySourceAttribution": "Копирано са OpenCouncil · opencouncil.gr"
-    }
+    },
+    "notAvailable": "Транскрипт још није доступан.",
+    "procedural": "Процедурално"
 }

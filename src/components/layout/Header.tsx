@@ -105,6 +105,7 @@ function PageIconBadge({ icon: IconComponent }: { icon: LucideIcon }) {
 
 const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noContainer = false, className }: HeaderProps) => {
     const t = useTranslations("Header");
+    const tCommon = useTranslations("Common");
     const meetingPageSegments = getMeetingPageSegments(useTranslations("CouncilMeeting"));
     const [isScrolled, setIsScrolled] = useState(false);
     const router = useRouter();
@@ -421,7 +422,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                                     <Input
                                         ref={searchInputRef}
                                         type="text"
-                                        placeholder="Αναζήτηση..."
+                                        placeholder={tCommon('searchPlaceholder')}
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         className="w-full pl-8 sm:pl-9 h-10 sm:h-12 text-sm sm:text-base"

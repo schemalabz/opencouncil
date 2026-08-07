@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { JsonMetadataDialog } from "@/components/ui/json-metadata-dialog";
 import { getWithdrawnLabel } from "@/lib/utils/subjects";
+import { useTranslations } from "next-intl";
 import { FileJson } from "lucide-react";
 
 interface SubjectAdminControlsProps {
@@ -21,6 +22,7 @@ interface SubjectAdminControlsProps {
 }
 
 export function SubjectAdminControls({ subject, cityId, meetingId }: SubjectAdminControlsProps) {
+    const t = useTranslations("Subject");
     const [open, setOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
 
@@ -70,18 +72,18 @@ export function SubjectAdminControls({ subject, cityId, meetingId }: SubjectAdmi
                                 })}
                                 disabled={isUpdating}
                             >
-                                <SelectTrigger id="nonAgendaReason" className="h-7 w-[160px] text-xs">
+                                <SelectTrigger id="nonAgendaReason" className="h-7 min-w-[160px] text-xs">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="agenda">Ημερησίας</SelectItem>
-                                    <SelectItem value="beforeAgenda">Προ ημερησίας</SelectItem>
-                                    <SelectItem value="outOfAgenda">Εκτός ημερησίας</SelectItem>
+                                    <SelectItem value="agenda">{t('categories.agenda.shortLabel')}</SelectItem>
+                                    <SelectItem value="beforeAgenda">{t('categories.beforeAgenda.shortLabel')}</SelectItem>
+                                    <SelectItem value="outOfAgenda">{t('categories.outOfAgenda.shortLabel')}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Label htmlFor="withdrawn" className="text-xs text-muted-foreground">{getWithdrawnLabel(subject)}</Label>
+                            <Label htmlFor="withdrawn" className="text-xs text-muted-foreground">{getWithdrawnLabel(t, subject)}</Label>
                             <Switch
                                 id="withdrawn"
                                 checked={subject.withdrawn}

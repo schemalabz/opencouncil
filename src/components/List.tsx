@@ -1,5 +1,6 @@
 import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import FormSheet from './FormSheet';
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from '@/components/ui/input';
@@ -52,7 +53,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     smColumns = 1,
     mdColumns = 2,
     lgColumns = 3,
-    allText = "Όλα",
+    allText,
     showSearch = true,
     layout = 'grid',
     carouselItemWidth = 300,
@@ -62,6 +63,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     renderFilter,
     renderAfterFilters
 }: ListProps<T, P, F>) {
+    const tCommon = useTranslations('Common');
     const searchParams = useSearchParams();
     const listRef = useRef<HTMLDivElement>(null);
     const carouselRef = useRef<HTMLDivElement>(null);
@@ -231,7 +233,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                         defaultValues={selectedFilters}
                         onChange={handleFilterChange}
                         className="w-full sm:w-[300px] justify-between"
-                        allText={allText}
+                        allText={allText ?? tCommon('all')}
                     />
                 ) : null}
                 {showSearch && (
