@@ -39,6 +39,12 @@ const MEETING_ID = 'meeting-1';
 const ADMIN_BODY_ID = 'admin-body-1';
 const MEETING_DATE = new Date('2024-06-15T10:00:00Z');
 
+// City fixtures are checked against the real shape rather than cast to `any`:
+// `realm` and `language` drive the request body, and a typo'd or omitted one
+// would otherwise only surface as an undefined at runtime.
+type MockedCity = NonNullable<Awaited<ReturnType<typeof getCity>>>;
+const mockCity = (city: Partial<MockedCity>) => mockGetCity.mockResolvedValue(city as MockedCity);
+
 function setupCommonMocks() {
     mockGetCouncilMeeting.mockResolvedValue({
         id: MEETING_ID,
@@ -57,10 +63,12 @@ function setupCommonMocks() {
         { id: 'topic-1', name: 'Environment', description: '' },
     ] as any);
 
-    mockGetCity.mockResolvedValue({
+    mockCity({
         id: CITY_ID,
         name: 'Test City',
-    } as any);
+        language: 'el',
+        realm: 'greece',
+    });
 }
 
 describe('getRequestOnTranscriptRequestBody', () => {
@@ -87,6 +95,17 @@ describe('getRequestOnTranscriptRequestBody', () => {
         expect(result.transcript[0].speakerParty).toBe('Party A');
         expect(result.transcript[0].speakerId).toBe('person-1');
         expect(result.topicLabels).toEqual([{ name: 'Environment', description: '' }]);
+    });
+
+    it('sends the country of the city realm, so locations geocode in the right country', async () => {
+        mockGetTranscript.mockResolvedValue([]);
+        mockGetPeopleForMeeting.mockResolvedValue([]);
+        mockCity({ id: CITY_ID, name: 'Novi Sad', language: 'sr', realm: 'serbia' });
+
+        const result = await getRequestOnTranscriptRequestBody(MEETING_ID, CITY_ID);
+
+        expect(result.country).toBe('RS');
+        expect(result.cityLanguage).toBe('sr');
     });
 
     it('resolves speakers NOT in the meeting people list but identified in transcript', async () => {

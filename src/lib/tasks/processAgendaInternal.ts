@@ -4,6 +4,7 @@ import prisma from "../db/prisma";
 import { getTopics } from "../db/topics";
 import { getPartyFromRoles, getRoleNameForPerson } from "../utils";
 import { getPeopleForMeeting } from "../db/people";
+import { getRealmCountry } from "@/lib/realm";
 
 /**
  * Core processAgenda logic without auth checks.
@@ -79,7 +80,9 @@ export async function requestProcessAgendaInternal(agendaUrl: string, councilMee
         people: Array.from(peopleMap.values()),
         topicLabels: topicLabels.map(t => ({ name: t.name, description: t.description })),
         cityName: councilMeeting.city.name,
-        cityLanguage: councilMeeting.city.language
+        cityLanguage: councilMeeting.city.language,
+        // Scopes geocoding of the agenda's locations to the right country.
+        country: getRealmCountry(councilMeeting.city.realm)
     }
 
     console.log(`Process agenda body: ${JSON.stringify(body)}`);
