@@ -47,7 +47,8 @@ entries, so add to it when you settle a term.
 | minutes (document) | записник | |
 | transcript | транскрипт | |
 | speaker | говорник | |
-| political party | странка | |
+| assembly group | одборничка група | Councillors sit in groups, which may be coalitions of several parties. Never странка — the UI shows the group, not the party. Enforced by test |
+| assembly group leader | шеф одборничке групе | Not председник: that is the assembly president (Person.president), a different office |
 | neighborhood / local community | месна заједница | Not yet used in strings; relevant for location features |
 | notification | обавештење | |
 | search | претрага | |
@@ -109,6 +110,7 @@ Main catalog (`messages/sr.json`), one checkbox per namespace:
 - [ ] Profile, OfferForm, Offer, MeetingCard, Person, Party, MeetingStatus
 - [ ] AdministrativeBodiesList, RSS, PartyMemberRankingSheet, ElectedOrderSheet
 - [ ] Subject, CouncilMeeting, ProductUpdates
+- [ ] SignIn, ShareDropdown
 
 Modular catalogs (`messages/sr/`):
 
