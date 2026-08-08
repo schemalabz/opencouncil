@@ -1,0 +1,39 @@
+import Anthropic from "@anthropic-ai/sdk";
+import { AnthropicLike, ModelRequest, ModelResponse } from "@/agent/types";
+import { env } from "@/env.mjs";
+
+const MCP_BETA = "mcp-client-2025-11-20";
+
+let client: Anthropic | null = null;
+
+function getClient(): Anthropic {
+  if (!client) client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  return client;
+}
+
+/** Real Deps.anthropic implementation over the beta namespace (MCP connector). */
+export const realAnthropic: AnthropicLike = {
+  async create(params: ModelRequest): Promise<ModelResponse> {
+    const response = await getClient().beta.messages.create({
+      betas: [MCP_BETA],
+      model: params.model,
+      max_tokens: params.max_tokens,
+      system: params.system,
+      // The core builds request content structurally; the SDK validates at runtime.
+      messages: params.messages as never,
+      ...(params.tools ? { tools: params.tools as never } : {}),
+      ...(params.mcp_servers ? { mcp_servers: params.mcp_servers as never } : {}),
+      ...(params.output_config ? { output_config: params.output_config as never } : {}),
+    });
+    return {
+      content: response.content as unknown[],
+      stop_reason: response.stop_reason,
+      usage: {
+        input_tokens: response.usage.input_tokens,
+        output_tokens: response.usage.output_tokens,
+        cache_creation_input_tokens: response.usage.cache_creation_input_tokens,
+        cache_read_input_tokens: response.usage.cache_read_input_tokens,
+      },
+    };
+  },
+};
