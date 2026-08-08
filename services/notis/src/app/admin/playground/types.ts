@@ -55,6 +55,8 @@ export interface Sim {
   origin: "transition" | "signup";
   /** When the simulated user last wrote (drives the 24h template window). */
   lastUserMessageAt?: string;
+  /** City display metadata for the timeline (name + logo). */
+  cityMeta?: Record<string, { name: string; logo?: string | null }>;
 }
 
 export interface Snapshot {

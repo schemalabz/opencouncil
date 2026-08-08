@@ -42,7 +42,7 @@ describe("golden scenarios (recorded replay)", () => {
         anthropic: replay,
         now: () => FIXED_NOW,
         prompts: { system: "SYSTEM", contextPack: "PACK", editorial: "ED" },
-        config: { model: "claude-sonnet-5", maxTurns: 8, mcpUrl: "https://opencouncil.gr/mcp" },
+        config: { model: "claude-sonnet-5", maxTurns: 8, mcpUrl: "https://opencouncil.gr/mcp", effort: "low" },
         mcp: { call: async () => null },
       };
 

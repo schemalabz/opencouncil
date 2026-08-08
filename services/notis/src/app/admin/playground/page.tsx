@@ -202,6 +202,7 @@ export default function PlaygroundPage() {
 
       <Timeline
         queue={store.sim.queue}
+        cityMeta={store.sim.cityMeta}
         selectedId={selectedId}
         busyItemId={busyItemId}
         onSelect={setSelectedId}

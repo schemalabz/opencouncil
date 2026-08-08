@@ -19,6 +19,7 @@ const journalEntrySchema = z.object({
   decision: z.enum(["silence", "send"]),
   rationale: z.string(),
   messages: z.array(z.string()),
+  received: z.string().optional(),
 });
 
 const stateSchema = z.object({
@@ -87,6 +88,7 @@ const requestSchema = z.object({
       contextPackOverride: z.string().optional(),
       model: z.string().optional(),
       maxTurns: z.number().int().optional(),
+      effort: z.enum(["low", "medium", "high", "xhigh", "max"]).optional(),
     })
     .optional(),
 });

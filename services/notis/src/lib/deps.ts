@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { DEFAULT_CONFIG, Deps, Prompts } from "@/agent/types";
+import { DEFAULT_CONFIG, Deps, Effort, Prompts } from "@/agent/types";
 import { realAnthropic } from "./anthropic";
 import { McpClient } from "./mcp-client";
 
@@ -34,6 +34,7 @@ export interface DepsOverrides {
   contextPackOverride?: string;
   model?: string;
   maxTurns?: number;
+  effort?: Effort;
 }
 
 export function buildDeps(overrides: DepsOverrides = {}): Deps {
@@ -49,6 +50,7 @@ export function buildDeps(overrides: DepsOverrides = {}): Deps {
       model: overrides.model ?? DEFAULT_CONFIG.model,
       maxTurns: Math.max(1, Math.min(12, overrides.maxTurns ?? DEFAULT_CONFIG.maxTurns)),
       mcpUrl: DEFAULT_CONFIG.mcpUrl,
+      effort: overrides.effort ?? DEFAULT_CONFIG.effort,
     },
     mcp: sharedMcp,
   };

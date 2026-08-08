@@ -58,4 +58,22 @@ describe("assembleUserTurn", () => {
     );
     expect(turn).toContain("Τι έγινε με την πλατεία;");
   });
+
+  it("journal entries carry the user's past words so the conversation is remembered", () => {
+    const state = makeState({
+      journal: [
+        {
+          at: "2026-03-01T10:00:00.000Z",
+          event: "user_message",
+          decision: "send",
+          rationale: "answered directly",
+          messages: ["Η απάντηση."],
+          received: "Πότε φτιάχνεται ο δρόμος μας;",
+        },
+      ],
+    });
+    const turn = assembleUserTurn(state, meetingEvent(), FIXED_NOW);
+    expect(turn).toContain("they wrote: «Πότε φτιάχνεται ο δρόμος μας;»");
+    expect(turn).toContain("sent: «Η απάντηση.»");
+  });
 });

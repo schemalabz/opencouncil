@@ -69,6 +69,7 @@ export async function runWake(
       messages,
       tools: buildTools(),
       mcp_servers: buildMcpServers(deps.config.mcpUrl),
+      output_config: { effort: deps.config.effort },
     });
 
     const usage = normalizeUsage(response.usage);

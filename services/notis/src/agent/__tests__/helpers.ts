@@ -97,7 +97,7 @@ export function makeDeps(anthropic: AnthropicLike, overrides: Partial<Deps> = {}
       contextPack: "CONTEXT PACK",
       editorial: "EDITORIAL PROMPT",
     },
-    config: { model: "claude-sonnet-5", maxTurns: 8, mcpUrl: "https://example.test/mcp" },
+    config: { model: "claude-sonnet-5", maxTurns: 8, mcpUrl: "https://example.test/mcp", effort: "low" as const },
     mcp: { call: async () => null },
     ...overrides,
   };

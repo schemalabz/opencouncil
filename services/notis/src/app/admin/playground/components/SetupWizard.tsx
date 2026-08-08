@@ -18,6 +18,7 @@ interface Props {
 interface CityDraft extends CityPreference {
   points: LocationPoint[];
   center: MapFocus | null;
+  logo?: string | null;
 }
 
 function SectionHeader({ n, title }: { n: string; title: string }) {
@@ -72,6 +73,7 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
       locations: [],
       points: [],
       center: null,
+      logo: c.logoImage ?? null,
     };
     setDrafts((prev) => [...prev, draft]);
     const hits = await geocode(c.name, mapboxToken, undefined, "place,locality");
@@ -127,6 +129,9 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
           settings: {},
           locationPoints: Object.fromEntries(drafts.map((d) => [d.cityId, d.points])),
           origin,
+          cityMeta: Object.fromEntries(
+            drafts.map((d) => [d.cityId, { name: d.cityName, logo: d.logo }]),
+          ),
         },
         from,
       );

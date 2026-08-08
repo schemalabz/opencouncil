@@ -17,5 +17,8 @@ export function buildJournalEntry(
     decision,
     rationale,
     messages,
+    // The user's words are conversation memory — they belong to the journal,
+    // so the model never has to copy them into the taste profile to keep them.
+    ...(event.type === "user_message" ? { received: event.text } : {}),
   };
 }

@@ -12,6 +12,8 @@ export interface JournalEntry {
   decision: "silence" | "send";
   rationale: string;
   messages: string[]; // texts sent (empty on silence)
+  /** What the user wrote, verbatim, on user_message wakes — the journal IS the conversation memory. */
+  received?: string;
 }
 
 export interface CityPreference {
@@ -177,10 +179,14 @@ export interface Prompts {
   editorial: string;
 }
 
+export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
+
 export interface DepsConfig {
   model: string;
   maxTurns: number;
   mcpUrl: string;
+  /** Sonnet 5 punches well above its weight at low effort — the cost lever for wakes. */
+  effort: Effort;
 }
 
 export interface Deps {
@@ -197,6 +203,7 @@ export const DEFAULT_CONFIG: DepsConfig = {
   model: "claude-sonnet-5",
   maxTurns: 8,
   mcpUrl: "https://opencouncil.gr/mcp",
+  effort: "low",
 };
 
 export const JOURNAL_WINDOW = 30;

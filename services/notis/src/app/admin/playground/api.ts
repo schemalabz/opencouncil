@@ -17,15 +17,46 @@ async function post<T>(url: string, body: unknown): Promise<T> {
 export interface CityOption {
   id: string;
   name: string;
+  logoImage?: string | null;
 }
 
+/** Cities come from the main app's REST API — the one surface that carries logos. */
 export async function fetchCities(): Promise<CityOption[]> {
-  const { result } = await post<{ result: { cities?: CityOption[] } | CityOption[] }>(
-    "/api/proxy/mcp",
-    { tool: "list_cities", args: {} },
-  );
-  const cities = Array.isArray(result) ? result : (result.cities ?? []);
-  return cities.map((c) => ({ id: c.id, name: c.name }));
+  const res = await fetch("/api/proxy/cities");
+  if (!res.ok) throw new Error(`cities failed: ${res.status}`);
+  const data = (await res.json()) as CityOption[] | { cities?: CityOption[] };
+  const cities = Array.isArray(data) ? data : (data.cities ?? []);
+  return cities.map((c) => ({ id: c.id, name: c.name, logoImage: c.logoImage ?? null }));
+}
+
+export interface MeetingDetails {
+  adminBody?: string;
+  topSubjects: Array<{ name: string; minutes: number }>;
+}
+
+/** Meeting metadata for the timeline hover card (admin body + most-discussed subjects). */
+export async function fetchMeetingDetails(
+  cityId: string,
+  meetingId: string,
+): Promise<MeetingDetails> {
+  const { result } = await post<{
+    result: {
+      meeting?: {
+        administrativeBody?: string | null;
+        subjects?: Array<{ name: string; discussionSeconds?: number }>;
+      };
+    } & {
+      administrativeBody?: string | null;
+      subjects?: Array<{ name: string; discussionSeconds?: number }>;
+    };
+  }>("/api/proxy/mcp", { tool: "get_meeting", args: { cityId, meetingId } });
+  const m = result.meeting ?? result;
+  const topSubjects = (m.subjects ?? [])
+    .map((s) => ({ name: s.name, seconds: s.discussionSeconds ?? 0 }))
+    .sort((a, b) => b.seconds - a.seconds)
+    .slice(0, 3)
+    .map((s) => ({ name: s.name, minutes: Math.round(s.seconds / 60) }));
+  return { adminBody: m.administrativeBody ?? undefined, topSubjects };
 }
 
 export interface TopicOption {

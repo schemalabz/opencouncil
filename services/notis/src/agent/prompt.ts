@@ -74,6 +74,8 @@ export function assembleUserTurn(state: WakeState, event: WakeEvent, now: Date):
     .map(
       (j) =>
         `[${j.at}] ${j.event} → ${j.decision}${
+          j.received ? `\n  they wrote: «${j.received}»` : ""
+        }${
           j.messages.length ? `\n  sent: ${j.messages.map((m) => `«${m}»`).join(" | ")}` : ""
         }\n  why: ${j.rationale}`,
     )

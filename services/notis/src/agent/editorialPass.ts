@@ -121,6 +121,7 @@ export async function editorialPass(
     system: [{ type: "text", text: deps.prompts.editorial }],
     messages: [{ role: "user", content: JSON.stringify(modelInput) }],
     output_config: {
+      effort: deps.config.effort,
       format: { type: "json_schema", schema: briefSchema(subjects.map((s) => s.id)) },
     },
   });
