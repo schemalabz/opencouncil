@@ -221,6 +221,7 @@ function TemplateBubble({
   onQuickReply?: (label: string) => void;
   busy?: boolean;
 }) {
+  const url = firstUrl(rendered.body);
   return (
     <div className="flex justify-start px-4">
       <div
@@ -231,7 +232,7 @@ function TemplateBubble({
       >
         {first && <Tail side="in" />}
         <div className="px-3">
-          {firstUrl(rendered.body) && <LinkPreview url={firstUrl(rendered.body)!} />}
+          {url && <LinkPreview url={url} />}
           <span className="whitespace-pre-wrap break-words">
             <Linkified text={rendered.body} />
           </span>

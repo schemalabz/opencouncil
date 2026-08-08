@@ -12,7 +12,7 @@ import { dryRun, fetchBrief, fetchShippedPrompt } from "./api";
 import { PromptEditor } from "./components/PromptEditor";
 import { SetupWizard } from "./components/SetupWizard";
 import { emptyStore, loadStore, reducer, saveStore } from "./store";
-import { QueueItem, hasPendingBrief } from "./types";
+import { WakeRecord, hasPendingBrief } from "./types";
 
 const MAPBOX_TOKEN = env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
@@ -47,7 +47,7 @@ export default function PlaygroundPage() {
     [store.traces],
   );
 
-  const runItem = useCallback(async (item: QueueItem): Promise<WakeOutcome | undefined> => {
+  const runItem = useCallback(async (item: WakeRecord): Promise<WakeOutcome | undefined> => {
     setBusyItemId(item.id);
     setError(null);
     try {
@@ -101,10 +101,15 @@ export default function PlaygroundPage() {
     }
   }, []);
 
+  const nextPending = useCallback(
+    () => storeRef.current.sim.queue.find((q) => q.status === "pending"),
+    [],
+  );
+
   const step = useCallback(() => {
-    const next = storeRef.current.sim.queue.find((q) => q.status === "pending");
+    const next = nextPending();
     if (next) void runItem(next);
-  }, [runItem]);
+  }, [nextPending, runItem]);
 
   // Fast-forward: keep running wakes until ο Νότης actually writes (or the
   // queue runs dry / an error stops us / the user hits stop).
@@ -114,7 +119,7 @@ export default function PlaygroundPage() {
     try {
       for (;;) {
         if (stopRef.current) break;
-        const next = storeRef.current.sim.queue.find((q) => q.status === "pending");
+        const next = nextPending();
         if (!next) break;
         const outcome = await runItem(next);
         if (!outcome || outcome.messages.length > 0) break;
@@ -122,21 +127,21 @@ export default function PlaygroundPage() {
     } finally {
       setAutoRun(false);
     }
-  }, [runItem]);
+  }, [nextPending, runItem]);
 
   const stopAutoRun = useCallback(() => {
     stopRef.current = true;
   }, []);
 
   const skip = useCallback(() => {
-    const next = storeRef.current.sim.queue.find((q) => q.status === "pending");
+    const next = nextPending();
     if (next) dispatch({ type: "skip", itemId: next.id });
-  }, []);
+  }, [nextPending]);
 
   const userMessage = useCallback(
     (text: string) => {
       const clock = storeRef.current.sim.clock;
-      const item: QueueItem = {
+      const item: WakeRecord = {
         id: `user:${Date.now()}`,
         event: { type: "user_message", at: clock, text },
         status: "pending",

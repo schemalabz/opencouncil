@@ -1,7 +1,7 @@
 import { WakeOutcome, WakeState, WakeTrace } from "@/agent/types";
 import {
   PlaygroundStore,
-  QueueItem,
+  WakeRecord,
   SNAPSHOT_CAP,
   Sim,
   Snapshot,
@@ -56,7 +56,7 @@ export type Action =
   | { type: "reset" }
   | { type: "hydrate"; store: PlaygroundStore }
   | { type: "setupComplete"; sim: Sim; from: string }
-  | { type: "briefReady"; itemId: string; event: QueueItem["event"] }
+  | { type: "briefReady"; itemId: string; event: WakeRecord["event"] }
   | {
       type: "stepDone";
       itemId: string;
@@ -65,12 +65,12 @@ export type Action =
       nextState: WakeState;
       clock: string;
       snapshotLabel: string;
-      delivery?: QueueItem["delivery"];
+      delivery?: WakeRecord["delivery"];
       /** Set when the item was a user message — reopens the 24h window. */
       userMessageAt?: string;
     }
   | { type: "skip"; itemId: string }
-  | { type: "userMessage"; item: QueueItem }
+  | { type: "userMessage"; item: WakeRecord }
   | { type: "setPromptOverride"; value?: string }
   | { type: "restoreSnapshot"; id: string };
 

@@ -1,4 +1,4 @@
-import { QueueItem } from "./types";
+import { WakeRecord } from "./types";
 
 export interface MeetingSummary {
   id: string;
@@ -17,10 +17,10 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * a start date — it runs forward through everything published since. Briefs
  * are lazy ({pending: true}) until a step actually needs them.
  */
-export function deriveQueue(meetings: MeetingSummary[], from: string): QueueItem[] {
+export function deriveQueue(meetings: MeetingSummary[], from: string): WakeRecord[] {
   const fromMs = new Date(from).getTime();
 
-  const items: QueueItem[] = [];
+  const items: WakeRecord[] = [];
   for (const m of meetings) {
     const meetingMs = new Date(m.dateTime).getTime();
     if (Number.isNaN(meetingMs)) continue;
@@ -55,7 +55,7 @@ export function deriveQueue(meetings: MeetingSummary[], from: string): QueueItem
 }
 
 /** Insert an item into a queue keeping chronological order among pending items after the cursor. */
-export function insertChronological(queue: QueueItem[], item: QueueItem): QueueItem[] {
+export function insertChronological(queue: WakeRecord[], item: WakeRecord): WakeRecord[] {
   const next = [...queue];
   const at = new Date(item.event.at).getTime();
   let idx = next.length;

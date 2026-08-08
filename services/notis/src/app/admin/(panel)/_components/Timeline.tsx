@@ -43,8 +43,7 @@ const normalize = (s: string) =>
 /** Δημοτικό Συμβούλιο / Επιτροπή / Κοινότητα → two-letter tag for the badge. */
 function adminBodyTag(item: WakeRecord): "ΔΣ" | "ΔΕ" | "ΔΚ" | null {
   if (!isMeetingEvent(item)) return null;
-  const e = item.event as { adminBody?: string | null; meetingName: string };
-  const text = normalize(e.adminBody || e.meetingName);
+  const text = normalize(item.event.adminBody || item.event.meetingName);
   if (text.includes("συμβουλιο")) return "ΔΣ";
   if (text.includes("επιτροπη")) return "ΔΕ";
   if (text.includes("κοινοτητ")) return "ΔΚ";

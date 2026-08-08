@@ -8,9 +8,6 @@ import { CityMeta, PendingBrief, RecordEvent, WakeRecord, hasPendingBrief } from
  */
 
 export type { CityMeta, PendingBrief, WakeRecord };
-export type QueueEvent = RecordEvent;
-/** @deprecated alias — the neutral name is WakeRecord. */
-export type QueueItem = WakeRecord;
 export { hasPendingBrief };
 
 export interface SimSettings {

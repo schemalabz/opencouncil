@@ -1,5 +1,5 @@
 import { deriveQueue, insertChronological } from "../deriveQueue";
-import { QueueItem } from "../types";
+import { WakeRecord } from "../types";
 
 const meetings = [
   { id: "m1", cityId: "athens", name: "ΔΣ Μαΐου", dateTime: "2026-05-10T18:00:00.000Z" },
@@ -38,7 +38,7 @@ describe("deriveQueue", () => {
 
   it("insertChronological places items before later pending events", () => {
     const queue = deriveQueue(meetings, "2026-05-01");
-    const item: QueueItem = {
+    const item: WakeRecord = {
       id: "sched-1",
       event: { type: "scheduled", at: "2026-05-15T00:00:00.000Z", reason: "check" },
       status: "pending",
