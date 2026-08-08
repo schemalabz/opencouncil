@@ -134,7 +134,12 @@ export async function runWake(
         results.push({ type: "tool_result", tool_use_id: block.id, content: ack });
       }
       messages.push({ role: "assistant", content: response.content });
-      messages.push({ role: "user", content: results });
+      // A tool_use stop with no client tool calls happens when the turn holds
+      // only server-side (MCP) blocks. There is nothing for us to answer —
+      // an empty user message is an API error — so continue like pause_turn.
+      if (results.length > 0) {
+        messages.push({ role: "user", content: results });
+      }
       continue;
     }
 

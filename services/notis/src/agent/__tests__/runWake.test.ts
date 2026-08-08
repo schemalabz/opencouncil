@@ -24,6 +24,33 @@ describe("runWake", () => {
     expect(trace.turns).toHaveLength(1);
   });
 
+  it("a tool_use stop with only server-side MCP blocks continues without an empty tool_result message", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          {
+            type: "mcp_tool_use",
+            id: "mcp1",
+            name: "get_subject",
+            input: { subjectId: "s1" },
+            server_name: "opencouncil",
+          },
+        ],
+        stop_reason: "tool_use",
+      },
+      { content: [text("Τίποτα που να αξίζει μήνυμα.")], stop_reason: "end_turn" },
+    ]);
+    const { outcome, trace } = await runWake(makeState(), meetingEvent(), makeDeps(fake));
+
+    expect(outcome.decision).toBe("silence");
+    expect(trace.turns).toHaveLength(2);
+    // The follow-up request carries the assistant turn but NO empty user
+    // message — the API rejects user messages with empty content.
+    const followup = fake.requests[1].messages as Array<{ role: string; content: unknown }>;
+    expect(followup).toHaveLength(2);
+    expect(followup[1].role).toBe("assistant");
+  });
+
   it("repair: a user question answered only in final text gets one nudge to send", async () => {
     const fake = new FakeAnthropic([
       { content: [text("Η απάντηση, γραμμένη κατά λάθος μόνο στο rationale.")], stop_reason: "end_turn" },
