@@ -24,6 +24,42 @@ describe("runWake", () => {
     expect(trace.turns).toHaveLength(1);
   });
 
+  it("repair: a user question answered only in final text gets one nudge to send", async () => {
+    const fake = new FakeAnthropic([
+      { content: [text("Η απάντηση, γραμμένη κατά λάθος μόνο στο rationale.")], stop_reason: "end_turn" },
+      { content: [toolUse("t1", "send_message", { text: "Η πραγματική απάντηση." })], stop_reason: "tool_use" },
+      { content: [text("Απάντησα γιατί ρώτησε ευθέως.")], stop_reason: "end_turn" },
+    ]);
+    const { outcome, trace } = await runWake(
+      makeState(),
+      { type: "user_message", at: FIXED_NOW.toISOString(), text: "τι έγινε τελικά;" },
+      makeDeps(fake),
+    );
+
+    expect(outcome.decision).toBe("send");
+    expect(outcome.messages).toEqual(["Η πραγματική απάντηση."]);
+    expect(trace.turns).toHaveLength(3);
+    // The nudge rides as a user turn on the second request…
+    const secondReq = fake.requests[1].messages as Array<{ role: string; content: unknown }>;
+    expect(String(secondReq[2].content)).toContain("system check");
+  });
+
+  it("repair never fires twice, and confirmed silence on a user message stands", async () => {
+    const fake = new FakeAnthropic([
+      { content: [text("Δεν χρειάζεται απάντηση.")], stop_reason: "end_turn" },
+      { content: [text("Σιωπή: ήταν απλό «ok», δεν απαιτεί μήνυμα.")], stop_reason: "end_turn" },
+    ]);
+    const { outcome, trace } = await runWake(
+      makeState(),
+      { type: "user_message", at: FIXED_NOW.toISOString(), text: "ok" },
+      makeDeps(fake),
+    );
+
+    expect(outcome.decision).toBe("silence");
+    expect(outcome.rationale).toContain("Σιωπή");
+    expect(trace.turns).toHaveLength(2);
+  });
+
   it("send: send_message tool calls become ordered messages and tool_results echo back", async () => {
     const fake = new FakeAnthropic([
       {

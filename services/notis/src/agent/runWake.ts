@@ -73,6 +73,7 @@ export async function runWake(
   let unsubscribe: { reason: string } | undefined;
   let rationale = "";
   let refused = false;
+  let repaired = false;
 
   for (let turn = 0; turn < deps.config.maxTurns; turn++) {
     const response = await deps.anthropic.create({
@@ -134,6 +135,31 @@ export async function runWake(
       }
       messages.push({ role: "assistant", content: response.content });
       messages.push({ role: "user", content: results });
+      continue;
+    }
+
+    // end_turn: if the person wrote to us and the model produced neither a
+    // send_message nor an unsubscribe, it has (observed repeatedly at low
+    // effort) written its answer into the final text instead of the tool.
+    // One bounded repair pass: make it either actually send or own the
+    // silence. Never repairs proactive wakes — silence is their default.
+    if (
+      response.stop_reason === "end_turn" &&
+      event.type === "user_message" &&
+      sent.length === 0 &&
+      !unsubscribe &&
+      !repaired
+    ) {
+      repaired = true;
+      messages.push({ role: "assistant", content: response.content });
+      messages.push({
+        role: "user",
+        content:
+          "(system check) Your final text above is an operator rationale — it was NOT " +
+          "delivered to the person, and they asked you something directly. If you meant " +
+          "to answer them, call send_message with the message now. If you truly intend " +
+          "to stay silent, restate a one-sentence rationale for the silence.",
+      });
       continue;
     }
 
