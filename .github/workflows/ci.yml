@@ -26,3 +26,24 @@ jobs:
           pushFilter: "(\\.tgz$|opencouncil-.*-sources$)"
 
       - run: nix flake check --print-build-logs
+
+  notis:
+    name: Notis (services/notis)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      # Workspace install at the root covers packages/ui and services/notis.
+      - run: npm ci
+
+      - run: npx tsc --noEmit
+        working-directory: services/notis
+
+      - run: npm test -w notis
+
+      - run: SKIP_ENV_VALIDATION=1 npm run build -w notis
