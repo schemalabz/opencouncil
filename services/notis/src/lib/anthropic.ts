@@ -16,17 +16,21 @@ function getClient(): Anthropic {
 /** Real Deps.anthropic implementation over the beta namespace (MCP connector). */
 export const realAnthropic: AnthropicLike = {
   async create(params: ModelRequest): Promise<ModelResponse> {
-    const response = await getClient().beta.messages.create({
-      betas: [MCP_BETA, CACHE_TTL_BETA],
-      model: params.model,
-      max_tokens: params.max_tokens,
-      system: params.system,
-      // The core builds request content structurally; the SDK validates at runtime.
-      messages: params.messages as never,
-      ...(params.tools ? { tools: params.tools as never } : {}),
-      ...(params.mcp_servers ? { mcp_servers: params.mcp_servers as never } : {}),
-      ...(params.output_config ? { output_config: params.output_config as never } : {}),
-    });
+    // Streamed under the hood: the SDK rejects non-streaming requests whose
+    // max_tokens could exceed its 10-minute heuristic (bites at 32k).
+    const response = await getClient()
+      .beta.messages.stream({
+        betas: [MCP_BETA, CACHE_TTL_BETA],
+        model: params.model,
+        max_tokens: params.max_tokens,
+        system: params.system,
+        // The core builds request content structurally; the SDK validates at runtime.
+        messages: params.messages as never,
+        ...(params.tools ? { tools: params.tools as never } : {}),
+        ...(params.mcp_servers ? { mcp_servers: params.mcp_servers as never } : {}),
+        ...(params.output_config ? { output_config: params.output_config as never } : {}),
+      })
+      .finalMessage();
     return {
       content: response.content as unknown[],
       stop_reason: response.stop_reason,

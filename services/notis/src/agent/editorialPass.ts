@@ -2,7 +2,10 @@ import { addUsage, emptyUsage, usageToCost } from "./pricing";
 import { Deps, EditorialBrief, EditorialSubject, Usage } from "./types";
 
 const TOP_SUBJECTS_FOR_DETAIL = 8;
-const MAX_TOKENS = 8192;
+// The output carries scores + a Greek note for EVERY subject; big κοινότητα
+// agendas (35+ items) overflow 8k and a truncated response is unparseable.
+// Only actual tokens are billed, so the generous cap costs nothing.
+const MAX_TOKENS = 32768;
 
 interface McpMeetingSubject {
   id?: string;
@@ -145,6 +148,11 @@ export async function editorialPass(
   );
   if (!textBlock) {
     throw new Error(`editorialPass: model returned no text content (stop: ${response.stop_reason})`);
+  }
+  if (response.stop_reason === "max_tokens") {
+    throw new Error(
+      `editorialPass: brief truncated at max_tokens (${MAX_TOKENS}) — meeting too large for one pass`,
+    );
   }
   const parsed = JSON.parse(textBlock.text) as {
     headline: string;
