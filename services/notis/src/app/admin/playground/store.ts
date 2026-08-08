@@ -13,7 +13,7 @@ import { insertChronological } from "./deriveQueue";
 export function emptyStore(): PlaygroundStore {
   return {
     version: 1,
-    setup: { done: false, from: "", to: "" },
+    setup: { done: false, from: "" },
     sim: {
       state: { user: { name: "", cities: [] }, profile: "", journal: [] },
       clock: "",
@@ -54,7 +54,7 @@ export function saveStore(store: PlaygroundStore): void {
 export type Action =
   | { type: "reset" }
   | { type: "hydrate"; store: PlaygroundStore }
-  | { type: "setupComplete"; sim: Sim; from: string; to: string }
+  | { type: "setupComplete"; sim: Sim; from: string }
   | { type: "briefReady"; itemId: string; event: QueueItem["event"] }
   | {
       type: "stepDone";
@@ -103,7 +103,7 @@ export function reducer(store: PlaygroundStore, action: Action): PlaygroundStore
     case "setupComplete":
       return {
         ...emptyStore(),
-        setup: { done: true, from: action.from, to: action.to },
+        setup: { done: true, from: action.from },
         sim: action.sim,
       };
 

@@ -9,7 +9,7 @@ const meetings = [
 
 describe("deriveQueue", () => {
   it("emits agenda (−3d) and summary (+1d) events per meeting, merged chronologically", () => {
-    const queue = deriveQueue(meetings, "2026-05-01", "2026-06-30");
+    const queue = deriveQueue(meetings, "2026-05-01");
     expect(queue.map((q) => q.id)).toEqual([
       "athens:m1:agenda",
       "athens:m1:summary",
@@ -24,14 +24,20 @@ describe("deriveQueue", () => {
     expect(queue.every((q) => "brief" in q.event && (q.event.brief as { pending: boolean }).pending)).toBe(true);
   });
 
-  it("clips events outside the range", () => {
-    const queue = deriveQueue(meetings, "2026-05-09", "2026-05-15");
-    // m1 agenda (05-07) is out; m1 summary (05-11) is in; p1 agenda (05-17) is out.
-    expect(queue.map((q) => q.id)).toEqual(["athens:m1:summary"]);
+  it("clips events before the start date but has no end bound", () => {
+    const queue = deriveQueue(meetings, "2026-05-09");
+    // m1 agenda (05-07) is before the start; everything later stays.
+    expect(queue.map((q) => q.id)).toEqual([
+      "athens:m1:summary",
+      "patras:p1:agenda",
+      "patras:p1:summary",
+      "athens:m2:agenda",
+      "athens:m2:summary",
+    ]);
   });
 
   it("insertChronological places items before later pending events", () => {
-    const queue = deriveQueue(meetings, "2026-05-01", "2026-06-30");
+    const queue = deriveQueue(meetings, "2026-05-01");
     const item: QueueItem = {
       id: "sched-1",
       event: { type: "scheduled", at: "2026-05-15T00:00:00.000Z", reason: "check" },

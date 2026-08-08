@@ -8,10 +8,15 @@ export const env = createEnv({
     // shared-cookie validation against the main app's sessions.
     NOTIS_ADMIN_SECRET: z.string().min(16),
   },
-  client: {},
+  client: {
+    // Powers the playground's address search + map. Optional: without it the
+    // simulator falls back to free-text location chips.
+    NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: z.string().optional(),
+  },
   runtimeEnv: {
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     NOTIS_ADMIN_SECRET: process.env.NOTIS_ADMIN_SECRET,
+    NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN,
   },
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });

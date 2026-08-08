@@ -28,6 +28,13 @@ export interface SimSettings {
   maxTurns?: number;
 }
 
+/** A geocoded picked address — playground-only; the agent sees just the text. */
+export interface LocationPoint {
+  text: string;
+  lng: number;
+  lat: number;
+}
+
 export interface Sim {
   state: WakeState;
   clock: string; // ISO simulated now
@@ -35,6 +42,8 @@ export interface Sim {
   cursor: number; // index of the next pending item
   promptOverride?: string;
   settings: SimSettings;
+  /** Geocoded coordinates of picked locations, keyed by cityId (for the map). */
+  locationPoints?: Record<string, LocationPoint[]>;
 }
 
 export interface Snapshot {
@@ -46,7 +55,7 @@ export interface Snapshot {
 
 export interface PlaygroundStore {
   version: 1;
-  setup: { done: boolean; from: string; to: string };
+  setup: { done: boolean; from: string };
   sim: Sim;
   traces: Record<string, WakeTrace>;
   traceOrder: string[]; // LRU, oldest first

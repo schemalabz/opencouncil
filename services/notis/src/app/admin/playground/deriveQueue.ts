@@ -12,12 +12,12 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /**
  * Derive the playground event queue from real released meetings: each meeting
  * emits agenda_processed 3 days before and meeting_summarized 1 day after its
- * date, merged across cities in chronological order. Briefs are lazy
- * ({pending: true}) until a step actually needs them.
+ * date, merged across cities in chronological order. The simulation has only
+ * a start date — it runs forward through everything published since. Briefs
+ * are lazy ({pending: true}) until a step actually needs them.
  */
-export function deriveQueue(meetings: MeetingSummary[], from: string, to: string): QueueItem[] {
+export function deriveQueue(meetings: MeetingSummary[], from: string): QueueItem[] {
   const fromMs = new Date(from).getTime();
-  const toMs = new Date(to).getTime();
 
   const items: QueueItem[] = [];
   for (const m of meetings) {
@@ -33,14 +33,14 @@ export function deriveQueue(meetings: MeetingSummary[], from: string, to: string
     };
     const agendaAt = new Date(meetingMs - 3 * DAY_MS).toISOString();
     const summaryAt = new Date(meetingMs + 1 * DAY_MS).toISOString();
-    if (new Date(agendaAt).getTime() >= fromMs && new Date(agendaAt).getTime() <= toMs) {
+    if (new Date(agendaAt).getTime() >= fromMs) {
       items.push({
         id: `${m.cityId}:${m.id}:agenda`,
         event: { type: "agenda_processed", at: agendaAt, ...shared },
         status: "pending",
       });
     }
-    if (new Date(summaryAt).getTime() >= fromMs && new Date(summaryAt).getTime() <= toMs) {
+    if (new Date(summaryAt).getTime() >= fromMs) {
       items.push({
         id: `${m.cityId}:${m.id}:summary`,
         event: { type: "meeting_summarized", at: summaryAt, ...shared },

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Download, Rewind } from "lucide-react";
 import { Badge } from "@opencouncil/ui/badge";
 import { Button } from "@opencouncil/ui/button";
 import { WakeTrace } from "@/agent/types";
@@ -10,6 +11,8 @@ interface Props {
   item?: QueueItem;
   trace?: WakeTrace;
   profile: string;
+  canRewind: boolean;
+  onRewind(): void;
   onExport(): void;
 }
 
@@ -23,13 +26,13 @@ interface RawBlock {
   content?: unknown;
 }
 
-export function InspectorPane({ item, trace, profile, onExport }: Props) {
+export function InspectorPane({ item, trace, profile, canRewind, onRewind, onExport }: Props) {
   const [tab, setTab] = useState<Tab>("rationale");
 
   if (!item || !item.outcome) {
     return (
       <div className="p-4 text-sm text-muted-foreground">
-        Διάλεξε ένα βήμα από τη συνομιλία για να δεις τι σκέφτηκε ο Νότης.
+        Διάλεξε ένα βήμα από τη γραμμή χρόνου ή τη συνομιλία για να δεις τι σκέφτηκε ο Νότης.
       </div>
     );
   }
@@ -50,13 +53,30 @@ export function InspectorPane({ item, trace, profile, onExport }: Props) {
             size="sm"
             variant={tab === key ? "default" : "ghost"}
             onClick={() => setTab(key)}
+            className="px-2"
           >
             {label}
           </Button>
         ))}
-        <div className="ml-auto">
-          <Button size="sm" variant="outline" onClick={onExport}>
-            Export σεναρίου
+        <div className="ml-auto flex shrink-0 gap-1">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!canRewind}
+            onClick={onRewind}
+            className="px-2"
+            title="Γύρνα την προσομοίωση στη στιγμή πριν από αυτό το βήμα"
+          >
+            <Rewind className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onExport}
+            className="px-2"
+            title="Export golden scenario"
+          >
+            <Download className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>

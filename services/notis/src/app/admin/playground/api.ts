@@ -40,18 +40,14 @@ export async function fetchTopics(): Promise<TopicOption[]> {
   return Array.isArray(data) ? data : (data.topics ?? []);
 }
 
-export async function fetchMeetings(
-  cityId: string,
-  from: string,
-  to: string,
-): Promise<MeetingSummary[]> {
+export async function fetchMeetings(cityId: string, from: string): Promise<MeetingSummary[]> {
   const all: MeetingSummary[] = [];
   for (let page = 1; page <= 4; page++) {
     const { result } = await post<{
       result: { meetings?: Array<{ id: string; name: string; dateTime: string }> };
     }>("/api/proxy/mcp", {
       tool: "list_meetings",
-      args: { cityId, from, to, pageSize: 50, page },
+      args: { cityId, from, pageSize: 50, page },
     });
     const meetings = result.meetings ?? [];
     all.push(...meetings.map((m) => ({ ...m, cityId })));
@@ -80,6 +76,40 @@ export async function dryRun(
   options: { promptOverride?: string; model?: string; maxTurns?: number },
 ): Promise<DryRunResult> {
   return post<DryRunResult>("/api/dry-run", { state, event, options });
+}
+
+export interface GeocodeHit {
+  text: string;
+  lng: number;
+  lat: number;
+}
+
+/**
+ * Mapbox forward geocoding, biased to Greece and Greek results. Runs client
+ * side (the token is public). Returns [] when no token is configured.
+ */
+export async function geocode(
+  query: string,
+  token: string | undefined,
+  proximity?: { lng: number; lat: number },
+  types = "address,neighborhood,locality,place,poi",
+): Promise<GeocodeHit[]> {
+  if (!token || query.trim().length < 3) return [];
+  const url =
+    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json` +
+    `?access_token=${token}&country=gr&language=el&limit=5` +
+    `&types=${types}` +
+    (proximity ? `&proximity=${proximity.lng},${proximity.lat}` : "");
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  const data = (await res.json()) as {
+    features?: Array<{ place_name_el?: string; place_name: string; center: [number, number] }>;
+  };
+  return (data.features ?? []).map((f) => ({
+    text: (f.place_name_el ?? f.place_name).replace(/, Ελλάδα$/, "").replace(/, Greece$/, ""),
+    lng: f.center[0],
+    lat: f.center[1],
+  }));
 }
 
 export async function fetchShippedPrompt(): Promise<string> {
