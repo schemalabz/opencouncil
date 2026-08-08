@@ -280,7 +280,7 @@ function SilenceChip({ item, selected, onClick }: { item: WakeRecord; selected: 
 
 export function WhatsAppChat({ records, clock, origin, startAt, selectedId, onSelect, sim }: Props) {
   const [draft, setDraft] = useState("");
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const threadRef = useRef<HTMLDivElement>(null);
   const busy = sim?.busy ?? false;
   const autoRun = sim?.autoRun ?? false;
   // user messages render as soon as they're queued (before the run completes),
@@ -290,8 +290,12 @@ export function WhatsAppChat({ records, clock, origin, startAt, selectedId, onSe
   const intro = renderTemplate(origin === "transition" ? "demos_transition" : "demos_intro");
   const introAt = new Date(startAt).toISOString();
 
+  // Scroll ONLY the thread container. Never scrollIntoView here: it walks and
+  // scrolls every ancestor — including overflow-hidden page columns, which it
+  // silently drags out of alignment.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = threadRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [visible.length, busy]);
 
   let lastDay = "";
@@ -314,6 +318,7 @@ export function WhatsAppChat({ records, clock, origin, startAt, selectedId, onSe
 
       {/* thread */}
       <div
+        ref={threadRef}
         className="flex-1 space-y-1.5 overflow-y-auto py-3"
         style={{ backgroundColor: BG, backgroundImage: PATTERN, backgroundSize: "14px 14px" }}
       >
@@ -425,7 +430,6 @@ export function WhatsAppChat({ records, clock, origin, startAt, selectedId, onSe
             </div>
           </div>
         )}
-        <div ref={bottomRef} />
       </div>
 
       {/* controls + composer — simulator only; the viewer is read-only */}

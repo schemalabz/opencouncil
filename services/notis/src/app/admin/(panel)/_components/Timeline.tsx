@@ -87,12 +87,19 @@ interface HoverState {
 export function Timeline({ records, cityMeta, selectedId, busyItemId, onSelect }: Props) {
   const nextId = records.find((q) => q.status === "pending")?.id;
   const nextRef = useRef<HTMLDivElement>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<HoverState | null>(null);
   const [details, setDetails] = useState<Record<string, MeetingDetails | "loading">>({});
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
+  // Scroll ONLY the strip, horizontally. scrollIntoView would also scroll
+  // ancestor containers vertically and knock the page column out of line.
   useEffect(() => {
-    nextRef.current?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    const strip = stripRef.current;
+    const node = nextRef.current;
+    if (!strip || !node) return;
+    const left = node.offsetLeft + node.offsetWidth / 2 - strip.clientWidth / 2;
+    strip.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
   }, [nextId]);
 
   function beginHover(item: WakeRecord, el: HTMLElement) {
@@ -123,7 +130,7 @@ export function Timeline({ records, cityMeta, selectedId, busyItemId, onSelect }
   let lastMonth = "";
 
   return (
-    <div className="overflow-x-auto border-b bg-muted/30" onMouseLeave={endHover}>
+    <div ref={stripRef} className="overflow-x-auto border-b bg-muted/30" onMouseLeave={endHover}>
       <div className="relative flex min-w-max items-start gap-0 px-6 py-3">
         {/* connecting line through the node centers: py-3 (12px) + month row (12px) + half node (28px) */}
         <div className="absolute left-0 right-0 top-[52px] h-0.5 bg-border" />
