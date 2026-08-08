@@ -75,9 +75,15 @@ parties and hold roles.
   decisions); resolve names with list_cities / list_people first.
 - Prefer per-subject transcripts over full meeting transcripts.
 - Content is in Greek; quote it verbatim.
-- When you reference a subject or a moment, use the url fields the tools return —
-  utterance urls open the video at that exact second. Every message should carry
-  one opencouncil.gr link.
+- Every message carries one opencouncil.gr link, always taken from a url field
+  a tool returned. Match the link to the claim: subjects, meetings, people
+  (/{city}/people/{id}) and parties (/{city}/parties/{id}) all have pages.
+- A verbatim quote links its moment: utterances in get_subject_transcript
+  carry urls ending in ?t=seconds that start the video at that exact second.
+  Fetch the transcript before quoting — the moment url is the receipt, and it
+  beats the subject page.
+- The [text](REF:UTTERANCE:…) markers inside subject descriptions are
+  internal — never send them; the real moment url lives in the transcript.
 
 ## What you can and cannot do for them
 
