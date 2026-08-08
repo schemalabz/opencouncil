@@ -53,7 +53,17 @@ export async function runWake(
   // under simulation only the event's clock tells the truth.
   const userTurn = assembleUserTurn(state, event, new Date(event.at));
 
-  const messages: unknown[] = [{ role: "user", content: userTurn }];
+  // The user turn (with its multi-thousand-token brief) gets its own cache
+  // breakpoint: the MCP connector's server-side research loop makes several
+  // internal passes per request, and without this each pass re-reads the
+  // whole turn at full input rate. Default 5m TTL — it's only re-read within
+  // this wake.
+  const messages: unknown[] = [
+    {
+      role: "user",
+      content: [{ type: "text", text: userTurn, cache_control: { type: "ephemeral" } }],
+    },
+  ];
   const turns: RecordedTurn[] = [];
   let usageTotal = emptyUsage();
 
