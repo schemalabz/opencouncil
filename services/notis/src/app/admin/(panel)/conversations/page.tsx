@@ -1,5 +1,7 @@
 import { MessagesSquare } from "lucide-react";
+import { EmptyState } from "../_components/EmptyState";
 import { PageHeader } from "../_components/PageHeader";
+import { StopBadge } from "../_components/StopBadge";
 import { listConversations } from "../_lib/conversations";
 
 export const metadata = { title: "Συνομιλίες · Νότης admin" };
@@ -43,9 +45,7 @@ export default function ConversationsPage() {
                 </td>
                 <td>
                   {c.unsubscribedAt ? (
-                    <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
-                      ΣΤΟΠ
-                    </span>
+                    <StopBadge />
                   ) : (
                     <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">
                       ενεργή
@@ -58,15 +58,10 @@ export default function ConversationsPage() {
         </table>
 
         {conversations.length === 0 && (
-          <div className="flex min-h-[320px] items-center justify-center">
-            <div className="max-w-[300px] text-center">
-              <MessagesSquare className="mx-auto h-8 w-8 text-muted-foreground/30" />
-              <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-                Καμία συνομιλία ακόμα. Όταν συνδεθεί η βάση (PR 2), κάθε πραγματική συζήτηση με
-                τον Νότη θα εμφανίζεται εδώ — με το ίδιο interface που έχει το playground.
-              </p>
-            </div>
-          </div>
+          <EmptyState icon={MessagesSquare}>
+            Καμία συνομιλία ακόμα. Όταν συνδεθεί η βάση (PR 2), κάθε πραγματική συζήτηση με τον
+            Νότη θα εμφανίζεται εδώ — με το ίδιο interface που έχει το playground.
+          </EmptyState>
         )}
       </div>
     </>

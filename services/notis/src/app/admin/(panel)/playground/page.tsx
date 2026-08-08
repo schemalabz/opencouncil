@@ -7,6 +7,7 @@ import { WakeEvent, WakeOutcome } from "@/agent/types";
 import { env } from "@/env.mjs";
 import { ConversationView } from "../_components/ConversationView";
 import { PageHeader } from "../_components/PageHeader";
+import { StopBadge } from "../_components/StopBadge";
 import { dryRun, fetchBrief, fetchShippedPrompt } from "./api";
 import { PromptEditor } from "./components/PromptEditor";
 import { SetupWizard } from "./components/SetupWizard";
@@ -213,11 +214,7 @@ export default function PlaygroundPage() {
         <span className="truncate text-xs text-muted-foreground">
           {user.name} · {user.cities.map((c) => c.cityName).join(", ")} · από {store.setup.from}
         </span>
-        {store.sim.unsubscribedAt && (
-          <span className="shrink-0 rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
-            ΣΤΟΠ · {store.sim.unsubscribedAt.slice(0, 10)}
-          </span>
-        )}
+        {store.sim.unsubscribedAt && <StopBadge at={store.sim.unsubscribedAt} />}
         <span className="ml-auto text-xs tabular-nums text-muted-foreground">
           σύνολο ${totalCost.toFixed(2)}
         </span>

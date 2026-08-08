@@ -1,21 +1,10 @@
+import { post } from "./http";
+
 /** Meeting metadata for timeline hover cards (admin body + most-discussed subjects). */
 
 export interface MeetingDetails {
   adminBody?: string;
   topSubjects: Array<{ name: string; minutes: number }>;
-}
-
-async function post<T>(url: string, body: unknown): Promise<T> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = (await res.json().catch(() => null)) as (T & { error?: string }) | null;
-  if (!res.ok || !data) {
-    throw new Error(data?.error ?? `${url} failed: ${res.status}`);
-  }
-  return data;
 }
 
 export async function fetchMeetingDetails(

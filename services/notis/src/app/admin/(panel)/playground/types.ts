@@ -1,5 +1,5 @@
 import { WakeState, WakeTrace } from "@/agent/types";
-import { PendingBrief, RecordEvent, WakeRecord, hasPendingBrief } from "../_lib/records";
+import { CityMeta, PendingBrief, RecordEvent, WakeRecord, hasPendingBrief } from "../_lib/records";
 
 /**
  * Playground store types. The record shape itself lives in ../_lib/records —
@@ -7,7 +7,7 @@ import { PendingBrief, RecordEvent, WakeRecord, hasPendingBrief } from "../_lib/
  * simulator-only state around it.
  */
 
-export type { PendingBrief, WakeRecord };
+export type { CityMeta, PendingBrief, WakeRecord };
 export type QueueEvent = RecordEvent;
 /** @deprecated alias — the neutral name is WakeRecord. */
 export type QueueItem = WakeRecord;
@@ -41,7 +41,7 @@ export interface Sim {
   /** Set when a wake called unsubscribe_user — the sim is a zombie after this. */
   unsubscribedAt?: string;
   /** City display metadata for the timeline (name + logo). */
-  cityMeta?: Record<string, { name: string; logo?: string | null }>;
+  cityMeta?: CityMeta;
 }
 
 export interface Snapshot {

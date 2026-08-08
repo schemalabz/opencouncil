@@ -8,6 +8,9 @@ import { WakeEvent, WakeOutcome } from "@/agent/types";
  * (pending briefs, skipped items) simply never occur in real records.
  */
 
+/** City display metadata for timelines and hover cards, keyed by cityId. */
+export type CityMeta = Record<string, { name: string; logo?: string | null }>;
+
 /** A queue item whose meeting brief may not be generated yet (playground-only). */
 export type PendingBrief = { pending: true };
 

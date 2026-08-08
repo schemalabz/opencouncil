@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { AlarmClock, FileText, ListTodo, MessageCircle, Moon } from "lucide-react";
 import { MeetingDetails, fetchMeetingDetails } from "../_lib/meetings";
-import { WakeRecord } from "../_lib/records";
+import { CityMeta, WakeRecord } from "../_lib/records";
 
 interface Props {
   records: WakeRecord[];
-  cityMeta?: Record<string, { name: string; logo?: string | null }>;
+  cityMeta?: CityMeta;
   selectedId?: string;
   busyItemId?: string;
   onSelect(id: string): void;
@@ -241,7 +241,7 @@ function HoverCard({
   details,
 }: {
   hover: HoverState;
-  cityMeta?: Record<string, { name: string; logo?: string | null }>;
+  cityMeta?: CityMeta;
   details: Record<string, MeetingDetails | "loading">;
 }) {
   const { item } = hover;

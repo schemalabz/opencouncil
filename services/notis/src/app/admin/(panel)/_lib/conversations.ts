@@ -1,5 +1,5 @@
 import { WakeTrace } from "@/agent/types";
-import { WakeRecord } from "./records";
+import { CityMeta, WakeRecord } from "./records";
 
 /**
  * Conversation listing + loading. PR 1 has no database, so the list is empty
@@ -24,7 +24,7 @@ export interface ConversationSummary {
 export interface ConversationDetail {
   summary: ConversationSummary;
   records: WakeRecord[];
-  cityMeta?: Record<string, { name: string; logo?: string | null }>;
+  cityMeta?: CityMeta;
   profile: string;
   traces: Record<string, WakeTrace>;
 }

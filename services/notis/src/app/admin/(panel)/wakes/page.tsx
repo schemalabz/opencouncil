@@ -1,4 +1,5 @@
 import { Activity } from "lucide-react";
+import { EmptyState } from "../_components/EmptyState";
 import { PageHeader } from "../_components/PageHeader";
 import { listRecentWakes } from "../_lib/wakes";
 
@@ -19,16 +20,11 @@ export default function WakesPage() {
 
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
         {wakes.length === 0 ? (
-          <div className="flex min-h-[320px] items-center justify-center">
-            <div className="max-w-[320px] text-center">
-              <Activity className="mx-auto h-8 w-8 text-muted-foreground/30" />
-              <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-                Κανένα wake ακόμα. Εδώ θα κυλάει κάθε αφύπνιση του Νότη σε όλους τους χρήστες —
-                γεγονός, απόφαση, κόστος, διάρκεια — με σύνδεσμο στη συνομιλία και το πλήρες
-                trace της.
-              </p>
-            </div>
-          </div>
+          <EmptyState icon={Activity}>
+            Κανένα wake ακόμα. Εδώ θα κυλάει κάθε αφύπνιση του Νότη σε όλους τους χρήστες —
+            γεγονός, απόφαση, κόστος, διάρκεια — με σύνδεσμο στη συνομιλία και το πλήρες trace
+            της.
+          </EmptyState>
         ) : (
           <table className="w-full text-sm">
             <thead>

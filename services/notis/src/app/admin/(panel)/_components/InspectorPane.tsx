@@ -6,6 +6,7 @@ import { Badge } from "@opencouncil/ui/badge";
 import { Button } from "@opencouncil/ui/button";
 import { WakeTrace } from "@/agent/types";
 import { WakeRecord } from "../_lib/records";
+import { EmptyState } from "./EmptyState";
 
 /** Simulator-only actions — omit them for the read-only conversation viewer. */
 export interface InspectorSimActions {
@@ -36,14 +37,9 @@ export function InspectorPane({ item, trace, profile, sim }: Props) {
 
   if (!item || !item.outcome) {
     return (
-      <div className="flex h-full items-center justify-center p-8">
-        <div className="max-w-[260px] text-center">
-          <MousePointerClick className="mx-auto h-8 w-8 text-muted-foreground/30" />
-          <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-            Διάλεξε ένα βήμα από τη γραμμή χρόνου ή τη συνομιλία για να δεις τι σκέφτηκε ο Νότης.
-          </p>
-        </div>
-      </div>
+      <EmptyState icon={MousePointerClick}>
+        Διάλεξε ένα βήμα από τη γραμμή χρόνου ή τη συνομιλία για να δεις τι σκέφτηκε ο Νότης.
+      </EmptyState>
     );
   }
 
