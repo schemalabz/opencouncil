@@ -1,88 +1,30 @@
+import { z } from "zod";
+import {
+  cityPreferenceSchema,
+  editorialBriefSchema,
+  editorialSubjectSchema,
+  effortSchema,
+  journalEntrySchema,
+  wakeEventSchema,
+  wakeStateSchema,
+} from "./schemas";
+
 /**
  * Contracts for the Notis agent core. Everything in src/agent/ is pure over
  * `Deps`: no next/*, no env access, no direct network — the production shell,
  * the dry-run endpoint, the playground and the test suite all drive the same
  * code by injecting different Deps.
+ *
+ * Wire shapes (state, events, briefs, journal) have ONE source of truth: the
+ * zod schemas in ./schemas. The types below are derived from them.
  */
 
-export interface JournalEntry {
-  at: string; // ISO timestamp of the wake's event (the world's timeline, not the wall clock)
-  /** The wake trigger — or "enrollment" for the system-sent intro/transition template. */
-  event: WakeEvent["type"] | "enrollment";
-  decision: "silence" | "send";
-  rationale: string;
-  messages: string[]; // texts sent (empty on silence)
-  /** What the user wrote, verbatim, on user_message wakes — the journal IS the conversation memory. */
-  received?: string;
-}
-
-export interface CityPreference {
-  cityId: string;
-  cityName: string;
-  topics: string[]; // Greek topic labels, as MCP search accepts them
-  locations: string[]; // free-text streets/neighbourhoods
-}
-
-export interface WakeState {
-  user: {
-    name: string;
-    cities: CityPreference[];
-  };
-  /** Free-text taste profile. Model-owned: rewritten wholesale via update_taste_profile. */
-  profile: string;
-  /** Append-only, oldest first. The prompt receives the most recent JOURNAL_WINDOW entries. */
-  journal: JournalEntry[];
-}
-
-export interface EditorialSubject {
-  subjectId: string;
-  name: string;
-  topicLabels: string[];
-  discussionSeconds: number;
-  scores: {
-    hyperlocal: number; // 0-5
-    citywide: number;
-    contention: number;
-    novelty: number;
-    money: number;
-  };
-  note: string; // one Greek line: why this score profile
-  locationHints: string[]; // streets/squares/neighbourhoods named in the record
-}
-
-export interface EditorialBrief {
-  cityId: string;
-  meetingId: string;
-  generatedAt: string;
-  headline: string; // 1-2 Greek sentences: what mattered in this meeting
-  subjects: EditorialSubject[];
-}
-
-export type WakeEvent =
-  | {
-      type: "agenda_processed";
-      at: string;
-      cityId: string;
-      meetingId: string;
-      meetingName: string;
-      meetingDate: string;
-      /** Which body is meeting (Δημοτικό Συμβούλιο, Επιτροπή, Κοινότητα...). */
-      adminBody?: string | null;
-      brief: EditorialBrief;
-    }
-  | {
-      type: "meeting_summarized";
-      at: string;
-      cityId: string;
-      meetingId: string;
-      meetingName: string;
-      meetingDate: string;
-      adminBody?: string | null;
-      brief: EditorialBrief;
-    }
-  | { type: "user_message"; at: string; text: string }
-  | { type: "scheduled"; at: string; reason: string }
-  | { type: "heartbeat"; at: string };
+export type JournalEntry = z.infer<typeof journalEntrySchema>;
+export type CityPreference = z.infer<typeof cityPreferenceSchema>;
+export type WakeState = z.infer<typeof wakeStateSchema>;
+export type EditorialSubject = z.infer<typeof editorialSubjectSchema>;
+export type EditorialBrief = z.infer<typeof editorialBriefSchema>;
+export type WakeEvent = z.infer<typeof wakeEventSchema>;
 
 export interface WakeOutcome {
   decision: "silence" | "send";
@@ -182,7 +124,7 @@ export interface Prompts {
   editorial: string;
 }
 
-export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
+export type Effort = z.infer<typeof effortSchema>;
 
 export interface DepsConfig {
   model: string;
