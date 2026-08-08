@@ -1,5 +1,3 @@
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
 import { Statistics } from "./statistics";
 import { SubjectWithRelations } from "./db/subject";
 // @ts-ignore
@@ -72,9 +70,7 @@ export function subjectToMapFeature(subject: SubjectWithRelations) {
   };
 }
 
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
+export { cn } from "../../packages/ui/src/lib/utils";
 
 export function klitiki(name: string): string {
   const normalizedName = name.trim();
