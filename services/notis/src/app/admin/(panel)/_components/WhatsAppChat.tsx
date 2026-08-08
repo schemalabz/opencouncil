@@ -25,6 +25,8 @@ interface Props {
   origin: "transition" | "signup";
   startAt: string;
   selectedId?: string;
+  /** The record currently being run — its user bubble renders instantly. */
+  busyItemId?: string;
   onSelect(id: string): void;
   sim?: SimControls;
 }
@@ -279,14 +281,26 @@ function SilenceChip({ item, selected, onClick }: { item: WakeRecord; selected: 
   );
 }
 
-export function WhatsAppChat({ records, clock, origin, startAt, selectedId, onSelect, sim }: Props) {
+export function WhatsAppChat({
+  records,
+  clock,
+  origin,
+  startAt,
+  selectedId,
+  busyItemId,
+  onSelect,
+  sim,
+}: Props) {
   const [draft, setDraft] = useState("");
   const threadRef = useRef<HTMLDivElement>(null);
   const busy = sim?.busy ?? false;
   const autoRun = sim?.autoRun ?? false;
   // user messages render as soon as they're queued (before the run completes),
   // so the sent bubble appears immediately with the typing indicator below it
-  const visible = records.filter((q) => q.status !== "pending" || q.event.type === "user_message");
+  // Pending records are invisible except the one actively running — that
+  // keeps a just-sent user message visible instantly, while a rewind (which
+  // returns records to pending without running them) clears their bubbles.
+  const visible = records.filter((q) => q.status !== "pending" || q.id === busyItemId);
   const next = records.find((q) => q.status === "pending");
   const intro = renderTemplate(origin === "transition" ? "demos_transition" : "demos_intro");
   const introAt = new Date(startAt).toISOString();

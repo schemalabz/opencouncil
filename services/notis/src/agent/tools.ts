@@ -36,8 +36,10 @@ export const CLIENT_TOOLS = [
   {
     name: "schedule_wakeup",
     description:
-      "Wake yourself again at a future moment to follow up on an open thread " +
-      "(e.g. a decision expected at a coming meeting, an answer you promised).",
+      "Wake yourself at a future moment for something NO event will cover — a " +
+      "process to recheck, a deadline outside the meeting flow. Never schedule " +
+      "for a meeting's aftermath: the published record wakes you automatically " +
+      "(meeting_summarized), and the journal carries any promise you made.",
     input_schema: {
       type: "object" as const,
       properties: {

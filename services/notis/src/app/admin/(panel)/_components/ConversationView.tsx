@@ -56,6 +56,7 @@ export function ConversationView({
           <WhatsAppChat
             records={records}
             clock={clock}
+            busyItemId={busyItemId}
             origin={origin}
             startAt={startAt}
             selectedId={selectedId}
