@@ -8,6 +8,7 @@ export const maxDuration = 120;
 const requestSchema = z.object({
   cityId: z.string().min(1),
   meetingId: z.string().min(1),
+  phase: z.enum(["agenda", "summary"]).default("summary"),
 });
 
 export async function POST(request: NextRequest) {
@@ -21,6 +22,7 @@ export async function POST(request: NextRequest) {
       parsed.data.cityId,
       parsed.data.meetingId,
       buildDeps(),
+      parsed.data.phase,
     );
     return NextResponse.json({ brief, usage, costUsd });
   } catch (error) {

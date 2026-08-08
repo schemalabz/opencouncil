@@ -52,7 +52,11 @@ export default function PlaygroundPage() {
       const current = storeRef.current;
       let event: WakeEvent;
       if (hasPendingBrief(item.event)) {
-        const brief = await fetchBrief(item.event.cityId, item.event.meetingId);
+        const brief = await fetchBrief(
+          item.event.cityId,
+          item.event.meetingId,
+          item.event.type === "agenda_processed" ? "agenda" : "summary",
+        );
         const full = { ...item.event, brief } as WakeEvent;
         dispatch({ type: "briefReady", itemId: item.id, event: full });
         event = full;

@@ -78,6 +78,7 @@ export async function editorialPass(
   cityId: string,
   meetingId: string,
   deps: Deps,
+  phase: "agenda" | "summary" = "summary",
 ): Promise<{ brief: EditorialBrief; usage: Usage; costUsd: number }> {
   const raw = (await deps.mcp.call("get_meeting", { cityId, meetingId })) as
     | McpMeeting
@@ -95,15 +96,20 @@ export async function editorialPass(
     .filter((s) => s.id)
     .sort((a, b) => b.discussionSeconds - a.discussionSeconds);
 
-  // Enrich the most-discussed subjects with their full record.
+  // Enrich the most-discussed subjects with their full record — but only for
+  // the post-meeting brief. The agenda brief runs before the meeting: subject
+  // details carry outcomes and exchanges that must not leak into a preview.
   const detailed = new Map<string, unknown>();
-  for (const s of subjects.slice(0, TOP_SUBJECTS_FOR_DETAIL)) {
-    if (s.discussionSeconds <= 0) break;
-    const detail = await deps.mcp.call("get_subject", { subjectId: s.id }).catch(() => null);
-    if (detail) detailed.set(s.id, detail);
+  if (phase === "summary") {
+    for (const s of subjects.slice(0, TOP_SUBJECTS_FOR_DETAIL)) {
+      if (s.discussionSeconds <= 0) break;
+      const detail = await deps.mcp.call("get_subject", { subjectId: s.id }).catch(() => null);
+      if (detail) detailed.set(s.id, detail);
+    }
   }
 
   const modelInput = {
+    phase,
     meeting: { id: meetingId, cityId, name: meeting.name, date: meeting.dateTime ?? meeting.date },
     subjects: subjects.map((s) => ({
       subjectId: s.id,

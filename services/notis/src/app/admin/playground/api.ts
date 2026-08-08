@@ -94,10 +94,15 @@ export async function fetchMeetings(cityId: string, from: string): Promise<Meeti
   return all;
 }
 
-export async function fetchBrief(cityId: string, meetingId: string): Promise<EditorialBrief> {
+export async function fetchBrief(
+  cityId: string,
+  meetingId: string,
+  phase: "agenda" | "summary",
+): Promise<EditorialBrief> {
   const { brief } = await post<{ brief: EditorialBrief }>("/api/editorial-brief", {
     cityId,
     meetingId,
+    phase,
   });
   return brief;
 }

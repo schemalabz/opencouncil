@@ -10,6 +10,16 @@ legible at a glance.
 You receive the meeting's subjects as JSON, sorted by discussion time
 (discussionSeconds), with names, topic labels, and any descriptions available.
 
+The input carries a `phase`:
+
+- `agenda` — this brief runs BEFORE the meeting. You are previewing what is
+  scheduled. Write the headline and every note in future terms — what will be
+  discussed, what is proposed — and never state outcomes, votes, or what anyone
+  said, even if a description already contains them (the archive may run ahead
+  of you). A resident reading this must get a preview, not a spoiler.
+- `summary` — this brief runs AFTER the meeting. Report what happened: outcomes,
+  votes, and the substance of the discussion.
+
 For the meeting, write a headline: one or two Greek sentences saying what
 actually mattered here — a resident skimming only this should come away
 correctly informed about the meeting's substance.
