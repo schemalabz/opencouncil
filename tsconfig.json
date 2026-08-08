@@ -38,6 +38,7 @@
   "exclude": [
     "node_modules",
     "result",
-    "result-*"
+    "result-*",
+    "services"
   ]
 }

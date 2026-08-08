@@ -1,0 +1,247 @@
+{
+  "name": "scenario-athens-jul6-2026-agenda",
+  "state": {
+    "user": {
+      "name": "Μαρία",
+      "cities": [
+        {
+          "cityId": "athens",
+          "cityName": "Αθήνα",
+          "topics": [
+            "Πολεοδομία",
+            "Συγκοινωνίες"
+          ],
+          "locations": [
+            "Πετράλωνα"
+          ]
+        }
+      ]
+    },
+    "profile": "Μένει στα Άνω Πετράλωνα με το αυτοκίνητό της παρκαρισμένο στον δρόμο. Την απασχολεί το παρκάρισμα, η κατάσταση των κτιρίων και ό,τι αλλάζει τη γειτονιά.",
+    "journal": []
+  },
+  "event": {
+    "type": "agenda_processed",
+    "at": "2026-07-03T15:30:00.000Z",
+    "cityId": "athens",
+    "meetingId": "jul6_2026",
+    "meetingName": "Συνεδρίαση 06/07/26",
+    "meetingDate": "2026-07-06",
+    "brief": {
+      "cityId": "athens",
+      "meetingId": "jul6_2026",
+      "generatedAt": "2026-08-08T13:18:37.865Z",
+      "headline": "Η 4η Δημοτική Κοινότητα συζήτησε επί μισή ώρα την υποβάθμιση της πλατείας Λαού και του Αγίου Μελετίου από τα ναρκωτικά, με κατοίκους και τον Σύλλογο «Αναγέννηση» να ζητούν φωτισμό, καθαριότητα, Streetwork και προγράμματα πρόληψης στα σχολεία. Το Συμβούλιο αποφάσισε ομόφωνα να μην μετακινηθεί ούτε να εναλλάσσεται η λαϊκή αγορά Αχαρνών της Πέμπτης στην οδό Γιάνναρη, ενώ τέθηκαν και ζητήματα στάθμευσης στη Ζυμπρακάκη, επικίνδυνων κτισμάτων, πρέμνων και εκδηλώσεων στην Ακαδημία Πλάτωνος.",
+      "subjects": [
+        {
+          "subjectId": "cmrc6jsya07pvqhaq80u497in",
+          "name": "Ναρκωτικά και υποβάθμιση πλατείας Λαού",
+          "topicLabels": [
+            "Δημόσια Ασφάλεια"
+          ],
+          "discussionSeconds": 1760,
+          "scores": {
+            "hyperlocal": 5,
+            "citywide": 3,
+            "contention": 3,
+            "novelty": 3,
+            "money": 2
+          },
+          "note": "Εκτενής συζήτηση με παρουσία κατοίκων και συλλόγου για την πλατεία Λαού και τα γύρω στενά· διαφωνία για τις ευθύνες Δήμου και κράτους, χωρίς απόφαση, με αναφορές σε 125 εκατ. ευρώ από τέλη και στο 73% του τεχνικού προγράμματος για τον Βοτανικό.",
+          "locationHints": [
+            "Πλατεία Λαού",
+            "Άγιος Μελέτιος",
+            "Σεπόλια",
+            "Αττική",
+            "Πανεπιστημίου",
+            "Βοτανικός"
+          ]
+        },
+        {
+          "subjectId": "cmr8w9jm604zac4d99dyx3yzn",
+          "name": "Λαϊκή αγορά Αχαρνών",
+          "topicLabels": [
+            "Εμπόριο & Καταστήματα"
+          ],
+          "discussionSeconds": 689,
+          "scores": {
+            "hyperlocal": 5,
+            "citywide": 1,
+            "contention": 2,
+            "novelty": 3,
+            "money": 0
+          },
+          "note": "Ομόφωνη απόφαση μη έγκρισης μεταφοράς ή κυκλικής εναλλαγής της λαϊκής της Πέμπτης· αφορά άμεσα τους κατοίκους και τους πωλητές στη Γιάνναρη και τη Ζυμπρακάκη, με ενστάσεις κατοίκων που απορρίφθηκαν.",
+          "locationHints": [
+            "Οδός Γιάνναρη",
+            "Αχαρνών",
+            "Ζυμπρακάκη",
+            "Κάτω Πατήσια"
+          ]
+        },
+        {
+          "subjectId": "cmrc6jt1o07ssqhaqypt7jcz5",
+          "name": "Πολιτική προστασία, σχολεία και εκδηλώσεις στην Ακαδημία Πλάτωνος",
+          "topicLabels": [
+            "Δημόσια Ασφάλεια"
+          ],
+          "discussionSeconds": 345,
+          "scores": {
+            "hyperlocal": 4,
+            "citywide": 1,
+            "contention": 3,
+            "novelty": 3,
+            "money": 0
+          },
+          "note": "Καταγγελία για εμπορικό φεστιβάλ με εισιτήριο 5 ευρώ στην Ακαδημία Πλάτωνος χωρίς έλεγχο, με σύμπτωση απόψεων πλειοψηφίας και αντιπολίτευσης· επιπλέον αιτήματα για βυτιοφόρα, γκράφιτι και επιτροπή σχολείων, χωρίς απόφαση.",
+          "locationHints": [
+            "Ακαδημία Πλάτωνος",
+            "Λόφος Σκουζέ",
+            "Λόφος Κολωνού"
+          ]
+        },
+        {
+          "subjectId": "cmrc6jszf07rdqhaqsel89msp",
+          "name": "Στάθμευση και πρόστιμα στη Ζυμπρακάκη",
+          "topicLabels": [
+            "Συγκοινωνίες"
+          ],
+          "discussionSeconds": 289,
+          "scores": {
+            "hyperlocal": 5,
+            "citywide": 1,
+            "contention": 1,
+            "novelty": 2,
+            "money": 1
+          },
+          "note": "Καθημερινές κλήσεις στάθμευσης σε συγκεκριμένο τμήμα της Ζυμπρακάκη ενώ η απέναντι πλευρά έχει κολωνάκια· προτάθηκε ερώτημα στην Υπηρεσία Οδοποιίας για την ισχύ της πινακίδας και έγγραφο στη Δημοτική Αστυνομία.",
+          "locationHints": [
+            "Οδός Ζυμπρακάκη",
+            "Σεράφη",
+            "Θυμαράκια",
+            "Οδός Κόρακα",
+            "Στρατηγού Καλλάρη",
+            "Μωραϊτίνη",
+            "Παρασκευοπούλου"
+          ]
+        },
+        {
+          "subjectId": "cmrc6jt0u07seqhaqqghudz9q",
+          "name": "Πρέμνα και ελλείψεις πρασίνου",
+          "topicLabels": [
+            "Περιβάλλον"
+          ],
+          "discussionSeconds": 108,
+          "scores": {
+            "hyperlocal": 2,
+            "citywide": 1,
+            "contention": 0,
+            "novelty": 2,
+            "money": 0
+          },
+          "note": "Λίστα 90 σημείων με πρέμνα και 15 λάκκων χωρίς φύτευση σε όλη την κοινότητα, χωρίς κατονομασία δρόμων· ζητήθηκε χρονοδιάγραμμα, η απάντηση παραπέμφθηκε στις υπηρεσίες.",
+          "locationHints": []
+        },
+        {
+          "subjectId": "cmrc6jt0507s3qhaqfh6fv9fz",
+          "name": "Επικίνδυνα κτίσματα στην 4η Δ.Κ.",
+          "topicLabels": [
+            "Πολεοδομία"
+          ],
+          "discussionSeconds": 79,
+          "scores": {
+            "hyperlocal": 3,
+            "citywide": 1,
+            "contention": 1,
+            "novelty": 2,
+            "money": 3
+          },
+          "note": "Επαναφορά αιτήματος του Μαΐου 2025 για 28 επικίνδυνα κτίσματα· αναφέρθηκε πίνακας 12 κτιρίων προς κατεδάφιση με προϋπολογισμό 4.000.000 ευρώ, χωρίς ενημέρωση για την πορεία.",
+          "locationHints": [
+            "Λιοσίων",
+            "Ξανθίππης"
+          ]
+        },
+        {
+          "subjectId": "cmrc6jt2f07tgqhaq7m751cau",
+          "name": "Προγραμματισμός συνεδριάσεων",
+          "topicLabels": [
+            "Διοίκηση"
+          ],
+          "discussionSeconds": 61,
+          "scores": {
+            "hyperlocal": 0,
+            "citywide": 1,
+            "contention": 2,
+            "novelty": 1,
+            "money": 0
+          },
+          "note": "Διαδικαστικό αίτημα να αποστέλλεται η πρόσκληση 3-4 ημέρες νωρίτερα· σχόλιο ότι τα θέματα του συμβουλίου είναι ελάχιστα και προέρχονται από την αντιπολίτευση.",
+          "locationHints": []
+        },
+        {
+          "subjectId": "cmr8w9jn504zcc4d92uiuqj3y",
+          "name": "Πάρκα σκύλων στην 4η Δ.Κ.",
+          "topicLabels": [
+            "Ζώα & Αδέσποτα"
+          ],
+          "discussionSeconds": 11,
+          "scores": {
+            "hyperlocal": 1,
+            "citywide": 1,
+            "contention": 0,
+            "novelty": 1,
+            "money": 0
+          },
+          "note": "Σύντομη αναφορά 11 δευτερολέπτων· οι σύμβουλοι καλούνται να στείλουν με email προτάσεις σημείων, χωρίς συγκεκριμένη τοποθεσία ή απόφαση.",
+          "locationHints": []
+        },
+        {
+          "subjectId": "cmr8w9jmr04zbc4d9wey4a90f",
+          "name": "Προϋπολογισμός λειτουργικών εξόδων 2027",
+          "topicLabels": [
+            "Προϋπολογισμός & Οικονομία"
+          ],
+          "discussionSeconds": 0,
+          "scores": {
+            "hyperlocal": 0,
+            "citywide": 1,
+            "contention": 0,
+            "novelty": 1,
+            "money": 1
+          },
+          "note": "Το σχέδιο προϋπολογισμού λειτουργικών εξόδων 2027 του τμήματος Εξυπηρέτησης Δημοτών αναβλήθηκε λόγω ψήφισης νέου νόμου· δεν συζητήθηκε.",
+          "locationHints": []
+        }
+      ]
+    }
+  },
+  "recordedTurns": [
+    {
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "",
+          "signature": "CAISyQYKhwEIEBgCKkAwDk1SpB8TNdMojUwRwAV29I/hHjV0f3LbTV7MJcjVaM2GGOeqWpkQl4r9ao+dFdq4wGoMFOMPQoCENtPTO10uMg1jbGF1ZGUtb3B1cy01OAFCCHRoaW5raW5nWiRlNTg1YmIxMi04NzgyLTQ4MWQtOGZkYi1jNTIxZGU2ZTM5MjgSDGQ2WuD3qbyzSrgjLRoMeJXlxPvNoh3Tv4LcIjA/U5SxN3/Z2T46oqSSi9etoRtOhMZzBNPXyZhZ+wdnVJ6iIbe0AW8TcRNobCB8+YYq7gR+WbFgcPyv7cfZmoRRppvKMch/ZkZ9nM1U7GrzFxeuFV6FqcyRbY4KjXcmxmm3VpLrA0/tAGE9jDAbIS18r04sjD60ef/MBXnu48Q29cejo+12d71zmm82fRPGeONIHOZ+YNs7N+92a3MUklbNqboWSJqepPsjuQnEU/ovhrwplSJBzdtOo4KruLrlZYtq9Fg0MdKC3MLjQM6u6SqcmfQdQ6fiya7pmJ+nIaWCTuKVqNzNW7Hc+eDzodVkKESt5Br/JX5Thx1+8l/tM2d39QY4uZkJuq2HZTM8Cy+MGOSgrN0EyZrwtAauliqnH+zbRB/sRZIb9CdOXBIFJKClEhTSoAp2fVT7ytQIdJ6Y9GCqfeF6MGGRrR5+DXC9DBRAwYwKmaj+TJLNJNckdfhTOG6Fxzv7O1l72Epogs7fxQYUKSUyucyt3Jc/3RzLpQSMPt9tWxx1iKbF8zGkTlDpjAfHFxU6T6lwxbjLVqQqwH/TU8KH1zjTRp4rv8K191dEehyj5akEu1IbmZdyusrbBqZf28CWVN285NkoA3QiyZegCn6BbhclwaNphplaiwxzxt3P7k9hArtK2SfgG8QGeGqLltz32OxW2rLOr+o0yg171iZVm3P20Qml4WHFgbMKMZxiqEQhagxBaMFCRwmD/vNE3b4kQ8RI/MwkDjTlXyWKCaYDKGc7a6R0U6YZxWCQS3na5c6xVzdGQ8St1HfytO7jimn5Zd/Z5JIw3Li0YNxnh+G6/kJprYNOg1o+Ts9HQwk7Jkd4munxQ9FqkTIdGxTiCJORGayeOfegoX5He/AoCchA2hR0X94VULq8ywBqGAE="
+        },
+        {
+          "type": "text",
+          "text": "Δεν στέλνω τίποτα.\n\nRationale: Η συνεδρίαση αφορά αποκλειστικά την 4η Δημοτική Κοινότητα (Σεπόλια, Κάτω Πατήσια, Ακαδημία Πλάτωνος) και κανένα από τα θέματα δεν αγγίζει τα Πετράλωνα ούτε έχει εμβέλεια σε όλο τον δήμο. Τα δύο θέματα που πέφτουν στις κατηγορίες που παρακολουθεί η Μαρία —τα επικίνδυνα κτίσματα (Λιοσίων/Ξανθίππης, 1 λεπτό συζήτησης) και η στάθμευση στη Ζυμπρακάκη— είναι γεωγραφικά σε άλλη άκρη της πόλης· το θέμα στάθμευσης θα την ενδιέφερε μόνο αν ήταν στη γειτονιά της, και η υποβάθμιση της πλατείας Λαού, παρότι η μεγαλύτερη συζήτηση, είναι υπερτοπική για τα Σεπόλια και δεν κατέληξε καν σε απόφαση. Είναι επίσης το πρώτο μήνυμα που θα της έστελνα ποτέ: το να ανοίξω με κάτι που δεν την αφορά θα όριζε λάθος προσδοκία για το τι σημαίνει να γράφω. Περιμένω συνεδρίαση της 3ης Κοινότητας ή απόφαση του Δημοτικού Συμβουλίου με πραγματικό αντίκτυπο στα Πετράλωνα."
+        }
+      ],
+      "stopReason": "end_turn",
+      "usage": {
+        "input": 3245,
+        "output": 830,
+        "cacheWrite": 18451,
+        "cacheRead": 0
+      }
+    }
+  ],
+  "expected": {
+    "decision": "silence",
+    "messageCount": 0,
+    "profileRewritten": false,
+    "scheduledWakes": 0
+  }
+}

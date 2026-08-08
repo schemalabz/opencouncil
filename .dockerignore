@@ -1,2 +1,5 @@
-./data
-./node_modules
+data
+node_modules
+**/node_modules
+.next
+services/*/.next
