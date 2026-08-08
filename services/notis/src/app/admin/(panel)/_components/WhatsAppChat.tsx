@@ -1,7 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink, FastForward, Send, SkipForward, Square, StepForward } from "lucide-react";
+import {
+  Check,
+  CheckCheck,
+  ExternalLink,
+  FastForward,
+  Send,
+  SkipForward,
+  Square,
+  StepForward,
+} from "lucide-react";
 /* eslint-disable @next/next/no-img-element */
 import { Button } from "@opencouncil/ui/button";
 import { RenderedTemplate, renderTemplate } from "@/agent/templates";
@@ -154,6 +163,32 @@ function LinkPreview({ url }: { url: string }) {
   );
 }
 
+/**
+ * WhatsApp status ticks for the user's own messages, following Bird/WhatsApp
+ * mechanics: Notis marks the inbound message as read when its wake starts
+ * (Bird mark-as-read), so a live message animates sent ✓ → delivered ✓✓ →
+ * read (blue) ✓✓; historical messages are simply read.
+ */
+function Ticks({ live }: { live: boolean }) {
+  const [stage, setStage] = useState(live ? 0 : 2);
+  useEffect(() => {
+    if (!live) return;
+    const delivered = setTimeout(() => setStage(1), 500);
+    const read = setTimeout(() => setStage(2), 1400);
+    return () => {
+      clearTimeout(delivered);
+      clearTimeout(read);
+    };
+  }, [live]);
+  const Icon = stage === 0 ? Check : CheckCheck;
+  return (
+    <Icon
+      className="ml-0.5 inline h-3.5 w-3.5 align-text-bottom"
+      style={{ color: stage === 2 ? "#53bdeb" : "#8696a0" }}
+    />
+  );
+}
+
 function Tail({ side }: { side: "in" | "out" }) {
   return (
     <svg
@@ -175,6 +210,7 @@ function Bubble({
   first,
   onClick,
   text,
+  ticks,
 }: {
   side: "in" | "out";
   time: string;
@@ -183,6 +219,8 @@ function Bubble({
   first: boolean;
   onClick?: () => void;
   text: string;
+  /** Status ticks (out bubbles only): "live" animates the read progression. */
+  ticks?: "live" | "read";
 }) {
   const url = side === "in" ? firstUrl(text) : undefined;
   return (
@@ -204,6 +242,7 @@ function Bubble({
         </span>
         <span className="float-right ml-2 mt-2 select-none text-[11px] leading-none text-[#667781]">
           {time}
+          {side === "out" && ticks && <Ticks live={ticks === "live"} />}
         </span>
       </div>
     </div>
@@ -317,6 +356,19 @@ export function WhatsAppChat({
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [visible.length, busy]);
 
+  // WhatsApp dismisses the typing indicator ~25s after mark-as-read if no
+  // message has arrived (Bird rides the same mechanics) — the simulator
+  // honors the cap so long wakes feel exactly as they would in production.
+  const [typingExpired, setTypingExpired] = useState(false);
+  useEffect(() => {
+    if (!busy) {
+      setTypingExpired(false);
+      return;
+    }
+    const cap = setTimeout(() => setTypingExpired(true), 25_000);
+    return () => clearTimeout(cap);
+  }, [busy]);
+
   let lastDay = "";
 
   return (
@@ -328,7 +380,7 @@ export function WhatsAppChat({
         </div>
         <div className="leading-tight">
           <p className="text-[15px] font-medium text-[#111b21]">Νότης</p>
-          {busy && <p className="text-xs text-[#667781]">γράφει...</p>}
+          {busy && !typingExpired && <p className="text-xs text-[#667781]">γράφει...</p>}
         </div>
         <span className="ml-auto text-xs tabular-nums text-[#667781]">
           🕐 {clock ? new Date(clock).toLocaleDateString("el-GR") : "—"}
@@ -380,6 +432,7 @@ export function WhatsAppChat({
                   selected={selected}
                   onClick={() => onSelect(item.id)}
                   text={item.event.text}
+                  ticks={item.id === busyItemId ? "live" : "read"}
                 />
               )}
               {item.status === "skipped" && (
@@ -433,7 +486,7 @@ export function WhatsAppChat({
             </div>
           );
         })}
-        {busy && (
+        {busy && !typingExpired && (
           <div className="flex justify-start px-4">
             <div className="relative rounded-lg rounded-tl-none bg-white px-4 py-3 shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]">
               <Tail side="in" />

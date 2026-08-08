@@ -55,13 +55,14 @@ describe("golden scenarios (recorded replay)", () => {
       expect(outcome.rationale.length).toBeGreaterThan(0);
       expect(trace.turns).toHaveLength(fixture.recordedTurns.length);
 
-      // Request invariants: every request carries the MCP toolset + the four
+      // Request invariants: every request carries the MCP toolset + the five
       // client tools, and exactly two system blocks with the cache breakpoint
       // on the last one.
       for (const req of replay.requests) {
         const tools = (req.tools ?? []) as Array<{ type?: string; name?: string }>;
         expect(tools[0]).toMatchObject({ type: "mcp_toolset", mcp_server_name: "opencouncil" });
         expect(tools.map((t) => t.name).filter(Boolean)).toEqual([
+          "finish_wake",
           "send_message",
           "update_taste_profile",
           "schedule_wakeup",

@@ -74,6 +74,7 @@ export async function runWake(
   let rationale = "";
   let refused = false;
   let repaired = false;
+  let finished = false;
   // Substantive prose written INSIDE a tool-calling turn — observed failure
   // mode: the model narrates part of its answer as a text block next to its
   // send_message calls, and that prose is never delivered.
@@ -132,6 +133,11 @@ export async function runWake(
           case "unsubscribe_user":
             unsubscribe = { reason: String(block.input.reason ?? "") };
             break;
+          case "finish_wake":
+            rationale = String(block.input.rationale ?? "") || rationale;
+            finished = true;
+            ack = "wake recorded";
+            break;
           default:
             ack = "unknown tool";
         }
@@ -140,13 +146,46 @@ export async function runWake(
       if (text && text.length >= 80) {
         strandedProse = text;
       }
+
+      // finish_wake ends the wake in the same turn as the sends — no extra
+      // model pass — unless a repair is owed, in which case the nudge rides
+      // along with the tool_results and the loop continues once.
+      let nudge: string | undefined;
+      if (finished && !repaired) {
+        if (event.type === "user_message" && sent.length === 0 && !unsubscribe) {
+          nudge =
+            "(system check) You finished the wake without sending anything, but the " +
+            "person asked you something directly. If you meant to answer them, call " +
+            "send_message with the message now, then finish_wake again. If you truly " +
+            "intend to stay silent, call finish_wake again to confirm.";
+        } else if (strandedProse) {
+          nudge =
+            "(system check) You wrote prose in the same turn as your tool calls. That " +
+            "prose was NOT delivered — nothing reaches the person except send_message " +
+            "content. The undelivered text was:\n«" +
+            strandedProse.slice(0, 1200) +
+            "»\nIf it was meant for the person, send it now with send_message, rephrased " +
+            "so the conversation reads naturally, then finish_wake again. If it was only " +
+            "reasoning, just call finish_wake again.";
+        }
+        if (nudge) {
+          repaired = true;
+          finished = false;
+          strandedProse = undefined;
+        }
+      }
+
       messages.push({ role: "assistant", content: response.content });
       // A tool_use stop with no client tool calls happens when the turn holds
       // only server-side (MCP) blocks. There is nothing for us to answer —
       // an empty user message is an API error — so continue like pause_turn.
-      if (results.length > 0) {
-        messages.push({ role: "user", content: results });
+      if (results.length > 0 || nudge) {
+        messages.push({
+          role: "user",
+          content: nudge ? [...results, { type: "text", text: nudge }] : results,
+        });
       }
+      if (finished) break;
       continue;
     }
 

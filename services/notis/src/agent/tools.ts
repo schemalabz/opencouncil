@@ -6,6 +6,24 @@
 
 export const CLIENT_TOOLS = [
   {
+    name: "finish_wake",
+    description:
+      "End the wake, carrying your operator rationale (2-4 honest sentences; 1-2 for " +
+      "silence) about why this was, or was not, worth the reader's attention. REQUIRED " +
+      "on every wake, and call it in the SAME turn as your final send_message calls — " +
+      "one turn: sends plus finish_wake, nothing after.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        rationale: {
+          type: "string",
+          description: "The rationale, written for the operator, about the reader — never to them.",
+        },
+      },
+      required: ["rationale"],
+    },
+  },
+  {
     name: "send_message",
     description:
       "Send one WhatsApp message to the reader, in Greek. One specific thing per message; " +

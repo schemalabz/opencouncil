@@ -51,6 +51,55 @@ describe("runWake", () => {
     expect(followup[1].role).toBe("assistant");
   });
 
+  it("finish_wake in the send turn ends the wake in a single pass", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "send_message", { text: "Ένα μήνυμα" }),
+          toolUse("t2", "finish_wake", { rationale: "Άξιζε γιατί το ζήτησε." }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const { outcome, trace } = await runWake(
+      makeState(),
+      { type: "user_message", at: FIXED_NOW.toISOString(), text: "πες μου" },
+      makeDeps(fake),
+    );
+
+    expect(outcome.decision).toBe("send");
+    expect(outcome.messages).toEqual(["Ένα μήνυμα"]);
+    expect(outcome.rationale).toBe("Άξιζε γιατί το ζήτησε.");
+    expect(trace.turns).toHaveLength(1);
+    expect(fake.requests).toHaveLength(1);
+  });
+
+  it("finish_wake with no sends on a user message still gets the one repair nudge", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [toolUse("t1", "finish_wake", { rationale: "Της απάντησα ήδη νοερά." })],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [
+          toolUse("t2", "send_message", { text: "Η απάντηση." }),
+          toolUse("t3", "finish_wake", { rationale: "Απάντησα μετά το nudge." }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const { outcome, trace } = await runWake(
+      makeState(),
+      { type: "user_message", at: FIXED_NOW.toISOString(), text: "λοιπόν;" },
+      makeDeps(fake),
+    );
+
+    expect(outcome.decision).toBe("send");
+    expect(outcome.messages).toEqual(["Η απάντηση."]);
+    expect(outcome.rationale).toBe("Απάντησα μετά το nudge.");
+    expect(trace.turns).toHaveLength(2);
+  });
+
   it("repair: a user question answered only in final text gets one nudge to send", async () => {
     const fake = new FakeAnthropic([
       { content: [text("Η απάντηση, γραμμένη κατά λάθος μόνο στο rationale.")], stop_reason: "end_turn" },
