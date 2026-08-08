@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink, Send, SkipForward, StepForward } from "lucide-react";
+import { ExternalLink, FastForward, Send, SkipForward, Square, StepForward } from "lucide-react";
 import { Button } from "@opencouncil/ui/button";
 import { RenderedTemplate, renderTemplate } from "@/agent/templates";
 import { QueueItem } from "../types";
@@ -10,12 +10,16 @@ interface Props {
   queue: QueueItem[];
   clock: string;
   busy: boolean;
+  /** A run-until-he-texts loop is in flight. */
+  autoRun: boolean;
   origin: "transition" | "signup";
   startAt: string;
   selectedId?: string;
   onSelect(id: string): void;
   onStep(): void;
   onSkip(): void;
+  onRunUntilSend(): void;
+  onStopAutoRun(): void;
   onUserMessage(text: string): void;
 }
 
@@ -176,12 +180,15 @@ export function WhatsAppChat({
   queue,
   clock,
   busy,
+  autoRun,
   origin,
   startAt,
   selectedId,
   onSelect,
   onStep,
   onSkip,
+  onRunUntilSend,
+  onStopAutoRun,
   onUserMessage,
 }: Props) {
   const [draft, setDraft] = useState("");
@@ -232,7 +239,7 @@ export function WhatsAppChat({
           rendered={intro}
           time={fmtTime(introAt)}
           first
-          busy={busy}
+          busy={busy || autoRun}
           onQuickReply={onUserMessage}
         />
         {(() => {
@@ -282,7 +289,7 @@ export function WhatsAppChat({
                     time={fmtTime(item.event.at)}
                     first={i === 0}
                     selected={selected}
-                    busy={busy}
+                    busy={busy || autoRun}
                     onClick={() => onSelect(item.id)}
                     onQuickReply={onUserMessage}
                   />
@@ -325,11 +332,33 @@ export function WhatsAppChat({
       {/* controls + composer */}
       <div className="space-y-2 bg-[#f0f2f5] px-3 py-2">
         <div className="flex gap-2">
-          <Button size="sm" onClick={onStep} disabled={busy || !next} className="flex-1">
+          <Button size="sm" onClick={onStep} disabled={busy || autoRun || !next} className="flex-1">
             <StepForward className="mr-1.5 h-3.5 w-3.5" />
             {busy ? "Ο Νότης σκέφτεται..." : "Επόμενο γεγονός"}
           </Button>
-          <Button size="sm" variant="outline" onClick={onSkip} disabled={busy || !next}>
+          {autoRun ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onStopAutoRun}
+              title="Σταμάτα μετά το τρέχον βήμα"
+            >
+              <Square className="mr-1.5 h-3.5 w-3.5" />
+              Στοπ
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onRunUntilSend}
+              disabled={busy || !next}
+              title="Τρέξε μέχρι να ξαναγράψει ο Νότης"
+            >
+              <FastForward className="mr-1.5 h-3.5 w-3.5" />
+              Μέχρι το επόμενο μήνυμα
+            </Button>
+          )}
+          <Button size="sm" variant="outline" onClick={onSkip} disabled={busy || autoRun || !next}>
             <SkipForward className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -346,12 +375,12 @@ export function WhatsAppChat({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="Γράψε ένα μήνυμα"
-            disabled={busy}
+            disabled={busy || autoRun}
             className="h-10 flex-1 rounded-full bg-white px-4 text-sm text-[#111b21] placeholder:text-[#8696a0] focus:outline-none"
           />
           <button
             type="submit"
-            disabled={busy || !draft.trim()}
+            disabled={busy || autoRun || !draft.trim()}
             aria-label="Στείλε"
             className="flex h-10 w-10 items-center justify-center rounded-full bg-[#25d366] text-white shadow disabled:opacity-40"
           >

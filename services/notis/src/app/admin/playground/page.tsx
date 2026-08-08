@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Button } from "@opencouncil/ui/button";
 import { isWindowOpen, templateForEvent } from "@/agent/templates";
-import { WakeEvent } from "@/agent/types";
+import { WakeEvent, WakeOutcome } from "@/agent/types";
 import { env } from "@/env.mjs";
 import { dryRun, fetchBrief, fetchShippedPrompt } from "./api";
 import { InspectorPane } from "./components/InspectorPane";
@@ -20,6 +20,8 @@ export default function PlaygroundPage() {
   const [store, dispatch] = useReducer(reducer, undefined, emptyStore);
   const [mounted, setMounted] = useState(false);
   const [busyItemId, setBusyItemId] = useState<string | undefined>();
+  const [autoRun, setAutoRun] = useState(false);
+  const stopRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | undefined>();
   const [shippedPrompt, setShippedPrompt] = useState<string | undefined>();
@@ -45,7 +47,7 @@ export default function PlaygroundPage() {
     [store.traces],
   );
 
-  const runItem = useCallback(async (item: QueueItem) => {
+  const runItem = useCallback(async (item: QueueItem): Promise<WakeOutcome | undefined> => {
     setBusyItemId(item.id);
     setError(null);
     try {
@@ -90,8 +92,10 @@ export default function PlaygroundPage() {
         userMessageAt: isUserMsg ? event.at : undefined,
       });
       setSelectedId(item.id);
+      return outcome;
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      return undefined;
     } finally {
       setBusyItemId(undefined);
     }
@@ -101,6 +105,28 @@ export default function PlaygroundPage() {
     const next = storeRef.current.sim.queue.find((q) => q.status === "pending");
     if (next) void runItem(next);
   }, [runItem]);
+
+  // Fast-forward: keep running wakes until ο Νότης actually writes (or the
+  // queue runs dry / an error stops us / the user hits stop).
+  const runUntilSend = useCallback(async () => {
+    setAutoRun(true);
+    stopRef.current = false;
+    try {
+      for (;;) {
+        if (stopRef.current) break;
+        const next = storeRef.current.sim.queue.find((q) => q.status === "pending");
+        if (!next) break;
+        const outcome = await runItem(next);
+        if (!outcome || outcome.messages.length > 0) break;
+      }
+    } finally {
+      setAutoRun(false);
+    }
+  }, [runItem]);
+
+  const stopAutoRun = useCallback(() => {
+    stopRef.current = true;
+  }, []);
 
   const skip = useCallback(() => {
     const next = storeRef.current.sim.queue.find((q) => q.status === "pending");
@@ -222,12 +248,15 @@ export default function PlaygroundPage() {
             queue={store.sim.queue}
             clock={store.sim.clock}
             busy={busy}
+            autoRun={autoRun}
             origin={store.sim.origin}
             startAt={store.setup.from}
             selectedId={selectedId}
             onSelect={setSelectedId}
             onStep={step}
             onSkip={skip}
+            onRunUntilSend={() => void runUntilSend()}
+            onStopAutoRun={stopAutoRun}
             onUserMessage={userMessage}
           />
         </div>
