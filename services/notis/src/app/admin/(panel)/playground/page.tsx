@@ -6,6 +6,7 @@ import { isWindowOpen, templateForEvent } from "@/agent/templates";
 import { WakeEvent, WakeOutcome } from "@/agent/types";
 import { env } from "@/env.mjs";
 import { ConversationView } from "../_components/ConversationView";
+import { PageHeader } from "../_components/PageHeader";
 import { dryRun, fetchBrief, fetchShippedPrompt } from "./api";
 import { PromptEditor } from "./components/PromptEditor";
 import { SetupWizard } from "./components/SetupWizard";
@@ -13,29 +14,6 @@ import { emptyStore, loadStore, reducer, saveStore } from "./store";
 import { QueueItem, hasPendingBrief } from "./types";
 
 const MAPBOX_TOKEN = env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
-
-/** The single admin header: brand on the left, page state flowing after it. */
-function AdminHeader({
-  subtitle,
-  children,
-}: {
-  subtitle: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <header className="flex h-14 shrink-0 items-center gap-3 border-b px-4 text-sm">
-      <span className="flex shrink-0 items-center gap-2.5">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="" className="h-6 w-6 object-contain" />
-        <span className="font-relative text-lg leading-none">Νότης</span>
-        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-          {subtitle}
-        </span>
-      </span>
-      {children}
-    </header>
-  );
-}
 
 export default function PlaygroundPage() {
   const [store, dispatch] = useReducer(reducer, undefined, emptyStore);
@@ -212,7 +190,11 @@ export default function PlaygroundPage() {
   if (!store.setup.done) {
     return (
       <div className="flex h-full flex-col overflow-hidden">
-        <AdminHeader subtitle="νέα προσομοίωση" />
+        <PageHeader title="Playground">
+          <span className="self-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            νέα προσομοίωση
+          </span>
+        </PageHeader>
         <div className="min-h-0 flex-1">
           <SetupWizard
             mapboxToken={MAPBOX_TOKEN}
@@ -227,11 +209,9 @@ export default function PlaygroundPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <AdminHeader subtitle="playground">
-        <span className="h-4 w-px shrink-0 bg-border" />
-        <span className="font-medium">{user.name}</span>
+      <PageHeader title="Playground">
         <span className="truncate text-xs text-muted-foreground">
-          {user.cities.map((c) => c.cityName).join(", ")} · από {store.setup.from}
+          {user.name} · {user.cities.map((c) => c.cityName).join(", ")} · από {store.setup.from}
         </span>
         {store.sim.unsubscribedAt && (
           <span className="shrink-0 rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
@@ -248,7 +228,8 @@ export default function PlaygroundPage() {
         />
         <Button
           size="sm"
-          variant="ghost"
+          variant="outline"
+          className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
           onClick={() => {
             if (window.confirm("Να διαγραφεί όλη η προσομοίωση;")) {
               dispatch({ type: "reset" });
@@ -258,7 +239,7 @@ export default function PlaygroundPage() {
         >
           Reset
         </Button>
-      </AdminHeader>
+      </PageHeader>
 
       {error && (
         <p className="border-b bg-destructive/10 px-4 py-2 text-sm text-destructive">{error}</p>

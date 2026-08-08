@@ -297,7 +297,7 @@ export function WhatsAppChat({ records, clock, origin, startAt, selectedId, onSe
   let lastDay = "";
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-[720px] flex-col overflow-hidden rounded-none shadow-xl md:my-3 md:rounded-xl">
+    <div className="mx-auto flex h-full w-full max-w-[720px] flex-col overflow-hidden rounded-none shadow-xl md:rounded-xl">
       {/* header */}
       <header className="flex items-center gap-3 bg-[#f0f2f5] px-4 py-2.5">
         <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm">

@@ -52,7 +52,7 @@ export function ConversationView({
         onSelect={onSelect}
       />
       <div className="grid min-h-0 flex-1 grid-cols-[1fr_400px]">
-        <div className="min-h-0 bg-muted/20">
+        <div className="min-h-0 bg-muted/20 md:py-3">
           <WhatsAppChat
             records={records}
             clock={clock}
