@@ -75,7 +75,14 @@ export async function fetchMeetings(cityId: string, from: string): Promise<Meeti
   const all: MeetingSummary[] = [];
   for (let page = 1; page <= 4; page++) {
     const { result } = await post<{
-      result: { meetings?: Array<{ id: string; name: string; dateTime: string }> };
+      result: {
+        meetings?: Array<{
+          id: string;
+          name: string;
+          dateTime: string;
+          administrativeBody?: string | null;
+        }>;
+      };
     }>("/api/proxy/mcp", {
       tool: "list_meetings",
       args: { cityId, from, pageSize: 50, page },

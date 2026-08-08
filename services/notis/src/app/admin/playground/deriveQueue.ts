@@ -5,6 +5,7 @@ export interface MeetingSummary {
   cityId: string;
   name: string;
   dateTime: string;
+  administrativeBody?: string | null;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -29,6 +30,7 @@ export function deriveQueue(meetings: MeetingSummary[], from: string): QueueItem
       meetingId: m.id,
       meetingName: m.name,
       meetingDate,
+      adminBody: m.administrativeBody ?? null,
       brief: { pending: true as const },
     };
     const agendaAt = new Date(meetingMs - 3 * DAY_MS).toISOString();

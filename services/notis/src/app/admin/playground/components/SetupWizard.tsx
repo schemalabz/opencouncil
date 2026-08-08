@@ -144,7 +144,7 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
   const initial = (name.trim()[0] ?? ";").toUpperCase();
 
   return (
-    <div className="grid h-[calc(100vh-49px)] lg:grid-cols-[minmax(480px,620px)_1fr]">
+    <div className="grid h-full lg:grid-cols-[minmax(480px,620px)_1fr]">
       {/* ——— the casting sheet ——— */}
       <div className="flex min-h-0 flex-col overflow-y-auto">
         <div className="flex-1 space-y-12 px-10 py-10 lg:px-14">

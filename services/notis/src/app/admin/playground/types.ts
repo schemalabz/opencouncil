@@ -13,6 +13,7 @@ export type QueueEvent =
       meetingId: string;
       meetingName: string;
       meetingDate: string;
+      adminBody?: string | null;
       brief: PendingBrief;
     };
 

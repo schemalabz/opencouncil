@@ -22,31 +22,60 @@ function isMeetingEvent(
 function icon(item: QueueItem) {
   switch (item.event.type) {
     case "agenda_processed":
-      return <ListTodo className="h-3.5 w-3.5" />;
+      return <ListTodo className="h-4 w-4" />;
     case "meeting_summarized":
-      return <FileText className="h-3.5 w-3.5" />;
+      return <FileText className="h-4 w-4" />;
     case "user_message":
-      return <MessageCircle className="h-3.5 w-3.5" />;
+      return <MessageCircle className="h-4 w-4" />;
     case "scheduled":
-      return <AlarmClock className="h-3.5 w-3.5" />;
+      return <AlarmClock className="h-4 w-4" />;
     case "heartbeat":
-      return <Moon className="h-3.5 w-3.5" />;
+      return <Moon className="h-4 w-4" />;
   }
 }
 
-function nodeClasses(item: QueueItem, isNext: boolean, isSelected: boolean, isBusy: boolean): string {
+const normalize = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+
+/** Δημοτικό Συμβούλιο / Επιτροπή / Κοινότητα → two-letter tag for the badge. */
+function adminBodyTag(item: QueueItem): "ΔΣ" | "ΔΕ" | "ΔΚ" | null {
+  if (!isMeetingEvent(item)) return null;
+  const e = item.event as { adminBody?: string | null; meetingName: string };
+  const text = normalize(e.adminBody || e.meetingName);
+  if (text.includes("συμβουλιο")) return "ΔΣ";
+  if (text.includes("επιτροπη")) return "ΔΕ";
+  if (text.includes("κοινοτητ")) return "ΔΚ";
+  return null;
+}
+
+/**
+ * The circle itself: the city logo (or event icon) fills it; state reads
+ * through the ring color and the logo treatment, never by hiding the logo.
+ */
+function circleClasses(item: QueueItem, isNext: boolean, isSelected: boolean, isBusy: boolean): string {
   const base =
-    "relative z-10 flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border-2 transition-all";
+    "flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 bg-background transition-all";
   const ring = isSelected ? " ring-2 ring-orange ring-offset-2 ring-offset-background" : "";
-  if (isBusy) return `${base} animate-pulse border-orange bg-orange text-white${ring}`;
-  if (item.status === "skipped")
-    return `${base} border-dashed border-muted-foreground/40 bg-background text-muted-foreground/50 opacity-60${ring}`;
+  if (isBusy) return `${base} animate-pulse border-orange${ring}`;
+  if (item.status === "skipped") return `${base} border-dashed border-muted-foreground/40${ring}`;
   if (item.status === "done" && item.outcome?.decision === "send")
-    return `${base} border-orange bg-orange text-white${ring}`;
-  if (item.status === "done")
-    return `${base} border-muted-foreground/30 bg-muted text-muted-foreground${ring}`;
-  if (isNext) return `${base} border-orange bg-background text-orange animate-pulse${ring}`;
-  return `${base} border-muted-foreground/30 bg-background text-muted-foreground/60${ring}`;
+    return `${base} border-orange${ring}`;
+  if (item.status === "done") return `${base} border-muted-foreground/40${ring}`;
+  if (isNext) return `${base} animate-pulse border-orange${ring}`;
+  return `${base} border-muted-foreground/20${ring}`;
+}
+
+/**
+ * Logo treatment: the played past stays vivid, the unplayed future is
+ * grayscale (the whole future column also fades via wrapper opacity).
+ */
+function logoClasses(item: QueueItem, isNext: boolean): string {
+  if (item.status === "skipped") return "grayscale";
+  if (item.status === "pending" && !isNext) return "grayscale";
+  return "";
 }
 
 interface HoverState {
@@ -96,8 +125,8 @@ export function Timeline({ queue, cityMeta, selectedId, busyItemId, onSelect }: 
   return (
     <div className="overflow-x-auto border-b bg-muted/30" onMouseLeave={endHover}>
       <div className="relative flex min-w-max items-start gap-0 px-6 py-3">
-        {/* connecting line through the node centers: py-3 (12px) + month row (12px) + half node (16px) */}
-        <div className="absolute left-0 right-0 top-[40px] h-0.5 bg-border" />
+        {/* connecting line through the node centers: py-3 (12px) + month row (12px) + half node (28px) */}
+        <div className="absolute left-0 right-0 top-[52px] h-0.5 bg-border" />
         {queue.map((item) => {
           const date = new Date(item.event.at);
           const month = date.toLocaleDateString("el-GR", { month: "short" });
@@ -106,11 +135,14 @@ export function Timeline({ queue, cityMeta, selectedId, busyItemId, onSelect }: 
           const isNext = item.id === nextId;
           const messages = item.outcome?.messages.length ?? 0;
           const logo = isMeetingEvent(item) ? cityMeta?.[item.event.cityId]?.logo : undefined;
+          const bodyTag = adminBodyTag(item);
+          const isUserMsg = item.event.type === "user_message";
+          const isFuture = item.status === "pending" && !isNext;
           return (
             <div
               key={item.id}
               ref={isNext ? nextRef : undefined}
-              className="flex w-[64px] shrink-0 flex-col items-center"
+              className="flex w-[84px] shrink-0 flex-col items-center"
             >
               <span className="h-3 text-[10px] font-medium uppercase text-muted-foreground">
                 {showMonth ? month : ""}
@@ -119,35 +151,70 @@ export function Timeline({ queue, cityMeta, selectedId, busyItemId, onSelect }: 
                 onClick={() => onSelect(item.id)}
                 onMouseEnter={(e) => beginHover(item, e.currentTarget)}
                 onMouseLeave={endHover}
-                className={nodeClasses(item, isNext, item.id === selectedId, item.id === busyItemId)}
+                className={`relative z-10 transition-opacity ${
+                  isFuture ? "opacity-40 hover:opacity-90" : ""
+                } ${item.status === "skipped" ? "opacity-50" : ""}`}
               >
-                {logo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={logo} alt="" className="h-full w-full object-contain p-0.5" />
-                ) : (
-                  icon(item)
+                <span
+                  className={`${circleClasses(item, isNext, item.id === selectedId, item.id === busyItemId)} ${
+                    isUserMsg ? "!bg-[#d9fdd3]" : ""
+                  }`}
+                >
+                  {logo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={logo}
+                      alt=""
+                      className={`h-full w-full object-contain p-1 transition-all ${logoClasses(item, isNext)}`}
+                    />
+                  ) : (
+                    <span
+                      className={
+                        isNext || item.id === busyItemId
+                          ? "text-orange"
+                          : item.status === "done"
+                            ? "text-foreground/70"
+                            : "text-muted-foreground/60"
+                      }
+                    >
+                      {icon(item)}
+                    </span>
+                  )}
+                </span>
+                {/* event-type glyph, WhatsApp-status-badge style */}
+                {logo && (
+                  <span className="absolute -bottom-1 -right-1 flex h-[22px] w-[22px] items-center justify-center rounded-full border bg-background shadow-sm">
+                    {item.event.type === "agenda_processed" ? (
+                      <ListTodo className="h-3 w-3 text-muted-foreground" />
+                    ) : (
+                      <FileText className="h-3 w-3 text-foreground/80" />
+                    )}
+                  </span>
+                )}
+                {/* administrative-body tag: ΔΣ council / ΔΕ committee / ΔΚ community */}
+                {bodyTag && (
+                  <span
+                    className={`absolute -bottom-1 -left-1 flex h-[22px] w-[22px] items-center justify-center rounded-full border bg-background text-[9px] font-bold leading-none shadow-sm ${
+                      bodyTag === "ΔΣ" ? "text-orange" : "text-muted-foreground"
+                    }`}
+                  >
+                    {bodyTag}
+                  </span>
                 )}
                 {messages > 0 && (
-                  <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#25d366] px-0.5 text-[9px] font-bold text-white">
+                  <span className="absolute -right-1 -top-1 flex h-[20px] min-w-[20px] items-center justify-center rounded-full border-2 border-background bg-[#25d366] px-0.5 text-[10px] font-bold text-white">
                     {messages}
                   </span>
                 )}
               </button>
-              {logo && (
-                <span
-                  className={`pointer-events-none absolute top-[30px] z-20 ml-5 flex h-4 w-4 items-center justify-center rounded-full border bg-background ${
-                    item.event.type === "agenda_processed" ? "text-muted-foreground" : "text-foreground"
-                  }`}
-                >
-                  {item.event.type === "agenda_processed" ? (
-                    <ListTodo className="h-2.5 w-2.5" />
-                  ) : (
-                    <FileText className="h-2.5 w-2.5" />
-                  )}
-                </span>
-              )}
               <span
-                className={`mt-1 text-[10px] tabular-nums ${isNext ? "font-semibold text-orange" : "text-muted-foreground"}`}
+                className={`mt-1 text-[10px] tabular-nums ${
+                  isNext
+                    ? "font-semibold text-orange"
+                    : isFuture
+                      ? "text-muted-foreground/50"
+                      : "text-muted-foreground"
+                }`}
               >
                 {date.getDate()}
               </span>

@@ -205,7 +205,7 @@ export function WhatsAppChat({
           Ν
         </div>
         <div className="leading-tight">
-          <p className="text-[15px] font-medium text-[#111b21]">ο Νότης</p>
+          <p className="text-[15px] font-medium text-[#111b21]">Νότης</p>
           <p className="text-xs text-[#667781]">
             {busy ? "γράφει..." : "από το OpenCouncil · σου γράφει μόνο όταν αξίζει"}
           </p>
