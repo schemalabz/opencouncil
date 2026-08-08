@@ -35,7 +35,7 @@ export default function AdminLoginPage() {
     <main className="flex min-h-[70vh] items-center justify-center px-6">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="font-relative text-xl">ο Νότης · admin</CardTitle>
+          <CardTitle className="font-relative text-xl">Νότης · admin</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="space-y-3">

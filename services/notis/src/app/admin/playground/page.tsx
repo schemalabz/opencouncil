@@ -16,6 +16,27 @@ import { QueueItem, hasPendingBrief } from "./types";
 
 const MAPBOX_TOKEN = env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
+/** The single admin header: brand on the left, page state flowing after it. */
+function AdminHeader({
+  subtitle,
+  children,
+}: {
+  subtitle: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <header className="flex shrink-0 items-center gap-3 border-b px-4 py-2.5 text-sm">
+      <span className="flex shrink-0 items-baseline gap-2">
+        <span className="font-relative text-base">Νότης</span>
+        <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+          {subtitle}
+        </span>
+      </span>
+      {children}
+    </header>
+  );
+}
+
 export default function PlaygroundPage() {
   const [store, dispatch] = useReducer(reducer, undefined, emptyStore);
   const [mounted, setMounted] = useState(false);
@@ -190,10 +211,15 @@ export default function PlaygroundPage() {
 
   if (!store.setup.done) {
     return (
-      <SetupWizard
-        mapboxToken={MAPBOX_TOKEN}
-        onComplete={(sim, from) => dispatch({ type: "setupComplete", sim, from })}
-      />
+      <div className="flex h-full flex-col overflow-hidden">
+        <AdminHeader subtitle="νέα προσομοίωση" />
+        <div className="min-h-0 flex-1">
+          <SetupWizard
+            mapboxToken={MAPBOX_TOKEN}
+            onComplete={(sim, from) => dispatch({ type: "setupComplete", sim, from })}
+          />
+        </div>
+      </div>
     );
   }
 
@@ -202,8 +228,8 @@ export default function PlaygroundPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* toolbar */}
-      <div className="flex items-center gap-3 border-b px-4 py-1.5 text-sm">
+      <AdminHeader subtitle="playground">
+        <span className="h-4 w-px shrink-0 bg-border" />
         <span className="font-medium">{user.name}</span>
         <span className="truncate text-xs text-muted-foreground">
           {user.cities.map((c) => c.cityName).join(", ")} · από {store.setup.from}
@@ -228,7 +254,7 @@ export default function PlaygroundPage() {
         >
           Reset
         </Button>
-      </div>
+      </AdminHeader>
 
       <Timeline
         queue={store.sim.queue}
