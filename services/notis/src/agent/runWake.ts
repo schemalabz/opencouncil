@@ -74,6 +74,10 @@ export async function runWake(
   let rationale = "";
   let refused = false;
   let repaired = false;
+  // Substantive prose written INSIDE a tool-calling turn — observed failure
+  // mode: the model narrates part of its answer as a text block next to its
+  // send_message calls, and that prose is never delivered.
+  let strandedProse: string | undefined;
 
   for (let turn = 0; turn < deps.config.maxTurns; turn++) {
     const response = await deps.anthropic.create({
@@ -133,6 +137,9 @@ export async function runWake(
         }
         results.push({ type: "tool_result", tool_use_id: block.id, content: ack });
       }
+      if (text && text.length >= 80) {
+        strandedProse = text;
+      }
       messages.push({ role: "assistant", content: response.content });
       // A tool_use stop with no client tool calls happens when the turn holds
       // only server-side (MCP) blocks. There is nothing for us to answer —
@@ -143,29 +150,45 @@ export async function runWake(
       continue;
     }
 
-    // end_turn: if the person wrote to us and the model produced neither a
-    // send_message nor an unsubscribe, it has (observed repeatedly at low
-    // effort) written its answer into the final text instead of the tool.
-    // One bounded repair pass: make it either actually send or own the
-    // silence. Never repairs proactive wakes — silence is their default.
-    if (
-      response.stop_reason === "end_turn" &&
-      event.type === "user_message" &&
-      sent.length === 0 &&
-      !unsubscribe &&
-      !repaired
-    ) {
-      repaired = true;
-      messages.push({ role: "assistant", content: response.content });
-      messages.push({
-        role: "user",
-        content:
-          "(system check) Your final text above is an operator rationale — it was NOT " +
-          "delivered to the person, and they asked you something directly. If you meant " +
-          "to answer them, call send_message with the message now. If you truly intend " +
-          "to stay silent, restate a one-sentence rationale for the silence.",
-      });
-      continue;
+    // end_turn: two observed low-effort failure modes get ONE bounded repair
+    // pass between them, so a broken wake self-corrects instead of shipping.
+    if (response.stop_reason === "end_turn" && !repaired) {
+      // (a) The person wrote to us and the model produced neither a send nor
+      // an unsubscribe: it wrote its answer into the final text instead of
+      // the tool. Never fires on proactive wakes — silence is their default.
+      if (event.type === "user_message" && sent.length === 0 && !unsubscribe) {
+        repaired = true;
+        messages.push({ role: "assistant", content: response.content });
+        messages.push({
+          role: "user",
+          content:
+            "(system check) Your final text above is an operator rationale — it was NOT " +
+            "delivered to the person, and they asked you something directly. If you meant " +
+            "to answer them, call send_message with the message now. If you truly intend " +
+            "to stay silent, restate a one-sentence rationale for the silence.",
+        });
+        continue;
+      }
+      // (b) A tool-calling turn carried substantive prose next to its tool
+      // calls: that prose was never delivered, and is often the missing half
+      // of a multi-message answer.
+      if (strandedProse) {
+        repaired = true;
+        messages.push({ role: "assistant", content: response.content });
+        messages.push({
+          role: "user",
+          content:
+            "(system check) In an earlier turn you wrote prose in the same turn as your " +
+            "tool calls. That prose was NOT delivered — nothing reaches the person except " +
+            "send_message content. The undelivered text was:\n«" +
+            strandedProse.slice(0, 1200) +
+            "»\nIf it was meant for the person, send it now with send_message, rephrased " +
+            "if needed so the conversation still reads naturally. If it was only " +
+            "reasoning, do not send it — just restate your short rationale.",
+        });
+        strandedProse = undefined;
+        continue;
+      }
     }
 
     // end_turn, max_tokens, or anything else: stop.

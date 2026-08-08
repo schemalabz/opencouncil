@@ -71,6 +71,38 @@ describe("runWake", () => {
     expect(String(secondReq[2].content)).toContain("system check");
   });
 
+  it("repair: prose stranded next to send_message calls gets one nudge to deliver it", async () => {
+    const stranded =
+      "Ναι, υπήρξαν ακόμα δύο θέματα με συζήτηση — αυτό το κείμενο γράφτηκε δίπλα στα tool calls και δεν παραδόθηκε ποτέ.";
+    const fake = new FakeAnthropic([
+      {
+        content: [text(stranded), toolUse("t1", "send_message", { text: "Δεύτερο μήνυμα" })],
+        stop_reason: "tool_use",
+      },
+      { content: [text("Της έστειλα δύο θέματα.")], stop_reason: "end_turn" },
+      { content: [toolUse("t2", "send_message", { text: "Πρώτο μήνυμα, ξανασταλμένο" })], stop_reason: "tool_use" },
+      { content: [text("Έστειλα και τα δύο θέματα τελικά.")], stop_reason: "end_turn" },
+    ]);
+    const { outcome, trace } = await runWake(
+      makeState(),
+      { type: "user_message", at: FIXED_NOW.toISOString(), text: "τίποτα άλλο;" },
+      makeDeps(fake),
+    );
+
+    expect(outcome.decision).toBe("send");
+    expect(outcome.messages).toEqual(["Δεύτερο μήνυμα", "Πρώτο μήνυμα, ξανασταλμένο"]);
+    expect(trace.turns).toHaveLength(4);
+    // The nudge quotes the stranded prose back to the model.
+    const contents = (fake.requests[2].messages as Array<{ content: unknown }>).map(
+      (m) => m.content,
+    );
+    const nudge = contents.find(
+      (c): c is string => typeof c === "string" && c.includes("NOT delivered"),
+    );
+    expect(nudge).toBeDefined();
+    expect(nudge).toContain("δύο θέματα με συζήτηση");
+  });
+
   it("repair never fires twice, and confirmed silence on a user message stands", async () => {
     const fake = new FakeAnthropic([
       { content: [text("Δεν χρειάζεται απάντηση.")], stop_reason: "end_turn" },
