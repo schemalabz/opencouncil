@@ -25,9 +25,11 @@ function AdminHeader({
   children?: React.ReactNode;
 }) {
   return (
-    <header className="flex shrink-0 items-center gap-3 border-b px-4 py-2.5 text-sm">
-      <span className="flex shrink-0 items-baseline gap-2">
-        <span className="font-relative text-base">Νότης</span>
+    <header className="flex shrink-0 items-center gap-3 border-b px-4 pb-3 pt-4 text-sm">
+      <span className="flex shrink-0 items-center gap-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="" className="h-5 w-5 object-contain" />
+        <span className="font-relative text-base leading-6">Νότης</span>
         <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
           {subtitle}
         </span>
@@ -234,6 +236,11 @@ export default function PlaygroundPage() {
         <span className="truncate text-xs text-muted-foreground">
           {user.cities.map((c) => c.cityName).join(", ")} · από {store.setup.from}
         </span>
+        {store.sim.unsubscribedAt && (
+          <span className="shrink-0 rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
+            ΣΤΟΠ · {store.sim.unsubscribedAt.slice(0, 10)}
+          </span>
+        )}
         <span className="ml-auto text-xs tabular-nums text-muted-foreground">
           σύνολο ${totalCost.toFixed(2)}
         </span>

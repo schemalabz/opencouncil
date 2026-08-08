@@ -56,6 +56,8 @@ export interface Sim {
   origin: "transition" | "signup";
   /** When the simulated user last wrote (drives the 24h template window). */
   lastUserMessageAt?: string;
+  /** Set when a wake called unsubscribe_user — the sim is a zombie after this. */
+  unsubscribedAt?: string;
   /** City display metadata for the timeline (name + logo). */
   cityMeta?: Record<string, { name: string; logo?: string | null }>;
 }

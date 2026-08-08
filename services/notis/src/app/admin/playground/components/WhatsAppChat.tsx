@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ExternalLink, FastForward, Send, SkipForward, Square, StepForward } from "lucide-react";
+/* eslint-disable @next/next/no-img-element */
 import { Button } from "@opencouncil/ui/button";
 import { RenderedTemplate, renderTemplate } from "@/agent/templates";
 import { QueueItem } from "../types";
@@ -53,6 +54,95 @@ function eventCaption(item: QueueItem): string {
   }
 }
 
+/* ---- links: WhatsApp-style linkify + OG preview card ---- */
+
+const URL_RE = /(https?:\/\/[^\s»«]+)/g;
+
+function firstUrl(text: string): string | undefined {
+  return text.match(URL_RE)?.[0];
+}
+
+/** URLs become tappable, WhatsApp-blue, and don't trigger bubble selection. */
+function Linkified({ text }: { text: string }) {
+  const parts = text.split(URL_RE);
+  return (
+    <>
+      {parts.map((part, i) =>
+        i % 2 === 1 ? (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="break-all text-[#027eb5] underline"
+          >
+            {part}
+          </a>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  );
+}
+
+interface OgData {
+  title?: string;
+  description?: string;
+  image?: string;
+  host?: string;
+}
+
+const ogCache = new Map<string, OgData | null>();
+
+/** The grey preview card WhatsApp puts above a message with a link. */
+function LinkPreview({ url }: { url: string }) {
+  const [og, setOg] = useState<OgData | null | undefined>(ogCache.get(url));
+
+  useEffect(() => {
+    if (ogCache.has(url)) return;
+    let alive = true;
+    fetch(`/api/proxy/og?url=${encodeURIComponent(url)}`)
+      .then((r) => (r.ok ? (r.json() as Promise<OgData>) : null))
+      .then((data) => {
+        ogCache.set(url, data);
+        if (alive) setOg(data);
+      })
+      .catch(() => {
+        ogCache.set(url, null);
+        if (alive) setOg(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [url]);
+
+  if (!og?.title && !og?.image) return null;
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className="mb-1 block overflow-hidden rounded-md bg-[#f5f6f6] no-underline"
+    >
+      {og.image && <img src={og.image} alt="" className="h-32 w-full object-cover" />}
+      <div className="px-2.5 py-1.5">
+        {og.title && (
+          <p className="line-clamp-2 text-[13px] font-medium leading-tight text-[#111b21]">
+            {og.title}
+          </p>
+        )}
+        {og.description && (
+          <p className="line-clamp-2 text-[12px] leading-snug text-[#667781]">{og.description}</p>
+        )}
+        <p className="mt-0.5 text-[11px] text-[#8696a0]">{og.host ?? new URL(url).hostname}</p>
+      </div>
+    </a>
+  );
+}
+
 function Tail({ side }: { side: "in" | "out" }) {
   return (
     <svg
@@ -73,7 +163,7 @@ function Bubble({
   selected,
   first,
   onClick,
-  children,
+  text,
 }: {
   side: "in" | "out";
   time: string;
@@ -81,8 +171,9 @@ function Bubble({
   selected?: boolean;
   first: boolean;
   onClick?: () => void;
-  children: React.ReactNode;
+  text: string;
 }) {
+  const url = side === "in" ? firstUrl(text) : undefined;
   return (
     <div className={`flex ${side === "out" ? "justify-end" : "justify-start"} px-4`}>
       <div
@@ -96,7 +187,10 @@ function Bubble({
         {caption && (
           <p className="mb-0.5 text-[11px] font-medium text-[#e5651a]">{caption}</p>
         )}
-        <span className="whitespace-pre-wrap break-words">{children}</span>
+        {url && <LinkPreview url={url} />}
+        <span className="whitespace-pre-wrap break-words">
+          <Linkified text={text} />
+        </span>
         <span className="float-right ml-2 mt-2 select-none text-[11px] leading-none text-[#667781]">
           {time}
         </span>
@@ -132,7 +226,10 @@ function TemplateBubble({
       >
         {first && <Tail side="in" />}
         <div className="px-3">
-          <span className="whitespace-pre-wrap break-words">{rendered.body}</span>
+          {firstUrl(rendered.body) && <LinkPreview url={firstUrl(rendered.body)!} />}
+          <span className="whitespace-pre-wrap break-words">
+            <Linkified text={rendered.body} />
+          </span>
           <p className="mt-1.5 text-[12px] text-[#8696a0]">{rendered.footer}</p>
           <span className="float-right ml-2 select-none text-[11px] leading-none text-[#667781]">
             {time}
@@ -210,14 +307,12 @@ export function WhatsAppChat({
     <div className="mx-auto flex h-full w-full max-w-[720px] flex-col overflow-hidden rounded-none shadow-xl md:my-3 md:rounded-xl">
       {/* header */}
       <header className="flex items-center gap-3 bg-[#f0f2f5] px-4 py-2.5">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground font-relative text-lg text-background">
-          Ν
+        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm">
+          <img src="/logo.png" alt="" className="h-7 w-7 object-contain" />
         </div>
         <div className="leading-tight">
           <p className="text-[15px] font-medium text-[#111b21]">Νότης</p>
-          <p className="text-xs text-[#667781]">
-            {busy ? "γράφει..." : "από το OpenCouncil · σου γράφει μόνο όταν αξίζει"}
-          </p>
+          {busy && <p className="text-xs text-[#667781]">γράφει...</p>}
         </div>
         <span className="ml-auto text-xs tabular-nums text-[#667781]">
           🕐 {clock ? new Date(clock).toLocaleDateString("el-GR") : "—"}
@@ -267,9 +362,8 @@ export function WhatsAppChat({
                   time={fmtTime(item.event.at)}
                   selected={selected}
                   onClick={() => onSelect(item.id)}
-                >
-                  {item.event.text}
-                </Bubble>
+                  text={item.event.text}
+                />
               )}
               {item.status === "skipped" && (
                 <div className="flex justify-center px-4">
@@ -280,6 +374,19 @@ export function WhatsAppChat({
               )}
               {item.outcome?.decision === "silence" && (
                 <SilenceChip item={item} selected={selected} onClick={() => onSelect(item.id)} />
+              )}
+              {item.outcome?.unsubscribe && (
+                <div className="flex justify-center px-4">
+                  <button
+                    onClick={() => onSelect(item.id)}
+                    title={item.outcome.unsubscribe.reason}
+                    className={`rounded-md bg-[#fde8e8] px-3 py-1 text-[11px] font-medium text-[#b42318] shadow-sm ${
+                      selected ? "ring-2 ring-orange" : ""
+                    }`}
+                  >
+                    🛑 Ο Νότης σταμάτησε τις ειδοποιήσεις (unsubscribe)
+                  </button>
+                </div>
               )}
               {item.outcome?.messages.map((m, i) =>
                 item.delivery?.mode === "template" ? (
@@ -302,9 +409,8 @@ export function WhatsAppChat({
                     caption={i === 0 ? eventCaption(item) || undefined : undefined}
                     selected={selected}
                     onClick={() => onSelect(item.id)}
-                  >
-                    {m}
-                  </Bubble>
+                    text={m}
+                  />
                 ),
               )}
             </div>

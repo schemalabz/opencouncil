@@ -152,6 +152,7 @@ export function reducer(store: PlaygroundStore, action: Action): PlaygroundStore
           queue,
           cursor: queue.findIndex((q) => q.status === "pending"),
           ...(action.userMessageAt ? { lastUserMessageAt: action.userMessageAt } : {}),
+          ...(action.outcome.unsubscribe ? { unsubscribedAt: action.clock } : {}),
         },
       };
     }
