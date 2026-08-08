@@ -134,7 +134,11 @@ function LinkPreview({ url }: { url: string }) {
       onClick={(e) => e.stopPropagation()}
       className="mb-1 block overflow-hidden rounded-md bg-[#f5f6f6] no-underline"
     >
-      {og.image && <img src={og.image} alt="" className="h-32 w-full object-cover" />}
+      {og.image && (
+        // OG images are 1200x630 — render at their natural aspect so the
+        // whole image shows instead of a cropped strip.
+        <img src={og.image} alt="" className="aspect-[1200/630] w-full bg-muted object-cover" />
+      )}
       <div className="px-2.5 py-1.5">
         {og.title && (
           <p className="line-clamp-2 text-[13px] font-medium leading-tight text-[#111b21]">
