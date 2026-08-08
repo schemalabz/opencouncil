@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AlarmClock, FileText, ListTodo, MessageCircle, Moon } from "lucide-react";
-import { MeetingDetails, fetchMeetingDetails } from "../api";
-import { QueueItem } from "../types";
+import { MeetingDetails, fetchMeetingDetails } from "../_lib/meetings";
+import { WakeRecord } from "../_lib/records";
 
 interface Props {
-  queue: QueueItem[];
+  records: WakeRecord[];
   cityMeta?: Record<string, { name: string; logo?: string | null }>;
   selectedId?: string;
   busyItemId?: string;
@@ -14,12 +14,12 @@ interface Props {
 }
 
 function isMeetingEvent(
-  item: QueueItem,
-): item is QueueItem & { event: Extract<QueueItem["event"], { cityId: string }> } {
+  item: WakeRecord,
+): item is WakeRecord & { event: Extract<WakeRecord["event"], { cityId: string }> } {
   return item.event.type === "agenda_processed" || item.event.type === "meeting_summarized";
 }
 
-function icon(item: QueueItem) {
+function icon(item: WakeRecord) {
   switch (item.event.type) {
     case "agenda_processed":
       return <ListTodo className="h-4 w-4" />;
@@ -41,7 +41,7 @@ const normalize = (s: string) =>
     .toLowerCase();
 
 /** Δημοτικό Συμβούλιο / Επιτροπή / Κοινότητα → two-letter tag for the badge. */
-function adminBodyTag(item: QueueItem): "ΔΣ" | "ΔΕ" | "ΔΚ" | null {
+function adminBodyTag(item: WakeRecord): "ΔΣ" | "ΔΕ" | "ΔΚ" | null {
   if (!isMeetingEvent(item)) return null;
   const e = item.event as { adminBody?: string | null; meetingName: string };
   const text = normalize(e.adminBody || e.meetingName);
@@ -55,7 +55,7 @@ function adminBodyTag(item: QueueItem): "ΔΣ" | "ΔΕ" | "ΔΚ" | null {
  * The circle itself: the city logo (or event icon) fills it; state reads
  * through the ring color and the logo treatment, never by hiding the logo.
  */
-function circleClasses(item: QueueItem, isNext: boolean, isSelected: boolean, isBusy: boolean): string {
+function circleClasses(item: WakeRecord, isNext: boolean, isSelected: boolean, isBusy: boolean): string {
   const base =
     "flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 bg-background transition-all";
   const ring = isSelected ? " ring-2 ring-orange ring-offset-2 ring-offset-background" : "";
@@ -72,20 +72,20 @@ function circleClasses(item: QueueItem, isNext: boolean, isSelected: boolean, is
  * Logo treatment: the played past stays vivid, the unplayed future is
  * grayscale (the whole future column also fades via wrapper opacity).
  */
-function logoClasses(item: QueueItem, isNext: boolean): string {
+function logoClasses(item: WakeRecord, isNext: boolean): string {
   if (item.status === "skipped") return "grayscale";
   if (item.status === "pending" && !isNext) return "grayscale";
   return "";
 }
 
 interface HoverState {
-  item: QueueItem;
+  item: WakeRecord;
   x: number;
   y: number;
 }
 
-export function Timeline({ queue, cityMeta, selectedId, busyItemId, onSelect }: Props) {
-  const nextId = queue.find((q) => q.status === "pending")?.id;
+export function Timeline({ records, cityMeta, selectedId, busyItemId, onSelect }: Props) {
+  const nextId = records.find((q) => q.status === "pending")?.id;
   const nextRef = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<HoverState | null>(null);
   const [details, setDetails] = useState<Record<string, MeetingDetails | "loading">>({});
@@ -95,7 +95,7 @@ export function Timeline({ queue, cityMeta, selectedId, busyItemId, onSelect }: 
     nextRef.current?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
   }, [nextId]);
 
-  function beginHover(item: QueueItem, el: HTMLElement) {
+  function beginHover(item: WakeRecord, el: HTMLElement) {
     clearTimeout(hoverTimer.current);
     hoverTimer.current = setTimeout(() => {
       const rect = el.getBoundingClientRect();
@@ -127,7 +127,7 @@ export function Timeline({ queue, cityMeta, selectedId, busyItemId, onSelect }: 
       <div className="relative flex min-w-max items-start gap-0 px-6 py-3">
         {/* connecting line through the node centers: py-3 (12px) + month row (12px) + half node (28px) */}
         <div className="absolute left-0 right-0 top-[52px] h-0.5 bg-border" />
-        {queue.map((item) => {
+        {records.map((item) => {
           const date = new Date(item.event.at);
           const month = date.toLocaleDateString("el-GR", { month: "short" });
           const showMonth = month !== lastMonth;

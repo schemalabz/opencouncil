@@ -1,19 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Rewind } from "lucide-react";
+import { Download, MousePointerClick, Rewind } from "lucide-react";
 import { Badge } from "@opencouncil/ui/badge";
 import { Button } from "@opencouncil/ui/button";
 import { WakeTrace } from "@/agent/types";
-import { QueueItem } from "../types";
+import { WakeRecord } from "../_lib/records";
 
-interface Props {
-  item?: QueueItem;
-  trace?: WakeTrace;
-  profile: string;
+/** Simulator-only actions — omit them for the read-only conversation viewer. */
+export interface InspectorSimActions {
   canRewind: boolean;
   onRewind(): void;
   onExport(): void;
+}
+
+interface Props {
+  item?: WakeRecord;
+  trace?: WakeTrace;
+  profile: string;
+  sim?: InspectorSimActions;
 }
 
 type Tab = "rationale" | "tools" | "context" | "cost";
@@ -26,13 +31,18 @@ interface RawBlock {
   content?: unknown;
 }
 
-export function InspectorPane({ item, trace, profile, canRewind, onRewind, onExport }: Props) {
+export function InspectorPane({ item, trace, profile, sim }: Props) {
   const [tab, setTab] = useState<Tab>("rationale");
 
   if (!item || !item.outcome) {
     return (
-      <div className="p-4 text-sm text-muted-foreground">
-        Διάλεξε ένα βήμα από τη γραμμή χρόνου ή τη συνομιλία για να δεις τι σκέφτηκε ο Νότης.
+      <div className="flex h-full items-center justify-center p-8">
+        <div className="max-w-[260px] text-center">
+          <MousePointerClick className="mx-auto h-8 w-8 text-muted-foreground/30" />
+          <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+            Διάλεξε ένα βήμα από τη γραμμή χρόνου ή τη συνομιλία για να δεις τι σκέφτηκε ο Νότης.
+          </p>
+        </div>
       </div>
     );
   }
@@ -58,27 +68,29 @@ export function InspectorPane({ item, trace, profile, canRewind, onRewind, onExp
             {label}
           </Button>
         ))}
-        <div className="ml-auto flex shrink-0 gap-1">
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={!canRewind}
-            onClick={onRewind}
-            className="px-2"
-            title="Γύρνα την προσομοίωση στη στιγμή πριν από αυτό το βήμα"
-          >
-            <Rewind className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onExport}
-            className="px-2"
-            title="Export golden scenario"
-          >
-            <Download className="h-3.5 w-3.5" />
-          </Button>
-        </div>
+        {sim && (
+          <div className="ml-auto flex shrink-0 gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!sim.canRewind}
+              onClick={sim.onRewind}
+              className="px-2"
+              title="Γύρνα την προσομοίωση στη στιγμή πριν από αυτό το βήμα"
+            >
+              <Rewind className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={sim.onExport}
+              className="px-2"
+              title="Export golden scenario"
+            >
+              <Download className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 space-y-3 overflow-y-auto p-4 text-sm">

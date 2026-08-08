@@ -5,12 +5,10 @@ import { Button } from "@opencouncil/ui/button";
 import { isWindowOpen, templateForEvent } from "@/agent/templates";
 import { WakeEvent, WakeOutcome } from "@/agent/types";
 import { env } from "@/env.mjs";
+import { ConversationView } from "../_components/ConversationView";
 import { dryRun, fetchBrief, fetchShippedPrompt } from "./api";
-import { InspectorPane } from "./components/InspectorPane";
 import { PromptEditor } from "./components/PromptEditor";
 import { SetupWizard } from "./components/SetupWizard";
-import { Timeline } from "./components/Timeline";
-import { WhatsAppChat } from "./components/WhatsAppChat";
 import { emptyStore, loadStore, reducer, saveStore } from "./store";
 import { QueueItem, hasPendingBrief } from "./types";
 
@@ -25,12 +23,12 @@ function AdminHeader({
   children?: React.ReactNode;
 }) {
   return (
-    <header className="flex shrink-0 items-center gap-3 border-b px-4 pb-3 pt-4 text-sm">
-      <span className="flex shrink-0 items-center gap-2">
+    <header className="flex h-14 shrink-0 items-center gap-3 border-b px-4 text-sm">
+      <span className="flex shrink-0 items-center gap-2.5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="" className="h-5 w-5 object-contain" />
-        <span className="font-relative text-base leading-6">Νότης</span>
-        <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+        <img src="/logo.png" alt="" className="h-6 w-6 object-contain" />
+        <span className="font-relative text-lg leading-none">Νότης</span>
+        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
           {subtitle}
         </span>
       </span>
@@ -225,7 +223,6 @@ export default function PlaygroundPage() {
     );
   }
 
-  const selectedItem = store.sim.queue.find((q) => q.id === selectedId);
   const user = store.sim.state.user;
 
   return (
@@ -263,47 +260,36 @@ export default function PlaygroundPage() {
         </Button>
       </AdminHeader>
 
-      <Timeline
-        queue={store.sim.queue}
-        cityMeta={store.sim.cityMeta}
-        selectedId={selectedId}
-        busyItemId={busyItemId}
-        onSelect={setSelectedId}
-      />
-
       {error && (
         <p className="border-b bg-destructive/10 px-4 py-2 text-sm text-destructive">{error}</p>
       )}
 
-      <div className="grid min-h-0 flex-1 grid-cols-[1fr_400px]">
-        <div className="min-h-0 bg-muted/20">
-          <WhatsAppChat
-            queue={store.sim.queue}
-            clock={store.sim.clock}
-            busy={busy}
-            autoRun={autoRun}
-            origin={store.sim.origin}
-            startAt={store.setup.from}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            onStep={step}
-            onSkip={skip}
-            onRunUntilSend={() => void runUntilSend()}
-            onStopAutoRun={stopAutoRun}
-            onUserMessage={userMessage}
-          />
-        </div>
-        <div className="min-h-0 overflow-hidden border-l">
-          <InspectorPane
-            item={selectedItem}
-            trace={selectedId ? store.traces[selectedId] : undefined}
-            profile={store.sim.state.profile}
-            canRewind={Boolean(selectedSnapshotId)}
-            onRewind={rewind}
-            onExport={exportScenario}
-          />
-        </div>
-      </div>
+      <ConversationView
+        records={store.sim.queue}
+        cityMeta={store.sim.cityMeta}
+        clock={store.sim.clock}
+        origin={store.sim.origin}
+        startAt={store.setup.from}
+        profile={store.sim.state.profile}
+        selectedId={selectedId}
+        busyItemId={busyItemId}
+        onSelect={setSelectedId}
+        traceFor={(id) => store.traces[id]}
+        chatSim={{
+          busy,
+          autoRun,
+          onStep: step,
+          onSkip: skip,
+          onRunUntilSend: () => void runUntilSend(),
+          onStopAutoRun: stopAutoRun,
+          onUserMessage: userMessage,
+        }}
+        inspectorSim={{
+          canRewind: Boolean(selectedSnapshotId),
+          onRewind: rewind,
+          onExport: exportScenario,
+        }}
+      />
     </div>
   );
 }

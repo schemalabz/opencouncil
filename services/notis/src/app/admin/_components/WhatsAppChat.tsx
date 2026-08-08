@@ -5,23 +5,28 @@ import { ExternalLink, FastForward, Send, SkipForward, Square, StepForward } fro
 /* eslint-disable @next/next/no-img-element */
 import { Button } from "@opencouncil/ui/button";
 import { RenderedTemplate, renderTemplate } from "@/agent/templates";
-import { QueueItem } from "../types";
+import { WakeRecord } from "../_lib/records";
 
-interface Props {
-  queue: QueueItem[];
-  clock: string;
+/** Simulator affordances — omit them for the read-only conversation viewer. */
+export interface SimControls {
   busy: boolean;
   /** A run-until-he-texts loop is in flight. */
   autoRun: boolean;
-  origin: "transition" | "signup";
-  startAt: string;
-  selectedId?: string;
-  onSelect(id: string): void;
   onStep(): void;
   onSkip(): void;
   onRunUntilSend(): void;
   onStopAutoRun(): void;
   onUserMessage(text: string): void;
+}
+
+interface Props {
+  records: WakeRecord[];
+  clock: string;
+  origin: "transition" | "signup";
+  startAt: string;
+  selectedId?: string;
+  onSelect(id: string): void;
+  sim?: SimControls;
 }
 
 /* WhatsApp visual constants */
@@ -40,7 +45,7 @@ function fmtDateChip(iso: string): string {
     .toUpperCase();
 }
 
-function eventCaption(item: QueueItem): string {
+function eventCaption(item: WakeRecord): string {
   const e = item.event;
   switch (e.type) {
     case "agenda_processed":
@@ -257,7 +262,7 @@ function TemplateBubble({
   );
 }
 
-function SilenceChip({ item, selected, onClick }: { item: QueueItem; selected: boolean; onClick(): void }) {
+function SilenceChip({ item, selected, onClick }: { item: WakeRecord; selected: boolean; onClick(): void }) {
   return (
     <div className="flex justify-center px-4">
       <button
@@ -273,27 +278,15 @@ function SilenceChip({ item, selected, onClick }: { item: QueueItem; selected: b
   );
 }
 
-export function WhatsAppChat({
-  queue,
-  clock,
-  busy,
-  autoRun,
-  origin,
-  startAt,
-  selectedId,
-  onSelect,
-  onStep,
-  onSkip,
-  onRunUntilSend,
-  onStopAutoRun,
-  onUserMessage,
-}: Props) {
+export function WhatsAppChat({ records, clock, origin, startAt, selectedId, onSelect, sim }: Props) {
   const [draft, setDraft] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const busy = sim?.busy ?? false;
+  const autoRun = sim?.autoRun ?? false;
   // user messages render as soon as they're queued (before the run completes),
   // so the sent bubble appears immediately with the typing indicator below it
-  const visible = queue.filter((q) => q.status !== "pending" || q.event.type === "user_message");
-  const next = queue.find((q) => q.status === "pending");
+  const visible = records.filter((q) => q.status !== "pending" || q.event.type === "user_message");
+  const next = records.find((q) => q.status === "pending");
   const intro = renderTemplate(origin === "transition" ? "demos_transition" : "demos_intro");
   const introAt = new Date(startAt).toISOString();
 
@@ -335,7 +328,7 @@ export function WhatsAppChat({
           time={fmtTime(introAt)}
           first
           busy={busy || autoRun}
-          onQuickReply={onUserMessage}
+          onQuickReply={sim?.onUserMessage}
         />
         {(() => {
           lastDay = fmtDateChip(introAt);
@@ -398,7 +391,7 @@ export function WhatsAppChat({
                     selected={selected}
                     busy={busy || autoRun}
                     onClick={() => onSelect(item.id)}
-                    onQuickReply={onUserMessage}
+                    onQuickReply={sim?.onUserMessage}
                   />
                 ) : (
                   <Bubble
@@ -435,10 +428,11 @@ export function WhatsAppChat({
         <div ref={bottomRef} />
       </div>
 
-      {/* controls + composer */}
+      {/* controls + composer — simulator only; the viewer is read-only */}
+      {sim && (
       <div className="space-y-2 bg-[#f0f2f5] px-3 py-2">
         <div className="flex gap-2">
-          <Button size="sm" onClick={onStep} disabled={busy || autoRun || !next} className="flex-1">
+          <Button size="sm" onClick={sim?.onStep} disabled={busy || autoRun || !next} className="flex-1">
             <StepForward className="mr-1.5 h-3.5 w-3.5" />
             {busy ? "Ο Νότης σκέφτεται..." : "Επόμενο γεγονός"}
           </Button>
@@ -446,7 +440,7 @@ export function WhatsAppChat({
             <Button
               size="sm"
               variant="outline"
-              onClick={onStopAutoRun}
+              onClick={sim?.onStopAutoRun}
               title="Σταμάτα μετά το τρέχον βήμα"
             >
               <Square className="mr-1.5 h-3.5 w-3.5" />
@@ -456,7 +450,7 @@ export function WhatsAppChat({
             <Button
               size="sm"
               variant="outline"
-              onClick={onRunUntilSend}
+              onClick={sim?.onRunUntilSend}
               disabled={busy || !next}
               title="Τρέξε μέχρι να ξαναγράψει ο Νότης"
             >
@@ -464,7 +458,7 @@ export function WhatsAppChat({
               Μέχρι το επόμενο μήνυμα
             </Button>
           )}
-          <Button size="sm" variant="outline" onClick={onSkip} disabled={busy || autoRun || !next}>
+          <Button size="sm" variant="outline" onClick={sim?.onSkip} disabled={busy || autoRun || !next}>
             <SkipForward className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -473,7 +467,7 @@ export function WhatsAppChat({
           onSubmit={(e) => {
             e.preventDefault();
             if (!draft.trim()) return;
-            onUserMessage(draft.trim());
+            sim?.onUserMessage(draft.trim());
             setDraft("");
           }}
         >
@@ -494,6 +488,7 @@ export function WhatsAppChat({
           </button>
         </form>
       </div>
+      )}
     </div>
   );
 }
