@@ -15,10 +15,10 @@ import {
 
 export function assembleSystem(
   prompts: Prompts,
-): Array<{ type: "text"; text: string; cache_control?: { type: "ephemeral" } }> {
+): Array<{ type: "text"; text: string; cache_control?: { type: "ephemeral"; ttl?: "5m" | "1h" } }> {
   return [
     { type: "text", text: prompts.system },
-    { type: "text", text: prompts.contextPack, cache_control: { type: "ephemeral" } },
+    { type: "text", text: prompts.contextPack, cache_control: { type: "ephemeral", ttl: "1h" } },
   ];
 }
 

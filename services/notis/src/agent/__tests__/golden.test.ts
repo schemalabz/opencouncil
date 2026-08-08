@@ -69,7 +69,7 @@ describe("golden scenarios (recorded replay)", () => {
         ]);
         expect(req.system).toHaveLength(2);
         expect(req.system[0].cache_control).toBeUndefined();
-        expect(req.system[1].cache_control).toEqual({ type: "ephemeral" });
+        expect(req.system[1].cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
         expect(req.mcp_servers).toHaveLength(1);
       }
     });

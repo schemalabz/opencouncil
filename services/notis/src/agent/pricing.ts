@@ -8,7 +8,8 @@ import { Usage } from "./types";
 export const SONNET_5_RATES = {
   inputPerMTok: 3,
   outputPerMTok: 15,
-  cacheWritePerMTok: 3.75,
+  // 1h-TTL cache writes bill at 2× base input (5m would be 1.25× = $3.75).
+  cacheWritePerMTok: 6,
   cacheReadPerMTok: 0.3,
 };
 

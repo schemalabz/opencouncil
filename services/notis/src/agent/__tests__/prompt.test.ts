@@ -11,7 +11,7 @@ describe("assembleSystem", () => {
     expect(system[0].text).toBe("SYSTEM");
     expect(system[0].cache_control).toBeUndefined();
     expect(system[1].text).toBe("PACK");
-    expect(system[1].cache_control).toEqual({ type: "ephemeral" });
+    expect(system[1].cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
   });
 
   it("is byte-stable: no clock or user data can leak into the cacheable prefix", () => {

@@ -3,6 +3,8 @@ import { AnthropicLike, ModelRequest, ModelResponse } from "@/agent/types";
 import { env } from "@/env.mjs";
 
 const MCP_BETA = "mcp-client-2025-11-20";
+/** 1h prompt-cache TTL — playground steps sit minutes apart, 5m dies between them. */
+const CACHE_TTL_BETA = "extended-cache-ttl-2025-04-11";
 
 let client: Anthropic | null = null;
 
@@ -15,7 +17,7 @@ function getClient(): Anthropic {
 export const realAnthropic: AnthropicLike = {
   async create(params: ModelRequest): Promise<ModelResponse> {
     const response = await getClient().beta.messages.create({
-      betas: [MCP_BETA],
+      betas: [MCP_BETA, CACHE_TTL_BETA],
       model: params.model,
       max_tokens: params.max_tokens,
       system: params.system,

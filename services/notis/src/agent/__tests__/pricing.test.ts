@@ -4,7 +4,7 @@ describe("pricing", () => {
   it("prices each token class at sonnet-5 rates", () => {
     expect(usageToCost({ input: 1_000_000, output: 0, cacheWrite: 0, cacheRead: 0 })).toBe(3);
     expect(usageToCost({ input: 0, output: 1_000_000, cacheWrite: 0, cacheRead: 0 })).toBe(15);
-    expect(usageToCost({ input: 0, output: 0, cacheWrite: 1_000_000, cacheRead: 0 })).toBe(3.75);
+    expect(usageToCost({ input: 0, output: 0, cacheWrite: 1_000_000, cacheRead: 0 })).toBe(6);
     expect(usageToCost({ input: 0, output: 0, cacheWrite: 0, cacheRead: 1_000_000 })).toBe(0.3);
   });
 
