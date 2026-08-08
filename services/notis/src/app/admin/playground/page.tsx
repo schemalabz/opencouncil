@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Button } from "@opencouncil/ui/button";
+import { isWindowOpen, templateForEvent } from "@/agent/templates";
 import { WakeEvent } from "@/agent/types";
 import { env } from "@/env.mjs";
 import { dryRun, fetchBrief, fetchShippedPrompt } from "./api";
@@ -62,6 +63,17 @@ export default function PlaygroundPage() {
         promptOverride: current.sim.promptOverride,
         ...current.sim.settings,
       });
+      // WhatsApp rails: inside the 24h customer-service window (opened by the
+      // user's last message) sends go free-form; outside it every message must
+      // ride an approved template shell.
+      const isUserMsg = event.type === "user_message";
+      const windowOpen = isUserMsg || isWindowOpen(current.sim.lastUserMessageAt, new Date(event.at));
+      const delivery =
+        outcome.messages.length > 0
+          ? windowOpen
+            ? ({ mode: "freeform" } as const)
+            : ({ mode: "template", template: templateForEvent(event.type) } as const)
+          : undefined;
       dispatch({
         type: "stepDone",
         itemId: item.id,
@@ -70,6 +82,8 @@ export default function PlaygroundPage() {
         nextState: appliedState,
         clock: event.at,
         snapshotLabel: `${item.id} · ${event.at.slice(0, 10)} ${event.type}`,
+        delivery,
+        userMessageAt: isUserMsg ? event.at : undefined,
       });
       setSelectedId(item.id);
     } catch (e) {
@@ -203,6 +217,8 @@ export default function PlaygroundPage() {
             queue={store.sim.queue}
             clock={store.sim.clock}
             busy={busy}
+            origin={store.sim.origin}
+            startAt={store.setup.from}
             selectedId={selectedId}
             onSelect={setSelectedId}
             onStep={step}

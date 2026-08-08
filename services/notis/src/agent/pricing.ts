@@ -1,14 +1,15 @@
 import { Usage } from "./types";
 
 /**
- * claude-opus-5 pricing, USD per million tokens. Cache writes bill at 1.25x
- * input, cache reads at 0.1x.
+ * claude-sonnet-5 pricing, USD per million tokens (list price — an intro rate
+ * of $2/$10 applies through 2026-08-31, so real spend runs lower until then).
+ * Cache writes bill at 1.25x input, cache reads at 0.1x.
  */
-export const OPUS_5_RATES = {
-  inputPerMTok: 5,
-  outputPerMTok: 25,
-  cacheWritePerMTok: 6.25,
-  cacheReadPerMTok: 0.5,
+export const SONNET_5_RATES = {
+  inputPerMTok: 3,
+  outputPerMTok: 15,
+  cacheWritePerMTok: 3.75,
+  cacheReadPerMTok: 0.3,
 };
 
 export function emptyUsage(): Usage {
@@ -27,9 +28,9 @@ export function addUsage(a: Usage, b: Usage): Usage {
 export function usageToCost(usage: Usage): number {
   const m = 1_000_000;
   return (
-    (usage.input / m) * OPUS_5_RATES.inputPerMTok +
-    (usage.output / m) * OPUS_5_RATES.outputPerMTok +
-    (usage.cacheWrite / m) * OPUS_5_RATES.cacheWritePerMTok +
-    (usage.cacheRead / m) * OPUS_5_RATES.cacheReadPerMTok
+    (usage.input / m) * SONNET_5_RATES.inputPerMTok +
+    (usage.output / m) * SONNET_5_RATES.outputPerMTok +
+    (usage.cacheWrite / m) * SONNET_5_RATES.cacheWritePerMTok +
+    (usage.cacheRead / m) * SONNET_5_RATES.cacheReadPerMTok
   );
 }

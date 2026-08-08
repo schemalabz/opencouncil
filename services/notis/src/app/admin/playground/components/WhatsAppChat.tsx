@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Send, SkipForward, StepForward } from "lucide-react";
+import { ExternalLink, Send, SkipForward, StepForward } from "lucide-react";
 import { Button } from "@opencouncil/ui/button";
+import { RenderedTemplate, renderTemplate } from "@/agent/templates";
 import { QueueItem } from "../types";
 
 interface Props {
   queue: QueueItem[];
   clock: string;
   busy: boolean;
+  origin: "transition" | "signup";
+  startAt: string;
   selectedId?: string;
   onSelect(id: string): void;
   onStep(): void;
@@ -98,6 +101,61 @@ function Bubble({
   );
 }
 
+function TemplateBubble({
+  rendered,
+  time,
+  first,
+  selected,
+  onClick,
+  onQuickReply,
+  busy,
+}: {
+  rendered: RenderedTemplate;
+  time: string;
+  first: boolean;
+  selected?: boolean;
+  onClick?: () => void;
+  onQuickReply?: (label: string) => void;
+  busy?: boolean;
+}) {
+  return (
+    <div className="flex justify-start px-4">
+      <div
+        onClick={onClick}
+        className={`relative max-w-[75%] cursor-pointer rounded-lg rounded-tl-none bg-white pb-1 pt-1.5 text-[14.2px] leading-[19px] text-[#111b21] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] ${
+          selected ? "ring-2 ring-orange" : ""
+        }`}
+      >
+        {first && <Tail side="in" />}
+        <div className="px-3">
+          <span className="whitespace-pre-wrap break-words">{rendered.body}</span>
+          <p className="mt-1.5 text-[12px] text-[#8696a0]">{rendered.footer}</p>
+          <span className="float-right ml-2 select-none text-[11px] leading-none text-[#667781]">
+            {time}
+          </span>
+          <div className="clear-both" />
+        </div>
+        <div className="mt-1 border-t border-[#e9edef]">
+          {rendered.buttons.map((b) => (
+            <button
+              key={b.label}
+              disabled={busy || b.kind === "url"}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (b.kind === "quick_reply") onQuickReply?.(b.label);
+              }}
+              className="flex w-full items-center justify-center gap-1.5 border-b border-[#e9edef] py-2 text-[14px] font-medium text-[#00a5f4] last:border-b-0 disabled:opacity-90"
+            >
+              {b.kind === "url" && <ExternalLink className="h-3.5 w-3.5" />}
+              {b.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SilenceChip({ item, selected, onClick }: { item: QueueItem; selected: boolean; onClick(): void }) {
   return (
     <div className="flex justify-center px-4">
@@ -118,6 +176,8 @@ export function WhatsAppChat({
   queue,
   clock,
   busy,
+  origin,
+  startAt,
   selectedId,
   onSelect,
   onStep,
@@ -128,6 +188,8 @@ export function WhatsAppChat({
   const bottomRef = useRef<HTMLDivElement>(null);
   const done = queue.filter((q) => q.status !== "pending");
   const next = queue.find((q) => q.status === "pending");
+  const intro = renderTemplate(origin === "transition" ? "demos_transition" : "demos_intro");
+  const introAt = new Date(startAt).toISOString();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -158,13 +220,23 @@ export function WhatsAppChat({
         className="flex-1 space-y-1.5 overflow-y-auto py-3"
         style={{ backgroundColor: BG, backgroundImage: PATTERN, backgroundSize: "14px 14px" }}
       >
-        {done.length === 0 && !busy && (
-          <div className="flex justify-center px-4 pt-8">
-            <p className="rounded-md bg-[#fdf3c6] px-3 py-2 text-center text-xs text-[#54656f] shadow-sm">
-              Εδώ θα εμφανίζεται ό,τι στέλνει ο Νότης. Πάτα «Επόμενο» στη γραμμή χρόνου.
-            </p>
-          </div>
-        )}
+        {/* enrollment: the origin-appropriate approved template opens the thread */}
+        <div className="flex justify-center px-4 py-1">
+          <span className="rounded-md bg-[#ffffffcc] px-3 py-1 text-[11px] font-medium text-[#54656f] shadow-sm">
+            {fmtDateChip(introAt)}
+          </span>
+        </div>
+        <TemplateBubble
+          rendered={intro}
+          time={fmtTime(introAt)}
+          first
+          busy={busy}
+          onQuickReply={onUserMessage}
+        />
+        {(() => {
+          lastDay = fmtDateChip(introAt);
+          return null;
+        })()}
         {done.map((item) => {
           const day = fmtDateChip(item.event.at);
           const chip = day !== lastDay;
@@ -200,19 +272,32 @@ export function WhatsAppChat({
               {item.outcome?.decision === "silence" && (
                 <SilenceChip item={item} selected={selected} onClick={() => onSelect(item.id)} />
               )}
-              {item.outcome?.messages.map((m, i) => (
-                <Bubble
-                  key={i}
-                  side="in"
-                  first={i === 0}
-                  time={fmtTime(item.event.at)}
-                  caption={i === 0 ? eventCaption(item) || undefined : undefined}
-                  selected={selected}
-                  onClick={() => onSelect(item.id)}
-                >
-                  {m}
-                </Bubble>
-              ))}
+              {item.outcome?.messages.map((m, i) =>
+                item.delivery?.mode === "template" ? (
+                  <TemplateBubble
+                    key={i}
+                    rendered={renderTemplate(item.delivery.template, m)}
+                    time={fmtTime(item.event.at)}
+                    first={i === 0}
+                    selected={selected}
+                    busy={busy}
+                    onClick={() => onSelect(item.id)}
+                    onQuickReply={onUserMessage}
+                  />
+                ) : (
+                  <Bubble
+                    key={i}
+                    side="in"
+                    first={i === 0}
+                    time={fmtTime(item.event.at)}
+                    caption={i === 0 ? eventCaption(item) || undefined : undefined}
+                    selected={selected}
+                    onClick={() => onSelect(item.id)}
+                  >
+                    {m}
+                  </Bubble>
+                ),
+              )}
             </div>
           );
         })}

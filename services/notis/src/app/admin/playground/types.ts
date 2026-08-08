@@ -1,3 +1,4 @@
+import { TemplateName } from "@/agent/templates";
 import { WakeEvent, WakeOutcome, WakeState, WakeTrace } from "@/agent/types";
 
 /** A queue item whose meeting brief may not be generated yet (lazy). */
@@ -21,6 +22,12 @@ export interface QueueItem {
   status: "pending" | "done" | "skipped";
   outcome?: WakeOutcome;
   traceRef?: string;
+  /**
+   * How the outcome's messages were (or would be) delivered on WhatsApp:
+   * outside the 24h window each message rides a template shell; inside it,
+   * free-form. Set by the step pipeline when the wake sends.
+   */
+  delivery?: { mode: "template"; template: TemplateName } | { mode: "freeform" };
 }
 
 export interface SimSettings {
@@ -44,6 +51,10 @@ export interface Sim {
   settings: SimSettings;
   /** Geocoded coordinates of picked locations, keyed by cityId (for the map). */
   locationPoints?: Record<string, LocationPoint[]>;
+  /** How this user entered Notis — decides the intro template. */
+  origin: "transition" | "signup";
+  /** When the simulated user last wrote (drives the 24h template window). */
+  lastUserMessageAt?: string;
 }
 
 export interface Snapshot {

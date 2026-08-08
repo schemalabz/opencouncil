@@ -79,8 +79,8 @@ export function Timeline({ queue, selectedId, busyItemId, onSelect }: Props) {
   return (
     <div ref={scrollRef} className="overflow-x-auto border-b bg-muted/30">
       <div className="relative flex min-w-max items-start gap-0 px-6 py-3">
-        {/* connecting line through the node centers */}
-        <div className="absolute left-0 right-0 top-[27px] h-0.5 bg-border" />
+        {/* connecting line through the node centers: py-3 (12px) + month row (12px) + half node (16px) */}
+        <div className="absolute left-0 right-0 top-[40px] h-0.5 bg-border" />
         {queue.map((item) => {
           const date = new Date(item.event.at);
           const month = date.toLocaleDateString("el-GR", { month: "short" });

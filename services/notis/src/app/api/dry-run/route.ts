@@ -8,7 +8,14 @@ export const maxDuration = 120;
 
 const journalEntrySchema = z.object({
   at: z.string(),
-  event: z.enum(["agenda_processed", "meeting_summarized", "user_message", "scheduled", "heartbeat"]),
+  event: z.enum([
+    "agenda_processed",
+    "meeting_summarized",
+    "user_message",
+    "scheduled",
+    "heartbeat",
+    "enrollment",
+  ]),
   decision: z.enum(["silence", "send"]),
   rationale: z.string(),
   messages: z.array(z.string()),

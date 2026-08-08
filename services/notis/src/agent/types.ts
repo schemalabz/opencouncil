@@ -7,7 +7,8 @@
 
 export interface JournalEntry {
   at: string; // ISO timestamp, from deps.now() at wake time
-  event: WakeEvent["type"];
+  /** The wake trigger — or "enrollment" for the system-sent intro/transition template. */
+  event: WakeEvent["type"] | "enrollment";
   decision: "silence" | "send";
   rationale: string;
   messages: string[]; // texts sent (empty on silence)
@@ -191,7 +192,9 @@ export interface Deps {
 }
 
 export const DEFAULT_CONFIG: DepsConfig = {
-  model: "claude-opus-5",
+  // Sonnet 5: near-Opus quality on agentic work at ~40% of the cost and
+  // noticeably lower latency — the right default for per-resident wakes.
+  model: "claude-sonnet-5",
   maxTurns: 8,
   mcpUrl: "https://opencouncil.gr/mcp",
 };

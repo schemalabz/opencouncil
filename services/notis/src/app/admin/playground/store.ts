@@ -20,6 +20,7 @@ export function emptyStore(): PlaygroundStore {
       queue: [],
       cursor: 0,
       settings: {},
+      origin: "transition",
     },
     traces: {},
     traceOrder: [],
@@ -64,6 +65,9 @@ export type Action =
       nextState: WakeState;
       clock: string;
       snapshotLabel: string;
+      delivery?: QueueItem["delivery"];
+      /** Set when the item was a user message — reopens the 24h window. */
+      userMessageAt?: string;
     }
   | { type: "skip"; itemId: string }
   | { type: "userMessage"; item: QueueItem }
@@ -123,7 +127,13 @@ export function reducer(store: PlaygroundStore, action: Action): PlaygroundStore
       const withTrace = pushTrace(withSnapshot, action.itemId, action.trace);
       let queue = withTrace.sim.queue.map((q) =>
         q.id === action.itemId
-          ? { ...q, status: "done" as const, outcome: action.outcome, traceRef: action.itemId }
+          ? {
+              ...q,
+              status: "done" as const,
+              outcome: action.outcome,
+              traceRef: action.itemId,
+              ...(action.delivery ? { delivery: action.delivery } : {}),
+            }
           : q,
       );
       for (const [i, wake] of action.outcome.scheduledWakes.entries()) {
@@ -141,6 +151,7 @@ export function reducer(store: PlaygroundStore, action: Action): PlaygroundStore
           clock: action.clock,
           queue,
           cursor: queue.findIndex((q) => q.status === "pending"),
+          ...(action.userMessageAt ? { lastUserMessageAt: action.userMessageAt } : {}),
         },
       };
     }

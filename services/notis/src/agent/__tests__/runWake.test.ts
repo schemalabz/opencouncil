@@ -134,8 +134,8 @@ describe("runWake", () => {
     ]);
     const { trace } = await runWake(makeState(), meetingEvent(), makeDeps(fake));
     expect(trace.usageTotal).toEqual({ input: 2000, output: 200, cacheWrite: 0, cacheRead: 0 });
-    // 2000/1M * $5 + 200/1M * $25 = 0.01 + 0.005
-    expect(trace.costUsd).toBeCloseTo(0.015, 10);
+    // 2000/1M * $3 + 200/1M * $15 = 0.006 + 0.003
+    expect(trace.costUsd).toBeCloseTo(0.009, 10);
   });
 
   it("purity: the input state is never mutated", async () => {

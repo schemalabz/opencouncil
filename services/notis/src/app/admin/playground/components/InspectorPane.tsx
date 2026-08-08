@@ -84,11 +84,20 @@ export function InspectorPane({ item, trace, profile, canRewind, onRewind, onExp
       <div className="flex-1 space-y-3 overflow-y-auto p-4 text-sm">
         {tab === "rationale" && (
           <>
-            <Badge variant={item.outcome.decision === "send" ? "default" : "secondary"}>
-              {item.outcome.decision === "send"
-                ? `έστειλε ${item.outcome.messages.length}`
-                : "σιωπή"}
-            </Badge>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge variant={item.outcome.decision === "send" ? "default" : "secondary"}>
+                {item.outcome.decision === "send"
+                  ? `έστειλε ${item.outcome.messages.length}`
+                  : "σιωπή"}
+              </Badge>
+              {item.delivery && (
+                <Badge variant="outline" title="Κανόνες WhatsApp: εκτός 24ώρου παραθύρου μόνο εγκεκριμένα templates">
+                  {item.delivery.mode === "template"
+                    ? `📋 ${item.delivery.template}`
+                    : "💬 free-form (παράθυρο 24h ανοιχτό)"}
+                </Badge>
+              )}
+            </div>
             <p className="whitespace-pre-wrap">{item.outcome.rationale}</p>
             {item.outcome.scheduledWakes.length > 0 && (
               <div>

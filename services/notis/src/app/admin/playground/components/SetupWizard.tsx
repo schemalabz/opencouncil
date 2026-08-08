@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, MapPin, X } from "lucide-react";
+import { renderTemplate } from "@/agent/templates";
 import { CityPreference, WakeState } from "@/agent/types";
 import { CityOption, TopicOption, fetchCities, fetchMeetings, fetchTopics, geocode } from "../api";
 import { MeetingSummary, deriveQueue } from "../deriveQueue";
@@ -44,6 +45,7 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
   const [profile, setProfile] = useState(
     "Μένει στην πόλη χρόνια. Ενδιαφέρεται για όσα αλλάζουν την καθημερινότητά της.",
   );
+  const [origin, setOrigin] = useState<"transition" | "signup">("transition");
   const [from, setFrom] = useState("2026-05-01");
 
   useEffect(() => {
@@ -94,19 +96,37 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
       const queue = deriveQueue(meetings, from);
       if (queue.length === 0)
         throw new Error("Καμία δημοσιευμένη συνεδρίαση μετά από αυτή την ημερομηνία.");
+      // Enrollment sends the origin-appropriate template before any wake; it
+      // enters the journal so the agent knows the reader already got an intro.
+      const startAt = new Date(from).toISOString();
+      const introTemplate = origin === "transition" ? "demos_transition" : "demos_intro";
+      const rendered = renderTemplate(introTemplate);
       const state: WakeState = {
         user: { name, cities: drafts.map(({ points: _p, center: _c, ...pref }) => pref) },
         profile,
-        journal: [],
+        journal: [
+          {
+            at: startAt,
+            event: "enrollment",
+            decision: "send",
+            rationale: `(σύστημα) Εγγραφή μέσω ${
+              origin === "transition"
+                ? "μετάβασης από τις παλιές ειδοποιήσεις"
+                : "νέας εγγραφής στο site"
+            } — στάλθηκε το εγκεκριμένο template ${introTemplate}.`,
+            messages: [rendered.body],
+          },
+        ],
       };
       onComplete(
         {
           state,
-          clock: new Date(from).toISOString(),
+          clock: startAt,
           queue,
           cursor: 0,
           settings: {},
           locationPoints: Object.fromEntries(drafts.map((d) => [d.cityId, d.points])),
+          origin,
         },
         from,
       );
@@ -164,6 +184,32 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
                   className="w-full resize-none border-b border-transparent bg-transparent text-sm leading-relaxed text-muted-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-foreground focus:text-foreground"
                 />
               </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 pl-[76px]">
+              {(
+                [
+                  [
+                    "transition",
+                    "Μετάβαση από τις ειδοποιήσεις",
+                    "Λάμβανε ήδη WhatsApp/SMS — ξεκινά με το demos_transition",
+                  ],
+                  ["signup", "Νέα εγγραφή", "Μόλις γράφτηκε στο site — ξεκινά με το demos_intro"],
+                ] as const
+              ).map(([value, label, hint]) => (
+                <button
+                  key={value}
+                  onClick={() => setOrigin(value)}
+                  title={hint}
+                  className={`border px-3 py-1.5 text-xs transition-colors ${
+                    origin === value
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </section>
 

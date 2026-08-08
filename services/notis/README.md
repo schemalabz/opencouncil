@@ -19,8 +19,9 @@ npm run dev -w notis                                  # http://localhost:3001
 Log into `/admin` with `NOTIS_ADMIN_SECRET` from your `.env` and open the
 playground. Simulation state lives in your browser's localStorage; the server
 is stateless. Every step calls real Opus against the public
-`opencouncil.gr/mcp` — a decide-only wake costs ~$0.05, a research/send wake
-~$0.20-0.40, an editorial brief ~$0.15 per meeting (cached on the queue item).
+`opencouncil.gr/mcp` (on claude-sonnet-5) — a decide-only wake costs a couple
+of cents, a research/send wake ~$0.10-0.25, an editorial brief ~$0.05-0.10 per
+meeting (cached on the queue item).
 
 Tests: `npm test -w notis`. Re-record a golden fixture (live API, costs money):
 `cd services/notis && npx tsx scripts/record-scenario.ts fixtures/scenarios/<name>.json`.
