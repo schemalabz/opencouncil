@@ -43,13 +43,17 @@ export function renderEvent(event: WakeEvent): string {
     case "agenda_processed":
       return (
         `The agenda for an upcoming meeting has been processed.\n` +
-        `Meeting: ${event.meetingName} (${event.meetingDate}), city ${event.cityId}, id ${event.meetingId}.\n` +
+        `Meeting: ${event.meetingName} (${event.meetingDate})${
+          event.adminBody ? ` — ${event.adminBody}` : ""
+        }, city ${event.cityId}, id ${event.meetingId}.\n` +
         `Editorial brief (a map, not a source — read the record before quoting):\n${renderBrief(event.brief)}`
       );
     case "meeting_summarized":
       return (
         `A meeting has concluded and its record is published.\n` +
-        `Meeting: ${event.meetingName} (${event.meetingDate}), city ${event.cityId}, id ${event.meetingId}.\n` +
+        `Meeting: ${event.meetingName} (${event.meetingDate})${
+          event.adminBody ? ` — ${event.adminBody}` : ""
+        }, city ${event.cityId}, id ${event.meetingId}.\n` +
         `Editorial brief (a map, not a source — read the record before quoting):\n${renderBrief(event.brief)}`
       );
     case "user_message":

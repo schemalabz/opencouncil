@@ -68,6 +68,7 @@ const meetingEventFields = {
   meetingId: z.string(),
   meetingName: z.string(),
   meetingDate: z.string(),
+  adminBody: z.string().nullable().optional(),
   brief: briefSchema,
 };
 

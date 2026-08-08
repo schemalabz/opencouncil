@@ -6,7 +6,7 @@
  */
 
 export interface JournalEntry {
-  at: string; // ISO timestamp, from deps.now() at wake time
+  at: string; // ISO timestamp of the wake's event (the world's timeline, not the wall clock)
   /** The wake trigger — or "enrollment" for the system-sent intro/transition template. */
   event: WakeEvent["type"] | "enrollment";
   decision: "silence" | "send";
@@ -66,6 +66,8 @@ export type WakeEvent =
       meetingId: string;
       meetingName: string;
       meetingDate: string;
+      /** Which body is meeting (Δημοτικό Συμβούλιο, Επιτροπή, Κοινότητα...). */
+      adminBody?: string | null;
       brief: EditorialBrief;
     }
   | {
@@ -75,6 +77,7 @@ export type WakeEvent =
       meetingId: string;
       meetingName: string;
       meetingDate: string;
+      adminBody?: string | null;
       brief: EditorialBrief;
     }
   | { type: "user_message"; at: string; text: string }
@@ -157,7 +160,7 @@ export interface ModelResponse {
 export interface ModelRequest {
   model: string;
   max_tokens: number;
-  system: Array<{ type: "text"; text: string; cache_control?: { type: "ephemeral" } }>;
+  system: Array<{ type: "text"; text: string; cache_control?: { type: "ephemeral"; ttl?: "5m" | "1h" } }>;
   messages: unknown[];
   tools?: unknown[];
   mcp_servers?: unknown[];

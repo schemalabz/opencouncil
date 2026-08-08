@@ -9,10 +9,13 @@ export function buildJournalEntry(
   decision: "silence" | "send",
   rationale: string,
   messages: string[],
-  now: Date,
 ): JournalEntry {
   return {
-    at: now.toISOString(),
+    // The event's time, not the wall clock: the journal lives on the world's
+    // timeline. Under simulation the two diverge wildly, and a journal dated
+    // "in the future" relative to <current_time> wrecks the model's sense of
+    // what has already been said.
+    at: event.at,
     event: event.type,
     decision,
     rationale,

@@ -48,7 +48,10 @@ export async function runWake(
 ): Promise<{ outcome: WakeOutcome; trace: WakeTrace }> {
   const started = deps.now().getTime();
   const system = assembleSystem(deps.prompts);
-  const userTurn = assembleUserTurn(state, event, deps.now());
+  // <current_time> is the event's time, not the wall clock: a wake is the
+  // processing of an event at its moment. In production the two coincide;
+  // under simulation only the event's clock tells the truth.
+  const userTurn = assembleUserTurn(state, event, new Date(event.at));
 
   const messages: unknown[] = [{ role: "user", content: userTurn }];
   const turns: RecordedTurn[] = [];
@@ -136,7 +139,7 @@ export async function runWake(
     rationale = "(no rationale emitted)";
   }
 
-  const journalAppend = buildJournalEntry(event, decision, rationale, sent, deps.now());
+  const journalAppend = buildJournalEntry(event, decision, rationale, sent);
 
   const outcome: WakeOutcome = {
     decision,
