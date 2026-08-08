@@ -2,6 +2,34 @@
   "name": "notis",
   "version": "0.1.0",
   "private": true,
+  "scripts": {
+    "dev": "next dev --turbo -p 3001",
+    "build": "next build",
+    "start": "next start",
+    "test": "jest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.116.0",
+    "@opencouncil/ui": "*",
+    "@t3-oss/env-nextjs": "^0.13.8",
+    "next": "^16.2.6",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "autoprefixer": "^10.4.20",
+    "jest": "^29.7.0",
+    "postcss": "^8.5.10",
+    "tailwindcss": "^3.4.1",
+    "ts-jest": "^29.4.11",
+    "typescript": "^5"
+  },
   "engines": {
     "node": ">=24.15.0 <25"
   }

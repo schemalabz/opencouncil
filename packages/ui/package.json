@@ -5,6 +5,16 @@
   "sideEffects": [
     "*.css"
   ],
+  "exports": {
+    "./tailwind-preset": "./tailwind-preset.ts",
+    "./styles/tokens.css": "./src/styles/tokens.css",
+    "./hooks/use-mobile": "./src/hooks/use-mobile.tsx",
+    "./hooks/use-toast": "./src/hooks/use-toast.ts",
+    "./lib/utils": "./src/lib/utils.ts",
+    "./lib/phone": "./src/lib/phone.ts",
+    "./lib/pagination": "./src/lib/pagination.ts",
+    "./*": "./src/*.tsx"
+  },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.1.1",
     "@radix-ui/react-collapsible": "^1.1.0",
