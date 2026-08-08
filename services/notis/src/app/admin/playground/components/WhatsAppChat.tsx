@@ -186,14 +186,16 @@ export function WhatsAppChat({
 }: Props) {
   const [draft, setDraft] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
-  const done = queue.filter((q) => q.status !== "pending");
+  // user messages render as soon as they're queued (before the run completes),
+  // so the sent bubble appears immediately with the typing indicator below it
+  const visible = queue.filter((q) => q.status !== "pending" || q.event.type === "user_message");
   const next = queue.find((q) => q.status === "pending");
   const intro = renderTemplate(origin === "transition" ? "demos_transition" : "demos_intro");
   const introAt = new Date(startAt).toISOString();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [done.length, busy]);
+  }, [visible.length, busy]);
 
   let lastDay = "";
 
@@ -237,7 +239,7 @@ export function WhatsAppChat({
           lastDay = fmtDateChip(introAt);
           return null;
         })()}
-        {done.map((item) => {
+        {visible.map((item) => {
           const day = fmtDateChip(item.event.at);
           const chip = day !== lastDay;
           lastDay = day;
