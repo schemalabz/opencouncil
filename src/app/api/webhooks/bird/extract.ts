@@ -112,6 +112,25 @@ export function unwrapEvent(event: unknown): UnwrappedEvent {
     };
 }
 
+/**
+ * Build the replay-dedupe id for an event. Bird emits multiple lifecycle
+ * status webhooks for the same message id (sent → delivered → failed), so the
+ * message id alone is too coarse — it would drop legitimate progressions. The
+ * key composes every stable identifier we have: the top-level event/payload id
+ * (when present), the message id, and the normalized status. A duplicate then
+ * requires the exact same event — i.e. a true replay/retry — while status
+ * progressions remain distinct keys.
+ *
+ * Fields are joined with `|`, a character Bird ids never contain, so a literal
+ * separator inside one field can't forge a collision with a different split
+ * (e.g. payloadId `a|b` + msgId `c` no longer equals payloadId `a` + msgId `b|c`).
+ */
+export function buildDedupeId(event: unknown, fields: ExtractedMessageFields): string {
+    const evt = (event ?? {}) as BirdWebhookEvent;
+    const payloadId = evt.payload?.id ?? evt.data?.id ?? '-';
+    return `${payloadId}|${fields.birdMessageId ?? '-'}|${fields.status}`;
+}
+
 export function extractDirection(message: BirdMessageLike | undefined): MessageDirection {
     const explicit = String(message?.direction ?? message?.kind ?? '').toLowerCase();
     if (explicit.includes('out')) return 'outbound';
