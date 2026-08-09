@@ -12,6 +12,7 @@ import { upsertHighlightCore, canUserEditCity, canActorManageHighlight } from '@
 import { requestGenerateHighlightCore } from '@/lib/tasks/generateHighlight-core';
 import { NotFoundError, UnauthorizedError, BadRequestError, ForbiddenError } from '@/lib/api/errors';
 import { canSeeUnreleased, requireVisibleMeeting } from './gate';
+import { calculateVoteResult } from '@/lib/utils/votes';
 import {
     renderOptionsFromRequestBody,
     resolveRenderOptions,
@@ -294,6 +295,10 @@ export async function mcpGetSubject(subjectId: string, identity: McpIdentity) {
             }
             : null,
         votes: subject.votes.map(vote => ({ person: vote.person.name, vote: vote.voteType })),
+        // Precomputed tally so consumers (humans and agents alike) never have
+        // to count the array themselves — and with the same rules the site
+        // uses: PRESENT and DID_NOT_VOTE are declarations, not votes.
+        voteSummary: subject.votes.length > 0 ? calculateVoteResult(subject.votes) : null,
         url: urls.subject(subject.cityId, subject.councilMeetingId, subject.id),
     };
 }
