@@ -12,7 +12,10 @@ import { upsertHighlightCore, canUserEditCity, canActorManageHighlight } from '@
 import { requestGenerateHighlightCore } from '@/lib/tasks/generateHighlight-core';
 import { NotFoundError, UnauthorizedError, BadRequestError, ForbiddenError } from '@/lib/api/errors';
 import { canSeeUnreleased, requireVisibleMeeting } from './gate';
+import { getRoleLabelAt, RoleTextTranslator } from '@/lib/utils/roles';
 import { calculateVoteResult } from '@/lib/utils/votes';
+import { roleWithRelationsInclude } from '@/lib/db/types';
+import { getTranslations } from 'next-intl/server';
 import {
     renderOptionsFromRequestBody,
     resolveRenderOptions,
@@ -43,6 +46,16 @@ const urls = {
     moment: (cityId: string, meetingId: string, seconds: number) =>
         `${currentBaseUrl()}/${cityId}/${meetingId}?t=${Math.floor(seconds)}`,
 };
+
+
+/**
+ * Speaker role labels ride along with quoted speech so consumers copy titles
+ * instead of guessing them. The label is the site's own (getRoleLabelAt),
+ * resolved as of the meeting date; MCP serves the Greek public record, so it
+ * is always rendered from the Greek messages.
+ */
+const getRoleTranslations = (): Promise<RoleTextTranslator> =>
+    getTranslations({ locale: 'el', namespace: 'Person' });
 
 /** Turn contribution markdown ("[text](REF:UTTERANCE:id)") into plain text. */
 function stripRefLinks(text: string): string {
@@ -268,7 +281,12 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
 export async function mcpGetSubject(subjectId: string, identity: McpIdentity) {
     const subject = await getSubject(subjectId);
     if (!subject) throw new NotFoundError('Subject not found');
-    await requireVisibleMeeting(subject.cityId, subject.councilMeetingId, identity);
+    const { dateTime: meetingDate } = await requireVisibleMeeting(
+        subject.cityId,
+        subject.councilMeetingId,
+        identity
+    );
+    const t = await getRoleTranslations();
 
     return {
         id: subject.id,
@@ -280,10 +298,15 @@ export async function mcpGetSubject(subjectId: string, identity: McpIdentity) {
         topic: subject.topic?.name ?? null,
         location: subject.location?.text ?? null,
         introducedBy: subject.introducedBy
-            ? { id: subject.introducedBy.id, name: subject.introducedBy.name }
+            ? {
+                id: subject.introducedBy.id,
+                name: subject.introducedBy.name,
+                role: getRoleLabelAt(subject.introducedBy.roles, t, meetingDate),
+            }
             : null,
         contributions: subject.contributions.map(contribution => ({
             speaker: contribution.speaker?.name ?? contribution.speakerName ?? 'Unknown',
+            role: getRoleLabelAt(contribution.speaker?.roles, t, meetingDate),
             text: stripRefLinks(contribution.text),
         })),
         decision: subject.decision
@@ -311,7 +334,12 @@ export async function mcpGetSubjectTranscript(subjectId: string, page: number, i
         select: { id: true, name: true, cityId: true, councilMeetingId: true },
     });
     if (!subject) throw new NotFoundError('Subject not found');
-    await requireVisibleMeeting(subject.cityId, subject.councilMeetingId, identity);
+    const { dateTime: meetingDate } = await requireVisibleMeeting(
+        subject.cityId,
+        subject.councilMeetingId,
+        identity
+    );
+    const t = await getRoleTranslations();
 
     const where: Prisma.UtteranceWhereInput = {
         discussionSubjectId: subjectId,
@@ -333,7 +361,16 @@ export async function mcpGetSubjectTranscript(subjectId: string, page: number, i
                 speakerSegment: {
                     select: {
                         speakerTag: {
-                            select: { label: true, person: { select: { id: true, name: true } } },
+                            select: {
+                                label: true,
+                                person: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        roles: roleWithRelationsInclude,
+                                    },
+                                },
+                            },
                         },
                     },
                 },
@@ -352,6 +389,7 @@ export async function mcpGetSubjectTranscript(subjectId: string, page: number, i
             utteranceId: utterance.id,
             speaker: utterance.speakerSegment.speakerTag.person?.name
                 ?? utterance.speakerSegment.speakerTag.label,
+            role: getRoleLabelAt(utterance.speakerSegment.speakerTag.person?.roles, t, meetingDate),
             startSec: utterance.startTimestamp,
             endSec: utterance.endTimestamp,
             text: utterance.text,
@@ -370,7 +408,8 @@ export async function mcpGetTranscript(
     options: { page: number; segmentsPerPage: number; includeUtteranceIds: boolean; personId?: string },
     identity: McpIdentity
 ) {
-    await requireVisibleMeeting(cityId, meetingId, identity);
+    const { dateTime: meetingDate } = await requireVisibleMeeting(cityId, meetingId, identity);
+    const t = await getRoleTranslations();
 
     const allSegments = await getTranscript(meetingId, cityId);
 
@@ -401,9 +440,10 @@ export async function mcpGetTranscript(
     const personIds = [...new Set(pageSegments.map(s => s.speakerTag.personId).filter((id): id is string => !!id))];
     const persons = await prisma.person.findMany({
         where: { id: { in: personIds } },
-        select: { id: true, name: true },
+        select: { id: true, name: true, roles: roleWithRelationsInclude },
     });
     const personNames = new Map(persons.map(person => [person.id, person.name]));
+    const personRoles = new Map(persons.map(person => [person.id, getRoleLabelAt(person.roles, t, meetingDate)]));
 
     return {
         cityId,
@@ -414,6 +454,7 @@ export async function mcpGetTranscript(
         segments: pageSegments.map(segment => ({
             speaker: (segment.speakerTag.personId && personNames.get(segment.speakerTag.personId))
                 || segment.speakerTag.label,
+            role: (segment.speakerTag.personId && personRoles.get(segment.speakerTag.personId)) || null,
             startSec: segment.startTimestamp,
             endSec: segment.endTimestamp,
             summary: segment.summary?.text ?? null,

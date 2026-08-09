@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { Badge } from '../ui/badge';
-import { cn, sortRolesByPriority, getPrimaryRole } from '@/lib/utils';
+import { cn, sortRolesByPriority, getPrimaryRole, getRoleText } from '@/lib/utils';
 import { Star, Building, Users } from 'lucide-react';
 import { RoleWithRelations } from '@/lib/db/types';
 const BADGE_MAX_CHARS_SMALL = 40;
@@ -39,38 +39,6 @@ const getRoleIconColor = (role: RoleWithRelations) => {
     if (role.cityId) return "text-[#a4c0e1]";
     if (role.administrativeBodyId) return "text-muted-foreground/70";
     return "text-muted-foreground/70";
-};
-
-const getRoleText = (role: RoleWithRelations, t: ReturnType<typeof useTranslations>) => {
-    // Party roles (has partyId)
-    if (role.partyId && role.party) {
-        const text = role.party.name;
-        if (role.isHead) return `${text} (${t('partyLeader')})`;
-        if (role.name) return `${text} - ${role.name}`;
-        return text;
-    }
-
-    // Administrative body roles (has administrativeBodyId)
-    if (role.administrativeBodyId && role.administrativeBody) {
-        // For administrative body roles, show role name first (e.g., "President"), then body name
-        if (role.name) {
-            return `${role.name} - ${role.administrativeBody.name}`;
-        }
-        // If no role name but is head, use the localized "president" label
-        if (role.isHead) {
-            return `${t('president')} - ${role.administrativeBody.name}`;
-        }
-        // Otherwise just show the administrative body name
-        return role.administrativeBody.name;
-    }
-
-    // City-level roles (has cityId but no partyId or administrativeBodyId, e.g., mayor)
-    if (role.cityId && !role.partyId && !role.administrativeBodyId) {
-        if (role.isHead) return t('mayor');
-        return role.name || t('member');
-    }
-
-    return role.name || t('member');
 };
 
 const getRoleVariant = (role: RoleWithRelations) => {

@@ -214,7 +214,10 @@ export function registerOpenCouncilServer(server: McpServer) {
             title: 'Get subject',
             description:
                 'Get a subject (agenda item) in detail: description, per-speaker contribution summaries, ' +
-                'decision, votes. For the verbatim discussion use get_subject_transcript.',
+                'decision, votes. Speaker `role` labels are resolved as of the meeting date (get_person ' +
+                'lists roles across all time). Vote semantics: ABSTAIN is ΛΕΥΚΟ (a blank ballot, counted ' +
+                'in totalVotes); DID_NOT_VOTE is ΑΠΟΧΗ (a declaration of non-participation, not a vote). ' +
+                'For the verbatim discussion use get_subject_transcript.',
             inputSchema: z.object({ subjectId: z.string().min(1) }),
         },
         (args, ctx: ServerContext) => run(() => mcpGetSubject(args.subjectId, identityFromContext(ctx)))
@@ -226,7 +229,8 @@ export function registerOpenCouncilServer(server: McpServer) {
             title: 'Get subject transcript',
             description:
                 'The verbatim transcript of everything said about one subject, as utterances with ids, ' +
-                'speaker names and timestamps. Utterance ids from here are what create_highlight needs.',
+                'speaker names, roles (resolved as of the meeting date) and timestamps. Utterance ids ' +
+                'from here are what create_highlight needs.',
             inputSchema: z.object({
                 subjectId: z.string().min(1),
                 ...paginationShape,
@@ -241,7 +245,8 @@ export function registerOpenCouncilServer(server: McpServer) {
         {
             title: 'Get meeting transcript',
             description:
-                'The full transcript of a meeting as speaker segments, paginated. Long — prefer ' +
+                'The full transcript of a meeting as speaker segments, paginated. Speaker roles are ' +
+                'resolved as of the meeting date. Long — prefer ' +
                 'get_subject_transcript when you care about one subject. Pass personId for ' +
                 'everything one councillor said in the meeting (the way to gather their own ' +
                 'moments). Set includeUtteranceIds to get utterance ids for highlight creation.',

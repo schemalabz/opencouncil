@@ -37,7 +37,9 @@ export {
   getSpeakerDisplayInfo,
   sortRolesByPriority,
   getRoleTypePriority,
-  getPrimaryRole
+  getPrimaryRole,
+  getRoleText,
+  getRoleLabelAt
 } from './utils/roles';
 
 export const IS_DEV = process.env.NODE_ENV === 'development';
