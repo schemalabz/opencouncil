@@ -9,6 +9,7 @@ const MAX_TOKENS = 32768;
 
 interface McpMeetingSubject {
   id?: string;
+  url?: string;
   subjectId?: string;
   name?: string;
   topic?: { name?: string } | string | null;
@@ -19,6 +20,7 @@ interface McpMeetingSubject {
 
 interface McpMeeting {
   id?: string;
+  url?: string;
   name?: string;
   dateTime?: string;
   date?: string;
@@ -95,6 +97,7 @@ export async function editorialPass(
       topicLabels: subjectTopicLabels(s),
       discussionSeconds: Number(s.discussionSeconds ?? 0),
       description: s.description ?? null,
+      url: s.url,
     }))
     .filter((s) => s.id)
     .sort((a, b) => b.discussionSeconds - a.discussionSeconds);
@@ -181,6 +184,7 @@ export async function editorialPass(
       },
       note: p?.note ?? "",
       locationHints: p?.locationHints ?? [],
+      ...(s.url ? { url: s.url } : {}),
     };
   });
 
@@ -189,6 +193,7 @@ export async function editorialPass(
     meetingId,
     generatedAt: deps.now().toISOString(),
     headline: parsed.headline,
+    ...(meeting.url ? { meetingUrl: meeting.url } : {}),
     subjects: briefSubjects,
   };
 

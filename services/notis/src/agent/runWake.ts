@@ -79,6 +79,11 @@ export async function runWake(
   // mode: the model narrates part of its answer as a text block next to its
   // send_message calls, and that prose is never delivered.
   let strandedProse: string | undefined;
+  // When a stranded-prose nudge fires, remember the genuine rationale of the
+  // moment: if the nudged turn adds no new sends, the model's post-nudge
+  // "rationale" is reliably meta chatter about the check itself.
+  let preNudgeRationale: string | undefined;
+  let sentAtNudge = -1;
 
   for (let turn = 0; turn < deps.config.maxTurns; turn++) {
     const response = await deps.anthropic.create({
@@ -159,6 +164,8 @@ export async function runWake(
             "send_message with the message now, then finish_wake again. If you truly " +
             "intend to stay silent, call finish_wake again to confirm.";
         } else if (strandedProse) {
+          preNudgeRationale = rationale;
+          sentAtNudge = sent.length;
           nudge =
             "(system check) You wrote prose in the same turn as your tool calls. That " +
             "prose was NOT delivered — nothing reaches the person except send_message " +
@@ -213,6 +220,8 @@ export async function runWake(
       // calls: that prose was never delivered, and is often the missing half
       // of a multi-message answer.
       if (strandedProse) {
+        preNudgeRationale = rationale;
+        sentAtNudge = sent.length;
         repaired = true;
         messages.push({ role: "assistant", content: response.content });
         messages.push({
@@ -234,6 +243,10 @@ export async function runWake(
 
     // end_turn, max_tokens, or anything else: stop.
     break;
+  }
+
+  if (preNudgeRationale && sent.length === sentAtNudge) {
+    rationale = preNudgeRationale;
   }
 
   const decision: "silence" | "send" = sent.length > 0 ? "send" : "silence";

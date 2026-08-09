@@ -67,6 +67,8 @@ export const editorialSubjectSchema = z.object({
   note: z.string(),
   /** Streets/squares/neighbourhoods named in the record. */
   locationHints: z.array(z.string()),
+  /** The subject's opencouncil.gr page — carried so no-research sends never build links by hand. */
+  url: z.string().optional(),
 });
 
 export const editorialBriefSchema = z.object({
@@ -75,6 +77,8 @@ export const editorialBriefSchema = z.object({
   generatedAt: z.string(),
   /** 1-2 Greek sentences: what mattered in this meeting. */
   headline: z.string(),
+  /** The meeting's opencouncil.gr page. */
+  meetingUrl: z.string().optional(),
   subjects: z.array(editorialSubjectSchema),
 });
 

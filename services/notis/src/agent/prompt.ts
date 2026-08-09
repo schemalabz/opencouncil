@@ -30,12 +30,16 @@ function renderBrief(brief: EditorialBrief): string {
       `  topics: ${s.topicLabels.join(", ") || "—"} · discussion: ${Math.round(s.discussionSeconds / 60)}min`,
       `  scores: hyperlocal ${sc.hyperlocal}/5, citywide ${sc.citywide}/5, contention ${sc.contention}/5, novelty ${sc.novelty}/5, money ${sc.money}/5`,
       s.locationHints.length ? `  locations: ${s.locationHints.join("; ")}` : null,
+      s.url ? `  url: ${s.url}` : null,
       `  note: ${s.note}`,
     ]
       .filter(Boolean)
       .join("\n");
   });
-  return `${brief.headline}\n\n${lines.join("\n")}`;
+  const head = brief.meetingUrl
+    ? `${brief.headline}\nMeeting page: ${brief.meetingUrl}`
+    : brief.headline;
+  return `${head}\n\n${lines.join("\n")}`;
 }
 
 export function renderEvent(event: WakeEvent): string {
