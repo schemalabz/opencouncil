@@ -166,7 +166,8 @@ export async function runWake(
             strandedProse.slice(0, 1200) +
             "»\nIf it was meant for the person, send it now with send_message, rephrased " +
             "so the conversation reads naturally, then finish_wake again. If it was only " +
-            "reasoning, just call finish_wake again.";
+            "reasoning, call finish_wake again with the wake's own rationale — about the " +
+            "reader and this wake's decision, never about this check.";
         }
         if (nudge) {
           repaired = true;
@@ -223,7 +224,8 @@ export async function runWake(
             strandedProse.slice(0, 1200) +
             "»\nIf it was meant for the person, send it now with send_message, rephrased " +
             "if needed so the conversation still reads naturally. If it was only " +
-            "reasoning, do not send it — just restate your short rationale.",
+            "reasoning, do not send it — give the wake's own rationale, about the reader " +
+            "and this wake's decision, never about this check.",
         });
         strandedProse = undefined;
         continue;
