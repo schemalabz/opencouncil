@@ -68,7 +68,9 @@ export class McpClient implements McpLike {
         });
         if (!res.ok) throw new Error(`MCP initialize failed: ${res.status}`);
         await parseBody(res);
-        await this.post({ jsonrpc: "2.0", method: "notifications/initialized" });
+        const note = await this.post({ jsonrpc: "2.0", method: "notifications/initialized" });
+        // Consume the (empty) body so the connection isn't pinned until GC.
+        await note.text().catch(() => undefined);
       })().catch((e) => {
         this.initialized = null;
         throw e;
@@ -77,14 +79,27 @@ export class McpClient implements McpLike {
     return this.initialized;
   }
 
-  async call(tool: string, args: Record<string, unknown>): Promise<unknown> {
+  private async postCall(tool: string, args: Record<string, unknown>): Promise<Response> {
     await this.ensureInitialized();
-    const res = await this.post({
+    return this.post({
       jsonrpc: "2.0",
       id: this.nextId++,
       method: "tools/call",
       params: { name: tool, arguments: args },
     });
+  }
+
+  async call(tool: string, args: Record<string, unknown>): Promise<unknown> {
+    let res = await this.postCall(tool, args);
+    if (res.status === 404) {
+      // The upstream expired our session (the spec's signal is a 404). This
+      // client lives in module-scope singletons, so without recovery one
+      // expiry would brick every later call until the process restarts.
+      await res.text().catch(() => undefined);
+      this.sessionId = null;
+      this.initialized = null;
+      res = await this.postCall(tool, args);
+    }
     if (!res.ok) throw new Error(`MCP tools/call ${tool} failed: HTTP ${res.status}`);
     const body = await parseBody(res);
     if (body.error) throw new Error(`MCP ${tool}: ${body.error.message}`);
