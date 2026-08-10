@@ -2,6 +2,7 @@ import { z } from 'zod4';
 import type { McpServer, ServerContext, CallToolResult } from '@modelcontextprotocol/server';
 import { ApiError } from '@/lib/api/errors';
 import { identityFromContext } from './auth';
+import { currentMcpIdentity } from './realm-context';
 import {
     mcpCreateHighlight,
     mcpFetch,
@@ -260,7 +261,7 @@ export function registerOpenCouncilServer(server: McpServer) {
             description:
                 'The verbatim transcript of everything said about one subject, as utterances with ids, ' +
                 'speaker names, roles (resolved as of the meeting date) and timestamps. Utterance ids ' +
-                'from here are what create_highlight needs.',
+                'from here are what highlight creation needs (available on authenticated connections).',
             inputSchema: z.object({
                 subjectId: z.string().min(1),
                 ...paginationShape,
@@ -306,6 +307,80 @@ export function registerOpenCouncilServer(server: McpServer) {
             )
     );
 
+    // --- Prompts ----------------------------------------------------------
+
+    server.registerPrompt(
+        'weekly_roundup',
+        {
+            title: 'Weekly topics roundup',
+            description: 'Summarize the key topics discussed in an area\'s municipalities recently, with a draft social post.',
+            argsSchema: z.object({
+                area: z.string().optional().describe('Area or municipality name, e.g. "Αττική" or "Athens"'),
+                days: z.string().optional().describe('How many days back to look (default 7)'),
+            }),
+        },
+        ({ area, days }) => ({
+            messages: [
+                {
+                    role: 'user' as const,
+                    content: {
+                        type: 'text' as const,
+                        text:
+                            `Give me a roundup of the key topics discussed in ${area || 'Greek'} municipal councils ` +
+                            `in the last ${days || '7'} days. Use list_cities to find relevant municipalities, then search ` +
+                            `with dateFrom/dateTo and cityIds. Group by theme, name the municipalities and key speakers, ` +
+                            `cite subject URLs, and end with a draft social media post (Greek) highlighting the most ` +
+                            `important contributions with participant names.`,
+                    },
+                },
+            ],
+        })
+    );
+
+    server.registerPrompt(
+        'councillor_profile',
+        {
+            title: 'Councillor activity profile',
+            description: 'Profile a municipal councillor: the key subjects they have participated in and their positions.',
+            argsSchema: z.object({
+                personName: z.string().describe('The councillor\'s name'),
+                cityName: z.string().optional().describe('Municipality name, to disambiguate'),
+            }),
+        },
+        ({ personName, cityName }) => ({
+            messages: [
+                {
+                    role: 'user' as const,
+                    content: {
+                        type: 'text' as const,
+                        text:
+                            `Build an activity profile for councillor "${personName}"${cityName ? ` of ${cityName}` : ''}. ` +
+                            `Find them with list_cities + list_people, then search with their personId to find the key ` +
+                            `subjects they participated in. Read the most important ones with get_subject. Summarize their ` +
+                            `main themes and positions, citing subject URLs and quoting short verbatim excerpts.`,
+                    },
+                },
+            ],
+        })
+    );
+
+    // Highlight tools (and their prompt) require authentication end to end,
+    // so anonymous connections don't get them advertised at all —
+    // MCP_INSTRUCTIONS still tells those users how to create a personal URL.
+    // Registration runs per request (a fresh server per POST), which is what
+    // makes per-caller advertisement possible. Registered last so the base
+    // tool and prompt orders are identical for every caller, merely extended.
+    if (currentMcpIdentity()) {
+        registerHighlightTools(server);
+    }
+}
+
+/**
+ * The highlight suite: creation, rendering, listing, showcasing. Every one
+ * of these requires an identity (mcp_ or sk_ token), so they are only
+ * registered — and therefore only advertised — on authenticated connections.
+ */
+function registerHighlightTools(server: McpServer) {
     server.registerTool(
         'create_highlight',
         {
@@ -406,63 +481,6 @@ export function registerOpenCouncilServer(server: McpServer) {
             }),
         },
         (args, ctx: ServerContext) => run(() => mcpGetHighlight(identityFromContext(ctx), args.highlightId))
-    );
-
-    // --- Prompts ----------------------------------------------------------
-
-    server.registerPrompt(
-        'weekly_roundup',
-        {
-            title: 'Weekly topics roundup',
-            description: 'Summarize the key topics discussed in an area\'s municipalities recently, with a draft social post.',
-            argsSchema: z.object({
-                area: z.string().optional().describe('Area or municipality name, e.g. "Αττική" or "Athens"'),
-                days: z.string().optional().describe('How many days back to look (default 7)'),
-            }),
-        },
-        ({ area, days }) => ({
-            messages: [
-                {
-                    role: 'user' as const,
-                    content: {
-                        type: 'text' as const,
-                        text:
-                            `Give me a roundup of the key topics discussed in ${area || 'Greek'} municipal councils ` +
-                            `in the last ${days || '7'} days. Use list_cities to find relevant municipalities, then search ` +
-                            `with dateFrom/dateTo and cityIds. Group by theme, name the municipalities and key speakers, ` +
-                            `cite subject URLs, and end with a draft social media post (Greek) highlighting the most ` +
-                            `important contributions with participant names.`,
-                    },
-                },
-            ],
-        })
-    );
-
-    server.registerPrompt(
-        'councillor_profile',
-        {
-            title: 'Councillor activity profile',
-            description: 'Profile a municipal councillor: the key subjects they have participated in and their positions.',
-            argsSchema: z.object({
-                personName: z.string().describe('The councillor\'s name'),
-                cityName: z.string().optional().describe('Municipality name, to disambiguate'),
-            }),
-        },
-        ({ personName, cityName }) => ({
-            messages: [
-                {
-                    role: 'user' as const,
-                    content: {
-                        type: 'text' as const,
-                        text:
-                            `Build an activity profile for councillor "${personName}"${cityName ? ` of ${cityName}` : ''}. ` +
-                            `Find them with list_cities + list_people, then search with their personId to find the key ` +
-                            `subjects they participated in. Read the most important ones with get_subject. Summarize their ` +
-                            `main themes and positions, citing subject URLs and quoting short verbatim excerpts.`,
-                    },
-                },
-            ],
-        })
     );
 
     server.registerPrompt(
