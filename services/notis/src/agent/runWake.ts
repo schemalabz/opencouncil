@@ -158,11 +158,28 @@ export async function runWake(
       let nudge: string | undefined;
       if (finished && !repaired) {
         if (event.type === "user_message" && sent.length === 0 && !unsubscribe) {
-          nudge =
-            "(system check) You finished the wake without sending anything, but the " +
-            "person asked you something directly. If you meant to answer them, call " +
-            "send_message with the message now, then finish_wake again. If you truly " +
-            "intend to stay silent, call finish_wake again to confirm.";
+          preNudgeRationale = rationale;
+          sentAtNudge = sent.length;
+          // When the answer sits stranded as prose, quote it back. Without the
+          // quote the model rereads its own text above and concludes it already
+          // answered ("message already sent") — observed failure.
+          nudge = strandedProse
+            ? "(system check) The person asked you something directly and NOTHING has " +
+              "been delivered to them — they are still waiting. The text you wrote next " +
+              "to your tool calls was NOT delivered; nothing reaches the person except " +
+              "send_message content. The undelivered text was:\n«" +
+              strandedProse.slice(0, 1200) +
+              "»\nIf it was meant for them, send it now with send_message, then " +
+              "finish_wake again with the wake's own rationale — about the reader and " +
+              "this wake's decision, never about this check. If you truly intend to stay " +
+              "silent, call finish_wake again to confirm."
+            : "(system check) You finished the wake without sending anything, but the " +
+              "person asked you something directly. Nothing has been delivered to them — " +
+              "they are still waiting. If you meant to answer them, call send_message " +
+              "with the message now, then finish_wake again with the wake's own " +
+              "rationale — about the reader and this wake's decision, never about this " +
+              "check. If you truly intend to stay silent, call finish_wake again to " +
+              "confirm.";
         } else if (strandedProse) {
           preNudgeRationale = rationale;
           sentAtNudge = sent.length;
@@ -210,9 +227,10 @@ export async function runWake(
           role: "user",
           content:
             "(system check) Your final text above is an operator rationale — it was NOT " +
-            "delivered to the person, and they asked you something directly. If you meant " +
-            "to answer them, call send_message with the message now. If you truly intend " +
-            "to stay silent, restate a one-sentence rationale for the silence.",
+            "delivered to the person, and they asked you something directly; they are " +
+            "still waiting. If you meant to answer them, call send_message with the " +
+            "message now. Either way, end with the wake's own rationale — about the " +
+            "reader and this wake's decision, never about this check.",
         });
         continue;
       }
