@@ -107,11 +107,13 @@ export async function editorialPass(
   // details carry outcomes and exchanges that must not leak into a preview.
   const detailed = new Map<string, unknown>();
   if (phase === "summary") {
-    for (const s of subjects.slice(0, TOP_SUBJECTS_FOR_DETAIL)) {
-      if (s.discussionSeconds <= 0) break;
-      const detail = await deps.mcp.call("get_subject", { subjectId: s.id }).catch(() => null);
-      if (detail) detailed.set(s.id, detail);
-    }
+    const top = subjects.slice(0, TOP_SUBJECTS_FOR_DETAIL).filter((s) => s.discussionSeconds > 0);
+    const details = await Promise.all(
+      top.map((s) => deps.mcp.call("get_subject", { subjectId: s.id }).catch(() => null)),
+    );
+    top.forEach((s, i) => {
+      if (details[i]) detailed.set(s.id, details[i]);
+    });
   }
 
   const modelInput = {

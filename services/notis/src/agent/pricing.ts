@@ -3,7 +3,7 @@ import { Usage } from "./types";
 /**
  * claude-sonnet-5 pricing, USD per million tokens (list price — an intro rate
  * of $2/$10 applies through 2026-08-31, so real spend runs lower until then).
- * Cache writes bill at 1.25x input, cache reads at 0.1x.
+ * Cache reads bill at 0.1× input; cache-write rates depend on TTL (below).
  */
 export const SONNET_5_RATES = {
   inputPerMTok: 3,

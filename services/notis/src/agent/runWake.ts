@@ -67,6 +67,20 @@ export async function runWake(
   const turns: RecordedTurn[] = [];
   let usageTotal = emptyUsage();
 
+  // Moving cache breakpoint: mark the newest appended tool_results message so
+  // each follow-up turn re-reads the conversation so far from cache instead
+  // of at full input price — MCP transcript results are the bulk of it. Only
+  // the latest message carries the marker (requests allow at most 4
+  // breakpoints: system, user turn, and this one).
+  let lastMarked: { cache_control?: unknown } | undefined;
+  const markLatest = (blocks: unknown[]) => {
+    const last = blocks[blocks.length - 1] as { cache_control?: unknown } | undefined;
+    if (!last) return;
+    if (lastMarked) delete lastMarked.cache_control;
+    last.cache_control = { type: "ephemeral" };
+    lastMarked = last;
+  };
+
   const sent: string[] = [];
   let profileRewrite: string | undefined;
   const scheduledWakes: Array<{ at: string; reason: string }> = [];
@@ -205,10 +219,9 @@ export async function runWake(
       // only server-side (MCP) blocks. There is nothing for us to answer —
       // an empty user message is an API error — so continue like pause_turn.
       if (results.length > 0 || nudge) {
-        messages.push({
-          role: "user",
-          content: nudge ? [...results, { type: "text", text: nudge }] : results,
-        });
+        const content = nudge ? [...results, { type: "text", text: nudge }] : results;
+        if (!finished) markLatest(content);
+        messages.push({ role: "user", content });
       }
       if (finished) break;
       continue;
