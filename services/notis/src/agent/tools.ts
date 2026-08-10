@@ -26,7 +26,8 @@ export const CLIENT_TOOLS = [
   {
     name: "send_message",
     description:
-      "Send one WhatsApp message to the reader, in Greek. One specific thing per message; " +
+      "Send one WhatsApp message to the reader, in their language (Greek unless they have " +
+      "shown otherwise). One specific thing per message; " +
       "two or three sentences is a whole message. Include an opencouncil.gr link. " +
       "Call once per message, in sending order.",
     input_schema: {
