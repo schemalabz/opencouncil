@@ -10,8 +10,15 @@ import { McpTokenManager } from "@/components/mcp/McpTokenManager";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 
-export async function generateMetadata(): Promise<Metadata> {
-    const t = await getTranslations("mcp.metadata");
+// Both entry points read the locale from params and pass it explicitly:
+// without it, getTranslations races the [locale] layout's setRequestLocale
+// (layouts and pages render in parallel) and falls back to the default
+// locale — opencouncil.rs/mcp rendered Greek.
+export async function generateMetadata(props: {
+    params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+    const { locale } = await props.params;
+    const t = await getTranslations({ locale, namespace: "mcp.metadata" });
     return {
         title: t("title"),
         description: t("description"),
@@ -36,8 +43,9 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
     );
 }
 
-export default async function McpPage() {
-    const t = await getTranslations("mcp");
+export default async function McpPage(props: { params: Promise<{ locale: string }> }) {
+    const { locale } = await props.params;
+    const t = await getTranslations({ locale, namespace: "mcp" });
     const user = await getCurrentUser();
     const tokens = user ? await listUserMcpTokens(user.id) : [];
     const serverUrl = mcpBaseUrl();
