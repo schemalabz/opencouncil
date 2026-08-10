@@ -1,6 +1,7 @@
 import { createMcpHandler, withMcpAuth } from 'mcp-handler';
 import { Realm } from '@prisma/client';
 import { registerOpenCouncilServer } from '@/lib/mcp/server';
+import { instrumentMcpAnalytics } from '@/lib/mcp/analytics';
 import { verifyMcpToken } from '@/lib/mcp/auth';
 import { MCP_INSTRUCTIONS } from '@/lib/mcp/instructions';
 import { mcpRealmStore, requestContext } from '@/lib/mcp/realm-context';
@@ -10,10 +11,18 @@ import { getRealm } from '@/lib/realm.server';
 // (rewritten here by src/proxy.ts). /api/mcp works directly too — useful on
 // preview deployments where the proxy adds basic auth.
 
-const baseHandler = createMcpHandler(registerOpenCouncilServer, {
-    serverInfo: { name: 'opencouncil', version: '1.0.0' },
-    instructions: MCP_INSTRUCTIONS,
-});
+const baseHandler = createMcpHandler(
+    (server) => {
+        registerOpenCouncilServer(server);
+        // After registration: PostHog wraps the request handlers that
+        // registering the first tool creates.
+        instrumentMcpAnalytics(server);
+    },
+    {
+        serverInfo: { name: 'opencouncil', version: '1.0.0' },
+        instructions: MCP_INSTRUCTIONS,
+    }
+);
 
 const authedHandler = withMcpAuth(baseHandler, verifyMcpToken, { required: false });
 
