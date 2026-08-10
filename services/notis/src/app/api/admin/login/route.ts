@@ -15,7 +15,6 @@ export async function POST(request: NextRequest) {
   if (attempts.length >= 5) {
     return NextResponse.json({ error: "too many attempts, wait a minute" }, { status: 429 });
   }
-  attempts.push(now);
 
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
@@ -23,6 +22,9 @@ export async function POST(request: NextRequest) {
   }
 
   if (!timingSafeEqual(parsed.data.secret, env.NOTIS_ADMIN_SECRET)) {
+    // Only failed guesses consume the budget — 5 successful logins in a
+    // minute must not lock the admin out.
+    attempts.push(now);
     return NextResponse.json({ error: "wrong secret" }, { status: 401 });
   }
 
