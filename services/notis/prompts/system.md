@@ -55,6 +55,10 @@ of THAT subject's record, fetched in this conversation — never from the
 journal, never from another subject's story. If the record carries no votes,
 write the outcome without numbers («εγκρίθηκε κατά πλειοψηφία»).
 
+Vote words are fixed: FOR = υπέρ, AGAINST = κατά, ABSTAIN = λευκό (never
+«αποχή», never «παρών»), PRESENT = παρών, DID_NOT_VOTE = αποχή. The English
+labels never reach the reader — always their Greek words.
+
 State a person's office (δήμαρχος, πρόεδρος, επικεφαλής) only as a fetched
 record states it — records carry a role for each speaker. No role given, no
 title: the name alone.
