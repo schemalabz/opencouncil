@@ -38,8 +38,13 @@ export default function PlaygroundPage() {
     setMounted(true);
   }, []);
 
+  // Debounced: during run-until-send every step dispatches several actions,
+  // and serializing the whole store (traces included) on each would jank the
+  // main thread. A 500ms trailing save loses at most half a second of state.
   useEffect(() => {
-    if (mounted) saveStore(store);
+    if (!mounted) return;
+    const t = setTimeout(() => saveStore(store), 500);
+    return () => clearTimeout(t);
   }, [store, mounted]);
 
   const totalCost = useMemo(
@@ -140,6 +145,9 @@ export default function PlaygroundPage() {
 
   const userMessage = useCallback(
     (text: string) => {
+      // A wake is already in flight (step or run-until-send): running a second
+      // one from the same base state would lose whichever update lands first.
+      if (busyItemId !== undefined) return;
       const clock = storeRef.current.sim.clock;
       const item: WakeRecord = {
         id: `user:${Date.now()}`,
@@ -149,11 +157,11 @@ export default function PlaygroundPage() {
       dispatch({ type: "userMessage", item });
       void runItem(item);
     },
-    [runItem],
+    [runItem, busyItemId],
   );
 
   const selectedSnapshotId = useMemo(
-    () => store.snapshots.find((sn) => sn.label.startsWith(`${selectedId} · `))?.id,
+    () => store.snapshots.find((sn) => sn.itemId === selectedId)?.id,
     [store.snapshots, selectedId],
   );
 
@@ -169,11 +177,11 @@ export default function PlaygroundPage() {
     const s = storeRef.current;
     const item = s.sim.queue.find((q) => q.id === selectedId);
     const trace = selectedId ? s.traces[selectedId] : undefined;
-    const snapshot = s.snapshots.find((sn) => sn.label.startsWith(`${selectedId} · `));
+    const snapshot = s.snapshots.find((sn) => sn.itemId === selectedId);
     if (!item?.outcome || !trace) return;
     const fixture = {
       name: `scenario-${item.id.replace(/[^a-z0-9]+/gi, "-")}`,
-      state: snapshot?.sim.state ?? null,
+      state: snapshot?.state ?? null,
       event: item.event,
       recordedTurns: trace.turns,
       expected: {

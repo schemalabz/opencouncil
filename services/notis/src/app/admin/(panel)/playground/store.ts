@@ -12,13 +12,12 @@ import { insertChronological } from "./deriveQueue";
 
 export function emptyStore(): PlaygroundStore {
   return {
-    version: 1,
+    version: 2,
     setup: { done: false, from: "" },
     sim: {
       state: { user: { name: "", cities: [] }, profile: "", journal: [] },
       clock: "",
       queue: [],
-      cursor: 0,
       settings: {},
       origin: "transition",
     },
@@ -31,10 +30,11 @@ export function emptyStore(): PlaygroundStore {
 export function loadStore(): PlaygroundStore {
   if (typeof window === "undefined") return emptyStore();
   try {
+    window.localStorage.removeItem("notis:playground:v1");
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return emptyStore();
     const parsed = JSON.parse(raw) as PlaygroundStore;
-    if (parsed.version !== 1) return emptyStore();
+    if (parsed.version !== 2) return emptyStore();
     return parsed;
   } catch {
     return emptyStore();
@@ -46,9 +46,14 @@ export function saveStore(store: PlaygroundStore): void {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
   } catch {
-    // Quota exceeded: drop the oldest traces and retry once.
-    const slim: PlaygroundStore = { ...store, traces: {}, traceOrder: [] };
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(slim));
+    // Quota exceeded: drop traces AND snapshots (the two unbounded-ish terms)
+    // and retry once; if even that fails, the session just lives in memory.
+    try {
+      const slim: PlaygroundStore = { ...store, traces: {}, traceOrder: [], snapshots: [] };
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(slim));
+    } catch {
+      // storage unavailable — nothing sensible left to do
+    }
   }
 }
 
@@ -84,12 +89,23 @@ function pushTrace(store: PlaygroundStore, id: string, trace: WakeTrace): Playgr
   return { ...store, traces, traceOrder };
 }
 
-function pushSnapshot(store: PlaygroundStore, label: string): PlaygroundStore {
+/**
+ * Record the pre-step essentials. No deep copy: the reducer never mutates, so
+ * holding references is safe — and the queue collapses to an id→status list,
+ * which keeps 30 snapshots from serializing 30 copies of every brief.
+ */
+function pushSnapshot(store: PlaygroundStore, itemId: string, label: string): PlaygroundStore {
+  const { sim } = store;
   const snapshot: Snapshot = {
     id: `snap-${Date.now()}-${store.snapshots.length}`,
+    itemId,
     label,
-    takenAt: store.sim.clock,
-    sim: JSON.parse(JSON.stringify(store.sim)) as Sim,
+    takenAt: sim.clock,
+    state: sim.state,
+    clock: sim.clock,
+    queue: sim.queue.map((q) => ({ id: q.id, status: q.status })),
+    lastUserMessageAt: sim.lastUserMessageAt,
+    unsubscribedAt: sim.unsubscribedAt,
   };
   const snapshots = [...store.snapshots, snapshot];
   while (snapshots.length > SNAPSHOT_CAP) snapshots.shift();
@@ -123,7 +139,7 @@ export function reducer(store: PlaygroundStore, action: Action): PlaygroundStore
       };
 
     case "stepDone": {
-      const withSnapshot = pushSnapshot(store, action.snapshotLabel);
+      const withSnapshot = pushSnapshot(store, action.itemId, action.snapshotLabel);
       const withTrace = pushTrace(withSnapshot, action.itemId, action.trace);
       let queue = withTrace.sim.queue.map((q) =>
         q.id === action.itemId
@@ -150,7 +166,6 @@ export function reducer(store: PlaygroundStore, action: Action): PlaygroundStore
           state: action.nextState,
           clock: action.clock,
           queue,
-          cursor: queue.findIndex((q) => q.status === "pending"),
           ...(action.userMessageAt ? { lastUserMessageAt: action.userMessageAt } : {}),
           ...(action.outcome.unsubscribe ? { unsubscribedAt: action.clock } : {}),
         },
@@ -161,18 +176,12 @@ export function reducer(store: PlaygroundStore, action: Action): PlaygroundStore
       const queue = store.sim.queue.map((q) =>
         q.id === action.itemId ? { ...q, status: "skipped" as const } : q,
       );
-      return {
-        ...store,
-        sim: { ...store.sim, queue, cursor: queue.findIndex((q) => q.status === "pending") },
-      };
+      return { ...store, sim: { ...store.sim, queue } };
     }
 
     case "userMessage": {
       const queue = insertChronological(store.sim.queue, action.item);
-      return {
-        ...store,
-        sim: { ...store.sim, queue, cursor: queue.findIndex((q) => q.status === "pending") },
-      };
+      return { ...store, sim: { ...store.sim, queue } };
     }
 
     case "setPromptOverride":
@@ -181,7 +190,29 @@ export function reducer(store: PlaygroundStore, action: Action): PlaygroundStore
     case "restoreSnapshot": {
       const snap = store.snapshots.find((s) => s.id === action.id);
       if (!snap) return store;
-      return { ...store, sim: JSON.parse(JSON.stringify(snap.sim)) as Sim };
+      const statusById = new Map(snap.queue.map((q) => [q.id, q.status]));
+      // Items born after the snapshot (scheduled wakes, injected user
+      // messages) vanish; items whose status rewinds to pending shed their
+      // outcome. Briefs and the prompt override deliberately survive — a
+      // rewind exists to re-run the same wake, often with an edited prompt.
+      const queue = store.sim.queue.flatMap((q) => {
+        const status = statusById.get(q.id);
+        if (status === undefined) return [];
+        if (status === q.status) return [q];
+        const { outcome: _o, traceRef: _t, delivery: _d, ...rest } = q;
+        return [{ ...rest, status }];
+      });
+      return {
+        ...store,
+        sim: {
+          ...store.sim,
+          state: snap.state,
+          clock: snap.clock,
+          queue,
+          lastUserMessageAt: snap.lastUserMessageAt,
+          unsubscribedAt: snap.unsubscribedAt,
+        },
+      };
     }
   }
 }

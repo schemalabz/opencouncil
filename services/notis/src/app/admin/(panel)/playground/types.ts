@@ -1,5 +1,12 @@
 import { WakeState, WakeTrace } from "@/agent/types";
-import { CityMeta, PendingBrief, RecordEvent, WakeRecord, hasPendingBrief } from "../_lib/records";
+import {
+  CityMeta,
+  Origin,
+  PendingBrief,
+  RecordEvent,
+  WakeRecord,
+  hasPendingBrief,
+} from "../_lib/records";
 
 /**
  * Playground store types. The record shape itself lives in ../_lib/records —
@@ -7,7 +14,7 @@ import { CityMeta, PendingBrief, RecordEvent, WakeRecord, hasPendingBrief } from
  * simulator-only state around it.
  */
 
-export type { CityMeta, PendingBrief, WakeRecord };
+export type { CityMeta, Origin, PendingBrief, WakeRecord };
 export { hasPendingBrief };
 
 export interface SimSettings {
@@ -26,13 +33,12 @@ export interface Sim {
   state: WakeState;
   clock: string; // ISO simulated now
   queue: WakeRecord[];
-  cursor: number; // index of the next pending item
   promptOverride?: string;
   settings: SimSettings;
   /** Geocoded coordinates of picked locations, keyed by cityId (for the map). */
   locationPoints?: Record<string, LocationPoint[]>;
   /** How this user entered Notis — decides the intro template. */
-  origin: "transition" | "signup";
+  origin: Origin;
   /** When the simulated user last wrote (drives the 24h template window). */
   lastUserMessageAt?: string;
   /** Set when a wake called unsubscribe_user — the sim is a zombie after this. */
@@ -41,15 +47,27 @@ export interface Sim {
   cityMeta?: CityMeta;
 }
 
+/**
+ * The sim's essentials just before a step ran — enough to rewind. Queue items
+ * are restored by status from the id list (their briefs, and anything learned
+ * after the snapshot like the prompt override, deliberately survive a rewind);
+ * items born later (scheduled wakes, injected user messages) are dropped.
+ */
 export interface Snapshot {
   id: string;
+  /** The queue item this snapshot precedes — the rewind target. */
+  itemId: string;
   label: string;
   takenAt: string; // simulated clock at snapshot time
-  sim: Sim;
+  state: WakeState;
+  clock: string;
+  queue: Array<{ id: string; status: WakeRecord["status"] }>;
+  lastUserMessageAt?: string;
+  unsubscribedAt?: string;
 }
 
 export interface PlaygroundStore {
-  version: 1;
+  version: 2;
   setup: { done: boolean; from: string };
   sim: Sim;
   traces: Record<string, WakeTrace>;
@@ -59,4 +77,4 @@ export interface PlaygroundStore {
 
 export const TRACE_CAP = 20;
 export const SNAPSHOT_CAP = 30;
-export const STORAGE_KEY = "notis:playground:v1";
+export const STORAGE_KEY = "notis:playground:v2";
