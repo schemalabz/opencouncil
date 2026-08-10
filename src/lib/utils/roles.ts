@@ -1,4 +1,5 @@
 import { Party, Role } from "@prisma/client";
+import { RoleWithRelations } from "@/lib/db/types";
 
 /**
  * Validation error type for role validation
@@ -131,10 +132,11 @@ export function isRoleActive(role: { startDate: Date | null, endDate: Date | nul
 /**
  * Filters roles to only include active ones.
  * @param roles Array of roles with startDate and endDate fields
+ * @param at Date to check against (defaults to now)
  * @returns Array of active roles
  */
-export function filterActiveRoles<T extends { startDate: Date | null, endDate: Date | null }>(roles: T[]): T[] {
-  return roles.filter(isRoleActive);
+export function filterActiveRoles<T extends { startDate: Date | null, endDate: Date | null }>(roles: T[], at?: Date): T[] {
+  return roles.filter(role => at ? isRoleActiveAt(role, at) : isRoleActive(role));
 }
 
 /**
@@ -480,3 +482,58 @@ export function getRoleNameForPerson(
   return '';
 }
 
+
+/**
+ * The translation keys getRoleText needs. Satisfied by useTranslations('Person')
+ * on the client and getTranslations({ namespace: 'Person' }) on the server.
+ */
+export type RoleTextTranslator = (key: 'mayor' | 'president' | 'partyLeader' | 'member') => string;
+
+/**
+ * Human-readable text for a single role — the label the site's badges render.
+ */
+export function getRoleText(role: RoleWithRelations, t: RoleTextTranslator): string {
+  // Party roles (has partyId)
+  if (role.partyId && role.party) {
+    const text = role.party.name;
+    if (role.isHead) return `${text} (${t('partyLeader')})`;
+    if (role.name) return `${text} - ${role.name}`;
+    return text;
+  }
+
+  // Administrative body roles (has administrativeBodyId)
+  if (role.administrativeBodyId && role.administrativeBody) {
+    // For administrative body roles, show role name first (e.g., "President"), then body name
+    if (role.name) {
+      return `${role.name} - ${role.administrativeBody.name}`;
+    }
+    // If no role name but is head, use the localized "president" label
+    if (role.isHead) {
+      return `${t('president')} - ${role.administrativeBody.name}`;
+    }
+    // Otherwise just show the administrative body name
+    return role.administrativeBody.name;
+  }
+
+  // City-level roles (has cityId but no partyId or administrativeBodyId, e.g., mayor)
+  if (role.cityId && !role.partyId && !role.administrativeBodyId) {
+    if (role.isHead) return t('mayor');
+    return role.name || t('member');
+  }
+
+  return role.name || t('member');
+}
+
+/**
+ * The label for a person's most prominent role active at a date — the same
+ * text the site's badges render (getPrimaryRole + getRoleText). Null when no
+ * role is active at that date.
+ */
+export function getRoleLabelAt(
+  roles: RoleWithRelations[] | undefined,
+  t: RoleTextTranslator,
+  at: Date
+): string | null {
+  const primary = getPrimaryRole(filterActiveRoles(roles ?? [], at));
+  return primary ? getRoleText(primary, t) : null;
+}

@@ -1,5 +1,6 @@
 import { Role, Party } from '@prisma/client';
-import { getSpeakerDisplayInfo, getPartyFromRoles, isRoleActiveAt, sortRolesByPriority, getPrimaryRole, simplifyRoleName } from '../roles';
+import { getSpeakerDisplayInfo, getPartyFromRoles, isRoleActiveAt, sortRolesByPriority, getPrimaryRole, simplifyRoleName, getRoleText, getRoleLabelAt } from '../roles';
+import { RoleWithRelations } from '@/lib/db/types';
 
 function makeRole(overrides: Partial<Role> & { party?: Party | null } = {}): Role & { party?: Party | null; cityId?: string | null } {
   return {
@@ -546,5 +547,95 @@ describe('simplifyRoleName', () => {
   it('passes through unrelated role names unchanged', () => {
     expect(simplifyRoleName('Δήμαρχος')).toBe('Δήμαρχος');
     expect(simplifyRoleName('Πρόεδρος')).toBe('Πρόεδρος');
+  });
+});
+
+// --- getRoleText / getRoleLabelAt (the label MCP and the badges share) ---
+
+const roleT = (key: 'mayor' | 'president' | 'partyLeader' | 'member') =>
+  ({ mayor: 'Δήμαρχος', president: 'Πρόεδρος', partyLeader: 'Επικεφαλής', member: 'Μέλος' }[key]);
+
+function makeAdminBody(name: string) {
+  return {
+    id: 'body-1',
+    cityId: 'city-1',
+    name,
+    name_en: name,
+    type: 'community' as const,
+    notificationBehavior: 'NOTIFICATIONS_DISABLED' as const,
+    showUnreviewedTranscript: false,
+    youtubeChannelUrl: null,
+    contactEmails: [],
+    diavgeiaUnitIds: [],
+    createdAt: new Date('2020-01-01'),
+    updatedAt: new Date('2020-01-01'),
+  };
+}
+
+function makeFullRole(overrides: Partial<RoleWithRelations> = {}): RoleWithRelations {
+  return { ...makeRole(), party: null, administrativeBody: null, city: null, ...overrides } as RoleWithRelations;
+}
+
+describe('getRoleText', () => {
+  it('labels a city head as mayor', () => {
+    const role = makeFullRole({ cityId: 'city-1', isHead: true });
+    expect(getRoleText(role, roleT)).toBe('Δήμαρχος');
+  });
+
+  it('never labels a non-city head as mayor (admin-body chair with null name)', () => {
+    const role = makeFullRole({
+      administrativeBodyId: 'body-1',
+      administrativeBody: makeAdminBody('6η Δημοτική Κοινότητα'),
+      isHead: true,
+    });
+    expect(getRoleText(role, roleT)).toBe('Πρόεδρος - 6η Δημοτική Κοινότητα');
+  });
+
+  it('labels a party head with the party name and leader suffix', () => {
+    const party = makeParty({ name: 'Αθήνα Ψηλά' });
+    const role = makeFullRole({ partyId: party.id, party, isHead: true });
+    expect(getRoleText(role, roleT)).toBe('Αθήνα Ψηλά (Επικεφαλής)');
+  });
+
+  it('labels a plain party member with the party name', () => {
+    const party = makeParty({ name: 'Αθήνα Τώρα' });
+    const role = makeFullRole({ partyId: party.id, party });
+    expect(getRoleText(role, roleT)).toBe('Αθήνα Τώρα');
+  });
+
+  it('prefers the stored role name on a named admin-body role', () => {
+    const role = makeFullRole({
+      name: 'Αντιπρόεδρος',
+      administrativeBodyId: 'body-1',
+      administrativeBody: makeAdminBody('Δημοτική Επιτροπή'),
+      isHead: true,
+    });
+    expect(getRoleText(role, roleT)).toBe('Αντιπρόεδρος - Δημοτική Επιτροπή');
+  });
+});
+
+describe('getRoleLabelAt', () => {
+  it('picks the most prominent role active at the date', () => {
+    const party = makeParty({ name: 'Αθήνα Ψηλά' });
+    const roles = [
+      makeFullRole({ id: 'party-role', partyId: party.id, party, isHead: true }),
+      makeFullRole({ id: 'chair', administrativeBodyId: 'body-1', administrativeBody: makeAdminBody('6η Δημοτική Κοινότητα'), isHead: true }),
+    ];
+    // admin-body head (priority 2) outranks party head (priority 3)
+    expect(getRoleLabelAt(roles, roleT, meetingDate)).toBe('Πρόεδρος - 6η Δημοτική Κοινότητα');
+  });
+
+  it('ignores roles that ended before the meeting date', () => {
+    const party = makeParty({ name: 'Αθήνα Τώρα' });
+    const roles = [
+      makeFullRole({ id: 'old-mayor', cityId: 'city-1', isHead: true, endDate: new Date('2023-12-31') }),
+      makeFullRole({ id: 'party-role', partyId: party.id, party }),
+    ];
+    expect(getRoleLabelAt(roles, roleT, meetingDate)).toBe('Αθήνα Τώρα');
+  });
+
+  it('returns null when no role is active', () => {
+    expect(getRoleLabelAt(undefined, roleT, meetingDate)).toBeNull();
+    expect(getRoleLabelAt([makeFullRole({ endDate: new Date('2020-06-01') })], roleT, meetingDate)).toBeNull();
   });
 });
