@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DEFAULT_CONFIG, Deps, Effort, Prompts } from "@/agent/types";
+import { env } from "@/env.mjs";
 import { realAnthropic } from "./anthropic";
 import { McpClient } from "./mcp-client";
 
@@ -27,7 +28,7 @@ export const shippedPrompts: Prompts = {
   editorial: fs.readFileSync(path.join(PROMPTS_DIR, "editorial.md"), "utf8"),
 };
 
-const sharedMcp = new McpClient(DEFAULT_CONFIG.mcpUrl);
+const sharedMcp = new McpClient(env.NOTIS_MCP_URL);
 
 export interface DepsOverrides {
   promptOverride?: string;
@@ -49,7 +50,7 @@ export function buildDeps(overrides: DepsOverrides = {}): Deps {
     config: {
       model: overrides.model ?? DEFAULT_CONFIG.model,
       maxTurns: Math.max(1, Math.min(12, overrides.maxTurns ?? DEFAULT_CONFIG.maxTurns)),
-      mcpUrl: DEFAULT_CONFIG.mcpUrl,
+      mcpUrl: env.NOTIS_MCP_URL,
       effort: overrides.effort ?? DEFAULT_CONFIG.effort,
     },
     mcp: sharedMcp,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { applyOutcome, runWake } from "@/agent/runWake";
 import { effortSchema, wakeEventSchema, wakeStateSchema } from "@/agent/schemas";
+import { errorResponse, parseJsonBody } from "@/lib/api";
 import { buildDeps } from "@/lib/deps";
 
 export const maxDuration = 120;
@@ -23,12 +24,10 @@ const requestSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  const parsed = requestSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) {
-    return NextResponse.json({ error: "invalid request", issues: parsed.error.issues }, { status: 400 });
-  }
+  const { data, error } = await parseJsonBody(request, requestSchema);
+  if (error) return error;
 
-  const { state, event, options } = parsed.data;
+  const { state, event, options } = data;
   const deps = buildDeps(options ?? {});
 
   try {
@@ -38,10 +37,7 @@ export async function POST(request: NextRequest) {
       trace,
       appliedState: applyOutcome(state, outcome),
     });
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "wake failed" },
-      { status: 502 },
-    );
+  } catch (e) {
+    return errorResponse(e);
   }
 }
