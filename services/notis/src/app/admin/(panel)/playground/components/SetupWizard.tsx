@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, MapPin, X } from "lucide-react";
-import { renderTemplate } from "@/agent/templates";
+import { introTemplateFor, renderTemplate } from "@/agent/templates";
 import { CityPreference, WakeState } from "@/agent/types";
 import { CityOption, TopicOption, fetchCities, fetchMeetings, fetchTopics, geocode } from "../api";
 import { MeetingSummary, deriveQueue } from "../deriveQueue";
-import { LocationPoint, Sim } from "../types";
+import { LocationPoint, Origin, Sim } from "../types";
 import { AddressSearch } from "./AddressSearch";
 import { LocationsMap, MapFocus } from "./LocationsMap";
 
@@ -46,7 +46,7 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
   const [profile, setProfile] = useState(
     "Μένει στην πόλη χρόνια. Ενδιαφέρεται για όσα αλλάζουν την καθημερινότητά της.",
   );
-  const [origin, setOrigin] = useState<"transition" | "signup">("transition");
+  const [origin, setOrigin] = useState<Origin>("transition");
   const [from, setFrom] = useState("2026-05-01");
 
   useEffect(() => {
@@ -101,7 +101,7 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
       // Enrollment sends the origin-appropriate template before any wake; it
       // enters the journal so the agent knows the reader already got an intro.
       const startAt = new Date(from).toISOString();
-      const introTemplate = origin === "transition" ? "demos_transition" : "demos_intro";
+      const introTemplate = introTemplateFor(origin);
       const rendered = renderTemplate(introTemplate);
       const state: WakeState = {
         user: { name, cities: drafts.map(({ points: _p, center: _c, ...pref }) => pref) },
@@ -125,7 +125,6 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
           state,
           clock: startAt,
           queue,
-          cursor: 0,
           settings: {},
           locationPoints: Object.fromEntries(drafts.map((d) => [d.cityId, d.points])),
           origin,

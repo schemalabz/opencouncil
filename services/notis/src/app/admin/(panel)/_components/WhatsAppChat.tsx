@@ -13,8 +13,10 @@ import {
 } from "lucide-react";
 /* eslint-disable @next/next/no-img-element */
 import { Button } from "@opencouncil/ui/button";
-import { RenderedTemplate, renderTemplate } from "@/agent/templates";
-import { WakeRecord } from "../_lib/records";
+import { RenderedTemplate, introTemplateFor, renderTemplate } from "@/agent/templates";
+import { fmtDateChip, fmtTime } from "../_lib/format";
+import { Origin, WakeRecord } from "../_lib/records";
+import { WA } from "../_lib/whatsapp";
 
 /** Simulator affordances — omit them for the read-only conversation viewer. */
 export interface SimControls {
@@ -31,7 +33,7 @@ export interface SimControls {
 interface Props {
   records: WakeRecord[];
   clock: string;
-  origin: "transition" | "signup";
+  origin: Origin;
   startAt: string;
   selectedId?: string;
   /** The record currently being run — its user bubble renders instantly. */
@@ -40,21 +42,11 @@ interface Props {
   sim?: SimControls;
 }
 
-/* WhatsApp visual constants */
-const BG = "#efeae2";
-const OUT = "#d9fdd3"; // user bubbles (right)
+/* WhatsApp visual constants (palette lives in ../_lib/whatsapp) */
+const BG = WA.chatBg;
+const OUT = WA.outBubble; // user bubbles (right)
 const PATTERN =
   "radial-gradient(circle at 1px 1px, rgba(60,50,30,0.055) 1px, transparent 0)";
-
-function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("el-GR", { hour: "2-digit", minute: "2-digit" });
-}
-
-function fmtDateChip(iso: string): string {
-  return new Date(iso)
-    .toLocaleDateString("el-GR", { weekday: "long", day: "numeric", month: "long" })
-    .toUpperCase();
-}
 
 function eventCaption(item: WakeRecord): string {
   const e = item.event;
@@ -172,7 +164,12 @@ function LinkPreview({ url }: { url: string }) {
 function Ticks({ live }: { live: boolean }) {
   const [stage, setStage] = useState(live ? 0 : 2);
   useEffect(() => {
-    if (!live) return;
+    if (!live) {
+      // The run can end (or error out) before the animation does — the prop
+      // flips to "read", and without this the tick froze grey forever.
+      setStage(2);
+      return;
+    }
     const delivered = setTimeout(() => setStage(1), 500);
     const read = setTimeout(() => setStage(2), 1400);
     return () => {
@@ -291,7 +288,10 @@ function TemplateBubble({
           {rendered.buttons.map((b) => (
             <button
               key={b.label}
-              disabled={busy || b.kind === "url"}
+              // In the read-only viewer there is no onQuickReply: leave the
+              // button inert-and-disabled instead of an enabled no-op that
+              // also swallows bubble selection.
+              disabled={busy || b.kind === "url" || !onQuickReply}
               onClick={(e) => {
                 e.stopPropagation();
                 if (b.kind === "quick_reply") onQuickReply?.(b.label);
@@ -324,6 +324,41 @@ function SilenceChip({ item, selected, onClick }: { item: WakeRecord; selected: 
   );
 }
 
+/**
+ * The composer owns its draft: typing must not re-render the whole thread
+ * (every bubble, every renderTemplate, every LinkPreview) on each keystroke.
+ */
+function Composer({ disabled, onSend }: { disabled: boolean; onSend(text: string): void }) {
+  const [draft, setDraft] = useState("");
+  return (
+    <form
+      className="flex items-center gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!draft.trim()) return;
+        onSend(draft.trim());
+        setDraft("");
+      }}
+    >
+      <input
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        placeholder="Γράψε ένα μήνυμα"
+        disabled={disabled}
+        className="h-10 flex-1 rounded-full bg-white px-4 text-sm text-[#111b21] placeholder:text-[#8696a0] focus:outline-none"
+      />
+      <button
+        type="submit"
+        disabled={disabled || !draft.trim()}
+        aria-label="Στείλε"
+        className="flex h-10 w-10 items-center justify-center rounded-full bg-[#25d366] text-white shadow disabled:opacity-40"
+      >
+        <Send className="h-4 w-4" />
+      </button>
+    </form>
+  );
+}
+
 export function WhatsAppChat({
   records,
   clock,
@@ -334,7 +369,6 @@ export function WhatsAppChat({
   onSelect,
   sim,
 }: Props) {
-  const [draft, setDraft] = useState("");
   const threadRef = useRef<HTMLDivElement>(null);
   const busy = sim?.busy ?? false;
   const autoRun = sim?.autoRun ?? false;
@@ -345,7 +379,7 @@ export function WhatsAppChat({
   // returns records to pending without running them) clears their bubbles.
   const visible = records.filter((q) => q.status !== "pending" || q.id === busyItemId);
   const next = records.find((q) => q.status === "pending");
-  const intro = renderTemplate(origin === "transition" ? "demos_transition" : "demos_intro");
+  const intro = renderTemplate(introTemplateFor(origin));
   const introAt = new Date(startAt).toISOString();
 
   // Scroll ONLY the thread container. Never scrollIntoView here: it walks and
@@ -538,31 +572,7 @@ export function WhatsAppChat({
             <SkipForward className="h-3.5 w-3.5" />
           </Button>
         </div>
-        <form
-          className="flex items-center gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!draft.trim()) return;
-            sim?.onUserMessage(draft.trim());
-            setDraft("");
-          }}
-        >
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="Γράψε ένα μήνυμα"
-            disabled={busy || autoRun}
-            className="h-10 flex-1 rounded-full bg-white px-4 text-sm text-[#111b21] placeholder:text-[#8696a0] focus:outline-none"
-          />
-          <button
-            type="submit"
-            disabled={busy || autoRun || !draft.trim()}
-            aria-label="Στείλε"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-[#25d366] text-white shadow disabled:opacity-40"
-          >
-            <Send className="h-4 w-4" />
-          </button>
-        </form>
+        <Composer disabled={busy || autoRun} onSend={sim.onUserMessage} />
       </div>
       )}
     </div>

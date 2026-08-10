@@ -1,5 +1,5 @@
 import { WakeTrace } from "@/agent/types";
-import { CityMeta, WakeRecord } from "./records";
+import { CityMeta, WakeRecord, Origin } from "./records";
 
 /**
  * Conversation listing + loading. PR 1 has no database, so the list is empty
@@ -13,7 +13,7 @@ export interface ConversationSummary {
   userName: string;
   phone: string;
   cityNames: string[];
-  origin: "transition" | "signup";
+  origin: Origin;
   startedAt: string;
   lastActivityAt: string;
   messagesSent: number;

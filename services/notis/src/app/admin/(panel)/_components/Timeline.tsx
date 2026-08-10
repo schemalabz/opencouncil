@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { AlarmClock, FileText, ListTodo, MessageCircle, Moon } from "lucide-react";
 import { MeetingDetails, fetchMeetingDetails } from "../_lib/meetings";
 import { CityMeta, WakeRecord } from "../_lib/records";
+import { fmtLongDate } from "../_lib/format";
+import { WA } from "../_lib/whatsapp";
 
 interface Props {
   records: WakeRecord[];
@@ -162,9 +164,8 @@ export function Timeline({ records, cityMeta, selectedId, busyItemId, onSelect }
                 } ${item.status === "skipped" ? "opacity-50" : ""}`}
               >
                 <span
-                  className={`${circleClasses(item, isNext, item.id === selectedId, item.id === busyItemId)} ${
-                    isUserMsg ? "!bg-[#d9fdd3]" : ""
-                  }`}
+                  className={circleClasses(item, isNext, item.id === selectedId, item.id === busyItemId)}
+                  style={isUserMsg ? { backgroundColor: WA.outBubble } : undefined}
                 >
                   {logo ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -208,7 +209,7 @@ export function Timeline({ records, cityMeta, selectedId, busyItemId, onSelect }
                   </span>
                 )}
                 {messages > 0 && (
-                  <span className="absolute -right-1 -top-1 flex h-[20px] min-w-[20px] items-center justify-center rounded-full border-2 border-background bg-[#25d366] px-0.5 text-[10px] font-bold text-white">
+                  <span className="absolute -right-1 -top-1 flex h-[20px] min-w-[20px] items-center justify-center rounded-full border-2 border-background px-0.5 text-[10px] font-bold text-white" style={{ backgroundColor: WA.sendGreen }}>
                     {messages}
                   </span>
                 )}
@@ -248,11 +249,7 @@ function HoverCard({
   const meeting = isMeetingEvent(item) ? item.event : null;
   const city = meeting ? cityMeta?.[meeting.cityId] : undefined;
   const md = meeting ? details[`${meeting.cityId}:${meeting.meetingId}`] : undefined;
-  const when = new Date(e.at).toLocaleDateString("el-GR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
+  const when = fmtLongDate(e.at);
 
   return (
     <div

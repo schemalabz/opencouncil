@@ -1,4 +1,5 @@
 import { TEMPLATES } from "@/agent/templates";
+import { WA } from "../_lib/whatsapp";
 import { PageHeader } from "../_components/PageHeader";
 
 export const metadata = { title: "Templates · Νότης admin" };
@@ -44,7 +45,8 @@ export default function TemplatesPage() {
                 {t.buttons.map((b) => (
                   <span
                     key={b.label}
-                    className="rounded-full border px-2.5 py-0.5 text-xs text-[#027eb5]"
+                    className="rounded-full border px-2.5 py-0.5 text-xs"
+                    style={{ color: WA.link }}
                   >
                     {b.kind === "url" ? "↗ " : ""}
                     {b.label}

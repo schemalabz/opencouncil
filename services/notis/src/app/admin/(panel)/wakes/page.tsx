@@ -1,4 +1,6 @@
 import { Activity } from "lucide-react";
+import Link from "next/link";
+import { fmtDateTime } from "../_lib/format";
 import { EmptyState } from "../_components/EmptyState";
 import { PageHeader } from "../_components/PageHeader";
 import { listRecentWakes } from "../_lib/wakes";
@@ -41,14 +43,14 @@ export default function WakesPage() {
             <tbody>
               {wakes.map((w) => (
                 <tr key={w.id} className="border-b hover:bg-muted/40">
-                  <td className="py-2.5 pr-4 text-xs tabular-nums">{w.at.slice(0, 16)}</td>
+                  <td className="py-2.5 pr-4 text-xs tabular-nums">{fmtDateTime(w.at)}</td>
                   <td className="pr-4">
-                    <a
+                    <Link
                       href={`/admin/conversations/${w.conversationId}`}
                       className="hover:underline"
                     >
                       {w.userName}
-                    </a>
+                    </Link>
                   </td>
                   <td className="pr-4 text-xs">{w.eventType}</td>
                   <td className="pr-4">

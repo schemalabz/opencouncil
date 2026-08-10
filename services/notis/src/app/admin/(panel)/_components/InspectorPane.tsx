@@ -6,6 +6,7 @@ import { Badge } from "@opencouncil/ui/badge";
 import { Button } from "@opencouncil/ui/button";
 import { WakeTrace } from "@/agent/types";
 import { WakeRecord } from "../_lib/records";
+import { fmtInt } from "../_lib/format";
 import { EmptyState } from "./EmptyState";
 
 /** Simulator-only actions — omit them for the read-only conversation viewer. */
@@ -23,6 +24,13 @@ interface Props {
 }
 
 type Tab = "rationale" | "tools" | "context" | "cost";
+
+/** Shown wherever a tab needs a trace the LRU has already evicted. */
+function TraceGone() {
+  return (
+    <p className="text-muted-foreground">Το trace αυτού του βήματος έχει απομακρυνθεί (LRU).</p>
+  );
+}
 
 interface RawBlock {
   type?: string;
@@ -168,7 +176,7 @@ export function InspectorPane({ item, trace, profile, sim }: Props) {
               </div>
             ))
           ) : (
-            <p className="text-muted-foreground">Το trace αυτού του βήματος έχει απομακρυνθεί (LRU).</p>
+            <TraceGone />
           ))}
 
         {tab === "context" &&
@@ -178,7 +186,7 @@ export function InspectorPane({ item, trace, profile, sim }: Props) {
                 <details key={i} className="rounded border p-2">
                   <summary className="cursor-pointer text-xs">
                     system[{i}] {s.cached && <Badge variant="outline">cached</Badge>} ·{" "}
-                    {s.text.length.toLocaleString()} chars
+                    {fmtInt(s.text.length)} chars
                   </summary>
                   <pre className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap text-xs">
                     {s.text}
@@ -187,7 +195,7 @@ export function InspectorPane({ item, trace, profile, sim }: Props) {
               ))}
               <details className="rounded border p-2" open>
                 <summary className="cursor-pointer text-xs">
-                  user turn · {trace.userTurn.length.toLocaleString()} chars
+                  user turn · {fmtInt(trace.userTurn.length)} chars
                 </summary>
                 <pre className="mt-2 max-h-96 overflow-y-auto whitespace-pre-wrap text-xs">
                   {trace.userTurn}
@@ -195,7 +203,7 @@ export function InspectorPane({ item, trace, profile, sim }: Props) {
               </details>
             </>
           ) : (
-            <p className="text-muted-foreground">Το trace αυτού του βήματος έχει απομακρυνθεί (LRU).</p>
+            <TraceGone />
           ))}
 
         {tab === "cost" &&
@@ -204,19 +212,19 @@ export function InspectorPane({ item, trace, profile, sim }: Props) {
               <tbody>
                 <tr>
                   <td>input</td>
-                  <td className="text-right">{trace.usageTotal.input.toLocaleString()}</td>
+                  <td className="text-right">{fmtInt(trace.usageTotal.input)}</td>
                 </tr>
                 <tr>
                   <td>output</td>
-                  <td className="text-right">{trace.usageTotal.output.toLocaleString()}</td>
+                  <td className="text-right">{fmtInt(trace.usageTotal.output)}</td>
                 </tr>
                 <tr>
                   <td>cache write</td>
-                  <td className="text-right">{trace.usageTotal.cacheWrite.toLocaleString()}</td>
+                  <td className="text-right">{fmtInt(trace.usageTotal.cacheWrite)}</td>
                 </tr>
                 <tr>
                   <td>cache read</td>
-                  <td className="text-right">{trace.usageTotal.cacheRead.toLocaleString()}</td>
+                  <td className="text-right">{fmtInt(trace.usageTotal.cacheRead)}</td>
                 </tr>
                 <tr className="font-medium">
                   <td>κόστος</td>
@@ -229,7 +237,7 @@ export function InspectorPane({ item, trace, profile, sim }: Props) {
               </tbody>
             </table>
           ) : (
-            <p className="text-muted-foreground">Το trace αυτού του βήματος έχει απομακρυνθεί (LRU).</p>
+            <TraceGone />
           ))}
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { EditorialBrief, WakeEvent, WakeOutcome, WakeState, WakeTrace } from "@/agent/types";
 import { post } from "../_lib/http";
 import { MeetingSummary } from "./deriveQueue";
+import { LocationPoint } from "./types";
 
 export interface CityOption {
   id: string;
@@ -79,12 +80,6 @@ export async function dryRun(
   return post<DryRunResult>("/api/dry-run", { state, event, options });
 }
 
-export interface GeocodeHit {
-  text: string;
-  lng: number;
-  lat: number;
-}
-
 /**
  * Mapbox forward geocoding, biased to Greece and Greek results. Runs client
  * side (the token is public). Returns [] when no token is configured.
@@ -94,7 +89,7 @@ export async function geocode(
   token: string | undefined,
   proximity?: { lng: number; lat: number },
   types = "address,neighborhood,locality,place,poi",
-): Promise<GeocodeHit[]> {
+): Promise<LocationPoint[]> {
   if (!token || query.trim().length < 3) return [];
   const url =
     `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json` +

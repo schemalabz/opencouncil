@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Loader2, MapPin, Plus } from "lucide-react";
-import { GeocodeHit, geocode } from "../api";
+import { geocode } from "../api";
+import { LocationPoint } from "../types";
 
 interface Props {
   token: string | undefined;
   proximity?: { lng: number; lat: number } | null;
   placeholder?: string;
-  onPick(hit: GeocodeHit): void;
+  onPick(hit: LocationPoint): void;
 }
 
 /**
@@ -18,7 +19,7 @@ interface Props {
  */
 export function AddressSearch({ token, proximity, placeholder, onPick }: Props) {
   const [query, setQuery] = useState("");
-  const [hits, setHits] = useState<GeocodeHit[]>([]);
+  const [hits, setHits] = useState<LocationPoint[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const seq = useRef(0);
@@ -32,17 +33,23 @@ export function AddressSearch({ token, proximity, placeholder, onPick }: Props) 
     setLoading(true);
     const mine = ++seq.current;
     const t = setTimeout(async () => {
-      const results = await geocode(query, token, proximity ?? undefined);
-      if (seq.current === mine) {
-        setHits(results);
-        setOpen(true);
-        setLoading(false);
+      try {
+        const results = await geocode(query, token, proximity ?? undefined);
+        if (seq.current === mine) {
+          setHits(results);
+          setOpen(true);
+        }
+      } catch {
+        // Network failure mid-typing: show nothing rather than an eternal spinner.
+        if (seq.current === mine) setHits([]);
+      } finally {
+        if (seq.current === mine) setLoading(false);
       }
     }, 280);
     return () => clearTimeout(t);
   }, [query, token, proximity]);
 
-  function pick(hit: GeocodeHit) {
+  function pick(hit: LocationPoint) {
     onPick(hit);
     setQuery("");
     setHits([]);

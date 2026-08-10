@@ -1,7 +1,7 @@
 "use client";
 
 import { WakeTrace } from "@/agent/types";
-import { CityMeta, WakeRecord } from "../_lib/records";
+import { CityMeta, Origin, WakeRecord } from "../_lib/records";
 import { InspectorPane, InspectorSimActions } from "./InspectorPane";
 import { Timeline } from "./Timeline";
 import { SimControls, WhatsAppChat } from "./WhatsAppChat";
@@ -15,7 +15,7 @@ interface Props {
   records: WakeRecord[];
   cityMeta?: CityMeta;
   clock: string;
-  origin: "transition" | "signup";
+  origin: Origin;
   startAt: string;
   profile: string;
   selectedId?: string;

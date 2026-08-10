@@ -1,8 +1,10 @@
 import { MessagesSquare } from "lucide-react";
+import Link from "next/link";
 import { EmptyState } from "../_components/EmptyState";
 import { PageHeader } from "../_components/PageHeader";
 import { StopBadge } from "../_components/StopBadge";
 import { listConversations } from "../_lib/conversations";
+import { fmtDate } from "../_lib/format";
 
 export const metadata = { title: "Συνομιλίες · Νότης admin" };
 
@@ -32,14 +34,14 @@ export default function ConversationsPage() {
             {conversations.map((c) => (
               <tr key={c.id} className="border-b hover:bg-muted/40">
                 <td className="py-2.5 pr-4">
-                  <a href={`/admin/conversations/${c.id}`} className="font-medium hover:underline">
+                  <Link href={`/admin/conversations/${c.id}`} className="font-medium hover:underline">
                     {c.userName}
-                  </a>
+                  </Link>
                   <span className="ml-2 text-xs text-muted-foreground">{c.phone}</span>
                 </td>
                 <td className="pr-4">{c.cityNames.join(", ")}</td>
-                <td className="pr-4 text-xs">{c.startedAt.slice(0, 10)}</td>
-                <td className="pr-4 text-xs">{c.lastActivityAt.slice(0, 10)}</td>
+                <td className="pr-4 text-xs">{fmtDate(c.startedAt)}</td>
+                <td className="pr-4 text-xs">{fmtDate(c.lastActivityAt)}</td>
                 <td className="pr-4 tabular-nums">
                   {c.messagesSent} ↦ · {c.messagesReceived} ↤
                 </td>

@@ -117,6 +117,11 @@ export function renderTemplate(name: TemplateName, text = ""): RenderedTemplate 
   return { template: name, body, footer: def.footer, buttons: def.buttons };
 }
 
+/** Which shell opens the thread, by how the reader entered Notis. */
+export function introTemplateFor(origin: "transition" | "signup"): TemplateName {
+  return origin === "transition" ? "demos_transition" : "demos_intro";
+}
+
 /** Which shell a cold proactive send must use, by the event that woke the agent. */
 export function templateForEvent(eventType: WakeEvent["type"]): TemplateName {
   switch (eventType) {
