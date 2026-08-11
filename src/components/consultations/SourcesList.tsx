@@ -1,9 +1,13 @@
 import { ExternalLink, FileText, Printer } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Source } from "./types";
+import type { Realm } from "@prisma/client";
+import { getRealmContactPhone } from "@/lib/realm";
 
 interface SourcesListProps {
     sources: Source[];
+    /** the request's realm, resolved server-side — picks the support phone number */
+    realm: Realm;
     contactEmail: string;
     ccEmails?: string[];
     consultationId?: string;
@@ -15,7 +19,8 @@ export default function SourcesList({
     contactEmail,
     ccEmails,
     consultationId,
-    cityId
+    cityId,
+    realm
 }: SourcesListProps) {
     if (sources.length === 0) return null;
 
@@ -122,7 +127,7 @@ export default function SourcesList({
                             {process.env.NEXT_PUBLIC_CONTACT_EMAIL}
                         </a>
                         <p className="text-sm text-blue-600">
-                            {process.env.NEXT_PUBLIC_CONTACT_PHONE}
+                            {getRealmContactPhone(realm)}
                         </p>
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">

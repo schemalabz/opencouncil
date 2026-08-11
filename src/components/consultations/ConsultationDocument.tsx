@@ -13,6 +13,7 @@ import SourcesList from "./SourcesList";
 import MarkdownContent from "./MarkdownContent";
 import { RegulationData, ReferenceFormat, CurrentUser } from "./types";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
+import type { Realm } from "@prisma/client";
 
 interface ConsultationDocumentProps {
     regulationData: RegulationData | null;
@@ -27,6 +28,8 @@ interface ConsultationDocumentProps {
     currentUser?: CurrentUser;
     consultationId?: string;
     cityId?: string;
+    /** the request's realm, resolved server-side — picks the support phone number */
+    realm: Realm;
     consultationIsActive?: boolean; // Add consultation active status
 }
 
@@ -95,6 +98,7 @@ export default function ConsultationDocument({
     currentUser,
     consultationId,
     cityId,
+    realm,
     consultationIsActive = true // Default to true for backward compatibility
 }: ConsultationDocumentProps) {
 
@@ -261,6 +265,7 @@ export default function ConsultationDocument({
                         ccEmails={regulationData.ccEmails}
                         consultationId={consultationId}
                         cityId={cityId}
+                        realm={realm}
                     />
                 </div>
             </div>

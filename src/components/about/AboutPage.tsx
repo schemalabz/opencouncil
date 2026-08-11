@@ -250,7 +250,7 @@ export default function AboutPage({ citiesWithLogos = [], stats, githubStats, hi
             </div>
 
             {/* 9. CTA Footer (full-width primary bg) */}
-            <CTAFooter onContactClick={() => setIsContactFormOpen(true)} />
+            <CTAFooter onContactClick={() => setIsContactFormOpen(true)} realm={realm} />
 
             {/* Contact form popup (shared for Hero + CTAFooter) */}
             <ContactFormPopup

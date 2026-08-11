@@ -14,6 +14,7 @@ import ViewToggleButton from "./ViewToggleButton";
 import CommentsOverviewSheet from "./CommentsOverviewSheet";
 import MarkdownContent from "./MarkdownContent";
 
+import type { Realm } from "@prisma/client";
 import { RegulationData, CurrentUser } from "./types";
 import { ConsultationCommentWithUpvotes, ConsultationWithStatus } from "@/lib/db/consultations";
 import {
@@ -44,6 +45,8 @@ interface ConsultationViewerProps {
     currentUser?: CurrentUser;
     consultationId: string;
     cityId: string;
+    /** the request's realm, resolved server-side — picks the support phone number */
+    realm: Realm;
     cityName?: string;
     cityLogoUrl?: string | null;
 }
@@ -56,6 +59,7 @@ export default function ConsultationViewer({
     currentUser,
     consultationId,
     cityId,
+    realm,
     cityName,
     cityLogoUrl
 }: ConsultationViewerProps) {
@@ -463,6 +467,7 @@ export default function ConsultationViewer({
 
                 {/* Scrollable document content */}
                 <ConsultationDocument
+                    realm={realm}
                     regulationData={regulationData}
                     baseUrl={baseUrl}
                     className=""
