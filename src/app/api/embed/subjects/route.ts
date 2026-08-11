@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { env } from '@/env.mjs';
 import { getCityCached, getCityIdForGeohashCached } from '@/lib/cache';
 import { parseEmbedConfig } from '@/lib/utils/embedParams';
-import { getRecentHotSubjects, getHotSubjectsNearGeohash, type HotSubject } from '@/lib/hotSubjects';
-import { getLocationDistancesFromPoint } from '@/lib/db/location';
+import { getRecentHotSubjects, getHotSubjectsNearGeohash, withDistances, type HotSubject, type HotSubjectWithDistance } from '@/lib/hotSubjects';
 import { isValidGeohash, decodeGeohashToCenter } from '@/lib/geo';
 
 /**
@@ -60,22 +59,29 @@ export async function GET(req: NextRequest) {
             : await getRecentHotSubjects(city.id, { limit, administrativeBodyTypes, administrativeBodyIds })
         : [];
 
-    // Distance (m) from the geohash cell center to each located subject.
-    const distances = geohash
-        ? await getLocationDistancesFromPoint(
-            top.map(t => t.subject.locationId).filter((id): id is string => id != null),
-            decodeGeohashToCenter(geohash),
-        )
-        : new Map<string, number>();
+    // Distance (m) from the geohash cell center to each located subject. The
+    // distance query throws on failure; for the widget a render without
+    // distances beats an error, so degrade to nulls here.
+    let ranked: HotSubjectWithDistance[];
+    if (geohash) {
+        try {
+            ranked = await withDistances(top, decodeGeohashToCenter(geohash));
+        } catch (error) {
+            console.error('Distance query failed; rendering without distances:', error);
+            ranked = top.map(item => ({ ...item, distanceMeters: null }));
+        }
+    } else {
+        ranked = top.map(item => ({ ...item, distanceMeters: null }));
+    }
 
-    const subjects = top.map(({ subject, meeting }) => ({
+    const subjects = ranked.map(({ subject, meeting, distanceMeters }) => ({
         id: subject.id,
         name: subject.name,
         url: `${baseUrl}/${meeting.cityId}/${meeting.id}/subjects/${subject.id}`,
         meetingDate: meeting.dateTime,
         topic: subject.topic ? { name: subject.topic.name, colorHex: subject.topic.colorHex } : null,
         /** Meters from the geohash cell center; null for municipality-wide (no-location) subjects. */
-        distanceMeters: (subject.locationId && distances.get(subject.locationId)) ?? null,
+        distanceMeters,
     }));
 
     const located = subjects.map(s => s.distanceMeters).filter((d): d is number => d !== null);

@@ -4,7 +4,7 @@ import { PostHog } from 'posthog-node';
 import type { McpServer, AuthInfo } from '@modelcontextprotocol/server';
 import { env } from '@/env.mjs';
 import type { McpIdentity } from './auth';
-import { currentRealm } from './realm-context';
+import { currentBaseUrl, currentRealm } from './realm-context';
 
 /**
  * PostHog MCP Analytics (https://posthog.com/docs/mcp-analytics): captures
@@ -107,6 +107,12 @@ export function instrumentMcpAnalytics(server: McpServer): void {
         identify: identifyCaller,
         eventProperties: (_request: unknown, extra?: unknown) => ({
             realm: currentRealm(),
+            // $host mirrors what the browser SDK sends. The project's
+            // test-account filters key on it (localhost/:3000/preview/staging
+            // are excluded), so dev and preview MCP traffic drops out of
+            // filtered dashboards exactly like the site's own — without it,
+            // server-side events pass those clauses vacuously.
+            $host: new URL(currentBaseUrl()).host,
             // Marks events whose payloads beforeSend must scrub (below).
             mcp_authenticated: identityFromExtra(extra) !== null,
         }),

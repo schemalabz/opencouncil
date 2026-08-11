@@ -187,6 +187,32 @@ export async function getCityAtPoint(realm: Realm, lng: number, lat: number): Pr
     };
 }
 
+/**
+ * The realm's *listed* municipality whose boundary contains a point — the
+ * coverage-honest counterpart of getCityAtPoint, for callers that publish
+ * "OpenCouncil covers this place". We carry boundaries for far more δήμοι than
+ * we list (so the map can highlight any of them), so getCityAtPoint resolves
+ * municipalities we don't actually publish; this one answers null for those.
+ * Skips the geometry entirely — callers only need identity. Throws on query
+ * failure rather than masking it as "not covered".
+ */
+export async function getListedCityAtPoint(
+    realm: Realm,
+    lng: number,
+    lat: number
+): Promise<{ id: string; name: string } | null> {
+    const rows = await prisma.$queryRaw<Array<{ id: string; name: string }>>`
+        SELECT id, name
+        FROM "City"
+        WHERE realm = ${realm}::"Realm"
+          AND status = 'listed'
+          AND ${cityCoversPoint(lng, lat)}
+        ORDER BY ST_Area(geometry) ASC
+        LIMIT 1
+    `;
+    return rows[0] ?? null;
+}
+
 /** A cooperating municipality with its centroid + simplified boundary + logo, for the
  *  landing's "Municipalities map" mode (one logo marker per δήμος). */
 export type MapCityRow = {

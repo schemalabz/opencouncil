@@ -74,7 +74,7 @@ export default async function McpPage(props: { params: Promise<{ locale: string 
                     {t("hero.examplesTitle")}
                 </h2>
                 <ul className="mt-4 space-y-3">
-                    {(["example1", "example2", "example3"] as const).map(key => (
+                    {(["example1", "example2", "example3", "example4"] as const).map(key => (
                         <li
                             key={key}
                             className="border-l-2 border-orange/70 pl-4 leading-relaxed text-foreground/80"

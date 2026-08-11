@@ -17,6 +17,7 @@ import {
     mcpListCities,
     mcpListHighlights,
     mcpListHotSubjects,
+    mcpListNearbySubjects,
     mcpSetHighlightShowcase,
     mcpListMeetings,
     mcpListPeople,
@@ -99,6 +100,33 @@ export function registerOpenCouncilServer(server: McpServer) {
             }),
         },
         args => run(() => mcpListHotSubjects(args))
+    );
+
+    server.registerTool(
+        'list_nearby_subjects',
+        {
+            title: 'List subjects near a location',
+            description:
+                'Recent council subjects around a geographic point — "what has the council discussed ' +
+                'about this neighborhood" (for the decision and votes, follow up with get_subject). ' +
+                'Resolves the covered municipality containing the point, then returns subjects ' +
+                'pinned within the radius first, followed by recent municipality-wide subjects; each ' +
+                'group is ranked by a recency/discussion blend, like the site\'s own nearby widgets. ' +
+                'distanceMeters is the subject\'s distance from the point — null means a ' +
+                'municipality-wide subject with no pinned location, NOT something near the point, so ' +
+                'count only non-null distances when saying how much happened "nearby". Results only ' +
+                'cover the municipality\'s recent meetings: meetingsScanned and oldestMeetingScanned ' +
+                'bound the window, so report an empty list as "nothing since {oldestMeetingScanned}", ' +
+                'never as "nothing ever".',
+            inputSchema: z.object({
+                lat: z.number().min(-90).max(90).describe('Latitude (WGS84)'),
+                lng: z.number().min(-180).max(180).describe('Longitude (WGS84)'),
+                radiusMeters: z.number().int().min(50).max(10000).default(1000)
+                    .describe('Radius in meters around the point for location-pinned subjects'),
+                limit: z.number().int().min(1).max(50).default(10),
+            }),
+        },
+        args => run(() => mcpListNearbySubjects(args))
     );
 
     server.registerTool(
@@ -214,7 +242,9 @@ export function registerOpenCouncilServer(server: McpServer) {
             title: 'Get subject',
             description:
                 'Get a subject (agenda item) in detail: description, per-speaker contribution summaries, ' +
-                'decision, votes. Speaker `role` labels are resolved as of the meeting date (get_person ' +
+                'decision, votes. Carries its meeting context (meetingName, meetingDate, and ' +
+                'administrativeBody — the body that met, e.g. «Δημοτική Επιτροπή», or null when the ' +
+                'record names none). Speaker `role` labels are resolved as of the meeting date (get_person ' +
                 'lists roles across all time). Vote semantics: ABSTAIN is ΛΕΥΚΟ (a blank ballot, counted ' +
                 'in totalVotes); DID_NOT_VOTE is ΑΠΟΧΗ (a declaration of non-participation, not a vote). ' +
                 'For the verbatim discussion use get_subject_transcript.',

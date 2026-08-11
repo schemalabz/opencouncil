@@ -95,27 +95,27 @@ export async function filterLocationIdsWithinRadius(
     if (locationIds.length === 0) return [];
     const [lng, lat] = center;
 
-    try {
-        const rows = await prisma.$queryRaw<Array<{ id: string }>>`
-            SELECT id FROM "Location"
-            WHERE id = ANY(${locationIds}::text[])
-              AND type = 'point'
-              AND ST_DWithin(
-                CASE
-                  WHEN ST_X(coordinates::geometry) < 19.5 OR ST_X(coordinates::geometry) > 28.5
-                    OR ST_Y(coordinates::geometry) < 34.5 OR ST_Y(coordinates::geometry) > 41.5
-                  THEN ST_SetSRID(ST_MakePoint(ST_Y(coordinates::geometry), ST_X(coordinates::geometry)), 4326)::geography
-                  ELSE coordinates::geography
-                END,
-                ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
-                ${distanceInMeters}
-              )
-        `;
-        return rows.map(r => r.id);
-    } catch (error) {
-        console.error('Error filtering locations within radius:', error);
-        return [];
-    }
+    // Throws on query failure rather than returning [] — an empty result is a
+    // positive claim ("nothing pinned nearby") that callers publish, so a
+    // transient DB error must stay distinguishable from a quiet neighbourhood.
+    // Callers that prefer a degraded answer over an error (the embed widget)
+    // catch at their own boundary.
+    const rows = await prisma.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM "Location"
+        WHERE id = ANY(${locationIds}::text[])
+          AND type = 'point'
+          AND ST_DWithin(
+            CASE
+              WHEN ST_X(coordinates::geometry) < 19.5 OR ST_X(coordinates::geometry) > 28.5
+                OR ST_Y(coordinates::geometry) < 34.5 OR ST_Y(coordinates::geometry) > 41.5
+              THEN ST_SetSRID(ST_MakePoint(ST_Y(coordinates::geometry), ST_X(coordinates::geometry)), 4326)::geography
+              ELSE coordinates::geography
+            END,
+            ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
+            ${distanceInMeters}
+          )
+    `;
+    return rows.map(r => r.id);
 }
 
 /**
@@ -130,8 +130,9 @@ export async function getLocationDistancesFromPoint(
     if (locationIds.length === 0) return new Map();
     const [lng, lat] = center;
 
-    try {
-        const rows = await prisma.$queryRaw<Array<{ id: string; meters: number }>>`
+    // Throws on query failure — see filterLocationIdsWithinRadius: an empty
+    // map reads as "no pinned locations", which is a claim, not an error state.
+    const rows = await prisma.$queryRaw<Array<{ id: string; meters: number }>>`
             SELECT id, ST_Distance(
                 CASE
                   WHEN ST_X(coordinates::geometry) < 19.5 OR ST_X(coordinates::geometry) > 28.5
@@ -145,11 +146,7 @@ export async function getLocationDistancesFromPoint(
             WHERE id = ANY(${locationIds}::text[])
               AND type = 'point'
         `;
-        return new Map(rows.map(r => [r.id, Math.round(r.meters)]));
-    } catch (error) {
-        console.error('Error measuring location distances:', error);
-        return new Map();
-    }
+    return new Map(rows.map(r => [r.id, Math.round(r.meters)]));
 }
 
 /**
