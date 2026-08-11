@@ -96,7 +96,7 @@
     "csv-stringify": "^6.5.1",
     "date-fns": "^3.6.0",
     "date-fns-tz": "^3.2.0",
-    "docx": "^9.1.1",
+    "docx": "^9.7.1",
     "dompurify": "^3.4.1",
     "dotenv": "^16.4.5",
     "feed": "^5.1.0",
