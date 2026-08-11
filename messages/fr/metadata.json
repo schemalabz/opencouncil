@@ -1,0 +1,36 @@
+{
+  "city": {
+    "notFoundTitle": "Commune introuvable | OpenCouncil",
+    "notFoundDescription": "La commune que vous recherchez n'est pas disponible.",
+    "description": "Séances du conseil municipal de {cityName} : vidéos, transcriptions, points à l'ordre du jour et décisions, expliqués simplement.",
+    "ogAlt": "OpenCouncil — Séances du conseil municipal de {cityName}",
+    "author": "Commune de {cityName}",
+    "keywords": [
+      "conseil municipal",
+      "séances",
+      "collectivités locales"
+    ]
+  },
+  "people": {
+    "title": "Conseillers municipaux | {cityName} | OpenCouncil",
+    "shortTitle": "Conseillers municipaux | {cityName}",
+    "notFoundTitle": "Conseillers municipaux introuvables | OpenCouncil",
+    "notFoundDescription": "La liste des conseillers municipaux n'est pas disponible.",
+    "description": "Liste de tous les conseillers municipaux et adjoints au maire de {cityName}. {peopleCount} conseillers issus de {partiesCount} groupes, leurs profils et leur activité au conseil municipal.",
+    "ogAlt": "Conseillers municipaux de {cityName}",
+    "author": "Commune de {cityName}",
+    "keywords": [
+      "conseillers municipaux",
+      "conseil municipal",
+      "collectivités locales",
+      "adjoints au maire",
+      "groupes politiques",
+      "liste des conseillers",
+      "formations politiques"
+    ]
+  },
+  "parties": {
+    "title": "Groupes | {cityName} | OpenCouncil",
+    "description": "Les groupes politiques de {cityName}, leurs membres et leur activité au conseil municipal."
+  }
+}

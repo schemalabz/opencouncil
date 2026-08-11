@@ -1,0 +1,36 @@
+{
+  "city": {
+    "notFoundTitle": "Municipality not found | OpenCouncil",
+    "notFoundDescription": "The municipality you are looking for is not available.",
+    "description": "{cityName} council meetings: video, transcripts, agenda items and decisions, explained simply.",
+    "ogAlt": "OpenCouncil — {cityName} council meetings",
+    "author": "Municipality of {cityName}",
+    "keywords": [
+      "city council",
+      "council meetings",
+      "local government"
+    ]
+  },
+  "people": {
+    "title": "Councillors | {cityName} | OpenCouncil",
+    "shortTitle": "Councillors | {cityName}",
+    "notFoundTitle": "Councillors not found | OpenCouncil",
+    "notFoundDescription": "The list of councillors is not available.",
+    "description": "All councillors and deputy mayors of {cityName}. {peopleCount} councillors from {partiesCount} parties and groups, their profiles and their activity in the council.",
+    "ogAlt": "Councillors of {cityName}",
+    "author": "Municipality of {cityName}",
+    "keywords": [
+      "councillors",
+      "city council",
+      "local government",
+      "deputy mayors",
+      "council groups",
+      "list of councillors",
+      "political groups"
+    ]
+  },
+  "parties": {
+    "title": "Groups | {cityName} | OpenCouncil",
+    "description": "The council groups of {cityName}, their members and their activity in the council."
+  }
+}
