@@ -20,6 +20,7 @@ import {
     ShadingType,
     Table,
     TableCell,
+    TableLayoutType,
     TableRow,
     TextRun,
     VerticalAlign,
@@ -28,8 +29,20 @@ import {
 import type { Offer } from "@prisma/client";
 import { offerGrammar, type ProcurementLine } from "@/lib/offers/display";
 
-// ─── Typography (half-points) ───────────────────────────────────────────────
+// ─── Typography ─────────────────────────────────────────────────────────────
 
+/**
+ * Declared on the document defaults and on every heading style, so no host
+ * default leaks in. A .docx that names no font renders in whatever each app
+ * considers default — Word's theme font, Pages' Helvetica, Google Docs' Arial
+ * — and, worse, the apps' built-in Heading styles then supply their own family
+ * (and italics), so headings and body text diverge outside Word. Arial ships
+ * with Windows, macOS and Google Docs and covers Greek, so it renders the same
+ * everywhere. The budget-table column widths below are measured against it.
+ */
+export const FONT = "Arial";
+
+/** Run sizes, in half-points. */
 export const SIZE = {
     COVER_TITLE: 40, // 20pt
     COVER_SUB: 32, // 16pt
@@ -38,6 +51,15 @@ export const SIZE = {
     SMALL: 20, // 10pt
     LETTERHEAD: 16, // 8pt
 };
+
+// ─── Page geometry (twips) ──────────────────────────────────────────────────
+
+// Pinned rather than left to the library defaults, so the budget-table column
+// widths are known to add up to the text column: A4 minus one-inch margins.
+export const PAGE_WIDTH = 11906;
+export const PAGE_HEIGHT = 16838;
+export const PAGE_MARGIN = 1440;
+export const CONTENT_WIDTH = PAGE_WIDTH - 2 * PAGE_MARGIN;
 
 // ─── Text primitives ────────────────────────────────────────────────────────
 
@@ -272,9 +294,23 @@ export function buildSignature(): Paragraph[] {
 
 const VAT_RATE = 0.24;
 
-// Column widths in DXA — must sum to the table width (A4 content ≈ 9026).
-const COL_WIDTHS = [2626, 1300, 900, 1050, 1050, 1050, 1050];
+/**
+ * Column widths in DXA, summing to CONTENT_WIDTH.
+ *
+ * Word autofits tables and quietly widens columns to fit their content; Pages
+ * and Google Docs lay them out from the declared grid, so anything that
+ * doesn't fit wraps — the "Ποσότητα" header split mid-word and the euro
+ * amounts broke onto a second line there. Each width is at least the widest
+ * unbreakable token in its column (measured in Arial 10pt) plus the cell
+ * margins, so no cell breaks a word on any renderer. Keep them in sync with
+ * SIZE.SMALL, CELL_MARGIN and the longest labels if any of those change.
+ */
+const COL_WIDTHS = [2246, 1420, 1070, 1020, 1130, 1010, 1130];
 const TABLE_WIDTH = COL_WIDTHS.reduce((a, b) => a + b, 0);
+
+// Horizontal padding inside every budget-table cell, in DXA. Deducted from the
+// column widths above when checking that content fits.
+const CELL_MARGIN = 60;
 
 function cell(
     text: string,
@@ -284,7 +320,7 @@ function cell(
         width: { size: opts.width, type: WidthType.DXA },
         verticalAlign: VerticalAlign.CENTER,
         shading: opts.header ? { type: ShadingType.CLEAR, fill: "F2F2F2" } : undefined,
-        margins: { top: 60, bottom: 60, left: 100, right: 100 },
+        margins: { top: 60, bottom: 60, left: CELL_MARGIN, right: CELL_MARGIN },
         children: [
             new Paragraph({
                 alignment: opts.right ? AlignmentType.RIGHT : AlignmentType.LEFT,
@@ -375,6 +411,9 @@ export function buildBudgetTable(
         table: new Table({
             width: { size: TABLE_WIDTH, type: WidthType.DXA },
             columnWidths: COL_WIDTHS,
+            // Without a fixed layout Word re-autofits and the column widths
+            // above stop describing what anyone sees.
+            layout: TableLayoutType.FIXED,
             rows: [
                 headerRow,
                 ...dataRows,
@@ -411,12 +450,21 @@ export const DOC_NUMBERING = {
     ],
 };
 
+// Every heading style spells out italics and the font as well as weight and
+// colour: these styles override the app's built-in Heading 1/2/3, and whatever
+// they leave unset is inherited from it. Word's heading is blue Calibri Light,
+// LibreOffice's is italic sans, Pages' is its own display face — so headings
+// came out italic and in a different family than the body outside Word.
+const heading = (size: number) => ({
+    run: { size, bold: true, italics: false, color: "000000", font: FONT },
+});
+
 export const DOC_STYLES = {
     default: {
-        document: { run: { size: SIZE.BODY } },
-        heading1: { run: { size: 30, bold: true, color: "000000" } },
-        heading2: { run: { size: 26, bold: true, color: "000000" } },
-        heading3: { run: { size: 23, bold: true, color: "000000" } },
+        document: { run: { size: SIZE.BODY, font: FONT } },
+        heading1: heading(30),
+        heading2: heading(26),
+        heading3: heading(23),
     },
 };
 
@@ -437,7 +485,17 @@ export function procurementDocument(opts: {
         styles: DOC_STYLES,
         sections: [
             {
-                properties: {},
+                properties: {
+                    page: {
+                        size: { width: PAGE_WIDTH, height: PAGE_HEIGHT },
+                        margin: {
+                            top: PAGE_MARGIN,
+                            right: PAGE_MARGIN,
+                            bottom: PAGE_MARGIN,
+                            left: PAGE_MARGIN,
+                        },
+                    },
+                },
                 ...(opts.letterhead
                     ? {
                           headers: { default: buildLetterheadHeader() },
