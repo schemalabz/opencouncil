@@ -1,6 +1,7 @@
 "use client";
 
 import type { Realm } from "@prisma/client";
+import { getRealmContactPhone, telHref } from "@/lib/realm";
 import { ArrowRight, Phone } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import HowItWorks from "@/components/about/HowItWorks";
@@ -148,13 +149,13 @@ export function ExplainFeatures({
                         </p>
                         <div className="flex flex-col items-center gap-2">
                             <a
-                                href="tel:+302111980212"
+                                href={telHref(getRealmContactPhone(realm))}
                                 className="unstyled group inline-flex items-center gap-3 rounded-full border border-white/25 px-5 py-2.5 transition-colors hover:bg-white/10"
                             >
                                 <Phone className="h-5 w-5 shrink-0 text-orange" />
                                 <span className="text-left leading-tight">
                                     <span className="block text-base font-semibold text-white">
-                                        +30 211 198 0212
+                                        {getRealmContactPhone(realm)}
                                     </span>
                                     <span className="block text-xs text-white/60">Καλέστε μας τώρα</span>
                                 </span>

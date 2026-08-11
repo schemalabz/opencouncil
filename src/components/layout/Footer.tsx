@@ -13,15 +13,22 @@ import { SiX, SiInstagram, SiFacebook, SiGithub, SiDiscord, SiSubstack } from 'r
 import { REOPEN_CONSENT_EVENT } from "@/lib/utils/analyticsConsent";
 import { hasExplainPage } from "@/lib/explain/availability";
 import { Realm } from "@prisma/client";
+import { getRealmContactPhone, telHref } from "@/lib/realm";
 
 interface FooterProps {
     className?: string;
-    /** Resolved server-side by the layout: /explain exists only on the Greek realm. */
+    /**
+     * Resolved server-side by the layout rather than read from the browser: it
+     * gates the /explain link, and it picks the contact number, which must be
+     * right in the first painted HTML — a visitor on opencouncil.rs must never
+     * see the Greek number flash.
+     */
     realm: Realm;
 }
 
 export default function Footer({ className, realm }: FooterProps) {
     const t = useTranslations("Footer")
+    const contactPhone = getRealmContactPhone(realm)
     return (
         <footer className={cn("w-full bg-muted border-t print:hidden", className)}>
             <div className="container mx-auto px-4 py-12">
@@ -103,11 +110,11 @@ export default function Footer({ className, realm }: FooterProps) {
                     <div className="flex flex-col items-center md:items-start space-y-4">
                         <h3 className="font-semibold text-foreground text-base">{t("contact")}</h3>
                         <a
-                            href="tel:+302111980212"
+                            href={telHref(contactPhone)}
                             className="flex items-center text-xs text-muted-foreground hover:text-primary transition-colors"
                         >
                             <Phone className="w-4 h-4 mr-2" />
-                            +30 2111980212
+                            {contactPhone}
                         </a>
                         <a
                             href="mailto:hello@opencouncil.gr"
@@ -170,7 +177,7 @@ export default function Footer({ className, realm }: FooterProps) {
                 </div>
                 <div className="mt-6 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-center text-xs text-muted-foreground">
                     <span>© {new Date().getFullYear()} OpenCouncil</span>
-                    <CountrySwitcher />
+                    <CountrySwitcher realm={realm} />
                     <ScriptSwitcher />
                 </div>
             </div>

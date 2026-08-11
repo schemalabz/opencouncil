@@ -16,11 +16,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import Image from 'next/image';
 import type { InfoSurface, LandingView } from '@/lib/landing/landingCore';
-import { FOOTER_GROUPS, isInternalHref, reopenCookiePreferences } from './navLinks';
+import { footerGroups, isInternalHref, reopenCookiePreferences } from './navLinks';
 import { NotifyMunicipalityDialog, openAfterMenuCloses } from './NotifyMunicipalityDialog';
 import ScriptSwitcher from '@/components/layout/ScriptSwitcher';
 import { captureLandingAction } from '@/lib/landing/analytics';
 import type { LandingListCity } from '@/lib/landing/landingData';
+import type { Realm } from '@prisma/client';
 
 /* The desktop landing's left nav rail: brand at the top, the three view items centered,
    and a Policy popover + Account control at the bottom. Selecting an item opens the
@@ -32,6 +33,7 @@ export function LandingAside({
     onToggleInfo,
     infoHint,
     cities,
+    realm,
 }: {
     view: LandingView;
     onSelect: (v: LandingView) => void;
@@ -42,6 +44,8 @@ export function LandingAside({
     infoHint: boolean;
     /** cooperating δήμοι, for the "which δήμος?" notifications dialog opened from "Περισσότερα" */
     cities: LandingListCity[];
+    /** the request's realm, from the server — picks the contact number in the menu */
+    realm: Realm;
 }) {
     const t = useTranslations('landingV2');
     const [notifyOpen, setNotifyOpen] = useState(false);
@@ -144,7 +148,7 @@ export function LandingAside({
                             {t('info.title')}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator className="bg-muted" />
-                        {FOOTER_GROUPS.map((group, gi) => (
+                        {footerGroups(realm).map((group, gi) => (
                             <div key={group.title}>
                                 {gi > 0 && <DropdownMenuSeparator className="bg-muted" />}
                                 <DropdownMenuLabel className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">

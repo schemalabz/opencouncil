@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect } from 'react'
+import { useRealm } from '@/hooks/useRealm'
+import { getRealmContactPhone, telHref } from '@/lib/realm'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Home, RotateCcw, AlertTriangle, Phone, Mail } from 'lucide-react'
@@ -11,6 +13,8 @@ interface ErrorPageProps {
 }
 
 export default function ErrorPage({ error, reset }: ErrorPageProps) {
+    const contactPhone = getRealmContactPhone(useRealm())
+
     useEffect(() => {
         // Log to console for client-side diagnostics; onRequestError handles server-side alerting.
         console.error(error)
@@ -57,11 +61,11 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
                     </p>
                     <div className="flex flex-col sm:flex-row gap-3 justify-center">
                         <a
-                            href="tel:+302111980212"
+                            href={telHref(contactPhone)}
                             className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
                         >
                             <Phone className="w-4 h-4 mr-2" />
-                            +30 2111980212
+                            {contactPhone}
                         </a>
                         <a
                             href="mailto:hello@opencouncil.gr"
