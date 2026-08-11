@@ -1,6 +1,7 @@
 import Header from "@/components/layout/Header";
 import { PathElement } from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import { getRealm } from "@/lib/realm.server";
 import { getCityCached } from "@/lib/cache";
 import { getConsultationById } from "@/lib/db/consultations";
 import { notFound } from "next/navigation";
@@ -67,7 +68,7 @@ export default async function ConsultationLayout(props: ConsultationLayoutProps)
                 currentEntity={{ cityId: city.id }}
             />
             {children}
-            <Footer />
+            <Footer realm={await getRealm()} />
         </>
     );
 } 

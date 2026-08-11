@@ -1,7 +1,7 @@
 "use client"
 
 import { Link } from "@/i18n/routing"
-import { useLocale, useTranslations } from "next-intl"
+import { useTranslations } from "next-intl"
 import Logo from "./Logo"
 import CountrySwitcher from "./CountrySwitcher"
 import ScriptSwitcher from "./ScriptSwitcher"
@@ -11,14 +11,17 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { SiX, SiInstagram, SiFacebook, SiGithub, SiDiscord, SiSubstack } from 'react-icons/si';
 import { REOPEN_CONSENT_EVENT } from "@/lib/utils/analyticsConsent";
+import { hasExplainPage } from "@/lib/explain/availability";
+import { Realm } from "@prisma/client";
 
 interface FooterProps {
     className?: string;
+    /** Resolved server-side by the layout: /explain exists only on the Greek realm. */
+    realm: Realm;
 }
 
-export default function Footer({ className }: FooterProps = {}) {
+export default function Footer({ className, realm }: FooterProps) {
     const t = useTranslations("Footer")
-    const locale = useLocale()
     return (
         <footer className={cn("w-full bg-muted border-t print:hidden", className)}>
             <div className="container mx-auto px-4 py-12">
@@ -52,8 +55,8 @@ export default function Footer({ className }: FooterProps = {}) {
                         <nav className="flex flex-col items-center md:items-start space-y-2">
                             {[
                                 { href: "/", label: t("linkHome") },
-                                // /explain is written in Greek, about Greek municipalities — only link it on the Greek locale
-                                ...(locale === "el" ? [{ href: "/explain", label: t("linkLearnMore") }] : []),
+                                // /explain is written in Greek, about Greek municipalities — only link it where it exists
+                                ...(hasExplainPage(realm) ? [{ href: "/explain", label: t("linkLearnMore") }] : []),
                                 { href: "/about", label: t("linkForMunicipalities") },
                                 { href: "/search", label: t("linkSearch") },
                                 { href: "/mcp", label: "OpenCouncil AI" },

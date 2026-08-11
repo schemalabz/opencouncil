@@ -1,6 +1,7 @@
 import Header from "@/components/layout/Header";
 import { PathElement } from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import { getRealm } from "@/lib/realm.server";
 import { getCityCached } from "@/lib/cache";
 import { notFound } from "next/navigation";
 import { getLocalizedName } from "@/lib/formatters/name";
@@ -41,7 +42,7 @@ export default async function CityInnerLayout(
                 currentEntity={{ cityId: city.id }}
             />
             {children}
-            <Footer />
+            <Footer realm={await getRealm()} />
         </>
     );
 }

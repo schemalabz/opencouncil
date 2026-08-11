@@ -53,6 +53,8 @@ import {
 import { markInfoHintSeen, readInfoHintSeen, readSavedView, writeSavedView } from '@/lib/landing/savedView';
 import { calculateGeometryBounds, isInSupportedMunicipality } from '@/lib/geo';
 import { useRouter } from '@/i18n/routing';
+import { hasExplainPage } from '@/lib/explain/availability';
+import type { Realm } from '@prisma/client';
 import { NotifyPrompt } from './NotifyPrompt';
 import { DesktopLayout } from './DesktopLayout';
 import { MobileLayout } from './MobileLayout';
@@ -65,13 +67,16 @@ import { MobileLayout } from './MobileLayout';
  * map renders real data on first paint. Only filter/geocode/cities-at lookups stay client-side.
  */
 export type LandingV2Props = {
+    /** the request's realm, resolved server-side — gates the /explain entry points */
+    realm: Realm;
     /** realm-resolved initial map framing — server passes getRealmDefaultMapView(realm) */
     defaultView: { center: [number, number]; zoom: number };
     /** server-loaded initial data (see page.tsx / the db-layer finders) */
     initial: LandingInitialData;
 };
 
-export function LandingV2({ defaultView, initial }: LandingV2Props) {
+export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
+    const explainAvailable = hasExplainPage(realm);
     // Where the map opens. A view the visitor themselves left is better evidence of what they want
     // than the realm's generic framing, so it wins over `defaultView`.
     const [initialView] = useState(() => {
@@ -616,8 +621,9 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         selectedSubject,
         clickedMunicipality,
         // Hide the office badge in the zoomed-out count view (it would pile onto Athens' number) and
-        // while the Δήμοι tab is open, where the map is about the δήμοι themselves.
-        showExplainMarker: !showMunicipalityCounts && view !== 'municipalities',
+        // while the Δήμοι tab is open, where the map is about the δήμοι themselves. Its popup's only
+        // action is a link to /explain, so it is pointless where that page doesn't exist.
+        showExplainMarker: explainAvailable && !showMunicipalityCounts && view !== 'municipalities',
         navigate: (path) => router.push(path),
         onClearSelection: clearSelection,
         onShowExplainLocation: showExplainLocation,
@@ -777,6 +783,7 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         previewId,
         previewSubject,
         explainOpen,
+        explainAvailable,
         onCloseExplain: () => setExplainOpen(false),
         displayedMunicipality,
         mapNode,
