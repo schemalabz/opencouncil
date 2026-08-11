@@ -642,6 +642,7 @@
         "watchMeeting": "Παρακολουθήστε τη συνεδρίαση"
     },
     "Unsubscribe": {
+        "metaTitle": "Απεγγραφή | OpenCouncil",
         "invalidLinkTitle": "Μη έγκυρος σύνδεσμος",
         "invalidLinkDescription": "Αυτός ο σύνδεσμος απεγγραφής δεν είναι έγκυρος ή έχει λήξει.",
         "successCityTitle": "Απεγγραφή επιτυχής",

@@ -654,6 +654,7 @@
         "active": "Члан"
     },
     "Unsubscribe": {
+        "metaTitle": "Одјава | OpenCouncil",
         "invalidLinkTitle": "Неважећа веза",
         "invalidLinkDescription": "Ова веза за одјаву није важећа или је истекла.",
         "successCityTitle": "Успешно сте се одјавили",
