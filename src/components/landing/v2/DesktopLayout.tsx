@@ -58,6 +58,7 @@ export function DesktopLayout({
     infoOpen,
     onToggleInfo,
     infoHint,
+    explainAvailable,
 }: LayoutProps) {
     const t = useTranslations('landingV2');
     // The list panel beside the rail — collapsible (X), default open.
@@ -137,7 +138,7 @@ export function DesktopLayout({
                     )}
 
                     {infoOpen ? (
-                        <InfoPanel />
+                        <InfoPanel explainAvailable={explainAvailable} />
                     ) : view === 'municipalities' ? (
                         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-muted/50 mb-3 px-4 py-4">
                             <MunicipalitiesList

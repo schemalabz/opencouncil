@@ -78,5 +78,8 @@
         "copySourceAttribution": "Копирано са OpenCouncil · opencouncil.gr"
     },
     "notAvailable": "Транскрипт још није доступан.",
-    "procedural": "Процедурално"
+    "procedural": "Процедурално",
+    "currentTimeButton": {
+        "jumpToCurrent": "Пређите на тренутно време"
+    }
 }

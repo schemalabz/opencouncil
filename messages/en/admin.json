@@ -280,6 +280,33 @@
       "removeDecisionDescription": "Unlink decision and clear all extracted data.",
       "extractionReset": "Extraction reset",
       "decisionRemoved": "Decision removed"
+    },
+    "export": {
+      "docx": "Export to DOCX",
+      "audio": "Export audio",
+      "successTitle": "Export succeeded",
+      "docxSuccess": "The DOCX document was downloaded successfully.",
+      "audioSuccess": "The audio file was downloaded successfully.",
+      "errorTitle": "Export failed",
+      "docxError": "Could not export the DOCX document. Please try again.",
+      "audioError": "Could not export the audio file: {error}",
+      "audioFailure": {
+        "noAudio": "This meeting has no audio file.",
+        "fetchFailed": "Downloading the audio file failed.",
+        "network": "Connection problem while downloading the audio.",
+        "timeout": "The download took too long. Please try again."
+      },
+      "unknownError": "Unknown error"
+    },
+    "operator": {
+      "title": "In-person operator",
+      "subtitle": "Assign the OpenCouncil team member who attended this meeting in person.",
+      "notAttended": "Not attended",
+      "updatedTitle": "Operator updated",
+      "assigned": "Assigned {name}",
+      "markedNotAttended": "Marked as not attended",
+      "errorTitle": "Error",
+      "updateFailed": "Failed to update the operator"
     }
   }
 }

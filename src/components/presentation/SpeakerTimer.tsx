@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Pause, Play, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -11,6 +12,7 @@ function formatTimerDisplay(seconds: number): string {
 }
 
 export default function SpeakerTimer() {
+    const t = useTranslations("presentation.timer");
     const [startedAt, setStartedAt] = useState<number | null>(null);
     const [pausedElapsed, setPausedElapsed] = useState(0);
     const [running, setRunning] = useState(false);
@@ -69,12 +71,14 @@ export default function SpeakerTimer() {
         setCountdownFrom(null);
     };
 
-    const mainLabel = running ? "Παύση" : hasStarted ? "Συνέχεια" : "Έναρξη";
+    const mainLabel = running ? t("pause") : hasStarted ? t("resume") : t("start");
 
     return (
         <div className="flex items-center gap-[3vw]">
-            <div className="text-[1.8vh] uppercase tracking-widest text-muted-foreground whitespace-nowrap">
-                Χρόνος<br />Ομιλητή
+            {/* wraps onto two lines rather than a hard <br />, so the label works
+                in every locale ("Χρόνος Ομιλητή", "Време говорника", …) */}
+            <div className="text-[1.8vh] uppercase tracking-widest text-muted-foreground max-w-[12ch] text-center leading-tight">
+                {t("label")}
             </div>
             <button
                 type="button"
@@ -95,12 +99,12 @@ export default function SpeakerTimer() {
                         {running ? (
                             <>
                                 <Pause className="w-4 h-4 mr-1.5" />
-                                Παύση
+                                {t("pause")}
                             </>
                         ) : (
                             <>
                                 <Play className="w-4 h-4 mr-1.5" />
-                                {hasStarted ? "Συνέχεια" : "Έναρξη"}
+                                {hasStarted ? t("resume") : t("start")}
                             </>
                         )}
                     </Button>
@@ -109,7 +113,7 @@ export default function SpeakerTimer() {
                         variant="outline"
                         onClick={() => startCountdown(1)}
                         className="h-9 w-12 px-0 text-sm tabular-nums"
-                        aria-label="Αντίστροφη μέτρηση 1 λεπτού"
+                        aria-label={t("countdown", { minutes: 1 })}
                     >
                         1&apos;
                     </Button>
@@ -118,7 +122,7 @@ export default function SpeakerTimer() {
                         variant="outline"
                         onClick={() => startCountdown(3)}
                         className="h-9 w-12 px-0 text-sm tabular-nums"
-                        aria-label="Αντίστροφη μέτρηση 3 λεπτών"
+                        aria-label={t("countdown", { minutes: 3 })}
                     >
                         3&apos;
                     </Button>
@@ -131,7 +135,7 @@ export default function SpeakerTimer() {
                     className="h-9 px-3 text-sm w-28 justify-start"
                 >
                     <RotateCcw className="w-4 h-4 mr-1.5" />
-                    Επαναφορά
+                    {t("reset")}
                 </Button>
             </div>
         </div>

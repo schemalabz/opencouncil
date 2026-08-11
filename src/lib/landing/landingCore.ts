@@ -374,6 +374,8 @@ export type LayoutProps = {
     previewSubject: (id: string | null) => void;
     /** Mobile: the OpenCouncil badge's card preview is open. */
     explainOpen: boolean;
+    /** whether this realm has an /explain page to link to at all */
+    explainAvailable: boolean;
     onCloseExplain: () => void;
     /** The municipality shown on the map (clicked or filter-selected) — for its page link.
      *  nameMunicipality is the genitive form (e.g. "Δήμος Χανίων"). */

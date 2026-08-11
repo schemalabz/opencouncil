@@ -3,6 +3,17 @@ import { pdf } from '@react-pdf/renderer';
 import { renderDocx } from '@/components/meetings/docx/CouncilMeetingDocx';
 import { MeetingData } from '@/lib/getMeetingData';
 
+/** Why an audio export failed, for callers that need to say so in the reader's
+ *  language. Anything not covered here is a genuine surprise and surfaces as-is. */
+export type AudioExportFailure = 'noAudio' | 'fetchFailed' | 'network' | 'timeout';
+
+export class AudioExportError extends Error {
+    constructor(readonly reason: AudioExportFailure, message: string) {
+        super(message);
+        this.name = 'AudioExportError';
+    }
+}
+
 export type MeetingDataForExport = Omit<MeetingData, 'parties' | 'highlights' | 'subjects' | 'speakerTags' | 'taskStatus' | 'transcriptHiddenForReview'>;
 
 export async function exportMeetingToDocx(data: MeetingDataForExport): Promise<Blob> {
@@ -25,7 +36,7 @@ export async function exportMeetingAudioWithProgress(
   const { meeting } = data;
   
   if (!(meeting as any).audioUrl) {
-    throw new Error('No audio URL available for this meeting');
+    throw new AudioExportError('noAudio', 'No audio URL available for this meeting');
   }
 
   return new Promise((resolve, reject) => {
@@ -43,16 +54,16 @@ export async function exportMeetingAudioWithProgress(
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve(xhr.response);
       } else {
-        reject(new Error(`Failed to fetch audio: ${xhr.statusText}`));
+        reject(new AudioExportError('fetchFailed', `Failed to fetch audio: ${xhr.statusText}`));
       }
     };
 
     xhr.onerror = () => {
-      reject(new Error('Network error while downloading audio'));
+      reject(new AudioExportError('network', 'Network error while downloading audio'));
     };
 
     xhr.ontimeout = () => {
-      reject(new Error('Download timeout. Please try again'));
+      reject(new AudioExportError('timeout', 'Download timeout. Please try again'));
     };
 
     // Set timeout to 10 minutes for large audio files

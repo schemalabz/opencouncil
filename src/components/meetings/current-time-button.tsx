@@ -2,10 +2,12 @@ import { useVideo } from "@/components/meetings/VideoProvider";
 import { Button } from "@/components/ui/button";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { useLayout } from "@/components/meetings/CouncilMeetingWrapper";
+import { useTranslations } from "next-intl";
 
 export default function CurrentTimeButton() {
     const { currentTime, currentScrollInterval, scrollToUtterance } = useVideo();
     const { isWide } = useLayout();
+    const t = useTranslations('transcript.currentTimeButton');
 
     if (currentScrollInterval && !(currentTime >= currentScrollInterval[0] && currentTime <= currentScrollInterval[1])) {
         const isScrollingUp = currentTime < currentScrollInterval[0];
@@ -18,7 +20,7 @@ export default function CurrentTimeButton() {
                 variant="outline"
             >
                 <Icon className="w-4 h-4 mr-2" />
-                Μεταφορά στον τρέχοντα χρόνο
+                {t('jumpToCurrent')}
             </Button>
         );
     } else {

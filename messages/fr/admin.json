@@ -280,6 +280,33 @@
       "removeDecisionDescription": "Dissociez la décision et effacez toutes les données extraites.",
       "extractionReset": "Extraction réinitialisée",
       "decisionRemoved": "Décision supprimée"
+    },
+    "export": {
+      "docx": "Exporter en DOCX",
+      "audio": "Exporter l'audio",
+      "successTitle": "Export réussi",
+      "docxSuccess": "Le document DOCX a été téléchargé.",
+      "audioSuccess": "Le fichier audio a été téléchargé.",
+      "errorTitle": "Échec de l'export",
+      "docxError": "Impossible d'exporter le document DOCX. Veuillez réessayer.",
+      "audioError": "Impossible d'exporter le fichier audio : {error}",
+      "audioFailure": {
+        "noAudio": "Cette séance n'a pas de fichier audio.",
+        "fetchFailed": "Le téléchargement du fichier audio a échoué.",
+        "network": "Problème de connexion pendant le téléchargement de l'audio.",
+        "timeout": "Le téléchargement a pris trop de temps. Veuillez réessayer."
+      },
+      "unknownError": "Erreur inconnue"
+    },
+    "operator": {
+      "title": "Opérateur sur place",
+      "subtitle": "Désignez le membre de l'équipe OpenCouncil présent à cette séance.",
+      "notAttended": "Non assistée",
+      "updatedTitle": "Opérateur mis à jour",
+      "assigned": "{name} a été désigné",
+      "markedNotAttended": "Marquée comme non assistée",
+      "errorTitle": "Erreur",
+      "updateFailed": "Impossible de mettre à jour l'opérateur"
     }
   }
 }

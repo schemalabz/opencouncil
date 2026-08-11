@@ -30,6 +30,7 @@ export default async function HomePage() {
 
     return (
         <LandingV2
+            realm={realm}
             defaultView={getRealmDefaultMapView(realm)}
             initial={{
                 subjects,

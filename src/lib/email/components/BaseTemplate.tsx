@@ -10,17 +10,37 @@ import {
     Text,
     Hr,
 } from '@react-email/components';
+import { DEFAULT_LOCALE, type AppLocale } from '@/i18n/config';
+import { emailCopy } from '../copy';
+
+/**
+ * The one-line strapline under the footer rule. Localized separately from the
+ * body copy because every template shares this chrome; templates that don't
+ * pass a locale keep the Greek original.
+ */
+const TAGLINE: Record<AppLocale, string> = {
+    el: 'Ψηφιακή Δημοκρατία',
+    en: 'Digital Democracy',
+    fr: 'Démocratie numérique',
+    sr: 'Дигитална демократија',
+    'sr-Latn': 'Digitalna demokratija',
+};
 
 interface BaseTemplateProps {
     children: React.ReactNode;
     previewText?: string;
+    /** UI locale for the shared chrome; defaults to the app default. */
+    locale?: string;
 }
 
 export const BaseTemplate = ({
     children,
-    previewText = 'OpenCouncil - Ψηφιακή Δημοκρατία'
+    locale = DEFAULT_LOCALE,
+    // Destructured after `locale` so the default can read it: a template that
+    // passes a locale but no preview text still gets its own language.
+    previewText = `OpenCouncil - ${emailCopy(TAGLINE, locale, DEFAULT_LOCALE)}`,
 }: BaseTemplateProps): React.ReactElement => (
-    <Html>
+    <Html lang={locale}>
         <Head>
             <title>OpenCouncil</title>
             <Preview>{previewText}</Preview>
@@ -63,7 +83,7 @@ export const BaseTemplate = ({
                     fontSize: '12px',
                 }}>
                     <Text>© {new Date().getFullYear()} OpenCouncil. All rights reserved.</Text>
-                    <Text>Ψηφιακή Δημοκρατία</Text>
+                    <Text>{emailCopy(TAGLINE, locale, DEFAULT_LOCALE)}</Text>
                 </Section>
             </Container>
         </Body>

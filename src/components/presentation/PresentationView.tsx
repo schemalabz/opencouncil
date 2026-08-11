@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Maximize, Minimize, X } from "lucide-react";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
 import { CouncilMeetingWithAdminBody } from "@/lib/db/meetings";
 import { CityWithGeometry } from "@/lib/db/cities";
@@ -25,6 +26,7 @@ export default function PresentationView({
     agendaSubjects,
     backHref,
 }: PresentationViewProps) {
+    const t = useTranslations("presentation");
     const router = useRouter();
     const containerRef = useRef<HTMLDivElement>(null);
     const [index, setIndex] = useState(0);
@@ -122,11 +124,11 @@ export default function PresentationView({
 
     const currentSubject = index > 0 ? agendaSubjects[index - 1] : null;
     const positionLabel = index === 0
-        ? "INTRO"
-        : `Θέμα ${index} / ${agendaSubjects.length}`;
+        ? t("intro")
+        : t("position", { index, total: agendaSubjects.length });
 
     const iconButtonClass = "p-1.5 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-accent/10 transition-colors cursor-pointer";
-    const fullscreenLabel = isFullscreen ? "Έξοδος πλήρους οθόνης" : "Πλήρης οθόνη";
+    const fullscreenLabel = isFullscreen ? t("exitFullscreen") : t("enterFullscreen");
 
     return (
         <div
@@ -149,12 +151,12 @@ export default function PresentationView({
                 <button
                     type="button"
                     onClick={exit}
-                    aria-label="Έξοδος από την παρουσίαση"
-                    title="Έξοδος"
+                    aria-label={t("exitPresentation")}
+                    title={t("exit")}
                     className={iconButtonClass}
                 >
                     <X className="w-4 h-4" />
-                    <span className="sr-only">Έξοδος</span>
+                    <span className="sr-only">{t("exit")}</span>
                 </button>
             </div>
 
@@ -214,6 +216,7 @@ function NavClickZone({
     onClick: () => void;
     enabled: boolean;
 }) {
+    const t = useTranslations("presentation");
     const Chevron = side === "left" ? ChevronLeft : ChevronRight;
     const cursor = enabled
         ? side === "left" ? "cursor-w-resize" : "cursor-e-resize"
@@ -223,7 +226,7 @@ function NavClickZone({
     return (
         <button
             type="button"
-            aria-label={side === "left" ? "Previous slide" : "Next slide"}
+            aria-label={side === "left" ? t("previousSlide") : t("nextSlide")}
             onClick={onClick}
             disabled={!enabled}
             className={`absolute inset-y-0 ${position} w-1/2 z-0 group ${cursor}`}

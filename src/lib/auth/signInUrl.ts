@@ -1,14 +1,5 @@
 import { isKnownRealmHost } from '@/lib/realm';
-
-/**
- * Forwarded headers can be comma-separated lists when a request passes through
- * multiple proxies (e.g. `x-forwarded-host: opencouncil.fr, internal-lb`). The
- * client-facing value is the first entry.
- */
-function firstHeaderValue(value: string | null): string | null {
-    const first = value?.split(',')[0].trim();
-    return first || null;
-}
+import { firstHeaderValue, hostFromRequest } from './requestHeaders';
 
 /**
  * Repoints a magic-link URL at the host the sign-in request actually arrived on.
@@ -31,19 +22,45 @@ function firstHeaderValue(value: string | null): string | null {
  * bundle safe — `auth.config.ts` is reachable from `proxy.ts`.
  */
 export function signInUrlForRequest(url: string, request: Request): string {
-    const host =
-        firstHeaderValue(request.headers.get('x-forwarded-host')) ??
-        firstHeaderValue(request.headers.get('host'));
+    const host = hostFromRequest(request);
 
     if (!isKnownRealmHost(host)) return url;
 
     const target = new URL(url);
-    // Fall back to the original URL's protocol when the platform doesn't set
-    // x-forwarded-proto (e.g. local http dev), so the dev link is left intact.
-    const proto =
-        firstHeaderValue(request.headers.get('x-forwarded-proto')) ??
-        target.protocol.replace(/:$/, '');
+    // Only an explicit `https` is taken from the forwarded header; anything else
+    // keeps the original link's scheme. The header is as attacker-controllable as
+    // the Host we allowlist above, and it decides whether a sign-in token travels
+    // in cleartext — so it may upgrade the link, never downgrade it. Absent or
+    // http (local dev) leaves the link exactly as Auth.js built it.
+    const forwardedProto = firstHeaderValue(request.headers.get('x-forwarded-proto'));
+    const proto = forwardedProto === 'https' ? 'https' : target.protocol.replace(/:$/, '');
+    const originalOrigin = target.origin;
     target.protocol = `${proto}:`;
     target.host = host as string;
+
+    // The post-verification destination rides along in the link as an absolute
+    // URL: Auth.js resolves our relative `redirectTo` ("/profile") against
+    // NEXTAUTH_URL's origin, not the request's. Repointing only the link itself
+    // would verify the token on opencouncil.rs and then bounce the user to
+    // opencouncil.gr/profile — signed out, since the session cookie was just set
+    // on the other domain. Move the callback across with it.
+    //
+    // Origins are compared parsed, not by string prefix: `https://opencouncil.gr`
+    // is a prefix of `https://opencouncil.gr.evil.com`, and splicing our host onto
+    // that would rewrite a foreign URL into another foreign URL.
+    const rawCallbackUrl = target.searchParams.get('callbackUrl');
+    if (rawCallbackUrl) {
+        try {
+            const callback = new URL(rawCallbackUrl);
+            if (callback.origin === originalOrigin) {
+                callback.protocol = target.protocol;
+                callback.host = target.host;
+                target.searchParams.set('callbackUrl', callback.toString());
+            }
+        } catch {
+            // relative (the pre-Auth.js form) or malformed — nothing to repoint
+        }
+    }
+
     return target.toString();
 }

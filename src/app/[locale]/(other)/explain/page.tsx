@@ -1,5 +1,7 @@
 import { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { Link } from "@/i18n/routing";
+import { hasExplainPage } from "@/lib/explain/availability";
 import { HeadingAnchor } from "@/components/explain/HeadingAnchor";
 import { NeighborhoodIllustration } from "@/components/explain/NeighborhoodIllustration";
 import { getNeighborhoodSubjects } from "@/lib/db/neighborhood";
@@ -66,6 +68,12 @@ export async function generateMetadata(props: {
 }): Promise<Metadata> {
     const { locale } = await props.params;
 
+    // Thrown here as well as in the body so crawlers, which get blocking
+    // metadata via htmlLimitedBots, receive a real HTTP 404.
+    if (!hasExplainPage(await getRealm())) {
+        notFound();
+    }
+
     const ogImageUrl = "/api/og?pageType=explain";
 
     return {
@@ -109,6 +117,12 @@ export async function generateMetadata(props: {
 
 export default async function ExplainPage() {
     const realm = await getRealm();
+    // Greece-only article (see hasExplainPage) — 404 elsewhere rather than serving
+    // Greek municipal law on opencouncil.rs, .fr or .cy.
+    if (!hasExplainPage(realm)) {
+        notFound();
+    }
+
     const neighborhoodSubjects = await getNeighborhoodSubjects();
     const cityCoverage = await getCityCoverageCached(realm);
 

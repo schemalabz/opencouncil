@@ -31,11 +31,18 @@ describe('signInUrlForRequest', () => {
         expect(new URL(result).host).toBe('opencouncil.fr');
     });
 
-    it('uses x-forwarded-proto when provided', () => {
+    it('upgrades to https when x-forwarded-proto says so', () => {
         const result = signInUrlForRequest(
             'http://opencouncil.gr/api/auth/callback/resend?token=t',
             reqWith({ host: 'opencouncil.fr', 'x-forwarded-proto': 'https' })
         );
+        expect(new URL(result).protocol).toBe('https:');
+    });
+
+    // The header is as forgeable as the Host, and it decides whether the token
+    // travels in cleartext — so it may upgrade the scheme, never downgrade it.
+    it.each(['http', 'ftp', 'HTTPS'])('does not downgrade the scheme on x-forwarded-proto: %s', (proto) => {
+        const result = signInUrlForRequest(greekUrl, reqWith({ host: 'opencouncil.fr', 'x-forwarded-proto': proto }));
         expect(new URL(result).protocol).toBe('https:');
     });
 
@@ -69,6 +76,30 @@ describe('signInUrlForRequest', () => {
             reqWith({ 'x-forwarded-host': 'pr-7.preview.opencouncil.fr' })
         );
         expect(new URL(result).host).toBe('pr-7.preview.opencouncil.fr');
+    });
+
+    // Auth.js resolves the relative `redirectTo` against NEXTAUTH_URL's origin
+    // before baking it into the link, so in production this param is absolute.
+    const absoluteCallbackUrl =
+        'https://opencouncil.gr/api/auth/callback/resend?callbackUrl=https%3A%2F%2Fopencouncil.gr%2Fprofile&token=abc123';
+
+    it('moves an absolute callbackUrl onto the host the link was repointed to', () => {
+        const result = signInUrlForRequest(absoluteCallbackUrl, reqWith({ host: 'opencouncil.rs' }));
+        expect(new URL(result).searchParams.get('callbackUrl')).toBe('https://opencouncil.rs/profile');
+    });
+
+    it('does not splice our host into a lookalike origin', () => {
+        const lookalike =
+            'https://opencouncil.gr/api/auth/callback/resend?callbackUrl=https%3A%2F%2Fopencouncil.gr.evil.com%2Fx&token=abc123';
+        const result = signInUrlForRequest(lookalike, reqWith({ host: 'opencouncil.rs' }));
+        expect(new URL(result).searchParams.get('callbackUrl')).toBe('https://opencouncil.gr.evil.com/x');
+    });
+
+    it('leaves a callbackUrl pointing at another origin alone', () => {
+        const foreign =
+            'https://opencouncil.gr/api/auth/callback/resend?callbackUrl=https%3A%2F%2Fevil.com%2Fprofile&token=abc123';
+        const result = signInUrlForRequest(foreign, reqWith({ host: 'opencouncil.rs' }));
+        expect(new URL(result).searchParams.get('callbackUrl')).toBe('https://evil.com/profile');
     });
 
     it('takes the first value of a comma-separated forwarded header', () => {
