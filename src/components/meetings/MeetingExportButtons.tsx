@@ -4,9 +4,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { FileDown, Loader2, Music } from "lucide-react";
-import { exportMeetingToDocx, exportMeetingAudioWithProgress, downloadFile, generateMeetingFileName } from '@/lib/export/meetings';
+import { AudioExportError, exportMeetingToDocx, exportMeetingAudioWithProgress, downloadFile, generateMeetingFileName } from '@/lib/export/meetings';
 import { MeetingDataForExport } from "@/lib/export/meetings";
 import { useToast } from '@/hooks/use-toast';
+import { useTranslations } from 'next-intl';
 
 interface MeetingExportButtonsProps {
   /** Function to get the meeting data for export */
@@ -29,6 +30,7 @@ export function MeetingExportButtons({
   const [isExportingAudio, setIsExportingAudio] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0);
   const { toast } = useToast();
+  const t = useTranslations('admin.adminActions.export');
 
   const handleExportDocx = async () => {
     setIsExportingDocx(true);
@@ -38,14 +40,14 @@ export function MeetingExportButtons({
       const fileName = generateMeetingFileName(cityId, meetingId, 'docx');
       downloadFile(blob, fileName);
       toast({
-        title: "Εξαγωγή επιτυχής",
-        description: "Το έγγραφο DOCX κατέβηκε με επιτυχία.",
+        title: t('successTitle'),
+        description: t('docxSuccess'),
       });
     } catch (error) {
       console.error('Error exporting to DOCX:', error);
       toast({
-        title: "Σφάλμα εξαγωγής",
-        description: "Αδυναμία εξαγωγής του εγγράφου DOCX. Δοκιμάστε ξανά.",
+        title: t('errorTitle'),
+        description: t('docxError'),
         variant: "destructive"
       });
     } finally {
@@ -64,15 +66,18 @@ export function MeetingExportButtons({
       const fileName = generateMeetingFileName(cityId, meetingId, 'mp3');
       downloadFile(blob, fileName);
       toast({
-        title: "Εξαγωγή επιτυχής",
-        description: "Το αρχείο ήχου κατέβηκε με επιτυχία.",
+        title: t('successTitle'),
+        description: t('audioSuccess'),
       });
     } catch (error) {
       console.error('Error exporting audio:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Άγνωστο σφάλμα';
+      // Expected failures name themselves; anything else is a bug rather than
+      // something to tell the reader about, so it stays in the console above.
+      const errorMessage =
+        error instanceof AudioExportError ? t(`audioFailure.${error.reason}`) : t('unknownError');
       toast({
-        title: "Σφάλμα εξαγωγής",
-        description: `Αδυναμία εξαγωγής του αρχείου ήχου: ${errorMessage}`,
+        title: t('errorTitle'),
+        description: t('audioError', { error: errorMessage }),
         variant: "destructive"
       });
     } finally {
@@ -95,7 +100,7 @@ export function MeetingExportButtons({
         ) : (
           <FileDown className="w-4 h-4 mr-2" />
         )}
-        <span>Εξαγωγή σε DOCX</span>
+        <span>{t('docx')}</span>
       </Button>
       
       <div className="w-full">
@@ -110,7 +115,7 @@ export function MeetingExportButtons({
           ) : (
             <Music className="w-4 h-4 mr-2" />
           )}
-          <span>Εξαγωγή Ήχου</span>
+          <span>{t('audio')}</span>
         </Button>
         
         {isExportingAudio && (

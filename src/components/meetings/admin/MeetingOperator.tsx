@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
+import { useTranslations } from "next-intl";
 import { useToast } from "@/hooks/use-toast";
 import {
     Select,
@@ -42,6 +43,7 @@ function MeetingOperatorInner({
     meetingId: string;
 }) {
     const { toast } = useToast();
+    const t = useTranslations("admin.adminActions.operator");
     const [operator, setOperator] = useState<OperatorUser | null>(null);
     const [superadmins, setSuperadmins] = useState<OperatorUser[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -95,25 +97,27 @@ function MeetingOperatorInner({
             );
 
             if (!res.ok) {
-                throw new Error("Failed to update operator");
+                throw new Error(`Operator update failed: ${res.status}`);
             }
 
             const data = await res.json();
             setOperator(data.operator);
 
             toast({
-                title: "Operator updated",
+                title: t("updatedTitle"),
                 description: userId
-                    ? `Assigned ${data.operator?.name || data.operator?.email}`
-                    : "Marked as not attended",
+                    ? t("assigned", { name: data.operator?.name || data.operator?.email || "" })
+                    : t("markedNotAttended"),
             });
         } catch (error) {
+            // Every failure here means one thing to the reader: the change didn't
+            // save. The underlying message is either browser boilerplate ("Failed
+            // to fetch") or our own status text — neither is worth showing over a
+            // sentence in their language, so it goes to the console instead.
+            console.error("Failed to update meeting operator:", error);
             toast({
-                title: "Error",
-                description:
-                    error instanceof Error
-                        ? error.message
-                        : "Failed to update operator",
+                title: t("errorTitle"),
+                description: t("updateFailed"),
                 variant: "destructive",
             });
         }
@@ -123,11 +127,8 @@ function MeetingOperatorInner({
 
     return (
         <div className="mt-6">
-            <h3 className="text-lg font-semibold">In-Person Operator</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-                Assign an OC team member as the in-person operator for this
-                meeting
-            </p>
+            <h3 className="text-lg font-semibold">{t("title")}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{t("subtitle")}</p>
             <Select
                 value={operator?.id ?? NOT_ATTENDED}
                 onValueChange={handleChange}
@@ -136,7 +137,7 @@ function MeetingOperatorInner({
                     <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value={NOT_ATTENDED}>Not attended</SelectItem>
+                    <SelectItem value={NOT_ATTENDED}>{t("notAttended")}</SelectItem>
                     {superadmins.map((user) => (
                         <SelectItem key={user.id} value={user.id}>
                             {user.name || user.email}

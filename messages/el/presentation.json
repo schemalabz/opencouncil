@@ -1,0 +1,22 @@
+{
+  "openButton": "Παρουσίαση",
+  "pageTitle": "Παρουσίαση συνεδρίασης | OpenCouncil",
+  "subjectCount": "{count, plural, =0 {Χωρίς θέματα} one {# θέμα} other {# θέματα}}",
+  "position": "Θέμα {index} / {total}",
+  "intro": "ΕΙΣΑΓΩΓΗ",
+  "previousSlide": "Προηγούμενη διαφάνεια",
+  "nextSlide": "Επόμενη διαφάνεια",
+  "introducer": "Εισηγητής",
+  "enterFullscreen": "Πλήρης οθόνη",
+  "exitFullscreen": "Έξοδος πλήρους οθόνης",
+  "exit": "Έξοδος",
+  "exitPresentation": "Έξοδος από την παρουσίαση",
+  "timer": {
+    "label": "Χρόνος Ομιλητή",
+    "start": "Έναρξη",
+    "resume": "Συνέχεια",
+    "pause": "Παύση",
+    "reset": "Επαναφορά",
+    "countdown": "{minutes, plural, one {Αντίστροφη μέτρηση 1 λεπτού} other {Αντίστροφη μέτρηση # λεπτών}}"
+  }
+}
