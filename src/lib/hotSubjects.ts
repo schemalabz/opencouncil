@@ -3,7 +3,7 @@ import { createCache, getCouncilMeetingsForCityPublicCached } from '@/lib/cache'
 import { getCouncilMeetingsForCity, type CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
 import { getContributionCount } from '@/lib/utils';
 import { sortByRanking, type RankableSubject } from '@/lib/ranking/subjects';
-import { filterLocationIdsWithinRadius } from '@/lib/db/location';
+import { filterLocationIdsWithinRadius, getLocationDistancesFromPoint } from '@/lib/db/location';
 import { decodeGeohashToCenter } from '@/lib/geo';
 
 /** Recent past meetings to draw "hot" subjects from. */
@@ -48,6 +48,27 @@ export async function getRecentHotSubjects(
     return sortByRanking(flatten(meetings), adapt).slice(0, limit);
 }
 
+async function rankSubjectsNearPoint(
+    meetings: Meeting[],
+    center: [number, number],
+    radiusMeters: number,
+    limit: number
+): Promise<HotSubject[]> {
+    const candidates = flatten(meetings);
+    const locatedIds = candidates
+        .map(c => c.subject.locationId)
+        .filter((id): id is string => id != null);
+    const nearby = new Set(await filterLocationIdsWithinRadius(locatedIds, center, radiusMeters));
+
+    // Location-targeted ordering: subjects within the radius come first
+    // (that's the whole point of asking near a point), then municipality-wide
+    // (no-location) subjects fill any remaining slots. Each group is ranked on
+    // its own by the standard recency/discussion blend.
+    const near = candidates.filter(c => c.subject.locationId != null && nearby.has(c.subject.locationId));
+    const wide = candidates.filter(c => c.subject.locationId == null);
+    return [...sortByRanking(near, adapt), ...sortByRanking(wide, adapt)].slice(0, limit);
+}
+
 async function computeHotSubjectsNearGeohash(
     cityId: string,
     geohash: string,
@@ -58,21 +79,82 @@ async function computeHotSubjectsNearGeohash(
     const meetings = await getCouncilMeetingsForCity(cityId, {
         includeUnreleased: false, limit: HOT_MEETING_WINDOW, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
     });
-    const candidates = flatten(meetings);
+    try {
+        return await rankSubjectsNearPoint(meetings, decodeGeohashToCenter(geohash), GEO_RADIUS_METERS, limit);
+    } catch (error) {
+        // For the embedded widget a degraded render beats a crash, and it
+        // claims nothing about proximity: fall back to municipality-wide
+        // subjects only. Consumers where the emptiness IS the claim (the MCP
+        // nearby tool) use getHotSubjectsNearPoint, which propagates instead.
+        console.error('Radius filter failed; falling back to municipality-wide subjects:', error);
+        const wide = flatten(meetings).filter(c => c.subject.locationId == null);
+        return sortByRanking(wide, adapt).slice(0, limit);
+    }
+}
 
-    const center = decodeGeohashToCenter(geohash);
-    const locatedIds = candidates
-        .map(c => c.subject.locationId)
-        .filter((id): id is string => id != null);
-    const nearby = new Set(await filterLocationIdsWithinRadius(locatedIds, center, GEO_RADIUS_METERS));
+/**
+ * Hot subjects near an arbitrary point — the same recent window and
+ * near-first/municipality-wide ordering as {@link getHotSubjectsNearGeohash},
+ * but with a caller-chosen center and radius.
+ *
+ * The result itself is not cached (the coordinate space is unbounded), but the
+ * meetings come from the cached public query — unlike the geohash variant,
+ * which must use the uncached one because it runs inside createCache.
+ *
+ * Alongside the ranked subjects, reports the scan bound — how many recent
+ * meetings were considered and the oldest one's date — because the window is a
+ * meeting *count* (HOT_MEETING_WINDOW), which spans days for a busy council
+ * and months for a quiet one. Consumers publishing an empty result must say
+ * "nothing since {oldestMeetingDate}", not "nothing". Query failures propagate.
+ */
+export async function getHotSubjectsNearPoint(
+    cityId: string,
+    center: [number, number],
+    radiusMeters: number,
+    limit: number
+): Promise<{
+    subjects: HotSubject[];
+    meetingsScanned: number;
+    /** A string rather than a Date when the meetings come off a cache hit. */
+    oldestMeetingDate: Date | string | null;
+}> {
+    const meetings = await getCouncilMeetingsForCityPublicCached(cityId, {
+        limit: HOT_MEETING_WINDOW, timeFilter: 'past',
+    });
+    const subjects = await rankSubjectsNearPoint(meetings, center, radiusMeters, limit);
+    return {
+        subjects,
+        meetingsScanned: meetings.length,
+        oldestMeetingDate: meetings.length > 0 ? meetings[meetings.length - 1].dateTime : null,
+    };
+}
 
-    // Location-targeted ordering: subjects within the 500m radius come first
-    // (that's the whole point of the geohash), then municipality-wide
-    // (no-location) subjects fill any remaining slots. Each group is ranked on
-    // its own by the standard recency/discussion blend.
-    const near = candidates.filter(c => c.subject.locationId != null && nearby.has(c.subject.locationId));
-    const wide = candidates.filter(c => c.subject.locationId == null);
-    return [...sortByRanking(near, adapt), ...sortByRanking(wide, adapt)].slice(0, limit);
+/** A ranked subject with its distance from a reference point attached. */
+export type HotSubjectWithDistance = HotSubject & {
+    /** Meters from the point; null for municipality-wide subjects with no pinned location. */
+    distanceMeters: number | null;
+};
+
+/**
+ * Attach each subject's distance (m) from `center`. Shared by the two public
+ * surfaces that publish `distanceMeters` (the MCP nearby tool and the embed
+ * subjects endpoint) so the null-semantics can't drift: null means "no pinned
+ * location", never "distance unavailable" — which is why query failures
+ * propagate instead of degrading to nulls.
+ */
+export async function withDistances(
+    items: HotSubject[],
+    center: [number, number]
+): Promise<HotSubjectWithDistance[]> {
+    const distances = await getLocationDistancesFromPoint(
+        items.map(item => item.subject.locationId).filter((id): id is string => id != null),
+        center
+    );
+    return items.map(item => ({
+        ...item,
+        distanceMeters:
+            item.subject.locationId != null ? distances.get(item.subject.locationId) ?? null : null,
+    }));
 }
 
 /**
