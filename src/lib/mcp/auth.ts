@@ -15,12 +15,20 @@ export function isSuperIdentity(identity: McpIdentity): boolean {
 }
 
 /**
+ * Unwrap the identity verifyMcpToken stashes in AuthInfo.extra — the one
+ * place that cast lives; every consumer (tool contexts, the route handler,
+ * analytics) delegates here.
+ */
+export function identityFromAuthInfo(authInfo: AuthInfo | undefined): McpIdentity {
+    return (authInfo?.extra?.identity as McpIdentity | undefined) ?? null;
+}
+
+/**
  * Read the identity that verifyMcpToken attached to the request out of a
  * tool callback's context.
  */
 export function identityFromContext(ctx: ServerContext): McpIdentity {
-    const identity = ctx.http?.authInfo?.extra?.identity as McpIdentity | undefined;
-    return identity ?? null;
+    return identityFromAuthInfo(ctx.http?.authInfo);
 }
 
 /**

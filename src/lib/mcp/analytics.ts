@@ -3,7 +3,7 @@ import type { UserIdentity } from '@posthog/mcp';
 import { PostHog } from 'posthog-node';
 import type { McpServer, AuthInfo } from '@modelcontextprotocol/server';
 import { env } from '@/env.mjs';
-import type { McpIdentity } from './auth';
+import { identityFromAuthInfo, type McpIdentity } from './auth';
 import { currentBaseUrl, currentRealm } from './realm-context';
 
 /**
@@ -44,8 +44,7 @@ function getPostHogClient(): PostHog | undefined {
 function identityFromExtra(extra: unknown): McpIdentity {
     if (!extra || typeof extra !== 'object') return null;
     const http = (extra as { http?: { authInfo?: AuthInfo } }).http;
-    const identity = http?.authInfo?.extra?.identity as McpIdentity | undefined;
-    return identity ?? null;
+    return identityFromAuthInfo(http?.authInfo);
 }
 
 async function identifyCaller(_request: unknown, extra?: unknown): Promise<UserIdentity | null> {
