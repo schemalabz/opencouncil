@@ -70,6 +70,32 @@ describe.each(documents)('%s', (_name, build) => {
         }
     });
 
+    // Word substitutes its own built-ins for styles a document references but
+    // never defines. Pages improvises instead: unstyled paragraphs took on the
+    // formatting of whatever preceded them and their alignment and spacing were
+    // dropped, so every style a paragraph or another style points at has to
+    // exist in styles.xml.
+    it('defines every style it references', async () => {
+        const { document, styles } = await parts(await build());
+
+        const defined = new Set([...styles.matchAll(/w:styleId="([^"]+)"/g)].map(m => m[1]));
+        const referenced = [
+            ...styles.matchAll(/<w:(?:basedOn|next|link) w:val="([^"]+)"\/>/g),
+            ...document.matchAll(/<w:pStyle w:val="([^"]+)"\/>/g),
+        ].map(m => m[1]);
+
+        expect([...new Set(referenced)].filter(id => !defined.has(id))).toEqual([]);
+        expect(defined.has('Normal')).toBe(true);
+    });
+
+    it('gives every paragraph an explicit style', async () => {
+        const { document } = await parts(await build());
+
+        const paragraphs = [...document.matchAll(/<w:p>(?:<w:pPr>(.*?)<\/w:pPr>)?/g)];
+        expect(paragraphs.length).toBeGreaterThan(0);
+        expect(paragraphs.filter(p => !p[1]?.includes('w:pStyle'))).toEqual([]);
+    });
+
     it('turns off the italics the apps’ built-in heading styles apply', async () => {
         const { styles } = await parts(await build());
 

@@ -61,41 +61,54 @@ export const PAGE_HEIGHT = 16838;
 export const PAGE_MARGIN = 1440;
 export const CONTENT_WIDTH = PAGE_WIDTH - 2 * PAGE_MARGIN;
 
+// ─── Paragraph styles ───────────────────────────────────────────────────────
+
+/**
+ * Named styles every paragraph in these documents points at.
+ *
+ * Formatting lives in the styles rather than on the paragraphs because that is
+ * how Word writes .docx and how other apps expect to read them. A paragraph
+ * with no w:pStyle resolves to "Normal", and a document that never defines
+ * Normal leaves the whole style graph dangling: Word silently substitutes its
+ * own built-in, but Pages improvises — unstyled paragraphs took on the
+ * formatting of whatever preceded them (body text after a heading came out
+ * bold), runs picked up unrelated typefaces, and the direct alignment and
+ * spacing went with the style Pages could not resolve.
+ */
+export const STYLE = {
+    NORMAL: "Normal",
+    CENTERED: "Centered",
+    RIGHT: "RightAligned",
+    LETTERHEAD: "Letterhead",
+    CELL: "TableCellText",
+    CELL_RIGHT: "TableCellNumber",
+} as const;
+
 // ─── Text primitives ────────────────────────────────────────────────────────
 
 export const body = (text: string, opts: { bold?: boolean } = {}) =>
     new Paragraph({
+        style: STYLE.NORMAL,
         children: [new TextRun({ text, size: SIZE.BODY, bold: opts.bold })],
-        spacing: { after: 120 },
     });
 
+// Spacing comes from the ListParagraph style, which docx applies to any
+// numbered paragraph.
 export const bullet = (text: string) =>
     new Paragraph({
         children: [new TextRun({ text, size: SIZE.BODY })],
         numbering: { reference: "tech-bullets", level: 0 },
-        spacing: { after: 60 },
     });
 
+// Heading spacing lives in the heading styles, not here.
 export const h1 = (text: string) =>
-    new Paragraph({
-        heading: HeadingLevel.HEADING_1,
-        children: [new TextRun({ text })],
-        spacing: { before: 360, after: 180 },
-    });
+    new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text })] });
 
 export const h2 = (text: string) =>
-    new Paragraph({
-        heading: HeadingLevel.HEADING_2,
-        children: [new TextRun({ text })],
-        spacing: { before: 300, after: 150 },
-    });
+    new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text })] });
 
 export const h3 = (text: string) =>
-    new Paragraph({
-        heading: HeadingLevel.HEADING_3,
-        children: [new TextRun({ text })],
-        spacing: { before: 240, after: 120 },
-    });
+    new Paragraph({ heading: HeadingLevel.HEADING_3, children: [new TextRun({ text })] });
 
 export const eur = (n: number) =>
     `${n.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€`;
@@ -133,8 +146,7 @@ function greekLetterheadDate(d: Date = new Date()): string {
 
 const letterheadLine = (text: string) =>
     new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 20 },
+        style: STYLE.LETTERHEAD,
         children: [new TextRun({ text, size: SIZE.LETTERHEAD, color: "444444" })],
     });
 
@@ -154,7 +166,7 @@ export function buildPageFooter(): Footer {
     return new Footer({
         children: [
             new Paragraph({
-                alignment: AlignmentType.CENTER,
+                style: STYLE.LETTERHEAD,
                 children: [
                     new TextRun({ text: "Σελίδα ", size: SIZE.LETTERHEAD, color: "444444" }),
                     new TextRun({
@@ -172,7 +184,7 @@ export function buildPageFooter(): Footer {
 export function buildDocTitle(logoData: Uint8Array, title: string): Paragraph[] {
     return [
         new Paragraph({
-            alignment: AlignmentType.CENTER,
+            style: STYLE.CENTERED,
             spacing: { before: 240, after: 240 },
             children: [
                 new ImageRun({
@@ -184,7 +196,7 @@ export function buildDocTitle(logoData: Uint8Array, title: string): Paragraph[] 
             ],
         }),
         new Paragraph({
-            alignment: AlignmentType.CENTER,
+            style: STYLE.CENTERED,
             spacing: { after: 300 },
             children: [new TextRun({ text: title, size: SIZE.TITLE })],
         }),
@@ -227,7 +239,7 @@ export function buildProcurementIntro(
 
     return [
         new Paragraph({
-            alignment: AlignmentType.CENTER,
+            style: STYLE.CENTERED,
             spacing: { after: 240 },
             children: [
                 new TextRun({ text: "Της εταιρείας ", size: SIZE.BODY, italics: true }),
@@ -278,12 +290,12 @@ export function buildProcurementIntro(
 export function buildSignature(): Paragraph[] {
     const line = (text: string, bold = false) =>
         new Paragraph({
-            alignment: AlignmentType.RIGHT,
+            style: STYLE.RIGHT,
             spacing: { after: 60 },
             children: [new TextRun({ text, size: SIZE.BODY, bold })],
         });
     return [
-        new Paragraph({ spacing: { before: 480 }, children: [] }),
+        new Paragraph({ style: STYLE.NORMAL, spacing: { before: 480 }, children: [] }),
         line("για την OpenCouncil Μονοπρόσωπη Ι.Κ.Ε."),
         line("ο νόμιμος εκπρόσωπος"),
         line("Χρήστος Πόριος", true),
@@ -323,7 +335,7 @@ function cell(
         margins: { top: 60, bottom: 60, left: CELL_MARGIN, right: CELL_MARGIN },
         children: [
             new Paragraph({
-                alignment: opts.right ? AlignmentType.RIGHT : AlignmentType.LEFT,
+                style: opts.right ? STYLE.CELL_RIGHT : STYLE.CELL,
                 children: [
                     new TextRun({ text, size: SIZE.SMALL, bold: opts.bold || opts.header }),
                 ],
@@ -455,17 +467,76 @@ export const DOC_NUMBERING = {
 // they leave unset is inherited from it. Word's heading is blue Calibri Light,
 // LibreOffice's is italic sans, Pages' is its own display face — so headings
 // came out italic and in a different family than the body outside Word.
-const heading = (size: number) => ({
+const heading = (size: number, before: number, after: number) => ({
     run: { size, bold: true, italics: false, color: "000000", font: FONT },
+    paragraph: { spacing: { before, after } },
 });
 
 export const DOC_STYLES = {
     default: {
         document: { run: { size: SIZE.BODY, font: FONT } },
-        heading1: heading(30),
-        heading2: heading(26),
-        heading3: heading(23),
+        heading1: heading(30, 360, 180),
+        heading2: heading(26, 300, 150),
+        heading3: heading(23, 240, 120),
+        // docx puts every numbered paragraph in ListParagraph, so the bullets
+        // inherit their font and spacing from here.
+        listParagraph: {
+            run: { size: SIZE.BODY, font: FONT },
+            paragraph: { spacing: { after: 60 } },
+        },
     },
+    paragraphStyles: [
+        // Defining Normal is the point of this block: docx bases every style it
+        // emits on it, and paragraphs without a w:pStyle resolve to it.
+        {
+            id: STYLE.NORMAL,
+            name: "Normal",
+            quickFormat: true,
+            run: { size: SIZE.BODY, font: FONT },
+            paragraph: { spacing: { after: 120 } },
+        },
+        {
+            id: STYLE.CENTERED,
+            name: "Centered",
+            basedOn: STYLE.NORMAL,
+            next: STYLE.NORMAL,
+            paragraph: { alignment: AlignmentType.CENTER },
+        },
+        {
+            id: STYLE.RIGHT,
+            name: "Right Aligned",
+            basedOn: STYLE.NORMAL,
+            next: STYLE.NORMAL,
+            paragraph: { alignment: AlignmentType.RIGHT },
+        },
+        {
+            id: STYLE.LETTERHEAD,
+            name: "Letterhead",
+            basedOn: STYLE.NORMAL,
+            next: STYLE.NORMAL,
+            run: { size: SIZE.LETTERHEAD, color: "444444", font: FONT },
+            paragraph: { alignment: AlignmentType.CENTER, spacing: { after: 20 } },
+        },
+        // Table cells carry no space after — the cell margins do that job.
+        {
+            id: STYLE.CELL,
+            name: "Table Cell Text",
+            basedOn: STYLE.NORMAL,
+            next: STYLE.NORMAL,
+            run: { size: SIZE.SMALL, font: FONT },
+            paragraph: { alignment: AlignmentType.LEFT, spacing: { after: 0 } },
+        },
+        {
+            id: STYLE.CELL_RIGHT,
+            name: "Table Cell Number",
+            basedOn: STYLE.CELL,
+            next: STYLE.NORMAL,
+            paragraph: { alignment: AlignmentType.RIGHT, spacing: { after: 0 } },
+        },
+    ],
+    // docx bases its Hyperlink and footnote styles on this one; leaving it
+    // undefined dangles the same way Normal did.
+    characterStyles: [{ id: "DefaultParagraphFont", name: "Default Paragraph Font" }],
 };
 
 /**
