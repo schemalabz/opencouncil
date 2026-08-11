@@ -205,6 +205,37 @@ Multi-channel delivery in `src/lib/notifications/`:
 Additional AI-specific rules:
 - Never add `Co-Authored-By` lines for AI in commit messages
 
+## Writing Style
+
+Write in Simplified Technical English (ASD-STE100).
+
+**In scope**:
+- Chat responses.
+- Commit messages.
+- Pull request descriptions.
+- Comments on GitHub: issue comments, review comments, and replies.
+- Documentation under `docs/`.
+
+**Out of scope**:
+- Release announcements. `.claude/skills/release/templates/discord.md` sets the register for those.
+- User-facing product copy and marketing text.
+- Text that you quote from a file, from documentation, or from another source. Keep the quoted text exactly as it is.
+- Existing text that you do not rewrite. This file does not comply with these rules yet.
+
+Rules:
+- Use short sentences. Keep procedural sentences to 20 words or fewer. Keep descriptive sentences to 25 words or fewer.
+- Write one instruction per sentence. Do not join two instructions with "and" or a semicolon.
+- Use the active voice. Write "the migration adds a column", not "a column is added by the migration".
+- Use one word for one meaning. Do not switch between synonyms for the same thing.
+- Use simple verb tenses. Prefer the present tense.
+- Do not omit articles ("the", "a") or the word "that".
+- Do not use idioms, metaphors, or figures of speech. ASD-STE100 supplies an approved dictionary that this section does not include, so apply this rule with judgement. Standard git and engineering terms stay: "squash", "cherry-pick", "stash", "roll back", "race condition".
+- Keep technical names, code identifiers, file paths, commands, and error messages exactly as they are in the code.
+
+Two rules take priority over every rule above:
+- **Accuracy always wins over style.** Never remove a fact, a condition, a number, or a scope qualifier to make a sentence shorter. Keep the precision when a rule and precision conflict.
+- **A commit subject line follows `CONTRIBUTING.md`.** The subject uses the imperative mood. It omits articles to stay inside the character limit. Apply the rules above to the commit body only.
+
 ## Code Guidelines
 
 ### General Rules
@@ -213,6 +244,7 @@ Additional AI-specific rules:
 - Never use dynamic imports unless explicitly requested
 - Avoid unnecessary try/catch blocks
 - Never create markdown files after completing tasks (unless directly asked)
+- Comment in code only when the reason for the code is not clear from the code itself. Do not restate what the code does
 - Use time formatting utilities from `src/lib/formatters/time.ts` (e.g., `formatTimestamp`, `formatDate`, `formatDuration`)
 
 ### Dev-Only Components
@@ -279,6 +311,16 @@ I [force-pushed](<https://github.com/{upstream-owner}/{repo}/compare/{OLD}..{NEW
 Use the upstream repo URL (where the PR lives, not the fork), two dots (`..`), and full 40-character SHAs. For regular pushes, reference the new commits directly.
 
 Prefer describing changes from your working context when available. Fall back to diffing SHAs only when you lack context (e.g., pushing work from a previous session).
+
+A rebase that leaves the diff of the PR unchanged still needs the comment. GitHub's force-push event records the new head only, so the thread holds no link from the old head to the new head. Report the compare link and the reason on one line. Omit the change list.
+
+**Other comments on your own pull request**:
+The push comment above is always necessary. This rule covers comments on a pull request that you opened. It does not restrict a review of another pull request, and it does not restrict a new issue. Post any other comment on your own pull request only when the comment does one of these things:
+- The comment resolves a question that a reviewer asked.
+- The comment reports a blocker.
+- The comment explains why you did not apply a suggestion.
+
+Do not narrate each step. Do not repeat what the diff already shows.
 
 **Build Verification**:
 - Run `npm run build` **once after all changes are complete** — not after every individual step
