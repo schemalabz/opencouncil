@@ -6,6 +6,7 @@ import { withUserAuthorizedToEdit, isUserAuthorizedToEdit } from '../auth';
 import { buildDateFilter } from './reviews/dateFilters';
 import { formatDateAsMeetingId } from '../utils/meetingId';
 import { landingSubjectsTag } from './subject';
+import { CUSTOMER_CITY_WHERE, PUBLIC_CITY_WHERE } from '../cityStatus';
 // Import from the cache leaf (see the note in subject.ts) to keep the barrel's heavy chain out.
 import { createCache } from '../cache/index';
 
@@ -199,7 +200,7 @@ export async function getUpcomingMeetings(realm: Realm, { limit = 10 }: { limit?
                 // public visibility guard: never expose unreleased (draft) meetings
                 released: true,
                 dateTime: { gt: new Date() },
-                city: { status: 'listed', realm },
+                city: { ...PUBLIC_CITY_WHERE, realm },
             },
             orderBy: [{ dateTime: 'asc' }, { createdAt: 'asc' }],
             take: limit,
@@ -359,7 +360,7 @@ export async function getMeetingUploadLists(last30Days: boolean = false): Promis
         prisma.councilMeeting.findMany({
             where: {
                 AND: [
-                    { city: { officialSupport: true } },
+                    { city: CUSTOMER_CITY_WHERE },
                     {
                         NOT: {
                             taskStatuses: {
@@ -380,7 +381,7 @@ export async function getMeetingUploadLists(last30Days: boolean = false): Promis
         prisma.councilMeeting.findMany({
             where: {
                 dateTime: { gt: now },
-                city: { officialSupport: true }
+                city: CUSTOMER_CITY_WHERE
             },
             select: meetingListItemSelect,
             orderBy: { dateTime: 'asc' }

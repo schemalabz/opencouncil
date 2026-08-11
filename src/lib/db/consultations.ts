@@ -209,7 +209,6 @@ export async function getConsultationDataForOG(cityId: string, consultationId: s
                     name_municipality: true,
                     logoImage: true,
                     authorityType: true,
-                    officialSupport: true,
                 }
             },
             _count: {

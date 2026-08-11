@@ -45,6 +45,7 @@ import {
     type Point,
 } from '@/lib/landing/markerDeclutter';
 import { MUNICIPALITY_SATELLITE_SCALE } from '@/lib/landing/donut';
+import type { CityAtPoint } from "@/lib/db/cities";
 
 /**
  * Capture the map view on every moveend so the list reacts to it. Resolves the municipality under
@@ -103,7 +104,7 @@ export function useMapViewCapture({
                     fetch(`/api/cities/at?lng=${center.lng}&lat=${center.lat}`)
                         .then((r) => (r.ok ? r.json() : null))
                         .catch(() => null)
-                        .then((city: { id: string; name: string; name_municipality: string; officialSupport: boolean } | null) => {
+                        .then((city: Pick<CityAtPoint, 'id' | 'name' | 'name_municipality' | 'status'> | null) => {
                             if (reqId === centerReqRef.current) {
                                 setCenterMunicipality(
                                     city
@@ -111,7 +112,7 @@ export function useMapViewCapture({
                                               id: city.id,
                                               name: city.name,
                                               nameMunicipality: city.name_municipality,
-                                              officialSupport: city.officialSupport,
+                                              status: city.status,
                                           }
                                         : null,
                                 );

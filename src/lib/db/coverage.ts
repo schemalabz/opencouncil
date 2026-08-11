@@ -1,5 +1,6 @@
 import prisma from './prisma';
 import type { Realm, AdministrativeBodyType } from '@prisma/client';
+import { CUSTOMER_CITY_WHERE } from '../cityStatus';
 
 /**
  * One coverage row per (cooperating municipality × administrative body type) for
@@ -33,8 +34,7 @@ export async function getCityCoverage(realm: Realm): Promise<CoverageRow[]> {
     const cities = await prisma.city.findMany({
         where: {
             realm,
-            status: 'listed',
-            officialSupport: true,
+            ...CUSTOMER_CITY_WHERE,
             councilMeetings: { some: releasedPast },
         },
         select: {

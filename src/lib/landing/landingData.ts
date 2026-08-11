@@ -3,7 +3,7 @@
  * Prisma-derived db-layer types, imported (not re-declared) so server/routes/client can't drift.
  */
 
-import type { AdministrativeBodyType } from '@prisma/client';
+import type { AdministrativeBodyType, CityStatus } from '@prisma/client';
 import { stripMarkdown } from '@/lib/formatters/markdown';
 import { normalizeText } from '@/lib/utils';
 import { haversineDistance } from '@/lib/geo';
@@ -184,7 +184,7 @@ export function aggregateMunicipalityCounts(
 }
 
 /** The municipality under the map center — drives the "view its page" button. */
-export type CenterMunicipality = { id: string; name: string; nameMunicipality: string; officialSupport: boolean };
+export type CenterMunicipality = { id: string; name: string; nameMunicipality: string; status: CityStatus };
 /** An out-of-network δήμος the visitor clicked on the map (shaded orange, "request it").
  *  `petitionBucket` rides along when the δήμος is on the petition layer, so the preview can say
  *  how many petitions it already has. */

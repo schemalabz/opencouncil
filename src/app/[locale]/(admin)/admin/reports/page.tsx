@@ -2,11 +2,12 @@ import { ReportForm, ReportContract } from "@/components/admin/reports/ReportFor
 import { withUserAuthorizedToEdit } from "@/lib/auth";
 import prisma from "@/lib/db/prisma";
 import { getOfferState } from "@/lib/offers/state";
+import { CUSTOMER_CITY_WHERE } from "@/lib/cityStatus";
 
 export default async function Page() {
     await withUserAuthorizedToEdit({});
     const cities = await prisma.city.findMany({
-        where: { officialSupport: true },
+        where: CUSTOMER_CITY_WHERE,
         select: { id: true, name: true, name_municipality: true },
         orderBy: { name: 'asc' }
     });

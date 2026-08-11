@@ -23,7 +23,6 @@ model City {
   timezone  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  officialSupport Boolean @default(false)
   status CityStatus @default(pending)
   authorityType AuthorityType @default(municipality)
   wikipediaId String?
@@ -80,10 +79,24 @@ enum Realm {
   serbia
 }
 
+/// Where a city stands with us. Collapses the old (status, officialSupport) pair:
+/// publication and customer-status were two fields that disagreed about what
+/// "supported" meant, which made "visible but not a customer" inexpressible.
+///
+/// DECLARATION ORDER IS LOAD-BEARING. City lists sort `status: 'desc'`, which is
+/// Postgres enum declaration order, so this order is what puts customers first
+/// (see CITY_ORDER_BY in src/lib/db/cities.ts and citiesAdmin.ts). Appending a
+/// value changes that sort.
 enum CityStatus {
-  pending   
-  unlisted
-  listed
+  /// Not published anywhere. Petitionable. The default for imported δήμοι.
+  pending
+  /// Published everywhere a customer city is — landing map, directory, search,
+  /// MCP, sitemap — but not a customer: no official-support badge, and still
+  /// petitionable. Policy is one per realm, set by hand — nothing enforces it
+  /// yet; the guard is a follow-up.
+  demo
+  /// A customer municipality: published, badged, and counted in customer stats.
+  supported
 }
 
 enum PeopleOrdering {

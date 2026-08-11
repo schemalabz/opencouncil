@@ -5,13 +5,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useMemo } from "react"
 import { UserWithRelations } from "@/lib/db/users"
-import type { City } from "@prisma/client"
+import type { City, CityStatus } from "@prisma/client"
 import { cn } from "@/lib/utils"
+import { isCustomer } from "@/lib/cityStatus";
 
 interface CityCounts {
     id: string
     name: string
-    officialSupport: boolean
+    status: CityStatus
     petitions: number
     notifications: number
 }
@@ -65,7 +66,7 @@ export function CityRankingTable({ users }: CityRankingTableProps) {
                 entry = {
                     id: city.id,
                     name: city.name,
-                    officialSupport: city.officialSupport,
+                    status: city.status,
                     petitions: 0,
                     notifications: 0,
                 }
@@ -82,13 +83,13 @@ export function CityRankingTable({ users }: CityRankingTableProps) {
 
     const expansionRows = useMemo(() =>
         cityCounts
-            .filter(city => !city.officialSupport)
+            .filter(city => !isCustomer(city.status))
             .sort((a, b) => b.petitions - a.petitions || b.notifications - a.notifications),
         [cityCounts])
 
     const supportedRows = useMemo(() =>
         cityCounts
-            .filter(city => city.officialSupport)
+            .filter(city => isCustomer(city.status))
             .sort((a, b) => b.notifications - a.notifications || b.petitions - a.petitions),
         [cityCounts])
 

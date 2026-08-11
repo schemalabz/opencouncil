@@ -2,11 +2,13 @@ import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
 import { BadgeCheck, BadgeX } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { CityStatus } from '@prisma/client';
+import { isCustomer } from '@/lib/cityStatus';
 
 type AuthorityType = 'municipality' | 'region';
 
 interface OfficialSupportBadgeProps {
-    officialSupport: boolean;
+    status: CityStatus;
     authorityType: AuthorityType;
     cityId?: string;
     className?: string;
@@ -14,7 +16,7 @@ interface OfficialSupportBadgeProps {
 }
 
 export function OfficialSupportBadge({
-    officialSupport,
+    status,
     authorityType,
     cityId,
     className,
@@ -32,6 +34,8 @@ export function OfficialSupportBadge({
         md: 'w-3 h-3',
         lg: 'w-3.5 h-3.5'
     };
+
+    const officialSupport = isCustomer(status);
 
     const getSupportText = () => {
         // Athens credits its co-funding partner in the badge

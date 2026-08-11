@@ -15,12 +15,13 @@ import { PrismaClient } from "@prisma/client";
 import { BrochurePdf } from "@/components/brochure/brochure-pdf";
 import { coveredBodyTypesByCity, toBrochurePartners } from "@/lib/brochure";
 import { getCityCoverage } from "@/lib/db/coverage";
+import { CUSTOMER_CITY_WHERE } from "@/lib/cityStatus";
 
 // Same queries as getAboutPageStats() in src/lib/db/cities.ts, on a plain
 // PrismaClient — the lib module drags in Next.js-only imports under tsx.
 async function fetchStats(prisma: PrismaClient) {
     const [municipalityCount, subjectCount, meetingDurations] = await Promise.all([
-        prisma.city.count({ where: { officialSupport: true } }),
+        prisma.city.count({ where: CUSTOMER_CITY_WHERE }),
         prisma.subject.count({ where: { councilMeeting: { released: true } } }),
         prisma.$queryRaw<Array<{ total_hours: number }>>`
             SELECT COALESCE(SUM(meeting_hours), 0) as total_hours
@@ -49,7 +50,7 @@ async function main() {
     console.log("Stats:", stats);
 
     const supportedCities = await prisma.city.findMany({
-        where: { officialSupport: true, status: "listed", logoImage: { not: null } },
+        where: { ...CUSTOMER_CITY_WHERE, logoImage: { not: null } },
         select: { logoImage: true, name_municipality: true },
         orderBy: { name: "asc" },
     });

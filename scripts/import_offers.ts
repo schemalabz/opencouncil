@@ -10,8 +10,7 @@
  * On each run the script:
  *   1. Deletes all existing offers
  *   2. Creates stub City records for any cityId not already in the DB
- *   3. Ensures all cities referenced by offers are non-pending (set to "unlisted")
- *   4. Imports all offers from the CSV
+ *   3. Imports all offers from the CSV
  */
 
 import { PrismaClient } from "@prisma/client";
@@ -88,27 +87,13 @@ async function main() {
           name_municipality: `Δήμος ${name}`,
           name_municipality_en: `Municipality of ${cityId.replace(/[-_]/g, " ")}`,
           timezone: "Europe/Athens",
-          status: "unlisted",
+          status: "pending",
         },
       });
       console.log(`  Created stub city: ${cityId} (${name})`);
     }
   }
 
-  // Step 3: Ensure all referenced cities are non-pending
-  const pendingCities = await prisma.city.findMany({
-    where: { id: { in: allCityIds }, status: "pending" },
-    select: { id: true },
-  });
-  if (pendingCities.length > 0) {
-    await prisma.city.updateMany({
-      where: { id: { in: pendingCities.map((c) => c.id) } },
-      data: { status: "unlisted" },
-    });
-    console.log(
-      `Promoted ${pendingCities.length} pending cities to unlisted: ${pendingCities.map((c) => c.id).join(", ")}`
-    );
-  }
 
   // Step 4: Import all offers
   let created = 0;

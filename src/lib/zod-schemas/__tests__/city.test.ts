@@ -17,7 +17,6 @@ const validFrontendBase = {
   name_municipality_en: 'Municipality of Athens',
   timezone: 'Europe/Athens',
   authorityType: 'municipality' as const,
-  officialSupport: false,
   status: 'pending' as const,
   supportsNotifications: false,
   consultationsEnabled: false,
@@ -34,7 +33,6 @@ const validFormDataBase = {
   name_municipality_en: 'Municipality of Athens',
   timezone: 'Europe/Athens',
   authorityType: 'municipality',
-  officialSupport: 'false',
   status: 'pending',
   supportsNotifications: 'true',
   consultationsEnabled: 'false',
@@ -118,7 +116,6 @@ describe('createCityFormDataSchema (Backend POST)', () => {
     const parsed = createCityFormDataSchema.parse(validCreateData);
     expect(parsed.supportsNotifications).toBe(true);
     expect(parsed.consultationsEnabled).toBe(false);
-    expect(parsed.officialSupport).toBe(false);
   });
 
   it('should require all fields (no schema defaults)', () => {
@@ -132,7 +129,7 @@ describe('createCityFormDataSchema (Backend POST)', () => {
       name_municipality_en: 'Municipality',
       timezone: 'Europe/Athens',
       logoImage: createMockFile(),
-      // missing: authorityType, officialSupport, status, supportsNotifications, etc.
+      // missing: authorityType, status, supportsNotifications, etc.
     };
     expect(() => createCityFormDataSchema.parse(incomplete)).toThrow();
   });
@@ -189,7 +186,6 @@ describe('updateCityFormDataSchema (Backend PUT)', () => {
     expect(parsed.consultationsEnabled).toBeUndefined();
     expect(parsed.highlightCreationPermission).toBeUndefined();
     expect(parsed.peopleOrdering).toBeUndefined();
-    expect(parsed.officialSupport).toBeUndefined();
     expect(parsed.status).toBeUndefined();
   });
 
@@ -212,14 +208,9 @@ describe('updateCityFormDataSchema (Backend PUT)', () => {
     expect(parsed.consultationsEnabled).toBe(false);
   });
 
-  it('should handle optional officialSupport for superadmin', () => {
-    const parsed = updateCityFormDataSchema.parse({ officialSupport: 'true' });
-    expect(parsed.officialSupport).toBe(true);
-  });
-
   it('should handle optional status for superadmin', () => {
-    const parsed = updateCityFormDataSchema.parse({ status: 'listed' });
-    expect(parsed.status).toBe('listed');
+    const parsed = updateCityFormDataSchema.parse({ status: 'demo' });
+    expect(parsed.status).toBe('demo');
   });
 
   it('should handle peopleOrdering as optional (not nullable)', () => {
@@ -250,7 +241,7 @@ describe('Enum validation', () => {
 
   describe('status', () => {
     it('should accept valid status values', () => {
-      ['pending', 'unlisted', 'listed'].forEach(status => {
+      ['pending', 'demo', 'supported'].forEach(status => {
         expect(() => baseCityFormSchema.parse({
           ...validFrontendBase,
           status,
@@ -347,12 +338,10 @@ describe('Edge cases: Boolean string transforms', () => {
       ...validFormDataBase,
       supportsNotifications: '',
       consultationsEnabled: '',
-      officialSupport: '',
       logoImage: createMockFile(),
     });
     expect(parsed.supportsNotifications).toBe(false);
     expect(parsed.consultationsEnabled).toBe(false);
-    expect(parsed.officialSupport).toBe(false);
   });
 
   it('should treat any non-"true" string as false', () => {
@@ -361,12 +350,10 @@ describe('Edge cases: Boolean string transforms', () => {
       ...validFormDataBase,
       supportsNotifications: '1',
       consultationsEnabled: 'yes',
-      officialSupport: 'no',
       logoImage: createMockFile(),
     });
     expect(parsed.supportsNotifications).toBe(false);
     expect(parsed.consultationsEnabled).toBe(false);
-    expect(parsed.officialSupport).toBe(false);
   });
 });
 
@@ -414,7 +401,6 @@ describe('CITY_DEFAULTS alignment', () => {
     // Guard: if someone adds a new default, this test reminds them
     // to apply it in forms, routes, and seed — not in the schema.
     expect(CITY_DEFAULTS).toEqual({
-      officialSupport: false,
       status: 'pending',
       authorityType: 'municipality',
       supportsNotifications: false,

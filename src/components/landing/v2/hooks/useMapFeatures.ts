@@ -48,7 +48,7 @@ export function useMapFeatures({
                 list.push({
                     id: `__oc-border__${c.id}`,
                     geometry: c.geometry,
-                    properties: { featureType: 'city', officialSupport: false, interactive: false },
+                    properties: { featureType: 'city', interactive: false },
                     style: {
                         fillColor: 'hsl(24, 100%, 50%)',
                         fillOpacity: 0.03,
@@ -59,14 +59,12 @@ export function useMapFeatures({
                 });
             }
         }
-        // Blue-gray overlay over the filtered municipality. officialSupport:false keeps the
-        // map's built-in hover from clearing the fill on supported cities.
         const cityGeom = filterCityId ? cityGeometries[filterCityId] : null;
         if (cityGeom) {
             list.push({
                 id: `__city__${filterCityId}`,
                 geometry: cityGeom,
-                properties: { featureType: 'city', officialSupport: false },
+                properties: { featureType: 'city' },
                 style: {
                     fillColor: 'hsl(212, 50%, 76%)',
                     fillOpacity: 0.22,
@@ -86,7 +84,7 @@ export function useMapFeatures({
                 list.push({
                     id: `__petitioned__${c.id}`,
                     geometry: c.geometry,
-                    properties: { featureType: 'city', officialSupport: false, interactive: false },
+                    properties: { featureType: 'city', interactive: false },
                     // A tint, not a highlight: the ramp tops out just under the filter overlay's
                     // 0.22, so even the most-petitioned δήμος reads as shaded, never selected.
                     style: {
@@ -107,7 +105,7 @@ export function useMapFeatures({
             list.push({
                 id: `__clicked-city__${clickedMunicipality.id}`,
                 geometry: clickedMunicipality.geometry,
-                properties: { featureType: 'city', officialSupport: false },
+                properties: { featureType: 'city' },
                 style: petitioned
                     ? {
                           // focus shade — same weight as the blue-gray filter overlay, in the

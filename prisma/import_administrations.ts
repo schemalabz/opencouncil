@@ -133,7 +133,6 @@ async function importData(inputFile: string) {
                     name_municipality_en: admin.name_municipality_en,
                     timezone: admin.timezone,
                     status: 'pending',
-                    officialSupport: false,
                 }
             });
             createdCount++;
