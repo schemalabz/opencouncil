@@ -88,6 +88,23 @@ describe.each(documents)('%s', (_name, build) => {
         expect(defined.has('Normal')).toBe(true);
     });
 
+    // OOXML complex types are xsd:sequence, and w:rFonts has to come first in a
+    // w:rPr. docx 9.1.1 emitted it last, which Word tolerated and Pages did not
+    // — every font declaration in styles.xml was dropped there, so the documents
+    // rendered in the reader's own faces. Guards against a downgrade or a
+    // regression in the library reintroducing it.
+    it('declares the font before the properties that must follow it', async () => {
+        const { styles } = await parts(await build());
+
+        const runProperties = [...styles.matchAll(/<w:rPr>([\s\S]*?)<\/w:rPr>/g)].map(m => m[1]);
+        const withFont = runProperties.filter(rPr => rPr.includes('<w:rFonts'));
+        expect(withFont.length).toBeGreaterThan(0);
+        for (const rPr of withFont) {
+            const order = [...rPr.matchAll(/<w:(rFonts|b|i|color|sz|szCs|u)[ />]/g)].map(m => m[1]);
+            expect(order[0]).toBe('rFonts');
+        }
+    });
+
     it('gives every paragraph an explicit style', async () => {
         const { document } = await parts(await build());
 

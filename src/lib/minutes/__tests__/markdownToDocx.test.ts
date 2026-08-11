@@ -1,5 +1,6 @@
 import { markdownToDocxParagraphs } from '../markdownToDocx';
-import { Paragraph, Table, TextRun } from 'docx';
+import { Document, Packer, Paragraph, Table, TextRun } from 'docx';
+import JSZip from 'jszip';
 
 type DocxElement = Paragraph | Table;
 
@@ -58,28 +59,22 @@ function hasBoldRun(paragraph: DocxElement): boolean {
     return false;
 }
 
-/** Check if a paragraph has center alignment */
-function isCenterAligned(paragraph: DocxElement): boolean {
-    const root = (paragraph as unknown as Record<string, unknown>)['root'] as Array<Record<string, unknown>> | undefined;
-    if (!root) return false;
-    for (const item of root) {
-        if (item['rootKey'] === 'w:pPr') {
-            const prRoot = item['root'] as Array<Record<string, unknown>> | undefined;
-            if (!prRoot) continue;
-            for (const child of prRoot) {
-                if (child['rootKey'] === 'w:jc') {
-                    const attrs = child['root'] as Array<Record<string, unknown>> | undefined;
-                    if (attrs) {
-                        for (const attr of attrs) {
-                            const attrRoot = (attr as Record<string, unknown>)['root'] as Record<string, string> | undefined;
-                            if (attrRoot?.['val'] === 'center') return true;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return false;
+/**
+ * Which of these paragraphs are centred, read off the packed document.xml.
+ *
+ * Alignment is checked against the rendered XML rather than docx's internal
+ * object graph: that graph is private and its shape changes between releases,
+ * which silently broke this assertion on a docx upgrade even though the output
+ * was still correct.
+ */
+async function centeredFlags(elements: DocxElement[]): Promise<boolean[]> {
+    const doc = new Document({ sections: [{ children: elements }] });
+    const zip = await JSZip.loadAsync(await Packer.toBuffer(doc));
+    const xml = await zip.file('word/document.xml')!.async('string');
+    return xml
+        .split('<w:p>')
+        .slice(1)
+        .map(paragraph => /<w:jc w:val="center"\/>/.test(paragraph));
 }
 
 describe('markdownToDocxParagraphs', () => {
@@ -157,30 +152,28 @@ Closing paragraph`;
         // We verify it doesn't crash with custom fontSize — the actual size is in internal properties
     });
 
-    it('should center-align ΑΠΟΦΑΣΙΖΕΙ lines', () => {
+    it('should center-align ΑΠΟΦΑΣΙΖΕΙ lines', async () => {
         const result = markdownToDocxParagraphs('Λαμβάνοντας υπόψη τα ανωτέρω\n\nΑΠΟΦΑΣΙΖΕΙ\n\nΕγκρίνει την πρόταση');
         expect(result).toHaveLength(3);
-        expect(isCenterAligned(result[0])).toBe(false);
-        expect(isCenterAligned(result[1])).toBe(true);
-        expect(isCenterAligned(result[2])).toBe(false);
+        expect(await centeredFlags(result)).toEqual([false, true, false]);
     });
 
-    it('should center-align bold **ΑΠΟΦΑΣΙΖΕΙ** lines', () => {
+    it('should center-align bold **ΑΠΟΦΑΣΙΖΕΙ** lines', async () => {
         const result = markdownToDocxParagraphs('**ΑΠΟΦΑΣΙΖΕΙ**');
         expect(result).toHaveLength(1);
-        expect(isCenterAligned(result[0])).toBe(true);
+        expect(await centeredFlags(result)).toEqual([true]);
     });
 
-    it('should center-align "αποφασίζει" municipality-style lines', () => {
+    it('should center-align "αποφασίζει" municipality-style lines', async () => {
         const result = markdownToDocxParagraphs('Το Δημοτικό Συμβούλιο Χαλανδρίου αποφασίζει ομόφωνα');
         expect(result).toHaveLength(1);
-        expect(isCenterAligned(result[0])).toBe(true);
+        expect(await centeredFlags(result)).toEqual([true]);
     });
 
-    it('should not center-align regular paragraphs', () => {
+    it('should not center-align regular paragraphs', async () => {
         const result = markdownToDocxParagraphs('Εγκρίνει ομόφωνα την πρόταση');
         expect(result).toHaveLength(1);
-        expect(isCenterAligned(result[0])).toBe(false);
+        expect(await centeredFlags(result)).toEqual([false]);
     });
 
     it('should handle real-world Greek legal text', () => {
