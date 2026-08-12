@@ -4,6 +4,7 @@ import { getAboutPageStatsCached, getCityCoverageCached, getSupportedCitiesWithL
 import { getActiveContractAdamByCity } from "@/lib/db/offers";
 import { coveredBodyTypesByCity, toBrochurePartners } from "@/lib/brochure";
 import { getRealm } from "@/lib/realm.server";
+import { getRealmContactPhone } from "@/lib/realm";
 import { env } from "@/env.mjs";
 import { BrochureGenerator } from "@/components/brochure/brochure-generator";
 
@@ -53,8 +54,12 @@ export default async function BrochurePage() {
                         adam: adamByCity[city.id],
                         coveredBodyTypes: bodyTypesByCity[city.id],
                     }))}
-                    contactEmail={env.NEXT_PUBLIC_CONTACT_EMAIL ?? "christos@opencouncil.gr"}
-                    contactPhone={env.NEXT_PUBLIC_CONTACT_PHONE ?? "+30 6980586851"}
+                    // The two fallbacks used to be one person's email and their
+                    // mobile. The phone is the realm's office line now, so the email
+                    // default follows it to the shared inbox rather than leaving a
+                    // personal address printed beside a switchboard number.
+                    contactEmail={env.NEXT_PUBLIC_CONTACT_EMAIL ?? "hello@opencouncil.gr"}
+                    contactPhone={getRealmContactPhone(realm)}
                 />
                 <p className="text-xs text-muted-foreground">
                     Εκτύπωση διπλής όψης σε A4 οριζόντια, με αναστροφή στη μικρή πλευρά

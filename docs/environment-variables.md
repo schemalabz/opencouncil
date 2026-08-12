@@ -149,7 +149,6 @@ The Google Calendar integration uses OAuth 2.0 authentication with a Google acco
 ### Contact Information
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
-| `NEXT_PUBLIC_CONTACT_PHONE` | Public contact phone number. | No | - |
 | `NEXT_PUBLIC_CONTACT_EMAIL` | Public contact email. | No | - |
 | `NEXT_PUBLIC_CONTACT_ADDRESS` | Public contact address. | No | - |
 

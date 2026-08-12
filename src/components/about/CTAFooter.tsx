@@ -5,14 +5,17 @@ import { motion } from 'framer-motion'
 import { PhoneCall, CalendarClock } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
-import { env } from '@/env.mjs'
+import type { Realm } from '@prisma/client'
+import { getRealmContactPhone, telHref } from '@/lib/realm'
 
 interface CTAFooterProps {
     onContactClick: () => void
+    realm: Realm
 }
 
-export default function CTAFooter({ onContactClick }: CTAFooterProps) {
+export default function CTAFooter({ onContactClick, realm }: CTAFooterProps) {
     const t = useTranslations('about.cta')
+    const contactPhone = getRealmContactPhone(realm)
     const glowRef = useRef<HTMLDivElement>(null)
 
     const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -77,13 +80,13 @@ export default function CTAFooter({ onContactClick }: CTAFooterProps) {
                             <CalendarClock className="mr-2 h-4 w-4" />
                             {t('scheduleCall')}
                         </Button>
-                        <a href={`tel:${env.NEXT_PUBLIC_CONTACT_PHONE}`} className="inline-flex no-underline [&_*]:no-underline">
+                        <a href={telHref(contactPhone)} className="inline-flex no-underline [&_*]:no-underline">
                             <Button
                                 size="lg"
                                 className="bg-transparent border border-white/30 text-white hover:bg-white/10 rounded-xl px-8 py-6 text-base w-full transition-colors duration-300"
                             >
                                 <PhoneCall className="mr-2 h-4 w-4" />
-                                {env.NEXT_PUBLIC_CONTACT_PHONE}
+                                {contactPhone}
                             </Button>
                         </a>
                     </div>

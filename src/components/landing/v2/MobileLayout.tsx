@@ -61,6 +61,7 @@ export function MobileLayout({
     overviewActive,
     explainOpen,
     explainAvailable,
+    realm,
     onCloseExplain,
     infoOpen,
     onToggleInfo,
@@ -135,6 +136,7 @@ export function MobileLayout({
                         cities={cities}
                         searchActive={query.trim().length > 0}
                         query={query}
+                        realm={realm}
                     />
 
             {/* map extras — only when the map is the visible/interactive surface */}

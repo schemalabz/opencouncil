@@ -784,6 +784,7 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         previewSubject,
         explainOpen,
         explainAvailable,
+        realm,
         onCloseExplain: () => setExplainOpen(false),
         displayedMunicipality,
         mapNode,

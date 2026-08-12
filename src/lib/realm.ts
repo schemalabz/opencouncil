@@ -2,6 +2,12 @@ import { Realm } from '@prisma/client';
 import type { Country } from '@/lib/apiTypes';
 
 /**
+ * The Athens office line — the number every realm shows unless it has one of its
+ * own. Written the way it should be displayed; `telHref` derives the dialable form.
+ */
+const OFFICE_PHONE = '+30 211 198 0212';
+
+/**
  * Realm (tenant) configuration. A single deployment serves all domains off one
  * database; the realm a request belongs to is resolved from its Host header (see
  * `realmForHost`). This is the single source of truth mapping each realm to its
@@ -16,15 +22,29 @@ import type { Country } from '@/lib/apiTypes';
  * (`proxy.ts`). The request-scoped resolver lives in `realm.server.ts`.
  */
 export const REALMS = {
-    greece: { domain: 'opencouncil.gr', defaultLocale: 'el', country: 'GR' },
-    france: { domain: 'opencouncil.fr', defaultLocale: 'fr', country: 'FR' },
-    cyprus: { domain: 'opencouncil.cy', defaultLocale: 'el', country: 'CY' },
+    greece: { domain: 'opencouncil.gr', defaultLocale: 'el', country: 'GR', contactPhone: OFFICE_PHONE },
+    france: { domain: 'opencouncil.fr', defaultLocale: 'fr', country: 'FR', contactPhone: OFFICE_PHONE },
+    cyprus: { domain: 'opencouncil.cy', defaultLocale: 'el', country: 'CY', contactPhone: OFFICE_PHONE },
     // Serbian is digraphic: `sr` (Cyrillic) is the default, `sr-Latn` is the
     // realm-exclusive Latin variant reachable via the script switcher.
-    serbia: { domain: 'opencouncil.rs', defaultLocale: 'sr', extraLocales: ['sr-Latn'], country: 'RS' },
+    // The Serbian number is a domestic toll-free line, so it is shown and
+    // dialled in its national form rather than as +381.
+    serbia: {
+        domain: 'opencouncil.rs',
+        defaultLocale: 'sr',
+        extraLocales: ['sr-Latn'],
+        country: 'RS',
+        contactPhone: '0800 301167',
+    },
 } as const satisfies Record<
     Realm,
-    { domain: string; defaultLocale: 'el' | 'fr' | 'sr'; country: Country; extraLocales?: readonly string[] }
+    {
+        domain: string;
+        defaultLocale: 'el' | 'fr' | 'sr';
+        country: Country;
+        extraLocales?: readonly string[];
+        contactPhone: string;
+    }
 >;
 
 /**
@@ -235,4 +255,22 @@ export function getRealmCountry(realm: Realm): Country {
 /** Fallback map center/zoom for a realm, used when a city has no stored geometry. */
 export function getRealmDefaultMapView(realm: Realm): { center: [number, number]; zoom: number } {
     return REALM_DEFAULT_MAP_VIEW[realm];
+}
+
+/**
+ * The phone number to show visitors of a realm, formatted for display. Serbia
+ * has its own toll-free line; the rest share the Athens office number.
+ */
+export function getRealmContactPhone(realm: Realm): string {
+    return REALMS[realm].contactPhone;
+}
+
+/**
+ * `tel:` href for a display-formatted number — spacing removed, everything else
+ * (the leading `+`, or a national trunk `0`) kept as written, because whether a
+ * number is dialable internationally is a property of the number itself: the
+ * Serbian toll-free line only works dialled domestically.
+ */
+export function telHref(phone: string): string {
+    return `tel:${phone.replace(/[^\d+]/g, '')}`;
 }

@@ -1,4 +1,6 @@
+import type { Realm } from '@prisma/client';
 import { REOPEN_CONSENT_EVENT } from '@/lib/utils/analyticsConsent';
+import { getRealmContactPhone, telHref } from '@/lib/realm';
 
 /* Footer-style link groups surfaced in the desktop "Περισσότερα" popover and the mobile
    drawer accordions. Mirrors the site footer (src/components/layout/Footer.tsx). */
@@ -22,7 +24,7 @@ export type FooterLink = {
 
 export type FooterGroup = { title: string; titleKey?: string; links: FooterLink[] };
 
-export const FOOTER_GROUPS: FooterGroup[] = [
+const STATIC_GROUPS: FooterGroup[] = [
     {
         title: 'Σύνδεσμοι',
         titleKey: 'footer.groups.links',
@@ -46,15 +48,33 @@ export const FOOTER_GROUPS: FooterGroup[] = [
             { label: 'Προτιμήσεις cookies', labelKey: 'footer.links.cookies', cookie: true },
         ],
     },
-    {
+];
+
+/**
+ * The contact group, which depends on the realm: each domain shows its own
+ * phone number. Appended to the static groups rather than living inside them, since
+ * that array is a module constant and the number is not known until render.
+ */
+export function contactGroup(realm: Realm): FooterGroup {
+    const phone = getRealmContactPhone(realm);
+    return {
         title: 'Επικοινωνία',
         titleKey: 'footer.groups.contact',
         links: [
-            { label: '+30 2111980212', href: 'tel:+302111980212', icon: 'phone' },
+            { label: phone, href: telHref(phone), icon: 'phone' },
             { label: 'hello@opencouncil.gr', href: 'mailto:hello@opencouncil.gr', icon: 'mail' },
         ],
-    },
-];
+    };
+}
+
+/**
+ * Every group in display order, contact last — what the popover and drawer render.
+ * The static groups are deliberately not exported: they are an incomplete list,
+ * and a caller reaching for them would silently get a menu with no contact row.
+ */
+export function footerGroups(realm: Realm): FooterGroup[] {
+    return [...STATIC_GROUPS, contactGroup(realm)];
+}
 
 /** True for an internal app route (uses the i18n <Link>); false for tel:/mailto:/http. */
 export function isInternalHref(href: string): boolean {

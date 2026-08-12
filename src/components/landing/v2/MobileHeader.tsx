@@ -8,12 +8,13 @@ import { useSession, signOut } from 'next-auth/react';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger, SheetClose, SheetTitle } from '@/components/ui/sheet';
-import { FOOTER_GROUPS, isInternalHref, reopenCookiePreferences, type FooterLink } from './navLinks';
+import { footerGroups, isInternalHref, reopenCookiePreferences, type FooterLink } from './navLinks';
 import ScriptSwitcher from '@/components/layout/ScriptSwitcher';
 import { NotifyMunicipalityDialog, openAfterMenuCloses } from './NotifyMunicipalityDialog';
 import { captureLandingAction } from '@/lib/landing/analytics';
 import type { InfoSurface } from '@/lib/landing/landingCore';
 import type { LandingListCity } from '@/lib/landing/landingData';
+import type { Realm } from '@prisma/client';
 
 /* Mobile top bar — a pill with the burger nav-drawer trigger + logo on the left and a separate
    bordered keyword-search box on the right. Tapping search opens the search overlay (owned by the
@@ -24,6 +25,7 @@ export function MobileHeader({
     cities,
     searchActive,
     query,
+    realm,
 }: {
     onOpenSearch: () => void;
     /** opens the "Τι είναι αυτό;" guide — the same panel the map's "?" opens. Offered here too
@@ -35,6 +37,8 @@ export function MobileHeader({
     searchActive?: boolean;
     /** the active search text, shown (truncated) inside the search box while searchActive */
     query?: string;
+    /** the request's realm, from the server — picks the contact number in the drawer */
+    realm: Realm;
 }) {
     const t = useTranslations('landingV2');
     const [notifyOpen, setNotifyOpen] = useState(false);
@@ -85,7 +89,7 @@ export function MobileHeader({
                         <DrawerAction onClick={() => onToggleInfo('menu')} icon={<HelpCircle className="h-[18px] w-[18px]" />}>
                             {t('info.title')}
                         </DrawerAction>
-                        {FOOTER_GROUPS.map((group) => (
+                        {footerGroups(realm).map((group) => (
                             <details key={group.title} className="group">
                                 <summary className="flex cursor-pointer list-none items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted [&::-webkit-details-marker]:hidden">
                                     {t(group.titleKey!)}

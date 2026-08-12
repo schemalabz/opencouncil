@@ -8,6 +8,8 @@ import { formatDate } from "@/lib/utils";
 import { ExternalLink } from "lucide-react";
 import PrintButton from "@/components/consultations/PrintButton";
 import { env } from "@/env.mjs";
+import { getRealm } from "@/lib/realm.server";
+import { getRealmContactPhone } from "@/lib/realm";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { localizeText } from "@/lib/serbian";
 
@@ -404,7 +406,7 @@ export default async function CommentsPage(props: PageProps) {
                 <div className="mt-12 pt-6 border-t border-gray-200 text-xs text-gray-500">
                     <p>
                         Αυτή η αναφορά δημιουργήθηκε από το OpenCouncil ({env.NEXTAUTH_URL}).
-                        Για ερωτήσεις και τεχνική υποστήριξη: {env.NEXT_PUBLIC_CONTACT_EMAIL} ή {env.NEXT_PUBLIC_CONTACT_PHONE}
+                        Για ερωτήσεις και τεχνική υποστήριξη: {env.NEXT_PUBLIC_CONTACT_EMAIL} ή {getRealmContactPhone(await getRealm())}
                     </p>
                 </div>
             </div>

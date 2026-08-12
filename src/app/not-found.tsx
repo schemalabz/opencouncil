@@ -1,9 +1,13 @@
 "use client"
 import Link from 'next/link'
+import { useRealm } from '@/hooks/useRealm'
+import { getRealmContactPhone, telHref } from '@/lib/realm'
 import { Button } from '@/components/ui/button'
 import { Home, Search, ArrowLeft, Phone, Mail } from 'lucide-react'
 
 export default function NotFound() {
+    const contactPhone = getRealmContactPhone(useRealm())
+
     return (
         <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden bg-background">
             {/* Content */}
@@ -63,11 +67,11 @@ export default function NotFound() {
                     </p>
                     <div className="flex flex-col sm:flex-row gap-3 justify-center">
                         <a
-                            href="tel:+302111980212"
+                            href={telHref(contactPhone)}
                             className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
                         >
                             <Phone className="w-4 h-4 mr-2" />
-                            +30 2111980212
+                            {contactPhone}
                         </a>
                         <a
                             href="mailto:hello@opencouncil.gr"
