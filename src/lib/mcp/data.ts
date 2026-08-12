@@ -879,6 +879,13 @@ export async function mcpCreateHighlight(
         );
     }
 
+    // Deliberately no `id`: the MCP surface only ever creates highlights, so
+    // this always takes upsertHighlightCore's create branch — the update
+    // branch (which deletes the previous utterance selection) is unreachable
+    // from here. The write-tool annotations in server.ts lean on exactly
+    // this: `destructiveHint: false` on create_highlight AND on
+    // generate_highlight_video (a re-render can only reformat content that
+    // cannot change). Adding a highlightId parameter would falsify both.
     const highlight = await upsertHighlightCore(identity, {
         name: args.name,
         meetingId: args.meetingId,

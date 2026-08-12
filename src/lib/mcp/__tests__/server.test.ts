@@ -27,12 +27,23 @@ const HIGHLIGHT_TOOLS = [
 const USER: McpIdentity = { type: 'user', userId: 'u1' };
 const SERVICE: McpIdentity = { type: 'service', keyName: 'bot' };
 
+const CATEGORIES = ['discovery', 'directory', 'meetings', 'highlights'];
+
+type RecordedToolConfig = {
+    annotations?: { readOnlyHint?: boolean };
+    _meta?: { category?: string };
+};
+
 /** What a connection with this identity would see in tools/list & prompts/list. */
 function advertised(identity: McpIdentity, { inRequestScope = true } = {}) {
     const tools: string[] = [];
     const prompts: string[] = [];
+    const meta: Record<string, RecordedToolConfig> = {};
     const recorder = {
-        registerTool: (name: string) => { tools.push(name); },
+        registerTool: (name: string, config: RecordedToolConfig) => {
+            tools.push(name);
+            meta[name] = config;
+        },
         registerPrompt: (name: string) => { prompts.push(name); },
     } as unknown as McpServer;
 
@@ -42,7 +53,7 @@ function advertised(identity: McpIdentity, { inRequestScope = true } = {}) {
     } else {
         register();
     }
-    return { tools, prompts };
+    return { tools, prompts, meta };
 }
 
 describe('highlight tools are advertised only on authenticated connections', () => {
@@ -73,5 +84,22 @@ describe('highlight tools are advertised only on authenticated connections', () 
     it('fails closed when there is no request scope at all', () => {
         expect(advertised(null, { inRequestScope: false }).tools)
             .toEqual(advertised(null).tools);
+    });
+});
+
+describe('tool metadata', () => {
+    // An invariant, not an inventory: adding a tool needs no test edit, but a
+    // tool registered without annotations (which would land in the client's
+    // "Other" permissions bucket) or with a category outside the known set
+    // (which would mint a stray $mcp_tool_category value in PostHog) fails
+    // here. Nothing else in the repo reads these fields, so this is the only
+    // place that can notice. Filtering into an array makes Jest name the
+    // offending tool.
+    it('gives every tool a readOnlyHint and a known category', () => {
+        const { tools, meta } = advertised(USER);
+        expect(tools.filter(name =>
+            typeof meta[name].annotations?.readOnlyHint !== 'boolean'
+            || !CATEGORIES.includes(meta[name]._meta?.category ?? '')
+        )).toEqual([]);
     });
 });

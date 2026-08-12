@@ -49,6 +49,15 @@ async function run(fn: () => Promise<unknown>): Promise<CallToolResult> {
     }
 }
 
+/**
+ * Tool grouping, stamped into each tool's `_meta`. Not decorative: the
+ * PostHog MCP analytics SDK reads exactly `_meta.category` into
+ * $mcp_tool_category, so these strings become analytics dimensions — keep
+ * them stable, and keep this union the only place they are defined.
+ */
+type ToolCategory = 'discovery' | 'directory' | 'meetings' | 'highlights';
+const category = (category: ToolCategory) => ({ category });
+
 const paginationShape = {
     page: z.number().int().min(1).default(1).describe('Page number, starting at 1'),
 };
@@ -58,6 +67,8 @@ export function registerOpenCouncilServer(server: McpServer) {
         'search',
         {
             title: 'Search subjects',
+            annotations: { readOnlyHint: true, openWorldHint: false },
+            _meta: category('discovery'),
             description:
                 'Full-text and semantic search over council meeting subjects (agenda items). ' +
                 'Filter by city, person, party, topic or date range. Omit the query to list ' +
@@ -86,6 +97,8 @@ export function registerOpenCouncilServer(server: McpServer) {
         'list_hot_subjects',
         {
             title: 'List hot subjects',
+            annotations: { readOnlyHint: true, openWorldHint: false },
+            _meta: category('discovery'),
             description:
                 'The most-discussed subjects across all municipalities over a recent period, ranked ' +
                 'by debate time — start here for "what is happening in the councils", a weekly ' +
@@ -107,6 +120,8 @@ export function registerOpenCouncilServer(server: McpServer) {
         'list_nearby_subjects',
         {
             title: 'List subjects near a location',
+            annotations: { readOnlyHint: true, openWorldHint: false },
+            _meta: category('discovery'),
             description:
                 'Recent council subjects around a geographic point — "what has the council discussed ' +
                 'about this neighborhood" (for the decision and votes, follow up with get_subject). ' +
@@ -134,6 +149,8 @@ export function registerOpenCouncilServer(server: McpServer) {
         'fetch',
         {
             title: 'Fetch a record',
+            annotations: { readOnlyHint: true, openWorldHint: false },
+            _meta: category('discovery'),
             description:
                 'Fetch the full content of a single record by id. Accepts a subject id (default), or ' +
                 'prefixed ids: "city:{cityId}", "person:{personId}", "party:{partyId}", "meeting:{cityId}/{meetingId}".',
@@ -148,6 +165,8 @@ export function registerOpenCouncilServer(server: McpServer) {
         'list_cities',
         {
             title: 'List municipalities',
+            annotations: { readOnlyHint: true, openWorldHint: false },
+            _meta: category('directory'),
             description: 'List the municipalities available on OpenCouncil, with ids and counts.',
             inputSchema: z.object({}),
         },
@@ -158,6 +177,8 @@ export function registerOpenCouncilServer(server: McpServer) {
         'get_city',
         {
             title: 'Get municipality',
+            annotations: { readOnlyHint: true, openWorldHint: false },
+            _meta: category('directory'),
             description: 'Get a municipality profile, including its political parties.',
             inputSchema: z.object({ cityId: z.string().min(1) }),
         },
@@ -168,6 +189,8 @@ export function registerOpenCouncilServer(server: McpServer) {
         'list_people',
         {
             title: 'List council members',
+            annotations: { readOnlyHint: true, openWorldHint: false },
+            _meta: category('directory'),
             description: 'List the people (councillors, mayor, etc.) of a municipality with their roles and party.',
             inputSchema: z.object({
                 cityId: z.string().min(1),
@@ -181,6 +204,8 @@ export function registerOpenCouncilServer(server: McpServer) {
         'get_person',
         {
             title: 'Get person',
+            annotations: { readOnlyHint: true, openWorldHint: false },
+            _meta: category('directory'),
             description: 'Get a person profile with all their roles. Use search with personIds to find what they discussed.',
             inputSchema: z.object({ personId: z.string().min(1) }),
         },
@@ -191,6 +216,8 @@ export function registerOpenCouncilServer(server: McpServer) {
         'get_party',
         {
             title: 'Get party',
+            annotations: { readOnlyHint: true, openWorldHint: false },
+            _meta: category('directory'),
             description: 'Get a political party with its members.',
             inputSchema: z.object({ partyId: z.string().min(1) }),
         },
@@ -201,6 +228,8 @@ export function registerOpenCouncilServer(server: McpServer) {
         'list_meetings',
         {
             title: 'List meetings',
+            annotations: { readOnlyHint: true, openWorldHint: false },
+            _meta: category('meetings'),
             description: 'List a municipality\'s council meetings, newest first (or soonest first for upcoming).',
             inputSchema: z.object({
                 cityId: z.string().min(1),
@@ -225,6 +254,8 @@ export function registerOpenCouncilServer(server: McpServer) {
         'get_meeting',
         {
             title: 'Get meeting',
+            annotations: { readOnlyHint: true, openWorldHint: false },
+            _meta: category('meetings'),
             description:
                 'Get a council meeting with its agenda. Each subject carries discussionSeconds — how ' +
                 'long it was actually debated, the best proxy for which subjects mattered, since ' +
@@ -241,6 +272,8 @@ export function registerOpenCouncilServer(server: McpServer) {
         'get_subject',
         {
             title: 'Get subject',
+            annotations: { readOnlyHint: true, openWorldHint: false },
+            _meta: category('meetings'),
             description:
                 'Get a subject (agenda item) in detail: description, per-speaker contribution summaries, ' +
                 'decision, votes. Carries its meeting context (meetingName, meetingDate, and ' +
@@ -258,6 +291,8 @@ export function registerOpenCouncilServer(server: McpServer) {
         'get_subject_transcript',
         {
             title: 'Get subject transcript',
+            annotations: { readOnlyHint: true, openWorldHint: false },
+            _meta: category('meetings'),
             description:
                 'The verbatim transcript of everything said about one subject, as utterances with ids, ' +
                 'speaker names, roles (resolved as of the meeting date) and timestamps. Utterance ids ' +
@@ -275,6 +310,8 @@ export function registerOpenCouncilServer(server: McpServer) {
         'get_transcript',
         {
             title: 'Get meeting transcript',
+            annotations: { readOnlyHint: true, openWorldHint: false },
+            _meta: category('meetings'),
             description:
                 'The full transcript of a meeting as speaker segments, paginated. Speaker roles are ' +
                 'resolved as of the meeting date. Long — prefer ' +
@@ -385,6 +422,8 @@ function registerHighlightTools(server: McpServer) {
         'create_highlight',
         {
             title: 'Create highlight',
+            annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+            _meta: category('highlights'),
             description:
                 'Create a highlight from a selection of a meeting\'s utterances (get utterance ids ' +
                 'from get_subject_transcript). The utterances need not be consecutive — skip filler ' +
@@ -407,6 +446,8 @@ function registerHighlightTools(server: McpServer) {
         'generate_highlight_video',
         {
             title: 'Generate highlight video',
+            annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+            _meta: category('highlights'),
             description:
                 'Start rendering a highlight into a shareable video clip, in landscape or vertical ' +
                 '(9:16) format, with optional burnt-in subtitles and speaker name/party overlays — ' +
@@ -438,6 +479,8 @@ function registerHighlightTools(server: McpServer) {
         'list_highlights',
         {
             title: 'List highlights',
+            annotations: { readOnlyHint: true, openWorldHint: false },
+            _meta: category('highlights'),
             description:
                 'The highlights you can manage, newest first — your own, plus every highlight in ' +
                 'municipalities you administer. Use it to pick up work from a previous session ' +
@@ -455,6 +498,8 @@ function registerHighlightTools(server: McpServer) {
         'set_highlight_showcase',
         {
             title: 'Showcase a highlight',
+            annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+            _meta: category('highlights'),
             description:
                 'Publish (or unpublish) a rendered highlight on the municipality\'s pages on ' +
                 'opencouncil.gr. Needs a rendered video and city-administrator rights. Ask the ' +
@@ -472,6 +517,8 @@ function registerHighlightTools(server: McpServer) {
         'get_highlight',
         {
             title: 'Get highlight',
+            annotations: { readOnlyHint: true, openWorldHint: false },
+            _meta: category('highlights'),
             description:
                 'Get a highlight and the status of its video: not_generated, generating (with progress), ' +
                 'failed, or ready with the final video URL and the format it was rendered in. Use this ' +
