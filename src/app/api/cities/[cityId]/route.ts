@@ -31,7 +31,7 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
         return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    // Check if user is superadmin (required for officialSupport and status changes)
+    // Check if user is superadmin (required for status changes)
     const currentUser = await getCurrentUser()
     const isSuperAdmin = currentUser?.isSuperAdmin ?? false
 
@@ -89,12 +89,9 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
         }
 
         // Only include admin-only fields if user is superadmin. Realm (tenant)
-        // and language are tenant-level like status/officialSupport, so a
-        // city-scoped admin must not be able to move a city to another realm.
+        // and language are tenant-level like status, so a city-scoped admin must
+        // not be able to move a city to another realm — or make it a customer.
         if (isSuperAdmin) {
-            if (data.officialSupport !== undefined) {
-                updateData.officialSupport = data.officialSupport
-            }
             if (data.status !== undefined) {
                 updateData.status = data.status
             }

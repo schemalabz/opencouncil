@@ -11,6 +11,7 @@ import { Hero } from "./hero";
 import { CityOverview } from "./city-overview";
 import { ChevronDown } from 'lucide-react';
 import { MunicipalitySelector } from '@/components/onboarding/selectors/MunicipalitySelector';
+import { isOutOfNetwork, isPublic } from "@/lib/cityStatus";
 
 export function Landing({ allCities, cities, latestPost }: LandingPageData) {
     const t = useTranslations('Landing');
@@ -30,7 +31,7 @@ export function Landing({ allCities, cities, latestPost }: LandingPageData) {
         setSelectedCity(city);
         setIsNavigating(true);
 
-        const targetUrl = city.status === 'pending' ? `/${city.id}/petition` : `/${city.id}`;
+        const targetUrl = isOutOfNetwork(city.status) ? `/${city.id}/petition` : `/${city.id}`;
 
         // Force a proper history entry by ensuring the browser processes this as a user action
         // Use setTimeout with 0 delay to ensure this runs in the next tick
@@ -148,7 +149,7 @@ export function Landing({ allCities, cities, latestPost }: LandingPageData) {
                             <CityOverview
                                 key={city.id}
                                 city={city}
-                                showPrivateLabel={city.status !== 'listed'}
+                                showPrivateLabel={!isPublic(city.status)}
                             />
                         ))}
 

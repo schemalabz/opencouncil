@@ -194,10 +194,13 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
                 })
             );
 
-            // Set city as unlisted (no longer pending, but not yet publicly listed)
+            // Importing data does not publish the city — a superadmin promotes it to
+            // demo or supported once the import has been checked. Written explicitly
+            // rather than left alone because the City Creator also runs on cities that
+            // already have a status.
             await tx.city.update({
                 where: { id: params.cityId },
-                data: { status: 'unlisted' },
+                data: { status: 'pending' },
             });
 
             const totalRoles = validatedData.people.reduce((count, person) => count + (person.roles?.length || 0), 0);

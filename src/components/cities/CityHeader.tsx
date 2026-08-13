@@ -21,6 +21,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import CityCreator from '@/components/cities/CityCreator';
 import { OfficialSupportBadge } from '@/components/cities/OfficialSupportBadge';
 import { IS_DEV } from '@/lib/utils';
+import { isOutOfNetwork, isPetitionable } from '@/lib/cityStatus';
 import { useToast } from '@/hooks/use-toast';
 
 type CityHeaderProps = {
@@ -156,7 +157,7 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage, hasNoData 
                             transition={{ delay: 0.4 }}
                         >
                             <OfficialSupportBadge
-                                officialSupport={city.officialSupport}
+                                status={city.status}
                                 authorityType={city.authorityType}
                                 cityId={city.id}
                                 className="mt-2"
@@ -188,7 +189,7 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage, hasNoData 
                                 </Button>
                             </>
                         )}
-                        {isSuperAdmin && (city.status === 'pending' || hasNoData) && (
+                        {isSuperAdmin && (isOutOfNetwork(city.status) || hasNoData) && (
                             <Sheet open={isCityCreatorOpen} onOpenChange={setIsCityCreatorOpen}>
                                 <SheetTrigger asChild>
                                     <Button variant="outline" size="sm">
@@ -214,7 +215,7 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage, hasNoData 
                                 </SheetContent>
                             </Sheet>
                         )}
-                        {IS_DEV && isSuperAdmin && city.status !== 'pending' && (
+                        {IS_DEV && isSuperAdmin && !isOutOfNetwork(city.status) && (
                             <Button
                                 variant="destructive"
                                 size="sm"
@@ -232,7 +233,7 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage, hasNoData 
                             isSubscribed={hasNotifications}
                         />
                     )}
-                    {city.status !== 'pending' && !city.officialSupport && (
+                    {isPetitionable(city.status) && (
                         <Button
                             onClick={() => router.push(`/${city.id}/petition`)}
                             size="xl"

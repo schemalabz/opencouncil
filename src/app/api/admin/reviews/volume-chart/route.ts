@@ -3,6 +3,7 @@ import prisma from '@/lib/db/prisma';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { calculateMeetingDurationMs } from '@/lib/db/utils/meetingDuration';
 import { startOfWeek, subWeeks, format } from 'date-fns';
+import { CUSTOMER_CITY_WHERE } from '@/lib/cityStatus';
 
 interface WeekData {
   week: string;
@@ -25,7 +26,7 @@ export async function GET() {
         dateTime: {
           gte: twelveWeeksAgo
         },
-        city: { officialSupport: true }
+        city: CUSTOMER_CITY_WHERE
       },
       include: {
         taskStatuses: {

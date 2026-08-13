@@ -55,6 +55,7 @@ import { calculateGeometryBounds, isInSupportedMunicipality } from '@/lib/geo';
 import { useRouter } from '@/i18n/routing';
 import { hasExplainPage } from '@/lib/explain/availability';
 import type { Realm } from '@prisma/client';
+import { isPublic } from '@/lib/cityStatus';
 import { NotifyPrompt } from './NotifyPrompt';
 import { DesktopLayout } from './DesktopLayout';
 import { MobileLayout } from './MobileLayout';
@@ -182,7 +183,7 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
     // An out-of-network municipality the user clicked on the map — shaded orange.
     const [clickedMunicipality, setClickedMunicipality] = useState<ClickedMunicipality | null>(null);
     // The municipality under the map center (updated on every move) — drives the "view its page"
-    // button. officialSupport gates it: shown only for δήμοι actually in OpenCouncil.
+    // button. Publication gates it: shown only for δήμοι actually in OpenCouncil.
     const [centerMunicipality, setCenterMunicipality] = useState<CenterMunicipality | null>(null);
 
     const [range, setRange] = useState<DateRangeKey>(DEFAULT_RANGE);
@@ -339,7 +340,7 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
     // δήμοι in OpenCouncil (out-of-network ones have no page to link to), and only once zoomed in
     // enough that a single δήμος is actually the focus (not the country-level default framing).
     const displayedMunicipality =
-        centerMunicipality?.officialSupport && mapZoom >= MUNICIPALITY_PAGE_BUTTON_MIN_ZOOM
+        centerMunicipality && isPublic(centerMunicipality.status) && mapZoom >= MUNICIPALITY_PAGE_BUTTON_MIN_ZOOM
             ? {
                   id: centerMunicipality.id,
                   name: centerMunicipality.name,

@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, type CityStatus } from '@prisma/client'
 import * as fs from 'fs'
 import * as path from 'path'
 import { env } from '@/env.mjs'
@@ -416,20 +416,44 @@ async function seedTopics(topics: any[]) {
 }
 
 /**
+ * A dumped city's visibility, as the current CityStatus.
+ *
+ * The dump lives in a separate, gitignored repo (schemalabz/opencouncil-seed-data)
+ * and lags this schema — and PR preview databases are seeded from it — so this has
+ * to read both shapes:
+ *   legacy:  { status: 'pending' | 'unlisted' | 'listed', officialSupport: boolean }
+ *   current: { status: 'pending' | 'demo' | 'supported' }
+ *
+ * Legacy rows follow the production backfill exactly, so a preview database ends
+ * up with the same cities visible as production. Only the new values match
+ * positively; everything else — including a legacy `'listed'` or `'unlisted'` —
+ * falls through to `officialSupport`, which is safe because the column is gone
+ * and a regenerated dump therefore cannot carry it.
+ *
+ * Delete the legacy branch once the dump has been regenerated.
+ */
+function cityStatusFromDump(city: { status?: unknown; officialSupport?: unknown }): CityStatus {
+  if (city.status === 'demo' || city.status === 'supported') return city.status
+  return city.officialSupport === true ? 'supported' : 'pending'
+}
+
+/**
  * Seed cities
  */
 async function seedCities(cities: any[]) {
   console.log(`Seeding ${cities.length} cities...`)
 
   // Spread all fields from dump, exclude unsupported PostGIS geometry if present,
-  // apply defaults for fields that might be missing in older dumps
-  const cityData = cities.map(({ geometry, ...city }) => ({
+  // apply defaults for fields that might be missing in older dumps.
+  // `officialSupport` and `status` are destructured out for the same reason as
+  // `geometry`: officialSupport is no longer a column, and letting a legacy dump's
+  // copy reach createMany throws `Unknown argument 'officialSupport'`.
+  const cityData = cities.map(({ geometry, officialSupport, status, ...city }) => ({
     ...city,
     name_municipality: city.name_municipality || city.name,
     name_municipality_en: city.name_municipality_en || city.name_en,
     timezone: city.timezone || 'Europe/Athens',
-    officialSupport: city.officialSupport ?? CITY_DEFAULTS.officialSupport,
-    status: city.status || CITY_DEFAULTS.status,
+    status: cityStatusFromDump({ status, officialSupport }),
     authorityType: city.authorityType || CITY_DEFAULTS.authorityType,
     consultationsEnabled: city.id === 'athens' ? true : CITY_DEFAULTS.consultationsEnabled,
     highlightCreationPermission: city.highlightCreationPermission || CITY_DEFAULTS.highlightCreationPermission,
@@ -1202,8 +1226,9 @@ async function seedSerbianFixture() {
     name_municipality: 'Град Београд',
     name_municipality_en: 'City of Belgrade',
     timezone: 'Europe/Belgrade',
-    status: 'listed' as const,
-    officialSupport: false,
+    // The demo city: published on opencouncil.rs without claiming official
+    // support, which is what this whole status exists for.
+    status: 'demo' as const,
     authorityType: 'municipality' as const,
     language: 'sr' as const,
     realm: 'serbia' as const,

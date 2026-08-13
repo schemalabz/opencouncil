@@ -8,6 +8,7 @@ import { LandingCity } from "@/lib/db/landing";
 import { CityMiniCard } from "./city-mini-card";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { isCustomer } from "@/lib/cityStatus";
 
 interface CityOverviewProps {
     city: LandingCity;
@@ -74,7 +75,7 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
             </div>
 
             {/* Unofficial support badge */}
-            {!city.officialSupport && (
+            {!isCustomer(city.status) && (
                 <div className="flex">
                     <Badge variant="outline" className="gap-2 text-muted-foreground py-1.5 px-3">
                         <BadgeX className="w-4 h-4" />

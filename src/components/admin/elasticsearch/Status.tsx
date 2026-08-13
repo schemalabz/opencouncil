@@ -10,8 +10,10 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { JsonMetadataDialog } from '@/components/ui/json-metadata-dialog';
+import type { CityStatus } from "@prisma/client";
+import { isPublic } from "@/lib/cityStatus";
 
-interface CityStatus {
+interface CityIndexStatus {
     cityId: string;
     cityName: string;
     latestMeetingIdPostgres: string | null;
@@ -20,7 +22,7 @@ interface CityStatus {
     totalMeetingsElastic: number;
     totalSubjectsElastic: number;
     isInElastic: boolean;
-    status: 'pending' | 'unlisted' | 'listed';
+    status: CityStatus;
 }
 
 interface RecentDocument {
@@ -37,7 +39,7 @@ interface RecentDocument {
 
 interface ElasticsearchStatusData {
     lastSync: number;
-    cities: CityStatus[];
+    cities: CityIndexStatus[];
     recentDocuments: RecentDocument[];
 }
 
@@ -81,7 +83,7 @@ export default function ElasticsearchStatus() {
         fetchStatus();
     }, []);
 
-    const filteredCities = status?.cities.filter(city => showUnlisted || city.status === 'listed');
+    const filteredCities = status?.cities.filter(city => showUnlisted || isPublic(city.status));
 
     if (loading) {
         return (
@@ -138,7 +140,7 @@ export default function ElasticsearchStatus() {
                                 checked={showUnlisted}
                                 onCheckedChange={setShowUnlisted}
                             />
-                            <Label htmlFor="show-unlisted">Show Unlisted Cities</Label>
+                            <Label htmlFor="show-unlisted">Show non-public cities</Label>
                         </div>
                     </div>
                     <Table>
@@ -161,7 +163,7 @@ export default function ElasticsearchStatus() {
                                 const isLatestMeetingInSync = city.latestMeetingIdPostgres === city.latestMeetingIdElastic;
                                 const areTotalMeetingsInSync = city.totalMeetingsPostgres === city.totalMeetingsElastic;
                                 return (
-                                    <TableRow key={city.cityId} className={!city.isInElastic ? 'bg-red-50' : city.status !== 'listed' ? 'bg-yellow-50' : ''}>
+                                    <TableRow key={city.cityId} className={!city.isInElastic ? 'bg-red-50' : !isPublic(city.status) ? 'bg-yellow-50' : ''}>
                                         <TableCell>
                                             {city.cityName}
                                             {!city.isInElastic && <p className="text-xs text-red-600">Not in ES</p>}

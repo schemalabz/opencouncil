@@ -4,6 +4,7 @@ import { NextResponse } from "next/server"
 import { subDays } from "date-fns"
 import { IS_DEV } from '@/lib/utils'
 import { saveNotificationPreferences, savePetition } from "@/lib/db/notifications"
+import { PUBLIC_CITY_WHERE } from "@/lib/cityStatus";
 
 interface SeedRequest {
     persona: string
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
 
         // Get available cities and topics for seeding
         const cities = await prisma.city.findMany({
-            where: { status: 'listed' },
+            where: PUBLIC_CITY_WHERE,
             orderBy: { name: 'asc' }
         })
 

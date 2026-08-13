@@ -173,7 +173,7 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
     useEffect(() => {
         const loadCities = async () => {
             try {
-                const citiesData = await getCities({ includeUnlisted: true })
+                const citiesData = await getCities({ includeNonPublic: true })
                 setCities(citiesData.map(city => ({ id: city.id, name: city.name, population: city.population })))
             } catch (error) {
                 console.error('Failed to load cities:', error)

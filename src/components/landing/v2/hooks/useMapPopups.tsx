@@ -8,6 +8,8 @@ import { EXPLAIN_LNGLAT, flyToMunicipality } from '@/lib/landing/landingCore';
 import type { ClickedMunicipality, LandingSubject } from '@/lib/landing/landingData';
 import type { PetitionBucket } from '@/lib/landing/petitions';
 import { DesktopSubjectTooltip, ExplainTooltip, MunicipalityTooltip } from '../mapMarkers';
+import type { CityAtPoint } from "@/lib/db/cities";
+import { isPublic } from "@/lib/cityStatus";
 
 /**
  * Render `node` into a detached container via createRoot, wrapped in the next-intl provider —
@@ -245,10 +247,10 @@ export function useMapPopups({
             fetch(`/api/cities/at?lng=${lng}&lat=${lat}`)
                 .then((r) => (r.ok ? r.json() : null))
                 .catch(() => null)
-                .then((city: { id: string; name: string; officialSupport: boolean; geometry: GeoJSON.Geometry } | null) => {
+                .then((city: Pick<CityAtPoint, 'id' | 'name' | 'status' | 'geometry'> | null) => {
                     // A newer click or a subject selection superseded this lookup — drop it.
                     if (seq !== mapClickSeq.current) return;
-                    if (city && city.officialSupport === false && city.geometry) {
+                    if (city && !isPublic(city.status) && city.geometry) {
                         // out-of-network δήμος → make it the focus
                         setClickedMunicipality({
                             id: city.id,

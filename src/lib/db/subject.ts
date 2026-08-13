@@ -19,6 +19,7 @@ import { roleWithRelationsInclude } from './types/roles';
 // Import from the leaf (not the `../cache` barrel, which re-exports cache/queries → auth → env
 // and would drag that heavy server-only chain into this widely-imported module).
 import { createCache } from '../cache/index';
+import { PUBLIC_CITY_WHERE } from '../cityStatus';
 
 // The landing subject finders are realm + filter keyed in the data cache. Releasing/unreleasing
 // a meeting busts the tag (see toggleMeetingRelease); the TTL is a safety net for other changes
@@ -117,7 +118,7 @@ export type SubjectWithRelations = Subject & {
  * next to each city's all-time meetings/persons totals (MunicipalitiesList). It is deliberately
  * independent of the map's date range/filters — it is NOT the count of pins currently on the
  * map, so it is expected to exceed the default-range map results. Same base visibility as the
- * map endpoints (realm, officialSupport, released, past-dated, discussed).
+ * map endpoints (realm, public status, released, past-dated, discussed).
  */
 export async function getSubjectCountsByCityCached(realm: Realm): Promise<Record<string, number>> {
     return createCache(
@@ -129,7 +130,7 @@ export async function getSubjectCountsByCityCached(realm: Realm): Promise<Record
                     councilMeeting: {
                         released: true,
                         dateTime: { lte: new Date() },
-                        city: { officialSupport: true, realm },
+                        city: { ...PUBLIC_CITY_WHERE, realm },
                     },
                 },
                 _count: { _all: true },
@@ -322,7 +323,7 @@ export function buildMapSubjectWhere(realm: Realm, f: MapSubjectFilters): Prisma
         councilMeeting: {
             released: true,
             dateTime,
-            city: { officialSupport: true, realm },
+            city: { ...PUBLIC_CITY_WHERE, realm },
             ...(f.bodyTypes?.length ? { administrativeBody: { type: { in: f.bodyTypes } } } : {}),
         },
     };

@@ -25,6 +25,7 @@ import {
     type HighlightRenderOptions,
 } from './render';
 import { isSuperIdentity, type McpIdentity } from './auth';
+import { isCustomer } from "@/lib/cityStatus";
 
 /** Built per request: the hint must point at the host the caller is using. */
 function authHint(): string {
@@ -133,7 +134,7 @@ export async function mcpListCities() {
             name_en: city.name_en,
             municipality: city.name_municipality,
             authorityType: city.authorityType,
-            officialSupport: city.officialSupport,
+            officialSupport: isCustomer(city.status),
             counts: {
                 meetings: city._count.councilMeetings,
                 people: city._count.persons,
@@ -178,7 +179,7 @@ export async function mcpGetCity(cityId: string) {
         name_en: city.name_en,
         municipality: city.name_municipality,
         authorityType: city.authorityType,
-        officialSupport: city.officialSupport,
+        officialSupport: isCustomer(city.status),
         counts: {
             meetings: city._count.councilMeetings,
             people: city._count.persons,
