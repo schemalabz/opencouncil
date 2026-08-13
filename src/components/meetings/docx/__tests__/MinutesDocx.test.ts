@@ -1,3 +1,4 @@
+import JSZip from 'jszip';
 import { renderMinutesDocx } from '../MinutesDocx';
 import { MinutesData, MinutesSubject } from '@/lib/minutes/types';
 
@@ -85,6 +86,7 @@ describe('renderMinutesDocx', () => {
                     agendaItemIndex: 1,
                     name: 'Έγκριση προϋπολογισμού 2024',
                     decision: {
+                        decisionNumber: '123/2024',
                         protocolNumber: '123/2024',
                         excerpt: 'Εγκρίνει **ομόφωνα** τον προϋπολογισμό.',
                         references: '- Ν. 3852/2010\n- Ν. 4555/2018',
@@ -173,5 +175,33 @@ describe('renderMinutesDocx', () => {
         const blob = await renderMinutesDocx(data);
         expect(blob).toBeInstanceOf(Blob);
         expect(blob.size).toBeGreaterThan(0);
+    });
+});
+
+/** The rendered text lives in word/document.xml inside the docx zip. */
+async function docxText(data: MinutesData): Promise<string> {
+    const blob = await renderMinutesDocx(data);
+    const zip = await JSZip.loadAsync(Buffer.from(await blob.arrayBuffer()));
+    return zip.file('word/document.xml')!.async('string');
+}
+
+describe('MinutesDocx decision number', () => {
+    it('renders decisionNumber, not protocolNumber', async () => {
+        const text = await docxText(makeMinutesData({
+            subjects: [makeSubject({
+                decision: { decisionNumber: '425/2026', protocolNumber: '29967', excerpt: null, references: null },
+            })],
+        }));
+        expect(text).toContain('425/2026');
+        expect(text).not.toContain('29967');
+    });
+
+    it('renders nothing when decisionNumber is unknown, even if protocolNumber is set', async () => {
+        const text = await docxText(makeMinutesData({
+            subjects: [makeSubject({
+                decision: { decisionNumber: null, protocolNumber: '29967', excerpt: null, references: null },
+            })],
+        }));
+        expect(text).not.toContain('29967');
     });
 });
