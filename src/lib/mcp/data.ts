@@ -14,7 +14,6 @@ import { requestGenerateHighlightCore } from '@/lib/tasks/generateHighlight-core
 import { NotFoundError, UnauthorizedError, BadRequestError, ForbiddenError } from '@/lib/api/errors';
 import { canSeeUnreleased, requireVisibleMeeting } from './gate';
 import { getRoleLabelAt, RoleTextTranslator } from '@/lib/utils/roles';
-import { calculateVoteResult } from '@/lib/utils/votes';
 import { roleWithRelationsInclude } from '@/lib/db/types';
 import { getTranslations } from 'next-intl/server';
 import {
@@ -365,11 +364,8 @@ export async function mcpGetSubject(subjectId: string, identity: McpIdentity) {
                 pdfUrl: subject.decision.pdfUrl,
             }
             : null,
-        votes: subject.votes.map(vote => ({ person: vote.person.name, vote: vote.voteType })),
-        // Precomputed tally so consumers (humans and agents alike) never have
-        // to count the array themselves — and with the same rules the site
-        // uses: PRESENT and DID_NOT_VOTE are declarations, not votes.
-        voteSummary: subject.votes.length > 0 ? calculateVoteResult(subject.votes) : null,
+        // Votes are withheld until the extraction pipeline is reliable. The
+        // site keeps showing them; the MCP API does not report them.
         url: urls.subject(subject.cityId, subject.councilMeetingId, subject.id),
     };
 }
