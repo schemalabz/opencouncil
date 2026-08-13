@@ -72,6 +72,9 @@ export interface MinutesSubject {
     }> | null;
 
     decision: {
+        /** The number the decision carries. Rendered as Αρ. Απόφασης. */
+        decisionNumber: string | null;
+        /** Diavgeia's protocol number. Municipality-defined; not necessarily the decision number. */
         protocolNumber: string | null;
         excerpt: string | null;
         references: string | null;
