@@ -1102,6 +1102,7 @@
         "lastSearched": "Последња претрага {time}",
         "lastUpdated": "Последње ажурирање {time}",
         "decisionTitle": "Наслов",
+        "decisionNumber": "Број одлуке",
         "protocolNumber": "Број протокола",
         "publishDate": "Датум објављивања",
         "viewDecision": "Погледајте одлуку на платформи Diavgeia",

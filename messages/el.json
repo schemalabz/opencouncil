@@ -1103,6 +1103,7 @@
         "lastSearched": "Τελευταία αναζήτηση {time}",
         "lastUpdated": "Τελευταία ενημέρωση {time}",
         "decisionTitle": "Τίτλος",
+        "decisionNumber": "Αριθμός Απόφασης",
         "protocolNumber": "Αριθμός Πρωτοκόλλου",
         "publishDate": "Ημερομηνία Ανάρτησης",
         "viewDecision": "Προβολή απόφασης στη Διαύγεια",

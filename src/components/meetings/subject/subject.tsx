@@ -42,6 +42,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     const [isFetchingDecision, setIsFetchingDecision] = useState(false);
     const [localDecision, setLocalDecision] = useState<{
         ada: string | null;
+        decisionNumber: string | null;
         protocolNumber: string | null;
         title: string | null;
         pdfUrl: string;
@@ -309,6 +310,12 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                             <tr>
                                                 <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">ΑΔΑ</td>
                                                 <td className="py-1.5">{decision.ada}</td>
+                                            </tr>
+                                        )}
+                                        {decision.decisionNumber && (
+                                            <tr>
+                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">{t("decisionNumber")}</td>
+                                                <td className="py-1.5">{decision.decisionNumber}</td>
                                             </tr>
                                         )}
                                         {decision.protocolNumber && (

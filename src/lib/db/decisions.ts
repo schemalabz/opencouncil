@@ -243,6 +243,7 @@ export async function getMeetingAttendance(
 
 export async function getDecisionForSubject(subjectId: string): Promise<{
     ada: string | null;
+    decisionNumber: string | null;
     protocolNumber: string | null;
     title: string | null;
     pdfUrl: string;
@@ -255,6 +256,7 @@ export async function getDecisionForSubject(subjectId: string): Promise<{
     if (!decision) return null;
     return {
         ada: decision.ada,
+        decisionNumber: decision.decisionNumber,
         protocolNumber: decision.protocolNumber,
         title: decision.title,
         pdfUrl: decision.pdfUrl,
