@@ -124,7 +124,7 @@ export function registerOpenCouncilServer(server: McpServer) {
             _meta: category('discovery'),
             description:
                 'Recent council subjects around a geographic point — "what has the council discussed ' +
-                'about this neighborhood" (for the decision and votes, follow up with get_subject). ' +
+                'about this neighborhood" (for the decision, follow up with get_subject). ' +
                 'Resolves the covered municipality containing the point, then returns subjects ' +
                 'pinned within the radius first, followed by recent municipality-wide subjects; each ' +
                 'group is ranked by a recency/discussion blend, like the site\'s own nearby widgets. ' +
@@ -276,12 +276,11 @@ export function registerOpenCouncilServer(server: McpServer) {
             _meta: category('meetings'),
             description:
                 'Get a subject (agenda item) in detail: description, per-speaker contribution summaries, ' +
-                'decision, votes. Carries its meeting context (meetingName, meetingDate, and ' +
+                'decision. Carries its meeting context (meetingName, meetingDate, and ' +
                 'administrativeBody — the body that met, e.g. «Δημοτική Επιτροπή», or null when the ' +
                 'record names none). Speaker `role` labels are resolved as of the meeting date (get_person ' +
-                'lists roles across all time). Vote semantics: ABSTAIN is ΛΕΥΚΟ (a blank ballot, counted ' +
-                'in totalVotes); DID_NOT_VOTE is ΑΠΟΧΗ (a declaration of non-participation, not a vote). ' +
-                'For the verbatim discussion use get_subject_transcript.',
+                'lists roles across all time). This tool does not report the vote tally; the subject page ' +
+                'at `url` shows it. For the verbatim discussion use get_subject_transcript.',
             inputSchema: z.object({ subjectId: z.string().min(1) }),
         },
         (args, ctx: ServerContext) => run(() => mcpGetSubject(args.subjectId, identityFromContext(ctx)))
