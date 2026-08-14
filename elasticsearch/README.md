@@ -161,6 +161,40 @@ PGSync requires helper views to denormalize complex relationships and handle Pos
 1. **LocationSearchView** - Converts PostGIS geometry to GeoJSON format
 2. **IntroducedByPartyView** - Resolves party affiliation through the `Role` table
 3. **SubjectSpeakerSegmentSearchView** - Denormalizes speaker segments with concatenated utterances
+4. **SpeakerContributionSearchView** - Denormalizes speaker contributions
+5. **SubjectMetricsView** - Precomputes the per-subject discussion metrics
+6. **MeetingAdministrativeBodyView** - Flattens the Subject → CouncilMeeting → AdministrativeBody join and casts the type enum to text. Exposes only the id and the type, because search results hydrate the full body from PostgreSQL
+
+### Discussion Metrics
+
+`SubjectMetricsView` precomputes two scalar fields, because a nested array costs a nested query to
+aggregate at search time. They exist for score rescoring. The search API exposes no filter on them:
+
+| Field | Meaning |
+|-------|---------|
+| `contributor_count` | Number of `SpeakerContribution` rows on the subject |
+| `discussion_speaking_seconds` | Time the council spent speaking about the subject |
+
+`contributor_count` counts rows, the same measure as `getContributionCount()` in `src/lib/utils.ts`.
+The count comes from `SpeakerContribution`, the model that replaces `SubjectSpeakerSegment`, so a
+subject that predates the contribution pipeline reports zero contributors.
+
+`discussion_speaking_seconds` repeats `getDiscussionSecondsForSubjects()` in `src/lib/db/subject.ts`, so
+the index agrees with the number the subject page shows:
+
+- **Primary source**: utterances tagged `SUBJECT_DISCUSSION`. The summarize task writes these tags.
+- **Excluded**: procedural segments, which are not part of a discussion.
+- **Fallback**: `SubjectSpeakerSegment`, and only for a subject with no tagged utterance at all. A
+  subject whose tagged utterances are all procedural reports 0 instead of falling back.
+
+Both sources sum the parts rather than measure the span from the first mention to the last, so a
+subject that the council revisits reports the time spent on it. The name avoids the word "duration"
+because `calculateMeetingDurationMs()` uses it for a wall-clock span.
+
+> **Never name the root table in `base_tables`.** `SubjectMetricsView` is keyed on the subject id, so
+> it is tempting to declare `base_tables: ["Subject"]`. That is what `SubjectSearchView` did, and it
+> made PGSync route `Subject` DELETE events as child re-syncs, so deleted subjects stayed in the
+> index. Declare only the tables the view actually reads.
 4. **SpeakerContributionSearchView** - Denormalizes speaker contributions with party resolution
 
 ### Create the Views

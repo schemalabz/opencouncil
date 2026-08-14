@@ -41,6 +41,8 @@
       "meeting_date": { "type": "date" },
       "meeting_name": { "type": "text", "analyzer": "greek" },
       "meeting_released": { "type": "boolean" },
+      "administrative_body_id": { "type": "keyword" },
+      "administrative_body_type": { "type": "keyword" },
       "topic_id": { "type": "keyword" },
       "topic_name": {
         "type": "text",
@@ -82,6 +84,8 @@
       "updated_at": { "type": "date" },
       "context": { "type": "text", "analyzer": "greek" },
       "context_citation_urls": { "type": "keyword" },
+      "contributor_count": { "type": "integer" },
+      "discussion_speaking_seconds": { "type": "float" },
       "speaker_segments": {
         "type": "nested",
         "properties": {
@@ -393,6 +397,58 @@
             "rename": {
               "id": "contribution_id"
             }
+          }
+        },
+        {
+          "table": "MeetingAdministrativeBodyView",
+          "schema": "public",
+          "base_tables": ["CouncilMeeting", "AdministrativeBody"],
+          "primary_key": ["id", "cityId"],
+          "columns": ["administrative_body_id"],
+          "label": "administrative_body_id",
+          "relationship": {
+            "variant": "scalar",
+            "type": "one_to_one",
+            "foreign_key": { "parent": ["councilMeetingId", "cityId"], "child": ["id", "cityId"] }
+          }
+        },
+        {
+          "table": "MeetingAdministrativeBodyView",
+          "schema": "public",
+          "base_tables": ["CouncilMeeting", "AdministrativeBody"],
+          "primary_key": ["id", "cityId"],
+          "columns": ["administrative_body_type"],
+          "label": "administrative_body_type",
+          "relationship": {
+            "variant": "scalar",
+            "type": "one_to_one",
+            "foreign_key": { "parent": ["councilMeetingId", "cityId"], "child": ["id", "cityId"] }
+          }
+        },
+        {
+          "table": "SubjectMetricsView",
+          "schema": "public",
+          "base_tables": ["SpeakerContribution", "Utterance", "SpeakerSegment", "Summary", "SubjectSpeakerSegment"],
+          "primary_key": ["id"],
+          "columns": ["contributor_count"],
+          "label": "contributor_count",
+          "relationship": {
+            "variant": "scalar",
+            "type": "one_to_one",
+            "foreign_key": { "parent": ["id"], "child": ["id"] }
+          }
+        },
+        {
+          "table": "SubjectMetricsView",
+          "schema": "public",
+          "base_tables": ["SpeakerContribution", "Utterance", "SpeakerSegment", "Summary", "SubjectSpeakerSegment"],
+          "primary_key": ["id"],
+          "columns": ["discussion_speaking_seconds"],
+          "label": "discussion_speaking_seconds",
+          "relationship": {
+            "variant": "scalar",
+            "type": "one_to_one",
+            "foreign_key": { "parent": ["id"], "child": ["id"] }
           }
         }
       ]
