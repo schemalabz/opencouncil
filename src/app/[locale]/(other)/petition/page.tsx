@@ -1,6 +1,5 @@
 import { Metadata } from "next";
 import { Suspense } from "react";
-import { CheckCircle2 } from 'lucide-react';
 import { PetitionMunicipalitySelector } from "@/components/onboarding/selectors/PetitionMunicipalitySelector";
 import { OpenCouncilDescription } from "@/components/landing/OpenCouncilDescription";
 import { getAllCitiesMinimalCached } from "@/lib/cache/queries";
@@ -71,14 +70,6 @@ export default async function PetitionPage() {
                             opencouncil.gr/about
                         </a>.
                     </p>
-
-                    {/* Success Message */}
-                    <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
-                        <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
-                        <p className="text-sm sm:text-base text-green-800 font-medium leading-relaxed">
-                            Θα σας ενημερώσουμε όταν ο δήμος ενταχθεί στο δίκτυο OpenCouncil
-                        </p>
-                    </div>
                 </div>
             </div>
         </div>
