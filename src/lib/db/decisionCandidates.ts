@@ -50,10 +50,10 @@ export async function getUnresolvedCandidatesForMeeting(cityId: string, meetingI
  * the candidate to it. Throws with a human-readable message when the subject
  * already has a decision or the ADA is held elsewhere — the panel surfaces it.
  */
-export async function assignCandidate(cityId: string, candidateId: string, subjectId: string, userId?: string): Promise<void> {
+export async function assignCandidate(cityId: string, meetingId: string, candidateId: string, subjectId: string, userId?: string): Promise<void> {
     await prisma.$transaction(async (tx) => {
         const candidate = await tx.decisionCandidate.findUnique({ where: { id: candidateId } });
-        if (!candidate || candidate.cityId !== cityId) throw new Error('Candidate not found');
+        if (!candidate || candidate.cityId !== cityId || candidate.councilMeetingId !== meetingId) throw new Error('Candidate not found');
         if (candidate.decisionId || candidate.dismissedAt) throw new Error('Candidate is already resolved');
 
         const subjectTaken = await tx.decision.findUnique({ where: { subjectId }, select: { id: true } });
@@ -88,9 +88,16 @@ export async function assignCandidate(cityId: string, candidateId: string, subje
     });
 }
 
-export async function dismissCandidate(cityId: string, candidateId: string): Promise<void> {
-    const candidate = await prisma.decisionCandidate.findUnique({ where: { id: candidateId } });
-    if (!candidate || candidate.cityId !== cityId) throw new Error('Candidate not found');
-    if (candidate.decisionId || candidate.dismissedAt) throw new Error('Candidate is already resolved');
-    await prisma.decisionCandidate.update({ where: { id: candidateId }, data: { dismissedAt: new Date() } });
+export async function dismissCandidate(cityId: string, meetingId: string, candidateId: string): Promise<void> {
+    // Conditional write: a concurrent assignment between read and update would
+    // otherwise leave a row both assigned and dismissed.
+    const updated = await prisma.decisionCandidate.updateMany({
+        where: { id: candidateId, cityId, councilMeetingId: meetingId, decisionId: null, dismissedAt: null },
+        data: { dismissedAt: new Date() },
+    });
+    if (updated.count === 0) {
+        const candidate = await prisma.decisionCandidate.findUnique({ where: { id: candidateId }, select: { cityId: true, councilMeetingId: true } });
+        if (!candidate || candidate.cityId !== cityId || candidate.councilMeetingId !== meetingId) throw new Error('Candidate not found');
+        throw new Error('Candidate is already resolved');
+    }
 }
