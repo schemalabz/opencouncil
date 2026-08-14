@@ -14,12 +14,13 @@ const MIN_SAMPLE = 10;
 const HEADROOM = 1.5;
 
 /**
- * The Athens-local calendar date of a moment. Documents print local dates, and
- * a meeting stored at local midnight is 21:00–22:00Z the PREVIOUS day — using
- * the UTC date would off-by-one every declared-session comparison for it.
+ * The city-local calendar date of a moment. Documents print local dates, and a
+ * meeting stored at local midnight is stored before midnight UTC — using the
+ * UTC date would off-by-one every declared-session comparison for it. Always
+ * pass City.timezone; realms make Athens an assumption, not a fact.
  */
-export function athensDate(d: Date): string {
-    return d.toLocaleDateString('en-CA', { timeZone: 'Europe/Athens' });
+export function localCalendarDate(d: Date, timeZone: string): string {
+    return d.toLocaleDateString('en-CA', { timeZone });
 }
 
 /** p95 of the city's publish-lag history (days), with headroom, clamped. */

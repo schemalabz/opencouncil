@@ -10,7 +10,7 @@ import { upsertDecision, deleteDecision, getDecisionForSubject, DECISION_ELIGIBL
 export { getDecisionForSubject };
 import { withUserAuthorizedToEdit } from "../auth";
 import { getPeopleForMeeting } from "../db/people";
-import { deriveWindowDays, athensDate } from "./decisionWindow";
+import { deriveWindowDays, localCalendarDate } from "./decisionWindow";
 import { isRoleActiveAt, isMayorRole } from "../utils/roles";
 import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, BACKOFF_SCHEDULE, MAX_POLLING_DAYS, LOGODOSIA_NAME_PATTERN } from "./pollDecisionsBackoff";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "../discord";
@@ -48,11 +48,13 @@ export async function pollDecisionsForMeeting(
             city: {
                 select: {
                     diavgeiaUid: true,
+                    timezone: true,
                 },
             },
             administrativeBody: {
                 select: {
                     id: true,
+                    name: true,
                     diavgeiaUnitIds: true,
                 },
             },
@@ -120,8 +122,9 @@ export async function pollDecisionsForMeeting(
         WHERE s."cityId" = ${cityId} AND d."publishDate" IS NOT NULL
     `;
     const windowDays = deriveWindowDays(lagRows.map(r => Number(r.lag)));
-    const windowFromDate = athensDate(councilMeeting.dateTime);
-    const windowToDate = athensDate(new Date(councilMeeting.dateTime.getTime() + windowDays * 86400_000));
+    const cityTz = councilMeeting.city.timezone;
+    const windowFromDate = localCalendarDate(councilMeeting.dateTime, cityTz);
+    const windowToDate = localCalendarDate(new Date(councilMeeting.dateTime.getTime() + windowDays * 86400_000), cityTz);
 
     // Everything the city has already read whose publishDate falls in this
     // window — mostly neighbouring meetings' decisions, which is the point.
@@ -134,14 +137,15 @@ export async function pollDecisionsForMeeting(
     });
 
     const body: Omit<PollDecisionsRequest, 'callbackUrl'> = {
-        // Athens-local: documents print local dates, and the partition compares
+        // City-local: documents print local dates, and the partition compares
         // against this value. The UTC date is the previous day for meetings
         // stored at local midnight.
-        meetingDate: athensDate(councilMeeting.dateTime),
+        meetingDate: localCalendarDate(councilMeeting.dateTime, cityTz),
         diavgeiaUid: councilMeeting.city.diavgeiaUid,
         diavgeiaUnitIds: councilMeeting.administrativeBody?.diavgeiaUnitIds.length
             ? councilMeeting.administrativeBody.diavgeiaUnitIds
             : undefined,
+        administrativeBodyName: councilMeeting.administrativeBody?.name ?? null,
         mayorId: mayorPerson?.id,
         forceExtract: options?.forceExtract || undefined,
         people: peopleForRequest,
@@ -1183,17 +1187,20 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
         if (result.decisions?.length) {
             const meeting = await tx.councilMeeting.findUnique({
                 where: { cityId_id: { id: task.councilMeetingId, cityId: task.cityId } },
-                select: { administrativeBodyId: true },
+                select: { administrativeBodyId: true, city: { select: { timezone: true } } },
             });
             for (const d of result.decisions) {
                 // Resolve the declared session to one of our meetings (same body).
                 let councilMeetingId: string | null = null;
                 if (d.meetingDate && meeting?.administrativeBodyId) {
+                    // Double conversion is load-bearing: dateTime is a UTC-stored
+                    // timestamp, so the single-conversion form would interpret it
+                    // as already-local and shift midnight-stored meetings a day.
                     const target = await tx.$queryRaw<Array<{ id: string }>>`
                         SELECT id FROM "CouncilMeeting"
                         WHERE "cityId" = ${task.cityId}
                           AND "administrativeBodyId" = ${meeting.administrativeBodyId}
-                          AND ("dateTime" AT TIME ZONE 'Europe/Athens')::date = ${d.meetingDate}::date
+                          AND ("dateTime" AT TIME ZONE 'UTC' AT TIME ZONE ${meeting.city.timezone})::date = ${d.meetingDate}::date
                         LIMIT 1`;
                     councilMeetingId = target[0]?.id ?? null;
                 }

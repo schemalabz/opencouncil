@@ -516,6 +516,8 @@ export interface PollDecisionsRequest extends TaskRequest {
             needsExtraction?: boolean;
         };
     }>;
+    /** The polled meeting's administrative-body name, for the (body, date) partition. */
+    administrativeBodyName?: string | null;
     /** Fetch window, derived from the city's publication-lag history. Absent = tasks uses its legacy 45-day window. */
     window?: { fromDate: string; toDate: string };
     /**
@@ -539,6 +541,8 @@ export interface PollDecisionsReadDecision {
     publishDate: string | null;
     meetingDate: string | null;
     decisionNumber: string | null;
+    /** The deliberative body as the document states it. */
+    body?: string | null;
     readStatus: string;
     /** True when the reading was echoed from knownDecisions, not freshly read. */
     fromKnown?: boolean;

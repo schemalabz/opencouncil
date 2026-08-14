@@ -118,6 +118,25 @@ describe('handlePollDecisionsResult — decisions list (DecisionCandidate ingest
         expect(candidate!.councilMeetingId).toBe(otherMeetingId)
     })
 
+    test('a midnight-stored meeting resolves by its LOCAL calendar date', async () => {
+        // 2025-06-17T21:00Z is 2025-06-18 00:00 in Athens (EEST). The document
+        // prints the 18th; the naive single-conversion SQL resolved the 17th.
+        const body2 = await createAdministrativeBody(cityId, { notificationBehavior: 'NOTIFICATIONS_DISABLED' })
+        const midnight = await createMeeting(cityId, {
+            id: 'm-midnight',
+            administrativeBodyId: body2.id,
+            dateTime: new Date('2025-06-17T21:00:00Z'),
+        })
+        const task = await createTaskStatus(midnight.id, cityId, { type: 'pollDecisions' })
+
+        await handlePollDecisionsResult(task.id, makePollDecisionsResult({
+            decisions: [makeReadDecision({ ada: 'ADA-M', meetingDate: '2025-06-18' })],
+        }))
+
+        const candidate = await prisma.decisionCandidate.findUnique({ where: { cityId_ada: { cityId, ada: 'ADA-M' } } })
+        expect(candidate!.councilMeetingId).toBe(midnight.id)
+    })
+
     test('a decision declaring an unknown session keeps councilMeetingId null', async () => {
         const task = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions' })
 

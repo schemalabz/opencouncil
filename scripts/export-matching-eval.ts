@@ -35,8 +35,8 @@ function parseArgs() {
 }
 
 /** The document prints a local calendar date; CouncilMeeting.dateTime is UTC. */
-function athensDate(d: Date): string {
-    return d.toLocaleDateString("en-CA", { timeZone: "Europe/Athens" });
+function localDate(d: Date, timeZone: string): string {
+    return d.toLocaleDateString("en-CA", { timeZone });
 }
 
 async function main() {
@@ -46,7 +46,7 @@ async function main() {
         where: { id: bodyId },
         select: {
             id: true, name: true, cityId: true, diavgeiaUnitIds: true,
-            city: { select: { diavgeiaUid: true } },
+            city: { select: { diavgeiaUid: true, timezone: true } },
         },
     });
     if (!body) throw new Error(`Administrative body "${bodyId}" not found`);
@@ -74,7 +74,7 @@ async function main() {
         .filter((m) => m.subjects.some((s) => s.decision?.ada))
         .map((m) => ({
             meetingId: m.id,
-            meetingDate: athensDate(m.dateTime),
+            meetingDate: localDate(m.dateTime, body.city.timezone),
             subjects: m.subjects.map((s) => ({
                 subjectId: s.id,
                 name: s.name,
