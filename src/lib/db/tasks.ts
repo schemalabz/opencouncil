@@ -56,24 +56,53 @@ export async function getTasksForMeeting(cityId: string, meetingId: string): Pro
     }
 }
 
-export async function getTaskStatus(taskStatusId: string): Promise<TaskStatus | null> {
+/**
+ * Fetch a task status by id, optionally scoped to a (cityId, councilMeetingId) tenant.
+ *
+ * When `scope` is provided the lookup also matches on cityId/councilMeetingId, so a task
+ * that exists but belongs to a different tenant resolves to `null` (callers map that to a
+ * 404 — no cross-tenant existence leak). When omitted, behaves as a plain id lookup.
+ */
+export async function getTaskStatus(
+    taskStatusId: string,
+    scope?: { cityId: string; councilMeetingId: string }
+): Promise<TaskStatus | null> {
     try {
-        const taskStatus = await prisma.taskStatus.findUnique({
+        if (scope) {
+            return await prisma.taskStatus.findFirst({
+                where: {
+                    id: taskStatusId,
+                    cityId: scope.cityId,
+                    councilMeetingId: scope.councilMeetingId,
+                },
+            });
+        }
+
+        return await prisma.taskStatus.findUnique({
             where: { id: taskStatusId },
         });
-
-        return taskStatus;
     } catch (error) {
         console.error('Error fetching task status:', error);
         throw new Error('Failed to fetch task status');
     }
 }
 
-export async function deleteTaskStatus(taskStatusId: string): Promise<void> {
+/**
+ * Delete a task status by id, optionally scoped to a (cityId, councilMeetingId) tenant.
+ * Returns the number of rows deleted so callers can treat 0 as a tenant mismatch / 404.
+ */
+export async function deleteTaskStatus(
+    taskStatusId: string,
+    scope?: { cityId: string; councilMeetingId: string }
+): Promise<number> {
     try {
-        await prisma.taskStatus.delete({
-            where: { id: taskStatusId },
+        const result = await prisma.taskStatus.deleteMany({
+            where: {
+                id: taskStatusId,
+                ...(scope ? { cityId: scope.cityId, councilMeetingId: scope.councilMeetingId } : {}),
+            },
         });
+        return result.count;
     } catch (error) {
         console.error('Error deleting task status:', error);
         throw new Error('Failed to delete task status');
