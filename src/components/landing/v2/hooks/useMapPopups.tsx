@@ -281,7 +281,7 @@ export function useMapPopups({
             <MunicipalityTooltip
                 name={clickedMunicipality.name}
                 petitionBucket={clickedMunicipality.petitionBucket}
-                onView={() => navigateRef.current('/petition')}
+                onView={() => navigateRef.current(`/${clickedMunicipality.id}/petition`)}
                 onClose={() => setClickedMunicipality(null)}
             />,
         );
