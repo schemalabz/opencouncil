@@ -539,6 +539,50 @@ model Decision {
   taskId    String?
   createdBy User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
   createdById String?
+
+  candidate DecisionCandidate?      // The suggestion this decision came from; survives promotion for revert + analysis.
+}
+
+/// A decision discovered on Diavgeia and, where possible, read. Unresolved rows
+/// (decisionId null, dismissedAt null) are work; resolved rows are the permanent
+/// record of how that work was decided. Rows are NEVER deleted on promotion —
+/// deleting the Decision reverts the assignment (onDelete: SetNull).
+///
+/// After promotion, subjectId/confidence/reasoning are the record of the
+/// suggestion AS MADE, not current truth: if an admin later moves the decision,
+/// they deliberately diverge — that is what makes acceptance analysis possible.
+model DecisionCandidate {
+  id     String @id @default(cuid())
+  cityId String
+  ada    String
+
+  // As published on Diavgeia
+  title          String?
+  pdfUrl         String
+  publishDate    DateTime?
+  protocolNumber String?     // faithful mirror of Diavgeia's field, whatever the municipality puts there
+
+  // As stated by the decision itself
+  meetingDate    DateTime?   // the session it says produced it (Athens-local date at midnight UTC)
+  decisionNumber String?     // its own Αρ. Απόφασης / Πράξη
+
+  readStatus String          // ok | no_meeting_date | unreadable | unread; only 'unread' is retried on later polls
+
+  // Resolution
+  councilMeetingId String?   // resolved from meetingDate; null = no such meeting in our data
+  subjectId        String?   // proposed subject; null = belongs to the meeting, unplaced
+  confidence       Float?
+  reasoning        String?
+  dismissedAt      DateTime?
+  decisionId       String?   @unique
+  decision         Decision? @relation(fields: [decisionId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cityId, ada])
+  @@index([cityId, publishDate])
+  @@index([councilMeetingId])
 }
 
 enum NonAgendaReason {
