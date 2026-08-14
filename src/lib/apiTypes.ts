@@ -527,6 +527,26 @@ export interface PollDecisionsRequest extends TaskRequest {
     knownDecisions?: Array<{ ada: string; meetingDate: string | null; readStatus: string }>;
 }
 
+/**
+ * A decision read in the poll window (issue #617). subjectId null = unplaced;
+ * rows declaring another meeting carry no matching fields.
+ */
+export interface PollDecisionsReadDecision {
+    ada: string;
+    title: string | null;
+    pdfUrl: string;
+    protocolNumber: string | null;   // Diavgeia's field, verbatim
+    publishDate: string | null;
+    meetingDate: string | null;
+    decisionNumber: string | null;
+    readStatus: string;
+    /** True when the reading was echoed from knownDecisions, not freshly read. */
+    fromKnown?: boolean;
+    subjectId: string | null;
+    confidence: number | null;
+    reasoning: string | null;
+}
+
 export interface PollDecisionsMatch {
     subjectId: string;
     ada: string; // Diavgeia unique ID (e.g., "ΨΘ82ΩΡΦ-7ΑΙ")
@@ -535,10 +555,14 @@ export interface PollDecisionsMatch {
     protocolNumber: string; // e.g., "231/2025"
     publishDate: string; // ISO date when published on Diavgeia
     matchConfidence: number; // 0-1 confidence score
+    reasoning?: string | null; // resolver's stated reasoning for this match
 }
 
 export interface PollDecisionsResult {
+    /** Every decision read in the poll window. Absent from older tasks versions. */
+    decisions?: PollDecisionsReadDecision[];
     matches: PollDecisionsMatch[];
+    /** Always empty since #617 phase 3; read-and-ignored for older tasks versions. */
     reassignments: Array<{
         ada: string;
         fromSubjectId: string;

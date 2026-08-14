@@ -1073,10 +1073,9 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
     let processedCount = 0;
     let conflictCount = 0;
 
-    // Collect all subjectIds from matches, reassignments, and non-decision attendance for validation
+    // Collect all subjectIds from matches and non-decision attendance for validation
     const allSubjectIds = [
         ...result.matches.map(m => m.subjectId),
-        ...result.reassignments.flatMap(r => [r.fromSubjectId, r.toSubjectId]),
         ...(result.extractions?.nonDecisionSubjectAttendance?.map(a => a.subjectId) ?? []),
     ];
 
@@ -1090,19 +1089,15 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
     });
     const validSubjectIdSet = new Set(validSubjectIds.map(s => s.id));
 
-    // Validate every reassignment has a corresponding match to upsert,
-    // otherwise deleting the old decision would lose it permanently.
-    const matchSubjectIds = new Set(result.matches.map(m => m.subjectId));
-    for (const r of result.reassignments) {
-        if (!matchSubjectIds.has(r.toSubjectId)) {
-            throw new Error(`Reassignment for ${r.ada} has no corresponding match (${r.fromSubjectId} → ${r.toSubjectId})`);
+    if (result.reassignments?.length) {
+        // The pipeline no longer moves confirmed links (issue #617). An older
+        // tasks version proposed these; surface them and do nothing — a
+        // Decision is only ever deleted by an admin.
+        for (const r of result.reassignments) {
+            console.warn(`Ignoring pipeline reassignment proposal for ${r.ada}: ${r.fromSubjectId} → ${r.toSubjectId} (${r.reason})`);
         }
     }
 
-    // Wrap reassignments + upserts in a transaction to ensure atomicity.
-    // Reassignments delete old decisions to free ADA unique constraints before
-    // upserting new ones — without a transaction, a failed upsert after a
-    // successful delete would permanently lose decision data.
     await prisma.$transaction(async (tx) => {
         // Step 1: Detect ADA conflicts — find ADAs that already exist on other subjects
         const matchAdas = result.matches.map(m => m.ada).filter((ada): ada is string => ada != null);
@@ -1111,23 +1106,7 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
             : [];
         const adaToExistingSubject = new Map(existingDecisions.map(d => [d.ada!, d.subjectId]));
 
-        // Build set of ADAs being reassigned — these are handled explicitly, not conflicts
-        const reassignedAdas = new Set(result.reassignments.map(r => r.ada));
-
-        // Step 2: Process reassignments — delete old decisions to free ADA unique constraint
-        if (result.reassignments.length > 0) {
-            for (const r of result.reassignments) {
-                if (!validSubjectIdSet.has(r.fromSubjectId) || !validSubjectIdSet.has(r.toSubjectId)) {
-                    console.warn(`Poll decisions: skipping invalid reassignment ${r.ada} (${r.fromSubjectId} → ${r.toSubjectId}) for task ${taskId}`);
-                    continue;
-                }
-                await tx.decision.deleteMany({ where: { subjectId: r.fromSubjectId } });
-                reassignmentCount++;
-                console.log(`Reassigned ADA ${r.ada}: ${r.fromSubjectId} → ${r.toSubjectId}: ${r.reason}`);
-            }
-        }
-
-        // Step 3: Upsert new matches (including reassigned ones), recording conflicts
+        // Step 2: Upsert new matches, recording conflicts
         for (const match of result.matches) {
             // Skip any subjectIds that don't belong to this meeting
             if (!validSubjectIdSet.has(match.subjectId)) {
@@ -1138,7 +1117,7 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
             // Check for ADA conflict: ADA exists on a different subject and isn't being reassigned
             if (match.ada) {
                 const existingSubjectId = adaToExistingSubject.get(match.ada);
-                if (existingSubjectId && existingSubjectId !== match.subjectId && !reassignedAdas.has(match.ada)) {
+                if (existingSubjectId && existingSubjectId !== match.subjectId) {
                     // Record the claim on the incoming subject, skip the upsert
                     await tx.subject.update({
                         where: { id: match.subjectId },
@@ -1196,6 +1175,78 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
             // Track this ADA so later matches in the same batch see it as taken
             if (match.ada) {
                 adaToExistingSubject.set(match.ada, match.subjectId);
+            }
+        }
+
+        // Step 3: DecisionCandidate — persist every decision read in the window
+        // (issue #617). Rows survive promotion; deleting the Decision reverts.
+        if (result.decisions?.length) {
+            const meeting = await tx.councilMeeting.findUnique({
+                where: { cityId_id: { id: task.councilMeetingId, cityId: task.cityId } },
+                select: { administrativeBodyId: true },
+            });
+            for (const d of result.decisions) {
+                // Resolve the declared session to one of our meetings (same body).
+                let councilMeetingId: string | null = null;
+                if (d.meetingDate && meeting?.administrativeBodyId) {
+                    const target = await tx.$queryRaw<Array<{ id: string }>>`
+                        SELECT id FROM "CouncilMeeting"
+                        WHERE "cityId" = ${task.cityId}
+                          AND "administrativeBodyId" = ${meeting.administrativeBodyId}
+                          AND ("dateTime" AT TIME ZONE 'Europe/Athens')::date = ${d.meetingDate}::date
+                        LIMIT 1`;
+                    councilMeetingId = target[0]?.id ?? null;
+                }
+                const promoted = await tx.decision.findUnique({
+                    where: { ada: d.ada },
+                    select: { id: true },
+                });
+
+                await tx.decisionCandidate.upsert({
+                    where: { cityId_ada: { cityId: task.cityId, ada: d.ada } },
+                    create: {
+                        cityId: task.cityId,
+                        ada: d.ada,
+                        title: d.title,
+                        pdfUrl: d.pdfUrl,
+                        publishDate: d.publishDate ? new Date(d.publishDate) : null,
+                        protocolNumber: d.protocolNumber,
+                        meetingDate: d.meetingDate ? new Date(`${d.meetingDate}T00:00:00Z`) : null,
+                        decisionNumber: d.decisionNumber,
+                        readStatus: d.readStatus,
+                        councilMeetingId,
+                        subjectId: d.subjectId,
+                        confidence: d.confidence,
+                        reasoning: d.reasoning,
+                        decisionId: promoted?.id ?? null,
+                    },
+                    update: {
+                        // Reading fields refresh only when this poll actually read
+                        // the document — a knownDecisions echo carries no new
+                        // information and must not blank a stored reading.
+                        ...(!d.fromKnown && d.readStatus !== 'unread' ? {
+                            meetingDate: d.meetingDate ? new Date(`${d.meetingDate}T00:00:00Z`) : null,
+                            decisionNumber: d.decisionNumber,
+                            readStatus: d.readStatus,
+                            councilMeetingId,
+                        } : {}),
+                        // The suggestion is recorded once, as made; later polls
+                        // never overwrite an accepted suggestion's record.
+                        ...(d.subjectId && !promoted ? { subjectId: d.subjectId, confidence: d.confidence, reasoning: d.reasoning } : {}),
+                        ...(promoted ? { decisionId: promoted.id } : {}),
+                    },
+                });
+
+                // Promotion copies the document's self-declared identity onto the Decision.
+                if (promoted && (d.decisionNumber || d.meetingDate)) {
+                    await tx.decision.update({
+                        where: { id: promoted.id },
+                        data: {
+                            ...(d.decisionNumber ? { decisionNumber: d.decisionNumber } : {}),
+                            ...(d.meetingDate ? { meetingDate: new Date(`${d.meetingDate}T00:00:00Z`) } : {}),
+                        },
+                    });
+                }
             }
         }
     });
