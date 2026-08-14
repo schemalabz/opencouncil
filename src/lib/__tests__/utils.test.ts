@@ -291,11 +291,12 @@ describe('debounce', () => {
 
 describe('subjectToMapFeature', () => {
   it('should convert subject to map feature', () => {
+    // ST_X is the longitude, ST_Y the latitude. GeoJSON wants [lng, lat].
     const subject = {
       id: '123',
       name: 'Test Subject',
       location: {
-        coordinates: { x: 10, y: 20 }
+        coordinates: { x: 23.74, y: 37.98 }
       }
     };
 
@@ -305,7 +306,7 @@ describe('subjectToMapFeature', () => {
       id: '123',
       geometry: {
         type: 'Point',
-        coordinates: [20, 10]
+        coordinates: [23.74, 37.98]
       },
       properties: {
         subjectId: '123',

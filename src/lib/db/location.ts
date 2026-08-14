@@ -79,13 +79,8 @@ export async function findNearbyLocations(data: {
 
 /**
  * From a set of location ids, return those whose point lies within
- * `distanceInMeters` of `center` ([lng, lat]).
- *
- * Handles the known data issue where some location points were stored with
- * lat/lng swapped: if a point's stored coordinates fall outside Greece's
- * bounding box, we swap X/Y before measuring (mirrors calculateProximityMatches
- * in notifications.ts). Only `point` locations participate; other geometry
- * types are ignored.
+ * `distanceInMeters` of `center` ([lng, lat]). Only `point` locations
+ * participate; other geometry types are ignored.
  */
 export async function filterLocationIdsWithinRadius(
     locationIds: string[],
@@ -105,12 +100,7 @@ export async function filterLocationIdsWithinRadius(
         WHERE id = ANY(${locationIds}::text[])
           AND type = 'point'
           AND ST_DWithin(
-            CASE
-              WHEN ST_X(coordinates::geometry) < 19.5 OR ST_X(coordinates::geometry) > 28.5
-                OR ST_Y(coordinates::geometry) < 34.5 OR ST_Y(coordinates::geometry) > 41.5
-              THEN ST_SetSRID(ST_MakePoint(ST_Y(coordinates::geometry), ST_X(coordinates::geometry)), 4326)::geography
-              ELSE coordinates::geography
-            END,
+            coordinates::geography,
             ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
             ${distanceInMeters}
           )
@@ -120,8 +110,7 @@ export async function filterLocationIdsWithinRadius(
 
 /**
  * Distance in meters from `center` ([lng, lat]) to each of the given point
- * locations. Same swapped-coordinate handling as filterLocationIdsWithinRadius;
- * non-point locations are omitted from the result.
+ * locations. Non-point locations are omitted from the result.
  */
 export async function getLocationDistancesFromPoint(
     locationIds: string[],
@@ -134,12 +123,7 @@ export async function getLocationDistancesFromPoint(
     // map reads as "no pinned locations", which is a claim, not an error state.
     const rows = await prisma.$queryRaw<Array<{ id: string; meters: number }>>`
             SELECT id, ST_Distance(
-                CASE
-                  WHEN ST_X(coordinates::geometry) < 19.5 OR ST_X(coordinates::geometry) > 28.5
-                    OR ST_Y(coordinates::geometry) < 34.5 OR ST_Y(coordinates::geometry) > 41.5
-                  THEN ST_SetSRID(ST_MakePoint(ST_Y(coordinates::geometry), ST_X(coordinates::geometry)), 4326)::geography
-                  ELSE coordinates::geography
-                END,
+                coordinates::geography,
                 ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
               ) AS meters
             FROM "Location"
