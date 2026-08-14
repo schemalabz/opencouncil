@@ -14,6 +14,8 @@ import { useTranslations } from 'next-intl';
 import { ExternalLink, FileCheck, FileX, Loader2, Bot, UserIcon, Plus, X, Clock, ChevronRight, ChevronDown, Users, Vote, Search, MoreHorizontal, RotateCcw } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { DecisionWithSource, MeetingAttendanceRecord, SubjectExtractedData } from '@/lib/db/decisions';
+import { MeetingCandidate } from '@/lib/db/decisionCandidateShape';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
 import { getPollingHistoryForMeeting, requestPollDecisions } from '@/lib/tasks/pollDecisions';
 import { calculateVoteResult } from '@/lib/utils/votes';
@@ -41,6 +43,12 @@ interface DecisionsPanelProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }
+
+/** MeetingCandidate as it arrives over JSON — dates serialized to strings. */
+type CandidateView = Omit<MeetingCandidate, 'publishDate' | 'meetingDate'> & {
+    publishDate: string | null;
+    meetingDate: string | null;
+};
 
 function CollapsibleMarkdown({ content, showMoreLabel, showLessLabel }: {
     content: string;
@@ -171,6 +179,9 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
         p.roles.some(r => isRoleActiveAt(r, meetingDate) && isMayorRole(r))
     )?.id ?? null;
     const [decisions, setDecisions] = useState<Record<string, DecisionWithSource>>({});
+    const [candidates, setCandidates] = useState<CandidateView[]>([]);
+    const [candidateSel, setCandidateSel] = useState<Record<string, string>>({});
+    const [candidateBusy, setCandidateBusy] = useState<string | null>(null);
     const [extractedData, setExtractedData] = useState<Record<string, SubjectExtractedData>>({});
     const [meetingAttendance, setMeetingAttendance] = useState<MeetingAttendanceRecord[]>([]);
     const [expandedManualEntry, setExpandedManualEntry] = useState<string | null>(null);
@@ -193,12 +204,13 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
         try {
             const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions`);
             if (!response.ok) return;
-            const data: { decisions: DecisionWithSource[]; extractedData: SubjectExtractedData[]; meetingAttendance: MeetingAttendanceRecord[] } = await response.json();
+            const data: { decisions: DecisionWithSource[]; extractedData: SubjectExtractedData[]; meetingAttendance: MeetingAttendanceRecord[]; candidates?: CandidateView[] } = await response.json();
             const decisionMap: Record<string, DecisionWithSource> = {};
             for (const d of data.decisions) {
                 decisionMap[d.subjectId] = d;
             }
             setDecisions(decisionMap);
+            setCandidates(data.candidates ?? []);
             const extractedMap: Record<string, SubjectExtractedData> = {};
             for (const e of data.extractedData) {
                 extractedMap[e.subjectId] = e;
@@ -297,6 +309,45 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
             toast({ title: t('toasts.errorRemovingDecision.title'), description: `${error}`, variant: 'destructive' });
         } finally {
             setRemovingSubjectId(null);
+        }
+    };
+
+    const handleAssignCandidate = async (candidateId: string, subjectId: string) => {
+        setCandidateBusy(candidateId);
+        try {
+            const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'assignCandidate', candidateId, subjectId }),
+            });
+            if (!response.ok) {
+                const err = await response.json().catch(() => null);
+                throw new Error(err?.error ?? 'Assignment failed');
+            }
+            toast({ title: t('decisions.unplacedAssigned') });
+            fetchDecisions();
+        } catch (error) {
+            toast({ title: `${error instanceof Error ? error.message : error}`, variant: 'destructive' });
+        } finally {
+            setCandidateBusy(null);
+        }
+    };
+
+    const handleDismissCandidate = async (candidateId: string) => {
+        setCandidateBusy(candidateId);
+        try {
+            const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'dismissCandidate', candidateId }),
+            });
+            if (!response.ok) throw new Error('Dismiss failed');
+            toast({ title: t('decisions.unplacedDismissed') });
+            fetchDecisions();
+        } catch (error) {
+            toast({ title: `${error}`, variant: 'destructive' });
+        } finally {
+            setCandidateBusy(null);
         }
     };
 
@@ -680,9 +731,12 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                                         )}
                                                         <Badge variant="default" className="bg-green-600 text-xs">
                                                             <FileCheck className="h-3 w-3 mr-1" />
-                                                            {decision.protocolNumber || decision.ada || t('decisions.linked')}
+                                                            {/* The decision's own number; Diavgeia's protocolNumber is a
+                                                                filing protocol in some municipalities, so it is only a
+                                                                fallback until decisionNumber is backfilled. */}
+                                                            {decision.decisionNumber || decision.protocolNumber || decision.ada || t('decisions.linked')}
                                                         </Badge>
-                                                        {decision.protocolNumber && decision.ada && (
+                                                        {(decision.decisionNumber || decision.protocolNumber) && decision.ada && (
                                                             <span className="text-xs text-muted-foreground">{decision.ada}</span>
                                                         )}
                                                         <Tooltip>
@@ -963,6 +1017,89 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                         </TooltipProvider>
                     )}
                 </div>
+
+                {/* Unplaced decisions — candidates known to belong to this session (issue #617) */}
+                {candidates.length > 0 && (
+                    <div className="pt-3 border-t">
+                        <div className="mb-2">
+                            <h3 className="text-sm font-medium">{t('decisions.unplacedTitle')} ({candidates.length})</h3>
+                            <p className="text-xs text-muted-foreground">{t('decisions.unplacedDescription')}</p>
+                        </div>
+                        <div className="space-y-2">
+                            {candidates.map(c => {
+                                const freeSubjects = subjects
+                                    .filter(s => !decisions[s.id])
+                                    .sort((a, b) => (a.agendaItemIndex ?? 999) - (b.agendaItemIndex ?? 999));
+                                const suggestedSubject = c.subjectId ? subjects.find(s => s.id === c.subjectId) : null;
+                                const selected = candidateSel[c.id] ?? (suggestedSubject && !decisions[suggestedSubject.id] ? suggestedSubject.id : undefined);
+                                const busy = candidateBusy === c.id;
+                                return (
+                                    <div key={c.id} className="rounded-md border p-2 text-sm">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <a href={c.pdfUrl} target="_blank" rel="noreferrer" className="font-medium hover:underline inline-flex items-center gap-1">
+                                                    {c.decisionNumber ? `${c.decisionNumber} — ` : ''}{c.title ?? c.ada}
+                                                    <ExternalLink className="h-3 w-3 shrink-0" />
+                                                </a>
+                                                <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-2">
+                                                    <span className="font-mono">{c.ada}</span>
+                                                    {c.meetingDate && <span>{c.meetingDate.slice(0, 10)}</span>}
+                                                    <Badge variant="outline" className="h-4 px-1 text-[10px]">{c.readStatus}</Badge>
+                                                </div>
+                                                {suggestedSubject && (
+                                                    <div className="text-xs text-muted-foreground mt-0.5">
+                                                        {t('decisions.unplacedSuggestion')}: {suggestedSubject.name}
+                                                        {c.confidence != null ? ` (${c.confidence.toFixed(2)})` : ''}
+                                                    </div>
+                                                )}
+                                                {c.conflict && (
+                                                    <div className="text-xs text-destructive mt-0.5">
+                                                        {t('decisions.unplacedConflict')}: {c.conflict.subjectName}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                {freeSubjects.length > 0 ? (
+                                                    <Select value={selected} onValueChange={(v) => setCandidateSel(prev => ({ ...prev, [c.id]: v }))}>
+                                                        <SelectTrigger className="h-7 w-56 text-xs">
+                                                            <SelectValue placeholder={t('decisions.unplacedChooseSubject')} />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {freeSubjects.map(s => (
+                                                                <SelectItem key={s.id} value={s.id} className="text-xs">
+                                                                    {s.agendaItemIndex != null ? `#${s.agendaItemIndex} ` : ''}{s.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground">{t('decisions.unplacedNoFreeSubjects')}</span>
+                                                )}
+                                                <Button
+                                                    size="sm"
+                                                    className="h-7 text-xs"
+                                                    disabled={busy || !selected || !!c.conflict}
+                                                    onClick={() => selected && handleAssignCandidate(c.id, selected)}
+                                                >
+                                                    {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : t('decisions.unplacedAssign')}
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-7 text-xs"
+                                                    disabled={busy}
+                                                    onClick={() => handleDismissCandidate(c.id)}
+                                                >
+                                                    {t('decisions.unplacedDismiss')}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
 
                 {/* Danger zone — Delete extractions (bottom of dialog) */}
                 {extractedSubjects.length > 0 && (
