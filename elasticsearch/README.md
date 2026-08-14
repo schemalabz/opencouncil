@@ -164,6 +164,26 @@ PGSync requires helper views to denormalize complex relationships and handle Pos
 4. **SpeakerContributionSearchView** - Denormalizes speaker contributions
 5. **SubjectMetricsView** - Precomputes the per-subject discussion metrics
 6. **MeetingAdministrativeBodyView** - Flattens the Subject → CouncilMeeting → AdministrativeBody join and casts the type enum to text. Exposes only the id and the type, because search results hydrate the full body from PostgreSQL
+7. **CitySearchView** - Casts the `Realm` enum to text. Every other `City` column reaches the index as a direct column
+
+### Realm, Not Country
+
+The index stores `city_realm` (`greece`, `france`, `cyprus`, `serbia`), not an ISO country code.
+
+PostgreSQL holds no country column. `REALMS` in `src/lib/realm.ts` maps a realm to its country, and
+`getRealmCountry()` reads that map. A `CASE` expression in SQL would copy the map into a second place
+that no test covers, so a new realm would sync an empty or wrong country. A caller that needs the
+country resolves it from `city_realm` in application code.
+7. **CitySearchView** - Casts the `Realm` enum to text. Every other `City` column reaches the index as a direct column
+
+### Realm, Not Country
+
+The index stores `city_realm` (`greece`, `france`, `cyprus`, `serbia`), not an ISO country code.
+
+PostgreSQL holds no country column. `REALMS` in `src/lib/realm.ts` maps a realm to its country, and
+`getRealmCountry()` reads that map. A `CASE` expression in SQL would copy the map into a second place
+that no test covers, so a new realm would sync an empty or wrong country. A caller that needs the
+country resolves it from `city_realm` in application code.
 
 ### Discussion Metrics
 

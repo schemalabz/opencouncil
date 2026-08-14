@@ -26,7 +26,8 @@ WHERE schemaname = 'public'
     'SubjectSpeakerSegmentSearchView',
     'SpeakerContributionSearchView',
     'SubjectMetricsView',
-    'MeetingAdministrativeBodyView'
+    'MeetingAdministrativeBodyView',
+    'CitySearchView'
   )
 ORDER BY viewname;
 
@@ -159,6 +160,39 @@ SELECT
     ELSE 'PASS: Types resolve correctly'
   END AS validation_result
 FROM "MeetingAdministrativeBodyView";
+
+\echo ''
+
+-- ============================================================================
+-- 8. Validate CitySearchView - realm enum cast
+-- ============================================================================
+\echo '8. Validating CitySearchView...'
+-- The expected values come from pg_enum, not from a hardcoded list. A new realm must
+-- flow through the cast on its own, so this check must not fail when someone adds one.
+SELECT
+  COUNT(*) AS total_cities,
+  COUNT(realm) AS with_realm,
+  CASE
+    WHEN COUNT(*) - COUNT(realm) > 0
+      THEN 'FAIL: Realm must never be NULL'
+    WHEN COUNT(CASE WHEN realm NOT IN (
+      SELECT e.enumlabel FROM pg_enum e
+      INNER JOIN pg_type t ON t.oid = e.enumtypid
+      WHERE t.typname = 'Realm'
+    ) THEN 1 END) > 0
+      THEN 'FAIL: Realm outside the Realm enum'
+    ELSE 'PASS: Realms cast to text correctly'
+  END AS validation_result
+FROM "CitySearchView";
+
+\echo ''
+\echo '   Cities per realm:'
+SELECT
+  realm,
+  COUNT(*) AS cities
+FROM "CitySearchView"
+GROUP BY 1
+ORDER BY 2 DESC;
 
 \echo ''
 

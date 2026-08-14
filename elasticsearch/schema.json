@@ -37,6 +37,7 @@
         "analyzer": "standard",
         "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
       },
+      "city_realm": { "type": "keyword" },
       "councilMeeting_id": { "type": "keyword" },
       "meeting_date": { "type": "date" },
       "meeting_name": { "type": "text", "analyzer": "greek" },
@@ -397,6 +398,19 @@
             "rename": {
               "id": "contribution_id"
             }
+          }
+        },
+        {
+          "table": "CitySearchView",
+          "schema": "public",
+          "base_tables": ["City"],
+          "primary_key": ["id"],
+          "columns": ["realm"],
+          "label": "city_realm",
+          "relationship": {
+            "variant": "scalar",
+            "type": "one_to_one",
+            "foreign_key": { "parent": ["cityId"], "child": ["id"] }
           }
         },
         {

@@ -232,6 +232,23 @@ LEFT JOIN "AdministrativeBody" ab ON ab.id = cm."administrativeBodyId";
 \echo '✓ MeetingAdministrativeBodyView created'
 \echo ''
 
+-- View 7: Realm of the city a subject belongs to
+-- Why this view? Only to cast the Realm enum to text, which Elasticsearch can index.
+-- Every other City column reaches the index as a direct column on a child node.
+--
+-- The index stores the realm, not an ISO country code. The realm -> country map lives in REALMS
+-- in src/lib/realm.ts, and getRealmCountry() reads it. Repeating that map in SQL would make a
+-- second source of truth that no test covers, so a new realm would sync a wrong or empty
+-- country. A caller that wants the country resolves it from the realm in application code.
+\echo 'Creating CitySearchView...'
+CREATE OR REPLACE VIEW "CitySearchView" AS
+SELECT
+  c.id,  -- Keep as `id` for WAL compatibility
+  c.realm::text AS realm
+FROM "City" c;
+\echo '✓ CitySearchView created'
+\echo ''
+
 -- ============================================================================
 -- VERIFICATION CHECKS
 -- ============================================================================
@@ -244,12 +261,12 @@ LEFT JOIN "AdministrativeBody" ab ON ab.id = cm."administrativeBodyId";
 \echo '1. Checking if all views exist...'
 SELECT 
   CASE 
-    WHEN COUNT(*) = 6 THEN '   ✓ All 6 views exist'
-    ELSE '   ✗ Missing views! Expected 6, found ' || COUNT(*)::text
+    WHEN COUNT(*) = 7 THEN '   ✓ All 7 views exist'
+    ELSE '   ✗ Missing views! Expected 7, found ' || COUNT(*)::text
   END AS result
 FROM pg_views
 WHERE schemaname = 'public'
-  AND viewname IN ('LocationSearchView', 'IntroducedByPartyView', 'SubjectSpeakerSegmentSearchView', 'SpeakerContributionSearchView', 'SubjectMetricsView', 'MeetingAdministrativeBodyView');
+  AND viewname IN ('LocationSearchView', 'IntroducedByPartyView', 'SubjectSpeakerSegmentSearchView', 'SpeakerContributionSearchView', 'SubjectMetricsView', 'MeetingAdministrativeBodyView', 'CitySearchView');
 \echo ''
 
 -- Check 2: LocationSearchView - verify it returns data
@@ -380,6 +397,24 @@ SELECT
   COALESCE(administrative_body_type, '(none)') AS administrative_body_type,
   COUNT(*) AS meetings
 FROM "MeetingAdministrativeBodyView"
+GROUP BY 1
+ORDER BY 2 DESC;
+\echo ''
+
+-- Check 9: CitySearchView - verify the realm cast
+\echo '9. Checking CitySearchView data...'
+SELECT
+  COUNT(*) AS total_cities,
+  COUNT(realm) AS cities_with_realm,
+  COUNT(*) - COUNT(realm) AS cities_missing_realm
+FROM "CitySearchView";
+\echo ''
+
+\echo '   Cities per realm:'
+SELECT
+  COALESCE(realm, '(none)') AS realm,
+  COUNT(*) AS cities
+FROM "CitySearchView"
 GROUP BY 1
 ORDER BY 2 DESC;
 \echo ''
