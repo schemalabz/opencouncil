@@ -279,7 +279,17 @@
             "removeDecision": "Уклони одлуку",
             "removeDecisionDescription": "Уклоните везу са одлуком и обришите све издвојене податке.",
             "extractionReset": "Издвајање ресетовано",
-            "decisionRemoved": "Одлука уклоњена"
+            "decisionRemoved": "Одлука уклоњена",
+            "unplacedTitle": "Nepovezane odluke",
+            "unplacedDescription": "Odluke čiji dokument navodi ovu sednicu, još nepovezane sa tačkom dnevnog reda. Dodelite ih tački ili odbacite one koje ne pripadaju ovde.",
+            "unplacedSuggestion": "Predložena tačka",
+            "unplacedConflict": "Već povezana sa",
+            "unplacedChooseSubject": "Izaberite tačku…",
+            "unplacedAssign": "Dodeli",
+            "unplacedDismiss": "Odbaci",
+            "unplacedAssigned": "Odluka dodeljena",
+            "unplacedDismissed": "Kandidat odbačen",
+            "unplacedNoFreeSubjects": "Sve tačke već imaju odluke"
         },
         "export": {
             "docx": "Извезите у DOCX",
