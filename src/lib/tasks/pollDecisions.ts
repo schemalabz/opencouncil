@@ -10,6 +10,7 @@ import { upsertDecision, deleteDecision, getDecisionForSubject, DECISION_ELIGIBL
 export { getDecisionForSubject };
 import { withUserAuthorizedToEdit } from "../auth";
 import { getPeopleForMeeting } from "../db/people";
+import { deriveWindowDays, athensDate } from "./decisionWindow";
 import { isRoleActiveAt, isMayorRole } from "../utils/roles";
 import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, BACKOFF_SCHEDULE, MAX_POLLING_DAYS, LOGODOSIA_NAME_PATTERN } from "./pollDecisionsBackoff";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "../discord";
@@ -109,8 +110,34 @@ export async function pollDecisionsForMeeting(
     }
     const sortedSubjects = sortSubjectsByDiscussionOrder(councilMeeting.subjects, firstUtteranceBySubject);
 
+    // Window from the city's measured publication lags; the declared session
+    // date does the precise work, the window only has to be wide enough.
+    const lagRows = await prisma.$queryRaw<Array<{ lag: number }>>`
+        SELECT EXTRACT(EPOCH FROM (d."publishDate" - cm."dateTime")) / 86400 AS lag
+        FROM "Decision" d
+        JOIN "Subject" s ON s.id = d."subjectId"
+        JOIN "CouncilMeeting" cm ON cm.id = s."councilMeetingId" AND cm."cityId" = s."cityId"
+        WHERE s."cityId" = ${cityId} AND d."publishDate" IS NOT NULL
+    `;
+    const windowDays = deriveWindowDays(lagRows.map(r => Number(r.lag)));
+    const windowFromDate = athensDate(councilMeeting.dateTime);
+    const windowToDate = athensDate(new Date(councilMeeting.dateTime.getTime() + windowDays * 86400_000));
+
+    // Everything the city has already read whose publishDate falls in this
+    // window — mostly neighbouring meetings' decisions, which is the point.
+    const known = await prisma.decisionCandidate.findMany({
+        where: {
+            cityId,
+            publishDate: { gte: new Date(windowFromDate), lte: new Date(`${windowToDate}T23:59:59Z`) },
+        },
+        select: { ada: true, meetingDate: true, readStatus: true },
+    });
+
     const body: Omit<PollDecisionsRequest, 'callbackUrl'> = {
-        meetingDate: councilMeeting.dateTime.toISOString().split('T')[0],
+        // Athens-local: documents print local dates, and the partition compares
+        // against this value. The UTC date is the previous day for meetings
+        // stored at local midnight.
+        meetingDate: athensDate(councilMeeting.dateTime),
         diavgeiaUid: councilMeeting.city.diavgeiaUid,
         diavgeiaUnitIds: councilMeeting.administrativeBody?.diavgeiaUnitIds.length
             ? councilMeeting.administrativeBody.diavgeiaUnitIds
@@ -118,6 +145,12 @@ export async function pollDecisionsForMeeting(
         mayorId: mayorPerson?.id,
         forceExtract: options?.forceExtract || undefined,
         people: peopleForRequest,
+        window: { fromDate: windowFromDate, toDate: windowToDate },
+        knownDecisions: known.map(k => ({
+            ada: k.ada,
+            meetingDate: k.meetingDate ? k.meetingDate.toISOString().split('T')[0] : null,
+            readStatus: k.readStatus,
+        })),
         subjects: sortedSubjects.map(s => ({
             subjectId: s.id,
             name: s.name,

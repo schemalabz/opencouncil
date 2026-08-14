@@ -516,6 +516,15 @@ export interface PollDecisionsRequest extends TaskRequest {
             needsExtraction?: boolean;
         };
     }>;
+    /** Fetch window, derived from the city's publication-lag history. Absent = tasks uses its legacy 45-day window. */
+    window?: { fromDate: string; toDate: string };
+    /**
+     * Reading-cache handshake, scoped by the WINDOW, not the meeting: every
+     * DecisionCandidate the city holds whose publishDate falls inside the poll
+     * window. Presence + readStatus decide whether tasks reads again;
+     * meetingDate decides which partition the decision belongs to.
+     */
+    knownDecisions?: Array<{ ada: string; meetingDate: string | null; readStatus: string }>;
 }
 
 export interface PollDecisionsMatch {
