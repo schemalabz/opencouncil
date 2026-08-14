@@ -27,6 +27,12 @@ export default function PlaygroundPage() {
   const [shippedPrompt, setShippedPrompt] = useState<string | undefined>();
   const storeRef = useRef(store);
   storeRef.current = store;
+  // Synchronous mirror of the busy flag: React state is stale within a tick,
+  // so two quick clicks (or a message during a step) could both pass a
+  // state-based guard and clobber each other's stepDone.
+  const busyRef = useRef(false);
+  const mountedRef = useRef(false);
+  mountedRef.current = mounted;
   const busy = busyItemId !== undefined;
 
   useEffect(() => {
@@ -40,12 +46,26 @@ export default function PlaygroundPage() {
 
   // Debounced: during run-until-send every step dispatches several actions,
   // and serializing the whole store (traces included) on each would jank the
-  // main thread. A 500ms trailing save loses at most half a second of state.
+  // main thread. A 500ms trailing save loses at most half a second of state —
+  // and the flush below closes even that window on unmount or tab close.
   useEffect(() => {
     if (!mounted) return;
     const t = setTimeout(() => saveStore(store), 500);
     return () => clearTimeout(t);
   }, [store, mounted]);
+
+  useEffect(() => {
+    const flush = () => {
+      // Never flush before hydration: writing the initial empty store would
+      // wipe whatever localStorage holds.
+      if (mountedRef.current) saveStore(storeRef.current);
+    };
+    window.addEventListener("pagehide", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, []);
 
   const totalCost = useMemo(
     () => Object.values(store.traces).reduce((sum, t) => sum + t.costUsd, 0),
@@ -53,6 +73,8 @@ export default function PlaygroundPage() {
   );
 
   const runItem = useCallback(async (item: WakeRecord): Promise<WakeOutcome | undefined> => {
+    if (busyRef.current) return undefined;
+    busyRef.current = true;
     setBusyItemId(item.id);
     setError(null);
     try {
@@ -102,12 +124,19 @@ export default function PlaygroundPage() {
       setError(e instanceof Error ? e.message : String(e));
       return undefined;
     } finally {
+      busyRef.current = false;
       setBusyItemId(undefined);
     }
   }, []);
 
+  // After a ΣΤΟΠ (unsubscribe) the production scheduler would never fire
+  // another proactive wake, so the simulator stops advancing too. Injected
+  // user messages still run — inbound survives an unsubscribe.
   const nextPending = useCallback(
-    () => storeRef.current.sim.queue.find((q) => q.status === "pending"),
+    () =>
+      storeRef.current.sim.unsubscribedAt
+        ? undefined
+        : storeRef.current.sim.queue.find((q) => q.status === "pending"),
     [],
   );
 
@@ -147,7 +176,7 @@ export default function PlaygroundPage() {
     (text: string) => {
       // A wake is already in flight (step or run-until-send): running a second
       // one from the same base state would lose whichever update lands first.
-      if (busyItemId !== undefined) return;
+      if (busyRef.current) return;
       const clock = storeRef.current.sim.clock;
       const item: WakeRecord = {
         id: `user:${Date.now()}`,
@@ -157,7 +186,7 @@ export default function PlaygroundPage() {
       dispatch({ type: "userMessage", item });
       void runItem(item);
     },
-    [runItem, busyItemId],
+    [runItem],
   );
 
   const selectedSnapshotId = useMemo(
