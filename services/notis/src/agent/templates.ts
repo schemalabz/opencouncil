@@ -2,10 +2,13 @@ import { WakeEvent } from "./types";
 
 /**
  * The WhatsApp template shells, copied VERBATIM from Bird
- * (app.bird.com → OpenCouncil workspace → Message templates, as approved by
- * Meta on 2026-08-04/05). If a template changes in Bird, this file must
- * change with it — the simulator and the production send path both render
- * from here, so what you see simulated is what Meta approved.
+ * (app.bird.com → OpenCouncil workspace → Message templates; first approved
+ * by Meta 2026-08-04/05, revised 2026-08-15: persona name «ο Δήμος»,
+ * conditional agenda closing, «Τι είναι αυτό;» intro button, new
+ * demos_checkin — revised versions pending Meta re-approval). If a template
+ * changes in Bird, this file must change with it — the simulator and the
+ * production send path both render from here, so what you see simulated is
+ * what Meta approved.
  *
  * Cold sends (outside the 24h customer-service window) MUST use one of these
  * shells; free-form text is only deliverable inside the window.
@@ -16,7 +19,8 @@ export type TemplateName =
   | "demos_transition"
   | "demos_update_agenda"
   | "demos_update_news"
-  | "demos_followup";
+  | "demos_followup"
+  | "demos_checkin";
 
 export interface TemplateButton {
   label: string;
@@ -43,20 +47,20 @@ export const TEMPLATES: Record<TemplateName, TemplateDef> = {
     name: "demos_intro",
     category: "marketing",
     bodyPrefix:
-      "Γεια σου! Είμαι ο βοηθός του OpenCouncil για τον δήμο σου. Θα σου γράφω σπάνια — μόνο όταν συμβαίνει κάτι που πιστεύω ότι σε αφορά — και μπορείς να μου απαντάς και να με ρωτάς οτιδήποτε για το δημοτικό συμβούλιο.",
+      "Γεια σου! Είμαι ο Δήμος, ο βοηθός του OpenCouncil για τον δήμο σου. Θα σου γράφω σπάνια — μόνο όταν συμβαίνει κάτι που πιστεύω ότι σε αφορά — και μπορείς να μου απαντάς και να με ρωτάς οτιδήποτε για το δημοτικό συμβούλιο.",
     bodySuffix: "",
     hasVariable: false,
     footer: STOP_FOOTER,
     buttons: [
       { label: "Περισσότερα", kind: "url" },
-      { label: "Ας γνωριστούμε", kind: "quick_reply" },
+      { label: "Τι είναι αυτό;", kind: "quick_reply" },
     ],
   },
   demos_transition: {
     name: "demos_transition",
     category: "marketing",
     bodyPrefix:
-      "Οι ειδοποιήσεις του OpenCouncil αλλάζουν! Από εδώ και πέρα σου γράφω εγώ, ο βοηθός του OpenCouncil. Θα σου στέλνω λιγότερα και πιο προσωπικά μηνύματα, μόνο όταν συμβαίνει κάτι που πραγματικά σε αφορά, και μπορείς να μου απαντάς και να με ρωτάς οτιδήποτε για τον δήμο σου. Τα email σου συνεχίζουν κανονικά.",
+      "Οι ειδοποιήσεις του OpenCouncil αλλάζουν! Από εδώ και πέρα σου γράφω εγώ, ο Δήμος, ο βοηθός του OpenCouncil. Θα σου στέλνω λιγότερα και πιο προσωπικά μηνύματα, μόνο όταν συμβαίνει κάτι που πραγματικά σε αφορά, και μπορείς να μου απαντάς και να με ρωτάς οτιδήποτε για τον δήμο σου. Τα email σου συνεχίζουν κανονικά.",
     bodySuffix: "",
     hasVariable: false,
     footer: "Απάντησε ΣΤΟΠ για να λαμβάνεις μόνο email.",
@@ -69,7 +73,7 @@ export const TEMPLATES: Record<TemplateName, TemplateDef> = {
     name: "demos_update_agenda",
     category: "utility",
     bodyPrefix: "Πριν την επόμενη συνεδρίαση, κάτι που σε αφορά:\n\n",
-    bodySuffix: "\n\nΘα σου πω τι συζητήθηκε.",
+    bodySuffix: "\n\nΑν συζητηθεί κάτι που σε αφορά, θα σου πω.",
     hasVariable: true,
     footer: STOP_FOOTER,
     buttons: [
@@ -88,6 +92,18 @@ export const TEMPLATES: Record<TemplateName, TemplateDef> = {
       { label: "Δες περισσότερα", kind: "url" },
       { label: "Πες μου περισσότερα", kind: "quick_reply" },
     ],
+  },
+  demos_checkin: {
+    name: "demos_checkin",
+    category: "marketing",
+    // Deliberate-frequency downgrade for readers who never respond. Added
+    // 2026-08-15; no send path uses it yet (a PR 4+ policy decides when).
+    bodyPrefix:
+      "Επειδή δεν απαντάς σε αυτά τα μηνύματα, θα σου γράφω πλέον μόνο κάθε λίγους μήνες, για τα πολύ σημαντικά. Αν με θες πιο συχνά, γράψε μου.",
+    bodySuffix: "",
+    hasVariable: false,
+    footer: STOP_FOOTER,
+    buttons: [{ label: "Θέλω πιο συχνά", kind: "quick_reply" }],
   },
   demos_followup: {
     name: "demos_followup",

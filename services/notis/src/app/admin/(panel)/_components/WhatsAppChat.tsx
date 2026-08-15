@@ -417,7 +417,7 @@ export function WhatsAppChat({
           <img src="/logo.png" alt="" className="h-7 w-7 object-contain" />
         </div>
         <div className="leading-tight">
-          <p className="text-[15px] font-medium text-[#111b21]">Νότης</p>
+          <p className="text-[15px] font-medium text-[#111b21]">Δήμος</p>
           {busy && !typingExpired && <p className="text-xs text-[#667781]">γράφει...</p>}
         </div>
         <span className="ml-auto text-xs tabular-nums text-[#667781]">
