@@ -6,10 +6,8 @@ import type { Realm } from '@prisma/client'
 import { env } from '@/env.mjs'
 import { getRealmDomain } from '@/lib/realm'
 import BrowserFrame from './BrowserFrame'
-
-// Chania center coordinates
-const CHANIA_LNG = 24.0186
-const CHANIA_LAT = 35.5138
+import { DEMO_MAP_VIEWS, DEMO_SCENARIO_BY_REALM } from './config'
+import type { DemoScenario } from './config'
 
 const SUBJECT_POSITIONS = [
     { topicColor: '#2563eb', x: 47, y: 32, minutes: 23, speakers: 6 },
@@ -18,13 +16,16 @@ const SUBJECT_POSITIONS = [
     { topicColor: '#7c3aed', x: 40, y: 25, minutes: 15, speakers: 5 },
 ]
 
-function getStaticMapUrl(width: number, height: number): string {
+function getStaticMapUrl(scenario: DemoScenario, width: number, height: number): string {
     const token = env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN
-    return `https://api.mapbox.com/styles/v1/mapbox/light-v11/static/${CHANIA_LNG},${CHANIA_LAT},14.5,0/${width}x${height}@2x?access_token=${token}`
+    const { lng, lat, zoom } = DEMO_MAP_VIEWS[scenario]
+    return `https://api.mapbox.com/styles/v1/mapbox/light-v11/static/${lng},${lat},${zoom},0/${width}x${height}@2x?access_token=${token}`
 }
 
 export default function MapDemo({ realm }: { realm: Realm }) {
     const t = useTranslations('about.demos.map')
+    const scenario = DEMO_SCENARIO_BY_REALM[realm]
+    const tScenario = useTranslations(`about.demos.map.byRealm.${scenario}`)
 
     return (
         <BrowserFrame url={getRealmDomain(realm)} className="w-full">
@@ -33,8 +34,8 @@ export default function MapDemo({ realm }: { realm: Realm }) {
                 {/* Mapbox static tile background */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                    src={getStaticMapUrl(600, 450)}
-                    alt={t('mapAlt')}
+                    src={getStaticMapUrl(scenario, 600, 450)}
+                    alt={tScenario('mapAlt')}
                     className="absolute inset-0 w-full h-full object-cover"
                     loading="lazy"
                 />
@@ -64,12 +65,12 @@ export default function MapDemo({ realm }: { realm: Realm }) {
                                         className="h-2 w-2 rounded-full flex-shrink-0"
                                         style={{ backgroundColor: s.topicColor }}
                                     />
-                                    <span className="text-[10px] font-medium text-muted-foreground">{t(`subjects.${i}.topic`)}</span>
+                                    <span className="text-[10px] font-medium text-muted-foreground">{tScenario(`subjects.${i}.topic`)}</span>
                                 </div>
-                                <p className="text-[11px] font-medium leading-snug">{t(`subjects.${i}.title`)}</p>
+                                <p className="text-[11px] font-medium leading-snug">{tScenario(`subjects.${i}.title`)}</p>
                                 <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
                                     <MapPin className="h-2.5 w-2.5" />
-                                    {t(`subjects.${i}.location`)}
+                                    {tScenario(`subjects.${i}.location`)}
                                 </p>
                                 <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground">
                                     <span className="flex items-center gap-0.5">

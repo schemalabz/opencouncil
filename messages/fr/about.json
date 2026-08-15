@@ -238,27 +238,84 @@
     "search": {
       "allMunicipalities": "Toutes les communes",
       "resultsCount": "{count} résultats dans 3 communes",
-      "results": {
-        "0": {
-          "subject": "Réaménagement de la place du Marché Municipal",
-          "city": "Commune de La Canée",
-          "speaker": "Maria Georgiou",
-          "location": "Place du Marché Municipal",
-          "highlight": "...le budget est couvert par les fonds <mark>ESPA</mark> et le concours sera lancé dans un délai de trois mois..."
+      "byRealm": {
+        "greece": {
+          "query": "ESPA",
+          "results": {
+            "0": {
+              "subject": "Réaménagement de la place du Marché Municipal",
+              "city": "Commune de La Canée",
+              "speaker": "Maria Georgiou",
+              "location": "Place du Marché Municipal",
+              "highlight": "...le budget est couvert par les fonds <mark>ESPA</mark> et le concours sera lancé dans un délai de trois mois..."
+            },
+            "1": {
+              "subject": "Financement des installations sportives",
+              "city": "Commune de Chalandri",
+              "speaker": "Dimitris Konstantinou",
+              "location": "Centre sportif de N. Chalandri",
+              "highlight": "...l'inscription au programme <mark>ESPA</mark> a été approuvée pour la piscine et les salles polyvalentes..."
+            },
+            "2": {
+              "subject": "Rénovation énergétique des écoles",
+              "city": "Commune d'Athènes",
+              "speaker": "Eleni Papandreou",
+              "location": "Secteur central",
+              "highlight": "...une proposition a été soumise au programme <mark>ESPA</mark> 2021-2027 pour des panneaux solaires sur 12 bâtiments scolaires..."
+            }
+          }
         },
-        "1": {
-          "subject": "Financement des installations sportives",
-          "city": "Commune de Chalandri",
-          "speaker": "Dimitris Konstantinou",
-          "location": "Centre sportif de N. Chalandri",
-          "highlight": "...l'inscription au programme <mark>ESPA</mark> a été approuvée pour la piscine et les salles polyvalentes..."
+        "france": {
+          "query": "DSIL",
+          "results": {
+            "0": {
+              "subject": "Réaménagement de la place Sainte-Anne",
+              "city": "Commune de Rennes",
+              "speaker": "Marie Lefèvre",
+              "location": "Place Sainte-Anne",
+              "highlight": "...le budget est couvert par la <mark>DSIL</mark> et le concours sera lancé dans un délai de trois mois..."
+            },
+            "1": {
+              "subject": "Financement des installations sportives",
+              "city": "Commune de Nantes",
+              "speaker": "Julien Moreau",
+              "location": "Complexe sportif de Doulon",
+              "highlight": "...l'inscription à la <mark>DSIL</mark> a été approuvée pour la piscine et les salles polyvalentes..."
+            },
+            "2": {
+              "subject": "Rénovation énergétique des écoles",
+              "city": "Commune de Bordeaux",
+              "speaker": "Camille Rousseau",
+              "location": "Secteur centre",
+              "highlight": "...une demande de <mark>DSIL</mark> 2026 a été déposée pour des panneaux solaires sur 12 bâtiments scolaires..."
+            }
+          }
         },
-        "2": {
-          "subject": "Rénovation énergétique des écoles",
-          "city": "Commune d'Athènes",
-          "speaker": "Eleni Papandreou",
-          "location": "Secteur central",
-          "highlight": "...une proposition a été soumise au programme <mark>ESPA</mark> 2021-2027 pour des panneaux solaires sur 12 bâtiments scolaires..."
+        "serbia": {
+          "query": "IPA",
+          "results": {
+            "0": {
+              "subject": "Réaménagement de la place de la République",
+              "city": "Ville de Belgrade",
+              "speaker": "Milan Jovanović",
+              "location": "Place de la République",
+              "highlight": "...le budget est couvert par le programme <mark>IPA</mark> et le concours sera lancé dans un délai de trois mois..."
+            },
+            "1": {
+              "subject": "Financement des installations sportives",
+              "city": "Ville de Novi Sad",
+              "speaker": "Ana Petrović",
+              "location": "Centre sportif de Liman",
+              "highlight": "...l'inscription au programme <mark>IPA</mark> a été approuvée pour la piscine et les salles polyvalentes..."
+            },
+            "2": {
+              "subject": "Rénovation énergétique des écoles",
+              "city": "Ville de Niš",
+              "speaker": "Jelena Nikolić",
+              "location": "Secteur central",
+              "highlight": "...une proposition a été soumise au programme <mark>IPA</mark> 2021-2027 pour des panneaux solaires sur 12 bâtiments scolaires..."
+            }
+          }
         }
       }
     },
@@ -275,14 +332,84 @@
       "inputPlaceholder": "Écris un message"
     },
     "map": {
-      "mapAlt": "Carte de La Canée",
       "filters": "Filtres",
       "subjectCount": "{count} sujets · 6 derniers mois",
-      "subjects": {
-        "0": { "title": "Réaménagement de la place du Marché Municipal", "location": "Place du Marché Municipal", "topic": "Travaux Techniques" },
-        "1": { "title": "Réglementation de la circulation rue Skalidi", "location": "Rue Skalidi", "topic": "Circulation" },
-        "2": { "title": "Autorisation d'un commerce", "location": "15 Av. Halepa", "topic": "Autorisations" },
-        "3": { "title": "Entretien d'un bâtiment scolaire", "location": "4e École Primaire", "topic": "Éducation" }
+      "byRealm": {
+        "greece": {
+          "mapAlt": "Carte de La Canée",
+          "subjects": {
+            "0": {
+              "title": "Réaménagement de la place du Marché Municipal",
+              "location": "Place du Marché Municipal",
+              "topic": "Travaux Techniques"
+            },
+            "1": {
+              "title": "Réglementation de la circulation rue Skalidi",
+              "location": "Rue Skalidi",
+              "topic": "Circulation"
+            },
+            "2": {
+              "title": "Autorisation d'un commerce",
+              "location": "15 Av. Halepa",
+              "topic": "Autorisations"
+            },
+            "3": {
+              "title": "Entretien d'un bâtiment scolaire",
+              "location": "4e École Primaire",
+              "topic": "Éducation"
+            }
+          }
+        },
+        "france": {
+          "mapAlt": "Carte de Rennes",
+          "subjects": {
+            "0": {
+              "title": "Réaménagement de la place Sainte-Anne",
+              "location": "Place Sainte-Anne",
+              "topic": "Travaux Techniques"
+            },
+            "1": {
+              "title": "Réglementation de la circulation rue de Saint-Malo",
+              "location": "Rue de Saint-Malo",
+              "topic": "Circulation"
+            },
+            "2": {
+              "title": "Autorisation d'un commerce",
+              "location": "12 quai Émile Zola",
+              "topic": "Autorisations"
+            },
+            "3": {
+              "title": "Entretien d'un bâtiment scolaire",
+              "location": "École Jean Moulin",
+              "topic": "Éducation"
+            }
+          }
+        },
+        "serbia": {
+          "mapAlt": "Carte de Belgrade",
+          "subjects": {
+            "0": {
+              "title": "Réaménagement de la place de la République",
+              "location": "Place de la République",
+              "topic": "Travaux Techniques"
+            },
+            "1": {
+              "title": "Réglementation de la circulation rue Knez Mihailova",
+              "location": "Rue Knez Mihailova",
+              "topic": "Circulation"
+            },
+            "2": {
+              "title": "Autorisation d'un commerce",
+              "location": "15 bd Kralja Aleksandra",
+              "topic": "Autorisations"
+            },
+            "3": {
+              "title": "Entretien d'un bâtiment scolaire",
+              "location": "École Kralj Petar I",
+              "topic": "Éducation"
+            }
+          }
+        }
       }
     }
   },
