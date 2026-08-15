@@ -92,8 +92,19 @@ export async function requestTranscribeInternal(youtubeUrl: string, councilMeeti
 
     // Get voiceprints for relevant people based on meeting's administrative body
     const people = await getPeopleForMeeting(cityId, councilMeeting.administrativeBodyId);
+    const voicePrintRows = await prisma.voicePrint.findMany({
+        where: { personId: { in: people.map(person => person.id) } },
+        orderBy: { createdAt: 'desc' },
+        select: { personId: true, embedding: true },
+    });
+    const embeddingByPerson = new Map<string, string>();
+    for (const row of voicePrintRows) {
+        if (!embeddingByPerson.has(row.personId)) {
+            embeddingByPerson.set(row.personId, row.embedding);
+        }
+    }
     const peopleWithVoiceprints = people
-        .filter(person => person.voicePrints && person.voicePrints.length > 0);
+        .filter(person => embeddingByPerson.has(person.id));
 
     // Pyannote.ai supports max 50 voiceprints per request.
     // When over the limit, people are already sorted by role priority from getPeopleForMeeting
@@ -121,7 +132,7 @@ export async function requestTranscribeInternal(youtubeUrl: string, councilMeeti
         .slice(0, MAX_VOICEPRINTS)
         .map(person => ({
             personId: person.id,
-            voiceprint: person.voicePrints![0].embedding
+            voiceprint: embeddingByPerson.get(person.id)!
         }));
 
     console.log(`Sending ${voiceprints.length} voiceprints for meeting (${peopleWithVoiceprints.length} total with voiceprints)`);

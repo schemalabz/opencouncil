@@ -53,7 +53,6 @@ describe('getPeopleForMeeting', () => {
         isHead: false,
       },
     ],
-    voicePrints: [],
   };
 
   const mockCommunityHead = {
@@ -67,7 +66,6 @@ describe('getPeopleForMeeting', () => {
         isHead: true,
       },
     ],
-    voicePrints: [],
   };
 
   const mockCommunityMember = {
@@ -81,7 +79,6 @@ describe('getPeopleForMeeting', () => {
         isHead: false,
       },
     ],
-    voicePrints: [],
   };
 
   const mockCommitteeMember = {
@@ -95,7 +92,6 @@ describe('getPeopleForMeeting', () => {
         isHead: false,
       },
     ],
-    voicePrints: [],
   };
 
   const mockPersonNoAdminBody = {
@@ -109,7 +105,6 @@ describe('getPeopleForMeeting', () => {
         isHead: false,
       },
     ],
-    voicePrints: [],
   };
 
   const mockMayor = {
@@ -126,7 +121,6 @@ describe('getPeopleForMeeting', () => {
         endDate: null,
       },
     ],
-    voicePrints: [],
   };
 
   const allMockPeople = [

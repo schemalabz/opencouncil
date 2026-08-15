@@ -130,6 +130,7 @@ export async function getGenerateHighlightTasksForHighlight(cityId: string, meet
  * Get voiceprint generation tasks for a specific person
  */
 export async function getVoiceprintTasksForPerson(personId: string): Promise<TaskStatus[]> {
+    await withUserAuthorizedToEdit({ personId });
     try {
         const tasks = await prisma.taskStatus.findMany({
             where: {

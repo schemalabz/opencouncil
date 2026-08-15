@@ -7,7 +7,12 @@ import { RoleWithRelations, roleWithRelationsInclude } from "./types";
 
 export type PersonWithRelations = Person & {
     roles: RoleWithRelations[];
-    voicePrints?: VoicePrint[];
+};
+
+// Voiceprints are biometric data. Only expose them through
+// getPeopleWithVoicePrintsForCity, which checks authorization.
+export type PersonWithVoicePrints = PersonWithRelations & {
+    voicePrints: VoicePrint[];
 };
 
 export async function deletePerson(id: string): Promise<void> {
@@ -126,13 +131,7 @@ export async function getPerson(id: string): Promise<PersonWithRelations | null>
         const person = await prisma.person.findUnique({
             where: { id },
             include: {
-                roles: roleWithRelationsInclude,
-                voicePrints: {
-                    orderBy: {
-                        createdAt: 'desc'
-                    },
-                    take: 1 // Only get the most recent voiceprint
-                }
+                roles: roleWithRelationsInclude
             }
         });
         return person;
@@ -153,7 +152,23 @@ export async function getPeopleForCity(cityId: string, activeRolesOnly: boolean 
                         OR: getActiveRoleCondition(now)
                     } : undefined,
                     ...roleWithRelationsInclude
-                },
+                }
+            }
+        });
+        return people.sort(() => Math.random() - 0.5);
+    } catch (error) {
+        console.error('Error fetching people for city:', error);
+        throw new Error('Failed to fetch people for city');
+    }
+}
+
+export async function getPeopleWithVoicePrintsForCity(cityId: string): Promise<PersonWithVoicePrints[]> {
+    await withUserAuthorizedToEdit({ cityId });
+    try {
+        const people = await prisma.person.findMany({
+            where: { cityId },
+            include: {
+                roles: roleWithRelationsInclude,
                 voicePrints: {
                     orderBy: {
                         createdAt: 'desc'
@@ -162,10 +177,10 @@ export async function getPeopleForCity(cityId: string, activeRolesOnly: boolean 
                 }
             }
         });
-        return people.sort(() => Math.random() - 0.5);
+        return people;
     } catch (error) {
-        console.error('Error fetching people for city:', error);
-        throw new Error('Failed to fetch people for city');
+        console.error('Error fetching people with voiceprints for city:', error);
+        throw new Error('Failed to fetch people with voiceprints for city');
     }
 }
 

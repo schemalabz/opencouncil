@@ -1,5 +1,5 @@
 import { getCities } from "@/lib/db/cities";
-import { getPeopleForCity, PersonWithRelations } from "@/lib/db/people";
+import { getPeopleWithVoicePrintsForCity, PersonWithVoicePrints } from "@/lib/db/people";
 import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
 import { sortPersonsByLastName } from "@/lib/sorting/people";
 import CitySelector from "@/components/admin/people/city-selector";
@@ -16,11 +16,11 @@ export default async function PeoplePage(props: PageProps) {
 
     const selectedCityId = searchParams.cityId || (cities.length > 0 ? cities[0].id : "");
 
-    let people: PersonWithRelations[] = [];
+    let people: PersonWithVoicePrints[] = [];
     let administrativeBodies: AdministrativeBody[] = [];
     if (selectedCityId) {
         const [peopleData, bodies] = await Promise.all([
-            getPeopleForCity(selectedCityId),
+            getPeopleWithVoicePrintsForCity(selectedCityId),
             getAdministrativeBodiesForCity(selectedCityId),
         ]);
         people = sortPersonsByLastName(peopleData);

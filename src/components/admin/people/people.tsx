@@ -6,7 +6,7 @@ import { Search } from "lucide-react";
 import { PeopleStats } from "@/components/admin/people/people-stats";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { PersonWithRelations } from "@/lib/db/people";
+import { PersonWithVoicePrints } from "@/lib/db/people";
 import { useTranslations } from "next-intl";
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { VoiceprintActions } from "./voiceprint-actions";
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 interface PeopleProps {
-    people: PersonWithRelations[];
+    people: PersonWithVoicePrints[];
     currentCityName: string;
     administrativeBodies: AdministrativeBody[];
 }

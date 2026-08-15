@@ -21,7 +21,7 @@ export function getElectedOrderForBody(
 /**
  * Sorts an array of Person objects by the last word in their name (typically last name)
  */
-export const sortPersonsByLastName = (persons: PersonWithRelations[]): PersonWithRelations[] => {
+export const sortPersonsByLastName = <T extends PersonWithRelations>(persons: T[]): T[] => {
     return [...persons].sort((a, b) => {
         const aLastWord = a.name.split(" ").pop() || "";
         const bLastWord = b.name.split(" ").pop() || "";
