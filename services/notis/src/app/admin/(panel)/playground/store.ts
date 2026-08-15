@@ -1,6 +1,7 @@
 import { WakeOutcome, WakeState, WakeTrace } from "@/agent/types";
 import {
   PlaygroundStore,
+  SimSettings,
   WakeRecord,
   SNAPSHOT_CAP,
   Sim,
@@ -85,6 +86,7 @@ export type Action =
   | { type: "skip"; itemId: string }
   | { type: "userMessage"; item: WakeRecord }
   | { type: "setPromptOverride"; value?: string }
+  | { type: "setSettings"; value: SimSettings }
   | { type: "restoreSnapshot"; id: string };
 
 function pushTrace(store: PlaygroundStore, id: string, trace: WakeTrace): PlaygroundStore {
@@ -194,6 +196,9 @@ export function reducer(store: PlaygroundStore, action: Action): PlaygroundStore
 
     case "setPromptOverride":
       return { ...store, sim: { ...store.sim, promptOverride: action.value } };
+
+    case "setSettings":
+      return { ...store, sim: { ...store.sim, settings: { ...store.sim.settings, ...action.value } } };
 
     case "restoreSnapshot": {
       const snapIndex = store.snapshots.findIndex((s) => s.id === action.id);

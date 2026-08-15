@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { ADMIN_COOKIE, mintToken, timingSafeEqual } from "@/lib/admin-auth";
+import { parseJsonBody } from "@/lib/api";
 import { env } from "@/env.mjs";
 
 const bodySchema = z.object({ secret: z.string().min(1) });
@@ -16,12 +17,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "too many attempts, wait a minute" }, { status: 429 });
   }
 
-  const parsed = bodySchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) {
-    return NextResponse.json({ error: "missing secret" }, { status: 400 });
-  }
+  const { data, error } = await parseJsonBody(request, bodySchema);
+  if (error) return error;
 
-  if (!timingSafeEqual(parsed.data.secret, env.NOTIS_ADMIN_SECRET)) {
+  if (!timingSafeEqual(data.secret, env.NOTIS_ADMIN_SECRET)) {
     // Only failed guesses consume the budget — 5 successful logins in a
     // minute must not lock the admin out.
     attempts.push(now);

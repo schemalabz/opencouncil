@@ -19,8 +19,12 @@ interface Fixture {
   expected: {
     decision: "silence" | "send";
     messageCount: number;
+    messages?: string[];
     profileRewritten: boolean;
     scheduledWakes: number;
+    scheduledWakesDetail?: Array<{ at: string; reason: string }>;
+    unsubscribed?: boolean;
+    repairs?: string[];
   };
 }
 
@@ -52,8 +56,22 @@ describe("golden scenarios (recorded replay)", () => {
       expect(outcome.messages).toHaveLength(fixture.expected.messageCount);
       expect(outcome.profileRewrite !== undefined).toBe(fixture.expected.profileRewritten);
       expect(outcome.scheduledWakes).toHaveLength(fixture.expected.scheduledWakes);
+      // Full-content assertions, present on fixtures recorded by the current
+      // script: count-only checks are blind to corrupted message text.
+      if (fixture.expected.messages) {
+        expect(outcome.messages).toEqual(fixture.expected.messages);
+      }
+      if (fixture.expected.scheduledWakesDetail) {
+        expect(outcome.scheduledWakes).toEqual(fixture.expected.scheduledWakesDetail);
+      }
+      if (fixture.expected.unsubscribed !== undefined) {
+        expect(outcome.unsubscribe !== undefined).toBe(fixture.expected.unsubscribed);
+      }
       expect(outcome.rationale.length).toBeGreaterThan(0);
-      expect(trace.turns).toHaveLength(fixture.recordedTurns.length);
+      // Injected (nudge) turns are trace-only; compare model turns.
+      expect(trace.turns.filter((t) => t.role !== "injected")).toHaveLength(
+        fixture.recordedTurns.length,
+      );
 
       // Request invariants: every request carries the MCP toolset + the five
       // client tools, and exactly two system blocks with the cache breakpoint

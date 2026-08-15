@@ -92,6 +92,8 @@ export function Timeline({ records, cityMeta, selectedId, busyItemId, onSelect }
   const [hover, setHover] = useState<HoverState | null>(null);
   const [details, setDetails] = useState<Record<string, MeetingDetails | "loading">>({});
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // A pending hover timer firing after unmount would setState on a dead tree.
+  useEffect(() => () => clearTimeout(hoverTimer.current), []);
 
   // Scroll ONLY the strip, horizontally. scrollIntoView would also scroll
   // ancestor containers vertically and knock the page column out of line.

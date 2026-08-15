@@ -106,6 +106,9 @@ jobs:
           if [ -n "$PKG_JSON_CHANGED" ] && [ -z "$LOCKFILE_CHANGED" ]; then
             CHANGED=false
             for f in $PKG_JSON_CHANGED; do
+              # A deleted manifest is a dependency change; jq on a missing path
+              # would kill the step under pipefail before the friendly message.
+              [ -f "$f" ] || { CHANGED=true; continue; }
               OLD_DEPS=$(git show origin/${{ github.base_ref }}:$f 2>/dev/null | jq -S '{dep: .dependencies, dev: .devDependencies, peer: .peerDependencies}' || echo "absent")
               NEW_DEPS=$(jq -S '{dep: .dependencies, dev: .devDependencies, peer: .peerDependencies}' $f)
               if [ "$OLD_DEPS" != "$NEW_DEPS" ]; then CHANGED=true; fi

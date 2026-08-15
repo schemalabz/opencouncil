@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { EditorialBrief, WakeEvent, WakeOutcome, WakeState, WakeTrace } from "@/agent/types";
+import { EditorialBrief, Effort, WakeEvent, WakeOutcome, WakeState, WakeTrace } from "@/agent/types";
 import { post } from "../_lib/http";
 import { MeetingSummary } from "./deriveQueue";
 import { LocationPoint } from "./types";
@@ -95,7 +95,13 @@ export interface DryRunResult {
 export async function dryRun(
   state: WakeState,
   event: WakeEvent,
-  options: { promptOverride?: string; model?: string; maxTurns?: number },
+  options: {
+    promptOverride?: string;
+    contextPackOverride?: string;
+    model?: string;
+    maxTurns?: number;
+    effort?: Effort;
+  },
 ): Promise<DryRunResult> {
   return post<DryRunResult>("/api/dry-run", { state, event, options });
 }

@@ -1,4 +1,4 @@
-import { WakeState, WakeTrace } from "@/agent/types";
+import { Effort, WakeState, WakeTrace } from "@/agent/types";
 import {
   CityMeta,
   Origin,
@@ -20,6 +20,8 @@ export { hasPendingBrief };
 export interface SimSettings {
   model?: string;
   maxTurns?: number;
+  /** Reasoning effort per wake — the main cost/quality lever to A/B. */
+  effort?: Effort;
 }
 
 /** A geocoded picked address — playground-only; the agent sees just the text. */

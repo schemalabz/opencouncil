@@ -281,6 +281,8 @@ export default function PlaygroundPage() {
           promptOverride={store.sim.promptOverride}
           shippedPrompt={shippedPrompt}
           onPromptOverride={(value) => dispatch({ type: "setPromptOverride", value })}
+          effort={store.sim.settings.effort as "low" | "medium" | "high" | undefined}
+          onEffort={(value) => dispatch({ type: "setSettings", value: { effort: value } })}
         />
         <Button
           size="sm"

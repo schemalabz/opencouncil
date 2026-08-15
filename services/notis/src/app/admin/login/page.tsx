@@ -16,18 +16,23 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const res = await fetch("/api/admin/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ secret }),
-    });
-    setBusy(false);
-    if (res.ok) {
-      router.push("/admin/playground");
-      router.refresh();
-    } else {
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret }),
+      });
+      if (res.ok) {
+        router.push("/admin/playground");
+        router.refresh();
+        return;
+      }
       const body = await res.json().catch(() => null);
       setError(body?.error ?? "something went wrong");
+    } catch {
+      setError("network error — try again");
+    } finally {
+      setBusy(false);
     }
   }
 

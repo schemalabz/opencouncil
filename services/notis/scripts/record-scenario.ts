@@ -22,7 +22,20 @@ async function main() {
     console.error("usage: npx tsx scripts/record-scenario.ts <fixture.json>");
     process.exit(1);
   }
-  const fixturePath = path.resolve(file);
+  // Resolve relative to the package root, not the cwd: running from inside
+  // services/notis with a repo-relative path silently created a nested
+  // services/notis/services/notis/... duplicate tree.
+  const packageRoot = path.resolve(__dirname, "..");
+  const candidates = [
+    path.resolve(file),
+    path.resolve(packageRoot, file),
+    path.resolve(packageRoot, file.replace(/^services\/notis\//, "")),
+  ];
+  const fixturePath = candidates.find((c) => fs.existsSync(c));
+  if (!fixturePath) {
+    console.error(`fixture not found (tried ${candidates.join(", ")})`);
+    process.exit(1);
+  }
   const fixture = JSON.parse(fs.readFileSync(fixturePath, "utf8")) as {
     name: string;
     state: WakeState;
@@ -40,11 +53,18 @@ async function main() {
 
   const previous = fixture.expected;
   fixture.recordedTurns = recorder.recorded;
+  // Full content, not counts: count-only assertions are blind to corrupted
+  // message text (mutation tests replay green). Replay is deterministic, so
+  // exact comparison is valid here.
   fixture.expected = {
     decision: outcome.decision,
     messageCount: outcome.messages.length,
+    messages: outcome.messages,
     profileRewritten: outcome.profileRewrite !== undefined,
     scheduledWakes: outcome.scheduledWakes.length,
+    scheduledWakesDetail: outcome.scheduledWakes,
+    unsubscribed: outcome.unsubscribe !== undefined,
+    repairs: outcome.repairs ?? [],
   };
   fs.writeFileSync(fixturePath, JSON.stringify(fixture, null, 2) + "\n");
 

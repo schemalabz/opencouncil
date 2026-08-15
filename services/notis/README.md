@@ -51,3 +51,20 @@ Until PR 2 replaces it with shared-cookie validation against the main app's
 sessions, `/admin/*` and `/api/*` (minus health + login) are gated by
 `NOTIS_ADMIN_SECRET`: `/admin/login` exchanges it for an HttpOnly cookie
 holding an HMAC of the secret. Rotate by changing the env var.
+
+## Known gaps (tracked for later PRs)
+
+- **Golden scenarios have two jobs; only one is implemented.** The offline
+  replay lane guards the code: deterministic, free, full-content assertions.
+  The second job — guarding prompt changes — needs a live-replay lane with
+  behavioral assertions (decision, cadence caps, link presence), because a
+  prompt change invalidates recorded turns. That lane does not exist yet.
+- **The wizard's profile is not the migration-seeded profile.** The PRD (§7)
+  seeds a simulated profile from notification preferences exactly as
+  migration will; the wizard takes hand-typed free text. Tuning happens on a
+  different population than launch until the seeding rule (needed for PR 6
+  anyway) is implemented here.
+- **Fixtures need re-recording on the shipped pipeline.** Both current
+  fixtures predate the model change and the agenda embargo; the recording
+  script now writes full-content assertions, so the next recording closes
+  the gap.
