@@ -25,6 +25,7 @@ import {
     getLogoData,
     procurementDocument,
     SIZE,
+    STYLE,
     type ProcurementDocParams,
 } from "./shared";
 
@@ -50,6 +51,7 @@ export async function buildFinancialOfferDoc(
     });
 
     const totalSentence = new Paragraph({
+        style: STYLE.NORMAL,
         spacing: { before: 240, after: 240 },
         children: [
             new TextRun({
@@ -78,7 +80,7 @@ export async function buildFinancialOfferDoc(
             ...buildDocTitle(logo, "ΟΙΚΟΝΟΜΙΚΗ ΠΡΟΣΦΟΡΑ"),
             ...buildProcurementIntro(offer, params, "οικονομική"),
             totalSentence,
-            new Paragraph({ children: [new PageBreak()] }),
+            new Paragraph({ style: STYLE.NORMAL, children: [new PageBreak()] }),
             table,
             ...buildSignature(),
         ],

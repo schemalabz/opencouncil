@@ -78,5 +78,8 @@
     "copySourceAttribution": "Copié depuis OpenCouncil · opencouncil.gr"
   },
   "notAvailable": "La transcription n'est pas encore disponible.",
-  "procedural": "Procédural"
+  "procedural": "Procédural",
+  "currentTimeButton": {
+    "jumpToCurrent": "Aller au moment actuel"
+  }
 }

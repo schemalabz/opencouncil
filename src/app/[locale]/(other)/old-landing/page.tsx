@@ -4,6 +4,7 @@ import { LandingCity } from "@/lib/db/landing";
 import { fetchLatestSubstackPostCached, getAllCitiesMinimalCached, getCouncilMeetingsForCityPublicCached } from "@/lib/cache/queries";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getRealm } from "@/lib/realm.server";
+import { isCustomer } from "@/lib/cityStatus";
 
 export async function generateMetadata(): Promise<Metadata> {
     return {
@@ -33,7 +34,7 @@ export default async function OldHomePage(
     ]);
 
     // Only fetch meeting information for listed cities with official support
-    const supportedCities = allCities.filter(city => city.officialSupport && city.status === 'listed');
+    const supportedCities = allCities.filter(city => isCustomer(city.status));
 
     // Fetch most recent meeting for supported cities in parallel to create citiesWithMeetings
     const citiesWithMeetings: LandingCity[] = await Promise.all(

@@ -10,6 +10,8 @@ import {
     effectiveRealm,
     getRealmCountry,
     getRealmGeocoding,
+    getRealmContactPhone,
+    telHref,
     ALL_REALMS,
 } from '../realm';
 
@@ -190,5 +192,32 @@ describe('getRealmGeocoding', () => {
     it('pairs each realm with its own country and default locale', () => {
         expect(getRealmGeocoding('france')).toEqual({ country: 'FR', language: 'fr' });
         expect(getRealmGeocoding('serbia')).toEqual({ country: 'RS', language: 'sr' });
+    });
+});
+
+describe('getRealmContactPhone', () => {
+    // Compared as one map rather than realm by realm: a new realm then has to be
+    // added to this expectation, which is where someone confirms that sharing the
+    // Athens line was deliberate. The `satisfies` clause on REALMS already makes a
+    // missing number a compile error, and ts-jest runs isolatedModules, so a
+    // per-realm "has some digits" loop would pass against a realm that quietly
+    // inherited the wrong number.
+    it('pairs every realm with its number, so a new one cannot quietly inherit the Athens line', () => {
+        expect(Object.fromEntries(ALL_REALMS.map((r) => [r, getRealmContactPhone(r)]))).toEqual({
+            greece: '+30 211 198 0212',
+            france: '+30 211 198 0212',
+            cyprus: '+30 211 198 0212',
+            serbia: '0800 301167',
+        });
+    });
+});
+
+describe('telHref', () => {
+    it('strips display spacing without touching the dialled digits', () => {
+        expect(telHref('+30 211 198 0212')).toBe('tel:+302111980212');
+    });
+
+    it('keeps a national trunk zero — the Serbian line is domestic-only', () => {
+        expect(telHref('0800 301167')).toBe('tel:0800301167');
     });
 });

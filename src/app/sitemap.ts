@@ -2,6 +2,8 @@ import { MetadataRoute } from 'next'
 import prisma from '@/lib/db/prisma'
 import { Realm } from '@prisma/client'
 import { getRealm, getRealmBaseUrlFromRequest } from '@/lib/realm.server'
+import { hasExplainPage } from '@/lib/explain/availability'
+import { PUBLIC_CITY_WHERE } from '@/lib/cityStatus';
 
 // Resolves the realm from the request Host, so it must render per request rather
 // than being statically generated at build time (where no Host is available and
@@ -19,7 +21,7 @@ type SitemapCity = {
 async function fetchSitemapData(realm: Realm): Promise<SitemapCity[]> {
     return prisma.city.findMany({
         where: {
-            status: 'listed',
+            ...PUBLIC_CITY_WHERE,
             realm,
         },
         select: {
@@ -63,11 +65,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             changeFrequency: 'weekly',
             priority: 0.8,
         },
-        {
-            url: `${baseUrl}/explain`,
-            changeFrequency: 'weekly',
-            priority: 0.8,
-        },
+        // /explain exists only on the Greek realm, and a sitemap is the one entry
+        // point no human checks — .fr and .rs were advertising a URL that 404s.
+        ...(hasExplainPage(realm)
+            ? [{
+                url: `${baseUrl}/explain`,
+                changeFrequency: 'weekly' as const,
+                priority: 0.8,
+            }]
+            : []),
         {
             url: `${baseUrl}/corrections`,
             changeFrequency: 'weekly',

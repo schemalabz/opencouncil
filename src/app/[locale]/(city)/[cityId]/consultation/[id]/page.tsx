@@ -6,7 +6,7 @@ import { ConsultationViewer } from "@/components/consultations";
 import { auth } from "@/auth";
 import { Suspense } from "react";
 import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
-import { getRealmBaseUrlFromRequest } from '@/lib/realm.server';
+import { getRealm, getRealmBaseUrlFromRequest } from '@/lib/realm.server';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
 import { getOgLocale } from '@/i18n/config';
@@ -124,6 +124,7 @@ export default async function ConsultationPage(props: PageProps) {
 
     // Base URL for permalinks — the realm's canonical domain (per request Host)
     const realmBaseUrl = await getRealmBaseUrlFromRequest();
+    const realm = await getRealm();
     const baseUrl = `/${params.cityId}/consultation/${params.id}`;
     const consultationUrl = new URL(baseUrl, realmBaseUrl);
     const cityUrl = new URL(`/${params.cityId}`, realmBaseUrl);
@@ -164,6 +165,7 @@ export default async function ConsultationPage(props: PageProps) {
             />
             <Suspense fallback={null}>
                 <ConsultationViewer
+                    realm={realm}
                     consultation={consultation}
                     regulationData={regulationData}
                     baseUrl={baseUrl}

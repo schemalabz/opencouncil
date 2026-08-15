@@ -1,9 +1,10 @@
 import { sendEmail } from './resend';
 import { renderReactEmailToHtml } from './render';
-import { HighlightCompleteEmail } from './templates/HighlightCompleteEmail';
+import { HighlightCompleteEmail, highlightCompleteCopy } from './templates/HighlightCompleteEmail';
+import { emailBaseUrlForRealm, emailLocaleForRealm } from './emailLocale';
 import prisma from '@/lib/db/prisma';
-import { formatDuration } from '@/lib/formatters/time';
-import { env } from '@/env.mjs';
+import { formatDate, formatDuration } from '@/lib/formatters/time';
+import { getLocalizedName } from '@/lib/formatters/name';
 
 interface SendHighlightCompleteEmailParams {
     userId: string;
@@ -39,7 +40,10 @@ export async function sendHighlightCompleteEmail({
                     include: {
                         city: {
                             select: {
-                                name: true
+                                name: true,
+                                name_en: true,
+                                realm: true,
+                                timezone: true
                             }
                         }
                     }
@@ -73,14 +77,23 @@ export async function sendHighlightCompleteEmail({
 
         const formattedDuration = formatDuration(totalDuration);
 
-        // Build the highlight URL (default to Greek locale)
-        const highlightUrl = `${env.NEXTAUTH_URL}/el/${highlight.cityId}/${highlight.meetingId}/highlights/${highlight.id}`;
+        // The city's realm decides both the domain and the language: this runs
+        // from a task callback, so there is no request host to read, and the
+        // highlight only exists on its own realm's site (a .gr link to a Serbian
+        // city 404s). A realm serves its default locale unprefixed, so the URL
+        // carries no locale segment — the old link hardcoded /el on top of .gr.
+        const { realm } = highlight.meeting.city;
+        const locale = emailLocaleForRealm(realm);
+        const copy = highlightCompleteCopy(locale);
+        const highlightUrl = `${emailBaseUrlForRealm(realm)}/${highlight.cityId}/${highlight.meetingId}/highlights/${highlight.id}`;
 
         // Prepare email data
         const userName = user.name || user.email.split('@')[0];
-        const highlightTitle = highlight.name || 'Χωρίς τίτλο';
-        const meetingName = highlight.meeting.name || `Συνεδρίαση ${new Date(highlight.meeting.dateTime).toLocaleDateString('el-GR')}`;
-        const cityName = highlight.meeting.city.name;
+        const highlightTitle = highlight.name || copy.untitled;
+        const meetingName =
+            getLocalizedName(highlight.meeting, locale) ||
+            copy.meetingOn(formatDate(new Date(highlight.meeting.dateTime), highlight.meeting.city.timezone, locale));
+        const cityName = getLocalizedName(highlight.meeting.city, locale);
 
         // Render the email template
         const html = await renderReactEmailToHtml(
@@ -91,14 +104,13 @@ export async function sendHighlightCompleteEmail({
                 cityName,
                 duration: formattedDuration,
                 highlightUrl,
-                status
+                status,
+                locale
             })
         );
 
         // Determine subject line based on status
-        const subject = status === 'success' 
-            ? 'Το Στιγμιότυπο σας είναι έτοιμο!'
-            : 'Πρόβλημα με τη δημιουργία Στιγμιότυπου';
+        const subject = status === 'success' ? copy.subjectSuccess : copy.subjectFailure;
 
         // Send the email
         await sendEmail({

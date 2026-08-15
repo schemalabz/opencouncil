@@ -60,6 +60,8 @@ export function MobileLayout({
     onLocateAddress,
     overviewActive,
     explainOpen,
+    explainAvailable,
+    realm,
     onCloseExplain,
     infoOpen,
     onToggleInfo,
@@ -124,7 +126,7 @@ export function MobileLayout({
             {infoOpen && (
                 <section className="absolute inset-x-3 bottom-[10px] top-[76px] z-[8] flex flex-col overflow-hidden rounded-2xl border border-black/40 bg-muted shadow-xl">
                     <ListHeader title={t('info.title')} className="bg-card" onToggle={() => onToggleInfo()} />
-                    <InfoPanel />
+                    <InfoPanel explainAvailable={explainAvailable} />
                 </section>
             )}
 
@@ -134,6 +136,7 @@ export function MobileLayout({
                         cities={cities}
                         searchActive={query.trim().length > 0}
                         query={query}
+                        realm={realm}
                     />
 
             {/* map extras — only when the map is the visible/interactive surface */}

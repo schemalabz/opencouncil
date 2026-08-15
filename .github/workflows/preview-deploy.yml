@@ -208,7 +208,6 @@ jobs:
           # are deleted from the build output and regenerated at runtime.
           # NEXTAUTH_URL is set at runtime by the preview service, not at build time.
           NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: ${{ secrets.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN }}
-          NEXT_PUBLIC_CONTACT_PHONE: ${{ secrets.NEXT_PUBLIC_CONTACT_PHONE }}
           NEXT_PUBLIC_CONTACT_EMAIL: ${{ secrets.NEXT_PUBLIC_CONTACT_EMAIL }}
           NEXT_PUBLIC_CONTACT_ADDRESS: ${{ secrets.NEXT_PUBLIC_CONTACT_ADDRESS }}
           NEXT_PUBLIC_BUILD_COMMIT_SHA: ${{ github.event.pull_request.head.sha }}

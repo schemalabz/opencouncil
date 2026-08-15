@@ -1,7 +1,8 @@
 import prisma from '@/lib/db/prisma';
 import { Prisma, DiscussionStatus } from '@prisma/client';
 import { search } from '@/lib/search';
-import { getCities, getCity } from '@/lib/db/cities';
+import { getCities, getCity, getListedCityAtPoint } from '@/lib/db/cities';
+import { getHotSubjectsNearPoint, withDistances } from '@/lib/hotSubjects';
 import { getCouncilMeetingsForCity } from '@/lib/db/meetings';
 import { getPeopleForCity, getPerson, type PersonWithRelations } from '@/lib/db/people';
 import { getPartiesForCity, getParty } from '@/lib/db/parties';
@@ -12,6 +13,9 @@ import { upsertHighlightCore, canUserEditCity, canActorManageHighlight } from '@
 import { requestGenerateHighlightCore } from '@/lib/tasks/generateHighlight-core';
 import { NotFoundError, UnauthorizedError, BadRequestError, ForbiddenError } from '@/lib/api/errors';
 import { canSeeUnreleased, requireVisibleMeeting } from './gate';
+import { getRoleLabelAt, RoleTextTranslator } from '@/lib/utils/roles';
+import { roleWithRelationsInclude } from '@/lib/db/types';
+import { getTranslations } from 'next-intl/server';
 import {
     renderOptionsFromRequestBody,
     resolveRenderOptions,
@@ -20,6 +24,7 @@ import {
     type HighlightRenderOptions,
 } from './render';
 import { isSuperIdentity, type McpIdentity } from './auth';
+import { isCustomer } from "@/lib/cityStatus";
 
 /** Built per request: the hint must point at the host the caller is using. */
 function authHint(): string {
@@ -43,6 +48,16 @@ const urls = {
         `${currentBaseUrl()}/${cityId}/${meetingId}?t=${Math.floor(seconds)}`,
 };
 
+
+/**
+ * Speaker role labels ride along with quoted speech so consumers copy titles
+ * instead of guessing them. The label is the site's own (getRoleLabelAt),
+ * resolved as of the meeting date; MCP serves the Greek public record, so it
+ * is always rendered from the Greek messages.
+ */
+const getRoleTranslations = (): Promise<RoleTextTranslator> =>
+    getTranslations({ locale: 'el', namespace: 'Person' });
+
 /** Turn contribution markdown ("[text](REF:UTTERANCE:id)") into plain text. */
 function stripRefLinks(text: string): string {
     return text.replace(/\[([^\]]*)\]\(REF:[^)]*\)/g, '$1');
@@ -52,8 +67,47 @@ function truncate(text: string, maxChars: number): string {
     return text.length > maxChars ? `${text.slice(0, maxChars)}…` : text;
 }
 
-function isoDate(date: Date): string {
-    return date.toISOString().slice(0, 10);
+/**
+ * unstable_cache revives Dates as ISO strings on cache hits, so date values
+ * coming off cached queries arrive as either — accept both, always.
+ */
+function isoDate(date: Date | string): string {
+    return new Date(date).toISOString().slice(0, 10);
+}
+
+/**
+ * The one wire shape for a subject appearing in a list (search results,
+ * list_hot_subjects, list_nearby_subjects). Each tool spreads this and appends
+ * its single tool-specific field (score / discussionSeconds / distanceMeters),
+ * so a consumer parsing "a subject" sees the same record — same fields, same
+ * nullability, same date format — regardless of which tool produced it.
+ * get_subject is the detail shape and deliberately different.
+ */
+function subjectSummary(subject: {
+    id: string;
+    name: string;
+    description: string;
+    cityId: string;
+    cityName: string;
+    meetingId: string;
+    meetingDate: Date | string | null;
+    meetingName: string | null;
+    administrativeBody: string | null;
+    topic: string | null;
+}) {
+    return {
+        id: subject.id,
+        title: subject.name,
+        snippet: truncate(subject.description, 300),
+        cityId: subject.cityId,
+        cityName: subject.cityName,
+        meetingId: subject.meetingId,
+        meetingDate: subject.meetingDate != null ? isoDate(subject.meetingDate) : null,
+        meetingName: subject.meetingName,
+        administrativeBody: subject.administrativeBody,
+        topic: subject.topic,
+        url: urls.subject(subject.cityId, subject.meetingId, subject.id),
+    };
 }
 
 function mapRoles(person: PersonWithRelations) {
@@ -79,7 +133,7 @@ export async function mcpListCities() {
             name_en: city.name_en,
             municipality: city.name_municipality,
             authorityType: city.authorityType,
-            officialSupport: city.officialSupport,
+            officialSupport: isCustomer(city.status),
             counts: {
                 meetings: city._count.councilMeetings,
                 people: city._count.persons,
@@ -124,7 +178,7 @@ export async function mcpGetCity(cityId: string) {
         name_en: city.name_en,
         municipality: city.name_municipality,
         authorityType: city.authorityType,
-        officialSupport: city.officialSupport,
+        officialSupport: isCustomer(city.status),
         counts: {
             meetings: city._count.councilMeetings,
             people: city._count.persons,
@@ -267,7 +321,13 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
 export async function mcpGetSubject(subjectId: string, identity: McpIdentity) {
     const subject = await getSubject(subjectId);
     if (!subject) throw new NotFoundError('Subject not found');
-    await requireVisibleMeeting(subject.cityId, subject.councilMeetingId, identity);
+    const meeting = await requireVisibleMeeting(
+        subject.cityId,
+        subject.councilMeetingId,
+        identity
+    );
+    const meetingDate = meeting.dateTime;
+    const t = await getRoleTranslations();
 
     return {
         id: subject.id,
@@ -275,14 +335,25 @@ export async function mcpGetSubject(subjectId: string, identity: McpIdentity) {
         description: subject.description,
         cityId: subject.cityId,
         meetingId: subject.councilMeetingId,
+        // Which body met, and when — denormalized so consumers never have to
+        // fetch the meeting just to say «Δημοτική Επιτροπή» instead of
+        // guessing (and getting) the wrong body.
+        meetingName: meeting.name,
+        meetingDate: isoDate(meetingDate),
+        administrativeBody: meeting.administrativeBody?.name ?? null,
         agendaItemIndex: subject.agendaItemIndex,
         topic: subject.topic?.name ?? null,
         location: subject.location?.text ?? null,
         introducedBy: subject.introducedBy
-            ? { id: subject.introducedBy.id, name: subject.introducedBy.name }
+            ? {
+                id: subject.introducedBy.id,
+                name: subject.introducedBy.name,
+                role: getRoleLabelAt(subject.introducedBy.roles, t, meetingDate),
+            }
             : null,
         contributions: subject.contributions.map(contribution => ({
             speaker: contribution.speaker?.name ?? contribution.speakerName ?? 'Unknown',
+            role: getRoleLabelAt(contribution.speaker?.roles, t, meetingDate),
             text: stripRefLinks(contribution.text),
         })),
         decision: subject.decision
@@ -293,7 +364,8 @@ export async function mcpGetSubject(subjectId: string, identity: McpIdentity) {
                 pdfUrl: subject.decision.pdfUrl,
             }
             : null,
-        votes: subject.votes.map(vote => ({ person: vote.person.name, vote: vote.voteType })),
+        // Votes are withheld until the extraction pipeline is reliable. The
+        // site keeps showing them; the MCP API does not report them.
         url: urls.subject(subject.cityId, subject.councilMeetingId, subject.id),
     };
 }
@@ -306,7 +378,12 @@ export async function mcpGetSubjectTranscript(subjectId: string, page: number, i
         select: { id: true, name: true, cityId: true, councilMeetingId: true },
     });
     if (!subject) throw new NotFoundError('Subject not found');
-    await requireVisibleMeeting(subject.cityId, subject.councilMeetingId, identity);
+    const { dateTime: meetingDate } = await requireVisibleMeeting(
+        subject.cityId,
+        subject.councilMeetingId,
+        identity
+    );
+    const t = await getRoleTranslations();
 
     const where: Prisma.UtteranceWhereInput = {
         discussionSubjectId: subjectId,
@@ -328,7 +405,16 @@ export async function mcpGetSubjectTranscript(subjectId: string, page: number, i
                 speakerSegment: {
                     select: {
                         speakerTag: {
-                            select: { label: true, person: { select: { id: true, name: true } } },
+                            select: {
+                                label: true,
+                                person: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        roles: roleWithRelationsInclude,
+                                    },
+                                },
+                            },
                         },
                     },
                 },
@@ -347,6 +433,7 @@ export async function mcpGetSubjectTranscript(subjectId: string, page: number, i
             utteranceId: utterance.id,
             speaker: utterance.speakerSegment.speakerTag.person?.name
                 ?? utterance.speakerSegment.speakerTag.label,
+            role: getRoleLabelAt(utterance.speakerSegment.speakerTag.person?.roles, t, meetingDate),
             startSec: utterance.startTimestamp,
             endSec: utterance.endTimestamp,
             text: utterance.text,
@@ -365,7 +452,8 @@ export async function mcpGetTranscript(
     options: { page: number; segmentsPerPage: number; includeUtteranceIds: boolean; personId?: string },
     identity: McpIdentity
 ) {
-    await requireVisibleMeeting(cityId, meetingId, identity);
+    const { dateTime: meetingDate } = await requireVisibleMeeting(cityId, meetingId, identity);
+    const t = await getRoleTranslations();
 
     const allSegments = await getTranscript(meetingId, cityId);
 
@@ -396,9 +484,10 @@ export async function mcpGetTranscript(
     const personIds = [...new Set(pageSegments.map(s => s.speakerTag.personId).filter((id): id is string => !!id))];
     const persons = await prisma.person.findMany({
         where: { id: { in: personIds } },
-        select: { id: true, name: true },
+        select: { id: true, name: true, roles: roleWithRelationsInclude },
     });
     const personNames = new Map(persons.map(person => [person.id, person.name]));
+    const personRoles = new Map(persons.map(person => [person.id, getRoleLabelAt(person.roles, t, meetingDate)]));
 
     return {
         cityId,
@@ -409,6 +498,7 @@ export async function mcpGetTranscript(
         segments: pageSegments.map(segment => ({
             speaker: (segment.speakerTag.personId && personNames.get(segment.speakerTag.personId))
                 || segment.speakerTag.label,
+            role: (segment.speakerTag.personId && personRoles.get(segment.speakerTag.personId)) || null,
             startSec: segment.startTimestamp,
             endSec: segment.endTimestamp,
             summary: segment.summary?.text ?? null,
@@ -487,20 +577,91 @@ export async function mcpListHotSubjects(args: {
 
     return {
         daysBack: args.daysBack,
+        // speakerCount is deliberately not exposed: toGeneralSubjectRow
+        // derives it from the deprecated SubjectSpeakerSegment join, which
+        // most subjects no longer populate, so it reads 0 for them.
         subjects: rows.map(row => ({
-            id: row.id,
-            title: row.name,
-            snippet: truncate(row.description, 300),
-            cityId: row.cityId,
-            cityName: row.cityName,
-            meetingId: row.councilMeetingId,
-            meetingDate: row.meetingDate?.slice(0, 10) ?? null,
-            topic: row.topicName ?? null,
+            ...subjectSummary({
+                id: row.id,
+                name: row.name,
+                description: row.description,
+                cityId: row.cityId,
+                cityName: row.cityName,
+                meetingId: row.councilMeetingId,
+                meetingDate: row.meetingDate ?? null,
+                meetingName: row.meetingName ?? null,
+                administrativeBody: row.bodyName ?? null,
+                topic: row.topicName ?? null,
+            }),
             discussionSeconds: row.discussionTimeSeconds ?? 0,
-            // speakerCount is deliberately not exposed: toGeneralSubjectRow
-            // derives it from the deprecated SubjectSpeakerSegment join, which
-            // most subjects no longer populate, so it reads 0 for them.
-            url: urls.subject(row.cityId, row.councilMeetingId, row.id),
+        })),
+    };
+}
+
+/**
+ * "What's been discussed around this address" — resolve the municipality by
+ * point-in-polygon, then rank its recent subjects the way the embed widget
+ * does: subjects pinned within the radius first, municipality-wide (no
+ * location) subjects filling remaining slots, each group ordered by the
+ * standard recency/discussion blend.
+ */
+export async function mcpListNearbySubjects(args: {
+    lat: number;
+    lng: number;
+    radiusMeters: number;
+    limit: number;
+}) {
+    // Listed-only lookup: we carry boundaries for far more municipalities
+    // than we publish, so the permissive map helper (getCityAtPoint) would
+    // resolve δήμοι we don't cover and this tool would claim coverage it
+    // doesn't have.
+    const city = await getListedCityAtPoint(currentRealm(), args.lng, args.lat);
+    if (!city) {
+        // A confident "not covered" is often just transposed arguments —
+        // probe the swapped point so the answer can self-correct.
+        const swapped = await getListedCityAtPoint(currentRealm(), args.lat, args.lng);
+        return {
+            cityId: null,
+            note: swapped
+                ? 'This point is not inside any municipality covered by OpenCouncil — but swapping ' +
+                  `lat and lng lands in ${swapped.name}, so the coordinates may be transposed.`
+                : 'This point is not inside any municipality covered by OpenCouncil.',
+            subjects: [],
+        };
+    }
+
+    const center: [number, number] = [args.lng, args.lat];
+    const { subjects, meetingsScanned, oldestMeetingDate } = await getHotSubjectsNearPoint(
+        city.id,
+        center,
+        args.radiusMeters,
+        args.limit
+    );
+    const ranked = await withDistances(subjects, center);
+
+    return {
+        cityId: city.id,
+        cityName: city.name,
+        radiusMeters: args.radiusMeters,
+        // The window is a count of recent meetings, not a time span — these
+        // bounds let a consumer report an empty list as "nothing since
+        // {oldestMeetingScanned}" instead of the unbounded "nothing".
+        meetingsScanned,
+        oldestMeetingScanned: oldestMeetingDate != null ? isoDate(oldestMeetingDate) : null,
+        subjects: ranked.map(({ subject, meeting, distanceMeters }) => ({
+            ...subjectSummary({
+                id: subject.id,
+                name: subject.name,
+                description: subject.description,
+                cityId: meeting.cityId,
+                cityName: city.name,
+                meetingId: meeting.id,
+                meetingDate: meeting.dateTime,
+                meetingName: meeting.name,
+                administrativeBody: meeting.administrativeBody?.name ?? null,
+                topic: subject.topic?.name ?? null,
+            }),
+            distanceMeters,
         })),
     };
 }
@@ -555,16 +716,19 @@ export async function mcpSearch(
     // pages — omit it rather than report a number that leaks their existence.
     return {
         results: response.results.map(result => ({
-            id: result.id,
-            title: result.name,
-            snippet: truncate(result.description, 300),
-            cityId: result.cityId,
-            cityName: result.councilMeeting.city.name,
-            meetingId: result.councilMeetingId,
-            meetingDate: isoDate(result.councilMeeting.dateTime),
-            topic: result.topic?.name ?? null,
+            ...subjectSummary({
+                id: result.id,
+                name: result.name,
+                description: result.description,
+                cityId: result.cityId,
+                cityName: result.councilMeeting.city.name,
+                meetingId: result.councilMeetingId,
+                meetingDate: result.councilMeeting.dateTime,
+                meetingName: result.councilMeeting.name,
+                administrativeBody: result.councilMeeting.administrativeBody?.name ?? null,
+                topic: result.topic?.name ?? null,
+            }),
             score: result.score,
-            url: urls.subject(result.cityId, result.councilMeetingId, result.id),
         })),
         ...(response.dropped === 0
             ? { total: response.total }
@@ -712,6 +876,13 @@ export async function mcpCreateHighlight(
         );
     }
 
+    // Deliberately no `id`: the MCP surface only ever creates highlights, so
+    // this always takes upsertHighlightCore's create branch — the update
+    // branch (which deletes the previous utterance selection) is unreachable
+    // from here. The write-tool annotations in server.ts lean on exactly
+    // this: `destructiveHint: false` on create_highlight AND on
+    // generate_highlight_video (a re-render can only reformat content that
+    // cannot change). Adding a highlightId parameter would falsify both.
     const highlight = await upsertHighlightCore(identity, {
         name: args.name,
         meetingId: args.meetingId,

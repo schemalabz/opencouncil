@@ -29,18 +29,31 @@ export async function requireVisibleMeeting(
     cityId: string,
     meetingId: string,
     identity: McpIdentity
-): Promise<{ released: boolean }> {
+): Promise<{
+    released: boolean;
+    dateTime: Date;
+    name: string;
+    administrativeBody: { name: string } | null;
+}> {
     const meeting = await prisma.councilMeeting.findFirst({
         // Realm-scoped: a connector added on one domain must not reach another
         // realm's councils. Covers meetings, subjects and transcripts, which
         // all pass through here.
         where: { cityId, id: meetingId, city: { realm: currentRealm() } },
-        select: { released: true },
+        // name + administrativeBody ride along so subject-scoped tools can
+        // state which body met, and when, without a second lookup.
+        select: {
+            released: true,
+            dateTime: true,
+            name: true,
+            administrativeBody: { select: { name: true } },
+        },
     });
 
     if (!meeting || (!meeting.released && !(await canSeeUnreleased(identity, cityId)))) {
         throw new NotFoundError('Meeting not found');
     }
+
 
     return meeting;
 }

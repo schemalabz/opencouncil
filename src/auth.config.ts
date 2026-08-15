@@ -1,10 +1,11 @@
 import Resend from "next-auth/providers/resend"
 import type { NextAuthConfig } from "next-auth"
-import { AuthEmail } from "./lib/email/templates/AuthEmail"
+import { AuthEmail, authEmailCopy } from "./lib/email/templates/AuthEmail"
 import { renderReactEmailToHtml } from "./lib/email/render"
 import { env } from "./env.mjs"
 import { isTestUserEmail } from "./lib/dev/test-users"
 import { signInUrlForRequest } from "./lib/auth/signInUrl"
+import { localeForRequest } from "./lib/auth/requestLocale"
 
 // In development, use port-specific session cookie names to allow multiple
 // instances on different ports to have independent sessions. Without this,
@@ -31,7 +32,11 @@ export default {
             // (opencouncil.gr vs opencouncil.fr) instead of the single build-time
             // NEXTAUTH_URL host, so the callback sets a cookie on the right domain.
             const signInUrl = signInUrlForRequest(url, request)
-            const html = await renderReactEmailToHtml(AuthEmail({ url: signInUrl }))
+            // Write the email in the language of the domain it was requested
+            // from — opencouncil.rs users were getting a Greek magic link.
+            const locale = localeForRequest(request)
+            const copy = authEmailCopy(locale)
+            const html = await renderReactEmailToHtml(AuthEmail({ url: signInUrl, locale }))
 
             // Redirect test user emails to DEV_EMAIL_OVERRIDE if set
             // This allows testing different admin roles with a single real inbox
@@ -50,9 +55,9 @@ export default {
                 body: JSON.stringify({
                     from: provider.from,
                     to: emailTo,
-                    subject: `Συνδεθείτε στο OpenCouncil`,
+                    subject: copy.subject,
                     html,
-                    text: `Συνδεθείτε στο OpenCouncil: ${signInUrl}`,
+                    text: `${copy.subject}: ${signInUrl}`,
                 }),
             })
 

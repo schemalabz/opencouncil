@@ -1202,7 +1202,6 @@ EOF
               # Fallback defaults ensure the build succeeds without --impure
               # (maps won't render with the placeholder token).
               export NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN="${let v = builtins.getEnv "NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN"; in if v != "" then v else "pk.placeholder"}"
-              ${let v = builtins.getEnv "NEXT_PUBLIC_CONTACT_PHONE"; in if v != "" then "export NEXT_PUBLIC_CONTACT_PHONE=\"${v}\"" else "# NEXT_PUBLIC_CONTACT_PHONE not set"}
               ${let v = builtins.getEnv "NEXT_PUBLIC_CONTACT_EMAIL"; in if v != "" then "export NEXT_PUBLIC_CONTACT_EMAIL=\"${v}\"" else "# NEXT_PUBLIC_CONTACT_EMAIL not set"}
               ${let v = builtins.getEnv "NEXT_PUBLIC_CONTACT_ADDRESS"; in if v != "" then "export NEXT_PUBLIC_CONTACT_ADDRESS=\"${v}\"" else "# NEXT_PUBLIC_CONTACT_ADDRESS not set"}
               ${let v = builtins.getEnv "NEXT_PUBLIC_BUILD_COMMIT_SHA"; in if v != "" then "export NEXT_PUBLIC_BUILD_COMMIT_SHA=\"${v}\"" else "# NEXT_PUBLIC_BUILD_COMMIT_SHA not set"}

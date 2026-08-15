@@ -6,6 +6,7 @@ import { getCityCached, getCouncilMeetingsForCityCached } from "@/lib/cache";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { getOgLocale } from '@/i18n/config';
+import { getTranslations } from 'next-intl/server';
 
 export async function generateMetadata(
     props: {
@@ -20,30 +21,25 @@ export async function generateMetadata(
     } = params;
 
     const city = await getCityCached(cityId);
+    const t = await getTranslations({ locale, namespace: 'metadata.city' });
 
     if (!city) {
         return {
-            title: "Δήμος δεν βρέθηκε | OpenCouncil",
-            description: "Ο δήμος που αναζητάτε δεν είναι διαθέσιμος.",
+            title: t('notFoundTitle'),
+            description: t('notFoundDescription'),
             alternates: await buildCanonicalAlternates(`/${cityId}`),
         };
     }
 
     const cityName = getLocalizedName(city, locale);
-    const description = `Συνεδριάσεις του Δήμου ${cityName}: βίντεο, απομαγνητοφωνήσεις, θέματα ημερήσιας διάταξης και αποφάσεις, εξηγημένα απλά.`;
+    const description = t('description', { cityName });
     const ogImageUrl = `/api/og?cityId=${cityId}`;
 
     return {
         title: `${cityName} | OpenCouncil`,
         description,
-        keywords: [
-            cityName,
-            "δημοτικό συμβούλιο",
-            "συνεδριάσεις",
-            "τοπική αυτοδιοίκηση",
-            "OpenCouncil",
-        ],
-        authors: [{ name: `Δήμος ${cityName}` }],
+        keywords: [cityName, ...(t.raw('keywords') as string[]), "OpenCouncil"],
+        authors: [{ name: t('author', { cityName }) }],
         openGraph: {
             title: `${cityName} | OpenCouncil`,
             description,
@@ -54,7 +50,7 @@ export async function generateMetadata(
                     url: ogImageUrl,
                     width: 1200,
                     height: 630,
-                    alt: `OpenCouncil — Συνεδριάσεις του Δήμου ${cityName}`,
+                    alt: t('ogAlt', { cityName }),
                 },
             ],
             locale: getOgLocale(locale),

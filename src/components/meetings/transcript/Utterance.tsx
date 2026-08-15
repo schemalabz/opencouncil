@@ -1,6 +1,7 @@
 "use client";
 import { Utterance } from "@prisma/client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useTranslations } from 'next-intl';
 import { useVideoActions } from "../VideoProvider";
 import { useTranscriptOptions } from "../options/OptionsContext";
@@ -19,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { useEditing } from "../EditingContext";
 import { formatTimestamp } from "@/lib/formatters/time";
 import { useLocalizeText } from "@/hooks/useLocalizeText";
+import { captureScrollAnchor, restoreScrollAnchor } from "@/lib/utils/scrollAnchor";
 
 /**
  * Resolve the character offset of a click within a text span.
@@ -61,6 +63,11 @@ const UtteranceC: React.FC<{
 
     const clickOffsetRef = useRef<number | null>(null);
     const [isEditing, setIsEditing] = useState(false);
+    // Whichever node currently stands for this utterance — the read-only span
+    // or the editor box. Closing the editor swaps one for the other, which is
+    // exactly the moment the browser loses its own scroll anchor (#367).
+    const rootRef = useRef<HTMLElement | null>(null);
+    const setRootRef = useCallback((el: HTMLElement | null) => { rootRef.current = el; }, []);
     const [localUtterance, setLocalUtterance] = useState(utterance);
     const [editedText, setEditedText] = useState(utterance.text);
     const [editedStartTime, setEditedStartTime] = useState(utterance.startTimestamp);
@@ -141,6 +148,21 @@ const UtteranceC: React.FC<{
         }
     };
 
+    /**
+     * Closing the editor collapses a block-level box back into the running text
+     * of the segment. Commit that synchronously, between two measurements, so
+     * the reader keeps their place through the reflow (#367). `commit` carries
+     * any state the caller wants applied in the same pass.
+     */
+    const closeEditor = (commit?: () => void) => {
+        const anchor = captureScrollAnchor(rootRef.current);
+        flushSync(() => {
+            commit?.();
+            setIsEditing(false);
+        });
+        restoreScrollAnchor(anchor, rootRef.current);
+    };
+
     const handleEdit = async (e: React.FormEvent | React.MouseEvent) => {
         e.preventDefault();
         const originalText = localUtterance.text;
@@ -153,19 +175,18 @@ const UtteranceC: React.FC<{
 
         // Nothing changed - just close the editor
         if (!textChanged && !timestampsChanged) {
-            setIsEditing(false);
+            closeEditor();
             return;
         }
 
         // Optimistic update - immediate
-        setLocalUtterance({ 
-            ...localUtterance, 
+        closeEditor(() => setLocalUtterance({
+            ...localUtterance,
             text: editedText,
             startTimestamp: editedStartTime,
             endTimestamp: editedEndTime
-        });
-        setIsEditing(false);
-        
+        }));
+
         // Background save
         try {
             // Update text first
@@ -221,10 +242,11 @@ const UtteranceC: React.FC<{
     };
 
     const handleCancel = () => {
-        setIsEditing(false);
-        setEditedText(localUtterance.text);
-        setEditedStartTime(localUtterance.startTimestamp);
-        setEditedEndTime(localUtterance.endTimestamp);
+        closeEditor(() => {
+            setEditedText(localUtterance.text);
+            setEditedStartTime(localUtterance.startTimestamp);
+            setEditedEndTime(localUtterance.endTimestamp);
+        });
     };
 
     const setStartTimeToCurrentVideo = () => {
@@ -259,7 +281,7 @@ const UtteranceC: React.FC<{
 
     if (isEditing) {
         return (
-            <div className="relative w-full py-1 border border-blue-300 rounded-md p-2 bg-blue-50/30">
+            <div ref={setRootRef} className="relative w-full py-1 border border-blue-300 rounded-md p-2 bg-blue-50/30">
                 {/* Text Editor */}
                 <form onSubmit={handleEdit} className="relative">
                     <textarea
@@ -292,6 +314,13 @@ const UtteranceC: React.FC<{
                             }
                         }}
                         className="w-full resize-none border border-gray-300 rounded px-2 py-1 pr-16 text-sm min-h-[2.5em] transcript-text"
+                        // Deliberately inline: the changing identity makes React
+                        // re-attach this on every render, which re-focuses the
+                        // textarea. Every editor shortcut below hangs off its
+                        // onKeyDown, so anything that moves focus onto a control
+                        // in here — the timestamp buttons, the skip-interval
+                        // dropdown — would otherwise leave Enter and Escape dead
+                        // until the user clicked back into the text.
                         ref={(el) => {
                             if (el) {
                                 el.focus();
@@ -417,6 +446,7 @@ const UtteranceC: React.FC<{
     // and renders one set of items instead of one Radix Menu per utterance.
     const utteranceSpan = (
         <span
+            ref={setRootRef}
             className={cn(className, emptyUtteranceClass)}
             id={localUtterance.id}
             data-utterance-id={localUtterance.id}

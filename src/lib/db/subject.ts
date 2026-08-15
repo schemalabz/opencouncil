@@ -19,6 +19,7 @@ import { roleWithRelationsInclude } from './types/roles';
 // Import from the leaf (not the `../cache` barrel, which re-exports cache/queries → auth → env
 // and would drag that heavy server-only chain into this widely-imported module).
 import { createCache } from '../cache/index';
+import { PUBLIC_CITY_WHERE } from '../cityStatus';
 
 // The landing subject finders are realm + filter keyed in the data cache. Releasing/unreleasing
 // a meeting busts the tag (see toggleMeetingRelease); the TTL is a safety net for other changes
@@ -117,7 +118,7 @@ export type SubjectWithRelations = Subject & {
  * next to each city's all-time meetings/persons totals (MunicipalitiesList). It is deliberately
  * independent of the map's date range/filters — it is NOT the count of pins currently on the
  * map, so it is expected to exceed the default-range map results. Same base visibility as the
- * map endpoints (realm, officialSupport, released, past-dated, discussed).
+ * map endpoints (realm, public status, released, past-dated, discussed).
  */
 export async function getSubjectCountsByCityCached(realm: Realm): Promise<Record<string, number>> {
     return createCache(
@@ -129,7 +130,7 @@ export async function getSubjectCountsByCityCached(realm: Realm): Promise<Record
                     councilMeeting: {
                         released: true,
                         dateTime: { lte: new Date() },
-                        city: { officialSupport: true, realm },
+                        city: { ...PUBLIC_CITY_WHERE, realm },
                     },
                 },
                 _count: { _all: true },
@@ -322,7 +323,7 @@ export function buildMapSubjectWhere(realm: Realm, f: MapSubjectFilters): Prisma
         councilMeeting: {
             released: true,
             dateTime,
-            city: { officialSupport: true, realm },
+            city: { ...PUBLIC_CITY_WHERE, realm },
             ...(f.bodyTypes?.length ? { administrativeBody: { type: { in: f.bodyTypes } } } : {}),
         },
     };
@@ -376,17 +377,7 @@ export async function getMapSubjectsCached(realm: Realm, filters: MapSubjectFilt
                 WHERE id IN (${Prisma.join(locationIds)})
             `;
             const geometryMap = new Map<string, GeoJSON.Geometry>(
-                geometries.map((g) => {
-                    const geom = JSON.parse(g.geometry) as GeoJSON.Geometry;
-                    // PostGIS may return [lat, lon]; GeoJSON needs [lon, lat] (swap Greek Points).
-                    if (geom.type === 'Point' && geom.coordinates.length === 2) {
-                        const [first, second] = geom.coordinates;
-                        if (first > 30 && first < 42 && second > 19 && second < 30) {
-                            geom.coordinates = [second, first];
-                        }
-                    }
-                    return [g.id, geom] as const;
-                }),
+                geometries.map((g) => [g.id, JSON.parse(g.geometry) as GeoJSON.Geometry] as const),
             );
 
             const located = subjects.filter((s) => s.locationId && geometryMap.has(s.locationId));

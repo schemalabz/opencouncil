@@ -1,6 +1,6 @@
 import type { Root } from 'react-dom/client';
 import type mapboxgl from 'mapbox-gl';
-import type { Topic } from '@prisma/client';
+import type { Realm, Topic } from '@prisma/client';
 import { cn } from '@/lib/utils';
 import { calculateGeometryBounds } from '@/lib/geo';
 import { topicStyle } from '@/lib/topicStyle';
@@ -374,6 +374,10 @@ export type LayoutProps = {
     previewSubject: (id: string | null) => void;
     /** Mobile: the OpenCouncil badge's card preview is open. */
     explainOpen: boolean;
+    /** whether this realm has an /explain page to link to at all */
+    explainAvailable: boolean;
+    /** the request's realm, resolved server-side — picks the contact number */
+    realm: Realm;
     onCloseExplain: () => void;
     /** The municipality shown on the map (clicked or filter-selected) — for its page link.
      *  nameMunicipality is the genitive form (e.g. "Δήμος Χανίων"). */

@@ -5,10 +5,9 @@ import { Button } from '@/components/ui/button'
 import NumberTicker from '@/components/magicui/number-ticker'
 import BrowserFrame from './BrowserFrame'
 import ShineTitle from './ShineTitle'
-import { env } from '@/env.mjs'
 import type { AboutPageStats } from '@/lib/db/cities'
 import type { Realm } from '@prisma/client'
-import { getRealmDomain } from '@/lib/realm'
+import { getRealmContactPhone, getRealmDomain, telHref } from '@/lib/realm'
 
 interface HeroProps {
     onContactClick: () => void
@@ -19,6 +18,7 @@ interface HeroProps {
 export default function Hero({ onContactClick, stats, realm }: HeroProps) {
     const t = useTranslations('about.hero')
     const domain = getRealmDomain(realm)
+    const contactPhone = getRealmContactPhone(realm)
 
     const counters = [
         { value: stats?.municipalityCount ?? 10, label: t('counters.municipalities') },
@@ -124,14 +124,14 @@ export default function Hero({ onContactClick, stats, realm }: HeroProps) {
                             <CalendarClock className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
                             {t('scheduleCall')}
                         </Button>
-                        <a href={`tel:${env.NEXT_PUBLIC_CONTACT_PHONE}`} className="inline-flex no-underline [&_*]:no-underline">
+                        <a href={telHref(contactPhone)} className="inline-flex no-underline [&_*]:no-underline">
                             <Button
                                 size="lg"
                                 variant="outline"
                                 className="rounded-xl px-4 py-2.5 sm:px-8 sm:py-6 text-xs sm:text-base"
                             >
                                 <PhoneCall className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                {env.NEXT_PUBLIC_CONTACT_PHONE}
+                                {contactPhone}
                             </Button>
                         </a>
                     </motion.div>

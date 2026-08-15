@@ -23,7 +23,6 @@ import { Loader2, ChevronDown, ChevronUp, Trash2 } from "lucide-react"
 import Image from 'next/image'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Switch } from "@/components/ui/switch"
 import { useLocale, useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
@@ -111,7 +110,6 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
             timezone: city?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
             id: city?.id || "",
             authorityType: city?.authorityType || CITY_DEFAULTS.authorityType,
-            officialSupport: city?.officialSupport ?? CITY_DEFAULTS.officialSupport,
             status: city?.status || CITY_DEFAULTS.status,
             supportsNotifications: city?.supportsNotifications ?? CITY_DEFAULTS.supportsNotifications,
             consultationsEnabled: city?.consultationsEnabled ?? CITY_DEFAULTS.consultationsEnabled,
@@ -146,7 +144,6 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         formData.append('timezone', values.timezone)
         formData.append('id', values.id)
         formData.append('authorityType', values.authorityType)
-        formData.append('officialSupport', values.officialSupport.toString())
         formData.append('status', values.status)
         formData.append('supportsNotifications', values.supportsNotifications.toString())
         formData.append('consultationsEnabled', values.consultationsEnabled.toString())
@@ -547,28 +544,6 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                         <CollapsibleContent className="space-y-4">
                             <FormField
                                 control={form.control}
-                                name="officialSupport"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                                        <FormControl>
-                                            <Checkbox
-                                                checked={field.value}
-                                                onCheckedChange={field.onChange}
-                                            />
-                                        </FormControl>
-                                        <div className="space-y-1 leading-none">
-                                            <FormLabel>
-                                                {t('officialSupport')}
-                                            </FormLabel>
-                                            <FormDescription>
-                                                {t('officialSupportDescription')}
-                                            </FormDescription>
-                                        </div>
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
                                 name="status"
                                 render={({ field }) => (
                                     <FormItem>
@@ -581,8 +556,8 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                                             </FormControl>
                                             <SelectContent>
                                                 <SelectItem value="pending">{t('statusPending')}</SelectItem>
-                                                <SelectItem value="unlisted">{t('statusUnlisted')}</SelectItem>
-                                                <SelectItem value="listed">{t('statusListed')}</SelectItem>
+                                                <SelectItem value="demo">{t('statusDemo')}</SelectItem>
+                                                <SelectItem value="supported">{t('statusSupported')}</SelectItem>
                                             </SelectContent>
                                         </Select>
                                         <FormDescription>

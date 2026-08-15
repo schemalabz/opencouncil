@@ -1,0 +1,22 @@
+{
+    "openButton": "Приказ седнице",
+    "pageTitle": "Приказ седнице | OpenCouncil",
+    "subjectCount": "{count, plural, =0 {Без тема} one {# тема} few {# теме} other {# тема}}",
+    "position": "Тема {index} / {total}",
+    "intro": "УВОД",
+    "previousSlide": "Претходни слајд",
+    "nextSlide": "Следећи слајд",
+    "introducer": "Известилац",
+    "enterFullscreen": "Преко целог екрана",
+    "exitFullscreen": "Изађите из приказа преко целог екрана",
+    "exit": "Изађите",
+    "exitPresentation": "Изађите из приказа седнице",
+    "timer": {
+        "label": "Време говорника",
+        "start": "Покрените",
+        "resume": "Наставите",
+        "pause": "Паузирајте",
+        "reset": "Поништите",
+        "countdown": "{minutes, plural, one {Одбројавање од 1 минута} few {Одбројавање од # минута} other {Одбројавање од # минута}}"
+    }
+}

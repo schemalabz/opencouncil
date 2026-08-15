@@ -16,6 +16,7 @@ import { Container, DarkHeroOGImage, MeetingMetaRow, OgHeader, SubjectPills, for
 import { tryAcquireOgSlot, getOgConcurrencyStats } from '@/lib/og/concurrency';
 import { LOGO_BLACK_DATA_URI } from '@/lib/og/serverAssets';
 import SubjectOgImage from '@/app/[locale]/(city)/[cityId]/(meetings)/[meetingId]/subjects/[subjectId]/opengraph-image';
+import { isCustomer } from "@/lib/cityStatus";
 
 // Hard ceiling on each render. Pairs with the in-process concurrency cap in
 // `@/lib/og/concurrency` to keep a single hung satori call from blocking a slot forever.
@@ -244,22 +245,22 @@ const CityOGImage = async (cityId: string) => {
                         display: 'flex',
                         alignItems: 'center',
                         gap: '8px',
-                        background: city.officialSupport
+                        background: isCustomer(city.status)
                             ? 'linear-gradient(to right, #fc550a, #a4c0e1)'
                             : '#f3f4f6',
-                        color: city.officialSupport ? '#ffffff' : '#6b7280',
+                        color: isCustomer(city.status) ? '#ffffff' : '#6b7280',
                         padding: '8px 16px',
                         borderRadius: '9999px',
                         fontSize: 16,
                         fontWeight: 500,
                         marginTop: '8px',
                         alignSelf: 'flex-start',
-                        border: city.officialSupport ? 'none' : '1px solid #e5e7eb'
+                        border: isCustomer(city.status) ? 'none' : '1px solid #e5e7eb'
                     }}>
                         <span style={{
                             display: 'flex'
                         }}>
-                            {city.officialSupport
+                            {isCustomer(city.status)
                                 ? `Με την υποστήριξη ${city.authorityType === 'municipality' ? 'του δήμου' : 'της περιφέρειας'}`
                                 : `Χωρίς επίσημη υποστήριξη ${city.authorityType === 'municipality' ? 'του δήμου' : 'της περιφέρειας'}`
                             }

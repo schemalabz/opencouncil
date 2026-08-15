@@ -13,7 +13,7 @@ const SLATE = '#5b6b8c'; // the general/city-hall marker colour (see createGener
 
 /* The "?" info drawer body: what the map is, a stylised preview with the real marker types, a
    legend tying each marker to its meaning, and a link to /explain. Responsive (desktop + mobile). */
-export function InfoPanel() {
+export function InfoPanel({ explainAvailable }: { explainAvailable: boolean }) {
     const t = useTranslations('landingV2');
     return (
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto bg-muted/40 px-4 py-4">
@@ -28,17 +28,20 @@ export function InfoPanel() {
                 <LegendRow glyph={<GeneralMarker count={3} />} title={t('info.general.title')} body={t('info.general.body')} />
             </div>
 
-            {/* learn-more → /explain (no card — just the copy + button) */}
-            <div className="mt-1 flex flex-col gap-3">
-                <p className="text-sm leading-relaxed text-foreground/80">{t('info.moreBody')}</p>
-                <Link
-                    href="/explain"
-                    onClick={() => captureLandingAction('info_explain_clicked', {})}
-                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-[hsl(var(--orange))] px-4 py-2.5 text-sm font-semibold text-white no-underline shadow-sm transition hover:brightness-95 hover:no-underline"
-                >
-                    {t('info.moreCta')} <ArrowRight className="h-4 w-4" />
-                </Link>
-            </div>
+            {/* learn-more → /explain (no card — just the copy + button); the page
+                only exists on the Greek locale, so hide the whole block elsewhere */}
+            {explainAvailable && (
+                <div className="mt-1 flex flex-col gap-3">
+                    <p className="text-sm leading-relaxed text-foreground/80">{t('info.moreBody')}</p>
+                    <Link
+                        href="/explain"
+                        onClick={() => captureLandingAction('info_explain_clicked', {})}
+                        className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-[hsl(var(--orange))] px-4 py-2.5 text-sm font-semibold text-white no-underline shadow-sm transition hover:brightness-95 hover:no-underline"
+                    >
+                        {t('info.moreCta')} <ArrowRight className="h-4 w-4" />
+                    </Link>
+                </div>
+            )}
         </div>
     );
 }

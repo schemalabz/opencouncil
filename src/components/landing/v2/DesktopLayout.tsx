@@ -58,6 +58,8 @@ export function DesktopLayout({
     infoOpen,
     onToggleInfo,
     infoHint,
+    explainAvailable,
+    realm,
 }: LayoutProps) {
     const t = useTranslations('landingV2');
     // The list panel beside the rail — collapsible (X), default open.
@@ -105,7 +107,7 @@ export function DesktopLayout({
             <aside
                 className="absolute bottom-4 left-4 top-4 z-[7] flex overflow-hidden rounded-2xl border border-black/40 bg-muted shadow-2xl ring-1 ring-black/5"
             >
-                <LandingAside view={view} onSelect={selectView} infoOpen={infoOpen} onToggleInfo={onToggleInfo} infoHint={infoHint} cities={cities} />
+                <LandingAside view={view} onSelect={selectView} infoOpen={infoOpen} onToggleInfo={onToggleInfo} infoHint={infoHint} cities={cities} realm={realm} />
 
                 {/* collapsible list column — the info drawer reuses it (over the current map) */}
                 {(panelOpen || infoOpen) && (
@@ -137,7 +139,7 @@ export function DesktopLayout({
                     )}
 
                     {infoOpen ? (
-                        <InfoPanel />
+                        <InfoPanel explainAvailable={explainAvailable} />
                     ) : view === 'municipalities' ? (
                         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-muted/50 mb-3 px-4 py-4">
                             <MunicipalitiesList

@@ -54,7 +54,7 @@ export function CityCard({ city }: CityCardProps) {
                             </div>
                             <div className="absolute bottom-2 right-2">
                                 <OfficialSupportBadge
-                                    officialSupport={city.officialSupport}
+                                    status={city.status}
                                     authorityType={city.authorityType}
                                     size="sm"
                                 />

@@ -26,8 +26,8 @@ interface CitiesAdminTableProps {
 }
 
 const STATUS_VARIANT: Record<CityStatus, "default" | "secondary" | "outline"> = {
-    listed: "default",
-    unlisted: "secondary",
+    supported: "default",
+    demo: "secondary",
     pending: "outline",
 };
 

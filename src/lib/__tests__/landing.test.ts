@@ -40,8 +40,7 @@ describe('getCities', () => {
             {
                 id: 'city1',
                 name: 'Public City',
-                status: 'listed',
-                officialSupport: true,
+                status: 'supported',
                 _count: { persons: 10, parties: 5, councilMeetings: 20 }
             }
         ]);
@@ -52,26 +51,26 @@ describe('getCities', () => {
 
         expect(prisma.city.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
-                where: expect.objectContaining({
-                    status: 'listed'
-                })
+                where: {
+                    status: { in: ['demo', 'supported'] }
+                }
             })
         );
 
         expect(result).toHaveLength(1);
         expect(result[0].name).toBe('Public City');
-        expect(result[0].status).toBe('listed');
+        expect(result[0].status).toBe('supported');
         expect(auth.getCurrentUser).not.toHaveBeenCalled();
     });
 
-    it('should return only public cities when includeUnlisted is false', async () => {
-        const result = await getCities({ includeUnlisted: false });
+    it('should return only public cities when includeNonPublic is false', async () => {
+        const result = await getCities({ includeNonPublic: false });
 
         expect(prisma.city.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
-                where: expect.objectContaining({
-                    status: 'listed'
-                })
+                where: {
+                    status: { in: ['demo', 'supported'] }
+                }
             })
         );
 
@@ -80,11 +79,11 @@ describe('getCities', () => {
         expect(auth.getCurrentUser).not.toHaveBeenCalled();
     });
 
-    it('should throw error when includeUnlisted is true but user is not authenticated', async () => {
+    it('should throw error when includeNonPublic is true but user is not authenticated', async () => {
         (auth.getCurrentUser as jest.Mock).mockResolvedValue(null);
 
-        await expect(getCities({ includeUnlisted: true }))
-            .rejects.toThrow('Not authorized to view unlisted cities');
+        await expect(getCities({ includeNonPublic: true }))
+            .rejects.toThrow('Not authorized to view non-public cities');
 
         expect(prisma.city.findMany).not.toHaveBeenCalled();
     });
@@ -96,14 +95,11 @@ describe('getCities', () => {
             administers: []
         });
 
-        const result = await getCities({ includeUnlisted: true });
+        const result = await getCities({ includeNonPublic: true });
 
+        // A superadmin asking for non-public cities gets every status.
         expect(prisma.city.findMany).toHaveBeenCalledWith(
-            expect.objectContaining({
-                where: expect.objectContaining({
-                    status: { in: ['listed', 'unlisted'] }
-                })
-            })
+            expect.objectContaining({ where: {} })
         );
 
         expect(result).toHaveLength(1);
@@ -119,19 +115,19 @@ describe('getCities', () => {
             ]
         });
 
-        const result = await getCities({ includeUnlisted: true });
+        const result = await getCities({ includeNonPublic: true });
 
         expect(prisma.city.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
-                where: expect.objectContaining({
+                where: {
                     OR: [
-                        { status: 'listed' },
+                        { status: { in: ['demo', 'supported'] } },
                         {
-                            status: { in: ['unlisted', 'pending'] },
+                            status: 'pending',
                             id: { in: ['city2', 'city3'] }
                         }
                     ]
-                })
+                }
             })
         );
 
@@ -145,20 +141,19 @@ describe('getCities', () => {
             administers: [] // No cities to administer
         });
 
-        const result = await getCities({ includeUnlisted: true });
+        const result = await getCities({ includeNonPublic: true });
 
         expect(prisma.city.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
-                where: expect.objectContaining({
-                    status: { in: ['listed', 'unlisted'] },
+                where: {
                     OR: [
-                        { status: 'listed' },
+                        { status: { in: ['demo', 'supported'] } },
                         {
-                            status: { in: ['unlisted', 'pending'] },
+                            status: 'pending',
                             id: { in: [] }
                         }
                     ]
-                })
+                }
             })
         );
 
@@ -175,34 +170,33 @@ describe('getCities', () => {
             ]
         });
 
-        const result = await getCities({ includeUnlisted: true });
+        const result = await getCities({ includeNonPublic: true });
 
         expect(prisma.city.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
-                where: expect.objectContaining({
-                    status: { in: ['listed', 'unlisted'] },
+                where: {
                     OR: [
-                        { status: 'listed' },
+                        { status: { in: ['demo', 'supported'] } },
                         {
-                            status: { in: ['unlisted', 'pending'] },
+                            status: 'pending',
                             id: { in: [] }
                         }
                     ]
-                })
+                }
             })
         );
 
         expect(result).toHaveLength(1);
     });
 
-    it('should include pending cities when includePending is true', async () => {
+    it('should include pending cities for a superadmin asking for non-public ones', async () => {
         (auth.getCurrentUser as jest.Mock).mockResolvedValue({
             id: 'user1',
             isSuperAdmin: true,
             administers: []
         });
 
-        const result = await getCities({ includeUnlisted: true, includePending: true });
+        const result = await getCities({ includeNonPublic: true });
 
         expect(prisma.city.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -218,9 +212,9 @@ describe('getCities', () => {
 
         expect(prisma.city.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
-                where: expect.objectContaining({
-                    status: 'listed'
-                })
+                where: {
+                    status: { in: ['demo', 'supported'] }
+                }
             })
         );
 
@@ -232,8 +226,7 @@ describe('getCities', () => {
             id: 'city1',
             name: 'Test City',
             name_en: 'Test City EN',
-            status: 'listed',
-            officialSupport: true,
+            status: 'supported',
             _count: { persons: 10, parties: 5, councilMeetings: 20 }
         };
 
@@ -246,8 +239,7 @@ describe('getCities', () => {
             id: 'city1',
             name: 'Test City',
             name_en: 'Test City EN',
-            status: 'listed',
-            officialSupport: true,
+            status: 'supported',
             _count: { persons: 10, parties: 5, councilMeetings: 20 }
         });
     });

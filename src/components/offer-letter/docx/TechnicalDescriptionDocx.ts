@@ -17,7 +17,7 @@
  * are post-discount (see getOfferProcurementLines), so line totals and the
  * final total match the contracted amount.
  */
-import { AlignmentType, Document, PageBreak, Packer, Paragraph, TextRun } from "docx";
+import { Document, PageBreak, Packer, Paragraph, TextRun } from "docx";
 import type { Offer } from "@prisma/client";
 import { downloadBlob } from "@/lib/utils/download";
 import { calculateOfferTotals } from "@/lib/pricing";
@@ -39,6 +39,7 @@ import {
     h3,
     procurementDocument,
     SIZE,
+    STYLE,
 } from "./shared";
 
 const BUDGET_LABELS: Record<ProcurementLine["key"], string> = {
@@ -278,9 +279,9 @@ export function buildTechnicalDescriptionDoc(offer: Offer): Document {
     const cpv = deriveOfferCpv(offer);
 
     const cover: Paragraph[] = [
-        new Paragraph({ spacing: { before: 2400 }, children: [] }),
+        new Paragraph({ style: STYLE.NORMAL, spacing: { before: 2400 }, children: [] }),
         new Paragraph({
-            alignment: AlignmentType.CENTER,
+            style: STYLE.CENTERED,
             spacing: { after: 240 },
             children: [
                 new TextRun({
@@ -291,17 +292,17 @@ export function buildTechnicalDescriptionDoc(offer: Offer): Document {
             ],
         }),
         new Paragraph({
-            alignment: AlignmentType.CENTER,
+            style: STYLE.CENTERED,
             spacing: { after: 240 },
             children: [new TextRun({ text: "Τεχνική Περιγραφή", size: SIZE.COVER_SUB })],
         }),
         new Paragraph({
-            alignment: AlignmentType.CENTER,
+            style: STYLE.CENTERED,
             spacing: { after: 240 },
             children: [new TextRun({ text: `CPV: ${cpv}`, size: SIZE.COVER_SUB })],
         }),
         new Paragraph({
-            alignment: AlignmentType.CENTER,
+            style: STYLE.CENTERED,
             spacing: { after: 720 },
             children: [
                 new TextRun({
@@ -311,7 +312,7 @@ export function buildTechnicalDescriptionDoc(offer: Offer): Document {
                 }),
             ],
         }),
-        new Paragraph({ children: [new PageBreak()] }),
+        new Paragraph({ style: STYLE.NORMAL, children: [new PageBreak()] }),
     ];
 
     return procurementDocument({

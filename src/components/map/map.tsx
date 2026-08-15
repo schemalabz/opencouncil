@@ -132,8 +132,6 @@ const Map = memo(function Map({
         if (feature.properties.interactive === false) return;
 
         const featureId = feature.properties.uniqueFeatureId;
-        const isSupported = feature.properties.officialSupport;
-
         // If we're hovering the same feature, don't do anything to prevent flickering
         if (currentHoveredFeature.current === featureId) {
             // Just update popup position if it exists, don't recreate
@@ -174,60 +172,29 @@ const Map = memo(function Map({
                 ['get', 'fillOpacity']
             ]);
         } else {
-            // For supported cities: borders already visible, just make slightly thicker
-            // For unsupported cities: show blue overlay AND border after 1 second
+            // Hover shows the blue overlay and the border together, immediately.
+            // Show blue OVERLAY (fill) - only for the hovered feature
+            map.current.setPaintProperty('feature-fills', 'fill-opacity', [
+                'case',
+                featureFilter,
+                0.2,
+                ['get', 'fillOpacity']
+            ]);
 
-            if (isSupported) {
-                // Supported city: ONLY BORDER (orange), NO OVERLAY
-                // Make border slightly thicker on hover
-                map.current.setPaintProperty('feature-borders', 'line-width', [
-                    'case',
-                    featureFilter,
-                    2.5,
-                    ['get', 'strokeWidth']
-                ]);
+            // Show blue BORDER - only for the hovered feature
+            map.current.setPaintProperty('feature-borders', 'line-width', [
+                'case',
+                featureFilter,
+                2,
+                ['get', 'strokeWidth']
+            ]);
 
-                map.current.setPaintProperty('feature-borders', 'line-opacity', [
-                    'case',
-                    featureFilter,
-                    0.9,
-                    0.6
-                ]);
-
-                // Ensure NO FILL for supported cities
-                map.current.setPaintProperty('feature-fills', 'fill-opacity', [
-                    'case',
-                    featureFilter,
-                    0,
-                    ['get', 'fillOpacity']
-                ]);
-            } else {
-                // Unsupported city: show BOTH blue overlay AND border IMMEDIATELY
-                // No timeout - instant feedback
-
-                // Show blue OVERLAY (fill) - only for the hovered feature
-                map.current.setPaintProperty('feature-fills', 'fill-opacity', [
-                    'case',
-                    featureFilter,
-                    0.2,
-                    ['get', 'fillOpacity']
-                ]);
-
-                // Show blue BORDER - only for the hovered feature
-                map.current.setPaintProperty('feature-borders', 'line-width', [
-                    'case',
-                    featureFilter,
-                    2,
-                    ['get', 'strokeWidth']
-                ]);
-
-                map.current.setPaintProperty('feature-borders', 'line-opacity', [
-                    'case',
-                    featureFilter,
-                    0.8,
-                    ['get', 'strokeOpacity']
-                ]);
-            }
+            map.current.setPaintProperty('feature-borders', 'line-opacity', [
+                'case',
+                featureFilter,
+                0.8,
+                ['get', 'strokeOpacity']
+            ]);
         }
 
         if (renderPopup) {

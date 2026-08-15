@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import Combobox from '@/components/Combobox';
 import { CityMinimalWithCounts } from '@/lib/db/cities';
+import { isPublic } from "@/lib/cityStatus";
 
 interface MunicipalitySelectorProps {
     cities: CityMinimalWithCounts[];
@@ -27,13 +28,13 @@ export function MunicipalitySelector({
         {
             key: 'supported',
             label: t('groupSupported'),
-            items: cities.filter(city => city.status === 'listed'),
+            items: cities.filter(city => isPublic(city.status)),
             icon: MapPin
         },
         {
             key: 'all',
             label: t('groupAll'),
-            items: cities.filter(city => city.status !== 'listed'),
+            items: cities.filter(city => !isPublic(city.status)),
             icon: MapPin
         }
     ];
@@ -135,7 +136,7 @@ export function MunicipalitySelector({
                         className="mt-4 flex flex-wrap justify-center gap-2"
                     >
                         {cities
-                            .filter(city => city.status === 'listed')
+                            .filter(city => isPublic(city.status))
                             .map((city) => (
                                 <motion.div
                                     key={city.id}

@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { getCities } from '@/lib/db/cities';
 import prisma from '@/lib/db/prisma';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
+import type { CityStatus } from "@prisma/client";
 
 // This prevents Next.js from trying to statically pre-render this route
 export const dynamic = 'force-dynamic';
@@ -20,7 +21,7 @@ interface CityPostgresData {
     cityName: string;
     latestMeetingIdPostgres: string | null;
     totalMeetingsPostgres: number;
-    status: 'pending' | 'unlisted' | 'listed';
+    status: CityStatus;
 }
 
 export async function GET() {
@@ -28,7 +29,7 @@ export async function GET() {
         await withUserAuthorizedToEdit({});
 
         // 1. Fetch data from PostgreSQL
-        const citiesFromDb = await getCities({ includeUnlisted: true });
+        const citiesFromDb = await getCities({ includeNonPublic: true });
 
         const totalMeetingsCounts = await prisma.councilMeeting.groupBy({
             by: ['cityId'],

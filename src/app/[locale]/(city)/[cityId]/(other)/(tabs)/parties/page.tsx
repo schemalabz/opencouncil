@@ -6,6 +6,7 @@ import { getPartiesForCityCached, getCityCached } from "@/lib/cache";
 import { getPeopleForCityCached } from "@/lib/cache";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getLocalizedName } from "@/lib/formatters/name";
+import { getTranslations } from "next-intl/server";
 
 export async function generateMetadata(props: { params: Promise<{ cityId: string; locale: string }> }): Promise<Metadata> {
     const params = await props.params;
@@ -16,9 +17,10 @@ export async function generateMetadata(props: { params: Promise<{ cityId: string
     }
 
     const cityName = getLocalizedName(city, params.locale);
+    const t = await getTranslations({ locale: params.locale, namespace: "metadata.parties" });
     return {
-        title: `Παρατάξεις | ${cityName} | OpenCouncil`,
-        description: `Οι δημοτικές παρατάξεις του δήμου ${cityName}, τα μέλη τους και η δραστηριότητά τους στο δημοτικό συμβούλιο.`,
+        title: t("title", { cityName }),
+        description: t("description", { cityName }),
         alternates: await buildCanonicalAlternates(`/${params.cityId}/parties`),
     };
 }

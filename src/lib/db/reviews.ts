@@ -2,6 +2,7 @@
 import { Prisma } from '@prisma/client';
 import prisma from './prisma';
 import { buildDateFilter } from './reviews/dateFilters';
+import { CUSTOMER_CITY_WHERE } from '../cityStatus';
 
 // ============================================================================
 // SHARED PRISMA PATTERNS
@@ -916,7 +917,7 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
   const conditions: Prisma.CouncilMeetingWhereInput[] = [];
 
   // Only track reviews for officially supported cities
-  conditions.push({ city: { officialSupport: true } });
+  conditions.push({ city: CUSTOMER_CITY_WHERE });
 
   // Add status filter
   conditions.push(buildStatusWhereConditions(show));
@@ -1002,7 +1003,7 @@ export async function getReviewStats(): Promise<ReviewStats> {
     prisma.councilMeeting.count({
       where: {
         AND: [
-          { city: { officialSupport: true } },
+          { city: CUSTOMER_CITY_WHERE },
           baseNeedsAttentionWhere,
           {
             NOT: {
@@ -1026,7 +1027,7 @@ export async function getReviewStats(): Promise<ReviewStats> {
     prisma.councilMeeting.count({
       where: {
         AND: [
-          { city: { officialSupport: true } },
+          { city: CUSTOMER_CITY_WHERE },
           baseNeedsAttentionWhere,
           {
             speakerSegments: {
@@ -1057,7 +1058,7 @@ export async function getReviewStats(): Promise<ReviewStats> {
     where: {
       type: 'humanReview',
       status: 'succeeded',
-      councilMeeting: { city: { officialSupport: true } },
+      councilMeeting: { city: CUSTOMER_CITY_WHERE },
       createdAt: {
         gte: startOfWeek
       }

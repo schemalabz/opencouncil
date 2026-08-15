@@ -10,7 +10,7 @@ import {
 } from "@react-email/components"
 import * as React from "react"
 import { klitiki } from "@/lib/utils"
-import { env } from "@/env.mjs"
+import { getRealmContactPhone } from "@/lib/realm"
 
 interface UserInviteEmailProps {
     name: string
@@ -39,7 +39,7 @@ export const UserInviteEmail = ({ name, inviteUrl }: UserInviteEmailProps) => {
                         Σύνδεση στο OpenCouncil
                     </Link>
                     <Text style={text}>
-                        Αν χρειάζεστε βοήθεια, απαντήστε σε αυτό το email ή καλέστε μας στο {env.NEXT_PUBLIC_CONTACT_PHONE}.
+                        Αν χρειάζεστε βοήθεια, απαντήστε σε αυτό το email ή καλέστε μας στο {getRealmContactPhone("greece")}.
                     </Text>
                     <Text style={text}>
                         Με εκτίμηση,

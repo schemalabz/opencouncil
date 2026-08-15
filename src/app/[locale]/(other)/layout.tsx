@@ -1,6 +1,7 @@
 import React from "react"
 import Header from "@/components/layout/Header"
 import Footer from "@/components/layout/Footer"
+import { getRealm } from "@/lib/realm.server";
 import Aurora from "@/components/landing/AuroraClient"
 
 export default async function Layout(
@@ -23,7 +24,7 @@ export default async function Layout(
         <main id="main-content" className="min-h-[70vh] mt-[65px] relative z-5">
           {children}
         </main>
-        <Footer className="relative z-5" />
+        <Footer className="relative z-5" realm={await getRealm()} />
       </div>
     </>
   );

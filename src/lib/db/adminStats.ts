@@ -3,6 +3,7 @@
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { subDays } from "date-fns";
+import { CUSTOMER_CITY_WHERE } from "../cityStatus";
 
 export interface AdminDashboardStats {
     users: {
@@ -92,7 +93,7 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
                 GROUP BY cm.id, cm."cityId"
             ) meetings
         `,
-        prisma.city.count({ where: { officialSupport: true } }),
+        prisma.city.count({ where: CUSTOMER_CITY_WHERE }),
         prisma.message.groupBy({
             by: ['channel', 'direction'],
             where: { createdAt: { gte: sevenDaysAgo } },
@@ -154,7 +155,7 @@ export async function getNotificationSubscribersByCity(): Promise<CitySubscriber
 
     const [cities, subscriberCounts] = await Promise.all([
         prisma.city.findMany({
-            where: { officialSupport: true },
+            where: CUSTOMER_CITY_WHERE,
             select: { id: true, name: true, population: true },
         }),
         prisma.notificationPreference.groupBy({

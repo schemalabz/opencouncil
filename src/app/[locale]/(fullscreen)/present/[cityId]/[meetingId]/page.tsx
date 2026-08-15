@@ -1,16 +1,25 @@
+import { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import { getMeetingDataCached } from "@/lib/getMeetingData";
 import { categorizeSubjects } from "@/lib/utils/subjects";
 import { sortSubjectsByAgendaIndex } from "@/lib/utils";
 import PresentationView from "@/components/presentation/PresentationView";
 
-export const metadata = {
-    title: "Παρουσίαση συνεδρίασης | OpenCouncil",
-    // Fullscreen presentation of the meeting page's content — the meeting URL
-    // is the indexable version.
-    robots: { index: false, follow: false },
-};
+export async function generateMetadata(props: {
+    params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+    const { locale } = await props.params;
+    const t = await getTranslations({ locale, namespace: "presentation" });
+
+    return {
+        title: t("pageTitle"),
+        // Fullscreen presentation of the meeting page's content — the meeting URL
+        // is the indexable version.
+        robots: { index: false, follow: false },
+    };
+}
 
 export default async function PresentationPage(
     props: {

@@ -608,16 +608,7 @@ export async function savePetition(data: OnboardingData & {
 }
 
 /**
- * Check if coordinates are outside Greece bounds
- * Greece approximate bounds: lat 34.5-41.5, lng 19.5-28.5
- */
-function isOutsideGreece(lng: number, lat: number): boolean {
-    return lng < 19.5 || lng > 28.5 || lat < 34.5 || lat > 41.5;
-}
-
-/**
  * Calculate if any user locations are within specified distance of subject location
- * Handles inverted lat/lng for subject locations that appear outside Greece
  */
 export async function calculateProximityMatches(
     userLocationIds: string[],
@@ -629,55 +620,19 @@ export async function calculateProximityMatches(
     }
 
     try {
-        // Get subject location coordinates to check if they're inverted
-        const subjectCoords = await prisma.$queryRaw<Array<{ x: number; y: number }>>`
-            SELECT ST_X(coordinates::geometry) as x, ST_Y(coordinates::geometry) as y
-            FROM "Location"
-            WHERE id = ${subjectLocationId}
-            AND type = 'point'
+        const result = await prisma.$queryRaw<Array<{ count: bigint }>>`
+            SELECT COUNT(*) as count
+            FROM "Location" ul
+            CROSS JOIN "Location" sl
+            WHERE ul.id = ANY(${userLocationIds})
+            AND sl.id = ${subjectLocationId}
+            AND sl.type = 'point'
+            AND ST_DWithin(
+                ul.coordinates::geography,
+                sl.coordinates::geography,
+                ${distanceMeters}
+            )
         `;
-
-        if (!subjectCoords || subjectCoords.length === 0) {
-            return false;
-        }
-
-        const subjectLng = subjectCoords[0].x;
-        const subjectLat = subjectCoords[0].y;
-
-        // Check if subject location appears to be outside Greece (indicating inverted coordinates)
-        const needsSwap = isOutsideGreece(subjectLng, subjectLat);
-
-        // Use PostGIS to check if any user location is within distance of subject location
-        // If coordinates are inverted, swap them in the query
-        let result: Array<{ count: bigint }>;
-
-        if (needsSwap) {
-            // Swap lat/lng: use lat as lng and lng as lat
-            result = await prisma.$queryRaw<Array<{ count: bigint }>>`
-                SELECT COUNT(*) as count
-                FROM "Location" ul
-                WHERE ul.id = ANY(${userLocationIds})
-                AND ST_DWithin(
-                    ul.coordinates::geography,
-                    ST_SetSRID(ST_MakePoint(${subjectLat}, ${subjectLng}), 4326)::geography,
-                    ${distanceMeters}
-                )
-            `;
-        } else {
-            // Use coordinates as-is
-            result = await prisma.$queryRaw<Array<{ count: bigint }>>`
-                SELECT COUNT(*) as count
-                FROM "Location" ul
-                CROSS JOIN "Location" sl
-                WHERE ul.id = ANY(${userLocationIds})
-                AND sl.id = ${subjectLocationId}
-                AND ST_DWithin(
-                    ul.coordinates::geography,
-                    sl.coordinates::geography,
-                    ${distanceMeters}
-                )
-            `;
-        }
 
         return result[0] && Number(result[0].count) > 0;
     } catch (error) {
@@ -1863,21 +1818,11 @@ export async function getNotificationMapData(meetingId: string, cityId: string):
     allSubjects.forEach(subject => {
         if (subject.locationId && locationCoordinates[subject.locationId]) {
             const coords = locationCoordinates[subject.locationId];
-            let lng = coords.x;
-            let lat = coords.y;
-
-            // Check if subject location appears to be outside Greece (indicating inverted coordinates)
-            // If so, swap lat/lng for display
-            if (isOutsideGreece(lng, lat)) {
-                // Swap coordinates: lat becomes lng, lng becomes lat
-                [lng, lat] = [lat, lng];
-            }
-
             subjectLocations.push({
                 id: subject.id,
                 name: subject.name,
                 locationId: subject.locationId,
-                coordinates: [lng, lat],
+                coordinates: [coords.x, coords.y],
             });
         }
     });

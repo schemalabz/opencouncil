@@ -78,5 +78,8 @@
         "copySourceAttribution": "Αντιγράφηκε από το OpenCouncil · opencouncil.gr"
     },
     "notAvailable": "Η απομαγνητοφώνηση δεν είναι ακόμη διαθέσιμη.",
-    "procedural": "Διαδικαστικό"
+    "procedural": "Διαδικαστικό",
+    "currentTimeButton": {
+        "jumpToCurrent": "Μεταφορά στον τρέχοντα χρόνο"
+    }
 }

@@ -126,7 +126,9 @@ Copy the output and set it as your `NEXTAUTH_SECRET` in your `.env` file.
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
 | `GOOGLE_API_KEY` | Google Maps API key. | Yes | - |
-| `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` | Mapbox access token. | Yes | - |
+| `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` | Mapbox access token. | Yes | pre-filled dev token |
+
+`.env.example` ships with a public, localhost-restricted, rate-capped dev token, so the map works after `cp .env.example .env` with no extra setup. It's not valid outside `localhost` — get your own token at [mapbox.com](https://www.mapbox.com) for deployments.
 
 ### Task Processing
 | Variable | Description | Required | Default |
@@ -149,7 +151,6 @@ The Google Calendar integration uses OAuth 2.0 authentication with a Google acco
 ### Contact Information
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
-| `NEXT_PUBLIC_CONTACT_PHONE` | Public contact phone number. | No | - |
 | `NEXT_PUBLIC_CONTACT_EMAIL` | Public contact email. | No | - |
 | `NEXT_PUBLIC_CONTACT_ADDRESS` | Public contact address. | No | - |
 

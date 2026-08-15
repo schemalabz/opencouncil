@@ -1,6 +1,8 @@
+import { useLocale, useTranslations } from "next-intl";
 import { ImageOrInitials } from "@/components/ImageOrInitials";
 import { SubjectWithRelations } from "@/lib/db/subject";
 import { filterActiveRoles, getPartyFromRoles } from "@/lib/utils";
+import { getLocalizedName } from "@/lib/formatters/name";
 import SpeakerTimer from "./SpeakerTimer";
 
 interface SubjectSlideProps {
@@ -8,12 +10,17 @@ interface SubjectSlideProps {
 }
 
 export default function SubjectSlide({ subject }: SubjectSlideProps) {
+    const t = useTranslations("presentation");
+    const locale = useLocale();
     const introducer = subject.introducedBy;
     const introducerParty = introducer ? getPartyFromRoles(introducer.roles) : null;
-    const firstRoleName = introducer
-        ? filterActiveRoles(introducer.roles).find((r) => r.name)?.name ?? null
+    const firstRole = introducer
+        ? filterActiveRoles(introducer.roles).find((r) => r.name) ?? null
         : null;
-    const introducerSubtitle = [firstRoleName, introducerParty?.name]
+    const roleName = firstRole?.name
+        ? getLocalizedName({ name: firstRole.name, name_en: firstRole.name_en }, locale)
+        : null;
+    const introducerSubtitle = [roleName, introducerParty && getLocalizedName(introducerParty, locale)]
         .filter(Boolean)
         .join(" · ");
 
@@ -34,7 +41,7 @@ export default function SubjectSlide({ subject }: SubjectSlideProps) {
                             {subject.agendaItemIndex}
                         </span>
                     )}
-                    <span>{subject.name}</span>
+                    <span>{getLocalizedName(subject, locale)}</span>
                 </div>
 
                 {introducer && (
@@ -50,9 +57,9 @@ export default function SubjectSlide({ subject }: SubjectSlideProps) {
                         </div>
                         <div className="flex flex-col items-start">
                             <div className="text-[1.6vh] uppercase tracking-wider text-muted-foreground">
-                                Εισηγητής
+                                {t("introducer")}
                             </div>
-                            <div className="text-[3vh] font-semibold leading-tight">{introducer.name}</div>
+                            <div className="text-[3vh] font-semibold leading-tight">{getLocalizedName(introducer, locale)}</div>
                             {introducerSubtitle && (
                                 <div className="text-[2vh] text-muted-foreground leading-tight">
                                     {introducerSubtitle}

@@ -1,9 +1,10 @@
 "use server";
-import { City, CouncilMeeting, Prisma, Realm } from '@prisma/client';
+import { City, CityStatus, CouncilMeeting, Prisma, Realm } from '@prisma/client';
 import prisma from "./prisma";
 import { createCache } from "../cache";
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getCurrentUser } from "../auth";
 import { UnauthorizedError } from "../api/errors";
+import { CUSTOMER_CITY_WHERE, OUT_OF_NETWORK_CITY_WHERE, PUBLIC_CITY_WHERE } from "../cityStatus";
 import {
     PETITION_DISPLAY_THRESHOLD,
     buildPetitionedCities,
@@ -19,17 +20,13 @@ export type CityWithGeometry = City & {
     geometry?: GeoJSON.Geometry;
 };
 
-export type CityWithCouncilMeeting = City & {
-    councilMeetings: CouncilMeeting[];
-};
-
 type CityCounts = {
     persons: number;
     parties: number;
     councilMeetings: number;
 };
 
-export type CityMinimalWithCounts = Pick<City, 'id' | 'name' | 'name_en' | 'name_municipality' | 'name_municipality_en' | 'logoImage' | 'supportsNotifications' | 'status' | 'officialSupport' | 'authorityType' | 'timezone'> & {
+export type CityMinimalWithCounts = Pick<City, 'id' | 'name' | 'name_en' | 'name_municipality' | 'name_municipality_en' | 'logoImage' | 'supportsNotifications' | 'status' | 'authorityType' | 'timezone'> & {
     _count: CityCounts;
 };
 
@@ -51,7 +48,7 @@ const CITY_COUNT_SELECT = {
 };
 
 const CITY_ORDER_BY = [
-    { officialSupport: 'desc' as const },
+    // supported > demo > pending, by CityStatus declaration order
     { status: 'desc' as const },
     { name: 'asc' as const }
 ];
@@ -151,11 +148,25 @@ function cityCoversPoint(lng: number, lat: number): Prisma.Sql {
     return Prisma.sql`geometry IS NOT NULL AND ST_Covers(geometry::geometry, ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326))`;
 }
 
+/** SQL counterparts of isPublic/isOutOfNetwork, for the raw queries below — the
+ *  compiler cannot see enum values inside a template literal, so these keep the
+ *  raw SQL from drifting away from src/lib/cityStatus.ts. `alias` qualifies the
+ *  column when the query joins (e.g. `c.status`). */
+function publicCityStatusSql(alias?: string): Prisma.Sql {
+    const column = alias ? Prisma.raw(`"${alias}".status`) : Prisma.raw('status');
+    return Prisma.sql`${column} IN ('demo', 'supported')`;
+}
+
+function outOfNetworkCityStatusSql(alias?: string): Prisma.Sql {
+    const column = alias ? Prisma.raw(`"${alias}".status`) : Prisma.raw('status');
+    return Prisma.sql`${column} = 'pending'`;
+}
+
 export type CityAtPoint = {
     id: string;
     name: string;
     name_municipality: string;
-    officialSupport: boolean;
+    status: CityStatus;
     geometry: GeoJSON.Geometry;
 };
 
@@ -166,9 +177,9 @@ export type CityAtPoint = {
  */
 export async function getCityAtPoint(realm: Realm, lng: number, lat: number): Promise<CityAtPoint | null> {
     const rows = await prisma.$queryRaw<
-        Array<{ id: string; name: string; name_municipality: string; officialSupport: boolean; geometry: string }>
+        Array<{ id: string; name: string; name_municipality: string; status: CityStatus; geometry: string }>
     >`
-        SELECT id, name, name_municipality, "officialSupport",
+        SELECT id, name, name_municipality, status,
                ST_AsGeoJSON(ST_SimplifyPreserveTopology(geometry, 0.0005)) AS geometry
         FROM "City"
         WHERE realm = ${realm}::"Realm"
@@ -182,9 +193,35 @@ export async function getCityAtPoint(realm: Realm, lng: number, lat: number): Pr
         id: row.id,
         name: row.name,
         name_municipality: row.name_municipality,
-        officialSupport: row.officialSupport,
+        status: row.status,
         geometry: JSON.parse(row.geometry) as GeoJSON.Geometry,
     };
+}
+
+/**
+ * The realm's *listed* municipality whose boundary contains a point — the
+ * coverage-honest counterpart of getCityAtPoint, for callers that publish
+ * "OpenCouncil covers this place". We carry boundaries for far more δήμοι than
+ * we list (so the map can highlight any of them), so getCityAtPoint resolves
+ * municipalities we don't actually publish; this one answers null for those.
+ * Skips the geometry entirely — callers only need identity. Throws on query
+ * failure rather than masking it as "not covered".
+ */
+export async function getListedCityAtPoint(
+    realm: Realm,
+    lng: number,
+    lat: number
+): Promise<{ id: string; name: string } | null> {
+    const rows = await prisma.$queryRaw<Array<{ id: string; name: string }>>`
+        SELECT id, name
+        FROM "City"
+        WHERE realm = ${realm}::"Realm"
+          AND ${publicCityStatusSql()}
+          AND ${cityCoversPoint(lng, lat)}
+        ORDER BY ST_Area(geometry) ASC
+        LIMIT 1
+    `;
+    return rows[0] ?? null;
 }
 
 /** A cooperating municipality with its centroid + simplified boundary + logo, for the
@@ -208,7 +245,7 @@ const CITY_MAP_PROJECTION = Prisma.sql`
     ST_AsGeoJSON(ST_SimplifyPreserveTopology(geometry, 0.001)) AS geometry
 `;
 
-/** Cooperating (officialSupport) municipalities for the landing map — centroid, logo, simplified
+/** Publicly covered municipalities for the landing map — centroid, logo, simplified
  *  boundary. Realm-keyed cache. Server-loaded in page.tsx. */
 export async function getMapCitiesCached(realm: Realm): Promise<MapCityRow[]> {
     return createCache(
@@ -226,7 +263,7 @@ export async function getMapCitiesCached(realm: Realm): Promise<MapCityRow[]> {
             >`
                 SELECT id, name, name_municipality, "logoImage", ${CITY_MAP_PROJECTION}
                 FROM "City"
-                WHERE "officialSupport" = true
+                WHERE ${publicCityStatusSql()}
                   AND realm = ${realm}::"Realm"
                   AND geometry IS NOT NULL
             `;
@@ -278,7 +315,12 @@ export async function getPetitionedMapCitiesCached(realm: Realm): Promise<Petiti
                            COUNT(p.id)::int AS petitions
                     FROM "City" c
                     JOIN "Petition" p ON p."cityId" = c.id
-                    WHERE c."officialSupport" = false
+                    -- Out-of-network only. A demo city is petitionable and its
+                    -- petitions are recorded, but it is already drawn on this map as
+                    -- covered, so adding it to the petition layer would render the
+                    -- same municipality twice with opposite meanings. Demo petition
+                    -- counts surface in the admin expansion table instead.
+                    WHERE ${outOfNetworkCityStatusSql('c')}
                       AND c.realm = ${realm}::"Realm"
                     GROUP BY c.id
                     HAVING COUNT(p.id) >= ${PETITION_DISPLAY_THRESHOLD}
@@ -295,7 +337,7 @@ export async function getPetitionedMapCitiesCached(realm: Realm): Promise<Petiti
                         SELECT p."cityId"
                         FROM "Petition" p
                         JOIN "City" c ON c.id = p."cityId"
-                        WHERE c."officialSupport" = false AND c.realm = ${realm}::"Realm"
+                        WHERE ${outOfNetworkCityStatusSql('c')} AND c.realm = ${realm}::"Realm"
                         GROUP BY p."cityId"
                         HAVING COUNT(p.id) < ${PETITION_DISPLAY_THRESHOLD}
                     ) sub
@@ -316,17 +358,17 @@ export async function getPetitionedMapCitiesCached(realm: Realm): Promise<Petiti
  * this on every render, so it must not run the uncached city+counts query each time. Realm-keyed;
  * shares the `cities:all` / `realm:${realm}:cities:all` tags with the other city caches so city
  * edits bust it. TTL bounds the released-meeting count (release toggles don't hit `cities:all`).
- * Public only — never returns unlisted/pending cities (no auth here, so it must stay filtered).
+ * Public only — never returns pending cities (no auth here, so it must stay filtered).
  */
 export async function getListedCitiesCached(realm: Realm): Promise<CityWithCounts[]> {
     return createCache(
         async () =>
             prisma.city.findMany({
-                where: { status: 'listed', realm },
+                where: { ...PUBLIC_CITY_WHERE, realm },
                 include: { _count: CITY_COUNT_SELECT },
                 orderBy: CITY_ORDER_BY,
             }),
-        ['cities', 'listed', realm],
+        ['cities', 'public', realm],
         { revalidate: 900, tags: ['cities:all', `realm:${realm}:cities:all`] },
     )();
 }
@@ -409,7 +451,6 @@ export async function getAllCitiesMinimal(realm?: Realm): Promise<CityMinimalWit
                 supportsNotifications: true,
                 status: true,
                 authorityType: true,
-                officialSupport: true,
                 timezone: true,
                 _count: CITY_COUNT_SELECT
             },
@@ -437,43 +478,44 @@ export async function getAllCityIds(realm?: Realm): Promise<string[]> {
 
 /**
  * Retrieves cities based on user permissions and city status.
+ *
+ * One flag, not two. `includeUnlisted` and `includePending` were separate while
+ * `unlisted` existed; with visibility now binary — a city is public (demo or
+ * supported) or it is pending — they would mean the same thing, and keeping both
+ * is what let the widening and the auth gate drift apart twice. A single flag
+ * that does both makes that class of bug unwritable.
+ *
+ * The `includeUnlisted=true` query parameter on `GET /api/cities` keeps its name:
+ * that one is a published contract.
  */
-export async function getCities({ includeUnlisted = false, includePending = false }: { includeUnlisted?: boolean, includePending?: boolean } = {}, realm?: Realm): Promise<CityWithCounts[]> {
+export async function getCities({ includeNonPublic = false }: { includeNonPublic?: boolean } = {}, realm?: Realm): Promise<CityWithCounts[]> {
     // Get current user for authorization
-    const currentUser = includeUnlisted ? await getCurrentUser() : null;
+    const currentUser = includeNonPublic ? await getCurrentUser() : null;
 
     // Validate permissions
-    if (includeUnlisted && !currentUser) {
-        throw new UnauthorizedError("Not authorized to view unlisted cities");
+    if (includeNonPublic && !currentUser) {
+        throw new UnauthorizedError("Not authorized to view non-public cities");
     }
 
     // Build where clause based on user permissions
-    let whereClause: any = {};
+    let whereClause: Prisma.CityWhereInput = {};
 
-    if (!includeUnlisted && !includePending) {
-        // Public mode: only show listed cities
-        whereClause.status = 'listed';
-    } else if (!includePending) {
-        // Include unlisted but exclude pending
-        whereClause.status = { in: ['listed', 'unlisted'] };
-    } else if (!includeUnlisted) {
-        // Include pending but only listed
-        whereClause.status = { in: ['listed', 'pending'] };
+    if (!includeNonPublic) {
+        whereClause = { ...whereClause, ...PUBLIC_CITY_WHERE };
     }
-    // If both includeUnlisted and includePending are true, show all (no filter)
 
-    if (includeUnlisted && !currentUser?.isSuperAdmin) {
-        // Authenticated user mode: show listed cities + cities they can administer
+    if (includeNonPublic && !currentUser?.isSuperAdmin) {
+        // Authenticated user mode: public cities + cities they can administer
         const administerableCityIds = currentUser?.administers
-            .filter(a => a.cityId)
-            .map(a => a.cityId) || [];
+            .map(a => a.cityId)
+            .filter((id): id is string => id !== null) ?? [];
 
         whereClause = {
             ...whereClause,
             OR: [
-                { status: 'listed' },
+                { ...PUBLIC_CITY_WHERE },
                 {
-                    status: { in: ['unlisted', 'pending'] },
+                    ...OUT_OF_NETWORK_CITY_WHERE,
                     id: { in: administerableCityIds }
                 }
             ]
@@ -500,40 +542,6 @@ export async function getCities({ includeUnlisted = false, includePending = fals
     } catch (error) {
         console.error('Error fetching cities:', error);
         throw new Error('Failed to fetch cities');
-    }
-}
-
-export async function getCitiesWithCouncilMeetings({ includeUnlisted = false, includePending = false }: { includeUnlisted?: boolean, includePending?: boolean } = {}, realm?: Realm): Promise<CityWithCouncilMeeting[]> {
-    if (includeUnlisted) {
-        await withUserAuthorizedToEdit({});
-    }
-
-    try {
-        let statusFilter: any;
-        if (!includeUnlisted && !includePending) {
-            statusFilter = 'listed';
-        } else if (!includePending) {
-            statusFilter = { in: ['listed', 'unlisted'] };
-        } else if (!includeUnlisted) {
-            statusFilter = { in: ['listed', 'pending'] };
-        }
-        // If both are true, show all (no filter)
-
-        const whereClause: Prisma.CityWhereInput = {};
-        if (statusFilter) whereClause.status = statusFilter;
-        if (realm) whereClause.realm = realm;
-
-        const cities = await prisma.city.findMany({
-            where: whereClause,
-            include: {
-                councilMeetings: true
-            },
-            orderBy: CITY_ORDER_BY
-        });
-        return cities;
-    } catch (error) {
-        console.error('Error fetching cities with council meetings:', error);
-        throw new Error('Failed to fetch cities with council meetings');
     }
 }
 
@@ -578,7 +586,7 @@ export async function getCityIdContainingPoint([lng, lat]: [number, number]): Pr
     try {
         const rows = await prisma.$queryRaw<{ id: string }[]>`
             SELECT id FROM "City"
-            WHERE status = 'listed'
+            WHERE ${publicCityStatusSql()}
               AND ${cityCoversPoint(lng, lat)}
             ORDER BY id
             LIMIT 1
@@ -633,8 +641,7 @@ export async function getSupportedCitiesWithLogos(): Promise<Array<{ id: string;
     try {
         const cities = await prisma.city.findMany({
             where: {
-                officialSupport: true,
-                status: 'listed',
+                ...CUSTOMER_CITY_WHERE,
                 logoImage: {
                     not: null
                 }
@@ -646,7 +653,6 @@ export async function getSupportedCitiesWithLogos(): Promise<Array<{ id: string;
                 name_municipality_en: true
             },
             orderBy: [
-                { officialSupport: 'desc' },
                 { name: 'asc' }
             ]
         });
@@ -679,7 +685,7 @@ export async function getAboutPageStats(): Promise<AboutPageStats> {
         const [municipalityCount, subjectCount, meetingDurations] = await Promise.all([
             // Count officially supported cities
             prisma.city.count({
-                where: { officialSupport: true }
+                where: CUSTOMER_CITY_WHERE
             }),
             // Count subjects in released meetings only
             prisma.subject.count({

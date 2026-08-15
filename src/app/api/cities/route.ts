@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 
         const cities = bearer && includeUnlisted
             ? await getAllCitiesAsServiceKey()
-            : await getCities({ includeUnlisted, includePending: false });
+            : await getCities({ includeNonPublic: includeUnlisted });
 
         return NextResponse.json(cities);
     } catch (error) {
@@ -85,7 +85,6 @@ export async function POST(request: Request) {
             name_municipality_en: data.name_municipality_en,
             timezone: data.timezone,
             logoImage: logoImageUrl,
-            officialSupport: data.officialSupport,
             status: data.status,
             authorityType: data.authorityType,
             wikipediaId: null,

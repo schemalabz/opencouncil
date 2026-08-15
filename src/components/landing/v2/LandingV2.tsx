@@ -53,6 +53,9 @@ import {
 import { markInfoHintSeen, readInfoHintSeen, readSavedView, writeSavedView } from '@/lib/landing/savedView';
 import { calculateGeometryBounds, isInSupportedMunicipality } from '@/lib/geo';
 import { useRouter } from '@/i18n/routing';
+import { hasExplainPage } from '@/lib/explain/availability';
+import type { Realm } from '@prisma/client';
+import { isPublic } from '@/lib/cityStatus';
 import { NotifyPrompt } from './NotifyPrompt';
 import { DesktopLayout } from './DesktopLayout';
 import { MobileLayout } from './MobileLayout';
@@ -65,13 +68,16 @@ import { MobileLayout } from './MobileLayout';
  * map renders real data on first paint. Only filter/geocode/cities-at lookups stay client-side.
  */
 export type LandingV2Props = {
+    /** the request's realm, resolved server-side — gates the /explain entry points */
+    realm: Realm;
     /** realm-resolved initial map framing — server passes getRealmDefaultMapView(realm) */
     defaultView: { center: [number, number]; zoom: number };
     /** server-loaded initial data (see page.tsx / the db-layer finders) */
     initial: LandingInitialData;
 };
 
-export function LandingV2({ defaultView, initial }: LandingV2Props) {
+export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
+    const explainAvailable = hasExplainPage(realm);
     // Where the map opens. A view the visitor themselves left is better evidence of what they want
     // than the realm's generic framing, so it wins over `defaultView`.
     const [initialView] = useState(() => {
@@ -177,7 +183,7 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
     // An out-of-network municipality the user clicked on the map — shaded orange.
     const [clickedMunicipality, setClickedMunicipality] = useState<ClickedMunicipality | null>(null);
     // The municipality under the map center (updated on every move) — drives the "view its page"
-    // button. officialSupport gates it: shown only for δήμοι actually in OpenCouncil.
+    // button. Publication gates it: shown only for δήμοι actually in OpenCouncil.
     const [centerMunicipality, setCenterMunicipality] = useState<CenterMunicipality | null>(null);
 
     const [range, setRange] = useState<DateRangeKey>(DEFAULT_RANGE);
@@ -334,7 +340,7 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
     // δήμοι in OpenCouncil (out-of-network ones have no page to link to), and only once zoomed in
     // enough that a single δήμος is actually the focus (not the country-level default framing).
     const displayedMunicipality =
-        centerMunicipality?.officialSupport && mapZoom >= MUNICIPALITY_PAGE_BUTTON_MIN_ZOOM
+        centerMunicipality && isPublic(centerMunicipality.status) && mapZoom >= MUNICIPALITY_PAGE_BUTTON_MIN_ZOOM
             ? {
                   id: centerMunicipality.id,
                   name: centerMunicipality.name,
@@ -616,8 +622,9 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         selectedSubject,
         clickedMunicipality,
         // Hide the office badge in the zoomed-out count view (it would pile onto Athens' number) and
-        // while the Δήμοι tab is open, where the map is about the δήμοι themselves.
-        showExplainMarker: !showMunicipalityCounts && view !== 'municipalities',
+        // while the Δήμοι tab is open, where the map is about the δήμοι themselves. Its popup's only
+        // action is a link to /explain, so it is pointless where that page doesn't exist.
+        showExplainMarker: explainAvailable && !showMunicipalityCounts && view !== 'municipalities',
         navigate: (path) => router.push(path),
         onClearSelection: clearSelection,
         onShowExplainLocation: showExplainLocation,
@@ -777,6 +784,8 @@ export function LandingV2({ defaultView, initial }: LandingV2Props) {
         previewId,
         previewSubject,
         explainOpen,
+        explainAvailable,
+        realm,
         onCloseExplain: () => setExplainOpen(false),
         displayedMunicipality,
         mapNode,

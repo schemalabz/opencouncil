@@ -35,7 +35,9 @@ export {
   getSpeakerDisplayInfo,
   sortRolesByPriority,
   getRoleTypePriority,
-  getPrimaryRole
+  getPrimaryRole,
+  getRoleText,
+  getRoleLabelAt
 } from './utils/roles';
 
 export const IS_DEV = process.env.NODE_ENV === 'development';
@@ -54,7 +56,7 @@ export function subjectToMapFeature(subject: SubjectWithRelations) {
     id: subject.id,
     geometry: {
       type: 'Point',
-      coordinates: [subject.location.coordinates.y, subject.location.coordinates.x]
+      coordinates: [subject.location.coordinates.x, subject.location.coordinates.y]
     },
     properties: {
       subjectId: subject.id,

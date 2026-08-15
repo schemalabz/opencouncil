@@ -22,7 +22,6 @@ export const realmSchema = z.nativeEnum(Realm);
 // stay undefined, meaning "don't change", rather than silently
 // reverting to a default value.
 export const CITY_DEFAULTS = {
-  officialSupport: false,
   status: 'pending' as CityStatus,
   authorityType: 'municipality' as AuthorityType,
   supportsNotifications: false,
@@ -58,7 +57,6 @@ export const baseCityFields = {
     message: "Timezone is required.",
   }),
   authorityType: authorityTypeSchema,
-  officialSupport: z.boolean(),
   status: cityStatusSchema,
   supportsNotifications: z.boolean(),
   consultationsEnabled: z.boolean(),
@@ -78,7 +76,6 @@ export const baseCityFormSchema = z.object({
 export const baseCityFormDataSchema = z.object({
   ...baseCityFields,
   authorityType: authorityTypeSchema,
-  officialSupport: stringToBoolean,
   supportsNotifications: stringToBoolean,
   consultationsEnabled: stringToBoolean,
   diavgeiaUid: emptyStringToNull.optional(),

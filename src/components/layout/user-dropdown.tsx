@@ -2,7 +2,6 @@
 
 import { useSession } from "next-auth/react"
 import { useTranslations, useLocale } from "next-intl"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
     DropdownMenu,
@@ -14,7 +13,9 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { User, LogOut, LogIn, Edit, ShieldCheck } from "lucide-react"
 import { signOut } from "next-auth/react"
-import { Link } from "@/i18n/routing"
+// The locale-aware router: next/navigation's would push a bare "/sign-in",
+// dropping the locale prefix and landing the user on the Greek sign-in page.
+import { Link, useRouter } from "@/i18n/routing"
 import { Skeleton } from "@/components/ui/skeleton"
 // @ts-ignore
 import klitiki from "greek-name-klitiki"

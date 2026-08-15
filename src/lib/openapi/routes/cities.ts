@@ -84,15 +84,15 @@ registry.registerPath({
     path: '/api/cities',
     summary: 'List cities',
     description:
-        'Returns all listed cities with counts of persons, parties, and released meetings. ' +
-        'When includeUnlisted=true, also includes unlisted cities the authenticated user can administer.',
+        'Returns all publicly listed cities (demo and supported) with counts of persons, parties, and released meetings. ' +
+        'When includeUnlisted=true, also includes non-public cities the authenticated user can administer.',
     tags: ['Cities'],
     request: {
         query: z.object({
             includeUnlisted: z.string()
                 .optional()
                 .openapi({
-                    description: 'When "true", includes unlisted cities the user can administer',
+                    description: 'When "true", includes non-public (pending) cities the user can administer',
                     example: 'false',
                 }),
         }),

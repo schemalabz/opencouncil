@@ -1,0 +1,22 @@
+{
+  "openButton": "Presentation",
+  "pageTitle": "Meeting presentation | OpenCouncil",
+  "subjectCount": "{count, plural, =0 {No subjects} one {# subject} other {# subjects}}",
+  "position": "Subject {index} / {total}",
+  "intro": "INTRO",
+  "previousSlide": "Previous slide",
+  "nextSlide": "Next slide",
+  "introducer": "Rapporteur",
+  "enterFullscreen": "Fullscreen",
+  "exitFullscreen": "Exit fullscreen",
+  "exit": "Exit",
+  "exitPresentation": "Exit the presentation",
+  "timer": {
+    "label": "Speaker time",
+    "start": "Start",
+    "resume": "Resume",
+    "pause": "Pause",
+    "reset": "Reset",
+    "countdown": "{minutes, plural, one {1-minute countdown} other {#-minute countdown}}"
+  }
+}

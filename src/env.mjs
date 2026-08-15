@@ -92,7 +92,6 @@ export const env = createEnv({
    */
   client: {
     NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: z.string().min(1),
-    NEXT_PUBLIC_CONTACT_PHONE: z.string().optional(),
     NEXT_PUBLIC_CONTACT_EMAIL: z.string().email().optional(),
     NEXT_PUBLIC_CONTACT_ADDRESS: z.string().optional(),
     NEXT_PUBLIC_BUILD_COMMIT_SHA: z.string().optional(),
@@ -152,7 +151,6 @@ export const env = createEnv({
     SEED_DATA_PATH: process.env.SEED_DATA_PATH,
     NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN:
       process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN,
-    NEXT_PUBLIC_CONTACT_PHONE: process.env.NEXT_PUBLIC_CONTACT_PHONE,
     NEXT_PUBLIC_CONTACT_EMAIL: process.env.NEXT_PUBLIC_CONTACT_EMAIL,
     NEXT_PUBLIC_CONTACT_ADDRESS: process.env.NEXT_PUBLIC_CONTACT_ADDRESS,
     NEXT_PUBLIC_BUILD_COMMIT_SHA: process.env.NEXT_PUBLIC_BUILD_COMMIT_SHA,

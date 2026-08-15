@@ -12,7 +12,7 @@ interface PageProps {
 
 export default async function PeoplePage(props: PageProps) {
     const searchParams = await props.searchParams;
-    const cities = await getCities({ includeUnlisted: true });
+    const cities = await getCities({ includeNonPublic: true });
 
     const selectedCityId = searchParams.cityId || (cities.length > 0 ? cities[0].id : "");
 

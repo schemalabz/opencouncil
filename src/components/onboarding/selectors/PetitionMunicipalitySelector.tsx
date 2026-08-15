@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { MunicipalitySelector } from '@/components/onboarding/selectors/MunicipalitySelector';
 import { CityMinimalWithCounts } from '@/lib/db/cities';
+import { isPetitionable } from "@/lib/cityStatus";
 
 interface PetitionMunicipalitySelectorProps {
     cities: CityMinimalWithCounts[];
@@ -23,7 +24,7 @@ export function PetitionMunicipalitySelector({ cities }: PetitionMunicipalitySel
         setSelectedCity(city);
         setIsNavigating(true);
 
-        const targetUrl = city.status !== 'listed' ? `/${city.id}/petition` : `/${city.id}`;
+        const targetUrl = isPetitionable(city.status) ? `/${city.id}/petition` : `/${city.id}`;
 
         // Force a proper history entry by ensuring the browser processes this as a user action
         setTimeout(() => {
