@@ -3,7 +3,7 @@ import { WakeEvent } from "./types";
 /**
  * The WhatsApp template shells, copied VERBATIM from Bird
  * (app.bird.com → OpenCouncil workspace → Message templates; first approved
- * by Meta 2026-08-04/05, revised 2026-08-15: persona name «ο Δήμος»,
+ * by Meta 2026-08-04/05, revised 2026-08-15: intro/transition name the persona «ο Νότης»,
  * conditional agenda closing, «Τι είναι αυτό;» intro button, new
  * demos_checkin — revised versions pending Meta re-approval). If a template
  * changes in Bird, this file must change with it — the simulator and the
@@ -47,7 +47,7 @@ export const TEMPLATES: Record<TemplateName, TemplateDef> = {
     name: "demos_intro",
     category: "marketing",
     bodyPrefix:
-      "Γεια σου! Είμαι ο Δήμος, ο βοηθός του OpenCouncil για τον δήμο σου. Θα σου γράφω σπάνια — μόνο όταν συμβαίνει κάτι που πιστεύω ότι σε αφορά — και μπορείς να μου απαντάς και να με ρωτάς οτιδήποτε για το δημοτικό συμβούλιο.",
+      "Γεια σου! Είμαι ο Νότης, ο βοηθός του OpenCouncil για τον δήμο σου. Θα σου γράφω σπάνια — μόνο όταν συμβαίνει κάτι που πιστεύω ότι σε αφορά — και μπορείς να μου απαντάς και να με ρωτάς οτιδήποτε για το δημοτικό συμβούλιο.",
     bodySuffix: "",
     hasVariable: false,
     footer: STOP_FOOTER,
@@ -60,7 +60,7 @@ export const TEMPLATES: Record<TemplateName, TemplateDef> = {
     name: "demos_transition",
     category: "marketing",
     bodyPrefix:
-      "Οι ειδοποιήσεις του OpenCouncil αλλάζουν! Από εδώ και πέρα σου γράφω εγώ, ο Δήμος, ο βοηθός του OpenCouncil. Θα σου στέλνω λιγότερα και πιο προσωπικά μηνύματα, μόνο όταν συμβαίνει κάτι που πραγματικά σε αφορά, και μπορείς να μου απαντάς και να με ρωτάς οτιδήποτε για τον δήμο σου. Τα email σου συνεχίζουν κανονικά.",
+      "Οι ειδοποιήσεις του OpenCouncil αλλάζουν! Από εδώ και πέρα σου γράφω εγώ, ο Νότης, ο βοηθός του OpenCouncil. Θα σου στέλνω λιγότερα και πιο προσωπικά μηνύματα, μόνο όταν συμβαίνει κάτι που πραγματικά σε αφορά, και μπορείς να μου απαντάς και να με ρωτάς οτιδήποτε για τον δήμο σου. Τα email σου συνεχίζουν κανονικά.",
     bodySuffix: "",
     hasVariable: false,
     footer: "Απάντησε ΣΤΟΠ για να λαμβάνεις μόνο email.",
