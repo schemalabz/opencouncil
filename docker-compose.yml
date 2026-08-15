@@ -51,6 +51,27 @@ services:
       - default
     profiles: ["dev"]
 
+  # Local database for the Notis service (services/notis). Plain postgres —
+  # Notis stores no geometry.
+  notis-db:
+    image: postgres:16-alpine
+    volumes:
+      - notisdata:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=notis
+      - POSTGRES_PASSWORD=notis
+      - POSTGRES_DB=notis
+    ports:
+      - "${NOTIS_DB_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notis -d notis"]
+      interval: 10s
+      retries: 5
+      timeout: 10s
+    networks:
+      - default
+    profiles: ["with-db"]
+
   # Local database service
   db:
     build:
@@ -97,6 +118,7 @@ services:
 volumes:
   pgdata:
   valkeydata:
+  notisdata:
 
 networks:
   default:

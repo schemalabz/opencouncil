@@ -1,0 +1,215 @@
+// The Notis service's own database: subscriptions, wakes, messages, journal,
+// queue. userId references the main database by id only — no cross-database
+// foreign keys. Rollout state (User.notisEnabledAt) lives in the main
+// database; Notis reads it through the notis_* views (see main-views.prisma).
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("NOTIS_DATABASE_URL")
+}
+
+enum SubscriptionStatus {
+  active
+  paused_no_phone
+  unsubscribed
+}
+
+// How the subscription came to exist. `inbound` arrives with PR 3.
+enum SubscriptionOrigin {
+  transition
+  signup
+}
+
+model NotisSubscription {
+  id     String @id @default(cuid())
+  // Main-database User.id. One subscription per user, spanning all cities.
+  userId String @unique
+  phone  String?
+
+  status SubscriptionStatus @default(active)
+  origin SubscriptionOrigin
+  // Only the user moves a row into or out of `unsubscribed`.
+  unsubscribedAt DateTime?
+
+  // The agent-maintained free-text profile. Seeded once from notification
+  // preferences at enrollment, rewritten wholesale by update_taste_profile.
+  profileText String
+
+  // Display snapshot for the admin panel and wake-state assembly:
+  // CityPreference[] ({cityId, cityName, topics, locations}). The live
+  // notis_fanout_targets view stays the source of truth for who gets woken;
+  // the poller refreshes this snapshot (PR 4).
+  cities   Json    @default("[]")
+  userName String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  wakes          NotisWake[]
+  messages       NotisMessage[]
+  journalEntries NotisJournalEntry[]
+  scheduledWakes NotisScheduledWake[]
+  queueItems     NotisWakeQueue[]
+
+  @@index([status])
+}
+
+enum WakeDecision {
+  send
+  silence
+  error
+}
+
+model NotisWake {
+  id             String            @id @default(cuid())
+  subscription   NotisSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String
+
+  // WakeEvent type (agenda_processed, meeting_summarized, user_message,
+  // scheduled, heartbeat) — the world's timeline lives in eventAt.
+  eventType String
+  eventAt   DateTime
+  event     Json
+
+  decision  WakeDecision
+  rationale String
+  // Repair nudges that fired; empty = healthy wake.
+  repairs           String[] @default([])
+  truncated         Boolean  @default(false)
+  finishWakeMissing Boolean  @default(false)
+
+  model      String
+  usage      Json
+  costUsd    Float
+  durationMs Int
+  // Full WakeTrace for the admin conversation inspector.
+  trace Json
+
+  createdAt DateTime @default(now())
+
+  messages NotisMessage[]
+
+  @@index([subscriptionId, createdAt])
+  @@index([createdAt])
+}
+
+enum MessageDirection {
+  inbound
+  outbound
+}
+
+enum MessageDeliveryMode {
+  template
+  freeform
+}
+
+enum MessageStatus {
+  pending
+  sent
+  delivered
+  read
+  failed
+}
+
+model NotisMessage {
+  id             String            @id @default(cuid())
+  subscription   NotisSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String
+  wake           NotisWake?        @relation(fields: [wakeId], references: [id], onDelete: SetNull)
+  wakeId         String?
+
+  direction MessageDirection
+  body      String
+  // Outbound only: which shell carried the text.
+  deliveryMode MessageDeliveryMode?
+  template     String?
+  // Delivery lifecycle, outbound only; Bird webhooks update it (PR 3/4).
+  status        MessageStatus?
+  birdMessageId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([subscriptionId, createdAt])
+}
+
+model NotisJournalEntry {
+  id             String            @id @default(cuid())
+  subscription   NotisSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String
+  wakeId         String?
+
+  // Per-subscription append order; the wake input takes the latest
+  // JOURNAL_WINDOW entries by seq.
+  seq   Int
+  // journalEntrySchema shape (at, event, decision, rationale, messages, ...).
+  entry Json
+
+  createdAt DateTime @default(now())
+
+  @@unique([subscriptionId, seq])
+}
+
+model NotisScheduledWake {
+  id             String            @id @default(cuid())
+  subscription   NotisSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String
+
+  runAfter DateTime
+  reason   String
+  firedAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([runAfter])
+}
+
+enum QueueLane {
+  live
+  batch
+}
+
+enum QueueItemStatus {
+  pending
+  running
+  done
+  failed
+}
+
+model NotisWakeQueue {
+  id             String            @id @default(cuid())
+  subscription   NotisSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String
+
+  lane QueueLane
+  // Coalesced WakeEvent[] — a subscription keeps at most one pending batch
+  // row; new events merge into it (enforced by the queue code, PR 4).
+  events   Json
+  runAfter DateTime
+
+  status    QueueItemStatus @default(pending)
+  claimedAt DateTime?
+  attempts  Int             @default(0)
+  lastError String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, runAfter])
+  @@index([subscriptionId, status])
+}
+
+// Dedup log against notis_meeting_events: taskId is the event identity, so a
+// reprocessed meeting (new task row) counts as fresh.
+model NotisProcessedEvent {
+  taskId    String   @id
+  type      String
+  cityId    String
+  meetingId String
+
+  processedAt DateTime @default(now())
+}
