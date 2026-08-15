@@ -149,10 +149,10 @@ export function EditingProvider({ children }: { children: ReactNode }) {
     }, [selectedUtteranceIds, isProcessing, extractSpeakerSegment, getSpeakerSegmentById, clearSelection, toast, t]);
 
     // Splitting at an utterance is extraction with a single-utterance range:
-    // the server keeps the utterances before it in the original segment
-    // (deleting the segment when there are none), gives the utterance a new
-    // unassigned speaker tag, and re-attaches the utterances after it to a
-    // new segment with the original speaker.
+    // the server gives the utterance a new unassigned speaker tag and keeps
+    // the surrounding utterances with the original speaker — the ones before
+    // it in the original segment, the ones after it in a new segment (or in
+    // the original segment when no utterances come before it).
     const splitUtteranceToNewSpeaker = useCallback(async (utteranceId: string, segmentId: string) => {
         if (isProcessing) return;
 
