@@ -378,7 +378,11 @@ export function WhatsAppChat({
   // keeps a just-sent user message visible instantly, while a rewind (which
   // returns records to pending without running them) clears their bubbles.
   const visible = records.filter((q) => q.status !== "pending" || q.id === busyItemId);
-  const next = records.find((q) => q.status === "pending");
+  // Mirror the page's ΣΤΟΠ gate: once a wake unsubscribed the reader, the
+  // remaining proactive items are dead — the buttons must look it, not just
+  // silently no-op. The composer stays live (inbound survives a ΣΤΟΠ).
+  const stopped = records.some((r) => r.outcome?.unsubscribe);
+  const next = stopped ? undefined : records.find((q) => q.status === "pending");
   const intro = renderTemplate(introTemplateFor(origin));
   const introAt = new Date(startAt).toISOString();
 
