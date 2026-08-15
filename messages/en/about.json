@@ -238,27 +238,84 @@
     "search": {
       "allMunicipalities": "All municipalities",
       "resultsCount": "{count} results in 3 municipalities",
-      "results": {
-        "0": {
-          "subject": "Renovation of the Municipal Market Square",
-          "city": "Municipality of Chania",
-          "speaker": "Maria Georgiou",
-          "location": "Municipal Market Square",
-          "highlight": "...the budget is covered by <mark>ESPA</mark> funds and the competition will be announced within three months..."
+      "byRealm": {
+        "greece": {
+          "query": "ESPA",
+          "results": {
+            "0": {
+              "subject": "Renovation of the Municipal Market Square",
+              "city": "Municipality of Chania",
+              "speaker": "Maria Georgiou",
+              "location": "Municipal Market Square",
+              "highlight": "...the budget is covered by <mark>ESPA</mark> funds and the competition will be announced within three months..."
+            },
+            "1": {
+              "subject": "Funding for sports facilities",
+              "city": "Municipality of Chalandri",
+              "speaker": "Dimitris Konstantinou",
+              "location": "N. Chalandri Sports Center",
+              "highlight": "...the inclusion in <mark>ESPA</mark> was approved for the swimming pool and multipurpose halls..."
+            },
+            "2": {
+              "subject": "Energy upgrade for schools",
+              "city": "Municipality of Athens",
+              "speaker": "Eleni Papandreou",
+              "location": "Central sector",
+              "highlight": "...a proposal was submitted to <mark>ESPA</mark> 2021-2027 for solar panels on 12 school buildings..."
+            }
+          }
         },
-        "1": {
-          "subject": "Funding for sports facilities",
-          "city": "Municipality of Chalandri",
-          "speaker": "Dimitris Konstantinou",
-          "location": "N. Chalandri Sports Center",
-          "highlight": "...the inclusion in <mark>ESPA</mark> was approved for the swimming pool and multipurpose halls..."
+        "france": {
+          "query": "DSIL",
+          "results": {
+            "0": {
+              "subject": "Renovation of Place Sainte-Anne",
+              "city": "Municipality of Rennes",
+              "speaker": "Marie Lefèvre",
+              "location": "Place Sainte-Anne",
+              "highlight": "...the budget is covered by <mark>DSIL</mark> funds and the competition will be announced within three months..."
+            },
+            "1": {
+              "subject": "Funding for sports facilities",
+              "city": "Municipality of Nantes",
+              "speaker": "Julien Moreau",
+              "location": "Doulon Sports Complex",
+              "highlight": "...the inclusion in <mark>DSIL</mark> was approved for the swimming pool and multipurpose halls..."
+            },
+            "2": {
+              "subject": "Energy upgrade for schools",
+              "city": "Municipality of Bordeaux",
+              "speaker": "Camille Rousseau",
+              "location": "Central sector",
+              "highlight": "...a <mark>DSIL</mark> 2026 application was submitted for solar panels on 12 school buildings..."
+            }
+          }
         },
-        "2": {
-          "subject": "Energy upgrade for schools",
-          "city": "Municipality of Athens",
-          "speaker": "Eleni Papandreou",
-          "location": "Central sector",
-          "highlight": "...a proposal was submitted to <mark>ESPA</mark> 2021-2027 for solar panels on 12 school buildings..."
+        "serbia": {
+          "query": "IPA",
+          "results": {
+            "0": {
+              "subject": "Renovation of Republic Square",
+              "city": "City of Belgrade",
+              "speaker": "Milan Jovanović",
+              "location": "Republic Square",
+              "highlight": "...the budget is covered by the <mark>IPA</mark> programme and the competition will be announced within three months..."
+            },
+            "1": {
+              "subject": "Funding for sports facilities",
+              "city": "City of Novi Sad",
+              "speaker": "Ana Petrović",
+              "location": "Liman Sports Center",
+              "highlight": "...the inclusion in the <mark>IPA</mark> programme was approved for the swimming pool and multipurpose halls..."
+            },
+            "2": {
+              "subject": "Energy upgrade for schools",
+              "city": "City of Niš",
+              "speaker": "Jelena Nikolić",
+              "location": "Central city zone",
+              "highlight": "...a proposal was submitted to <mark>IPA</mark> 2021-2027 for solar panels on 12 school buildings..."
+            }
+          }
         }
       }
     },
@@ -275,14 +332,84 @@
       "inputPlaceholder": "Type a message"
     },
     "map": {
-      "mapAlt": "Map of Chania",
       "filters": "Filters",
       "subjectCount": "{count} subjects · Last 6 months",
-      "subjects": {
-        "0": { "title": "Renovation of Municipal Market Square", "location": "Municipal Market Sq.", "topic": "Infrastructure" },
-        "1": { "title": "Traffic regulations on Skalidi St.", "location": "Skalidi Street", "topic": "Traffic" },
-        "2": { "title": "Store licensing", "location": "15 Halepa Ave", "topic": "Licensing" },
-        "3": { "title": "School building maintenance", "location": "4th Primary School", "topic": "Education" }
+      "byRealm": {
+        "greece": {
+          "mapAlt": "Map of Chania",
+          "subjects": {
+            "0": {
+              "title": "Renovation of Municipal Market Square",
+              "location": "Municipal Market Sq.",
+              "topic": "Infrastructure"
+            },
+            "1": {
+              "title": "Traffic regulations on Skalidi St.",
+              "location": "Skalidi Street",
+              "topic": "Traffic"
+            },
+            "2": {
+              "title": "Store licensing",
+              "location": "15 Halepa Ave",
+              "topic": "Licensing"
+            },
+            "3": {
+              "title": "School building maintenance",
+              "location": "4th Primary School",
+              "topic": "Education"
+            }
+          }
+        },
+        "france": {
+          "mapAlt": "Map of Rennes",
+          "subjects": {
+            "0": {
+              "title": "Renovation of Place Sainte-Anne",
+              "location": "Place Sainte-Anne",
+              "topic": "Infrastructure"
+            },
+            "1": {
+              "title": "Traffic regulations on Rue de Saint-Malo",
+              "location": "Rue de Saint-Malo",
+              "topic": "Traffic"
+            },
+            "2": {
+              "title": "Store licensing",
+              "location": "12 Quai Émile Zola",
+              "topic": "Licensing"
+            },
+            "3": {
+              "title": "School building maintenance",
+              "location": "Jean Moulin School",
+              "topic": "Education"
+            }
+          }
+        },
+        "serbia": {
+          "mapAlt": "Map of Belgrade",
+          "subjects": {
+            "0": {
+              "title": "Renovation of Republic Square",
+              "location": "Republic Square",
+              "topic": "Infrastructure"
+            },
+            "1": {
+              "title": "Traffic regulations on Knez Mihailova St.",
+              "location": "Knez Mihailova Street",
+              "topic": "Traffic"
+            },
+            "2": {
+              "title": "Store licensing",
+              "location": "15 Kralja Aleksandra Blvd",
+              "topic": "Licensing"
+            },
+            "3": {
+              "title": "School building maintenance",
+              "location": "Kralj Petar I Primary School",
+              "topic": "Education"
+            }
+          }
+        }
       }
     }
   },

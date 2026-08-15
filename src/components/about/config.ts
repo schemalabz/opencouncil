@@ -27,6 +27,14 @@ export interface RecognitionItem {
     logoClassName?: string
 }
 
+/**
+ * Which scenario the /about mockups (search results, map pins) illustrate. The
+ * mockups name real streets, people and funding programmes, so a realm that
+ * shows Chania and ΕΣΠΑ grants reads as wrong outside Greece. A realm with no
+ * scenario of its own falls back to another one, as `demoUrlByRealm` does.
+ */
+export type DemoScenario = 'greece' | 'france' | 'serbia'
+
 export interface TeamMember {
     id: string
     image: string
@@ -38,6 +46,22 @@ export interface TeamMember {
 }
 
 // ─── Data ────────────────────────────────────────────────────────────────────
+
+export const DEMO_SCENARIO_BY_REALM: Record<Realm, DemoScenario> = {
+    greece: 'greece',
+    // Cyprus has no scenario of its own yet. The Greek one at least speaks the
+    // right language, which no other scenario does.
+    cyprus: 'greece',
+    france: 'france',
+    serbia: 'serbia',
+}
+
+/** Center and zoom of the static map tile behind the map mockup, per scenario. */
+export const DEMO_MAP_VIEWS: Record<DemoScenario, { lng: number; lat: number; zoom: number }> = {
+    greece: { lng: 24.0186, lat: 35.5138, zoom: 14.5 },  // Chania
+    france: { lng: -1.6795, lat: 48.1125, zoom: 14.5 },  // Rennes
+    serbia: { lng: 20.4630, lat: 44.8155, zoom: 14.5 },  // Belgrade, Stari Grad
+}
 
 export const OPENNESS_FEATURE_IDS = ['subjects', 'search', 'notifications', 'map'] as const
 
