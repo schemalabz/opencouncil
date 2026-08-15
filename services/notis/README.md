@@ -40,9 +40,14 @@ The app spec lives in the DO dashboard, not the repo. The Notis component:
 | Domain | `notis.opencouncil.gr` |
 | Instance | smallest available (stateless, I/O-bound) |
 | Env (secret, run+build) | `ANTHROPIC_API_KEY`, `NOTIS_ADMIN_SECRET` |
+| Env (build-time, plain) | `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` (public token; baked at build — without it the wizard's map/address search degrades to text chips) |
+| Env (optional) | `NOTIS_MCP_URL` (defaults to `https://opencouncil.gr/mcp`), `OPENCOUNCIL_BASE_URL` |
 
 Same branch wiring as the main component: `production` branch → production,
-`main` → staging. The main app's component is untouched by this — its build
+`main` → staging. The staging component gets its own domain (e.g.
+`notis-staging.opencouncil.gr`) and its own `NOTIS_ADMIN_SECRET`; nothing is
+shared with production. DNS per domain: a CNAME to the DO app's default
+hostname (DO then issues the certificate). The main app's component is untouched by this — its build
 still runs at the root and ignores `services/`.
 
 ## Interim admin auth
