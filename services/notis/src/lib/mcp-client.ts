@@ -89,6 +89,27 @@ export class McpClient implements McpLike {
     });
   }
 
+  /**
+   * Reset shared session state exactly once per expiry: concurrent 404s all
+   * funnel into the first detector's re-init instead of each resetting the
+   * singleton under the others' feet (a caller in flight between someone
+   * else's reset and re-init would otherwise burn its one retry for nothing).
+   */
+  private recovering: Promise<void> | null = null;
+
+  private recoverSession(): Promise<void> {
+    if (!this.recovering) {
+      this.recovering = (async () => {
+        this.sessionId = null;
+        this.initialized = null;
+        await this.ensureInitialized();
+      })().finally(() => {
+        this.recovering = null;
+      });
+    }
+    return this.recovering;
+  }
+
   async call(tool: string, args: Record<string, unknown>): Promise<unknown> {
     let res = await this.postCall(tool, args);
     if (res.status === 404) {
@@ -96,8 +117,7 @@ export class McpClient implements McpLike {
       // client lives in module-scope singletons, so without recovery one
       // expiry would brick every later call until the process restarts.
       await res.text().catch(() => undefined);
-      this.sessionId = null;
-      this.initialized = null;
+      await this.recoverSession();
       res = await this.postCall(tool, args);
     }
     if (!res.ok) throw new Error(`MCP tools/call ${tool} failed: HTTP ${res.status}`);
@@ -107,15 +127,21 @@ export class McpClient implements McpLike {
       const msg = body.result.content?.map((c) => c.text).join("\n") ?? "unknown tool error";
       throw new Error(`MCP ${tool}: ${msg}`);
     }
-    const text = body.result?.content
-      ?.filter((c) => c.type === "text" && typeof c.text === "string")
-      .map((c) => c.text)
-      .join("\n");
-    if (!text) return null;
-    try {
-      return JSON.parse(text);
-    } catch {
-      return text;
+    // Parse text blocks individually: the server may append advisory blocks
+    // (e.g. the analytics wrapper's "[SERVER]: Reuse conversation_id=…"), and
+    // joining them corrupts the JSON. The data block is the first one that
+    // parses; a data-less response falls back to the joined plain text.
+    const texts = (body.result?.content ?? [])
+      .filter((c) => c.type === "text" && typeof c.text === "string")
+      .map((c) => c.text as string);
+    if (texts.length === 0) return null;
+    for (const text of texts) {
+      try {
+        return JSON.parse(text);
+      } catch {
+        // not the data block — keep looking
+      }
     }
+    return texts.join("\n");
   }
 }
