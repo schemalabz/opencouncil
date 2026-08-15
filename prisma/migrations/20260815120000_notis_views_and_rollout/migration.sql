@@ -118,4 +118,8 @@ BEGIN
 END
 $$;
 
+-- USAGE only resolves names in the schema; it grants no table access. Not
+-- every database keeps the default PUBLIC grant on the public schema (a
+-- recreated or hardened schema drops it), so grant it explicitly.
+GRANT USAGE ON SCHEMA public TO notis_reader;
 GRANT SELECT ON "notis_users", "notis_fanout_targets", "notis_meeting_events", "notis_sessions", "notis_admin_sessions" TO notis_reader;

@@ -74,6 +74,8 @@ These variables are used by the flake runner (`nix run .#dev`) to configure **lo
 | `BASIC_AUTH_USERNAME` | Username for basic auth protection. | No | - |
 | `BASIC_AUTH_PASSWORD` | Password for basic auth protection. | No | - |
 | `NEXTAUTH_SECRET` | Secret used by NextAuth.js to hash tokens, sign/encrypt cookies, and generate cryptographic keys. | Yes | - |
+| `SESSION_COOKIE_DOMAIN` | Domain for the session-mirror cookie that authenticates the Notis admin (`.opencouncil.gr` on production, `.staging.opencouncil.gr` on staging). Unset disables mirroring. | No | - |
+| `SESSION_COOKIE_SUFFIX` | Per-environment suffix for the mirror cookie name (`-staging` on staging), so the production mirror never authenticates a staging service. | No | - |
 
 ### Notifications
 | Variable | Description | Required | Default |

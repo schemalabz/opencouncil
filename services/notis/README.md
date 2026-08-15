@@ -97,13 +97,5 @@ staging `SESSION_COOKIE_DOMAIN=.staging.opencouncil.gr` and
   replay lane guards the code: deterministic, free, full-content assertions.
   The second job — guarding prompt changes — needs a live-replay lane with
   behavioral assertions (decision, cadence caps, link presence), because a
-  prompt change invalidates recorded turns. That lane does not exist yet.
-- **The wizard's profile is not the migration-seeded profile.** The PRD (§7)
-  seeds a simulated profile from notification preferences exactly as
-  migration will; the wizard takes hand-typed free text. Tuning happens on a
-  different population than launch until the seeding rule (needed for PR 6
-  anyway) is implemented here.
-- **Fixtures need re-recording on the shipped pipeline.** Both current
-  fixtures predate the model change and the agenda embargo; the recording
-  script now writes full-content assertions, so the next recording closes
-  the gap.
+  prompt change invalidates recorded turns. That lane lands on Langfuse in a
+  final PR.
