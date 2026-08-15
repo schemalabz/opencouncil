@@ -1,18 +1,48 @@
 import { ModelResponse, Usage } from "./types";
 
+interface Rates {
+  inputPerMTok: number;
+  outputPerMTok: number;
+  /** Cache writes bill by TTL: 1h at 2× base input, 5m at 1.25×. */
+  cacheWrite1hPerMTok: number;
+  cacheWrite5mPerMTok: number;
+  /** Cache reads bill at 0.1× input. */
+  cacheReadPerMTok: number;
+}
+
+function ratesFrom(inputPerMTok: number, outputPerMTok: number): Rates {
+  return {
+    inputPerMTok,
+    outputPerMTok,
+    cacheWrite1hPerMTok: inputPerMTok * 2,
+    cacheWrite5mPerMTok: inputPerMTok * 1.25,
+    cacheReadPerMTok: inputPerMTok / 10,
+  };
+}
+
 /**
- * claude-sonnet-5 pricing, USD per million tokens (list price — an intro rate
- * of $2/$10 applies through 2026-08-31, so real spend runs lower until then).
- * Cache reads bill at 0.1× input; cache-write rates depend on TTL (below).
+ * List prices, USD per million tokens, by model-id prefix. (Sonnet 5 has an
+ * intro rate of $2/$10 through 2026-08-31, so real spend runs lower until
+ * then.) The playground can override the model per wake — costs must follow
+ * the model that actually ran, not the default.
  */
-export const SONNET_5_RATES = {
-  inputPerMTok: 3,
-  outputPerMTok: 15,
-  // Cache writes bill by TTL: 1h at 2× base input, 5m at 1.25×.
-  cacheWrite1hPerMTok: 6,
-  cacheWrite5mPerMTok: 3.75,
-  cacheReadPerMTok: 0.3,
-};
+const RATES_BY_MODEL_PREFIX: Array<[prefix: string, rates: Rates]> = [
+  ["claude-sonnet-5", ratesFrom(3, 15)],
+  ["claude-sonnet-4", ratesFrom(3, 15)],
+  ["claude-opus", ratesFrom(5, 25)],
+  ["claude-haiku", ratesFrom(1, 5)],
+];
+
+export const SONNET_5_RATES = ratesFrom(3, 15);
+
+function ratesFor(model: string | undefined): Rates {
+  if (model) {
+    for (const [prefix, rates] of RATES_BY_MODEL_PREFIX) {
+      if (model.startsWith(prefix)) return rates;
+    }
+  }
+  return SONNET_5_RATES;
+}
 
 /** Normalize the wire usage shape, keeping the TTL split when the SDK reports it. */
 export function normalizeUsage(u: ModelResponse["usage"]): Usage {
@@ -43,7 +73,8 @@ export function addUsage(a: Usage, b: Usage): Usage {
   };
 }
 
-export function usageToCost(usage: Usage): number {
+export function usageToCost(usage: Usage, model?: string): number {
+  const rates = ratesFor(model);
   const m = 1_000_000;
   // Only the system breakpoint uses the 1h TTL; the user-turn and moving
   // breakpoints write at the 5m rate. Without the split (older fixtures),
@@ -51,10 +82,10 @@ export function usageToCost(usage: Usage): number {
   const write1h = usage.cacheWrite1h ?? usage.cacheWrite;
   const write5m = usage.cacheWrite - write1h;
   return (
-    (usage.input / m) * SONNET_5_RATES.inputPerMTok +
-    (usage.output / m) * SONNET_5_RATES.outputPerMTok +
-    (write1h / m) * SONNET_5_RATES.cacheWrite1hPerMTok +
-    (write5m / m) * SONNET_5_RATES.cacheWrite5mPerMTok +
-    (usage.cacheRead / m) * SONNET_5_RATES.cacheReadPerMTok
+    (usage.input / m) * rates.inputPerMTok +
+    (usage.output / m) * rates.outputPerMTok +
+    (write1h / m) * rates.cacheWrite1hPerMTok +
+    (write5m / m) * rates.cacheWrite5mPerMTok +
+    (usage.cacheRead / m) * rates.cacheReadPerMTok
   );
 }

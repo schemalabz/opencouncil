@@ -338,7 +338,7 @@ export async function runWake(
     userTurn,
     turns,
     usageTotal,
-    costUsd: usageToCost(usageTotal),
+    costUsd: usageToCost(usageTotal, deps.config.model),
     durationMs: deps.now().getTime() - started,
   };
 

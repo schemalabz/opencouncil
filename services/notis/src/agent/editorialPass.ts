@@ -208,5 +208,5 @@ export async function editorialPass(
     subjects: briefSubjects,
   };
 
-  return { brief, usage, costUsd: usageToCost(usage) };
+  return { brief, usage, costUsd: usageToCost(usage, deps.config.model) };
 }
