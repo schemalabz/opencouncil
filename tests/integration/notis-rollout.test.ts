@@ -55,6 +55,7 @@ describe('notis release panel data layer', () => {
         const overview = await getNotisRolloutOverview()
         expect(overview.eligible).toBe(2)
         expect(overview.enabled).toBe(0)
+        expect(overview.remaining).toBe(2)
     })
 
     test('enableNextBatch clamps to the remaining eligible users', async () => {
@@ -96,5 +97,12 @@ describe('notis release panel data layer', () => {
         expect(total).toBe(1)
         expect(users[0].id).toBe(user.id)
         expect(users[0].notisEnabledAt).toBeInstanceOf(Date)
+
+        // Counted directly: the enabled-but-ineligible user must not push
+        // the batch pool negative or hide real candidates.
+        const overview = await getNotisRolloutOverview()
+        expect(overview.enabled).toBe(1)
+        expect(overview.eligible).toBe(0)
+        expect(overview.remaining).toBe(0)
     })
 })

@@ -24,13 +24,21 @@ export interface NotisRolloutUser {
     cityNames: string[];
 }
 
-export async function getNotisRolloutOverview(): Promise<{ eligible: number; enabled: number }> {
+export async function getNotisRolloutOverview(): Promise<{
+    eligible: number;
+    enabled: number;
+    // Counted directly, not derived as eligible - enabled: an enabled user
+    // who later dropped a preference is in `enabled` but not in `eligible`,
+    // and the subtraction would undercount the real batch pool.
+    remaining: number;
+}> {
     await withUserAuthorizedToEdit({});
-    const [eligible, enabled] = await Promise.all([
+    const [eligible, enabled, remaining] = await Promise.all([
         prisma.user.count({ where: ELIGIBLE }),
         prisma.user.count({ where: { notisEnabledAt: { not: null } } }),
+        prisma.user.count({ where: { AND: [ELIGIBLE, { notisEnabledAt: null }] } }),
     ]);
-    return { eligible, enabled };
+    return { eligible, enabled, remaining };
 }
 
 /**

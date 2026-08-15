@@ -75,9 +75,7 @@ export default async function NotisReleasePage(props: {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <EnableBatchForm
-                            remaining={Math.max(0, overview.eligible - overview.enabled)}
-                        />
+                        <EnableBatchForm remaining={overview.remaining} />
                     </CardContent>
                 </Card>
             </div>

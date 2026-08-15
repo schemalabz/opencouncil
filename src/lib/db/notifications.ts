@@ -1187,8 +1187,10 @@ export async function getNotificationsGroupedByMeeting(filters: {
 
         // Determine the status of this notification based on its deliveries:
         // any pending delivery -> "pending"; else any failed -> "failed"; else
-        // all deliveries skipped -> "skipped" (nothing was actually sent);
-        // otherwise "sent".
+        // nothing was actually dispatched -> "skipped" (all deliveries
+        // deliberately withheld, OR no delivery was ever created — e.g. a
+        // phone-only user on the Notis rollout, whose in-app notification
+        // exists but whose message medium belongs to Notis); otherwise "sent".
         const deliveryStatuses = notification.deliveries.map(d => d.status);
         let notificationStatus: 'sent' | 'pending' | 'failed' | 'skipped';
 
@@ -1196,7 +1198,7 @@ export async function getNotificationsGroupedByMeeting(filters: {
             notificationStatus = 'pending';
         } else if (deliveryStatuses.includes('failed')) {
             notificationStatus = 'failed';
-        } else if (deliveryStatuses.length > 0 && deliveryStatuses.every(s => s === 'skipped')) {
+        } else if (deliveryStatuses.every(s => s === 'skipped')) {
             notificationStatus = 'skipped';
         } else {
             notificationStatus = 'sent';

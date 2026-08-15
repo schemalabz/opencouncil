@@ -1,6 +1,6 @@
 /** @jest-environment node */
 import prisma from '@/lib/db/prisma'
-import { createNotificationsForMeeting } from '@/lib/db/notifications'
+import { createNotificationsForMeeting, getNotificationsGroupedByMeeting } from '@/lib/db/notifications'
 import { releaseNotifications } from '@/lib/notifications/deliver'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
 import {
@@ -57,6 +57,38 @@ describe('notis rollout exclusion in the notification pipeline', () => {
             where: { notification: { userId: user.id } },
         })
         expect(deliveries.map((d) => d.medium).sort()).toEqual(['email', 'message'])
+    })
+
+    test('a phone-only enabled user keeps the in-app notification, gets no deliveries, and reads as skipped', async () => {
+        const { city, meeting, topic } = await setupMatchingMeeting()
+        const user = await createUser('phone-only@example.com', {
+            phone: '+306900000009',
+            notisEnabledAt: new Date(),
+        })
+        await prisma.notificationPreference.create({
+            data: {
+                userId: user.id,
+                cityId: city.id,
+                notifyByEmail: false,
+                notifyByPhone: true,
+                interests: { connect: [{ id: topic.id }] },
+            },
+        })
+
+        // The in-app notification stays (notifications keep email + in-app);
+        // only the message medium belongs to Notis.
+        const result = await createNotificationsForMeeting(city.id, meeting.id, 'afterMeeting')
+        expect(result.notificationsCreated).toBe(1)
+        const deliveries = await prisma.notificationDelivery.findMany({
+            where: { notification: { userId: user.id } },
+        })
+        expect(deliveries).toHaveLength(0)
+
+        // Admin stats must not report this as "sent" — nothing was dispatched.
+        const grouped = await getNotificationsGroupedByMeeting({ cityId: city.id })
+        expect(grouped.meetings).toHaveLength(1)
+        expect(grouped.meetings[0].after?.skipped).toBe(1)
+        expect(grouped.meetings[0].after?.sent).toBe(0)
     })
 
     test('a pending message delivery is skipped at release when the user got enabled after creation', async () => {
