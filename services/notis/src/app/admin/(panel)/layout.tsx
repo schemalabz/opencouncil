@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AdminSidebar } from "./_components/AdminSidebar";
+import { hasNotisDb } from "@/lib/db";
 import { getAdminSession } from "@/lib/session-auth";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
@@ -10,7 +11,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
 
   return (
     <div className="flex h-full">
-      <AdminSidebar />
+      <AdminSidebar live={hasNotisDb()} />
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</main>
     </div>
   );

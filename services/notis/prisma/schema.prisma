@@ -78,6 +78,12 @@ model NotisWake {
 
   decision  WakeDecision
   rationale String
+  // The full WakeOutcome, verbatim — the admin conversation viewer replays
+  // it into a WakeRecord without reassembly. The scalar columns beside it
+  // (decision, rationale, repairs, ...) exist for querying and metrics.
+  outcome Json
+  // How the messages were delivered: {mode:"template",template} | {mode:"freeform"}.
+  delivery Json?
   // Repair nudges that fired; empty = healthy wake.
   repairs           String[] @default([])
   truncated         Boolean  @default(false)

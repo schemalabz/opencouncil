@@ -2,9 +2,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, MapPin, X } from "lucide-react";
+import { seedProfileFromPreferences } from "@/agent/profileSeed";
 import { introTemplateFor, renderTemplate } from "@/agent/templates";
 import { CityPreference, WakeState } from "@/agent/types";
-import { CityOption, TopicOption, fetchCities, fetchMeetings, fetchTopics, geocode } from "../api";
+import {
+  CityOption,
+  RealUser,
+  TopicOption,
+  fetchCities,
+  fetchMeetings,
+  fetchRealUsers,
+  fetchTopics,
+  geocode,
+} from "../api";
 import { MeetingSummary, deriveQueue } from "../deriveQueue";
 import { LocationPoint, Origin, Sim } from "../types";
 import { AddressSearch } from "./AddressSearch";
@@ -20,6 +30,9 @@ interface CityDraft extends CityPreference {
   center: MapFocus | null;
   logo?: string | null;
 }
+
+const DEFAULT_PROFILE =
+  "Μένει στην πόλη χρόνια. Ενδιαφέρεται για όσα αλλάζουν την καθημερινότητά της.";
 
 function SectionHeader({ n, title }: { n: string; title: string }) {
   return (
@@ -43,16 +56,36 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
   const [drafts, setDrafts] = useState<CityDraft[]>([]);
   const [focus, setFocus] = useState<MapFocus | null>(null);
   const [name, setName] = useState("Μαρία");
-  const [profile, setProfile] = useState(
-    "Μένει στην πόλη χρόνια. Ενδιαφέρεται για όσα αλλάζουν την καθημερινότητά της.",
-  );
+  const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  // Until the admin edits the textarea, the profile tracks the mechanical
+  // seeding rule — the same one migration enrollment uses — so tuning runs
+  // on launch-shaped profiles, not hand-typed ones.
+  const [profileDirty, setProfileDirty] = useState(false);
   const [origin, setOrigin] = useState<Origin>("transition");
   const [from, setFrom] = useState("2026-05-01");
+
+  const [realUsers, setRealUsers] = useState<{ available: boolean; users: RealUser[] } | null>(null);
+  const [realMode, setRealMode] = useState(false);
+  const [realSearch, setRealSearch] = useState("");
+  const [selectedRealUserId, setSelectedRealUserId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCities().then(setCities).catch((e) => setError(String(e)));
     fetchTopics().then(setTopics).catch((e) => setError(String(e)));
+    // Missing MAIN_DATABASE_URL (or a transient failure) just hides the mode.
+    fetchRealUsers()
+      .then(setRealUsers)
+      .catch(() => setRealUsers({ available: false, users: [] }));
   }, []);
+
+  useEffect(() => {
+    if (profileDirty) return;
+    setProfile(
+      drafts.length === 0
+        ? DEFAULT_PROFILE
+        : seedProfileFromPreferences(drafts.map(({ points: _p, center: _c, logo: _l, ...pref }) => pref)),
+    );
+  }, [drafts, profileDirty]);
 
   const availableCities = useMemo(
     () =>
@@ -63,6 +96,15 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
   );
 
   const allPoints = useMemo(() => drafts.flatMap((d) => d.points), [drafts]);
+
+  const filteredRealUsers = useMemo(() => {
+    const users = realUsers?.users ?? [];
+    const q = realSearch.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter(
+      (u) => u.name?.toLowerCase().includes(q) || u.phone?.includes(realSearch.trim()),
+    );
+  }, [realUsers, realSearch]);
 
   async function addCity(c: CityOption) {
     setCitySearch("");
@@ -86,6 +128,32 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
 
   function updateDraft(cityId: string, fn: (d: CityDraft) => CityDraft) {
     setDrafts((prev) => prev.map((d) => (d.cityId === cityId ? fn(d) : d)));
+  }
+
+  /**
+   * Mirror a real user: their preferences become the drafts and the profile
+   * re-seeds mechanically. Locations arrive as free text only (the view
+   * carries no coordinates), so the map shows city centers without pins.
+   */
+  function applyRealUser(user: RealUser) {
+    setSelectedRealUserId(user.userId);
+    setName(user.name ?? "Δημότης");
+    setProfileDirty(false);
+    const newDrafts: CityDraft[] = user.cities.map((pref) => ({
+      ...pref,
+      points: [],
+      center: null,
+      logo: cities.find((c) => c.id === pref.cityId)?.logoImage ?? null,
+    }));
+    setDrafts(newDrafts);
+    for (const draft of newDrafts) {
+      void geocode(draft.cityName, mapboxToken, undefined, "place,locality").then((hits) => {
+        const center = hits[0] ? { lng: hits[0].lng, lat: hits[0].lat, zoom: 11.5 } : null;
+        if (!center) return;
+        setDrafts((prev) => prev.map((d) => (d.cityId === draft.cityId ? { ...d, center } : d)));
+        if (draft.cityId === newDrafts[0]?.cityId) setFocus(center);
+      });
+    }
   }
 
   async function start() {
@@ -169,6 +237,88 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
           {/* 01 — who */}
           <section className="wizard-reveal space-y-5" style={{ animationDelay: "80ms" }}>
             <SectionHeader n="01" title="Ποιος είναι" />
+
+            {realUsers?.available && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      [false, "Φανταστικός δημότης", "Φτιάξ' τον από το μηδέν"],
+                      [true, "Πραγματικός χρήστης", "Από τις προτιμήσεις ειδοποιήσεων"],
+                    ] as const
+                  ).map(([mode, label, hint]) => (
+                    <button
+                      key={label}
+                      onClick={() => setRealMode(mode)}
+                      className={`border px-4 py-2.5 text-left transition-colors ${
+                        realMode === mode
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <span className="block text-sm font-medium">{label}</span>
+                      <span
+                        className={`block text-xs ${
+                          realMode === mode ? "text-background/70" : "text-muted-foreground/70"
+                        }`}
+                      >
+                        {hint}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                {realMode && (
+                  <div className="space-y-2">
+                    <input
+                      value={realSearch}
+                      onChange={(e) => setRealSearch(e.target.value)}
+                      placeholder="Αναζήτηση ονόματος ή τηλεφώνου"
+                      className="h-9 w-full border-b border-border bg-transparent text-sm outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-foreground"
+                    />
+                    <ul className="max-h-64 divide-y overflow-y-auto border">
+                      {filteredRealUsers.map((u) => {
+                        const topicCount = u.cities.reduce((n, c) => n + c.topics.length, 0);
+                        const locationCount = u.cities.reduce((n, c) => n + c.locations.length, 0);
+                        return (
+                          <li key={u.userId}>
+                            <button
+                              onClick={() => applyRealUser(u)}
+                              className={`w-full px-3 py-2.5 text-left transition-colors hover:bg-secondary ${
+                                selectedRealUserId === u.userId ? "bg-secondary" : ""
+                              }`}
+                            >
+                              <span className="flex items-baseline gap-2">
+                                <span className="text-sm font-medium">{u.name ?? "—"}</span>
+                                {u.phone && (
+                                  <span className="text-xs text-muted-foreground">{u.phone}</span>
+                                )}
+                                {u.notisEnabledAt && (
+                                  <span className="text-[10px] font-medium uppercase tracking-wider text-orange">
+                                    notis
+                                  </span>
+                                )}
+                              </span>
+                              <span className="mt-0.5 block text-xs text-muted-foreground">
+                                {u.cities.map((c) => c.cityName).join(", ")}
+                                {" · "}
+                                {topicCount} θέματα · {locationCount} περιοχές
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                      {filteredRealUsers.length === 0 && (
+                        <li className="px-3 py-2 text-sm text-muted-foreground">
+                          Κανένα αποτέλεσμα.
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex items-start gap-5">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-foreground font-relative text-2xl text-background">
                 {initial}
@@ -182,7 +332,10 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
                 />
                 <textarea
                   value={profile}
-                  onChange={(e) => setProfile(e.target.value)}
+                  onChange={(e) => {
+                    setProfileDirty(true);
+                    setProfile(e.target.value);
+                  }}
                   rows={2}
                   placeholder="Δυο λόγια — πού μένει, τι τον νοιάζει..."
                   className="w-full resize-none border-b border-transparent bg-transparent text-sm leading-relaxed text-muted-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-foreground focus:text-foreground"
@@ -215,6 +368,7 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
                 </button>
               ))}
             </div>
+
           </section>
 
           {/* 02 — where & what */}

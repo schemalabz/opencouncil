@@ -48,6 +48,8 @@ CREATE TABLE "NotisWake" (
     "event" JSONB NOT NULL,
     "decision" "WakeDecision" NOT NULL,
     "rationale" TEXT NOT NULL,
+    "outcome" JSONB NOT NULL,
+    "delivery" JSONB,
     "repairs" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "truncated" BOOLEAN NOT NULL DEFAULT false,
     "finishWakeMissing" BOOLEAN NOT NULL DEFAULT false,

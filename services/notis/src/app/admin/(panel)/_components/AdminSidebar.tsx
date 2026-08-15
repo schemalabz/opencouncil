@@ -20,7 +20,7 @@ const NAV = [
   { href: "/admin/settings", label: "Ρυθμίσεις", icon: Settings },
 ];
 
-export function AdminSidebar() {
+export function AdminSidebar({ live }: { live: boolean }) {
   const pathname = usePathname();
 
   return (
@@ -50,7 +50,7 @@ export function AdminSidebar() {
         })}
       </nav>
       <div className="border-t p-4 text-[11px] leading-relaxed text-muted-foreground">
-        <p>PR 1 · χωρίς βάση δεδομένων</p>
+        <p>{live ? "Συνδεδεμένη βάση" : "Χωρίς βάση δεδομένων · μηδενικά"}</p>
         <a
           href="https://opencouncil.gr"
           target="_blank"

@@ -10,8 +10,8 @@ export const metadata = { title: "Συνομιλίες · Νότης admin" };
 
 const COLUMNS = ["Χρήστης", "Δήμοι", "Έναρξη", "Τελευταία δραστηριότητα", "Μηνύματα", "Κατάσταση"];
 
-export default function ConversationsPage() {
-  const conversations = listConversations();
+export default async function ConversationsPage() {
+  const conversations = await listConversations();
 
   return (
     <>

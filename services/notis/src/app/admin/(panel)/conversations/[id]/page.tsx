@@ -13,7 +13,7 @@ export default async function ConversationPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const detail = getConversation(id);
+  const detail = await getConversation(id);
 
   if (!detail) {
     return (

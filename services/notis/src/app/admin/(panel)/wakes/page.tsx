@@ -7,8 +7,8 @@ import { listRecentWakes } from "../_lib/wakes";
 
 export const metadata = { title: "Wakes · Νότης admin" };
 
-export default function WakesPage() {
-  const wakes = listRecentWakes();
+export default async function WakesPage() {
+  const wakes = await listRecentWakes();
   const sends = wakes.filter((w) => w.decision === "send").length;
   const errors = wakes.filter((w) => w.decision === "error").length;
 
