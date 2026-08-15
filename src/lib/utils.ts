@@ -58,7 +58,7 @@ export function subjectToMapFeature(subject: SubjectWithRelations) {
     id: subject.id,
     geometry: {
       type: 'Point',
-      coordinates: [subject.location.coordinates.y, subject.location.coordinates.x]
+      coordinates: [subject.location.coordinates.x, subject.location.coordinates.y]
     },
     properties: {
       subjectId: subject.id,

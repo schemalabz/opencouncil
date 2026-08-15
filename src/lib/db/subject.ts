@@ -377,17 +377,7 @@ export async function getMapSubjectsCached(realm: Realm, filters: MapSubjectFilt
                 WHERE id IN (${Prisma.join(locationIds)})
             `;
             const geometryMap = new Map<string, GeoJSON.Geometry>(
-                geometries.map((g) => {
-                    const geom = JSON.parse(g.geometry) as GeoJSON.Geometry;
-                    // PostGIS may return [lat, lon]; GeoJSON needs [lon, lat] (swap Greek Points).
-                    if (geom.type === 'Point' && geom.coordinates.length === 2) {
-                        const [first, second] = geom.coordinates;
-                        if (first > 30 && first < 42 && second > 19 && second < 30) {
-                            geom.coordinates = [second, first];
-                        }
-                    }
-                    return [g.id, geom] as const;
-                }),
+                geometries.map((g) => [g.id, JSON.parse(g.geometry) as GeoJSON.Geometry] as const),
             );
 
             const located = subjects.filter((s) => s.locationId && geometryMap.has(s.locationId));
