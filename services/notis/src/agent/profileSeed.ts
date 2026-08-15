@@ -1,3 +1,4 @@
+import { locationText } from "./geo";
 import { CityPreference } from "./types";
 
 /**
@@ -18,7 +19,7 @@ export function seedProfileFromPreferences(cities: CityPreference[]): string {
         parts.push(`Θέματα που έχει επιλέξει: ${city.topics.join(", ")}.`);
       }
       if (city.locations.length > 0) {
-        parts.push(`Περιοχές που τον αφορούν: ${city.locations.join(", ")}.`);
+        parts.push(`Περιοχές που τον αφορούν: ${city.locations.map(locationText).join(", ")}.`);
       }
       if (city.topics.length === 0 && city.locations.length === 0) {
         parts.push("Χωρίς συγκεκριμένα θέματα ή περιοχές.");

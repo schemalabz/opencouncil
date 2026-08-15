@@ -16,6 +16,7 @@ interface McpMeetingSubject {
   topicLabels?: string[];
   discussionSeconds?: number;
   description?: string | null;
+  location?: { text?: string | null; lng?: number | null; lat?: number | null } | string | null;
 }
 
 interface McpMeeting {
@@ -73,6 +74,16 @@ function subjectTopicLabels(s: McpMeetingSubject): string[] {
   return [];
 }
 
+/** The subject's mapped location with coordinates, when the MCP carries them. */
+function subjectLocation(
+  s: McpMeetingSubject,
+): { text: string | null; lng: number; lat: number } | null {
+  if (!s.location || typeof s.location !== "object") return null;
+  const { text, lng, lat } = s.location;
+  if (typeof lng !== "number" || typeof lat !== "number") return null;
+  return { text: text ?? null, lng, lat };
+}
+
 /**
  * The shared per-meeting editorial pass: fetch the meeting record over MCP
  * (direct tools/call, no model mediation), then one non-agentic model call
@@ -97,6 +108,7 @@ export async function editorialPass(
       topicLabels: subjectTopicLabels(s),
       discussionSeconds: Number(s.discussionSeconds ?? 0),
       description: s.description ?? null,
+      location: subjectLocation(s),
       url: s.url,
     }))
     .filter((s) => s.id)
@@ -132,6 +144,8 @@ export async function editorialPass(
       topicLabels: s.topicLabels,
       discussionSeconds: s.discussionSeconds,
       description: s.description,
+      // Text only for the model — coordinates are attached mechanically below.
+      locationText: s.location?.text ?? undefined,
       detail: detailed.get(s.id) ?? undefined,
     })),
   };
@@ -195,6 +209,7 @@ export async function editorialPass(
       // An omitted subject must read as unscored, not deliberately unremarkable.
       note: p?.note ?? "(δεν βαθμολογήθηκε — έλειπε από την απάντηση του editorial pass)",
       locationHints: p?.locationHints ?? [],
+      ...(s.location ? { location: s.location } : {}),
       ...(s.url ? { url: s.url } : {}),
     };
   });

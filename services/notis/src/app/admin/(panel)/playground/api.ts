@@ -38,7 +38,15 @@ const realUserSchema = z.object({
       cityId: z.string(),
       cityName: z.string(),
       topics: z.array(z.string()),
-      locations: z.array(z.string()),
+      // Coordinates are geometry centroids from the fanout view; null when
+      // the source row predates the coordinate columns.
+      locations: z.array(
+        z.object({
+          text: z.string(),
+          lng: z.number().nullable(),
+          lat: z.number().nullable(),
+        }),
+      ),
     }),
   ),
 });

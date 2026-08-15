@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, MapPin, X } from "lucide-react";
+import { locationText } from "@/agent/geo";
 import { seedProfileFromPreferences } from "@/agent/profileSeed";
 import { introTemplateFor, renderTemplate } from "@/agent/templates";
 import { CityPreference, WakeState } from "@/agent/types";
@@ -132,26 +133,36 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
 
   /**
    * Mirror a real user: their preferences become the drafts and the profile
-   * re-seeds mechanically. Locations arrive as free text only (the view
-   * carries no coordinates), so the map shows city centers without pins.
+   * re-seeds mechanically. The fanout view carries location centroids, so
+   * their pinned places land on the map too.
    */
   function applyRealUser(user: RealUser) {
     setSelectedRealUserId(user.userId);
     setName(user.name ?? "Δημότης");
     setProfileDirty(false);
     const newDrafts: CityDraft[] = user.cities.map((pref) => ({
-      ...pref,
-      points: [],
+      cityId: pref.cityId,
+      cityName: pref.cityName,
+      topics: pref.topics,
+      locations: pref.locations.map((l) => ({
+        text: l.text,
+        ...(l.lng != null && l.lat != null ? { lng: l.lng, lat: l.lat } : {}),
+      })),
+      points: pref.locations
+        .filter((l): l is typeof l & { lng: number; lat: number } => l.lng != null && l.lat != null)
+        .map((l) => ({ text: l.text, lng: l.lng, lat: l.lat })),
       center: null,
       logo: cities.find((c) => c.id === pref.cityId)?.logoImage ?? null,
     }));
     setDrafts(newDrafts);
+    const firstPoint = newDrafts.flatMap((d) => d.points)[0];
+    if (firstPoint) setFocus({ lng: firstPoint.lng, lat: firstPoint.lat, zoom: 12.5 });
     for (const draft of newDrafts) {
       void geocode(draft.cityName, mapboxToken, undefined, "place,locality").then((hits) => {
         const center = hits[0] ? { lng: hits[0].lng, lat: hits[0].lat, zoom: 11.5 } : null;
         if (!center) return;
         setDrafts((prev) => prev.map((d) => (d.cityId === draft.cityId ? { ...d, center } : d)));
-        if (draft.cityId === newDrafts[0]?.cityId) setFocus(center);
+        if (!firstPoint && draft.cityId === newDrafts[0]?.cityId) setFocus(center);
       });
     }
   }
@@ -466,21 +477,24 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
                     <div className="max-w-md space-y-1">
                       {draft.locations.map((l, i) => (
                         <div
-                          key={`${l}${i}`}
+                          key={`${locationText(l)}${i}`}
                           className="group/loc flex items-center gap-2 py-0.5 text-sm"
                         >
                           <MapPin className="h-3.5 w-3.5 shrink-0 text-orange" />
-                          <span className="truncate">{l}</span>
+                          <span className="truncate">{locationText(l)}</span>
                           <button
                             onClick={() =>
                               updateDraft(draft.cityId, (d) => ({
                                 ...d,
                                 locations: d.locations.filter((_, j) => j !== i),
-                                points: d.points.filter((_, j) => j !== i),
+                                // By text, not index: real-user locations
+                                // without coordinates have no point, so the
+                                // two arrays are not index-aligned.
+                                points: d.points.filter((p) => p.text !== locationText(l)),
                               }))
                             }
                             className="ml-auto text-muted-foreground/0 transition-colors hover:!text-destructive group-hover/loc:text-muted-foreground"
-                            aria-label={`Αφαίρεση ${l}`}
+                            aria-label={`Αφαίρεση ${locationText(l)}`}
                           >
                             <X className="h-3.5 w-3.5" />
                           </button>
@@ -492,7 +506,9 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
                         onPick={(hit) =>
                           updateDraft(draft.cityId, (d) => ({
                             ...d,
-                            locations: [...d.locations, hit.text],
+                            // Object form with coordinates: wake assembly
+                            // computes subject distances from these.
+                            locations: [...d.locations, { text: hit.text, lng: hit.lng, lat: hit.lat }],
                             points: [...d.points, hit],
                           }))
                         }
