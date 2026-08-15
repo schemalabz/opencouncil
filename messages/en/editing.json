@@ -131,11 +131,14 @@
     "noMoreUnknown": "No more unknown speakers found",
     "extractionSuccess": "Segment extracted successfully",
     "extractionError": "Failed to extract segment",
+    "splitSuccess": "Segment split successfully",
+    "splitError": "Failed to split segment",
     "selectionErrorTitle": "Selection Error",
     "selectionErrorDiffSegments": "Cannot extract utterances from different segments at once.",
     "invalidOperationTitle": "Invalid Operation",
     "invalidOperationExtractAll": "Cannot extract all utterances. Use 'Change Speaker' instead.",
     "invalidOperationExtractStartEnd": "Cannot extract from the start or end of a segment. Selection must be strictly in the middle.",
+    "invalidOperationSplitSingle": "Cannot split a segment with only one utterance. Use 'Change Speaker' instead.",
     "reviewCompleted": "Review Completed",
     "reviewCompletedDescription": "The transcript review has been marked as complete."
   }

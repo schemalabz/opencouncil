@@ -12,6 +12,7 @@ interface EditingContextType {
     toggleSelection: (id: string, modifiers: { shift: boolean, ctrl: boolean }) => void;
     clearSelection: () => void;
     extractSelectedSegment: () => Promise<void>;
+    splitUtteranceToNewSpeaker: (utteranceId: string, segmentId: string) => Promise<void>;
     isProcessing: boolean;
 }
 
@@ -147,6 +148,51 @@ export function EditingProvider({ children }: { children: ReactNode }) {
         }
     }, [selectedUtteranceIds, isProcessing, extractSpeakerSegment, getSpeakerSegmentById, clearSelection, toast, t]);
 
+    // Splitting at an utterance is extraction with a single-utterance range:
+    // the server keeps the utterances before it in the original segment
+    // (deleting the segment when there are none), gives the utterance a new
+    // unassigned speaker tag, and re-attaches the utterances after it to a
+    // new segment with the original speaker.
+    const splitUtteranceToNewSpeaker = useCallback(async (utteranceId: string, segmentId: string) => {
+        if (isProcessing) return;
+
+        setIsProcessing(true);
+        try {
+            const segment = getSpeakerSegmentById(segmentId);
+            if (!segment) throw new Error("Segment not found");
+            if (!segment.utterances.some(u => u.id === utteranceId)) {
+                throw new Error("Utterance not found in segment");
+            }
+
+            // Splitting a single-utterance segment would only swap the
+            // segment for an identical unassigned one.
+            if (segment.utterances.length === 1) {
+                toast({
+                    title: t('invalidOperationTitle'),
+                    description: t('invalidOperationSplitSingle'),
+                    variant: "destructive"
+                });
+                return;
+            }
+
+            await extractSpeakerSegment(segmentId, utteranceId, utteranceId);
+
+            clearSelection();
+            toast({
+                description: t('splitSuccess')
+            });
+        } catch (error) {
+            console.error(error);
+            toast({
+                title: "Error",
+                description: t('splitError'),
+                variant: "destructive"
+            });
+        } finally {
+            setIsProcessing(false);
+        }
+    }, [isProcessing, extractSpeakerSegment, getSpeakerSegmentById, clearSelection, toast, t]);
+
     // Register Shortcuts
     useKeyboardShortcut(ACTIONS.EXTRACT_SEGMENT.id, extractSelectedSegment, selectedUtteranceIds.size > 0);
     useKeyboardShortcut(ACTIONS.CLEAR_SELECTION.id, clearSelection, selectedUtteranceIds.size > 0);
@@ -160,6 +206,7 @@ export function EditingProvider({ children }: { children: ReactNode }) {
         toggleSelection,
         clearSelection,
         extractSelectedSegment,
+        splitUtteranceToNewSpeaker,
         isProcessing,
     }), [
         selectedUtteranceIds,
@@ -167,6 +214,7 @@ export function EditingProvider({ children }: { children: ReactNode }) {
         toggleSelection,
         clearSelection,
         extractSelectedSegment,
+        splitUtteranceToNewSpeaker,
         isProcessing,
     ]);
 

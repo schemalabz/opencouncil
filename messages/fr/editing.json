@@ -131,11 +131,14 @@
     "noMoreUnknown": "Aucun autre intervenant inconnu trouvé",
     "extractionSuccess": "Segment extrait avec succès",
     "extractionError": "Échec de l'extraction du segment",
+    "splitSuccess": "Segment scindé avec succès",
+    "splitError": "Échec de la scission du segment",
     "selectionErrorTitle": "Erreur de sélection",
     "selectionErrorDiffSegments": "Impossible d'extraire des énoncés de différents segments en même temps.",
     "invalidOperationTitle": "Opération non valide",
     "invalidOperationExtractAll": "Impossible d'extraire tous les énoncés. Utilisez plutôt « Changer d'intervenant ».",
     "invalidOperationExtractStartEnd": "Impossible d'extraire depuis le début ou la fin d'un segment. La sélection doit se situer strictement au milieu.",
+    "invalidOperationSplitSingle": "Impossible de scinder un segment ne contenant qu'un seul énoncé. Utilisez plutôt « Changer d'intervenant ».",
     "reviewCompleted": "Révision terminée",
     "reviewCompletedDescription": "La révision de la transcription a été marquée comme terminée."
   }
