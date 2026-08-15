@@ -24,6 +24,10 @@ const APP_PATH = /^\/(?!api|_next|_vercel|qr\/|\..+).*/;
 
 
 export default async function proxy(req: NextRequest) {
+    return applySessionMirror(req, await proxyInner(req));
+}
+
+async function proxyInner(req: NextRequest): Promise<Response | undefined> {
     // Basic auth check
     if (!isHttpBasicAuthAuthenticated(req)) {
         return new NextResponse('Authentication required', {
@@ -201,7 +205,9 @@ export default async function proxy(req: NextRequest) {
         }
     }
 
-    return auth(req as any);
+    // NextAuth's typings do not model this direct-request call form; at
+    // runtime it returns a Response (or undefined to continue).
+    return (await auth(req as any)) as unknown as Response | undefined;
 }
 
 export const config = {
@@ -210,6 +216,50 @@ export const config = {
     // basic auth and i18n routing, or events get swallowed by locale 404s.
     matcher: ['/((?!api|ingest|_next|_vercel|.*\\..*).*)'],
 };
+
+/**
+ * Mirror the Auth.js session token into a domain-scoped cookie so the Notis
+ * admin (notis.opencouncil.gr) can validate it against notis_admin_sessions.
+ *
+ * A mirror, not a Domain on the session cookie itself: this app serves several
+ * realm domains (opencouncil.gr/.fr/.rs) from one deployment, Auth.js cookie
+ * config is static, and a browser rejects a Set-Cookie whose Domain does not
+ * match the request host — a hard Domain would break sign-in everywhere but
+ * .gr. The mirror is set only on hosts under SESSION_COOKIE_DOMAIN, refreshed
+ * on every page navigation (this proxy's matcher skips /api and assets), and
+ * cleared when the session cookie goes away. Notis re-validates the token and
+ * its expiry against the database, so the mirror carries no authority of its
+ * own.
+ */
+function applySessionMirror(req: NextRequest, res: Response | undefined): Response | undefined {
+    // The auth() fallthrough can yield undefined (= continue unmodified).
+    if (!res) return res;
+    const domain = env.SESSION_COOKIE_DOMAIN;
+    if (!domain) return res;
+
+    const host = req.headers.get('host')?.split(':')[0] ?? '';
+    const bareDomain = domain.replace(/^\./, '');
+    if (host !== bareDomain && !host.endsWith(`.${bareDomain}`)) return res;
+
+    const token = req.cookies.get('__Secure-authjs.session-token')?.value;
+    const mirrorName = `__Secure-oc-session${env.SESSION_COOKIE_SUFFIX ?? ''}`;
+    const current = req.cookies.get(mirrorName)?.value;
+
+    // headers.append instead of NextResponse.cookies: the auth() fallthrough
+    // returns a plain Response.
+    if (token && current !== token) {
+        res.headers.append(
+            'Set-Cookie',
+            `${mirrorName}=${token}; Domain=${domain}; Path=/; Max-Age=2592000; HttpOnly; Secure; SameSite=Lax`,
+        );
+    } else if (!token && current) {
+        res.headers.append(
+            'Set-Cookie',
+            `${mirrorName}=; Domain=${domain}; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`,
+        );
+    }
+    return res;
+}
 
 function isHttpBasicAuthAuthenticated(req: Request) {
     if (!env.BASIC_AUTH_USERNAME || !env.BASIC_AUTH_PASSWORD) {

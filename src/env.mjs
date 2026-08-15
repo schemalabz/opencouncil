@@ -21,6 +21,13 @@ export const env = createEnv({
     NEXTAUTH_URL: z.string().url(),
     BASIC_AUTH_USERNAME: z.string().optional(),
     BASIC_AUTH_PASSWORD: z.string().optional(),
+    // Session-mirror cookie for the Notis admin (see applySessionMirror in
+    // src/proxy.ts). Domain scopes the mirror (".opencouncil.gr" on prod,
+    // ".staging.opencouncil.gr" on staging); unset disables mirroring.
+    SESSION_COOKIE_DOMAIN: z.string().optional(),
+    // Per-environment mirror-name suffix ("-staging" on staging), so the
+    // production mirror never authenticates a staging service.
+    SESSION_COOKIE_SUFFIX: z.string().optional(),
 
     // Services
     ANTHROPIC_API_KEY: z.string().min(1),
@@ -114,6 +121,8 @@ export const env = createEnv({
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     BASIC_AUTH_USERNAME: process.env.BASIC_AUTH_USERNAME,
     BASIC_AUTH_PASSWORD: process.env.BASIC_AUTH_PASSWORD,
+    SESSION_COOKIE_DOMAIN: process.env.SESSION_COOKIE_DOMAIN,
+    SESSION_COOKIE_SUFFIX: process.env.SESSION_COOKIE_SUFFIX,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
     YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY,
