@@ -285,7 +285,7 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
             administrativeBody: true,
             subjects: {
                 orderBy: [{ agendaItemIndex: 'asc' }, { name: 'asc' }],
-                include: { topic: true },
+                include: { topic: true, location: true },
             },
         },
     });
@@ -294,6 +294,18 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
     // How long each subject was actually debated — the best available proxy for
     // how significant it was, since agenda order says nothing about weight.
     const discussionSeconds = await getDiscussionSecondsForSubjects(meeting.subjects.map(s => s.id));
+
+    // Location coordinates for mapped subjects. Centroids, not ST_X/ST_Y of
+    // the raw geometry: locations can be lines or polygons. Raw SQL because
+    // the geometry column is an Unsupported() type.
+    const locationIds = [...new Set(meeting.subjects.map(s => s.locationId).filter((id): id is string => id !== null))];
+    const centroids = new Map<string, { lng: number; lat: number }>();
+    if (locationIds.length > 0) {
+        const rows = await prisma.$queryRaw<Array<{ id: string; lng: number; lat: number }>>`
+            SELECT id, ST_X(ST_Centroid(coordinates)) AS lng, ST_Y(ST_Centroid(coordinates)) AS lat
+            FROM "Location" WHERE id IN (${Prisma.join(locationIds)})`;
+        for (const row of rows) centroids.set(row.id, { lng: row.lng, lat: row.lat });
+    }
 
     return {
         id: meeting.id,
@@ -310,6 +322,12 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
             topic: subject.topic?.name ?? null,
             discussionSeconds: Math.round(discussionSeconds.get(subject.id) ?? 0),
             description: truncate(subject.description, 200),
+            location: subject.location
+                ? {
+                    text: subject.location.text,
+                    ...(centroids.get(subject.location.id) ?? {}),
+                }
+                : null,
             url: urls.subject(cityId, meeting.id, subject.id),
         })),
         url: urls.meeting(cityId, meeting.id),
