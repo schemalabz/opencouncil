@@ -1,12 +1,10 @@
 import { buildJournalEntry } from "./journal";
-import { addUsage, emptyUsage, usageToCost } from "./pricing";
+import { addUsage, emptyUsage, normalizeUsage, usageToCost } from "./pricing";
 import { assembleSystem, assembleUserTurn } from "./prompt";
 import { buildMcpServers, buildTools } from "./tools";
 import {
   Deps,
-  ModelResponse,
   RecordedTurn,
-  Usage,
   WakeEvent,
   WakeOutcome,
   WakeState,
@@ -16,15 +14,6 @@ import {
 } from "./types";
 
 const MAX_TOKENS = 16000;
-
-function normalizeUsage(u: ModelResponse["usage"]): Usage {
-  return {
-    input: u.input_tokens ?? 0,
-    output: u.output_tokens ?? 0,
-    cacheWrite: u.cache_creation_input_tokens ?? 0,
-    cacheRead: u.cache_read_input_tokens ?? 0,
-  };
-}
 
 function textOf(content: unknown[]): string {
   return content
@@ -89,6 +78,21 @@ export async function runWake(
   let refused = false;
   let repaired = false;
   let finished = false;
+  // Instrument-panel truth: repairs that fired, and terminal anomalies. A
+  // rescued or cut wake must never be indistinguishable from a healthy one —
+  // the silence rate and the review queue read these records.
+  const repairs: string[] = [];
+  let truncated = false;
+  // Nudges are recorded into the trace as injected turns so the inspector
+  // shows the rescue; replay skips them.
+  const recordInjected = (text: string) => {
+    turns.push({
+      role: "injected",
+      content: [{ type: "text", text }],
+      stopReason: "injected",
+      usage: emptyUsage(),
+    });
+  };
   // Substantive prose written INSIDE a tool-calling turn — observed failure
   // mode: the model narrates part of its answer as a text block next to its
   // send_message calls, and that prose is never delivered.
@@ -210,6 +214,8 @@ export async function runWake(
         if (nudge) {
           repaired = true;
           finished = false;
+          repairs.push(strandedProse ? "stranded-prose/finish" : "zero-send/finish");
+          recordInjected(nudge);
           strandedProse = undefined;
         }
       }
@@ -234,17 +240,22 @@ export async function runWake(
       // an unsubscribe: it wrote its answer into the final text instead of
       // the tool. Never fires on proactive wakes — silence is their default.
       if (event.type === "user_message" && sent.length === 0 && !unsubscribe) {
+        // Same rationale protection as the other three repair paths: if the
+        // nudged turn adds no sends, post-nudge check-chatter must not become
+        // the journal rationale the next thirty wakes read as memory.
+        preNudgeRationale = rationale;
+        sentAtNudge = sent.length;
         repaired = true;
+        repairs.push("zero-send/end-turn");
+        const nudge =
+          "(system check) Your final text above is an operator rationale — it was NOT " +
+          "delivered to the person, and they asked you something directly; they are " +
+          "still waiting. If you meant to answer them, call send_message with the " +
+          "message now. Either way, end with the wake's own rationale — about the " +
+          "reader and this wake's decision, never about this check.";
+        recordInjected(nudge);
         messages.push({ role: "assistant", content: response.content });
-        messages.push({
-          role: "user",
-          content:
-            "(system check) Your final text above is an operator rationale — it was NOT " +
-            "delivered to the person, and they asked you something directly; they are " +
-            "still waiting. If you meant to answer them, call send_message with the " +
-            "message now. Either way, end with the wake's own rationale — about the " +
-            "reader and this wake's decision, never about this check.",
-        });
+        messages.push({ role: "user", content: nudge });
         continue;
       }
       // (b) A tool-calling turn carried substantive prose next to its tool
@@ -254,22 +265,30 @@ export async function runWake(
         preNudgeRationale = rationale;
         sentAtNudge = sent.length;
         repaired = true;
+        repairs.push("stranded-prose/end-turn");
+        const nudge =
+          "(system check) In an earlier turn you wrote prose in the same turn as your " +
+          "tool calls. That prose was NOT delivered — nothing reaches the person except " +
+          "send_message content. The undelivered text was:\n«" +
+          strandedProse.slice(0, 1200) +
+          "»\nIf it was meant for the person, send it now with send_message, rephrased " +
+          "if needed so the conversation still reads naturally. If it was only " +
+          "reasoning, do not send it — give the wake's own rationale, about the reader " +
+          "and this wake's decision, never about this check.";
+        recordInjected(nudge);
         messages.push({ role: "assistant", content: response.content });
-        messages.push({
-          role: "user",
-          content:
-            "(system check) In an earlier turn you wrote prose in the same turn as your " +
-            "tool calls. That prose was NOT delivered — nothing reaches the person except " +
-            "send_message content. The undelivered text was:\n«" +
-            strandedProse.slice(0, 1200) +
-            "»\nIf it was meant for the person, send it now with send_message, rephrased " +
-            "if needed so the conversation still reads naturally. If it was only " +
-            "reasoning, do not send it — give the wake's own rationale, about the reader " +
-            "and this wake's decision, never about this check.",
-        });
+        messages.push({ role: "user", content: nudge });
         strandedProse = undefined;
         continue;
       }
+    }
+
+    // A turn cut at the token ceiling is not a decision: without the marker a
+    // truncated wake records itself as a deliberate silence, inflating the
+    // headline metric. The cut turn's tool calls are deliberately NOT
+    // processed — a truncated tool_use block carries partial JSON.
+    if (response.stop_reason === "max_tokens") {
+      truncated = true;
     }
 
     // end_turn, max_tokens, or anything else: stop.
@@ -284,16 +303,30 @@ export async function runWake(
   if (refused) {
     rationale = rationale || "refusal: the model declined to act on this wake.";
   }
+  if (truncated && !rationale) {
+    rationale = "(cut at the token ceiling — no decision was made)";
+  }
   if (!rationale) {
     rationale = "(no rationale emitted)";
   }
 
-  const journalAppend = buildJournalEntry(event, decision, rationale, sent);
+  // finish_wake is REQUIRED by the prompt; when the loop ends without it (and
+  // without a terminal anomaly explaining why), record the contract breach.
+  const finishWakeMissing = !finished && !refused && !truncated;
+
+  const journalAppend = buildJournalEntry(event, decision, rationale, sent, {
+    profileRewritten: profileRewrite !== undefined,
+    unsubscribed: Boolean(unsubscribe),
+    truncated,
+  });
 
   const outcome: WakeOutcome = {
     decision,
     rationale,
     messages: sent,
+    ...(repairs.length > 0 ? { repairs } : {}),
+    ...(truncated ? { truncated: true as const } : {}),
+    ...(finishWakeMissing ? { finishWakeMissing: true as const } : {}),
     ...(profileRewrite !== undefined ? { profileRewrite } : {}),
     scheduledWakes,
     ...(unsubscribe ? { unsubscribe } : {}),

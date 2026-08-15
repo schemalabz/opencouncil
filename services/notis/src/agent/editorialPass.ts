@@ -1,4 +1,4 @@
-import { addUsage, emptyUsage, usageToCost } from "./pricing";
+import { normalizeUsage, usageToCost } from "./pricing";
 import { Deps, EditorialBrief, EditorialSubject, Usage } from "./types";
 
 const TOP_SUBJECTS_FOR_DETAIL = 8;
@@ -114,6 +114,13 @@ export async function editorialPass(
     top.forEach((s, i) => {
       if (details[i]) detailed.set(s.id, details[i]);
     });
+    // A degraded MCP must not silently yield a detail-free brief.
+    const failures = top.length - detailed.size;
+    if (failures > 0) {
+      console.warn(
+        `[notis:editorial] ${failures}/${top.length} subject detail fetches failed for ${cityId}/${meetingId}`,
+      );
+    }
   }
 
   const modelInput = {
@@ -140,12 +147,7 @@ export async function editorialPass(
     },
   });
 
-  const usage = addUsage(emptyUsage(), {
-    input: response.usage.input_tokens ?? 0,
-    output: response.usage.output_tokens ?? 0,
-    cacheWrite: response.usage.cache_creation_input_tokens ?? 0,
-    cacheRead: response.usage.cache_read_input_tokens ?? 0,
-  });
+  const usage = normalizeUsage(response.usage);
 
   const textBlock = response.content.find(
     (b): b is { type: "text"; text: string } =>
@@ -170,6 +172,12 @@ export async function editorialPass(
   };
 
   const bySubject = new Map(parsed.subjects.map((p) => [p.subjectId, p]));
+  const unscored = subjects.filter((s) => !bySubject.has(s.id)).length;
+  if (unscored > 0) {
+    console.warn(
+      `[notis:editorial] model response omitted ${unscored}/${subjects.length} subjects for ${cityId}/${meetingId}`,
+    );
+  }
   const briefSubjects: EditorialSubject[] = subjects.map((s) => {
     const p = bySubject.get(s.id);
     return {
@@ -184,7 +192,8 @@ export async function editorialPass(
         novelty: clamp(p?.scores.novelty),
         money: clamp(p?.scores.money),
       },
-      note: p?.note ?? "",
+      // An omitted subject must read as unscored, not deliberately unremarkable.
+      note: p?.note ?? "(δεν βαθμολογήθηκε — έλειπε από την απάντηση του editorial pass)",
       locationHints: p?.locationHints ?? [],
       ...(s.url ? { url: s.url } : {}),
     };

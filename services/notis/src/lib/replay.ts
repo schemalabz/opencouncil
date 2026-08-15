@@ -12,8 +12,13 @@ import { AnthropicLike, ModelRequest, ModelResponse, RecordedTurn } from "@/agen
 export class ReplayAnthropic implements AnthropicLike {
   private cursor = 0;
   public readonly requests: ModelRequest[] = [];
+  private readonly turns: RecordedTurn[];
 
-  constructor(private turns: RecordedTurn[]) {}
+  constructor(turns: RecordedTurn[]) {
+    // Traces record harness-injected nudge turns for the inspector; only
+    // model turns are responses to replay.
+    this.turns = turns.filter((t) => t.role !== "injected");
+  }
 
   async create(params: ModelRequest): Promise<ModelResponse> {
     this.requests.push(params);

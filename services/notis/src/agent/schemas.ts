@@ -28,6 +28,12 @@ export const journalEntrySchema = z.object({
   messages: z.array(z.string()),
   /** What the user wrote, verbatim, on user_message wakes — the journal IS the conversation memory. */
   received: z.string().optional(),
+  /** The wake rewrote the taste profile — future wakes must see their own memory changed. */
+  profileRewritten: z.boolean().optional(),
+  /** The wake unsubscribed the reader. */
+  unsubscribed: z.boolean().optional(),
+  /** The wake was cut at the token ceiling — this entry is not a decision. */
+  truncated: z.boolean().optional(),
 });
 
 export const cityPreferenceSchema = z.object({

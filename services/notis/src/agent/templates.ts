@@ -122,7 +122,18 @@ export function introTemplateFor(origin: "transition" | "signup"): TemplateName 
   return origin === "transition" ? "demos_transition" : "demos_intro";
 }
 
-/** Which shell a cold proactive send must use, by the event that woke the agent. */
+/**
+ * Which shell a cold proactive send must use, by the event that woke the agent.
+ *
+ * Known gaps to close before this goes live in PR 4:
+ * - "scheduled" → demos_followup assumes the wake answers a reader question
+ *   («Σχετικά με αυτό που με ρώτησες»). A wake the agent scheduled after a
+ *   PROACTIVE send hits the same case and would frame an answer to a question
+ *   nobody asked; the mapping needs the schedule's origin, which the event
+ *   does not carry yet.
+ * - "heartbeat" falls through to demos_update_news; nothing produces
+ *   heartbeats in PR 1, so this default is untested.
+ */
 export function templateForEvent(eventType: WakeEvent["type"]): TemplateName {
   switch (eventType) {
     case "agenda_processed":

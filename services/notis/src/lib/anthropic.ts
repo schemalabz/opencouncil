@@ -29,6 +29,9 @@ export const realAnthropic: AnthropicLike = {
         ...(params.tools ? { tools: params.tools as never } : {}),
         ...(params.mcp_servers ? { mcp_servers: params.mcp_servers as never } : {}),
         ...(params.output_config ? { output_config: params.output_config as never } : {}),
+        // Summarized thinking makes the model's reasoning visible in traces —
+        // without it the inspector's thinking pane is always empty.
+        thinking: { type: "adaptive", display: "summarized" } as never,
       })
       .finalMessage();
     return {
@@ -39,6 +42,8 @@ export const realAnthropic: AnthropicLike = {
         output_tokens: response.usage.output_tokens,
         cache_creation_input_tokens: response.usage.cache_creation_input_tokens,
         cache_read_input_tokens: response.usage.cache_read_input_tokens,
+        cache_creation: (response.usage as { cache_creation?: ModelResponse["usage"]["cache_creation"] })
+          .cache_creation ?? null,
       },
     };
   },

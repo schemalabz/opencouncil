@@ -97,7 +97,10 @@ describe("runWake", () => {
     expect(outcome.decision).toBe("send");
     expect(outcome.messages).toEqual(["Η απάντηση."]);
     expect(outcome.rationale).toBe("Απάντησα μετά το nudge.");
-    expect(trace.turns).toHaveLength(2);
+    // Two model turns plus the injected nudge, recorded for the inspector.
+    expect(trace.turns).toHaveLength(3);
+    expect(trace.turns[1].role).toBe("injected");
+    expect(outcome.repairs).toEqual(["zero-send/finish"]);
   });
 
   it("repair: a user question answered only in final text gets one nudge to send", async () => {
@@ -114,7 +117,9 @@ describe("runWake", () => {
 
     expect(outcome.decision).toBe("send");
     expect(outcome.messages).toEqual(["Η πραγματική απάντηση."]);
-    expect(trace.turns).toHaveLength(3);
+    expect(trace.turns).toHaveLength(4);
+    expect(trace.turns[1].role).toBe("injected");
+    expect(outcome.repairs).toEqual(["zero-send/end-turn"]);
     // The nudge rides as a user turn on the second request…
     const secondReq = fake.requests[1].messages as Array<{ role: string; content: unknown }>;
     expect(String(secondReq[2].content)).toContain("system check");
@@ -140,7 +145,8 @@ describe("runWake", () => {
 
     expect(outcome.decision).toBe("send");
     expect(outcome.messages).toEqual(["Δεύτερο μήνυμα", "Πρώτο μήνυμα, ξανασταλμένο"]);
-    expect(trace.turns).toHaveLength(4);
+    expect(trace.turns).toHaveLength(5);
+    expect(outcome.repairs).toEqual(["stranded-prose/end-turn"]);
     // The nudge quotes the stranded prose back to the model.
     const contents = (fake.requests[2].messages as Array<{ content: unknown }>).map(
       (m) => m.content,
@@ -164,8 +170,12 @@ describe("runWake", () => {
     );
 
     expect(outcome.decision).toBe("silence");
-    expect(outcome.rationale).toContain("Σιωπή");
-    expect(trace.turns).toHaveLength(2);
+    // A nudged turn that adds no sends keeps the pre-nudge rationale: the
+    // post-nudge text is reliably about the check, not the reader (the same
+    // protection the other three repair paths carry).
+    expect(outcome.rationale).toBe("Δεν χρειάζεται απάντηση.");
+    expect(outcome.repairs).toEqual(["zero-send/end-turn"]);
+    expect(trace.turns).toHaveLength(3);
   });
 
   it("send: send_message tool calls become ordered messages and tool_results echo back", async () => {
@@ -305,4 +315,54 @@ describe("runWake", () => {
     expect(next.journal).toHaveLength(1);
     expect(state.journal).toHaveLength(0);
   });
+  it("a turn cut at max_tokens records truncation, not a decision", async () => {
+    const fake = new FakeAnthropic([
+      {
+        // The cut turn even carries a send_message — its partial JSON must
+        // not be processed, and the wake must not read as chosen silence.
+        content: [toolUse("t1", "send_message", { text: "μισό μήνυ" })],
+        stop_reason: "max_tokens",
+      },
+    ]);
+    const { outcome } = await runWake(
+      makeState(),
+      { type: "user_message", at: FIXED_NOW.toISOString(), text: "τι έγινε;" },
+      makeDeps(fake),
+    );
+
+    expect(outcome.truncated).toBe(true);
+    expect(outcome.decision).toBe("silence");
+    expect(outcome.messages).toEqual([]);
+    expect(outcome.journalAppend.truncated).toBe(true);
+  });
+
+  it("exactly one moving cache breakpoint survives across tool turns", async () => {
+    const fake = new FakeAnthropic([
+      { content: [toolUse("t1", "schedule_wakeup", { at: "2026-07-01", reason: "α" })], stop_reason: "tool_use" },
+      { content: [toolUse("t2", "schedule_wakeup", { at: "2026-08-01", reason: "β" })], stop_reason: "tool_use" },
+      { content: [toolUse("t3", "finish_wake", { rationale: "Τέλος." })], stop_reason: "tool_use" },
+    ]);
+    await runWake(
+      makeState(),
+      { type: "heartbeat", at: FIXED_NOW.toISOString() },
+      makeDeps(fake),
+    );
+
+    // The captured requests hold live references, so after the run they show
+    // the final marker state. The API allows 4 breakpoints per request; the
+    // fixed budget is one on the user turn plus ONE moving marker — a stale
+    // marker left behind (markLatest failing to unmark) would accumulate and
+    // 400 any wake with three or more tool turns in production.
+    const lastRequest = fake.requests[fake.requests.length - 1];
+    const messages = lastRequest.messages as Array<{ content: unknown }>;
+    let markers = 0;
+    for (const message of messages) {
+      if (!Array.isArray(message.content)) continue;
+      for (const block of message.content as Array<{ cache_control?: unknown }>) {
+        if (block.cache_control) markers += 1;
+      }
+    }
+    expect(markers).toBe(2);
+  });
+
 });

@@ -9,6 +9,7 @@ export function buildJournalEntry(
   decision: "silence" | "send",
   rationale: string,
   messages: string[],
+  extras: { profileRewritten?: boolean; unsubscribed?: boolean; truncated?: boolean } = {},
 ): JournalEntry {
   return {
     // The event's time, not the wall clock: the journal lives on the world's
@@ -23,5 +24,10 @@ export function buildJournalEntry(
     // The user's words are conversation memory — they belong to the journal,
     // so the model never has to copy them into the taste profile to keep them.
     ...(event.type === "user_message" ? { received: event.text } : {}),
+    // The agent's own memory changes are events too: without these markers a
+    // future wake cannot see that a rewrite or an unsubscribe ever happened.
+    ...(extras.profileRewritten ? { profileRewritten: true } : {}),
+    ...(extras.unsubscribed ? { unsubscribed: true } : {}),
+    ...(extras.truncated ? { truncated: true } : {}),
   };
 }

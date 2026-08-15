@@ -31,6 +31,12 @@ export interface WakeOutcome {
   /** Always present, including for silence and refusals. */
   rationale: string;
   messages: string[];
+  /** Repair nudges that fired (kind per entry). Absent = healthy wake. */
+  repairs?: string[];
+  /** The final turn hit the max_tokens ceiling: this record is a cut, not a decision. */
+  truncated?: true;
+  /** The wake ended without the REQUIRED finish_wake call. */
+  finishWakeMissing?: true;
   /** Present iff the model called update_taste_profile (last call wins). */
   profileRewrite?: string;
   scheduledWakes: Array<{ at: string; reason: string }>;
@@ -42,15 +48,24 @@ export interface WakeOutcome {
 export interface Usage {
   input: number;
   output: number;
+  /** Total cache-write tokens across both TTLs. */
   cacheWrite: number;
+  /** The 1h-TTL share of cacheWrite (bills at 2× vs 1.25×); absent = unknown split. */
+  cacheWrite1h?: number;
   cacheRead: number;
 }
 
-/** One assistant turn as recorded for the trace and for golden replays. */
+/** One turn as recorded for the trace and for golden replays. */
 export interface RecordedTurn {
   content: unknown[]; // raw content blocks (text, tool_use, mcp_tool_use, mcp_tool_result, ...)
   stopReason: string;
   usage: Usage;
+  /**
+   * "injected" marks harness turns (repair nudges) recorded for the trace —
+   * a rescued wake must be distinguishable from a healthy one. Replay skips
+   * them; absent means a model turn.
+   */
+  role?: "injected";
 }
 
 export interface WakeTrace {
@@ -96,6 +111,11 @@ export interface ModelResponse {
     output_tokens: number;
     cache_creation_input_tokens?: number | null;
     cache_read_input_tokens?: number | null;
+    /** TTL-split cache writes (the SDK reports both; billing rates differ 1.25× vs 2×). */
+    cache_creation?: {
+      ephemeral_5m_input_tokens?: number | null;
+      ephemeral_1h_input_tokens?: number | null;
+    } | null;
   };
 }
 

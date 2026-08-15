@@ -33,7 +33,7 @@ export const CLIENT_TOOLS = [
     input_schema: {
       type: "object" as const,
       properties: {
-        text: { type: "string", description: "The message text, in Greek." },
+        text: { type: "string", description: "The message text, in the reader's language." },
       },
       required: ["text"],
     },
