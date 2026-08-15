@@ -28,7 +28,7 @@ type Tab = "rationale" | "tools" | "context" | "cost";
 /** Shown wherever a tab needs a trace the LRU has already evicted. */
 function TraceGone() {
   return (
-    <p className="text-muted-foreground">Το trace αυτού του βήματος έχει απομακρυνθεί (LRU).</p>
+    <p className="text-muted-foreground">Το trace αυτού του βήματος δεν είναι πια αποθηκευμένο — είτε εκτοπίστηκε από το όριο των 20 traces είτε δεν χώρεσε στο localStorage.</p>
   );
 }
 

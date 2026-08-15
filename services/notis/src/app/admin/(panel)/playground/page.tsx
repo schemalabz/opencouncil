@@ -31,6 +31,10 @@ export default function PlaygroundPage() {
   // so two quick clicks (or a message during a step) could both pass a
   // state-based guard and clobber each other's stepDone.
   const busyRef = useRef(false);
+  // Bumped on rewind/reset: a wake still in flight from before the bump must
+  // not land its stepDone on the rewound store (timeline shows the past,
+  // state holds the future, and the auto-save persists the corruption).
+  const runEpochRef = useRef(0);
   const mountedRef = useRef(false);
   mountedRef.current = mounted;
   const busy = busyItemId !== undefined;
@@ -75,6 +79,7 @@ export default function PlaygroundPage() {
   const runItem = useCallback(async (item: WakeRecord): Promise<WakeOutcome | undefined> => {
     if (busyRef.current) return undefined;
     busyRef.current = true;
+    const epoch = runEpochRef.current;
     setBusyItemId(item.id);
     setError(null);
     try {
@@ -96,6 +101,7 @@ export default function PlaygroundPage() {
         promptOverride: current.sim.promptOverride,
         ...current.sim.settings,
       });
+      if (epoch !== runEpochRef.current) return undefined; // rewound/reset mid-flight
       // WhatsApp rails: inside the 24h customer-service window (opened by the
       // user's last message) sends go free-form; outside it every message must
       // ride an approved template shell.
@@ -150,13 +156,23 @@ export default function PlaygroundPage() {
   const runUntilSend = useCallback(async () => {
     setAutoRun(true);
     stopRef.current = false;
+    // storeRef only updates on render, and this loop's continuation runs
+    // before the render commits — without the tick-yield it re-picks the wake
+    // it just finished and pays for a second identical dryRun (reproduced).
+    // The ledger and the cap are belt and braces: a re-pick breaks instead of
+    // re-running, and a model that keeps scheduling follow-ups cannot run at
+    // real cost forever.
+    const ran = new Set<string>();
+    const MAX_AUTO_STEPS = 50;
     try {
-      for (;;) {
+      for (let steps = 0; steps < MAX_AUTO_STEPS; steps++) {
         if (stopRef.current) break;
         const next = nextPending();
-        if (!next) break;
+        if (!next || ran.has(next.id)) break;
+        ran.add(next.id);
         const outcome = await runItem(next);
         if (!outcome || outcome.messages.length > 0) break;
+        await new Promise((resolve) => setTimeout(resolve, 0));
       }
     } finally {
       setAutoRun(false);
@@ -195,8 +211,9 @@ export default function PlaygroundPage() {
   );
 
   const rewind = useCallback(() => {
-    if (!selectedSnapshotId) return;
+    if (!selectedSnapshotId || busyRef.current) return;
     if (window.confirm("Να γυρίσει η προσομοίωση στη στιγμή πριν από αυτό το βήμα;")) {
+      runEpochRef.current += 1;
       dispatch({ type: "restoreSnapshot", id: selectedSnapshotId });
       setSelectedId(undefined);
     }
@@ -269,8 +286,10 @@ export default function PlaygroundPage() {
           size="sm"
           variant="outline"
           className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          disabled={busy || autoRun}
           onClick={() => {
             if (window.confirm("Να διαγραφεί όλη η προσομοίωση;")) {
+              runEpochRef.current += 1;
               dispatch({ type: "reset" });
               setSelectedId(undefined);
             }
@@ -305,7 +324,7 @@ export default function PlaygroundPage() {
           onUserMessage: userMessage,
         }}
         inspectorSim={{
-          canRewind: Boolean(selectedSnapshotId),
+          canRewind: Boolean(selectedSnapshotId) && !busy && !autoRun,
           onRewind: rewind,
           onExport: exportScenario,
         }}

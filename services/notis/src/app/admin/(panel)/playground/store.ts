@@ -34,9 +34,16 @@ export function loadStore(): PlaygroundStore {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return emptyStore();
     const parsed = JSON.parse(raw) as PlaygroundStore;
-    if (parsed.version !== 2) return emptyStore();
+    if (parsed.version !== 2) {
+      // Never destroy a store this build cannot read (a newer deploy's data,
+      // or corruption): stash it aside so the session's saves cannot clobber it.
+      window.localStorage.setItem(`${STORAGE_KEY}:incompatible`, raw);
+      return emptyStore();
+    }
     return parsed;
   } catch {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (raw) window.localStorage.setItem(`${STORAGE_KEY}:incompatible`, raw);
     return emptyStore();
   }
 }
@@ -48,6 +55,7 @@ export function saveStore(store: PlaygroundStore): void {
   } catch {
     // Quota exceeded: drop traces AND snapshots (the two unbounded-ish terms)
     // and retry once; if even that fails, the session just lives in memory.
+    console.warn("[notis:playground] localStorage quota hit — dropping traces and snapshots to fit");
     try {
       const slim: PlaygroundStore = { ...store, traces: {}, traceOrder: [], snapshots: [] };
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(slim));
@@ -188,8 +196,9 @@ export function reducer(store: PlaygroundStore, action: Action): PlaygroundStore
       return { ...store, sim: { ...store.sim, promptOverride: action.value } };
 
     case "restoreSnapshot": {
-      const snap = store.snapshots.find((s) => s.id === action.id);
-      if (!snap) return store;
+      const snapIndex = store.snapshots.findIndex((s) => s.id === action.id);
+      if (snapIndex === -1) return store;
+      const snap = store.snapshots[snapIndex];
       const statusById = new Map(snap.queue.map((q) => [q.id, q.status]));
       // Items born after the snapshot (scheduled wakes, injected user
       // messages) vanish; items whose status rewinds to pending shed their
@@ -204,6 +213,10 @@ export function reducer(store: PlaygroundStore, action: Action): PlaygroundStore
       });
       return {
         ...store,
+        // Snapshots at or after the restore point belong to the abandoned
+        // timeline: keeping them leaves two snapshots per item id and a later
+        // rewind silently restores the stale one.
+        snapshots: store.snapshots.slice(0, snapIndex),
         sim: {
           ...store.sim,
           state: snap.state,
