@@ -4,6 +4,8 @@ import { TEST_USERS } from '@/lib/dev/test-users'
 import { DEV_TOOLS_ALLOWED } from '@/lib/deployment'
 import { env } from '@/env.mjs'
 import { createUser } from '@/lib/db/users'
+import { createLocation } from '@/lib/db/location'
+import { getCityCentroid } from '@/lib/db/cities'
 
 const DEV_TEST_CITY_ID = env.DEV_TEST_CITY_ID
 
@@ -42,32 +44,33 @@ export async function POST(request: NextRequest) {
     const testTopics = await prisma.topic.findMany({ take: 2, select: { id: true } })
 
     // Pinned locations near a city's centroid (Athens fallback when the city
-    // has no geometry). Geometry is an Unsupported() type, so raw SQL.
+    // has no geometry), through the shared src/lib/db helpers so the SQL
+    // lives in one place.
     async function ensureLocation(id: string, text: string, cityId: string, offset: number) {
-      const centroid = await prisma.$queryRaw<Array<{ lng: number | null; lat: number | null }>>`
-        SELECT ST_X(ST_Centroid(geometry)) AS lng, ST_Y(ST_Centroid(geometry)) AS lat
-        FROM "City" WHERE id = ${cityId}`
-      const lng = (centroid[0]?.lng ?? 23.7275) + offset
-      const lat = (centroid[0]?.lat ?? 37.9838) + offset
-      await prisma.$executeRaw`
-        INSERT INTO "Location" (id, type, text, coordinates)
-        VALUES (${id}, 'point'::"LocationType", ${text}, ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326))
-        ON CONFLICT (id) DO NOTHING`
+      const centroid = await getCityCentroid(cityId)
+      await createLocation({
+        id,
+        skipIfExists: true,
+        text,
+        coordinates: [(centroid?.lng ?? 23.7275) + offset, (centroid?.lat ?? 37.9838) + offset]
+      })
       return id
     }
 
     // Every test user gets a fake phone and a phone-enabled notification
     // preference, so the Notis release panel counts them as eligible and the
-    // playground can mirror them. Re-runs upgrade users from earlier seeds.
+    // playground can mirror them. Re-runs upgrade users from earlier seeds —
+    // including notifyByPhone, which eligibility requires.
     async function ensurePreference(userId: string, cityId: string, locationIds: string[]) {
       const data = {
+        notifyByPhone: true,
         interests: { connect: testTopics.map(t => ({ id: t.id })) },
         locations: { connect: locationIds.map(id => ({ id })) }
       }
       await prisma.notificationPreference.upsert({
         where: { userId_cityId: { userId, cityId } },
         update: data,
-        create: { userId, cityId, notifyByEmail: true, notifyByPhone: true, ...data }
+        create: { userId, cityId, notifyByEmail: true, ...data }
       })
     }
 

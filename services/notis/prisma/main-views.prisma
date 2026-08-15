@@ -68,18 +68,20 @@ model MeetingEventRow {
 }
 
 model SessionRow {
-  sessionToken String   @id
-  userId       String
-  expires      DateTime
+  // SHA-256 of the Auth.js session token — the raw token never leaves the
+  // main app.
+  sessionTokenHash String   @id
+  userId           String
+  expires          DateTime
 
   @@map("notis_sessions")
 }
 
 model AdminSessionRow {
-  sessionToken String   @id
-  userId       String
-  expires      DateTime
-  userName     String?
+  sessionTokenHash String   @id
+  userId           String
+  expires          DateTime
+  userName         String?
 
   @@map("notis_admin_sessions")
 }

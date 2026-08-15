@@ -1,4 +1,5 @@
 /** @jest-environment node */
+import { createHash } from 'crypto'
 import fs from 'fs'
 import path from 'path'
 import prisma from '@/lib/db/prisma'
@@ -122,7 +123,7 @@ describe('notis views migration', () => {
         expect(row.realm).toBe('greece')
     })
 
-    test('notis_admin_sessions exposes superadmin sessions only', async () => {
+    test('notis_admin_sessions exposes hashed superadmin sessions only', async () => {
         const admin = await createUser('admin@example.com', { isSuperAdmin: true, name: 'Admin' })
         const plain = await createUser('plain@example.com')
         const expires = new Date(Date.now() + 86_400_000)
@@ -137,13 +138,19 @@ describe('notis views migration', () => {
             'SELECT * FROM notis_admin_sessions',
         )
         expect(adminRows).toHaveLength(1)
-        expect(adminRows[0].sessionToken).toBe('tok-admin')
+        // The views expose a SHA-256 of the token, never the token itself —
+        // nothing that reaches Notis can replay as the Auth.js cookie.
+        expect(adminRows[0].sessionTokenHash).toBe(
+            createHash('sha256').update('tok-admin').digest('hex'),
+        )
+        expect(adminRows[0].sessionToken).toBeUndefined()
         expect(adminRows[0].userName).toBe('Admin')
 
-        const allRows = await prisma.$queryRawUnsafe<Array<unknown>>(
+        const allRows = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
             'SELECT * FROM notis_sessions',
         )
         expect(allRows).toHaveLength(2)
+        expect(allRows[0].sessionToken).toBeUndefined()
     })
 
     test('notis_users lists every user, unfiltered', async () => {

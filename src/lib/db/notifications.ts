@@ -949,7 +949,7 @@ export async function getPendingDeliveries(notificationIds: string[]) {
  */
 export async function getNotificationsForAdmin(filters: {
     cityId?: string;
-    status?: 'pending' | 'sent' | 'failed';
+    status?: 'pending' | 'sent' | 'failed' | 'skipped';
     type?: 'beforeMeeting' | 'afterMeeting';
     limit?: number;
     offset?: number;
@@ -1012,6 +1012,10 @@ export type NotificationStatusCounts = {
     sent: number;
     pending: number;
     failed: number;
+    // Every delivery deliberately withheld (e.g. the Notis rollout skipping
+    // the message medium) — distinct from sent so rollout observability is
+    // honest.
+    skipped: number;
     total: number;
 };
 
@@ -1042,7 +1046,7 @@ export type MeetingNotificationsGrouped = {
  */
 export async function getNotificationsGroupedByMeeting(filters: {
     cityId?: string;
-    status?: 'pending' | 'sent' | 'failed';
+    status?: 'pending' | 'sent' | 'failed' | 'skipped';
     type?: 'beforeMeeting' | 'afterMeeting';
     startDate?: Date;
     endDate?: Date;
@@ -1181,17 +1185,19 @@ export async function getNotificationsGroupedByMeeting(filters: {
 
         const stats = meetingStatsMap.get(key)!;
 
-        // Determine the status of this notification based on its deliveries
-        // A notification is "pending" if any delivery is pending
-        // A notification is "failed" if any delivery failed and none are pending
-        // A notification is "sent" if all deliveries are sent
+        // Determine the status of this notification based on its deliveries:
+        // any pending delivery -> "pending"; else any failed -> "failed"; else
+        // all deliveries skipped -> "skipped" (nothing was actually sent);
+        // otherwise "sent".
         const deliveryStatuses = notification.deliveries.map(d => d.status);
-        let notificationStatus: 'sent' | 'pending' | 'failed';
+        let notificationStatus: 'sent' | 'pending' | 'failed' | 'skipped';
 
         if (deliveryStatuses.includes('pending')) {
             notificationStatus = 'pending';
         } else if (deliveryStatuses.includes('failed')) {
             notificationStatus = 'failed';
+        } else if (deliveryStatuses.length > 0 && deliveryStatuses.every(s => s === 'skipped')) {
+            notificationStatus = 'skipped';
         } else {
             notificationStatus = 'sent';
         }
@@ -1200,7 +1206,7 @@ export async function getNotificationsGroupedByMeeting(filters: {
         const typeKey = notification.type === 'beforeMeeting' ? 'before' : 'after';
 
         if (!stats[typeKey]) {
-            stats[typeKey] = { sent: 0, pending: 0, failed: 0, total: 0 };
+            stats[typeKey] = { sent: 0, pending: 0, failed: 0, skipped: 0, total: 0 };
         }
 
         stats[typeKey]![notificationStatus]++;

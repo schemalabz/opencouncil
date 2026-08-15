@@ -31,6 +31,8 @@ describe("formatDistance", () => {
     expect(formatDistance(430)).toBe("450 μ");
     expect(formatDistance(20)).toBe("50 μ");
     expect(formatDistance(2140)).toBe("2,1 χλμ");
+    // 980 rounds to 1000 — must switch to the km form, never «1000 μ».
+    expect(formatDistance(980)).toBe("1,0 χλμ");
     expect(formatDistance(12400)).toBe("12 χλμ");
   });
 });

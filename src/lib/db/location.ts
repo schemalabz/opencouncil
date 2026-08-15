@@ -9,8 +9,12 @@ import prisma from "./prisma";
 export async function createLocation(data: {
     text: string;
     coordinates: [number, number]; // [longitude, latitude]
+    // Deterministic id + idempotent insert, for seed/fixture callers that
+    // re-run: an existing row with the id is kept as-is.
+    id?: string;
+    skipIfExists?: boolean;
 }): Promise<Location> {
-    const { text, coordinates } = data;
+    const { text, coordinates, id, skipIfExists } = data;
     const [longitude, latitude] = coordinates;
 
     console.log('Creating location:', text, coordinates);
@@ -20,21 +24,24 @@ export async function createLocation(data: {
         const result = await prisma.$queryRaw<Location[]>`
             INSERT INTO "Location" ("id", "text", "type", "coordinates")
             VALUES (
-                gen_random_uuid(),
-                ${text}, 
-                'point'::"LocationType", 
+                ${id ? Prisma.sql`${id}` : Prisma.sql`gen_random_uuid()`},
+                ${text},
+                'point'::"LocationType",
                 ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)
             )
+            ${skipIfExists ? Prisma.sql`ON CONFLICT ("id") DO NOTHING` : Prisma.empty}
             RETURNING id, text, type;
         `;
 
-        if (!result || result.length === 0) {
+        // ON CONFLICT DO NOTHING returns no row when the id already exists —
+        // that is the requested outcome, so fall through to the fetch below.
+        if ((!result || result.length === 0) && !(skipIfExists && id)) {
             throw new Error('Failed to create location: no result returned');
         }
 
         // Fetch the complete location record
         const location = await prisma.location.findUnique({
-            where: { id: result[0].id }
+            where: { id: id ?? result[0].id }
         });
 
         if (!location) {

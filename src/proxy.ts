@@ -7,6 +7,7 @@ import { REALMS, REALM_OVERRIDE_COOKIE, isRealm, isRealmApexHost, realmForHost, 
 import { LOCALE_PREFIX_RE, SERBIAN_SCRIPT_COOKIE, foreignLocaleRedirectPath, serbianScriptAdoption, serbianScriptParamTarget, serbianScriptRedirectPath, wwwRedirectTarget } from './lib/seo-redirects';
 import { isSerbianScript } from './lib/serbian/transliterate';
 import { mcpRewriteTarget } from './lib/mcp/rewrite';
+import { applySessionMirror } from './lib/auth/sessionMirror';
 
 const i18nMiddleware = createIntlMiddleware(routing);
 
@@ -26,6 +27,7 @@ const APP_PATH = /^\/(?!api|_next|_vercel|qr\/|\..+).*/;
 export default async function proxy(req: NextRequest) {
     return applySessionMirror(req, await proxyInner(req));
 }
+
 
 async function proxyInner(req: NextRequest): Promise<Response | undefined> {
     // Basic auth check
@@ -217,49 +219,18 @@ export const config = {
     matcher: ['/((?!api|ingest|_next|_vercel|.*\\..*).*)'],
 };
 
-/**
- * Mirror the Auth.js session token into a domain-scoped cookie so the Notis
- * admin (notis.opencouncil.gr) can validate it against notis_admin_sessions.
- *
- * A mirror, not a Domain on the session cookie itself: this app serves several
- * realm domains (opencouncil.gr/.fr/.rs) from one deployment, Auth.js cookie
- * config is static, and a browser rejects a Set-Cookie whose Domain does not
- * match the request host — a hard Domain would break sign-in everywhere but
- * .gr. The mirror is set only on hosts under SESSION_COOKIE_DOMAIN, refreshed
- * on every page navigation (this proxy's matcher skips /api and assets), and
- * cleared when the session cookie goes away. Notis re-validates the token and
- * its expiry against the database, so the mirror carries no authority of its
- * own.
+/*
+ * Session-mirror note: the Notis admin (notis.opencouncil.gr) authenticates
+ * with a domain-scoped mirror cookie rather than a Domain on the Auth.js
+ * session cookie itself — this app serves several realm domains
+ * (opencouncil.gr/.fr/.rs) from one deployment, Auth.js cookie config is
+ * static, and a browser rejects a Set-Cookie whose Domain does not match the
+ * request host. The mirror carries a SHA-256 of the token (no replayable
+ * authority on subdomain hosts); construction and the authoritative set/clear
+ * on the Auth.js route live in src/lib/auth/sessionMirror.ts. The
+ * applySessionMirror call above is the page-navigation refresher for sessions
+ * that predate a deploy.
  */
-function applySessionMirror(req: NextRequest, res: Response | undefined): Response | undefined {
-    // The auth() fallthrough can yield undefined (= continue unmodified).
-    if (!res) return res;
-    const domain = env.SESSION_COOKIE_DOMAIN;
-    if (!domain) return res;
-
-    const host = req.headers.get('host')?.split(':')[0] ?? '';
-    const bareDomain = domain.replace(/^\./, '');
-    if (host !== bareDomain && !host.endsWith(`.${bareDomain}`)) return res;
-
-    const token = req.cookies.get('__Secure-authjs.session-token')?.value;
-    const mirrorName = `__Secure-oc-session${env.SESSION_COOKIE_SUFFIX ?? ''}`;
-    const current = req.cookies.get(mirrorName)?.value;
-
-    // headers.append instead of NextResponse.cookies: the auth() fallthrough
-    // returns a plain Response.
-    if (token && current !== token) {
-        res.headers.append(
-            'Set-Cookie',
-            `${mirrorName}=${token}; Domain=${domain}; Path=/; Max-Age=2592000; HttpOnly; Secure; SameSite=Lax`,
-        );
-    } else if (!token && current) {
-        res.headers.append(
-            'Set-Cookie',
-            `${mirrorName}=; Domain=${domain}; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`,
-        );
-    }
-    return res;
-}
 
 function isHttpBasicAuthAuthenticated(req: Request) {
     if (!env.BASIC_AUTH_USERNAME || !env.BASIC_AUTH_PASSWORD) {

@@ -264,6 +264,7 @@ export default function AdminNotificationsPage() {
                                     <SelectItem value="pending">Pending</SelectItem>
                                     <SelectItem value="sent">Sent</SelectItem>
                                     <SelectItem value="failed">Failed</SelectItem>
+                                    <SelectItem value="skipped">Skipped</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

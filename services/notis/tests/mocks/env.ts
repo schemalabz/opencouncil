@@ -7,9 +7,10 @@
 export const env = {
   ANTHROPIC_API_KEY: "test-key",
   NOTIS_MCP_URL: "https://opencouncil.gr/mcp",
-  OPENCOUNCIL_BASE_URL: "https://opencouncil.gr",
+  OPENCOUNCIL_BASE_URL: process.env.OPENCOUNCIL_BASE_URL ?? "https://opencouncil.gr",
   NOTIS_DATABASE_URL: undefined,
   MAIN_DATABASE_URL: undefined,
   MAIN_SESSION_COOKIE_NAME: process.env.MAIN_SESSION_COOKIE_NAME,
+  NOTIS_ALERT_WEBHOOK_URL: undefined,
   NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: undefined,
 };

@@ -23,6 +23,20 @@ export function locationCoords(
   return { lng: location.lng, lat: location.lat };
 }
 
+/**
+ * The coordinate-bearing places among a preference's locations — the single
+ * derivation the playground map and wake assembly share, so a location list
+ * can never disagree with its pins.
+ */
+export function locationPoints(
+  locations: PreferenceLocation[],
+): Array<{ text: string; lng: number; lat: number }> {
+  return locations.flatMap((l) => {
+    const coords = locationCoords(l);
+    return coords ? [{ text: locationText(l), ...coords }] : [];
+  });
+}
+
 export function haversineMeters(
   a: { lng: number; lat: number },
   b: { lng: number; lat: number },
@@ -39,7 +53,10 @@ export function haversineMeters(
 
 /** Greek, coarse on purpose: «400 μ», «2,1 χλμ», «12 χλμ». */
 export function formatDistance(meters: number): string {
-  if (meters < 1000) return `${Math.max(50, Math.round(meters / 50) * 50)} μ`;
+  // Branch on the ROUNDED value: 980 m rounds to 1000, which must render
+  // as «1,0 χλμ», never «1000 μ».
+  const rounded = Math.max(50, Math.round(meters / 50) * 50);
+  if (rounded < 1000) return `${rounded} μ`;
   const km = meters / 1000;
   return km < 10
     ? `${km.toFixed(1).replace(".", ",")} χλμ`

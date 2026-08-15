@@ -16,13 +16,15 @@ cp services/notis/.env.example services/notis/.env   # add a real ANTHROPIC_API_
 npm run dev -w notis                                  # http://localhost:3001
 ```
 
-Admin access uses the main app's session: run the main dev server on :3000,
-sign in there as a superadmin (the QuickLogin dev bar works), then open
-`http://localhost:3001/admin`. Notis reads the `authjs.session-token-3000`
-cookie (localhost cookies ignore ports) and validates it against the
-`notis_admin_sessions` view — so `MAIN_DATABASE_URL` must point at a database
-that has the notis views migration. Set `OPENCOUNCIL_BASE_URL=http://localhost:3000`
-in dev so the login page links to your local sign-in.
+Admin access uses the main app's session: run the main dev server, sign in
+there as a superadmin (the QuickLogin dev bar works), then open
+`http://localhost:3001/admin`. Notis reads the port-suffixed dev cookie
+(localhost cookies ignore ports; the port comes from `OPENCOUNCIL_BASE_URL`,
+so multi-instance setups follow that URL), hashes it, and validates the hash
+against the `notis_admin_sessions` view — so `MAIN_DATABASE_URL` must point
+at a database that has the notis views migration. Set
+`OPENCOUNCIL_BASE_URL=http://localhost:3000` in dev so the login page links
+to your local sign-in and the cookie port matches.
 
 Simulation state lives in your browser's localStorage. Every step calls the
 real model against the public `opencouncil.gr/mcp` (on claude-sonnet-5) — a
@@ -80,16 +82,20 @@ runs at the root and ignores `services/`.
 ## Admin auth (shared cookie)
 
 `/admin/*` and `/api/*` (minus health) authenticate with the main app's
-session. The main app's proxy mirrors the Auth.js session token into a
-domain-scoped cookie (`__Secure-oc-session`, staging `-staging`-suffixed,
-`Domain` set by `SESSION_COOKIE_DOMAIN` on the main app), the browser sends it
-to `notis.opencouncil.gr`, and Notis validates it against the
-`notis_admin_sessions` view — superadmin sessions only. The edge proxy checks
-only that the cookie exists; `requireAdmin()`/`getAdminSession()` do the real
-lookup. There is no shared secret and the mirror carries no authority of its
-own. Main-app env for this: prod `SESSION_COOKIE_DOMAIN=.opencouncil.gr`;
-staging `SESSION_COOKIE_DOMAIN=.staging.opencouncil.gr` and
-`SESSION_COOKIE_SUFFIX=-staging`.
+session. The main app mirrors a **SHA-256 of** the Auth.js session token into
+a domain-scoped cookie (`__Secure-oc-session`, staging `-staging`-suffixed,
+`Domain` set by `SESSION_COOKIE_DOMAIN` on the main app) — set and cleared on
+the Auth.js responses that write the session cookie, refreshed on page
+navigations. The browser sends the hash to `notis.opencouncil.gr`, and Notis
+validates it against the hashed `notis_admin_sessions` view — superadmin
+sessions only. The edge proxy checks only that the cookie exists;
+`requireAdmin()`/`getAdminSession()` do the real lookup. There is no shared
+secret, and nothing that reaches Notis (or any other subdomain host) can be
+replayed as the session cookie against the main app. Main-app env for this:
+prod `SESSION_COOKIE_DOMAIN=.opencouncil.gr`; staging
+`SESSION_COOKIE_DOMAIN=.staging.opencouncil.gr` and
+`SESSION_COOKIE_SUFFIX=-staging`. The main-DB migration needs the `pgcrypto`
+extension (created by the migration itself).
 
 ## Known gaps (tracked for later PRs)
 

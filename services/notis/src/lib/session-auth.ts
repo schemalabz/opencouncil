@@ -1,15 +1,16 @@
+import { createHash } from "node:crypto";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { hasMainDb, mainDb } from "./main-db";
-import { sessionCookieName } from "./session-cookie";
+import { cookieCarriesRawToken, sessionCookieName } from "./session-cookie";
 
 /**
  * Shared-cookie admin auth: the browser presents the main app's session
- * token (see session-cookie.ts for which cookie carries it) and we validate
- * it against the notis_admin_sessions view — superadmin sessions only, by
- * construction of the view. No secret is shared between the apps; the token
- * has no authority here until the main database confirms it.
+ * credential (see session-cookie.ts for which cookie carries it) and we
+ * validate it against the notis_admin_sessions view — superadmin sessions
+ * only, by construction of the view. The view exposes a SHA-256 of the
+ * token, so nothing Notis handles can be replayed against the main app.
  */
 
 export interface AdminSession {
@@ -17,12 +18,22 @@ export interface AdminSession {
   userName: string | null;
 }
 
+/** The value to look up in the hashed view for a given cookie. */
+export function lookupHashFor(cookieName: string, cookieValue: string): string {
+  return cookieCarriesRawToken(cookieName)
+    ? createHash("sha256").update(cookieValue).digest("hex")
+    : cookieValue;
+}
+
 export const getAdminSession = cache(async (): Promise<AdminSession | null> => {
   if (!hasMainDb()) return null;
   const jar = await cookies();
-  const token = jar.get(sessionCookieName())?.value;
-  if (!token) return null;
-  const row = await mainDb().adminSessionRow.findUnique({ where: { sessionToken: token } });
+  const name = sessionCookieName();
+  const value = jar.get(name)?.value;
+  if (!value) return null;
+  const row = await mainDb().adminSessionRow.findUnique({
+    where: { sessionTokenHash: lookupHashFor(name, value) },
+  });
   if (!row || row.expires <= new Date()) return null;
   return { userId: row.userId, userName: row.userName };
 });

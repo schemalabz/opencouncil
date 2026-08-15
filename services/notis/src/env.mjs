@@ -18,8 +18,11 @@ export const env = createEnv({
     // the playground hides the real-user picker.
     MAIN_DATABASE_URL: z.string().url().optional(),
     // Override for the main app's session cookie name. Defaults per
-    // environment; see src/lib/session-auth.ts.
+    // environment; see src/lib/session-cookie.ts.
     MAIN_SESSION_COOKIE_NAME: z.string().optional(),
+    // Webhook (e.g. Discord) for operational alarms — janitor refusals and
+    // failures. Optional: without it alarms only reach the logs.
+    NOTIS_ALERT_WEBHOOK_URL: z.string().url().optional(),
   },
   client: {
     // Powers the playground's address search + map. Optional: without it the
@@ -33,6 +36,7 @@ export const env = createEnv({
     NOTIS_DATABASE_URL: process.env.NOTIS_DATABASE_URL,
     MAIN_DATABASE_URL: process.env.MAIN_DATABASE_URL,
     MAIN_SESSION_COOKIE_NAME: process.env.MAIN_SESSION_COOKIE_NAME,
+    NOTIS_ALERT_WEBHOOK_URL: process.env.NOTIS_ALERT_WEBHOOK_URL,
     NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN,
   },
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, MapPin, X } from "lucide-react";
-import { locationText } from "@/agent/geo";
+import { locationPoints, locationText } from "@/agent/geo";
 import { seedProfileFromPreferences } from "@/agent/profileSeed";
 import { introTemplateFor, renderTemplate } from "@/agent/templates";
 import { CityPreference, WakeState } from "@/agent/types";
@@ -17,7 +17,7 @@ import {
   geocode,
 } from "../api";
 import { MeetingSummary, deriveQueue } from "../deriveQueue";
-import { LocationPoint, Origin, Sim } from "../types";
+import { Origin, Sim } from "../types";
 import { AddressSearch } from "./AddressSearch";
 import { LocationsMap, MapFocus } from "./LocationsMap";
 
@@ -26,8 +26,9 @@ interface Props {
   onComplete(sim: Sim, from: string): void;
 }
 
+// Map pins are DERIVED from `locations` via locationPoints() — no parallel
+// array to keep in sync.
 interface CityDraft extends CityPreference {
-  points: LocationPoint[];
   center: MapFocus | null;
   logo?: string | null;
 }
@@ -67,24 +68,36 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
 
   const [realUsers, setRealUsers] = useState<{ available: boolean; users: RealUser[] } | null>(null);
   const [realMode, setRealMode] = useState(false);
+  const [realLoading, setRealLoading] = useState(false);
   const [realSearch, setRealSearch] = useState("");
   const [selectedRealUserId, setSelectedRealUserId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCities().then(setCities).catch((e) => setError(String(e)));
     fetchTopics().then(setTopics).catch((e) => setError(String(e)));
-    // Missing MAIN_DATABASE_URL (or a transient failure) just hides the mode.
-    fetchRealUsers()
-      .then(setRealUsers)
-      .catch(() => setRealUsers({ available: false, users: [] }));
   }, []);
+
+  // Real users load lazily when the mode opens, and the search runs
+  // server-side (debounced) — the server caps at 50 users, so a client-side
+  // filter would silently search a window.
+  useEffect(() => {
+    if (!realMode) return;
+    setRealLoading(true);
+    const timer = setTimeout(() => {
+      fetchRealUsers(realSearch.trim())
+        .then(setRealUsers)
+        .catch(() => setRealUsers({ available: false, users: [] }))
+        .finally(() => setRealLoading(false));
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [realMode, realSearch]);
 
   useEffect(() => {
     if (profileDirty) return;
     setProfile(
       drafts.length === 0
         ? DEFAULT_PROFILE
-        : seedProfileFromPreferences(drafts.map(({ points: _p, center: _c, logo: _l, ...pref }) => pref)),
+        : seedProfileFromPreferences(drafts.map(({ center: _c, logo: _l, ...pref }) => pref)),
     );
   }, [drafts, profileDirty]);
 
@@ -96,16 +109,7 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
     [cities, citySearch, drafts],
   );
 
-  const allPoints = useMemo(() => drafts.flatMap((d) => d.points), [drafts]);
-
-  const filteredRealUsers = useMemo(() => {
-    const users = realUsers?.users ?? [];
-    const q = realSearch.trim().toLowerCase();
-    if (!q) return users;
-    return users.filter(
-      (u) => u.name?.toLowerCase().includes(q) || u.phone?.includes(realSearch.trim()),
-    );
-  }, [realUsers, realSearch]);
+  const allPoints = useMemo(() => drafts.flatMap((d) => locationPoints(d.locations)), [drafts]);
 
   async function addCity(c: CityOption) {
     setCitySearch("");
@@ -114,7 +118,6 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
       cityName: c.name,
       topics: [],
       locations: [],
-      points: [],
       center: null,
       logo: c.logoImage ?? null,
     };
@@ -148,14 +151,12 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
         text: l.text,
         ...(l.lng != null && l.lat != null ? { lng: l.lng, lat: l.lat } : {}),
       })),
-      points: pref.locations
-        .filter((l): l is typeof l & { lng: number; lat: number } => l.lng != null && l.lat != null)
-        .map((l) => ({ text: l.text, lng: l.lng, lat: l.lat })),
       center: null,
       logo: cities.find((c) => c.id === pref.cityId)?.logoImage ?? null,
     }));
     setDrafts(newDrafts);
-    const firstPoint = newDrafts.flatMap((d) => d.points)[0];
+    // locationPoints strips coordless and (0,0)-sentinel places.
+    const firstPoint = newDrafts.flatMap((d) => locationPoints(d.locations))[0];
     if (firstPoint) setFocus({ lng: firstPoint.lng, lat: firstPoint.lat, zoom: 12.5 });
     for (const draft of newDrafts) {
       void geocode(draft.cityName, mapboxToken, undefined, "place,locality").then((hits) => {
@@ -183,7 +184,7 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
       const introTemplate = introTemplateFor(origin);
       const rendered = renderTemplate(introTemplate);
       const state: WakeState = {
-        user: { name, cities: drafts.map(({ points: _p, center: _c, ...pref }) => pref) },
+        user: { name, cities: drafts.map(({ center: _c, logo: _l, ...pref }) => pref) },
         profile,
         journal: [
           {
@@ -205,7 +206,7 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
           clock: startAt,
           queue,
           settings: {},
-          locationPoints: Object.fromEntries(drafts.map((d) => [d.cityId, d.points])),
+          locationPoints: Object.fromEntries(drafts.map((d) => [d.cityId, locationPoints(d.locations)])),
           origin,
           cityMeta: Object.fromEntries(
             drafts.map((d) => [d.cityId, { name: d.cityName, logo: d.logo }]),
@@ -249,7 +250,7 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
           <section className="wizard-reveal space-y-5" style={{ animationDelay: "80ms" }}>
             <SectionHeader n="01" title="Ποιος είναι" />
 
-            {realUsers?.available && (
+            {(
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-2">
                   {(
@@ -279,7 +280,12 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
                   ))}
                 </div>
 
-                {realMode && (
+                {realMode && realUsers && !realUsers.available && (
+                  <p className="text-sm text-muted-foreground">
+                    Μη διαθέσιμο — αυτό το περιβάλλον δεν έχει MAIN_DATABASE_URL.
+                  </p>
+                )}
+                {realMode && (realUsers?.available ?? true) && (
                   <div className="space-y-2">
                     <input
                       value={realSearch}
@@ -288,7 +294,7 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
                       className="h-9 w-full border-b border-border bg-transparent text-sm outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-foreground"
                     />
                     <ul className="max-h-64 divide-y overflow-y-auto border">
-                      {filteredRealUsers.map((u) => {
+                      {(realUsers?.users ?? []).map((u) => {
                         const topicCount = u.cities.reduce((n, c) => n + c.topics.length, 0);
                         const locationCount = u.cities.reduce((n, c) => n + c.locations.length, 0);
                         return (
@@ -319,9 +325,9 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
                           </li>
                         );
                       })}
-                      {filteredRealUsers.length === 0 && (
+                      {(realUsers?.users ?? []).length === 0 && (
                         <li className="px-3 py-2 text-sm text-muted-foreground">
-                          Κανένα αποτέλεσμα.
+                          {realLoading ? "Φόρτωση..." : "Κανένα αποτέλεσμα."}
                         </li>
                       )}
                     </ul>
@@ -487,10 +493,6 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
                               updateDraft(draft.cityId, (d) => ({
                                 ...d,
                                 locations: d.locations.filter((_, j) => j !== i),
-                                // By text, not index: real-user locations
-                                // without coordinates have no point, so the
-                                // two arrays are not index-aligned.
-                                points: d.points.filter((p) => p.text !== locationText(l)),
                               }))
                             }
                             className="ml-auto text-muted-foreground/0 transition-colors hover:!text-destructive group-hover/loc:text-muted-foreground"
@@ -507,9 +509,9 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
                           updateDraft(draft.cityId, (d) => ({
                             ...d,
                             // Object form with coordinates: wake assembly
-                            // computes subject distances from these.
+                            // computes subject distances and the map derives
+                            // its pins from these.
                             locations: [...d.locations, { text: hit.text, lng: hit.lng, lat: hit.lat }],
-                            points: [...d.points, hit],
                           }))
                         }
                       />

@@ -66,9 +66,12 @@ export async function getPanelMetrics(): Promise<PanelMetrics> {
       _sum: { costUsd: true },
       where: { createdAt: { gte: monthStart } },
     }),
+    // Month-bounded like the cost aggregate beside it — percentile_cont has
+    // no index shortcut, so an unbounded scan would grow with lifetime wakes.
     db.$queryRaw<Array<{ median: number | null }>>`
       SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY "durationMs") AS median
       FROM "NotisWake"
+      WHERE "createdAt" >= ${monthStart}
     `,
   ]);
 

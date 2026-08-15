@@ -245,6 +245,17 @@ const CITY_MAP_PROJECTION = Prisma.sql`
     ST_AsGeoJSON(ST_SimplifyPreserveTopology(geometry, 0.001)) AS geometry
 `;
 
+/** A city's boundary centroid — the same centroid rule CITY_MAP_PROJECTION uses.
+ *  Null when the city has no geometry. */
+export async function getCityCentroid(cityId: string): Promise<{ lng: number; lat: number } | null> {
+    const rows = await prisma.$queryRaw<Array<{ lng: number | null; lat: number | null }>>`
+        SELECT ST_X(ST_Centroid(geometry)) AS lng, ST_Y(ST_Centroid(geometry)) AS lat
+        FROM "City" WHERE id = ${cityId}
+    `;
+    const row = rows[0];
+    return row?.lng != null && row?.lat != null ? { lng: row.lng, lat: row.lat } : null;
+}
+
 /** Publicly covered municipalities for the landing map — centroid, logo, simplified
  *  boundary. Realm-keyed cache. Server-loaded in page.tsx. */
 export async function getMapCitiesCached(realm: Realm): Promise<MapCityRow[]> {

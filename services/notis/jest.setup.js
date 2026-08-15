@@ -5,3 +5,4 @@ process.env.SKIP_ENV_VALIDATION = "1";
 delete process.env.NOTIS_DATABASE_URL;
 delete process.env.MAIN_DATABASE_URL;
 delete process.env.MAIN_SESSION_COOKIE_NAME;
+delete process.env.OPENCOUNCIL_BASE_URL;

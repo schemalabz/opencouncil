@@ -1,4 +1,4 @@
-import { distanceLine, locationCoords, locationText } from "./geo";
+import { distanceLine, locationPoints, locationText } from "./geo";
 import {
   EditorialBrief,
   JOURNAL_WINDOW,
@@ -22,12 +22,7 @@ interface ReaderPlace {
 function readerPlaces(state: WakeState, cityId: string): ReaderPlace[] {
   return state.user.cities
     .filter((c) => c.cityId === cityId)
-    .flatMap((c) =>
-      c.locations.flatMap((l) => {
-        const coords = locationCoords(l);
-        return coords ? [{ text: locationText(l), ...coords }] : [];
-      }),
-    );
+    .flatMap((c) => locationPoints(c.locations));
 }
 
 /**

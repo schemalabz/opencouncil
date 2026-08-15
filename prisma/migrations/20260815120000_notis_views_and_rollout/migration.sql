@@ -9,9 +9,20 @@ ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "notisEnabledAt" TIMESTAMP(3);
 -- the send boundary, not sent and not counted as failures.
 ALTER TYPE "NotificationDeliveryStatus" ADD VALUE IF NOT EXISTS 'skipped';
 
+-- digest() for the hashed session views below.
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- DROP + CREATE (not OR REPLACE) so a column change in a view stays
+-- idempotent; grants are re-issued at the bottom of this file.
+DROP VIEW IF EXISTS "notis_users";
+DROP VIEW IF EXISTS "notis_fanout_targets";
+DROP VIEW IF EXISTS "notis_meeting_events";
+DROP VIEW IF EXISTS "notis_sessions";
+DROP VIEW IF EXISTS "notis_admin_sessions";
+
 -- Unfiltered on purpose: the Notis janitor treats row-existence as the
 -- account-deletion signal, so a filter here would read as a mass deletion.
-CREATE OR REPLACE VIEW "notis_users" AS
+CREATE VIEW "notis_users" AS
 SELECT
   u.id,
   u.name,
@@ -26,7 +37,7 @@ FROM "User" u;
 -- playground can simulate anyone. City rows carry realm/language/timezone —
 -- realm belongs to cities and meetings, never to users. Enums are cast to text
 -- so the contract stays plain SQL types.
-CREATE OR REPLACE VIEW "notis_fanout_targets" AS
+CREATE VIEW "notis_fanout_targets" AS
 SELECT
   np."userId",
   u.name                            AS "userName",
@@ -66,7 +77,7 @@ LEFT JOIN LATERAL (
 
 -- Completed pipeline tasks are the meeting events. taskId is the dedup key: a
 -- reprocessed meeting produces a new task row and counts as a fresh event.
-CREATE OR REPLACE VIEW "notis_meeting_events" AS
+CREATE VIEW "notis_meeting_events" AS
 SELECT
   ts.id              AS "taskId",
   ts.type,
@@ -87,18 +98,23 @@ LEFT JOIN "AdministrativeBody" ab ON ab.id = cm."administrativeBodyId"
 WHERE ts.type IN ('processAgenda', 'summarize')
   AND ts.status = 'succeeded';
 
--- Cookie validation for the self-service profile endpoints (any user).
-CREATE OR REPLACE VIEW "notis_sessions" AS
+-- Cookie validation exposes a SHA-256 of the token, never the token: the
+-- browser-side mirror cookie carries the same hash, so nothing that reaches
+-- Notis (or any other subdomain host) can be replayed as the Auth.js session
+-- cookie against the main app.
+
+-- Self-service profile endpoints (any user).
+CREATE VIEW "notis_sessions" AS
 SELECT
-  s."sessionToken",
+  encode(digest(s."sessionToken", 'sha256'), 'hex') AS "sessionTokenHash",
   s."userId",
   s.expires
 FROM "Session" s;
 
--- Cookie validation for the Notis admin panel: superadmins only.
-CREATE OR REPLACE VIEW "notis_admin_sessions" AS
+-- The Notis admin panel: superadmins only.
+CREATE VIEW "notis_admin_sessions" AS
 SELECT
-  s."sessionToken",
+  encode(digest(s."sessionToken", 'sha256'), 'hex') AS "sessionTokenHash",
   s."userId",
   s.expires,
   u.name AS "userName"

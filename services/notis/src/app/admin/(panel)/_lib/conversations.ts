@@ -28,7 +28,6 @@ export interface ConversationDetail {
   records: WakeRecord[];
   cityMeta?: CityMeta;
   profile: string;
-  traces: Record<string, WakeTrace>;
 }
 
 interface SubscriptionRow {
@@ -61,16 +60,33 @@ function toSummary(sub: SubscriptionRow, sent: number, received: number): Conver
   };
 }
 
+// The list stops scaling with total history at this bound; older
+// conversations stay reachable through their users' direct links.
+const CONVERSATION_LIST_LIMIT = 500;
+
 export async function listConversations(): Promise<ConversationSummary[]> {
   if (!hasNotisDb()) return [];
   const db = notisDb();
-  const [subs, counts] = await Promise.all([
-    db.notisSubscription.findMany({ orderBy: { updatedAt: "desc" } }),
-    db.notisMessage.groupBy({ by: ["subscriptionId", "direction"], _count: { _all: true } }),
-  ]);
-  const countFor = (id: string, direction: "inbound" | "outbound") =>
-    counts.find((c) => c.subscriptionId === id && c.direction === direction)?._count._all ?? 0;
-  return subs.map((sub) => toSummary(sub, countFor(sub.id, "outbound"), countFor(sub.id, "inbound")));
+  const subs = await db.notisSubscription.findMany({
+    orderBy: { updatedAt: "desc" },
+    take: CONVERSATION_LIST_LIMIT,
+  });
+  if (subs.length === 0) return [];
+  const counts = await db.notisMessage.groupBy({
+    by: ["subscriptionId", "direction"],
+    where: { subscriptionId: { in: subs.map((s) => s.id) } },
+    _count: { _all: true },
+  });
+  const countMap = new Map(
+    counts.map((c) => [`${c.subscriptionId}:${c.direction}`, c._count._all]),
+  );
+  return subs.map((sub) =>
+    toSummary(
+      sub,
+      countMap.get(`${sub.id}:outbound`) ?? 0,
+      countMap.get(`${sub.id}:inbound`) ?? 0,
+    ),
+  );
 }
 
 export async function getConversation(id: string): Promise<ConversationDetail | null> {
@@ -78,7 +94,15 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
   const db = notisDb();
   const sub = await db.notisSubscription.findUnique({
     where: { id },
-    include: { wakes: { orderBy: { createdAt: "asc" } } },
+    include: {
+      wakes: {
+        orderBy: { createdAt: "asc" },
+        // No `trace`: a full WakeTrace runs to hundreds of KB per wake and
+        // the inspector shows one at a time — the client fetches a single
+        // trace lazily via getWakeTrace.
+        select: { id: true, event: true, outcome: true, delivery: true },
+      },
+    },
   });
   if (!sub) return null;
 
@@ -103,8 +127,14 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
       subscriptionCities(sub).map((c) => [c.cityId, { name: c.cityName }]),
     ),
     profile: sub.profileText,
-    traces: Object.fromEntries(
-      sub.wakes.map((wake) => [wake.id, wake.trace as unknown as WakeTrace]),
-    ),
   };
+}
+
+export async function getWakeTrace(wakeId: string): Promise<WakeTrace | null> {
+  if (!hasNotisDb()) return null;
+  const wake = await notisDb().notisWake.findUnique({
+    where: { id: wakeId },
+    select: { trace: true },
+  });
+  return wake ? (wake.trace as unknown as WakeTrace) : null;
 }
