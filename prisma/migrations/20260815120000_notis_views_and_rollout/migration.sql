@@ -5,6 +5,10 @@
 
 ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "notisEnabledAt" TIMESTAMP(3);
 
+-- Message deliveries created before a user's Notis enablement are skipped at
+-- the send boundary, not sent and not counted as failures.
+ALTER TYPE "NotificationDeliveryStatus" ADD VALUE IF NOT EXISTS 'skipped';
+
 -- Unfiltered on purpose: the Notis janitor treats row-existence as the
 -- account-deletion signal, so a filter here would read as a mass deletion.
 CREATE OR REPLACE VIEW "notis_users" AS

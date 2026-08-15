@@ -851,8 +851,11 @@ export async function createNotificationsForMeeting(
                     });
                 }
 
-                // Create message delivery if user has phone and wants to be notified by phone
-                if (userPref.notifyByPhone && user.phone) {
+                // Create message delivery if user has phone and wants to be notified by phone.
+                // Users on the Notis rollout (notisEnabledAt set) get their WhatsApp
+                // messages from Notis — creating a message delivery here would serve
+                // them by both paths. Email stays untouched.
+                if (userPref.notifyByPhone && user.phone && !user.notisEnabledAt) {
                     const smsBody = await generateSmsContent(notificationData);
                     await prisma.notificationDelivery.create({
                         data: {
@@ -894,7 +897,7 @@ export async function createNotificationsForMeeting(
  */
 export async function updateDeliveryStatus(
     deliveryId: string,
-    status: 'sent' | 'failed',
+    status: 'sent' | 'failed' | 'skipped',
     messageSentVia?: 'whatsapp' | 'sms'
 ) {
     await prisma.notificationDelivery.update({
