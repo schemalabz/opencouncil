@@ -1,40 +1,21 @@
-"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { headers } from "next/headers";
 import { Button } from "@opencouncil/ui/button";
-import { Input } from "@opencouncil/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@opencouncil/ui/card";
+import { env } from "@/env.mjs";
+import { hasMainDb } from "@/lib/main-db";
+import { getAdminSession } from "@/lib/session-auth";
 
-export default function AdminLoginPage() {
-  const router = useRouter();
-  const [secret, setSecret] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+// Auth happens on the main app: the browser signs in at opencouncil.gr, the
+// shared cookie comes back scoped to the parent domain, and the panel layout
+// validates it against notis_admin_sessions (superadmins only).
+export default async function AdminLoginPage() {
+  const session = await getAdminSession();
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/admin/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ secret }),
-      });
-      if (res.ok) {
-        router.push("/admin/playground");
-        router.refresh();
-        return;
-      }
-      const body = await res.json().catch(() => null);
-      setError(body?.error ?? "something went wrong");
-    } catch {
-      setError("network error — try again");
-    } finally {
-      setBusy(false);
-    }
-  }
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3001";
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  const callback = `${proto}://${host}/admin/playground`;
+  const signInUrl = `${env.OPENCOUNCIL_BASE_URL}/sign-in?callbackUrl=${encodeURIComponent(callback)}`;
 
   return (
     <main className="flex min-h-[70vh] items-center justify-center px-6">
@@ -42,20 +23,33 @@ export default function AdminLoginPage() {
         <CardHeader>
           <CardTitle className="font-relative text-xl">Νότης · admin</CardTitle>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={submit} className="space-y-3">
-            <Input
-              type="password"
-              placeholder="Admin secret"
-              value={secret}
-              onChange={(e) => setSecret(e.target.value)}
-              autoFocus
-            />
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full" disabled={busy || secret.length === 0}>
-              {busy ? "..." : "Είσοδος"}
-            </Button>
-          </form>
+        <CardContent className="space-y-3">
+          {session ? (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Συνδεδεμένος ως {session.userName ?? "superadmin"}.
+              </p>
+              <Button asChild className="w-full">
+                <a href="/admin/playground">Συνέχεια</a>
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Η σύνδεση γίνεται με τον λογαριασμό σου στο OpenCouncil. Πρόσβαση έχουν μόνο
+                λογαριασμοί superadmin.
+              </p>
+              <Button asChild className="w-full">
+                <a href={signInUrl}>Σύνδεση μέσω OpenCouncil</a>
+              </Button>
+              {!hasMainDb() && (
+                <p className="text-sm text-destructive">
+                  MAIN_DATABASE_URL is not set — cookie validation is unavailable on this
+                  deployment.
+                </p>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
     </main>

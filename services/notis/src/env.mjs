@@ -4,9 +4,6 @@ import { z } from "zod";
 export const env = createEnv({
   server: {
     ANTHROPIC_API_KEY: z.string().min(1),
-    // Gates /admin and the agent API routes until PR 2 replaces this with
-    // shared-cookie validation against the main app's sessions.
-    NOTIS_ADMIN_SECRET: z.string().min(16),
     // The MCP endpoint the agent researches against. Must be publicly
     // reachable (the MCP connector calls it from Anthropic's side); override
     // to point wakes at a preview deployment.
@@ -31,7 +28,6 @@ export const env = createEnv({
   },
   runtimeEnv: {
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-    NOTIS_ADMIN_SECRET: process.env.NOTIS_ADMIN_SECRET,
     NOTIS_MCP_URL: process.env.NOTIS_MCP_URL,
     OPENCOUNCIL_BASE_URL: process.env.OPENCOUNCIL_BASE_URL,
     NOTIS_DATABASE_URL: process.env.NOTIS_DATABASE_URL,
