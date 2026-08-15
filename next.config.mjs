@@ -36,7 +36,7 @@ const nextConfig = {
     images: {
         domains: ['townhalls-gr.fra1.digitaloceanspaces.com', 'data.opencouncil.gr', 'fra1.digitaloceanspaces.com'],
     },
-    transpilePackages: ['@'],
+    transpilePackages: ['@opencouncil/ui'],
     // Enable custom domains - we'll handle this entirely in proxy.ts
     async headers() {
         return [

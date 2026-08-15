@@ -1,0 +1,260 @@
+{
+  "name": "scenario-athens-jul6-2026-agenda",
+  "state": {
+    "user": {
+      "name": "Μαρία",
+      "cities": [
+        {
+          "cityId": "athens",
+          "cityName": "Αθήνα",
+          "topics": [
+            "Πολεοδομία",
+            "Συγκοινωνίες"
+          ],
+          "locations": [
+            "Πετράλωνα"
+          ]
+        }
+      ]
+    },
+    "profile": "Μένει στα Άνω Πετράλωνα με το αυτοκίνητό της παρκαρισμένο στον δρόμο. Την απασχολεί το παρκάρισμα, η κατάσταση των κτιρίων και ό,τι αλλάζει τη γειτονιά.",
+    "journal": []
+  },
+  "event": {
+    "type": "agenda_processed",
+    "at": "2026-07-03T15:30:00.000Z",
+    "cityId": "athens",
+    "meetingId": "jul6_2026",
+    "meetingName": "Συνεδρίαση 06/07/26",
+    "meetingDate": "2026-07-06",
+    "brief": {
+      "cityId": "athens",
+      "meetingId": "jul6_2026",
+      "generatedAt": "2026-08-15T13:45:37.641Z",
+      "headline": "Το συμβούλιο θα συζητήσει ζητήματα ασφάλειας και υποβάθμισης στην πλατεία Λαού, τη λειτουργία της λαϊκής αγοράς στην Αχαρνών και σειρά τοπικών θεμάτων στην 4η Δημοτική Κοινότητα, όπως στάθμευση, πράσινο και επικίνδυνα κτίσματα.",
+      "meetingUrl": "https://opencouncil.gr/athens/jul6_2026",
+      "subjects": [
+        {
+          "subjectId": "cmrc6jsya07pvqhaq80u497in",
+          "name": "Ναρκωτικά και υποβάθμιση πλατείας Λαού",
+          "topicLabels": [
+            "Δημόσια Ασφάλεια"
+          ],
+          "discussionSeconds": 1760,
+          "scores": {
+            "hyperlocal": 5,
+            "citywide": 1,
+            "contention": 3,
+            "novelty": 3,
+            "money": 0
+          },
+          "note": "Θα εξεταστεί η κατάσταση ασφάλειας και υποβάθμισης στην πλατεία Λαού με συμμετοχή κατοίκων και συλλόγου.",
+          "locationHints": [
+            "Πλατεία Λαού",
+            "Άγιος Μελέτιος"
+          ],
+          "url": "https://opencouncil.gr/athens/jul6_2026/subjects/cmrc6jsya07pvqhaq80u497in"
+        },
+        {
+          "subjectId": "cmr8w9jm604zac4d99dyx3yzn",
+          "name": "Λαϊκή αγορά Αχαρνών",
+          "topicLabels": [
+            "Εμπόριο & Καταστήματα"
+          ],
+          "discussionSeconds": 689,
+          "scores": {
+            "hyperlocal": 4,
+            "citywide": 1,
+            "contention": 2,
+            "novelty": 1,
+            "money": 0
+          },
+          "note": "Θα συζητηθεί η λειτουργία της λαϊκής αγοράς Αχαρνών λόγω ενστάσεων κατοίκων.",
+          "locationHints": [
+            "Οδός Γιάνναρη",
+            "Οδός Ζυμπρακάκη"
+          ],
+          "url": "https://opencouncil.gr/athens/jul6_2026/subjects/cmr8w9jm604zac4d99dyx3yzn"
+        },
+        {
+          "subjectId": "cmrc6jt1o07ssqhaqypt7jcz5",
+          "name": "Πολιτική προστασία, σχολεία και εκδηλώσεις στην Ακαδημία Πλάτωνος",
+          "topicLabels": [
+            "Δημόσια Ασφάλεια"
+          ],
+          "discussionSeconds": 345,
+          "scores": {
+            "hyperlocal": 4,
+            "citywide": 2,
+            "contention": 1,
+            "novelty": 1,
+            "money": 0
+          },
+          "note": "Θα τεθούν ζητήματα πολιτικής προστασίας, καθαριότητας σχολείων και εκδηλώσεων σε συγκεκριμένες περιοχές.",
+          "locationHints": [
+            "Ακαδημία Πλάτωνος",
+            "Λόφος Σκουζέ"
+          ],
+          "url": "https://opencouncil.gr/athens/jul6_2026/subjects/cmrc6jt1o07ssqhaqypt7jcz5"
+        },
+        {
+          "subjectId": "cmrc6jszf07rdqhaqsel89msp",
+          "name": "Στάθμευση και πρόστιμα στη Ζυμπρακάκη",
+          "topicLabels": [
+            "Συγκοινωνίες"
+          ],
+          "discussionSeconds": 289,
+          "scores": {
+            "hyperlocal": 4,
+            "citywide": 0,
+            "contention": 2,
+            "novelty": 1,
+            "money": 0
+          },
+          "note": "Θα συζητηθεί καταγγελία κατοίκου για άνιση εφαρμογή προστίμων στάθμευσης σε συγκεκριμένη οδό.",
+          "locationHints": [
+            "Οδός Ζυμπρακάκη",
+            "Θυμαράκια",
+            "Οδός Σεράφη"
+          ],
+          "url": "https://opencouncil.gr/athens/jul6_2026/subjects/cmrc6jszf07rdqhaqsel89msp"
+        },
+        {
+          "subjectId": "cmrc6jt0u07seqhaqqghudz9q",
+          "name": "Πρέμνα και ελλείψεις πρασίνου",
+          "topicLabels": [
+            "Περιβάλλον"
+          ],
+          "discussionSeconds": 108,
+          "scores": {
+            "hyperlocal": 3,
+            "citywide": 1,
+            "contention": 1,
+            "novelty": 1,
+            "money": 0
+          },
+          "note": "Θα αναφερθεί το πρόβλημα των πρέμνων που εμποδίζουν νέες φυτεύσεις.",
+          "locationHints": [],
+          "url": "https://opencouncil.gr/athens/jul6_2026/subjects/cmrc6jt0u07seqhaqqghudz9q"
+        },
+        {
+          "subjectId": "cmrc6jt0507s3qhaqfh6fv9fz",
+          "name": "Επικίνδυνα κτίσματα στην 4η Δ.Κ.",
+          "topicLabels": [
+            "Πολεοδομία"
+          ],
+          "discussionSeconds": 79,
+          "scores": {
+            "hyperlocal": 4,
+            "citywide": 0,
+            "contention": 1,
+            "novelty": 1,
+            "money": 0
+          },
+          "note": "Θα επαναφερθεί παλαιότερο αίτημα για επικίνδυνα κτίσματα στην 4η Δ.Κ.",
+          "locationHints": [
+            "4η Δημοτική Κοινότητα"
+          ],
+          "url": "https://opencouncil.gr/athens/jul6_2026/subjects/cmrc6jt0507s3qhaqfh6fv9fz"
+        },
+        {
+          "subjectId": "cmrc6jt2f07tgqhaq7m751cau",
+          "name": "Προγραμματισμός συνεδριάσεων",
+          "topicLabels": [
+            "Διοίκηση"
+          ],
+          "discussionSeconds": 61,
+          "scores": {
+            "hyperlocal": 0,
+            "citywide": 1,
+            "contention": 1,
+            "novelty": 0,
+            "money": 0
+          },
+          "note": "Θα ζητηθεί καλύτερος προγραμματισμός των συνεδριάσεων του συμβουλίου.",
+          "locationHints": [],
+          "url": "https://opencouncil.gr/athens/jul6_2026/subjects/cmrc6jt2f07tgqhaq7m751cau"
+        },
+        {
+          "subjectId": "cmr8w9jn504zcc4d92uiuqj3y",
+          "name": "Πάρκα σκύλων στην 4η Δ.Κ.",
+          "topicLabels": [
+            "Ζώα & Αδέσποτα"
+          ],
+          "discussionSeconds": 11,
+          "scores": {
+            "hyperlocal": 3,
+            "citywide": 0,
+            "contention": 0,
+            "novelty": 1,
+            "money": 0
+          },
+          "note": "Θα συζητηθούν προτάσεις για δημιουργία πάρκων σκύλων στην 4η Δ.Κ.",
+          "locationHints": [
+            "4η Δημοτική Κοινότητα"
+          ],
+          "url": "https://opencouncil.gr/athens/jul6_2026/subjects/cmr8w9jn504zcc4d92uiuqj3y"
+        },
+        {
+          "subjectId": "cmr8w9jmr04zbc4d9wey4a90f",
+          "name": "Προϋπολογισμός λειτουργικών εξόδων 2027",
+          "topicLabels": [
+            "Προϋπολογισμός & Οικονομία"
+          ],
+          "discussionSeconds": 0,
+          "scores": {
+            "hyperlocal": 1,
+            "citywide": 2,
+            "contention": 0,
+            "novelty": 0,
+            "money": 1
+          },
+          "note": "Το θέμα του προϋπολογισμού λειτουργικών εξόδων 2027 αναμένεται να αναβληθεί λόγω νέου νόμου.",
+          "locationHints": [
+            "4η Δημοτική Κοινότητα"
+          ],
+          "url": "https://opencouncil.gr/athens/jul6_2026/subjects/cmr8w9jmr04zbc4d9wey4a90f"
+        }
+      ]
+    }
+  },
+  "recordedTurns": [
+    {
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "I'm noticing that Maria's interests—Petralona, parking, and buildings—don't actually align with the locations she's focused on, which are scattered across 4η Δ.Κ. in different neighborhoods. Since this is preliminary planning, I need to frame everything in future terms without assuming any outcomes.",
+          "signature": "Er8ICokBCBAYAipAS4HP9WZCdXMe3RqGCv9C+ukb1yjIz4jDDN5vGqL4/jjg64Eg+RwLk8tZSd3RMz4YUPl8ynXjjKOuBQYMWxc45jIPY2xhdWRlLXNvbm5ldC01OABCCHRoaW5raW5nWiRlNTg1YmIxMi04NzgyLTQ4MWQtOGZkYi1jNTIxZGU2ZTM5MjgSDH8nD48hXzxPOTf4NhoMKZ7oigaPUMTDdxXDIjCOMVo/OHNQ9HLp9Adv/eCp3zqPnBgOzdNiI5w4Oa3KEI6FkdmicDPqlqNCpNm0H2oq4gb5BkoU76XAXlEPRPIGpFwL+rXCktr7Sjg7zRVg/2CKn3diMSnmNkqwYuu1N6YR7xkS1bJRp4TaOFtY1ww41CE/r0+P3ty2zjA4EqJETIHZbdcAfo/E34wNrNB7xIH7/Sq4pnHg203KBH3iTJxBFPe0RUTwsyqRLblzMxuGm8I1H0JcsH8tN8hZdBc45I5l8xrMLxxiv/NBddRdgHhAu8MkYBzv1I9Y4WMbeWzjywqiwpjuwg0qcn+2fx9qy4UVI6M/MfsRcr6nR0vpu7IeAKhus1q1C9h9VpLDKPaUNG0F3MUTFYG3WA1CHbMLgjJGbS7JDPM04MSM7nyBReZ+HUZYsnB0BWS8l0ek0uRNnLG/J1cGFYuvw+VMNdi3iSfjKL8kTnI/ACi75d5kd8jVRAMKSXe5zKHuledbtw88tCOb+8VXWIzGhh2B8feMN5MOtwIdpm/GFvr4stOKgRdY+7oM7it8yfVaRCNwu4wXc8Onl9gY0ukFrjQS4aVzpn0a6ZaO+QGVTTgmEU5FwX79jVe45nFQsyXM28RpxC+cpK7Y1RIRsMy3aI+oDHuAu7jT48Mqx/XtO3fzblQfbOJDXwc97iWCopjRSschcBOjRmDCf8Z7oa+RpWvWnSrwhLn0vHgj2WCHFBQZh9MTccJPlFC/1sGFbhMZRBISsHvS6m2kP34fML58H69fSnHDyM+g45brC1uWFicgb99mdkoad8J0ABsaztVBcg5rlCvB6tNljMDfb5dbOZvcyMd9NdHBdmJ65i1f6HLwURBjSYgVAtozn+FBe//yGLRlIT95a1MyRTZT8VWljOC2aUrZwHOdt//u2ZK0p8JTieNP15JYotBoPgwC5KboFgRaDUP5jvkxI6O2epVJxxLlhMDumUkUSLFWGMpekig3nPz/JfpHO6wOrjT1OH4yBgsolX4wOhaRvGho6hSHrFy0eNqlhcGzNwcs7qGkDmLFgfFSh7x4+RTZSvW9Yas8IdWzUVeEWrv0dIP/hqG646u+IDt4fUAU9th4anbuu10xolNjnwU0SkK2uuypFV38mulOwnI+I6RuuVNHR3cepINgUO5qaeJn4A9LmSCi8FjsKMCyGYNwT82CUxfbkguURVMEnVg/mq276/kHwkOLZQT8ANHddBhIL2tIThgB"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_01HcSRMYWfVKLPN4WpWX8jDA",
+          "name": "finish_wake",
+          "caller": {
+            "type": "direct"
+          },
+          "input": {
+            "rationale": "All agenda items concern the 4η Δημοτική Κοινότητα (Πλατεία Λαού, Αχαρνών, Ακαδημία Πλάτωνος, Ζυμπρακάκη) — none touch Πετράλωνα or her stated interests in parking/buildings there. Staying silent; nothing here is hyperlocal to her actual neighbourhood."
+          }
+        }
+      ],
+      "stopReason": "tool_use",
+      "usage": {
+        "input": 2,
+        "output": 503,
+        "cacheWrite": 27040,
+        "cacheRead": 0
+      }
+    }
+  ],
+  "expected": {
+    "decision": "silence",
+    "messageCount": 0,
+    "messages": [],
+    "profileRewritten": false,
+    "scheduledWakes": 0,
+    "scheduledWakesDetail": [],
+    "unsubscribed": false,
+    "repairs": []
+  }
+}

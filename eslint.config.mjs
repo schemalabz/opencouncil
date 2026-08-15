@@ -2,6 +2,10 @@ import { defineConfig } from "eslint/config";
 import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 
 export default defineConfig([{
+    // services/* are separate workspace apps with their own lint setup;
+    // the root app's Next config must not walk into them.
+    ignores: ["services/**"],
+}, {
     extends: [...nextCoreWebVitals],
 
     // CI runs `eslint . --max-warnings 0`, so a "warn" is as fatal as an

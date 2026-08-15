@@ -18,11 +18,7 @@ export * from './roles';
 export * from './contribution';
 
 // Pagination
-export interface PaginationParams {
-    currentPage: number;
-    totalPages: number;
-    pageSize: number;
-}
+export type { PaginationParams } from "../../../../packages/ui/src/lib/pagination";
 
 // Meeting with all related data
 export type MeetingWithAllData = CouncilMeetingWithAdminBodyAndSubjects & {

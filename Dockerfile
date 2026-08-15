@@ -9,7 +9,11 @@ RUN apk add --no-cache openssl openssl-dev
 
 # Copy package.json, package-lock.json, and .npmrc (the latter carries
 # legacy-peer-deps=true, required for the React 19 peer-dep set to install).
+# Workspace member manifests must be present before npm install, or npm
+# resolves the workspace-shaped lockfile against missing directories.
 COPY package*.json .npmrc ./
+COPY packages/ui/package.json packages/ui/
+COPY services/notis/package.json services/notis/
 
 # Install dependencies
 RUN npm install

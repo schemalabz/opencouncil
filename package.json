@@ -2,6 +2,10 @@
   "name": "opencouncil",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "packages/*",
+    "services/*"
+  ],
   "scripts": {
     "postinstall": "patch-package",
     "dev": "next dev --turbo -H 0.0.0.0",
@@ -9,6 +13,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "check:ui": "tsc -p packages/ui --noEmit",
     "test": "jest",
     "test:integration": "node --max-old-space-size=8192 ./node_modules/.bin/jest --config jest.integration.config.js",
     "test:watch": "jest --watch",
@@ -58,6 +63,7 @@
     "@modelcontextprotocol/server": "^2.0.0",
     "@mux/mux-video": "^0.20.2",
     "@mux/mux-video-react": "^0.26.1",
+    "@opencouncil/ui": "*",
     "@posthog/mcp": "^0.11.0",
     "@posthog/nextjs-config": "^1.9.68",
     "@prisma/client": "^5.22.0",

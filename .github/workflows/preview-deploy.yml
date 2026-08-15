@@ -96,16 +96,25 @@ jobs:
           set -euo pipefail
 
           LOCKFILE_CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '^package-lock.json$' || true)
-          PKG_JSON_CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '^package.json$' || true)
+          # Any workspace manifest (root, packages/*, services/*) feeds the
+          # single root lockfile.
+          PKG_JSON_CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '^(package.json|packages/[^/]+/package.json|services/[^/]+/package.json)$' || true)
 
-          # Dependencies changed in package.json but lockfile wasn't updated.
+          # Dependencies changed in a manifest but lockfile wasn't updated.
           # (The Nix build reads dependency hashes straight from the lockfile
           # via importNpmLock, so no flake.nix hash check is needed.)
           if [ -n "$PKG_JSON_CHANGED" ] && [ -z "$LOCKFILE_CHANGED" ]; then
-            OLD_DEPS=$(git show origin/${{ github.base_ref }}:package.json | jq -S '{dep: .dependencies, dev: .devDependencies}')
-            NEW_DEPS=$(jq -S '{dep: .dependencies, dev: .devDependencies}' package.json)
-            if [ "$OLD_DEPS" != "$NEW_DEPS" ]; then
-              echo "::error::Dependencies in package.json were modified but package-lock.json was not updated. Run 'npm install' and commit the updated lockfile."
+            CHANGED=false
+            for f in $PKG_JSON_CHANGED; do
+              # A deleted manifest is a dependency change; jq on a missing path
+              # would kill the step under pipefail before the friendly message.
+              [ -f "$f" ] || { CHANGED=true; continue; }
+              OLD_DEPS=$(git show origin/${{ github.base_ref }}:$f 2>/dev/null | jq -S '{dep: .dependencies, dev: .devDependencies, peer: .peerDependencies}' || echo "absent")
+              NEW_DEPS=$(jq -S '{dep: .dependencies, dev: .devDependencies, peer: .peerDependencies}' $f)
+              if [ "$OLD_DEPS" != "$NEW_DEPS" ]; then CHANGED=true; fi
+            done
+            if [ "$CHANGED" = true ]; then
+              echo "::error::Dependencies in a package.json were modified but package-lock.json was not updated. Run 'npm install' at the repo root and commit the updated lockfile."
               exit 1
             fi
           fi
