@@ -11,11 +11,19 @@ export function liveData(): boolean {
   return hasNotisDb();
 }
 
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+
+/** Chart resolution per range: sub-day windows need sub-day buckets. */
+export type BucketUnit = "minute" | "hour" | "day";
+
 export const RANGES = {
-  "7d": { days: 7, label: "7 ημέρες", short: "7ημ" },
-  "14d": { days: 14, label: "14 ημέρες", short: "14ημ" },
-  "30d": { days: 30, label: "30 ημέρες", short: "30ημ" },
-  "90d": { days: 90, label: "3 μήνες", short: "3μ" },
+  "1h": { ms: HOUR_MS, label: "1 ώρα", short: "1ω", bucket: "minute" as BucketUnit },
+  "24h": { ms: DAY_MS, label: "24 ώρες", short: "24ω", bucket: "hour" as BucketUnit },
+  "7d": { ms: 7 * DAY_MS, label: "7 ημέρες", short: "7ημ", bucket: "day" as BucketUnit },
+  "14d": { ms: 14 * DAY_MS, label: "14 ημέρες", short: "14ημ", bucket: "day" as BucketUnit },
+  "30d": { ms: 30 * DAY_MS, label: "30 ημέρες", short: "30ημ", bucket: "day" as BucketUnit },
+  "90d": { ms: 90 * DAY_MS, label: "3 μήνες", short: "3μ", bucket: "day" as BucketUnit },
 } as const;
 
 export type RangeKey = keyof typeof RANGES;
@@ -61,9 +69,10 @@ export interface RecentInbound {
   at: string;
 }
 
-/** One Athens-local day inside the current window. */
-export interface DailyPoint {
-  day: string; // YYYY-MM-DD
+/** One Athens-local bucket (minute / hour / day) inside the current window. */
+export interface SeriesPoint {
+  /** Athens-local key: YYYY-MM-DD for days, YYYY-MM-DDTHH:MM below that. */
+  key: string;
   activeUsers: number;
   sent: number;
   received: number;
@@ -74,7 +83,7 @@ export interface OverviewStats {
   range: RangeKey;
   current: PeriodStats;
   previous: PeriodStats;
-  dailySeries: DailyPoint[];
+  series: SeriesPoint[];
   recentInbound: RecentInbound[];
   totals: { subscriptions: number; unsubscribed: number };
 }
@@ -96,86 +105,112 @@ const EMPTY_PERIOD: PeriodStats = {
 
 type Db = ReturnType<typeof notisDb>;
 
-/** The Athens-local calendar date of an instant, as YYYY-MM-DD. */
-export function athensDay(date: Date): string {
-  return new Intl.DateTimeFormat("en-CA", {
+const BUCKET_STEP_MS: Record<BucketUnit, number> = {
+  minute: 60 * 1000,
+  hour: HOUR_MS,
+  day: DAY_MS,
+};
+
+/** Key length: YYYY-MM-DD for days, YYYY-MM-DDTHH:MM below that. */
+const keySlice = (bucket: BucketUnit) => (bucket === "day" ? 10 : 16);
+
+/** The Athens-local bucket key of an instant, truncated TO the bucket —
+ *  an hour key is always :00, matching what date_trunc emits. */
+export function athensBucketKey(date: Date, bucket: BucketUnit): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/Athens",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(date);
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "00";
+  const minute = bucket === "minute" ? get("minute") : "00";
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${minute}`.slice(
+    0,
+    keySlice(bucket),
+  );
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-/** Every Athens-local day from `from` to `to`, inclusive, in order. */
-export function listDays(from: Date, to: Date): string[] {
-  const days: string[] = [];
-  for (let t = from.getTime(); t <= to.getTime(); t += DAY_MS) {
-    const key = athensDay(new Date(t));
-    if (days[days.length - 1] !== key) days.push(key);
+/** Every Athens-local bucket from `from` to `to`, inclusive, in order. */
+export function listBuckets(from: Date, to: Date, bucket: BucketUnit): string[] {
+  const step = BUCKET_STEP_MS[bucket];
+  const keys: string[] = [];
+  for (let t = from.getTime(); t <= to.getTime(); t += step) {
+    const key = athensBucketKey(new Date(t), bucket);
+    if (keys[keys.length - 1] !== key) keys.push(key);
   }
-  const last = athensDay(to);
-  if (days[days.length - 1] !== last) days.push(last);
-  return days;
+  const last = athensBucketKey(to, bucket);
+  if (keys[keys.length - 1] !== last) keys.push(last);
+  return keys;
 }
 
-interface DayCount {
-  day: string;
+interface BucketCount {
+  key: string;
   count: number;
 }
 
-/** Zero-fill sparse per-day counts over the window — charts need every day. */
-export function fillDailySeries(
+/** Zero-fill sparse per-bucket counts — charts need every bucket. */
+export function fillSeries(
   from: Date,
   to: Date,
+  bucket: BucketUnit,
   rows: {
-    sent: DayCount[];
-    received: DayCount[];
-    activeUsers: DayCount[];
-    unsubscribes: DayCount[];
+    sent: BucketCount[];
+    received: BucketCount[];
+    activeUsers: BucketCount[];
+    unsubscribes: BucketCount[];
   },
-): DailyPoint[] {
-  const lookup = (list: DayCount[], day: string) =>
-    list.find((r) => r.day === day)?.count ?? 0;
-  return listDays(from, to).map((day) => ({
-    day,
-    sent: lookup(rows.sent, day),
-    received: lookup(rows.received, day),
-    activeUsers: lookup(rows.activeUsers, day),
-    unsubscribes: lookup(rows.unsubscribes, day),
+): SeriesPoint[] {
+  const lookup = (list: BucketCount[], key: string) =>
+    list.find((r) => r.key === key)?.count ?? 0;
+  return listBuckets(from, to, bucket).map((key) => ({
+    key,
+    sent: lookup(rows.sent, key),
+    received: lookup(rows.received, key),
+    activeUsers: lookup(rows.activeUsers, key),
+    unsubscribes: lookup(rows.unsubscribes, key),
   }));
 }
 
-// date_trunc over the Athens-local timestamp yields a naive local midnight;
-// the driver parses it as UTC, so toISOString().slice(0,10) IS the local day.
-const rawDay = (row: { day: Date; count: number }): DayCount => ({
-  day: row.day.toISOString().slice(0, 10),
-  count: row.count,
-});
+async function bucketedSeries(
+  db: Db,
+  from: Date,
+  to: Date,
+  bucket: BucketUnit,
+): Promise<SeriesPoint[]> {
+  // date_trunc over the Athens-local timestamp yields a naive local time;
+  // the driver parses it as UTC, so the ISO prefix IS the local key. The
+  // bucket unit is a text parameter — Postgres accepts it as $n.
+  const slice = keySlice(bucket);
+  const rawKey = (row: { bucket: Date; count: number }): BucketCount => ({
+    key: row.bucket.toISOString().slice(0, slice),
+    count: row.count,
+  });
 
-async function dailySeries(db: Db, from: Date, to: Date): Promise<DailyPoint[]> {
   const [messages, actives, unsubscribes] = await Promise.all([
-    db.$queryRaw<Array<{ day: Date; direction: string; count: number }>>`
-      SELECT date_trunc('day', "createdAt" AT TIME ZONE 'Europe/Athens') AS day,
+    db.$queryRaw<Array<{ bucket: Date; direction: string; count: number }>>`
+      SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'Europe/Athens') AS bucket,
              direction::text AS direction, COUNT(*)::int AS count
       FROM "NotisMessage"
       WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
       GROUP BY 1, 2
     `,
-    db.$queryRaw<Array<{ day: Date; count: number }>>`
-      SELECT day, COUNT(DISTINCT sid)::int AS count FROM (
-        SELECT date_trunc('day', "createdAt" AT TIME ZONE 'Europe/Athens') AS day,
+    db.$queryRaw<Array<{ bucket: Date; count: number }>>`
+      SELECT bucket, COUNT(DISTINCT sid)::int AS count FROM (
+        SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'Europe/Athens') AS bucket,
                "subscriptionId" AS sid
         FROM "NotisMessage" WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
         UNION ALL
-        SELECT date_trunc('day', "createdAt" AT TIME ZONE 'Europe/Athens'),
+        SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'Europe/Athens'),
                "subscriptionId"
         FROM "NotisWake" WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
       ) t GROUP BY 1
     `,
-    db.$queryRaw<Array<{ day: Date; count: number }>>`
-      SELECT date_trunc('day', "unsubscribedAt" AT TIME ZONE 'Europe/Athens') AS day,
+    db.$queryRaw<Array<{ bucket: Date; count: number }>>`
+      SELECT date_trunc(${bucket}, "unsubscribedAt" AT TIME ZONE 'Europe/Athens') AS bucket,
              COUNT(*)::int AS count
       FROM "NotisSubscription"
       WHERE "unsubscribedAt" >= ${from} AND "unsubscribedAt" < ${to}
@@ -183,11 +218,11 @@ async function dailySeries(db: Db, from: Date, to: Date): Promise<DailyPoint[]> 
     `,
   ]);
 
-  return fillDailySeries(from, to, {
-    sent: messages.filter((r) => r.direction === "outbound").map(rawDay),
-    received: messages.filter((r) => r.direction === "inbound").map(rawDay),
-    activeUsers: actives.map(rawDay),
-    unsubscribes: unsubscribes.map(rawDay),
+  return fillSeries(from, to, bucket, {
+    sent: messages.filter((r) => r.direction === "outbound").map(rawKey),
+    received: messages.filter((r) => r.direction === "inbound").map(rawKey),
+    activeUsers: actives.map(rawKey),
+    unsubscribes: unsubscribes.map(rawKey),
   });
 }
 
@@ -276,8 +311,7 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
 
 export async function getOverviewStats(range: RangeKey): Promise<OverviewStats> {
   const now = new Date();
-  const days = RANGES[range].days;
-  const periodMs = days * 24 * 60 * 60 * 1000;
+  const { ms: periodMs, bucket } = RANGES[range];
   const currentFrom = new Date(now.getTime() - periodMs);
   const previousFrom = new Date(now.getTime() - 2 * periodMs);
 
@@ -286,7 +320,7 @@ export async function getOverviewStats(range: RangeKey): Promise<OverviewStats> 
       range,
       current: EMPTY_PERIOD,
       previous: EMPTY_PERIOD,
-      dailySeries: fillDailySeries(currentFrom, now, {
+      series: fillSeries(currentFrom, now, bucket, {
         sent: [],
         received: [],
         activeUsers: [],
@@ -302,7 +336,7 @@ export async function getOverviewStats(range: RangeKey): Promise<OverviewStats> 
   const [current, previous, series, recent, subscriptions, unsubscribed] = await Promise.all([
     periodStats(db, currentFrom, now),
     periodStats(db, previousFrom, currentFrom),
-    dailySeries(db, currentFrom, now),
+    bucketedSeries(db, currentFrom, now, bucket),
     db.notisMessage.findMany({
       where: { direction: "inbound" },
       orderBy: { createdAt: "desc" },
@@ -322,7 +356,7 @@ export async function getOverviewStats(range: RangeKey): Promise<OverviewStats> 
     range,
     current,
     previous,
-    dailySeries: series,
+    series,
     recentInbound: recent.map((m) => ({
       id: m.id,
       subscriptionId: m.subscription.id,

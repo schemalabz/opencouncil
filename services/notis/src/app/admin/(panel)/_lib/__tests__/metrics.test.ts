@@ -1,8 +1,10 @@
 import { fmtTimeAgo } from "../format";
-import { fillDailySeries, listDays, parseRange, pctChange } from "../metrics";
+import { fillSeries, listBuckets, parseRange, pctChange } from "../metrics";
 
 describe("parseRange", () => {
   it("accepts known ranges and defaults everything else to 7d", () => {
+    expect(parseRange("1h")).toBe("1h");
+    expect(parseRange("24h")).toBe("24h");
     expect(parseRange("30d")).toBe("30d");
     expect(parseRange("90d")).toBe("90d");
     expect(parseRange("1y")).toBe("7d");
@@ -23,32 +25,68 @@ describe("pctChange", () => {
   });
 });
 
-describe("listDays", () => {
+describe("listBuckets", () => {
   it("covers the window inclusively in Athens-local days", () => {
     // 21:00 UTC prior day = 00:00 Athens next day (summer): the window
     // [Aug 9 22:00 UTC, Aug 16 10:00 UTC] spans Aug 10 … Aug 16 locally.
-    const days = listDays(new Date("2026-08-09T22:00:00Z"), new Date("2026-08-16T10:00:00Z"));
+    const days = listBuckets(
+      new Date("2026-08-09T22:00:00Z"),
+      new Date("2026-08-16T10:00:00Z"),
+      "day",
+    );
     expect(days[0]).toBe("2026-08-10");
     expect(days[days.length - 1]).toBe("2026-08-16");
     expect(days).toHaveLength(7);
   });
+
+  it("buckets a 24h window by hour with Athens-local keys (+03:00 in summer)", () => {
+    const hours = listBuckets(
+      new Date("2026-08-15T10:00:00Z"),
+      new Date("2026-08-16T10:00:00Z"),
+      "hour",
+    );
+    expect(hours[0]).toBe("2026-08-15T13:00");
+    expect(hours[hours.length - 1]).toBe("2026-08-16T13:00");
+    expect(hours).toHaveLength(25);
+  });
+
+  it("truncates hour keys to :00 even when the window starts mid-hour — they must match date_trunc", () => {
+    const hours = listBuckets(
+      new Date("2026-08-15T10:55:00Z"),
+      new Date("2026-08-16T10:55:00Z"),
+      "hour",
+    );
+    expect(hours[0]).toBe("2026-08-15T13:00");
+    expect(hours.every((h) => h.endsWith(":00"))).toBe(true);
+  });
+
+  it("buckets an hour window by minute", () => {
+    const minutes = listBuckets(
+      new Date("2026-08-16T10:00:00Z"),
+      new Date("2026-08-16T11:00:00Z"),
+      "minute",
+    );
+    expect(minutes[0]).toBe("2026-08-16T13:00");
+    expect(minutes).toHaveLength(61);
+  });
 });
 
-describe("fillDailySeries", () => {
-  it("zero-fills days without rows so charts get every day", () => {
-    const series = fillDailySeries(
+describe("fillSeries", () => {
+  it("zero-fills buckets without rows so charts get every bucket", () => {
+    const series = fillSeries(
       new Date("2026-08-14T00:00:00Z"),
       new Date("2026-08-16T10:00:00Z"),
+      "day",
       {
-        sent: [{ day: "2026-08-15", count: 3 }],
+        sent: [{ key: "2026-08-15", count: 3 }],
         received: [],
-        activeUsers: [{ day: "2026-08-15", count: 1 }],
+        activeUsers: [{ key: "2026-08-15", count: 1 }],
         unsubscribes: [],
       },
     );
     expect(series.map((p) => p.sent)).toEqual([0, 3, 0]);
     expect(series.map((p) => p.received)).toEqual([0, 0, 0]);
-    expect(series.find((p) => p.day === "2026-08-15")?.activeUsers).toBe(1);
+    expect(series.find((p) => p.key === "2026-08-15")?.activeUsers).toBe(1);
   });
 });
 

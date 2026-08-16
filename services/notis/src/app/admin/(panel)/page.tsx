@@ -4,11 +4,11 @@ import { MetricCard, MetricPoint } from "./_components/MetricCard";
 import { PageHeader } from "./_components/PageHeader";
 import { fmtInt, fmtTimeAgo } from "./_lib/format";
 import {
-  DailyPoint,
   OverviewStats,
   PeriodStats,
   RANGES,
   RangeKey,
+  SeriesPoint,
   getOverviewStats,
   liveData,
   parseRange,
@@ -22,7 +22,7 @@ export const metadata = { title: "Νότης · admin" };
  */
 
 const EVENT_LABELS: Record<string, string> = {
-  user_message: "μηνύματα αναγνωστών",
+  user_message: "μηνύματα χρηστών",
   agenda_processed: "ατζέντες",
   meeting_summarized: "απολογισμοί",
   scheduled: "προγραμματισμένα",
@@ -53,20 +53,24 @@ function fmtUsd(n: number): string {
   return `$${n.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-/** «Σαβ 16/8» — chart tooltip label for an Athens-local day key. */
-function fmtDayLabel(day: string): string {
+/**
+ * Chart tooltip label for an Athens-local bucket key: «Σαβ 16/8» for a day,
+ * «14:35» for an hour or minute bucket.
+ */
+function fmtBucketLabel(key: string): string {
+  if (key.length > 10) return key.slice(11);
   return new Intl.DateTimeFormat("el-GR", {
     weekday: "short",
     day: "numeric",
     month: "numeric",
-  }).format(new Date(`${day}T12:00:00Z`));
+  }).format(new Date(`${key}T12:00:00Z`));
 }
 
 function seriesFor(
-  series: DailyPoint[],
+  series: SeriesPoint[],
   key: "activeUsers" | "sent" | "received" | "unsubscribes",
 ): MetricPoint[] {
-  return series.map((point) => ({ label: fmtDayLabel(point.day), value: point[key] }));
+  return series.map((point) => ({ label: fmtBucketLabel(point.key), value: point[key] }));
 }
 
 function StackedBar({
@@ -282,8 +286,8 @@ function CostPanel({ current, previous }: { current: PeriodStats; previous: Peri
       </div>
       <p className="mt-0.5 text-xs text-muted-foreground">
         {perUser === null
-          ? "ανά ενεργό αναγνώστη —"
-          : `${fmtUsd(perUser)} ανά ενεργό αναγνώστη`}
+          ? "ανά ενεργό χρήστη —"
+          : `${fmtUsd(perUser)} ανά ενεργό χρήστη`}
       </p>
       {current.wakesByEvent.length > 0 && (
         <div className="mt-4 border-t pt-3">
@@ -308,7 +312,7 @@ function RecentInboundList({ stats }: { stats: OverviewStats }) {
   return (
     <section className="rounded-lg border bg-background">
       <div className="flex items-baseline gap-2 border-b px-4 py-3">
-        <h2 className="text-sm font-medium">Τι λένε οι αναγνώστες</h2>
+        <h2 className="text-sm font-medium">Τι λένε οι χρήστες</h2>
         <span className="text-xs text-muted-foreground">τα 5 τελευταία εισερχόμενα</span>
       </div>
       {stats.recentInbound.length === 0 ? (
@@ -321,17 +325,25 @@ function RecentInboundList({ stats }: { stats: OverviewStats }) {
             <li key={m.id}>
               <Link
                 href={`/admin/conversations/${m.subscriptionId}`}
-                className="block px-4 py-3 transition-colors hover:bg-muted/50"
+                className="group flex gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
               >
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="truncate text-sm font-medium">{m.userName}</span>
-                  <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
-                    {fmtTimeAgo(m.at)}
+                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange/10 text-sm font-medium text-orange">
+                  {(m.userName.trim()[0] ?? "—").toUpperCase()}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-baseline justify-between gap-3">
+                    <span className="truncate text-sm font-medium">{m.userName}</span>
+                    <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                      {fmtTimeAgo(m.at)}
+                      <span className="ml-1 inline-block transition-transform group-hover:translate-x-0.5">
+                        ›
+                      </span>
+                    </span>
                   </span>
-                </div>
-                <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
-                  «{m.body.trim()}»
-                </p>
+                  <span className="mt-1 inline-block max-w-full rounded-lg rounded-tl-none bg-muted px-3 py-1.5">
+                    <span className="line-clamp-2 break-words text-sm">{m.body.trim()}</span>
+                  </span>
+                </span>
               </Link>
             </li>
           ))}
@@ -365,11 +377,11 @@ export default async function DashboardPage(props: {
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
         <div className="grid divide-y rounded-lg border bg-background sm:grid-cols-2 sm:divide-y-0 xl:grid-cols-4 xl:divide-x">
           <MetricCard
-            label="Ενεργοί αναγνώστες"
+            label="Ενεργοί χρήστες"
             value={fmtInt(current.activeUsers)}
             current={current.activeUsers}
             previous={previous.activeUsers}
-            points={seriesFor(stats.dailySeries, "activeUsers")}
+            points={seriesFor(stats.series, "activeUsers")}
             detail={`+${fmtInt(current.newSubscriptions)} νέες εγγραφές · ${fmtInt(totals.subscriptions)} συνολικά`}
           />
           <MetricCard
@@ -377,23 +389,23 @@ export default async function DashboardPage(props: {
             value={fmtInt(current.messagesSent)}
             current={current.messagesSent}
             previous={previous.messagesSent}
-            points={seriesFor(stats.dailySeries, "sent")}
-            detail="μηνύματα του Νότη προς αναγνώστες"
+            points={seriesFor(stats.series, "sent")}
+            detail="μηνύματα του Νότη προς χρήστες"
           />
           <MetricCard
             label="Ελήφθησαν"
             value={fmtInt(current.messagesReceived)}
             current={current.messagesReceived}
             previous={previous.messagesReceived}
-            points={seriesFor(stats.dailySeries, "received")}
-            detail="μηνύματα αναγνωστών προς τον Νότη"
+            points={seriesFor(stats.series, "received")}
+            detail="μηνύματα χρηστών προς τον Νότη"
           />
           <MetricCard
             label="Απεγγραφές"
             value={fmtInt(current.unsubscribes)}
             current={current.unsubscribes}
             previous={previous.unsubscribes}
-            points={seriesFor(stats.dailySeries, "unsubscribes")}
+            points={seriesFor(stats.series, "unsubscribes")}
             invert
             tone="red"
             detail={`${fmtInt(totals.unsubscribed)} συνολικά σε ΣΤΟΠ`}
