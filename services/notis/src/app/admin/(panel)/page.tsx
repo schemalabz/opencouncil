@@ -337,7 +337,7 @@ function RecentInboundList({ stats }: { stats: OverviewStats }) {
                 className="group flex gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
               >
                 <span className="mt-0.5 shrink-0">
-                  <UserAvatar seed={m.subscriptionId} />
+                  <UserAvatar seed={m.userId} />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline justify-between gap-3">

@@ -13,6 +13,8 @@ import { CityMeta, MessageDelivery, Origin, RecordEvent, WakeRecord } from "./re
 
 export interface ConversationSummary {
   id: string;
+  /** Main-database user id — the stable avatar seed across surfaces. */
+  userId: string;
   userName: string;
   phone: string;
   cityNames: string[];
@@ -38,6 +40,7 @@ export interface ConversationDetail {
 
 interface SubscriptionRow {
   id: string;
+  userId: string;
   userName: string | null;
   phone: string | null;
   cities: unknown;
@@ -60,6 +63,7 @@ function toSummary(
 ): ConversationSummary {
   return {
     id: sub.id,
+    userId: sub.userId,
     userName: sub.userName ?? "—",
     phone: sub.phone ?? "",
     cityNames: subscriptionCities(sub).map((c) => c.cityName),

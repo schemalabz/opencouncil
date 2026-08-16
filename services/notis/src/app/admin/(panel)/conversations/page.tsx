@@ -101,7 +101,7 @@ export default async function ConversationsPage(props: {
                 <tr key={c.id} className="border-b align-middle hover:bg-muted/40">
                   <td className="whitespace-nowrap py-2.5 pr-4">
                     <div className="flex items-center gap-2.5">
-                      <UserAvatar seed={c.id} />
+                      <UserAvatar seed={c.userId} />
                       <div>
                         <Link
                           href={`/admin/conversations/${c.id}`}

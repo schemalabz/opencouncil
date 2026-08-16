@@ -17,6 +17,7 @@ import {
   geocode,
 } from "../api";
 import { MeetingSummary, deriveQueue } from "../deriveQueue";
+import { UserAvatar } from "../../_components/UserAvatar";
 import { Sim } from "../types";
 import { AddressSearch } from "./AddressSearch";
 import { LocationsMap, MapFocus } from "./LocationsMap";
@@ -220,7 +221,10 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
     }
   }
 
-  const initial = (name.trim()[0] ?? ";").toUpperCase();
+  // The casting-sheet portrait: a real user keeps their stable face (same
+  // seed as the admin lists); a fictional one grows a face from the name as
+  // it is typed.
+  const avatarSeed = realMode && selectedRealUserId ? selectedRealUserId : name.trim() || "?";
 
   return (
     <div className="grid h-full lg:grid-cols-[minmax(480px,620px)_1fr]">
@@ -301,10 +305,12 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
                           <li key={u.userId}>
                             <button
                               onClick={() => applyRealUser(u)}
-                              className={`w-full px-3 py-2.5 text-left transition-colors hover:bg-secondary ${
+                              className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-secondary ${
                                 selectedRealUserId === u.userId ? "bg-secondary" : ""
                               }`}
                             >
+                              <UserAvatar seed={u.userId} size={28} />
+                              <span className="min-w-0 flex-1">
                               <span className="flex items-baseline gap-2">
                                 <span className="text-sm font-medium">{u.name ?? "—"}</span>
                                 {u.phone && (
@@ -320,6 +326,7 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
                                 {u.cities.map((c) => c.cityName).join(", ")}
                                 {" · "}
                                 {topicCount} θέματα · {locationCount} περιοχές
+                              </span>
                               </span>
                             </button>
                           </li>
@@ -337,9 +344,7 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
             )}
 
             <div className="flex items-start gap-5">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-foreground font-relative text-2xl text-background">
-                {initial}
-              </div>
+              <UserAvatar seed={avatarSeed} size={56} />
               <div className="min-w-0 flex-1 space-y-1">
                 <input
                   value={name}

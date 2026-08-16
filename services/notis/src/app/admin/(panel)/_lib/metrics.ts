@@ -64,6 +64,7 @@ export interface PeriodStats {
 export interface RecentInbound {
   id: string;
   subscriptionId: string;
+  userId: string;
   userName: string;
   body: string;
   at: string;
@@ -345,7 +346,7 @@ export async function getOverviewStats(range: RangeKey): Promise<OverviewStats> 
         id: true,
         body: true,
         createdAt: true,
-        subscription: { select: { id: true, userName: true } },
+        subscription: { select: { id: true, userId: true, userName: true } },
       },
     }),
     db.notisSubscription.count(),
@@ -360,6 +361,7 @@ export async function getOverviewStats(range: RangeKey): Promise<OverviewStats> 
     recentInbound: recent.map((m) => ({
       id: m.id,
       subscriptionId: m.subscription.id,
+      userId: m.subscription.userId,
       userName: m.subscription.userName ?? "—",
       body: m.body,
       at: m.createdAt.toISOString(),
