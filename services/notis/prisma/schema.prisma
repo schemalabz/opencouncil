@@ -150,6 +150,9 @@ model NotisMessage {
   template     String?
   // Delivery lifecycle, outbound only; Bird webhooks update it.
   status        MessageStatus?
+  // Why the delivery failed (Bird error / webhook failure description) —
+  // feeds the overview's failure breakdown.
+  failureReason String?
   // Unique: inbound dedupe (Bird retries webhooks) and the status-update key.
   birdMessageId String? @unique
 

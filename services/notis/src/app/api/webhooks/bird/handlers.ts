@@ -69,7 +69,13 @@ export async function handleOutboundStatus(
   if (existing.status && isForwardProgression(existing.status, fields.status)) {
     await db.notisMessage.update({
       where: { id: existing.id },
-      data: { status: fields.status },
+      data: {
+        status: fields.status,
+        // Only keep a reason on failure; clear it otherwise (same rule as
+        // the main app's webhook).
+        failureReason:
+          fields.status === "failed" ? (fields.failureReason ?? null)?.slice(0, 300) : null,
+      },
     });
     return { action: "status-updated" };
   }

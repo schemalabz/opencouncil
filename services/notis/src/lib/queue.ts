@@ -191,7 +191,7 @@ async function runOneWake(
     // Unreachable for user_message wakes; template sends arrive with PR 4.
     await db.notisMessage.updateMany({
       where: { id: { in: outboundIds } },
-      data: { status: "failed" },
+      data: { status: "failed", failureReason: "template send path not implemented (PR 4)" },
     });
     await alert(
       `wake ${item.id}: ${outboundIds.length} message(s) need a template send path (PR 4) — marked failed`,
@@ -214,7 +214,7 @@ export async function sendPendingMessages(
   if (!sub.birdConversationId) {
     await db.notisMessage.updateMany({
       where: { id: { in: messageIds } },
-      data: { status: "failed" },
+      data: { status: "failed", failureReason: "no birdConversationId on subscription" },
     });
     await alert(`subscription ${sub.id} has no birdConversationId — cannot deliver replies`);
     return;
@@ -235,7 +235,10 @@ export async function sendPendingMessages(
         data: { status: "sent", birdMessageId: result.messageId },
       });
     } else {
-      await db.notisMessage.update({ where: { id }, data: { status: "failed" } });
+      await db.notisMessage.update({
+        where: { id },
+        data: { status: "failed", failureReason: (result.error ?? "unknown error").slice(0, 300) },
+      });
       await alert(`Bird send failed for message ${id}: ${result.error ?? "unknown error"}`);
     }
   }
