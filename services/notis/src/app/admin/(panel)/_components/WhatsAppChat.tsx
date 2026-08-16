@@ -268,7 +268,7 @@ function Bubble({
         </span>
         {failed && (
           <p className="mt-1.5 border-t border-[#f2e2e1] pt-1.5 text-[11px] leading-snug text-[#b42318]">
-            ⚠ Δεν παραδόθηκε
+            Δεν παραδόθηκε
             {delivery?.failureReason ? ` — ${delivery.failureReason}` : ""}
           </p>
         )}
@@ -354,7 +354,7 @@ function SilenceChip({ item, selected, onClick }: { item: WakeRecord; selected: 
           selected ? "ring-2 ring-orange" : ""
         }`}
       >
-        🤫 {eventCaption(item) || item.event.type} — ο Νότης δεν έγραψε
+        {eventCaption(item) || item.event.type} — ο Νότης δεν έγραψε
       </button>
     </div>
   );
@@ -517,7 +517,7 @@ export function WhatsAppChat({
               {item.status === "skipped" && (
                 <div className="flex justify-center px-4">
                   <span className="rounded-md bg-[#ffffff99] px-3 py-1 text-[11px] text-[#8696a0] shadow-sm">
-                    ⏭ {eventCaption(item)} — παραλείφθηκε
+                    {eventCaption(item)} — παραλείφθηκε
                   </span>
                 </div>
               )}
@@ -533,7 +533,7 @@ export function WhatsAppChat({
                       selected ? "ring-2 ring-orange" : ""
                     }`}
                   >
-                    🛑 Ο Νότης σταμάτησε τις ειδοποιήσεις (unsubscribe)
+                    Ο Νότης σταμάτησε τις ειδοποιήσεις (unsubscribe)
                   </button>
                 </div>
               )}

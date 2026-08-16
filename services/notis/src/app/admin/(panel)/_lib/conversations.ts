@@ -22,6 +22,11 @@ export interface ConversationSummary {
   lastActivityAt: string;
   messagesSent: number;
   messagesReceived: number;
+  /** Outbound deliveries that failed — a red flag on the list. */
+  messagesFailed: number;
+  wakes: number;
+  costUsd: number;
+  lastMessage?: { body: string; direction: "inbound" | "outbound"; at: string };
   unsubscribedAt?: string;
 }
 
@@ -78,8 +83,10 @@ async function citiesByUser(userIds: string[]): Promise<Map<string, SubCity[]>> 
 
 function toSummary(
   sub: SubscriptionRow,
-  sent: number,
-  received: number,
+  extras: Pick<
+    ConversationSummary,
+    "messagesSent" | "messagesReceived" | "messagesFailed" | "wakes" | "costUsd" | "lastMessage"
+  >,
   cities: SubCity[],
 ): ConversationSummary {
   return {
@@ -89,9 +96,8 @@ function toSummary(
     cityNames: cities.map((c) => c.cityName),
     origin: sub.origin,
     startedAt: sub.createdAt.toISOString(),
-    lastActivityAt: sub.updatedAt.toISOString(),
-    messagesSent: sent,
-    messagesReceived: received,
+    lastActivityAt: extras.lastMessage?.at ?? sub.updatedAt.toISOString(),
+    ...extras,
     ...(sub.unsubscribedAt ? { unsubscribedAt: sub.unsubscribedAt.toISOString() } : {}),
   };
 }
@@ -100,22 +106,59 @@ function toSummary(
 // conversations stay reachable through their users' direct links.
 const CONVERSATION_LIST_LIMIT = 500;
 
-export async function listConversations(): Promise<ConversationSummary[]> {
+export async function listConversations(search?: string): Promise<ConversationSummary[]> {
   if (!hasNotisDb()) return [];
   const db = notisDb();
+  const q = search?.trim();
   const subs = await db.notisSubscription.findMany({
+    where: q
+      ? {
+          OR: [
+            { userName: { contains: q, mode: "insensitive" } },
+            { phone: { contains: q } },
+          ],
+        }
+      : undefined,
     orderBy: { updatedAt: "desc" },
     take: CONVERSATION_LIST_LIMIT,
   });
   if (subs.length === 0) return [];
-  const counts = await db.notisMessage.groupBy({
-    by: ["subscriptionId", "direction"],
-    where: { subscriptionId: { in: subs.map((s) => s.id) } },
-    _count: { _all: true },
-  });
+  const ids = subs.map((s) => s.id);
+
+  const [counts, failures, wakes, costs, lastMessages] = await Promise.all([
+    db.notisMessage.groupBy({
+      by: ["subscriptionId", "direction"],
+      where: { subscriptionId: { in: ids } },
+      _count: { _all: true },
+    }),
+    db.notisMessage.groupBy({
+      by: ["subscriptionId"],
+      where: { subscriptionId: { in: ids }, direction: "outbound", status: "failed" },
+      _count: { _all: true },
+    }),
+    db.notisWake.groupBy({
+      by: ["subscriptionId"],
+      where: { subscriptionId: { in: ids } },
+      _count: { _all: true },
+    }),
+    db.notisWake.groupBy({
+      by: ["subscriptionId"],
+      where: { subscriptionId: { in: ids } },
+      _sum: { costUsd: true },
+    }),
+    // orderBy + distinct = the latest message per subscription.
+    db.notisMessage.findMany({
+      where: { subscriptionId: { in: ids } },
+      orderBy: { createdAt: "desc" },
+      distinct: ["subscriptionId"],
+      select: { subscriptionId: true, body: true, direction: true, createdAt: true },
+    }),
+  ]);
+
   const countMap = new Map(
     counts.map((c) => [`${c.subscriptionId}:${c.direction}`, c._count._all]),
   );
+<<<<<<< HEAD
   const cities = await citiesByUser(subs.map((s) => s.userId));
   return subs.map((sub) =>
     toSummary(
@@ -124,6 +167,27 @@ export async function listConversations(): Promise<ConversationSummary[]> {
       countMap.get(`${sub.id}:inbound`) ?? 0,
       cities.get(sub.userId) ?? [],
     ),
+=======
+  const failureMap = new Map(failures.map((f) => [f.subscriptionId, f._count._all]));
+  const wakeMap = new Map(wakes.map((w) => [w.subscriptionId, w._count._all]));
+  const costMap = new Map(costs.map((c) => [c.subscriptionId, c._sum.costUsd ?? 0]));
+  const lastMap = new Map(
+    lastMessages.map((m) => [
+      m.subscriptionId,
+      { body: m.body, direction: m.direction, at: m.createdAt.toISOString() },
+    ]),
+  );
+
+  return subs.map((sub) =>
+    toSummary(sub, {
+      messagesSent: countMap.get(`${sub.id}:outbound`) ?? 0,
+      messagesReceived: countMap.get(`${sub.id}:inbound`) ?? 0,
+      messagesFailed: failureMap.get(sub.id) ?? 0,
+      wakes: wakeMap.get(sub.id) ?? 0,
+      costUsd: costMap.get(sub.id) ?? 0,
+      lastMessage: lastMap.get(sub.id),
+    }),
+>>>>>>> 9dba2c51 (feat(notis): review-grade conversations and wakes tables, no emojis)
   );
 }
 
@@ -226,7 +290,18 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
   const cities = (await citiesByUser([sub.userId])).get(sub.userId) ?? [];
 
   return {
+<<<<<<< HEAD
     summary: toSummary(sub, sent, received, cities),
+=======
+    summary: toSummary(sub, {
+      messagesSent: sent,
+      messagesReceived: received,
+      messagesFailed: outbound.filter((m) => m.status === "failed").length,
+      wakes: sub.wakes.length,
+      costUsd: 0, // not fetched here; the detail header does not show cost
+      lastMessage: undefined,
+    }),
+>>>>>>> 9dba2c51 (feat(notis): review-grade conversations and wakes tables, no emojis)
     records,
     cityMeta: Object.fromEntries(cities.map((c) => [c.cityId, { name: c.cityName }])),
     profile: sub.profileText,

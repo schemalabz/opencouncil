@@ -296,8 +296,8 @@ function HoverCard({
           {item.outcome && (
             <p className="mt-2 border-t pt-2 text-xs text-muted-foreground">
               {item.outcome.decision === "send"
-                ? `✉ Έστειλε ${item.outcome.messages.length}`
-                : "🤫 Σιωπή"}
+                ? `Έστειλε ${item.outcome.messages.length}`
+                : "Σιωπή"}
             </p>
           )}
         </>

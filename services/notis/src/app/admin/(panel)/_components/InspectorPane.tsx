@@ -118,8 +118,8 @@ export function InspectorPane({ item, trace, profile, sim }: Props) {
               {item.delivery && (
                 <Badge variant="outline" title="Κανόνες WhatsApp: εκτός 24ώρου παραθύρου μόνο εγκεκριμένα templates">
                   {item.delivery.mode === "template"
-                    ? `📋 ${item.delivery.template}`
-                    : "💬 free-form (παράθυρο 24h ανοιχτό)"}
+                    ? `template: ${item.delivery.template}`
+                    : "free-form (παράθυρο 24h ανοιχτό)"}
                 </Badge>
               )}
             </div>
@@ -160,7 +160,7 @@ export function InspectorPane({ item, trace, profile, sim }: Props) {
                   if (b.type === "mcp_tool_use" || b.type === "tool_use")
                     return (
                       <p key={j} className="font-mono text-xs">
-                        {b.type === "mcp_tool_use" ? "🔎" : "⚡"} {b.name}(
+                        {b.type === "mcp_tool_use" ? "[mcp]" : "[tool]"} {b.name}(
                         {JSON.stringify(b.input).slice(0, 120)})
                       </p>
                     );
