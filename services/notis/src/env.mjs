@@ -23,6 +23,15 @@ export const env = createEnv({
     // Webhook (e.g. Discord) for operational alarms — janitor refusals and
     // failures. Optional: without it alarms only reach the logs.
     NOTIS_ALERT_WEBHOOK_URL: z.string().url().optional(),
+    // Bird (WhatsApp). Notis has its OWN webhook subscription and signing
+    // key, separate from the main app's — both subscriptions receive all
+    // conversation events during rollout and each service filters to the
+    // users it serves. All optional: without them inbound webhooks are
+    // rejected in production and outbound sends fail visibly.
+    BIRD_API_KEY: z.string().optional(),
+    BIRD_WORKSPACE_ID: z.string().optional(),
+    BIRD_WHATSAPP_CHANNEL_ID: z.string().optional(),
+    BIRD_WEBHOOK_SECRET: z.string().optional(),
   },
   client: {
     // Powers the playground's address search + map. Optional: without it the
@@ -37,6 +46,10 @@ export const env = createEnv({
     MAIN_DATABASE_URL: process.env.MAIN_DATABASE_URL,
     MAIN_SESSION_COOKIE_NAME: process.env.MAIN_SESSION_COOKIE_NAME,
     NOTIS_ALERT_WEBHOOK_URL: process.env.NOTIS_ALERT_WEBHOOK_URL,
+    BIRD_API_KEY: process.env.BIRD_API_KEY,
+    BIRD_WORKSPACE_ID: process.env.BIRD_WORKSPACE_ID,
+    BIRD_WHATSAPP_CHANNEL_ID: process.env.BIRD_WHATSAPP_CHANNEL_ID,
+    BIRD_WEBHOOK_SECRET: process.env.BIRD_WEBHOOK_SECRET,
     NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN,
   },
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,

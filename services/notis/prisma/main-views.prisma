@@ -42,7 +42,7 @@ model FanoutTargetRow {
   timezone       String
   // [{id, name, name_en}]
   topics    Json
-  // [{text, type}]
+  // [{text, type, lng, lat}] — lng/lat are centroid coordinates, null-able
   locations Json
   updatedAt DateTime
 
