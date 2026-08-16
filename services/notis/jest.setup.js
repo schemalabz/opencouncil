@@ -9,4 +9,5 @@ delete process.env.OPENCOUNCIL_BASE_URL;
 delete process.env.BIRD_API_KEY;
 delete process.env.BIRD_WORKSPACE_ID;
 delete process.env.BIRD_WHATSAPP_CHANNEL_ID;
+delete process.env.BIRD_SMS_CHANNEL_ID;
 delete process.env.BIRD_WEBHOOK_SECRET;

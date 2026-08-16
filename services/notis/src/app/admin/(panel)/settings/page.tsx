@@ -114,6 +114,10 @@ export default function SettingsPage() {
                 value={<EnvBadge present={Boolean(process.env.BIRD_WHATSAPP_CHANNEL_ID)} />}
               />
               <Row
+                label="BIRD_SMS_CHANNEL_ID"
+                value={<EnvBadge present={Boolean(process.env.BIRD_SMS_CHANNEL_ID)} />}
+              />
+              <Row
                 label="BIRD_WEBHOOK_SECRET"
                 value={<EnvBadge present={Boolean(process.env.BIRD_WEBHOOK_SECRET)} />}
               />

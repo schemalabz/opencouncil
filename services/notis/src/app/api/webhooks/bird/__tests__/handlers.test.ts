@@ -15,7 +15,7 @@ jest.mock("@/lib/fanout", () => ({
   citiesForUser: jest.fn(async () => []),
 }));
 
-import { hasMainDb } from "@/lib/main-db";
+import { hasMainDb, mainDb } from "@/lib/main-db";
 import { citiesForUser, findEnabledUserByPhone } from "@/lib/fanout";
 
 class FakeBird implements BirdLike {
@@ -52,7 +52,16 @@ function inbound(overrides: Partial<ExtractedMessageFields> = {}): ExtractedMess
   };
 }
 
-afterEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  (hasMainDb as jest.Mock).mockReturnValue(false);
+  (findEnabledUserByPhone as jest.Mock).mockResolvedValue(null);
+  (citiesForUser as jest.Mock).mockResolvedValue([]);
+  // When a test flips hasMainDb on, the gate sees an enabled user by default.
+  (mainDb as jest.Mock).mockReturnValue({
+    notisUserRow: { findUnique: jest.fn(async () => ({ notisEnabledAt: new Date() })) },
+  });
+});
 
 describe("handleInbound", () => {
   it("persists the message and enqueues a live wake for a subscribed phone", async () => {
@@ -189,6 +198,43 @@ describe("handleInbound", () => {
 
     expect(result).toEqual({ action: "ignored", reason: "duplicate birdMessageId" });
     expect(db.store.queue.size).toBe(0);
+  });
+
+  it("ignores an existing subscription whose user was rolled back (flag cleared)", async () => {
+    (hasMainDb as jest.Mock).mockReturnValue(true);
+    (mainDb as jest.Mock).mockReturnValue({
+      notisUserRow: { findUnique: jest.fn(async () => ({ notisEnabledAt: null })) },
+    });
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    const bird = new FakeBird();
+
+    const result = await handleInbound(inbound(), { db, bird, alert: async () => {} });
+
+    // The main app's webhook serves them again — answering here too would
+    // double-reply.
+    expect(result).toEqual({ action: "ignored", reason: "user rolled back to the old path" });
+    expect(db.store.messages).toHaveLength(0);
+    expect(db.store.queue.size).toBe(0);
+    expect(bird.sends).toHaveLength(0);
+  });
+
+  it("re-enrolls by userId when the phone changed — the message is served, not dropped", async () => {
+    (hasMainDb as jest.Mock).mockReturnValue(true);
+    (findEnabledUserByPhone as jest.Mock).mockResolvedValue({ id: "user1", name: "Μαρία" });
+    const db = makeFakeDb({ subscriptions: [{ ...SUB, phone: "+306900000001" }] });
+
+    const result = await handleInbound(inbound({ phone: "+306999999999", conversationId: "conv-9" }), {
+      db,
+      bird: new FakeBird(),
+      alert: async () => {},
+    });
+
+    expect(result.action).toBe("enqueued");
+    // Same subscription, refreshed identity — no duplicate row, no P2002.
+    expect(db.store.subscriptions.size).toBe(1);
+    const sub = db.store.subscriptions.get("sub1")!;
+    expect(sub.phone).toBe("+306999999999");
+    expect(sub.birdConversationId).toBe("conv-9");
   });
 
   it("refreshes birdConversationId when Bird opens a new conversation for the phone", async () => {

@@ -31,6 +31,10 @@ export const env = createEnv({
     BIRD_API_KEY: z.string().optional(),
     BIRD_WORKSPACE_ID: z.string().optional(),
     BIRD_WHATSAPP_CHANNEL_ID: z.string().optional(),
+    // Needed to RECOGNIZE (and ignore) SMS conversation events — the
+    // workspace-wide subscription delivers them and an unmatched channel id
+    // classifies as WhatsApp by default.
+    BIRD_SMS_CHANNEL_ID: z.string().optional(),
     BIRD_WEBHOOK_SECRET: z.string().optional(),
   },
   client: {
@@ -49,6 +53,7 @@ export const env = createEnv({
     BIRD_API_KEY: process.env.BIRD_API_KEY,
     BIRD_WORKSPACE_ID: process.env.BIRD_WORKSPACE_ID,
     BIRD_WHATSAPP_CHANNEL_ID: process.env.BIRD_WHATSAPP_CHANNEL_ID,
+    BIRD_SMS_CHANNEL_ID: process.env.BIRD_SMS_CHANNEL_ID,
     BIRD_WEBHOOK_SECRET: process.env.BIRD_WEBHOOK_SECRET,
     NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN,
   },

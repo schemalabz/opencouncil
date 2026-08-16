@@ -4,7 +4,7 @@ import { alert as sendAlert } from "@/lib/alert";
 import { BirdLike } from "@/lib/bird";
 import { ExtractedMessageFields } from "@/lib/bird-extract";
 import { citiesForUser, findEnabledUserByPhone } from "@/lib/fanout";
-import { hasMainDb } from "@/lib/main-db";
+import { hasMainDb, mainDb } from "@/lib/main-db";
 import { normalizePhone } from "@/lib/phone";
 import { sendPendingMessages } from "@/lib/queue";
 import { enqueueLiveWake } from "@/lib/queue-core";
@@ -95,7 +95,13 @@ async function findSubscriptionByPhone(
 
 /** Enroll a rollout-enabled user on their first inbound message: subscription
  *  with origin `inbound`, profile seeded exactly as migration will seed it.
- *  No transition template — they opened the conversation themselves. */
+ *  No transition template — they opened the conversation themselves.
+ *
+ *  Upsert on userId, not create: the serve-or-enroll decision is phone-keyed,
+ *  so a user whose main-app phone changed after enrollment lands here with a
+ *  subscription that exists under the old phone — the upsert refreshes the
+ *  phone (and absorbs the first-contact double-text race) instead of dying
+ *  on the unique constraint and dropping the message. */
 async function enrollFromInbound(
   db: PrismaClient,
   fields: ExtractedMessageFields,
@@ -105,8 +111,9 @@ async function enrollFromInbound(
   if (!user) return null;
 
   const cities = await citiesForUser(user.id);
-  return db.notisSubscription.create({
-    data: {
+  return db.notisSubscription.upsert({
+    where: { userId: user.id },
+    create: {
       userId: user.id,
       phone: normalizePhone(fields.phone),
       status: "active",
@@ -115,6 +122,11 @@ async function enrollFromInbound(
       cities: cities as unknown as Prisma.InputJsonValue,
       userName: user.name,
       birdConversationId: fields.conversationId,
+    },
+    update: {
+      phone: normalizePhone(fields.phone),
+      ...(fields.conversationId ? { birdConversationId: fields.conversationId } : {}),
+      ...(user.name ? { userName: user.name } : {}),
     },
   });
 }
@@ -143,12 +155,14 @@ async function handleBareStop(
         birdMessageId: fields.birdMessageId,
       },
     });
-    if (!alreadyUnsubscribed) {
-      await tx.notisSubscription.update({
-        where: { id: sub.id },
-        data: { status: "unsubscribed", unsubscribedAt: at },
-      });
-    }
+    // Always touched: updatedAt is the conversation list's activity sort key.
+    await tx.notisSubscription.update({
+      where: { id: sub.id },
+      data: {
+        updatedAt: at,
+        ...(alreadyUnsubscribed ? {} : { status: "unsubscribed" as const, unsubscribedAt: at }),
+      },
+    });
     const { _max } = await tx.notisJournalEntry.aggregate({
       where: { subscriptionId: sub.id },
       _max: { seq: true },
@@ -219,11 +233,27 @@ export async function handleInbound(
       // them; a second reply from here would double up.
       return { action: "ignored", reason: "not a notis-served phone" };
     }
-  } else if (fields.conversationId && sub.birdConversationId !== fields.conversationId) {
-    sub = await db.notisSubscription.update({
-      where: { id: sub.id },
-      data: { birdConversationId: fields.conversationId },
-    });
+  } else {
+    // The gate holds for EXISTING subscriptions too: an admin rolling a
+    // user back (clearing notisEnabledAt) hands their inbound to the main
+    // app's webhook again — answering here as well would double-reply.
+    // Fail open when the main DB is unreachable: dropping a served user's
+    // message is worse than a rare double answer during an outage.
+    if (hasMainDb()) {
+      const flag = await mainDb().notisUserRow.findUnique({
+        where: { id: sub.userId },
+        select: { notisEnabledAt: true },
+      });
+      if (!flag?.notisEnabledAt) {
+        return { action: "ignored", reason: "user rolled back to the old path" };
+      }
+    }
+    if (fields.conversationId && sub.birdConversationId !== fields.conversationId) {
+      sub = await db.notisSubscription.update({
+        where: { id: sub.id },
+        data: { birdConversationId: fields.conversationId },
+      });
+    }
   }
 
   if (isBareStop(fields.body)) {
@@ -243,6 +273,11 @@ export async function handleInbound(
         body: fields.body,
         birdMessageId: fields.birdMessageId,
       },
+    });
+    // Always touched: updatedAt is the conversation list's activity sort key.
+    await tx.notisSubscription.update({
+      where: { id: sub.id },
+      data: { updatedAt: new Date() },
     });
     return enqueueLiveWake(tx, { subscriptionId: sub.id, event });
   });

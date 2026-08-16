@@ -1,5 +1,6 @@
 import { NextResponse, after } from "next/server";
 import { env } from "@/env.mjs";
+import { alert } from "@/lib/alert";
 import { extractMessageFields } from "@/lib/bird-extract";
 import { realBird } from "@/lib/bird";
 import { hasNotisDb, notisDb } from "@/lib/db";
@@ -46,9 +47,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
   }
 
-  if (!hasNotisDb()) return NextResponse.json({ ok: true, ignored: "no database" });
+  if (!hasNotisDb()) {
+    // A production instance with a Bird subscription but no database is a
+    // config failure, not playground mode: 503 makes Bird retry until it is
+    // fixed instead of silently discarding inbound traffic (incl. ΣΤΟΠ).
+    if (process.env.NODE_ENV === "production") {
+      await alert("webhook", "inbound Bird event with no NOTIS_DATABASE_URL — returning 503");
+      return NextResponse.json({ error: "no database" }, { status: 503 });
+    }
+    return NextResponse.json({ ok: true, ignored: "no database" });
+  }
 
-  const fields = extractMessageFields(event, { whatsapp: env.BIRD_WHATSAPP_CHANNEL_ID });
+  const fields = extractMessageFields(event, {
+    whatsapp: env.BIRD_WHATSAPP_CHANNEL_ID,
+    // Without the SMS id, extractChannel's whatsapp default would let SMS
+    // conversation events through the gate below and corrupt
+    // birdConversationId with an SMS thread.
+    sms: env.BIRD_SMS_CHANNEL_ID,
+  });
   if (fields.channel !== "whatsapp") {
     return NextResponse.json({ ok: true, ignored: "not whatsapp" });
   }
@@ -66,10 +82,15 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ ok: true, action: result.action });
   } catch (error) {
+    // Only a unique-index race on birdMessageId is a concurrent duplicate
+    // delivery. Any OTHER P2002 (journal seq, subscription userId) means a
+    // real write was rolled back — 500 so Bird retries it.
     const code = (error as { code?: string } | undefined)?.code;
-    // A unique-index race on birdMessageId is a concurrent duplicate
-    // delivery, not a failure.
-    if (code === "P2002") return NextResponse.json({ ok: true, action: "duplicate" });
+    const target = (error as { meta?: { target?: unknown } } | undefined)?.meta?.target;
+    const targetText = Array.isArray(target) ? target.join(",") : String(target ?? "");
+    if (code === "P2002" && targetText.includes("birdMessageId")) {
+      return NextResponse.json({ ok: true, action: "duplicate" });
+    }
     console.error("Bird webhook: handler error", error);
     return NextResponse.json({ error: "handler failed" }, { status: 500 });
   }
