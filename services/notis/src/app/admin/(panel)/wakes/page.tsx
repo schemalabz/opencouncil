@@ -182,7 +182,7 @@ export default async function WakesPage(props: {
             </thead>
             <tbody>
               {entries.map((w) => (
-                <tr key={w.id} className="border-b align-top hover:bg-muted/40">
+                <tr key={w.id} className="border-b align-middle hover:bg-muted/40">
                   <td
                     className="whitespace-nowrap py-2.5 pr-4 text-xs tabular-nums text-muted-foreground"
                     title={fmtDateTime(w.at)}

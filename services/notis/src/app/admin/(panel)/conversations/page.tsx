@@ -83,10 +83,10 @@ export default async function ConversationsPage(props: {
             </thead>
             <tbody>
               {conversations.map((c) => (
-                <tr key={c.id} className="border-b align-top hover:bg-muted/40">
+                <tr key={c.id} className="border-b align-middle hover:bg-muted/40">
                   <td className="whitespace-nowrap py-2.5 pr-4">
-                    <div className="flex items-start gap-2.5">
-                      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange/10 text-sm font-medium text-orange">
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange/10 text-sm font-medium text-orange">
                         {(c.userName.trim()[0] ?? "—").toUpperCase()}
                       </span>
                       <div>
