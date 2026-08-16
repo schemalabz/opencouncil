@@ -192,7 +192,7 @@ async function bucketedSeries(
 
   const [messages, actives, unsubscribes] = await Promise.all([
     db.$queryRaw<Array<{ bucket: Date; direction: string; count: number }>>`
-      SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'Europe/Athens') AS bucket,
+      SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
              direction::text AS direction, COUNT(*)::int AS count
       FROM "NotisMessage"
       WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
@@ -200,17 +200,17 @@ async function bucketedSeries(
     `,
     db.$queryRaw<Array<{ bucket: Date; count: number }>>`
       SELECT bucket, COUNT(DISTINCT sid)::int AS count FROM (
-        SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'Europe/Athens') AS bucket,
+        SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
                "subscriptionId" AS sid
         FROM "NotisMessage" WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
         UNION ALL
-        SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'Europe/Athens'),
+        SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens'),
                "subscriptionId"
         FROM "NotisWake" WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
       ) t GROUP BY 1
     `,
     db.$queryRaw<Array<{ bucket: Date; count: number }>>`
-      SELECT date_trunc(${bucket}, "unsubscribedAt" AT TIME ZONE 'Europe/Athens') AS bucket,
+      SELECT date_trunc(${bucket}, "unsubscribedAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
              COUNT(*)::int AS count
       FROM "NotisSubscription"
       WHERE "unsubscribedAt" >= ${from} AND "unsubscribedAt" < ${to}

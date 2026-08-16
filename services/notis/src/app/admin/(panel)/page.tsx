@@ -4,6 +4,7 @@ import { MetricCard, MetricPoint } from "./_components/MetricCard";
 import { PageHeader } from "./_components/PageHeader";
 import { fmtInt, fmtTimeAgo } from "./_lib/format";
 import {
+  BucketUnit,
   OverviewStats,
   PeriodStats,
   RANGES,
@@ -54,23 +55,30 @@ function fmtUsd(n: number): string {
 }
 
 /**
- * Chart tooltip label for an Athens-local bucket key: «Σαβ 16/8» for a day,
- * «14:35» for an hour or minute bucket.
+ * Chart tooltip label for an Athens-local bucket key. Buckets are floored,
+ * so an hour bucket names its full interval — «13:00–14:00» is 13:00 up to
+ * (not including) 14:00. Days read «Σαβ 16/8», minutes the exact «13:14».
  */
-function fmtBucketLabel(key: string): string {
-  if (key.length > 10) return key.slice(11);
-  return new Intl.DateTimeFormat("el-GR", {
-    weekday: "short",
-    day: "numeric",
-    month: "numeric",
-  }).format(new Date(`${key}T12:00:00Z`));
+function fmtBucketLabel(key: string, bucket: BucketUnit): string {
+  if (bucket === "day") {
+    return new Intl.DateTimeFormat("el-GR", {
+      weekday: "short",
+      day: "numeric",
+      month: "numeric",
+    }).format(new Date(`${key}T12:00:00Z`));
+  }
+  const time = key.slice(11);
+  if (bucket === "minute") return time;
+  const hour = Number.parseInt(time.slice(0, 2), 10);
+  return `${time}–${String((hour + 1) % 24).padStart(2, "0")}:00`;
 }
 
 function seriesFor(
   series: SeriesPoint[],
   key: "activeUsers" | "sent" | "received" | "unsubscribes",
+  bucket: BucketUnit,
 ): MetricPoint[] {
-  return series.map((point) => ({ label: fmtBucketLabel(point.key), value: point[key] }));
+  return series.map((point) => ({ label: fmtBucketLabel(point.key, bucket), value: point[key] }));
 }
 
 function StackedBar({
@@ -381,7 +389,7 @@ export default async function DashboardPage(props: {
             value={fmtInt(current.activeUsers)}
             current={current.activeUsers}
             previous={previous.activeUsers}
-            points={seriesFor(stats.series, "activeUsers")}
+            points={seriesFor(stats.series, "activeUsers", RANGES[range].bucket)}
             detail={`+${fmtInt(current.newSubscriptions)} νέες εγγραφές · ${fmtInt(totals.subscriptions)} συνολικά`}
           />
           <MetricCard
@@ -389,7 +397,7 @@ export default async function DashboardPage(props: {
             value={fmtInt(current.messagesSent)}
             current={current.messagesSent}
             previous={previous.messagesSent}
-            points={seriesFor(stats.series, "sent")}
+            points={seriesFor(stats.series, "sent", RANGES[range].bucket)}
             detail="μηνύματα του Νότη προς χρήστες"
           />
           <MetricCard
@@ -397,7 +405,7 @@ export default async function DashboardPage(props: {
             value={fmtInt(current.messagesReceived)}
             current={current.messagesReceived}
             previous={previous.messagesReceived}
-            points={seriesFor(stats.series, "received")}
+            points={seriesFor(stats.series, "received", RANGES[range].bucket)}
             detail="μηνύματα χρηστών προς τον Νότη"
           />
           <MetricCard
@@ -405,7 +413,7 @@ export default async function DashboardPage(props: {
             value={fmtInt(current.unsubscribes)}
             current={current.unsubscribes}
             previous={previous.unsubscribes}
-            points={seriesFor(stats.series, "unsubscribes")}
+            points={seriesFor(stats.series, "unsubscribes", RANGES[range].bucket)}
             invert
             tone="red"
             detail={`${fmtInt(totals.unsubscribed)} συνολικά σε ΣΤΟΠ`}
