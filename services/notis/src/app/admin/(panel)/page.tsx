@@ -2,6 +2,7 @@ import Link from "next/link";
 import { DeltaChip } from "./_components/DeltaChip";
 import { MetricCard, MetricPoint } from "./_components/MetricCard";
 import { PageHeader } from "./_components/PageHeader";
+import { UserAvatar } from "./_components/UserAvatar";
 import { fmtInt, fmtTimeAgo } from "./_lib/format";
 import {
   BucketUnit,
@@ -335,8 +336,8 @@ function RecentInboundList({ stats }: { stats: OverviewStats }) {
                 href={`/admin/conversations/${m.subscriptionId}`}
                 className="group flex gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
               >
-                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange/10 text-sm font-medium text-orange">
-                  {(m.userName.trim()[0] ?? "—").toUpperCase()}
+                <span className="mt-0.5 shrink-0">
+                  <UserAvatar seed={m.subscriptionId} />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline justify-between gap-3">
