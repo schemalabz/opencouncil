@@ -80,7 +80,11 @@ export async function ensureTestDb(): Promise<{ databaseUrl: string }> {
         })
         .withExposedPorts(5432)
         .withUser('root')
-        .withWaitStrategy(Wait.forListeningPorts())
+        // Wait on the log, not on port probes: the image is amd64-only, and
+        // emulated containers on Apple-silicon Docker Desktop report an empty
+        // /proc/net/tcp, so every internal port probe times out. The message
+        // appears twice (initdb's temporary server, then the real one).
+        .withWaitStrategy(Wait.forLogMessage(/database system is ready to accept connections/, 2))
         .start()
 
     const host = container.getHost()
