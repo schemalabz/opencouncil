@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2, MapPin, X } from "lucide-react";
 import { locationPoints, locationText } from "@/agent/geo";
 import { seedProfileFromPreferences } from "@/agent/profileSeed";
-import { introTemplateFor, renderTemplate } from "@/agent/templates";
+import { EnrollmentOrigin, introTemplateFor, renderTemplate } from "@/agent/templates";
 import { CityPreference, WakeState } from "@/agent/types";
 import {
   CityOption,
@@ -17,7 +17,7 @@ import {
   geocode,
 } from "../api";
 import { MeetingSummary, deriveQueue } from "../deriveQueue";
-import { Origin, Sim } from "../types";
+import { Sim } from "../types";
 import { AddressSearch } from "./AddressSearch";
 import { LocationsMap, MapFocus } from "./LocationsMap";
 
@@ -63,7 +63,7 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
   // seeding rule — the same one migration enrollment uses — so tuning runs
   // on launch-shaped profiles, not hand-typed ones.
   const [profileDirty, setProfileDirty] = useState(false);
-  const [origin, setOrigin] = useState<Origin>("transition");
+  const [origin, setOrigin] = useState<EnrollmentOrigin>("transition");
   const [from, setFrom] = useState("2026-05-01");
 
   const [realUsers, setRealUsers] = useState<{ available: boolean; users: RealUser[] } | null>(null);

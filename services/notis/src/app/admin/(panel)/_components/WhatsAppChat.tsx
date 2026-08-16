@@ -383,7 +383,8 @@ export function WhatsAppChat({
   // silently no-op. The composer stays live (inbound survives a ΣΤΟΠ).
   const stopped = records.some((r) => r.outcome?.unsubscribe);
   const next = stopped ? undefined : records.find((q) => q.status === "pending");
-  const intro = renderTemplate(introTemplateFor(origin));
+  // Inbound-origin threads open with the reader's own message — no intro shell.
+  const intro = origin === "inbound" ? undefined : renderTemplate(introTemplateFor(origin));
   const introAt = new Date(startAt).toISOString();
 
   // Scroll ONLY the thread container. Never scrollIntoView here: it walks and
@@ -432,20 +433,24 @@ export function WhatsAppChat({
         style={{ backgroundColor: BG, backgroundImage: PATTERN, backgroundSize: "14px 14px" }}
       >
         {/* enrollment: the origin-appropriate approved template opens the thread */}
-        <div className="flex justify-center px-4 py-1">
-          <span className="rounded-md bg-[#ffffffcc] px-3 py-1 text-[11px] font-medium text-[#54656f] shadow-sm">
-            {fmtDateChip(introAt)}
-          </span>
-        </div>
-        <TemplateBubble
-          rendered={intro}
-          time={fmtTime(introAt)}
-          first
-          busy={busy || autoRun}
-          onQuickReply={sim?.onUserMessage}
-        />
+        {intro && (
+          <>
+            <div className="flex justify-center px-4 py-1">
+              <span className="rounded-md bg-[#ffffffcc] px-3 py-1 text-[11px] font-medium text-[#54656f] shadow-sm">
+                {fmtDateChip(introAt)}
+              </span>
+            </div>
+            <TemplateBubble
+              rendered={intro}
+              time={fmtTime(introAt)}
+              first
+              busy={busy || autoRun}
+              onQuickReply={sim?.onUserMessage}
+            />
+          </>
+        )}
         {(() => {
-          lastDay = fmtDateChip(introAt);
+          lastDay = intro ? fmtDateChip(introAt) : "";
           return null;
         })()}
         {visible.map((item) => {

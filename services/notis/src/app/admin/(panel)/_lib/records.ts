@@ -11,8 +11,11 @@ import { WakeEvent, WakeOutcome } from "@/agent/types";
 /** City display metadata for timelines and hover cards, keyed by cityId. */
 export type CityMeta = Record<string, { name: string; logo?: string | null }>;
 
-/** How a reader entered Notis — decides the intro template shell. */
-export type Origin = "transition" | "signup";
+/**
+ * How a reader entered Notis — decides the intro template shell. An
+ * `inbound` thread opens with the reader's own message; it has no intro.
+ */
+export type Origin = "transition" | "signup" | "inbound";
 
 /** A queue item whose meeting brief may not be generated yet (playground-only). */
 export type PendingBrief = { pending: true };
