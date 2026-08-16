@@ -29,7 +29,9 @@ export const RANGES = {
 export type RangeKey = keyof typeof RANGES;
 
 export function parseRange(value: string | undefined): RangeKey {
-  return value && value in RANGES ? (value as RangeKey) : "7d";
+  // Object.hasOwn, not `in`: `in` walks the prototype chain, so
+  // ?range=constructor would pass and crash the overview.
+  return value && Object.hasOwn(RANGES, value) ? (value as RangeKey) : "7d";
 }
 
 /** Relative change in percent; null when the previous period is empty. */
@@ -135,9 +137,13 @@ export function athensBucketKey(date: Date, bucket: BucketUnit): string {
   );
 }
 
-/** Every Athens-local bucket from `from` to `to`, inclusive, in order. */
+/** Every Athens-local bucket from `from` to `to`, inclusive, in order.
+ *  Day buckets step by 6h, not 24h: a fixed-24h stride across the
+ *  spring-forward DST transition skips one local calendar day entirely
+ *  (the dedupe below only collapses duplicates, it cannot invent the
+ *  missing key), and a skipped key silently drops that day's counts. */
 export function listBuckets(from: Date, to: Date, bucket: BucketUnit): string[] {
-  const step = BUCKET_STEP_MS[bucket];
+  const step = bucket === "day" ? 6 * HOUR_MS : BUCKET_STEP_MS[bucket];
   const keys: string[] = [];
   for (let t = from.getTime(); t <= to.getTime(); t += step) {
     const key = athensBucketKey(new Date(t), bucket);

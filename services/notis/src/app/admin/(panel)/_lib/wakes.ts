@@ -94,14 +94,15 @@ export async function listRecentWakes(filter: WakeFilter, page = 1): Promise<Wak
     orderBy: { createdAt: "desc" },
     skip: (current - 1) * WAKES_PAGE_SIZE,
     take: WAKES_PAGE_SIZE,
-    // An explicit select, NOT include: `include` leaves the parent's columns
-    // untouched, which pulls `trace` — hundreds of KB per wake — for a whole
-    // page of rows to render a dozen scalars.
+    // Explicit select: without it every row drags its full trace/event/
+    // usage Json along — hundreds of KB per wake, ×100 per page — to
+    // render a dozen scalars. `outcome` stays: the feed needs its
+    // message count.
     select: {
       id: true,
-      eventAt: true,
       subscriptionId: true,
       eventType: true,
+      eventAt: true,
       decision: true,
       rationale: true,
       outcome: true,

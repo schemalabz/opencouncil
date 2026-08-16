@@ -130,13 +130,19 @@ export async function listConversations(search?: string, page = 1): Promise<Conv
       where: { subscriptionId: { in: ids } },
       _sum: { costUsd: true },
     }),
-    // orderBy + distinct = the latest message per subscription.
-    db.notisMessage.findMany({
-      where: { subscriptionId: { in: ids } },
-      orderBy: { createdAt: "desc" },
-      distinct: ["subscriptionId"],
-      select: { subscriptionId: true, body: true, direction: true, createdAt: true },
-    }),
+    // DISTINCT ON in SQL: Prisma's `distinct` dedupes in memory AFTER
+    // fetching every message of every listed conversation. This returns
+    // exactly one row per subscription, served by the
+    // [subscriptionId, createdAt] index.
+    db.$queryRaw<
+      Array<{ subscriptionId: string; body: string; direction: string; createdAt: Date }>
+    >`
+      SELECT DISTINCT ON ("subscriptionId")
+             "subscriptionId", body, direction::text AS direction, "createdAt"
+      FROM "NotisMessage"
+      WHERE "subscriptionId" = ANY(${ids}::text[])
+      ORDER BY "subscriptionId", "createdAt" DESC, id DESC
+    `,
   ]);
 
   const countMap = new Map(
@@ -148,7 +154,11 @@ export async function listConversations(search?: string, page = 1): Promise<Conv
   const lastMap = new Map(
     lastMessages.map((m) => [
       m.subscriptionId,
-      { body: m.body, direction: m.direction, at: m.createdAt.toISOString() },
+      {
+        body: m.body,
+        direction: m.direction as "inbound" | "outbound",
+        at: m.createdAt.toISOString(),
+      },
     ]),
   );
 
@@ -191,7 +201,10 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     db.notisMessage.count({ where: { subscriptionId: id, direction: "inbound" } }),
     db.notisMessage.findMany({
       where: { subscriptionId: id, direction: "outbound" },
-      orderBy: { createdAt: "asc" },
+      // All of a wake's rows share one transaction timestamp — the id
+      // tiebreaker (cuids are monotonic per process) pins insertion order,
+      // which is what the index-alignment with outcome.messages needs.
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       select: { wakeId: true, status: true, failureReason: true },
     }),
   ]);

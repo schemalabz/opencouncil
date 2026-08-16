@@ -10,6 +10,12 @@ describe("parseRange", () => {
     expect(parseRange("1y")).toBe("7d");
     expect(parseRange(undefined)).toBe("7d");
   });
+
+  it("rejects prototype-chain keys — ?range=constructor must not crash the overview", () => {
+    expect(parseRange("constructor")).toBe("7d");
+    expect(parseRange("toString")).toBe("7d");
+    expect(parseRange("valueOf")).toBe("7d");
+  });
 });
 
 describe("pctChange", () => {
@@ -58,6 +64,21 @@ describe("listBuckets", () => {
     );
     expect(hours[0]).toBe("2026-08-15T13:00");
     expect(hours.every((h) => h.endsWith(":00"))).toBe(true);
+  });
+
+  it("emits every local day across the spring-forward DST transition", () => {
+    // 2026-03-30T21:30Z = 00:30 Athens Mar 31 (EEST). A fixed-24h stride
+    // used to skip 2026-03-29 entirely, silently dropping its counts.
+    const days = listBuckets(
+      new Date("2026-03-23T21:30:00Z"),
+      new Date("2026-03-30T21:30:00Z"),
+      "day",
+    );
+    expect(days).toContain("2026-03-29");
+    for (let i = 1; i < days.length; i++) {
+      const gapMs = Date.parse(`${days[i]}T12:00:00Z`) - Date.parse(`${days[i - 1]}T12:00:00Z`);
+      expect(gapMs).toBe(24 * 60 * 60 * 1000);
+    }
   });
 
   it("buckets an hour window by minute", () => {
