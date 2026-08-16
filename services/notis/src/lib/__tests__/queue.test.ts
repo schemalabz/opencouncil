@@ -2,7 +2,7 @@ import { FakeAnthropic, makeDeps, toolUse } from "../../agent/__tests__/helpers"
 import type { BirdLike, BirdSendResult } from "../bird";
 import { MAX_ATTEMPTS, type ClaimedItem } from "../queue-core";
 import { processItem } from "../queue";
-import type { PrismaClient } from "../../../generated/client";
+import { type Row, makeFakeDb } from "./fake-db";
 
 /**
  * processItem against an in-memory Prisma fake: the shell's ordering
@@ -10,99 +10,6 @@ import type { PrismaClient } from "../../../generated/client";
  * failure → pending retry with Bird untouched) are what's under test —
  * runWake itself has its own suite.
  */
-
-type Row = Record<string, unknown>;
-
-function makeFakeDb(subscription: Row) {
-  const calls: string[] = [];
-  const store = {
-    subscriptions: new Map<string, Row>([[subscription.id as string, subscription]]),
-    journal: [] as Row[],
-    messages: [] as Row[],
-    wakes: [] as Row[],
-    scheduled: [] as Row[],
-    queue: new Map<string, Row>(),
-  };
-  let nextId = 1;
-  const id = (prefix: string) => `${prefix}_${nextId++}`;
-
-  const db = {
-    calls,
-    store,
-    notisSubscription: {
-      findUnique: async ({ where }: { where: { id: string } }) =>
-        store.subscriptions.get(where.id) ?? null,
-      update: async ({ where, data }: { where: { id: string }; data: Row }) => {
-        const row = store.subscriptions.get(where.id)!;
-        Object.assign(row, data);
-        return row;
-      },
-    },
-    notisJournalEntry: {
-      findMany: async () => [...store.journal],
-      aggregate: async () => ({
-        _max: { seq: store.journal.length ? Math.max(...store.journal.map((j) => j.seq as number)) : null },
-      }),
-      create: async ({ data }: { data: Row }) => {
-        const row = { id: id("j"), ...data };
-        store.journal.push(row);
-        return row;
-      },
-    },
-    notisMessage: {
-      findFirst: async () => {
-        const inbound = store.messages.filter((m) => m.direction === "inbound");
-        return inbound.length ? inbound[inbound.length - 1] : null;
-      },
-      findMany: async () => [...store.messages],
-      findUnique: async ({ where }: { where: { id: string } }) =>
-        store.messages.find((m) => m.id === where.id) ?? null,
-      create: async ({ data }: { data: Row }) => {
-        const row: Row = { id: id("msg"), createdAt: new Date(), status: null, ...data };
-        store.messages.push(row);
-        calls.push(`message-created:${row.direction}`);
-        return row;
-      },
-      update: async ({ where, data }: { where: { id: string }; data: Row }) => {
-        const row = store.messages.find((m) => m.id === where.id)!;
-        Object.assign(row, data);
-        return row;
-      },
-      updateMany: async ({ where, data }: { where: { id: { in: string[] } }; data: Row }) => {
-        for (const row of store.messages.filter((m) => where.id.in.includes(m.id as string))) {
-          Object.assign(row, data);
-        }
-      },
-    },
-    notisWake: {
-      create: async ({ data }: { data: Row }) => {
-        const row = { id: id("wake"), ...data };
-        store.wakes.push(row);
-        calls.push("wake-created");
-        return row;
-      },
-    },
-    notisScheduledWake: {
-      create: async ({ data }: { data: Row }) => {
-        const row = { id: id("sw"), ...data };
-        store.scheduled.push(row);
-        return row;
-      },
-    },
-    notisWakeQueue: {
-      update: async ({ where, data }: { where: { id: string }; data: Row }) => {
-        const row = store.queue.get(where.id) ?? { id: where.id };
-        Object.assign(row, data);
-        store.queue.set(where.id, row);
-        calls.push(`queue:${data.status}`);
-        return row;
-      },
-      findUnique: async ({ where }: { where: { id: string } }) => store.queue.get(where.id) ?? null,
-    },
-    $transaction: async <T>(fn: (tx: unknown) => Promise<T>): Promise<T> => fn(db),
-  };
-  return db as typeof db & PrismaClient;
-}
 
 class FakeBird implements BirdLike {
   public sends: Array<{ conversationId: string; text: string; idempotencyKey: string }> = [];
@@ -145,7 +52,7 @@ const sendTurn = [
 
 describe("processItem", () => {
   it("persists the wake, journal and message BEFORE calling Bird, keyed by the message id", async () => {
-    const db = makeFakeDb({ ...SUB });
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
     const bird = new FakeBird();
     const alerts: string[] = [];
 
@@ -182,7 +89,7 @@ describe("processItem", () => {
   });
 
   it("returns the item to pending when the wake throws — Bird untouched, nothing persisted", async () => {
-    const db = makeFakeDb({ ...SUB });
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
     const bird = new FakeBird();
 
     await processItem(ITEM, {
@@ -201,7 +108,7 @@ describe("processItem", () => {
   });
 
   it("fails terminally past MAX_ATTEMPTS without running the model", async () => {
-    const db = makeFakeDb({ ...SUB });
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
     const anthropic = new FakeAnthropic(sendTurn);
     const alerts: string[] = [];
 
@@ -216,7 +123,7 @@ describe("processItem", () => {
   });
 
   it("applies an unsubscribe outcome to the subscription", async () => {
-    const db = makeFakeDb({ ...SUB });
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
     const turns = [
       {
         content: [
@@ -241,7 +148,7 @@ describe("processItem", () => {
   });
 
   it("marks the message failed and alerts when the Bird send fails — the wake stays committed", async () => {
-    const db = makeFakeDb({ ...SUB });
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
     const bird = new FakeBird({ success: false, error: "window closed" });
     const alerts: string[] = [];
 

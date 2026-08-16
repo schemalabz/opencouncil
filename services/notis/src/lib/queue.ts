@@ -202,7 +202,9 @@ async function runOneWake(
   await sendPendingMessages(db, bird, outboundIds, sub, alert);
 }
 
-async function sendPendingMessages(
+/** Send `pending` outbound rows into the subscription's conversation. Also
+ *  used by the webhook's deterministic ΣΤΟΠ replies. */
+export async function sendPendingMessages(
   db: PrismaClient,
   bird: BirdLike,
   messageIds: string[],

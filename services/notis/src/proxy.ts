@@ -6,7 +6,9 @@ import { sessionCookieName } from "@/lib/session-cookie";
 // exists in notis_admin_sessions and has not expired) happens server-side —
 // getAdminSession() in the panel layout, requireAdmin() in every API route —
 // because the edge runtime has no database access.
-const PUBLIC_API = ["/api/health"];
+// The Bird webhook carries no session cookie; it authenticates with its own
+// HMAC signature inside the route.
+const PUBLIC_API = ["/api/health", "/api/webhooks/bird"];
 
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
