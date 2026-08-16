@@ -1,5 +1,5 @@
 import { fmtTimeAgo } from "../format";
-import { parseRange, pctChange } from "../metrics";
+import { fillDailySeries, listDays, parseRange, pctChange } from "../metrics";
 
 describe("parseRange", () => {
   it("accepts known ranges and defaults everything else to 7d", () => {
@@ -20,6 +20,35 @@ describe("pctChange", () => {
   it("is null when the previous period is empty — no baseline, no percentage", () => {
     expect(pctChange(10, 0)).toBeNull();
     expect(pctChange(0, 0)).toBeNull();
+  });
+});
+
+describe("listDays", () => {
+  it("covers the window inclusively in Athens-local days", () => {
+    // 21:00 UTC prior day = 00:00 Athens next day (summer): the window
+    // [Aug 9 22:00 UTC, Aug 16 10:00 UTC] spans Aug 10 … Aug 16 locally.
+    const days = listDays(new Date("2026-08-09T22:00:00Z"), new Date("2026-08-16T10:00:00Z"));
+    expect(days[0]).toBe("2026-08-10");
+    expect(days[days.length - 1]).toBe("2026-08-16");
+    expect(days).toHaveLength(7);
+  });
+});
+
+describe("fillDailySeries", () => {
+  it("zero-fills days without rows so charts get every day", () => {
+    const series = fillDailySeries(
+      new Date("2026-08-14T00:00:00Z"),
+      new Date("2026-08-16T10:00:00Z"),
+      {
+        sent: [{ day: "2026-08-15", count: 3 }],
+        received: [],
+        activeUsers: [{ day: "2026-08-15", count: 1 }],
+        unsubscribes: [],
+      },
+    );
+    expect(series.map((p) => p.sent)).toEqual([0, 3, 0]);
+    expect(series.map((p) => p.received)).toEqual([0, 0, 0]);
+    expect(series.find((p) => p.day === "2026-08-15")?.activeUsers).toBe(1);
   });
 });
 

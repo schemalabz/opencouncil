@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { DeltaChip } from "./_components/DeltaChip";
+import { MetricCard, MetricPoint } from "./_components/MetricCard";
 import { PageHeader } from "./_components/PageHeader";
 import { fmtInt, fmtTimeAgo } from "./_lib/format";
 import {
+  DailyPoint,
   OverviewStats,
   PeriodStats,
   RANGES,
@@ -9,7 +12,6 @@ import {
   getOverviewStats,
   liveData,
   parseRange,
-  pctChange,
 } from "./_lib/metrics";
 
 export const metadata = { title: "Νότης · admin" };
@@ -51,40 +53,20 @@ function fmtUsd(n: number): string {
   return `$${n.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-/**
- * Change versus the previous period. `invert` flips the coloring for
- * metrics where growth is bad (unsubscribes, failures).
- */
-function DeltaChip({
-  current,
-  previous,
-  invert = false,
-}: {
-  current: number;
-  previous: number;
-  invert?: boolean;
-}) {
-  const base = "rounded px-1.5 py-0.5 text-[11px] font-medium tabular-nums";
-  if (current === 0 && previous === 0) {
-    return <span className={`${base} text-muted-foreground/60`}>—</span>;
-  }
-  const pct = pctChange(current, previous);
-  if (pct === null) {
-    return <span className={`${base} bg-muted text-muted-foreground`}>νέο</span>;
-  }
-  if (Math.abs(pct) < 0.5) {
-    return <span className={`${base} bg-muted text-muted-foreground`}>=</span>;
-  }
-  const improving = invert ? pct < 0 : pct > 0;
-  const cls = improving ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700";
-  const magnitude = Math.abs(pct).toLocaleString("el-GR", {
-    maximumFractionDigits: Math.abs(pct) >= 10 ? 0 : 1,
-  });
-  return (
-    <span className={`${base} ${cls}`} title="σε σχέση με την προηγούμενη περίοδο">
-      {pct > 0 ? "↑" : "↓"} {magnitude}%
-    </span>
-  );
+/** «Σαβ 16/8» — chart tooltip label for an Athens-local day key. */
+function fmtDayLabel(day: string): string {
+  return new Intl.DateTimeFormat("el-GR", {
+    weekday: "short",
+    day: "numeric",
+    month: "numeric",
+  }).format(new Date(`${day}T12:00:00Z`));
+}
+
+function seriesFor(
+  series: DailyPoint[],
+  key: "activeUsers" | "sent" | "received" | "unsubscribes",
+): MetricPoint[] {
+  return series.map((point) => ({ label: fmtDayLabel(point.day), value: point[key] }));
 }
 
 function StackedBar({
@@ -166,31 +148,6 @@ function RangePicker({ active }: { active: RangeKey }) {
         </Link>
       ))}
     </nav>
-  );
-}
-
-function Kpi({
-  label,
-  value,
-  chip,
-  detail,
-}: {
-  label: string;
-  value: string;
-  chip: React.ReactNode;
-  detail: string;
-}) {
-  return (
-    <div className="px-5 py-4">
-      <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-        {label}
-      </p>
-      <div className="mt-1.5 flex items-baseline gap-2">
-        <span className="text-2xl font-semibold tabular-nums leading-none">{value}</span>
-        {chip}
-      </div>
-      <p className="mt-1.5 truncate text-xs text-muted-foreground">{detail}</p>
-    </div>
   );
 }
 
@@ -407,30 +364,38 @@ export default async function DashboardPage(props: {
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
         <div className="grid divide-y rounded-lg border bg-background sm:grid-cols-2 sm:divide-y-0 xl:grid-cols-4 xl:divide-x">
-          <Kpi
+          <MetricCard
             label="Ενεργοί αναγνώστες"
             value={fmtInt(current.activeUsers)}
-            chip={<DeltaChip current={current.activeUsers} previous={previous.activeUsers} />}
+            current={current.activeUsers}
+            previous={previous.activeUsers}
+            points={seriesFor(stats.dailySeries, "activeUsers")}
             detail={`+${fmtInt(current.newSubscriptions)} νέες εγγραφές · ${fmtInt(totals.subscriptions)} συνολικά`}
           />
-          <Kpi
+          <MetricCard
             label="Απεστάλησαν"
             value={fmtInt(current.messagesSent)}
-            chip={<DeltaChip current={current.messagesSent} previous={previous.messagesSent} />}
+            current={current.messagesSent}
+            previous={previous.messagesSent}
+            points={seriesFor(stats.dailySeries, "sent")}
             detail="μηνύματα του Νότη προς αναγνώστες"
           />
-          <Kpi
+          <MetricCard
             label="Ελήφθησαν"
             value={fmtInt(current.messagesReceived)}
-            chip={
-              <DeltaChip current={current.messagesReceived} previous={previous.messagesReceived} />
-            }
+            current={current.messagesReceived}
+            previous={previous.messagesReceived}
+            points={seriesFor(stats.dailySeries, "received")}
             detail="μηνύματα αναγνωστών προς τον Νότη"
           />
-          <Kpi
+          <MetricCard
             label="Απεγγραφές"
             value={fmtInt(current.unsubscribes)}
-            chip={<DeltaChip current={current.unsubscribes} previous={previous.unsubscribes} invert />}
+            current={current.unsubscribes}
+            previous={previous.unsubscribes}
+            points={seriesFor(stats.dailySeries, "unsubscribes")}
+            invert
+            tone="red"
             detail={`${fmtInt(totals.unsubscribed)} συνολικά σε ΣΤΟΠ`}
           />
         </div>

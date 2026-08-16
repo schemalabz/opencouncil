@@ -61,10 +61,20 @@ export interface RecentInbound {
   at: string;
 }
 
+/** One Athens-local day inside the current window. */
+export interface DailyPoint {
+  day: string; // YYYY-MM-DD
+  activeUsers: number;
+  sent: number;
+  received: number;
+  unsubscribes: number;
+}
+
 export interface OverviewStats {
   range: RangeKey;
   current: PeriodStats;
   previous: PeriodStats;
+  dailySeries: DailyPoint[];
   recentInbound: RecentInbound[];
   totals: { subscriptions: number; unsubscribed: number };
 }
@@ -85,6 +95,101 @@ const EMPTY_PERIOD: PeriodStats = {
 };
 
 type Db = ReturnType<typeof notisDb>;
+
+/** The Athens-local calendar date of an instant, as YYYY-MM-DD. */
+export function athensDay(date: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Athens",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Every Athens-local day from `from` to `to`, inclusive, in order. */
+export function listDays(from: Date, to: Date): string[] {
+  const days: string[] = [];
+  for (let t = from.getTime(); t <= to.getTime(); t += DAY_MS) {
+    const key = athensDay(new Date(t));
+    if (days[days.length - 1] !== key) days.push(key);
+  }
+  const last = athensDay(to);
+  if (days[days.length - 1] !== last) days.push(last);
+  return days;
+}
+
+interface DayCount {
+  day: string;
+  count: number;
+}
+
+/** Zero-fill sparse per-day counts over the window — charts need every day. */
+export function fillDailySeries(
+  from: Date,
+  to: Date,
+  rows: {
+    sent: DayCount[];
+    received: DayCount[];
+    activeUsers: DayCount[];
+    unsubscribes: DayCount[];
+  },
+): DailyPoint[] {
+  const lookup = (list: DayCount[], day: string) =>
+    list.find((r) => r.day === day)?.count ?? 0;
+  return listDays(from, to).map((day) => ({
+    day,
+    sent: lookup(rows.sent, day),
+    received: lookup(rows.received, day),
+    activeUsers: lookup(rows.activeUsers, day),
+    unsubscribes: lookup(rows.unsubscribes, day),
+  }));
+}
+
+// date_trunc over the Athens-local timestamp yields a naive local midnight;
+// the driver parses it as UTC, so toISOString().slice(0,10) IS the local day.
+const rawDay = (row: { day: Date; count: number }): DayCount => ({
+  day: row.day.toISOString().slice(0, 10),
+  count: row.count,
+});
+
+async function dailySeries(db: Db, from: Date, to: Date): Promise<DailyPoint[]> {
+  const [messages, actives, unsubscribes] = await Promise.all([
+    db.$queryRaw<Array<{ day: Date; direction: string; count: number }>>`
+      SELECT date_trunc('day', "createdAt" AT TIME ZONE 'Europe/Athens') AS day,
+             direction::text AS direction, COUNT(*)::int AS count
+      FROM "NotisMessage"
+      WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
+      GROUP BY 1, 2
+    `,
+    db.$queryRaw<Array<{ day: Date; count: number }>>`
+      SELECT day, COUNT(DISTINCT sid)::int AS count FROM (
+        SELECT date_trunc('day', "createdAt" AT TIME ZONE 'Europe/Athens') AS day,
+               "subscriptionId" AS sid
+        FROM "NotisMessage" WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
+        UNION ALL
+        SELECT date_trunc('day', "createdAt" AT TIME ZONE 'Europe/Athens'),
+               "subscriptionId"
+        FROM "NotisWake" WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
+      ) t GROUP BY 1
+    `,
+    db.$queryRaw<Array<{ day: Date; count: number }>>`
+      SELECT date_trunc('day', "unsubscribedAt" AT TIME ZONE 'Europe/Athens') AS day,
+             COUNT(*)::int AS count
+      FROM "NotisSubscription"
+      WHERE "unsubscribedAt" >= ${from} AND "unsubscribedAt" < ${to}
+      GROUP BY 1
+    `,
+  ]);
+
+  return fillDailySeries(from, to, {
+    sent: messages.filter((r) => r.direction === "outbound").map(rawDay),
+    received: messages.filter((r) => r.direction === "inbound").map(rawDay),
+    activeUsers: actives.map(rawDay),
+    unsubscribes: unsubscribes.map(rawDay),
+  });
+}
 
 async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
   const createdInPeriod = { createdAt: { gte: from, lt: to } };
@@ -170,26 +275,34 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
 }
 
 export async function getOverviewStats(range: RangeKey): Promise<OverviewStats> {
-  if (!hasNotisDb()) {
-    return {
-      range,
-      current: EMPTY_PERIOD,
-      previous: EMPTY_PERIOD,
-      recentInbound: [],
-      totals: { subscriptions: 0, unsubscribed: 0 },
-    };
-  }
-
-  const db = notisDb();
   const now = new Date();
   const days = RANGES[range].days;
   const periodMs = days * 24 * 60 * 60 * 1000;
   const currentFrom = new Date(now.getTime() - periodMs);
   const previousFrom = new Date(now.getTime() - 2 * periodMs);
 
-  const [current, previous, recent, subscriptions, unsubscribed] = await Promise.all([
+  if (!hasNotisDb()) {
+    return {
+      range,
+      current: EMPTY_PERIOD,
+      previous: EMPTY_PERIOD,
+      dailySeries: fillDailySeries(currentFrom, now, {
+        sent: [],
+        received: [],
+        activeUsers: [],
+        unsubscribes: [],
+      }),
+      recentInbound: [],
+      totals: { subscriptions: 0, unsubscribed: 0 },
+    };
+  }
+
+  const db = notisDb();
+
+  const [current, previous, series, recent, subscriptions, unsubscribed] = await Promise.all([
     periodStats(db, currentFrom, now),
     periodStats(db, previousFrom, currentFrom),
+    dailySeries(db, currentFrom, now),
     db.notisMessage.findMany({
       where: { direction: "inbound" },
       orderBy: { createdAt: "desc" },
@@ -209,6 +322,7 @@ export async function getOverviewStats(range: RangeKey): Promise<OverviewStats> 
     range,
     current,
     previous,
+    dailySeries: series,
     recentInbound: recent.map((m) => ({
       id: m.id,
       subscriptionId: m.subscription.id,
