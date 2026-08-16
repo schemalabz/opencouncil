@@ -2,7 +2,7 @@ import { JournalEntry, WakeOutcome, WakeTrace } from "@/agent/types";
 import { TemplateName } from "@/agent/templates";
 import { hasNotisDb, notisDb } from "@/lib/db";
 import { hasMainDb, mainDb } from "@/lib/main-db";
-import { CityMeta, Origin, RecordEvent, WakeRecord } from "./records";
+import { CityMeta, MessageDelivery, Origin, RecordEvent, WakeRecord } from "./records";
 
 /**
  * Conversation listing + loading, straight from the Notis database. A stored
@@ -144,10 +144,30 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
   });
   if (!sub) return null;
 
-  const [sent, received] = await Promise.all([
+  const [sent, received, outbound] = await Promise.all([
     db.notisMessage.count({ where: { subscriptionId: id, direction: "outbound" } }),
     db.notisMessage.count({ where: { subscriptionId: id, direction: "inbound" } }),
+    db.notisMessage.findMany({
+      where: { subscriptionId: id, direction: "outbound" },
+      orderBy: { createdAt: "asc" },
+      select: { wakeId: true, status: true, failureReason: true },
+    }),
   ]);
+
+  // Real delivery lifecycles, index-aligned with each wake's messages
+  // (created in outcome order inside one transaction).
+  const deliveriesByWake = new Map<string, MessageDelivery[]>();
+  const wakelessDeliveries: MessageDelivery[] = [];
+  for (const message of outbound) {
+    const delivery = { status: message.status, failureReason: message.failureReason };
+    if (message.wakeId === null) wakelessDeliveries.push(delivery);
+    else {
+      deliveriesByWake.set(message.wakeId, [
+        ...(deliveriesByWake.get(message.wakeId) ?? []),
+        delivery,
+      ]);
+    }
+  }
 
   const records: WakeRecord[] = sub.wakes.map((wake) => ({
     id: wake.id,
@@ -163,6 +183,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
               : { mode: "freeform" as const },
         }
       : {}),
+    ...(deliveriesByWake.has(wake.id) ? { deliveries: deliveriesByWake.get(wake.id) } : {}),
   }));
 
   // The deterministic ΣΤΟΠ pre-step answers without a wake; its journal
@@ -173,9 +194,17 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     where: { subscriptionId: id, wakeId: null },
     orderBy: { seq: "asc" },
   });
+  // Wake-less replies (the ΣΤΟΠ confirmations) pair with wake-less journal
+  // entries in order — each entry consumed its messages' worth of sends.
+  let wakelessCursor = 0;
   for (const row of wakeless) {
     const entry = row.entry as unknown as JournalEntry;
     if (entry.event !== "user_message" || entry.received === undefined) continue;
+    const deliveries = wakelessDeliveries.slice(
+      wakelessCursor,
+      wakelessCursor + entry.messages.length,
+    );
+    wakelessCursor += entry.messages.length;
     records.push({
       id: `journal-${row.seq}`,
       event: { type: "user_message", at: entry.at, text: entry.received },
@@ -189,6 +218,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
         ...(entry.unsubscribed ? { unsubscribe: { reason: entry.rationale } } : {}),
       },
       ...(entry.messages.length > 0 ? { delivery: { mode: "freeform" as const } } : {}),
+      ...(deliveries.length > 0 ? { deliveries } : {}),
     });
   }
   records.sort((a, b) => a.event.at.localeCompare(b.event.at));

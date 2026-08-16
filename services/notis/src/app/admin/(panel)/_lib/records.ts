@@ -33,6 +33,12 @@ export type RecordEvent =
       brief: PendingBrief;
     };
 
+/** Real delivery lifecycle of one outbound message (DB-backed viewer only). */
+export interface MessageDelivery {
+  status: "pending" | "sent" | "delivered" | "read" | "failed" | null;
+  failureReason?: string | null;
+}
+
 export interface WakeRecord {
   id: string;
   event: RecordEvent;
@@ -45,6 +51,11 @@ export interface WakeRecord {
    * free-form.
    */
   delivery?: { mode: "template"; template: TemplateName } | { mode: "freeform" };
+  /**
+   * Per-message delivery status, index-aligned with outcome.messages.
+   * Absent in the playground — the simulator has no real deliveries.
+   */
+  deliveries?: MessageDelivery[];
 }
 
 export function hasPendingBrief(
