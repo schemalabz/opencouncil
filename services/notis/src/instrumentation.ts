@@ -9,9 +9,23 @@ export async function register() {
   // deployments. Imported lazily: the edge bundle must not see Prisma.
   const { runJanitor } = await import("./lib/janitor");
   const DAY_MS = 24 * 60 * 60 * 1000;
-  const tick = () => {
+  const janitorTick = () => {
     runJanitor().catch((e) => console.error("[notis:janitor] run failed:", e));
   };
-  setTimeout(tick, 60_000);
-  setInterval(tick, DAY_MS);
+  setTimeout(janitorTick, 60_000);
+  setInterval(janitorTick, DAY_MS);
+
+  // The queue sweeper: crash recovery for the live lane. The webhook kicks
+  // the drainer directly on every inbound, so this only picks up stale
+  // claims, retries, and sends interrupted between commit and Bird call.
+  // Both halves no-op without NOTIS_DATABASE_URL; overlap with a webhook
+  // kick is safe (FOR UPDATE SKIP LOCKED).
+  const { drainQueue, resendStalePendingMessages } = await import("./lib/queue");
+  const sweep = () => {
+    drainQueue().catch((e) => console.error("[notis:queue] sweep failed:", e));
+    resendStalePendingMessages().catch((e) =>
+      console.error("[notis:queue] resend sweep failed:", e),
+    );
+  };
+  setInterval(sweep, 60_000);
 }

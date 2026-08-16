@@ -1,0 +1,320 @@
+import { z } from "zod";
+import { decideDelivery } from "@/agent/delivery";
+import { runWake } from "@/agent/runWake";
+import { cityPreferenceSchema, wakeEventSchema } from "@/agent/schemas";
+import { CityPreference, Deps, JOURNAL_WINDOW, JournalEntry, WakeEvent } from "@/agent/types";
+import type { NotisSubscription, Prisma, PrismaClient } from "../../generated/client";
+import { alert as sendAlert } from "./alert";
+import { BirdLike, realBird } from "./bird";
+import { buildDeps } from "./deps";
+import { hasNotisDb, notisDb } from "./db";
+import { citiesForUser } from "./fanout";
+import { hasMainDb } from "./main-db";
+import { ClaimedItem, MAX_ATTEMPTS, claimNext, completeItem, failItem, markFailed } from "./queue-core";
+
+/**
+ * The live-lane drainer: claim → assemble state → runWake → persist → send.
+ *
+ * Ordering invariants (PRD §4):
+ * - runWake is pure; every side effect happens here.
+ * - The NotisWake row, journal entry, profile/subscription deltas and the
+ *   queue item's `done` all commit in ONE transaction BEFORE Bird is called:
+ *   once the model has run, a retry must never run it again.
+ * - Bird sends happen after that commit, each with an idempotency key (the
+ *   message row's id — allocated with the wake, stable across retries), so
+ *   a crash between commit and send is retried by the sweeper without a
+ *   double delivery.
+ */
+
+export interface DrainDeps {
+  deps?: Deps;
+  bird?: BirdLike;
+  db?: PrismaClient;
+  alert?: (message: string) => Promise<void>;
+}
+
+export interface DrainResult {
+  processed: number;
+  failed: number;
+}
+
+/** Outbound messages still `pending` after this long get re-sent by the
+ *  sweeper — covers a crash between the persist commit and the Bird call. */
+export const RESEND_STALE_AFTER_MS = 2 * 60_000;
+
+// Safety valve for one drain call, not a queue limit — the sweeper runs
+// every minute, so leftovers are picked up immediately.
+const MAX_ITEMS_PER_DRAIN = 50;
+
+const eventsSchema = z.array(wakeEventSchema).min(1);
+const citiesSnapshotSchema = z.array(cityPreferenceSchema);
+
+function resolveAlert(overrides: DrainDeps) {
+  return overrides.alert ?? ((message: string) => sendAlert("queue", message));
+}
+
+async function assembleCities(sub: NotisSubscription): Promise<CityPreference[]> {
+  if (hasMainDb()) {
+    try {
+      return await citiesForUser(sub.userId);
+    } catch (e) {
+      console.warn("[notis:queue] live city fetch failed, using snapshot:", e);
+    }
+  }
+  const parsed = citiesSnapshotSchema.safeParse(sub.cities);
+  return parsed.success ? parsed.data : [];
+}
+
+async function runOneWake(
+  db: PrismaClient,
+  item: ClaimedItem,
+  sub: NotisSubscription,
+  event: WakeEvent,
+  overrides: DrainDeps,
+): Promise<void> {
+  const alert = resolveAlert(overrides);
+  const deps = overrides.deps ?? buildDeps();
+  const bird = overrides.bird ?? realBird;
+
+  const journalRows = await db.notisJournalEntry.findMany({
+    where: { subscriptionId: sub.id },
+    orderBy: { seq: "desc" },
+    take: JOURNAL_WINDOW,
+  });
+  const journal = journalRows.reverse().map((row) => row.entry as unknown as JournalEntry);
+
+  const lastInbound = await db.notisMessage.findFirst({
+    where: { subscriptionId: sub.id, direction: "inbound" },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+
+  const cities = await assembleCities(sub);
+  const state = {
+    user: { name: sub.userName ?? "", cities },
+    profile: sub.profileText,
+    journal,
+  };
+
+  const { outcome, trace } = await runWake(state, event, deps);
+
+  const delivery =
+    outcome.messages.length > 0
+      ? decideDelivery(event.type, lastInbound?.createdAt.toISOString(), new Date(event.at))
+      : undefined;
+
+  const outboundIds = await db.$transaction(async (tx) => {
+    const { _max } = await tx.notisJournalEntry.aggregate({
+      where: { subscriptionId: sub.id },
+      _max: { seq: true },
+    });
+
+    const wake = await tx.notisWake.create({
+      data: {
+        subscriptionId: sub.id,
+        eventType: event.type,
+        eventAt: new Date(event.at),
+        event: event as unknown as Prisma.InputJsonValue,
+        decision: outcome.decision,
+        rationale: outcome.rationale,
+        outcome: outcome as unknown as Prisma.InputJsonValue,
+        deliveryMode: delivery?.mode,
+        deliveryTemplate: delivery?.mode === "template" ? delivery.template : undefined,
+        repairs: outcome.repairs ?? [],
+        truncated: outcome.truncated ?? false,
+        finishWakeMissing: outcome.finishWakeMissing ?? false,
+        model: deps.config.model,
+        inputTokens: trace.usageTotal.input,
+        outputTokens: trace.usageTotal.output,
+        cacheReadTokens: trace.usageTotal.cacheRead,
+        cacheWriteTokens: trace.usageTotal.cacheWrite,
+        cacheWrite1hTokens: trace.usageTotal.cacheWrite1h ?? null,
+        costUsd: trace.costUsd,
+        durationMs: trace.durationMs,
+        trace: trace as unknown as Prisma.InputJsonValue,
+      },
+      select: { id: true },
+    });
+
+    await tx.notisJournalEntry.create({
+      data: {
+        subscriptionId: sub.id,
+        wakeId: wake.id,
+        seq: (_max.seq ?? 0) + 1,
+        entry: outcome.journalAppend as unknown as Prisma.InputJsonValue,
+      },
+    });
+
+    const subData: Prisma.NotisSubscriptionUpdateInput = {};
+    if (outcome.profileRewrite !== undefined) subData.profileText = outcome.profileRewrite;
+    // Only the user moves a row into `unsubscribed` — and unsubscribe_user
+    // fires only on a user_message wake, so this is the user doing it.
+    if (outcome.unsubscribe && sub.status !== "unsubscribed") {
+      subData.status = "unsubscribed";
+      subData.unsubscribedAt = new Date(event.at);
+    }
+    if (Object.keys(subData).length > 0) {
+      await tx.notisSubscription.update({ where: { id: sub.id }, data: subData });
+    }
+
+    for (const scheduled of outcome.scheduledWakes) {
+      // Rows only — nothing fires them until PR 4's poller.
+      await tx.notisScheduledWake.create({
+        data: { subscriptionId: sub.id, runAfter: new Date(scheduled.at), reason: scheduled.reason },
+      });
+    }
+
+    const ids: string[] = [];
+    for (const text of outcome.messages) {
+      const message = await tx.notisMessage.create({
+        data: {
+          subscriptionId: sub.id,
+          wakeId: wake.id,
+          direction: "outbound",
+          body: text,
+          deliveryMode: delivery?.mode,
+          template: delivery?.mode === "template" ? delivery.template : undefined,
+          status: "pending",
+        },
+        select: { id: true },
+      });
+      ids.push(message.id);
+    }
+
+    await completeItem(tx, item.id);
+    return ids;
+  });
+
+  if (outboundIds.length === 0) return;
+
+  if (delivery?.mode !== "freeform") {
+    // Unreachable for user_message wakes; template sends arrive with PR 4.
+    await db.notisMessage.updateMany({
+      where: { id: { in: outboundIds } },
+      data: { status: "failed" },
+    });
+    await alert(
+      `wake ${item.id}: ${outboundIds.length} message(s) need a template send path (PR 4) — marked failed`,
+    );
+    return;
+  }
+
+  await sendPendingMessages(db, bird, outboundIds, sub, alert);
+}
+
+async function sendPendingMessages(
+  db: PrismaClient,
+  bird: BirdLike,
+  messageIds: string[],
+  sub: Pick<NotisSubscription, "id" | "birdConversationId">,
+  alert: (message: string) => Promise<void>,
+): Promise<void> {
+  if (!sub.birdConversationId) {
+    await db.notisMessage.updateMany({
+      where: { id: { in: messageIds } },
+      data: { status: "failed" },
+    });
+    await alert(`subscription ${sub.id} has no birdConversationId — cannot deliver replies`);
+    return;
+  }
+
+  for (const id of messageIds) {
+    const message = await db.notisMessage.findUnique({ where: { id } });
+    if (!message || message.status !== "pending") continue;
+
+    const result = await bird.sendText({
+      conversationId: sub.birdConversationId,
+      text: message.body,
+      idempotencyKey: message.id,
+    });
+    if (result.success) {
+      await db.notisMessage.update({
+        where: { id },
+        data: { status: "sent", birdMessageId: result.messageId },
+      });
+    } else {
+      await db.notisMessage.update({ where: { id }, data: { status: "failed" } });
+      await alert(`Bird send failed for message ${id}: ${result.error ?? "unknown error"}`);
+    }
+  }
+}
+
+export async function processItem(item: ClaimedItem, overrides: DrainDeps = {}): Promise<void> {
+  const db = overrides.db ?? notisDb();
+  const alert = resolveAlert(overrides);
+
+  if (item.attempts > MAX_ATTEMPTS) {
+    await markFailed(db, item.id, `gave up after ${MAX_ATTEMPTS} attempts`);
+    await alert(`queue item ${item.id} failed terminally after ${MAX_ATTEMPTS} attempts`);
+    return;
+  }
+
+  try {
+    const events = eventsSchema.parse(item.events);
+    for (const event of events) {
+      // Reload per event: an earlier event in the same item may have
+      // rewritten the profile or unsubscribed the reader.
+      const sub = await db.notisSubscription.findUnique({ where: { id: item.subscriptionId } });
+      if (!sub) {
+        await markFailed(db, item.id, "subscription no longer exists");
+        return;
+      }
+      await runOneWake(db, item, sub, event, overrides);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[notis:queue] item ${item.id} failed:`, error);
+    // The persist tx did not commit (completeItem lives inside it), so the
+    // item returns to pending and the retry re-runs cleanly — Bird was
+    // never called for this wake.
+    await failItem(db, item.id, message);
+  }
+}
+
+export async function drainQueue(overrides: DrainDeps = {}): Promise<DrainResult> {
+  if (!overrides.db && !hasNotisDb()) return { processed: 0, failed: 0 };
+  const db = overrides.db ?? notisDb();
+
+  let processed = 0;
+  let failed = 0;
+  for (let i = 0; i < MAX_ITEMS_PER_DRAIN; i++) {
+    const item = await claimNext(db);
+    if (!item) break;
+    await processItem(item, overrides);
+    const after = await db.notisWakeQueue.findUnique({
+      where: { id: item.id },
+      select: { status: true },
+    });
+    if (after?.status === "done") processed++;
+    else failed++;
+  }
+  return { processed, failed };
+}
+
+/**
+ * Sweeper half two: re-send outbound messages stuck in `pending` — a crash
+ * landed between the persist commit and the Bird call. The idempotency key
+ * (the message id) makes the re-send safe even if the original went out.
+ */
+export async function resendStalePendingMessages(overrides: DrainDeps = {}): Promise<number> {
+  if (!overrides.db && !hasNotisDb()) return 0;
+  const db = overrides.db ?? notisDb();
+  const bird = overrides.bird ?? realBird;
+  const alert = resolveAlert(overrides);
+
+  const stale = await db.notisMessage.findMany({
+    where: {
+      direction: "outbound",
+      status: "pending",
+      deliveryMode: "freeform",
+      createdAt: { lt: new Date(Date.now() - RESEND_STALE_AFTER_MS) },
+    },
+    select: { id: true, subscription: { select: { id: true, birdConversationId: true } } },
+    take: 50,
+  });
+
+  for (const message of stale) {
+    await sendPendingMessages(db, bird, [message.id], message.subscription, alert);
+  }
+  return stale.length;
+}

@@ -1,4 +1,4 @@
-import { env } from "@/env.mjs";
+import { alert as sendAlert } from "./alert";
 import { hasNotisDb, notisDb } from "./db";
 import { hasMainDb, mainDb } from "./main-db";
 
@@ -25,8 +25,6 @@ const JANITOR_LOCK_KEY = 0x6e6f7469;
  *  alone — instrumentation.ts fires that run 60s after boot, so the cold
  *  path is on every deploy. */
 const DELETE_TIMEOUT_MS = 30_000;
-/** A stalled webhook must not become a stalled janitor. */
-const ALERT_TIMEOUT_MS = 5_000;
 
 export interface JanitorResult {
   ran: boolean;
@@ -42,18 +40,7 @@ export function blastRadiusExceeded(subscriptions: number, missing: number): boo
   return missing > Math.max(1, Math.floor(subscriptions * 0.01));
 }
 
-/** Never awaited inside a transaction, and never unbounded: a wedged
- *  endpoint must not hold a database lock or stall the run. */
-async function alert(message: string): Promise<void> {
-  console.error(`[notis:janitor] ${message}`);
-  if (!env.NOTIS_ALERT_WEBHOOK_URL) return;
-  await fetch(env.NOTIS_ALERT_WEBHOOK_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ content: `🧹 notis janitor: ${message}` }),
-    signal: AbortSignal.timeout(ALERT_TIMEOUT_MS),
-  }).catch((e) => console.error("[notis:janitor] alert webhook failed:", e));
-}
+const alert = (message: string) => sendAlert("janitor", message, "🧹");
 
 export async function runJanitor(): Promise<JanitorResult> {
   if (!hasNotisDb() || !hasMainDb()) {
