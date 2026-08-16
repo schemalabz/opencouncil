@@ -25,10 +25,19 @@ interface Props {
 
 type Tab = "rationale" | "tools" | "context" | "cost";
 
-/** Shown wherever a tab needs a trace the LRU has already evicted. */
-function TraceGone() {
+/**
+ * Shown wherever a tab needs a trace that is not there. Two different
+ * truths: a record with no traceRef never ran the model (the deterministic
+ * ΣΤΟΠ pre-step); a playground record's trace may have been evicted by the
+ * 20-trace LRU.
+ */
+function TraceGone({ neverRan }: { neverRan: boolean }) {
   return (
-    <p className="text-muted-foreground">Το trace αυτού του βήματος δεν είναι πια αποθηκευμένο — είτε εκτοπίστηκε από το όριο των 20 traces είτε δεν χώρεσε στο localStorage.</p>
+    <p className="text-muted-foreground">
+      {neverRan
+        ? "Αυτό το βήμα δεν πέρασε από το μοντέλο — απαντήθηκε ντετερμινιστικά (π.χ. ΣΤΟΠ), οπότε δεν υπάρχει trace."
+        : "Το trace αυτού του βήματος δεν είναι πια αποθηκευμένο — είτε εκτοπίστηκε από το όριο των 20 traces είτε δεν χώρεσε στο localStorage."}
+    </p>
   );
 }
 
@@ -176,7 +185,7 @@ export function InspectorPane({ item, trace, profile, sim }: Props) {
               </div>
             ))
           ) : (
-            <TraceGone />
+            <TraceGone neverRan={!item.traceRef} />
           ))}
 
         {tab === "context" &&
@@ -203,7 +212,7 @@ export function InspectorPane({ item, trace, profile, sim }: Props) {
               </details>
             </>
           ) : (
-            <TraceGone />
+            <TraceGone neverRan={!item.traceRef} />
           ))}
 
         {tab === "cost" &&
@@ -237,7 +246,7 @@ export function InspectorPane({ item, trace, profile, sim }: Props) {
               </tbody>
             </table>
           ) : (
-            <TraceGone />
+            <TraceGone neverRan={!item.traceRef} />
           ))}
       </div>
     </div>

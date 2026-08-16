@@ -1,4 +1,4 @@
-import { WakeOutcome, WakeTrace } from "@/agent/types";
+import { JournalEntry, WakeOutcome, WakeTrace } from "@/agent/types";
 import { TemplateName } from "@/agent/templates";
 import { hasNotisDb, notisDb } from "@/lib/db";
 import { hasMainDb, mainDb } from "@/lib/main-db";
@@ -164,6 +164,34 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
         }
       : {}),
   }));
+
+  // The deterministic ΣΤΟΠ pre-step answers without a wake; its journal
+  // entry (wakeId null, `received` set) is the only record of the exchange.
+  // Synthesize a WakeRecord so the thread shows it — no traceRef, there was
+  // no model call to inspect.
+  const wakeless = await db.notisJournalEntry.findMany({
+    where: { subscriptionId: id, wakeId: null },
+    orderBy: { seq: "asc" },
+  });
+  for (const row of wakeless) {
+    const entry = row.entry as unknown as JournalEntry;
+    if (entry.event !== "user_message" || entry.received === undefined) continue;
+    records.push({
+      id: `journal-${row.seq}`,
+      event: { type: "user_message", at: entry.at, text: entry.received },
+      status: "done",
+      outcome: {
+        decision: entry.decision === "send" ? "send" : "silence",
+        rationale: entry.rationale,
+        messages: entry.messages,
+        scheduledWakes: [],
+        journalAppend: entry,
+        ...(entry.unsubscribed ? { unsubscribe: { reason: entry.rationale } } : {}),
+      },
+      ...(entry.messages.length > 0 ? { delivery: { mode: "freeform" as const } } : {}),
+    });
+  }
+  records.sort((a, b) => a.event.at.localeCompare(b.event.at));
 
   const cities = (await citiesByUser([sub.userId])).get(sub.userId) ?? [];
 
