@@ -1418,6 +1418,9 @@ EOF
               npm run postinstall
               npm rebuild canvas
               npx prisma generate
+              # The types check follows tests/integration imports into
+              # services/notis, whose generated clients are gitignored.
+              npm run prisma:generate --workspace=notis
             '';
             buildPhase = ''
               runHook preBuild

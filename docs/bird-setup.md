@@ -176,3 +176,38 @@ The most common causes are:
 - The signing key in Bird's webhook subscription doesn't match `BIRD_WEBHOOK_SECRET` in `.env` (re-paste both).
 - ngrok was restarted and the URL on the Bird subscription is stale (update it).
 - Your `.env` was loaded before you set `BIRD_WEBHOOK_SECRET` — restart `npm run dev`.
+
+## The Notis webhook subscription (rollout)
+
+The Notis service (`services/notis`) carries its own inbound WhatsApp path.
+During the rollout, register a SECOND webhook subscription beside the one
+from Step 9:
+
+| Field | Value |
+|---|---|
+| **URL** | `https://notis.opencouncil.gr/api/webhooks/bird` (or the notis ngrok tunnel locally) |
+| **Signing key** | A fresh secret (Step 6 command). Set it as `BIRD_WEBHOOK_SECRET` in `services/notis/.env`. Do not reuse the main app's secret. |
+| **Service** | `Conversations` |
+| **Events** | `conversation.created`, `conversation.updated` |
+
+Both subscriptions receive every conversation event. Each service filters to
+the users it serves:
+
+- Notis answers users with `notisEnabledAt` set. It also reconciles the
+  delivery status of its own sends.
+- The main app answers everyone else (the unsubscribe flow and the
+  "replies not supported" auto-reply). It skips notis-served users, so one
+  inbound message never draws two replies.
+
+> **Production only.** Register webhook subscriptions for production, not
+> for staging. Bird sends every event to every subscription in the
+> workspace, so a staging subscription receives real user traffic and
+> staging would answer real users. The staging subscriptions were removed
+> on 2026-08-16. To test inbound on staging, use the synthetic script
+> below against the staging URL.
+
+To test the notis inbound path without Bird, send a signed synthetic event:
+
+```sh
+cd services/notis && npx tsx --env-file=.env scripts/send-test-webhook.ts +306990000001 "γεια σου"
+```

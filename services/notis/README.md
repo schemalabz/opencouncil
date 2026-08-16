@@ -61,6 +61,26 @@ stateless playground-only mode:
 
   The role can `SELECT` the five views and nothing else.
 
+### Bird (WhatsApp)
+
+Notis has its OWN Bird webhook subscription and signing key, separate from
+the main app's. Both subscriptions receive all conversation events during
+the rollout. Each service filters to the users it serves: notis answers
+rollout-enabled users, the main app answers everyone else. See
+[docs/bird-setup.md](../../docs/bird-setup.md), "The Notis webhook
+subscription".
+
+All four variables are optional. Without them, the webhook route rejects
+events in production and outbound sends fail with an alert:
+
+- `BIRD_API_KEY`, `BIRD_WORKSPACE_ID`, `BIRD_WHATSAPP_CHANNEL_ID` — same
+  values as the main app's.
+- `BIRD_WEBHOOK_SECRET` — the signing key of the NOTIS subscription. Do not
+  reuse the main app's secret.
+
+To exercise the inbound path locally without Bird, send a signed synthetic
+event: `npx tsx --env-file=.env scripts/send-test-webhook.ts +306990000001 "γεια σου"`.
+
 Tests: `npm test -w notis`. Re-record a golden fixture (live API, costs money):
 `cd services/notis && npx tsx scripts/record-scenario.ts fixtures/scenarios/<name>.json`.
 
@@ -79,8 +99,8 @@ The app spec lives in the DO dashboard, not the repo. The Notis component:
 | Instance | smallest available (stateless, I/O-bound) |
 | Env (secret, run+build) | `ANTHROPIC_API_KEY`, `NOTIS_DATABASE_URL`, `MAIN_DATABASE_URL` |
 | Env (build-time, plain) | `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` (public token; baked at build — without it the wizard's map/address search degrades to text chips) |
-| Env (optional) | `NOTIS_MCP_URL` (defaults to `https://opencouncil.gr/mcp`), `OPENCOUNCIL_BASE_URL`, `MAIN_SESSION_COOKIE_NAME` |
-| Env (operational, set it) | `NOTIS_ALERT_WEBHOOK_URL` — Discord webhook for janitor refusals and failures; without it those alarms only reach the logs |
+| Env (optional) | `NOTIS_MCP_URL` (defaults to `https://opencouncil.gr/mcp`), `OPENCOUNCIL_BASE_URL`, `MAIN_SESSION_COOKIE_NAME`, `BIRD_API_KEY`, `BIRD_WORKSPACE_ID`, `BIRD_WHATSAPP_CHANNEL_ID`, `BIRD_WEBHOOK_SECRET` (see [Bird](#bird-whatsapp)) |
+| Env (operational, set it) | `NOTIS_ALERT_WEBHOOK_URL` — Discord webhook for janitor refusals, queue give-ups and poller failures; without it those alarms only reach the logs |
 
 Same branch wiring as the main component: `production` branch → production,
 `main` → staging. The staging component gets its own domain

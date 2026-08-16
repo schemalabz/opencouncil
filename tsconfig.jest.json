@@ -1,5 +1,11 @@
 {
   "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules",
+    "result",
+    "result-*",
+    "services"
+  ],
   "compilerOptions": {
     "jsx": "react-jsx",
     "types": ["jest", "@testing-library/jest-dom"]
