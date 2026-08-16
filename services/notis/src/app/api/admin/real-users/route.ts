@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { FanoutLocation, locationPoints, topicNames } from "@/lib/fanout";
 import { hasMainDb, mainDb } from "@/lib/main-db";
 import { requireAdmin } from "@/lib/session-auth";
 
@@ -11,17 +12,11 @@ import { requireAdmin } from "@/lib/session-auth";
  * playground may simulate anyone).
  */
 
-interface RealUserLocation {
-  text: string;
-  lng: number | null;
-  lat: number | null;
-}
-
 interface RealUserCity {
   cityId: string;
   cityName: string;
   topics: string[];
-  locations: RealUserLocation[];
+  locations: FanoutLocation[];
 }
 
 interface RealUser {
@@ -30,31 +25,6 @@ interface RealUser {
   phone: string | null;
   notisEnabledAt: string | null;
   cities: RealUserCity[];
-}
-
-function topicNames(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((entry) =>
-      typeof entry === "object" && entry !== null ? (entry as Record<string, unknown>).name : null,
-    )
-    .filter((v): v is string => typeof v === "string" && v.length > 0);
-}
-
-function locationPoints(value: unknown): RealUserLocation[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((entry) => {
-      if (typeof entry !== "object" || entry === null) return null;
-      const { text, lng, lat } = entry as Record<string, unknown>;
-      if (typeof text !== "string" || text.length === 0) return null;
-      return {
-        text,
-        lng: typeof lng === "number" ? lng : null,
-        lat: typeof lat === "number" ? lat : null,
-      };
-    })
-    .filter((v): v is RealUserLocation => v !== null);
 }
 
 export async function GET(request: NextRequest) {
