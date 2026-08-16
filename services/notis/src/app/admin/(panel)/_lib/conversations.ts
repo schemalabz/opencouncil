@@ -1,4 +1,5 @@
 import { CityPreference, WakeOutcome, WakeTrace } from "@/agent/types";
+import { TemplateName } from "@/agent/templates";
 import { hasNotisDb, notisDb } from "@/lib/db";
 import { CityMeta, Origin, RecordEvent, WakeRecord } from "./records";
 
@@ -100,7 +101,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
         // No `trace`: a full WakeTrace runs to hundreds of KB per wake and
         // the inspector shows one at a time — the client fetches a single
         // trace lazily via getWakeTrace.
-        select: { id: true, event: true, outcome: true, delivery: true },
+        select: { id: true, event: true, outcome: true, deliveryMode: true, deliveryTemplate: true },
       },
     },
   });
@@ -117,7 +118,14 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     status: "done",
     outcome: wake.outcome as unknown as WakeOutcome,
     traceRef: wake.id,
-    ...(wake.delivery ? { delivery: wake.delivery as unknown as WakeRecord["delivery"] } : {}),
+    ...(wake.deliveryMode
+      ? {
+          delivery:
+            wake.deliveryMode === "template" && wake.deliveryTemplate
+              ? { mode: "template" as const, template: wake.deliveryTemplate as TemplateName }
+              : { mode: "freeform" as const },
+        }
+      : {}),
   }));
 
   return {

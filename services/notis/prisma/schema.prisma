@@ -89,15 +89,21 @@ model NotisWake {
   // it into a WakeRecord without reassembly. The scalar columns beside it
   // (decision, rationale, repairs, ...) exist for querying and metrics.
   outcome Json
-  // How the messages were delivered: {mode:"template",template} | {mode:"freeform"}.
-  delivery Json?
+  // How the messages went out; template name only when mode is template.
+  deliveryMode     MessageDeliveryMode?
+  deliveryTemplate String?
   // Repair nudges that fired; empty = healthy wake.
   repairs           String[] @default([])
   truncated         Boolean  @default(false)
   finishWakeMissing Boolean  @default(false)
 
-  model      String
-  usage      Json
+  model            String
+  inputTokens      Int   @default(0)
+  outputTokens     Int   @default(0)
+  cacheReadTokens  Int   @default(0)
+  cacheWriteTokens Int   @default(0)
+  // The 1h-TTL share of cacheWriteTokens (bills at 2×); null = unknown split.
+  cacheWrite1hTokens Int?
   costUsd    Float
   durationMs Int
   // Full WakeTrace for the admin conversation inspector.
