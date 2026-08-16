@@ -2,6 +2,7 @@
 import prisma from '@/lib/db/prisma'
 import { createNotificationsForMeeting, getNotificationsGroupedByMeeting } from '@/lib/db/notifications'
 import { releaseNotifications } from '@/lib/notifications/deliver'
+import { isNotisServedPhone } from '@/lib/notifications/notis-gate'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
 import {
     createCity,
@@ -129,5 +130,28 @@ describe('notis rollout exclusion in the notification pipeline', () => {
             where: { notificationId: { in: notificationIds } },
         })
         expect(after?.status).toBe('skipped')
+    })
+
+    test('the webhook gate recognizes notis-served phones in either stored format', async () => {
+        await createUser('served@example.com', {
+            phone: '+306900000010',
+            notisEnabledAt: new Date(),
+        })
+        // Stored WITHOUT the leading '+' — legacy rows exist in both formats.
+        await createUser('served-legacy@example.com', {
+            phone: '306900000011',
+            notisEnabledAt: new Date(),
+        })
+        await createUser('old-path@example.com', { phone: '+306900000012' })
+
+        expect(await isNotisServedPhone('+306900000010')).toBe(true)
+        // The webhook may deliver the phone without '+' too.
+        expect(await isNotisServedPhone('306900000010')).toBe(true)
+        expect(await isNotisServedPhone('+306900000011')).toBe(true)
+        // A user on the old path is NOT notis-served, and neither is an
+        // unknown number — the main webhook keeps handling both.
+        expect(await isNotisServedPhone('+306900000012')).toBe(false)
+        expect(await isNotisServedPhone('+306999999999')).toBe(false)
+        expect(await isNotisServedPhone(undefined)).toBe(false)
     })
 })

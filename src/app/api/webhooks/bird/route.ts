@@ -13,6 +13,7 @@ import {
     verifyUnsubscribeIntent,
 } from '@/lib/notifications/unsubscribe';
 import { sendUnsupportedReply } from '@/lib/notifications/autoReply';
+import { isNotisServedPhone } from '@/lib/notifications/notis-gate';
 import { normalizePhone } from '@/lib/notifications/phone';
 import type { VerifyRequestResult, VerifySignatureResult } from '@/lib/notifications/types';
 import { extractMessageFields, type ExtractedMessageFields } from './extract';
@@ -305,6 +306,15 @@ export async function POST(request: Request) {
     }
 
     if (fields.direction === 'outbound' && await updateOutboundMessage(fields)) {
+        return NextResponse.json({ ok: true });
+    }
+
+    // Notis-served users belong to the notis webhook subscription: no reply,
+    // no unsubscribe handling, no Message row (notis's database is the record
+    // of those conversations). Legacy outbound reconciliation stays above —
+    // a Message row that exists here is this app's send regardless of flag.
+    if (await isNotisServedPhone(fields.phone)) {
+        console.log(`Bird webhook: ${fields.direction} event for a notis-served phone — skipping`);
         return NextResponse.json({ ok: true });
     }
 
