@@ -89,6 +89,10 @@ describe('notis rollout exclusion in the notification pipeline', () => {
         expect(grouped.meetings).toHaveLength(1)
         expect(grouped.meetings[0].after?.skipped).toBe(1)
         expect(grouped.meetings[0].after?.sent).toBe(0)
+
+        // The skipped FILTER finds it too, even with zero delivery rows.
+        const filtered = await getNotificationsGroupedByMeeting({ cityId: city.id, status: 'skipped' })
+        expect(filtered.meetings).toHaveLength(1)
     })
 
     test('a pending message delivery is skipped at release when the user got enabled after creation', async () => {

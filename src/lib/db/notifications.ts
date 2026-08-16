@@ -997,10 +997,14 @@ export async function getNotificationsForAdmin(filters: {
         skip: offset
     });
 
-    // Filter by delivery status if specified
+    // Filter by delivery status if specified. A notification with no
+    // deliveries at all counts as skipped (nothing was dispatched — e.g. a
+    // phone-only user on the Notis rollout), matching the grouped stats.
     if (status) {
         return notifications.filter(n =>
-            n.deliveries.some(d => d.status === status)
+            status === 'skipped'
+                ? n.deliveries.length === 0 || n.deliveries.some(d => d.status === 'skipped')
+                : n.deliveries.some(d => d.status === status)
         );
     }
 
@@ -1081,8 +1085,16 @@ export async function getNotificationsGroupedByMeeting(filters: {
         notificationWhere.type = type;
     }
 
-    // If status filter is provided, filter to notifications that have at least one delivery with that status
-    if (status) {
+    // If status filter is provided, filter to notifications that have at least
+    // one delivery with that status. 'skipped' also matches notifications with
+    // NO deliveries (nothing was dispatched — e.g. a phone-only user on the
+    // Notis rollout), so the filter agrees with the stats classification.
+    if (status === 'skipped') {
+        notificationWhere.OR = [
+            { deliveries: { some: { status: 'skipped' } } },
+            { deliveries: { none: {} } },
+        ];
+    } else if (status) {
         notificationWhere.deliveries = {
             some: {
                 status: status
