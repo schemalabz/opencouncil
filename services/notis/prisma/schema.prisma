@@ -13,9 +13,15 @@ datasource db {
   url      = env("NOTIS_DATABASE_URL")
 }
 
+// Two states only, and THIS COLUMN IS THE TRUTH — there is no second copy.
+// "Phone removed" is an unsubscribe, not a separate pause. ΣΤΟΠ and the
+// agent's unsubscribe tool write this column directly; the main app's
+// profile checkbox displays it and toggles it through an authenticated
+// notis API (PR 5) — the main app is a client of this state, never an
+// owner. The poller only refreshes phones and unsubscribes when a phone
+// is gone (PR 4); it never re-activates anyone.
 enum SubscriptionStatus {
   active
-  paused_no_phone
   unsubscribed
 }
 
@@ -33,7 +39,8 @@ model NotisSubscription {
 
   status SubscriptionStatus @default(active)
   origin SubscriptionOrigin
-  // Only the user moves a row into or out of `unsubscribed`.
+  // Only a user action moves a row into or out of `unsubscribed`:
+  // ΣΤΟΠ, the agent's unsubscribe tool, or the profile checkbox.
   unsubscribedAt DateTime?
 
   // The agent-maintained free-text profile. Seeded once from notification
