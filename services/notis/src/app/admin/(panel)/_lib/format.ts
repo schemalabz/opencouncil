@@ -42,3 +42,17 @@ export function fmtDateChip(iso: string): string {
 export function fmtInt(n: number): string {
   return n.toLocaleString("el-GR");
 }
+
+/** «μόλις τώρα», «πριν 5′», «πριν 3 ώρες», «χθες 14:35», «πριν 4 ημέρες». */
+export function fmtTimeAgo(iso: string, now: Date = new Date()): string {
+  const ms = now.getTime() - new Date(iso).getTime();
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 1) return "μόλις τώρα";
+  if (minutes < 60) return `πριν ${minutes}′`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours === 1 ? "πριν 1 ώρα" : `πριν ${hours} ώρες`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return `χθες ${fmtTime(iso)}`;
+  if (days < 7) return `πριν ${days} ημέρες`;
+  return fmtDate(iso);
+}
