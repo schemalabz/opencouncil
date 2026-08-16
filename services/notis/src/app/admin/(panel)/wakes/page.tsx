@@ -2,7 +2,9 @@ import { Activity } from "lucide-react";
 import Link from "next/link";
 import { EmptyState } from "../_components/EmptyState";
 import { PageHeader } from "../_components/PageHeader";
+import { Pager } from "../_components/Pager";
 import { fmtDateTime, fmtInt, fmtTimeAgo } from "../_lib/format";
+import { parsePage } from "../_lib/paging";
 import {
   DecisionFilter,
   EventFilter,
@@ -36,11 +38,13 @@ const DECISION_FILTERS: Array<{ key: DecisionFilter; label: string }> = [
   { key: "error", label: "Σφάλματα" },
 ];
 
-/** ?decision=…&event=…, omitting defaults so the bare URL stays canonical. */
-function feedHref(filter: WakeFilter): string {
+/** ?decision=…&event=…&page=…, omitting defaults so the URL stays canonical.
+ *  Filter chips omit `page` on purpose: a new filter restarts at page 1. */
+function feedHref(filter: WakeFilter, page = 1): string {
   const params = new URLSearchParams();
   if (filter.decision !== "all") params.set("decision", filter.decision);
   if (filter.event !== "all") params.set("event", filter.event);
+  if (page > 1) params.set("page", String(page));
   const query = params.toString();
   return query ? `/admin/wakes?${query}` : "/admin/wakes";
 }
@@ -109,14 +113,17 @@ function HealthMarks({ wake }: { wake: WakeFeedEntry }) {
 }
 
 export default async function WakesPage(props: {
-  searchParams: Promise<{ decision?: string; event?: string }>;
+  searchParams: Promise<{ decision?: string; event?: string; page?: string }>;
 }) {
   const searchParams = await props.searchParams;
   const filter: WakeFilter = {
     decision: parseDecisionFilter(searchParams.decision),
     event: parseEventFilter(searchParams.event),
   };
-  const { entries, decisionCounts, eventCounts } = await listRecentWakes(filter);
+  const { entries, decisionCounts, eventCounts, total, page, pages } = await listRecentWakes(
+    filter,
+    parsePage(searchParams.page),
+  );
   const eventTotal = eventCounts.reduce((a, r) => a + r.count, 0);
   // Only event types that exist (or the active one) get a chip — no noise
   // from types that arrive with PR 4.
@@ -224,6 +231,9 @@ export default async function WakesPage(props: {
             </tbody>
           </table>
         )}
+        <div className="mt-3">
+          <Pager page={page} pages={pages} total={total} hrefFor={(p) => feedHref(filter, p)} />
+        </div>
       </div>
     </>
   );

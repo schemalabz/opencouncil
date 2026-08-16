@@ -2,9 +2,12 @@ import { MessagesSquare } from "lucide-react";
 import Link from "next/link";
 import { EmptyState } from "../_components/EmptyState";
 import { PageHeader } from "../_components/PageHeader";
+import { Pager } from "../_components/Pager";
 import { StopBadge } from "../_components/StopBadge";
+import { UserAvatar } from "../_components/UserAvatar";
 import { ConversationSummary, listConversations } from "../_lib/conversations";
 import { fmtDate, fmtInt, fmtTimeAgo } from "../_lib/format";
+import { parsePage } from "../_lib/paging";
 import { Origin } from "../_lib/records";
 
 export const metadata = { title: "Συνομιλίες · Νότης admin" };
@@ -39,17 +42,29 @@ function LastMessageCell({ conversation }: { conversation: ConversationSummary }
   );
 }
 
+function listHref(q: string, page = 1): string {
+  const params = new URLSearchParams();
+  if (q) params.set("q", q);
+  if (page > 1) params.set("page", String(page));
+  const query = params.toString();
+  return query ? `/admin/conversations?${query}` : "/admin/conversations";
+}
+
 export default async function ConversationsPage(props: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; page?: string }>;
 }) {
-  const q = ((await props.searchParams).q ?? "").trim();
-  const conversations = await listConversations(q || undefined);
+  const searchParams = await props.searchParams;
+  const q = (searchParams.q ?? "").trim();
+  const { conversations, total, page, pages } = await listConversations(
+    q || undefined,
+    parsePage(searchParams.page),
+  );
 
   return (
     <>
       <PageHeader title="Συνομιλίες">
         <span className="text-xs text-muted-foreground">
-          {fmtInt(conversations.length)} {q ? "στην αναζήτηση" : "συνολικά"}
+          {fmtInt(total)} {q ? "στην αναζήτηση" : "συνολικά"}
         </span>
         <form method="GET" className="ml-auto">
           <input
@@ -86,9 +101,7 @@ export default async function ConversationsPage(props: {
                 <tr key={c.id} className="border-b align-middle hover:bg-muted/40">
                   <td className="whitespace-nowrap py-2.5 pr-4">
                     <div className="flex items-center gap-2.5">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange/10 text-sm font-medium text-orange">
-                        {(c.userName.trim()[0] ?? "—").toUpperCase()}
-                      </span>
+                      <UserAvatar seed={c.id} />
                       <div>
                         <Link
                           href={`/admin/conversations/${c.id}`}
@@ -138,6 +151,9 @@ export default async function ConversationsPage(props: {
             </tbody>
           </table>
         )}
+        <div className="mt-3">
+          <Pager page={page} pages={pages} total={total} hrefFor={(p) => listHref(q, p)} />
+        </div>
       </div>
     </>
   );

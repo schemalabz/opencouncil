@@ -52,51 +52,67 @@ export interface WakeFeed {
   /** Chip counts, each cross-filtered by the OTHER active dimension. */
   decisionCounts: Record<DecisionFilter, number>;
   eventCounts: Array<{ eventType: string; count: number }>;
+  total: number;
+  page: number;
+  pages: number;
 }
 
-const FEED_LIMIT = 200;
+export const WAKES_PAGE_SIZE = 100;
 
-export async function listRecentWakes(filter: WakeFilter): Promise<WakeFeed> {
+export async function listRecentWakes(filter: WakeFilter, page = 1): Promise<WakeFeed> {
   if (!hasNotisDb()) {
     return {
       entries: [],
       decisionCounts: { all: 0, send: 0, silence: 0, error: 0 },
       eventCounts: [],
+      total: 0,
+      page: 1,
+      pages: 1,
     };
   }
   const db = notisDb();
   const decisionWhere = filter.decision === "all" ? {} : { decision: filter.decision };
   const eventWhere = filter.event === "all" ? {} : { eventType: filter.event };
 
-  const [wakes, byDecision, byEvent] = await Promise.all([
-    db.notisWake.findMany({
-      where: { ...decisionWhere, ...eventWhere },
-      orderBy: { createdAt: "desc" },
-      take: FEED_LIMIT,
-      // An explicit select, NOT include: `include` leaves the parent's
-      // columns untouched, which pulls `trace` — hundreds of KB per wake —
-      // for 200 rows to render a dozen scalars.
-      select: {
-        id: true,
-        eventAt: true,
-        subscriptionId: true,
-        eventType: true,
-        decision: true,
-        rationale: true,
-        outcome: true,
-        repairs: true,
-        truncated: true,
-        finishWakeMissing: true,
-        costUsd: true,
-        durationMs: true,
-        subscription: { select: { userName: true } },
-      },
-    }),
+  const [byDecision, byEvent] = await Promise.all([
     db.notisWake.groupBy({ by: ["decision"], where: eventWhere, _count: { _all: true } }),
     db.notisWake.groupBy({ by: ["eventType"], where: decisionWhere, _count: { _all: true } }),
   ]);
-
   const count = (d: string) => byDecision.find((r) => r.decision === d)?._count._all ?? 0;
+
+  // The paging total for the active filter combination falls out of the
+  // cross-filtered decision counts — no extra count query.
+  const total =
+    filter.decision === "all"
+      ? count("send") + count("silence") + count("error")
+      : count(filter.decision);
+  const pages = Math.max(1, Math.ceil(total / WAKES_PAGE_SIZE));
+  const current = Math.min(page, pages);
+
+  const wakes = await db.notisWake.findMany({
+    where: { ...decisionWhere, ...eventWhere },
+    orderBy: { createdAt: "desc" },
+    skip: (current - 1) * WAKES_PAGE_SIZE,
+    take: WAKES_PAGE_SIZE,
+    // An explicit select, NOT include: `include` leaves the parent's columns
+    // untouched, which pulls `trace` — hundreds of KB per wake — for a whole
+    // page of rows to render a dozen scalars.
+    select: {
+      id: true,
+      eventAt: true,
+      subscriptionId: true,
+      eventType: true,
+      decision: true,
+      rationale: true,
+      outcome: true,
+      repairs: true,
+      truncated: true,
+      finishWakeMissing: true,
+      costUsd: true,
+      durationMs: true,
+      subscription: { select: { userName: true } },
+    },
+  });
   return {
     entries: wakes.map((wake) => ({
       id: wake.id,
@@ -122,5 +138,8 @@ export async function listRecentWakes(filter: WakeFilter): Promise<WakeFeed> {
     eventCounts: byEvent
       .map((r) => ({ eventType: r.eventType, count: r._count._all }))
       .sort((a, b) => b.count - a.count),
+    total,
+    page: current,
+    pages,
   };
 }

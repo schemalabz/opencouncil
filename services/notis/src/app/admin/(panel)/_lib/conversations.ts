@@ -1,7 +1,6 @@
-import { JournalEntry, WakeOutcome, WakeTrace } from "@/agent/types";
+import { CityPreference, JournalEntry, WakeOutcome, WakeTrace } from "@/agent/types";
 import { TemplateName } from "@/agent/templates";
 import { hasNotisDb, notisDb } from "@/lib/db";
-import { hasMainDb, mainDb } from "@/lib/main-db";
 import { CityMeta, MessageDelivery, Origin, RecordEvent, WakeRecord } from "./records";
 
 /**
@@ -39,46 +38,17 @@ export interface ConversationDetail {
 
 interface SubscriptionRow {
   id: string;
-  userId: string;
   userName: string | null;
   phone: string | null;
+  cities: unknown;
   origin: Origin;
   createdAt: Date;
   updatedAt: Date;
   unsubscribedAt: Date | null;
 }
 
-interface SubCity {
-  cityId: string;
-  cityName: string;
-}
-
-/**
- * The cities a reader follows, live from notis_fanout_targets. There is no
- * stored copy: preferences live in the main database, and a snapshot here
- * would be a second truth that goes stale between refreshes. The panel
- * renders without city chips when no main database is configured, or when it
- * is briefly unreachable — a conversation is still worth reading.
- */
-async function citiesByUser(userIds: string[]): Promise<Map<string, SubCity[]>> {
-  if (!hasMainDb() || userIds.length === 0) return new Map();
-  try {
-    const rows = await mainDb().fanoutTargetRow.findMany({
-      where: { userId: { in: userIds } },
-      select: { userId: true, cityId: true, cityName: true },
-      orderBy: [{ userId: "asc" }, { cityId: "asc" }],
-    });
-    const byUser = new Map<string, SubCity[]>();
-    for (const row of rows) {
-      const list = byUser.get(row.userId) ?? [];
-      list.push({ cityId: row.cityId, cityName: row.cityName });
-      byUser.set(row.userId, list);
-    }
-    return byUser;
-  } catch (e) {
-    console.warn("[notis:panel] live city fetch failed, rendering without chips:", e);
-    return new Map();
-  }
+function subscriptionCities(sub: SubscriptionRow): CityPreference[] {
+  return Array.isArray(sub.cities) ? (sub.cities as CityPreference[]) : [];
 }
 
 function toSummary(
@@ -87,13 +57,12 @@ function toSummary(
     ConversationSummary,
     "messagesSent" | "messagesReceived" | "messagesFailed" | "wakes" | "costUsd" | "lastMessage"
   >,
-  cities: SubCity[],
 ): ConversationSummary {
   return {
     id: sub.id,
     userName: sub.userName ?? "—",
     phone: sub.phone ?? "",
-    cityNames: cities.map((c) => c.cityName),
+    cityNames: subscriptionCities(sub).map((c) => c.cityName),
     origin: sub.origin,
     startedAt: sub.createdAt.toISOString(),
     lastActivityAt: extras.lastMessage?.at ?? sub.updatedAt.toISOString(),
@@ -102,27 +71,38 @@ function toSummary(
   };
 }
 
-// The list stops scaling with total history at this bound; older
-// conversations stay reachable through their users' direct links.
-const CONVERSATION_LIST_LIMIT = 500;
+export const CONVERSATIONS_PAGE_SIZE = 50;
 
-export async function listConversations(search?: string): Promise<ConversationSummary[]> {
-  if (!hasNotisDb()) return [];
+export interface ConversationList {
+  conversations: ConversationSummary[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
+export async function listConversations(search?: string, page = 1): Promise<ConversationList> {
+  if (!hasNotisDb()) return { conversations: [], total: 0, page: 1, pages: 1 };
   const db = notisDb();
   const q = search?.trim();
+  const where = q
+    ? {
+        OR: [
+          { userName: { contains: q, mode: "insensitive" as const } },
+          { phone: { contains: q } },
+        ],
+      }
+    : undefined;
+
+  const total = await db.notisSubscription.count({ where });
+  const pages = Math.max(1, Math.ceil(total / CONVERSATIONS_PAGE_SIZE));
+  const current = Math.min(page, pages);
   const subs = await db.notisSubscription.findMany({
-    where: q
-      ? {
-          OR: [
-            { userName: { contains: q, mode: "insensitive" } },
-            { phone: { contains: q } },
-          ],
-        }
-      : undefined,
+    where,
     orderBy: { updatedAt: "desc" },
-    take: CONVERSATION_LIST_LIMIT,
+    skip: (current - 1) * CONVERSATIONS_PAGE_SIZE,
+    take: CONVERSATIONS_PAGE_SIZE,
   });
-  if (subs.length === 0) return [];
+  if (subs.length === 0) return { conversations: [], total, page: current, pages };
   const ids = subs.map((s) => s.id);
 
   const [counts, failures, wakes, costs, lastMessages] = await Promise.all([
@@ -158,16 +138,6 @@ export async function listConversations(search?: string): Promise<ConversationSu
   const countMap = new Map(
     counts.map((c) => [`${c.subscriptionId}:${c.direction}`, c._count._all]),
   );
-<<<<<<< HEAD
-  const cities = await citiesByUser(subs.map((s) => s.userId));
-  return subs.map((sub) =>
-    toSummary(
-      sub,
-      countMap.get(`${sub.id}:outbound`) ?? 0,
-      countMap.get(`${sub.id}:inbound`) ?? 0,
-      cities.get(sub.userId) ?? [],
-    ),
-=======
   const failureMap = new Map(failures.map((f) => [f.subscriptionId, f._count._all]));
   const wakeMap = new Map(wakes.map((w) => [w.subscriptionId, w._count._all]));
   const costMap = new Map(costs.map((c) => [c.subscriptionId, c._sum.costUsd ?? 0]));
@@ -178,17 +148,21 @@ export async function listConversations(search?: string): Promise<ConversationSu
     ]),
   );
 
-  return subs.map((sub) =>
-    toSummary(sub, {
-      messagesSent: countMap.get(`${sub.id}:outbound`) ?? 0,
-      messagesReceived: countMap.get(`${sub.id}:inbound`) ?? 0,
-      messagesFailed: failureMap.get(sub.id) ?? 0,
-      wakes: wakeMap.get(sub.id) ?? 0,
-      costUsd: costMap.get(sub.id) ?? 0,
-      lastMessage: lastMap.get(sub.id),
-    }),
->>>>>>> 9dba2c51 (feat(notis): review-grade conversations and wakes tables, no emojis)
-  );
+  return {
+    conversations: subs.map((sub) =>
+      toSummary(sub, {
+        messagesSent: countMap.get(`${sub.id}:outbound`) ?? 0,
+        messagesReceived: countMap.get(`${sub.id}:inbound`) ?? 0,
+        messagesFailed: failureMap.get(sub.id) ?? 0,
+        wakes: wakeMap.get(sub.id) ?? 0,
+        costUsd: costMap.get(sub.id) ?? 0,
+        lastMessage: lastMap.get(sub.id),
+      }),
+    ),
+    total,
+    page: current,
+    pages,
+  };
 }
 
 export async function getConversation(id: string): Promise<ConversationDetail | null> {
@@ -287,12 +261,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
   }
   records.sort((a, b) => a.event.at.localeCompare(b.event.at));
 
-  const cities = (await citiesByUser([sub.userId])).get(sub.userId) ?? [];
-
   return {
-<<<<<<< HEAD
-    summary: toSummary(sub, sent, received, cities),
-=======
     summary: toSummary(sub, {
       messagesSent: sent,
       messagesReceived: received,
@@ -301,9 +270,10 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
       costUsd: 0, // not fetched here; the detail header does not show cost
       lastMessage: undefined,
     }),
->>>>>>> 9dba2c51 (feat(notis): review-grade conversations and wakes tables, no emojis)
     records,
-    cityMeta: Object.fromEntries(cities.map((c) => [c.cityId, { name: c.cityName }])),
+    cityMeta: Object.fromEntries(
+      subscriptionCities(sub).map((c) => [c.cityId, { name: c.cityName }]),
+    ),
     profile: sub.profileText,
   };
 }
