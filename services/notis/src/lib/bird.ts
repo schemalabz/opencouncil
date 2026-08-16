@@ -17,6 +17,9 @@ export interface BirdSendResult {
   messageId?: string;
   status?: number;
   error?: string;
+  /** A retry with the same idempotency key can succeed: network errors and
+   *  5xx. False for 4xx, Bird-side rejections and missing configuration. */
+  retryable?: boolean;
 }
 
 export interface BirdLike {
@@ -41,7 +44,11 @@ interface BirdResponseEnvelope {
 export const realBird: BirdLike = {
   async sendText({ conversationId, text, idempotencyKey }) {
     if (!hasBird()) {
-      return { success: false, error: "Bird is not configured (BIRD_* env vars missing)" };
+      return {
+        success: false,
+        retryable: false,
+        error: "Bird is not configured (BIRD_* env vars missing)",
+      };
     }
     const url = `https://api.bird.com/workspaces/${env.BIRD_WORKSPACE_ID}/conversations/${conversationId}/messages`;
     try {
@@ -65,6 +72,7 @@ export const realBird: BirdLike = {
         return {
           success: false,
           status: response.status,
+          retryable: response.status >= 500,
           error: `API returned ${response.status}: ${errorText}`,
         };
       }
@@ -74,13 +82,18 @@ export const realBird: BirdLike = {
       if (envelope.status === "failed" || envelope.status === "rejected") {
         return {
           success: false,
+          retryable: false,
           error: envelope.detail || envelope.title || `Bird status: ${envelope.status}`,
         };
       }
       return { success: true, messageId: envelope.id };
     } catch (error) {
       console.error("Bird send error:", error);
-      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+      return {
+        success: false,
+        retryable: true,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
     }
   },
 };

@@ -177,6 +177,29 @@ describe("processItem", () => {
     expect(alerts.some((m) => m.includes("window closed"))).toBe(true);
   });
 
+  it("keeps the message pending on a transient Bird failure — the sweeper retries it", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    seedClaim(db);
+    const bird = new FakeBird({ success: false, retryable: true, error: "503 from Bird" });
+    const alerts: string[] = [];
+
+    await processItem(ITEM, {
+      db,
+      bird,
+      deps: makeDeps(new FakeAnthropic(sendTurn)),
+      alert: async (m) => {
+        alerts.push(m);
+      },
+    });
+
+    const outbound = db.store.messages.find((m) => m.direction === "outbound")!;
+    // Still pending with the reason recorded: resendStalePendingMessages
+    // will retry it under the same idempotency key.
+    expect(outbound.status).toBe("pending");
+    expect(outbound.failureReason).toBe("503 from Bird");
+    expect(alerts).toHaveLength(0);
+  });
+
   it("aborts without side effects when the claim was reclaimed mid-wake (fence)", async () => {
     const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
     // The reclaimer bumped attempts: this worker's fence no longer matches.

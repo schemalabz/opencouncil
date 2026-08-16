@@ -50,6 +50,10 @@ const STATUS_RANK: Record<MessageStatus, number> = {
 
 export function isForwardProgression(current: MessageStatus, next: MessageStatus): boolean {
   if (current === "read" || current === "failed") return false;
+  // A failure report AFTER the handset confirmed delivery is a stale or
+  // out-of-order replay (Bird redelivers hours-old events) — delivered can
+  // only advance to read, same terminal-delivered defense as the main app.
+  if (next === "failed" && current === "delivered") return false;
   return STATUS_RANK[next] > STATUS_RANK[current];
 }
 

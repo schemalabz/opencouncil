@@ -244,6 +244,15 @@ export async function sendPendingMessages(
         where: { id },
         data: { status: "sent", birdMessageId: result.messageId },
       });
+    } else if (result.retryable) {
+      // Transient (network, 5xx): the row STAYS pending so the sweeper
+      // retries it under the same idempotency key once Bird recovers. The
+      // sweeper gives up — and alerts — after RESEND_GIVE_UP_MS.
+      await db.notisMessage.update({
+        where: { id },
+        data: { failureReason: (result.error ?? "unknown error").slice(0, 300) },
+      });
+      console.warn(`[notis:queue] transient Bird failure for message ${id}, will retry:`, result.error);
     } else {
       await db.notisMessage.update({
         where: { id },
@@ -318,10 +327,17 @@ export async function drainQueue(overrides: DrainDeps = {}): Promise<DrainResult
   return { processed, failed };
 }
 
+/** A pending message older than this is not worth delivering any more —
+ *  mark it failed and alert instead of retrying forever. */
+export const RESEND_GIVE_UP_MS = 60 * 60_000;
+
 /**
  * Sweeper half two: re-send outbound messages stuck in `pending` — a crash
- * landed between the persist commit and the Bird call. The idempotency key
- * (the message id) makes the re-send safe even if the original went out.
+ * between the persist commit and the Bird call, or a transient Bird failure
+ * that left the row pending on purpose. The idempotency key (the message
+ * id) makes the re-send safe even if the original went out. Rows pending
+ * for over an hour stop retrying: a WhatsApp reply that late is noise, and
+ * unbounded retries would hide a broken Bird integration.
  */
 export async function resendStalePendingMessages(overrides: DrainDeps = {}): Promise<number> {
   if (!overrides.db && !hasNotisDb()) return 0;
@@ -336,11 +352,24 @@ export async function resendStalePendingMessages(overrides: DrainDeps = {}): Pro
       deliveryMode: "freeform",
       createdAt: { lt: new Date(Date.now() - RESEND_STALE_AFTER_MS) },
     },
-    select: { id: true, subscription: { select: { id: true, birdConversationId: true } } },
+    select: {
+      id: true,
+      createdAt: true,
+      subscription: { select: { id: true, birdConversationId: true } },
+    },
     take: 50,
   });
 
+  const giveUpBefore = Date.now() - RESEND_GIVE_UP_MS;
   for (const message of stale) {
+    if (message.createdAt.getTime() < giveUpBefore) {
+      await db.notisMessage.update({
+        where: { id: message.id },
+        data: { status: "failed", failureReason: "gave up after 1h of delivery retries" },
+      });
+      await alert(`message ${message.id}: undeliverable for over an hour — giving up`);
+      continue;
+    }
     await sendPendingMessages(db, bird, [message.id], message.subscription, alert);
   }
   return stale.length;

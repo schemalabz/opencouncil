@@ -297,4 +297,11 @@ describe("isForwardProgression", () => {
     expect(isForwardProgression("failed", "sent")).toBe(false);
     expect(isForwardProgression("delivered", "sent")).toBe(false);
   });
+
+  it("a stale failure replay cannot regress a delivered message", () => {
+    expect(isForwardProgression("delivered", "failed")).toBe(false);
+    // ...but a genuine failure before delivery still lands.
+    expect(isForwardProgression("sent", "failed")).toBe(true);
+    expect(isForwardProgression("pending", "failed")).toBe(true);
+  });
 });
