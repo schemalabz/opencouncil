@@ -42,6 +42,28 @@ export function makeFakeDb(seed: { subscriptions?: Row[] } = {}) {
         Object.assign(row, data);
         return row;
       },
+      upsert: async ({
+        where,
+        create,
+        update,
+      }: {
+        where: { userId: string };
+        create: Row;
+        update: Row;
+      }) => {
+        const existing = [...store.subscriptions.values()].find(
+          (s) => s.userId === where.userId,
+        );
+        if (existing) {
+          Object.assign(existing, update);
+          calls.push("subscription-upserted:update");
+          return existing;
+        }
+        const row: Row = { id: id("sub"), status: "active", unsubscribedAt: null, ...create };
+        store.subscriptions.set(row.id as string, row);
+        calls.push("subscription-upserted:create");
+        return row;
+      },
     },
     notisJournalEntry: {
       findMany: async ({ take }: { take?: number } = {}) => {
@@ -109,16 +131,50 @@ export function makeFakeDb(seed: { subscriptions?: Row[] } = {}) {
         calls.push("queue-created");
         return row;
       },
-      update: async ({ where, data }: { where: { id: string }; data: Row }) => {
-        const row = store.queue.get(where.id) ?? { id: where.id };
+      // Fenced transitions: match id + optional status/attempts like the
+      // real claim-ownership guards do, reporting the matched count.
+      updateMany: async ({
+        where,
+        data,
+      }: {
+        where: { id: string; status?: string; attempts?: number };
+        data: Row;
+      }) => {
+        const row = store.queue.get(where.id);
+        const matches =
+          row &&
+          (where.status === undefined || row.status === where.status) &&
+          (where.attempts === undefined || row.attempts === where.attempts);
+        if (!matches) return { count: 0 };
         Object.assign(row, data);
-        store.queue.set(where.id, row);
         calls.push(`queue:${data.status}`);
-        return row;
+        return { count: 1 };
       },
       findUnique: async ({ where }: { where: { id: string } }) => store.queue.get(where.id) ?? null,
     },
-    $transaction: async <T>(fn: (tx: unknown) => Promise<T>): Promise<T> => fn(db),
+    // Real rollback semantics: a throw restores the store snapshot, so a
+    // transaction that aborts (e.g. the claim fence) leaves no writes.
+    $transaction: async <T>(fn: (tx: unknown) => Promise<T>): Promise<T> => {
+      const snapshot = structuredClone({
+        subscriptions: store.subscriptions,
+        journal: store.journal,
+        messages: store.messages,
+        wakes: store.wakes,
+        scheduled: store.scheduled,
+        queue: store.queue,
+      });
+      try {
+        return await fn(db);
+      } catch (error) {
+        store.subscriptions = snapshot.subscriptions;
+        store.journal = snapshot.journal;
+        store.messages = snapshot.messages;
+        store.wakes = snapshot.wakes;
+        store.scheduled = snapshot.scheduled;
+        store.queue = snapshot.queue;
+        throw error;
+      }
+    },
   };
   return db as typeof db & PrismaClient;
 }

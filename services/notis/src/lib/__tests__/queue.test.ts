@@ -50,9 +50,14 @@ const sendTurn = [
   },
 ];
 
+function seedClaim(db: ReturnType<typeof makeFakeDb>, attempts = 1) {
+  db.store.queue.set("q1", { id: "q1", status: "running", attempts });
+}
+
 describe("processItem", () => {
   it("persists the wake, journal and message BEFORE calling Bird, keyed by the message id", async () => {
     const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    seedClaim(db);
     const bird = new FakeBird();
     const alerts: string[] = [];
 
@@ -90,6 +95,7 @@ describe("processItem", () => {
 
   it("returns the item to pending when the wake throws — Bird untouched, nothing persisted", async () => {
     const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    seedClaim(db);
     const bird = new FakeBird();
 
     await processItem(ITEM, {
@@ -109,6 +115,7 @@ describe("processItem", () => {
 
   it("fails terminally past MAX_ATTEMPTS without running the model", async () => {
     const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    seedClaim(db, MAX_ATTEMPTS + 1);
     const anthropic = new FakeAnthropic(sendTurn);
     const alerts: string[] = [];
 
@@ -124,6 +131,7 @@ describe("processItem", () => {
 
   it("applies an unsubscribe outcome to the subscription", async () => {
     const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    seedClaim(db);
     const turns = [
       {
         content: [
@@ -149,6 +157,7 @@ describe("processItem", () => {
 
   it("marks the message failed and alerts when the Bird send fails — the wake stays committed", async () => {
     const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    seedClaim(db);
     const bird = new FakeBird({ success: false, error: "window closed" });
     const alerts: string[] = [];
 
@@ -166,5 +175,27 @@ describe("processItem", () => {
     const outbound = db.store.messages.find((m) => m.direction === "outbound")!;
     expect(outbound.status).toBe("failed");
     expect(alerts.some((m) => m.includes("window closed"))).toBe(true);
+  });
+
+  it("aborts without side effects when the claim was reclaimed mid-wake (fence)", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    // The reclaimer bumped attempts: this worker's fence no longer matches.
+    db.store.queue.set("q1", { id: "q1", status: "running", attempts: ITEM.attempts + 1 });
+    const bird = new FakeBird();
+
+    await processItem(ITEM, {
+      db,
+      bird,
+      deps: makeDeps(new FakeAnthropic(sendTurn)),
+      alert: async () => {},
+    });
+
+    // The persist tx threw ClaimLostError: nothing landed, nothing sent,
+    // and the reclaimer's row was left untouched.
+    expect(db.store.wakes).toHaveLength(0);
+    expect(db.store.journal).toHaveLength(0);
+    expect(bird.sends).toHaveLength(0);
+    expect(db.store.queue.get("q1")?.status).toBe("running");
+    expect(db.store.queue.get("q1")?.attempts).toBe(ITEM.attempts + 1);
   });
 });

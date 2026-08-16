@@ -10,7 +10,15 @@ import { buildDeps } from "./deps";
 import { hasNotisDb, notisDb } from "./db";
 import { citiesForUser } from "./fanout";
 import { hasMainDb } from "./main-db";
-import { ClaimedItem, MAX_ATTEMPTS, claimNext, completeItem, failItem, markFailed } from "./queue-core";
+import {
+  ClaimLostError,
+  ClaimedItem,
+  MAX_ATTEMPTS,
+  claimNext,
+  completeItem,
+  failItem,
+  markFailed,
+} from "./queue-core";
 
 /**
  * The live-lane drainer: claim → assemble state → runWake → persist → send.
@@ -145,7 +153,8 @@ async function runOneWake(
       },
     });
 
-    const subData: Prisma.NotisSubscriptionUpdateInput = {};
+    // Always touched: updatedAt is the conversation list's activity sort key.
+    const subData: Prisma.NotisSubscriptionUpdateInput = { updatedAt: new Date() };
     if (outcome.profileRewrite !== undefined) subData.profileText = outcome.profileRewrite;
     // Only the user moves a row into `unsubscribed` — and unsubscribe_user
     // fires only on a user_message wake, so this is the user doing it.
@@ -153,9 +162,7 @@ async function runOneWake(
       subData.status = "unsubscribed";
       subData.unsubscribedAt = new Date(event.at);
     }
-    if (Object.keys(subData).length > 0) {
-      await tx.notisSubscription.update({ where: { id: sub.id }, data: subData });
-    }
+    await tx.notisSubscription.update({ where: { id: sub.id }, data: subData });
 
     for (const scheduled of outcome.scheduledWakes) {
       // Rows only — nothing fires them until PR 4's poller.
@@ -181,7 +188,10 @@ async function runOneWake(
       ids.push(message.id);
     }
 
-    await completeItem(tx, item.id);
+    // The claim fence: if the item was reclaimed while the model ran,
+    // abort the whole transaction — nothing of this run may land.
+    const owned = await completeItem(tx, item.id, item.attempts);
+    if (!owned) throw new ClaimLostError(item.id);
     return ids;
   });
 
@@ -249,30 +259,42 @@ export async function processItem(item: ClaimedItem, overrides: DrainDeps = {}):
   const alert = resolveAlert(overrides);
 
   if (item.attempts > MAX_ATTEMPTS) {
-    await markFailed(db, item.id, `gave up after ${MAX_ATTEMPTS} attempts`);
+    await markFailed(db, item.id, item.attempts, `gave up after ${MAX_ATTEMPTS} attempts`);
     await alert(`queue item ${item.id} failed terminally after ${MAX_ATTEMPTS} attempts`);
     return;
   }
 
   try {
     const events = eventsSchema.parse(item.events);
-    for (const event of events) {
-      // Reload per event: an earlier event in the same item may have
-      // rewritten the profile or unsubscribed the reader.
-      const sub = await db.notisSubscription.findUnique({ where: { id: item.subscriptionId } });
-      if (!sub) {
-        await markFailed(db, item.id, "subscription no longer exists");
-        return;
-      }
-      await runOneWake(db, item, sub, event, overrides);
+    // The live lane enqueues exactly one event per row. PR 4's batch-lane
+    // coalescing needs per-event progress before a loop here is safe —
+    // completeItem is all-or-nothing on the item.
+    if (events.length !== 1) {
+      await markFailed(db, item.id, item.attempts, `expected 1 event, got ${events.length}`);
+      await alert(`queue item ${item.id}: multi-event items are not processable before PR 4`);
+      return;
     }
+    const sub = await db.notisSubscription.findUnique({ where: { id: item.subscriptionId } });
+    if (!sub) {
+      await markFailed(db, item.id, item.attempts, "subscription no longer exists");
+      return;
+    }
+    await runOneWake(db, item, sub, events[0], overrides);
   } catch (error) {
+    if (error instanceof ClaimLostError) {
+      // A reclaiming worker owns the item now; this run's persist rolled
+      // back before anything landed. Touch nothing.
+      console.warn(`[notis:queue] ${error.message}`);
+      return;
+    }
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[notis:queue] item ${item.id} failed:`, error);
-    // The persist tx did not commit (completeItem lives inside it), so the
-    // item returns to pending and the retry re-runs cleanly — Bird was
-    // never called for this wake.
-    await failItem(db, item.id, message);
+    // failItem is fenced on this claim (id + attempts + running), so a
+    // throw AFTER the persist transaction committed — the send phase —
+    // cannot resurrect a done item: the fence misses and the pending
+    // messages are re-sent by the sweeper under their original
+    // idempotency keys instead.
+    await failItem(db, item.id, item.attempts, message);
   }
 }
 

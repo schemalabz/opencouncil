@@ -9,7 +9,17 @@ const CACHE_TTL_BETA = "extended-cache-ttl-2025-04-11";
 let client: Anthropic | null = null;
 
 function getClient(): Anthropic {
-  if (!client) client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  // Explicit per-call bounds: without them the SDK allows ~10 minutes per
+  // request × 2 retries, so one hung turn could outlive the queue's
+  // STALE_CLAIM_MS and get its claim reclaimed mid-run. 3 minutes covers
+  // the slowest observed research turns with headroom.
+  if (!client) {
+    client = new Anthropic({
+      apiKey: env.ANTHROPIC_API_KEY,
+      timeout: 3 * 60_000,
+      maxRetries: 1,
+    });
+  }
   return client;
 }
 

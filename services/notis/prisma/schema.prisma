@@ -231,6 +231,9 @@ model NotisWakeQueue {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Plus a partial unique index Prisma cannot express (migration
+  // 20260816170000): at most one `running` row per subscription — the
+  // database-level backstop for claimNext's serialization.
   @@index([status, runAfter])
   @@index([subscriptionId, status])
 }

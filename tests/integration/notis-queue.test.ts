@@ -100,7 +100,7 @@ describe('notis wake queue (live lane)', () => {
         expect(row?.status).toBe('running')
         expect(row?.claimedAt).toBeInstanceOf(Date)
 
-        await completeItem(notisDb, itemId)
+        expect(await completeItem(notisDb, itemId, item!.attempts)).toBe(true)
         expect(
             (await notisDb.notisWakeQueue.findUnique({ where: { id: itemId } }))?.status,
         ).toBe('done')
@@ -126,7 +126,7 @@ describe('notis wake queue (live lane)', () => {
         // Same subscription, first still running → nothing to claim.
         expect(await claimNext(notisDb)).toBeNull()
 
-        await completeItem(notisDb, first!.id)
+        expect(await completeItem(notisDb, first!.id, first!.attempts)).toBe(true)
         const second = await claimNext(notisDb)
         expect(second).not.toBeNull()
         expect(second!.id).not.toBe(first!.id)
@@ -171,7 +171,7 @@ describe('notis wake queue (live lane)', () => {
             const item = await claimNext(notisDb)
             expect(item?.id).toBe(itemId)
             expect(item?.attempts).toBe(round)
-            await failItem(notisDb, itemId, `boom ${round}`)
+            await failItem(notisDb, itemId, item!.attempts, `boom ${round}`)
             const row = await notisDb.notisWakeQueue.findUnique({ where: { id: itemId } })
             expect(row?.status).toBe('pending')
             expect(row?.lastError).toBe(`boom ${round}`)
@@ -182,12 +182,58 @@ describe('notis wake queue (live lane)', () => {
         const final = await claimNext(notisDb)
         expect(final?.attempts).toBe(MAX_ATTEMPTS + 1)
         expect(final!.attempts).toBeGreaterThan(MAX_ATTEMPTS)
-        await markFailed(notisDb, itemId, 'gave up')
+        await markFailed(notisDb, itemId, final!.attempts, 'gave up')
         const row = await notisDb.notisWakeQueue.findUnique({ where: { id: itemId } })
         expect(row?.status).toBe('failed')
         expect(row?.lastError).toBe('gave up')
         // Terminal: never claimed again.
         expect(await claimNext(notisDb)).toBeNull()
+    })
+
+    test('a stale-claim fence: the original worker cannot complete a reclaimed item', async () => {
+        const sub = await createSubscription('s8')
+        const itemId = await enqueueLiveWake(notisDb, { subscriptionId: sub, event: EVENT })
+
+        const original = await claimNext(notisDb)
+        expect(original?.id).toBe(itemId)
+
+        // Reclaim: backdate the claim and claim again (attempts bumps to 2).
+        await notisDb.$executeRawUnsafe(
+            `UPDATE "NotisWakeQueue" SET "claimedAt" = now() - interval '${(STALE_CLAIM_MS + 60_000) / 1000} seconds' WHERE id = '${itemId}'`,
+        )
+        const reclaimer = await claimNext(notisDb)
+        expect(reclaimer?.attempts).toBe(2)
+
+        // The original worker's fence (attempts=1) misses everywhere.
+        expect(await completeItem(notisDb, itemId, original!.attempts)).toBe(false)
+        await failItem(notisDb, itemId, original!.attempts, 'late failure')
+        let row = await notisDb.notisWakeQueue.findUnique({ where: { id: itemId } })
+        expect(row?.status).toBe('running')
+
+        // The reclaimer's fence works.
+        expect(await completeItem(notisDb, itemId, reclaimer!.attempts)).toBe(true)
+        row = await notisDb.notisWakeQueue.findUnique({ where: { id: itemId } })
+        expect(row?.status).toBe('done')
+    })
+
+    test('the partial unique index allows at most one running row per subscription', async () => {
+        const sub = await createSubscription('s9')
+        await enqueueLiveWake(notisDb, { subscriptionId: sub, event: EVENT })
+        await enqueueLiveWake(notisDb, { subscriptionId: sub, event: { ...EVENT, text: 'δεύτερο' } })
+
+        const first = await claimNext(notisDb)
+        expect(first).not.toBeNull()
+
+        // Forcing the second row to running — what a raced claim would do —
+        // must violate the index; claimNext maps that to nothing-claimable.
+        const second = await notisDb.notisWakeQueue.findFirst({
+            where: { subscriptionId: sub, status: 'pending' },
+        })
+        await expect(
+            notisDb.$executeRawUnsafe(
+                `UPDATE "NotisWakeQueue" SET status = 'running' WHERE id = '${second!.id}'`,
+            ),
+        ).rejects.toThrow(/23505|already exists/i)
     })
 
     test('the inbound migration created the unique index on birdMessageId', async () => {
