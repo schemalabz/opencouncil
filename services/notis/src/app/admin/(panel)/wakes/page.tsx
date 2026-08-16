@@ -3,7 +3,15 @@ import Link from "next/link";
 import { EmptyState } from "../_components/EmptyState";
 import { PageHeader } from "../_components/PageHeader";
 import { fmtDateTime, fmtInt, fmtTimeAgo } from "../_lib/format";
-import { DecisionFilter, WakeFeedEntry, listRecentWakes, parseDecisionFilter } from "../_lib/wakes";
+import {
+  DecisionFilter,
+  EventFilter,
+  WakeFeedEntry,
+  WakeFilter,
+  listRecentWakes,
+  parseDecisionFilter,
+  parseEventFilter,
+} from "../_lib/wakes";
 
 export const metadata = { title: "Wakes · Νότης admin" };
 
@@ -21,12 +29,47 @@ const EVENT_LABELS: Record<string, string> = {
   heartbeat: "heartbeat",
 };
 
-const FILTERS: Array<{ key: DecisionFilter; label: string }> = [
+const DECISION_FILTERS: Array<{ key: DecisionFilter; label: string }> = [
   { key: "all", label: "Όλα" },
   { key: "send", label: "Απαντήσεις" },
   { key: "silence", label: "Σιωπές" },
   { key: "error", label: "Σφάλματα" },
 ];
+
+/** ?decision=…&event=…, omitting defaults so the bare URL stays canonical. */
+function feedHref(filter: WakeFilter): string {
+  const params = new URLSearchParams();
+  if (filter.decision !== "all") params.set("decision", filter.decision);
+  if (filter.event !== "all") params.set("event", filter.event);
+  const query = params.toString();
+  return query ? `/admin/wakes?${query}` : "/admin/wakes";
+}
+
+function FilterChip({
+  href,
+  active,
+  label,
+  count,
+}: {
+  href: string;
+  active: boolean;
+  label: string;
+  count: number;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`rounded px-2 py-1 text-xs transition-colors ${
+        active
+          ? "bg-foreground font-medium text-background"
+          : "text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {label}
+      <span className="ml-1 tabular-nums opacity-60">{fmtInt(count)}</span>
+    </Link>
+  );
+}
 
 function DecisionBadge({ wake }: { wake: WakeFeedEntry }) {
   if (wake.decision === "error") {
@@ -66,38 +109,63 @@ function HealthMarks({ wake }: { wake: WakeFeedEntry }) {
 }
 
 export default async function WakesPage(props: {
-  searchParams: Promise<{ decision?: string }>;
+  searchParams: Promise<{ decision?: string; event?: string }>;
 }) {
-  const filter = parseDecisionFilter((await props.searchParams).decision);
-  const { entries, counts } = await listRecentWakes(filter);
+  const searchParams = await props.searchParams;
+  const filter: WakeFilter = {
+    decision: parseDecisionFilter(searchParams.decision),
+    event: parseEventFilter(searchParams.event),
+  };
+  const { entries, decisionCounts, eventCounts } = await listRecentWakes(filter);
+  const eventTotal = eventCounts.reduce((a, r) => a + r.count, 0);
+  // Only event types that exist (or the active one) get a chip — no noise
+  // from types that arrive with PR 4.
+  const eventChips: Array<{ key: EventFilter; label: string; count: number }> = [
+    { key: "all" as const, label: "Όλα τα γεγονότα", count: eventTotal },
+    ...eventCounts
+      .filter((r) => r.count > 0 || r.eventType === filter.event)
+      .map((r) => ({
+        key: r.eventType as EventFilter,
+        label: EVENT_LABELS[r.eventType] ?? r.eventType,
+        count: r.count,
+      })),
+  ];
 
   return (
     <>
       <PageHeader title="Wakes">
         <nav className="flex items-center gap-0.5 rounded-md border p-0.5">
-          {FILTERS.map(({ key, label }) => (
-            <Link
+          {DECISION_FILTERS.map(({ key, label }) => (
+            <FilterChip
               key={key}
-              href={key === "all" ? "/admin/wakes" : `/admin/wakes?decision=${key}`}
-              className={`rounded px-2 py-1 text-xs transition-colors ${
-                key === filter
-                  ? "bg-foreground font-medium text-background"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {label}
-              <span className="ml-1 tabular-nums opacity-60">{fmtInt(counts[key])}</span>
-            </Link>
+              href={feedHref({ ...filter, decision: key })}
+              active={key === filter.decision}
+              label={label}
+              count={decisionCounts[key]}
+            />
           ))}
         </nav>
+        {eventChips.length > 1 && (
+          <nav className="flex items-center gap-0.5 rounded-md border p-0.5">
+            {eventChips.map(({ key, label, count }) => (
+              <FilterChip
+                key={key}
+                href={feedHref({ ...filter, event: key })}
+                active={key === filter.event}
+                label={label}
+                count={count}
+              />
+            ))}
+          </nav>
+        )}
       </PageHeader>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
         {entries.length === 0 ? (
           <EmptyState icon={Activity}>
-            {filter === "all"
+            {filter.decision === "all" && filter.event === "all"
               ? "Κανένα wake ακόμα. Εδώ κυλάει κάθε αφύπνιση του Νότη — γεγονός, απόφαση, σκεπτικό, κόστος — με σύνδεσμο στη συνομιλία της."
-              : "Κανένα wake με αυτή την απόφαση."}
+              : "Κανένα wake δεν ταιριάζει σε αυτά τα φίλτρα."}
           </EmptyState>
         ) : (
           <table className="w-full text-sm">
