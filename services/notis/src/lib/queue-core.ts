@@ -39,6 +39,7 @@ export class ClaimLostError extends Error {
 export interface ClaimedItem {
   id: string;
   subscriptionId: string;
+  lane: "live" | "batch";
   /** Coalesced WakeEvent[] Json — the shell validates with wakeEventSchema. */
   events: unknown;
   attempts: number;
@@ -60,14 +61,73 @@ export async function enqueueLiveWake(
   return row.id;
 }
 
-/** A raw-query unique violation (Postgres 23505) surfaced through Prisma. */
+/**
+ * Enqueue on the batch lane, coalescing per subscription: while a pending
+ * batch row exists, new events append to it and the earliest runAfter wins,
+ * so someone in three cities gets ONE wake holding all three briefs.
+ *
+ * The append is an atomic UPDATE with a row lock; when it matches nothing
+ * a fresh row is created. The partial unique index
+ * "NotisWakeQueue_one_pending_batch_per_sub" backstops the create race —
+ * the loser hits 23505 and retries once, landing as an append. A row the
+ * claimer just flipped to running no longer matches the UPDATE, so the new
+ * event correctly becomes a fresh pending row (the index covers only
+ * `pending`).
+ */
+export async function enqueueBatchWake(
+  db: Db,
+  input: { subscriptionId: string; event: unknown; runAfter: Date },
+): Promise<{ id: string; coalesced: boolean }> {
+  const eventJson = JSON.stringify(input.event);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const appended = await db.$queryRaw<Array<{ id: string }>>`
+      UPDATE "NotisWakeQueue" q
+      SET events = q.events || ${eventJson}::jsonb,
+          "runAfter" = LEAST(q."runAfter", ${input.runAfter}),
+          "updatedAt" = now()
+      WHERE q.id = (
+        SELECT c.id FROM "NotisWakeQueue" c
+        WHERE c."subscriptionId" = ${input.subscriptionId}
+          AND c.lane = 'batch'::"QueueLane"
+          AND c.status = 'pending'::"QueueItemStatus"
+        FOR UPDATE
+        LIMIT 1
+      )
+      RETURNING q.id
+    `;
+    if (appended[0]) return { id: appended[0].id, coalesced: true };
+    try {
+      const row = await db.notisWakeQueue.create({
+        data: {
+          subscriptionId: input.subscriptionId,
+          lane: "batch",
+          events: [input.event] as Prisma.InputJsonValue,
+          runAfter: input.runAfter,
+        },
+        select: { id: true },
+      });
+      return { id: row.id, coalesced: false };
+    } catch (error) {
+      // Concurrent create won the index — loop back into the append.
+      if (!isUniqueViolation(error)) throw error;
+    }
+  }
+  throw new Error(
+    `enqueueBatchWake: subscription ${input.subscriptionId} raced twice — giving up`,
+  );
+}
+
+/** A unique violation (Postgres 23505) surfaced through Prisma — raw
+ *  queries carry it in meta.code, client calls as PrismaClientKnownRequestError P2002. */
 function isUniqueViolation(error: unknown): boolean {
-  const meta = (error as { meta?: { code?: unknown } } | undefined)?.meta;
-  return meta?.code === "23505";
+  const err = error as { meta?: { code?: unknown }; code?: unknown } | undefined;
+  return err?.meta?.code === "23505" || err?.code === "P2002";
 }
 
 /**
- * Claim the next due live item: one atomic statement, so concurrent workers
+ * Claim the next due item across both lanes, live first (reply latency
+ * beats batch fan-out; batch rows are jittered anyway): one atomic
+ * statement, so concurrent workers
  * (the webhook kick and the sweeper, or two instances) never double-claim —
  * FOR UPDATE SKIP LOCKED skips rows a parallel claim is locking.
  *
@@ -100,8 +160,7 @@ export async function claimNext(db: Db): Promise<ClaimedItem | null> {
           "updatedAt" = now()
       WHERE q.id = (
         SELECT c.id FROM "NotisWakeQueue" c
-        WHERE c.lane = 'live'::"QueueLane"
-          AND c."runAfter" <= now()
+        WHERE c."runAfter" <= now()
           AND (
             c.status = 'pending'::"QueueItemStatus"
             OR (c.status = 'running'::"QueueItemStatus"
@@ -113,17 +172,34 @@ export async function claimNext(db: Db): Promise<ClaimedItem | null> {
               AND r.status = 'running'::"QueueItemStatus"
               AND r.id <> c.id
           )
-        ORDER BY c."runAfter", c."createdAt"
+        ORDER BY (c.lane = 'live'::"QueueLane") DESC, c."runAfter", c."createdAt"
         FOR UPDATE SKIP LOCKED
         LIMIT 1
       )
-      RETURNING q.id, q."subscriptionId", q.events, q.attempts
+      RETURNING q.id, q."subscriptionId", q.lane, q.events, q.attempts
     `;
     return rows[0] ?? null;
   } catch (error) {
     if (isUniqueViolation(error)) return null;
     throw error;
   }
+}
+
+/**
+ * Return a claimed item to pending WITHOUT consuming an attempt — used when
+ * a rail (pause, quiet hours) defers the work before the model ran. Fenced
+ * like every transition out of `running`.
+ */
+export async function deferItem(
+  db: Db,
+  id: string,
+  attempts: number,
+  runAfter: Date,
+): Promise<void> {
+  await db.notisWakeQueue.updateMany({
+    where: { id, status: "running", attempts },
+    data: { status: "pending", claimedAt: null, attempts: attempts - 1, runAfter },
+  });
 }
 
 /**

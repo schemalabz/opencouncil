@@ -28,6 +28,7 @@ const SUB: Row = {
 const ITEM: ClaimedItem = {
   id: "q1",
   subscriptionId: "sub1",
+  lane: "live",
   events: [{ type: "user_message", at: "2026-03-10T10:00:00.000Z", text: "Τι ψηφίστηκε χθες;" }],
   attempts: 1,
 };

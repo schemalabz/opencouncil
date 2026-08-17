@@ -10,6 +10,8 @@ import {
     STALE_CLAIM_MS,
     claimNext,
     completeItem,
+    deferItem,
+    enqueueBatchWake,
     enqueueLiveWake,
     failItem,
     markFailed,
@@ -257,5 +259,111 @@ describe('notis wake queue (live lane)', () => {
                 data: { subscriptionId: sub, direction: 'inbound', body: 'b', birdMessageId: 'dup' },
             }),
         ).rejects.toMatchObject({ code: 'P2002' })
+    })
+
+    test('batch enqueue coalesces into the pending row: events append, earliest runAfter wins', async () => {
+        const sub = await createSubscription('b1')
+        const later = new Date(Date.now() + 120_000)
+        const sooner = new Date(Date.now() + 60_000)
+
+        const first = await enqueueBatchWake(notisDb, {
+            subscriptionId: sub,
+            event: EVENT,
+            runAfter: later,
+        })
+        expect(first.coalesced).toBe(false)
+
+        const second = await enqueueBatchWake(notisDb, {
+            subscriptionId: sub,
+            event: { ...EVENT, text: 'δεύτερο' },
+            runAfter: sooner,
+        })
+        expect(second).toEqual({ id: first.id, coalesced: true })
+
+        const row = await notisDb.notisWakeQueue.findUnique({ where: { id: first.id } })
+        expect(row?.events).toEqual([EVENT, { ...EVENT, text: 'δεύτερο' }])
+        expect(row?.runAfter.getTime()).toBe(sooner.getTime())
+    })
+
+    test('concurrent batch enqueues for one subscription land in a single row', async () => {
+        const sub = await createSubscription('b2')
+        const runAfter = new Date()
+
+        const results = await Promise.all(
+            Array.from({ length: 5 }, (_, i) =>
+                enqueueBatchWake(notisDb, {
+                    subscriptionId: sub,
+                    event: { ...EVENT, text: `e${i}` },
+                    runAfter,
+                }),
+            ),
+        )
+
+        const ids = new Set(results.map((r) => r.id))
+        expect(ids.size).toBe(1)
+        const row = await notisDb.notisWakeQueue.findUnique({ where: { id: [...ids][0] } })
+        expect((row?.events as unknown[]).length).toBe(5)
+    })
+
+    test('an enqueue after the claim opens a fresh pending row beside the running one', async () => {
+        const sub = await createSubscription('b3')
+        const first = await enqueueBatchWake(notisDb, {
+            subscriptionId: sub,
+            event: EVENT,
+            runAfter: new Date(Date.now() - 1000),
+        })
+
+        const claimed = await claimNext(notisDb)
+        expect(claimed?.id).toBe(first.id)
+        expect(claimed?.lane).toBe('batch')
+
+        // The running row no longer matches the append; the partial index
+        // covers only pending, so a fresh row is correct and allowed.
+        const second = await enqueueBatchWake(notisDb, {
+            subscriptionId: sub,
+            event: { ...EVENT, text: 'μετά το claim' },
+            runAfter: new Date(),
+        })
+        expect(second.coalesced).toBe(false)
+        expect(second.id).not.toBe(first.id)
+    })
+
+    test('claim prefers a due live row over an older due batch row', async () => {
+        const subA = await createSubscription('b4a')
+        const subB = await createSubscription('b4b')
+        await enqueueBatchWake(notisDb, {
+            subscriptionId: subA,
+            event: EVENT,
+            runAfter: new Date(Date.now() - 60_000),
+        })
+        await enqueueLiveWake(notisDb, { subscriptionId: subB, event: EVENT })
+
+        const first = await claimNext(notisDb)
+        expect(first?.lane).toBe('live')
+        const second = await claimNext(notisDb)
+        expect(second?.lane).toBe('batch')
+    })
+
+    test('deferItem re-pends without consuming the attempt, fenced on the claim', async () => {
+        const sub = await createSubscription('b5')
+        await enqueueBatchWake(notisDb, {
+            subscriptionId: sub,
+            event: EVENT,
+            runAfter: new Date(Date.now() - 1000),
+        })
+        const claimed = await claimNext(notisDb)
+        expect(claimed?.attempts).toBe(1)
+
+        const runAfter = new Date(Date.now() + 3_600_000)
+        await deferItem(notisDb, claimed!.id, claimed!.attempts, runAfter)
+        const row = await notisDb.notisWakeQueue.findUnique({ where: { id: claimed!.id } })
+        expect(row?.status).toBe('pending')
+        expect(row?.attempts).toBe(0)
+        expect(row?.runAfter.getTime()).toBe(runAfter.getTime())
+
+        // The fence: a second defer with the stale claim identity is a no-op.
+        await deferItem(notisDb, claimed!.id, claimed!.attempts, new Date())
+        const after = await notisDb.notisWakeQueue.findUnique({ where: { id: claimed!.id } })
+        expect(after?.runAfter.getTime()).toBe(runAfter.getTime())
     })
 })
