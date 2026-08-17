@@ -1433,3 +1433,52 @@ describe('buildSearchQuery agreement with the index mapping', () => {
         }
     });
 });
+
+describe('buildFilters administrative body filter', () => {
+    // The two fields reached the URL and the filter bar before buildFilters had
+    // a clause for either, so every administrative body selection returned the
+    // unfiltered results.
+    function termsOf(
+        filters: estypes.QueryDslQueryContainer[],
+        field: string
+    ): string[] | undefined {
+        return filters.find((f) => f.terms?.[field])?.terms?.[field] as string[] | undefined;
+    }
+
+    it('filters on the ids of named administrative bodies', () => {
+        const filters = buildFilters({ query: 'roads', adminBodyIds: ['body1'] });
+
+        expect(termsOf(filters, 'administrative_body_id')).toEqual(['body1']);
+    });
+
+    it('filters on the administrative body type', () => {
+        const filters = buildFilters({ query: 'roads', adminBodyTypes: ['committee'] });
+
+        expect(termsOf(filters, 'administrative_body_type')).toEqual(['committee']);
+    });
+
+    it('keeps the id and the type as independent top-level (AND) clauses', () => {
+        const filters = buildFilters({
+            query: 'roads',
+            adminBodyIds: ['body1'],
+            adminBodyTypes: ['committee'],
+        });
+
+        expect(termsOf(filters, 'administrative_body_id')).toEqual(['body1']);
+        expect(termsOf(filters, 'administrative_body_type')).toEqual(['committee']);
+    });
+
+    it('omits both clauses when no administrative body is given', () => {
+        const filters = buildFilters({ query: 'roads' });
+
+        expect(termsOf(filters, 'administrative_body_id')).toBeUndefined();
+        expect(termsOf(filters, 'administrative_body_type')).toBeUndefined();
+    });
+
+    it('omits both clauses for empty arrays', () => {
+        const filters = buildFilters({ query: 'roads', adminBodyIds: [], adminBodyTypes: [] });
+
+        expect(termsOf(filters, 'administrative_body_id')).toBeUndefined();
+        expect(termsOf(filters, 'administrative_body_type')).toBeUndefined();
+    });
+});

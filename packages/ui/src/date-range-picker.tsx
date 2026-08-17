@@ -17,6 +17,9 @@ interface DateRangePickerProps {
     className?: string;
     numberOfMonths?: number;
     disabled?: (date: Date) => boolean;
+    /** Classes for the calendar panel. The panel is portalled to the body, so a caller inside a
+     *  stacked overlay has to lift it over that overlay with a z-index of its own. */
+    contentClassName?: string;
 }
 
 export function DateRangePicker({
@@ -26,6 +29,7 @@ export function DateRangePicker({
     className,
     numberOfMonths = 2,
     disabled,
+    contentClassName,
 }: DateRangePickerProps) {
     return (
         <Popover modal>
@@ -54,7 +58,7 @@ export function DateRangePicker({
                     )}
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
+            <PopoverContent className={cn("w-auto p-0", contentClassName)} align="start">
                 <Calendar
                     initialFocus
                     mode="range"

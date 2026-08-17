@@ -641,6 +641,26 @@ export function buildFilters(request: SearchRequest): estypes.QueryDslQueryConta
         });
     }
 
+    // Add administrative body filter if specified. The two clauses are
+    // independent: `adminBodyIds` selects named bodies, `adminBodyTypes` selects
+    // every body of a type. The UI sets both when the user picks a named body,
+    // and they agree — a body has exactly one type.
+    if (request.adminBodyIds && request.adminBodyIds.length > 0) {
+        filters.push({
+            terms: {
+                'administrative_body_id': request.adminBodyIds
+            }
+        });
+    }
+
+    if (request.adminBodyTypes && request.adminBodyTypes.length > 0) {
+        filters.push({
+            terms: {
+                'administrative_body_type': request.adminBodyTypes
+            }
+        });
+    }
+
     // Add topic filter if specified
     if (request.topicIds && request.topicIds.length > 0) {
         filters.push({
