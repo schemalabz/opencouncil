@@ -2,6 +2,35 @@ import { estypes } from '@elastic/elasticsearch';
 import { SearchRequest, ExtractedFilters } from './types';
 import { env } from '@/env.mjs';
 
+const DEFAULT_RANK_WINDOW_SIZE = 100;
+const DEFAULT_RANK_CONSTANT = 60;
+
+const SEMANTIC_NAME_BOOST = 2.0;
+const SEMANTIC_DESCRIPTION_BOOST = 1.5;
+
+/**
+ * Raw-score cutoff for the semantic retriever, measured against the production
+ * index. multilingual-e5 trains with a low InfoNCE temperature, so its cosine
+ * similarities bunch up near the top of the range and unrelated text still
+ * scores highly: over a 32-query sample, off-topic queries peaked at 3.198 and
+ * on-topic ones bottomed out at 3.174. The cutoff sits just above the off-topic
+ * band; the lexical retriever covers the on-topic queries that fall below it.
+ *
+ * The value is the sum of the two boosts below at their per-field score, so
+ * recalibrate it whenever those boosts or the inference model change. Do not
+ * normalize before applying it: `minmax` maps the best hit to exactly 1.0 for
+ * every query, which makes a fractional cutoff unable to ever empty the results.
+ */
+const DEFAULT_SEMANTIC_MIN_SCORE = 3.2;
+
+/**
+ * Leave 1- and 2-term queries at full recall (nothing required); for 3+ term
+ * queries require 75% of terms so a single stray matching term no longer
+ * surfaces a low-relevance hit. ES notation: "2<75%" = full recall when <=2
+ * terms, 75% required once the term count exceeds 2 (i.e. 3 or more).
+ */
+const LEXICAL_MINIMUM_SHOULD_MATCH = '2<75%';
+
 // Build filters for the search query
 export function buildFilters(request: SearchRequest): estypes.QueryDslQueryContainer[] {
     const filters: estypes.QueryDslQueryContainer[] = [];
@@ -120,6 +149,113 @@ export function buildFilters(request: SearchRequest): estypes.QueryDslQueryConta
     return filters;
 }
 
+// Transcripts are long enough that a bare OR match lets an off-topic query match
+// on one common word, so they take the same term requirement as the title fields.
+function buildTranscriptMatch(field: string, queryText: string): estypes.QueryDslQueryContainer {
+    return {
+        match: {
+            [field]: {
+                query: queryText,
+                boost: 2,
+                minimum_should_match: LEXICAL_MINIMUM_SHOULD_MATCH
+            }
+        }
+    };
+}
+
+// Lexical should-clauses: BM25 match on title/description/transcripts.
+function buildLexicalShouldClauses(
+    queryText: string,
+    extractedFilters: ExtractedFilters
+): estypes.QueryDslQueryContainer[] {
+    return [
+        {
+            multi_match: {
+                query: queryText,
+                fields: [
+                    'name^4',
+                    'description^3',
+                    ...(extractedFilters.locationName ? ['location_text^3'] : []),
+                ],
+                type: 'best_fields',
+                operator: 'or',
+                // Typo tolerance for citizen-style queries (often misspelled).
+                // prefix_length:2 avoids noisy 1-char-prefix expansions on Greek morphology.
+                fuzziness: 'AUTO',
+                prefix_length: 2,
+                minimum_should_match: LEXICAL_MINIMUM_SHOULD_MATCH
+            }
+        },
+        {
+            // Phrase match on the title: a contiguous phrase match in the
+            // most important field should clearly outrank scattered terms.
+            match_phrase: {
+                'name': {
+                    query: queryText,
+                    boost: 6
+                }
+            }
+        },
+        {
+            // Phrase match on the description, with a lower boost than the
+            // title so long descriptions don't overweight phrase proximity.
+            match_phrase: {
+                'description': {
+                    query: queryText,
+                    boost: 4
+                }
+            }
+        },
+        {
+            nested: {
+                path: 'speaker_contributions',
+                query: buildTranscriptMatch('speaker_contributions.text', queryText),
+                inner_hits: {
+                    _source: ['speaker_contributions.contribution_id']
+                }
+            }
+        }
+    ];
+}
+
+// Semantic kNN returns nearest neighbours for every query, however unrelated,
+// so without a cutoff an off-topic query still fills a page of results. The
+// `min_score` drops the neighbours that only look close on the model's
+// compressed similarity scale.
+function buildSemanticRetriever(
+    queryText: string,
+    filters: estypes.QueryDslQueryContainer[],
+    semanticMinScore: number
+): estypes.RetrieverContainer {
+    return {
+        standard: {
+            min_score: semanticMinScore,
+            query: {
+                bool: {
+                    should: [
+                        {
+                            semantic: {
+                                query: queryText,
+                                field: 'name.semantic',
+                                boost: SEMANTIC_NAME_BOOST
+                            }
+                        },
+                        {
+                            semantic: {
+                                query: queryText,
+                                field: 'description.semantic',
+                                boost: SEMANTIC_DESCRIPTION_BOOST
+                            }
+                        }
+                    ],
+                    minimum_should_match: 1,
+                    filter: filters
+                }
+            }
+        }
+    };
+}
+
 // Build the search query
 export function buildSearchQuery(
     request: SearchRequest,
@@ -136,6 +272,7 @@ export function buildSearchQuery(
     // Used e.g. for "everything a person spoke about" or "all subjects in a
     // date range".
     const queryText = mergedRequest.query?.trim();
+    const filters = buildFilters(mergedRequest);
     if (!queryText) {
         return {
             index: env.ELASTICSEARCH_INDEX,
@@ -144,7 +281,7 @@ export function buildSearchQuery(
             track_total_hits: true,
             query: {
                 bool: {
-                    filter: buildFilters(mergedRequest)
+                    filter: filters
                 }
             },
             sort: [{ 'meeting_date': { order: 'desc' } }]
@@ -163,75 +300,23 @@ export function buildSearchQuery(
                         standard: {
                             query: {
                                 bool: {
-                                    should: [
-                                        {
-                                            // Multi-match query for regular fields
-                                            multi_match: {
-                                                query: queryText,
-                                                fields: [
-                                                    'name^4',           // Highest boost - most important identifier
-                                                    'description^3',    // High boost - detailed content
-                                                    ...(extractedFilters.locationName ? ['location_text^3'] : []), // Add location text with high boost when location is extracted
-                                                ],
-                                                type: 'best_fields',
-                                                operator: 'or'
-                                            }
-                                        },
-                                        {
-                                            // Nested query for speaker contributions
-                                            nested: {
-                                                path: 'speaker_contributions',
-                                                query: {
-                                                    match: {
-                                                        'speaker_contributions.text': {
-                                                            query: queryText,
-                                                            boost: 2
-                                                        }
-                                                    }
-                                                },
-                                                inner_hits: {
-                                                    _source: ['speaker_contributions.contribution_id']
-                                                }
-                                            }
-                                        }
-                                    ],
+                                    should: buildLexicalShouldClauses(queryText, extractedFilters),
                                     minimum_should_match: 1,
-                                    filter: buildFilters(mergedRequest)
+                                    filter: filters
                                 }
                             }
                         }
                     },
                     ...(request.config?.enableSemanticSearch ? [
-                        {
-                            standard: {
-                                query: {
-                                    bool: {
-                                        should: [
-                                            {
-                                                semantic: {
-                                                    query: queryText,
-                                                    field: 'name.semantic',
-                                                    boost: 2.0  // Higher boost for name
-                                                }
-                                            },
-                                            {
-                                                semantic: {
-                                                    query: queryText,
-                                                    field: 'description.semantic',
-                                                    boost: 1.5  // Medium boost for description
-                                                }
-                                            }
-                                        ],
-                                        minimum_should_match: 1,
-                                        filter: buildFilters(mergedRequest)
-                                    }
-                                }
-                            }
-                        }
+                        buildSemanticRetriever(
+                            queryText,
+                            filters,
+                            request.config.semanticMinScore ?? DEFAULT_SEMANTIC_MIN_SCORE
+                        )
                     ] : [])
                 ],
-                rank_window_size: request.config?.rankWindowSize || 100,
-                rank_constant: request.config?.rankConstant || 60
+                rank_window_size: request.config?.rankWindowSize || DEFAULT_RANK_WINDOW_SIZE,
+                rank_constant: request.config?.rankConstant || DEFAULT_RANK_CONSTANT
             }
         }
     };
