@@ -84,16 +84,36 @@ function nextQuietStart(date: Date): Date {
 
 export interface ActivePhase {
   phase: "active" | "quiet";
+  /** When the current phase began: the 09:00 release (active) or the 23:00
+   *  boundary (quiet) — countdown bars drain across [since, until]. */
+  since: Date;
   /** When the current phase ends: the next 23:00 (active) or the next
    *  09:00 release (quiet), Athens time, jitter-free. */
   until: Date;
 }
 
+/** The Athens boundary instant (hour 9 or 23) on the calendar day of
+ *  `date` shifted by `dayOffset`. */
+function boundaryOn(date: Date, dayOffset: number, hour: 9 | 23): Date {
+  const [y, m, d] = dayFormat.format(date).split("-").map(Number);
+  const base = Date.UTC(y, m - 1, d) + dayOffset * 86_400_000;
+  const candidates = hour === 9 ? [6, 7] : [20, 21];
+  for (const utcHour of candidates) {
+    const candidate = new Date(base + utcHour * 3_600_000);
+    if (athensHour(candidate) === hour) return candidate;
+  }
+  return new Date(base + candidates[1] * 3_600_000);
+}
+
 /** Which side of the quiet-hours boundary `date` sits on, and when that
- *  changes — display fuel for the admin panel's countdowns. */
+ *  phase began and ends — display fuel for the admin panel's countdowns. */
 export function activePhase(date: Date): ActivePhase {
   if (isQuietHour(date)) {
-    return { phase: "quiet", until: clampToActiveHours(date, () => 0) };
+    // Quiet spans midnight: before midnight it began today at 23:00,
+    // after midnight it began yesterday at 23:00.
+    const since =
+      athensHour(date) >= QUIET_START_HOUR ? boundaryOn(date, 0, 23) : boundaryOn(date, -1, 23);
+    return { phase: "quiet", since, until: clampToActiveHours(date, () => 0) };
   }
-  return { phase: "active", until: nextQuietStart(date) };
+  return { phase: "active", since: boundaryOn(date, 0, 9), until: nextQuietStart(date) };
 }

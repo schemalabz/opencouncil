@@ -101,8 +101,8 @@ export async function handleOutboundStatus(
  * PROACTIVE template send fails, the same text goes out once as an SMS.
  * The sms row is inserted FIRST with fallbackForId unique on the failed
  * message — a replayed failure webhook loses the insert and stops, so one
- * failure can never fire two SMS. Live-and-unpaused only; reactive
- * replies and freeform sends get no fallback (the reader is reachable on
+ * failure can never fire two SMS. Skipped while paused; reactive replies
+ * and freeform sends get no fallback (the reader is reachable on
  * WhatsApp — they just wrote to us there).
  */
 async function maybeSendSmsFallback(
@@ -118,7 +118,7 @@ async function maybeSendSmsFallback(
     return;
   }
   const settings = await getProactiveSettings(db);
-  if (settings.mode !== "live" || settings.paused) return;
+  if (settings.paused) return;
 
   const sub = await db.notisSubscription.findUnique({ where: { id: failed.subscriptionId } });
   if (!sub?.phone || sub.status === "unsubscribed") return;

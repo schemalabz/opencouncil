@@ -32,6 +32,15 @@ function fmtUsd(n: number): string {
   return `$${n.toFixed(2)}`;
 }
 
+function fmtMeetingDate(iso: string): string {
+  return new Intl.DateTimeFormat("el-GR", {
+    weekday: "short",
+    day: "numeric",
+    month: "numeric",
+    timeZone: "Europe/Athens",
+  }).format(new Date(iso));
+}
+
 function timeAgo(iso: string, now: Date): string {
   const s = Math.max(0, Math.round((now.getTime() - new Date(iso).getTime()) / 1000));
   if (s < 60) return `πριν ${s}″`;
@@ -55,7 +64,7 @@ const STATUS_LABEL: Record<string, string> = {
 function LaneBadge({ lane }: { lane: "live" | "batch" }) {
   return (
     <span
-      className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider ${
+      className={`inline-flex w-14 shrink-0 justify-center rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider ${
         lane === "live" ? "bg-orange/10 text-orange" : "bg-muted text-muted-foreground"
       }`}
     >
@@ -96,9 +105,11 @@ function ScoreBars({ scores }: { scores: Record<string, number> }) {
         return (
           <span
             key={key}
-            title={`${label}: ${value}/5`}
-            className="flex cursor-default flex-col items-center gap-0.5"
+            className="group/bar relative flex cursor-default flex-col items-center gap-0.5"
           >
+            <span className="pointer-events-none absolute -top-6 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-foreground px-1.5 py-0.5 text-[10px] font-medium text-background opacity-0 shadow-sm transition-opacity duration-100 group-hover/bar:opacity-100">
+              {label} {value}/5
+            </span>
             <span className="relative h-10 w-2 overflow-hidden rounded-sm bg-muted/60">
               {value > 0 && (
                 <span
@@ -167,6 +178,7 @@ export default async function SystemPage() {
                 <Countdown
                   prefix={snap.phase.kind === "active" ? "ησυχία σε" : "απελευθέρωση σε"}
                   target={snap.phase.until}
+                  start={snap.phase.since}
                   className="w-full"
                 />
                 <p className="mt-1.5 text-[11px] text-muted-foreground">
@@ -182,27 +194,20 @@ export default async function SystemPage() {
                 <CircleDot className="h-3.5 w-3.5" /> Λειτουργία
               </p>
               <div className="mt-2 flex items-center gap-2">
-                <span
-                  className={`rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wider ${
-                    snap.settings.mode === "live"
-                      ? "bg-green-600/10 text-green-700"
-                      : "bg-amber-500/15 text-amber-700"
-                  }`}
-                >
-                  {snap.settings.mode}
-                </span>
-                {snap.settings.paused && (
+                {snap.settings.paused ? (
                   <span className="flex items-center gap-1 rounded bg-destructive/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider text-destructive">
                     <OctagonAlert className="h-3 w-3" /> παύση
+                  </span>
+                ) : (
+                  <span className="rounded bg-green-600/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider text-green-700">
+                    ενεργό
                   </span>
                 )}
               </div>
               <p className="mt-1.5 text-[11px] text-muted-foreground">
-                {snap.settings.mode === "shadow"
-                  ? "αποφάσεις καταγράφονται, τίποτα δεν στέλνεται"
-                  : snap.settings.paused
-                    ? "proactive σε παύση — οι απαντήσεις συνεχίζουν"
-                    : "πραγματικές αποστολές ενεργές"}
+                {snap.settings.paused
+                  ? "proactive σε παύση — οι απαντήσεις συνεχίζουν"
+                  : "πραγματικές αποστολές ενεργές"}
               </p>
             </section>
 
@@ -269,7 +274,7 @@ export default async function SystemPage() {
                     <LaneBadge lane={item.lane} />
                     <Link
                       href={`/admin/conversations/${item.subscriptionId}`}
-                      className="flex min-w-0 items-center gap-2 hover:underline"
+                      className="flex w-56 shrink-0 items-center gap-2 hover:underline"
                     >
                       <UserAvatar seed={item.userId} size={22} />
                       <span className="truncate text-sm">{item.userName}</span>
@@ -327,7 +332,7 @@ export default async function SystemPage() {
                   <li key={item.id} className="flex items-center gap-3 px-4 py-2.5">
                     <Link
                       href={`/admin/conversations/${item.subscriptionId}`}
-                      className="flex w-40 shrink-0 items-center gap-2 hover:underline"
+                      className="flex w-56 shrink-0 items-center gap-2 hover:underline"
                     >
                       <UserAvatar seed={item.userId} size={22} />
                       <span className="truncate text-sm">{item.userName}</span>
@@ -392,10 +397,23 @@ export default async function SystemPage() {
                         <span className="shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">
                           {item.cityId}
                         </span>
-                        <span className="min-w-0 flex-1 truncate text-sm">
-                          {item.headline ?? (
-                            <span className="text-muted-foreground">
-                              χωρίς editorial pass — κανένας συνδρομητής
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm">
+                            {item.headline ?? (
+                              <span className="text-muted-foreground">
+                                χωρίς editorial pass — κανένας συνδρομητής
+                              </span>
+                            )}
+                          </span>
+                          {(item.adminBodyName || item.meetingDate || item.meetingName) && (
+                            <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                              {[
+                                item.adminBodyName,
+                                item.meetingDate ? fmtMeetingDate(item.meetingDate) : null,
+                                item.meetingName,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
                             </span>
                           )}
                         </span>

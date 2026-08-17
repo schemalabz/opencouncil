@@ -1,7 +1,7 @@
 import { FakeAnthropic, makeDeps, meetingEvent, toolUse } from "../../agent/__tests__/helpers";
 import { WakeEvent } from "../../agent/types";
 import { type ClaimedItem } from "../queue-core";
-import { PROACTIVE_MODE_KEY, PROACTIVE_PAUSED_KEY } from "../settings";
+import { PROACTIVE_PAUSED_KEY } from "../settings";
 import { WEEKLY_CAP, processItem } from "../queue";
 import { type Row, makeFakeDb } from "./fake-db";
 import { FakeBird } from "./fake-bird";
@@ -43,7 +43,7 @@ function seedClaim(db: ReturnType<typeof makeFakeDb>, attempts = 1) {
 }
 
 function liveSettings(): Row[] {
-  return [{ key: PROACTIVE_MODE_KEY, value: "live" }];
+  return [{ key: PROACTIVE_PAUSED_KEY, value: false }];
 }
 
 const DO_NOT_FAKE = [
@@ -69,26 +69,27 @@ describe("proactive rails", () => {
     jest.useRealTimers();
   });
 
-  it("shadow (the default, no settings rows): the wake runs and records, nothing reaches Bird", async () => {
+  it("paused is the default (no settings rows): the item defers BEFORE the model runs", async () => {
     const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
     seedClaim(db);
+    const anthropic = new FakeAnthropic(sendTurn);
     const bird = new FakeBird();
 
     await processItem(batchItem([meetingEvent()]), {
       db,
       bird,
-      deps: makeDeps(new FakeAnthropic(sendTurn)),
+      deps: makeDeps(anthropic),
       alert: async () => {},
     });
 
-    expect(db.store.wakes).toHaveLength(1);
-    expect(db.store.queue.get("q1")?.status).toBe("done");
-    const outbound = db.store.messages.find((m) => m.direction === "outbound")!;
-    expect(outbound.status).toBe("suppressed");
-    expect(outbound.failureReason).toBe("shadow mode");
-    expect(outbound.proactive).toBe(true);
-    expect(bird.sends).toHaveLength(0);
+    // A fresh deployment lands dark: no model spend, no sends, the item
+    // sleeps with its attempt undone.
+    expect(anthropic.requests).toHaveLength(0);
+    expect(db.store.wakes).toHaveLength(0);
     expect(bird.templateSends).toHaveLength(0);
+    const item = db.store.queue.get("q1")!;
+    expect(item.status).toBe("pending");
+    expect(item.attempts).toBe(0);
   });
 
   it("live: an out-of-window meeting wake rides its template into the existing conversation", async () => {
@@ -137,28 +138,6 @@ describe("proactive rails", () => {
     expect(outbound.status).toBe("sent");
   });
 
-  it("paused: the item defers BEFORE the model runs, attempt undone", async () => {
-    const db = makeFakeDb({
-      subscriptions: [{ ...SUB }],
-      settings: [...liveSettings(), { key: PROACTIVE_PAUSED_KEY, value: true }],
-    });
-    seedClaim(db);
-    const anthropic = new FakeAnthropic(sendTurn);
-
-    await processItem(batchItem([meetingEvent()]), {
-      db,
-      bird: new FakeBird(),
-      deps: makeDeps(anthropic),
-      alert: async () => {},
-    });
-
-    expect(anthropic.requests).toHaveLength(0);
-    const item = db.store.queue.get("q1")!;
-    expect(item.status).toBe("pending");
-    expect(item.attempts).toBe(0);
-    expect((item.runAfter as Date).getTime()).toBeGreaterThan(Date.now());
-  });
-
   it("a reply at 04:00 bypasses every rail — paused, quiet, cap", async () => {
     jest.useFakeTimers({
       now: new Date("2026-08-18T01:00:00.000Z"), // 04:00 Athens, deep quiet
@@ -167,7 +146,7 @@ describe("proactive rails", () => {
     try {
       const db = makeFakeDb({
         subscriptions: [{ ...SUB }],
-        settings: [...liveSettings(), { key: PROACTIVE_PAUSED_KEY, value: true }],
+        settings: [{ key: PROACTIVE_PAUSED_KEY, value: true }],
       });
       seedClaim(db);
       const bird = new FakeBird();
@@ -201,8 +180,8 @@ describe("proactive rails", () => {
         subscriptionId: "sub1",
         direction: "outbound",
         proactive: true,
-        status: i === 0 ? "suppressed" : "sent",
-        failureReason: i === 0 ? "shadow mode" : null,
+        status: "sent",
+        failureReason: null,
         createdAt: new Date(Date.now() - (i + 1) * 3_600_000),
       });
     }
@@ -251,27 +230,14 @@ describe("proactive rails", () => {
     expect(bird.templateSends).toHaveLength(1);
   });
 
-  it("a promised follow-up (scheduled, origin reply) is cap-exempt but shadow still holds it", async () => {
-    const shadowDb = makeFakeDb({ subscriptions: [{ ...SUB }] });
-    seedClaim(shadowDb);
+  it("a promised follow-up (scheduled, origin reply) is cap-exempt", async () => {
     const replyFollowup: WakeEvent = {
       type: "scheduled",
       at: new Date().toISOString(),
       reason: "υποσχέθηκα να επανέλθω",
       origin: "reply",
     };
-
-    await processItem(batchItem([replyFollowup]), {
-      db: shadowDb,
-      bird: new FakeBird(),
-      deps: makeDeps(new FakeAnthropic(sendTurn)),
-      alert: async () => {},
-    });
-    const shadowed = shadowDb.store.messages.find((m) => m.direction === "outbound")!;
-    expect(shadowed.status).toBe("suppressed");
-    expect(shadowed.proactive).toBe(false);
-
-    // Live, at the cap: the follow-up still goes out.
+    // At the cap: the follow-up still goes out.
     const db = makeFakeDb({ subscriptions: [{ ...SUB }], settings: liveSettings() });
     seedClaim(db);
     for (let i = 0; i < WEEKLY_CAP; i++) {
@@ -319,7 +285,7 @@ describe("proactive rails", () => {
   });
 
   it("a coalesced wake persists the primary event plus the full array and scheduled origin", async () => {
-    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }], settings: liveSettings() });
     seedClaim(db);
     const turns = [
       {

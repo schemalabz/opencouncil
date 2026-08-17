@@ -1,20 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { hasNotisDb, notisDb } from "@/lib/db";
-import {
-  PROACTIVE_MODE_KEY,
-  PROACTIVE_PAUSED_KEY,
-  getProactiveSettings,
-  putSetting,
-} from "@/lib/settings";
+import { PROACTIVE_PAUSED_KEY, getProactiveSettings, putSetting } from "@/lib/settings";
 import { requireAdmin } from "@/lib/session-auth";
 
-/** Read and flip the proactive rails: shadow/live mode and the kill switch. */
+/** Read and flip the kill switch — the single proactive on/off. */
 
-const putSchema = z.object({
-  mode: z.enum(["shadow", "live"]).optional(),
-  paused: z.boolean().optional(),
-});
+const putSchema = z.object({ paused: z.boolean() });
 
 export async function GET() {
   const denied = await requireAdmin();
@@ -35,9 +27,6 @@ export async function PUT(request: NextRequest) {
   }
 
   const db = notisDb();
-  if (parsed.data.mode !== undefined) await putSetting(db, PROACTIVE_MODE_KEY, parsed.data.mode);
-  if (parsed.data.paused !== undefined) {
-    await putSetting(db, PROACTIVE_PAUSED_KEY, parsed.data.paused);
-  }
+  await putSetting(db, PROACTIVE_PAUSED_KEY, parsed.data.paused);
   return NextResponse.json(await getProactiveSettings(db));
 }

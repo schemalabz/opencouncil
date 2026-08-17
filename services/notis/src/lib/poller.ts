@@ -12,7 +12,7 @@ import { buildDeps } from "./deps";
 import { toCityPreferences } from "./fanout";
 import { hasMainDb, mainDb } from "./main-db";
 import { normalizePhone } from "./phone";
-import { deliverPendingMessage, suppressMessages } from "./queue";
+import { deliverPendingMessage } from "./queue";
 import { enqueueBatchWake } from "./queue-core";
 import { POLLER_STATUS_KEY, getProactiveSettings, putSetting } from "./settings";
 
@@ -153,9 +153,10 @@ async function tick(
  * Phase (a) — enrollment ceremony. A rollout-enabled user with phone
  * delivery on and no subscription (any status — never resurrect) gets one:
  * profile seeded from preferences, origin `transition`, and the
- * demos_transition intro. Shadow mode records the intro suppressed and
- * calls nobody; a paused system skips the phase entirely — enrolling
- * without the intro would recreate the silent-cohort problem.
+ * demos_transition intro. A paused system skips the phase entirely —
+ * enrolling without the intro would recreate the silent-cohort problem —
+ * so flipping a user in the release panel only takes effect once the
+ * switch is on.
  */
 async function enrollNewTargets(
   db: PrismaClient,
@@ -218,9 +219,7 @@ async function enrollNewTargets(
             event: "enrollment",
             decision: "send",
             rationale:
-              settings.mode === "live"
-                ? "(σύστημα) Εγγραφή μέσω μετάβασης από τις παλιές ειδοποιήσεις — στάλθηκε το εγκεκριμένο template demos_transition."
-                : "(σύστημα) Εγγραφή μέσω μετάβασης από τις παλιές ειδοποιήσεις — το template demos_transition ΔΕΝ στάλθηκε (shadow mode).",
+              "(σύστημα) Εγγραφή μέσω μετάβασης από τις παλιές ειδοποιήσεις — στάλθηκε το εγκεκριμένο template demos_transition.",
             messages: [rendered.body],
           } as Prisma.InputJsonValue,
         },
@@ -242,14 +241,10 @@ async function enrollNewTargets(
     });
 
     result.enrolled++;
-    if (settings.mode === "live") {
-      const sub = await db.notisSubscription.findUnique({ where: { id: subId } });
-      if (sub) {
-        await deliverPendingMessage(db, bird, introId, sub, alert);
-        result.introsSent++;
-      }
-    } else {
-      await suppressMessages(db, [introId], "shadow mode");
+    const sub = await db.notisSubscription.findUnique({ where: { id: subId } });
+    if (sub) {
+      await deliverPendingMessage(db, bird, introId, sub, alert);
+      result.introsSent++;
     }
   }
 }

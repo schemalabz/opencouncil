@@ -1,6 +1,6 @@
 import type { EditorialBrief } from "../../agent/types";
 import { MAX_EVENTS_PER_TICK, runPollerTick } from "../poller";
-import { PROACTIVE_MODE_KEY, PROACTIVE_PAUSED_KEY } from "../settings";
+import { PROACTIVE_PAUSED_KEY } from "../settings";
 import { type FakeDb, type Row, makeFakeDb } from "./fake-db";
 import { FakeBird } from "./fake-bird";
 
@@ -154,8 +154,8 @@ beforeEach(() => {
 });
 
 describe("enrollment", () => {
-  it("live: creates the subscription, journals, and sends the intro via a new conversation", async () => {
-    const db = makeFakeDb({ settings: [{ key: PROACTIVE_MODE_KEY, value: "live" }] });
+  it("unpaused: creates the subscription, journals, and sends the intro via a new conversation", async () => {
+    const db = makeFakeDb({ settings: [{ key: PROACTIVE_PAUSED_KEY, value: false }] });
     const bird = new FakeBird();
     const main = makeFakeMain({
       targets: [target("user9", "athens", { phone: "306999999999" })],
@@ -181,24 +181,8 @@ describe("enrollment", () => {
     expect(intro).toMatchObject({ status: "sent", template: "demos_transition", proactive: true });
   });
 
-  it("shadow (default): enrolls, suppresses the intro, calls nobody", async () => {
+  it("paused (the default, no settings rows): the enrollment phase is skipped entirely", async () => {
     const db = makeFakeDb();
-    const bird = new FakeBird();
-    const main = makeFakeMain({ targets: [target("user9", "athens")] });
-
-    const result = await runPollerTick({ db, main, bird, alert: async () => {}, now });
-
-    expect(result.enrolled).toBe(1);
-    expect(result.introsSent).toBe(0);
-    expect(bird.created).toHaveLength(0);
-    const intro = db.store.messages[0];
-    expect(intro.status).toBe("suppressed");
-    expect(intro.failureReason).toBe("shadow mode");
-    expect(String((db.store.journal[0].entry as Row).rationale)).toContain("ΔΕΝ στάλθηκε");
-  });
-
-  it("paused: the enrollment phase is skipped entirely", async () => {
-    const db = makeFakeDb({ settings: [{ key: PROACTIVE_PAUSED_KEY, value: true }] });
     const main = makeFakeMain({ targets: [target("user9", "athens")] });
 
     const result = await runPollerTick({ db, main, bird: new FakeBird(), alert: async () => {}, now });
@@ -212,6 +196,7 @@ describe("enrollment", () => {
       subscriptions: [
         { ...activeSub("sub1", "user1"), status: "unsubscribed", unsubscribedAt: new Date() },
       ],
+      settings: [{ key: PROACTIVE_PAUSED_KEY, value: false }],
     });
     const main = makeFakeMain({
       targets: [

@@ -244,7 +244,7 @@ describe("handleInbound", () => {
 });
 
 describe("SMS fallback on failed proactive templates", () => {
-  const LIVE = [{ key: "proactiveMode", value: "live" }];
+  const LIVE = [{ key: "proactivePaused", value: false }];
 
   async function seedFailedCandidate(db: ReturnType<typeof makeFakeDb>, overrides: Row = {}) {
     await db.notisMessage.create({
@@ -290,9 +290,9 @@ describe("SMS fallback on failed proactive templates", () => {
     expect(db.store.messages.filter((m) => m.channel === "sms")).toHaveLength(1);
   });
 
-  it("no fallback in shadow mode, for freeform sends, or for reactive messages", async () => {
+  it("no fallback while paused (the default), for freeform sends, or for reactive messages", async () => {
     const cases: Array<{ settings?: Row[]; overrides: Row }> = [
-      { settings: undefined, overrides: {} }, // shadow (default)
+      { settings: undefined, overrides: {} }, // paused (the default)
       { settings: LIVE, overrides: { deliveryMode: "freeform", template: null } },
       { settings: LIVE, overrides: { proactive: false } },
     ];

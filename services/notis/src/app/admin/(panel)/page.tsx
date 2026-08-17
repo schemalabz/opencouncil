@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Moon, OctagonAlert, Sun } from "lucide-react";
+import { CalendarClock, EyeOff, Gauge, Moon, OctagonAlert, Sun } from "lucide-react";
 import { EVENT_LABELS } from "./_lib/records";
 import { getRailsNow } from "./_lib/system";
 import { Countdown } from "./_components/Countdown";
@@ -366,7 +366,6 @@ function RecentInboundList({ stats }: { stats: OverviewStats }) {
 }
 
 const SUPPRESSION_LABELS: Record<string, string> = {
-  "shadow mode": "shadow",
   "weekly cap": "όριο εβδομάδας",
   paused: "παύση",
   unsubscribed: "απεγγραφή",
@@ -376,51 +375,88 @@ async function RailsStrip({ suppressions }: { suppressions: Array<{ reason: stri
   const rails = await getRailsNow();
   if (!rails) return null;
   const suppressedTotal = suppressions.reduce((a, r) => a + r.count, 0);
+  const cell = "flex items-center gap-2.5 px-4";
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border bg-background px-4 py-2.5 text-xs">
-      <span
-        className={`rounded px-2 py-0.5 font-semibold uppercase tracking-wider ${
-          rails.settings.mode === "live"
-            ? "bg-green-600/10 text-green-700"
-            : "bg-amber-500/15 text-amber-700"
-        }`}
-      >
-        {rails.settings.mode}
-      </span>
-      {rails.settings.paused && (
-        <span className="flex items-center gap-1 rounded bg-destructive/10 px-2 py-0.5 font-semibold uppercase tracking-wider text-destructive">
-          <OctagonAlert className="h-3 w-3" /> παύση
-        </span>
-      )}
-      <span className="flex items-center gap-2 text-muted-foreground">
-        {rails.phase.kind === "active" ? (
-          <Sun className="h-3.5 w-3.5" />
+    <div className="flex items-stretch overflow-x-auto rounded-lg border bg-background py-2.5 text-xs [&>*+*]:border-l">
+      <div className={cell}>
+        {rails.settings.paused ? (
+          <span className="flex items-center gap-1 rounded bg-destructive/10 px-2 py-1 font-semibold uppercase tracking-wider text-destructive">
+            <OctagonAlert className="h-3 w-3" /> παύση
+          </span>
         ) : (
-          <Moon className="h-3.5 w-3.5" />
+          <span className="rounded bg-green-600/10 px-2 py-1 font-semibold uppercase tracking-wider text-green-700">
+            ενεργό
+          </span>
         )}
-        {rails.phase.kind === "active" ? "ησυχία" : "απελευθέρωση"}
-        <Countdown prefix="σε" target={rails.phase.until} className="w-24" />
-      </span>
+      </div>
+
+      <div className={cell}>
+        {rails.phase.kind === "active" ? (
+          <Sun className="h-4 w-4 shrink-0 text-muted-foreground" />
+        ) : (
+          <Moon className="h-4 w-4 shrink-0 text-muted-foreground" />
+        )}
+        <div className="leading-tight">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            {rails.phase.kind === "active" ? "ησυχία" : "απελευθέρωση"}
+          </p>
+          <Countdown
+            prefix="σε"
+            target={rails.phase.until}
+            start={rails.phase.since}
+            className="mt-0.5 w-24"
+          />
+        </div>
+      </div>
+
       {rails.heldUntilRelease > 0 && (
-        <span className="text-muted-foreground">
-          <span className="font-medium text-foreground">{rails.heldUntilRelease}</span> σε αναμονή
-        </span>
+        <div className={cell}>
+          <CalendarClock className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <div className="leading-tight">
+            <p className="text-sm font-semibold tabular-nums">{rails.heldUntilRelease}</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              σε αναμονή
+            </p>
+          </div>
+        </div>
       )}
+
       {rails.atCapCount > 0 && (
-        <span className="text-muted-foreground">
-          <span className="font-medium text-amber-700">{rails.atCapCount}</span> στο όριο
-        </span>
+        <div className={cell}>
+          <Gauge className="h-4 w-4 shrink-0 text-amber-600" />
+          <div className="leading-tight">
+            <p className="text-sm font-semibold tabular-nums text-amber-700">
+              {rails.atCapCount}
+            </p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              στο όριο
+            </p>
+          </div>
+        </div>
       )}
+
       {suppressedTotal > 0 && (
-        <span className="text-muted-foreground">
-          {suppressions
-            .map((r) => `${r.count} ${SUPPRESSION_LABELS[r.reason] ?? r.reason}`)
-            .join(" · ")}
-        </span>
+        <div className={cell}>
+          <EyeOff className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <div className="leading-tight">
+            <p className="text-sm font-semibold tabular-nums">{suppressedTotal}</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              {suppressions
+                .map((r) => `${SUPPRESSION_LABELS[r.reason] ?? r.reason} ${r.count}`)
+                .join(" · ")}
+            </p>
+          </div>
+        </div>
       )}
-      <Link href="/admin/system" className="ml-auto text-muted-foreground hover:text-foreground">
-        Σύστημα →
-      </Link>
+
+      <div className="ml-auto flex items-center pl-4 pr-2">
+        <Link
+          href="/admin/system"
+          className="rounded-md border px-2.5 py-1.5 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          Σύστημα →
+        </Link>
+      </div>
     </div>
   );
 }

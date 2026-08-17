@@ -64,13 +64,13 @@ INSERT INTO "NotisWakeQueue" (id, "subscriptionId", lane, events, "runAfter", st
  'gave up after 3 attempts: MCP fetch timed out (get_meeting athens/fake-jul22)', now() - interval '4 hours', now())
 ON CONFLICT (id) DO NOTHING;
 
--- 3. Three shadow-suppressed unprompted sends inside the rolling week: the
---    subscription hits the weekly cap, lighting the at-cap panel and the
---    overview strip.
+-- 3. Three delivered unprompted sends inside the rolling week put the
+--    subscription at the weekly cap; a fourth shows a cap suppression.
 INSERT INTO "NotisMessage" (id, "subscriptionId", direction, body, channel, proactive, "deliveryMode", template, status, "failureReason", "createdAt") VALUES
-('fake-msg-1', :'sub', 'outbound', 'Η πλατεία Αγίου Γεωργίου παίρνει 2,3 εκατ. για ανάπλαση — τα έργα ξεκινούν τον Σεπτέμβριο.', 'whatsapp', true, 'template', 'demos_update_news', 'suppressed', 'shadow mode', now() - interval '2 days'),
-('fake-msg-2', :'sub', 'outbound', 'Πριν την επόμενη συνεδρίαση: απαλλοτρίωση για νέο σχολείο στου Γκύζη, πρώτη συζήτηση.', 'whatsapp', true, 'template', 'demos_update_agenda', 'suppressed', 'shadow mode', now() - interval '1 day'),
-('fake-msg-3', :'sub', 'outbound', 'Ο Δήμος καλύπτει πραγματογνώμονες για τις ρωγμές στην Κυψέλη — πέρασε ομόφωνα.', 'whatsapp', true, 'template', 'demos_update_news', 'suppressed', 'shadow mode', now() - interval '5 hours')
+('fake-msg-1', :'sub', 'outbound', 'Η πλατεία Αγίου Γεωργίου παίρνει 2,3 εκατ. για ανάπλαση — τα έργα ξεκινούν τον Σεπτέμβριο.', 'whatsapp', true, 'template', 'demos_update_news', 'delivered', NULL, now() - interval '2 days'),
+('fake-msg-2', :'sub', 'outbound', 'Πριν την επόμενη συνεδρίαση: απαλλοτρίωση για νέο σχολείο στου Γκύζη, πρώτη συζήτηση.', 'whatsapp', true, 'template', 'demos_update_agenda', 'read', NULL, now() - interval '1 day'),
+('fake-msg-3', :'sub', 'outbound', 'Ο Δήμος καλύπτει πραγματογνώμονες για τις ρωγμές στην Κυψέλη — πέρασε ομόφωνα.', 'whatsapp', true, 'template', 'demos_update_news', 'sent', NULL, now() - interval '5 hours'),
+('fake-msg-4', :'sub', 'outbound', 'Πιλοτική πεζοδρόμηση της Πανόρμου τα σαββατοκύριακα — ξεκινά τον Οκτώβριο.', 'whatsapp', true, 'template', 'demos_update_news', 'suppressed', 'weekly cap', now() - interval '2 hours')
 ON CONFLICT (id) DO NOTHING;
 
 -- 4. Two more future notes for the schedule ledger: a proactive one and a

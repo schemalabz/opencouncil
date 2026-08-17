@@ -63,8 +63,8 @@ export interface DigestedMeetingView {
 
 export interface SystemSnapshot {
   now: string;
-  phase: { kind: ActivePhase["phase"]; until: string };
-  settings: { mode: "shadow" | "live"; paused: boolean };
+  phase: { kind: ActivePhase["phase"]; since: string; until: string };
+  settings: { paused: boolean };
   poller: { lastTickAt: string | null; nextTickAt: string | null };
   queue: {
     counts: Record<string, number>;
@@ -80,8 +80,8 @@ export interface SystemSnapshot {
 
 const EMPTY: SystemSnapshot = {
   now: new Date(0).toISOString(),
-  phase: { kind: "active", until: new Date(0).toISOString() },
-  settings: { mode: "shadow", paused: false },
+  phase: { kind: "active", since: new Date(0).toISOString(), until: new Date(0).toISOString() },
+  settings: { paused: true },
   poller: { lastTickAt: null, nextTickAt: null },
   queue: { counts: {}, laneCounts: {}, heldUntilRelease: 0, items: [], more: 0 },
   scheduled: { items: [], more: 0, total: 0 },
@@ -97,10 +97,7 @@ async function usersAtCap(db: ReturnType<typeof notisDb>) {
     where: {
       proactive: true,
       createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60_000) },
-      OR: [
-        { status: { in: ["pending", "sent", "delivered", "read"] } },
-        { status: "suppressed", failureReason: "shadow mode" },
-      ],
+      status: { in: ["pending", "sent", "delivered", "read"] },
     },
     _count: { _all: true },
   });
@@ -122,8 +119,8 @@ async function usersAtCap(db: ReturnType<typeof notisDb>) {
 }
 
 export interface RailsNow {
-  phase: { kind: ActivePhase["phase"]; until: string };
-  settings: { mode: "shadow" | "live"; paused: boolean };
+  phase: { kind: ActivePhase["phase"]; since: string; until: string };
+  settings: { paused: boolean };
   heldUntilRelease: number;
   atCapCount: number;
 }
@@ -140,7 +137,11 @@ export async function getRailsNow(): Promise<RailsNow | null> {
     usersAtCap(db),
   ]);
   return {
-    phase: { kind: phase.phase, until: phase.until.toISOString() },
+    phase: {
+      kind: phase.phase,
+      since: phase.since.toISOString(),
+      until: phase.until.toISOString(),
+    },
     settings,
     heldUntilRelease,
     atCapCount: capped.length,
@@ -248,7 +249,11 @@ export async function getSystemSnapshot(): Promise<SystemSnapshot> {
 
   return {
     now: now.toISOString(),
-    phase: { kind: phase.phase, until: phase.until.toISOString() },
+    phase: {
+      kind: phase.phase,
+      since: phase.since.toISOString(),
+      until: phase.until.toISOString(),
+    },
     settings,
     poller: {
       lastTickAt,

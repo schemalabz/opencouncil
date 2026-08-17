@@ -406,9 +406,9 @@ export async function deliverPendingMessage(
 
 /**
  * The proactive send boundary — every rail in order, per PRD §6:
- * unsubscribed race → shadow mode → kill switch → weekly cap → send.
- * Suppressions land as status `suppressed` with the reason in
- * failureReason, so the panel shows exactly what a rail stopped and why.
+ * unsubscribed race → kill switch → weekly cap → send. Suppressions land
+ * as status `suppressed` with the reason in failureReason, so the panel
+ * shows exactly what a rail stopped and why.
  */
 export async function sendProactiveMessages(
   db: PrismaClient,
@@ -427,10 +427,6 @@ export async function sendProactiveMessages(
   }
 
   const settings = await getProactiveSettings(db);
-  if (settings.mode === "shadow") {
-    await suppressMessages(db, messageIds, "shadow mode");
-    return;
-  }
   if (settings.paused) {
     // processItem defers paused items before the model runs; landing here
     // means the switch flipped mid-wake. Suppress and say so.
@@ -454,9 +450,7 @@ export async function sendProactiveMessages(
 
   // The weekly cap covers unprompted messages only. Countable history:
   // rows that reached or will reach the reader (pending/sent/delivered/
-  // read) plus shadow-suppressed ones — so shadow cadence metrics match
-  // what live would have done. Cap- and pause-suppressed rows never
-  // reached anyone and don't count.
+  // read). Suppressed rows never reached anyone and don't count.
   let remaining = Number.POSITIVE_INFINITY;
   if (rows.some((r) => r.proactive)) {
     const already = await db.notisMessage.count({
@@ -465,10 +459,7 @@ export async function sendProactiveMessages(
         proactive: true,
         id: { notIn: messageIds },
         createdAt: { gte: new Date(Date.now() - WEEK_MS) },
-        OR: [
-          { status: { in: ["pending", "sent", "delivered", "read"] } },
-          { status: "suppressed", failureReason: "shadow mode" },
-        ],
+        status: { in: ["pending", "sent", "delivered", "read"] },
       },
     });
     remaining = Math.max(0, WEEKLY_CAP - already);
