@@ -9,10 +9,11 @@ This document describes how OpenCouncil uses Elasticsearch to provide powerful s
 2. [Codebase Structure](#codebase-structure)
 3. [Set up Elasticsearch](#set-up-elasticsearch)
 4. [Configure PostgreSQL Views](#configure-postgresql-views)
-5. [Set up PGSync](#set-up-pgsync)
-6. [Sync Data](#sync-data)
-7. [Search Examples](#search-examples)
-8. [Best Practices & FAQ](#best-practices--faq)
+5. [Configure the Ingest Pipeline](#configure-the-ingest-pipeline)
+6. [Set up PGSync](#set-up-pgsync)
+7. [Sync Data](#sync-data)
+8. [Search Examples](#search-examples)
+9. [Best Practices & FAQ](#best-practices--faq)
 
 
 ### Architecture Overview
@@ -160,6 +161,7 @@ PGSync requires helper views to denormalize complex relationships and handle Pos
 1. **LocationSearchView** - Converts PostGIS geometry to GeoJSON format
 2. **IntroducedByPartyView** - Resolves party affiliation through the `Role` table
 3. **SubjectSpeakerSegmentSearchView** - Denormalizes speaker segments with concatenated utterances
+4. **SpeakerContributionSearchView** - Denormalizes speaker contributions with party resolution
 
 ### Create the Views
 
@@ -170,7 +172,7 @@ psql "$DATABASE_URL" < elasticsearch/views.sql
 ```
 
 The script will:
-- Create all three required views
+- Create all four required views
 - Run verification checks on each view
 - Display sample data to confirm everything works
 - Show statistics about data coverage
@@ -184,6 +186,60 @@ View the full view definitions and verification logic in `elasticsearch/views.sq
 
 
 
+## Configure the Ingest Pipeline
+
+Subject descriptions, speaker contributions, and segment summaries contain markdown REF links (`[text](REF:TYPE:ID)`). The database keeps the raw markdown, because the frontend renders these links. The search index must not contain them: the markup adds noise tokens and it degrades the `semantic_text` embeddings (see the [FAQ on REF links](#best-practices--faq)).
+
+An Elasticsearch [ingest pipeline](https://www.elastic.co/guide/en/elasticsearch/reference/current/ingest.html) named `strip-refs` removes the links at index time. PGSync attaches the pipeline to every document it writes, through the top-level `"pipeline": "strip-refs"` key in `elasticsearch/schema.json`. The pipeline runs before analysis and before `semantic_text` inference, so tokens and embeddings both come out clean. Delete operations do not use the pipeline and are unaffected.
+
+The pipeline definition lives in [`elasticsearch/pipeline.json`](./pipeline.json). It uses one `gsub` processor for `description` and `foreach` processors for the nested arrays (`speaker_contributions.text`, `speaker_segments.summary`), because a plain `gsub` does not iterate arrays of objects.
+
+### Create or Update the Pipeline
+
+The pipeline is a cluster-level object. Create it once per cluster. The same command also updates it, because `PUT` replaces the stored definition:
+
+```bash
+curl -X PUT "$ELASTICSEARCH_URL/_ingest/pipeline/strip-refs" \
+  -H "Authorization: ApiKey $ELASTICSEARCH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d @elasticsearch/pipeline.json
+```
+
+**Order matters:** create the pipeline before PGSync runs with a schema that references it. If the pipeline is missing, every bulk write fails.
+
+### Verify the Pipeline
+
+Check that the stored definition matches the repository file:
+
+```bash
+curl "$ELASTICSEARCH_URL/_ingest/pipeline/strip-refs" \
+  -H "Authorization: ApiKey $ELASTICSEARCH_API_KEY"
+```
+
+Simulate the pipeline against a sample document and confirm the REF links are stripped:
+
+```bash
+curl -X POST "$ELASTICSEARCH_URL/_ingest/pipeline/strip-refs/_simulate" \
+  -H "Authorization: ApiKey $ELASTICSEARCH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "docs": [{"_source": {
+      "description": "Ενημέρωση από [τον Δήμαρχο](REF:PERSON:abc123) για το θέμα",
+      "speaker_contributions": [{"text": "Αναφορά στην [εισήγηση](REF:UTTERANCE:xyz789)."}]
+    }}]
+  }'
+```
+
+Expected output: `"description": "Ενημέρωση από τον Δήμαρχο για το θέμα"` and `"text": "Αναφορά στην εισήγηση."`.
+
+### Scope and Re-indexing
+
+- The pipeline transforms documents at index time only. PostgreSQL keeps the raw markdown.
+- Existing documents keep their old text until they are re-indexed. Run a PGSync bootstrap to apply the pipeline to all documents.
+- To strip an additional field, add a processor to `pipeline.json`, run the `PUT` command again, and re-index.
+
+
+
 ## PGSync Setup and Data Synchronization
 
 [PGSync](https://github.com/toluaina/pgsync) is a change data capture (CDC) tool that syncs PostgreSQL to Elasticsearch using logical replication. It runs as a separate service in the [opencouncil-tasks](https://github.com/schemalabz/opencouncil-tasks) repository.
@@ -194,6 +250,7 @@ View the full view definitions and verification logic in `elasticsearch/views.sq
 
 The `elasticsearch/schema.json` file defines:
 - **Index mapping**: Elasticsearch field types, analyzers
+- **Ingest pipeline**: the top-level `pipeline` key names the pipeline that Elasticsearch runs on every indexed document (see [Configure the Ingest Pipeline](#configure-the-ingest-pipeline))
 - **Nodes**: PostgreSQL tables and their relationships  
 - **Transform rules**: Field renaming, scalar vs object variants
 - **Children**: Nested relationships (e.g., speaker_segments)
@@ -737,7 +794,22 @@ A: PGSync tracks its position in the WAL stream using Redis. When it restarts, i
 **Q: How do I update the schema?**  
 A: See <https://pgsync.com/advanced/re-indexing>
 
-**Q: Why use views instead of direct table joins in PGSync?**  
+**Q: Why are REF links (`[text](REF:TYPE:ID)`) stripped with an ingest pipeline instead of SQL views?**
+A: The old SubjectSearchView stripped REF links in SQL, but it declared `base_tables: ["Subject"]` and broke deletion propagation (see the next question). A view on the root table is not safe, so the stripping moved to the `strip-refs` ingest pipeline (see [Configure the Ingest Pipeline](#configure-the-ingest-pipeline)). The pipeline covers all text fields in one place and runs before analysis and before `semantic_text` inference.
+
+Stripping matters mostly for semantic search. The measured impact of raw REF markup (`_analyze` and the e5 inference endpoint on the production cluster):
+- **Keyword (BM25) search: unaffected.** The Greek analyzer keeps each `(REF:TYPE:ID)` target as one token (for example `ref:person:abc123`). The app queries use term-based `multi_match` and `match` with no phrase matching, so the extra token is noise that no user searches for.
+- **Semantic search: a small, systematic cost.** `semantic_text` embeds the raw field value, so unstripped markup enters the embeddings. Measured on 300 staging subjects: markup-heavy documents gain similarity against every query, and clean documents lose the top result in ~4% of self-retrieval queries.
+
+The frontend is unaffected: it renders REF links via `FormattedTextDisplay` and `stripMarkdown()`, and search results are hydrated from PostgreSQL, not from `_source`.
+
+**Q: Why must views never list the root table in `base_tables`?**
+A: PGSync builds an internal `base_table_to_node` mapping from all views' `base_tables`. If a view declares `base_tables: ["Subject"]` (the root table), PGSync treats Subject WAL events as child-node changes for that view, instead of root-table operations. This means DELETE events on Subject are never processed as document deletions — PGSync tries to "re-sync" the parent document instead, which fails silently because the row is already gone. **Rule: only use `base_tables` for tables that are NOT the root node.**
+
+**Q: The schema is correct, but deletes still do not propagate. Why?**
+A: Check the pgsync version that installed the `table_notify()` trigger function in the database. pgsync versions before 7.x have a bug: the DELETE branch of the function does not include the `indices` field in the notification, and the daemon drops every root DELETE notification. A bootstrap with pgsync >= 7.x re-creates the function and fixes this. To check, inspect the function: `SELECT prosrc FROM pg_proc WHERE proname = 'table_notify'` — the `TG_OP = 'DELETE'` branch must select `primary_keys, indices`, not only `primary_keys`.
+
+**Q: Why use views instead of direct table joins in PGSync?**
 A: Views handle complex logic (PostGIS conversion, role-based party resolution, utterance concatenation) in PostgreSQL where it's more efficient. PGSync sees views as simple tables, keeping the sync configuration clean.
 
 **Q: Can I combine semantic search with traditional text search?**  
