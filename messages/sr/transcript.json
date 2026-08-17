@@ -16,8 +16,7 @@
             "moveToPreviousSegment": "Преместите у претходни сегмент",
             "moveToNextSegment": "Преместите у следећи сегмент",
             "shareFromHere": "Поделите одавде",
-            "extractSegment": "Издвојте сегмент",
-            "splitToAnotherSpeaker": "Поделите на другог говорника"
+            "extractSegment": "Издвојте сегмент"
         },
         "toasts": {
             "moveUtterances": "Преместити исказе?",

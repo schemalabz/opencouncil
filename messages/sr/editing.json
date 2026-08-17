@@ -131,14 +131,11 @@
         "noMoreUnknown": "Нема више непознатих говорника",
         "extractionSuccess": "Сегмент је успешно издвојен",
         "extractionError": "Издвајање сегмента није успело",
-        "splitSuccess": "Сегмент је успешно подељен",
-        "splitError": "Подела сегмента није успела",
         "selectionErrorTitle": "Грешка при избору",
         "selectionErrorDiffSegments": "Није могуће истовремено издвојити исказе из различитих сегмената.",
         "invalidOperationTitle": "Неважећа операција",
         "invalidOperationExtractAll": "Није могуће издвојити све исказе. Уместо тога користите „Промените говорника“.",
         "invalidOperationExtractStartEnd": "Није могуће издвојити са почетка или краја сегмента. Избор мора бити строго у средини.",
-        "invalidOperationSplitSingle": "Није могуће поделити сегмент са само једним исказом. Уместо тога користите „Промените говорника“.",
         "reviewCompleted": "Преглед је завршен",
         "reviewCompletedDescription": "Преглед транскрипта је означен као завршен."
     }

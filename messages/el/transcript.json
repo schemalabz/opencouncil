@@ -16,8 +16,7 @@
       "moveToPreviousSegment": "Μετακίνηση στο προηγούμενο τμήμα",
       "moveToNextSegment": "Μετακίνηση στο επόμενο τμήμα",
       "shareFromHere": "Κοινοποίηση από εδώ",
-      "extractSegment": "Εξαγωγή τμήματος",
-      "splitToAnotherSpeaker": "Διαχωρισμός σε άλλον ομιλητή"
+      "extractSegment": "Εξαγωγή τμήματος"
     },
     "toasts": {
       "moveUtterances": "Μετακίνηση φράσεων;",

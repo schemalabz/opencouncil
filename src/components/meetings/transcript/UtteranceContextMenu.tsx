@@ -1,7 +1,7 @@
 "use client";
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ArrowLeftToLine, ArrowRightToLine, ClipboardCopy, Copy, ListEnd, ListStart, Loader2, Scissors, Split, Star } from 'lucide-react';
+import { ArrowLeftToLine, ArrowRightToLine, ClipboardCopy, Copy, ListEnd, ListStart, Loader2, Scissors, Star } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -58,7 +58,7 @@ export function UtteranceContextMenu({ children }: { children: React.ReactNode }
 
     const { options } = useTranscriptOptions();
     const { editingHighlight, createHighlight, addUtteranceRangeToHighlight } = useHighlight();
-    const { selectedUtteranceIds, isProcessing, toggleSelection, clearSelection, extractSelectedSegment, splitUtteranceToNewSpeaker } = useEditing();
+    const { selectedUtteranceIds, isProcessing, toggleSelection, clearSelection, extractSelectedSegment } = useEditing();
     const { moveUtterancesToPrevious, moveUtterancesToNext } = useCouncilMeetingActions();
     const { openShareDropdownAndCopy } = useShare();
     const { toast } = useToast();
@@ -214,11 +214,6 @@ export function UtteranceContextMenu({ children }: { children: React.ReactNode }
         });
     }, [target, moveUtterancesToNext, toast, t]);
 
-    const handleSplitToAnotherSpeaker = useCallback(() => {
-        if (!target) return;
-        splitUtteranceToNewSpeaker(target.id, target.segmentId);
-    }, [target, splitUtteranceToNewSpeaker]);
-
     const handleShareFromHere = useCallback(() => {
         if (!target) return;
         // Defer until after the menu closes so Share's dropdown isn't fighting
@@ -284,10 +279,6 @@ export function UtteranceContextMenu({ children }: { children: React.ReactNode }
                                     : <Scissors className="h-4 w-4 mr-2" />}
                                 {t('contextMenu.extractSegment', { defaultValue: 'Extract Segment' })}
                                 {targetSelected && <span className="ml-auto text-xs text-muted-foreground pl-4">e</span>}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleSplitToAnotherSpeaker} disabled={isProcessing}>
-                                <Split className="h-4 w-4 mr-2" />
-                                {t('contextMenu.splitToAnotherSpeaker')}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={handleMoveToPrevious}>

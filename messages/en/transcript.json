@@ -16,8 +16,7 @@
       "moveToPreviousSegment": "Move to previous segment",
       "moveToNextSegment": "Move to next segment",
       "shareFromHere": "Share from here",
-      "extractSegment": "Extract segment",
-      "splitToAnotherSpeaker": "Split to another speaker"
+      "extractSegment": "Extract segment"
     },
     "toasts": {
       "moveUtterances": "Move utterances?",
