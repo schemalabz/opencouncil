@@ -35,7 +35,7 @@ export type RecordEvent =
 
 /** Real delivery lifecycle of one outbound message (DB-backed viewer only). */
 export interface MessageDelivery {
-  status: "pending" | "sent" | "delivered" | "read" | "failed" | null;
+  status: "pending" | "sent" | "delivered" | "read" | "failed" | "suppressed" | null;
   failureReason?: string | null;
   /**
    * When the message row was written — which is when it went out, not when
