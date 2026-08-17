@@ -42,7 +42,6 @@ export type SearchRequest = {
 // Lightweight search result
 export type SearchResultLight = SubjectWithRelations & {
     score: number;
-    matchedSpeakerSegmentIds?: string[];
     councilMeeting: CouncilMeeting & {
         city: City;
         administrativeBody: AdministrativeBody | null;

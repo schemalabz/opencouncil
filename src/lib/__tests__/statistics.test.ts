@@ -1,6 +1,7 @@
 import {
   getStatisticsFor,
   getStatisticsForTranscript,
+  getBatchStatisticsForSubjects,
   Statistics,
   Stat
 } from '../statistics';
@@ -15,9 +16,6 @@ jest.mock('../db/prisma', () => ({
     },
     councilMeeting: {
       findUnique: jest.fn()
-    },
-    subjectSpeakerSegment: {
-      findMany: jest.fn()
     },
     speakerSegment: {
       findMany: jest.fn()
@@ -118,8 +116,7 @@ describe('Statistics', () => {
       }));
     });
 
-    it('should call prisma with correct parameters for subject statistics (new system)', async () => {
-      // Mock utterances query (new system)
+    it('should call prisma with correct parameters for subject statistics', async () => {
       (prisma.utterance.findMany as jest.Mock).mockResolvedValue([
         {
           speakerSegmentId: 'segment-1',
@@ -131,7 +128,7 @@ describe('Statistics', () => {
 
       await getStatisticsFor({ subjectId: 'subject-1' }, ['person', 'party', 'topic']);
 
-      // Verify new system was used
+      // Verify utterances tagged with the subject were used
       expect(prisma.utterance.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {
@@ -151,31 +148,13 @@ describe('Statistics', () => {
       );
     });
 
-    it('should fall back to old system when no utterances found', async () => {
-      // Mock empty utterances (trigger fallback)
+    it('should return empty statistics when the subject has no tagged utterances', async () => {
       (prisma.utterance.findMany as jest.Mock).mockResolvedValue([]);
-      // Mock old system query
-      (prisma.subjectSpeakerSegment.findMany as jest.Mock).mockResolvedValue([
-        { speakerSegmentId: 'segment-2' }
-      ]);
-      (prisma.speakerSegment.findMany as jest.Mock).mockResolvedValue([]);
 
-      await getStatisticsFor({ subjectId: 'subject-1' }, ['person', 'party', 'topic']);
+      const stats = await getStatisticsFor({ subjectId: 'subject-1' }, ['person', 'party', 'topic']);
 
-      // Verify fallback to old system
-      expect(prisma.subjectSpeakerSegment.findMany).toHaveBeenCalledWith({
-        where: { subjectId: 'subject-1' },
-        select: { speakerSegmentId: true }
-      });
-
-      // Verify speaker segments were queried with old system IDs
-      expect(prisma.speakerSegment.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            id: { in: ['segment-2'] }
-          })
-        })
-      );
+      expect(stats.speakingSeconds).toBe(0);
+      expect(prisma.speakerSegment.findMany).not.toHaveBeenCalled();
     });
 
     it('should call prisma with correct parameters for administrative body statistics', async () => {
@@ -440,6 +419,84 @@ describe('Statistics', () => {
       expect(stats.people!.length).toBe(1);
       expect(stats.parties!.length).toBe(0);
       expect(stats.topics!.length).toBe(0);
+    });
+  });
+  describe('discussion time comes from tagged utterances, not whole segments', () => {
+    // A subject's time is the sum of its tagged utterances. Reading the segment length instead
+    // overstates it, because a segment carries whatever else that speaker said in it.
+    const seg = (id: string, start: number, end: number, personId: string) => ({
+      id,
+      startTimestamp: start,
+      endTimestamp: end,
+      speakerTag: { person: { id: personId, name: personId, roles: [] } },
+      topicLabels: []
+    });
+
+    it('uses the tagged duration instead of the full segment duration', async () => {
+      const transcript = [seg('seg-1', 0, 100, 'person-1')] as any;
+
+      const stats = await getStatisticsForTranscript(
+        transcript,
+        ['person'],
+        undefined,
+        new Map([['seg-1', 30]])
+      );
+
+      expect(stats.speakingSeconds).toBe(30);
+      expect(stats.people!.find(p => p.item.id === 'person-1')!.speakingSeconds).toBe(30);
+    });
+
+    it('counts a segment with no tagged utterance as zero, not as its full length', async () => {
+      const transcript = [
+        seg('seg-1', 0, 100, 'person-1'),
+        seg('seg-2', 100, 260, 'person-2')
+      ] as any;
+
+      const stats = await getStatisticsForTranscript(
+        transcript,
+        ['person'],
+        undefined,
+        new Map([['seg-1', 30]])
+      );
+
+      expect(stats.speakingSeconds).toBe(30);
+      expect(stats.people!.find(p => p.item.id === 'person-2')!.speakingSeconds).toBe(0);
+    });
+
+    it('sums the tagged utterances of a segment instead of the segment length', async () => {
+      (prisma.utterance.findMany as jest.Mock).mockResolvedValue([
+        { speakerSegmentId: 'seg-1', startTimestamp: 10, endTimestamp: 25 },
+        { speakerSegmentId: 'seg-1', startTimestamp: 40, endTimestamp: 45 },
+        { speakerSegmentId: 'seg-2', startTimestamp: 200, endTimestamp: 209 }
+      ]);
+      (prisma.speakerSegment.findMany as jest.Mock).mockResolvedValue([
+        seg('seg-1', 0, 100, 'person-1'),
+        seg('seg-2', 100, 300, 'person-2')
+      ]);
+
+      const stats = await getStatisticsFor({ subjectId: 'subject-1' }, ['person']);
+
+      // seg-1 gives 15 + 5, seg-2 gives 9. The segments themselves are 100 and 200 long.
+      expect(stats.speakingSeconds).toBe(29);
+      expect(stats.people!.find(p => p.item.id === 'person-1')!.speakingSeconds).toBe(20);
+      expect(stats.people!.find(p => p.item.id === 'person-2')!.speakingSeconds).toBe(9);
+    });
+
+    it('gives each subject only its own tagged time when they share a segment', async () => {
+      (prisma.utterance.findMany as jest.Mock).mockResolvedValue([
+        { discussionSubjectId: 'a', speakerSegmentId: 'seg-1', startTimestamp: 0, endTimestamp: 10 },
+        { discussionSubjectId: 'a', speakerSegmentId: 'seg-1', startTimestamp: 20, endTimestamp: 25 },
+        { discussionSubjectId: 'b', speakerSegmentId: 'seg-1', startTimestamp: 30, endTimestamp: 33 }
+      ]);
+      (prisma.speakerSegment.findMany as jest.Mock).mockResolvedValue([
+        seg('seg-1', 0, 500, 'person-1')
+      ]);
+
+      const result = await getBatchStatisticsForSubjects(['a', 'b', 'c']);
+
+      expect(result.get('a')!.speakingSeconds).toBe(15);
+      expect(result.get('b')!.speakingSeconds).toBe(3);
+      expect(result.get('c')!.speakingSeconds).toBe(0);
     });
   });
 });

@@ -23,21 +23,6 @@
           }
         }
       }
-    },
-    {
-      "foreach": {
-        "field": "speaker_segments",
-        "if": "ctx.speaker_segments != null",
-        "ignore_missing": true,
-        "processor": {
-          "gsub": {
-            "field": "_ingest._value.summary",
-            "pattern": "\\[([^\\]]+)\\]\\(REF:[^)]+\\)",
-            "replacement": "$1",
-            "ignore_missing": true
-          }
-        }
-      }
     }
   ]
 }

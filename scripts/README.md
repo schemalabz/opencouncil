@@ -17,13 +17,13 @@ The script will ask for a confirmation code before copying data.
 
 ## What Gets Copied
 
-The script copies these 27 tables:
+The script copies these 26 tables:
 - City, Topic, Location
 - Party, AdministrativeBody, Person, Role
 - CouncilMeeting
 - SpeakerTag, SpeakerSegment, Utterance, Word
 - TopicLabel, Summary
-- Subject, SubjectSpeakerSegment, SpeakerContribution
+- Subject, SpeakerContribution
 - Highlight, HighlightedUtterance
 - PodcastSpec, PodcastPart, PodcastPartAudioUtterance
 - Offer, VoicePrint

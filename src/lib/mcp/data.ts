@@ -577,9 +577,6 @@ export async function mcpListHotSubjects(args: {
 
     return {
         daysBack: args.daysBack,
-        // speakerCount is deliberately not exposed: toGeneralSubjectRow
-        // derives it from the deprecated SubjectSpeakerSegment join, which
-        // most subjects no longer populate, so it reads 0 for them.
         subjects: rows.map(row => ({
             ...subjectSummary({
                 id: row.id,
@@ -594,6 +591,7 @@ export async function mcpListHotSubjects(args: {
                 topic: row.topicName ?? null,
             }),
             discussionSeconds: row.discussionTimeSeconds ?? 0,
+            speakerCount: row.speakerCount ?? 0,
         })),
     };
 }

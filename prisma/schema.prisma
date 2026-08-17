@@ -330,8 +330,6 @@ model SpeakerSegment {
   topicLabels TopicLabel[]
   summary Summary?
 
-  subjects SubjectSpeakerSegment[]
-  
   usedForVoiceprints VoicePrint[]
 
   @@index([meetingId, cityId, startTimestamp])
@@ -478,9 +476,7 @@ model Subject {
   location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
   highlights Highlight[]
 
-  // Keep both for backward compatibility during transition
-  speakerSegments SubjectSpeakerSegment[] // OLD - will deprecate
-  contributions   SpeakerContribution[]    // NEW
+  contributions SpeakerContribution[]
 
   context String?
   contextCitationUrls String[]
@@ -652,20 +648,6 @@ model Location {
   
   // Relation to notification preferences
   notificationPreferences NotificationPreference[] @relation("NotificationLocation")
-}
-
-model SubjectSpeakerSegment {
-  id        String   @id  @default(cuid())
-
-  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  subjectId String
-  summary String?
-
-  speakerSegment SpeakerSegment @relation(fields: [speakerSegmentId], references: [id], onDelete: Cascade)
-  speakerSegmentId String
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 model SpeakerContribution {

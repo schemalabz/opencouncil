@@ -58,15 +58,11 @@ export async function getStatisticsFor(
     }
 
     // If filtering by subjectId, calculate statistics from utterances directly
-    // instead of entire speaker segments to get accurate time
+    // (Utterance.discussionSubjectId) instead of entire speaker segments to get accurate time
     let speakerSegmentIds: string[] | undefined;
     let utteranceDurationsBySegment: Map<string, number> | undefined;
 
-    // BACKWARD COMPATIBILITY: Support both new and old subject statistics systems
-    // - New system (preferred): Uses Utterance.discussionSubjectId for granular time tracking
-    // - Old system (fallback): Uses SubjectSpeakerSegment join table for legacy subjects
     if (subjectId) {
-        // Try new system: Query utterances with discussionSubjectId
         const utterances = await prisma.utterance.findMany({
             where: {
                 discussionSubjectId: subjectId,
@@ -79,31 +75,18 @@ export async function getStatisticsFor(
             }
         });
 
-        if (utterances.length > 0) {
-            // NEW SYSTEM: Use granular utterance-based calculation
-            utteranceDurationsBySegment = new Map();
-            for (const utterance of utterances) {
-                const duration = Math.max(0, utterance.endTimestamp - utterance.startTimestamp);
-                const currentDuration = utteranceDurationsBySegment.get(utterance.speakerSegmentId) || 0;
-                utteranceDurationsBySegment.set(utterance.speakerSegmentId, currentDuration + duration);
-            }
-            speakerSegmentIds = [...new Set(utterances.map(u => u.speakerSegmentId))];
-        } else {
-            // OLD SYSTEM: Fall back to SubjectSpeakerSegment relation
-            const subjectSpeakerSegments = await prisma.subjectSpeakerSegment.findMany({
-                where: { subjectId },
-                select: { speakerSegmentId: true }
-            });
-
-            if (subjectSpeakerSegments.length === 0) {
-                // Subject exists but has no speaker data in either system
-                return EMPTY_STATISTICS;
-            }
-
-            speakerSegmentIds = subjectSpeakerSegments.map(s => s.speakerSegmentId);
-            // Leave utteranceDurationsBySegment as undefined
-            // This triggers full segment duration calculation in getStatisticsForTranscript
+        if (utterances.length === 0) {
+            // Subject exists but has no tagged discussion utterances
+            return EMPTY_STATISTICS;
         }
+
+        utteranceDurationsBySegment = new Map();
+        for (const utterance of utterances) {
+            const duration = Math.max(0, utterance.endTimestamp - utterance.startTimestamp);
+            const currentDuration = utteranceDurationsBySegment.get(utterance.speakerSegmentId) || 0;
+            utteranceDurationsBySegment.set(utterance.speakerSegmentId, currentDuration + duration);
+        }
+        speakerSegmentIds = [...new Set(utterances.map(u => u.speakerSegmentId))];
     }
 
     // Determine what relations we actually need based on groupBy and filters
@@ -180,7 +163,7 @@ export async function getBatchStatisticsForSubjects(
     const result = new Map<string, Statistics>();
     if (subjectIds.length === 0) return result;
 
-    // 1. Batch-fetch all utterances for all subjects (new system)
+    // 1. Batch-fetch all utterances for all subjects
     const allUtterances = await prisma.utterance.findMany({
         where: {
             discussionSubjectId: { in: subjectIds },
@@ -206,31 +189,9 @@ export async function getBatchStatisticsForSubjects(
         }
     }
 
-    // Determine which subjects need old system fallback
-    const subjectsWithNewSystem = new Set(utterancesBySubject.keys());
-    const subjectsNeedingFallback = subjectIds.filter(id => !subjectsWithNewSystem.has(id));
-
-    // 2. Batch-fetch old system SubjectSpeakerSegment for remaining subjects
-    let oldSystemBySubject = new Map<string, string[]>();
-    if (subjectsNeedingFallback.length > 0) {
-        const subjectSpeakerSegments = await prisma.subjectSpeakerSegment.findMany({
-            where: { subjectId: { in: subjectsNeedingFallback } },
-            select: { subjectId: true, speakerSegmentId: true }
-        });
-        for (const sss of subjectSpeakerSegments) {
-            const list = oldSystemBySubject.get(sss.subjectId);
-            if (list) {
-                list.push(sss.speakerSegmentId);
-            } else {
-                oldSystemBySubject.set(sss.subjectId, [sss.speakerSegmentId]);
-            }
-        }
-    }
-
     // Collect all unique speaker segment IDs we need to fetch
     const allSegmentIds = new Set<string>();
 
-    // From new system: extract segment IDs from utterances
     const utteranceDurationsBySubjectAndSegment = new Map<string, Map<string, number>>();
     for (const [subjectId, utterances] of utterancesBySubject) {
         const durMap = new Map<string, number>();
@@ -242,14 +203,7 @@ export async function getBatchStatisticsForSubjects(
         utteranceDurationsBySubjectAndSegment.set(subjectId, durMap);
     }
 
-    // From old system: add segment IDs
-    for (const segIds of oldSystemBySubject.values()) {
-        for (const id of segIds) {
-            allSegmentIds.add(id);
-        }
-    }
-
-    // 3. Single batch fetch for all speaker segments with person/party includes
+    // 2. Single batch fetch for all speaker segments with person/party includes
     if (allSegmentIds.size === 0) {
         // All subjects have no data
         for (const id of subjectIds) {
@@ -286,14 +240,13 @@ export async function getBatchStatisticsForSubjects(
     // Index segments by ID for fast lookup
     const segmentById = new Map(segments.map(s => [s.id, s]));
 
-    // 4. Compute statistics per subject
+    // 3. Compute statistics per subject
     const groupBy: ("person" | "party")[] = ["person", "party"];
 
     for (const subjectId of subjectIds) {
         const subjectUtteranceDurations = utteranceDurationsBySubjectAndSegment.get(subjectId);
 
         if (subjectUtteranceDurations) {
-            // New system: use utterance-based durations
             const segmentIds = [...subjectUtteranceDurations.keys()];
             const subjectSegments = segmentIds
                 .map(id => segmentById.get(id))
@@ -305,19 +258,6 @@ export async function getBatchStatisticsForSubjects(
                 groupBy,
                 meetingDate,
                 subjectUtteranceDurations
-            ));
-        } else if (oldSystemBySubject.has(subjectId)) {
-            // Old system: use full segment durations
-            const segmentIds = oldSystemBySubject.get(subjectId)!;
-            const subjectSegments = segmentIds
-                .map(id => segmentById.get(id))
-                .filter((s): s is NonNullable<typeof s> => s != null)
-                .map(seg => ({ ...seg, topicLabels: [] as (TopicLabel & { topic: Topic })[] }));
-
-            result.set(subjectId, await getStatisticsForTranscript(
-                subjectSegments as SpeakerSegmentInfo[],
-                groupBy,
-                meetingDate
             ));
         } else {
             result.set(subjectId, { ...EMPTY_STATISTICS });
