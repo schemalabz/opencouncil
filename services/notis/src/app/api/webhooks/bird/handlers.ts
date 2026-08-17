@@ -9,8 +9,11 @@ import { normalizePhone } from "@/lib/phone";
 import { sendPendingMessages } from "@/lib/queue";
 import { enqueueLiveWake } from "@/lib/queue-core";
 import { STOP_ALREADY_TEXT, STOP_CONFIRMATION_TEXT, isBareStop } from "@/lib/stop";
+import { renderTemplate, type TemplateName } from "@/agent/templates";
+import { getProactiveSettings } from "@/lib/settings";
 import type {
   MessageStatus,
+  NotisMessage,
   NotisSubscription,
   Prisma,
   PrismaClient,
@@ -64,8 +67,9 @@ export function isForwardProgression(current: MessageStatus, next: MessageStatus
  *  Unknown ids are the main app's messages — not ours to track. */
 export async function handleOutboundStatus(
   fields: ExtractedMessageFields,
-  { db }: HandlerDeps,
+  deps: HandlerDeps,
 ): Promise<InboundResult> {
+  const { db } = deps;
   if (!fields.birdMessageId) return { action: "ignored", reason: "no birdMessageId" };
   const existing = await db.notisMessage.findUnique({
     where: { birdMessageId: fields.birdMessageId },
@@ -84,9 +88,82 @@ export async function handleOutboundStatus(
           fields.status === "failed" ? (fields.failureReason ?? null)?.slice(0, 300) : null,
       },
     });
+    if (fields.status === "failed") {
+      await maybeSendSmsFallback(existing, deps);
+    }
     return { action: "status-updated" };
   }
   return { action: "ignored", reason: "no forward progression" };
+}
+
+/**
+ * The notify-only SMS fallback (PRD §6): when WhatsApp delivery of a
+ * PROACTIVE template send fails, the same text goes out once as an SMS.
+ * The sms row is inserted FIRST with fallbackForId unique on the failed
+ * message — a replayed failure webhook loses the insert and stops, so one
+ * failure can never fire two SMS. Live-and-unpaused only; reactive
+ * replies and freeform sends get no fallback (the reader is reachable on
+ * WhatsApp — they just wrote to us there).
+ */
+async function maybeSendSmsFallback(
+  failed: NotisMessage,
+  { db, bird, alert }: HandlerDeps,
+): Promise<void> {
+  if (
+    failed.channel !== "whatsapp" ||
+    failed.deliveryMode !== "template" ||
+    !failed.proactive ||
+    !failed.template
+  ) {
+    return;
+  }
+  const settings = await getProactiveSettings(db);
+  if (settings.mode !== "live" || settings.paused) return;
+
+  const sub = await db.notisSubscription.findUnique({ where: { id: failed.subscriptionId } });
+  if (!sub?.phone || sub.status === "unsubscribed") return;
+
+  const rendered = renderTemplate(failed.template as TemplateName, failed.body);
+  const text = `${rendered.body}\n\n${rendered.footer}`;
+
+  let smsId: string;
+  try {
+    const sms = await db.notisMessage.create({
+      data: {
+        subscriptionId: failed.subscriptionId,
+        wakeId: failed.wakeId,
+        direction: "outbound",
+        body: text,
+        channel: "sms",
+        proactive: failed.proactive,
+        fallbackForId: failed.id,
+        status: "pending",
+      },
+      select: { id: true },
+    });
+    smsId = sms.id;
+  } catch (error) {
+    if ((error as { code?: string }).code === "P2002") return; // replayed webhook
+    throw error;
+  }
+
+  const result = await bird.sendSms({ phone: sub.phone, text });
+  if (result.success) {
+    await db.notisMessage.update({
+      where: { id: smsId },
+      data: { status: "sent", birdMessageId: result.messageId },
+    });
+  } else {
+    // Never re-sent (the channels API has no idempotency key) — mark it
+    // and alert; the reader misses one notification, not a conversation.
+    await db.notisMessage.update({
+      where: { id: smsId },
+      data: { status: "failed", failureReason: (result.error ?? "unknown error").slice(0, 300) },
+    });
+    await (alert ?? ((m: string) => sendAlert("webhook", m)))(
+      `SMS fallback failed for message ${failed.id}: ${result.error ?? "unknown error"}`,
+    );
+  }
 }
 
 async function findSubscriptionByPhone(

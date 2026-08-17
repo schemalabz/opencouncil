@@ -134,6 +134,14 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
           where.id !== undefined ? m.id === where.id : m.birdMessageId === where.birdMessageId,
         ) ?? null,
       create: async ({ data }: { data: Row }) => {
+        if (
+          data.fallbackForId &&
+          store.messages.some((m) => m.fallbackForId === data.fallbackForId)
+        ) {
+          const err = new Error("unique fallbackForId") as Error & { code: string };
+          err.code = "P2002";
+          throw err;
+        }
         const row: Row = { id: id("msg"), createdAt: new Date(), status: null, ...data };
         store.messages.push(row);
         calls.push(`message-created:${row.direction}`);

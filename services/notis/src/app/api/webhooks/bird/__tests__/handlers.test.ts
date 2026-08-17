@@ -243,6 +243,104 @@ describe("handleInbound", () => {
   });
 });
 
+describe("SMS fallback on failed proactive templates", () => {
+  const LIVE = [{ key: "proactiveMode", value: "live" }];
+
+  async function seedFailedCandidate(db: ReturnType<typeof makeFakeDb>, overrides: Row = {}) {
+    await db.notisMessage.create({
+      data: {
+        subscriptionId: "sub1",
+        direction: "outbound",
+        body: "Νέα από τον δήμο.",
+        birdMessageId: "bm-out",
+        status: "sent",
+        channel: "whatsapp",
+        proactive: true,
+        deliveryMode: "template",
+        template: "demos_update_news",
+        wakeId: "wake1",
+        ...overrides,
+      },
+    });
+  }
+
+  const failedEvent = () =>
+    inbound({ birdMessageId: "bm-out", direction: "outbound", status: "failed" });
+
+  it("sends ONE SMS with the rendered shell when a live proactive template fails", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }], settings: LIVE });
+    await seedFailedCandidate(db);
+    const bird = new FakeBird();
+
+    await handleOutboundStatus(failedEvent(), { db, bird });
+
+    expect(bird.smsSends).toHaveLength(1);
+    expect(bird.smsSends[0].phone).toBe("+306900000001");
+    expect(bird.smsSends[0].text).toContain("Νέα από τον δήμο σου:");
+    expect(bird.smsSends[0].text).toContain("Νέα από τον δήμο.");
+    expect(bird.smsSends[0].text).toContain("ΣΤΟΠ");
+    const sms = db.store.messages.find((m) => m.channel === "sms")!;
+    expect(sms).toMatchObject({ status: "sent", fallbackForId: "msg_1", proactive: true });
+
+    // A replayed failure webhook cannot fire a second SMS: the progression
+    // guard stops it, and the unique fallbackForId backstops even a direct
+    // re-entry.
+    await handleOutboundStatus(failedEvent(), { db, bird });
+    expect(bird.smsSends).toHaveLength(1);
+    expect(db.store.messages.filter((m) => m.channel === "sms")).toHaveLength(1);
+  });
+
+  it("no fallback in shadow mode, for freeform sends, or for reactive messages", async () => {
+    const cases: Array<{ settings?: Row[]; overrides: Row }> = [
+      { settings: undefined, overrides: {} }, // shadow (default)
+      { settings: LIVE, overrides: { deliveryMode: "freeform", template: null } },
+      { settings: LIVE, overrides: { proactive: false } },
+    ];
+    for (const [i, c] of cases.entries()) {
+      const db = makeFakeDb({ subscriptions: [{ ...SUB }], settings: c.settings });
+      await seedFailedCandidate(db, { ...c.overrides, birdMessageId: `bm-${i}` });
+      const bird = new FakeBird();
+      await handleOutboundStatus(
+        inbound({ birdMessageId: `bm-${i}`, direction: "outbound", status: "failed" }),
+        { db, bird },
+      );
+      expect(bird.smsSends).toHaveLength(0);
+    }
+  });
+
+  it("no fallback for an unsubscribed reader", async () => {
+    const db = makeFakeDb({
+      subscriptions: [{ ...SUB, status: "unsubscribed", unsubscribedAt: new Date() }],
+      settings: LIVE,
+    });
+    await seedFailedCandidate(db);
+    const bird = new FakeBird();
+
+    await handleOutboundStatus(failedEvent(), { db, bird });
+
+    expect(bird.smsSends).toHaveLength(0);
+  });
+
+  it("an SMS send failure marks the row failed and alerts, and is never retried", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }], settings: LIVE });
+    await seedFailedCandidate(db);
+    const bird = new FakeBird({ success: false, error: "sms rejected" });
+    const alerts: string[] = [];
+
+    await handleOutboundStatus(failedEvent(), {
+      db,
+      bird,
+      alert: async (m) => {
+        alerts.push(m);
+      },
+    });
+
+    const sms = db.store.messages.find((m) => m.channel === "sms")!;
+    expect(sms.status).toBe("failed");
+    expect(alerts.some((m) => m.includes("SMS fallback failed"))).toBe(true);
+  });
+});
+
 describe("handleOutboundStatus", () => {
   it("progresses a notis outbound message forward only", async () => {
     const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
