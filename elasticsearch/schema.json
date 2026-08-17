@@ -77,7 +77,6 @@
         "analyzer": "standard",
         "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
       },
-      "location_id": { "type": "keyword" },
       "location_text": { "type": "text", "analyzer": "greek" },
       "location_geojson": { "type": "geo_shape" },
       "agenda_item_index": { "type": "integer" },
@@ -128,7 +127,6 @@
         "councilMeetingId",
         "topicId",
         "personId",
-        "locationId",
         "agendaItemIndex",
         "nonAgendaReason",
         "createdAt",
@@ -143,7 +141,6 @@
           "councilMeetingId": "councilMeeting_id",
           "topicId": "topic_id",
           "personId": "introduced_by_person_id",
-          "locationId": "location_id",
           "agendaItemIndex": "agenda_item_index",
           "nonAgendaReason": "non_agenda_reason",
           "createdAt": "created_at",
