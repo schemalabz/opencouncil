@@ -2,12 +2,15 @@ import Link from "next/link";
 import {
   AlarmClock,
   CalendarClock,
+  ChevronRight,
   CircleDot,
+  ExternalLink,
   FileSearch,
   Moon,
   OctagonAlert,
   Sun,
 } from "lucide-react";
+import { env } from "@/env.mjs";
 import { EVENT_LABELS } from "../_lib/records";
 import { getSystemSnapshot } from "../_lib/system";
 import { AutoRefresh } from "../_components/AutoRefresh";
@@ -73,18 +76,43 @@ function OriginBadge({ origin }: { origin: "reply" | "proactive" }) {
   );
 }
 
-function ScorePill({ label, value }: { label: string; value: number }) {
+const SCORE_DIMENSIONS = [
+  ["hyperlocal", "Τ", "τοπικό"],
+  ["citywide", "Π", "πόλη"],
+  ["contention", "Ε", "ένταση"],
+  ["novelty", "Ν", "νέο"],
+  ["money", "Χ", "χρήμα"],
+] as const;
+
+/** A subject's five editorial scores as a bar profile: each dimension is a
+ *  bar on a faint track with its initial beneath; the full name and value
+ *  live in the hover tooltip. Profiles compare down the list, which is
+ *  what the ranking is about. */
+function ScoreBars({ scores }: { scores: Record<string, number> }) {
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] tabular-nums ${
-        value >= 4
-          ? "bg-orange/15 font-medium text-orange"
-          : value >= 2
-            ? "bg-muted text-foreground/80"
-            : "bg-muted/60 text-muted-foreground"
-      }`}
-    >
-      {label} {value}
+    <span className="flex items-end gap-1.5">
+      {SCORE_DIMENSIONS.map(([key, letter, label]) => {
+        const value = scores[key] ?? 0;
+        return (
+          <span
+            key={key}
+            title={`${label}: ${value}/5`}
+            className="flex cursor-default flex-col items-center gap-0.5"
+          >
+            <span className="relative h-10 w-2 overflow-hidden rounded-sm bg-muted/60">
+              {value > 0 && (
+                <span
+                  className={`absolute inset-x-0 bottom-0 rounded-sm ${
+                    value >= 4 ? "bg-orange" : value >= 2 ? "bg-stone-400" : "bg-stone-300"
+                  }`}
+                  style={{ height: `${(value / 5) * 100}%` }}
+                />
+              )}
+            </span>
+            <span className="text-[9px] leading-none text-muted-foreground/70">{letter}</span>
+          </span>
+        );
+      })}
     </span>
   );
 }
@@ -347,6 +375,11 @@ export default async function SystemPage() {
                   <li key={item.taskId}>
                     <details className="group">
                       <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-2.5 hover:bg-muted/30">
+                        <ChevronRight
+                          className={`h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition-transform group-open:rotate-90 ${
+                            item.brief ? "" : "invisible"
+                          }`}
+                        />
                         <span
                           className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider ${
                             item.type === "processAgenda"
@@ -356,45 +389,76 @@ export default async function SystemPage() {
                         >
                           {item.type === "processAgenda" ? "ατζέντα" : "σύνοψη"}
                         </span>
+                        <span className="shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">
+                          {item.cityId}
+                        </span>
                         <span className="min-w-0 flex-1 truncate text-sm">
                           {item.headline ?? (
                             <span className="text-muted-foreground">
-                              {item.cityId}/{item.meetingId} — χωρίς editorial pass (κανένας
-                              συνδρομητής)
+                              χωρίς editorial pass — κανένας συνδρομητής
                             </span>
                           )}
                         </span>
+                        <a
+                          href={
+                            item.brief?.meetingUrl ??
+                            `${env.OPENCOUNCIL_BASE_URL}/${item.cityId}/${item.meetingId}`
+                          }
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Άνοιγμα στο OpenCouncil"
+                          className="shrink-0 text-muted-foreground/50 hover:text-orange"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
                         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                           {item.subjectCount !== null ? `${item.subjectCount} θέματα · ` : ""}
-                          {item.wakes} wakes
-                          {item.briefCostUsd ? ` · ${fmtUsd(item.briefCostUsd)}` : ""}
-                          {" · "}
+                          {item.wakes > 0 ? `${item.wakes} wakes · ` : ""}
+                          {item.briefCostUsd ? `${fmtUsd(item.briefCostUsd)} · ` : ""}
                           {timeAgo(item.processedAt, now)}
                         </span>
                       </summary>
                       {item.brief && (
-                        <div className="border-t bg-muted/20 px-4 py-3">
-                          <p className="text-xs text-muted-foreground">{item.cityId}</p>
-                          <ul className="mt-2 space-y-2">
-                            {item.brief.subjects.map((s) => (
-                              <li key={s.subjectId} className="text-xs">
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <span className="font-medium">{s.name}</span>
-                                  <span className="text-muted-foreground">
-                                    {Math.round(s.discussionSeconds / 60)}′
+                        <div className="border-t bg-muted/20 pb-1 pt-0.5">
+                          <ol className="divide-y divide-border/60">
+                            {item.brief.subjects.map((s, rank) => (
+                              <li
+                                key={s.subjectId}
+                                className="grid grid-cols-[auto_1fr_auto] items-center gap-x-3 px-4 py-2"
+                              >
+                                <span className="w-4 text-right text-[11px] tabular-nums text-muted-foreground/60">
+                                  {rank + 1}
+                                </span>
+                                <span className="min-w-0">
+                                  <span className="block truncate text-xs font-medium">
+                                    {s.url ? (
+                                      <a
+                                        href={s.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="hover:text-orange hover:underline"
+                                      >
+                                        {s.name}
+                                      </a>
+                                    ) : (
+                                      s.name
+                                    )}
+                                    {s.discussionSeconds > 0 && (
+                                      <span className="ml-1.5 font-normal text-muted-foreground">
+                                        {Math.round(s.discussionSeconds / 60)}′
+                                      </span>
+                                    )}
                                   </span>
-                                  <ScorePill label="τοπικό" value={s.scores.hyperlocal} />
-                                  <ScorePill label="πόλη" value={s.scores.citywide} />
-                                  <ScorePill label="ένταση" value={s.scores.contention} />
-                                  <ScorePill label="νέο" value={s.scores.novelty} />
-                                  <ScorePill label="χρήμα" value={s.scores.money} />
-                                </div>
-                                {s.note && (
-                                  <p className="mt-0.5 text-muted-foreground">{s.note}</p>
-                                )}
+                                  {s.note && (
+                                    <span className="mt-0.5 block truncate text-[11px] leading-snug text-muted-foreground">
+                                      {s.note}
+                                    </span>
+                                  )}
+                                </span>
+                                <ScoreBars scores={s.scores as unknown as Record<string, number>} />
                               </li>
                             ))}
-                          </ul>
+                          </ol>
                         </div>
                       )}
                     </details>
