@@ -69,6 +69,8 @@ function makeFakeMain(seed: FakeMainSeed = {}) {
         targets.filter((t) => {
           if (where.userId && !(where.userId as { in: string[] }).in.includes(t.userId as string))
             return false;
+          if (where.cityId && !(where.cityId as { in: string[] }).in.includes(t.cityId as string))
+            return false;
           if (where.notisEnabledAt && t.notisEnabledAt === null) return false;
           if (where.notifyByPhone !== undefined && t.notifyByPhone !== where.notifyByPhone)
             return false;
@@ -134,7 +136,7 @@ function meetingRow(taskId: string, overrides: Row = {}): Row {
   };
 }
 
-const activeSub = (id: string, userId: string, cities: unknown[] = []): Row => ({
+const activeSub = (id: string, userId: string): Row => ({
   id,
   userId,
   phone: "+306900000001",
@@ -143,7 +145,6 @@ const activeSub = (id: string, userId: string, cities: unknown[] = []): Row => (
   unsubscribedAt: null,
   birdConversationId: null,
   profileText: "x",
-  cities,
   userName: "Μαρία",
 });
 
@@ -215,7 +216,7 @@ describe("enrollment", () => {
 });
 
 describe("reconciliation", () => {
-  it("refreshes a changed phone and the cities snapshot, counts each once", async () => {
+  it("refreshes a changed phone, counts it once", async () => {
     const db = makeFakeDb({ subscriptions: [activeSub("sub1", "user1")] });
     const main = makeFakeMain({
       users: [{ id: "user1", name: "Μαρία", phone: "+306911111111" }],
@@ -227,8 +228,6 @@ describe("reconciliation", () => {
     const sub = db.store.subscriptions.get("sub1")!;
     expect(sub.phone).toBe("+306911111111");
     expect(result.phonesRefreshed).toBe(1);
-    expect(result.citiesRefreshed).toBe(1);
-    expect((sub.cities as unknown[]).length).toBe(1);
   });
 
   it("phone gone: unsubscribes the active subscription once, with a system journal entry", async () => {
@@ -334,7 +333,7 @@ describe("meeting events", () => {
   function seededDb(): FakeDb {
     return makeFakeDb({
       subscriptions: [
-        activeSub("sub1", "user1", [{ cityId: "athens", cityName: "Αθήνα", topics: [], locations: [] }]),
+        activeSub("sub1", "user1"),
       ],
     });
   }
@@ -414,8 +413,8 @@ describe("meeting events", () => {
   it("an editorial failure alerts, records nothing, and does not starve later events", async () => {
     const db = makeFakeDb({
       subscriptions: [
-        activeSub("sub1", "user1", [{ cityId: "athens", cityName: "Αθήνα", topics: [], locations: [] }]),
-        activeSub("sub2", "user2", [{ cityId: "patras", cityName: "Πάτρα", topics: [], locations: [] }]),
+        activeSub("sub1", "user1"),
+        activeSub("sub2", "user2"),
       ],
     });
     const main = makeFakeMain({
@@ -452,10 +451,7 @@ describe("meeting events", () => {
   it("one reader in two cities gets ONE coalesced batch row", async () => {
     const db = makeFakeDb({
       subscriptions: [
-        activeSub("sub1", "user1", [
-          { cityId: "athens", cityName: "Αθήνα", topics: [], locations: [] },
-          { cityId: "patras", cityName: "Πάτρα", topics: [], locations: [] },
-        ]),
+        activeSub("sub1", "user1"),
       ],
     });
     const main = makeFakeMain({

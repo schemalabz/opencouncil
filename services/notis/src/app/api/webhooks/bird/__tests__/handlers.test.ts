@@ -28,7 +28,6 @@ const SUB: Row = {
   unsubscribedAt: null,
   birdConversationId: "conv-1",
   profileText: "x",
-  cities: [],
   userName: "Μαρία",
 };
 

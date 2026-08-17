@@ -1,9 +1,9 @@
 import type { PrismaClient as MainViewsClient } from "../../generated/main-client";
-import type { NotisSubscription, Prisma, PrismaClient } from "../../generated/client";
+import type { Prisma, PrismaClient } from "../../generated/client";
 import { editorialPass } from "@/agent/editorialPass";
 import { seedProfileFromPreferences } from "@/agent/profileSeed";
 import { renderTemplate } from "@/agent/templates";
-import { CityPreference, EditorialBrief, WakeEvent } from "@/agent/types";
+import { EditorialBrief, WakeEvent } from "@/agent/types";
 import { clampToActiveHours } from "./active-hours";
 import { alert as sendAlert } from "./alert";
 import { BirdLike, realBird } from "./bird";
@@ -53,7 +53,6 @@ export interface PollerResult {
   introsSent: number;
   phonesRefreshed: number;
   phoneGoneUnsubscribed: number;
-  citiesRefreshed: number;
   scheduledFired: number;
   eventsProcessed: number;
   wakesEnqueued: number;
@@ -74,16 +73,11 @@ const emptyResult = (ran: boolean, reason?: string): PollerResult => ({
   introsSent: 0,
   phonesRefreshed: 0,
   phoneGoneUnsubscribed: 0,
-  citiesRefreshed: 0,
   scheduledFired: 0,
   eventsProcessed: 0,
   wakesEnqueued: 0,
   editorialCostUsd: 0,
 });
-
-function subscriptionCities(sub: Pick<NotisSubscription, "cities">): CityPreference[] {
-  return Array.isArray(sub.cities) ? (sub.cities as unknown as CityPreference[]) : [];
-}
 
 async function nextJournalSeq(
   tx: Prisma.TransactionClient,
@@ -204,7 +198,6 @@ async function enrollNewTargets(
           status: "active",
           origin: "transition",
           profileText: seedProfileFromPreferences(cities),
-          cities: cities as unknown as Prisma.InputJsonValue,
           userName: rows[0].userName,
         },
         update: {},
@@ -250,9 +243,9 @@ async function enrollNewTargets(
 }
 
 /**
- * Phase (b) — reconciliation for existing subscriptions: refresh phone,
- * name and the cities snapshot (write only on change — updatedAt is the
- * conversation list's sort key), and unsubscribe when the phone is GONE,
+ * Phase (b) — reconciliation for existing subscriptions: refresh phone and
+ * name (write only on change — updatedAt is the conversation list's sort
+ * key), and unsubscribe when the phone is GONE,
  * with a journal entry naming the reason. Never re-activates.
  */
 async function reconcileSubscriptions(
@@ -262,25 +255,13 @@ async function reconcileSubscriptions(
   result: PollerResult,
 ): Promise<void> {
   const subs = await db.notisSubscription.findMany({
-    select: { id: true, userId: true, phone: true, status: true, cities: true, userName: true },
+    select: { id: true, userId: true, phone: true, status: true, userName: true },
   });
   if (subs.length === 0) return;
   const userIds = subs.map((s) => s.userId);
 
-  const [users, targets] = await Promise.all([
-    main.notisUserRow.findMany({ where: { id: { in: userIds } } }),
-    main.fanoutTargetRow.findMany({
-      where: { userId: { in: userIds } },
-      orderBy: [{ userId: "asc" }, { cityId: "asc" }],
-    }),
-  ]);
+  const users = await main.notisUserRow.findMany({ where: { id: { in: userIds } } });
   const userById = new Map(users.map((u) => [u.id, u]));
-  const targetsByUser = new Map<string, typeof targets>();
-  for (const row of targets) {
-    const rows = targetsByUser.get(row.userId) ?? [];
-    rows.push(row);
-    targetsByUser.set(row.userId, rows);
-  }
 
   for (const sub of subs) {
     const user = userById.get(sub.userId);
@@ -320,11 +301,6 @@ async function reconcileSubscriptions(
     const data: Prisma.NotisSubscriptionUpdateInput = {};
     if (newPhone !== sub.phone) data.phone = newPhone;
     if (user.name && user.name !== sub.userName) data.userName = user.name;
-    const newCities = toCityPreferences(targetsByUser.get(sub.userId) ?? []);
-    if (JSON.stringify(newCities) !== JSON.stringify(subscriptionCities(sub))) {
-      data.cities = newCities as unknown as Prisma.InputJsonValue;
-      result.citiesRefreshed++;
-    }
     if (Object.keys(data).length === 0) continue;
     if (data.phone) result.phonesRefreshed++;
     await db.notisSubscription.update({ where: { id: sub.id }, data });
@@ -438,13 +414,28 @@ async function processMeetingEvents(
 
   const subs = await db.notisSubscription.findMany({
     where: { status: "active" },
-    select: { id: true, cities: true },
+    select: { id: true, userId: true },
   });
 
-  for (const row of fresh.slice(0, MAX_EVENTS_PER_TICK)) {
-    const audience = subs.filter((sub) =>
-      subscriptionCities(sub).some((c) => c.cityId === row.cityId),
-    );
+  const upcoming = fresh.slice(0, MAX_EVENTS_PER_TICK);
+  // The audience comes straight from the live view: dropping a city from
+  // your preferences (or losing the rollout flag) takes effect this tick.
+  const cityTargets = await main.fanoutTargetRow.findMany({
+    where: {
+      cityId: { in: [...new Set(upcoming.map((r) => r.cityId))] },
+      notisEnabledAt: { not: null },
+    },
+  });
+  const usersByCity = new Map<string, Set<string>>();
+  for (const t of cityTargets) {
+    const set = usersByCity.get(t.cityId) ?? new Set<string>();
+    set.add(t.userId);
+    usersByCity.set(t.cityId, set);
+  }
+
+  for (const row of upcoming) {
+    const wanted = usersByCity.get(row.cityId);
+    const audience = subs.filter((sub) => wanted?.has(sub.userId));
     const phase = row.type === "processAgenda" ? "agenda" : "summary";
 
     // Nobody to wake: record the event as consumed without paying for an

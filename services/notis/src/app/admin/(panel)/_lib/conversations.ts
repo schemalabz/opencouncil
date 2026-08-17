@@ -2,6 +2,8 @@ import { CityPreference, JournalEntry, WakeOutcome, WakeTrace } from "@/agent/ty
 import { clampToActiveHours } from "@/lib/active-hours";
 import { TemplateName } from "@/agent/templates";
 import { hasNotisDb, notisDb } from "@/lib/db";
+import { citiesForUsers } from "@/lib/fanout";
+import { hasMainDb } from "@/lib/main-db";
 import { CityMeta, MessageDelivery, Origin, RecordEvent, WakeRecord } from "./records";
 
 /**
@@ -55,15 +57,21 @@ interface SubscriptionRow {
   userId: string;
   userName: string | null;
   phone: string | null;
-  cities: unknown;
   origin: Origin;
   createdAt: Date;
   updatedAt: Date;
   unsubscribedAt: Date | null;
 }
 
-function subscriptionCities(sub: SubscriptionRow): CityPreference[] {
-  return Array.isArray(sub.cities) ? (sub.cities as CityPreference[]) : [];
+/** Live preference cities per user; the panel renders without them when the
+ *  main database is absent or unreachable. */
+async function liveCities(userIds: string[]): Promise<Map<string, CityPreference[]>> {
+  if (!hasMainDb() || userIds.length === 0) return new Map();
+  try {
+    return await citiesForUsers(userIds);
+  } catch {
+    return new Map();
+  }
 }
 
 function toSummary(
@@ -72,13 +80,14 @@ function toSummary(
     ConversationSummary,
     "messagesSent" | "messagesReceived" | "messagesFailed" | "wakes" | "costUsd" | "lastMessage"
   >,
+  cities: CityPreference[],
 ): ConversationSummary {
   return {
     id: sub.id,
     userId: sub.userId,
     userName: sub.userName ?? "—",
     phone: sub.phone ?? "",
-    cityNames: subscriptionCities(sub).map((c) => c.cityName),
+    cityNames: cities.map((c) => c.cityName),
     origin: sub.origin,
     startedAt: sub.createdAt.toISOString(),
     lastActivityAt: extras.lastMessage?.at ?? sub.updatedAt.toISOString(),
@@ -121,7 +130,7 @@ export async function listConversations(search?: string, page = 1): Promise<Conv
   if (subs.length === 0) return { conversations: [], total, page: current, pages };
   const ids = subs.map((s) => s.id);
 
-  const [counts, failures, wakes, costs, lastMessages] = await Promise.all([
+  const [counts, failures, wakes, costs, lastMessages, citiesByUser] = await Promise.all([
     db.notisMessage.groupBy({
       by: ["subscriptionId", "direction"],
       where: { subscriptionId: { in: ids } },
@@ -155,6 +164,7 @@ export async function listConversations(search?: string, page = 1): Promise<Conv
       WHERE "subscriptionId" = ANY(${ids}::text[])
       ORDER BY "subscriptionId", "createdAt" DESC, id DESC
     `,
+    liveCities(subs.map((s) => s.userId)),
   ]);
 
   const countMap = new Map(
@@ -183,7 +193,7 @@ export async function listConversations(search?: string, page = 1): Promise<Conv
         wakes: wakeMap.get(sub.id) ?? 0,
         costUsd: costMap.get(sub.id) ?? 0,
         lastMessage: lastMap.get(sub.id),
-      }),
+      }, citiesByUser.get(sub.userId) ?? []),
     ),
     total,
     page: current,
@@ -329,6 +339,8 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     createdAt: note.createdAt.toISOString(),
   }));
 
+  const cities = (await liveCities([sub.userId])).get(sub.userId) ?? [];
+
   return {
     summary: toSummary(sub, {
       messagesSent: sent,
@@ -337,11 +349,9 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
       wakes: sub.wakes.length,
       costUsd: 0, // not fetched here; the detail header does not show cost
       lastMessage: undefined,
-    }),
+    }, cities),
     records,
-    cityMeta: Object.fromEntries(
-      subscriptionCities(sub).map((c) => [c.cityId, { name: c.cityName }]),
-    ),
+    cityMeta: Object.fromEntries(cities.map((c) => [c.cityId, { name: c.cityName }])),
     profile: sub.profileText,
     upcoming,
   };

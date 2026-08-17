@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { decideDelivery } from "@/agent/delivery";
 import { runWake } from "@/agent/runWake";
-import { cityPreferenceSchema, primaryEvent, wakeEventSchema } from "@/agent/schemas";
+import { primaryEvent, wakeEventSchema } from "@/agent/schemas";
 import { CityPreference, Deps, JOURNAL_WINDOW, JournalEntry, WakeEvent } from "@/agent/types";
 import type { NotisSubscription, Prisma, PrismaClient } from "../../generated/client";
 import { clampToActiveHours, isQuietHour } from "./active-hours";
@@ -58,7 +58,6 @@ export const RESEND_STALE_AFTER_MS = 2 * 60_000;
 const MAX_ITEMS_PER_DRAIN = 50;
 
 const eventsSchema = z.array(wakeEventSchema).min(1);
-const citiesSnapshotSchema = z.array(cityPreferenceSchema);
 
 /** How long a paused item sleeps before the claim looks at it again. */
 export const PAUSE_DEFER_MS = 15 * 60_000;
@@ -90,15 +89,13 @@ function resolveAlert(overrides: DrainDeps) {
 }
 
 async function assembleCities(sub: NotisSubscription): Promise<CityPreference[]> {
-  if (hasMainDb()) {
-    try {
-      return await citiesForUser(sub.userId);
-    } catch (e) {
-      console.warn("[notis:queue] live city fetch failed, using snapshot:", e);
-    }
+  if (!hasMainDb()) return [];
+  try {
+    return await citiesForUser(sub.userId);
+  } catch (e) {
+    console.warn("[notis:queue] live city fetch failed, waking without cities:", e);
+    return [];
   }
-  const parsed = citiesSnapshotSchema.safeParse(sub.cities);
-  return parsed.success ? parsed.data : [];
 }
 
 async function runOneWake(

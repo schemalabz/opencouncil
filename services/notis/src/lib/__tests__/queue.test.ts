@@ -21,7 +21,6 @@ const SUB: Row = {
   unsubscribedAt: null,
   birdConversationId: "conv-1",
   profileText: "Μένει στην Κυψέλη.",
-  cities: [{ cityId: "athens", cityName: "Αθήνα", topics: [], locations: [] }],
   userName: "Μαρία",
 };
 
