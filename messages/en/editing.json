@@ -91,8 +91,8 @@
         "answer": "Click the speaker badge on the segment, then search for a speaker or select 'Unknown Speaker'."
       },
       "splitSegment": {
-        "question": "How do I split a segment (A-B-A pattern)?",
-        "answer": "When Speaker B's utterances are incorrectly included in Speaker A's segment, select the utterances to extract using Shift+Click for ranges, then press 'e' or right-click and select 'Extract Segment'."
+        "question": "How do I split a segment?",
+        "answer": "When utterances of another speaker are incorrectly included in a segment, select them (Shift+Click for a range), then press 'e' or right-click and select 'Extract Segment'. The selection can start at the first utterance or end at the last one. The extracted utterances get a new, unidentified speaker that you then assign."
       },
       "moveUtterances": {
         "question": "How do I move utterances between segments?",
@@ -120,7 +120,7 @@
       },
       "selected": {
         "title": "Selected for Extraction",
-        "description": "Bold text indicates utterances selected for extraction into a new segment. Use this when Speaker B's utterances are incorrectly included in Speaker A's segment (A-B-A pattern).",
+        "description": "Bold text indicates utterances selected for extraction into a new segment. Use this when utterances of another speaker are incorrectly included in the segment, at any position.",
         "example": "Selected utterances appear in bold"
       }
     }
@@ -135,7 +135,6 @@
     "selectionErrorDiffSegments": "Cannot extract utterances from different segments at once.",
     "invalidOperationTitle": "Invalid Operation",
     "invalidOperationExtractAll": "Cannot extract all utterances. Use 'Change Speaker' instead.",
-    "invalidOperationExtractStartEnd": "Cannot extract from the start or end of a segment. Selection must be strictly in the middle.",
     "reviewCompleted": "Review Completed",
     "reviewCompletedDescription": "The transcript review has been marked as complete."
   }

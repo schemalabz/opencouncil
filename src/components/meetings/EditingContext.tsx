@@ -117,15 +117,6 @@ export function EditingProvider({ children }: { children: ReactNode }) {
                     });
                     return;
                 }
-
-                if (segmentStartIndex === 0 || segmentEndIndex === totalUtterances - 1) {
-                    toast({
-                        title: t('invalidOperationTitle'),
-                        description: t('invalidOperationExtractStartEnd'),
-                        variant: "destructive"
-                    });
-                    return;
-                }
             }
 
             await extractSpeakerSegment(targetSegmentId, startUtteranceId, endUtteranceId);

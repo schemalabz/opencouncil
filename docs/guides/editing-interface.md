@@ -38,9 +38,10 @@ The system divides editing into distinct categories and modes:
 3.  **Structural Editing**:
     *   **Speaker Assignment**: The `PersonBadge` component handles speaker identification. It includes an explicit "Unknown Speaker" (`Άγνωστος Ομιλητής`) option and improved autocomplete to quickly assign speakers. The system can also auto-number unknown speakers (e.g., "Άγνωστος Ομιλητής 1").
     *   **Segment Operations**: Handled via context menus (e.g., "Move to Previous Segment").
-    *   **Extract Segment**: Users can select a range of utterances (Shift+Click) within a segment and extract them into a new independent segment (useful for A-B-A speaker patterns).
+    *   **Extract Segment**: Users can select a range of utterances (Shift+Click) within a segment and extract them into a new independent segment with a new, unassigned speaker tag. The range can start at the first utterance of the segment or end at the last one.
         *   **Selection**: Visualized with bold text.
-        *   **Validation**: Prevents extracting all utterances (leaving nothing behind) or extracting from the absolute start/end (which would be a simple split/move).
+        *   **Validation**: Prevents extracting all utterances (leaving nothing behind). Use "Change Speaker" for that case.
+        *   **Extraction is not a move**: "Move to Previous/Next Segment" re-assigns utterances to the speaker of the adjacent segment. Extraction gives them a new, unassigned speaker. A speaker change at a segment boundary therefore needs extraction, not a move.
     *   Processed by `moveUtterancesToSegment` and `extractSpeakerSegment` in the backend.
 
 4.  **Segment Management**:
