@@ -2,6 +2,7 @@
   {
     "database": "production",
     "index": "subjects",
+    "pipeline": "strip-refs",
     "mapping": {
       "id": { "type": "keyword" },
       "name": {

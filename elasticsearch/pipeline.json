@@ -1,0 +1,43 @@
+{
+  "description": "Strip [text](REF:TYPE:ID) markdown links from indexed text. The database keeps the raw markdown; only the search index sees clean text. See README.md, section 'Create the Ingest Pipeline'.",
+  "processors": [
+    {
+      "gsub": {
+        "field": "description",
+        "pattern": "\\[([^\\]]+)\\]\\(REF:[^)]+\\)",
+        "replacement": "$1",
+        "ignore_missing": true
+      }
+    },
+    {
+      "foreach": {
+        "field": "speaker_contributions",
+        "if": "ctx.speaker_contributions != null",
+        "ignore_missing": true,
+        "processor": {
+          "gsub": {
+            "field": "_ingest._value.text",
+            "pattern": "\\[([^\\]]+)\\]\\(REF:[^)]+\\)",
+            "replacement": "$1",
+            "ignore_missing": true
+          }
+        }
+      }
+    },
+    {
+      "foreach": {
+        "field": "speaker_segments",
+        "if": "ctx.speaker_segments != null",
+        "ignore_missing": true,
+        "processor": {
+          "gsub": {
+            "field": "_ingest._value.summary",
+            "pattern": "\\[([^\\]]+)\\]\\(REF:[^)]+\\)",
+            "replacement": "$1",
+            "ignore_missing": true
+          }
+        }
+      }
+    }
+  ]
+}
