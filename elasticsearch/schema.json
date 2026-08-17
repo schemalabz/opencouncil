@@ -414,11 +414,9 @@
           }
         },
         {
-          "table": "MeetingAdministrativeBodyView",
+          "table": "CouncilMeeting",
           "schema": "public",
-          "base_tables": ["CouncilMeeting", "AdministrativeBody"],
-          "primary_key": ["id", "cityId"],
-          "columns": ["administrative_body_id"],
+          "columns": ["administrativeBodyId"],
           "label": "administrative_body_id",
           "relationship": {
             "variant": "scalar",
@@ -429,7 +427,7 @@
         {
           "table": "MeetingAdministrativeBodyView",
           "schema": "public",
-          "base_tables": ["CouncilMeeting", "AdministrativeBody"],
+          "base_tables": ["CouncilMeeting"],
           "primary_key": ["id", "cityId"],
           "columns": ["administrative_body_type"],
           "label": "administrative_body_type",

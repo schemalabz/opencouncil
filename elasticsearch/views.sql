@@ -214,9 +214,15 @@ LEFT JOIN LATERAL (
 --   - Flattens the two-hop join into one row per meeting
 --   - Casts the AdministrativeBodyType enum to text, which Elasticsearch can index
 --
--- Only the id and the type are exposed. Search filters on both, and search results
--- hydrate the full administrativeBody from PostgreSQL, so indexing the names would
--- duplicate data that no query reads.
+-- Only the type reaches the index through this view. administrative_body_id is
+-- CouncilMeeting."administrativeBodyId" verbatim (the join can only reproduce it), so
+-- schema.json reads that column straight off CouncilMeeting and gets normal WAL routing
+-- for a meeting that moves to another body. The id column stays here because
+-- validate-views.sql pairs it with the type, and because CREATE OR REPLACE VIEW cannot
+-- drop a column from an existing view.
+--
+-- The names are not indexed: search results hydrate the full administrativeBody from
+-- PostgreSQL, so indexing them would duplicate data that no query reads.
 --
 -- IMPORTANT: Primary key columns keep their original names (`id`, `cityId`).
 -- See the note on SpeakerContributionSearchView for why WAL requires this.
