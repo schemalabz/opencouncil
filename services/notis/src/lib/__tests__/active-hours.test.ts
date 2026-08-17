@@ -1,5 +1,6 @@
 import {
   QUIET_RELEASE_JITTER_MS,
+  activePhase,
   athensHour,
   clampToActiveHours,
   isQuietHour,
@@ -71,5 +72,29 @@ describe("clampToActiveHours", () => {
     expect(jittered).toBeGreaterThan(base);
     expect(jittered - base).toBeLessThan(QUIET_RELEASE_JITTER_MS);
     expect(athensHour(new Date(jittered))).toBe(9);
+  });
+});
+
+describe("activePhase", () => {
+  it("active afternoons end at the coming 23:00 Athens", () => {
+    const noon = new Date("2026-08-18T09:00:00.000Z"); // 12:00 Athens
+    const phase = activePhase(noon);
+    expect(phase.phase).toBe("active");
+    expect(phase.until.toISOString()).toBe("2026-08-18T20:00:00.000Z"); // 23:00 EEST
+    expect(athensHour(phase.until)).toBe(23);
+  });
+
+  it("quiet nights end at the 09:00 release, jitter-free", () => {
+    const night = new Date("2026-08-18T01:15:00.000Z"); // 04:15 Athens
+    const phase = activePhase(night);
+    expect(phase.phase).toBe("quiet");
+    expect(phase.until.toISOString()).toBe("2026-08-18T06:00:00.000Z");
+  });
+
+  it("a winter afternoon points at the EET 23:00", () => {
+    const winterNoon = new Date("2026-12-01T10:00:00.000Z"); // 12:00 Athens EET
+    const phase = activePhase(winterNoon);
+    expect(phase.phase).toBe("active");
+    expect(phase.until.toISOString()).toBe("2026-12-01T21:00:00.000Z");
   });
 });

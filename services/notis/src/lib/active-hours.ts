@@ -63,3 +63,37 @@ export function clampToActiveHours(date: Date, rng: () => number = Math.random):
   if (!isQuietHour(date)) return date;
   return new Date(nextRelease(date).getTime() + Math.floor(rng() * QUIET_RELEASE_JITTER_MS));
 }
+
+/** The next Athens 23:00 at or after `date` — the same two-candidate trick
+ *  as nextRelease (23:00 local is 20:00Z or 21:00Z). */
+function nextQuietStart(date: Date): Date {
+  const [y, m, d] = dayFormat.format(date).split("-").map(Number);
+  const sameDayUtc = Date.UTC(y, m - 1, d);
+  for (const utcHour of [20, 21]) {
+    const candidate = new Date(sameDayUtc + utcHour * 3_600_000);
+    if (candidate >= date && athensHour(candidate) === QUIET_START_HOUR) return candidate;
+  }
+  // Already past today's 23:00 (i.e. between midnight and 09:00 handles via
+  // isQuietHour; this branch is the late-evening edge) — tomorrow's.
+  for (const utcHour of [20, 21]) {
+    const candidate = new Date(sameDayUtc + 86_400_000 + utcHour * 3_600_000);
+    if (athensHour(candidate) === QUIET_START_HOUR) return candidate;
+  }
+  return new Date(sameDayUtc + 86_400_000 + 21 * 3_600_000);
+}
+
+export interface ActivePhase {
+  phase: "active" | "quiet";
+  /** When the current phase ends: the next 23:00 (active) or the next
+   *  09:00 release (quiet), Athens time, jitter-free. */
+  until: Date;
+}
+
+/** Which side of the quiet-hours boundary `date` sits on, and when that
+ *  changes — display fuel for the admin panel's countdowns. */
+export function activePhase(date: Date): ActivePhase {
+  if (isQuietHour(date)) {
+    return { phase: "quiet", until: clampToActiveHours(date, () => 0) };
+  }
+  return { phase: "active", until: nextQuietStart(date) };
+}

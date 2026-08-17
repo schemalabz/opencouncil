@@ -74,3 +74,13 @@ export function hasPendingBrief(
     "pending" in event.brief
   );
 }
+
+/** Greek display labels for wake event types, shared by the overview, the
+ *  wakes feed and the system page. */
+export const EVENT_LABELS: Record<string, string> = {
+  user_message: "μηνύματα χρηστών",
+  agenda_processed: "ατζέντες",
+  meeting_summarized: "απολογισμοί",
+  scheduled: "προγραμματισμένα",
+  heartbeat: "heartbeat",
+};

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  AlarmClock,
   AlertCircle,
   Check,
   CheckCheck,
@@ -17,6 +18,8 @@ import {
 /* eslint-disable @next/next/no-img-element */
 import { Button } from "@opencouncil/ui/button";
 import { RenderedTemplate, introTemplateFor, renderTemplate } from "@/agent/templates";
+import { Countdown } from "./Countdown";
+import type { UpcomingWake } from "../_lib/conversations";
 import { fmtDateChip, fmtTime } from "../_lib/format";
 import { MessageDelivery, Origin, WakeRecord } from "../_lib/records";
 import { WA } from "../_lib/whatsapp";
@@ -43,6 +46,8 @@ interface Props {
   busyItemId?: string;
   onSelect(id: string): void;
   sim?: SimControls;
+  /** The agent's un-fired scheduled wakes (DB-backed viewer only). */
+  upcoming?: UpcomingWake[];
 }
 
 /* WhatsApp visual constants (palette lives in ../_lib/whatsapp) */
@@ -62,7 +67,9 @@ function eventCaption(item: WakeRecord): string {
       caption = `${e.meetingName}`;
       break;
     case "scheduled":
-      caption = "follow-up";
+      // A promised answer to the reader is a follow-up; the agent's own
+      // proactive note must not pretend to be one.
+      caption = e.origin === "proactive" ? "προγραμματισμένο" : "follow-up";
       break;
     default:
       caption = "";
@@ -427,6 +434,7 @@ export function WhatsAppChat({
   busyItemId,
   onSelect,
   sim,
+  upcoming,
 }: Props) {
   const threadRef = useRef<HTMLDivElement>(null);
   const busy = sim?.busy ?? false;
@@ -605,6 +613,18 @@ export function WhatsAppChat({
             </div>
           </div>
         )}
+        {/* The agent's future: un-fired scheduled wakes, as system chips. */}
+        {upcoming?.map((note) => (
+          <div key={note.id} className="flex justify-center px-4 pt-1">
+            <div className="flex max-w-[85%] items-center gap-2.5 rounded-full border border-[#e6e0d4] bg-[#fdf6ee] py-1.5 pl-3 pr-4 shadow-sm">
+              <AlarmClock className="h-3.5 w-3.5 shrink-0 text-orange" />
+              <span className="min-w-0 truncate text-[11.5px] text-[#54656f]">
+                {note.origin === "reply" ? "θα επανέλθει" : "θα το ξαναδεί"} · «{note.reason}»
+              </span>
+              <Countdown prefix="σε" target={note.firesAt} start={note.createdAt} overdueLabel="στο επόμενο tick" className="w-20 shrink-0" />
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* controls + composer — simulator only; the viewer is read-only */}

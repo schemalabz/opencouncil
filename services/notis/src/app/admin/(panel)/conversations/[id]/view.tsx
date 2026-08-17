@@ -46,6 +46,7 @@ export function ConversationDetailView({ detail }: { detail: ConversationDetail 
         origin={s.origin}
         startAt={s.startedAt}
         profile={detail.profile}
+        upcoming={detail.upcoming}
         selectedId={selectedId}
         onSelect={setSelectedId}
         traceFor={(id) => traces[id]}

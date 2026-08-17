@@ -24,6 +24,7 @@ interface Props {
   traceFor(id: string): WakeTrace | undefined;
   chatSim?: SimControls;
   inspectorSim?: InspectorSimActions;
+  upcoming?: import("../_lib/conversations").UpcomingWake[];
 }
 
 export function ConversationView({
@@ -39,6 +40,7 @@ export function ConversationView({
   traceFor,
   chatSim,
   inspectorSim,
+  upcoming,
 }: Props) {
   const selectedItem = records.find((q) => q.id === selectedId);
 
@@ -62,6 +64,7 @@ export function ConversationView({
             selectedId={selectedId}
             onSelect={onSelect}
             sim={chatSim}
+            upcoming={upcoming}
           />
         </div>
         <div className="min-h-0 overflow-hidden border-l">

@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { Moon, OctagonAlert, Sun } from "lucide-react";
+import { EVENT_LABELS } from "./_lib/records";
+import { getRailsNow } from "./_lib/system";
+import { Countdown } from "./_components/Countdown";
 import { DeltaChip } from "./_components/DeltaChip";
 import { MetricCard, MetricPoint } from "./_components/MetricCard";
 import { PageHeader } from "./_components/PageHeader";
@@ -22,14 +26,6 @@ export const metadata = { title: "Νότης · admin" };
  * The overview: one window (default 7 days), every number beside its change
  * versus the period before it. Server-rendered; the range picker is links.
  */
-
-const EVENT_LABELS: Record<string, string> = {
-  user_message: "μηνύματα χρηστών",
-  agenda_processed: "ατζέντες",
-  meeting_summarized: "απολογισμοί",
-  scheduled: "προγραμματισμένα",
-  heartbeat: "heartbeat",
-};
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "σε αναμονή",
@@ -369,6 +365,66 @@ function RecentInboundList({ stats }: { stats: OverviewStats }) {
   );
 }
 
+const SUPPRESSION_LABELS: Record<string, string> = {
+  "shadow mode": "shadow",
+  "weekly cap": "όριο εβδομάδας",
+  paused: "παύση",
+  unsubscribed: "απεγγραφή",
+};
+
+async function RailsStrip({ suppressions }: { suppressions: Array<{ reason: string; count: number }> }) {
+  const rails = await getRailsNow();
+  if (!rails) return null;
+  const suppressedTotal = suppressions.reduce((a, r) => a + r.count, 0);
+  return (
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border bg-background px-4 py-2.5 text-xs">
+      <span
+        className={`rounded px-2 py-0.5 font-semibold uppercase tracking-wider ${
+          rails.settings.mode === "live"
+            ? "bg-green-600/10 text-green-700"
+            : "bg-amber-500/15 text-amber-700"
+        }`}
+      >
+        {rails.settings.mode}
+      </span>
+      {rails.settings.paused && (
+        <span className="flex items-center gap-1 rounded bg-destructive/10 px-2 py-0.5 font-semibold uppercase tracking-wider text-destructive">
+          <OctagonAlert className="h-3 w-3" /> παύση
+        </span>
+      )}
+      <span className="flex items-center gap-2 text-muted-foreground">
+        {rails.phase.kind === "active" ? (
+          <Sun className="h-3.5 w-3.5" />
+        ) : (
+          <Moon className="h-3.5 w-3.5" />
+        )}
+        {rails.phase.kind === "active" ? "ησυχία" : "απελευθέρωση"}
+        <Countdown prefix="σε" target={rails.phase.until} className="w-24" />
+      </span>
+      {rails.heldUntilRelease > 0 && (
+        <span className="text-muted-foreground">
+          <span className="font-medium text-foreground">{rails.heldUntilRelease}</span> σε αναμονή
+        </span>
+      )}
+      {rails.atCapCount > 0 && (
+        <span className="text-muted-foreground">
+          <span className="font-medium text-amber-700">{rails.atCapCount}</span> στο όριο
+        </span>
+      )}
+      {suppressedTotal > 0 && (
+        <span className="text-muted-foreground">
+          {suppressions
+            .map((r) => `${r.count} ${SUPPRESSION_LABELS[r.reason] ?? r.reason}`)
+            .join(" · ")}
+        </span>
+      )}
+      <Link href="/admin/system" className="ml-auto text-muted-foreground hover:text-foreground">
+        Σύστημα →
+      </Link>
+    </div>
+  );
+}
+
 export default async function DashboardPage(props: {
   searchParams: Promise<{ range?: string }>;
 }) {
@@ -391,6 +447,7 @@ export default async function DashboardPage(props: {
       </PageHeader>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
+        <RailsStrip suppressions={current.suppressions} />
         <div className="grid divide-y rounded-lg border bg-background sm:grid-cols-2 sm:divide-y-0 xl:grid-cols-4 xl:divide-x">
           <MetricCard
             label="Ενεργοί χρήστες"
