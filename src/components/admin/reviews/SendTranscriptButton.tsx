@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Loader2, Send } from 'lucide-react';
-import { getMeetingContactEmails } from '@/lib/tasks/humanReview';
+import { useReviewCompletion } from '@/components/reviews/useReviewCompletion';
 import { sendTranscriptToMunicipality } from '@/lib/tasks/sendTranscript';
 import { useRouter } from 'next/navigation';
 import {
@@ -33,20 +33,9 @@ export function SendTranscriptButton({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDialog, setShowDialog] = useState(false);
-  const [contactEmails, setContactEmails] = useState<string[]>([]);
-  const [isLoadingEmails, setIsLoadingEmails] = useState(false);
-
-  useEffect(() => {
-    if (showDialog) {
-      setIsLoadingEmails(true);
-      getMeetingContactEmails(cityId, meetingId)
-        .then((result) => {
-          setContactEmails(result.contactEmails);
-        })
-        .catch(() => setContactEmails([]))
-        .finally(() => setIsLoadingEmails(false));
-    }
-  }, [showDialog, cityId, meetingId]);
+  // Reuses the loader of the completion dialog: same recipients, same stale-response guard
+  const completion = useReviewCompletion(cityId, meetingId, showDialog);
+  const contactEmails = completion.state?.contactEmails ?? [];
 
   const handleSendTranscript = async () => {
     setError(null);
@@ -82,7 +71,7 @@ export function SendTranscriptButton({
     );
   }
 
-  const isLoading = isSubmitting || isPending || isLoadingEmails;
+  const isBusy = isSubmitting || isPending;
 
   return (
     <div className="space-y-2">
@@ -91,9 +80,9 @@ export function SendTranscriptButton({
           <Button
             variant="outline"
             className="w-full"
-            disabled={isLoading}
+            disabled={isBusy}
           >
-            {isLoading ? (
+            {isBusy ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 Sending...
@@ -113,10 +102,13 @@ export function SendTranscriptButton({
               This will email the transcript (DOCX) to the municipality&apos;s configured contact emails.
             </DialogDescription>
           </DialogHeader>
-          {isLoadingEmails ? (
+          {completion.isLoading ? (
             <div className="flex items-center justify-center py-4">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
+          ) : completion.error ? (
+            // A failed load must not read as a municipality without contact emails
+            <p className="text-sm text-destructive py-2">{completion.error}</p>
           ) : contactEmails.length === 0 ? (
             <p className="text-sm text-muted-foreground py-2">
               No contact emails configured for this administrative body.
@@ -133,15 +125,15 @@ export function SendTranscriptButton({
             <Button
               variant="outline"
               onClick={() => setShowDialog(false)}
-              disabled={isLoading}
+              disabled={isBusy}
             >
               Cancel
             </Button>
             <Button
               onClick={handleSendTranscript}
-              disabled={isLoading || contactEmails.length === 0}
+              disabled={isBusy || completion.isLoading || contactEmails.length === 0}
             >
-              {isLoading ? (
+              {isBusy ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Sending...

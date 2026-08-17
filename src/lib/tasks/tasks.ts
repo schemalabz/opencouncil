@@ -86,7 +86,12 @@ export const startTask = async (taskType: MeetingTaskType, requestBody: any, cou
     if (TASK_CONFIG[taskType].requiredForPipeline) {
         const idempotency = await checkTaskIdempotency(taskType, cityId, councilMeetingId, options);
         if (!idempotency.proceed) {
-            throw new TaskAlreadyExistsError(taskType, idempotency.blockedReason ?? 'already_running');
+            // No default: a new blocked reason must fail here rather than reach the
+            // reviewer relabelled as "already running"
+            if (!idempotency.blockedReason) {
+                throw new Error(`checkTaskIdempotency blocked ${taskType} for ${cityId}/${councilMeetingId} without a reason`);
+            }
+            throw new TaskAlreadyExistsError(taskType, idempotency.blockedReason);
         }
     }
 

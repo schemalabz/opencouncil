@@ -8,6 +8,12 @@ export interface AutoTriggerSource {
     taskId: string;
 }
 
+/**
+ * What the trigger did. The caller reports it to the user, so a failed follow-up
+ * never reads as a success.
+ */
+export type AutoTriggerOutcome = 'started' | 'skipped' | 'failed';
+
 export interface AutoTriggerContext {
     cityId: string;
     meetingId: string;
@@ -26,21 +32,25 @@ export interface AutoTriggerContext {
  * A meeting that already has the task is a skip, not a failure. startTask owns that
  * decision and reports it with TaskAlreadyExistsError, so a caller needs no check of
  * its own and no two checks can disagree.
+ *
+ * The outcome comes back to the caller. The guard keeps the failure from throwing,
+ * but the caller still has to tell the user that the follow-up did not start.
  */
 export async function autoTriggerTask(
     taskType: MeetingTaskType,
     context: AutoTriggerContext,
     trigger: () => Promise<unknown>
-): Promise<void> {
+): Promise<AutoTriggerOutcome> {
     const { cityId, meetingId, cityName, meetingName, source } = context;
 
     try {
         await trigger();
         console.log(`Auto-triggered ${taskType} for ${cityId}/${meetingId}`);
+        return 'started';
     } catch (error) {
         if (error instanceof TaskAlreadyExistsError) {
             console.log(`Skipped auto-trigger of ${taskType} for ${cityId}/${meetingId}: ${error.reason}`);
-            return;
+            return 'skipped';
         }
 
         console.error(`Failed to auto-trigger ${taskType} for ${cityId}/${meetingId}:`, error);
@@ -54,5 +64,7 @@ export async function autoTriggerTask(
             meetingId,
             error: `Failed to auto-trigger after successful ${source.taskType} (task ID is the ${source.taskType} task's): ${error instanceof Error ? error.message : String(error)}`,
         }).catch((alertError) => console.error('Failed to send auto-trigger failure alert:', alertError));
+
+        return 'failed';
     }
 }

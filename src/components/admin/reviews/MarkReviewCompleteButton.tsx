@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Loader2 } from 'lucide-react';
-import { markHumanReviewComplete, getMeetingContactEmails } from '@/lib/tasks/humanReview';
+import { markHumanReviewComplete } from '@/lib/tasks/humanReview';
 import { useRouter } from 'next/navigation';
 import {
   Dialog,
@@ -14,7 +14,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { SendTranscriptCheckbox } from '@/components/reviews/SendTranscriptCheckbox';
+import { ReviewCompletionOptions } from '@/components/reviews/ReviewCompletionOptions';
+import { failedFollowUps, useReviewCompletion } from '@/components/reviews/useReviewCompletion';
 
 interface MarkReviewCompleteButtonProps {
   cityId: string;
@@ -34,36 +35,23 @@ export function MarkReviewCompleteButton({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDialog, setShowDialog] = useState(false);
-  const [contactEmails, setContactEmails] = useState<string[]>([]);
-  const [sendTranscript, setSendTranscript] = useState(false);
-  const [isLoadingEmails, setIsLoadingEmails] = useState(false);
-
-  useEffect(() => {
-    if (showDialog) {
-      setIsLoadingEmails(true);
-      getMeetingContactEmails(cityId, meetingId)
-        .then((result) => {
-          setContactEmails(result.contactEmails);
-          // Default to true if contact emails exist, matching CompleteReviewDialog behavior
-          setSendTranscript(result.contactEmails.length > 0);
-        })
-        .catch(() => setContactEmails([]))
-        .finally(() => setIsLoadingEmails(false));
-    }
-  }, [showDialog, cityId, meetingId]);
+  const completion = useReviewCompletion(cityId, meetingId, showDialog);
 
   const handleMarkComplete = async () => {
     setError(null);
     setIsSubmitting(true);
-    
+
     try {
-      await markHumanReviewComplete(
-        cityId,
-        meetingId,
-        undefined,
-        sendTranscript && contactEmails.length > 0
-      );
-      
+      const { followUps } = await markHumanReviewComplete(cityId, meetingId, completion.completionOptions);
+
+      // The review is complete either way, but a follow-up that failed must not
+      // disappear behind a closed dialog
+      const failed = failedFollowUps(followUps);
+      if (failed.length > 0) {
+        setError(`Review completed, but these follow-ups failed: ${failed.join(', ')}. Retry them from the meeting admin panel.`);
+        return;
+      }
+
       // Close dialog
       setShowDialog(false);
       
@@ -91,17 +79,17 @@ export function MarkReviewCompleteButton({
     );
   }
 
-  const isLoading = isSubmitting || isPending || isLoadingEmails;
+  const isBusy = isSubmitting || isPending;
 
   return (
     <div className="space-y-2">
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogTrigger asChild>
-          <Button 
-            className="w-full" 
-            disabled={isLoading}
+          <Button
+            className="w-full"
+            disabled={isBusy}
           >
-            {isLoading ? (
+            {isBusy ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 Marking Complete...
@@ -121,24 +109,35 @@ export function MarkReviewCompleteButton({
               This will mark the transcript review as complete. The meeting will be removed from the &quot;Needs Attention&quot; list and moved to completed reviews.
             </DialogDescription>
           </DialogHeader>
-          <SendTranscriptCheckbox
-            contactEmails={contactEmails}
-            checked={sendTranscript}
-            onCheckedChange={setSendTranscript}
-          />
+          {completion.isLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : completion.error ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm text-destructive">{completion.error}</p>
+              <Button variant="outline" size="sm" onClick={completion.reload}>
+                Retry
+              </Button>
+            </div>
+          ) : (
+            <ReviewCompletionOptions completion={completion} />
+          )}
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setShowDialog(false)}
-              disabled={isLoading}
+              disabled={isBusy}
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleMarkComplete}
-              disabled={isLoading}
+              // Never confirm without the loaded options: the reviewer would
+              // complete the review with every follow-up silently off
+              disabled={isBusy || completion.isLoading || !completion.state}
             >
-              {isLoading ? (
+              {isBusy ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Marking...

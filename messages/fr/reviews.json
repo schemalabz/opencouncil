@@ -8,7 +8,8 @@
     "buttons": {
       "cancel": "Annuler",
       "markComplete": "Marquer comme terminée",
-      "completing": "Finalisation..."
+      "completing": "Finalisation...",
+      "retry": "Réessayer"
     },
     "toasts": {
       "success": {
@@ -18,12 +19,38 @@
       "error": {
         "title": "Erreur",
         "description": "Échec du marquage de la révision comme terminée"
+      },
+      "followUpFailed": {
+        "title": "Révision terminée, action suivante en échec",
+        "description": "La révision est terminée, mais ceci n'a pas été exécuté : {actions}. Relancez-le depuis le panneau d'administration de la séance.",
+        "actions": {
+          "summarize": "summarize task",
+          "transcript": "l'e-mail de la transcription"
+        }
       }
+    },
+    "errors": {
+      "stats": "Les statistiques de révision n'ont pas été chargées : {message}",
+      "options": "Les options de finalisation n'ont pas été chargées : {message}"
     },
     "manualTime": {
       "label": "Le temps de révision calculé n'est pas exact",
       "placeholder": "Saisissez le temps de révision réel (par ex. 2h 30min)",
       "help": "Ceci est utilisé uniquement comme référence afin d'améliorer notre algorithme d'estimation du temps."
+    },
+    "runSummarize": {
+      "label": "Exécuter summarize task",
+      "help": "OpenCouncil résume la transcription révisée et en extrait les sujets de la séance.",
+      "notifications": {
+        "auto": "Les abonnés reçoivent une notification dès que le résumé est prêt.",
+        "approval": "Les notifications attendent l'approbation d'un administrateur avant leur envoi.",
+        "disabled": "Aucune notification n'est envoyée pour cette séance.",
+        "beforeRelease": "La séance n'est pas publiée. Les abonnés reçoivent une notification pour une page qu'ils ne peuvent pas ouvrir."
+      },
+      "unavailable": {
+        "succeeded": "Un résumé existe déjà pour cette séance.",
+        "running": "Un résumé est déjà en cours pour cette séance."
+      }
     },
     "sendTranscript": {
       "label": "Envoyer la transcription à la commune",

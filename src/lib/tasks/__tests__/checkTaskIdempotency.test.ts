@@ -31,6 +31,7 @@ jest.mock('../registry', () => ({
 }));
 
 import { checkTaskIdempotency, startTask, handleTaskUpdate } from '../tasks';
+import { TaskAlreadyExistsError } from '../types';
 import { sendTaskAdminAlert } from '../../discord';
 
 const CITY_ID = 'city-1';
@@ -191,6 +192,24 @@ describe('startTask — idempotency scoping', () => {
 
     await expect(startTask('summarize', {}, MEETING_ID, CITY_ID))
       .rejects.toThrow('already succeeded');
+  });
+
+  // autoTriggerTask tells a benign duplicate from a real failure with instanceof, so
+  // the type of the error is the contract — the message alone cannot carry it
+  it.each([
+    ['already_succeeded', () => mockFindFirst.mockResolvedValueOnce(succeededTask)],
+    ['already_running', () => {
+      mockFindFirst.mockResolvedValueOnce(null);
+      mockFindFirst.mockResolvedValueOnce(runningTask);
+    }],
+  ] as const)('reports a blocked pipeline task as TaskAlreadyExistsError (%s)', async (reason, arrange) => {
+    arrange();
+
+    const error = await startTask('summarize', {}, MEETING_ID, CITY_ID).catch((e) => e);
+
+    expect(error).toBeInstanceOf(TaskAlreadyExistsError);
+    expect(error.reason).toBe(reason);
+    expect(error.taskType).toBe('summarize');
   });
 
   it('enforces idempotency for pipeline tasks (e.g. transcribe)', async () => {
