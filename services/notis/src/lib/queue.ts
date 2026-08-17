@@ -286,7 +286,7 @@ async function applySendResult(
   }
 }
 
-async function suppressMessages(
+export async function suppressMessages(
   db: PrismaClient,
   messageIds: string[],
   reason: string,

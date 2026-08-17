@@ -59,6 +59,13 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
     notisSubscription: {
       findUnique: async ({ where }: { where: { id: string } }) =>
         store.subscriptions.get(where.id) ?? null,
+      findMany: async ({ where }: { where?: Row } = {}) =>
+        [...store.subscriptions.values()].filter((s) => {
+          const w = (where ?? {}) as { userId?: { in: string[] }; status?: string };
+          if (w.userId && !w.userId.in.includes(s.userId as string)) return false;
+          if (w.status !== undefined && s.status !== w.status) return false;
+          return true;
+        }),
       findFirst: async ({ where }: { where: { phone: { in: string[] } } }) =>
         [...store.subscriptions.values()].find((s) => where.phone.in.includes(s.phone as string)) ??
         null,
