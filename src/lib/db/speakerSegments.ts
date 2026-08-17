@@ -917,8 +917,6 @@ export async function extractSpeakerSegment(
     const afterUtterances = utterances.slice(endIndex + 1);
 
     return await prisma.$transaction(async (tx) => {
-        const createdSegments: SpeakerSegmentWithRelations[] = [];
-
         // Create the new middle segment with extracted utterances
         const middleStart = middleUtterances[0].startTimestamp;
         const middleEnd = middleUtterances[middleUtterances.length - 1].endTimestamp;
@@ -944,7 +942,11 @@ export async function extractSpeakerSegment(
             data: { speakerSegmentId: middleSegment.id }
         });
 
-        // Update or delete the original segment based on remaining utterances
+        // Update or delete the original segment based on remaining utterances.
+        // When only the "after" utterances remain, the original segment keeps
+        // them: deleting it here would cascade-delete those utterances (they
+        // still reference it) along with the segment's summary and topic
+        // labels.
         if (beforeUtterances.length > 0) {
             const beforeStart = beforeUtterances[0].startTimestamp;
             const beforeEnd = beforeUtterances[beforeUtterances.length - 1].endTimestamp;
@@ -953,12 +955,22 @@ export async function extractSpeakerSegment(
                 where: { id: segmentId },
                 data: { startTimestamp: beforeStart, endTimestamp: beforeEnd }
             });
+        } else if (afterUtterances.length > 0) {
+            await tx.speakerSegment.update({
+                where: { id: segmentId },
+                data: {
+                    startTimestamp: afterUtterances[0].startTimestamp,
+                    endTimestamp: afterUtterances[afterUtterances.length - 1].endTimestamp
+                }
+            });
         } else {
             await tx.speakerSegment.delete({ where: { id: segmentId } });
         }
 
-        // Create after segment if there are remaining utterances
-        if (afterUtterances.length > 0) {
+        // A separate after segment is needed only when the original keeps the
+        // "before" utterances
+        let afterSegmentId: string | null = null;
+        if (beforeUtterances.length > 0 && afterUtterances.length > 0) {
             const afterStart = afterUtterances[0].startTimestamp;
             const afterEnd = afterUtterances[afterUtterances.length - 1].endTimestamp;
 
@@ -969,21 +981,20 @@ export async function extractSpeakerSegment(
                     speakerTagId: originalSegment.speakerTagId, // Same speaker as original
                     startTimestamp: afterStart,
                     endTimestamp: afterEnd
-                },
-                include: speakerSegmentWithRelationsInclude
+                }
             });
 
             await tx.utterance.updateMany({
                 where: { id: { in: afterUtterances.map(u => u.id) } },
                 data: { speakerSegmentId: afterSegment.id }
             });
-            createdSegments.push(afterSegment);
+            afterSegmentId = afterSegment.id;
         }
 
         // Return all segments in chronological order
-        const finalSegments = [];
+        const finalSegments: SpeakerSegmentWithRelations[] = [];
 
-        // Re-fetch original if not deleted
+        // Re-fetch original if it kept the "before" utterances
         if (beforeUtterances.length > 0) {
             const updatedOriginal = await tx.speakerSegment.findUnique({
                 where: { id: segmentId },
@@ -999,13 +1010,20 @@ export async function extractSpeakerSegment(
         });
         if (finalMiddle) finalSegments.push(finalMiddle);
 
-        if (afterUtterances.length > 0) {
+        if (afterSegmentId) {
             const finalAfter = await tx.speakerSegment.findUnique({
-                // @ts-ignore - we know we created it if length > 0
-                where: { id: createdSegments[0].id },
+                where: { id: afterSegmentId },
                 include: speakerSegmentWithRelationsInclude
             });
             if (finalAfter) finalSegments.push(finalAfter);
+        } else if (beforeUtterances.length === 0 && afterUtterances.length > 0) {
+            // The original follows the middle when it kept the "after"
+            // utterances
+            const updatedOriginal = await tx.speakerSegment.findUnique({
+                where: { id: segmentId },
+                include: speakerSegmentWithRelationsInclude
+            });
+            if (updatedOriginal) finalSegments.push(updatedOriginal);
         }
 
         return finalSegments;

@@ -91,8 +91,8 @@
         "answer": "Cliquez sur le badge d'intervenant du segment, puis recherchez un intervenant ou sélectionnez « Intervenant inconnu »."
       },
       "splitSegment": {
-        "question": "Comment diviser un segment (schéma A-B-A) ?",
-        "answer": "Lorsque les énoncés de l'Intervenant B sont incorrectement inclus dans le segment de l'Intervenant A, sélectionnez les énoncés à extraire à l'aide de Maj+Clic pour les plages, puis appuyez sur « e » ou faites un clic droit et sélectionnez « Extraire le segment »."
+        "question": "Comment diviser un segment ?",
+        "answer": "Lorsque les énoncés d'un autre intervenant sont incorrectement inclus dans un segment, sélectionnez-les (Maj+Clic pour les plages), puis appuyez sur « e » ou faites un clic droit et sélectionnez « Extraire le segment ». La sélection peut commencer au premier énoncé ou finir au dernier. Les énoncés extraits reçoivent un nouvel intervenant non identifié que vous attribuez ensuite."
       },
       "moveUtterances": {
         "question": "Comment déplacer des énoncés entre les segments ?",
@@ -120,7 +120,7 @@
       },
       "selected": {
         "title": "Sélectionné pour extraction",
-        "description": "Le texte en gras indique les énoncés sélectionnés pour être extraits dans un nouveau segment. Utilisez cette fonction lorsque les énoncés de l'Intervenant B sont incorrectement inclus dans le segment de l'Intervenant A (schéma A-B-A).",
+        "description": "Le texte en gras indique les énoncés sélectionnés pour être extraits dans un nouveau segment. Utilisez cette fonction lorsque les énoncés d'un autre intervenant sont incorrectement inclus dans le segment, à n'importe quelle position.",
         "example": "Les énoncés sélectionnés apparaissent en gras"
       }
     }
@@ -135,7 +135,6 @@
     "selectionErrorDiffSegments": "Impossible d'extraire des énoncés de différents segments en même temps.",
     "invalidOperationTitle": "Opération non valide",
     "invalidOperationExtractAll": "Impossible d'extraire tous les énoncés. Utilisez plutôt « Changer d'intervenant ».",
-    "invalidOperationExtractStartEnd": "Impossible d'extraire depuis le début ou la fin d'un segment. La sélection doit se situer strictement au milieu.",
     "reviewCompleted": "Révision terminée",
     "reviewCompletedDescription": "La révision de la transcription a été marquée comme terminée."
   }
