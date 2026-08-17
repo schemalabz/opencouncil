@@ -50,6 +50,9 @@ export interface DigestedMeetingView {
   type: string;
   cityId: string;
   meetingId: string;
+  meetingName: string | null;
+  meetingDate: string | null;
+  adminBodyName: string | null;
   processedAt: string;
   briefCostUsd: number | null;
   headline: string | null;
@@ -286,6 +289,9 @@ export async function getSystemSnapshot(): Promise<SystemSnapshot> {
           type: row.type,
           cityId: row.cityId,
           meetingId: row.meetingId,
+          meetingName: row.meetingName,
+          meetingDate: row.meetingDate?.toISOString() ?? null,
+          adminBodyName: row.adminBodyName,
           processedAt: row.processedAt.toISOString(),
           briefCostUsd: row.briefCostUsd,
           headline: brief?.headline ?? null,

@@ -423,7 +423,15 @@ async function processMeetingEvents(
     for (const row of fresh) {
       try {
         await db.notisProcessedEvent.create({
-          data: { taskId: row.taskId, type: row.type, cityId: row.cityId, meetingId: row.meetingId },
+          data: {
+            taskId: row.taskId,
+            type: row.type,
+            cityId: row.cityId,
+            meetingId: row.meetingId,
+            meetingName: row.meetingName,
+            meetingDate: row.meetingDate,
+            adminBodyName: row.adminBodyName,
+          },
         });
         result.eventsProcessed++;
       } catch {
@@ -449,7 +457,15 @@ async function processMeetingEvents(
     if (audience.length === 0) {
       try {
         await db.notisProcessedEvent.create({
-          data: { taskId: row.taskId, type: row.type, cityId: row.cityId, meetingId: row.meetingId },
+          data: {
+            taskId: row.taskId,
+            type: row.type,
+            cityId: row.cityId,
+            meetingId: row.meetingId,
+            meetingName: row.meetingName,
+            meetingDate: row.meetingDate,
+            adminBodyName: row.adminBodyName,
+          },
         });
         result.eventsProcessed++;
       } catch {
@@ -493,6 +509,9 @@ async function processMeetingEvents(
             type: row.type,
             cityId: row.cityId,
             meetingId: row.meetingId,
+            meetingName: row.meetingName,
+            meetingDate: row.meetingDate,
+            adminBodyName: row.adminBodyName,
             brief: brief as unknown as Prisma.InputJsonValue,
             briefCostUsd: costUsd,
           },

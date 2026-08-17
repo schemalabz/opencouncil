@@ -307,6 +307,11 @@ model NotisProcessedEvent {
   type      String
   cityId    String
   meetingId String
+  // Display metadata for the editorial ledger, copied from the view row at
+  // record time. Nullable: rows recorded before PR 4's ledger have none.
+  meetingName   String?
+  meetingDate   DateTime?
+  adminBodyName String?
 
   // The shared editorial pass output, run once per taskId before fan-out;
   // every enqueued event embeds it verbatim. Null only for seed-only

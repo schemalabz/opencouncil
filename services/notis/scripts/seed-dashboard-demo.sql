@@ -10,8 +10,8 @@
 -- the model never runs for demo data.
 
 -- 1. Digested meetings: two with rich briefs, one consumed without one.
-INSERT INTO "NotisProcessedEvent" ("taskId", type, "cityId", "meetingId", brief, "briefCostUsd", "processedAt") VALUES
-('fake-task-1', 'summarize', 'athens', 'fake-jul29', $$
+INSERT INTO "NotisProcessedEvent" ("taskId", type, "cityId", "meetingId", "meetingName", "meetingDate", "adminBodyName", brief, "briefCostUsd", "processedAt") VALUES
+('fake-task-1', 'summarize', 'athens', 'fake-jul29', '18η Τακτική Συνεδρίαση', '2026-08-17T18:00:00Z', 'Δημοτικό Συμβούλιο', $$
 {"cityId":"athens","meetingId":"fake-jul29","generatedAt":"2026-08-18T09:00:00.000Z",
  "headline":"Μετρό Γραμμή 4: ο Δήμος πληρώνει πραγματογνώμονες για τις ρωγμές στην Κυψέλη",
  "subjects":[
@@ -28,7 +28,7 @@ INSERT INTO "NotisProcessedEvent" ("taskId", type, "cityId", "meetingId", brief,
    "scores":{"hyperlocal":3,"citywide":1,"contention":2,"novelty":2,"money":1},
    "note":"Πιλοτική πεζοδρόμηση σαββατοκύριακων για έξι μήνες.","locationHints":["Πανόρμου"]}
  ]}$$::jsonb, 0.11, now() - interval '3 hours'),
-('fake-task-2', 'processAgenda', 'athens', 'fake-sep02', $$
+('fake-task-2', 'processAgenda', 'athens', 'fake-sep02', '19η Τακτική Συνεδρίαση', '2026-09-02T17:00:00Z', 'Δημοτικό Συμβούλιο', $$
 {"cityId":"athens","meetingId":"fake-sep02","generatedAt":"2026-08-18T10:00:00.000Z",
  "headline":"Πριν τη συνεδρίαση της Τετάρτης: προϋπολογισμός ύδρευσης και δύο απαλλοτριώσεις",
  "subjects":[
@@ -42,7 +42,7 @@ INSERT INTO "NotisProcessedEvent" ("taskId", type, "cityId", "meetingId", brief,
    "scores":{"hyperlocal":2,"citywide":3,"contention":3,"novelty":1,"money":2},
    "note":"Επιστρέφει μετά την αναβολή του Ιουνίου.","locationHints":[]}
  ]}$$::jsonb, 0.06, now() - interval '80 minutes'),
-('fake-task-3', 'summarize', 'chania', 'fake-aug11', NULL, NULL, now() - interval '26 hours')
+('fake-task-3', 'summarize', 'chania', 'fake-aug11', 'Συνεδρίαση Επιτροπής', '2026-08-11T17:00:00Z', 'Δημοτική Επιτροπή', NULL, NULL, now() - interval '26 hours')
 ON CONFLICT ("taskId") DO NOTHING;
 
 -- 2. Queue rows: one held for the morning release, one due soon (multi-
