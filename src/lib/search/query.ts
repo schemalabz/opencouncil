@@ -1,6 +1,7 @@
 import { estypes } from '@elastic/elasticsearch';
 import { SearchRequest, ExtractedFilters } from './types';
 import { env } from '@/env.mjs';
+import { ADMIN_BODY_TIER } from '@/lib/ranking/subjects';
 
 const DEFAULT_RANK_WINDOW_SIZE = 100;
 const DEFAULT_RANK_CONSTANT = 60;
@@ -30,6 +31,112 @@ const DEFAULT_SEMANTIC_MIN_SCORE = 3.2;
  * terms, 75% required once the term count exceeds 2 (i.e. 3 or more).
  */
 const LEXICAL_MINIMUM_SHOULD_MATCH = '2<75%';
+
+/**
+ * Post-relevance ranking: nudges among otherwise-similar matches by administrative
+ * body, discussion length, and recency. All three combine into one multiplier via a
+ * script so their spreads stay comparable and legible from the constants below,
+ * rather than depending on the native (and very different) scales of built-in
+ * function_score functions like field_value_factor and decay functions.
+ */
+
+// Council meetings usually carry city-wide decisions, committees narrower ones,
+// communities the smallest scope. This only nudges among otherwise-similar
+// matches — a clearly better text match still wins regardless of body type.
+//
+// The council > committee > community ordering itself comes from ADMIN_BODY_TIER
+// in src/lib/ranking/subjects.ts — the app's single standard subject-importance
+// ranking (meeting cards, the meeting dashboard, list_hot_subjects, …) — so search
+// and that ranking agree on which body type outranks which. Only the tier order is
+// shared, not the whole formula: subjects.ts z-scores an already-fetched in-memory
+// batch, which isn't something a per-document Elasticsearch script can do (there is
+// no "the rest of the result set" to compare against at scoring time), so this
+// scales the same tiers into a small multiplicative boost instead.
+const ADMIN_BODY_BOOST_WEIGHT = 0.15;
+const ADMIN_BODY_WEIGHT = {
+    council: 1 + ADMIN_BODY_BOOST_WEIGHT * ADMIN_BODY_TIER.council,
+    committee: 1 + ADMIN_BODY_BOOST_WEIGHT * ADMIN_BODY_TIER.committee,
+    community: 1 + ADMIN_BODY_BOOST_WEIGHT * ADMIN_BODY_TIER.community,
+} as const;
+// No administrative body assigned ranks like the lowest tier (community), not the
+// best one — never below the floor of 1.0 (no penalty), just no boost.
+const DEFAULT_ADMIN_BODY_WEIGHT = 1 + ADMIN_BODY_BOOST_WEIGHT * ADMIN_BODY_TIER.community;
+
+// log1p(minutes) keeps a subject the council spent an hour on from dominating one
+// that got a brief mention. At this weight an hour-long discussion nets roughly
+// +12% over one barely discussed at all. Reuses discussion_speaking_seconds
+// (already indexed on SubjectSearchView for score rescoring), not a meeting-wide
+// duration — a subject's own discussion length, not the whole session's.
+const DISCUSSION_LENGTH_BOOST_WEIGHT = 0.03;
+
+// Exponential decay: at RECENCY_DECAY_SCALE_DAYS old, a meeting keeps ~37% (1/e) of
+// the recency boost. The multiplier floors at 1.0 (no boost), never goes below it —
+// an old meeting loses the recency edge, it isn't penalized for its age.
+const RECENCY_BOOST_WEIGHT = 0.1;
+const RECENCY_DECAY_SCALE_DAYS = 365;
+
+const RANKING_SCRIPT = `
+    String bodyType = doc['administrative_body_type'].size() == 0 ? '' : doc['administrative_body_type'].value;
+    double adminWeight = bodyType == 'council' ? params.councilWeight
+        : bodyType == 'committee' ? params.committeeWeight
+        : bodyType == 'community' ? params.communityWeight
+        : params.defaultAdminBodyWeight;
+
+    double discussionMinutes = doc['discussion_speaking_seconds'].size() == 0 ? 0 : doc['discussion_speaking_seconds'].value / 60.0;
+    double discussionFactor = 1 + params.discussionWeight * Math.log1p(discussionMinutes);
+
+    // A missing meeting_date is neutral (factor 1), like the other two signals
+    // above — not the same as ageDays=0, which would be the *maximum* possible
+    // recency boost (a meeting happening right now).
+    double recencyFactor = 1.0;
+    if (doc['meeting_date'].size() != 0) {
+        double ageDays = (params.nowMillis - doc['meeting_date'].value.toInstant().toEpochMilli()) / 86400000.0;
+        recencyFactor = 1 + params.recencyWeight * Math.exp(-Math.max(ageDays, 0) / params.recencyScaleDays);
+    }
+
+    return adminWeight * discussionFactor * recencyFactor;
+`;
+
+// nowMillis is threaded in explicitly (computed once by the caller) rather than
+// read here via Date.now(), so every ranking function built for the same request —
+// both RRF retrievers, or the filter-only branch — scores recency against the
+// same instant.
+function buildRankingFunction(nowMillis: number): estypes.QueryDslFunctionScoreContainer {
+    return {
+        script_score: {
+            script: {
+                source: RANKING_SCRIPT,
+                params: {
+                    councilWeight: ADMIN_BODY_WEIGHT.council,
+                    committeeWeight: ADMIN_BODY_WEIGHT.committee,
+                    communityWeight: ADMIN_BODY_WEIGHT.community,
+                    defaultAdminBodyWeight: DEFAULT_ADMIN_BODY_WEIGHT,
+                    discussionWeight: DISCUSSION_LENGTH_BOOST_WEIGHT,
+                    recencyWeight: RECENCY_BOOST_WEIGHT,
+                    recencyScaleDays: RECENCY_DECAY_SCALE_DAYS,
+                    nowMillis,
+                },
+            },
+        },
+    };
+}
+
+// Wraps a query with the ranking function. `multiply` nudges an existing relevance
+// score; a filter-only query (no should/must clauses) scores every hit 0, so the
+// browse path (no query text) uses `replace` to rank on the function alone.
+function applyRanking(
+    query: estypes.QueryDslQueryContainer,
+    boostMode: 'multiply' | 'replace',
+    nowMillis: number
+): estypes.QueryDslQueryContainer {
+    return {
+        function_score: {
+            query,
+            functions: [buildRankingFunction(nowMillis)],
+            boost_mode: boostMode,
+        },
+    };
+}
 
 // Build filters for the search query
 export function buildFilters(request: SearchRequest): estypes.QueryDslQueryContainer[] {
@@ -225,33 +332,45 @@ function buildLexicalShouldClauses(
 function buildSemanticRetriever(
     queryText: string,
     filters: estypes.QueryDslQueryContainer[],
-    semanticMinScore: number
+    semanticMinScore: number,
+    nowMillis: number
 ): estypes.RetrieverContainer {
+    const semanticQuery: estypes.QueryDslQueryContainer = {
+        bool: {
+            should: [
+                {
+                    semantic: {
+                        query: queryText,
+                        field: 'name.semantic',
+                        boost: SEMANTIC_NAME_BOOST
+                    }
+                },
+                {
+                    semantic: {
+                        query: queryText,
+                        field: 'description.semantic',
+                        boost: SEMANTIC_DESCRIPTION_BOOST
+                    }
+                }
+            ],
+            minimum_should_match: 1,
+            filter: filters
+        }
+    };
+
     return {
         standard: {
-            min_score: semanticMinScore,
-            query: {
-                bool: {
-                    should: [
-                        {
-                            semantic: {
-                                query: queryText,
-                                field: 'name.semantic',
-                                boost: SEMANTIC_NAME_BOOST
-                            }
-                        },
-                        {
-                            semantic: {
-                                query: queryText,
-                                field: 'description.semantic',
-                                boost: SEMANTIC_DESCRIPTION_BOOST
-                            }
-                        }
-                    ],
-                    minimum_should_match: 1,
-                    filter: filters
-                }
-            }
+            // The cutoff must see the raw semantic score, not the ranking-boosted one:
+            // applyRanking's factors only ever scale a score up (they floor at 1.0), so
+            // cutting off after boosting would let hits that boosting alone pushed above
+            // semanticMinScore slip through, undermining the calibration this cutoff
+            // exists for. Nesting a min_score-only function_score inside applyRanking's
+            // wrapper cuts off on the raw score first, then re-ranks the survivors.
+            query: applyRanking(
+                { function_score: { query: semanticQuery, min_score: semanticMinScore } },
+                'multiply',
+                nowMillis
+            )
         }
     };
 }
@@ -268,23 +387,23 @@ export function buildSearchQuery(
     };
 
     // Filter-only search: no query text to rank on, so skip the rrf/semantic
-    // retrievers (they require a query) and return the filtered set newest-first.
-    // Used e.g. for "everything a person spoke about" or "all subjects in a
-    // date range".
+    // retrievers (they require a query) and rank the filtered set by administrative
+    // body, discussion length, and recency alone. Used e.g. for "everything a person
+    // spoke about" or "all subjects in a date range".
     const queryText = mergedRequest.query?.trim();
     const filters = buildFilters(mergedRequest);
+    // Computed once so every ranking function built for this request — both RRF
+    // retrievers below, or the filter-only branch — scores recency identically.
+    const nowMillis = Date.now();
     if (!queryText) {
         return {
             index: env.ELASTICSEARCH_INDEX,
             size: request.config?.size || 10,
             from: request.config?.from || 0,
             track_total_hits: true,
-            query: {
-                bool: {
-                    filter: filters
-                }
-            },
-            sort: [{ 'meeting_date': { order: 'desc' } }]
+            // A filter-only bool query scores every hit 0, so 'replace' ranks on the
+            // function alone instead of nudging a (nonexistent) relevance score.
+            query: applyRanking({ bool: { filter: filters } }, 'replace', nowMillis)
         };
     }
 
@@ -298,20 +417,21 @@ export function buildSearchQuery(
                 retrievers: [
                     {
                         standard: {
-                            query: {
+                            query: applyRanking({
                                 bool: {
                                     should: buildLexicalShouldClauses(queryText, extractedFilters),
                                     minimum_should_match: 1,
                                     filter: filters
                                 }
-                            }
+                            }, 'multiply', nowMillis)
                         }
                     },
                     ...(request.config?.enableSemanticSearch ? [
                         buildSemanticRetriever(
                             queryText,
                             filters,
-                            request.config.semanticMinScore ?? DEFAULT_SEMANTIC_MIN_SCORE
+                            request.config.semanticMinScore ?? DEFAULT_SEMANTIC_MIN_SCORE,
+                            nowMillis
                         )
                     ] : [])
                 ],

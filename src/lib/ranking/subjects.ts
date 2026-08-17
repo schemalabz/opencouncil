@@ -60,7 +60,7 @@ export const DEFAULT_SUBJECT_RANKING_WEIGHTS: SubjectRankingWeights = {
 };
 
 /** Δημοτικό Συμβούλιο > Δημοτική Επιτροπή > Δημοτική Κοινότητα. */
-const ADMIN_BODY_TIER: Record<AdministrativeBodyType, number> = {
+export const ADMIN_BODY_TIER: Record<AdministrativeBodyType, number> = {
     council: 1,
     committee: 0.5,
     community: 0,

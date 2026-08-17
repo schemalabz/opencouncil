@@ -26,6 +26,15 @@ function minimumShouldMatchOf(
     return typeof match === 'object' ? match.minimum_should_match : undefined;
 }
 
+// Every scoring query is wrapped in applyRanking's function_score. Unwrap it to
+// reach the underlying query the rest of the tests assert against.
+function unwrapRanking(
+    query: estypes.QueryDslQueryContainer | undefined
+): { inner: estypes.QueryDslQueryContainer; functionScore: estypes.QueryDslFunctionScoreQuery } {
+    const functionScore = query?.function_score as estypes.QueryDslFunctionScoreQuery;
+    return { inner: functionScore?.query as estypes.QueryDslQueryContainer, functionScore };
+}
+
 function findPersonFilter(
     filters: estypes.QueryDslQueryContainer[]
 ): estypes.QueryDslQueryContainer | undefined {
@@ -126,9 +135,20 @@ describe('buildSearchQuery lexical ranking', () => {
         const q = buildSearchQuery({ query }, NO_EXTRACTED_FILTERS);
         const rrf = q.retriever?.rrf as estypes.RetrieverContainer['rrf'];
         const standard = rrf?.retrievers?.[0]?.standard as estypes.RetrieverContainer['standard'];
-        const bool = standard?.query?.bool as BoolQuery;
+        const { inner } = unwrapRanking(standard?.query);
+        const bool = inner?.bool as BoolQuery;
         return (bool.should ?? []) as estypes.QueryDslQueryContainer[];
     }
+
+    it('nudges the lexical retriever score with the ranking function, multiplicatively', () => {
+        const q = buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS);
+        const rrf = q.retriever?.rrf as estypes.RetrieverContainer['rrf'];
+        const standard = rrf?.retrievers?.[0]?.standard as estypes.RetrieverContainer['standard'];
+        const { functionScore } = unwrapRanking(standard?.query);
+
+        expect(functionScore.boost_mode).toBe('multiply');
+        expect(functionScore.functions).toHaveLength(1);
+    });
 
     it('applies fuzzy multi-match and phrase boosts on name and description', () => {
         const should = lexicalShouldClauses('πάρκα Κυψέλης');
@@ -186,19 +206,28 @@ describe('buildSearchQuery semantic retriever', () => {
         return retrievers(config)[1]?.standard;
     }
 
+    // The ranking function only ever scales a score up (see applyRanking), so the
+    // cutoff is nested inside a min_score-only function_score, applied to the raw
+    // semantic score before the ranking function_score wraps around it — see the
+    // comment on buildSemanticRetriever. Unwrap both layers to reach it.
+    function semanticCutoffQuery(config: SearchRequest['config']) {
+        const { inner: cutoffLayer } = unwrapRanking(semanticStandard(config)?.query);
+        return cutoffLayer?.function_score as estypes.QueryDslFunctionScoreQuery;
+    }
+
     it('omits the semantic retriever when semantic search is disabled', () => {
         expect(retrievers({ enableSemanticSearch: false })).toHaveLength(1);
     });
 
-    it('cuts off the semantic retriever on a raw score so unrelated queries can return zero hits', () => {
+    it('cuts off the semantic retriever on the raw score so unrelated queries can return zero hits', () => {
         expect(retrievers({ enableSemanticSearch: true })).toHaveLength(2);
 
-        const standard = semanticStandard({ enableSemanticSearch: true });
+        const cutoff = semanticCutoffQuery({ enableSemanticSearch: true });
         // A raw cutoff, not a normalized one: minmax maps the best hit of every
         // query to 1.0, so a fractional cutoff could never empty the results.
-        expect(standard?.min_score).toBe(3.2);
+        expect(cutoff.min_score).toBe(3.2);
 
-        const bool = standard?.query?.bool as BoolQuery;
+        const bool = cutoff.query?.bool as BoolQuery;
         const should = (bool.should ?? []) as estypes.QueryDslQueryContainer[];
         expect(should.map((c) => c.semantic?.field)).toEqual([
             'name.semantic',
@@ -221,16 +250,79 @@ describe('buildSearchQuery semantic retriever', () => {
     // The cutoff is calibrated against the sum of these boosts, so a change to
     // either without recalibrating would silently move the threshold.
     it('keeps the semantic boosts the cutoff was calibrated against', () => {
-        const bool = semanticStandard({ enableSemanticSearch: true })?.query?.bool as BoolQuery;
+        const bool = semanticCutoffQuery({ enableSemanticSearch: true }).query?.bool as BoolQuery;
         const should = (bool.should ?? []) as estypes.QueryDslQueryContainer[];
 
         expect(should.map((c) => c.semantic?.boost)).toEqual([2.0, 1.5]);
     });
 
     it('allows overriding semanticMinScore via config', () => {
-        const standard = semanticStandard({ enableSemanticSearch: true, semanticMinScore: 3.1 });
+        const cutoff = semanticCutoffQuery({ enableSemanticSearch: true, semanticMinScore: 3.1 });
 
-        expect(standard?.min_score).toBe(3.1);
+        expect(cutoff.min_score).toBe(3.1);
+    });
+
+    it('applies the ranking function to the semantic retriever too, after the cutoff', () => {
+        const { functionScore } = unwrapRanking(semanticStandard({ enableSemanticSearch: true })?.query);
+
+        expect(functionScore.boost_mode).toBe('multiply');
+        expect(functionScore.functions).toHaveLength(1);
+    });
+});
+
+describe('buildSearchQuery ranking function', () => {
+    // Pulls the script_score params off whichever query the ranking function_score
+    // wraps, regardless of which branch (filter-only, lexical, semantic) built it.
+    function rankingScriptParams(query: estypes.QueryDslQueryContainer | undefined) {
+        const functionScore = query?.function_score as estypes.QueryDslFunctionScoreQuery;
+        const fn = functionScore?.functions?.[0] as estypes.QueryDslFunctionScoreContainer;
+        const script = fn?.script_score?.script as estypes.Script;
+        return script.params as Record<string, number>;
+    }
+
+    it('scores administrative bodies council > committee > community, and weighs discussion length and recency', () => {
+        const q = buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS);
+        const rrf = q.retriever?.rrf as estypes.RetrieverContainer['rrf'];
+        const standard = rrf?.retrievers?.[0]?.standard as estypes.RetrieverContainer['standard'];
+        const params = rankingScriptParams(standard?.query);
+
+        expect(params.councilWeight).toBeGreaterThan(params.committeeWeight);
+        expect(params.committeeWeight).toBeGreaterThan(params.communityWeight);
+        // A meeting with no administrative body assigned ranks like the lowest tier,
+        // not like the best one, and never below the floor of 1.0 (no penalty).
+        expect(params.defaultAdminBodyWeight).toBe(params.communityWeight);
+        expect(params.discussionWeight).toBeGreaterThan(0);
+        expect(params.recencyWeight).toBeGreaterThan(0);
+    });
+
+    it('uses the same ranking function in the filter-only branch, replacing the (zero) filter score', () => {
+        const q = buildSearchQuery({ personIds: ['p1'] }, NO_EXTRACTED_FILTERS);
+        const functionScore = q.query?.function_score as estypes.QueryDslFunctionScoreQuery;
+
+        expect(functionScore.boost_mode).toBe('replace');
+        expect(q.sort).toBeUndefined();
+
+        const filter = (functionScore.query?.bool?.filter ?? []) as estypes.QueryDslQueryContainer[];
+        expect(findPersonFilter(filter)).toBeDefined();
+    });
+
+    // Regression: nowMillis used to be read via a fresh Date.now() inside
+    // buildRankingFunction, called separately per retriever, so the lexical and
+    // semantic retrievers could score recency against two different instants.
+    it('scores every ranking function built for one request against the same instant', () => {
+        const q = buildSearchQuery(
+            { query: 'πάρκα', config: { enableSemanticSearch: true } },
+            NO_EXTRACTED_FILTERS
+        );
+        const rrf = q.retriever?.rrf as estypes.RetrieverContainer['rrf'];
+        const lexicalStandard = rrf?.retrievers?.[0]?.standard as estypes.RetrieverContainer['standard'];
+        const semanticStandard = rrf?.retrievers?.[1]?.standard as estypes.RetrieverContainer['standard'];
+
+        const lexicalParams = rankingScriptParams(lexicalStandard?.query);
+        const semanticParams = rankingScriptParams(semanticStandard?.query);
+
+        expect(typeof lexicalParams.nowMillis).toBe('number');
+        expect(semanticParams.nowMillis).toBe(lexicalParams.nowMillis);
     });
 });
 
@@ -243,7 +335,7 @@ describe('buildSearchQuery filter-only mode', () => {
     });
 
     it.each([undefined, '', '   '])(
-        'builds a filter-only, date-sorted query when query is %p',
+        'builds a filter-only query ranked by the ranking function when query is %p',
         (query) => {
             const q = buildSearchQuery(
                 {
@@ -256,10 +348,14 @@ describe('buildSearchQuery filter-only mode', () => {
 
             // No ranking retrievers (they require query text)...
             expect(q.retriever).toBeUndefined();
-            // ...instead a pure filtered query sorted newest-first.
-            expect(q.sort).toEqual([{ meeting_date: { order: 'desc' } }]);
+            // ...instead a filtered query whose function_score (boost_mode: 'replace',
+            // see the dedicated ranking-function describe block) ranks it, so there's
+            // no separate explicit sort.
+            expect(q.sort).toBeUndefined();
 
-            const filter = (q.query!.bool!.filter ?? []) as estypes.QueryDslQueryContainer[];
+            const functionScore = q.query!.function_score as estypes.QueryDslFunctionScoreQuery;
+            const filter = (functionScore.query?.bool?.filter ??
+                []) as estypes.QueryDslQueryContainer[];
             expect(filter.some((f) => f.term?.['meeting_released'] !== undefined)).toBe(true);
             expect(findPersonFilter(filter)).toBeDefined();
             expect(filter.some((f) => f.range?.['meeting_date'] !== undefined)).toBe(true);
