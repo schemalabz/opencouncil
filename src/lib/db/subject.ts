@@ -13,6 +13,7 @@ import {
 } from '@prisma/client';
 import { PersonWithRelations } from '@/lib/db/people';
 import { extractUtteranceIds } from '@/lib/utils/references';
+import { getContributionCount } from '@/lib/utils';
 import { roleWithRelationsInclude } from './types/roles';
 // Import from the leaf (not the `../cache` barrel, which re-exports cache/queries → auth → env
 // and would drag that heavy server-only chain into this widely-imported module).
@@ -255,7 +256,9 @@ const mapSubjectInclude = {
     },
     topic: { select: { name: true, name_en: true, colorHex: true, icon: true } },
     location: { select: { text: true, type: true } },
-    contributions: { select: { speakerId: true } },
+    // Only the count is needed. Selecting rows to call .length on transfers one row per
+    // contribution per subject across an unbounded date range.
+    _count: { select: { contributions: true } },
 } satisfies Prisma.SubjectInclude;
 
 type MapSubjectPayload = Prisma.SubjectGetPayload<{ include: typeof mapSubjectInclude }>;
@@ -296,11 +299,6 @@ export function buildMapSubjectWhere(realm: Realm, f: MapSubjectFilters): Prisma
     };
 }
 
-/** Speaker count for a subject: one contribution per speaker (unique on subjectId+speakerId). */
-function speakerCountOf(s: MapSubjectPayload): number {
-    return s.contributions.length;
-}
-
 /** The wire fields shared by located + non-located rows (everything except geometry/location). */
 function toGeneralSubjectRow(s: MapSubjectPayload, discussionSeconds: Map<string, number>): GeneralSubjectRow {
     return {
@@ -321,7 +319,7 @@ function toGeneralSubjectRow(s: MapSubjectPayload, discussionSeconds: Map<string
         topicColor: s.topic?.colorHex || '#627BBC',
         topicIcon: s.topic?.icon,
         discussionTimeSeconds: Math.round(discussionSeconds.get(s.id) ?? 0),
-        speakerCount: speakerCountOf(s),
+        speakerCount: getContributionCount(s),
     };
 }
 
