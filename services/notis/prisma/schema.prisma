@@ -282,6 +282,16 @@ model NotisWakeQueue {
   @@index([subscriptionId, status])
 }
 
+// Server-side operational settings, one row per key: proactiveMode
+// ("shadow" | "live", absent = shadow), proactivePaused (the kill switch),
+// pollerStatus (last tick, for the panel).
+model NotisSetting {
+  key   String @id
+  value Json
+
+  updatedAt DateTime @default(now())
+}
+
 // Dedup log against notis_meeting_events. The identity is the MEETING and
 // the phase — (cityId, meetingId, type) — never the task id: re-processing a
 // meeting writes a new task row, and keying on it would fan the same agenda

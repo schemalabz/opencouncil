@@ -1,11 +1,12 @@
 import { z } from "zod";
 import { decideDelivery } from "@/agent/delivery";
 import { runWake } from "@/agent/runWake";
-import { wakeEventSchema } from "@/agent/schemas";
+import { cityPreferenceSchema, primaryEvent, wakeEventSchema } from "@/agent/schemas";
 import { CityPreference, Deps, JOURNAL_WINDOW, JournalEntry, WakeEvent } from "@/agent/types";
 import type { NotisSubscription, Prisma, PrismaClient } from "../../generated/client";
+import { clampToActiveHours, isQuietHour } from "./active-hours";
 import { alert as sendAlert } from "./alert";
-import { BirdLike, SEND_TIMEOUT_MS, realBird } from "./bird";
+import { BirdLike, realBird } from "./bird";
 import { buildDeps } from "./deps";
 import { hasNotisDb, notisDb } from "./db";
 import { citiesForUser } from "./fanout";
@@ -16,9 +17,11 @@ import {
   MAX_ATTEMPTS,
   claimNext,
   completeItem,
+  deferItem,
   failItem,
   markFailed,
 } from "./queue-core";
+import { getProactiveSettings } from "./settings";
 
 /**
  * The live-lane drainer: claim → assemble state → runWake → persist → send.
@@ -50,44 +53,69 @@ export interface DrainResult {
  *  sweeper — covers a crash between the persist commit and the Bird call. */
 export const RESEND_STALE_AFTER_MS = 2 * 60_000;
 
-/** The persist transaction's budget. It holds the subscription's row lock —
- *  the same lock every inbound webhook for that reader waits on — so it needs
- *  room for contention, not just for its own writes. */
-const PERSIST_TIMEOUT_MS = 30_000;
-
-
-
 // Safety valve for one drain call, not a queue limit — the sweeper runs
 // every minute, so leftovers are picked up immediately.
 const MAX_ITEMS_PER_DRAIN = 50;
 
 const eventsSchema = z.array(wakeEventSchema).min(1);
+const citiesSnapshotSchema = z.array(cityPreferenceSchema);
+
+/** How long a paused item sleeps before the claim looks at it again. */
+export const PAUSE_DEFER_MS = 15 * 60_000;
+/** Claim-time margin: a wake this close to quiet hours defers instead of
+ *  racing the boundary with a 30-60s model run. */
+const QUIET_MARGIN_MS = 10 * 60_000;
+/** The hard rail: at most this many unprompted messages per rolling week. */
+export const WEEKLY_CAP = 3;
+const WEEK_MS = 7 * 24 * 60 * 60_000;
+
+/** Reactive = the reader spoke; bypasses every rail. */
+export function isReactiveWake(events: WakeEvent[]): boolean {
+  return events.some((e) => e.type === "user_message");
+}
+
+/** Cap-countable (unprompted): not reactive, and not purely a promised
+ *  follow-up to a reader question. A mixed coalesced wake counts,
+ *  conservatively. */
+export function isCapCountable(events: WakeEvent[]): boolean {
+  if (isReactiveWake(events)) return false;
+  const allReplyFollowups = events.every(
+    (e) => e.type === "scheduled" && (e.origin ?? "reply") === "reply",
+  );
+  return !allReplyFollowups;
+}
 
 function resolveAlert(overrides: DrainDeps) {
   return overrides.alert ?? ((message: string) => sendAlert("queue", message));
 }
 
-/**
- * The reader's cities, live from the view. No main database configured is a
- * deliberate dev mode and yields none; a configured database that is
- * unreachable is an outage and throws, failing the item into a retry rather
- * than waking with a reader who appears to follow nothing.
- */
 async function assembleCities(sub: NotisSubscription): Promise<CityPreference[]> {
-  if (!hasMainDb()) return [];
-  return citiesForUser(sub.userId);
+  if (hasMainDb()) {
+    try {
+      return await citiesForUser(sub.userId);
+    } catch (e) {
+      console.warn("[notis:queue] live city fetch failed, using snapshot:", e);
+    }
+  }
+  const parsed = citiesSnapshotSchema.safeParse(sub.cities);
+  return parsed.success ? parsed.data : [];
 }
 
 async function runOneWake(
   db: PrismaClient,
   item: ClaimedItem,
   sub: NotisSubscription,
-  event: WakeEvent,
+  events: WakeEvent[],
   overrides: DrainDeps,
 ): Promise<void> {
   const alert = resolveAlert(overrides);
   const deps = overrides.deps ?? buildDeps();
   const bird = overrides.bird ?? realBird;
+  const ordered = [...events].sort((a, b) => a.at.localeCompare(b.at));
+  const primary = primaryEvent(ordered);
+  const lastAt = ordered[ordered.length - 1].at;
+  const reactive = isReactiveWake(ordered);
+  const capCountable = isCapCountable(ordered);
 
   const journalRows = await db.notisJournalEntry.findMany({
     where: { subscriptionId: sub.id },
@@ -109,35 +137,16 @@ async function runOneWake(
     journal,
   };
 
-  const { outcome, trace } = await runWake(state, [event], deps);
+  const { outcome, trace } = await runWake(state, ordered, deps);
 
+  // The primary event picks the shell; the window is judged at the wake's
+  // processing moment (the last event's time).
   const delivery =
     outcome.messages.length > 0
-      ? decideDelivery(event, lastInbound?.createdAt.toISOString(), new Date(event.at))
+      ? decideDelivery(primary, lastInbound?.createdAt.toISOString(), new Date(lastAt))
       : undefined;
 
-  const outboundIds = await db.$transaction(
-    async (tx) => {
-    // FIRST, before anything reads the journal: this UPDATE takes the
-    // subscription's row lock, and every other writer of this reader's
-    // journal takes it too (the deterministic ΣΤΟΠ path included, which runs
-    // outside the queue's serialization). That lock is what makes the seq
-    // allocation below safe — two unlocked MAX(seq)+1 reads collide on
-    // NotisJournalEntry_subscriptionId_seq_key, and taking the two tables in
-    // opposite orders deadlocks outright (40P01).
-    //
-    // updatedAt is always touched anyway: it is the conversation list's
-    // activity sort key.
-    const subData: Prisma.NotisSubscriptionUpdateInput = { updatedAt: new Date() };
-    if (outcome.profileRewrite !== undefined) subData.profileText = outcome.profileRewrite;
-    // Only the user moves a row into `unsubscribed` — and unsubscribe_user
-    // fires only on a user_message wake, so this is the user doing it.
-    if (outcome.unsubscribe && sub.status !== "unsubscribed") {
-      subData.status = "unsubscribed";
-      subData.unsubscribedAt = new Date(event.at);
-    }
-    await tx.notisSubscription.update({ where: { id: sub.id }, data: subData });
-
+  const outboundIds = await db.$transaction(async (tx) => {
     const { _max } = await tx.notisJournalEntry.aggregate({
       where: { subscriptionId: sub.id },
       _max: { seq: true },
@@ -146,9 +155,12 @@ async function runOneWake(
     const wake = await tx.notisWake.create({
       data: {
         subscriptionId: sub.id,
-        eventType: event.type,
-        eventAt: new Date(event.at),
-        event: event as unknown as Prisma.InputJsonValue,
+        eventType: primary.type,
+        eventAt: new Date(lastAt),
+        event: primary as unknown as Prisma.InputJsonValue,
+        // The full array only when the wake coalesced several events.
+        events:
+          ordered.length > 1 ? (ordered as unknown as Prisma.InputJsonValue) : undefined,
         decision: outcome.decision,
         rationale: outcome.rationale,
         outcome: outcome as unknown as Prisma.InputJsonValue,
@@ -179,10 +191,28 @@ async function runOneWake(
       },
     });
 
+    // Always touched: updatedAt is the conversation list's activity sort key.
+    const subData: Prisma.NotisSubscriptionUpdateInput = { updatedAt: new Date() };
+    if (outcome.profileRewrite !== undefined) subData.profileText = outcome.profileRewrite;
+    // Only the user moves a row into `unsubscribed` — and unsubscribe_user
+    // fires only on a user_message wake, so this is the user doing it.
+    if (outcome.unsubscribe && sub.status !== "unsubscribed") {
+      subData.status = "unsubscribed";
+      subData.unsubscribedAt = new Date(lastAt);
+    }
+    await tx.notisSubscription.update({ where: { id: sub.id }, data: subData });
+
     for (const scheduled of outcome.scheduledWakes) {
-      // Rows only — nothing fires them until PR 4's poller.
+      // The poller fires these. Origin decides the eventual template shell
+      // and the cap exemption: a schedule made while answering the reader
+      // is a promised reply; one made after proactive news is not.
       await tx.notisScheduledWake.create({
-        data: { subscriptionId: sub.id, runAfter: new Date(scheduled.at), reason: scheduled.reason },
+        data: {
+          subscriptionId: sub.id,
+          runAfter: new Date(scheduled.at),
+          reason: scheduled.reason,
+          origin: reactive ? "reply" : "proactive",
+        },
       });
     }
 
@@ -194,6 +224,8 @@ async function runOneWake(
           wakeId: wake.id,
           direction: "outbound",
           body: text,
+          channel: "whatsapp",
+          proactive: capCountable,
           deliveryMode: delivery?.mode,
           template: delivery?.mode === "template" ? delivery.template : undefined,
           status: "pending",
@@ -208,35 +240,68 @@ async function runOneWake(
     const owned = await completeItem(tx, item.id, item.attempts);
     if (!owned) throw new ClaimLostError(item.id);
     return ids;
-    },
-    // Prisma's default is 5s, and this transaction now holds the
-    // subscription's row lock while every inbound webhook for the same reader
-    // waits on it. Blowing the budget rolls back a run the model was already
-    // paid for. Note P2028 does not fire at the deadline: Prisma only notices
-    // on the next query, so a long lock wait blocks for its full duration
-    // and then dies.
-    { timeout: PERSIST_TIMEOUT_MS },
-  );
+  });
 
   if (outboundIds.length === 0) return;
 
-  if (delivery?.mode !== "freeform") {
-    // Unreachable for user_message wakes; template sends arrive with PR 4.
-    await db.notisMessage.updateMany({
-      where: { id: { in: outboundIds } },
-      data: { status: "failed", failureReason: "template send path not implemented (PR 4)" },
-    });
-    await alert(
-      `wake ${item.id}: ${outboundIds.length} message(s) need a template send path (PR 4) — marked failed`,
-    );
+  if (reactive) {
+    // A reply bypasses every rail — it goes out at 03:00 if the reader
+    // texted at 03:00, and decideDelivery guarantees freeform.
+    await sendPendingMessages(db, bird, outboundIds, sub, alert);
     return;
   }
 
-  await sendPendingMessages(db, bird, outboundIds, sub, alert);
+  await sendProactiveMessages(db, bird, outboundIds, sub, alert);
+}
+
+/** Record a Bird send result on the message row: sent, stay-pending
+ *  (transient — the sweeper retries under the same idempotency key), or
+ *  terminal failed with an alert. */
+async function applySendResult(
+  db: PrismaClient,
+  id: string,
+  result: { success: boolean; messageId?: string; retryable?: boolean; error?: string },
+  alert: (message: string) => Promise<void>,
+): Promise<void> {
+  if (result.success) {
+    await db.notisMessage.update({
+      where: { id },
+      data: { status: "sent", birdMessageId: result.messageId },
+    });
+  } else if (result.retryable) {
+    // Transient (network, 5xx): the row STAYS pending so the sweeper
+    // retries it under the same idempotency key once Bird recovers. The
+    // sweeper gives up — and alerts — after RESEND_GIVE_UP_MS.
+    await db.notisMessage.update({
+      where: { id },
+      data: { failureReason: (result.error ?? "unknown error").slice(0, 300) },
+    });
+    console.warn(`[notis:queue] transient Bird failure for message ${id}, will retry:`, result.error);
+  } else {
+    await db.notisMessage.update({
+      where: { id },
+      data: { status: "failed", failureReason: (result.error ?? "unknown error").slice(0, 300) },
+    });
+    await alert(`Bird send failed for message ${id}: ${result.error ?? "unknown error"}`);
+  }
+}
+
+async function suppressMessages(
+  db: PrismaClient,
+  messageIds: string[],
+  reason: string,
+): Promise<void> {
+  if (messageIds.length === 0) return;
+  await db.notisMessage.updateMany({
+    where: { id: { in: messageIds }, status: "pending" },
+    data: { status: "suppressed", failureReason: reason },
+  });
 }
 
 /** Send `pending` outbound rows into the subscription's conversation. Also
- *  used by the webhook's deterministic ΣΤΟΠ replies. */
+ *  used by the webhook's deterministic ΣΤΟΠ replies. Free-form only —
+ *  reactive replies and in-window sends; templates ride
+ *  sendProactiveMessages. */
 export async function sendPendingMessages(
   db: PrismaClient,
   bird: BirdLike,
@@ -262,44 +327,164 @@ export async function sendPendingMessages(
       text: message.body,
       idempotencyKey: message.id,
     });
-    // Every branch releases the send claim: the row's outcome is known now,
-    // so the next sweep should decide on the outcome rather than wait out the
-    // claim's staleness window.
-    if (result.success) {
-      await db.notisMessage.update({
-        where: { id },
-        data: {
-          status: "sent",
-          birdMessageId: result.messageId,
-          sendingAt: null,
-          // A failureReason from an earlier attempt is history now; leaving it
-          // shows a delivered message with an error beside it in the panel.
-          failureReason: null,
-        },
-      });
-    } else if (result.retryable) {
-      // Transient (network, 5xx, 408, 429): the row STAYS pending so the
-      // sweeper retries it under the same idempotency key once Bird recovers.
-      // The sweeper gives up — and alerts — after RESEND_GIVE_UP_MS.
-      await db.notisMessage.update({
-        where: { id },
-        data: {
-          failureReason: (result.error ?? "unknown error").slice(0, 300),
-          sendingAt: null,
-        },
-      });
-      console.warn(`[notis:queue] transient Bird failure for message ${id}, will retry:`, result.error);
-    } else {
-      await db.notisMessage.update({
-        where: { id },
-        data: {
-          status: "failed",
-          failureReason: (result.error ?? "unknown error").slice(0, 300),
-          sendingAt: null,
-        },
-      });
-      await alert(`Bird send failed for message ${id}: ${result.error ?? "unknown error"}`);
+    await applySendResult(db, id, result, alert);
+  }
+}
+
+/**
+ * Deliver ONE pending outbound row, honoring its delivery mode. Template
+ * sends with no conversation yet bootstrap one (the cold first contact);
+ * the returned conversation id is persisted so every later send reuses it.
+ */
+export async function deliverPendingMessage(
+  db: PrismaClient,
+  bird: BirdLike,
+  messageId: string,
+  sub: Pick<NotisSubscription, "id" | "phone" | "userName" | "birdConversationId">,
+  alert: (message: string) => Promise<void>,
+): Promise<void> {
+  const message = await db.notisMessage.findUnique({ where: { id: messageId } });
+  if (!message || message.status !== "pending") return;
+
+  if (message.deliveryMode !== "template") {
+    await sendPendingMessages(db, bird, [messageId], sub, alert);
+    return;
+  }
+
+  const template = message.template as import("@/agent/templates").TemplateName;
+  if (sub.birdConversationId) {
+    const result = await bird.sendTemplate({
+      conversationId: sub.birdConversationId,
+      template,
+      text: message.body,
+      idempotencyKey: message.id,
+    });
+    await applySendResult(db, messageId, result, alert);
+    return;
+  }
+
+  // Cold send: no conversation exists yet.
+  if (!sub.phone) {
+    await applySendResult(
+      db,
+      messageId,
+      { success: false, retryable: false, error: "no phone on subscription for a cold send" },
+      alert,
+    );
+    return;
+  }
+  const created = await bird.createConversationWithTemplate({
+    phone: sub.phone,
+    name: `Notis ${sub.userName ?? sub.phone}`,
+    template,
+    text: message.body,
+    idempotencyKey: message.id,
+  });
+  if (created.alreadyExisted && created.conversationId) {
+    // Bird already had a conversation for this phone: adopt it, send into it.
+    await db.notisSubscription.update({
+      where: { id: sub.id },
+      data: { birdConversationId: created.conversationId },
+    });
+    const result = await bird.sendTemplate({
+      conversationId: created.conversationId,
+      template,
+      text: message.body,
+      idempotencyKey: message.id,
+    });
+    await applySendResult(db, messageId, result, alert);
+    return;
+  }
+  if (created.success && created.conversationId) {
+    await db.notisSubscription.update({
+      where: { id: sub.id },
+      data: { birdConversationId: created.conversationId },
+    });
+  }
+  await applySendResult(db, messageId, created, alert);
+}
+
+/**
+ * The proactive send boundary — every rail in order, per PRD §6:
+ * unsubscribed race → shadow mode → kill switch → weekly cap → send.
+ * Suppressions land as status `suppressed` with the reason in
+ * failureReason, so the panel shows exactly what a rail stopped and why.
+ */
+export async function sendProactiveMessages(
+  db: PrismaClient,
+  bird: BirdLike,
+  messageIds: string[],
+  sub: NotisSubscription,
+  alert: (message: string) => Promise<void>,
+): Promise<void> {
+  if (messageIds.length === 0) return;
+
+  // Rail 0 — the enqueue-to-claim race: the reader unsubscribed while the
+  // wake was in flight. Nothing proactive may reach them.
+  if (sub.status === "unsubscribed") {
+    await suppressMessages(db, messageIds, "unsubscribed");
+    return;
+  }
+
+  const settings = await getProactiveSettings(db);
+  if (settings.mode === "shadow") {
+    await suppressMessages(db, messageIds, "shadow mode");
+    return;
+  }
+  if (settings.paused) {
+    // processItem defers paused items before the model runs; landing here
+    // means the switch flipped mid-wake. Suppress and say so.
+    await suppressMessages(db, messageIds, "paused");
+    await alert(`proactive sends paused — suppressed ${messageIds.length} message(s) for ${sub.id}`);
+    return;
+  }
+
+  // The quiet-hours clamp lives at enqueue time; reaching the boundary
+  // inside quiet hours is drift worth an alarm, but "never dropped"
+  // outranks a minutes-wide overshoot — send anyway.
+  if (isQuietHour(new Date())) {
+    await alert(`proactive send for ${sub.id} reached the boundary inside quiet hours — sending anyway`);
+  }
+
+  const rows = await db.notisMessage.findMany({
+    where: { id: { in: messageIds } },
+    select: { id: true, proactive: true },
+  });
+  const byId = new Map(rows.map((r) => [r.id, r]));
+
+  // The weekly cap covers unprompted messages only. Countable history:
+  // rows that reached or will reach the reader (pending/sent/delivered/
+  // read) plus shadow-suppressed ones — so shadow cadence metrics match
+  // what live would have done. Cap- and pause-suppressed rows never
+  // reached anyone and don't count.
+  let remaining = Number.POSITIVE_INFINITY;
+  if (rows.some((r) => r.proactive)) {
+    const already = await db.notisMessage.count({
+      where: {
+        subscriptionId: sub.id,
+        proactive: true,
+        id: { notIn: messageIds },
+        createdAt: { gte: new Date(Date.now() - WEEK_MS) },
+        OR: [
+          { status: { in: ["pending", "sent", "delivered", "read"] } },
+          { status: "suppressed", failureReason: "shadow mode" },
+        ],
+      },
+    });
+    remaining = Math.max(0, WEEKLY_CAP - already);
+  }
+
+  for (const id of messageIds) {
+    const row = byId.get(id);
+    if (!row) continue;
+    if (row.proactive) {
+      if (remaining <= 0) {
+        await suppressMessages(db, [id], "weekly cap");
+        continue;
+      }
+      remaining--;
     }
+    await deliverPendingMessage(db, bird, id, sub, alert);
   }
 }
 
@@ -315,20 +500,31 @@ export async function processItem(item: ClaimedItem, overrides: DrainDeps = {}):
 
   try {
     const events = eventsSchema.parse(item.events);
-    // The live lane enqueues exactly one event per row. PR 4's batch-lane
-    // coalescing needs per-event progress before a loop here is safe —
-    // completeItem is all-or-nothing on the item.
-    if (events.length !== 1) {
-      await markFailed(db, item.id, item.attempts, `expected 1 event, got ${events.length}`);
-      await alert(`queue item ${item.id}: multi-event items are not processable before PR 4`);
-      return;
+
+    // Pre-model rails for non-reactive wakes: a paused system spends no
+    // model dollars, and a wake that would finish inside quiet hours is
+    // deferred to the release instant instead of racing the boundary.
+    // deferItem undoes the attempt, so deferral is never a retry.
+    if (!isReactiveWake(events)) {
+      const settings = await getProactiveSettings(db);
+      if (settings.paused) {
+        await deferItem(db, item.id, item.attempts, new Date(Date.now() + PAUSE_DEFER_MS));
+        return;
+      }
+      const probe = new Date(Date.now() + QUIET_MARGIN_MS);
+      const clamped = clampToActiveHours(probe);
+      if (clamped.getTime() !== probe.getTime()) {
+        await deferItem(db, item.id, item.attempts, clamped);
+        return;
+      }
     }
+
     const sub = await db.notisSubscription.findUnique({ where: { id: item.subscriptionId } });
     if (!sub) {
       await markFailed(db, item.id, item.attempts, "subscription no longer exists");
       return;
     }
-    await runOneWake(db, item, sub, events[0], overrides);
+    await runOneWake(db, item, sub, events, overrides);
   } catch (error) {
     if (error instanceof ClaimLostError) {
       // A reclaiming worker owns the item now; this run's persist rolled
@@ -359,10 +555,13 @@ export async function drainQueue(overrides: DrainDeps = {}): Promise<DrainResult
     await processItem(item, overrides);
     const after = await db.notisWakeQueue.findUnique({
       where: { id: item.id },
-      select: { status: true },
+      select: { status: true, attempts: true },
     });
     if (after?.status === "done") processed++;
-    else failed++;
+    // A deferral re-pended the item with its attempt undone — neither
+    // processed nor failed, and not claimable again this drain (runAfter
+    // moved into the future).
+    else if (!(after?.status === "pending" && after.attempts === item.attempts - 1)) failed++;
   }
   return { processed, failed };
 }
@@ -385,60 +584,38 @@ export async function resendStalePendingMessages(overrides: DrainDeps = {}): Pro
   const bird = overrides.bird ?? realBird;
   const alert = resolveAlert(overrides);
 
-  const now = Date.now();
-  const staleClaimBefore = new Date(now - SEND_TIMEOUT_MS);
   const stale = await db.notisMessage.findMany({
     where: {
       direction: "outbound",
       status: "pending",
-      deliveryMode: "freeform",
-      createdAt: { lt: new Date(now - RESEND_STALE_AFTER_MS) },
-      // Rows whose send is in flight belong to whoever claimed them, until
-      // that claim goes stale.
-      OR: [{ sendingAt: null }, { sendingAt: { lt: staleClaimBefore } }],
+      createdAt: { lt: new Date(Date.now() - RESEND_STALE_AFTER_MS) },
     },
     select: {
       id: true,
       createdAt: true,
-      sendingAt: true,
-      subscription: { select: { id: true, birdConversationId: true } },
+      channel: true,
+      subscription: {
+        select: { id: true, phone: true, userName: true, birdConversationId: true },
+      },
     },
     take: 50,
   });
 
-  const giveUpBefore = now - RESEND_GIVE_UP_MS;
-  let handled = 0;
+  const giveUpBefore = Date.now() - RESEND_GIVE_UP_MS;
   for (const message of stale) {
     if (message.createdAt.getTime() < giveUpBefore) {
-      // Fenced on `pending`: a send that succeeded between the read above and
-      // this update owns the row now, and its `sent` must not be rewritten
-      // into a failure.
-      const gaveUp = await db.notisMessage.updateMany({
-        where: { id: message.id, status: "pending" },
+      await db.notisMessage.update({
+        where: { id: message.id },
         data: { status: "failed", failureReason: "gave up after 1h of delivery retries" },
       });
-      if (gaveUp.count === 1) {
-        await alert(`message ${message.id}: undeliverable for over an hour — giving up`);
-        handled++;
-      }
+      await alert(`message ${message.id}: undeliverable for over an hour — giving up`);
       continue;
     }
-
-    // Claim before sending. `count === 1` means this run owns the send; a
-    // concurrent sweep loses the race and moves on, so Bird never receives
-    // two simultaneous requests for one row.
-    const claimed = await db.notisMessage.updateMany({
-      where: {
-        id: message.id,
-        status: "pending",
-        OR: [{ sendingAt: null }, { sendingAt: { lt: staleClaimBefore } }],
-      },
-      data: { sendingAt: new Date() },
-    });
-    if (claimed.count !== 1) continue;
-
-    handled++;
-    await sendPendingMessages(db, bird, [message.id], message.subscription, alert);
+    // SMS rows are never re-sent: the channels API has no idempotency key,
+    // and a duplicate SMS is worse than a lost fallback. They age out via
+    // the give-up pass above.
+    if (message.channel === "sms") continue;
+    await deliverPendingMessage(db, bird, message.id, message.subscription, alert);
   }
-  return handled;
+  return stale.length;
 }
