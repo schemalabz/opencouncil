@@ -148,6 +148,8 @@ WHERE tagged.seconds > 0;
 -- 7. Validate MeetingAdministrativeBodyView - two-hop join and enum cast
 -- ============================================================================
 \echo '7. Validating MeetingAdministrativeBodyView...'
+-- The expected values come from pg_enum, not a hardcoded list, so a new AdministrativeBodyType
+-- flows through the cast on its own instead of failing this check.
 SELECT
   COUNT(*) AS total_meetings,
   COUNT(administrative_body_id) AS with_body,
@@ -155,8 +157,12 @@ SELECT
   CASE
     WHEN COUNT(CASE WHEN administrative_body_id IS NOT NULL AND administrative_body_type IS NULL THEN 1 END) > 0
       THEN 'FAIL: Body present but type missing'
-    WHEN COUNT(CASE WHEN administrative_body_type NOT IN ('council', 'committee', 'community') THEN 1 END) > 0
-      THEN 'FAIL: Unexpected administrative body type'
+    WHEN COUNT(CASE WHEN administrative_body_type NOT IN (
+      SELECT e.enumlabel FROM pg_enum e
+      INNER JOIN pg_type t ON t.oid = e.enumtypid
+      WHERE t.typname = 'AdministrativeBodyType'
+    ) THEN 1 END) > 0
+      THEN 'FAIL: Type outside the AdministrativeBodyType enum'
     ELSE 'PASS: Types resolve correctly'
   END AS validation_result
 FROM "MeetingAdministrativeBodyView";
