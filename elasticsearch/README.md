@@ -11,6 +11,7 @@ This document describes how OpenCouncil uses Elasticsearch to provide powerful s
 4. [Configure PostgreSQL Views](#configure-postgresql-views)
 5. [Configure the Ingest Pipeline](#configure-the-ingest-pipeline)
 6. [Set up PGSync](#set-up-pgsync)
+   - [Deploying a Schema Change](#deploying-a-schema-change)
 7. [Sync Data](#sync-data)
 8. [Search Examples](#search-examples)
 9. [Best Practices & FAQ](#best-practices--faq)
@@ -161,6 +162,60 @@ PGSync requires helper views to denormalize complex relationships and handle Pos
 1. **LocationSearchView** - Converts PostGIS geometry to GeoJSON format
 2. **IntroducedByPartyView** - Resolves party affiliation through the `Role` table
 3. **SubjectSpeakerSegmentSearchView** - Denormalizes speaker segments with concatenated utterances
+4. **SpeakerContributionSearchView** - Denormalizes speaker contributions
+5. **SubjectMetricsView** - Precomputes the per-subject discussion metrics
+6. **MeetingAdministrativeBodyView** - Flattens the Subject → CouncilMeeting → AdministrativeBody join and casts the type enum to text. Exposes only the id and the type, because search results hydrate the full body from PostgreSQL
+7. **CitySearchView** - Casts the `Realm` enum to text. Every other `City` column reaches the index as a direct column
+
+### Realm, Not Country
+
+The index stores `city_realm` (`greece`, `france`, `cyprus`, `serbia`), not an ISO country code.
+
+PostgreSQL holds no country column. `REALMS` in `src/lib/realm.ts` maps a realm to its country, and
+`getRealmCountry()` reads that map. A `CASE` expression in SQL would copy the map into a second place
+that no test covers, so a new realm would sync an empty or wrong country. A caller that needs the
+country resolves it from `city_realm` in application code.
+7. **CitySearchView** - Casts the `Realm` enum to text. Every other `City` column reaches the index as a direct column
+
+### Realm, Not Country
+
+The index stores `city_realm` (`greece`, `france`, `cyprus`, `serbia`), not an ISO country code.
+
+PostgreSQL holds no country column. `REALMS` in `src/lib/realm.ts` maps a realm to its country, and
+`getRealmCountry()` reads that map. A `CASE` expression in SQL would copy the map into a second place
+that no test covers, so a new realm would sync an empty or wrong country. A caller that needs the
+country resolves it from `city_realm` in application code.
+
+### Discussion Metrics
+
+`SubjectMetricsView` precomputes two scalar fields, because a nested array costs a nested query to
+aggregate at search time. They exist for score rescoring. The search API exposes no filter on them:
+
+| Field | Meaning |
+|-------|---------|
+| `contributor_count` | Number of `SpeakerContribution` rows on the subject |
+| `discussion_speaking_seconds` | Time the council spent speaking about the subject |
+
+`contributor_count` counts rows, the same measure as `getContributionCount()` in `src/lib/utils.ts`.
+The count comes from `SpeakerContribution`, the model that replaces `SubjectSpeakerSegment`, so a
+subject that predates the contribution pipeline reports zero contributors.
+
+`discussion_speaking_seconds` repeats `getDiscussionSecondsForSubjects()` in `src/lib/db/subject.ts`, so
+the index agrees with the number the subject page shows:
+
+- **Primary source**: utterances tagged `SUBJECT_DISCUSSION`. The summarize task writes these tags.
+- **Excluded**: procedural segments, which are not part of a discussion.
+- **Fallback**: `SubjectSpeakerSegment`, and only for a subject with no tagged utterance at all. A
+  subject whose tagged utterances are all procedural reports 0 instead of falling back.
+
+Both sources sum the parts rather than measure the span from the first mention to the last, so a
+subject that the council revisits reports the time spent on it. The name avoids the word "duration"
+because `calculateMeetingDurationMs()` uses it for a wall-clock span.
+
+> **Never name the root table in `base_tables`.** `SubjectMetricsView` is keyed on the subject id, so
+> it is tempting to declare `base_tables: ["Subject"]`. That is what `SubjectSearchView` did, and it
+> made PGSync route `Subject` DELETE events as child re-syncs, so deleted subjects stayed in the
+> index. Declare only the tables the view actually reads.
 4. **SpeakerContributionSearchView** - Denormalizes speaker contributions with party resolution
 
 ### Create the Views
@@ -246,7 +301,9 @@ Expected output: `"description": "Ενημέρωση από τον Δήμαρχ�
 
 ### Schema Configuration
 
-> **Important**: The sync configuration is defined in `elasticsearch/schema.json`. Changing this schema effectively changes the structure of documents in Elasticsearch and requires re-indexing the entire index.
+> **Important**: The sync configuration is defined in `elasticsearch/schema.json`. A change to this file
+> changes the structure of the documents in Elasticsearch. Some changes need a new index; most do not.
+> See [Deploying a Schema Change](#deploying-a-schema-change).
 
 The `elasticsearch/schema.json` file defines:
 - **Index mapping**: Elasticsearch field types, analyzers
@@ -258,6 +315,100 @@ The `elasticsearch/schema.json` file defines:
 **Resources for understanding the schema:**
 - [PGSync Schema Documentation](https://pgsync.com/schema/) - Official guide to schema configuration
 - [PGSync Examples](https://github.com/toluaina/pgsync/tree/main/examples) - Example schemas for various use cases
+
+### Deploying a Schema Change
+
+PGSync sends the `mapping` block from `schema.json` **only when it creates the index**
+(`pgsync/search_client.py`, `if not indices.exists(...)`). On an index that already exists the block is
+inert. The local E2E harness recreates its index on every run (see
+[Testing Schema Changes](#testing-schema-changes)), so it always takes the create path — the path
+production never takes.
+
+Two consequences follow. A new field needs an explicit mapping call against the live index. That call is
+also sufficient: an additive change needs no new index.
+
+#### 1. Rehearse the mapping change
+
+The mapping call is atomic and idempotent — one conflicting field rejects the whole request, so it can
+never apply half a change, and re-running an unchanged block does nothing. It is still a write to the
+live index, and one of its outcomes commits you to a much larger job. Find out which outcome you are
+getting on a copy first.
+
+```bash
+AUTH="Authorization: ApiKey $ELASTICSEARCH_API_KEY"
+JSON="Content-Type: application/json"
+IDX="${ELASTICSEARCH_INDEX:-subjects}"
+
+# copy the live mapping into a throwaway index
+curl -sS -H "$AUTH" "$ELASTICSEARCH_URL/$IDX/_mapping" \
+| python3 -c "import json,sys;m=list(json.load(sys.stdin).values())[0]['mappings'];m.pop('_meta',None);print(json.dumps({'mappings':m}))" \
+| curl -sS -X PUT -H "$AUTH" -H "$JSON" "$ELASTICSEARCH_URL/mapping-rehearsal" --data-binary @-
+
+# apply the declared block to the copy and read the response
+python3 -c "import json;print(json.dumps({'properties':json.load(open('elasticsearch/schema.json'))[0]['mapping']}))" \
+| curl -sS -X PUT -H "$AUTH" -H "$JSON" "$ELASTICSEARCH_URL/mapping-rehearsal/_mapping" --data-binary @-
+
+curl -sS -X DELETE -H "$AUTH" "$ELASTICSEARCH_URL/mapping-rehearsal"
+```
+
+The response tells you which change you are making:
+
+| Response | Change | Existing documents | Action |
+|---|---|---|---|
+| `400 illegal_argument_exception` | a field changed type, analyzer, or `inference_id` | keep the old mapping | build a new index, sync it, switch `ELASTICSEARCH_INDEX`. Do not run the live call. |
+| `acknowledged`, new top-level field | additive | hold no value yet | continue below |
+| `acknowledged`, new **sub**field on an existing field (`.keyword`, `.semantic`) | additive to the mapping only | **silently hold no value, and a backfill cannot fill them** | every document must be rewritten with its source text |
+
+> The third row is why the rehearsal is worth the two minutes. It succeeds, so running it on the live
+> index commits you before you know the cost. The mapping reads as correct and no error appears, but the
+> subfield exists only for documents written after the call. Verify such a change by querying the new
+> field for an **old** document — never by reading the mapping back.
+
+#### 2. Deploy
+
+The index name comes from `ELASTICSEARCH_INDEX` (default `subjects`). Staging and preview leave it unset
+and read the production index, so there is one index to migrate.
+
+1. **Views** — `psql "$DATABASE_URL" < elasticsearch/views.sql`, on every database PGSync reads.
+2. **Mapping** — the same call as the rehearsal, against `$IDX` instead of `mapping-rehearsal`. Run it
+   before any document carries the new field: a field that reaches the index first gets its type from
+   dynamic mapping, so a string becomes `text` + `.keyword` rather than `keyword`, permanently.
+   `location_id` is already in this state.
+3. **Schema** — deploy the new `schema.json` and restart the PGSync daemon.
+4. **Backfill** — fill the documents that already exist (below).
+5. **Verify** — below.
+
+Step 3 must precede step 4. A live-sync write from the old `schema.json` is a full-document `index`
+operation, so it replaces the document and drops the new fields.
+
+#### 3. Backfill
+
+Elasticsearch never fills a new field on documents that already exist. Two ways to fill them:
+
+| | Cost | Notes |
+|---|---|---|
+| PGSync `--bootstrap` | re-embeds every document — tens of minutes on a single inference allocation | full re-read of Postgres, and the replication slot stalls for the duration |
+| bulk `update` carrying only the new fields | no inference at all | `name` and `description` are absent from the request, so no inference request is generated |
+
+Prefer the bulk `update`.
+
+#### 4. Verify
+
+```bash
+# the index matches the repository: no undeclared fields, no type conflicts
+diff <(python3 -c "import json;print('\n'.join(sorted(json.load(open('elasticsearch/schema.json'))[0]['mapping'])))") \
+     <(curl -sS -H "$AUTH" "$ELASTICSEARCH_URL/$IDX/_mapping" \
+       | python3 -c "import json,sys;print('\n'.join(sorted(k for k in list(json.load(sys.stdin).values())[0]['mappings']['properties'] if k!='_meta')))")
+
+# a keyword field aggregates. A field that fell back to `text` fails here.
+curl -sS -H "$AUTH" -H "$JSON" "$ELASTICSEARCH_URL/$IDX/_search?size=0" \
+  -d '{"aggs":{"t":{"terms":{"field":"administrative_body_type"}}}}'
+```
+
+Then spot-check a document that predates the change, and confirm a semantic query still returns its
+usual results.
+
+`_cat/indices` reports `docs.count` including nested documents. Use `_count` for the number of subjects.
 
 ### Deployment and Sync Operations
 
@@ -772,6 +923,35 @@ A: PGSync's live sync receives WAL events with the base table's original column 
 3. Use `transform.rename` to map to the desired Elasticsearch field name (`"id": "contribution_id"`)
 
 This ensures bootstrap (reads from view) and live sync (reads from WAL) both work correctly.
+
+**Q: When do the discussion metrics refresh?**  
+A: PGSync rebuilds the whole document when it re-syncs a `Subject`, and it re-syncs a `Subject` only when
+the `Subject` row itself changes. A change to a child table does not trigger it, whatever `base_tables`
+declares (see [Testing Live Sync](#testing-live-sync-important)) — the aggregate source rows carry their
+own primary keys, which cannot match a subject id.
+
+Both metrics therefore depend on their data committing together with a `Subject` write:
+
+- `contributor_count` — `saveSubjectsForMeeting` writes the subjects and their contributions in one
+  transaction, so the count is always current.
+- `discussion_speaking_seconds` — the summarize task's utterance discussion tags are applied inside that
+  same transaction for this reason. Written afterwards, they would never reach the index and every newly
+  summarized subject would report 0.
+
+So a writer that changes an utterance's discussion tag must do it alongside the subject write. Test both
+bootstrap and live sync after you change the aggregates in `SubjectMetricsView`. Touch the parent `Subject`
+row if the numbers look stale.
+
+**Q: Why does an edit to an administrative body not appear in search?**  
+A: `MeetingAdministrativeBodyView` has the primary key `(id, cityId)` of `CouncilMeeting`, so only
+`CouncilMeeting` is declared as its base table. Moving a meeting to another body is a `CouncilMeeting`
+write and syncs on its own. Editing the body row is not, so a type change reaches the index only when the
+meeting or one of its subjects is next written.
+
+A rename needs no sync at all: the index stores `administrative_body_id` and `administrative_body_type`
+and no names, because search results hydrate the full body from PostgreSQL. Only a corrected `type` goes
+stale, and it self-heals on the next write to the meeting or the subject. Update the `Subject` row to
+force it sooner.
 
 **Q: How is the speaker segments text concatenated?**  
 A: The `SubjectSpeakerSegmentSearchView` view concatenates all utterance texts within each speaker segment using `string_agg()`, ordered by timestamp. PGSync reads from this view and indexes the concatenated text.

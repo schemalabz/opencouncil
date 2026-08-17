@@ -143,6 +143,118 @@ LEFT JOIN LATERAL (
 \echo '✓ SpeakerContributionSearchView created'
 \echo ''
 
+-- View 5: Per-subject discussion metrics
+-- Why this view? A nested array costs a nested query to aggregate at search time, so the
+-- contributor count and the speaking time are precomputed here as scalar columns. They feed
+-- score rescoring, not search filters.
+--
+-- IMPORTANT: base_tables in schema.json must never name Subject, the root table. A child node
+-- that claims the root table makes PGSync route Subject DELETE events as child re-syncs, and
+-- deleted subjects then stay in the index. That is why SubjectSearchView was removed. This view
+-- reads only the tables the aggregates come from.
+--
+-- contributor_count counts SpeakerContribution rows, which matches getContributionCount() in
+-- src/lib/utils.ts. Both feed the same discussion signal, so they must agree. The count comes
+-- from SpeakerContribution, the model that replaces SubjectSpeakerSegment, so a subject that
+-- predates the contribution pipeline reports zero contributors.
+--
+-- discussion_speaking_seconds must equal what the subject page shows, so it repeats
+-- getDiscussionSecondsForSubjects in src/lib/db/subject.ts:
+--   - Tagged SUBJECT_DISCUSSION utterances are the primary source. The summarize task writes
+--     them inside the subject transaction; it no longer writes SubjectSpeakerSegment.
+--   - Procedural segments do not count towards a discussion.
+--   - SubjectSpeakerSegment is the fallback, and only for a subject with no tagged utterance at
+--     all. A subject whose tagged utterances are all procedural reports 0 rather than falling
+--     back, which is why each branch uses HAVING COUNT(*) > 0.
+-- Both branches sum the parts, so a subject that the council revisits reports the time spent on
+-- it, not the span from the first mention to the last. The name says "speaking" because
+-- "duration" already means a wall-clock span here (see calculateMeetingDurationMs).
+\echo 'Creating SubjectMetricsView...'
+CREATE OR REPLACE VIEW "SubjectMetricsView" AS
+SELECT
+  s.id,
+  (
+    SELECT COUNT(*)
+    FROM "SpeakerContribution" sc
+    WHERE sc."subjectId" = s.id
+  ) AS contributor_count,
+  COALESCE(tagged.seconds, legacy.seconds, 0) AS discussion_speaking_seconds
+FROM "Subject" s
+LEFT JOIN LATERAL (
+  SELECT COALESCE(
+    SUM(u."endTimestamp" - u."startTimestamp")
+      FILTER (WHERE sm.type IS NULL OR sm.type::text <> 'procedural'),
+    0
+  ) AS seconds
+  FROM "Utterance" u
+  INNER JOIN "SpeakerSegment" ss ON ss.id = u."speakerSegmentId"
+  LEFT JOIN "Summary" sm ON sm."speakerSegmentId" = ss.id
+  WHERE u."discussionSubjectId" = s.id
+    AND u."discussionStatus"::text = 'SUBJECT_DISCUSSION'
+  HAVING COUNT(*) > 0
+) tagged ON true
+LEFT JOIN LATERAL (
+  SELECT COALESCE(
+    SUM(ss."endTimestamp" - ss."startTimestamp")
+      FILTER (WHERE sm.type IS NULL OR sm.type::text <> 'procedural'),
+    0
+  ) AS seconds
+  FROM "SubjectSpeakerSegment" sss
+  INNER JOIN "SpeakerSegment" ss ON ss.id = sss."speakerSegmentId"
+  LEFT JOIN "Summary" sm ON sm."speakerSegmentId" = ss.id
+  WHERE sss."subjectId" = s.id
+  HAVING COUNT(*) > 0
+) legacy ON true;
+\echo '✓ SubjectMetricsView created'
+\echo ''
+
+-- View 6: Administrative body of the meeting a subject belongs to
+-- Why this view? Subject reaches AdministrativeBody only through CouncilMeeting,
+-- which PGSync cannot express as a single relationship. This view:
+--   - Flattens the two-hop join into one row per meeting
+--   - Casts the AdministrativeBodyType enum to text, which Elasticsearch can index
+--
+-- Only the type reaches the index through this view. administrative_body_id is
+-- CouncilMeeting."administrativeBodyId" verbatim (the join can only reproduce it), so
+-- schema.json reads that column straight off CouncilMeeting and gets normal WAL routing
+-- for a meeting that moves to another body. The id column stays here because
+-- validate-views.sql pairs it with the type, and because CREATE OR REPLACE VIEW cannot
+-- drop a column from an existing view.
+--
+-- The names are not indexed: search results hydrate the full administrativeBody from
+-- PostgreSQL, so indexing them would duplicate data that no query reads.
+--
+-- IMPORTANT: Primary key columns keep their original names (`id`, `cityId`).
+-- See the note on SpeakerContributionSearchView for why WAL requires this.
+\echo 'Creating MeetingAdministrativeBodyView...'
+CREATE OR REPLACE VIEW "MeetingAdministrativeBodyView" AS
+SELECT
+  cm.id,  -- Keep as `id`/`cityId` for WAL compatibility
+  cm."cityId",
+  ab.id AS administrative_body_id,
+  ab.type::text AS administrative_body_type
+FROM "CouncilMeeting" cm
+LEFT JOIN "AdministrativeBody" ab ON ab.id = cm."administrativeBodyId";
+\echo '✓ MeetingAdministrativeBodyView created'
+\echo ''
+
+-- View 7: Realm of the city a subject belongs to
+-- Why this view? Only to cast the Realm enum to text, which Elasticsearch can index.
+-- Every other City column reaches the index as a direct column on a child node.
+--
+-- The index stores the realm, not an ISO country code. The realm -> country map lives in REALMS
+-- in src/lib/realm.ts, and getRealmCountry() reads it. Repeating that map in SQL would make a
+-- second source of truth that no test covers, so a new realm would sync a wrong or empty
+-- country. A caller that wants the country resolves it from the realm in application code.
+\echo 'Creating CitySearchView...'
+CREATE OR REPLACE VIEW "CitySearchView" AS
+SELECT
+  c.id,  -- Keep as `id` for WAL compatibility
+  c.realm::text AS realm
+FROM "City" c;
+\echo '✓ CitySearchView created'
+\echo ''
+
 -- ============================================================================
 -- VERIFICATION CHECKS
 -- ============================================================================
@@ -155,12 +267,12 @@ LEFT JOIN LATERAL (
 \echo '1. Checking if all views exist...'
 SELECT 
   CASE 
-    WHEN COUNT(*) = 4 THEN '   ✓ All 4 views exist'
-    ELSE '   ✗ Missing views! Expected 4, found ' || COUNT(*)::text
+    WHEN COUNT(*) = 7 THEN '   ✓ All 7 views exist'
+    ELSE '   ✗ Missing views! Expected 7, found ' || COUNT(*)::text
   END AS result
 FROM pg_views
 WHERE schemaname = 'public'
-  AND viewname IN ('LocationSearchView', 'IntroducedByPartyView', 'SubjectSpeakerSegmentSearchView', 'SpeakerContributionSearchView');
+  AND viewname IN ('LocationSearchView', 'IntroducedByPartyView', 'SubjectSpeakerSegmentSearchView', 'SpeakerContributionSearchView', 'SubjectMetricsView', 'MeetingAdministrativeBodyView', 'CitySearchView');
 \echo ''
 
 -- Check 2: LocationSearchView - verify it returns data
@@ -208,7 +320,7 @@ FROM "SubjectSpeakerSegmentSearchView";
 \echo '   Sample data from SubjectSpeakerSegmentSearchView:'
 SELECT 
   subject_id,
-  segment_id,
+  id AS segment_id,
   speaker_person_name,
   speaker_party_name,
   LEFT(text, 50) || '...' AS text_preview
@@ -248,6 +360,69 @@ SELECT
 FROM "SpeakerContributionSearchView"
 WHERE text IS NOT NULL AND text != ''
 LIMIT 3;
+\echo ''
+
+-- Check 7: SubjectMetricsView - verify the discussion metrics
+\echo '7. Checking SubjectMetricsView data...'
+SELECT
+  COUNT(*) AS total_subjects,
+  COUNT(*) FILTER (WHERE contributor_count > 0) AS subjects_with_contributors,
+  COUNT(*) FILTER (WHERE discussion_speaking_seconds > 0) AS subjects_with_speaking_time,
+  ROUND(MAX(discussion_speaking_seconds)::numeric, 1) AS longest_discussion_seconds
+FROM "SubjectMetricsView";
+\echo ''
+
+\echo '   Source of discussion_speaking_seconds:'
+\echo '   (production data is mostly tagged utterances; seeded data is mostly the fallback)'
+SELECT
+  COUNT(*) FILTER (WHERE u.n > 0) AS from_tagged_utterances,
+  COUNT(*) FILTER (WHERE u.n = 0 AND sss.n > 0) AS from_legacy_fallback,
+  COUNT(*) FILTER (WHERE u.n = 0 AND sss.n = 0) AS no_timing_source
+FROM "Subject" s
+LEFT JOIN LATERAL (
+  SELECT COUNT(*) AS n FROM "Utterance" x
+  WHERE x."discussionSubjectId" = s.id AND x."discussionStatus"::text = 'SUBJECT_DISCUSSION'
+) u ON true
+LEFT JOIN LATERAL (
+  SELECT COUNT(*) AS n FROM "SubjectSpeakerSegment" x WHERE x."subjectId" = s.id
+) sss ON true;
+\echo ''
+
+-- Check 8: MeetingAdministrativeBodyView - verify administrative body resolution
+\echo '8. Checking MeetingAdministrativeBodyView data...'
+SELECT
+  COUNT(*) AS total_meetings,
+  COUNT(administrative_body_id) AS meetings_with_body,
+  COUNT(*) - COUNT(administrative_body_id) AS meetings_missing_body,
+  COUNT(DISTINCT administrative_body_type) AS distinct_types
+FROM "MeetingAdministrativeBodyView";
+\echo ''
+
+\echo '   Meetings per administrative body type:'
+SELECT
+  COALESCE(administrative_body_type, '(none)') AS administrative_body_type,
+  COUNT(*) AS meetings
+FROM "MeetingAdministrativeBodyView"
+GROUP BY 1
+ORDER BY 2 DESC;
+\echo ''
+
+-- Check 9: CitySearchView - verify the realm cast
+\echo '9. Checking CitySearchView data...'
+SELECT
+  COUNT(*) AS total_cities,
+  COUNT(realm) AS cities_with_realm,
+  COUNT(*) - COUNT(realm) AS cities_missing_realm
+FROM "CitySearchView";
+\echo ''
+
+\echo '   Cities per realm:'
+SELECT
+  COALESCE(realm, '(none)') AS realm,
+  COUNT(*) AS cities
+FROM "CitySearchView"
+GROUP BY 1
+ORDER BY 2 DESC;
 \echo ''
 
 -- Final Summary

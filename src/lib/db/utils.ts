@@ -6,14 +6,20 @@ import { getPartiesForCity } from "./parties";
 import { getTopics } from "./topics";
 import { getCity } from "./cities";
 import { getCouncilMeeting } from "./meetings";
-import { RequestOnTranscript, SummarizeRequest, TranscribeRequest, Subject } from "../apiTypes";
+import { RequestOnTranscript, SummarizeRequest, SummarizeResult, TranscribeRequest, Subject } from "../apiTypes";
 import prisma from "./prisma";
 import { getSubjectsForMeeting, extractUtteranceIdsFromContributions } from "./subject";
-import { Subject as DbSubject } from "@prisma/client";
+import { DiscussionStatus, Subject as DbSubject } from "@prisma/client";
 import { getPartyFromRoles, getRoleNameForPerson } from "../utils";
 import { roleWithRelationsInclude } from "./types";
 import { categorizeSubjectsForUpsert } from "./subject-helpers";
 import { getRealmCountry } from "@/lib/realm";
+
+// discussionStatus arrives from the external task server, so it is validated before it
+// reaches Prisma. An unknown value is a PrismaClientValidationError, which would abort the
+// whole subject transaction. src/lib/db/speakerSegments.ts validates the same field on the
+// editor path, where an invalid value is a caller error and throws.
+const VALID_DISCUSSION_STATUSES = new Set<string>(Object.values(DiscussionStatus));
 
 // Type for the Prisma interactive transaction client
 type PrismaTxClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
@@ -284,6 +290,73 @@ async function linkDiscussedInReferences(
 // --- Exported functions ---
 
 /**
+ * Applies the summarize task's utterance discussion tags inside the caller's transaction.
+ *
+ * These tags must commit together with the subjects they point at. PGSync re-indexes a subject
+ * only when the Subject row itself changes, so tags written after the subject transaction
+ * commits never reach the search index and the discussion metrics stay at their pre-tagging
+ * values. See "Deploying a Schema Change" in elasticsearch/README.md.
+ *
+ * Rows are grouped by (subject, status) so one meeting costs tens of statements rather than
+ * thousands. An id that no longer exists simply matches nothing, so a regenerated transcript
+ * needs no separate existence check.
+ *
+ * @param tx            the caller's transaction client
+ * @param statuses      utterance discussion statuses from the summarize response
+ * @param subjectIdMap  API subject identifier -> database subject id
+ * @returns the number of utterances actually tagged
+ */
+async function applyUtteranceDiscussionStatusesInTx(
+    tx: PrismaTxClient,
+    statuses: SummarizeResult['utteranceDiscussionStatuses'],
+    subjectIdMap: Map<string, string>
+): Promise<number> {
+    // Keep the last entry per utterance; the response can repeat one. Entries carrying a
+    // status outside the enum are dropped here rather than allowed to abort the transaction.
+    const deduped = new Map<string, SummarizeResult['utteranceDiscussionStatuses'][number]>();
+    let unknownStatuses = 0;
+    for (const status of statuses) {
+        if (!VALID_DISCUSSION_STATUSES.has(status.status)) {
+            console.warn(`Unknown discussionStatus "${status.status}" for utterance ${status.utteranceId} - skipping`);
+            unknownStatuses++;
+            continue;
+        }
+        if (deduped.has(status.utteranceId)) {
+            console.warn(`Duplicate utterance ID in response: ${status.utteranceId} - keeping last entry`);
+        }
+        deduped.set(status.utteranceId, status);
+    }
+
+    // Group by the pair actually written, so each group is a single updateMany.
+    const groups = new Map<string, { subjectId: string | null; status: DiscussionStatus; utteranceIds: string[] }>();
+    for (const entry of deduped.values()) {
+        const subjectDbId = entry.subjectId ? subjectIdMap.get(entry.subjectId) ?? null : null;
+        if (entry.subjectId && !subjectDbId) {
+            console.warn(`Could not find database subject for API subject ID: ${entry.subjectId}`);
+        }
+        const key = `${entry.status}::${subjectDbId ?? ''}`;
+        const group = groups.get(key) ?? { subjectId: subjectDbId, status: entry.status, utteranceIds: [] };
+        group.utteranceIds.push(entry.utteranceId);
+        groups.set(key, group);
+    }
+
+    let tagged = 0;
+    for (const group of groups.values()) {
+        const { count } = await tx.utterance.updateMany({
+            where: { id: { in: group.utteranceIds } },
+            data: { discussionStatus: group.status, discussionSubjectId: group.subjectId }
+        });
+        tagged += count;
+    }
+
+    console.log(
+        `Saved ${tagged} utterance discussion statuses in ${groups.size} statements ` +
+        `(${deduped.size - tagged} ids no longer exist, ${unknownStatuses} unknown statuses)`
+    );
+    return tagged;
+}
+
+/**
  * Save subjects for a meeting using upsert semantics: matches incoming subjects
  * to existing ones by numeric agendaItemIndex and updates in-place (preserving
  * database IDs). Subjects with BEFORE_AGENDA/OUT_OF_AGENDA are always replaced
@@ -299,6 +372,7 @@ export async function saveSubjectsForMeeting(
     subjects: Subject[],
     cityId: string,
     councilMeetingId: string,
+    utteranceDiscussionStatuses?: SummarizeResult['utteranceDiscussionStatuses'],
 ): Promise<Map<string, string>> {
     const { topicsByName, validSpeakerIds, existingIntroducerIds } = await validateSubjectPersons(subjects, cityId);
     const subjectIdMap = new Map<string, string>();
@@ -481,6 +555,12 @@ export async function saveSubjectsForMeeting(
                 councilMeetingId,
                 speakerContributions: subject.speakerContributions
             });
+        }
+
+        // Inside the transaction on purpose: the tags must commit with their subjects, or the
+        // search index never learns about them. See applyUtteranceDiscussionStatusesInTx.
+        if (utteranceDiscussionStatuses && utteranceDiscussionStatuses.length > 0) {
+            await applyUtteranceDiscussionStatusesInTx(tx, utteranceDiscussionStatuses, subjectIdMap);
         }
     }, { timeout: 60000 });
 
