@@ -20,8 +20,10 @@ export const WAKE_EVENT_TYPES = [
 export const journalEntrySchema = z.object({
   /** ISO timestamp of the wake's event (the world's timeline, not the wall clock). */
   at: z.string(),
-  /** The wake trigger — or "enrollment" for the system-sent intro/transition template. */
-  event: z.enum([...WAKE_EVENT_TYPES, "enrollment"]),
+  /** The wake trigger — or "enrollment" for the system-sent intro/transition
+   *  template, "system" for shell-side bookkeeping (e.g. a phone-gone
+   *  unsubscribe by the poller). */
+  event: z.enum([...WAKE_EVENT_TYPES, "enrollment", "system"]),
   decision: z.enum(["silence", "send"]),
   rationale: z.string(),
   /** Texts sent (empty on silence). */
@@ -130,8 +132,42 @@ export const wakeEventSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("agenda_processed"), ...meetingEventFields }),
   z.object({ type: z.literal("meeting_summarized"), ...meetingEventFields }),
   z.object({ type: z.literal("user_message"), at: z.string(), text: z.string() }),
-  z.object({ type: z.literal("scheduled"), at: z.string(), reason: z.string() }),
+  z.object({
+    type: z.literal("scheduled"),
+    at: z.string(),
+    reason: z.string(),
+    /** Why the schedule existed: a promised answer to a reader question
+     *  ("reply") or a self-scheduled follow-up to proactive news
+     *  ("proactive"). Absent in pre-PR-4 records — treated as "reply",
+     *  which matches their history (the live lane was the only producer). */
+    origin: z.enum(["reply", "proactive"]).optional(),
+  }),
   z.object({ type: z.literal("heartbeat"), at: z.string() }),
 ]);
+
+/**
+ * Which of a coalesced wake's events leads: the meatiest content wins the
+ * template shell and the journal label, and user_message dominating keeps
+ * every reactive invariant (freeform delivery, repair nudges) intact.
+ */
+export const EVENT_PRIORITY = [
+  "user_message",
+  "meeting_summarized",
+  "agenda_processed",
+  "scheduled",
+  "heartbeat",
+] as const;
+
+export function primaryEvent<T extends { type: string }>(events: readonly T[]): T {
+  if (events.length === 0) throw new Error("primaryEvent: empty events");
+  let best = events[0];
+  for (const event of events) {
+    if (EVENT_PRIORITY.indexOf(event.type as (typeof EVENT_PRIORITY)[number])
+      < EVENT_PRIORITY.indexOf(best.type as (typeof EVENT_PRIORITY)[number])) {
+      best = event;
+    }
+  }
+  return best;
+}
 
 export const effortSchema = z.enum(["low", "medium", "high", "xhigh", "max"]);

@@ -99,7 +99,7 @@ export function renderEvent(event: WakeEvent, state: WakeState): string {
   }
 }
 
-export function assembleUserTurn(state: WakeState, event: WakeEvent, now: Date): string {
+export function assembleUserTurn(state: WakeState, events: WakeEvent[], now: Date): string {
   const cities = state.user.cities
     .map(
       (c) =>
@@ -142,8 +142,13 @@ export function assembleUserTurn(state: WakeState, event: WakeEvent, now: Date):
     ``,
     `<current_time>${now.toISOString()}</current_time>`,
     ``,
-    `<event>`,
-    renderEvent(event, state),
-    `</event>`,
+    // A coalesced wake carries several events (e.g. three cities' meetings
+    // landing together): each renders in its own block, oldest first, with
+    // one factual preamble line. The single-event render is byte-identical
+    // to the pre-coalescing output, so recorded fixtures replay unchanged.
+    ...(events.length > 1
+      ? [`${events.length} events arrived together — process them as one wake, oldest first.`, ``]
+      : []),
+    ...events.flatMap((event) => [`<event>`, renderEvent(event, state), `</event>`]),
   ].join("\n");
 }

@@ -109,11 +109,11 @@ async function runOneWake(
     journal,
   };
 
-  const { outcome, trace } = await runWake(state, event, deps);
+  const { outcome, trace } = await runWake(state, [event], deps);
 
   const delivery =
     outcome.messages.length > 0
-      ? decideDelivery(event.type, lastInbound?.createdAt.toISOString(), new Date(event.at))
+      ? decideDelivery(event, lastInbound?.createdAt.toISOString(), new Date(event.at))
       : undefined;
 
   const outboundIds = await db.$transaction(

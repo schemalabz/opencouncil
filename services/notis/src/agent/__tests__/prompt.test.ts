@@ -23,7 +23,7 @@ describe("assembleSystem", () => {
 
 describe("assembleUserTurn", () => {
   it("contains profile, journal, clock and event sections in order", () => {
-    const turn = assembleUserTurn(makeState(), meetingEvent(), FIXED_NOW);
+    const turn = assembleUserTurn(makeState(), [meetingEvent()], FIXED_NOW);
     const order = ["<user_profile>", "<taste_profile>", "<journal>", "<current_time>", "<event>"];
     let last = -1;
     for (const tag of order) {
@@ -62,7 +62,7 @@ describe("assembleUserTurn", () => {
     const brief = (event as Extract<typeof event, { type: "meeting_summarized" }>).brief;
     brief.subjects[0].location = { text: "Πλατεία Κυψέλης", lng: 23.7405, lat: 37.9948 };
 
-    const turn = assembleUserTurn(state, event, FIXED_NOW);
+    const turn = assembleUserTurn(state, [event], FIXED_NOW);
     expect(turn).toContain("distance from their places:");
     expect(turn).toMatch(/χλμ από «Σπίτι»/);
     // The coordless legacy place renders in the profile but gets no distance.
@@ -76,7 +76,7 @@ describe("assembleUserTurn", () => {
     const event = meetingEvent();
     const brief = (event as Extract<typeof event, { type: "meeting_summarized" }>).brief;
     brief.subjects[0].location = { text: "Πλατεία Κυψέλης", lng: 23.7405, lat: 37.9948 };
-    const turn = assembleUserTurn(makeState(), event, FIXED_NOW);
+    const turn = assembleUserTurn(makeState(), [event], FIXED_NOW);
     expect(turn).not.toContain("distance from their places:");
   });
 
@@ -88,7 +88,7 @@ describe("assembleUserTurn", () => {
       rationale: `entry-${i}`,
       messages: [],
     }));
-    const turn = assembleUserTurn(makeState({ journal }), meetingEvent(), FIXED_NOW);
+    const turn = assembleUserTurn(makeState({ journal }), [meetingEvent()], FIXED_NOW);
     expect(turn).not.toContain("entry-9\n");
     expect(turn).toContain(`entry-${JOURNAL_WINDOW + 9}`);
     expect(turn).toContain(`entry-10`);
@@ -97,7 +97,7 @@ describe("assembleUserTurn", () => {
   it("renders a user_message event verbatim", () => {
     const turn = assembleUserTurn(
       makeState(),
-      { type: "user_message", at: FIXED_NOW.toISOString(), text: "Τι έγινε με την πλατεία;" },
+      [{ type: "user_message", at: FIXED_NOW.toISOString(), text: "Τι έγινε με την πλατεία;" }],
       FIXED_NOW,
     );
     expect(turn).toContain("Τι έγινε με την πλατεία;");
@@ -116,7 +116,7 @@ describe("assembleUserTurn", () => {
         },
       ],
     });
-    const turn = assembleUserTurn(state, meetingEvent(), FIXED_NOW);
+    const turn = assembleUserTurn(state, [meetingEvent()], FIXED_NOW);
     expect(turn).toContain("they wrote: «Πότε φτιάχνεται ο δρόμος μας;»");
     expect(turn).toContain("sent: «Η απάντηση.»");
   });

@@ -24,7 +24,11 @@ function textOf(content: unknown[]): string {
 }
 
 /**
- * One agent invocation: (state, event, deps) → outcome + trace.
+ * One agent invocation: (state, events, deps) → outcome + trace.
+ *
+ * Usually one event; a coalesced batch wake carries several (sorted here by
+ * time, defensively), all consumed in a single invocation so the reader gets
+ * one considered response instead of a burst.
  *
  * Pure over Deps: never mutates `state`, performs no side effects — client
  * tool calls are recorded into the outcome and answered with synthetic
@@ -32,15 +36,18 @@ function textOf(content: unknown[]): string {
  */
 export async function runWake(
   state: WakeState,
-  event: WakeEvent,
+  eventsInput: WakeEvent[],
   deps: Deps,
 ): Promise<{ outcome: WakeOutcome; trace: WakeTrace }> {
+  if (eventsInput.length === 0) throw new Error("runWake: no events");
+  const events = [...eventsInput].sort((a, b) => a.at.localeCompare(b.at));
+  const hasUserMessage = events.some((e) => e.type === "user_message");
   const started = deps.now().getTime();
   const system = assembleSystem(deps.prompts);
-  // <current_time> is the event's time, not the wall clock: a wake is the
-  // processing of an event at its moment. In production the two coincide;
-  // under simulation only the event's clock tells the truth.
-  const userTurn = assembleUserTurn(state, event, new Date(event.at));
+  // <current_time> is the LAST event's time, not the wall clock: a wake is
+  // the processing of events at their moment. In production the two
+  // coincide; under simulation only the event's clock tells the truth.
+  const userTurn = assembleUserTurn(state, events, new Date(events[events.length - 1].at));
 
   // The user turn (with its multi-thousand-token brief) gets its own cache
   // breakpoint: the MCP connector's server-side research loop makes several
@@ -175,7 +182,7 @@ export async function runWake(
       // along with the tool_results and the loop continues once.
       let nudge: string | undefined;
       if (finished && !repaired) {
-        if (event.type === "user_message" && sent.length === 0 && !unsubscribe) {
+        if (hasUserMessage && sent.length === 0 && !unsubscribe) {
           preNudgeRationale = rationale;
           sentAtNudge = sent.length;
           // When the answer sits stranded as prose, quote it back. Without the
@@ -239,7 +246,7 @@ export async function runWake(
       // (a) The person wrote to us and the model produced neither a send nor
       // an unsubscribe: it wrote its answer into the final text instead of
       // the tool. Never fires on proactive wakes — silence is their default.
-      if (event.type === "user_message" && sent.length === 0 && !unsubscribe) {
+      if (hasUserMessage && sent.length === 0 && !unsubscribe) {
         // Same rationale protection as the other three repair paths: if the
         // nudged turn adds no sends, post-nudge check-chatter must not become
         // the journal rationale the next thirty wakes read as memory.
@@ -314,7 +321,7 @@ export async function runWake(
   // without a terminal anomaly explaining why), record the contract breach.
   const finishWakeMissing = !finished && !refused && !truncated;
 
-  const journalAppend = buildJournalEntry(event, decision, rationale, sent, {
+  const journalAppend = buildJournalEntry(events, decision, rationale, sent, {
     profileRewritten: profileRewrite !== undefined,
     unsubscribed: Boolean(unsubscribe),
     truncated,
