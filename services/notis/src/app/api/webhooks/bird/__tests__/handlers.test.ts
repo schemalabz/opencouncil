@@ -1,7 +1,7 @@
 import type { ExtractedMessageFields } from "@/lib/bird-extract";
-import type { BirdLike } from "@/lib/bird";
 import { STOP_ALREADY_TEXT, STOP_CONFIRMATION_TEXT } from "@/lib/stop";
 import { type Row, makeFakeDb } from "../../../../../lib/__tests__/fake-db";
+import { FakeBird } from "../../../../../lib/__tests__/fake-bird";
 import { handleInbound, handleOutboundStatus, isForwardProgression } from "../handlers";
 
 // Enrollment reads the main-DB views through these two modules; the fakes
@@ -18,13 +18,6 @@ jest.mock("@/lib/fanout", () => ({
 import { hasMainDb, mainDb } from "@/lib/main-db";
 import { citiesForUser, findEnabledUserByPhone } from "@/lib/fanout";
 
-class FakeBird implements BirdLike {
-  public sends: Array<{ conversationId: string; text: string; idempotencyKey: string }> = [];
-  async sendText(input: { conversationId: string; text: string; idempotencyKey: string }) {
-    this.sends.push(input);
-    return { success: true, messageId: `bird-${this.sends.length}` };
-  }
-}
 
 const SUB: Row = {
   id: "sub1",

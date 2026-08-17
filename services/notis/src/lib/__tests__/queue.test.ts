@@ -1,8 +1,8 @@
 import { FakeAnthropic, makeDeps, toolUse } from "../../agent/__tests__/helpers";
-import type { BirdLike, BirdSendResult } from "../bird";
 import { MAX_ATTEMPTS, type ClaimedItem } from "../queue-core";
 import { processItem, resendStalePendingMessages } from "../queue";
 import { type Row, makeFakeDb } from "./fake-db";
+import { FakeBird } from "./fake-bird";
 
 /**
  * processItem against an in-memory Prisma fake: the shell's ordering
@@ -11,14 +11,6 @@ import { type Row, makeFakeDb } from "./fake-db";
  * runWake itself has its own suite.
  */
 
-class FakeBird implements BirdLike {
-  public sends: Array<{ conversationId: string; text: string; idempotencyKey: string }> = [];
-  constructor(private result: BirdSendResult = { success: true, messageId: "bird-1" }) {}
-  async sendText(input: { conversationId: string; text: string; idempotencyKey: string }) {
-    this.sends.push(input);
-    return this.result;
-  }
-}
 
 const SUB: Row = {
   id: "sub1",
