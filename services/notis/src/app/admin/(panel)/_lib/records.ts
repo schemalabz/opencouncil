@@ -37,13 +37,8 @@ export type RecordEvent =
 export interface MessageDelivery {
   status: "pending" | "sent" | "delivered" | "read" | "failed" | "suppressed" | null;
   failureReason?: string | null;
-  /**
-   * When the message row was written — which is when it went out, not when
-   * the wake that produced it was triggered. The thread sorts and stamps on
-   * this, because a wake can take a minute and anything the reader did during
-   * it belongs in between. Absent in the playground (no real rows).
-   */
-  at?: string;
+  /** A notify-only SMS went out after this WhatsApp send failed. */
+  smsFallback?: boolean;
 }
 
 export interface WakeRecord {
@@ -63,6 +58,9 @@ export interface WakeRecord {
    * Absent in the playground — the simulator has no real deliveries.
    */
   deliveries?: MessageDelivery[];
+  /** Number of events this wake consumed at once; absent for the common
+   *  single-event wake. */
+  coalesced?: number;
 }
 
 export function hasPendingBrief(

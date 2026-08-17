@@ -283,14 +283,16 @@ function DeliveryPanel({ current, previous }: { current: PeriodStats; previous: 
 }
 
 function CostPanel({ current, previous }: { current: PeriodStats; previous: PeriodStats }) {
-  const perUser = current.activeUsers > 0 ? current.costUsd / current.activeUsers : null;
+  const totalCost = current.costUsd + current.editorialCostUsd;
+  const previousTotal = previous.costUsd + previous.editorialCostUsd;
+  const perUser = current.activeUsers > 0 ? totalCost / current.activeUsers : null;
   return (
     <section className="rounded-lg border bg-background p-4">
       <div className="flex items-baseline justify-between">
         <h2 className="text-sm font-medium">Κόστος</h2>
         <div className="flex items-baseline gap-2">
-          <span className="text-lg font-semibold tabular-nums">{fmtUsd(current.costUsd)}</span>
-          <DeltaChip current={current.costUsd} previous={previous.costUsd} invert />
+          <span className="text-lg font-semibold tabular-nums">{fmtUsd(totalCost)}</span>
+          <DeltaChip current={totalCost} previous={previousTotal} invert />
         </div>
       </div>
       <p className="mt-0.5 text-xs text-muted-foreground">
@@ -307,7 +309,12 @@ function CostPanel({ current, previous }: { current: PeriodStats; previous: Peri
               .map((r) => ({
                 label: EVENT_LABELS[r.eventType] ?? r.eventType,
                 value: r.costUsd,
-              }))}
+              }))
+              .concat(
+                current.editorialCostUsd > 0
+                  ? [{ label: "editorial pass", value: current.editorialCostUsd }]
+                  : [],
+              )}
             barClass="bg-orange/60"
             format={fmtUsd}
           />

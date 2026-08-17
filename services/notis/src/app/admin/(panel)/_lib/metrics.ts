@@ -103,6 +103,9 @@ export interface PeriodStats {
   wakesByDecision: { send: number; silence: number; error: number };
   wakesByEvent: WakeEventStats[];
   costUsd: number;
+  /** Shared editorial passes in the period — once per meeting event, on top
+   *  of the per-wake model cost. */
+  editorialCostUsd: number;
 }
 
 export interface RecentInbound {
@@ -146,6 +149,7 @@ const EMPTY_PERIOD: PeriodStats = {
   wakesByDecision: { send: 0, silence: 0, error: 0 },
   wakesByEvent: [],
   costUsd: 0,
+  editorialCostUsd: 0,
 };
 
 type Db = ReturnType<typeof notisDb>;
@@ -287,6 +291,7 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
     unsubscribes,
     wakesByDecision,
     wakesByEvent,
+    editorialCost,
   ] = await Promise.all([
     db.notisMessage.groupBy({ by: ["direction"], where: createdInPeriod, _count: { _all: true } }),
     db.notisMessage.groupBy({
@@ -311,6 +316,10 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
       where: createdInPeriod,
       _count: { _all: true },
       _sum: { costUsd: true },
+    }),
+    db.notisProcessedEvent.aggregate({
+      where: { processedAt: { gte: from, lt: to } },
+      _sum: { briefCostUsd: true },
     }),
   ]);
 
@@ -355,6 +364,7 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
     },
     wakesByEvent: byEvent,
     costUsd: byEvent.reduce((a, r) => a + r.costUsd, 0),
+    editorialCostUsd: editorialCost._sum.briefCostUsd ?? 0,
   };
 }
 

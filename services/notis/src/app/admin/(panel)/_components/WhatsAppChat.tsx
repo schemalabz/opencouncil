@@ -7,6 +7,7 @@ import {
   CheckCheck,
   Clock3,
   ExternalLink,
+  EyeOff,
   FastForward,
   Send,
   SkipForward,
@@ -52,16 +53,27 @@ const PATTERN =
 
 function eventCaption(item: WakeRecord): string {
   const e = item.event;
+  let caption: string;
   switch (e.type) {
     case "agenda_processed":
-      return `πριν τη συνεδρίαση · ${e.meetingName}`;
+      caption = `πριν τη συνεδρίαση · ${e.meetingName}`;
+      break;
     case "meeting_summarized":
-      return `${e.meetingName}`;
+      caption = `${e.meetingName}`;
+      break;
     case "scheduled":
-      return "follow-up";
+      caption = "follow-up";
+      break;
     default:
-      return "";
+      caption = "";
   }
+  // A coalesced wake consumed several events at once; the caption names the
+  // primary one and counts the rest.
+  if (item.coalesced && item.coalesced > 1) {
+    const extra = `+${item.coalesced - 1} ακόμη`;
+    caption = caption ? `${caption} · ${extra}` : extra;
+  }
+  return caption;
 }
 
 /* ---- links: WhatsApp-style linkify + OG preview card ---- */
@@ -219,6 +231,9 @@ function DeliveryGlyph({ delivery }: { delivery: MessageDelivery }) {
       return <CheckCheck className={cls} style={{ color: "#53bdeb" }} />;
     case "failed":
       return <AlertCircle className={cls} style={{ color: "#b42318" }} />;
+    case "suppressed":
+      // A rail (shadow mode, weekly cap, pause) stopped the send.
+      return <EyeOff className={cls} style={{ color: "#8696a0" }} />;
     default:
       return null;
   }
@@ -249,6 +264,7 @@ function Bubble({
 }) {
   const url = side === "in" ? firstUrl(text) : undefined;
   const failed = delivery?.status === "failed";
+  const suppressed = delivery?.status === "suppressed";
   return (
     <div className={`flex ${side === "out" ? "justify-end" : "justify-start"} px-4`}>
       <div
@@ -269,6 +285,13 @@ function Bubble({
         {failed && (
           <p className="mt-1.5 border-t border-[#f2e2e1] pt-1.5 text-[11px] leading-snug text-[#b42318]">
             Δεν παραδόθηκε
+            {delivery?.failureReason ? ` — ${delivery.failureReason}` : ""}
+            {delivery?.smsFallback ? " — εστάλη SMS" : ""}
+          </p>
+        )}
+        {suppressed && (
+          <p className="mt-1.5 border-t border-[#e6e0d4] pt-1.5 text-[11px] leading-snug text-[#667781]">
+            Δεν στάλθηκε
             {delivery?.failureReason ? ` — ${delivery.failureReason}` : ""}
           </p>
         )}

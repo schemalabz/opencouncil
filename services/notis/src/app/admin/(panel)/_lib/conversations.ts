@@ -222,7 +222,14 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
         // No `trace`: a full WakeTrace runs to hundreds of KB per wake and
         // the inspector shows one at a time — the client fetches a single
         // trace lazily via getWakeTrace.
-        select: { id: true, event: true, outcome: true, deliveryMode: true, deliveryTemplate: true },
+        select: {
+          id: true,
+          event: true,
+          events: true,
+          outcome: true,
+          deliveryMode: true,
+          deliveryTemplate: true,
+        },
       },
     },
   });
@@ -232,24 +239,34 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     db.notisMessage.count({ where: { subscriptionId: id, direction: "outbound" } }),
     db.notisMessage.count({ where: { subscriptionId: id, direction: "inbound" } }),
     db.notisMessage.findMany({
-      where: { subscriptionId: id, direction: "outbound" },
+      // WhatsApp rows only: the index-alignment with outcome.messages
+      // depends on row order matching the outcome, and SMS fallback rows
+      // share the wakeId without being outcome messages.
+      where: { subscriptionId: id, direction: "outbound", channel: "whatsapp" },
       // All of a wake's rows share one transaction timestamp — the id
       // tiebreaker (cuids are monotonic per process) pins insertion order,
       // which is what the index-alignment with outcome.messages needs.
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-      select: { wakeId: true, status: true, failureReason: true, createdAt: true },
+      select: { id: true, wakeId: true, status: true, failureReason: true },
     }),
   ]);
+
+  // SMS fallbacks mark the failed WhatsApp send they replaced.
+  const smsFallbacks = await db.notisMessage.findMany({
+    where: { subscriptionId: id, channel: "sms", fallbackForId: { not: null } },
+    select: { fallbackForId: true },
+  });
+  const fallbackFor = new Set(smsFallbacks.map((m) => m.fallbackForId));
 
   // Real delivery lifecycles, index-aligned with each wake's messages
   // (created in outcome order inside one transaction).
   const deliveriesByWake = new Map<string, MessageDelivery[]>();
   const wakelessDeliveries: MessageDelivery[] = [];
   for (const message of outbound) {
-    const delivery = {
+    const delivery: MessageDelivery = {
       status: message.status,
       failureReason: message.failureReason,
-      at: message.createdAt.toISOString(),
+      ...(fallbackFor.has(message.id) ? { smsFallback: true } : {}),
     };
     if (message.wakeId === null) wakelessDeliveries.push(delivery);
     else {
@@ -275,6 +292,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
         }
       : {}),
     ...(deliveriesByWake.has(wake.id) ? { deliveries: deliveriesByWake.get(wake.id) } : {}),
+    ...(Array.isArray(wake.events) ? { coalesced: (wake.events as unknown[]).length } : {}),
   }));
 
   // The deterministic ΣΤΟΠ pre-step answers without a wake; its journal
@@ -312,15 +330,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
       ...(deliveries.length > 0 ? { deliveries } : {}),
     });
   }
-  // Sort on when each record's messages actually went out, falling back to
-  // the trigger for records that sent nothing. Sorting on event.at alone
-  // placed a wake's replies at the moment it was TRIGGERED, so a 36-second
-  // wake whose reader sent ΣΤΟΠ mid-run rendered as question → answer → ΣΤΟΠ
-  // when what reached them was question → ΣΤΟΠ → confirmation → the answer
-  // half a minute later. This viewer is where "did we message someone after
-  // they unsubscribed?" gets answered, so the order has to be the reader's.
-  const sortKey = (r: WakeRecord) => r.deliveries?.[0]?.at ?? r.event.at;
-  records.sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+  records.sort((a, b) => a.event.at.localeCompare(b.event.at));
 
   const cities = (await citiesByUser([sub.userId])).get(sub.userId) ?? [];
 
