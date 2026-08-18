@@ -67,18 +67,29 @@ export async function enqueueLiveWake(
  * so someone in three cities gets ONE wake holding all three briefs.
  *
  * The append is an atomic UPDATE with a row lock; when it matches nothing
- * a fresh row is created. The partial unique index
- * "NotisWakeQueue_one_pending_batch_per_sub" backstops the create race —
- * the loser hits 23505 and retries once, landing as an append. A row the
- * claimer just flipped to running no longer matches the UPDATE, so the new
- * event correctly becomes a fresh pending row (the index covers only
- * `pending`).
+ * a fresh row is created. A row the claimer just flipped to running no
+ * longer matches the UPDATE, so the new event correctly becomes a fresh
+ * pending row (the index covers only `pending`).
+ *
+ * Concurrency is serialized per subscription by a transaction-scoped
+ * advisory lock, NOT by catching the index violation: inside a caller's
+ * interactive transaction a 23505 aborts the whole transaction, so the
+ * retry below would fail with 25P02 and take the caller's fan-out down with
+ * it. Holding the lock makes the append-then-create sequence atomic against
+ * other transactions — the loser waits, then sees the winner's committed
+ * row and appends to it. Callers that pass a plain client (auto-commit, so
+ * the lock is released immediately) still race, and for them the retry loop
+ * is the correct fallback: without a surrounding transaction the caught
+ * violation costs nothing.
  */
 export async function enqueueBatchWake(
   db: Db,
   input: { subscriptionId: string; event: unknown; runAfter: Date },
 ): Promise<{ id: string; coalesced: boolean }> {
   const eventJson = JSON.stringify(input.event);
+  // $executeRaw, not $queryRaw: the lock function returns void, which has no
+  // Prisma column type to deserialize.
+  await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${input.subscriptionId})::bigint)`;
   for (let attempt = 0; attempt < 2; attempt++) {
     const appended = await db.$queryRaw<Array<{ id: string }>>`
       UPDATE "NotisWakeQueue" q
@@ -119,7 +130,7 @@ export async function enqueueBatchWake(
 
 /** A unique violation (Postgres 23505) surfaced through Prisma — raw
  *  queries carry it in meta.code, client calls as PrismaClientKnownRequestError P2002. */
-function isUniqueViolation(error: unknown): boolean {
+export function isUniqueViolation(error: unknown): boolean {
   const err = error as { meta?: { code?: unknown }; code?: unknown } | undefined;
   return err?.meta?.code === "23505" || err?.code === "P2002";
 }
@@ -135,54 +146,115 @@ function isUniqueViolation(error: unknown): boolean {
  * - a running row whose claim went stale is claimable again (crash recovery);
  * - a subscription with a running row of ANY age yields nothing else. Wakes
  *   for one person run strictly one at a time, or journal seq allocation
- *   would race and the conversation would interleave. The guard deliberately
- *   covers stale running rows: while one exists it is that subscription's
- *   only candidate, so reclaiming it is the sole way forward. Excluding only
- *   FRESH ones let a pending row of the same subscription be selected
- *   instead, and promoting it violates the one-running-per-subscription
- *   index — which the catch below reads as "nothing claimable", so the drain
- *   stops for EVERY subscription, permanently.
+ *   would race and the conversation would interleave. The guard covers stale
+ *   running rows too, and deliberately so: while a stale row exists it is
+ *   the subscription's only candidate, so reclaiming it is the sole way
+ *   forward. Excluding merely FRESH running rows would let a newer live row
+ *   outrank the stale one under the live-first ORDER BY, and promoting it
+ *   would collide with "NotisWakeQueue_one_running_per_sub" on every pass —
+ *   the stale row unreclaimable, the live row unclaimable, and (since a null
+ *   claim reads as "queue empty") every other subscription's work stranded
+ *   behind it.
  *
- * The NOT EXISTS guard alone is snapshot-based and raceable (a concurrent
+ * The NOT EXISTS guard is snapshot-based and still raceable (a concurrent
  * claim's `running` is invisible until it commits while SKIP LOCKED hides
- * its row from the candidate scan). The partial unique index
- * "NotisWakeQueue_one_running_per_sub" is the real invariant: the losing
- * claim hits 23505 and reports nothing claimable.
+ * its row from the candidate scan). The partial unique index is the real
+ * invariant; losing that race means another worker is already serving this
+ * subscription, so the claim retries for a different one rather than
+ * reporting the whole queue empty.
  */
 export async function claimNext(db: Db): Promise<ClaimedItem | null> {
   const staleSeconds = STALE_CLAIM_MS / 1000;
-  try {
-    const rows = await db.$queryRaw<Array<ClaimedItem>>`
-      UPDATE "NotisWakeQueue" q
-      SET status = 'running'::"QueueItemStatus",
-          "claimedAt" = now(),
-          attempts = q.attempts + 1,
-          "updatedAt" = now()
-      WHERE q.id = (
-        SELECT c.id FROM "NotisWakeQueue" c
-        WHERE c."runAfter" <= now()
-          AND (
-            c.status = 'pending'::"QueueItemStatus"
-            OR (c.status = 'running'::"QueueItemStatus"
-                AND c."claimedAt" < now() - make_interval(secs => ${staleSeconds}))
-          )
-          AND NOT EXISTS (
-            SELECT 1 FROM "NotisWakeQueue" r
-            WHERE r."subscriptionId" = c."subscriptionId"
-              AND r.status = 'running'::"QueueItemStatus"
-              AND r.id <> c.id
-          )
-        ORDER BY (c.lane = 'live'::"QueueLane") DESC, c."runAfter", c."createdAt"
-        FOR UPDATE SKIP LOCKED
-        LIMIT 1
-      )
-      RETURNING q.id, q."subscriptionId", q.lane, q.events, q.attempts
-    `;
-    return rows[0] ?? null;
-  } catch (error) {
-    if (isUniqueViolation(error)) return null;
-    throw error;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const rows = await db.$queryRaw<Array<ClaimedItem>>`
+        UPDATE "NotisWakeQueue" q
+        SET status = 'running'::"QueueItemStatus",
+            "claimedAt" = now(),
+            attempts = q.attempts + 1,
+            "updatedAt" = now()
+        WHERE q.id = (
+          SELECT c.id FROM "NotisWakeQueue" c
+          WHERE c."runAfter" <= now()
+            AND (
+              c.status = 'pending'::"QueueItemStatus"
+              OR (c.status = 'running'::"QueueItemStatus"
+                  AND c."claimedAt" < now() - make_interval(secs => ${staleSeconds}))
+            )
+            AND NOT EXISTS (
+              SELECT 1 FROM "NotisWakeQueue" r
+              WHERE r."subscriptionId" = c."subscriptionId"
+                AND r.status = 'running'::"QueueItemStatus"
+                AND r.id <> c.id
+            )
+          ORDER BY (c.lane = 'live'::"QueueLane") DESC, c."runAfter", c."createdAt"
+          FOR UPDATE SKIP LOCKED
+          LIMIT 1
+        )
+        RETURNING q.id, q."subscriptionId", q.lane, q.events, q.attempts
+      `;
+      return rows[0] ?? null;
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+    }
   }
+  return null;
+}
+
+/**
+ * Fold a claimed batch row's events into the pending batch row that took its
+ * slot, then close it as done — one statement, so the events can never be
+ * lost or counted twice.
+ *
+ * This is the running → pending path's other half. `enqueueBatchWake` opens a
+ * fresh pending row the moment a claim flips the old one to `running`, which
+ * is correct and tested; the partial unique index then allows only one, so a
+ * plain re-pend of the claimed row (a defer or a retryable failure) would
+ * raise 23505 — aborting the drain, stranding the row in `running` until the
+ * stale reclaim, and burning attempts until its coalesced briefs are dropped
+ * terminally. Merging is what coalescing means anyway: the events belong in
+ * the survivor.
+ *
+ * Both callers reach this by catching the violation, which is safe only
+ * because deferItem and failItem run OUTSIDE any caller transaction (see
+ * processItem): a 23505 inside one would abort it before the recovery could
+ * run. Keep it that way.
+ */
+async function mergeIntoPendingBatch(
+  db: Db,
+  id: string,
+  attempts: number,
+  runAfter: Date,
+  note: string,
+): Promise<void> {
+  await db.$queryRaw`
+    WITH src AS (
+      SELECT id, "subscriptionId", events
+      FROM "NotisWakeQueue"
+      WHERE id = ${id}
+        AND status = 'running'::"QueueItemStatus"
+        AND attempts = ${attempts}
+        AND lane = 'batch'::"QueueLane"
+    ), merged AS (
+      UPDATE "NotisWakeQueue" p
+      SET events = p.events || src.events,
+          "runAfter" = LEAST(p."runAfter", ${runAfter}),
+          "updatedAt" = now()
+      FROM src
+      WHERE p."subscriptionId" = src."subscriptionId"
+        AND p.lane = 'batch'::"QueueLane"
+        AND p.status = 'pending'::"QueueItemStatus"
+        AND p.id <> src.id
+      RETURNING p.id
+    )
+    UPDATE "NotisWakeQueue" q
+    SET status = 'done'::"QueueItemStatus",
+        "claimedAt" = NULL,
+        "lastError" = ${note},
+        "updatedAt" = now()
+    FROM src
+    WHERE q.id = src.id AND EXISTS (SELECT 1 FROM merged)
+  `;
 }
 
 /**
@@ -196,10 +268,15 @@ export async function deferItem(
   attempts: number,
   runAfter: Date,
 ): Promise<void> {
-  await db.notisWakeQueue.updateMany({
-    where: { id, status: "running", attempts },
-    data: { status: "pending", claimedAt: null, attempts: attempts - 1, runAfter },
-  });
+  try {
+    await db.notisWakeQueue.updateMany({
+      where: { id, status: "running", attempts },
+      data: { status: "pending", claimedAt: null, attempts: attempts - 1, runAfter },
+    });
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
+    await mergeIntoPendingBatch(db, id, attempts, runAfter, "deferred into a newer pending batch row");
+  }
 }
 
 /**
@@ -217,30 +294,35 @@ export async function completeItem(db: Db, id: string, attempts: number): Promis
 }
 
 /** Return to pending for a later retry. Fenced on the claim: a lost or
- *  already-completed item is left untouched. */
-/** How long a failed item waits before its next attempt: 1 minute, then 4,
- *  then 9. Without a delay all three attempts land inside a single drain call
- *  against the same outage, so the attempt budget buys nothing — a
- *  thirty-second model blip would drop the message permanently. */
-export function retryDelayMs(attempts: number): number {
-  return Math.min(attempts, MAX_ATTEMPTS) ** 2 * 60_000;
-}
-
+ *  already-completed item is left untouched. Merge-aware like deferItem —
+ *  a batch row whose slot was taken folds its events into the survivor
+ *  rather than colliding with the coalescing index. */
 export async function failItem(
   db: Db,
   id: string,
   attempts: number,
   error: string,
 ): Promise<void> {
-  await db.notisWakeQueue.updateMany({
-    where: { id, status: "running", attempts },
-    data: {
-      status: "pending",
-      claimedAt: null,
-      runAfter: new Date(Date.now() + retryDelayMs(attempts)),
-      lastError: error.slice(0, 2000),
-    },
-  });
+  const lastError = error.slice(0, 2000);
+  try {
+    await db.notisWakeQueue.updateMany({
+      where: { id, status: "running", attempts },
+      data: { status: "pending", claimedAt: null, lastError },
+    });
+  } catch (err) {
+    if (!isUniqueViolation(err)) throw err;
+    // The survivor inherits this row's schedule so the merged events keep
+    // the retry they were owed.
+    const src = await db.notisWakeQueue.findUnique({ where: { id }, select: { runAfter: true } });
+    if (!src) return;
+    await mergeIntoPendingBatch(
+      db,
+      id,
+      attempts,
+      src.runAfter,
+      `merged into a newer pending batch row after: ${lastError}`.slice(0, 2000),
+    );
+  }
 }
 
 /** Terminal failure — the item is out of retries. */

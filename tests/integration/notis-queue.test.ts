@@ -328,6 +328,100 @@ describe('notis wake queue (live lane)', () => {
         expect(second.id).not.toBe(first.id)
     })
 
+    test('a stale running batch row is reclaimed even when a live row waits for the same reader', async () => {
+        // The live-first ORDER BY must not float the live row above the stale
+        // one: promoting it would collide with one_running_per_sub, and a
+        // claim that reports nothing stops the whole drain — for every
+        // subscription, not just this one.
+        const sub = await createSubscription('b4c')
+        const other = await createSubscription('b4d')
+        const stale = await enqueueBatchWake(notisDb, {
+            subscriptionId: sub,
+            event: EVENT,
+            runAfter: new Date(Date.now() - 60_000),
+        })
+        const claimed = await claimNext(notisDb)
+        expect(claimed?.id).toBe(stale.id)
+        await notisDb.notisWakeQueue.update({
+            where: { id: stale.id },
+            data: { claimedAt: new Date(Date.now() - STALE_CLAIM_MS - 60_000) },
+        })
+        await enqueueLiveWake(notisDb, { subscriptionId: sub, event: EVENT })
+        await enqueueLiveWake(notisDb, { subscriptionId: other, event: EVENT })
+
+        // The queue keeps serving everyone else — the stall this guards
+        // against strands every subscription, not just this one.
+        const first = await claimNext(notisDb)
+        expect(first?.subscriptionId).toBe(other)
+
+        // This reader's own stale row is next: it outranks the live row
+        // waiting behind it, because reclaiming it is the only way that
+        // reader moves at all.
+        const reclaimed = await claimNext(notisDb)
+        expect(reclaimed?.id).toBe(stale.id)
+        expect(reclaimed?.attempts).toBe(2)
+
+        // The live row stays put until the running row is resolved, then
+        // goes on the very next claim.
+        expect(await claimNext(notisDb)).toBeNull()
+        await completeItem(notisDb, stale.id, reclaimed!.attempts)
+        const live = await claimNext(notisDb)
+        expect(live?.subscriptionId).toBe(sub)
+        expect(live?.lane).toBe('live')
+    })
+
+    test('a failing batch row merges into the pending row that took its slot', async () => {
+        const sub = await createSubscription('b4e')
+        const first = await enqueueBatchWake(notisDb, {
+            subscriptionId: sub,
+            event: EVENT,
+            runAfter: new Date(Date.now() - 1000),
+        })
+        const claimed = await claimNext(notisDb)
+        expect(claimed?.id).toBe(first.id)
+        const second = await enqueueBatchWake(notisDb, {
+            subscriptionId: sub,
+            event: { ...EVENT, text: 'ήρθε όσο έτρεχε' },
+            runAfter: new Date(Date.now() + 60_000),
+        })
+        expect(second.id).not.toBe(first.id)
+
+        // Re-pending the claimed row would violate one_pending_batch_per_sub.
+        await failItem(notisDb, first.id, claimed!.attempts, 'model 503')
+
+        const survivor = await notisDb.notisWakeQueue.findUnique({ where: { id: second.id } })
+        expect(survivor?.status).toBe('pending')
+        expect(survivor?.events).toEqual([{ ...EVENT, text: 'ήρθε όσο έτρεχε' }, EVENT])
+        // The merged row inherits the earlier schedule, so nothing waits longer.
+        expect(survivor!.runAfter.getTime()).toBeLessThan(Date.now())
+        const merged = await notisDb.notisWakeQueue.findUnique({ where: { id: first.id } })
+        expect(merged?.status).toBe('done')
+        expect(merged?.lastError).toContain('model 503')
+    })
+
+    test('a deferred batch row merges too, and the events survive', async () => {
+        const sub = await createSubscription('b4f')
+        const first = await enqueueBatchWake(notisDb, {
+            subscriptionId: sub,
+            event: EVENT,
+            runAfter: new Date(Date.now() - 1000),
+        })
+        const claimed = await claimNext(notisDb)
+        await enqueueBatchWake(notisDb, {
+            subscriptionId: sub,
+            event: { ...EVENT, text: 'δεύτερο' },
+            runAfter: new Date(Date.now() + 60_000),
+        })
+
+        await deferItem(notisDb, first.id, claimed!.attempts, new Date(Date.now() + 900_000))
+
+        const rows = await notisDb.notisWakeQueue.findMany({
+            where: { subscriptionId: sub, status: 'pending' },
+        })
+        expect(rows).toHaveLength(1)
+        expect((rows[0].events as unknown[]).length).toBe(2)
+    })
+
     test('claim prefers a due live row over an older due batch row', async () => {
         const subA = await createSubscription('b4a')
         const subB = await createSubscription('b4b')
