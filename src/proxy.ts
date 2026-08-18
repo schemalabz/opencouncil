@@ -172,12 +172,27 @@ export default async function proxy(req: NextRequest) {
     ) {
         const localeUrl = req.nextUrl.clone();
         localeUrl.pathname = pathname === '/' ? `/${realmDefaultLocale}` : `/${realmDefaultLocale}${pathname}`;
-        // The [locale] segment handles rendering via setRequestLocale, but the
-        // root layout sits above it and (since we bypass next-intl's
-        // middleware here) has no locale to read for the <html lang> attr. Pass
-        // it via our own header, which the root layout reads explicitly — no
-        // dependency on next-intl's undocumented internal locale header.
         const requestHeaders = new Headers(req.headers);
+        // Resolve the rewritten path through next-intl and keep the request
+        // headers it sets. We can't just return its response: it leaves an
+        // already-correct /sr path alone and emits no rewrite, so the original
+        // unprefixed URL would 404. Next encodes request-header overrides as
+        // `x-middleware-request-*`, so copying them generically carries the
+        // locale across without naming a next-intl internal.
+        //
+        // Without this the [locale] layout's setRequestLocale is the only
+        // locale source on these hosts, and next-intl caches the first result
+        // for every implicit caller — so any page resolving translations
+        // before the layout serves the whole request in the app default
+        // locale (#606).
+        const localeRequest = new NextRequest(localeUrl, { headers: req.headers, method: req.method });
+        const intlResponse = await i18nMiddleware(localeRequest);
+        intlResponse?.headers.forEach((value, key) => {
+            const forwarded = /^x-middleware-request-(.+)$/i.exec(key);
+            if (forwarded) requestHeaders.set(forwarded[1], value);
+        });
+        // The root layout sits above the [locale] segment and reads this to set
+        // the <html lang> attr.
         requestHeaders.set(LOCALE_OVERRIDE_HEADER, realmDefaultLocale);
         return NextResponse.rewrite(localeUrl, { request: { headers: requestHeaders } });
     }
