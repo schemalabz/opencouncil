@@ -37,7 +37,8 @@
     "generate-pwa-icons": "tsx scripts/generate-pwa-icons.ts",
     "decisions": "tsx scripts/decisions.ts",
     "seed-pipeline": "tsx packages/seed-pipeline/src/cli.ts",
-    "seed": "tsx scripts/seed/cli.ts"
+    "seed": "tsx scripts/seed/cli.ts",
+    "views:migration": "tsx scripts/generate-view-migration.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
