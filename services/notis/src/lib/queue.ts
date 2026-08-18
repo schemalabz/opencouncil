@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { decideDelivery } from "@/agent/delivery";
 import { runWake } from "@/agent/runWake";
-import { cityPreferenceSchema, wakeEventSchema } from "@/agent/schemas";
+import { wakeEventSchema } from "@/agent/schemas";
 import { CityPreference, Deps, JOURNAL_WINDOW, JournalEntry, WakeEvent } from "@/agent/types";
 import type { NotisSubscription, Prisma, PrismaClient } from "../../generated/client";
 import { alert as sendAlert } from "./alert";
@@ -55,22 +55,20 @@ export const RESEND_STALE_AFTER_MS = 2 * 60_000;
 const MAX_ITEMS_PER_DRAIN = 50;
 
 const eventsSchema = z.array(wakeEventSchema).min(1);
-const citiesSnapshotSchema = z.array(cityPreferenceSchema);
 
 function resolveAlert(overrides: DrainDeps) {
   return overrides.alert ?? ((message: string) => sendAlert("queue", message));
 }
 
+/**
+ * The reader's cities, live from the view. No main database configured is a
+ * deliberate dev mode and yields none; a configured database that is
+ * unreachable is an outage and throws, failing the item into a retry rather
+ * than waking with a reader who appears to follow nothing.
+ */
 async function assembleCities(sub: NotisSubscription): Promise<CityPreference[]> {
-  if (hasMainDb()) {
-    try {
-      return await citiesForUser(sub.userId);
-    } catch (e) {
-      console.warn("[notis:queue] live city fetch failed, using snapshot:", e);
-    }
-  }
-  const parsed = citiesSnapshotSchema.safeParse(sub.cities);
-  return parsed.success ? parsed.data : [];
+  if (!hasMainDb()) return [];
+  return citiesForUser(sub.userId);
 }
 
 async function runOneWake(

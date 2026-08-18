@@ -123,7 +123,6 @@ async function enrollFromInbound(
       status: "active",
       origin: "inbound",
       profileText: seedProfileFromPreferences(cities),
-      cities: cities as unknown as Prisma.InputJsonValue,
       userName: user.name,
       birdConversationId: fields.conversationId,
     },
