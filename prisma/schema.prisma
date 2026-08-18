@@ -350,6 +350,15 @@ model Utterance {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  // Transcription confidence scores from the transcribe task (version 4+).
+  // Null for utterances imported from older task results.
+  // The scores describe the text as the ASR transcribed it. fixTranscript and
+  // user edits rewrite text and keep the scores, so join on lastModifiedBy to
+  // tell scored-as-transcribed utterances from corrected ones.
+  confidence        Float? // arithmetic mean of word confidences
+  minWordConfidence Float? // confidence of the least confident word
+  totalConfidence   Float? // product of word confidences ≈ P(every word is right)
+
   speakerSegment SpeakerSegment @relation(fields: [speakerSegmentId], references: [id], onDelete: Cascade)
   speakerSegmentId String
   uncertain Boolean @default(false)

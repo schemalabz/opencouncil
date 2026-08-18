@@ -228,7 +228,11 @@ export interface Utterance {
     language: string;
     start: number;
     end: number;
-    confidence: number;
+    confidence: number; // arithmetic mean of word confidences
+    // Optional because processTaskResponse can replay results stored by
+    // transcribe task versions before 4, which lack these two scores.
+    minWordConfidence?: number; // confidence of the least confident word
+    totalConfidence?: number; // product of word confidences ≈ P(every word is right)
     channel: number;
     speaker: number;
     drift: number;
