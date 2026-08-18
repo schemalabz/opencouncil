@@ -237,6 +237,18 @@ The script will:
 
 View the full view definitions and verification logic in `elasticsearch/views.sql`.
 
+**`CREATE OR REPLACE VIEW` cannot remove a column.** `views.sql` is written to be re-runnable, so it
+uses `CREATE OR REPLACE`. To drop or rename a view column, add an explicit `DROP VIEW IF EXISTS` above
+the view definition, as the removal of `SubjectSearchView` did.
+
+**Migrations and views can collide.** PostgreSQL refuses to drop or retype a table column that a view
+reads — and Prisma migrations run at build time on production, so a blocked migration is a failed
+release. A migration that drops or retypes a column used by a view in `views.sql` must `DROP VIEW IF
+EXISTS` that view first; the next deploy detects the missing view as drift and recreates it. A **rename**
+does not error: PostgreSQL rewrites the stored view definition silently, and the live view then drifts
+from `views.sql` while `schema.json` still names the old column. Treat a rename of any column a view
+reads as a schema change — update `views.sql` and `schema.json` together and redeploy.
+
 
 
 ## Configure the Ingest Pipeline
@@ -310,6 +322,10 @@ The `elasticsearch/schema.json` file defines:
 - **Transform rules**: Field renaming, scalar vs object variants
 - **Children**: Nested relationships (e.g., speaker_contributions)
 
+> **Edit `schema.json` as text.** The file is hand-formatted in a compact one-line style. A round-trip
+> through a JSON parser reformats every line and turns a small change into a diff of hundreds of lines
+> that buries the real edit. Make targeted text edits only.
+
 **Resources for understanding the schema:**
 - [PGSync Schema Documentation](https://pgsync.com/schema/) - Official guide to schema configuration
 - [PGSync Examples](https://github.com/toluaina/pgsync/tree/main/examples) - Example schemas for various use cases
@@ -318,79 +334,16 @@ The `elasticsearch/schema.json` file defines:
 
 PGSync sends the `mapping` block from `schema.json` **only when it creates the index**
 (`pgsync/search_client.py`, `if not indices.exists(...)`). On an index that already exists the block is
-inert. The local E2E harness recreates its index on every run (see
-[Testing Schema Changes](#testing-schema-changes)), so it always takes the create path — the path
-production never takes.
+inert: a changed mapping never reaches it, and a new field gets its type from dynamic mapping the
+moment a document carries it. Both failure modes disappear on the one path where the block does apply —
+index creation.
 
-Two consequences follow. A new field needs an explicit mapping call against the live index. That call is
-also sufficient: an additive change needs no new index.
+**Every schema change therefore deploys as a rebuild**: bump the versioned index name in `schema.json`
+and follow the rebuild procedure above. A full rebuild of the corpus takes minutes, search stays
+available throughout (the alias serves the old index until the swap), and re-writing unchanged text is
+absorbed by the inference cache. There is no cheaper deploy path worth maintaining.
 
-#### 1. Rehearse the mapping change
-
-The mapping call is atomic and idempotent — one conflicting field rejects the whole request, so it can
-never apply half a change, and re-running an unchanged block does nothing. It is still a write to the
-live index, and one of its outcomes commits you to a much larger job. Find out which outcome you are
-getting on a copy first.
-
-```bash
-AUTH="Authorization: ApiKey $ELASTICSEARCH_API_KEY"
-JSON="Content-Type: application/json"
-IDX="${ELASTICSEARCH_INDEX:-subjects}"
-
-# copy the live mapping into a throwaway index
-curl -sS -H "$AUTH" "$ELASTICSEARCH_URL/$IDX/_mapping" \
-| python3 -c "import json,sys;m=list(json.load(sys.stdin).values())[0]['mappings'];m.pop('_meta',None);print(json.dumps({'mappings':m}))" \
-| curl -sS -X PUT -H "$AUTH" -H "$JSON" "$ELASTICSEARCH_URL/mapping-rehearsal" --data-binary @-
-
-# apply the declared block to the copy and read the response
-python3 -c "import json;print(json.dumps({'properties':json.load(open('elasticsearch/schema.json'))[0]['mapping']}))" \
-| curl -sS -X PUT -H "$AUTH" -H "$JSON" "$ELASTICSEARCH_URL/mapping-rehearsal/_mapping" --data-binary @-
-
-curl -sS -X DELETE -H "$AUTH" "$ELASTICSEARCH_URL/mapping-rehearsal"
-```
-
-The response tells you which change you are making:
-
-| Response | Change | Existing documents | Action |
-|---|---|---|---|
-| `400 illegal_argument_exception` | a field changed type, analyzer, or `inference_id` | keep the old mapping | build a new index, sync it, switch `ELASTICSEARCH_INDEX`. Do not run the live call. |
-| `acknowledged`, new top-level field | additive | hold no value yet | continue below |
-| `acknowledged`, new **sub**field on an existing field (`.keyword`, `.semantic`) | additive to the mapping only | **silently hold no value, and a backfill cannot fill them** | every document must be rewritten with its source text |
-
-> The third row is why the rehearsal is worth the two minutes. It succeeds, so running it on the live
-> index commits you before you know the cost. The mapping reads as correct and no error appears, but the
-> subfield exists only for documents written after the call. Verify such a change by querying the new
-> field for an **old** document — never by reading the mapping back.
-
-#### 2. Deploy
-
-The index name comes from `ELASTICSEARCH_INDEX` (default `subjects`). Staging and preview leave it unset
-and read the production index, so there is one index to migrate.
-
-1. **Views** — `psql "$DATABASE_URL" < elasticsearch/views.sql`, on every database PGSync reads.
-2. **Mapping** — the same call as the rehearsal, against `$IDX` instead of `mapping-rehearsal`. Run it
-   before any document carries the new field: a field that reaches the index first gets its type from
-   dynamic mapping, so a string becomes `text` + `.keyword` rather than `keyword`, permanently.
-   `location_id` is already in this state.
-3. **Schema** — deploy the new `schema.json` and restart the PGSync daemon.
-4. **Backfill** — fill the documents that already exist (below).
-5. **Verify** — below.
-
-Step 3 must precede step 4. A live-sync write from the old `schema.json` is a full-document `index`
-operation, so it replaces the document and drops the new fields.
-
-#### 3. Backfill
-
-Elasticsearch never fills a new field on documents that already exist. Two ways to fill them:
-
-| | Cost | Notes |
-|---|---|---|
-| PGSync `--bootstrap` | re-embeds every document — tens of minutes on a single inference allocation | full re-read of Postgres, and the replication slot stalls for the duration |
-| bulk `update` carrying only the new fields | no inference at all | `name` and `description` are absent from the request, so no inference request is generated |
-
-Prefer the bulk `update`.
-
-#### 4. Verify
+#### Verify (after the bootstrap, before the alias swap)
 
 ```bash
 # the index matches the repository: no undeclared fields, no type conflicts
@@ -407,6 +360,17 @@ Then spot-check a document that predates the change, and confirm a semantic quer
 usual results.
 
 `_cat/indices` reports `docs.count` including nested documents. Use `_count` for the number of subjects.
+
+#### Measuring inference
+
+When sizing or verifying a re-index, measure real embedding work, not cache hits:
+
+- `inference_count` from `GET _ml/trained_models/<inference_id>/_stats` **includes cache hits**. Compute
+  Δ`inference_count` − Δ`cache_hits`.
+- The cache is per-allocation and resets when the allocation recycles, so a repeat write of unchanged
+  text that looks free in a measurement still costs inference in a real migration.
+- Record `node.start_time` on both sides of a measurement and discard the delta if it changed — the
+  counters are scoped to the current allocation and restart at zero.
 
 ### Deployment and Sync Operations
 
