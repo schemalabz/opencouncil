@@ -317,6 +317,16 @@ function buildLexicalShouldClauses(
                 fields: [
                     'name^4',
                     'description^3',
+                    // Person-name queries ("Χάρης Δούκας", "Μαλτέζος") are a
+                    // recurring pattern in the logged user searches. This field
+                    // covers the subjects the person introduced — a deliberate
+                    // authorship signal, unlike speaker_contributions.speaker_person_name,
+                    // which is intentionally not searched: a mayor speaks in nearly
+                    // every subject, so matching it would flood a name query with
+                    // everything they ever commented on (the personIds filter serves
+                    // that need). The greek analyzer also stems name declensions,
+                    // so "του Δούκα" matches "Δούκας".
+                    'introduced_by_person_name^3',
                     ...(extractedFilters.locationName ? ['location_text^3'] : []),
                 ],
                 type: 'best_fields',

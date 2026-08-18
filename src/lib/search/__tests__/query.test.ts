@@ -160,7 +160,16 @@ describe('buildSearchQuery lexical ranking', () => {
             operator: 'or',
             minimum_should_match: '2<75%',
         });
-        expect(multiMatch?.fields).toEqual(['name^4', 'description^3']);
+        // introduced_by_person_name serves person-name queries (a recurring
+        // pattern in logged user searches) via the subjects the person
+        // introduced. speaker_contributions.speaker_person_name is deliberately
+        // absent: a mayor speaks in nearly every subject, so matching it would
+        // flood a name query (the personIds filter serves that need).
+        expect(multiMatch?.fields).toEqual([
+            'name^4',
+            'description^3',
+            'introduced_by_person_name^3',
+        ]);
         // Regression: fuzziness on the multi-match let off-topic queries match
         // long descriptions through one-edit-away terms ("lava" matched a French
         // description via "lave"). Typo tolerance lives in the name-only clause.
