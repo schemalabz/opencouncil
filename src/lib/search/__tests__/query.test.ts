@@ -150,7 +150,7 @@ describe('buildSearchQuery lexical ranking', () => {
         expect(functionScore.functions).toHaveLength(1);
     });
 
-    it('applies fuzzy multi-match and phrase boosts on name and description', () => {
+    it('applies an exact multi-match and phrase boosts on name and description', () => {
         const should = lexicalShouldClauses('πάρκα Κυψέλης');
 
         const multiMatch = should.find((c) => c.multi_match)?.multi_match;
@@ -158,11 +158,13 @@ describe('buildSearchQuery lexical ranking', () => {
             query: 'πάρκα Κυψέλης',
             type: 'best_fields',
             operator: 'or',
-            fuzziness: 'AUTO',
-            prefix_length: 2,
             minimum_should_match: '2<75%',
         });
         expect(multiMatch?.fields).toEqual(['name^4', 'description^3']);
+        // Regression: fuzziness on the multi-match let off-topic queries match
+        // long descriptions through one-edit-away terms ("lava" matched a French
+        // description via "lave"). Typo tolerance lives in the name-only clause.
+        expect(multiMatch?.fuzziness).toBeUndefined();
 
         const namePhrase = should.find((c) => c.match_phrase?.['name']);
         expect(namePhrase?.match_phrase?.['name']).toEqual({
@@ -175,6 +177,29 @@ describe('buildSearchQuery lexical ranking', () => {
             query: 'πάρκα Κυψέλης',
             boost: 4,
         });
+    });
+
+    it('restricts typo tolerance to a low-boost fuzzy match on the name field', () => {
+        const should = lexicalShouldClauses('ανακίκλωση');
+
+        const fuzzyName = should
+            .map((c) => c.match?.['name'])
+            .find((m) => typeof m === 'object' && m !== null && 'fuzziness' in m);
+        expect(fuzzyName).toEqual({
+            query: 'ανακίκλωση',
+            // AUTO:4,10 = 1 edit for 4-9 char terms; the default AUTO's 2 edits
+            // from 6 chars up conflates unrelated Greek stems (συνταγ -> συντηρ).
+            fuzziness: 'AUTO:4,10',
+            prefix_length: 2,
+            boost: 1,
+            minimum_should_match: '2<75%',
+        });
+
+        // No fuzzy clause on description — see the regression note above.
+        expect(should.some((c) => {
+            const desc = c.match?.['description'];
+            return typeof desc === 'object' && desc !== null && 'fuzziness' in desc;
+        })).toBe(false);
     });
 
     it('keeps inner_hits on the scoring lexical retriever', () => {
@@ -192,6 +217,16 @@ describe('buildSearchQuery lexical ranking', () => {
 
         const contributions = should.find((c) => c.nested?.path === 'speaker_contributions');
         expect(minimumShouldMatchOf(contributions?.nested?.query)).toBe('2<75%');
+    });
+
+    // Field tier name > description > transcript: transcripts are the noisiest
+    // field, so a transcript-only match must not outweigh name/description hits.
+    it('keeps the transcript boost below the name and description boosts', () => {
+        const should = lexicalShouldClauses('προϋπολογισμός');
+
+        const contributions = should.find((c) => c.nested?.path === 'speaker_contributions');
+        const transcriptMatch = Object.values(contributions?.nested?.query?.match ?? {})[0];
+        expect(typeof transcriptMatch === 'object' && transcriptMatch.boost).toBe(1);
     });
 });
 
@@ -225,7 +260,9 @@ describe('buildSearchQuery semantic retriever', () => {
         const cutoff = semanticCutoffQuery({ enableSemanticSearch: true });
         // A raw cutoff, not a normalized one: minmax maps the best hit of every
         // query to 1.0, so a fractional cutoff could never empty the results.
-        expect(cutoff.min_score).toBe(3.2);
+        // 3.23 sits between the measured off-topic band (<= 3.226) and the
+        // paraphrase band (>= 3.230) — see DEFAULT_SEMANTIC_MIN_SCORE.
+        expect(cutoff.min_score).toBe(3.23);
 
         const bool = cutoff.query?.bool as BoolQuery;
         const should = (bool.should ?? []) as estypes.QueryDslQueryContainer[];

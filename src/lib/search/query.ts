@@ -11,26 +11,57 @@ const SEMANTIC_DESCRIPTION_BOOST = 1.5;
 
 /**
  * Raw-score cutoff for the semantic retriever, measured against the production
- * index. multilingual-e5 trains with a low InfoNCE temperature, so its cosine
- * similarities bunch up near the top of the range and unrelated text still
- * scores highly: over a 32-query sample, off-topic queries peaked at 3.198 and
- * on-topic ones bottomed out at 3.174. The cutoff sits just above the off-topic
- * band; the lexical retriever covers the on-topic queries that fall below it.
+ * index (scripts/search-eval.ts). multilingual-e5 trains with a low InfoNCE
+ * temperature, so its cosine similarities bunch up near the top of the range
+ * and unrelated text still scores highly. Measured bands (Aug 2026, 9.1k
+ * released docs):
+ *   - on-topic queries, top hits:        3.25 - 3.31
+ *   - paraphrase queries (no shared
+ *     stems with the docs), top hits:    3.23 - 3.275
+ *   - off-topic queries, best hit:       <= 3.218
+ * The cutoff sits just above the off-topic band and below the paraphrase band:
+ * paraphrases are the semantic retriever's whole purpose (the lexical
+ * retriever already covers stem-sharing queries), so the cutoff keeps them
+ * while off-topic queries return zero semantic hits.
  *
  * The value is the sum of the two boosts below at their per-field score, so
  * recalibrate it whenever those boosts or the inference model change. Do not
  * normalize before applying it: `minmax` maps the best hit to exactly 1.0 for
  * every query, which makes a fractional cutoff unable to ever empty the results.
  */
-const DEFAULT_SEMANTIC_MIN_SCORE = 3.2;
+const DEFAULT_SEMANTIC_MIN_SCORE = 3.23;
 
 /**
- * Leave 1- and 2-term queries at full recall (nothing required); for 3+ term
- * queries require 75% of terms so a single stray matching term no longer
- * surfaces a low-relevance hit. ES notation: "2<75%" = full recall when <=2
- * terms, 75% required once the term count exceeds 2 (i.e. 3 or more).
+ * A single-term query matches on its term; a 2-term query requires both terms
+ * (ES's combination form treats clause counts <= the leading integer as
+ * all-required); a query of 3+ terms requires 75% of them, so a single stray
+ * matching term no longer surfaces a low-relevance hit. Requiring both terms
+ * of a 2-term query is deliberate: measured on the production index, OR-ing
+ * them floods the results with one-word matches (a query like "πάρκα Κυψέλης"
+ * would surface every park in every city), while requiring both keeps the
+ * results on-subject. Stopwords do not count: the greek analyzer drops them
+ * before this applies, so "συνταγή για μουσακά" is a 2-term query.
  */
 const LEXICAL_MINIMUM_SHOULD_MATCH = '2<75%';
+
+/**
+ * Typo tolerance is restricted to the name field, exact-only elsewhere.
+ * Measured on the production index: fuzziness on description let off-topic
+ * queries through, because long descriptions offer a large surface of terms
+ * one edit away from a query's stems ("lava" matched a French description via
+ * "lave"; "συνταγή"/"μουσακά" matched "συντήρηση"/"μουσική" descriptions).
+ * Names are short keyword summaries, so a fuzzy match there has to line up
+ * with what the subject is actually about — and a real typo query still
+ * recovers, since anything worth finding carries its key terms in the name.
+ *
+ * AUTO:4,10 = 1 edit for terms of 4-9 chars, 2 edits only at 10+. The default
+ * AUTO allows 2 edits from 6 chars up, which is too loose for Greek: stemmed
+ * words are mostly 5-9 chars and 2 edits conflate unrelated stems
+ * (συνταγ -> συντηρ). prefix_length 2 avoids noisy 1-char-prefix expansions.
+ */
+const NAME_FUZZINESS = 'AUTO:4,10';
+const NAME_FUZZY_PREFIX_LENGTH = 2;
+const NAME_FUZZY_BOOST = 1;
 
 /**
  * Post-relevance ranking: nudges among otherwise-similar matches by administrative
@@ -258,12 +289,16 @@ export function buildFilters(request: SearchRequest): estypes.QueryDslQueryConta
 
 // Transcripts are long enough that a bare OR match lets an off-topic query match
 // on one common word, so they take the same term requirement as the title fields.
+// Boost 1 keeps the field tier name > description > transcript: a transcript is
+// the noisiest field (routine words like "προϋπολογισμός" occur in almost every
+// meeting's discussion), so a transcript-only match must rank below subjects
+// that carry the query terms in their name or description.
 function buildTranscriptMatch(field: string, queryText: string): estypes.QueryDslQueryContainer {
     return {
         match: {
             [field]: {
                 query: queryText,
-                boost: 2,
+                boost: 1,
                 minimum_should_match: LEXICAL_MINIMUM_SHOULD_MATCH
             }
         }
@@ -286,11 +321,23 @@ function buildLexicalShouldClauses(
                 ],
                 type: 'best_fields',
                 operator: 'or',
-                // Typo tolerance for citizen-style queries (often misspelled).
-                // prefix_length:2 avoids noisy 1-char-prefix expansions on Greek morphology.
-                fuzziness: 'AUTO',
-                prefix_length: 2,
                 minimum_should_match: LEXICAL_MINIMUM_SHOULD_MATCH
+            }
+        },
+        {
+            // Typo tolerance for citizen-style queries (often misspelled), on the
+            // name field only — see NAME_FUZZINESS for why description is exact-only.
+            // Low boost: for correctly-spelled queries this adds near-uniform score
+            // (a fuzzy expansion includes the exact term), so the exact clauses above
+            // stay dominant; for typo queries it is the only clause that matches.
+            match: {
+                'name': {
+                    query: queryText,
+                    fuzziness: NAME_FUZZINESS,
+                    prefix_length: NAME_FUZZY_PREFIX_LENGTH,
+                    boost: NAME_FUZZY_BOOST,
+                    minimum_should_match: LEXICAL_MINIMUM_SHOULD_MATCH
+                }
             }
         },
         {
