@@ -164,6 +164,59 @@ if [ "$FK_ERRORS" -gt 0 ]; then
 fi
 echo "Table order is valid."
 
+# Verify that every column of every copied table in the source also exists in the
+# target. The migration check above compares migration *names* only, so a target
+# that is ahead of the source (e.g. staging ahead of production) passes it even if
+# the extra migration dropped or renamed a column — which would make pg_dump's COPY
+# fail mid-run, after --clear has already wiped the target. Extra columns on the
+# target are fine (COPY uses an explicit column list from the source).
+# Note: this compares column names only, not types or enum labels.
+echo "Checking column compatibility for copied tables..."
+TABLE_IN_LIST=$(printf "'%s'," "${TABLES[@]}")
+TABLE_IN_LIST=${TABLE_IN_LIST%,}
+
+# Exclude generated columns from the source: pg_dump does not include them in COPY.
+SOURCE_COLUMNS=$(psql --set ON_ERROR_STOP=on "$SOURCE" -t -A -F $'\t' -c "
+    SELECT table_name, column_name
+    FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name IN ($TABLE_IN_LIST)
+      AND is_generated = 'NEVER'
+    ORDER BY table_name, ordinal_position;
+")
+if [ $? -ne 0 ]; then
+    echo -e "\033[31mFailed to query source columns. Aborting.\033[0m"
+    exit 1
+fi
+# Exclude generated columns from the target too: COPY cannot write into a generated
+# column, so a same-named generated column on the target must count as missing.
+TARGET_COLUMNS=$(psql --set ON_ERROR_STOP=on "$TARGET" -t -A -F $'\t' -c "
+    SELECT table_name, column_name
+    FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name IN ($TABLE_IN_LIST)
+      AND is_generated = 'NEVER';
+")
+if [ $? -ne 0 ]; then
+    echo -e "\033[31mFailed to query target columns. Aborting.\033[0m"
+    exit 1
+fi
+
+COLUMN_ERRORS=0
+while IFS=$'\t' read -r tbl col; do
+    [ -z "$tbl" ] && continue
+    if ! grep -qxF "${tbl}"$'\t'"${col}" <<< "$TARGET_COLUMNS"; then
+        echo -e "\033[31mColumn mismatch: \"$tbl\".\"$col\" exists in source but not in target.\033[0m"
+        COLUMN_ERRORS=$((COLUMN_ERRORS + 1))
+    fi
+done <<< "$SOURCE_COLUMNS"
+
+if [ "$COLUMN_ERRORS" -gt 0 ]; then
+    echo -e "\033[31mFound $COLUMN_ERRORS column mismatch(es). The target schema has diverged from the source\033[0m"
+    echo -e "\033[31m(e.g. a migration on the target dropped or renamed columns). Copying would fail mid-run.\033[0m"
+    echo -e "\033[31mBring source and target to compatible schemas before copying. Aborting.\033[0m"
+    exit 1
+fi
+echo "Column compatibility OK."
+
 # Find nullable FK columns that reference tables NOT in our copy list (e.g. User).
 # Since we intentionally exclude user data for privacy, these columns must be NULLed
 # during copy to avoid FK violations against non-existent rows.
