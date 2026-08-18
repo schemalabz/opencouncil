@@ -47,11 +47,6 @@ model NotisSubscription {
   // preferences at enrollment, rewritten wholesale by update_taste_profile.
   profileText String
 
-  // Display snapshot for the admin panel and wake-state assembly:
-  // CityPreference[] ({cityId, cityName, topics, locations}). The live
-  // notis_fanout_targets view stays the source of truth for who gets woken;
-  // the poller refreshes this snapshot (PR 4).
-  cities   Json    @default("[]")
   userName String?
 
   createdAt DateTime @default(now())

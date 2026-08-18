@@ -31,7 +31,6 @@ CREATE TABLE "NotisSubscription" (
     "origin" "SubscriptionOrigin" NOT NULL,
     "unsubscribedAt" TIMESTAMP(3),
     "profileText" TEXT NOT NULL,
-    "cities" JSONB NOT NULL DEFAULT '[]',
     "userName" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,

@@ -1,6 +1,7 @@
-import { CityPreference, WakeOutcome, WakeTrace } from "@/agent/types";
+import { WakeOutcome, WakeTrace } from "@/agent/types";
 import { TemplateName } from "@/agent/templates";
 import { hasNotisDb, notisDb } from "@/lib/db";
+import { hasMainDb, mainDb } from "@/lib/main-db";
 import { CityMeta, Origin, RecordEvent, WakeRecord } from "./records";
 
 /**
@@ -33,25 +34,59 @@ export interface ConversationDetail {
 
 interface SubscriptionRow {
   id: string;
+  userId: string;
   userName: string | null;
   phone: string | null;
-  cities: unknown;
   origin: Origin;
   createdAt: Date;
   updatedAt: Date;
   unsubscribedAt: Date | null;
 }
 
-function subscriptionCities(sub: SubscriptionRow): CityPreference[] {
-  return Array.isArray(sub.cities) ? (sub.cities as CityPreference[]) : [];
+interface SubCity {
+  cityId: string;
+  cityName: string;
 }
 
-function toSummary(sub: SubscriptionRow, sent: number, received: number): ConversationSummary {
+/**
+ * The cities a reader follows, live from notis_fanout_targets. There is no
+ * stored copy: preferences live in the main database, and a snapshot here
+ * would be a second truth that goes stale between refreshes. The panel
+ * renders without city chips when no main database is configured, or when it
+ * is briefly unreachable — a conversation is still worth reading.
+ */
+async function citiesByUser(userIds: string[]): Promise<Map<string, SubCity[]>> {
+  if (!hasMainDb() || userIds.length === 0) return new Map();
+  try {
+    const rows = await mainDb().fanoutTargetRow.findMany({
+      where: { userId: { in: userIds } },
+      select: { userId: true, cityId: true, cityName: true },
+      orderBy: [{ userId: "asc" }, { cityId: "asc" }],
+    });
+    const byUser = new Map<string, SubCity[]>();
+    for (const row of rows) {
+      const list = byUser.get(row.userId) ?? [];
+      list.push({ cityId: row.cityId, cityName: row.cityName });
+      byUser.set(row.userId, list);
+    }
+    return byUser;
+  } catch (e) {
+    console.warn("[notis:panel] live city fetch failed, rendering without chips:", e);
+    return new Map();
+  }
+}
+
+function toSummary(
+  sub: SubscriptionRow,
+  sent: number,
+  received: number,
+  cities: SubCity[],
+): ConversationSummary {
   return {
     id: sub.id,
     userName: sub.userName ?? "—",
     phone: sub.phone ?? "",
-    cityNames: subscriptionCities(sub).map((c) => c.cityName),
+    cityNames: cities.map((c) => c.cityName),
     origin: sub.origin,
     startedAt: sub.createdAt.toISOString(),
     lastActivityAt: sub.updatedAt.toISOString(),
@@ -81,11 +116,13 @@ export async function listConversations(): Promise<ConversationSummary[]> {
   const countMap = new Map(
     counts.map((c) => [`${c.subscriptionId}:${c.direction}`, c._count._all]),
   );
+  const cities = await citiesByUser(subs.map((s) => s.userId));
   return subs.map((sub) =>
     toSummary(
       sub,
       countMap.get(`${sub.id}:outbound`) ?? 0,
       countMap.get(`${sub.id}:inbound`) ?? 0,
+      cities.get(sub.userId) ?? [],
     ),
   );
 }
@@ -128,12 +165,12 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
       : {}),
   }));
 
+  const cities = (await citiesByUser([sub.userId])).get(sub.userId) ?? [];
+
   return {
-    summary: toSummary(sub, sent, received),
+    summary: toSummary(sub, sent, received, cities),
     records,
-    cityMeta: Object.fromEntries(
-      subscriptionCities(sub).map((c) => [c.cityId, { name: c.cityName }]),
-    ),
+    cityMeta: Object.fromEntries(cities.map((c) => [c.cityId, { name: c.cityName }])),
     profile: sub.profileText,
   };
 }
