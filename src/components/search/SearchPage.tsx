@@ -24,7 +24,7 @@ import { toAdministrativeBodyType } from "@/lib/utils/administrativeBodies";
 import { useTranslations } from 'next-intl';
 import posthog from "posthog-js";
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 15;
 const SEARCH_DELAY = 500;
 
 // Temporary flag to disable search functionality
@@ -293,7 +293,8 @@ export default function SearchPage() {
     const resultsGrid = useMemo(() => (
         <SubjectListContainer
             subjects={state.results}
-            layout="grid"
+            layout="list"
+            variant="row"
             showContext={true}
             openInNewTab={true}
         />
@@ -424,7 +425,8 @@ export default function SearchPage() {
                     )}
                 </div>
 
-                <div className="w-full">
+                {/* Same max width as the search bar above, so the results column lines up with it. */}
+                <div className="mx-auto w-full max-w-6xl">
                     {state.error ? (
                         <div className="flex justify-center items-center min-h-[400px]">
                             <div className="text-center space-y-3">
@@ -442,9 +444,9 @@ export default function SearchPage() {
                             </div>
                         </div>
                     ) : state.isLoading ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+                        <div className="flex flex-col gap-4 mt-6">
                             {Array.from({ length: PAGE_SIZE }).map((_, i) => (
-                                <Skeleton key={i} className="h-[280px] w-full rounded-lg" />
+                                <Skeleton key={i} className="h-[136px] w-full rounded-lg" />
                             ))}
                         </div>
                     ) : !query ? (
