@@ -51,6 +51,24 @@ const CASES: EvalCase[] = [
     { query: 'ανακίκλωση', expect: 'results', note: 'typo: recycling (ι for υ)' },
     { query: 'ποδηλατοδρομοι', expect: 'results', note: 'unaccented bike lanes' },
     { query: 'σταθμευση αναπηρικων', expect: 'results', note: 'unaccented disabled parking' },
+    // Real logged user searches (SearchQuery table) that must return results
+    { query: 'παιδικοί σταθμοί', expect: 'results', note: 'logged user query: kindergartens' },
+    { query: 'καθαριότητα', expect: 'results', note: 'logged user query: cleanliness' },
+    { query: 'σκουπίδια', expect: 'results', note: 'logged user query: garbage colloquial' },
+    { query: 'χώροι πρασίνου', expect: 'results', note: 'logged user query: green spaces' },
+    { query: 'κολυμβητήριο', expect: 'results', note: 'logged user query: swimming pool' },
+    { query: 'υδρονομείς', expect: 'results', note: 'logged user query: irrigation wardens' },
+    { query: 'πάρκινγκ', expect: 'results', note: 'logged user query: parking loanword' },
+    { query: 'ηλεκτρικά πατίνια', expect: 'results', note: 'logged user query: e-scooters' },
+    { query: 'μετρό', expect: 'results', note: 'logged user query: metro' },
+    { query: 'υπολογιστές', expect: 'results', note: 'logged user query: computers (procurement)' },
+    { query: 'διαγρραφή τελών', expect: 'results', note: 'logged user typo: double ρ' },
+    { query: 'παιδικοί σταθ', expect: 'results', note: 'logged mid-typing partial (search-as-you-type)' },
+    { query: 'τι αποφάσισε το δημοτικό συμβούλιο για τα πάρκα', expect: 'results', note: 'logged natural-language query' },
+    // Person names (logged user queries) — matched via introduced_by_person_name
+    { query: 'Χάρης Δούκας', expect: 'results', note: 'logged user query: Athens mayor' },
+    { query: 'Μαλτέζος', expect: 'results', note: 'logged user query: councillor surname' },
+    { query: 'του Δούκα', expect: 'results', note: 'genitive declension of Δούκας' },
     // Paraphrases: no shared stems with likely doc wording — semantic-only
     // recall. These guard the semantic cutoff from being raised too far.
     { query: 'διαχείριση σκουπιδιών', expect: 'results', note: 'paraphrase: garbage (docs say απορρίμματα)' },
@@ -67,6 +85,11 @@ const CASES: EvalCase[] = [
     { query: 'ηφαίστειο έκρηξη λάβα', expect: 'empty', note: 'volcano eruption lava (Greek)' },
     { query: 'Taylor Swift συναυλία', expect: 'empty', note: 'celebrity concert' },
     { query: 'πώς να φτιάξω κέικ', expect: 'empty', note: 'how to make a cake' },
+    // Junk actually typed by real users (SearchQuery table)
+    { query: 'lava cake', expect: 'empty', note: 'logged junk: the lava bug, extended' },
+    { query: 'pizza margherita', expect: 'empty', note: 'logged junk' },
+    { query: 'ηνκξκ', expect: 'empty', note: 'logged junk: keyboard mash (Greek)' },
+    { query: 'asdfqwer', expect: 'empty', note: 'logged junk: keyboard mash (Latin)' },
 ];
 
 interface HitRow {
