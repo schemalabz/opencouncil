@@ -361,37 +361,128 @@ async function main() {
 }
 
 /**
- * Get seed data from local file or download if needed
+ * Timestamp of the newest local Prisma migration (directories are named
+ * `YYYYMMDDHHMMSS_name`, stamped in UTC), or null if none can be determined.
+ * Resolved from the working directory rather than `__dirname`, which does not
+ * exist when the preview deployment runs the esbuild ESM bundle of this script;
+ * both `prisma db seed` and the preview runner execute from the project root.
+ */
+function latestMigrationDate(): Date | null {
+  const migrationsDir = path.resolve(process.cwd(), 'prisma', 'migrations')
+  if (!fs.existsSync(migrationsDir)) return null
+
+  const stamps = fs.readdirSync(migrationsDir)
+    .map(name => name.match(/^(\d{14})_/)?.[1])
+    .filter((stamp): stamp is string => !!stamp)
+    .sort()
+  if (stamps.length === 0) return null
+
+  const s = stamps[stamps.length - 1]
+  return new Date(`${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T${s.slice(8, 10)}:${s.slice(10, 12)}:${s.slice(12, 14)}Z`)
+}
+
+/**
+ * Returns a human-readable reason the cached seed data should be re-downloaded,
+ * or null if it looks usable. Seed data extracted before the newest migration
+ * may reference fields that no longer exist in the schema (e.g. the old
+ * `isListed` column), which otherwise surfaces as a confusing Prisma error deep
+ * inside seeding. A cache that was *downloaded* after the newest migration is
+ * accepted even if its extraction predates it — it is the freshest published
+ * dump available, and re-fetching it again would loop on every seed run.
+ */
+function seedDataStaleness(data: any): string | null {
+  const extractedAt = data?.metadata?.extractedAt
+  if (!extractedAt || isNaN(Date.parse(extractedAt))) {
+    return 'it has no metadata.extractedAt timestamp'
+  }
+  const migration = latestMigrationDate()
+  if (!migration || Date.parse(extractedAt) >= migration.getTime()) {
+    return null
+  }
+  const downloadedAt = data?.metadata?.downloadedAt
+  if (downloadedAt && !isNaN(Date.parse(downloadedAt)) && Date.parse(downloadedAt) >= migration.getTime()) {
+    return null
+  }
+  return `it was extracted at ${extractedAt}, before the latest schema migration (${migration.toISOString()})`
+}
+
+/**
+ * Get seed data from local file or download if needed. A cached file that is
+ * unreadable or predates the latest schema migration is re-downloaded; if the
+ * download fails (e.g. offline), the stale file is used with a warning rather
+ * than failing outright.
  */
 async function getSeedData() {
-  // Check if local file exists
+  let localData: any = null
+  let staleness: string | null = null
+
   if (fs.existsSync(SEED_DATA_PATH)) {
-    console.log(`Using local seed data file: ${SEED_DATA_PATH}`)
-    const data = JSON.parse(fs.readFileSync(SEED_DATA_PATH, 'utf-8'))
-    return data
+    try {
+      localData = JSON.parse(fs.readFileSync(SEED_DATA_PATH, 'utf-8'))
+      staleness = seedDataStaleness(localData)
+    } catch (error) {
+      staleness = `it is not valid JSON (${(error as Error).message})`
+    }
+
+    if (localData && !staleness) {
+      console.log(`Using local seed data file: ${SEED_DATA_PATH}`)
+      return localData
+    }
+    console.warn(`Local seed data file ${SEED_DATA_PATH} looks stale: ${staleness}. Re-downloading...`)
   }
 
-  // If no local file, download from URL
-  // Dynamic import to avoid bundling axios in production builds
-  // (preview deployments pre-download the seed data with curl)
-  console.log(`Downloading seed data from: ${SEED_DATA_URL}`)
   try {
+    return await downloadSeedData()
+  } catch (error) {
+    if (localData) {
+      console.warn('Download failed; falling back to the stale local file. If seeding fails with schema errors (e.g. an unknown argument), delete the file and re-run with network access.')
+      return localData
+    }
+    throw error
+  }
+}
+
+/**
+ * Download seed data from SEED_DATA_URL and cache it at SEED_DATA_PATH.
+ */
+async function downloadSeedData() {
+  console.log(`Downloading seed data from: ${SEED_DATA_URL}`)
+  let data: any
+  try {
+    // Dynamic import to avoid bundling axios in production builds
+    // (preview deployments pre-download the seed data with curl)
     const axios = (await import('axios')).default
     const response = await axios.get(SEED_DATA_URL)
-    const data = response.data
+    data = response.data
+  } catch (error) {
+    console.error('Failed to download seed data:', error)
+    throw new Error('Could not obtain seed data. Please provide a local file or ensure the URL is accessible.')
+  }
 
-    // Save to local file for future use
+  const staleness = seedDataStaleness(data)
+  if (staleness) {
+    console.warn(`Downloaded seed data also looks stale: ${staleness}. Proceeding anyway — if seeding fails, the published dump needs regenerating (npm run generate-seed).`)
+  }
+
+  // Stamp the fetch time into the cached copy so a published dump that
+  // predates the newest migration is re-fetched once, not on every seed run.
+  if (data?.metadata) {
+    data.metadata.downloadedAt = new Date().toISOString()
+  }
+
+  // Save to local file for future use. A failed write is not fatal — the
+  // freshly downloaded data is still the best data we have.
+  try {
     const directory = path.dirname(SEED_DATA_PATH)
     if (!fs.existsSync(directory)) {
       fs.mkdirSync(directory, { recursive: true })
     }
     fs.writeFileSync(SEED_DATA_PATH, JSON.stringify(data, null, 2))
-
-    return data
   } catch (error) {
-    console.error('Failed to download seed data:', error)
-    throw new Error('Could not obtain seed data. Please provide a local file or ensure the URL is accessible.')
+    console.warn(`Could not cache seed data to ${SEED_DATA_PATH} (${(error as Error).message}). Continuing with the downloaded data.`)
   }
+
+  return data
 }
 
 /**
