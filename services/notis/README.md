@@ -86,7 +86,9 @@ Same branch wiring as the main component: `production` branch → production,
 `main` → staging. The staging component gets its own domain
 (`notis.staging.opencouncil.gr`) and its own database URLs; nothing is shared
 with production. Staging must also set
-`MAIN_SESSION_COOKIE_NAME=__Secure-oc-session-staging` (see below). DNS per
+`MAIN_SESSION_COOKIE_NAME=__Secure-oc-session-staging`, because the main app
+derives that suffix per environment and Notis has no `DEPLOYMENT_ENV` of its
+own (see below). DNS per
 domain: a CNAME to the DO app's default hostname (DO then issues the
 certificate). The main app's component is untouched by this — its build still
 runs at the root and ignores `services/`.
@@ -102,12 +104,23 @@ navigations. The browser sends the hash to `notis.opencouncil.gr`, and Notis
 validates it against the hashed `notis_admin_sessions` view — superadmin
 sessions only. The edge proxy checks only that the cookie exists;
 `requireAdmin()`/`getAdminSession()` do the real lookup. There is no shared
-secret, and nothing that reaches Notis (or any other subdomain host) can be
-replayed as the session cookie against the main app. Main-app env for this:
-prod `SESSION_COOKIE_DOMAIN=.opencouncil.gr`; staging
-`SESSION_COOKIE_DOMAIN=.staging.opencouncil.gr` and
-`SESSION_COOKIE_SUFFIX=-staging`. The main-DB migration needs the `pgcrypto`
-extension (created by the migration itself).
+secret, and nothing that reaches Notis can be replayed as the session cookie
+against the main app.
+
+Two caveats worth stating plainly. The mirror value is what authenticates the
+Notis admin, so possession of it IS the credential here — it carries no
+authority against the main app, but full authority against this one. And a
+`Domain`-scoped cookie reaches every host under the apex, so every such host
+is trusted by construction; keep deployments that run unmerged code (previews)
+on a different domain, and keep third-party-hosted subdomains off this one.
+
+No main-app env is needed: `SESSION_COOKIE_DOMAIN` and `SESSION_COOKIE_SUFFIX`
+derive from `DEPLOYMENT_ENV` and `NEXTAUTH_URL` (`.opencouncil.gr` with no
+suffix on production, `.staging.opencouncil.gr` with `-staging` on staging,
+neither in development or previews). Set them only to override — and if you
+override the suffix, set Notis's `MAIN_SESSION_COOKIE_NAME` to match. The
+main-DB migration needs the `pgcrypto` extension (created by the migration
+itself).
 
 ## Known gaps (tracked for later PRs)
 
