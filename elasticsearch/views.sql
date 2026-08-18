@@ -212,8 +212,8 @@ FROM "City" c;
 \echo '1. Checking if all views exist...'
 SELECT 
   CASE 
-    WHEN COUNT(*) = 7 THEN '   ✓ All 7 views exist'
-    ELSE '   ✗ Missing views! Expected 7, found ' || COUNT(*)::text
+    WHEN COUNT(*) = 6 THEN '   ✓ All 6 views exist'
+    ELSE '   ✗ Missing views! Expected 6, found ' || COUNT(*)::text
   END AS result
 FROM pg_views
 WHERE schemaname = 'public'
