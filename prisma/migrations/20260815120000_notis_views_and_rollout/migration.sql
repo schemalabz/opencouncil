@@ -137,5 +137,17 @@ $$;
 -- USAGE only resolves names in the schema; it grants no table access. Not
 -- every database keeps the default PUBLIC grant on the public schema (a
 -- recreated or hardened schema drops it), so grant it explicitly.
+-- The claim above is about MEMBERSHIP, not about attributes: NOLOGIN keeps
+-- nobody out, and every grant below still reads correctly after a single
+-- `GRANT readandwrite TO notis_reader`. Refuse rather than let the migration
+-- restate a containment it no longer has.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_auth_members WHERE member = 'notis_reader'::regrole) THEN
+    RAISE EXCEPTION 'notis_reader inherits from another role; view containment is not enforced';
+  END IF;
+END
+$$;
+
 GRANT USAGE ON SCHEMA public TO notis_reader;
 GRANT SELECT ON "notis_users", "notis_fanout_targets", "notis_meeting_events", "notis_sessions", "notis_admin_sessions" TO notis_reader;

@@ -12,6 +12,9 @@ import { withUserAuthorizedToEdit } from '@/lib/auth';
 
 const ELIGIBLE = {
     phone: { not: null },
+        // '' passes IS NOT NULL but reaches nobody, and
+        // createNotificationsForMeeting's truthiness test already agrees.
+        NOT: { phone: '' },
     notificationPreferences: { some: { notifyByPhone: true } },
 } as const;
 

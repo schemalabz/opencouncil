@@ -48,6 +48,17 @@ stateless playground-only mode:
   CREATE USER notis_service LOGIN PASSWORD '...' IN ROLE notis_reader;
   ```
 
+  Grant that role nothing else. The migration refuses to run if `notis_reader`
+  inherits from another role, because the read-only containment is what makes
+  a separate service safe against the main database.
+
+- `NOTIS_ALERT_WEBHOOK_URL` — a Discord webhook for operational alarms. Set it
+  in every deployed environment. The janitor's blast-radius guard REFUSES to
+  delete when too many subscriptions look orphaned, and that refusal is
+  permanent until a person clears the backlog — this webhook is how anyone
+  learns it happened. Without it the refusal reaches the logs and nobody
+  else.
+
   The role can `SELECT` the five views and nothing else.
 
 Tests: `npm test -w notis`. Re-record a golden fixture (live API, costs money):
@@ -69,6 +80,7 @@ The app spec lives in the DO dashboard, not the repo. The Notis component:
 | Env (secret, run+build) | `ANTHROPIC_API_KEY`, `NOTIS_DATABASE_URL`, `MAIN_DATABASE_URL` |
 | Env (build-time, plain) | `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` (public token; baked at build — without it the wizard's map/address search degrades to text chips) |
 | Env (optional) | `NOTIS_MCP_URL` (defaults to `https://opencouncil.gr/mcp`), `OPENCOUNCIL_BASE_URL`, `MAIN_SESSION_COOKIE_NAME` |
+| Env (operational, set it) | `NOTIS_ALERT_WEBHOOK_URL` — Discord webhook for janitor refusals and failures; without it those alarms only reach the logs |
 
 Same branch wiring as the main component: `production` branch → production,
 `main` → staging. The staging component gets its own domain

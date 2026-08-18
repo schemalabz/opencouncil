@@ -170,6 +170,14 @@ model NotisJournalEntry {
 
   createdAt DateTime @default(now())
 
+  // Retention: we keep every entry for the life of the subscription. The
+  // agent reads only the most recent JOURNAL_WINDOW entries; older ones stay
+  // for the audit trail and the admin panel, and profileText is the lossy
+  // compaction of what fell outside that window. Unsubscribing does NOT
+  // delete the journal — the record of what we sent stays, and a reader who
+  // returns keeps their continuity. Account deletion does: the janitor
+  // removes the subscription and this cascades with it. That is the whole
+  // answer to "what does Notis remember about me".
   @@unique([subscriptionId, seq])
 }
 
@@ -222,13 +230,24 @@ model NotisWakeQueue {
   @@index([subscriptionId, status])
 }
 
-// Dedup log against notis_meeting_events: taskId is the event identity, so a
-// reprocessed meeting (new task row) counts as fresh.
+// Dedup log against notis_meeting_events. The identity is the MEETING and
+// the phase — (cityId, meetingId, type) — never the task id: re-processing a
+// meeting writes a new task row, and keying on it would fan the same agenda
+// or the same summary out a second time. WhatsApp messages cannot be
+// recalled, and the tool that re-runs tasks works on lists.
+//
+// A genuine retry still works: a task that FAILED never recorded a row here,
+// so its next run is the first success and fires normally. taskId stays as
+// the audit trail of which run produced the record.
 model NotisProcessedEvent {
-  taskId    String   @id
+  id        String   @id @default(cuid())
+  taskId    String
   type      String
   cityId    String
   meetingId String
 
   processedAt DateTime @default(now())
+
+  @@unique([cityId, meetingId, type])
+  @@index([taskId])
 }

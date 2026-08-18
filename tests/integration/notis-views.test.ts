@@ -21,6 +21,36 @@ const MIGRATION_PATH = path.join(
     '../../prisma/migrations/20260815120000_notis_views_and_rollout/migration.sql',
 )
 
+/** The consumer's half of the contract: the Prisma models Notis reads the
+ *  views through. Kept in a separate file from the SQL that defines them,
+ *  which is exactly why the drift below is worth a test. */
+const CONSUMER_SCHEMA_PATH = path.join(
+    __dirname,
+    '../../services/notis/prisma/main-views.prisma',
+)
+
+/** Every `@@map`-ed model in the consumer schema, with its declared fields.
+ *  Relation-free by construction — these models are flat view rows. */
+function consumerViewModels(): Array<{ view: string; fields: string[] }> {
+    const source = fs.readFileSync(CONSUMER_SCHEMA_PATH, 'utf8')
+    const models: Array<{ view: string; fields: string[] }> = []
+    for (const [, body] of source.matchAll(/model\s+\w+\s*\{([\s\S]*?)\n\}/g)) {
+        const view = body.match(/@@map\("([^"]+)"\)/)?.[1]
+        if (!view) continue
+        const fields: string[] = []
+        for (const line of body.split('\n')) {
+            const trimmed = line.trim()
+            if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('@@')) continue
+            const name = trimmed.match(/^(\w+)\s+\S/)?.[1]
+            // A field may rename its column; the column is what must exist.
+            const mapped = trimmed.match(/@map\("([^"]+)"\)/)?.[1]
+            if (name) fields.push(mapped ?? name)
+        }
+        models.push({ view, fields })
+    }
+    return models
+}
+
 async function applyNotisMigration() {
     const sql = fs.readFileSync(MIGRATION_PATH, 'utf8')
     for (const statement of splitSqlStatements(sql)) {
@@ -40,6 +70,34 @@ describe('notis views migration', () => {
 
     beforeEach(async () => {
         await resetDatabase(prisma as any)
+    })
+
+    test('each view exposes exactly the columns its consumer model declares', async () => {
+        // The contract has two halves that people maintain by hand: this SQL
+        // defines the views, and services/notis/prisma/main-views.prisma
+        // describes them for the reader. Nothing else compares the two, and
+        // drift is silent — a column the SQL stops emitting simply arrives as
+        // undefined, and a column it starts emitting is never read.
+        const models = consumerViewModels()
+        expect(models.map((m) => m.view).sort()).toEqual([
+            'notis_admin_sessions',
+            'notis_fanout_targets',
+            'notis_meeting_events',
+            'notis_sessions',
+            'notis_users',
+        ])
+
+        for (const { view, fields } of models) {
+            const columns = await prisma.$queryRawUnsafe<Array<{ column_name: string }>>(
+                `SELECT column_name FROM information_schema.columns
+                 WHERE table_schema = 'public' AND table_name = $1`,
+                view,
+            )
+            expect({ view, columns: columns.map((c) => c.column_name).sort() }).toEqual({
+                view,
+                columns: [...fields].sort(),
+            })
+        }
     })
 
     test('notis_fanout_targets aggregates topics and locations per preference', async () => {
@@ -88,11 +146,16 @@ describe('notis views migration', () => {
         })
         await createNotificationPreference({ userId: user.id, cityId: city.id })
 
-        const rows = await prisma.$queryRawUnsafe<Array<{ notisEnabledAt: Date | null }>>(
-            'SELECT * FROM notis_fanout_targets',
-        )
+        const rows = await prisma.$queryRawUnsafe<
+            Array<{ notisEnabledAt: Date | null; topics: unknown; locations: unknown }>
+        >('SELECT * FROM notis_fanout_targets')
         expect(rows).toHaveLength(1)
         expect(rows[0].notisEnabledAt).toEqual(enabledAt)
+        // This preference has neither topics nor locations, which is the
+        // COALESCE branch: drop it and the columns come back SQL NULL, while
+        // both consumer converters turn a non-array into [] and say nothing.
+        expect(rows[0].topics).toEqual([])
+        expect(rows[0].locations).toEqual([])
     })
 
     test('notis_meeting_events lists only succeeded processAgenda/summarize tasks', async () => {
@@ -109,12 +172,27 @@ describe('notis views migration', () => {
         })
         await createTaskStatus(meeting.id, city.id, { type: 'processAgenda', status: 'pending' })
         await createTaskStatus(meeting.id, city.id, { type: 'transcribe', status: 'succeeded' })
+        // An unreleased meeting still produces tasks. The view carries the
+        // flag rather than filtering on it, and the poller is what refuses to
+        // wake anyone for a meeting the public cannot read yet — so the flag
+        // has to be observable as false.
+        const unreleased = await createMeeting(city.id, {
+            id: 'nv_meeting_unreleased',
+            administrativeBodyId: body.id,
+            released: false,
+        })
+        const unreleasedTask = await createTaskStatus(unreleased.id, city.id, {
+            type: 'summarize',
+            status: 'succeeded',
+        })
 
         const rows = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
             'SELECT * FROM notis_meeting_events',
         )
-        expect(rows).toHaveLength(1)
-        const row = rows[0]
+        expect(rows).toHaveLength(2)
+        const row = rows.find((r) => r.taskId === succeeded.id)!
+        const hidden = rows.find((r) => r.taskId === unreleasedTask.id)!
+        expect(hidden.released).toBe(false)
         expect(row.taskId).toBe(succeeded.id)
         expect(row.type).toBe('summarize')
         expect(row.meetingId).toBe(meeting.id)

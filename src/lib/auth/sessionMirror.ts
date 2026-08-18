@@ -36,6 +36,19 @@ function mirrorSetCookie(value: string, domain: string, maxAge: number): string 
     return `${mirrorCookieName()}=${value}; Domain=${domain}; Path=/; Max-Age=${maxAge}; HttpOnly; Secure; SameSite=Lax`;
 }
 
+/** The host that actually holds the session cookie: the one NEXTAUTH_URL
+ *  names. The Auth.js cookie is host-only, so no other host under the apex
+ *  can see it — which is why only this host may read its absence as a
+ *  sign-out. */
+export function isSessionHost(host: string | null): boolean {
+    const hostname = host?.split(':')[0] ?? '';
+    try {
+        return hostname === new URL(env.NEXTAUTH_URL).hostname;
+    } catch {
+        return false;
+    }
+}
+
 /** Whether mirroring applies: a domain is configured and the host is under it. */
 export function mirrorDomainForHost(host: string | null): string | null {
     const domain = env.SESSION_COOKIE_DOMAIN;
@@ -70,7 +83,11 @@ export async function applySessionMirror(
         if (current !== hash) {
             res.headers.append('Set-Cookie', mirrorSetCookie(hash, domain, 2_592_000));
         }
-    } else if (current) {
+    } else if (current && isSessionHost(req.headers.get('host'))) {
+        // Only the session host may clear the mirror. Everywhere else under
+        // the apex — www, data, a preview — the session cookie is absent by
+        // construction, so clearing on its absence would sign the admin out
+        // of Notis for the whole domain on any page view there.
         res.headers.append('Set-Cookie', mirrorSetCookie('', domain, 0));
     }
     return res;
