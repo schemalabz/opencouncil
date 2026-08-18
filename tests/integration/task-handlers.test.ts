@@ -140,6 +140,63 @@ describe('handleProcessAgendaResult', () => {
         expect(afterSecond.map((s) => s.id)).toEqual(keptIds)
     })
 
+    test('a renumbered agenda keeps every id with its own subject', async () => {
+        const task1 = await createTaskStatus(meetingId, cityId, { type: 'processAgenda' })
+        await handleProcessAgendaResult(task1.id, makeProcessAgendaResult([
+            makeSubject({ name: 'Budget discussion', agendaItemIndex: 1 }),
+            makeSubject({ name: 'Parks maintenance', agendaItemIndex: 2 }),
+            makeSubject({ name: 'Road repairs', agendaItemIndex: 3 }),
+        ]))
+
+        const afterFirst = await prisma.subject.findMany({
+            where: { councilMeetingId: meetingId, cityId },
+            orderBy: { agendaItemIndex: 'asc' },
+        })
+        const idByName = new Map(afterFirst.map((s) => [s.name, s.id]))
+
+        // Item 1 is withdrawn, so the council republishes the agenda with the
+        // remaining two renumbered. Matching on the new indices alone would
+        // give "Parks maintenance" the id the public knows as "Budget
+        // discussion" — a link would open the wrong subject.
+        const task2 = await createTaskStatus(meetingId, cityId, { type: 'processAgenda' })
+        await handleProcessAgendaResult(task2.id, makeProcessAgendaResult([
+            makeSubject({ name: 'Parks maintenance', agendaItemIndex: 1 }),
+            makeSubject({ name: 'Road repairs', agendaItemIndex: 2 }),
+        ]))
+
+        const afterSecond = await prisma.subject.findMany({
+            where: { councilMeetingId: meetingId, cityId },
+            orderBy: { agendaItemIndex: 'asc' },
+        })
+
+        expect(afterSecond).toHaveLength(2)
+        expect(afterSecond[0].name).toBe('Parks maintenance')
+        expect(afterSecond[0].id).toBe(idByName.get('Parks maintenance'))
+        expect(afterSecond[0].agendaItemIndex).toBe(1)
+        expect(afterSecond[1].name).toBe('Road repairs')
+        expect(afterSecond[1].id).toBe(idByName.get('Road repairs'))
+        // The withdrawn item is gone, and its id was not handed to anyone.
+        expect(afterSecond.map((s) => s.id)).not.toContain(idByName.get('Budget discussion'))
+    })
+
+    test('a reworded item in the same slot keeps its id', async () => {
+        const task1 = await createTaskStatus(meetingId, cityId, { type: 'processAgenda' })
+        await handleProcessAgendaResult(task1.id, makeProcessAgendaResult([
+            makeSubject({ name: 'Budget discussion', agendaItemIndex: 1 }),
+        ]))
+        const [first] = await prisma.subject.findMany({ where: { councilMeetingId: meetingId, cityId } })
+
+        const task2 = await createTaskStatus(meetingId, cityId, { type: 'processAgenda' })
+        await handleProcessAgendaResult(task2.id, makeProcessAgendaResult([
+            makeSubject({ name: 'Budget discussion for fiscal year 2027', agendaItemIndex: 1 }),
+        ]))
+
+        const after = await prisma.subject.findMany({ where: { councilMeetingId: meetingId, cityId } })
+        expect(after).toHaveLength(1)
+        expect(after[0].id).toBe(first.id)
+        expect(after[0].name).toBe('Budget discussion for fiscal year 2027')
+    })
+
     test('an authoritative empty agenda prunes every agenda subject', async () => {
         const task1 = await createTaskStatus(meetingId, cityId, { type: 'processAgenda' })
         await handleProcessAgendaResult(task1.id, makeProcessAgendaResult([

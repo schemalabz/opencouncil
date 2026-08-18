@@ -83,3 +83,6 @@ CLAUDE.local.md
 # Generated OpenAPI spec (built in-process from the Zod registry; `npm run generate-openapi` for optional export)
 swagger.yaml
 openapi.json
+
+# Notis generated Prisma clients
+services/notis/generated/
