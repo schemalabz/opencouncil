@@ -6,8 +6,8 @@
  *
  * Some agendas (e.g. λογοδοσία / accountability sessions) genuinely have no
  * extractable subjects. The backend reports success with `{ subjects: [] }`,
- * which must be treated as a valid success — existing subjects are replaced
- * (with nothing). A malformed success payload that omits `subjects` entirely
+ * which must be treated as a valid success — the save is still called, and
+ * with pruning asked for, so the agenda subjects are cleared. A malformed success payload that omits `subjects` entirely
  * must NOT throw (which would flip the succeeded task to failed) and must NOT
  * delete existing subjects.
  */
@@ -71,9 +71,13 @@ describe('handleProcessAgendaResult — empty / malformed subjects (issue #102)'
     ).resolves.toBeUndefined();
 
     // Empty agenda is authoritative → existing subjects are deleted/replaced
-    expect(mockSubjectDeleteMany).toHaveBeenCalledTimes(1);
-    expect(mockHighlightDeleteMany).toHaveBeenCalledTimes(1);
-    expect(mockSaveSubjectsForMeeting).toHaveBeenCalledWith([], CITY_ID, MEETING_ID);
+    // Pruning lives in the save now, and it is asked for explicitly: the
+    // agenda is authoritative, so an empty one clears the agenda subjects.
+    expect(mockSubjectDeleteMany).not.toHaveBeenCalled();
+    expect(mockHighlightDeleteMany).not.toHaveBeenCalled();
+    expect(mockSaveSubjectsForMeeting).toHaveBeenCalledWith([], CITY_ID, MEETING_ID, undefined, {
+      pruneUnmatched: true,
+    });
   });
 
   it('does not throw and does not delete existing subjects when result omits the subjects array', async () => {

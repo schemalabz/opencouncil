@@ -132,13 +132,18 @@ describe('getNotificationsGroupedByMeeting - admin query layer', () => {
             expect(result.meetings[0].meetingId).toBe(recentPastMeeting.id)
         })
 
-        test('excludes meetings older than 30 days by default', async () => {
+        test('no date filter means all time, however old the meeting', async () => {
+            // There is no default window: passing neither startDate nor
+            // endDate returns everything, which is what the admin page's
+            // "All time" filter relies on (see the route's date parsing).
+            // This test asserted a 30-day default until f8f3b13b removed it
+            // deliberately; nothing caught the drift because the integration
+            // suites do not run in CI.
             const city = await createCity({ id: 'old-city' })
             const body = await createAdministrativeBody(city.id)
             const user = await createUser('old@example.com')
             await createNotificationPreference({ userId: user.id, cityId: city.id })
 
-            // Meeting from 45 days ago (outside default 30-day window)
             const fortyFiveDaysAgo = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000)
             const oldMeeting = await createMeeting(city.id, {
                 id: 'old-meeting',
@@ -159,7 +164,14 @@ describe('getNotificationsGroupedByMeeting - admin query layer', () => {
 
             const result = await getNotificationsGroupedByMeeting({})
 
-            expect(result.meetings.length).toBe(0)
+            expect(result.meetings).toHaveLength(1)
+            expect(result.meetings[0].meetingId).toBe(oldMeeting.id)
+
+            // An explicit window still excludes it.
+            const windowed = await getNotificationsGroupedByMeeting({
+                startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+            })
+            expect(windowed.meetings).toHaveLength(0)
         })
 
         test('respects explicit startDate and endDate filters', async () => {

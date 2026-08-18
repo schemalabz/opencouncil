@@ -358,7 +358,8 @@ async function applyUtteranceDiscussionStatusesInTx(
 
 /**
  * Save subjects for a meeting using upsert semantics: matches incoming subjects
- * to existing ones by numeric agendaItemIndex and updates in-place (preserving
+ * to existing ones by name first and numeric agendaItemIndex second, then
+ * updates in-place (preserving
  * database IDs). Subjects with BEFORE_AGENDA/OUT_OF_AGENDA are always replaced
  * (old non-agenda subjects deleted, new ones created). Unmatched existing
  * subjects with numeric agendaItemIndex are left untouched — their data and
@@ -373,6 +374,10 @@ export async function saveSubjectsForMeeting(
     cityId: string,
     councilMeetingId: string,
     utteranceDiscussionStatuses?: SummarizeResult['utteranceDiscussionStatuses'],
+    /** `pruneUnmatched` deletes existing agenda subjects that the incoming set
+     *  does not account for. The agenda is authoritative, so processAgenda
+     *  asks for it; a summary is not, so summarize does not. */
+    options: { pruneUnmatched?: boolean } = {},
 ): Promise<Map<string, string>> {
     const { topicsByName, validSpeakerIds, existingIntroducerIds } = await validateSubjectPersons(subjects, cityId);
     const subjectIdMap = new Map<string, string>();
@@ -380,13 +385,16 @@ export async function saveSubjectsForMeeting(
     // Fetch existing subjects for matching
     const existingSubjects = await prisma.subject.findMany({
         where: { councilMeetingId, cityId },
-        select: { id: true, agendaItemIndex: true, nonAgendaReason: true }
+        // `name` feeds the matcher's first pass: it is what identifies a
+        // subject across a renumbered agenda.
+        select: { id: true, agendaItemIndex: true, nonAgendaReason: true, name: true }
     });
 
-    const { toUpdate, toCreate } = categorizeSubjectsForUpsert(
+    const { toUpdate, toCreate, unmatched } = categorizeSubjectsForUpsert(
         subjects,
         existingSubjects
     );
+    const toPrune = options.pruneUnmatched ? unmatched.map((e) => e.id) : [];
 
     // Delete old BEFORE_AGENDA/OUT_OF_AGENDA subjects before creating new ones.
     // These can't be matched by agendaItemIndex (they have null), so without
@@ -395,7 +403,7 @@ export async function saveSubjectsForMeeting(
         .filter(s => s.nonAgendaReason !== null)
         .map(s => s.id);
 
-    console.log(`saveSubjectsForMeeting: ${toUpdate.length} to update, ${toCreate.length} to create, ${nonAgendaSubjectIds.length} non-agenda to replace, ${existingSubjects.length - toUpdate.length - nonAgendaSubjectIds.length} existing kept`);
+    console.log(`saveSubjectsForMeeting: ${toUpdate.length} to update, ${toCreate.length} to create, ${nonAgendaSubjectIds.length} non-agenda to replace, ${toPrune.length} to prune, ${existingSubjects.length - toUpdate.length - nonAgendaSubjectIds.length - toPrune.length} existing kept`);
 
     await prisma.$transaction(async (tx) => {
         // Delete only auto-generated highlights for subjects being updated or replaced.
@@ -403,6 +411,9 @@ export async function saveSubjectsForMeeting(
         const subjectIdsBeingProcessed = [
             ...toUpdate.map(u => u.existingId),
             ...nonAgendaSubjectIds,
+            // A pruned subject's auto highlights would outlive it: the
+            // relation is SetNull, not Cascade.
+            ...toPrune,
         ];
         if (subjectIdsBeingProcessed.length > 0) {
             await tx.highlight.deleteMany({
@@ -415,6 +426,13 @@ export async function saveSubjectsForMeeting(
             await tx.subject.deleteMany({
                 where: { id: { in: nonAgendaSubjectIds } }
             });
+        }
+
+        // Agenda items the incoming set does not account for. Same
+        // transaction as the updates, so a meeting is never briefly missing
+        // subjects it is about to keep.
+        if (toPrune.length > 0) {
+            await tx.subject.deleteMany({ where: { id: { in: toPrune } } });
         }
 
         // Update matched subjects in-place
@@ -443,6 +461,12 @@ export async function saveSubjectsForMeeting(
                 where: { id: existingId },
                 data: {
                     name: incoming.name,
+                    // Carried explicitly: a match can now come from the name,
+                    // so a renumbered agenda moves a subject to a different
+                    // slot while it keeps its id.
+                    agendaItemIndex: typeof incoming.agendaItemIndex === 'number'
+                        ? incoming.agendaItemIndex
+                        : null,
                     description: incoming.description,
                     topicId,
                     locationId: locationId ?? null,

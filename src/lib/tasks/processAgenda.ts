@@ -58,22 +58,28 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
 
     const subjects = response.subjects;
 
-    // Delete existing subjects and auto-generated highlights before saving new ones.
-    // This runs in the callback (not at dispatch time) so data is only deleted when
-    // new results are ready to replace it — a failed dispatch won't cause data loss.
-    // User-created highlights (createdById is set) are preserved — their subjectId
-    // will be set to null by the onDelete: SetNull cascade when subjects are deleted.
-    await prisma.highlight.deleteMany({
-        where: { meetingId: task.councilMeeting.id, cityId: task.councilMeeting.cityId, subjectId: { not: null }, createdById: null }
-    });
-    await prisma.subject.deleteMany({
-        where: { councilMeetingId: task.councilMeeting.id, cityId: task.councilMeeting.cityId }
-    });
-
+    // The agenda is authoritative, so saveSubjectsForMeeting both matches and
+    // prunes: it keeps a subject's id when the incoming set still contains it
+    // (by name first, so a renumbered agenda keeps each id with its own
+    // subject; by index second, so a reworded item keeps its slot), and
+    // deletes what nothing accounts for — with the auto highlights of the
+    // pruned rows, which the SetNull relation would otherwise orphan.
+    //
+    // This runs in the callback, not at dispatch, so nothing is removed until
+    // new results are ready to replace it — a failed dispatch costs no data.
+    //
+    // Deleting every subject first (what this did before) defeated the
+    // matching entirely: nothing was left to match, so every subject came
+    // back with a fresh id. Subject ids are public — in shared URLs, in the
+    // search index, in notification links already sent — so a re-run silently
+    // broke all of them. Re-summarizing was already correct, because it does
+    // not pre-delete.
     await saveSubjectsForMeeting(
         subjects,
         task.councilMeeting.cityId,
-        task.councilMeeting.id
+        task.councilMeeting.id,
+        undefined,
+        { pruneUnmatched: true }
     );
 
     // Bust the meeting/subject cache now that the new agenda subjects are persisted,
