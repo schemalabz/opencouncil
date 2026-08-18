@@ -51,7 +51,7 @@ When you need to query the database directly (e.g. to find test data, verify sta
 - Without nix: `psql <DATABASE_URL from .env>`
 
 **Restarting the DB (nix setup only):**
-- `nix develop --command bash -c 'pg_ctl -D .data/postgres -l .data/process-compose/db.log start'`
+- `nix run .#dev-db-nix` — runs postgres in the foreground (background it as a task; stopping the task stops postgres cleanly).
 
 ### Dev Authentication (manual & browser verification)
 
