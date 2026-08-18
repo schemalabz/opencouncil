@@ -124,6 +124,20 @@ itself).
 
 ## Known gaps (tracked for later PRs)
 
+- **The wake trace shares a table with the wake's scalars.** `NotisWake.trace`
+  is one Json value of a few hundred KB — the system prompt, the rendered user
+  turn, every model request and reply. It sits beside the dozen small columns
+  the admin surfaces read, and a query that does not name its columns takes
+  the trace with them: a 100-row feed page moves ~20 MB instead of ~0.2 MB.
+  Every reader today names its columns, so nothing is slow; what the layout
+  cannot do is stop the next one from forgetting. A 1:1 `NotisWakeTrace` table
+  would make that mistake impossible to write. Deferred deliberately: the
+  migration has to move real rows once notis is writing them, and that is a
+  cost we accepted to keep this PR shippable. A `promptHash` column beside
+  `model` belongs to the same change — the prompt text is inside the trace
+  today, so metrics cannot be grouped by prompt revision without hashing a
+  blob.
+
 - **Golden scenarios have two jobs; only one is implemented.** The offline
   replay lane guards the code: deterministic, free, full-content assertions.
   The second job — guarding prompt changes — needs a live-replay lane with
