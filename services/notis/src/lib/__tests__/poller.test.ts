@@ -155,6 +155,44 @@ beforeEach(() => {
 });
 
 describe("enrollment", () => {
+  it("holds the whole ceremony through quiet hours — the intro is a cold proactive template", async () => {
+    const db = makeFakeDb({ settings: [{ key: PROACTIVE_PAUSED_KEY, value: false }] });
+    const bird = new FakeBird();
+    const main = makeFakeMain({ targets: [target("user9", "athens", { phone: "306999999999" })] });
+    // 01:30 Athens.
+    const night = () => new Date("2026-03-10T23:30:00.000Z");
+
+    const result = await runPollerTick({ db, main, bird, alert: async () => {}, now: night });
+
+    expect(result.enrolled).toBe(0);
+    expect(db.store.subscriptions.size).toBe(0);
+    expect(bird.created).toHaveLength(0);
+  });
+
+  it("enrolls nobody while the transition template has no project id, and says so", async () => {
+    const db = makeFakeDb({ settings: [{ key: PROACTIVE_PAUSED_KEY, value: false }] });
+    const bird = new FakeBird();
+    bird.templatesConfigured = false;
+    const main = makeFakeMain({ targets: [target("user9", "athens", { phone: "306999999999" })] });
+    const alerts: string[] = [];
+
+    const result = await runPollerTick({
+      db,
+      main,
+      bird,
+      alert: async (m) => {
+        alerts.push(m);
+      },
+      now,
+    });
+
+    // Enrolling here would burn the cohort: the subscription exists forever
+    // after, and every later tick skips it — with no intro ever sent.
+    expect(result.enrolled).toBe(0);
+    expect(db.store.subscriptions.size).toBe(0);
+    expect(alerts.some((m) => m.includes("demos_transition"))).toBe(true);
+  });
+
   it("unpaused: creates the subscription, journals, and sends the intro via a new conversation", async () => {
     const db = makeFakeDb({ settings: [{ key: PROACTIVE_PAUSED_KEY, value: false }] });
     const bird = new FakeBird();

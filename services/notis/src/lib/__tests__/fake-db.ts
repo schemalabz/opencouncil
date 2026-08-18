@@ -127,8 +127,14 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
         const inbound = store.messages.filter((m) => m.direction === "inbound");
         return inbound.length ? inbound[inbound.length - 1] : null;
       },
-      findMany: async ({ where }: { where?: Row } = {}) =>
-        store.messages.filter((m) => messageMatches(m, where)),
+      findMany: async ({ where, select }: { where?: Row; select?: Row } = {}) => {
+        const rows = store.messages.filter((m) => messageMatches(m, where));
+        if (!select?.subscription) return rows;
+        return rows.map((m) => ({
+          ...m,
+          subscription: store.subscriptions.get(m.subscriptionId as string) ?? null,
+        }));
+      },
       findUnique: async ({ where }: { where: { id?: string; birdMessageId?: string } }) =>
         store.messages.find((m) =>
           where.id !== undefined ? m.id === where.id : m.birdMessageId === where.birdMessageId,
@@ -152,10 +158,13 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
         Object.assign(row, data);
         return row;
       },
-      updateMany: async ({ where, data }: { where: { id: { in: string[] } }; data: Row }) => {
-        for (const row of store.messages.filter((m) => where.id.in.includes(m.id as string))) {
-          Object.assign(row, data);
-        }
+      // The full where-engine, not just ids: suppressMessages and the
+      // held-SMS release both fence on `status`, and a fake that ignored it
+      // would let those tests pass while production kept the old row.
+      updateMany: async ({ where, data }: { where?: Row; data: Row } = { data: {} }) => {
+        const rows = store.messages.filter((m) => messageMatches(m, where));
+        for (const row of rows) Object.assign(row, data);
+        return { count: rows.length };
       },
     },
     notisWake: {

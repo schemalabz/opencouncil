@@ -32,6 +32,7 @@ describe("sendTemplate", () => {
 
     const result = await realBird.sendTemplate({
       conversationId: "conv-1",
+      phone: "+306900000001",
       template: "demos_update_news",
       text: "Νέα από τον δήμο.",
       idempotencyKey: "msg-1",
@@ -44,6 +45,9 @@ describe("sendTemplate", () => {
     expect(JSON.parse(init.body)).toEqual({
       participantId: "wa-channel",
       participantType: "flow",
+      recipients: [
+        { type: "to", identifierKey: "phonenumber", identifierValue: "+306900000001" },
+      ],
       template: {
         projectId: "proj-news",
         version: "latest",
@@ -57,6 +61,7 @@ describe("sendTemplate", () => {
     const fetchMock = mockFetch(200, {});
     const result = await realBird.sendTemplate({
       conversationId: "conv-1",
+      phone: "+306900000001",
       template: "demos_followup",
       text: "x",
       idempotencyKey: "msg-2",
@@ -138,13 +143,25 @@ describe("sendSms", () => {
 });
 
 describe("extractConflictingConversationId", () => {
-  it("scans free-form text when no known key matches", () => {
+  it("reads a UUID out of any details value, including a path", () => {
+    expect(
+      extractConflictingConversationId(
+        { details: { resource: "conversations/9d0a2b1c-1111-2222-3333-444455556666" } },
+        null,
+      ),
+    ).toBe("9d0a2b1c-1111-2222-3333-444455556666");
+  });
+
+  it("does NOT scan the raw body — a trace id there must never be adopted", () => {
+    // The adopted id is persisted on the subscription and every later
+    // proactive send goes into it, so guessing is worse than reporting no
+    // recoverable id.
     expect(
       extractConflictingConversationId(
         { message: "conflict" },
-        'conversation "9d0a2b1c-1111-2222-3333-444455556666" exists',
+        'trace "9d0a2b1c-1111-2222-3333-444455556666" — conversation exists',
       ),
-    ).toBe("9d0a2b1c-1111-2222-3333-444455556666");
+    ).toBeUndefined();
   });
 
   it("returns undefined when nothing looks like a UUID", () => {

@@ -295,15 +295,20 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
   });
   // Wake-less replies (the ΣΤΟΠ confirmations) pair with wake-less journal
   // entries in order — each entry consumed its messages' worth of sends.
+  // The cursor advances for EVERY entry that produced messages, including
+  // the ones that do not render: the poller's enrollment ceremony writes an
+  // `enrollment` entry alongside a wake-less intro send, and skipping it
+  // without consuming its slot hands the intro's delivery status to the
+  // next ΣΤΟΠ reply.
   let wakelessCursor = 0;
   for (const row of wakeless) {
     const entry = row.entry as unknown as JournalEntry;
-    if (entry.event !== "user_message" || entry.received === undefined) continue;
     const deliveries = wakelessDeliveries.slice(
       wakelessCursor,
       wakelessCursor + entry.messages.length,
     );
     wakelessCursor += entry.messages.length;
+    if (entry.event !== "user_message" || entry.received === undefined) continue;
     records.push({
       id: `journal-${row.seq}`,
       event: { type: "user_message", at: entry.at, text: entry.received },

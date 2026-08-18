@@ -239,7 +239,7 @@ function DeliveryGlyph({ delivery }: { delivery: MessageDelivery }) {
     case "failed":
       return <AlertCircle className={cls} style={{ color: "#b42318" }} />;
     case "suppressed":
-      // A rail (shadow mode, weekly cap, pause) stopped the send.
+      // A rail (weekly cap, pause) stopped the send.
       return <EyeOff className={cls} style={{ color: "#8696a0" }} />;
     default:
       return null;

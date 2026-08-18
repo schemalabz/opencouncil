@@ -3,6 +3,7 @@ import { STOP_ALREADY_TEXT, STOP_CONFIRMATION_TEXT } from "@/lib/stop";
 import { type Row, makeFakeDb } from "../../../../../lib/__tests__/fake-db";
 import { FakeBird } from "../../../../../lib/__tests__/fake-bird";
 import { handleInbound, handleOutboundStatus, isForwardProgression } from "../handlers";
+import { SMS_HELD_FOR_QUIET_HOURS } from "../../../../../lib/queue";
 
 // Enrollment reads the main-DB views through these two modules; the fakes
 // are swapped per test via the mocked module.
@@ -287,6 +288,33 @@ describe("SMS fallback on failed proactive templates", () => {
     await handleOutboundStatus(failedEvent(), { db, bird });
     expect(bird.smsSends).toHaveLength(1);
     expect(db.store.messages.filter((m) => m.channel === "sms")).toHaveLength(1);
+  });
+
+  it("holds the SMS through quiet hours instead of ringing at 03:00", async () => {
+    // Bird redelivers hours-old status events, so a template that went out
+    // correctly at 22:40 can fail in the middle of the night.
+    jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate"] });
+    jest.setSystemTime(new Date("2026-03-11T01:00:00.000Z")); // 03:00 Athens
+    try {
+      const db = makeFakeDb({ subscriptions: [{ ...SUB }], settings: LIVE });
+      await seedFailedCandidate(db);
+      const bird = new FakeBird();
+
+      await handleOutboundStatus(failedEvent(), { db, bird });
+
+      expect(bird.smsSends).toHaveLength(0);
+      const sms = db.store.messages.find((m) => m.channel === "sms")!;
+      // Written, not sent: the sweeper releases it after 09:00, and the
+      // unique fallbackForId still stops a replayed webhook from queueing
+      // a second one.
+      expect(sms).toMatchObject({
+        status: "pending",
+        failureReason: SMS_HELD_FOR_QUIET_HOURS,
+        fallbackForId: "msg_1",
+      });
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it("no fallback while paused (the default), for freeform sends, or for reactive messages", async () => {

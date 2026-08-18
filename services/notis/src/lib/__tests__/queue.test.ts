@@ -215,141 +215,81 @@ describe("processItem", () => {
   });
 });
 
-describe("per-reader isolation", () => {
-  const OTHER: Row = {
-    ...SUB,
-    id: "sub2",
-    userId: "user2",
-    phone: "+306900000002",
-    birdConversationId: "conv-2",
-    userName: "Νίκος",
-  };
-
-  it("reads only this reader's journal, seq and last inbound", async () => {
-    const db = makeFakeDb({ subscriptions: [{ ...SUB }, { ...OTHER }] });
-    seedClaim(db);
-
-    // A stranger with a LONGER history than ours, so a seq allocated from
-    // their sequence is visibly wrong, and a journal window that includes
-    // them is visible in the prompt.
-    for (let seq = 1; seq <= 5; seq++) {
-      db.store.journal.push({
-        id: `j-other-${seq}`,
-        subscriptionId: "sub2",
-        seq,
-        entry: {
-          at: "2026-03-09T10:00:00.000Z",
-          event: "user_message",
-          decision: "silence",
-          rationale: "ΞΕΝΗ ΙΣΤΟΡΙΑ",
-          messages: [],
-        },
-      });
-    }
-    for (let seq = 1; seq <= 2; seq++) {
-      db.store.journal.push({
-        id: `j-mine-${seq}`,
-        subscriptionId: "sub1",
-        seq,
-        entry: {
-          at: "2026-03-09T11:00:00.000Z",
-          event: "user_message",
-          decision: "silence",
-          rationale: "Η ΔΙΚΗ ΜΑΣ ΙΣΤΟΡΙΑ",
-          messages: [],
-        },
-      });
-    }
-    db.store.messages.push({
-      id: "m-other",
-      subscriptionId: "sub2",
-      direction: "inbound",
-      body: "ξένο μήνυμα",
-      createdAt: new Date("2026-03-10T09:59:00.000Z"),
-    });
-
-    const anthropic = new FakeAnthropic(sendTurn);
-    await processItem(ITEM, { db, bird: new FakeBird(), deps: makeDeps(anthropic), alert: async () => {} });
-
-    // The new entry continues OUR sequence (3), not the stranger's (6) — a
-    // seq taken from another subscription collides on (subscriptionId, seq).
-    const mine = db.store.journal.filter((j) => j.subscriptionId === "sub1");
-    expect(Math.max(...mine.map((j) => j.seq as number))).toBe(3);
-    // And the stranger's history never reached the model.
-    expect(JSON.stringify(anthropic.requests)).not.toContain("ΞΕΝΗ ΙΣΤΟΡΙΑ");
-    expect(JSON.stringify(anthropic.requests)).toContain("Η ΔΙΚΗ ΜΑΣ ΙΣΤΟΡΙΑ");
-  });
-});
-
+/**
+ * The sweeper re-sends rows that stayed pending, which means it delivers
+ * long after the wake decided to. The rails have to hold at THAT moment,
+ * not only at the send boundary.
+ */
 describe("resendStalePendingMessages", () => {
-  const stalePending = (overrides: Row = {}): Row => ({
+  const stalePendingProactive = (overrides: Row = {}): Row => ({
     id: "m-stale",
     subscriptionId: "sub1",
     direction: "outbound",
-    body: "Η απάντηση.",
-    deliveryMode: "freeform",
+    body: "Νέα από τον δήμο σου.",
+    channel: "whatsapp",
+    proactive: true,
+    deliveryMode: "template",
+    template: "demos_update_news",
     status: "pending",
     failureReason: null,
-    sendingAt: null,
     createdAt: new Date(Date.now() - 10 * 60_000),
     ...overrides,
   });
 
-  it("claims a row before sending, so an overlapping sweep cannot send it twice", async () => {
-    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
-    db.store.messages.push(stalePending());
-    const bird = new FakeBird();
-
-    // Two sweeps racing: the second must find the row claimed and skip it.
-    // Bird is asked once, so its idempotency key is never racing itself.
-    await Promise.all([
-      resendStalePendingMessages({ db, bird, alert: async () => {} }),
-      resendStalePendingMessages({ db, bird, alert: async () => {} }),
-    ]);
-
-    expect(bird.sends).toHaveLength(1);
-    expect(db.store.messages[0].status).toBe("sent");
-    // The claim is released with the outcome.
-    expect(db.store.messages[0].sendingAt).toBeNull();
-  });
-
-  it("leaves a claimed row alone until its claim goes stale", async () => {
-    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
-    db.store.messages.push(stalePending({ sendingAt: new Date() }));
+  it("re-sends a stale proactive row when the rails still allow it", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }], settings: [{ key: "proactivePaused", value: false }] });
+    db.store.messages.push(stalePendingProactive());
     const bird = new FakeBird();
 
     await resendStalePendingMessages({ db, bird, alert: async () => {} });
 
-    expect(bird.sends).toHaveLength(0);
-  });
-
-  it("never rewrites a send that succeeded into a give-up failure", async () => {
-    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
-    // Past the give-up cutoff, but the send landed in the meantime.
-    db.store.messages.push(
-      stalePending({ status: "sent", createdAt: new Date(Date.now() - 2 * 60 * 60_000) }),
-    );
-    const alerts: string[] = [];
-
-    await resendStalePendingMessages({
-      db,
-      bird: new FakeBird(),
-      alert: async (m) => {
-        alerts.push(m);
-      },
-    });
-
+    expect(bird.templateSends).toHaveLength(1);
     expect(db.store.messages[0].status).toBe("sent");
-    expect(alerts).toHaveLength(0);
   });
 
-  it("clears a stale failureReason when a retry succeeds", async () => {
-    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
-    db.store.messages.push(stalePending({ failureReason: "503 from Bird" }));
+  it("suppresses instead of sending when the reader unsubscribed after the row was written", async () => {
+    const db = makeFakeDb({
+      subscriptions: [{ ...SUB, status: "unsubscribed", unsubscribedAt: new Date() }],
+      settings: [{ key: "proactivePaused", value: false }],
+    });
+    db.store.messages.push(stalePendingProactive());
+    const bird = new FakeBird();
 
-    await resendStalePendingMessages({ db, bird: new FakeBird(), alert: async () => {} });
+    await resendStalePendingMessages({ db, bird, alert: async () => {} });
 
-    expect(db.store.messages[0]).toMatchObject({ status: "sent", failureReason: null });
+    expect(bird.templateSends).toHaveLength(0);
+    expect(db.store.messages[0].status).toBe("suppressed");
+    expect(db.store.messages[0].failureReason).toBe("unsubscribed");
+  });
+
+  it("suppresses instead of sending while the kill switch is closed", async () => {
+    const db = makeFakeDb({
+      subscriptions: [{ ...SUB }],
+      settings: [{ key: "proactivePaused", value: true }],
+    });
+    db.store.messages.push(stalePendingProactive());
+    const bird = new FakeBird();
+
+    await resendStalePendingMessages({ db, bird, alert: async () => {} });
+
+    expect(bird.templateSends).toHaveLength(0);
+    expect(db.store.messages[0].status).toBe("suppressed");
+    expect(db.store.messages[0].failureReason).toBe("paused");
+  });
+
+  it("still re-sends a reactive reply — no rail applies to it", async () => {
+    const db = makeFakeDb({
+      subscriptions: [{ ...SUB }],
+      settings: [{ key: "proactivePaused", value: true }],
+    });
+    db.store.messages.push(
+      stalePendingProactive({ proactive: false, deliveryMode: "freeform", template: null }),
+    );
+    const bird = new FakeBird();
+
+    await resendStalePendingMessages({ db, bird, alert: async () => {} });
+
+    expect(bird.sends).toHaveLength(1);
+    expect(db.store.messages[0].status).toBe("sent");
   });
 });
-

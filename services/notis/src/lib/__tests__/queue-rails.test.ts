@@ -170,7 +170,7 @@ describe("proactive rails", () => {
     }
   });
 
-  it("weekly cap: the fourth unprompted message in a rolling week is suppressed", async () => {
+  it("weekly cap: a saturated reader's unprompted wake never reaches the model", async () => {
     const db = makeFakeDb({ subscriptions: [{ ...SUB }], settings: liveSettings() });
     seedClaim(db);
     for (let i = 0; i < WEEKLY_CAP; i++) {
@@ -185,18 +185,62 @@ describe("proactive rails", () => {
       });
     }
     const bird = new FakeBird();
+    const anthropic = new FakeAnthropic(sendTurn);
 
     await processItem(batchItem([meetingEvent()]), {
       db,
       bird,
-      deps: makeDeps(new FakeAnthropic(sendTurn)),
+      deps: makeDeps(anthropic),
       alert: async () => {},
     });
+
+    expect(anthropic.requests).toHaveLength(0);
+    expect(bird.templateSends).toHaveLength(0);
+    expect(db.store.messages.some((m) => m.wakeId)).toBe(false);
+    expect(db.store.queue.get("q1")?.status).toBe("done");
+    // The journal says what went unexamined, so the next wake is not left
+    // believing this reader was told.
+    const entry = db.store.journal.at(-1)!.entry as { event: string; rationale: string };
+    expect(entry.event).toBe("system");
+    expect(entry.rationale).toContain("δεν εξετάστηκε");
+  });
+
+  it("weekly cap filled DURING the wake: the send is suppressed and the journal corrected", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }], settings: liveSettings() });
+    seedClaim(db);
+    const bird = new FakeBird();
+    // The cap is clear at claim time and full by the time the boundary runs
+    // — the race the pre-model check cannot see.
+    // The cap fills WHILE the model runs — the one case the pre-model check
+    // cannot see, modelled by a client that writes the sends as it answers.
+    const scripted = new FakeAnthropic(sendTurn);
+    const anthropic = {
+      create: async (params: Parameters<typeof scripted.create>[0]) => {
+        for (let i = 0; i < WEEKLY_CAP; i++) {
+          db.store.messages.push({
+            id: `mid${i}`,
+            subscriptionId: "sub1",
+            direction: "outbound",
+            proactive: true,
+            status: "sent",
+            failureReason: null,
+            createdAt: new Date(),
+          });
+        }
+        return scripted.create(params);
+      },
+    };
+    const deps = makeDeps(anthropic);
+
+    await processItem(batchItem([meetingEvent()]), { db, bird, deps, alert: async () => {} });
 
     const outbound = db.store.messages.find((m) => m.wakeId)!;
     expect(outbound.status).toBe("suppressed");
     expect(outbound.failureReason).toBe("weekly cap");
     expect(bird.templateSends).toHaveLength(0);
+    const entry = db.store.journal.at(-1)!.entry as { event: string; rationale: string };
+    expect(entry.event).toBe("system");
+    expect(entry.rationale).toContain("ΔΕΝ τα έλαβε");
   });
 
   it("cap ignores rows that never reached anyone (cap/pause suppressions, failures)", async () => {

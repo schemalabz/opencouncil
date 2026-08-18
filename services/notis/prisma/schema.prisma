@@ -140,7 +140,7 @@ enum MessageStatus {
   delivered
   read
   failed
-  // A rail stopped the send (shadow mode, weekly cap, pause, unsubscribed
+  // A rail stopped the send (weekly cap, pause, unsubscribed
   // race); failureReason names which. Terminal, like failed.
   suppressed
 }
@@ -282,8 +282,8 @@ model NotisWakeQueue {
   @@index([subscriptionId, status])
 }
 
-// Server-side operational settings, one row per key: proactiveMode
-// ("shadow" | "live", absent = shadow), proactivePaused (the kill switch),
+// Server-side operational settings, one row per key: proactivePaused (the
+// kill switch — absent means PAUSED, so a fresh deployment starts dark) and
 // pollerStatus (last tick, for the panel).
 model NotisSetting {
   key   String @id

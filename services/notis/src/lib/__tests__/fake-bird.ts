@@ -10,6 +10,7 @@ export class FakeBird implements BirdLike {
   public sends: Array<{ conversationId: string; text: string; idempotencyKey: string }> = [];
   public templateSends: Array<{
     conversationId: string;
+    phone: string;
     template: TemplateName;
     text: string;
     idempotencyKey: string;
@@ -23,6 +24,11 @@ export class FakeBird implements BirdLike {
   }> = [];
   public smsSends: Array<{ phone: string; text: string }> = [];
 
+  /** Configured by default — the fake stands in for a workspace where every
+   *  demos_* template has its project id. Set false to exercise the
+   *  unaddressable-template path. */
+  public templatesConfigured = true;
+
   constructor(
     private result?: BirdSendResult,
     private createResult?: BirdSendResult & { conversationId?: string; alreadyExisted?: boolean },
@@ -35,6 +41,10 @@ export class FakeBird implements BirdLike {
     return { success: true, messageId: `bird-${n}` };
   }
 
+  canSendTemplate(_template: TemplateName): boolean {
+    return this.templatesConfigured;
+  }
+
   async sendText(input: { conversationId: string; text: string; idempotencyKey: string }) {
     this.sends.push(input);
     return this.nextResult();
@@ -42,6 +52,7 @@ export class FakeBird implements BirdLike {
 
   async sendTemplate(input: {
     conversationId: string;
+    phone: string;
     template: TemplateName;
     text: string;
     idempotencyKey: string;
