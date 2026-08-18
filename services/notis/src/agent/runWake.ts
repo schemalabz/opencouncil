@@ -38,16 +38,22 @@ export async function runWake(
   state: WakeState,
   eventsInput: WakeEvent[],
   deps: Deps,
+  opts: { now?: Date } = {},
 ): Promise<{ outcome: WakeOutcome; trace: WakeTrace }> {
   if (eventsInput.length === 0) throw new Error("runWake: no events");
   const events = [...eventsInput].sort((a, b) => a.at.localeCompare(b.at));
   const hasUserMessage = events.some((e) => e.type === "user_message");
   const started = deps.now().getTime();
   const system = assembleSystem(deps.prompts);
-  // <current_time> is the LAST event's time, not the wall clock: a wake is
-  // the processing of events at their moment. In production the two
-  // coincide; under simulation only the event's clock tells the truth.
-  const userTurn = assembleUserTurn(state, events, new Date(events[events.length - 1].at));
+  // <current_time> is when this wake is being processed — the caller says
+  // when that is. The shell passes the wall clock: a quiet-hours clamp or a
+  // pause deferral can put hours or days between an event and its wake, and
+  // a model reasoning from the event's timestamp writes «σήμερα» about
+  // yesterday and schedules follow-ups a day early. Simulation (playground,
+  // fixture replay) passes the simulated instant instead, which is why the
+  // default — the last event's time — is the honest one for a replay.
+  const now = opts.now ?? new Date(events[events.length - 1].at);
+  const userTurn = assembleUserTurn(state, events, now);
 
   // The user turn (with its multi-thousand-token brief) gets its own cache
   // breakpoint: the MCP connector's server-side research loop makes several

@@ -1,12 +1,13 @@
 import { seedProfileFromPreferences } from "@/agent/profileSeed";
 import type { WakeEvent } from "@/agent/types";
+import { isQuietHour } from "@/lib/active-hours";
 import { alert as sendAlert } from "@/lib/alert";
 import { BirdLike } from "@/lib/bird";
 import { ExtractedMessageFields } from "@/lib/bird-extract";
 import { citiesForUser, findEnabledUserByPhone } from "@/lib/fanout";
 import { hasMainDb, mainDb } from "@/lib/main-db";
 import { normalizePhone } from "@/lib/phone";
-import { sendPendingMessages } from "@/lib/queue";
+import { SMS_HELD_FOR_QUIET_HOURS, sendPendingMessages } from "@/lib/queue";
 import { enqueueLiveWake } from "@/lib/queue-core";
 import { STOP_ALREADY_TEXT, STOP_CONFIRMATION_TEXT, isBareStop } from "@/lib/stop";
 import { renderTemplate, type TemplateName } from "@/agent/templates";
@@ -104,6 +105,12 @@ export async function handleOutboundStatus(
  * failure can never fire two SMS. Skipped while paused; reactive replies
  * and freeform sends get no fallback (the reader is reachable on
  * WhatsApp — they just wrote to us there).
+ *
+ * Quiet hours hold it rather than drop it. Bird redelivers hours-old status
+ * events and a handset can fail a message long after the send, so a template
+ * that correctly went out at 22:40 can fail at 03:00 — and the fallback is
+ * proactive, so it obeys the same 23:00-09:00 rail as everything else. The
+ * row is written held; the sweeper releases it after the 09:00 boundary.
  */
 async function maybeSendSmsFallback(
   failed: NotisMessage,
@@ -125,6 +132,7 @@ async function maybeSendSmsFallback(
 
   const rendered = renderTemplate(failed.template as TemplateName, failed.body);
   const text = `${rendered.body}\n\n${rendered.footer}`;
+  const held = isQuietHour(new Date());
 
   let smsId: string;
   try {
@@ -138,6 +146,7 @@ async function maybeSendSmsFallback(
         proactive: failed.proactive,
         fallbackForId: failed.id,
         status: "pending",
+        ...(held ? { failureReason: SMS_HELD_FOR_QUIET_HOURS } : {}),
       },
       select: { id: true },
     });
@@ -146,6 +155,9 @@ async function maybeSendSmsFallback(
     if ((error as { code?: string }).code === "P2002") return; // replayed webhook
     throw error;
   }
+
+  // Held rows leave here pending; the sweeper sends them at the release.
+  if (held) return;
 
   const result = await bird.sendSms({ phone: sub.phone, text });
   if (result.success) {

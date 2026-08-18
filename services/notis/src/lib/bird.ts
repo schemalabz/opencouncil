@@ -31,9 +31,12 @@ export interface BirdLike {
     idempotencyKey: string;
   }): Promise<BirdSendResult>;
   /** A template shell into an EXISTING conversation (cold send, window
-   *  closed). `text` fills {{demos_text}}; ignored for fixed templates. */
+   *  closed). `text` fills {{demos_text}}; ignored for fixed templates.
+   *  `phone` names the recipient explicitly, exactly as the main app's
+   *  template sends do — see the recipients note in realBird. */
   sendTemplate(input: {
     conversationId: string;
+    phone: string;
     template: TemplateName;
     text: string;
     idempotencyKey: string;
@@ -52,6 +55,10 @@ export interface BirdLike {
   /** Notify-only SMS (fallback when WhatsApp delivery fails). No
    *  idempotency key — the channels API does not support one. */
   sendSms(input: { phone: string; text: string }): Promise<BirdSendResult>;
+  /** Can this template actually be addressed — is its Bird project id
+   *  configured? Asked BEFORE work that commits to sending it, so a missing
+   *  env var stops the ceremony instead of burning it. */
+  canSendTemplate(template: TemplateName): boolean;
 }
 
 export function hasBird(): boolean {
@@ -175,21 +182,25 @@ function toSendResult(raw: RawBirdResponse, what: string): BirdSendResult {
   return { success: true, messageId: envelope.id };
 }
 
-/** Bird's 409 carries the existing conversation in a free-form details
- *  object; try the known keys, then scan every string for a UUID (the
- *  main app's proven recovery). */
+/**
+ * Bird's 409 carries the existing conversation in a free-form details
+ * object: try the known keys, then any string value inside `details`.
+ *
+ * Deliberately NOT a scan of the whole response body. An adopted id is
+ * persisted on the subscription and every later proactive send goes into it,
+ * so picking up a trace or request id — which can precede the conversation
+ * id in an unexpected body — poisons the subscription until the reader
+ * happens to write in. Returning nothing is recoverable: the caller reports
+ * a conflict without a usable id and alerts.
+ */
 export function extractConflictingConversationId(
   json: Record<string, unknown> | null,
-  text: string | null,
+  _text: string | null,
 ): string | undefined {
   const direct = json as
-    | {
-        conversationId?: string;
-        id?: string;
-        details?: Record<string, unknown>;
-      }
+    | { conversationId?: unknown; id?: unknown; details?: Record<string, unknown> }
     | null;
-  for (const candidate of [
+  const named = [
     direct?.conversationId,
     direct?.id,
     direct?.details?.conversationId,
@@ -197,11 +208,15 @@ export function extractConflictingConversationId(
     direct?.details?.conflictingResource,
     direct?.details?.resource,
     direct?.details?.existingConversationId,
-  ]) {
-    if (typeof candidate === "string" && UUID_RE.test(candidate)) return candidate;
+  ];
+  // A named value may be a path ("conversations/<uuid>"), so the id is
+  // extracted rather than taken whole.
+  for (const candidate of [...named, ...Object.values(direct?.details ?? {})]) {
+    if (typeof candidate !== "string") continue;
+    const match = candidate.match(UUID_RE);
+    if (match) return match[0];
   }
-  const scanned = (text ?? "").match(UUID_RE);
-  return scanned?.[0];
+  return undefined;
 }
 
 const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
@@ -211,6 +226,10 @@ function conversationMessagesUrl(conversationId: string): string {
 }
 
 export const realBird: BirdLike = {
+  canSendTemplate(template) {
+    return hasBird() && Boolean(templateProjectId(template));
+  },
+
   async sendText({ conversationId, text, idempotencyKey }) {
     if (!hasBird()) return NOT_CONFIGURED;
     const raw = await birdFetch(
@@ -225,7 +244,7 @@ export const realBird: BirdLike = {
     return toSendResult(raw, "send");
   },
 
-  async sendTemplate({ conversationId, template, text, idempotencyKey }) {
+  async sendTemplate({ conversationId, phone, template, text, idempotencyKey }) {
     if (!hasBird()) return NOT_CONFIGURED;
     const body = templateBody(template, text);
     if (!body) {
@@ -240,6 +259,12 @@ export const realBird: BirdLike = {
       {
         participantId: env.BIRD_WHATSAPP_CHANNEL_ID,
         participantType: "flow",
+        // The recipient is named explicitly. Bird documents it as optional,
+        // but every template send proven against production — the main
+        // app's, and this file's own createConversationWithTemplate — sends
+        // it, and a template rides OUTSIDE the 24h window where routing and
+        // billing must resolve to a person.
+        recipients: [{ type: "to", identifierKey: "phonenumber", identifierValue: phone }],
         template: body,
       },
       idempotencyKey,
@@ -302,8 +327,12 @@ export const realBird: BirdLike = {
     return {
       ...result,
       conversationId: data.id ?? data.conversationId ?? data.conversation?.id,
-      messageId:
-        data.initialMessage?.id ?? data.lastMessage?.id ?? data.messageId ?? result.messageId,
+      // Never fall back to the envelope's root id: on this endpoint that IS
+      // the conversation id, and storing it as birdMessageId makes every
+      // delivery-status webhook miss its row — the send sticks at `sent`
+      // forever, a failure is never recorded, and the SMS fallback never
+      // fires. An absent id is honest, and the caller alerts on it.
+      messageId: data.initialMessage?.id ?? data.lastMessage?.id ?? data.messageId,
     };
   },
 

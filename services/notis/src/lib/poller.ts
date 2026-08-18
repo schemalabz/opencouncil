@@ -4,7 +4,7 @@ import { editorialPass } from "@/agent/editorialPass";
 import { seedProfileFromPreferences } from "@/agent/profileSeed";
 import { renderTemplate } from "@/agent/templates";
 import { EditorialBrief, WakeEvent } from "@/agent/types";
-import { clampToActiveHours } from "./active-hours";
+import { clampToActiveHours, isQuietHour } from "./active-hours";
 import { alert as sendAlert } from "./alert";
 import { BirdLike, realBird } from "./bird";
 import { hasNotisDb, notisDb } from "./db";
@@ -13,7 +13,7 @@ import { toCityPreferences } from "./fanout";
 import { hasMainDb, mainDb } from "./main-db";
 import { normalizePhone } from "./phone";
 import { deliverPendingMessage } from "./queue";
-import { enqueueBatchWake } from "./queue-core";
+import { enqueueBatchWake, isUniqueViolation } from "./queue-core";
 import { POLLER_STATUS_KEY, getProactiveSettings, putSetting } from "./settings";
 
 /**
@@ -147,10 +147,19 @@ async function tick(
  * Phase (a) — enrollment ceremony. A rollout-enabled user with phone
  * delivery on and no subscription (any status — never resurrect) gets one:
  * profile seeded from preferences, origin `transition`, and the
- * demos_transition intro. A paused system skips the phase entirely —
- * enrolling without the intro would recreate the silent-cohort problem —
- * so flipping a user in the release panel only takes effect once the
- * switch is on.
+ * demos_transition intro.
+ *
+ * Three conditions gate the phase, and all three exist to keep enrollment
+ * and its intro inseparable — a subscription is skipped forever once it
+ * exists, so a ceremony that commits without delivering leaves that reader
+ * permanently silent:
+ * - paused: enrolling without the intro recreates the silent-cohort
+ *   problem, so flipping a user in the release panel takes effect once the
+ *   switch is on;
+ * - quiet hours: the intro is a cold proactive template like any other and
+ *   is held to the 09:00 release rather than sent at 01:00;
+ * - an unaddressable template: without its Bird project id every intro
+ *   fails non-retryably, so the whole cohort would enroll into silence.
  */
 async function enrollNewTargets(
   db: PrismaClient,
@@ -162,6 +171,7 @@ async function enrollNewTargets(
 ): Promise<void> {
   const settings = await getProactiveSettings(db);
   if (settings.paused) return;
+  if (isQuietHour(now())) return;
 
   const targets = await main.fanoutTargetRow.findMany({
     where: { notisEnabledAt: { not: null }, notifyByPhone: true, phone: { not: null } },
@@ -181,6 +191,16 @@ async function enrollNewTargets(
     select: { userId: true },
   });
   for (const sub of existing) byUser.delete(sub.userId);
+  if (byUser.size === 0) return;
+
+  // Checked with a cohort in hand, not every tick: alerting on an idle
+  // misconfiguration would page every five minutes forever.
+  if (!bird.canSendTemplate("demos_transition")) {
+    await alert(
+      `enrollment held: ${byUser.size} user(s) are ready but the demos_transition template has no Bird project id — enrolling them now would leave them permanently without an intro`,
+    );
+    return;
+  }
 
   const rendered = renderTemplate("demos_transition");
   for (const [userId, rows] of byUser) {
@@ -189,10 +209,16 @@ async function enrollNewTargets(
     const cities = toCityPreferences(rows);
     const at = now();
 
-    const { subId, introId } = await db.$transaction(async (tx) => {
-      const sub = await tx.notisSubscription.upsert({
-        where: { userId },
-        create: {
+    // A plain create, not an upsert: the unique userId is what makes the
+    // ceremony run exactly once. Two ticks (a second instance, or the CLI
+    // beside the interval) can both pass the `existing` pre-read, and an
+    // upsert would absorb the conflict and let the loser journal and send a
+    // SECOND intro. The loser's transaction now rolls back whole.
+    let enrollment: { subId: string; introId: string };
+    try {
+      enrollment = await db.$transaction(async (tx) => {
+      const sub = await tx.notisSubscription.create({
+        data: {
           userId,
           phone,
           status: "active",
@@ -200,7 +226,6 @@ async function enrollNewTargets(
           profileText: seedProfileFromPreferences(cities),
           userName: rows[0].userName,
         },
-        update: {},
         select: { id: true },
       });
       await tx.notisJournalEntry.create({
@@ -231,12 +256,17 @@ async function enrollNewTargets(
         select: { id: true },
       });
       return { subId: sub.id, introId: intro.id };
-    });
+      });
+    } catch (error) {
+      // Another tick enrolled this user first; it owns the intro.
+      if (isUniqueViolation(error)) continue;
+      throw error;
+    }
 
     result.enrolled++;
-    const sub = await db.notisSubscription.findUnique({ where: { id: subId } });
+    const sub = await db.notisSubscription.findUnique({ where: { id: enrollment.subId } });
     if (sub) {
-      await deliverPendingMessage(db, bird, introId, sub, alert);
+      await deliverPendingMessage(db, bird, enrollment.introId, sub, alert);
       result.introsSent++;
     }
   }
