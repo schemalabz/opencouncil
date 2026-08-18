@@ -237,7 +237,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
       // tiebreaker (cuids are monotonic per process) pins insertion order,
       // which is what the index-alignment with outcome.messages needs.
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-      select: { wakeId: true, status: true, failureReason: true },
+      select: { wakeId: true, status: true, failureReason: true, createdAt: true },
     }),
   ]);
 
@@ -246,7 +246,11 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
   const deliveriesByWake = new Map<string, MessageDelivery[]>();
   const wakelessDeliveries: MessageDelivery[] = [];
   for (const message of outbound) {
-    const delivery = { status: message.status, failureReason: message.failureReason };
+    const delivery = {
+      status: message.status,
+      failureReason: message.failureReason,
+      at: message.createdAt.toISOString(),
+    };
     if (message.wakeId === null) wakelessDeliveries.push(delivery);
     else {
       deliveriesByWake.set(message.wakeId, [
@@ -308,7 +312,15 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
       ...(deliveries.length > 0 ? { deliveries } : {}),
     });
   }
-  records.sort((a, b) => a.event.at.localeCompare(b.event.at));
+  // Sort on when each record's messages actually went out, falling back to
+  // the trigger for records that sent nothing. Sorting on event.at alone
+  // placed a wake's replies at the moment it was TRIGGERED, so a 36-second
+  // wake whose reader sent ΣΤΟΠ mid-run rendered as question → answer → ΣΤΟΠ
+  // when what reached them was question → ΣΤΟΠ → confirmation → the answer
+  // half a minute later. This viewer is where "did we message someone after
+  // they unsubscribed?" gets answered, so the order has to be the reader's.
+  const sortKey = (r: WakeRecord) => r.deliveries?.[0]?.at ?? r.event.at;
+  records.sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
 
   const cities = (await citiesByUser([sub.userId])).get(sub.userId) ?? [];
 

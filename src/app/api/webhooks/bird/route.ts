@@ -313,6 +313,19 @@ export async function POST(request: Request) {
     // no unsubscribe handling, no Message row (notis's database is the record
     // of those conversations). Legacy outbound reconciliation stays above —
     // a Message row that exists here is this app's send regardless of flag.
+    //
+    // KNOWN GAP, deliberately deferred to the rollout PRs: a ΣΤΟΠ from a
+    // notis-served reader is therefore recorded in notis alone, and this
+    // app's NotificationPreference.notifyByPhone keeps its old value. That is
+    // the intended end state (PRD §2.1 — notis holds the only copy), and it
+    // is safe while the flag is set, because the matching engine skips these
+    // users. It stops being safe if someone clears notisEnabledAt: the old
+    // path then sees notifyByPhone: true and resumes messaging a reader who
+    // asked to be left alone, and the release panel shows no sign they ever
+    // sent ΣΤΟΠ. PRD §9 promises narrowing never unsubscribes anyone; this is
+    // the mirror case, and it is answered where the profile checkbox becomes
+    // a notis API client (PR 5) rather than by adding a second copy of the
+    // opt-out here.
     if (await isNotisServedPhone(fields.phone)) {
         console.log(`Bird webhook: ${fields.direction} event for a notis-served phone — skipping`);
         return NextResponse.json({ ok: true });

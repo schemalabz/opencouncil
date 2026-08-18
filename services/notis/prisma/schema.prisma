@@ -155,6 +155,13 @@ model NotisMessage {
   failureReason String?
   // Unique: inbound dedupe (Bird retries webhooks) and the status-update key.
   birdMessageId String? @unique
+  // Set while a send for this row is in flight. The sweeper claims a row by
+  // writing it in a fenced UPDATE and acts only when that update matched, so
+  // two overlapping sweeps (or two instances) cannot both call Bird for the
+  // same row — the idempotency key would then be racing itself, which is the
+  // weakest case for any deduplication. A claim older than the send timeout
+  // is stale and may be retaken.
+  sendingAt DateTime?
 
   createdAt DateTime @default(now())
 

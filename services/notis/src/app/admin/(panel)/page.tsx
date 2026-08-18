@@ -150,7 +150,7 @@ function RangePicker({ active }: { active: RangeKey }) {
         <Link
           key={key}
           href={key === "7d" ? "/admin" : `/admin?range=${key}`}
-          title={`τελευταίες ${RANGES[key].label}`}
+          title={RANGES[key].label}
           className={`rounded px-2 py-1 text-xs transition-colors ${
             key === active
               ? "bg-foreground font-medium text-background"
@@ -373,7 +373,7 @@ export default async function DashboardPage(props: {
     <>
       <PageHeader title="Επισκόπηση">
         <span className="text-xs text-muted-foreground">
-          τελευταίες {RANGES[range].label}, σε σύγκριση με τις προηγούμενες
+          {RANGES[range].label}, σε σύγκριση με {RANGES[range].since}
         </span>
         {!liveData() && (
           <span className="self-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">

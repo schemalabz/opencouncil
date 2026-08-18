@@ -542,7 +542,7 @@ export function WhatsAppChat({
                   <TemplateBubble
                     key={i}
                     rendered={renderTemplate(item.delivery.template, m)}
-                    time={fmtTime(item.event.at)}
+                    time={fmtTime(item.deliveries?.[i]?.at ?? item.event.at)}
                     first={i === 0}
                     selected={selected}
                     busy={busy || autoRun}
@@ -554,7 +554,7 @@ export function WhatsAppChat({
                     key={i}
                     side="in"
                     first={i === 0}
-                    time={fmtTime(item.event.at)}
+                    time={fmtTime(item.deliveries?.[i]?.at ?? item.event.at)}
                     caption={i === 0 ? eventCaption(item) || undefined : undefined}
                     selected={selected}
                     onClick={() => onSelect(item.id)}

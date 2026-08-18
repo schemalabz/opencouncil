@@ -30,6 +30,22 @@ export interface BirdLike {
   }): Promise<BirdSendResult>;
 }
 
+/**
+ * Which HTTP statuses are worth retrying with the same idempotency key. 5xx
+ * plus the two transient 4xx: 408 is a timeout and 429 is a rate limit, and
+ * both say "later", not "never". Classifying them terminal made a
+ * rate-limited reply unrecoverable, because the sweeper only retries rows
+ * that are still `pending`.
+ */
+/** No Bird call may outlive this. The sweeper's claim uses the same value as
+ *  its staleness window, so a hung send is retaken exactly once it can no
+ *  longer be in flight. */
+export const SEND_TIMEOUT_MS = 30_000;
+
+export function isRetryableStatus(status: number): boolean {
+  return status >= 500 || status === 408 || status === 429;
+}
+
 export function hasBird(): boolean {
   return Boolean(env.BIRD_API_KEY && env.BIRD_WORKSPACE_ID && env.BIRD_WHATSAPP_CHANNEL_ID);
 }
@@ -64,6 +80,10 @@ export const realBird: BirdLike = {
           participantType: "flow",
           body: { type: "text", text: { text } },
         }),
+        // A send that never returns would otherwise hold its claim until the
+        // claim goes stale, and before claims existed it was the one
+        // unbounded outbound call in the service.
+        signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
       });
 
       if (!response.ok) {
@@ -72,7 +92,7 @@ export const realBird: BirdLike = {
         return {
           success: false,
           status: response.status,
-          retryable: response.status >= 500,
+          retryable: isRetryableStatus(response.status),
           error: `API returned ${response.status}: ${errorText}`,
         };
       }

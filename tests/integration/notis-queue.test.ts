@@ -13,6 +13,7 @@ import {
     enqueueLiveWake,
     failItem,
     markFailed,
+    retryDelayMs,
 } from '../../services/notis/src/lib/queue-core'
 
 /**
@@ -171,10 +172,20 @@ describe('notis wake queue (live lane)', () => {
             const item = await claimNext(notisDb)
             expect(item?.id).toBe(itemId)
             expect(item?.attempts).toBe(round)
+            const failedAt = Date.now()
             await failItem(notisDb, itemId, item!.attempts, `boom ${round}`)
             const row = await notisDb.notisWakeQueue.findUnique({ where: { id: itemId } })
             expect(row?.status).toBe('pending')
             expect(row?.lastError).toBe(`boom ${round}`)
+            // A retry waits: without a delay every attempt lands in the same
+            // drain call against the same outage, so the budget buys nothing.
+            expect(row!.runAfter.getTime()).toBeGreaterThanOrEqual(failedAt + retryDelayMs(round))
+            expect(await claimNext(notisDb)).toBeNull()
+            // Fast-forward past the backoff to reach the next round.
+            await notisDb.notisWakeQueue.update({
+                where: { id: itemId },
+                data: { runAfter: new Date(Date.now() - 1000) },
+            })
         }
 
         // The give-up round: the claim itself succeeds and the drainer's

@@ -17,13 +17,55 @@ const DAY_MS = 24 * HOUR_MS;
 /** Chart resolution per range: sub-day windows need sub-day buckets. */
 export type BucketUnit = "minute" | "hour" | "day";
 
+/**
+ * `label` is the whole phrase, not a noun to prefix: Greek gender and number
+ * have to agree, and «τελευταίες» + «3 μήνες» (masculine) or «1 ώρα»
+ * (singular) does not. `since` is the same phrase in the accusative, for
+ * "compared with the previous …".
+ */
 export const RANGES = {
-  "1h": { ms: HOUR_MS, label: "1 ώρα", short: "1ω", bucket: "minute" as BucketUnit },
-  "24h": { ms: DAY_MS, label: "24 ώρες", short: "24ω", bucket: "hour" as BucketUnit },
-  "7d": { ms: 7 * DAY_MS, label: "7 ημέρες", short: "7ημ", bucket: "day" as BucketUnit },
-  "14d": { ms: 14 * DAY_MS, label: "14 ημέρες", short: "14ημ", bucket: "day" as BucketUnit },
-  "30d": { ms: 30 * DAY_MS, label: "30 ημέρες", short: "30ημ", bucket: "day" as BucketUnit },
-  "90d": { ms: 90 * DAY_MS, label: "3 μήνες", short: "3μ", bucket: "day" as BucketUnit },
+  "1h": {
+    ms: HOUR_MS,
+    label: "την τελευταία ώρα",
+    since: "την προηγούμενη ώρα",
+    short: "1ω",
+    bucket: "minute" as BucketUnit,
+  },
+  "24h": {
+    ms: DAY_MS,
+    label: "τις τελευταίες 24 ώρες",
+    since: "τις προηγούμενες 24 ώρες",
+    short: "24ω",
+    bucket: "hour" as BucketUnit,
+  },
+  "7d": {
+    ms: 7 * DAY_MS,
+    label: "τις τελευταίες 7 ημέρες",
+    since: "τις προηγούμενες 7 ημέρες",
+    short: "7ημ",
+    bucket: "day" as BucketUnit,
+  },
+  "14d": {
+    ms: 14 * DAY_MS,
+    label: "τις τελευταίες 14 ημέρες",
+    since: "τις προηγούμενες 14 ημέρες",
+    short: "14ημ",
+    bucket: "day" as BucketUnit,
+  },
+  "30d": {
+    ms: 30 * DAY_MS,
+    label: "τις τελευταίες 30 ημέρες",
+    since: "τις προηγούμενες 30 ημέρες",
+    short: "30ημ",
+    bucket: "day" as BucketUnit,
+  },
+  "90d": {
+    ms: 90 * DAY_MS,
+    label: "τους τελευταίους 3 μήνες",
+    since: "τους προηγούμενους 3 μήνες",
+    short: "3μ",
+    bucket: "day" as BucketUnit,
+  },
 } as const;
 
 export type RangeKey = keyof typeof RANGES;
@@ -345,7 +387,9 @@ export async function getOverviewStats(range: RangeKey): Promise<OverviewStats> 
     periodStats(db, previousFrom, currentFrom),
     bucketedSeries(db, currentFrom, now, bucket),
     db.notisMessage.findMany({
-      where: { direction: "inbound" },
+      // Ranged like everything else on the page: an unfiltered list sat under
+      // a received-counter reading 0 for the same window.
+      where: { direction: "inbound", createdAt: { gte: currentFrom, lte: now } },
       orderBy: { createdAt: "desc" },
       take: 5,
       select: {

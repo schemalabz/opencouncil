@@ -73,9 +73,15 @@ function isUniqueViolation(error: unknown): boolean {
  *
  * Two eligibility rules beyond "pending and due":
  * - a running row whose claim went stale is claimable again (crash recovery);
- * - a subscription with a FRESH running row yields nothing — wakes for one
- *   person run strictly one at a time, or journal seq allocation would race
- *   and the conversation would interleave.
+ * - a subscription with a running row of ANY age yields nothing else. Wakes
+ *   for one person run strictly one at a time, or journal seq allocation
+ *   would race and the conversation would interleave. The guard deliberately
+ *   covers stale running rows: while one exists it is that subscription's
+ *   only candidate, so reclaiming it is the sole way forward. Excluding only
+ *   FRESH ones let a pending row of the same subscription be selected
+ *   instead, and promoting it violates the one-running-per-subscription
+ *   index — which the catch below reads as "nothing claimable", so the drain
+ *   stops for EVERY subscription, permanently.
  *
  * The NOT EXISTS guard alone is snapshot-based and raceable (a concurrent
  * claim's `running` is invisible until it commits while SKIP LOCKED hides
@@ -106,7 +112,6 @@ export async function claimNext(db: Db): Promise<ClaimedItem | null> {
             WHERE r."subscriptionId" = c."subscriptionId"
               AND r.status = 'running'::"QueueItemStatus"
               AND r.id <> c.id
-              AND r."claimedAt" >= now() - make_interval(secs => ${staleSeconds})
           )
         ORDER BY c."runAfter", c."createdAt"
         FOR UPDATE SKIP LOCKED
@@ -137,6 +142,14 @@ export async function completeItem(db: Db, id: string, attempts: number): Promis
 
 /** Return to pending for a later retry. Fenced on the claim: a lost or
  *  already-completed item is left untouched. */
+/** How long a failed item waits before its next attempt: 1 minute, then 4,
+ *  then 9. Without a delay all three attempts land inside a single drain call
+ *  against the same outage, so the attempt budget buys nothing — a
+ *  thirty-second model blip would drop the message permanently. */
+export function retryDelayMs(attempts: number): number {
+  return Math.min(attempts, MAX_ATTEMPTS) ** 2 * 60_000;
+}
+
 export async function failItem(
   db: Db,
   id: string,
@@ -145,7 +158,12 @@ export async function failItem(
 ): Promise<void> {
   await db.notisWakeQueue.updateMany({
     where: { id, status: "running", attempts },
-    data: { status: "pending", claimedAt: null, lastError: error.slice(0, 2000) },
+    data: {
+      status: "pending",
+      claimedAt: null,
+      runAfter: new Date(Date.now() + retryDelayMs(attempts)),
+      lastError: error.slice(0, 2000),
+    },
   });
 }
 

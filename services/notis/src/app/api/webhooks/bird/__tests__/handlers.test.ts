@@ -305,3 +305,79 @@ describe("isForwardProgression", () => {
     expect(isForwardProgression("pending", "failed")).toBe(true);
   });
 });
+
+describe("a phone the reader no longer has", () => {
+  it("stays silent, so the sender is not answered twice", async () => {
+    // The main app's gate looks up User.phone and misses, so it sends its
+    // unsupported-number reply. If notis answered as well — it still matches
+    // its own stored phone — the sender would get two contradictory replies,
+    // on every message.
+    (hasMainDb as jest.Mock).mockReturnValue(true);
+    (mainDb as jest.Mock).mockReturnValue({
+      notisUserRow: {
+        findUnique: async () => ({
+          notisEnabledAt: new Date("2026-08-01"),
+          phone: "+306999999999",
+        }),
+      },
+    });
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    const bird = new FakeBird();
+
+    const result = await handleInbound(inbound({ phone: SUB.phone as string }), {
+      db,
+      bird,
+      alert: async () => {},
+    });
+
+    expect(result.action).toBe("ignored");
+    expect(bird.sends).toHaveLength(0);
+    expect(db.store.wakes).toHaveLength(0);
+  });
+
+  it("canonicalizes a stored number that differs only by the leading +", async () => {
+    (hasMainDb as jest.Mock).mockReturnValue(true);
+    (mainDb as jest.Mock).mockReturnValue({
+      notisUserRow: {
+        findUnique: async () => ({
+          notisEnabledAt: new Date("2026-08-01"),
+          phone: "+306900000001",
+        }),
+      },
+    });
+    // The lookup accepts both forms, so this subscription is found — and the
+    // stored value is what later sends address.
+    const db = makeFakeDb({ subscriptions: [{ ...SUB, phone: "306900000001" }] });
+
+    await handleInbound(inbound({ phone: "+306900000001" }), {
+      db,
+      bird: new FakeBird(),
+      alert: async () => {},
+    });
+
+    expect([...db.store.subscriptions.values()][0].phone).toBe("+306900000001");
+  });
+});
+
+describe("isForwardProgression — delivery is monotonic", () => {
+  it("delivered stays delivered when a late failure event arrives", () => {
+    // Bird redelivers events, and a retry of an earlier attempt can report a
+    // failure after the handset already received the message. Rewriting that
+    // into `failed` would make the panel — and any audit of "did it arrive?"
+    // — lie about a delivered message.
+    expect(isForwardProgression("delivered", "failed")).toBe(false);
+    expect(isForwardProgression("read", "failed")).toBe(false);
+  });
+
+  it("still lets a sent message turn out to have failed", () => {
+    expect(isForwardProgression("sent", "failed")).toBe(true);
+    expect(isForwardProgression("pending", "failed")).toBe(true);
+  });
+
+  it("keeps the happy path moving forward only", () => {
+    expect(isForwardProgression("sent", "delivered")).toBe(true);
+    expect(isForwardProgression("delivered", "read")).toBe(true);
+    expect(isForwardProgression("read", "delivered")).toBe(false);
+  });
+});
+

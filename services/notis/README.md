@@ -146,6 +146,19 @@ itself).
 
 ## Known gaps (tracked for later PRs)
 
+- **A ΣΤΟΠ from a notis-served reader is recorded in notis only.** That is the
+  intended end state (PRD §2.1), and it is safe while `notisEnabledAt` is set,
+  because the matching engine skips those users. Clearing the flag is what
+  bites: the old path sees `notifyByPhone: true` and resumes messaging someone
+  who asked to be left alone, and the release panel shows no sign they ever
+  sent ΣΤΟΠ. PRD §9 promises narrowing never unsubscribes anyone — this is the
+  mirror case. Deferred to the rollout PRs, where the profile checkbox becomes
+  a client of the notis API and one place can answer "is this reader
+  subscribed"; adding a second copy of the opt-out here would re-create the
+  divergence that copy was collapsed to avoid. Until then, treat clearing the
+  flag for an individual as an action that needs a look at their notis
+  subscription first.
+
 - **The wake trace shares a table with the wake's scalars.** `NotisWake.trace`
   is one Json value of a few hundred KB — the system prompt, the rendered user
   turn, every model request and reply. It sits beside the dozen small columns

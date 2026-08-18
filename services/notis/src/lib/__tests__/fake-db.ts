@@ -9,6 +9,41 @@ import type { PrismaClient } from "../../../generated/client";
 
 export type Row = Record<string, unknown>;
 
+/**
+ * Enough of Prisma's where semantics that a fake cannot answer a question the
+ * real client would not: scalar equality, `in`/`notIn`, `lt`/`gte` on dates,
+ * and a one-level OR.
+ *
+ * This matters more than it looks. With the where ignored, every reader in
+ * runOneWake — the journal window, the seq aggregate, the last-inbound lookup
+ * — returned rows belonging to ANY subscription, so a mutation that dropped
+ * the subscriptionId scoping left all tests passing while production would
+ * have fed one reader's history into another reader's wake.
+ */
+export function matchesWhere(row: Row, where: Row | undefined): boolean {
+  if (!where) return true;
+  for (const [key, cond] of Object.entries(where)) {
+    if (cond === undefined) continue;
+    if (key === "OR") {
+      if (!(cond as Row[]).some((branch) => matchesWhere(row, branch))) return false;
+      continue;
+    }
+    if (cond !== null && typeof cond === "object") {
+      const c = cond as { in?: unknown[]; notIn?: unknown[]; lt?: Date; gte?: Date; lte?: Date; not?: unknown };
+      if (c.in && !c.in.includes(row[key])) return false;
+      if (c.notIn && c.notIn.includes(row[key])) return false;
+      if (c.not !== undefined && row[key] === c.not) return false;
+      const at = row[key] as Date | undefined;
+      if (c.lt && !(at && at < c.lt)) return false;
+      if (c.gte && !(at && at >= c.gte)) return false;
+      if (c.lte && !(at && at <= c.lte)) return false;
+      continue;
+    }
+    if (row[key] !== cond) return false;
+  }
+  return true;
+}
+
 export function makeFakeDb(seed: { subscriptions?: Row[] } = {}) {
   const calls: string[] = [];
   const store = {
@@ -66,15 +101,22 @@ export function makeFakeDb(seed: { subscriptions?: Row[] } = {}) {
       },
     },
     notisJournalEntry: {
-      findMany: async ({ take }: { take?: number } = {}) => {
-        const sorted = [...store.journal].sort((a, b) => (b.seq as number) - (a.seq as number));
+      findMany: async ({ where, take }: { where?: Row; take?: number } = {}) => {
+        const sorted = store.journal
+          .filter((r) => matchesWhere(r, where))
+          .sort((a, b) => (b.seq as number) - (a.seq as number));
         return take ? sorted.slice(0, take) : sorted;
       },
-      aggregate: async () => ({
-        _max: {
-          seq: store.journal.length ? Math.max(...store.journal.map((j) => j.seq as number)) : null,
-        },
-      }),
+      aggregate: async ({ where }: { where?: Row } = {}) => {
+        // Scoped like the real query: a seq allocated from another
+        // subscription's sequence collides on (subscriptionId, seq).
+        const scoped = store.journal.filter((r) => matchesWhere(r, where));
+        return {
+          _max: {
+            seq: scoped.length ? Math.max(...scoped.map((j) => j.seq as number)) : null,
+          },
+        };
+      },
       create: async ({ data }: { data: Row }) => {
         const row: Row = { id: id("j"), ...data };
         store.journal.push(row);
@@ -83,11 +125,19 @@ export function makeFakeDb(seed: { subscriptions?: Row[] } = {}) {
       },
     },
     notisMessage: {
-      findFirst: async () => {
-        const inbound = store.messages.filter((m) => m.direction === "inbound");
-        return inbound.length ? inbound[inbound.length - 1] : null;
+      findFirst: async ({ where }: { where?: Row } = {}) => {
+        const matching = store.messages.filter((m) => matchesWhere(m, where));
+        return matching.length ? matching[matching.length - 1] : null;
       },
-      findMany: async () => [...store.messages],
+      findMany: async ({ where, select }: { where?: Row; select?: Row } = {}) => {
+        const rows = store.messages.filter((m) => matchesWhere(m, where));
+        // The sweeper selects its rows with the subscription attached.
+        if (!select?.subscription) return rows;
+        return rows.map((m) => ({
+          ...m,
+          subscription: store.subscriptions.get(m.subscriptionId as string) ?? null,
+        }));
+      },
       findUnique: async ({ where }: { where: { id?: string; birdMessageId?: string } }) =>
         store.messages.find((m) =>
           where.id !== undefined ? m.id === where.id : m.birdMessageId === where.birdMessageId,
@@ -103,10 +153,13 @@ export function makeFakeDb(seed: { subscriptions?: Row[] } = {}) {
         Object.assign(row, data);
         return row;
       },
-      updateMany: async ({ where, data }: { where: { id: { in: string[] } }; data: Row }) => {
-        for (const row of store.messages.filter((m) => where.id.in.includes(m.id as string))) {
-          Object.assign(row, data);
-        }
+      // The full where engine and a real count: the sweeper claims a row with
+      // a fenced updateMany and acts only when the count is 1, so a fake that
+      // matched on ids alone would report a claim it never made.
+      updateMany: async ({ where, data }: { where?: Row; data: Row } = { data: {} }) => {
+        const rows = store.messages.filter((m) => matchesWhere(m, where));
+        for (const row of rows) Object.assign(row, data);
+        return { count: rows.length };
       },
     },
     notisWake: {
