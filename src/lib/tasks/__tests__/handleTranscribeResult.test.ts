@@ -68,17 +68,17 @@ const response = {
   },
 };
 
-describe('handleTranscribeResult — fixTranscript auto-chain', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockTaskFindUnique.mockResolvedValue(task);
-    mockMeetingUpdate.mockResolvedValue({ id: MEETING_ID });
-    mockSpeakerTagCreate.mockResolvedValue({ id: 'tag-1' });
-    mockSpeakerSegmentCreate.mockResolvedValue({ id: 'segment-1' });
-    mockRequestFixTranscript.mockResolvedValue({ id: 'fix-task-1' });
-    mockSendAutoFixAlert.mockResolvedValue(undefined);
-  });
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockTaskFindUnique.mockResolvedValue(task);
+  mockMeetingUpdate.mockResolvedValue({ id: MEETING_ID });
+  mockSpeakerTagCreate.mockResolvedValue({ id: 'tag-1' });
+  mockSpeakerSegmentCreate.mockResolvedValue({ id: 'segment-1' });
+  mockRequestFixTranscript.mockResolvedValue({ id: 'fix-task-1' });
+  mockSendAutoFixAlert.mockResolvedValue(undefined);
+});
 
+describe('handleTranscribeResult — fixTranscript auto-chain', () => {
   it('auto-triggers fixTranscript with force after a successful import', async () => {
     await handleTranscribeResult('task-1', response as never);
 
@@ -127,5 +127,58 @@ describe('handleTranscribeResult — fixTranscript auto-chain', () => {
     await expect(handleTranscribeResult('task-1', response as never)).rejects.toThrow('Task not found');
 
     expect(mockRequestFixTranscript).not.toHaveBeenCalled();
+  });
+});
+
+describe('handleTranscribeResult — utterance confidence scores', () => {
+  const withUtterance = (utterance: Record<string, unknown>) => ({
+    ...response,
+    transcript: {
+      transcription: {
+        utterances: [utterance],
+        speakers: [{ speaker: 0, match: null }],
+      },
+    },
+  });
+
+  const createdUtterances = () =>
+    mockSpeakerSegmentCreate.mock.calls[0][0].data.utterances.createMany.data;
+
+  it('stores the confidence scores carried by transcribe v4 results', async () => {
+    const scored = withUtterance({
+      start: 0, end: 1, speaker: 0, text: 'hello', drift: 0,
+      confidence: 0.97, minWordConfidence: 0.61, totalConfidence: 0.55,
+    });
+
+    await handleTranscribeResult('task-1', scored as never);
+
+    expect(createdUtterances()).toEqual([
+      expect.objectContaining({ confidence: 0.97, minWordConfidence: 0.61, totalConfidence: 0.55 }),
+    ]);
+  });
+
+  it('rounds the scores to 4 significant figures', async () => {
+    // exp() and running products emit full-precision doubles, which gzip poorly
+    const scored = withUtterance({
+      start: 0, end: 1, speaker: 0, text: 'hello', drift: 0,
+      confidence: 0.9712345678901234, minWordConfidence: 0.6149999999999999, totalConfidence: 0.5500000000000001,
+    });
+
+    await handleTranscribeResult('task-1', scored as never);
+
+    expect(createdUtterances()).toEqual([
+      expect.objectContaining({ confidence: 0.9712, minWordConfidence: 0.615, totalConfidence: 0.55 }),
+    ]);
+  });
+
+  it('stores null min and total scores when replaying a pre-v4 result', async () => {
+    // Results stored by transcribe versions before 4 carry only the mean confidence
+    const preV4 = withUtterance({ start: 0, end: 1, speaker: 0, text: 'hello', drift: 0, confidence: 0.9 });
+
+    await handleTranscribeResult('task-1', preV4 as never);
+
+    expect(createdUtterances()).toEqual([
+      expect.objectContaining({ confidence: 0.9, minWordConfidence: null, totalConfidence: null }),
+    ]);
   });
 });

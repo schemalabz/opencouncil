@@ -9,6 +9,10 @@ import { requestTranscribeInternal, deleteExistingSpeakerData } from "./transcri
 import { requestFixTranscript } from "./fixTranscript";
 import { sendTaskAdminAlert } from "../discord";
 
+// Full-precision doubles are near-incompressible and inflate the meeting page
+// payload; 4 significant figures is far finer than the ASR signal warrants.
+const round4 = (v: number | null | undefined) => (v == null ? null : Number(v.toPrecision(4)));
+
 /**
  * Public entry point for transcription. Authorizes the caller, then delegates to
  * requestTranscribeInternal (which the unauthenticated poll-livestreams cron also calls).
@@ -198,6 +202,12 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
                                     endTimestamp: utterance.end,
                                     text: utterance.text,
                                     drift: utterance.drift,
+                                    // Replayed results from transcribe versions before 4
+                                    // lack the scores; null keeps "unknown" distinct from
+                                    // a real value.
+                                    confidence: round4(utterance.confidence),
+                                    minWordConfidence: round4(utterance.minWordConfidence),
+                                    totalConfidence: round4(utterance.totalConfidence),
                                 }))
                             }
                         }
