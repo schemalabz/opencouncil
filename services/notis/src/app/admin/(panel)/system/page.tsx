@@ -377,7 +377,7 @@ export default async function SystemPage() {
             ) : (
               <ul className="divide-y">
                 {snap.digested.items.map((item) => (
-                  <li key={item.taskId}>
+                  <li key={item.id}>
                     <details className="group">
                       <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-2.5 hover:bg-muted/30">
                         <ChevronRight

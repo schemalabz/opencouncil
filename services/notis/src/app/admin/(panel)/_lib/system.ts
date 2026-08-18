@@ -46,6 +46,9 @@ export interface ScheduledView {
 }
 
 export interface DigestedMeetingView {
+  /** The row's own identity. taskId names the run that produced it, and a
+   *  re-run would carry a different one — so it is not a key. */
+  id: string;
   taskId: string;
   type: string;
   cityId: string;
@@ -290,6 +293,7 @@ export async function getSystemSnapshot(): Promise<SystemSnapshot> {
       items: digestedRows.map((row) => {
         const brief = (row.brief as unknown as EditorialBrief | null) ?? null;
         return {
+          id: row.id,
           taskId: row.taskId,
           type: row.type,
           cityId: row.cityId,

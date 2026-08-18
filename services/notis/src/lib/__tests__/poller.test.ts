@@ -1,7 +1,7 @@
 import type { EditorialBrief } from "../../agent/types";
 import { MAX_EVENTS_PER_TICK, runPollerTick } from "../poller";
 import { PROACTIVE_PAUSED_KEY } from "../settings";
-import { type FakeDb, type Row, makeFakeDb } from "./fake-db";
+import { type FakeDb, type Row, eventIdentity, makeFakeDb } from "./fake-db";
 import { FakeBird } from "./fake-bird";
 
 /**
@@ -47,6 +47,11 @@ jest.mock("../queue-core", () => {
 });
 
 const NOW = new Date("2026-08-18T09:00:00.000Z"); // 12:00 Athens — active hours
+
+/** The processed row for one meeting and phase — the dedup identity. */
+function processedFor(db: FakeDb, cityId: string, meetingId: string, type: string) {
+  return db.store.processedEvents.get(eventIdentity({ cityId, meetingId, type }));
+}
 const now = () => new Date(NOW);
 
 interface FakeMainSeed {
@@ -398,7 +403,7 @@ describe("meeting events", () => {
     expect(result.eventsProcessed).toBe(1);
     expect(result.wakesEnqueued).toBe(1);
     expect(result.editorialCostUsd).toBeCloseTo(0.07);
-    expect(db.store.processedEvents.get("task1")).toMatchObject({ briefCostUsd: 0.07 });
+    expect(processedFor(db, "athens", "m1", "summarize")).toMatchObject({ briefCostUsd: 0.07 });
     const row = [...db.store.queue.values()][0];
     expect((row.events as Array<{ type: string }>)[0].type).toBe("meeting_summarized");
   });
@@ -421,7 +426,7 @@ describe("meeting events", () => {
     expect(second.eventsProcessed).toBe(1);
   });
 
-  it("dedups by taskId across ticks", async () => {
+  it("dedups across ticks by meeting and phase", async () => {
     const db = seededDb();
     const main = makeFakeMain({
       users: [{ id: "user1", name: "Μαρία", phone: "+306900000001" }],
@@ -437,6 +442,65 @@ describe("meeting events", () => {
     expect(db.store.queue.size).toBe(1);
   });
 
+  it("a re-processed meeting does NOT notify again, whatever its new task id", async () => {
+    const db = seededDb();
+    const main = makeFakeMain({
+      users: [{ id: "user1", name: "Μαρία", phone: "+306900000001" }],
+      targets: [target("user1", "athens")],
+      events: [meetingRow("task1")],
+    });
+
+    await runPollerTick({ db, main, bird: new FakeBird(), alert: async () => {}, now, editorial: editorialOk });
+    expect(db.store.queue.size).toBe(1);
+
+    // Someone re-runs the summarize task for the same meeting: a NEW
+    // TaskStatus row, and release happened at creation, so it arrives
+    // looking exactly like fresh news.
+    const afterRerun = makeFakeMain({
+      users: [{ id: "user1", name: "Μαρία", phone: "+306900000001" }],
+      targets: [target("user1", "athens")],
+      events: [meetingRow("task2")],
+    });
+
+    const again = await runPollerTick({
+      db,
+      main: afterRerun,
+      bird: new FakeBird(),
+      alert: async () => {},
+      now,
+      editorial: editorialOk,
+    });
+
+    expect(again.eventsProcessed).toBe(0);
+    expect(editorialOk).toHaveBeenCalledTimes(1);
+    expect(db.store.queue.size).toBe(1);
+    // The record still names the run that produced it.
+    expect(processedFor(db, "athens", "m1", "summarize")?.taskId).toBe("task1");
+  });
+
+  it("a meeting whose FIRST task failed still notifies when a later run succeeds", async () => {
+    // Nothing was recorded for a failed task — the view only lists
+    // succeeded ones — so its retry is the first success, not a repeat.
+    const db = seededDb();
+    const main = makeFakeMain({
+      users: [{ id: "user1", name: "Μαρία", phone: "+306900000001" }],
+      targets: [target("user1", "athens")],
+      events: [meetingRow("task-retry")],
+    });
+
+    const result = await runPollerTick({
+      db,
+      main,
+      bird: new FakeBird(),
+      alert: async () => {},
+      now,
+      editorial: editorialOk,
+    });
+
+    expect(result.eventsProcessed).toBe(1);
+    expect(result.wakesEnqueued).toBe(1);
+  });
+
   it("an event with no audience is consumed without paying for an editorial pass", async () => {
     const db = makeFakeDb();
     const main = makeFakeMain({ events: [meetingRow("task1")] });
@@ -445,7 +509,7 @@ describe("meeting events", () => {
 
     expect(result.eventsProcessed).toBe(1);
     expect(editorialOk).not.toHaveBeenCalled();
-    expect(db.store.processedEvents.get("task1")?.brief).toBeUndefined();
+    expect(processedFor(db, "athens", "m1", "summarize")?.brief).toBeUndefined();
   });
 
   it("an editorial failure alerts, records nothing, and does not starve later events", async () => {
@@ -481,8 +545,8 @@ describe("meeting events", () => {
     });
 
     expect(alerts.some((m) => m.includes("task1"))).toBe(true);
-    expect(db.store.processedEvents.has("task1")).toBe(false); // retried next tick
-    expect(db.store.processedEvents.has("task2")).toBe(true);
+    expect(processedFor(db, "athens", "m1", "summarize")).toBeUndefined(); // retried next tick
+    expect(processedFor(db, "patras", "m2", "summarize")).toBeDefined();
     expect(result.eventsProcessed).toBe(1);
   });
 

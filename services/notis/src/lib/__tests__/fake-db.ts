@@ -38,6 +38,11 @@ function messageMatches(m: Row, where: Row | undefined): boolean {
   return true;
 }
 
+/** The NotisProcessedEvent unique index, as a map key. */
+export function eventIdentity(row: Row): string {
+  return `${row.cityId}\u0000${row.meetingId}\u0000${row.type}`;
+}
+
 export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {}) {
   const calls: string[] = [];
   const store = {
@@ -220,16 +225,23 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
     },
     notisProcessedEvent: {
       findUnique: async ({ where }: { where: { taskId: string } }) =>
-        store.processedEvents.get(where.taskId) ?? null,
+        [...store.processedEvents.values()].find((r) => r.taskId === where.taskId) ?? null,
+      // The where is ignored on purpose: the poller filters by identity in
+      // memory, and returning everything cannot make a dedup test pass that
+      // production would fail.
       findMany: async () => [...store.processedEvents.values()],
       create: async ({ data }: { data: Row }) => {
-        if (store.processedEvents.has(data.taskId as string)) {
+        // Keyed like the real unique index — (cityId, meetingId, type), NOT
+        // taskId — so a re-processed meeting collides here exactly as it
+        // would in Postgres.
+        const key = eventIdentity(data);
+        if (store.processedEvents.has(key)) {
           const err = new Error("unique") as Error & { code: string };
           err.code = "P2002";
           throw err;
         }
         const row: Row = { processedAt: new Date(), ...data };
-        store.processedEvents.set(data.taskId as string, row);
+        store.processedEvents.set(key, row);
         calls.push("processed-event-created");
         return row;
       },

@@ -63,7 +63,7 @@ export interface PollerResult {
  *  ticks instead of one expensive burst. */
 export const MAX_EVENTS_PER_TICK = 4;
 /** How far back the event feed looks. completedAt moves on task-row
- *  rewrites, so this is a coarse window — dedup is strictly by taskId. */
+ *  rewrites, so this is a coarse window — dedup is by meeting and phase. */
 export const EVENT_LOOKBACK_MS = 7 * 24 * 60 * 60_000;
 
 const emptyResult = (ran: boolean, reason?: string): PollerResult => ({
@@ -386,9 +386,11 @@ async function fireScheduledWakes(
 
 /**
  * Phase (d) — meeting events: only released meetings (the public MCP gates
- * on released, so an early wake cannot ground; unreleased taskIds are NOT
- * recorded, and a later release fires naturally). Dedup strictly by
- * taskId. One editorial pass per event, shared by every subscriber; the
+ * on released, so an early wake cannot ground; unreleased events are NOT
+ * recorded, and a later release fires naturally). Dedup by (cityId,
+ * meetingId, type), so a re-processed meeting is not fresh news — a failed
+ * task recorded nothing, so its retry still fires.
+ * One editorial pass per event, shared by every subscriber; the
  * processed row and all fan-out queue rows commit in one transaction, so
  * dedup-vs-fanout is crash-consistent.
  */
@@ -411,12 +413,24 @@ async function processMeetingEvents(
   });
   if (candidates.length === 0) return;
 
+  // Dedup on the MEETING and its phase, never on the task. Re-processing a
+  // meeting writes a new TaskStatus row, so a taskId key would read a re-run
+  // as news and send the same agenda or the same summary twice — and the
+  // tool that re-runs tasks works on lists of them.
+  const identity = (row: { cityId: string; meetingId: string; type: string }) =>
+    `${row.cityId}\u0000${row.meetingId}\u0000${row.type}`;
   const processed = await db.notisProcessedEvent.findMany({
-    where: { taskId: { in: candidates.map((c) => c.taskId) } },
-    select: { taskId: true },
+    where: {
+      OR: candidates.map((c) => ({
+        cityId: c.cityId,
+        meetingId: c.meetingId,
+        type: c.type,
+      })),
+    },
+    select: { cityId: true, meetingId: true, type: true },
   });
-  const processedIds = new Set(processed.map((p) => p.taskId));
-  const fresh = candidates.filter((c) => !processedIds.has(c.taskId));
+  const processedIds = new Set(processed.map(identity));
+  const fresh = candidates.filter((c) => !processedIds.has(identity(c)));
   if (fresh.length === 0) return;
 
   if (opts.seedOnly) {
