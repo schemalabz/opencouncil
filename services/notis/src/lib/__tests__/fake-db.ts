@@ -14,26 +14,26 @@ export type Row = Record<string, unknown>;
 function messageMatches(m: Row, where: Row | undefined): boolean {
   if (!where) return true;
   for (const [key, cond] of Object.entries(where)) {
+    if (cond === undefined) continue;
     if (key === "OR") {
       if (!(cond as Row[]).some((branch) => messageMatches(m, branch))) return false;
       continue;
     }
-    if (key === "createdAt") {
-      const c = cond as { gte?: Date; lt?: Date };
-      const at = m.createdAt as Date;
-      if (c.gte && at < c.gte) return false;
-      if (c.lt && !(at < c.lt)) return false;
+    // A column a row never set is NULL in Postgres, not undefined — so
+    // `{ sendingAt: null }` has to match a row that simply has no claim.
+    const value = m[key] ?? null;
+    if (typeof cond === "object" && cond !== null) {
+      const c = cond as { gte?: Date; lt?: Date; lte?: Date; in?: unknown[]; notIn?: unknown[]; not?: unknown };
+      if (c.in && !c.in.includes(value)) return false;
+      if (c.notIn && c.notIn.includes(value)) return false;
+      if (c.not !== undefined && value === c.not) return false;
+      const at = value as Date | null;
+      if (c.gte && !(at instanceof Date && at >= c.gte)) return false;
+      if (c.lt && !(at instanceof Date && at < c.lt)) return false;
+      if (c.lte && !(at instanceof Date && at <= c.lte)) return false;
       continue;
     }
-    if (key === "id" && typeof cond === "object" && cond !== null && "notIn" in (cond as Row)) {
-      if (((cond as { notIn: string[] }).notIn).includes(m.id as string)) return false;
-      continue;
-    }
-    if (typeof cond === "object" && cond !== null && "in" in (cond as Row)) {
-      if (!((cond as { in: unknown[] }).in).includes(m[key])) return false;
-      continue;
-    }
-    if (m[key] !== cond) return false;
+    if (value !== cond) return false;
   }
   return true;
 }
@@ -109,15 +109,24 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
       },
     },
     notisJournalEntry: {
-      findMany: async ({ take }: { take?: number } = {}) => {
-        const sorted = [...store.journal].sort((a, b) => (b.seq as number) - (a.seq as number));
+      findMany: async ({ where, take }: { where?: Row; take?: number } = {}) => {
+        const sorted = store.journal
+          .filter((r) => messageMatches(r, where))
+          .sort((a, b) => (b.seq as number) - (a.seq as number));
         return take ? sorted.slice(0, take) : sorted;
       },
-      aggregate: async () => ({
-        _max: {
-          seq: store.journal.length ? Math.max(...store.journal.map((j) => j.seq as number)) : null,
-        },
-      }),
+      // Scoped like the real query: a seq allocated from another
+      // subscription's sequence collides on (subscriptionId, seq). With the
+      // where ignored, dropping that scoping in production code left every
+      // test passing.
+      aggregate: async ({ where }: { where?: Row } = {}) => {
+        const scoped = store.journal.filter((r) => messageMatches(r, where));
+        return {
+          _max: {
+            seq: scoped.length ? Math.max(...scoped.map((j) => j.seq as number)) : null,
+          },
+        };
+      },
       create: async ({ data }: { data: Row }) => {
         const row: Row = { id: id("j"), ...data };
         store.journal.push(row);
@@ -128,9 +137,9 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
     notisMessage: {
       count: async ({ where }: { where?: Row } = {}) =>
         store.messages.filter((m) => messageMatches(m, where)).length,
-      findFirst: async () => {
-        const inbound = store.messages.filter((m) => m.direction === "inbound");
-        return inbound.length ? inbound[inbound.length - 1] : null;
+      findFirst: async ({ where }: { where?: Row } = {}) => {
+        const matching = store.messages.filter((m) => messageMatches(m, where));
+        return matching.length ? matching[matching.length - 1] : null;
       },
       findMany: async ({ where, select }: { where?: Row; select?: Row } = {}) => {
         const rows = store.messages.filter((m) => messageMatches(m, where));

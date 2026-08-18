@@ -44,12 +44,19 @@ export type InboundResult =
 // Delivery lifecycle rank: pending → sent → delivered → read; failed and
 // read absorb. Rejects replayed/out-of-order webhooks that would regress a
 // status (same defense as the main app, plus the real `read` state).
+/**
+ * Delivery is monotonic, and `failed` ranks with `sent`, not above
+ * `delivered`: once Bird has told us the handset received a message, a later
+ * failure event (a duplicate, or a retry of an earlier attempt) must not
+ * rewrite that into a failure. Only a still-`sent` row can turn out to have
+ * failed.
+ */
 const STATUS_RANK: Record<MessageStatus, number> = {
   pending: 0,
   sent: 1,
+  failed: 2,
   delivered: 2,
   read: 3,
-  failed: 3,
   // Suppressed rows never reached Bird, so no webhook can reference them;
   // ranked terminal for type completeness.
   suppressed: 3,
@@ -335,12 +342,31 @@ export async function handleInbound(
     // Fail open when the main DB is unreachable: dropping a served user's
     // message is worse than a rare double answer during an outage.
     if (hasMainDb()) {
-      const flag = await mainDb().notisUserRow.findUnique({
+      const user = await mainDb().notisUserRow.findUnique({
         where: { id: sub.userId },
-        select: { notisEnabledAt: true },
+        select: { notisEnabledAt: true, phone: true },
       });
-      if (!flag?.notisEnabledAt) {
+      if (!user?.notisEnabledAt) {
         return { action: "ignored", reason: "user rolled back to the old path" };
+      }
+      // A number this reader no longer owns is not this reader. After a phone
+      // change, the OLD number still matches the stored subscription here
+      // while the main app's gate (which looks up User.phone) misses and
+      // sends its unsupported-number reply — so the sender would get two
+      // answers that contradict each other, on every message. Treat it like a
+      // rollback and stay silent; the new number self-heals through the
+      // enrollment upsert.
+      const current = normalizePhone(user.phone);
+      if (current && current !== normalizePhone(fields.phone)) {
+        return { action: "ignored", reason: "message from a number the user no longer has" };
+      }
+      // Canonicalize a stored form that differs only by the leading "+": the
+      // lookup accepts both, and later sends address whatever is stored.
+      if (current && current !== sub.phone) {
+        sub = await db.notisSubscription.update({
+          where: { id: sub.id },
+          data: { phone: current },
+        });
       }
     }
     if (fields.conversationId && sub.birdConversationId !== fields.conversationId) {

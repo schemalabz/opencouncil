@@ -297,6 +297,14 @@ export async function completeItem(db: Db, id: string, attempts: number): Promis
  *  already-completed item is left untouched. Merge-aware like deferItem —
  *  a batch row whose slot was taken folds its events into the survivor
  *  rather than colliding with the coalescing index. */
+/** How long a failed item waits before its next attempt: 1 minute, then 4,
+ *  then 9. Without a delay all three attempts land inside a single drain call
+ *  against the same outage, so the attempt budget buys nothing — a
+ *  thirty-second model blip would drop the message permanently. */
+export function retryDelayMs(attempts: number): number {
+  return Math.min(attempts, MAX_ATTEMPTS) ** 2 * 60_000;
+}
+
 export async function failItem(
   db: Db,
   id: string,
@@ -307,7 +315,12 @@ export async function failItem(
   try {
     await db.notisWakeQueue.updateMany({
       where: { id, status: "running", attempts },
-      data: { status: "pending", claimedAt: null, lastError },
+      data: {
+        status: "pending",
+        claimedAt: null,
+        runAfter: new Date(Date.now() + retryDelayMs(attempts)),
+        lastError,
+      },
     });
   } catch (err) {
     if (!isUniqueViolation(err)) throw err;
