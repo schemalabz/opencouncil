@@ -109,6 +109,52 @@ describe('handleProcessAgendaResult', () => {
         expect(afterSecond[1].name).toBe('Roads - updated')
     })
 
+    test('prunes agenda items the new agenda no longer lists, keeping the rest', async () => {
+        const task1 = await createTaskStatus(meetingId, cityId, { type: 'processAgenda' })
+
+        await handleProcessAgendaResult(task1.id, makeProcessAgendaResult([
+            makeSubject({ name: 'Budget', agendaItemIndex: 1 }),
+            makeSubject({ name: 'Roads', agendaItemIndex: 2 }),
+            makeSubject({ name: 'Dropped later', agendaItemIndex: 3 }),
+        ]))
+
+        const afterFirst = await prisma.subject.findMany({
+            where: { councilMeetingId: meetingId, cityId },
+            orderBy: { agendaItemIndex: 'asc' },
+        })
+        expect(afterFirst).toHaveLength(3)
+        const keptIds = [afterFirst[0].id, afterFirst[1].id]
+
+        // The agenda shrinks: item 3 is gone.
+        const task2 = await createTaskStatus(meetingId, cityId, { type: 'processAgenda' })
+        await handleProcessAgendaResult(task2.id, makeProcessAgendaResult([
+            makeSubject({ name: 'Budget', agendaItemIndex: 1 }),
+            makeSubject({ name: 'Roads', agendaItemIndex: 2 }),
+        ]))
+
+        const afterSecond = await prisma.subject.findMany({
+            where: { councilMeetingId: meetingId, cityId },
+            orderBy: { agendaItemIndex: 'asc' },
+        })
+        expect(afterSecond).toHaveLength(2)
+        expect(afterSecond.map((s) => s.id)).toEqual(keptIds)
+    })
+
+    test('an authoritative empty agenda prunes every agenda subject', async () => {
+        const task1 = await createTaskStatus(meetingId, cityId, { type: 'processAgenda' })
+        await handleProcessAgendaResult(task1.id, makeProcessAgendaResult([
+            makeSubject({ name: 'Budget', agendaItemIndex: 1 }),
+        ]))
+        expect(await prisma.subject.count({ where: { councilMeetingId: meetingId, cityId } })).toBe(1)
+
+        // Some sessions (λογοδοσία) genuinely have no subjects; success with
+        // an empty array is authoritative.
+        const task2 = await createTaskStatus(meetingId, cityId, { type: 'processAgenda' })
+        await handleProcessAgendaResult(task2.id, makeProcessAgendaResult([]))
+
+        expect(await prisma.subject.count({ where: { councilMeetingId: meetingId, cityId } })).toBe(0)
+    })
+
     test('non-agenda subjects (BEFORE_AGENDA/OUT_OF_AGENDA) are replaced, not accumulated', async () => {
         const task1 = await createTaskStatus(meetingId, cityId, { type: 'processAgenda' })
 

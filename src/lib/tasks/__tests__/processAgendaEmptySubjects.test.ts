@@ -6,8 +6,8 @@
  *
  * Some agendas (e.g. λογοδοσία / accountability sessions) genuinely have no
  * extractable subjects. The backend reports success with `{ subjects: [] }`,
- * which must be treated as a valid success — existing subjects are replaced
- * (with nothing). A malformed success payload that omits `subjects` entirely
+ * which must be treated as a valid success — every agenda subject is pruned
+ * (there is nothing to match them against). A malformed success payload that omits `subjects` entirely
  * must NOT throw (which would flip the succeeded task to failed) and must NOT
  * delete existing subjects.
  */
@@ -18,6 +18,8 @@ const TASK_ID = 'task-1';
 
 const mockHighlightDeleteMany = jest.fn().mockResolvedValue({ count: 0 });
 const mockSubjectDeleteMany = jest.fn().mockResolvedValue({ count: 0 });
+// One existing agenda subject, so the empty-agenda case has something to prune.
+const mockSubjectFindMany = jest.fn().mockResolvedValue([{ id: 'subject-1' }]);
 const mockTaskStatusFindUnique = jest.fn().mockResolvedValue({
   id: TASK_ID,
   councilMeeting: {
@@ -39,6 +41,7 @@ jest.mock('../../db/prisma', () => ({
       deleteMany: (...args: unknown[]) => mockHighlightDeleteMany(...args),
     },
     subject: {
+      findMany: (...args: unknown[]) => mockSubjectFindMany(...args),
       deleteMany: (...args: unknown[]) => mockSubjectDeleteMany(...args),
     },
   },

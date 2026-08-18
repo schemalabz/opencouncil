@@ -58,17 +58,62 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
 
     const subjects = response.subjects;
 
-    // Delete existing subjects and auto-generated highlights before saving new ones.
-    // This runs in the callback (not at dispatch time) so data is only deleted when
-    // new results are ready to replace it — a failed dispatch won't cause data loss.
-    // User-created highlights (createdById is set) are preserved — their subjectId
-    // will be set to null by the onDelete: SetNull cascade when subjects are deleted.
-    await prisma.highlight.deleteMany({
-        where: { meetingId: task.councilMeeting.id, cityId: task.councilMeeting.cityId, subjectId: { not: null }, createdById: null }
+    // Prune what the new agenda no longer has, then let saveSubjectsForMeeting
+    // match the rest by agendaItemIndex and update them IN PLACE.
+    //
+    // This runs in the callback (not at dispatch time) so data is only removed
+    // when new results are ready to replace it — a failed dispatch won't cause
+    // data loss.
+    //
+    // Wiping every subject first (what this did before) defeated the matching:
+    // nothing was left to match, so every subject was recreated with a fresh
+    // id on every re-run. Subject ids are public — they are in shared URLs, in
+    // the search index, and in notification links already sent — so a re-run
+    // silently broke all of them. saveSubjectsForMeeting exists to preserve
+    // them, which is why re-summarizing already did.
+    //
+    // Non-agenda subjects (BEFORE_AGENDA / OUT_OF_AGENDA) carry no index to
+    // match on, so the save replaces those itself.
+    const incomingIndices = subjects
+        .map((s) => s.agendaItemIndex)
+        .filter((index): index is number => typeof index === 'number');
+    const stale = await prisma.subject.findMany({
+        where: {
+            councilMeetingId: task.councilMeeting.id,
+            cityId: task.councilMeeting.cityId,
+            nonAgendaReason: null,
+            // An empty agenda prunes every agenda subject — a success with no
+            // subjects is authoritative (λογοδοσία sessions have none).
+            ...(incomingIndices.length > 0
+                ? {
+                    OR: [
+                        { agendaItemIndex: null },
+                        { agendaItemIndex: { notIn: incomingIndices } },
+                    ],
+                }
+                : {}),
+        },
+        select: { id: true },
     });
-    await prisma.subject.deleteMany({
-        where: { councilMeetingId: task.councilMeeting.id, cityId: task.councilMeeting.cityId }
-    });
+
+    if (stale.length > 0) {
+        const staleIds = stale.map((s) => s.id);
+        // Auto-generated highlights of a pruned subject would linger as
+        // orphans (the relation is SetNull, not Cascade). User-created ones
+        // are kept deliberately and only lose their subject link.
+        await prisma.highlight.deleteMany({
+            where: {
+                meetingId: task.councilMeeting.id,
+                cityId: task.councilMeeting.cityId,
+                subjectId: { in: staleIds },
+                createdById: null,
+            },
+        });
+        await prisma.subject.deleteMany({ where: { id: { in: staleIds } } });
+        console.log(
+            `processAgenda: pruned ${staleIds.length} subject(s) the new agenda no longer lists`
+        );
+    }
 
     await saveSubjectsForMeeting(
         subjects,
