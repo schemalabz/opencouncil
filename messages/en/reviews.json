@@ -8,7 +8,8 @@
     "buttons": {
       "cancel": "Cancel",
       "markComplete": "Mark as Complete",
-      "completing": "Completing..."
+      "completing": "Completing...",
+      "retry": "Try again"
     },
     "toasts": {
       "success": {
@@ -18,12 +19,38 @@
       "error": {
         "title": "Error",
         "description": "Failed to mark review as complete"
+      },
+      "followUpFailed": {
+        "title": "Review complete, follow-up failed",
+        "description": "The review is complete, but this did not run: {actions}. Start it again from the meeting admin panel.",
+        "actions": {
+          "summarize": "the summarize task",
+          "transcript": "the transcript email"
+        }
       }
+    },
+    "errors": {
+      "stats": "The review statistics did not load: {message}",
+      "options": "The completion options did not load: {message}"
     },
     "manualTime": {
       "label": "The calculated review time is not accurate",
       "placeholder": "Enter actual review time (e.g., 2h 30m)",
       "help": "This will be shown in reports for context, but won't replace the calculated time."
+    },
+    "runSummarize": {
+      "label": "Run summarize task",
+      "help": "OpenCouncil summarizes the reviewed transcript and extracts the subjects of the meeting.",
+      "notifications": {
+        "auto": "Subscribers get a notification as soon as the summary is ready.",
+        "approval": "Notifications wait for an administrator to approve them before they go out.",
+        "disabled": "No notifications go out for this meeting.",
+        "beforeRelease": "The meeting is not published. Subscribers get a notification for a page that they cannot open."
+      },
+      "unavailable": {
+        "succeeded": "A summary already exists for this meeting.",
+        "running": "A summary is already in progress for this meeting."
+      }
     },
     "sendTranscript": {
       "label": "Send transcript to municipality",

@@ -11,17 +11,17 @@ import {
 import { Button } from '@/components/ui/button';
 import { ReviewSessionsBreakdown } from '../admin/reviews/ReviewSessionsBreakdown';
 import { getMeetingReviewStats } from '@/lib/db/reviews';
-import { markHumanReviewComplete, getMeetingContactEmails } from '@/lib/tasks/humanReview';
+import { markHumanReviewComplete } from '@/lib/tasks/humanReview';
 import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
+import { CheckboxCard } from '@/components/ui/checkbox-card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useTranslations } from 'next-intl';
 import { Separator } from '@/components/ui/separator';
-import { SendTranscriptCheckbox } from './SendTranscriptCheckbox';
+import { ReviewCompletionOptions } from './ReviewCompletionOptions';
+import { failedFollowUps, useReviewCompletion } from './useReviewCompletion';
 
 interface CompleteReviewDialogProps {
   cityId: string;
@@ -38,62 +38,64 @@ export function CompleteReviewDialog({
   onOpenChange,
   onSuccess
 }: CompleteReviewDialogProps) {
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [stats, setStats] = useState<Awaited<ReturnType<typeof getMeetingReviewStats>> | null>(null);
   const [hasManualTime, setHasManualTime] = useState(false);
   const [manualTimeInput, setManualTimeInput] = useState('');
-  const [contactEmails, setContactEmails] = useState<string[]>([]);
-  const [administrativeBodyName, setAdministrativeBodyName] = useState<string | null>(null);
-  const [sendTranscript, setSendTranscript] = useState(true);
+  const completion = useReviewCompletion(cityId, meetingId, open);
   const { toast } = useToast();
   const t = useTranslations('reviews.completeDialog');
 
   useEffect(() => {
     if (open) {
-      // Fetch stats and contact emails when dialog opens
-      setIsLoading(true);
-      setError(null);
-      Promise.all([
-        getMeetingReviewStats({ cityId, meetingId }),
-        getMeetingContactEmails(cityId, meetingId)
-      ])
-        .then(([statsResult, contactResult]) => {
-          setStats(statsResult);
-          setContactEmails(contactResult.contactEmails);
-          setAdministrativeBodyName(contactResult.administrativeBodyName);
-          // Default to true if contact emails exist
-          setSendTranscript(contactResult.contactEmails.length > 0);
-        })
+      // Fetch stats when dialog opens; useReviewCompletion loads the completion options
+      setIsLoadingStats(true);
+      setStatsError(null);
+      setSubmitError(null);
+      getMeetingReviewStats({ cityId, meetingId })
+        .then(setStats)
         .catch((err) => {
           console.error('Failed to fetch review data:', err);
-          setError(err.message || 'Failed to load review data');
+          setStatsError(err.message || 'Failed to load review data');
         })
-        .finally(() => setIsLoading(false));
+        .finally(() => setIsLoadingStats(false));
     }
   }, [open, cityId, meetingId]);
 
   const handleConfirm = async () => {
     setIsSubmitting(true);
-    setError(null);
+    setSubmitError(null);
     try {
-      await markHumanReviewComplete(
-        cityId,
-        meetingId,
-        hasManualTime ? manualTimeInput : undefined,
-        sendTranscript && contactEmails.length > 0
-      );
-      toast({
-        title: t('toasts.success.title'),
-        description: t('toasts.success.description'),
+      const { followUps } = await markHumanReviewComplete(cityId, meetingId, {
+        manualReviewTime: hasManualTime ? manualTimeInput : undefined,
+        ...completion.completionOptions,
       });
+      // The review is complete either way. A follow-up that failed must not read as
+      // a success: it is the only signal the reviewer gets outside Discord.
+      const failed = failedFollowUps(followUps);
+      toast(
+        failed.length > 0
+          ? {
+              title: t('toasts.followUpFailed.title'),
+              description: t('toasts.followUpFailed.description', {
+                actions: failed.map((key) => t(`toasts.followUpFailed.actions.${key}`)).join(', '),
+              }),
+              variant: 'destructive' as const,
+            }
+          : {
+              title: t('toasts.success.title'),
+              description: t('toasts.success.description'),
+            }
+      );
       onOpenChange(false);
       onSuccess?.();
     } catch (err) {
       console.error('Failed to mark review as complete:', err);
       const errorMessage = err instanceof Error ? err.message : t('toasts.error.description');
-      setError(errorMessage);
+      setSubmitError(errorMessage);
       toast({
         title: t('toasts.error.title'),
         description: errorMessage,
@@ -114,21 +116,25 @@ export function CompleteReviewDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4">
-          {isLoading && (
+        {/* The header stays centered with the dialog. The body reads as prose and
+            as a form, so it aligns left */}
+        <div className="py-4 text-left">
+          {/* The review statistics only report the work. The reviewer completes the
+              review without them, so a failure here reports itself and stops there */}
+          {isLoadingStats && (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           )}
 
-          {error && (
+          {statsError && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{t('errors.stats', { message: statsError })}</AlertDescription>
             </Alert>
           )}
 
-          {!isLoading && !error && stats && (
+          {!isLoadingStats && !statsError && stats && (
             <>
               {!stats.hasReviewers ? (
                 <Alert>
@@ -175,45 +181,52 @@ export function CompleteReviewDialog({
                   <Separator className="my-4" />
 
                   {/* Manual time override option */}
-                  <div className="p-4 border rounded-lg space-y-3">
-                    <div className="flex items-start space-x-2">
-                      <Checkbox
-                        id="manual-time"
-                        checked={hasManualTime}
-                        onCheckedChange={(checked) => setHasManualTime(checked as boolean)}
-                      />
-                      <div className="grid gap-1.5 leading-none">
-                        <Label
-                          htmlFor="manual-time"
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                        >
-                          {t('manualTime.label')}
-                        </Label>
-                        <p className="text-sm text-muted-foreground">
-                          {t('manualTime.help')}
-                        </p>
-                      </div>
-                    </div>
+                  <CheckboxCard
+                    checked={hasManualTime}
+                    onCheckedChange={setHasManualTime}
+                    label={t('manualTime.label')}
+                    description={t('manualTime.help')}
+                  >
                     {hasManualTime && (
                       <Input
                         placeholder={t('manualTime.placeholder')}
                         value={manualTimeInput}
                         onChange={(e) => setManualTimeInput(e.target.value)}
-                        className="mt-2"
                       />
                     )}
-                  </div>
+                  </CheckboxCard>
                 </>
               )}
-
-              <SendTranscriptCheckbox
-                contactEmails={contactEmails}
-                checked={sendTranscript}
-                onCheckedChange={setSendTranscript}
-                administrativeBodyName={administrativeBodyName}
-                separatorClassName="my-4"
-              />
             </>
+          )}
+
+          {/* The options carry the outward-facing choices, so they load and fail on
+              their own. The reviewer keeps them when the statistics above fail */}
+          {completion.isLoading && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          )}
+
+          {completion.error && (
+            <Alert variant="destructive" className="mt-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="flex flex-wrap items-center gap-2">
+                <span>{t('errors.options', { message: completion.error })}</span>
+                <Button variant="outline" size="sm" onClick={completion.reload}>
+                  {t('buttons.retry')}
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <ReviewCompletionOptions completion={completion} separatorClassName="my-4" />
+
+          {submitError && (
+            <Alert variant="destructive" className="mt-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{submitError}</AlertDescription>
+            </Alert>
           )}
         </div>
 
@@ -227,7 +240,12 @@ export function CompleteReviewDialog({
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={isLoading || isSubmitting}
+            // Never confirm options that the dialog did not load: the reviewer would
+            // start summarize — and the notifications it releases — without seeing
+            // the warning. isLoadingStats blocks too, so a fast reviewer cannot
+            // confirm before the manual-time override has rendered. A statistics
+            // failure leaves both flags false and still allows the review
+            disabled={isSubmitting || isLoadingStats || completion.isLoading || !completion.state}
           >
             {isSubmitting ? (
               <>

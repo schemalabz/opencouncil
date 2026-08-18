@@ -2,7 +2,7 @@
 
 import { TaskUpdate } from '../apiTypes';
 import prisma from '@/lib/db/prisma';
-import { MeetingTaskType, TASK_CONFIG, getDiscordAlertMode } from '@/lib/tasks/types';
+import { MeetingTaskType, TASK_CONFIG, TaskAlreadyExistsError, TaskBlockedReason, getDiscordAlertMode } from '@/lib/tasks/types';
 import { withUserAuthorizedToEdit } from '../auth';
 import { env } from '@/env.mjs';
 import { sendTaskAdminAlert } from '@/lib/discord';
@@ -13,7 +13,7 @@ import { taskHandlers, taskTerminalHooks } from './registry';
 export interface TaskIdempotencyResult {
     proceed: boolean;
     existingTask: TaskStatus | null;
-    blockedReason?: 'already_succeeded' | 'already_running';
+    blockedReason?: TaskBlockedReason;
 }
 
 export async function checkTaskIdempotency(
@@ -86,11 +86,12 @@ export const startTask = async (taskType: MeetingTaskType, requestBody: any, cou
     if (TASK_CONFIG[taskType].requiredForPipeline) {
         const idempotency = await checkTaskIdempotency(taskType, cityId, councilMeetingId, options);
         if (!idempotency.proceed) {
-            throw new Error(
-                idempotency.blockedReason === 'already_succeeded'
-                    ? `A ${taskType} task has already succeeded for this council meeting`
-                    : `A ${taskType} task is already running for this council meeting`
-            );
+            // No default: a new blocked reason must fail here rather than reach the
+            // reviewer relabelled as "already running"
+            if (!idempotency.blockedReason) {
+                throw new Error(`checkTaskIdempotency blocked ${taskType} for ${cityId}/${councilMeetingId} without a reason`);
+            }
+            throw new TaskAlreadyExistsError(taskType, idempotency.blockedReason);
         }
     }
 

@@ -10,6 +10,9 @@
  */
 export type DiscordAlertMode = 'all' | 'none';
 
+/** Why the idempotency guard blocks a new run of a pipeline task. */
+export type TaskBlockedReason = 'already_succeeded' | 'already_running';
+
 interface TaskConfig {
   requiredForPipeline: boolean;
   discordAlertMode?: DiscordAlertMode;
@@ -54,6 +57,25 @@ export const TASK_CONFIG = {
 
 // Derive MeetingTaskType from the configuration
 export type MeetingTaskType = keyof typeof TASK_CONFIG;
+
+/**
+ * startTask throws this when the idempotency guard blocks a pipeline task.
+ * A caller that chains one task after another treats it as a skip, not as a failure:
+ * the meeting already has the task that the caller wanted to start.
+ */
+export class TaskAlreadyExistsError extends Error {
+  constructor(
+    readonly taskType: MeetingTaskType,
+    readonly reason: TaskBlockedReason
+  ) {
+    super(
+      reason === 'already_succeeded'
+        ? `A ${taskType} task has already succeeded for this council meeting`
+        : `A ${taskType} task is already running for this council meeting`
+    );
+    this.name = 'TaskAlreadyExistsError';
+  }
+}
 
 /**
  * Returns the DiscordAlertMode for a task type.
