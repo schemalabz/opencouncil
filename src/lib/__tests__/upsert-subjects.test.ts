@@ -1,10 +1,10 @@
-import { categorizeSubjectsForUpsert } from '../db/subject-helpers';
+import { categorizeSubjectsForUpsert, type ExistingSubjectRow } from '../db/subject-helpers';
 import { makeSubject } from '../../../tests/helpers/builders';
 
 describe('categorizeSubjectsForUpsert', () => {
     it('matches incoming subject to existing by numeric agendaItemIndex', () => {
         const incoming = [makeSubject({ name: 'Budget', agendaItemIndex: 1 })];
-        const existing = [{ id: 'db-1', agendaItemIndex: 1 }];
+        const existing = [{ id: 'db-1', agendaItemIndex: 1, name: 'Budget (old wording)' }];
 
         const result = categorizeSubjectsForUpsert(incoming, existing);
 
@@ -14,7 +14,7 @@ describe('categorizeSubjectsForUpsert', () => {
 
     it('always creates BEFORE_AGENDA subjects as new', () => {
         const incoming = [makeSubject({ name: 'Opening remarks', agendaItemIndex: 'BEFORE_AGENDA' })];
-        const existing = [{ id: 'db-1', agendaItemIndex: 1 }];
+        const existing = [{ id: 'db-1', agendaItemIndex: 1, name: 'Budget (old wording)' }];
 
         const result = categorizeSubjectsForUpsert(incoming, existing);
 
@@ -24,7 +24,7 @@ describe('categorizeSubjectsForUpsert', () => {
 
     it('always creates OUT_OF_AGENDA subjects as new', () => {
         const incoming = [makeSubject({ name: 'Misc discussion', agendaItemIndex: 'OUT_OF_AGENDA' })];
-        const existing: { id: string; agendaItemIndex: number | null }[] = [];
+        const existing: ExistingSubjectRow[] = [];
 
         const result = categorizeSubjectsForUpsert(incoming, existing);
 
@@ -34,7 +34,7 @@ describe('categorizeSubjectsForUpsert', () => {
 
     it('creates numeric subject when no existing match', () => {
         const incoming = [makeSubject({ name: 'New item', agendaItemIndex: 5 })];
-        const existing = [{ id: 'db-1', agendaItemIndex: 1 }];
+        const existing = [{ id: 'db-1', agendaItemIndex: 1, name: 'Budget (old wording)' }];
 
         const result = categorizeSubjectsForUpsert(incoming, existing);
 
@@ -45,9 +45,9 @@ describe('categorizeSubjectsForUpsert', () => {
     it('does not touch unmatched existing subjects', () => {
         const incoming = [makeSubject({ name: 'Budget', agendaItemIndex: 1 })];
         const existing = [
-            { id: 'db-1', agendaItemIndex: 1 },
-            { id: 'db-2', agendaItemIndex: 2 },
-            { id: 'db-3', agendaItemIndex: 3 },
+            { id: 'db-1', agendaItemIndex: 1, name: 'Budget (old wording)' },
+            { id: 'db-2', agendaItemIndex: 2, name: 'Parks (old wording)' },
+            { id: 'db-3', agendaItemIndex: 3, name: 'Roads (old wording)' },
         ];
 
         const result = categorizeSubjectsForUpsert(incoming, existing);
@@ -65,9 +65,9 @@ describe('categorizeSubjectsForUpsert', () => {
             makeSubject({ name: 'Before agenda', agendaItemIndex: 'BEFORE_AGENDA' }),
         ];
         const existing = [
-            { id: 'db-1', agendaItemIndex: 1 },
-            { id: 'db-2', agendaItemIndex: 2 },
-            { id: 'db-3', agendaItemIndex: 3 },
+            { id: 'db-1', agendaItemIndex: 1, name: 'Budget (old wording)' },
+            { id: 'db-2', agendaItemIndex: 2, name: 'Parks (old wording)' },
+            { id: 'db-3', agendaItemIndex: 3, name: 'Roads (old wording)' },
         ];
 
         const result = categorizeSubjectsForUpsert(incoming, existing);
@@ -90,8 +90,8 @@ describe('categorizeSubjectsForUpsert', () => {
     it('leaves existing subjects with null agendaItemIndex untouched', () => {
         const incoming = [makeSubject({ name: 'Budget', agendaItemIndex: 1 })];
         const existing = [
-            { id: 'db-1', agendaItemIndex: 1 },
-            { id: 'db-null', agendaItemIndex: null },
+            { id: 'db-1', agendaItemIndex: 1, name: 'Budget (old wording)' },
+            { id: 'db-null', agendaItemIndex: null, name: 'Something out of agenda' },
         ];
 
         const result = categorizeSubjectsForUpsert(incoming, existing);
@@ -105,8 +105,8 @@ describe('categorizeSubjectsForUpsert', () => {
         const incoming = [makeSubject({ name: 'Budget', agendaItemIndex: 1 })];
         // Shouldn't happen in practice, but the Map will keep the last entry
         const existing = [
-            { id: 'db-1a', agendaItemIndex: 1 },
-            { id: 'db-1b', agendaItemIndex: 1 },
+            { id: 'db-1a', agendaItemIndex: 1, name: 'First duplicate' },
+            { id: 'db-1b', agendaItemIndex: 1, name: 'Second duplicate' },
         ];
 
         const result = categorizeSubjectsForUpsert(incoming, existing);
@@ -114,5 +114,81 @@ describe('categorizeSubjectsForUpsert', () => {
         // Map overwrites, so last existing with agendaItemIndex=1 wins
         expect(result.toUpdate).toHaveLength(1);
         expect(result.toUpdate[0].existingId).toBe('db-1b');
+    });
+
+    it('keeps each id with its own subject when the agenda renumbers', () => {
+        // θέμα 1 was withdrawn, so what was 2 and 3 is now 1 and 2. Matching
+        // by index alone would give "Parks" the id the public knows as
+        // "Budget" — a URL that used to open one subject would open another.
+        const incoming = [
+            makeSubject({ name: 'Parks maintenance', agendaItemIndex: 1 }),
+            makeSubject({ name: 'Road repairs', agendaItemIndex: 2 }),
+        ];
+        const existing: ExistingSubjectRow[] = [
+            { id: 'db-budget', agendaItemIndex: 1, name: 'Budget discussion' },
+            { id: 'db-parks', agendaItemIndex: 2, name: 'Parks maintenance' },
+            { id: 'db-roads', agendaItemIndex: 3, name: 'Road repairs' },
+        ];
+
+        const result = categorizeSubjectsForUpsert(incoming, existing);
+
+        expect(result.toUpdate).toEqual([
+            { incoming: incoming[0], existingId: 'db-parks' },
+            { incoming: incoming[1], existingId: 'db-roads' },
+        ]);
+        expect(result.toCreate).toEqual([]);
+        expect(result.unmatched.map((e) => e.id)).toEqual(['db-budget']);
+    });
+
+    it('falls back to the index when an item was reworded in place', () => {
+        const incoming = [makeSubject({ name: 'Budget discussion (revised)', agendaItemIndex: 1 })];
+        const existing: ExistingSubjectRow[] = [
+            { id: 'db-budget', agendaItemIndex: 1, name: 'Budget discussion' },
+        ];
+
+        const result = categorizeSubjectsForUpsert(incoming, existing);
+
+        expect(result.toUpdate).toEqual([{ incoming: incoming[0], existingId: 'db-budget' }]);
+        expect(result.unmatched).toEqual([]);
+    });
+
+    it('matches names case- and whitespace-insensitively', () => {
+        const incoming = [makeSubject({ name: '  ΈΓΚΡΙΣΗ   ΑΠΟΛΟΓΙΣΜΟΎ ', agendaItemIndex: 4 })];
+        const existing: ExistingSubjectRow[] = [
+            { id: 'db-x', agendaItemIndex: 2, name: 'Έγκριση απολογισμού' },
+        ];
+
+        const result = categorizeSubjectsForUpsert(incoming, existing);
+
+        expect(result.toUpdate).toEqual([{ incoming: incoming[0], existingId: 'db-x' }]);
+    });
+
+    it('ignores a name that is ambiguous on either side and uses the index', () => {
+        // Two existing rows share a name, so the name identifies nothing.
+        const incoming = [makeSubject({ name: 'Έγκριση δαπάνης', agendaItemIndex: 2 })];
+        const existing: ExistingSubjectRow[] = [
+            { id: 'db-1', agendaItemIndex: 1, name: 'Έγκριση δαπάνης' },
+            { id: 'db-2', agendaItemIndex: 2, name: 'Έγκριση δαπάνης' },
+        ];
+
+        const result = categorizeSubjectsForUpsert(incoming, existing);
+
+        expect(result.toUpdate).toEqual([{ incoming: incoming[0], existingId: 'db-2' }]);
+        expect(result.unmatched.map((e) => e.id)).toEqual(['db-1']);
+    });
+
+    it('never matches a non-agenda row, and never reports it as unmatched', () => {
+        const incoming = [makeSubject({ name: 'Opening remarks', agendaItemIndex: 1 })];
+        const existing: ExistingSubjectRow[] = [
+            { id: 'db-open', agendaItemIndex: null, name: 'Opening remarks', nonAgendaReason: 'BEFORE_AGENDA' },
+        ];
+
+        const result = categorizeSubjectsForUpsert(incoming, existing);
+
+        // The caller replaces non-agenda rows itself; leaving them out of
+        // `unmatched` keeps a pruning caller from deleting them twice.
+        expect(result.toUpdate).toEqual([]);
+        expect(result.toCreate).toEqual([incoming[0]]);
+        expect(result.unmatched).toEqual([]);
     });
 });
