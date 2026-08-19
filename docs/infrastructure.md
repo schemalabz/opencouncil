@@ -32,7 +32,7 @@ graph TB
     end
 
     subgraph preview_droplet ["Preview Droplet (NixOS · nix-openclaw)"]
-        app_preview["🌐 PR Previews<br/><i>pr-N.preview.opencouncil.gr</i>"]
+        app_preview["🌐 PR Previews<br/><i>pr-N.opencouncil.dev</i>"]
         db_preview[("🗄️ Isolated DB<br/><i>migration PRs only</i>")]
     end
 
@@ -87,7 +87,7 @@ graph TB
 |-------------|-----|--------|----------|-------------|
 | **Production** | opencouncil.gr | `production` | Production DB (DO Managed PostgreSQL) | `:3005` |
 | **Staging** | staging.opencouncil.gr | `main` | Staging DB (DO Managed PostgreSQL) | `:3006` (tasks.opencouncil.gr) |
-| **PR Previews** | pr-N.preview.opencouncil.gr | PR branch | Staging DB (shared), or isolated DB for migration PRs | — |
+| **PR Previews** | pr-N.opencouncil.dev | PR branch | Staging DB (shared), or isolated DB for migration PRs | — |
 | **Local** | localhost:3000 | any | Local (Nix/Docker) or Remote Dev DB | — |
 
 ## How Deployments Work

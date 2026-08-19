@@ -34,7 +34,7 @@ describe('wwwRedirectTarget', () => {
     });
 
     it('leaves nested subdomains alone', () => {
-        expect(wwwRedirectTarget('www.pr-7.preview.opencouncil.fr', '/x', '')).toBeNull();
+        expect(wwwRedirectTarget('www.staging.opencouncil.fr', '/x', '')).toBeNull();
         expect(wwwRedirectTarget('opencouncil.chania.gr', '/x', '')).toBeNull();
     });
 
@@ -112,8 +112,10 @@ describe('foreignLocaleRedirectPath', () => {
         expect(foreignLocaleRedirectPath('opencouncil.fr', '/elefsina')).toBeNull();
     });
 
-    it('applies on realm subdomains like preview hosts', () => {
-        expect(foreignLocaleRedirectPath('pr-7.preview.opencouncil.gr', '/fr/athens')).toBe('/athens');
+    it('applies on realm subdomains and on preview hosts', () => {
+        expect(foreignLocaleRedirectPath('www.opencouncil.gr', '/fr/athens')).toBe('/athens');
+        // Previews resolve to greece by default, and must reproduce its redirects.
+        expect(foreignLocaleRedirectPath('pr-7.opencouncil.dev', '/fr/athens')).toBe('/athens');
     });
 
     it('strips Serbian prefixes on non-Serbian hosts, using the /lat URL prefix for sr-Latn', () => {
@@ -140,8 +142,8 @@ describe('foreignLocaleRedirectPath', () => {
     it('with a realm override, treats the host as that realm', () => {
         // Preview host (greece by Host) overridden to serbia: Serbian locales
         // become native, Greek becomes foreign — mirroring opencouncil.rs.
-        expect(foreignLocaleRedirectPath('pr-7.preview.opencouncil.gr', '/lat/beograd', 'serbia')).toBeNull();
-        expect(foreignLocaleRedirectPath('pr-7.preview.opencouncil.gr', '/el/beograd', 'serbia')).toBe('/beograd');
+        expect(foreignLocaleRedirectPath('pr-7.opencouncil.dev', '/lat/beograd', 'serbia')).toBeNull();
+        expect(foreignLocaleRedirectPath('pr-7.opencouncil.dev', '/el/beograd', 'serbia')).toBe('/beograd');
         // Even on unknown hosts (localhost) the override applies, so the
         // emulation is faithful in local dev too.
         expect(foreignLocaleRedirectPath('localhost:3000', '/el/beograd', 'serbia')).toBe('/beograd');

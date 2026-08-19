@@ -29,8 +29,8 @@ describe('emailBaseUrlForRealm', () => {
     });
 
     it('keeps a preview host, so preview emails point at the preview', () => {
-        setNextAuthUrl('https://pr-577.preview.opencouncil.gr');
-        expect(emailBaseUrlForRealm('serbia')).toBe('https://pr-577.preview.opencouncil.gr');
+        setNextAuthUrl('https://pr-577.opencouncil.dev');
+        expect(emailBaseUrlForRealm('serbia')).toBe('https://pr-577.opencouncil.dev');
     });
 
     it('keeps a local dev host', () => {
