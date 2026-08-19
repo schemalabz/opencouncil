@@ -372,6 +372,105 @@ describe('buildSearchQuery ranking function', () => {
     });
 });
 
+describe('buildSearchQuery location handling', () => {
+    const LOCATIONS = [{ point: { lat: 38.0, lon: 23.7 }, radius: 40 }];
+
+    function lexicalQueryOf(q: ReturnType<typeof buildSearchQuery>) {
+        const rrf = q.retriever?.rrf as estypes.RetrieverContainer['rrf'];
+        const standard = rrf?.retrievers?.[0]?.standard as estypes.RetrieverContainer['standard'];
+        return unwrapRanking(standard?.query).inner;
+    }
+
+    // Regression: locations used to be a hard geo_distance filter. Only ~45% of
+    // subjects carry a location pin, so any AI-extracted location silently
+    // dropped every pin-less subject — "παλαιστίνη" returned zero results even
+    // though subjects carry it in the title.
+    it('keeps AI-extracted locations out of the hard filters', () => {
+        const q = buildSearchQuery(
+            { query: 'παλαιστίνη', locations: LOCATIONS },
+            NO_EXTRACTED_FILTERS
+        );
+        const lexical = lexicalQueryOf(q);
+
+        const filters = (lexical?.bool?.filter ?? []) as estypes.QueryDslQueryContainer[];
+        expect(JSON.stringify(filters)).not.toContain('geo_distance');
+    });
+
+    it('applies locations as a proximity boost that cannot match on its own', () => {
+        const q = buildSearchQuery(
+            { query: 'παλαιστίνη', locations: LOCATIONS },
+            NO_EXTRACTED_FILTERS
+        );
+        const lexical = lexicalQueryOf(q);
+
+        // Text clauses sit inside `must`; geo boosts are `should`-only, so a
+        // subject near the location but matching no text cannot surface.
+        const must = (lexical?.bool?.must ?? []) as estypes.QueryDslQueryContainer[];
+        const should = (lexical?.bool?.should ?? []) as estypes.QueryDslQueryContainer[];
+        expect(must).toHaveLength(1);
+        expect(should).toHaveLength(1);
+        expect(should[0]?.geo_distance).toMatchObject({ distance: '40km' });
+        expect(lexical?.bool?.minimum_should_match).toBeUndefined();
+    });
+
+    it('builds the plain lexical shape when no locations are extracted', () => {
+        const q = buildSearchQuery({ query: 'παλαιστίνη' }, NO_EXTRACTED_FILTERS);
+        const lexical = lexicalQueryOf(q);
+
+        expect(lexical?.bool?.should).toBeDefined();
+        expect(lexical?.bool?.must).toBeUndefined();
+    });
+
+    it('keeps locations as a hard filter in the filter-only browse path', () => {
+        const q = buildSearchQuery({ locations: LOCATIONS }, NO_EXTRACTED_FILTERS);
+        const functionScore = q.query?.function_score as estypes.QueryDslFunctionScoreQuery;
+        const filter = (functionScore.query?.bool?.filter ?? []) as estypes.QueryDslQueryContainer[];
+
+        expect(JSON.stringify(filter)).toContain('geo_distance');
+    });
+});
+
+describe('buildSearchQuery apostrophe normalization', () => {
+    function lexicalShouldClauses(query: string): estypes.QueryDslQueryContainer[] {
+        const q = buildSearchQuery({ query }, NO_EXTRACTED_FILTERS);
+        const rrf = q.retriever?.rrf as estypes.RetrieverContainer['rrf'];
+        const standard = rrf?.retrievers?.[0]?.standard as estypes.RetrieverContainer['standard'];
+        const { inner } = unwrapRanking(standard?.query);
+        return ((inner?.bool as BoolQuery).should ?? []) as estypes.QueryDslQueryContainer[];
+    }
+
+    // Mobile keyboards auto-substitute U+2019; official minutes use the Greek
+    // tonos (U+0384) as an apostrophe (ΔΙ΄ΕΥΧΩΝ). All variants must behave
+    // like the ASCII apostrophe.
+    it.each(['δι’ευχών', 'δι΄ευχών', "δι'ευχών"])(
+        'normalizes %s to the ASCII apostrophe in every clause',
+        (variant) => {
+            const clauses = lexicalShouldClauses(variant);
+            const serialized = JSON.stringify(clauses);
+            expect(serialized).toContain("δι'ευχών");
+            expect(serialized).not.toContain('’');
+            expect(serialized).not.toContain('΄');
+        }
+    );
+
+    it('adds a space-split variant clause for intra-word apostrophes', () => {
+        const clauses = lexicalShouldClauses("δι'ευχών");
+        const variants = clauses.filter((c) => c.multi_match);
+
+        // Intact-token form plus the split-token form the tonos spelling
+        // produces in the index (ΔΙ΄ΕΥΧΩΝ → δι, ευχ) — same fields and boosts.
+        expect(variants).toHaveLength(2);
+        expect(variants[0]?.multi_match?.query).toBe('δι ευχών');
+        expect(variants[0]?.multi_match?.fields).toEqual(['name^4', 'description^3']);
+        expect(variants[1]?.multi_match?.query).toBe("δι'ευχών");
+    });
+
+    it('adds no variant clause for apostrophe-free queries', () => {
+        const clauses = lexicalShouldClauses('πάρκα');
+        expect(clauses.filter((c) => c.multi_match)).toHaveLength(1);
+    });
+});
+
 describe('buildSearchQuery filter-only mode', () => {
     it('builds a ranked rrf query when query text is present', () => {
         const q = buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS);

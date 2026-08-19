@@ -1,5 +1,5 @@
 import { estypes } from '@elastic/elasticsearch';
-import { SearchRequest, ExtractedFilters } from './types';
+import { SearchRequest, ExtractedFilters, Location } from './types';
 import { env } from '@/env.mjs';
 import { ADMIN_BODY_TIER } from '@/lib/ranking/subjects';
 
@@ -8,6 +8,12 @@ const DEFAULT_RANK_CONSTANT = 60;
 
 const SEMANTIC_NAME_BOOST = 2.0;
 const SEMANTIC_DESCRIPTION_BOOST = 1.5;
+
+// Additive score for subjects pinned within an AI-extracted location's radius
+// (see buildLocationBoostClauses). Small next to the name/description boosts:
+// proximity breaks ties among text matches, it does not outrank a better text
+// match.
+const LOCATION_BOOST = 2;
 
 /**
  * Raw-score cutoff for the semantic retriever, measured against the production
@@ -43,6 +49,16 @@ const DEFAULT_SEMANTIC_MIN_SCORE = 3.23;
  * before this applies, so "συνταγή για μουσακά" is a 2-term query.
  */
 const LEXICAL_MINIMUM_SHOULD_MATCH = '2<75%';
+
+/**
+ * Apostrophe-like characters normalized to the ASCII apostrophe before any
+ * clause sees the query: the single quotes mobile keyboards auto-substitute
+ * (U+2018/U+2019), the modifier apostrophe (U+02BC), the Greek tonos (U+0384)
+ * and acute accent (U+00B4) that official minutes use as apostrophes in names
+ * like ΔΙ΄ΕΥΧΩΝ, and the Greek koronis/psili (U+1FBD/U+1FBF). Without this,
+ * the same query succeeds or fails depending on which keyboard typed it.
+ */
+const APOSTROPHE_VARIANTS = /[‘’ʼ΄´᾽᾿]/g;
 
 /**
  * Typo tolerance is restricted to the name field, exact-only elsewhere.
@@ -252,39 +268,29 @@ export function buildFilters(request: SearchRequest): estypes.QueryDslQueryConta
         });
     }
 
-    // Add location filter if specified
-    if (request.locations && request.locations.length > 0) {
-        if (request.locations.length === 1) {
-            // Single location case
-            filters.push({
-                geo_distance: {
-                    distance: `${request.locations[0].radius}km`,
-                    'location_geojson': {
-                        lat: request.locations[0].point.lat,
-                        lon: request.locations[0].point.lon
-                    }
-                }
-            });
-        } else {
-            // Multiple locations case
-            filters.push({
-                bool: {
-                    should: request.locations.map(loc => ({
-                        geo_distance: {
-                            distance: `${loc.radius}km`,
-                            'location_geojson': {
-                                lat: loc.point.lat,
-                                lon: loc.point.lon
-                            }
-                        }
-                    })),
-                    minimum_should_match: 1
-                }
-            });
-        }
-    }
-
     return filters;
+}
+
+// Location proximity clauses. Only the AI filter-extraction path produces
+// `locations` (no UI, API or MCP caller passes them). They must NOT become a
+// hard filter on a text search: only ~45% of subjects carry a location pin,
+// and a geo_distance filter drops every pin-less document. A query like
+// "παλαιστίνη" — extracted as a location and geocoded somewhere — would then
+// return zero results even though subjects carry it in the title. As `should`
+// clauses on the scoring query, nearby pinned subjects rank higher and
+// everything else still matches on text alone.
+function buildLocationBoostClauses(locations: Location[] | undefined): estypes.QueryDslQueryContainer[] {
+    if (!locations || locations.length === 0) return [];
+    return locations.map(loc => ({
+        geo_distance: {
+            distance: `${loc.radius}km`,
+            'location_geojson': {
+                lat: loc.point.lat,
+                lon: loc.point.lon
+            },
+            boost: LOCATION_BOOST
+        }
+    }));
 }
 
 // Transcripts are long enough that a bare OR match lets an off-topic query match
@@ -311,6 +317,23 @@ function buildLexicalShouldClauses(
     extractedFilters: ExtractedFilters
 ): estypes.QueryDslQueryContainer[] {
     return [
+        // The standard tokenizer keeps an intra-word ASCII apostrophe inside
+        // its token (δι'ευχών → δι'ευχ) but splits on the Greek tonos that
+        // official minutes use in names (ΔΙ΄ΕΥΧΩΝ → δι, ευχ), so each indexed
+        // spelling is reachable by only one shape of the query. The main
+        // clauses below match the intact-token form; this space-split variant
+        // matches the split-token form. Same fields and boosts as the main
+        // multi_match — whichever shape the index holds, the score tier is
+        // the same.
+        ...(queryText.includes("'") ? [{
+            multi_match: {
+                query: queryText.replace(/'/g, ' '),
+                fields: ['name^4', 'description^3'],
+                type: 'best_fields' as const,
+                operator: 'or' as const,
+                minimum_should_match: LEXICAL_MINIMUM_SHOULD_MATCH
+            }
+        }] : []),
         {
             multi_match: {
                 query: queryText,
@@ -447,12 +470,20 @@ export function buildSearchQuery(
     // retrievers (they require a query) and rank the filtered set by administrative
     // body, discussion length, and recency alone. Used e.g. for "everything a person
     // spoke about" or "all subjects in a date range".
-    const queryText = mergedRequest.query?.trim();
+    const queryText = mergedRequest.query?.trim().replace(APOSTROPHE_VARIANTS, "'");
     const filters = buildFilters(mergedRequest);
+    const locationBoosts = buildLocationBoostClauses(mergedRequest.locations);
     // Computed once so every ranking function built for this request — both RRF
     // retrievers below, or the filter-only branch — scores recency identically.
     const nowMillis = Date.now();
     if (!queryText) {
+        // With no text to score, a location can only act as a filter. Unreachable
+        // today (locations only come from AI extraction, which requires query
+        // text), but kept so an explicit filter-only location request stays a
+        // location browse rather than being ignored.
+        const browseFilters = locationBoosts.length > 0
+            ? [...filters, { bool: { should: locationBoosts, minimum_should_match: 1 } }]
+            : filters;
         return {
             index: env.ELASTICSEARCH_INDEX,
             size: request.config?.size || 10,
@@ -460,9 +491,24 @@ export function buildSearchQuery(
             track_total_hits: true,
             // A filter-only bool query scores every hit 0, so 'replace' ranks on the
             // function alone instead of nudging a (nonexistent) relevance score.
-            query: applyRanking({ bool: { filter: filters } }, 'replace', nowMillis)
+            query: applyRanking({ bool: { filter: browseFilters } }, 'replace', nowMillis)
         };
     }
+
+    const lexicalCore: estypes.QueryDslQueryContainer = {
+        bool: {
+            should: buildLexicalShouldClauses(queryText, extractedFilters),
+            minimum_should_match: 1,
+            filter: filters
+        }
+    };
+    // Proximity lifts pinned subjects near the extracted location, inside `must`
+    // so a location-only match without any text match cannot surface. Lexical arm
+    // only: the semantic arm's min_score calibration must keep seeing raw
+    // semantic scores, and RRF carries the lexical arm's ordering across.
+    const lexicalQuery: estypes.QueryDslQueryContainer = locationBoosts.length > 0
+        ? { bool: { must: [lexicalCore], should: locationBoosts } }
+        : lexicalCore;
 
     return {
         index: env.ELASTICSEARCH_INDEX,
@@ -474,13 +520,7 @@ export function buildSearchQuery(
                 retrievers: [
                     {
                         standard: {
-                            query: applyRanking({
-                                bool: {
-                                    should: buildLexicalShouldClauses(queryText, extractedFilters),
-                                    minimum_should_match: 1,
-                                    filter: filters
-                                }
-                            }, 'multiply', nowMillis)
+                            query: applyRanking(lexicalQuery, 'multiply', nowMillis)
                         }
                     },
                     ...(request.config?.enableSemanticSearch ? [
