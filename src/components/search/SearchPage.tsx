@@ -301,7 +301,13 @@ export default function SearchPage() {
     ), [state.results]);
 
     return (
-        <div className="flex flex-col gap-6 max-w-7xl mx-auto px-4 py-8">
+        // data-stable-scrollbar-gutter: results arriving make the page scroll, and the
+        // classic scrollbar that browsers on Windows and Linux then show would narrow
+        // the viewport and shift this centred column left. See globals.css.
+        <div
+            data-stable-scrollbar-gutter
+            className="flex flex-col gap-6 max-w-7xl mx-auto px-4 py-8"
+        >
             {/* Home affordance — the search page otherwise has no obvious way
                 back; a user resorted to hand-editing the URL (#405). Real
                 navigational <Link>, keyboard-focusable with a visible focus
