@@ -15,7 +15,7 @@ import { config } from 'dotenv';
 config();
 process.env.ELASTICSEARCH_INDEX = process.env.ELASTICSEARCH_INDEX || 'subjects';
 
-import { Client } from '@elastic/elasticsearch';
+import { Client, estypes } from '@elastic/elasticsearch';
 import { buildSearchQuery } from '../src/lib/search/query';
 import type { ExtractedFilters, SearchRequest } from '../src/lib/search/types';
 
@@ -140,11 +140,19 @@ async function runQuery(
     };
     const q = buildSearchQuery(request, NO_EXTRACTED_FILTERS);
 
-    // Semantic-only mode: drop the lexical retriever, keep the semantic one.
-    if (mode === 'semantic' && q.retriever && 'rrf' in q.retriever) {
-        const rrf: any = (q.retriever as any).rrf;
-        if (rrf.retrievers.length < 2) throw new Error('semantic retriever missing');
-        q.retriever = rrf.retrievers[1];
+    // Semantic-only mode: the semantic side is the second branch of the dis_max
+    // under `must` (see buildSemanticFallbackQuery). Keep only that branch so
+    // its mapped scores and survivors are visible in isolation.
+    if (mode === 'semantic') {
+        const ranking = q.query?.function_score;
+        // function_score's container type also allows a bare function array;
+        // buildSearchQuery always emits the full query form.
+        const bool = ranking && !Array.isArray(ranking) ? ranking.query?.bool : undefined;
+        const must = (bool?.must ?? []) as estypes.QueryDslQueryContainer[];
+        const disMax = must.find((c) => c.dis_max)?.dis_max;
+        const semantic = disMax?.queries.find((c) => c.function_score);
+        if (!disMax || !semantic) throw new Error('semantic fallback branch missing');
+        disMax.queries = [semantic];
     }
 
     const body: any = {
@@ -176,7 +184,7 @@ async function runQuery(
 function printRows(rows: HitRow[]) {
     for (const [i, r] of rows.entries()) {
         console.log(
-            `   ${String(i + 1).padStart(2)}. [${r.matched.padEnd(3)}] ${r.date} ${r.body.padEnd(9)} ` +
+            `   ${String(i + 1).padStart(2)}. [${r.matched.padEnd(3)}] ${r.score.toFixed(2).padStart(7)} ${r.date} ${r.body.padEnd(9)} ` +
             `${String(r.minutes).padStart(3)}m ${r.city.padEnd(10).slice(0, 10)} ${r.name}`
         );
     }

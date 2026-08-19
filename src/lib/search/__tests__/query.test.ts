@@ -35,6 +35,47 @@ function unwrapRanking(
     return { inner: functionScore?.query as estypes.QueryDslQueryContainer, functionScore };
 }
 
+// Every lexical clause is wrapped in a flattenToTier function_score (see
+// FIELD_TIER in query.ts). Unwrap one to its inner query and tier params.
+function unflatten(clause: estypes.QueryDslQueryContainer | undefined): {
+    inner: estypes.QueryDslQueryContainer | undefined;
+    base: number | undefined;
+    k: number | undefined;
+} {
+    const fs = clause?.function_score as estypes.QueryDslFunctionScoreQuery | undefined;
+    const fn = fs?.functions?.[0] as estypes.QueryDslFunctionScoreContainer | undefined;
+    const script = fn?.script_score?.script as estypes.Script | undefined;
+    const params = (script?.params ?? {}) as Record<string, number>;
+    return { inner: fs?.query as estypes.QueryDslQueryContainer | undefined, base: params.base, k: params.k };
+}
+
+// Tier-wrapped clause whose inner query matches `field` (via match, match_phrase
+// or fuzziness presence), returned unflattened.
+function tierClauseOn(
+    should: estypes.QueryDslQueryContainer[],
+    predicate: (inner: estypes.QueryDslQueryContainer) => boolean
+): { inner: estypes.QueryDslQueryContainer | undefined; base: number | undefined; k: number | undefined } | undefined {
+    for (const c of should) {
+        const u = unflatten(c);
+        if (u.inner && predicate(u.inner)) return u;
+    }
+    return undefined;
+}
+
+// Tier-wrapped clause nested on speaker_contributions whose inner query
+// matches `field`, returned with its tier.
+function nestedClauseOn(
+    should: estypes.QueryDslQueryContainer[],
+    field: string
+): { inner: estypes.QueryDslQueryContainer | undefined; base: number | undefined; k: number | undefined } | undefined {
+    return tierClauseOn(
+        should,
+        (inner) =>
+            inner.nested?.path === 'speaker_contributions' &&
+            inner.nested.query?.match?.[field] !== undefined
+    );
+}
+
 function findPersonFilter(
     filters: estypes.QueryDslQueryContainer[]
 ): estypes.QueryDslQueryContainer | undefined {
@@ -130,91 +171,137 @@ describe('buildFilters person filter', () => {
     });
 });
 
-describe('buildSearchQuery lexical ranking', () => {
-    function lexicalShouldClauses(query: string): estypes.QueryDslQueryContainer[] {
-        const q = buildSearchQuery({ query }, NO_EXTRACTED_FILTERS);
-        const rrf = q.retriever?.rrf as estypes.RetrieverContainer['rrf'];
-        const standard = rrf?.retrievers?.[0]?.standard as estypes.RetrieverContainer['standard'];
-        const { inner } = unwrapRanking(standard?.query);
-        const bool = inner?.bool as BoolQuery;
-        return (bool.should ?? []) as estypes.QueryDslQueryContainer[];
-    }
+// The scored query is a single bool (no rank fusion) — see the RRF regression
+// note on the semantic describe block. Unwraps the ranking function_score and
+// splits the text clause under `must` into its arms: with semantic search on,
+// the lexical bool is the first branch of a dis_max against the semantic
+// fallback; with it off, it stands alone and there is no dis_max.
+function textArms(query: string, config?: SearchRequest['config']) {
+    const q = buildSearchQuery({ query, config }, NO_EXTRACTED_FILTERS);
+    const { inner } = unwrapRanking(q.query);
+    const outer = inner?.bool as BoolQuery;
+    const textClause = ((outer.must ?? []) as estypes.QueryDslQueryContainer[])[0];
+    const disMax = textClause?.dis_max;
+    const queries = (disMax?.queries ?? []) as estypes.QueryDslQueryContainer[];
+    return {
+        disMax,
+        lexical: (disMax ? queries[0] : textClause)?.bool as BoolQuery | undefined,
+        semantic: queries[1]?.function_score as estypes.QueryDslFunctionScoreQuery | undefined,
+    };
+}
 
-    it('nudges the lexical retriever score with the ranking function, multiplicatively', () => {
+// Lexical should-clauses, unwrapped from whichever shape (dis_max or bare
+// bool) the request produced.
+function scoredShouldClauses(
+    query: string,
+    config?: SearchRequest['config']
+): estypes.QueryDslQueryContainer[] {
+    return (textArms(query, config).lexical?.should ?? []) as estypes.QueryDslQueryContainer[];
+}
+
+describe('buildSearchQuery lexical ranking', () => {
+    const lexicalShouldClauses = scoredShouldClauses;
+
+    it('nudges the text-relevance score with the ranking function, multiplicatively', () => {
         const q = buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS);
-        const rrf = q.retriever?.rrf as estypes.RetrieverContainer['rrf'];
-        const standard = rrf?.retrievers?.[0]?.standard as estypes.RetrieverContainer['standard'];
-        const { functionScore } = unwrapRanking(standard?.query);
+        const { functionScore } = unwrapRanking(q.query);
 
         expect(functionScore.boost_mode).toBe('multiply');
         expect(functionScore.functions).toHaveLength(1);
     });
 
-    it('applies an exact multi-match and phrase boosts on name and description', () => {
+    // Each field carries its own tier-wrapped clause (a shared best_fields
+    // multi_match could not carry two tier bases). introduced_by_person_name
+    // serves person-name queries (a recurring pattern in logged user searches)
+    // via the subjects the person introduced.
+    // speaker_contributions.speaker_person_name is deliberately absent: a
+    // mayor speaks in nearly every subject, so matching it would flood a name
+    // query (the personIds filter serves that need).
+    it('applies exact per-field term and phrase clauses in their tiers', () => {
         const should = lexicalShouldClauses('πάρκα Κυψέλης');
 
-        const multiMatch = should.find((c) => c.multi_match)?.multi_match;
-        expect(multiMatch).toMatchObject({
+        const exactMatchOn = (field: string) =>
+            tierClauseOn(should, (inner) => {
+                const m = inner.match?.[field];
+                return typeof m === 'object' && m !== null && !('fuzziness' in m);
+            });
+
+        const nameTerm = exactMatchOn('name');
+        expect(nameTerm?.inner?.match?.['name']).toEqual({
             query: 'πάρκα Κυψέλης',
-            type: 'best_fields',
-            operator: 'or',
             minimum_should_match: '2<75%',
         });
-        // introduced_by_person_name serves person-name queries (a recurring
-        // pattern in logged user searches) via the subjects the person
-        // introduced. speaker_contributions.speaker_person_name is deliberately
-        // absent: a mayor speaks in nearly every subject, so matching it would
-        // flood a name query (the personIds filter serves that need).
-        expect(multiMatch?.fields).toEqual([
-            'name^4',
-            'description^3',
-            'introduced_by_person_name^3',
-        ]);
-        // Regression: fuzziness on the multi-match let off-topic queries match
-        // long descriptions through one-edit-away terms ("lava" matched a French
-        // description via "lave"). Typo tolerance lives in the name-only clause.
-        expect(multiMatch?.fuzziness).toBeUndefined();
 
-        const namePhrase = should.find((c) => c.match_phrase?.['name']);
-        expect(namePhrase?.match_phrase?.['name']).toEqual({
+        const descriptionTerm = exactMatchOn('description');
+        expect(descriptionTerm?.inner?.match?.['description']).toEqual({
             query: 'πάρκα Κυψέλης',
-            boost: 6,
+            minimum_should_match: '2<75%',
         });
 
-        const descriptionPhrase = should.find((c) => c.match_phrase?.['description']);
-        expect(descriptionPhrase?.match_phrase?.['description']).toEqual({
+        const introducer = exactMatchOn('introduced_by_person_name');
+        expect(introducer?.inner?.match?.['introduced_by_person_name']).toEqual({
             query: 'πάρκα Κυψέλης',
-            boost: 4,
+            minimum_should_match: '2<75%',
         });
+
+        const namePhrase = tierClauseOn(should, (inner) => inner.match_phrase?.['name'] !== undefined);
+        expect(namePhrase?.inner?.match_phrase?.['name']).toEqual({ query: 'πάρκα Κυψέλης' });
+
+        const descriptionPhrase = tierClauseOn(should, (inner) => inner.match_phrase?.['description'] !== undefined);
+        expect(descriptionPhrase?.inner?.match_phrase?.['description']).toEqual({ query: 'πάρκα Κυψέλης' });
+
+        // The tier ladder (see FIELD_TIER): name above introducer above
+        // description; phrases are additive bonuses within their field.
+        expect(nameTerm!.base!).toBeGreaterThan(introducer!.base!);
+        expect(introducer!.base!).toBeGreaterThan(descriptionTerm!.base!);
+        expect(namePhrase!.base!).toBeGreaterThan(descriptionPhrase!.base!);
     });
 
-    it('restricts typo tolerance to a low-boost fuzzy match on the name field', () => {
+    // Raw BM25 must not rank within a tier (title length normalization and
+    // description term repetition buried a recent 139-minute subject under an
+    // old 4-minute one for "δάνειο"): every clause is rescored to
+    // base + k * log1p(bm25), leaving BM25 as a small within-tier tiebreak.
+    it('flattens every lexical clause to its tier band', () => {
+        const should = lexicalShouldClauses('πάρκα');
+        for (const clause of should) {
+            const fs = clause.function_score as estypes.QueryDslFunctionScoreQuery;
+            expect(fs).toBeDefined();
+            expect(fs.boost_mode).toBe('replace');
+            const script = (fs.functions?.[0] as estypes.QueryDslFunctionScoreContainer)
+                ?.script_score?.script as estypes.Script;
+            expect(script.source).toBe('params.base + params.k * Math.log1p(_score)');
+        }
+    });
+
+    it('restricts typo tolerance to a low-tier fuzzy match on the name field', () => {
         const should = lexicalShouldClauses('ανακίκλωση');
 
-        const fuzzyName = should
-            .map((c) => c.match?.['name'])
-            .find((m) => typeof m === 'object' && m !== null && 'fuzziness' in m);
-        expect(fuzzyName).toEqual({
+        const fuzzy = tierClauseOn(should, (inner) => {
+            const m = inner.match?.['name'];
+            return typeof m === 'object' && m !== null && 'fuzziness' in m;
+        });
+        expect(fuzzy?.inner?.match?.['name']).toEqual({
             query: 'ανακίκλωση',
             // AUTO:4,10 = 1 edit for 4-9 char terms; the default AUTO's 2 edits
             // from 6 chars up conflates unrelated Greek stems (συνταγ -> συντηρ).
             fuzziness: 'AUTO:4,10',
             prefix_length: 2,
-            boost: 1,
             minimum_should_match: '2<75%',
         });
 
-        // No fuzzy clause on description — see the regression note above.
-        expect(should.some((c) => {
-            const desc = c.match?.['description'];
-            return typeof desc === 'object' && desc !== null && 'fuzziness' in desc;
-        })).toBe(false);
+        // Regression: fuzziness on description let off-topic queries match long
+        // descriptions through one-edit-away terms ("lava" matched a French
+        // description via "lave").
+        expect(tierClauseOn(should, (inner) => {
+            const m = inner.match?.['description'];
+            return typeof m === 'object' && m !== null && 'fuzziness' in m;
+        })).toBeUndefined();
     });
 
-    it('keeps inner_hits on the scoring lexical retriever', () => {
+    it('keeps inner_hits on the transcript clause', () => {
         const should = lexicalShouldClauses('πάρκα');
-        const contributions = should.find((c) => c.nested?.path === 'speaker_contributions');
-        expect(contributions?.nested?.inner_hits).toEqual({
+        const transcript = nestedClauseOn(should, 'speaker_contributions.text');
+        expect(transcript?.inner?.nested?.inner_hits).toEqual({
             _source: ['speaker_contributions.contribution_id'],
         });
     });
@@ -224,95 +311,110 @@ describe('buildSearchQuery lexical ranking', () => {
     it('requires the same share of terms in the transcript clauses as in the title', () => {
         const should = lexicalShouldClauses('τι αποφάσισε το συμβούλιο');
 
-        const contributions = should.find((c) => c.nested?.path === 'speaker_contributions');
-        expect(minimumShouldMatchOf(contributions?.nested?.query)).toBe('2<75%');
+        const transcript = nestedClauseOn(should, 'speaker_contributions.text');
+        expect(minimumShouldMatchOf(transcript?.inner?.nested?.query)).toBe('2<75%');
     });
 
     // Field tier name > description > transcript: transcripts are the noisiest
     // field, so a transcript-only match must not outweigh name/description hits.
-    it('keeps the transcript boost below the name and description boosts', () => {
+    it('keeps the transcript tier below the name and description tiers', () => {
         const should = lexicalShouldClauses('προϋπολογισμός');
 
-        const contributions = should.find((c) => c.nested?.path === 'speaker_contributions');
-        const transcriptMatch = Object.values(contributions?.nested?.query?.match ?? {})[0];
-        expect(typeof transcriptMatch === 'object' && transcriptMatch.boost).toBe(1);
+        const transcript = nestedClauseOn(should, 'speaker_contributions.text');
+        const nameTerm = tierClauseOn(should, (inner) => {
+            const m = inner.match?.['name'];
+            return typeof m === 'object' && m !== null && !('fuzziness' in m);
+        });
+        const descriptionTerm = tierClauseOn(
+            should,
+            (inner) => typeof inner.match?.['description'] === 'object'
+        );
+        expect(descriptionTerm!.base!).toBeGreaterThan(transcript!.base!);
+        expect(nameTerm!.base!).toBeGreaterThan(descriptionTerm!.base!);
     });
 });
 
-describe('buildSearchQuery semantic retriever', () => {
-    function retrievers(config: SearchRequest['config']) {
-        const q = buildSearchQuery({ query: 'lava cake', config }, NO_EXTRACTED_FILTERS);
-        const rrf = q.retriever?.rrf as estypes.RetrieverContainer['rrf'];
-        return rrf?.retrievers ?? [];
+describe('buildSearchQuery semantic fallback (dis_max)', () => {
+    function semanticClause(config: SearchRequest['config']) {
+        return textArms('lava cake', config).semantic;
     }
 
-    function semanticStandard(config: SearchRequest['config']) {
-        return retrievers(config)[1]?.standard;
-    }
-
-    // The ranking function only ever scales a score up (see applyRanking), so the
-    // cutoff is nested inside a min_score-only function_score, applied to the raw
-    // semantic score before the ranking function_score wraps around it — see the
-    // comment on buildSemanticRetriever. Unwrap both layers to reach it.
-    function semanticCutoffQuery(config: SearchRequest['config']) {
-        const { inner: cutoffLayer } = unwrapRanking(semanticStandard(config)?.query);
-        return cutoffLayer?.function_score as estypes.QueryDslFunctionScoreQuery;
-    }
-
-    it('omits the semantic retriever when semantic search is disabled', () => {
-        expect(retrievers({ enableSemanticSearch: false })).toHaveLength(1);
+    it('omits the semantic clause when semantic search is disabled', () => {
+        const a = textArms('lava cake', { enableSemanticSearch: false });
+        expect(a.disMax).toBeUndefined();
+        expect(a.semantic).toBeUndefined();
+        expect(a.lexical?.should).toBeDefined();
     });
 
-    it('cuts off the semantic retriever on the raw score so unrelated queries can return zero hits', () => {
-        expect(retrievers({ enableSemanticSearch: true })).toHaveLength(2);
+    // Regression (the "δάνειο" ordering bug): the semantic signal used to be a
+    // second RRF retriever. Rank fusion double-counted whichever document
+    // happened to clear the semantic cutoff, so a 4-minute discussion outranked
+    // a 139-minute one whose raw semantic score fell just below the cutoff.
+    // The semantic side now competes with the summed lexical clauses in a
+    // dis_max (score = max): it can never add to — and so never reorder —
+    // documents with a stronger lexical score. tie_breaker stays 0 because
+    // strong lexical matches sit ~2% apart, so even a small added share of
+    // the semantic score would reorder them.
+    it('competes semantic against lexical via a pure-max dis_max, not a second retriever', () => {
+        const q = buildSearchQuery(
+            { query: 'δάνειο', config: { enableSemanticSearch: true } },
+            NO_EXTRACTED_FILTERS
+        );
+        expect(q.retriever).toBeUndefined();
 
-        const cutoff = semanticCutoffQuery({ enableSemanticSearch: true });
+        const a = textArms('δάνειο', { enableSemanticSearch: true });
+        expect(a.disMax?.tie_breaker).toBe(0);
+        expect(a.semantic).toBeDefined();
+        expect(a.lexical?.should).toBeDefined();
+    });
+
+    it('maps the semantic score into description-tier BM25 space and drops sub-cutoff hits', () => {
+        const clause = semanticClause({ enableSemanticSearch: true })!;
+
+        const fn = clause.functions?.[0] as estypes.QueryDslFunctionScoreContainer;
+        const script = fn?.script_score?.script as estypes.Script;
+        // Math.max floor: script_score must not return a negative score, and
+        // far-below-cutoff hits would map deeply negative at this scale.
+        expect(script.source).toContain('params.base + (_score - params.cutoff) * params.scale');
+        expect(script.source).toContain('Math.max');
+        const params = script.params as Record<string, number>;
         // A raw cutoff, not a normalized one: minmax maps the best hit of every
         // query to 1.0, so a fractional cutoff could never empty the results.
         // 3.23 sits between the measured off-topic band (<= 3.226) and the
         // paraphrase band (>= 3.230) — see DEFAULT_SEMANTIC_MIN_SCORE.
-        expect(cutoff.min_score).toBe(3.23);
-
-        const bool = cutoff.query?.bool as BoolQuery;
-        const should = (bool.should ?? []) as estypes.QueryDslQueryContainer[];
-        expect(should.map((c) => c.semantic?.field)).toEqual([
-            'name.semantic',
-            'description.semantic',
-        ]);
-
-        // The filters still scope the semantic arm, but no lexical clause gates it:
-        // a pure paraphrase above the cutoff must still be able to match.
-        const filters = (bool.filter ?? []) as estypes.QueryDslQueryContainer[];
-        expect(filters.some((f) => f.term?.['meeting_released'] !== undefined)).toBe(true);
-        expect(
-            filters.some(
-                (f) =>
-                    Array.isArray(f.bool?.should) &&
-                    (f.bool!.should as estypes.QueryDslQueryContainer[]).some((c) => c.multi_match)
-            )
-        ).toBe(false);
+        expect(params.cutoff).toBe(3.23);
+        // base sits inside the flattened description band (~24-30, where weak
+        // stem-coincidence matches like bar licenses matching "ζώα χωρίς
+        // ιδιοκτήτη" via ζω/ιδιοκτητ land) and the mapped ceiling (~34) stays
+        // below the flattened name band (~58+) — see SEMANTIC_MAPPED_BASE.
+        expect(params.base).toBe(26);
+        expect(params.scale).toBe(100);
+        expect(clause.boost_mode).toBe('replace');
+        // min_score sees the mapped score: raw below the cutoff maps below
+        // base and is dropped, keeping zero results for off-topic queries.
+        expect(clause.min_score).toBe(params.base);
     });
 
     // The cutoff is calibrated against the sum of these boosts, so a change to
     // either without recalibrating would silently move the threshold.
     it('keeps the semantic boosts the cutoff was calibrated against', () => {
-        const bool = semanticCutoffQuery({ enableSemanticSearch: true }).query?.bool as BoolQuery;
+        const clause = semanticClause({ enableSemanticSearch: true })!;
+        const bool = clause.query?.bool as BoolQuery;
         const should = (bool.should ?? []) as estypes.QueryDslQueryContainer[];
 
+        expect(should.map((c) => c.semantic?.field)).toEqual([
+            'name.semantic',
+            'description.semantic',
+        ]);
         expect(should.map((c) => c.semantic?.boost)).toEqual([2.0, 1.5]);
     });
 
     it('allows overriding semanticMinScore via config', () => {
-        const cutoff = semanticCutoffQuery({ enableSemanticSearch: true, semanticMinScore: 3.1 });
+        const clause = semanticClause({ enableSemanticSearch: true, semanticMinScore: 3.1 })!;
+        const fn = clause.functions?.[0] as estypes.QueryDslFunctionScoreContainer;
+        const script = fn?.script_score?.script as estypes.Script;
 
-        expect(cutoff.min_score).toBe(3.1);
-    });
-
-    it('applies the ranking function to the semantic retriever too, after the cutoff', () => {
-        const { functionScore } = unwrapRanking(semanticStandard({ enableSemanticSearch: true })?.query);
-
-        expect(functionScore.boost_mode).toBe('multiply');
-        expect(functionScore.functions).toHaveLength(1);
+        expect((script.params as Record<string, number>).cutoff).toBe(3.1);
     });
 });
 
@@ -328,9 +430,7 @@ describe('buildSearchQuery ranking function', () => {
 
     it('scores administrative bodies council > committee > community, and weighs discussion length and recency', () => {
         const q = buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS);
-        const rrf = q.retriever?.rrf as estypes.RetrieverContainer['rrf'];
-        const standard = rrf?.retrievers?.[0]?.standard as estypes.RetrieverContainer['standard'];
-        const params = rankingScriptParams(standard?.query);
+        const params = rankingScriptParams(q.query);
 
         expect(params.councilWeight).toBeGreaterThan(params.committeeWeight);
         expect(params.committeeWeight).toBeGreaterThan(params.communityWeight);
@@ -352,23 +452,11 @@ describe('buildSearchQuery ranking function', () => {
         expect(findPersonFilter(filter)).toBeDefined();
     });
 
-    // Regression: nowMillis used to be read via a fresh Date.now() inside
-    // buildRankingFunction, called separately per retriever, so the lexical and
-    // semantic retrievers could score recency against two different instants.
-    it('scores every ranking function built for one request against the same instant', () => {
-        const q = buildSearchQuery(
-            { query: 'πάρκα', config: { enableSemanticSearch: true } },
-            NO_EXTRACTED_FILTERS
-        );
-        const rrf = q.retriever?.rrf as estypes.RetrieverContainer['rrf'];
-        const lexicalStandard = rrf?.retrievers?.[0]?.standard as estypes.RetrieverContainer['standard'];
-        const semanticStandard = rrf?.retrievers?.[1]?.standard as estypes.RetrieverContainer['standard'];
+    it('scores recency against a concrete instant', () => {
+        const q = buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS);
+        const params = rankingScriptParams(q.query);
 
-        const lexicalParams = rankingScriptParams(lexicalStandard?.query);
-        const semanticParams = rankingScriptParams(semanticStandard?.query);
-
-        expect(typeof lexicalParams.nowMillis).toBe('number');
-        expect(semanticParams.nowMillis).toBe(lexicalParams.nowMillis);
+        expect(typeof params.nowMillis).toBe('number');
     });
 });
 
@@ -376,9 +464,7 @@ describe('buildSearchQuery location handling', () => {
     const LOCATIONS = [{ point: { lat: 38.0, lon: 23.7 }, radius: 40 }];
 
     function lexicalQueryOf(q: ReturnType<typeof buildSearchQuery>) {
-        const rrf = q.retriever?.rrf as estypes.RetrieverContainer['rrf'];
-        const standard = rrf?.retrievers?.[0]?.standard as estypes.RetrieverContainer['standard'];
-        return unwrapRanking(standard?.query).inner;
+        return unwrapRanking(q.query).inner;
     }
 
     // Regression: locations used to be a hard geo_distance filter. Only ~45% of
@@ -413,12 +499,12 @@ describe('buildSearchQuery location handling', () => {
         expect(lexical?.bool?.minimum_should_match).toBeUndefined();
     });
 
-    it('builds the plain lexical shape when no locations are extracted', () => {
+    it('adds no geo clause when no locations are extracted', () => {
         const q = buildSearchQuery({ query: 'παλαιστίνη' }, NO_EXTRACTED_FILTERS);
         const lexical = lexicalQueryOf(q);
 
-        expect(lexical?.bool?.should).toBeDefined();
-        expect(lexical?.bool?.must).toBeUndefined();
+        expect(lexical?.bool?.must).toBeDefined();
+        expect(JSON.stringify(lexical)).not.toContain('geo_distance');
     });
 
     it('keeps locations as a hard filter in the filter-only browse path', () => {
@@ -431,13 +517,7 @@ describe('buildSearchQuery location handling', () => {
 });
 
 describe('buildSearchQuery apostrophe normalization', () => {
-    function lexicalShouldClauses(query: string): estypes.QueryDslQueryContainer[] {
-        const q = buildSearchQuery({ query }, NO_EXTRACTED_FILTERS);
-        const rrf = q.retriever?.rrf as estypes.RetrieverContainer['rrf'];
-        const standard = rrf?.retrievers?.[0]?.standard as estypes.RetrieverContainer['standard'];
-        const { inner } = unwrapRanking(standard?.query);
-        return ((inner?.bool as BoolQuery).should ?? []) as estypes.QueryDslQueryContainer[];
-    }
+    const lexicalShouldClauses = scoredShouldClauses;
 
     // Mobile keyboards auto-substitute U+2019; official minutes use the Greek
     // tonos (U+0384) as an apostrophe (ΔΙ΄ΕΥΧΩΝ). All variants must behave
@@ -453,29 +533,42 @@ describe('buildSearchQuery apostrophe normalization', () => {
         }
     );
 
+    // Variant clauses are per-field and tier-wrapped like the main clauses:
+    // whichever shape the index holds, the score tier is the same. These
+    // helpers collect the exact term-clause query strings per field, main
+    // clause included.
+    function exactTermQueries(clauses: estypes.QueryDslQueryContainer[], field: string): string[] {
+        const queries: string[] = [];
+        for (const c of clauses) {
+            const m = unflatten(c).inner?.match?.[field];
+            if (typeof m === 'object' && m !== null && !('fuzziness' in m) && typeof m.query === 'string') {
+                queries.push(m.query);
+            }
+        }
+        return queries;
+    }
+
     it('adds a space-split variant clause for intra-word apostrophes', () => {
         const clauses = lexicalShouldClauses("δι'ευχών");
-        const variants = clauses.filter((c) => c.multi_match);
 
         // Intact-token form plus the split-token form the tonos spelling
-        // produces in the index (ΔΙ΄ΕΥΧΩΝ → δι, ευχ) — same fields and boosts.
-        expect(variants).toHaveLength(2);
-        expect(variants[0]?.multi_match?.query).toBe('δι ευχών');
-        expect(variants[0]?.multi_match?.fields).toEqual(['name^4', 'description^3']);
-        expect(variants[1]?.multi_match?.query).toBe("δι'ευχών");
+        // produces in the index (ΔΙ΄ΕΥΧΩΝ → δι, ευχ) — on both tiered fields.
+        expect(exactTermQueries(clauses, 'name')).toEqual(['δι ευχών', "δι'ευχών"]);
+        expect(exactTermQueries(clauses, 'description')).toEqual(['δι ευχών', "δι'ευχών"]);
     });
 
     it('adds no variant clause for apostrophe-free queries', () => {
         const clauses = lexicalShouldClauses('πάρκα');
-        expect(clauses.filter((c) => c.multi_match)).toHaveLength(1);
+        expect(exactTermQueries(clauses, 'name')).toEqual(['πάρκα']);
     });
 });
 
 describe('buildSearchQuery filter-only mode', () => {
-    it('builds a ranked rrf query when query text is present', () => {
+    it('builds a single scored query (no retriever) when query text is present', () => {
         const q = buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS);
 
-        expect(q.retriever).toBeDefined();
+        expect(q.retriever).toBeUndefined();
+        expect(q.query).toBeDefined();
         expect(q.sort).toBeUndefined();
     });
 
@@ -491,7 +584,7 @@ describe('buildSearchQuery filter-only mode', () => {
                 NO_EXTRACTED_FILTERS
             );
 
-            // No ranking retrievers (they require query text)...
+            // No text clauses (they require query text)...
             expect(q.retriever).toBeUndefined();
             // ...instead a filtered query whose function_score (boost_mode: 'replace',
             // see the dedicated ranking-function describe block) ranks it, so there's

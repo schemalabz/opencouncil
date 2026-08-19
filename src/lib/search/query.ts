@@ -3,9 +3,6 @@ import { SearchRequest, ExtractedFilters, Location } from './types';
 import { env } from '@/env.mjs';
 import { ADMIN_BODY_TIER } from '@/lib/ranking/subjects';
 
-const DEFAULT_RANK_WINDOW_SIZE = 100;
-const DEFAULT_RANK_CONSTANT = 60;
-
 const SEMANTIC_NAME_BOOST = 2.0;
 const SEMANTIC_DESCRIPTION_BOOST = 1.5;
 
@@ -16,7 +13,7 @@ const SEMANTIC_DESCRIPTION_BOOST = 1.5;
 const LOCATION_BOOST = 2;
 
 /**
- * Raw-score cutoff for the semantic retriever, measured against the production
+ * Raw-score cutoff for the semantic fallback clause, measured against the production
  * index (scripts/search-eval.ts). multilingual-e5 trains with a low InfoNCE
  * temperature, so its cosine similarities bunch up near the top of the range
  * and unrelated text still scores highly. Measured bands (Aug 2026, 9.1k
@@ -26,8 +23,8 @@ const LOCATION_BOOST = 2;
  *     stems with the docs), top hits:    3.23 - 3.275
  *   - off-topic queries, best hit:       <= 3.218
  * The cutoff sits just above the off-topic band and below the paraphrase band:
- * paraphrases are the semantic retriever's whole purpose (the lexical
- * retriever already covers stem-sharing queries), so the cutoff keeps them
+ * paraphrases are the semantic clause's whole purpose (the lexical clauses
+ * already cover stem-sharing queries), so the cutoff keeps them
  * while off-topic queries return zero semantic hits.
  *
  * The value is the sum of the two boosts below at their per-field score, so
@@ -36,6 +33,25 @@ const LOCATION_BOOST = 2;
  * every query, which makes a fractional cutoff unable to ever empty the results.
  */
 const DEFAULT_SEMANTIC_MIN_SCORE = 3.23;
+
+/**
+ * Mapping of the raw semantic score into BM25 space for the dis_max fallback
+ * (see buildSemanticFallbackQuery): mapped = BASE + (raw - cutoff) * SCALE.
+ * Calibrated against the flattened lexical tiers (FIELD_TIER) on the
+ * live-index eval (scripts/search-eval.ts):
+ *   - Weak stem-coincidence lexical matches (both stems of a 2-term query
+ *     landing in one long description, e.g. bar licenses matching
+ *     "ζώα χωρίς ιδιοκτήτη" via ζω/ιδιοκτητ) flatten to ~24-30
+ *     (descriptionTerm + descriptionPhrase bands); BASE sits inside that
+ *     band, so a genuine paraphrase-only match competes with them.
+ *   - A real name match flattens to ~58+ (nameTerm + namePhrase), so the
+ *     mapped ceiling (BASE + ~0.08 * SCALE ≈ 34) stays below any title match.
+ *   - The paraphrase band spans ~cutoff to cutoff + 0.08 (e5's compressed
+ *     scale); SCALE spreads it over ~8 points so semantic ordering still
+ *     matters among paraphrase-only hits.
+ */
+const SEMANTIC_MAPPED_BASE = 26;
+const SEMANTIC_MAPPED_SCALE = 100;
 
 /**
  * A single-term query matches on its term; a 2-term query requires both terms
@@ -77,7 +93,73 @@ const APOSTROPHE_VARIANTS = /[‘’ʼ΄´᾽᾿]/g;
  */
 const NAME_FUZZINESS = 'AUTO:4,10';
 const NAME_FUZZY_PREFIX_LENGTH = 2;
-const NAME_FUZZY_BOOST = 1;
+
+/**
+ * Field-tier score flattening: every lexical clause is rescored to
+ * base + k * log1p(bm25), so WHICH field matched (the tier: name >
+ * description/introducer > transcript) sets the score level,
+ * raw BM25 shrinks to a small within-tier tiebreak, and the post-relevance
+ * multiplier (admin body, discussion length, recency; up to ~1.42x) decides
+ * among same-tier matches.
+ *
+ * Raw BM25 must not rank within a tier: measured on the production index
+ * ("δάνειο"), two title matches differed by 26% in summed BM25 purely through
+ * title length normalization (3 vs 4 stemmed tokens) and description term
+ * repetition — noise, not relevance — which buried a recent, heavily-debated
+ * subject under an old, briefly-discussed one. Under the flattening the same
+ * pair differs by ~2% before the multiplier, so recency and discussion decide.
+ *
+ * Tier levels are chosen so the multiplier can reorder within a tier but not
+ * across tiers: a full name match (term+phrase, ~58-88 with its log parts)
+ * stays above the strongest boosted description match (~30 * 1.42 = 43); a
+ * description match stays above transcript-only (~16 * 1.42 = 23). The
+ * semantic fallback maps into the description band (see SEMANTIC_MAPPED_BASE).
+ * k per tier keeps the log tiebreak's spread near +-5%, well under the
+ * multiplier's reach.
+ */
+const FIELD_TIER = {
+    nameTerm: { base: 40, k: 6 },
+    namePhrase: { base: 20, k: 3 },
+    descriptionTerm: { base: 15, k: 4 },
+    descriptionPhrase: { base: 8, k: 2 },
+    // Between name and description: for a person-name query, the subjects the
+    // person introduced must lead the ones that only mention them in the
+    // description or transcript (there is no title to compete with — names
+    // rarely appear in subject titles), while for topic queries a real title
+    // match still outranks a same-named introducer (stem collisions like
+    // Δήμος the surname vs δήμος the word).
+    introducer: { base: 28, k: 4 },
+    locationText: { base: 15, k: 4 },
+    // Uniform for correctly-spelled queries (a fuzzy expansion includes the
+    // exact term), the only name-tier signal for typo queries.
+    fuzzyName: { base: 4, k: 2 },
+    transcript: { base: 6, k: 3 },
+} as const;
+
+// Rescores a clause to its tier band: base + k * log1p(bm25). boost_mode
+// replace discards the raw BM25 magnitude; the log term keeps its ordering as
+// a within-tier tiebreak. Wrapping OUTSIDE a nested query preserves inner_hits.
+function flattenToTier(
+    query: estypes.QueryDslQueryContainer,
+    tier: { base: number; k: number }
+): estypes.QueryDslQueryContainer {
+    return {
+        function_score: {
+            query,
+            functions: [
+                {
+                    script_score: {
+                        script: {
+                            source: 'params.base + params.k * Math.log1p(_score)',
+                            params: { base: tier.base, k: tier.k }
+                        }
+                    }
+                }
+            ],
+            boost_mode: 'replace'
+        }
+    };
+}
 
 /**
  * Post-relevance ranking: nudges among otherwise-similar matches by administrative
@@ -144,11 +226,7 @@ const RANKING_SCRIPT = `
     return adminWeight * discussionFactor * recencyFactor;
 `;
 
-// nowMillis is threaded in explicitly (computed once by the caller) rather than
-// read here via Date.now(), so every ranking function built for the same request —
-// both RRF retrievers, or the filter-only branch — scores recency against the
-// same instant.
-function buildRankingFunction(nowMillis: number): estypes.QueryDslFunctionScoreContainer {
+function buildRankingFunction(): estypes.QueryDslFunctionScoreContainer {
     return {
         script_score: {
             script: {
@@ -161,7 +239,7 @@ function buildRankingFunction(nowMillis: number): estypes.QueryDslFunctionScoreC
                     discussionWeight: DISCUSSION_LENGTH_BOOST_WEIGHT,
                     recencyWeight: RECENCY_BOOST_WEIGHT,
                     recencyScaleDays: RECENCY_DECAY_SCALE_DAYS,
-                    nowMillis,
+                    nowMillis: Date.now(),
                 },
             },
         },
@@ -173,13 +251,12 @@ function buildRankingFunction(nowMillis: number): estypes.QueryDslFunctionScoreC
 // browse path (no query text) uses `replace` to rank on the function alone.
 function applyRanking(
     query: estypes.QueryDslQueryContainer,
-    boostMode: 'multiply' | 'replace',
-    nowMillis: number
+    boostMode: 'multiply' | 'replace'
 ): estypes.QueryDslQueryContainer {
     return {
         function_score: {
             query,
-            functions: [buildRankingFunction(nowMillis)],
+            functions: [buildRankingFunction()],
             boost_mode: boostMode,
         },
     };
@@ -295,20 +372,28 @@ function buildLocationBoostClauses(locations: Location[] | undefined): estypes.Q
 
 // Transcripts are long enough that a bare OR match lets an off-topic query match
 // on one common word, so they take the same term requirement as the title fields.
-// Boost 1 keeps the field tier name > description > transcript: a transcript is
-// the noisiest field (routine words like "προϋπολογισμός" occur in almost every
-// meeting's discussion), so a transcript-only match must rank below subjects
-// that carry the query terms in their name or description.
+// The transcript's place at the bottom of the field tier (a transcript is the
+// noisiest field — routine words like "προϋπολογισμός" occur in almost every
+// meeting's discussion) comes from FIELD_TIER.transcript on the wrapper, not
+// from a boost here.
 function buildTranscriptMatch(field: string, queryText: string): estypes.QueryDslQueryContainer {
     return {
         match: {
             [field]: {
                 query: queryText,
-                boost: 1,
                 minimum_should_match: LEXICAL_MINIMUM_SHOULD_MATCH
             }
         }
     };
+}
+
+// The standard tokenizer keeps an intra-word ASCII apostrophe inside its
+// token (δι'ευχών → δι'ευχ) but splits on the Greek tonos that official
+// minutes use in names (ΔΙ΄ΕΥΧΩΝ → δι, ευχ), so each indexed spelling is
+// reachable by only one shape of the query. The main clauses match the
+// intact-token form; the space-split variant matches the split-token form.
+function buildQueryTextVariants(queryText: string): string[] {
+    return queryText.includes("'") ? [queryText.replace(/'/g, ' ')] : [];
 }
 
 // Lexical should-clauses: BM25 match on title/description/transcripts.
@@ -316,84 +401,71 @@ function buildLexicalShouldClauses(
     queryText: string,
     extractedFilters: ExtractedFilters
 ): estypes.QueryDslQueryContainer[] {
+    // Name and description sit in different tiers, so each field gets its own
+    // clause (a shared best_fields multi_match could not carry two bases).
+    // Matching several fields sums their tiers — more evidence, higher score —
+    // which preserves the old multi_match-plus-phrases additivity.
+    const termClause = (field: string, text: string): estypes.QueryDslQueryContainer => ({
+        match: {
+            [field]: {
+                query: text,
+                minimum_should_match: LEXICAL_MINIMUM_SHOULD_MATCH
+            }
+        }
+    });
+
     return [
-        // The standard tokenizer keeps an intra-word ASCII apostrophe inside
-        // its token (δι'ευχών → δι'ευχ) but splits on the Greek tonos that
-        // official minutes use in names (ΔΙ΄ΕΥΧΩΝ → δι, ευχ), so each indexed
-        // spelling is reachable by only one shape of the query. The main
-        // clauses below match the intact-token form; this space-split variant
-        // matches the split-token form. Same fields and boosts as the main
-        // multi_match — whichever shape the index holds, the score tier is
-        // the same.
-        ...(queryText.includes("'") ? [{
-            multi_match: {
-                query: queryText.replace(/'/g, ' '),
-                fields: ['name^4', 'description^3'],
-                type: 'best_fields' as const,
-                operator: 'or' as const,
-                minimum_should_match: LEXICAL_MINIMUM_SHOULD_MATCH
-            }
-        }] : []),
-        {
-            multi_match: {
-                query: queryText,
-                fields: [
-                    'name^4',
-                    'description^3',
-                    // Person-name queries ("Χάρης Δούκας", "Μαλτέζος") are a
-                    // recurring pattern in the logged user searches. This field
-                    // covers the subjects the person introduced — a deliberate
-                    // authorship signal, unlike speaker_contributions.speaker_person_name,
-                    // which is intentionally not searched: a mayor speaks in nearly
-                    // every subject, so matching it would flood a name query with
-                    // everything they ever commented on (the personIds filter serves
-                    // that need). The greek analyzer also stems name declensions,
-                    // so "του Δούκα" matches "Δούκας".
-                    'introduced_by_person_name^3',
-                    ...(extractedFilters.locationName ? ['location_text^3'] : []),
-                ],
-                type: 'best_fields',
-                operator: 'or',
-                minimum_should_match: LEXICAL_MINIMUM_SHOULD_MATCH
-            }
-        },
-        {
-            // Typo tolerance for citizen-style queries (often misspelled), on the
-            // name field only — see NAME_FUZZINESS for why description is exact-only.
-            // Low boost: for correctly-spelled queries this adds near-uniform score
-            // (a fuzzy expansion includes the exact term), so the exact clauses above
-            // stay dominant; for typo queries it is the only clause that matches.
+        // One clause pair per alternate spelling (see buildQueryTextVariants),
+        // in the same tiers as the main clauses: whichever shape the index
+        // holds, the score tier is the same.
+        ...buildQueryTextVariants(queryText).flatMap(variant => [
+            flattenToTier(termClause('name', variant), FIELD_TIER.nameTerm),
+            flattenToTier(termClause('description', variant), FIELD_TIER.descriptionTerm),
+        ]),
+        flattenToTier(termClause('name', queryText), FIELD_TIER.nameTerm),
+        flattenToTier(termClause('description', queryText), FIELD_TIER.descriptionTerm),
+        // Person-name queries ("Χάρης Δούκας", "Μαλτέζος") are a recurring
+        // pattern in the logged user searches. This field covers the subjects
+        // the person introduced — a deliberate authorship signal, unlike
+        // speaker_contributions.speaker_person_name, which is intentionally not
+        // searched: a mayor speaks in nearly every subject, so matching it
+        // would flood a name query with everything they ever commented on (the
+        // personIds filter serves that need). The greek analyzer also stems
+        // name declensions, so "του Δούκα" matches "Δούκας".
+        flattenToTier(termClause('introduced_by_person_name', queryText), FIELD_TIER.introducer),
+        ...(extractedFilters.locationName
+            ? [flattenToTier(termClause('location_text', queryText), FIELD_TIER.locationText)]
+            : []),
+        // Typo tolerance for citizen-style queries (often misspelled), on the
+        // name field only — see NAME_FUZZINESS for why description is exact-only.
+        // For correctly-spelled queries this adds a near-uniform tier score (a
+        // fuzzy expansion includes the exact term); for typo queries it is the
+        // only clause that matches.
+        flattenToTier({
             match: {
                 'name': {
                     query: queryText,
                     fuzziness: NAME_FUZZINESS,
                     prefix_length: NAME_FUZZY_PREFIX_LENGTH,
-                    boost: NAME_FUZZY_BOOST,
                     minimum_should_match: LEXICAL_MINIMUM_SHOULD_MATCH
                 }
             }
-        },
-        {
-            // Phrase match on the title: a contiguous phrase match in the
-            // most important field should clearly outrank scattered terms.
+        }, FIELD_TIER.fuzzyName),
+        // Phrase match on the title: a contiguous phrase match in the most
+        // important field should clearly outrank scattered terms.
+        flattenToTier({
             match_phrase: {
-                'name': {
-                    query: queryText,
-                    boost: 6
-                }
+                'name': { query: queryText }
             }
-        },
-        {
-            // Phrase match on the description, with a lower boost than the
-            // title so long descriptions don't overweight phrase proximity.
+        }, FIELD_TIER.namePhrase),
+        // Phrase match on the description, a tier below the title phrase so
+        // long descriptions don't overweight phrase proximity.
+        flattenToTier({
             match_phrase: {
-                'description': {
-                    query: queryText,
-                    boost: 4
-                }
+                'description': { query: queryText }
             }
-        },
-        {
+        }, FIELD_TIER.descriptionPhrase),
+        flattenToTier({
             nested: {
                 path: 'speaker_contributions',
                 query: buildTranscriptMatch('speaker_contributions.text', queryText),
@@ -401,7 +473,7 @@ function buildLexicalShouldClauses(
                     _source: ['speaker_contributions.contribution_id']
                 }
             }
-        }
+        }, FIELD_TIER.transcript)
     ];
 }
 
@@ -409,12 +481,30 @@ function buildLexicalShouldClauses(
 // so without a cutoff an off-topic query still fills a page of results. The
 // `min_score` drops the neighbours that only look close on the model's
 // compressed similarity scale.
-function buildSemanticRetriever(
+//
+// This is one side of a dis_max with the lexical clauses (score = max, not
+// sum), NOT a second retriever fused with rank-based RRF, and NOT an additive
+// clause. Both alternatives failed on measured cases:
+//   - RRF double-counted whichever document happened to clear the cutoff
+//     (a second reciprocal-rank vote, worth ~2x), so a 4-minute loan
+//     discussion outranked a 139-minute one whose semantic score fell just
+//     below the cutoff ("δάνειο", lexical gap between them only ~2%).
+//   - An additive bonus cannot be sized at all: lexical scores of strong
+//     matches sit ~2 points apart while weak-but-junky lexical matches score
+//     20-40, so any bonus big enough to lift a paraphrase-only match over
+//     junk would also flip the strong matches.
+// Under dis_max the semantic path is mapped into the description-tier score
+// range (SEMANTIC_MAPPED_BASE + margin * SEMANTIC_MAPPED_SCALE) and max()
+// structurally caps its power: a document with a strong lexical score keeps
+// it unchanged, a paraphrase-only document enters at description strength —
+// above transcript-only mentions and weak stem-coincidence matches, below
+// any real name match. Off-topic queries still return nothing: below the
+// cutoff the mapped score falls under min_score and the clause does not
+// match, and the lexical side never matched in the first place.
+function buildSemanticFallbackQuery(
     queryText: string,
-    filters: estypes.QueryDslQueryContainer[],
-    semanticMinScore: number,
-    nowMillis: number
-): estypes.RetrieverContainer {
+    semanticMinScore: number
+): estypes.QueryDslQueryContainer {
     const semanticQuery: estypes.QueryDslQueryContainer = {
         bool: {
             should: [
@@ -433,24 +523,38 @@ function buildSemanticRetriever(
                     }
                 }
             ],
-            minimum_should_match: 1,
-            filter: filters
+            minimum_should_match: 1
         }
     };
 
     return {
-        standard: {
-            // The cutoff must see the raw semantic score, not the ranking-boosted one:
-            // applyRanking's factors only ever scale a score up (they floor at 1.0), so
-            // cutting off after boosting would let hits that boosting alone pushed above
-            // semanticMinScore slip through, undermining the calibration this cutoff
-            // exists for. Nesting a min_score-only function_score inside applyRanking's
-            // wrapper cuts off on the raw score first, then re-ranks the survivors.
-            query: applyRanking(
-                { function_score: { query: semanticQuery, min_score: semanticMinScore } },
-                'multiply',
-                nowMillis
-            )
+        function_score: {
+            query: semanticQuery,
+            functions: [
+                {
+                    script_score: {
+                        script: {
+                            // Clamped at 0 because Elasticsearch rejects negative
+                            // script scores outright: a hit matching only one
+                            // semantic field scores far below the cutoff (raw ~1.8
+                            // maps to ~-214) and would fail the whole request, not
+                            // just miss min_score. The clamp keeps the score legal;
+                            // min_score below still does the actual gating.
+                            source: 'Math.max(params.base + (_score - params.cutoff) * params.scale, 0)',
+                            params: {
+                                base: SEMANTIC_MAPPED_BASE,
+                                cutoff: semanticMinScore,
+                                scale: SEMANTIC_MAPPED_SCALE
+                            }
+                        }
+                    }
+                }
+            ],
+            boost_mode: 'replace',
+            // min_score applies to the adjusted score: raw scores below the
+            // cutoff map below `base` and are dropped, keeping the
+            // zero-results behaviour for off-topic queries.
+            min_score: SEMANTIC_MAPPED_BASE
         }
     };
 }
@@ -466,16 +570,13 @@ export function buildSearchQuery(
         dateRange: extractedFilters.dateRange || request.dateRange
     };
 
-    // Filter-only search: no query text to rank on, so skip the rrf/semantic
-    // retrievers (they require a query) and rank the filtered set by administrative
-    // body, discussion length, and recency alone. Used e.g. for "everything a person
+    // Filter-only search: no query text to rank on, so skip the text clauses
+    // (they require a query) and rank the filtered set by administrative body,
+    // discussion length, and recency alone. Used e.g. for "everything a person
     // spoke about" or "all subjects in a date range".
     const queryText = mergedRequest.query?.trim().replace(APOSTROPHE_VARIANTS, "'");
     const filters = buildFilters(mergedRequest);
     const locationBoosts = buildLocationBoostClauses(mergedRequest.locations);
-    // Computed once so every ranking function built for this request — both RRF
-    // retrievers below, or the filter-only branch — scores recency identically.
-    const nowMillis = Date.now();
     if (!queryText) {
         // With no text to score, a location can only act as a filter. Unreachable
         // today (locations only come from AI extraction, which requires query
@@ -491,50 +592,56 @@ export function buildSearchQuery(
             track_total_hits: true,
             // A filter-only bool query scores every hit 0, so 'replace' ranks on the
             // function alone instead of nudging a (nonexistent) relevance score.
-            query: applyRanking({ bool: { filter: browseFilters } }, 'replace', nowMillis)
+            query: applyRanking({ bool: { filter: browseFilters } }, 'replace')
         };
     }
 
-    const lexicalCore: estypes.QueryDslQueryContainer = {
+    // One scored query, no rank fusion: the lexical clauses sum inside their
+    // own bool, and the semantic fallback competes with that sum via dis_max
+    // (score = max) — see buildSemanticFallbackQuery for why neither RRF nor
+    // an additive clause works. Filters wrap the dis_max so both sides stay
+    // scoped identically.
+    const lexicalBool: estypes.QueryDslQueryContainer = {
         bool: {
             should: buildLexicalShouldClauses(queryText, extractedFilters),
-            minimum_should_match: 1,
+            minimum_should_match: 1
+        }
+    };
+    const textCore: estypes.QueryDslQueryContainer = {
+        bool: {
+            must: [
+                request.config?.enableSemanticSearch
+                    ? {
+                        dis_max: {
+                            queries: [
+                                lexicalBool,
+                                buildSemanticFallbackQuery(
+                                    queryText,
+                                    request.config.semanticMinScore ?? DEFAULT_SEMANTIC_MIN_SCORE
+                                )
+                            ],
+                            // Pure max: any tie_breaker share of the semantic score
+                            // added onto near-tied strong lexical matches would
+                            // reorder them (their gaps measure ~2%).
+                            tie_breaker: 0
+                        }
+                    }
+                    : lexicalBool
+            ],
             filter: filters
         }
     };
     // Proximity lifts pinned subjects near the extracted location, inside `must`
-    // so a location-only match without any text match cannot surface. Lexical arm
-    // only: the semantic arm's min_score calibration must keep seeing raw
-    // semantic scores, and RRF carries the lexical arm's ordering across.
-    const lexicalQuery: estypes.QueryDslQueryContainer = locationBoosts.length > 0
-        ? { bool: { must: [lexicalCore], should: locationBoosts } }
-        : lexicalCore;
+    // so a location-only match without any text match cannot surface.
+    const scoredQuery: estypes.QueryDslQueryContainer = locationBoosts.length > 0
+        ? { bool: { must: [textCore], should: locationBoosts } }
+        : textCore;
 
     return {
         index: env.ELASTICSEARCH_INDEX,
         size: request.config?.size || 10,
         from: request.config?.from || 0,
         track_total_hits: true,
-        retriever: {
-            rrf: {
-                retrievers: [
-                    {
-                        standard: {
-                            query: applyRanking(lexicalQuery, 'multiply', nowMillis)
-                        }
-                    },
-                    ...(request.config?.enableSemanticSearch ? [
-                        buildSemanticRetriever(
-                            queryText,
-                            filters,
-                            request.config.semanticMinScore ?? DEFAULT_SEMANTIC_MIN_SCORE,
-                            nowMillis
-                        )
-                    ] : [])
-                ],
-                rank_window_size: request.config?.rankWindowSize || DEFAULT_RANK_WINDOW_SIZE,
-                rank_constant: request.config?.rankConstant || DEFAULT_RANK_CONSTANT
-            }
-        }
+        query: applyRanking(scoredQuery, 'multiply')
     };
 }

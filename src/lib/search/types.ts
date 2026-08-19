@@ -5,13 +5,11 @@ import { SegmentWithRelations } from "@/lib/db/speakerSegments";
 // Search configuration
 export type SearchConfig = {
     enableSemanticSearch?: boolean;
-    /** Raw score cutoff for the semantic retriever. See DEFAULT_SEMANTIC_MIN_SCORE. */
+    /** Raw score cutoff for the semantic fallback. See DEFAULT_SEMANTIC_MIN_SCORE. */
     semanticMinScore?: number;
     enableHighlights?: boolean;
     size?: number;
     from?: number;
-    rankWindowSize?: number;
-    rankConstant?: number;
     detailed?: boolean; // Whether to return detailed results
 };
 
