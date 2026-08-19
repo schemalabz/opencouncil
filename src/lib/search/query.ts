@@ -418,13 +418,31 @@ function buildTranscriptMatch(field: string, queryText: string): estypes.QueryDs
     };
 }
 
-// The standard tokenizer keeps an intra-word ASCII apostrophe inside its
-// token (δι'ευχών → δι'ευχ) but splits on the Greek tonos that official
-// minutes use in names (ΔΙ΄ΕΥΧΩΝ → δι, ευχ), so each indexed spelling is
-// reachable by only one shape of the query. The main clauses match the
-// intact-token form; the space-split variant matches the split-token form.
+// Alternate spellings for intra-word punctuation that the standard tokenizer
+// keeps inside its tokens, so the query only reaches the index spelling that
+// used the exact same punctuation. Two classes, both measured on the
+// production index (hyphens, slashes, case and diaeresis all tokenize
+// identically on both sides and need no variant):
+//
+// - Apostrophes: a typed δι'ευχών stays one token (δι'ευχ), but official
+//   minutes write ΔΙ΄ΕΥΧΩΝ with a Greek tonos, which splits (δι, ευχ). The
+//   space-split variant matches the split-token form.
+// - Dotted acronyms: a typed Δ.Ε.Υ.Α.Χ. stays one token (δ.ε.υ.α.χ), but
+//   long acronyms are indexed plain (ΔΕΥΑΧ — 70 subjects vs 0 dotted). The
+//   glued variant matches the plain form. The reverse direction (typed ΔΕΡΤΟ
+//   vs indexed Δ.Ε.Ρ.Τ.Ο.) cannot be fixed from the query side — the query
+//   builder cannot know where dots belong; that direction needs an index-time
+//   char_filter and a reindex.
 function buildQueryTextVariants(queryText: string): string[] {
-    return queryText.includes("'") ? [queryText.replace(/'/g, ' ')] : [];
+    const variants = new Set<string>();
+    if (queryText.includes("'")) {
+        variants.add(queryText.replace(/'/g, ' '));
+    }
+    if (/\p{L}\.\p{L}/u.test(queryText)) {
+        variants.add(queryText.replace(/(?<=\p{L})\.(?=\p{L})/gu, ''));
+    }
+    variants.delete(queryText);
+    return [...variants];
 }
 
 // Lexical should-clauses: BM25 match on title/description/transcripts.

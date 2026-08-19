@@ -556,7 +556,7 @@ describe('buildSearchQuery location handling', () => {
     });
 });
 
-describe('buildSearchQuery apostrophe normalization', () => {
+describe('buildSearchQuery punctuation variants', () => {
     const lexicalShouldClauses = scoredShouldClauses;
 
     // Mobile keyboards auto-substitute U+2019; official minutes use the Greek
@@ -597,7 +597,25 @@ describe('buildSearchQuery apostrophe normalization', () => {
         expect(exactTermQueries(clauses, 'description')).toEqual(['δι ευχών', "δι'ευχών"]);
     });
 
-    it('adds no variant clause for apostrophe-free queries', () => {
+    // Long acronyms are indexed plain (ΔΕΥΑΧ, ΝΠΔΔ, ΟΤΑ — zero dotted names on
+    // the production index), but users type them dotted. The glued variant
+    // reaches the plain spelling; the intact clause still reaches dotted names
+    // like Δ.Ε.Ρ.Τ.Ο. where the index kept the dots.
+    it('adds a glued variant clause for dotted acronyms', () => {
+        const clauses = lexicalShouldClauses('τιμολόγια Δ.Ε.Υ.Α.Χ.');
+
+        expect(exactTermQueries(clauses, 'name')).toEqual(['τιμολόγια ΔΕΥΑΧ.', 'τιμολόγια Δ.Ε.Υ.Α.Χ.']);
+    });
+
+    it('adds independent variants when a query mixes apostrophes and dotted acronyms', () => {
+        const clauses = lexicalShouldClauses("δι'ευχών Δ.Ε.");
+
+        // One variant per punctuation class plus the intact query — each
+        // variant targets its own index spelling, they do not compound.
+        expect(exactTermQueries(clauses, 'name')).toEqual(["δι ευχών Δ.Ε.", "δι'ευχών ΔΕ.", "δι'ευχών Δ.Ε."]);
+    });
+
+    it('adds no variant clause for punctuation-free queries', () => {
         const clauses = lexicalShouldClauses('πάρκα');
         expect(exactTermQueries(clauses, 'name')).toEqual(['πάρκα']);
     });

@@ -74,6 +74,10 @@ const CASES: EvalCase[] = [
     // type ASCII or smart quotes. All variants must return the same subjects.
     { query: "δι'ευχών", expect: 'results', note: 'bar name, ASCII apostrophe' },
     { query: 'δι’ευχών', expect: 'results', note: 'bar name, smart quote (mobile keyboards)' },
+    // Dotted acronyms: long ones are indexed plain (ΔΕΥΑΧ), so the glued
+    // variant must reach them; short dotted ones (Δ.Ε.Ρ.Τ.Ο.) match intact.
+    { query: 'Δ.Ε.Υ.Α.Χ.', expect: 'results', note: 'dotted acronym, indexed plain' },
+    { query: 'Δ.Ε.Ρ.Τ.Ο.', expect: 'results', note: 'dotted acronym, indexed dotted' },
     // Person names (logged user queries). The subjects the person introduced
     // lead, via introduced_by_person_name; the ones they only spoke in follow,
     // via the much weaker speaker_person_name clause (FIELD_TIER.speakerName).
