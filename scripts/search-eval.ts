@@ -74,7 +74,11 @@ const CASES: EvalCase[] = [
     // type ASCII or smart quotes. All variants must return the same subjects.
     { query: "δι'ευχών", expect: 'results', note: 'bar name, ASCII apostrophe' },
     { query: 'δι’ευχών', expect: 'results', note: 'bar name, smart quote (mobile keyboards)' },
-    // Person names (logged user queries) — matched via introduced_by_person_name
+    // Person names (logged user queries). The subjects the person introduced
+    // lead, via introduced_by_person_name; the ones they only spoke in follow,
+    // via the much weaker speaker_person_name clause (FIELD_TIER.speakerName).
+    // The expectations below only assert non-empty — check the printed order by
+    // eye when either tier changes.
     { query: 'Χάρης Δούκας', expect: 'results', note: 'logged user query: Athens mayor' },
     { query: 'Μαλτέζος', expect: 'results', note: 'logged user query: councillor surname' },
     { query: 'του Δούκα', expect: 'results', note: 'genitive declension of Δούκας' },

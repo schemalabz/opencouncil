@@ -62,8 +62,11 @@ function tierClauseOn(
     return undefined;
 }
 
-// Tier-wrapped clause nested on speaker_contributions whose inner query
-// matches `field`, returned with its tier.
+// Two should-clauses nest on speaker_contributions (the transcript text and
+// the speaker name), so select by the field each one matches rather than by the
+// shared path — otherwise a reordering would silently point a test at the wrong
+// clause and still pass. Clauses arrive tier-wrapped; this returns the inner
+// nested query with its tier.
 function nestedClauseOn(
     should: estypes.QueryDslQueryContainer[],
     field: string
@@ -213,10 +216,8 @@ describe('buildSearchQuery lexical ranking', () => {
     // Each field carries its own tier-wrapped clause (a shared best_fields
     // multi_match could not carry two tier bases). introduced_by_person_name
     // serves person-name queries (a recurring pattern in logged user searches)
-    // via the subjects the person introduced.
-    // speaker_contributions.speaker_person_name is deliberately absent: a
-    // mayor speaks in nearly every subject, so matching it would flood a name
-    // query (the personIds filter serves that need).
+    // via the subjects the person introduced; speaker_person_name is nested and
+    // belongs a tier lower (see the speaker-name clause tests).
     it('applies exact per-field term and phrase clauses in their tiers', () => {
         const should = lexicalShouldClauses('πάρκα Κυψέλης');
 
@@ -331,6 +332,45 @@ describe('buildSearchQuery lexical ranking', () => {
         );
         expect(descriptionTerm!.base!).toBeGreaterThan(transcript!.base!);
         expect(nameTerm!.base!).toBeGreaterThan(descriptionTerm!.base!);
+    });
+});
+
+describe('buildSearchQuery speaker-name clause', () => {
+    const speakerNameClause = (query: string) =>
+        nestedClauseOn(scoredShouldClauses(query), 'speaker_contributions.speaker_person_name');
+
+    it('matches the speakers of a subject, in the weakest tier of the query', () => {
+        const clause = speakerNameClause('Χάρης Δούκας');
+
+        expect(clause?.inner?.nested?.query?.match?.['speaker_contributions.speaker_person_name'])
+            .toEqual({
+                query: 'Χάρης Δούκας',
+                minimum_should_match: '2<75%',
+            });
+
+        // Weakest tier in the query, under the transcript's: a person-name
+        // query leads with the subjects the person introduced, and the ones
+        // they only spoke in follow. Calibrated on the production index — see
+        // the FIELD_TIER.speakerName note for the measured top-10 displacement.
+        const transcript = nestedClauseOn(
+            scoredShouldClauses('Χάρης Δούκας'),
+            'speaker_contributions.text'
+        );
+        expect(clause!.base!).toBeLessThan(transcript!.base!);
+    });
+
+    // A mayor speaks in nearly every subject, so an OR match on a two-term name
+    // would return the whole index for the first name alone.
+    it('requires the same share of terms as the title clauses', () => {
+        const clause = speakerNameClause('Χάρης Δούκας');
+        expect(minimumShouldMatchOf(clause?.inner?.nested?.query)).toBe('2<75%');
+    });
+
+    // inner_hits marks which contributions matched the query text. A speaker-name
+    // match would add contributions whose text never mentions the query.
+    it('carries no inner_hits, unlike the transcript clause', () => {
+        const clause = speakerNameClause('Χάρης Δούκας');
+        expect(clause?.inner?.nested?.inner_hits).toBeUndefined();
     });
 });
 

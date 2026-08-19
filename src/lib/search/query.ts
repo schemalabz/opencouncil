@@ -95,9 +95,39 @@ const NAME_FUZZINESS = 'AUTO:4,10';
 const NAME_FUZZY_PREFIX_LENGTH = 2;
 
 /**
+ * A person-name query answers with the subjects the person is responsible for
+ * (FIELD_TIER.introducer). The subjects they only spoke in answer the same
+ * query weakly, so they belong in the tail: the speakerName tier is the
+ * lowest in the query, under the transcript's.
+ *
+ * The boost decides only where those subjects rank, never whether they are
+ * found — a should-clause either matches or it does not. Measured on the
+ * production index (Aug 2026, 9.1k released docs), the recall it adds is the
+ * point of the clause, and it is the same at every boost:
+ *   "Χάρης Δούκας"  38 -> 110 hits    "Μαλτέζος"  120 -> 216
+ *   "του Δούκα"     94 -> 154         topic queries: no change at all
+ * Junk queries stay empty, because no name matches their terms.
+ *
+ * The speakerName tier in FIELD_TIER is calibrated on how far the clause may
+ * reorder the first page (measured at the pre-tier boost 0.1, re-checked after
+ * the tier flattening): for the worst case in the index — an Athens mayor who
+ * speaks in 91 subjects and introduced 34 — it moves 2 subjects into the top
+ * 10; every other measured query moves 0-1. Two slots on the single heaviest
+ * speaker is the intended dose: the page still leads with what the person
+ * introduced, and the rest of what they spoke in follows behind it.
+ *
+ * The earlier decision here was to leave the field unsearched, on the reasoning
+ * that a mayor speaks in nearly every subject. The measurements above do not
+ * support that: a speaker reaches 2-3x the subjects they introduce, not the
+ * whole index, because a subject only carries contributions once the summarize
+ * task has run on it. The personIds filter is still the right tool for
+ * "everything this person spoke about" — it is exact, and it does not rank.
+ */
+
+/**
  * Field-tier score flattening: every lexical clause is rescored to
  * base + k * log1p(bm25), so WHICH field matched (the tier: name >
- * description/introducer > transcript) sets the score level,
+ * description/introducer > transcript > speaker name) sets the score level,
  * raw BM25 shrinks to a small within-tier tiebreak, and the post-relevance
  * multiplier (admin body, discussion length, recency; up to ~1.42x) decides
  * among same-tier matches.
@@ -134,6 +164,7 @@ const FIELD_TIER = {
     // exact term), the only name-tier signal for typo queries.
     fuzzyName: { base: 4, k: 2 },
     transcript: { base: 6, k: 3 },
+    speakerName: { base: 0.3, k: 0.2 },
 } as const;
 
 // Rescores a clause to its tier band: base + k * log1p(bm25). boost_mode
@@ -426,12 +457,10 @@ function buildLexicalShouldClauses(
         flattenToTier(termClause('description', queryText), FIELD_TIER.descriptionTerm),
         // Person-name queries ("Χάρης Δούκας", "Μαλτέζος") are a recurring
         // pattern in the logged user searches. This field covers the subjects
-        // the person introduced — a deliberate authorship signal, unlike
-        // speaker_contributions.speaker_person_name, which is intentionally not
-        // searched: a mayor speaks in nearly every subject, so matching it
-        // would flood a name query with everything they ever commented on (the
-        // personIds filter serves that need). The greek analyzer also stems
-        // name declensions, so "του Δούκα" matches "Δούκας".
+        // the person introduced — the strongest authorship signal. The subjects
+        // they only spoke in match through the much weaker nested speaker-name
+        // clause below. The greek analyzer also stems name declensions, so
+        // "του Δούκα" matches "Δούκας".
         flattenToTier(termClause('introduced_by_person_name', queryText), FIELD_TIER.introducer),
         ...(extractedFilters.locationName
             ? [flattenToTier(termClause('location_text', queryText), FIELD_TIER.locationText)]
@@ -473,7 +502,26 @@ function buildLexicalShouldClauses(
                     _source: ['speaker_contributions.contribution_id']
                 }
             }
-        }, FIELD_TIER.transcript)
+        }, FIELD_TIER.transcript),
+        // Subjects the person spoke in, at the bottom of the field tier (see
+        // FIELD_TIER.speakerName and the calibration note above it). A separate
+        // nested clause rather than a second field on the transcript clause
+        // above: inner_hits marks which contributions matched the query text,
+        // and a speaker-name match would add contributions whose text does not
+        // contain the query at all.
+        flattenToTier({
+            nested: {
+                path: 'speaker_contributions',
+                query: {
+                    match: {
+                        'speaker_contributions.speaker_person_name': {
+                            query: queryText,
+                            minimum_should_match: LEXICAL_MINIMUM_SHOULD_MATCH
+                        }
+                    }
+                }
+            }
+        }, FIELD_TIER.speakerName)
     ];
 }
 
