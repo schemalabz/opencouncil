@@ -203,10 +203,13 @@ export async function getConsultationDataForOG(cityId: string, consultationId: s
         },
         include: {
             city: {
+                // `name_municipality_en` comes along because the OG image renders
+                // in the locale of the page that embeds it, English included.
                 select: {
                     id: true,
                     name: true,
                     name_municipality: true,
+                    name_municipality_en: true,
                     logoImage: true,
                     authorityType: true,
                 }

@@ -4,12 +4,13 @@ import { Suspense } from "react";
 import { Metadata } from "next";
 import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 import { getOgLocale } from '@/i18n/config';
+import { buildOgImageUrl } from '@/lib/og/locale';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }): Promise<Metadata> {
     const { locale } = await props.params;
     const description = "Αναζητήστε στα δημοτικά συμβούλια του OpenCouncil. Βρείτε αναφορές σε θέματα, τοποθετήσεις συμβούλων, στατιστικά και πολλά άλλα χρησιμοποιώντας την έξυπνη αναζήτηση του OpenCouncil.";
 
-    const ogImageUrl = `/api/og?pageType=search`;
+    const ogImageUrl = buildOgImageUrl(locale, { pageType: 'search' });
 
     return {
         title: "Αναζήτηση | OpenCouncil",

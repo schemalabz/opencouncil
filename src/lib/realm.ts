@@ -227,6 +227,29 @@ export function getRealmBaseUrl(realm: Realm): string {
     return `https://${REALMS[realm].domain}`;
 }
 
+/**
+ * Base URL for resolving a page's relative metadata URLs — today only the
+ * `/api/og` images, since canonicals and hreflang are built absolute by
+ * `buildCanonicalAlternates`.
+ *
+ * On a realm's production apex this is the canonical realm URL, so
+ * opencouncil.gr and opencouncil.fr each unfurl their own images. On a preview
+ * host it is the preview's own origin: resolving previews against the canonical
+ * domain makes them unfurl *production's* renderer, so a change to an OG image
+ * cannot be reviewed on the PR that makes it — the preview page keeps showing
+ * whatever production draws.
+ *
+ * Only hosts under a realm domain earn that (`isKnownRealmHost`), so an
+ * arbitrary `Host:` header can never steer a page's image URL to a domain we do
+ * not own. Everything else (localhost, direct IP) keeps the canonical URL.
+ */
+export function metadataBaseForHost(host: string | null | undefined, realm: Realm): string {
+    if (!isRealmApexHost(host) && isKnownRealmHost(host)) {
+        return `https://${host!.toLowerCase()}`;
+    }
+    return getRealmBaseUrl(realm);
+}
+
 /** Bare domain for a realm (e.g. `opencouncil.fr`), for display in URL chrome. */
 export function getRealmDomain(realm: Realm): string {
     return REALMS[realm].domain;
