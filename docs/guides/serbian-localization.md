@@ -117,6 +117,7 @@ Modular catalogs (`messages/sr/`):
 - [ ] CookieConsent, topicFilter, search, reviews
 - [ ] transcript, editing, highlights
 - [ ] landingV2, admin, about
+- [ ] metadata, presentation, mcp, og
 
 Cross-cutting:
 

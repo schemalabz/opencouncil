@@ -6,6 +6,7 @@ import {
     foreignLocalesForRealm,
     isRealm,
     isRealmApexHost,
+    metadataBaseForHost,
     realmOverride,
     effectiveRealm,
     getRealmCountry,
@@ -219,5 +220,27 @@ describe('telHref', () => {
 
     it('keeps a national trunk zero — the Serbian line is domestic-only', () => {
         expect(telHref('0800 301167')).toBe('tel:0800301167');
+    });
+});
+
+describe('metadataBaseForHost', () => {
+    it('uses the realm canonical URL on a production apex', () => {
+        expect(metadataBaseForHost('opencouncil.gr', 'greece')).toBe('https://opencouncil.gr');
+        expect(metadataBaseForHost('opencouncil.fr', 'france')).toBe('https://opencouncil.fr');
+    });
+
+    it('uses the preview host itself, so a preview unfurls its own OG images', () => {
+        expect(metadataBaseForHost('pr-7.preview.opencouncil.gr', 'greece'))
+            .toBe('https://pr-7.preview.opencouncil.gr');
+        // The realm override makes a .gr preview render as serbia; the images
+        // still have to come from the preview, not from opencouncil.rs.
+        expect(metadataBaseForHost('pr-7.preview.opencouncil.gr', 'serbia'))
+            .toBe('https://pr-7.preview.opencouncil.gr');
+    });
+
+    it('ignores a host we do not own', () => {
+        expect(metadataBaseForHost('evil.com', 'greece')).toBe('https://opencouncil.gr');
+        expect(metadataBaseForHost('localhost:3000', 'france')).toBe('https://opencouncil.fr');
+        expect(metadataBaseForHost(null, 'serbia')).toBe('https://opencouncil.rs');
     });
 });

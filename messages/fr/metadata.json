@@ -32,5 +32,10 @@
   "parties": {
     "title": "Groupes | {cityName} | OpenCouncil",
     "description": "Les groupes politiques de {cityName}, leurs membres et leur activité au conseil municipal."
+  },
+  "landing": {
+    "title": "OpenCouncil — ce dont parle le conseil municipal",
+    "description": "Les sujets des séances du conseil municipal sur une carte : recherche par quartier, par catégorie et par date, et alertes quand votre quartier est évoqué.",
+    "ogAlt": "OpenCouncil — les sujets du conseil municipal sur une carte"
   }
 }

@@ -1,0 +1,58 @@
+{
+    "meeting": {
+        "subjects": "{count, plural, =0 {No subjects} one {# subject} other {# subjects}}",
+        "moreSubjects": "{count, plural, one {+# more subject} other {+# more subjects}}"
+    },
+    "city": {
+        "meetingsRecorded": "{count, plural, =0 {No meetings recorded} one {# meeting recorded} other {# meetings recorded}}",
+        "stats": {
+            "meetings": "Meetings",
+            "people": "Members",
+            "parties": "Parties"
+        },
+        "supportedByMunicipality": "Supported by the municipality",
+        "supportedByRegion": "Supported by the region",
+        "noSupportFromMunicipality": "No official support from the municipality",
+        "noSupportFromRegion": "No official support from the region"
+    },
+    "consultation": {
+        "badge": "Public consultation",
+        "keyTopics": "Key topics:",
+        "untitledChapter": "Untitled chapter"
+    },
+    "person": {
+        "council": "City council"
+    },
+    "people": {
+        "title": "Council members",
+        "count": "{count, plural, one {# member} other {# members}}",
+        "more": "and {count} more..."
+    },
+    "subject": {
+        "minutes": "minutes"
+    },
+    "search": {
+        "title": "Search",
+        "description": "Find mentions of subjects, council member statements and statistics from every city council",
+        "footer": "OpenCouncil • Smart search"
+    },
+    "about": {
+        "tags": [
+            "Transcripts",
+            "Minutes",
+            "Citizen notifications",
+            "Subject map"
+        ]
+    },
+    "landing": {
+        "headlineTop": "What your council is discussing,",
+        "headlineBottom": "on one map",
+        "subtitle": "Subjects from council meetings — by area, by category and by date.",
+        "tags": [
+            "Subject map",
+            "Search",
+            "Notifications",
+            "Meetings"
+        ]
+    }
+}

@@ -7,6 +7,7 @@ import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 import { getLocalizedName } from "@/lib/formatters/name";
 import { getOgLocale } from '@/i18n/config';
 import { getTranslations } from 'next-intl/server';
+import { buildOgImageUrl } from '@/lib/og/locale';
 
 export async function generateMetadata(props: { params: Promise<{ cityId: string; locale: string }> }): Promise<Metadata> {
     const params = await props.params;
@@ -32,7 +33,7 @@ export async function generateMetadata(props: { params: Promise<{ cityId: string
     const description = t('description', { cityName, peopleCount, partiesCount });
 
     // Generate OG image URL
-    const ogImageUrl = `/api/og?cityId=${params.cityId}&pageType=people`;
+    const ogImageUrl = buildOgImageUrl(params.locale, { cityId: params.cityId, pageType: 'people' });
 
     return {
         title: t('title', { cityName }),

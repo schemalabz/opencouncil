@@ -1,6 +1,9 @@
 import { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { LandingV2 } from '@/components/landing/v2/LandingV2';
 import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
+import { getOgLocale } from '@/i18n/config';
+import { buildOgImageUrl } from '@/lib/og/locale';
 import { getRealm } from '@/lib/realm.server';
 import { getRealmDefaultMapView } from '@/lib/realm';
 import { getMapSubjectsCached, getGeneralSubjectsCached, getSubjectCountsByCityCached } from '@/lib/db/subject';
@@ -8,8 +11,44 @@ import { getListedCitiesCached, getMapCitiesCached, getPetitionedMapCitiesCached
 import { getUpcomingMeetingsCached } from '@/lib/db/meetings';
 import { DEFAULT_RANGE, rangeToSubjectFilters } from '@/lib/landing/landingCore';
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata(props: {
+    params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+    const { locale } = await props.params;
+    const t = await getTranslations({ locale, namespace: 'metadata.landing' });
+
+    const title = t('title');
+    const description = t('description');
+    // Without this the root layout's static square logo is what every share of
+    // the bare domain unfurls, in Greek on every realm.
+    const ogImageUrl = buildOgImageUrl(locale, { pageType: 'landing' });
+
     return {
+        title,
+        description,
+        openGraph: {
+            title,
+            description,
+            type: 'website',
+            siteName: 'OpenCouncil',
+            locale: getOgLocale(locale),
+            images: [
+                {
+                    url: ogImageUrl,
+                    width: 1200,
+                    height: 630,
+                    alt: t('ogAlt'),
+                },
+            ],
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title,
+            description,
+            images: [ogImageUrl],
+            creator: '@opencouncil',
+            site: '@opencouncil',
+        },
         alternates: await buildCanonicalAlternates(''),
     };
 }
