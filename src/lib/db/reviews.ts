@@ -565,13 +565,13 @@ function calculateSessionData(
 //
 // STAGE 1: DATABASE FILTERING (Prisma WHERE conditions)
 //   - Reduces dataset before fetching from database
-//   - Filters by task status (transcribe, humanReview)
-//   - Filters meetings where user has made ANY edits (for reviewer filter)
+//   - Filters by task status (transcribe, humanReview) and date
 //   - More efficient: Less data transferred and processed
 //
 // STAGE 2: JAVASCRIPT FILTERING (after fetch)
 //   - Calculates detailed review progress for each meeting
-//   - Verifies user is PRIMARY reviewer (most edits), not just any contributor
+//   - Applies the reviewer filter: verifies user is PRIMARY reviewer
+//     (most edits), not just any contributor
 //   - Excludes meetings that don't meet final criteria
 //
 // FILTER OPTIONS:
@@ -642,28 +642,6 @@ function buildStatusWhereConditions(show: ReviewFilterOptions['show']): Prisma.C
       // Just needs transcribe (includes all statuses)
       return hasTranscribe;
   }
-}
-
-/**
- * Build database where conditions for reviewer filtering
- */
-function buildReviewerWhereConditions(reviewerId: string): Prisma.CouncilMeetingWhereInput {
-  return {
-    speakerSegments: {
-      some: {
-        utterances: {
-          some: {
-            utteranceEdits: {
-              some: {
-                editedBy: 'user',
-                userId: reviewerId
-              }
-            }
-          }
-        }
-      }
-    }
-  };
 }
 
 /**
@@ -960,12 +938,9 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
   // Add date filter
   conditions.push(buildDateFilter(last30Days));
 
-  // Add reviewer filter if specified
-  // Note: This finds meetings where the user has made ANY edits
-  // The "primary reviewer" check happens after fetching
-  if (reviewerId) {
-    conditions.push(buildReviewerWhereConditions(reviewerId));
-  }
+  // The reviewerId filter is applied after aggregation (primary-reviewer
+  // check below). A DB prefilter would repeat the nested-relation shape
+  // that issue #560 removed, to save one bounded aggregate at most.
 
   // Combine all conditions
   const whereConditions = combineWhereConditions(conditions);
