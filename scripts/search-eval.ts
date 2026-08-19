@@ -65,6 +65,15 @@ const CASES: EvalCase[] = [
     { query: 'διαγρραφή τελών', expect: 'results', note: 'logged user typo: double ρ' },
     { query: 'παιδικοί σταθ', expect: 'results', note: 'logged mid-typing partial (search-as-you-type)' },
     { query: 'τι αποφάσισε το δημοτικό συμβούλιο για τα πάρκα', expect: 'results', note: 'logged natural-language query' },
+    // A title match must survive AI location extraction: "παλαιστίνη" used to
+    // return zero when the AI extracted it as a location and the resulting
+    // geo filter dropped every pin-less subject (the harness bypasses the AI,
+    // so this case guards the lexical path; the unit tests cover the filter).
+    { query: 'παλαιστίνη', expect: 'results', note: 'logged user query: exists in titles' },
+    // Apostrophe variants: doc names use the Greek tonos (ΔΙ΄ΕΥΧΩΝ), users
+    // type ASCII or smart quotes. All variants must return the same subjects.
+    { query: "δι'ευχών", expect: 'results', note: 'bar name, ASCII apostrophe' },
+    { query: 'δι’ευχών', expect: 'results', note: 'bar name, smart quote (mobile keyboards)' },
     // Person names (logged user queries) — matched via introduced_by_person_name
     { query: 'Χάρης Δούκας', expect: 'results', note: 'logged user query: Athens mayor' },
     { query: 'Μαλτέζος', expect: 'results', note: 'logged user query: councillor surname' },
