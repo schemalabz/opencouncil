@@ -1122,24 +1122,24 @@ export function buildSearchQuery(
     request: SearchRequest,
     extractedFilters: ExtractedFilters
 ): estypes.SearchRequest {
-    const mergedRequest = {
-        ...request,
-        cityIds: extractedFilters.cityIds || request.cityIds,
-        dateRange: extractedFilters.dateRange || request.dateRange
-    };
-
+    // `request` already carries the AI-extracted city ids and date range: the
+    // caller merges them (search() in ./index.ts). Merging them again here
+    // would put the raw extracted city ids back, past the realm cap the caller
+    // applies to them, and let a query name a municipality of another realm.
+    // `extractedFilters` is still read below for the location-name clause.
+    //
     // Filter-only search: no query text to rank on, so skip the text clauses
     // (they require a query) and return the filtered set newest-first. Used e.g.
     // for "everything a person spoke about" or "all subjects in a date range".
-    const queryText = mergedRequest.query?.trim().replace(APOSTROPHE_VARIANTS, "'");
-    const filters = buildFilters(mergedRequest);
+    const queryText = request.query?.trim().replace(APOSTROPHE_VARIANTS, "'");
+    const filters = buildFilters(request);
     if (!queryText) {
         // With no text to score, a location can only act as a filter — so the
         // clause enters in filter context, where it contributes no score.
         // Unreachable today (locations only come from AI extraction, which
         // requires query text), but kept so an explicit filter-only location
         // request stays a location browse rather than being ignored.
-        const locationClause = buildLocationClause(mergedRequest.locations);
+        const locationClause = buildLocationClause(request.locations);
         const browseFilters = locationClause ? [...filters, locationClause] : filters;
         return {
             index: env.ELASTICSEARCH_INDEX,
@@ -1211,7 +1211,7 @@ export function buildSearchQuery(
     // surface. constant_score awards LOCATION_BOOST once for being near the
     // place: the geo clauses sit in ITS filter context, where the number of
     // points the geocoder returned for one place cannot reach the score.
-    const locationClause = buildLocationClause(mergedRequest.locations);
+    const locationClause = buildLocationClause(request.locations);
     const scoredQuery: estypes.QueryDslQueryContainer = locationClause
         ? {
             bool: {

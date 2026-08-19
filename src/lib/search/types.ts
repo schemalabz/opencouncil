@@ -1,4 +1,4 @@
-import { AdministrativeBody, AdministrativeBodyType, City, CouncilMeeting, Realm } from "@prisma/client";
+import { AdministrativeBody, AdministrativeBodyType, City, CouncilMeeting } from "@prisma/client";
 import { SubjectWithRelations } from "@/lib/db/subject";
 import { SegmentWithRelations } from "@/lib/db/speakerSegments";
 

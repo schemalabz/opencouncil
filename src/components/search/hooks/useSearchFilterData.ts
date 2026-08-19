@@ -4,7 +4,7 @@ import { format, subMonths } from "date-fns";
 import { AdministrativeBody, AdministrativeBodyType, City, Party } from "@prisma/client";
 import { DateRange } from "react-day-picker";
 
-import { getCities } from "@/lib/db/cities";
+import { getCitiesForRequestRealm } from "@/lib/db/cities";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { getAdministrativeBodiesWithPublicMeetings } from "@/lib/db/administrativeBodies";
 import { getPeopleForCity, getPerson, PersonWithRelations } from "@/lib/db/people";
@@ -54,9 +54,13 @@ export function useSearchFilterData(filters: SearchFilterParams, setFilters: (pa
     const [person, setPerson] = useState<PersonWithRelations | null>(null);
     const { topics, isLoading: topicsLoading, error: topicsError } = useTopics();
 
+    // The realm's own municipalities only: the city pill must offer what the
+    // search can actually return, and search results are capped to the realm the
+    // request arrived on. The realm is resolved on the server from the request
+    // Host, so the list cannot be widened from here.
     useEffect(() => {
         let live = true;
-        getCities()
+        getCitiesForRequestRealm()
             .then(result => { if (live) setCities(result); })
             .catch(error => console.error("Error fetching cities:", error));
         return () => { live = false; };

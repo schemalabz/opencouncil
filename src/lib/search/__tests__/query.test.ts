@@ -1434,6 +1434,33 @@ describe('buildSearchQuery agreement with the index mapping', () => {
     });
 });
 
+describe('buildSearchQuery city filter', () => {
+    // search() (../index.ts) caps the city ids to the realm of the request
+    // before it calls buildSearchQuery, and it caps the AI-extracted ids the
+    // same way. Re-merging the raw extracted ids here would put a municipality
+    // of another realm back into the filter, past that cap.
+    function cityIdsOf(q: ReturnType<typeof buildSearchQuery>): string[] | undefined {
+        const { inner } = unwrapRanking(q.query);
+        const filters = (inner.bool?.filter ?? []) as estypes.QueryDslQueryContainer[];
+        return filters.find((f) => f.terms?.['city_id'])?.terms?.['city_id'] as string[] | undefined;
+    }
+
+    it('filters on the city ids of the request', () => {
+        const q = buildSearchQuery({ query: 'πάρκα', cityIds: ['athens'] }, NO_EXTRACTED_FILTERS);
+
+        expect(cityIdsOf(q)).toEqual(['athens']);
+    });
+
+    it('does not let extracted city ids replace the ids of the request', () => {
+        const q = buildSearchQuery(
+            { query: 'πάρκα στο Παρίσι', cityIds: ['athens'] },
+            { ...NO_EXTRACTED_FILTERS, cityIds: ['paris'] }
+        );
+
+        expect(cityIdsOf(q)).toEqual(['athens']);
+    });
+});
+
 describe('buildFilters administrative body filter', () => {
     // The two fields reached the URL and the filter bar before buildFilters had
     // a clause for either, so every administrative body selection returned the

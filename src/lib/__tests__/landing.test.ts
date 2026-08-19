@@ -1,4 +1,4 @@
-import { getCities } from '../db/cities';
+import { getCities, filterCityIdsByRealm } from '../db/cities';
 import prisma from '../db/prisma';
 import * as auth from '../auth';
 
@@ -250,3 +250,28 @@ describe('getCities', () => {
         await expect(getCities()).rejects.toThrow('Failed to fetch cities');
     });
 }); 
+
+describe('filterCityIdsByRealm', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('keeps only the ids the database reports inside the realm', async () => {
+        (prisma.city.findMany as jest.Mock).mockResolvedValue([{ id: 'athens' }]);
+
+        const result = await filterCityIdsByRealm(['athens', 'paris'], 'greece');
+
+        expect(prisma.city.findMany).toHaveBeenCalledWith({
+            where: { id: { in: ['athens', 'paris'] }, realm: 'greece' },
+            select: { id: true }
+        });
+        expect(result).toEqual(['athens']);
+    });
+
+    it('returns an empty list without querying when there are no ids', async () => {
+        const result = await filterCityIdsByRealm([], 'greece');
+
+        expect(result).toEqual([]);
+        expect(prisma.city.findMany).not.toHaveBeenCalled();
+    });
+});
