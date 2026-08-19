@@ -21,19 +21,26 @@
         "copy": "Copy",
         "copied": "Copied"
     },
+    "video": {
+        "title": "Video walkthrough",
+        "caption": "Four minutes: how to connect Claude and ChatGPT, and what you can ask afterwards. The video is in Greek.",
+        "iframeTitle": "How to connect Claude and ChatGPT with OpenCouncil"
+    },
     "clients": {
         "claude": {
             "title": "Claude",
             "step1": "In claude.ai, open Settings → Connectors.",
             "step2": "Click \"Add custom connector\".",
-            "step3": "Name it OpenCouncil and paste the address.",
+            "step3": "Name it OpenCouncil and paste the address. Leave the other fields empty.",
+            "step4": "Click \"Add\", then \"Connect\" — the connector shows as connected.",
             "openSettings": "Open claude.ai settings"
         },
         "chatgpt": {
             "title": "ChatGPT",
             "step1": "In ChatGPT, open Settings → Apps & Connectors and enable Developer mode (under Advanced).",
-            "step2": "Click \"Create\" to add a connector.",
+            "step2": "Go back to Apps & Connectors and click \"Create\".",
             "step3": "Name it OpenCouncil, paste the address, and choose \"No authentication\".",
+            "step4": "Click \"Create\", then \"Connect\" — the connector shows as connected.",
             "openSettings": "Open ChatGPT settings"
         },
         "claudeCode": {

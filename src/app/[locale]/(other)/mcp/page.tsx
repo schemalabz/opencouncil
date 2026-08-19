@@ -96,6 +96,21 @@ export default async function McpPage(props: { params: Promise<{ locale: string 
                     <CopyButton value={serverUrl} />
                 </div>
 
+                {/* video walkthrough */}
+                <div className="mt-10">
+                    <h3 className="!text-left text-lg font-semibold">{t("video.title")}</h3>
+                    <p className="mt-2 leading-relaxed text-muted-foreground">{t("video.caption")}</p>
+                    <div className="mt-4 aspect-[100/65] overflow-hidden rounded-xl border bg-muted/40">
+                        <iframe
+                            src="https://www.loom.com/embed/14194bb035464ce6abcd76b8b8faf873"
+                            title={t("video.iframeTitle")}
+                            loading="lazy"
+                            allowFullScreen
+                            className="h-full w-full"
+                        />
+                    </div>
+                </div>
+
                 <div className="mt-10 grid gap-x-12 gap-y-10 sm:grid-cols-2">
                     {(["claude", "chatgpt"] as const).map(client => (
                         <div key={client}>
@@ -110,9 +125,9 @@ export default async function McpPage(props: { params: Promise<{ locale: string 
                                 {t(`clients.${client}.title`)}
                             </h3>
                             <ol className="mt-3 list-decimal space-y-2 pl-5 leading-relaxed text-muted-foreground marker:text-orange">
-                                <li>{t(`clients.${client}.step1`)}</li>
-                                <li>{t(`clients.${client}.step2`)}</li>
-                                <li>{t(`clients.${client}.step3`)}</li>
+                                {(["step1", "step2", "step3", "step4"] as const).map(step => (
+                                    <li key={step}>{t(`clients.${client}.${step}`)}</li>
+                                ))}
                             </ol>
                             <a
                                 href={
