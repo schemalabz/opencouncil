@@ -5,7 +5,8 @@ import { WakeEvent } from "./types";
  * (app.bird.com → OpenCouncil workspace → Message templates; first approved
  * by Meta 2026-08-04/05, revised 2026-08-15: intro/transition name the persona «ο Νότης»,
  * conditional agenda closing, «Τι είναι αυτό;» intro button, new
- * demos_checkin — revised versions pending Meta re-approval). If a template
+ * demos_checkin; revised again 2026-08-19 so every footer carries the AI
+ * disclosure the AI Act asks for). If a template
  * changes in Bird, this file must change with it — the simulator and the
  * production send path both render from here, so what you see simulated is
  * what Meta approved.
@@ -40,7 +41,21 @@ export interface TemplateDef {
   buttons: TemplateButton[];
 }
 
-const STOP_FOOTER = "Απάντησε ΣΤΟΠ για να μη λαμβάνεις μηνύματα.";
+/**
+ * Two obligations in 60 characters, which is WhatsApp's cap for a footer.
+ *
+ * The AI disclosure comes first: the EU AI Act (Article 50) requires telling
+ * a person they are dealing with an AI system, and every one of these shells
+ * carries text an agent wrote. The opt-out keeps its place beside it, in the
+ * shortest wording that still reads as an instruction — «Απάντησε ΣΤΟΠ για να
+ * μη λαμβάνεις μηνύματα.» plus the disclosure came to 72 characters, so
+ * something had to give and it was not the disclosure.
+ */
+const STOP_FOOTER = "Μήνυμα με τεχνητή νοημοσύνη. ΣΤΟΠ για διακοπή.";
+
+/** The transition cohort keeps receiving email, so ΣΤΟΠ means something
+ *  different for them: it narrows the channel rather than ending contact. */
+const STOP_FOOTER_EMAIL = "Μήνυμα με τεχνητή νοημοσύνη. ΣΤΟΠ για μόνο email.";
 
 export const TEMPLATES: Record<TemplateName, TemplateDef> = {
   demos_intro: {
@@ -63,7 +78,7 @@ export const TEMPLATES: Record<TemplateName, TemplateDef> = {
       "Οι ειδοποιήσεις του OpenCouncil αλλάζουν! Από εδώ και πέρα σου γράφω εγώ, ο Νότης, ο βοηθός του OpenCouncil. Θα σου στέλνω λιγότερα και πιο προσωπικά μηνύματα, μόνο όταν συμβαίνει κάτι που πραγματικά σε αφορά, και μπορείς να μου απαντάς και να με ρωτάς οτιδήποτε για τον δήμο σου. Τα email σου συνεχίζουν κανονικά.",
     bodySuffix: "",
     hasVariable: false,
-    footer: "Απάντησε ΣΤΟΠ για να λαμβάνεις μόνο email.",
+    footer: STOP_FOOTER_EMAIL,
     buttons: [
       { label: "Περισσότερα", kind: "url" },
       { label: "Ας γνωριστούμε", kind: "quick_reply" },

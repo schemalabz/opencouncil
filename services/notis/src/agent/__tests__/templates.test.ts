@@ -1,6 +1,7 @@
 import { WakeEvent } from "../types";
 import {
   TEMPLATES,
+  type TemplateName,
   isWindowOpen,
   renderTemplate,
   templateForEvent,
@@ -16,7 +17,7 @@ describe("templates", () => {
   it("renders variable templates with the fixed shell around the agent text", () => {
     const r = renderTemplate("demos_update_news", "Πέρασε η ανάπλαση.");
     expect(r.body).toBe("Νέα από τον δήμο σου:\n\nΠέρασε η ανάπλαση.\n\nΠερισσότερα στο link.");
-    expect(r.footer).toBe("Απάντησε ΣΤΟΠ για να μη λαμβάνεις μηνύματα.");
+    expect(r.footer).toBe("Μήνυμα με τεχνητή νοημοσύνη. ΣΤΟΠ για διακοπή.");
     expect(r.buttons.map((b) => b.label)).toEqual(["Δες περισσότερα", "Πες μου περισσότερα"]);
   });
 
@@ -24,7 +25,7 @@ describe("templates", () => {
     const r = renderTemplate("demos_transition", "should be ignored");
     expect(r.body).toContain("Οι ειδοποιήσεις του OpenCouncil αλλάζουν!");
     expect(r.body).not.toContain("ignored");
-    expect(r.footer).toBe("Απάντησε ΣΤΟΠ για να λαμβάνεις μόνο email.");
+    expect(r.footer).toBe("Μήνυμα με τεχνητή νοημοσύνη. ΣΤΟΠ για μόνο email.");
   });
 
   it("maps wake events to the right shell", () => {
@@ -60,6 +61,17 @@ describe("templates", () => {
     for (const def of Object.values(TEMPLATES)) {
       expect(def.footer).toContain("ΣΤΟΠ");
       expect(def.buttons.some((b) => b.kind === "quick_reply")).toBe(true);
+    }
+  });
+
+  it("every footer discloses the AI and fits WhatsApp's 60-character cap", () => {
+    // Both are contractual: the AI Act wants the disclosure on anything an
+    // agent wrote, and Meta rejects a template whose footer runs long.
+    for (const name of Object.keys(TEMPLATES) as TemplateName[]) {
+      const { footer } = renderTemplate(name, "κείμενο");
+      expect(footer).toContain("τεχνητή νοημοσύνη");
+      expect(footer).toContain("ΣΤΟΠ");
+      expect(footer.length).toBeLessThanOrEqual(60);
     }
   });
 });
