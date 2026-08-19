@@ -1,6 +1,6 @@
 "use client";
 import { useTranslations } from 'next-intl';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { AdministrativeBodyType } from '@prisma/client';
 import List from '@/components/List';
@@ -65,6 +65,22 @@ export default function CityMeetings({
         return null;
     }, [searchParams, councilMeetings, typeOptions]);
 
+    // Stable identity, otherwise List's filteredItems memo is invalidated on
+    // every render of this component.
+    const filterMeeting = useCallback(
+        (selectedValues: AdministrativeBodyType[], meeting: CouncilMeetingWithAdminBodyAndSubjects) => {
+            if (!filterMeetingByAdminBodyTypes(meeting, selectedValues)) return false;
+            if (resolvedBodyId) {
+                const selectedType = selectedValues.length === 1 ? selectedValues[0] : null;
+                if (selectedType && selectedType !== 'council') {
+                    return meeting.administrativeBody?.id === resolvedBodyId;
+                }
+            }
+            return true;
+        },
+        [resolvedBodyId]
+    );
+
     return (
         <List<CouncilMeetingWithAdminBodyAndSubjects, { cityTimezone: string }, AdministrativeBodyType>
             items={councilMeetings}
@@ -75,16 +91,7 @@ export default function CityMeetings({
             formProps={{ cityId }}
             t={t}
             filterAvailableValues={typeOptions}
-            filter={(selectedValues, meeting) => {
-                if (!filterMeetingByAdminBodyTypes(meeting, selectedValues)) return false;
-                if (resolvedBodyId) {
-                    const selectedType = selectedValues.length === 1 ? selectedValues[0] : null;
-                    if (selectedType && selectedType !== 'council') {
-                        return meeting.administrativeBody?.id === resolvedBodyId;
-                    }
-                }
-                return true;
-            }}
+            filter={filterMeeting}
             defaultFilterValues={defaultFilterValues}
             renderFilter={({ selectedValues, onChange }) => {
                 const selectedType = selectedValues.length === 1 ? selectedValues[0] : null;
