@@ -62,6 +62,10 @@ const includePattern = {
     administrativeBody: { select: { id: true, name: true } },
     taskStatuses: {
       where: whereClause.reviewTaskStatuses(),
+      // Only the fields hasSucceededTask reads. The full rows carry the
+      // request/response payloads (~1.7 GB across production), which
+      // overflow the engine's result buffer on unfiltered lists (#303).
+      select: { type: true, status: true },
       orderBy: { createdAt: 'desc' as const }
     }
   }),
