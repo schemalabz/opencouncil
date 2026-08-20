@@ -418,43 +418,64 @@ describe('buildSearchQuery semantic fallback (dis_max)', () => {
         expect(script.source).toContain('params.base + (_score - params.cutoff) * params.scale');
         expect(script.source).toContain('Math.max');
         const params = script.params as Record<string, number>;
-        // A raw cutoff, not a normalized one: minmax maps the best hit of every
-        // query to 1.0, so a fractional cutoff could never empty the results.
-        // 3.23 sits between the measured off-topic band (<= 3.226) and the
-        // paraphrase band (>= 3.230) — see DEFAULT_SEMANTIC_MIN_SCORE.
-        expect(params.cutoff).toBe(3.23);
+        // A raw similarity, not a normalized one: minmax maps the best hit of
+        // every query to 1.0, so a cutoff on it could never empty the results.
+        // 0.930 sits just under the measured paraphrase floor (0.9314) and above
+        // the off-topic band (<= 0.9300, one outlier aside) —
+        // see DEFAULT_SEMANTIC_MIN_SCORE.
+        expect(params.cutoff).toBe(0.930);
         // base sits inside the flattened description band (~24-30, where weak
         // stem-coincidence matches like bar licenses matching "ζώα χωρίς
         // ιδιοκτήτη" via ζω/ιδιοκτητ land) and the mapped ceiling (~34) stays
         // below the flattened name band (~58+) — see SEMANTIC_MAPPED_BASE.
         expect(params.base).toBe(26);
-        expect(params.scale).toBe(100);
+        expect(params.scale).toBe(320);
         expect(clause.boost_mode).toBe('replace');
         // min_score sees the mapped score: raw below the cutoff maps below
         // base and is dropped, keeping zero results for off-topic queries.
         expect(clause.min_score).toBe(params.base);
     });
 
-    // The cutoff is calibrated against the sum of these boosts, so a change to
-    // either without recalibrating would silently move the threshold.
-    it('keeps the semantic boosts the cutoff was calibrated against', () => {
+    // The gate must stay a per-field similarity. Summing the two fields (the
+    // earlier shape) turned the cutoff into an agreement test that no title
+    // match could pass on its own; boosting either field would rescale the gate
+    // so the cutoff stopped being a similarity at all. Both regressions are
+    // invisible in the query shape unless asserted here.
+    it('gates on the best single field, unboosted, never on the sum', () => {
         const clause = semanticClause({ enableSemanticSearch: true })!;
-        const bool = clause.query?.bool as BoolQuery;
-        const should = (bool.should ?? []) as estypes.QueryDslQueryContainer[];
+        const disMax = clause.query?.dis_max as estypes.QueryDslDisMaxQuery;
 
-        expect(should.map((c) => c.semantic?.field)).toEqual([
+        expect(clause.query?.bool).toBeUndefined();
+        expect(disMax).toBeDefined();
+        expect(disMax.tie_breaker).toBe(0);
+        expect(disMax.queries.map((c) => c.semantic?.field)).toEqual([
             'name.semantic',
             'description.semantic',
         ]);
-        expect(should.map((c) => c.semantic?.boost)).toEqual([2.0, 1.5]);
+        expect(disMax.queries.map((c) => c.semantic?.boost)).toEqual([undefined, undefined]);
+    });
+
+    // Regression for the measured case: "ηλεκτρικά πατίνια" had the highest
+    // title similarity of any on-topic query measured (0.9546) and still
+    // returned zero semantic hits under the summed gate, because its
+    // descriptions disagreed. A title-strength similarity must clear the cutoff
+    // on its own.
+    it('admits a title-only match at title-strength similarity', () => {
+        const clause = semanticClause({ enableSemanticSearch: true })!;
+        const fn = clause.functions?.[0] as estypes.QueryDslFunctionScoreContainer;
+        const params = (fn?.script_score?.script as estypes.Script).params as Record<string, number>;
+
+        const titleOnlySimilarity = 0.9546;
+        const mapped = params.base + (titleOnlySimilarity - params.cutoff) * params.scale;
+        expect(mapped).toBeGreaterThan(clause.min_score as number);
     });
 
     it('allows overriding semanticMinScore via config', () => {
-        const clause = semanticClause({ enableSemanticSearch: true, semanticMinScore: 3.1 })!;
+        const clause = semanticClause({ enableSemanticSearch: true, semanticMinScore: 0.94 })!;
         const fn = clause.functions?.[0] as estypes.QueryDslFunctionScoreContainer;
         const script = fn?.script_score?.script as estypes.Script;
 
-        expect((script.params as Record<string, number>).cutoff).toBe(3.1);
+        expect((script.params as Record<string, number>).cutoff).toBe(0.94);
     });
 });
 

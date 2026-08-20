@@ -3,55 +3,73 @@ import { SearchRequest, ExtractedFilters, Location } from './types';
 import { env } from '@/env.mjs';
 import { ADMIN_BODY_TIER } from '@/lib/ranking/subjects';
 
-const SEMANTIC_NAME_BOOST = 2.0;
-const SEMANTIC_DESCRIPTION_BOOST = 1.5;
-
 // Additive score for subjects pinned within an AI-extracted location's radius
-// (see buildLocationBoostClauses). Small next to the name/description boosts:
-// proximity breaks ties among text matches, it does not outrank a better text
-// match.
+// (see buildLocationBoostClauses). Small next to the lexical field tiers
+// (FIELD_TIER): proximity breaks ties among text matches, it does not outrank a
+// better text match.
 const LOCATION_BOOST = 2;
 
 /**
- * Raw-score cutoff for the semantic fallback clause, measured against the production
- * index (scripts/search-eval.ts). multilingual-e5 trains with a low InfoNCE
- * temperature, so its cosine similarities bunch up near the top of the range
- * and unrelated text still scores highly. Measured bands (Aug 2026, 9.1k
- * released docs):
- *   - on-topic queries, top hits:        3.25 - 3.31
- *   - paraphrase queries (no shared
- *     stems with the docs), top hits:    3.23 - 3.275
- *   - off-topic queries, best hit:       <= 3.218
- * The cutoff sits just above the off-topic band and below the paraphrase band:
- * paraphrases are the semantic clause's whole purpose (the lexical clauses
- * already cover stem-sharing queries), so the cutoff keeps them
- * while off-topic queries return zero semantic hits.
+ * Similarity cutoff for the semantic fallback clause, measured against the
+ * production index (scripts/search-eval.ts). The gate is the BEST of the two
+ * sub-field similarities (see buildSemanticFallbackQuery), so the value is a
+ * plain normalized cosine in [0, 1] and means what it says: "the closest thing
+ * this document has to say scores at least this well".
  *
- * The value is the sum of the two boosts below at their per-field score, so
- * recalibrate it whenever those boosts or the inference model change. Do not
- * normalize before applying it: `minmax` maps the best hit to exactly 1.0 for
- * every query, which makes a fractional cutoff unable to ever empty the results.
+ * It replaces an earlier cutoff of 3.23 applied to the BOOSTED SUM of the two
+ * sub-fields. That was unusable by construction: the sub-field boosts (2.0 and
+ * 1.5) cap each field's contribution, so the sum could only reach 3.23 when
+ * BOTH fields scored near their ceiling. It read as a quality bar and behaved
+ * as an agreement bar — a perfect title match contributes at most ~1.95, so it
+ * still needed the description to supply ~0.85 similarity to pass, whatever the
+ * title said. Measured consequences on the live index (Aug 2026, 9.1k released
+ * docs):
+ *   - "ηλεκτρικά πατίνια" — a logged user query with the HIGHEST title
+ *     similarity of any on-topic query measured (0.9546) — returned zero
+ *     semantic hits, because its descriptions disagreed.
+ *   - "χώροι για παρκάρισμα" admitted `Μίσθωση χώρου για Λούνα Παρκ` (leasing
+ *     space for a funfair) while rejecting `Ανάκληση θέσης πάρκινγκ ΑμεΑ`,
+ *     `Κόκκινα κολωνάκια και χώροι στάθμευσης` and `Ηλεκτρικά πατίνια -
+ *     Παρκάρισμα σε πεζοδρόμια`. Their title scores differed by 0.5%;
+ *     description agreement decided.
+ *   - The whole arm admitted 1-10 documents per query out of 9,116.
+ *
+ * Calibration of the current value, over 12 on-topic, 11 paraphrase and 26
+ * off-topic queries (the off-topic set drawn from the SearchQuery table):
+ *   - on-topic best hit:    0.9399 - 0.9546
+ *   - paraphrase best hit:  0.9314 - 0.9499
+ *   - off-topic best hit:   0.8968 - 0.9300, plus one outlier at 0.9389
+ * The bands touch, so no cutoff is perfectly separating. 0.930 sits just under
+ * the paraphrase floor: it keeps 12/12 on-topic and 11/11 paraphrase queries,
+ * and admits one off-topic query ("23ερ ε σ=", a keyboard mash whose digits
+ * anchor to a street number in `Ανοιχτό σκάμμα Ευελπίδων 23`) with 2 documents.
+ * The old sum cutoff scored 11/12 and 10/11 for 0 off-topic — it bought that
+ * last junk query by throttling every real query's recall 3-5x.
+ *
+ * Do not normalize before applying this: `minmax` maps the best hit to exactly
+ * 1.0 for every query, which makes any fractional cutoff unable to empty the
+ * results.
  */
-const DEFAULT_SEMANTIC_MIN_SCORE = 3.23;
+const DEFAULT_SEMANTIC_MIN_SCORE = 0.930;
 
 /**
- * Mapping of the raw semantic score into BM25 space for the dis_max fallback
+ * Mapping of the similarity into BM25 space for the dis_max fallback
  * (see buildSemanticFallbackQuery): mapped = BASE + (raw - cutoff) * SCALE.
- * Calibrated against the flattened lexical tiers (FIELD_TIER) on the
- * live-index eval (scripts/search-eval.ts):
+ * Calibrated against the flattened lexical tiers (FIELD_TIER):
  *   - Weak stem-coincidence lexical matches (both stems of a 2-term query
  *     landing in one long description, e.g. bar licenses matching
  *     "ζώα χωρίς ιδιοκτήτη" via ζω/ιδιοκτητ) flatten to ~24-30
  *     (descriptionTerm + descriptionPhrase bands); BASE sits inside that
  *     band, so a genuine paraphrase-only match competes with them.
  *   - A real name match flattens to ~58+ (nameTerm + namePhrase), so the
- *     mapped ceiling (BASE + ~0.08 * SCALE ≈ 34) stays below any title match.
- *   - The paraphrase band spans ~cutoff to cutoff + 0.08 (e5's compressed
- *     scale); SCALE spreads it over ~8 points so semantic ordering still
- *     matters among paraphrase-only hits.
+ *     mapped ceiling stays below any title match.
+ * SCALE spreads the useful similarity band over ~8 points so semantic ordering
+ * still matters among paraphrase-only hits. That band is ~0.025 wide (cutoff
+ * to the observed 0.955 ceiling), where the old boosted-sum band was ~0.08 —
+ * hence the 3.2x larger scale for the same mapped spread.
  */
 const SEMANTIC_MAPPED_BASE = 26;
-const SEMANTIC_MAPPED_SCALE = 100;
+const SEMANTIC_MAPPED_SCALE = 320;
 
 /**
  * A single-term query matches on its term; a 2-term query requires both terms
@@ -555,9 +573,23 @@ function buildLexicalShouldClauses(
 // `min_score` drops the neighbours that only look close on the model's
 // compressed similarity scale.
 //
-// This is one side of a dis_max with the lexical clauses (score = max, not
-// sum), NOT a second retriever fused with rank-based RRF, and NOT an additive
-// clause. Both alternatives failed on measured cases:
+// The two sub-fields combine with dis_max (score = MAX of the two), not by
+// summing a boosted `bool.should`. The sum made the cutoff an agreement test
+// rather than a quality test — see DEFAULT_SEMANTIC_MIN_SCORE for the measured
+// damage. Under max, each field is judged on its own: a document whose title
+// paraphrases the query passes on the title alone, and the score carries a
+// plain similarity that the cutoff can be reasoned about in.
+//
+// The sub-fields are deliberately UNBOOSTED. A boost here would not express a
+// field preference, it would rescale the gate: with boosts 2.0/1.5 the max is
+// almost always the name field regardless of which field actually matched
+// better, and the cutoff would no longer be a similarity. Field preference is
+// the lexical tiers' job (FIELD_TIER); this arm is a fallback, and what matters
+// is only whether the document says something close to the query at all.
+//
+// This whole clause is one side of a dis_max with the lexical clauses (score =
+// max, not sum), NOT a second retriever fused with rank-based RRF, and NOT an
+// additive clause. Both alternatives failed on measured cases:
 //   - RRF double-counted whichever document happened to clear the cutoff
 //     (a second reciprocal-rank vote, worth ~2x), so a 4-minute loan
 //     discussion outranked a 139-minute one whose semantic score fell just
@@ -579,24 +611,24 @@ function buildSemanticFallbackQuery(
     semanticMinScore: number
 ): estypes.QueryDslQueryContainer {
     const semanticQuery: estypes.QueryDslQueryContainer = {
-        bool: {
-            should: [
+        dis_max: {
+            queries: [
                 {
                     semantic: {
                         query: queryText,
-                        field: 'name.semantic',
-                        boost: SEMANTIC_NAME_BOOST
+                        field: 'name.semantic'
                     }
                 },
                 {
                     semantic: {
                         query: queryText,
-                        field: 'description.semantic',
-                        boost: SEMANTIC_DESCRIPTION_BOOST
+                        field: 'description.semantic'
                     }
                 }
             ],
-            minimum_should_match: 1
+            // Pure max: a tie_breaker share of the weaker field would put the
+            // agreement requirement back, in smaller print.
+            tie_breaker: 0
         }
     };
 
@@ -608,11 +640,11 @@ function buildSemanticFallbackQuery(
                     script_score: {
                         script: {
                             // Clamped at 0 because Elasticsearch rejects negative
-                            // script scores outright: a hit matching only one
-                            // semantic field scores far below the cutoff (raw ~1.8
-                            // maps to ~-214) and would fail the whole request, not
-                            // just miss min_score. The clamp keeps the score legal;
-                            // min_score below still does the actual gating.
+                            // script scores outright: a distant neighbour scores
+                            // well below the cutoff and would map negative, failing
+                            // the whole request rather than just missing min_score.
+                            // The clamp keeps the score legal; min_score below
+                            // still does the actual gating.
                             source: 'Math.max(params.base + (_score - params.cutoff) * params.scale, 0)',
                             params: {
                                 base: SEMANTIC_MAPPED_BASE,
@@ -624,7 +656,7 @@ function buildSemanticFallbackQuery(
                 }
             ],
             boost_mode: 'replace',
-            // min_score applies to the adjusted score: raw scores below the
+            // min_score applies to the adjusted score: similarities below the
             // cutoff map below `base` and are dropped, keeping the
             // zero-results behaviour for off-topic queries.
             min_score: SEMANTIC_MAPPED_BASE
