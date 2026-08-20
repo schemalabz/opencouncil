@@ -6,6 +6,7 @@ import type { SearchRequest } from '../types';
 jest.mock('@/env.mjs', () => ({ env: { ELASTICSEARCH_INDEX: 'test-index' } }));
 
 import { buildFilters, buildSearchQuery, MAX_RANKING_MULTIPLIER_RATIO } from '../query';
+import { ADMIN_BODY_TIER } from '@/lib/ranking/subjects';
 import type { ExtractedFilters } from '../types';
 
 const NO_EXTRACTED_FILTERS: ExtractedFilters = {
@@ -642,6 +643,39 @@ describe('buildSearchQuery ranking function', () => {
         const functionScore = q.query?.function_score as estypes.QueryDslFunctionScoreQuery;
 
         expect(functionScore.boost_mode).toBe('multiply');
+    });
+
+    // Search and the app's standard subject ranking must agree on which body type
+    // outranks which. They no longer agree by sharing numbers: rankSubjects
+    // z-scores ADMIN_BODY_TIER, and a z-score is invariant to any affine rescale
+    // of that column, so its magnitudes are free to move while its ordering
+    // stays. Search reads the magnitudes, so it cannot follow them. The shared
+    // property is the ordering — assert exactly that, and nothing more.
+    it('orders administrative bodies the way the standard subject ranking does', () => {
+        const q = buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS);
+        const params = rankingScriptParams(q.query);
+        const byDescending = (weights: Record<string, number>) =>
+            Object.keys(weights).sort((a, b) => weights[b] - weights[a]);
+
+        expect(byDescending({
+            council: params.councilWeight,
+            committee: params.committeeWeight,
+            community: params.communityWeight,
+        })).toEqual(byDescending(ADMIN_BODY_TIER));
+    });
+
+    // Each of the three factors is a boost that is never a penalty, and
+    // rankingMultiplierRatio computes the multiplier's span from that: it
+    // divides the ceilings by a floor of 1.0. A body type scoring below 1.0
+    // would both penalise subjects the comment promises never to penalise and
+    // make the tier-margin check report unsafe pairs as safe.
+    it('floors every administrative-body weight at 1.0, so none is a penalty', () => {
+        const q = buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS);
+        const params = rankingScriptParams(q.query);
+
+        for (const key of ['councilWeight', 'committeeWeight', 'communityWeight', 'defaultAdminBodyWeight']) {
+            expect(params[key]).toBeGreaterThanOrEqual(1);
+        }
     });
 
     it('scores recency against a concrete instant', () => {

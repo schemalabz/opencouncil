@@ -1,7 +1,7 @@
 import { estypes } from '@elastic/elasticsearch';
 import { SearchRequest, ExtractedFilters, Location } from './types';
 import { env } from '@/env.mjs';
-import { ADMIN_BODY_TIER } from '@/lib/ranking/subjects';
+import type { AdministrativeBodyType } from '@prisma/client';
 
 // Score added ONCE to a subject pinned within an AI-extracted location's radius
 // (see buildLocationClause). Small next to the lexical field tiers (FIELD_TIER):
@@ -394,23 +394,40 @@ function coverageClauses(
 // communities the smallest scope. This only nudges among otherwise-similar
 // matches — a clearly better text match still wins regardless of body type.
 //
-// The council > committee > community ordering itself comes from ADMIN_BODY_TIER
-// in src/lib/ranking/subjects.ts — the app's single standard subject-importance
-// ranking (meeting cards, the meeting dashboard, list_hot_subjects, …) — so search
-// and that ranking agree on which body type outranks which. Only the tier order is
-// shared, not the whole formula: subjects.ts z-scores an already-fetched in-memory
-// batch, which isn't something a per-document Elasticsearch script can do (there is
-// no "the rest of the result set" to compare against at scoring time), so this
-// scales the same tiers into a small multiplicative boost instead.
+// Search and ADMIN_BODY_TIER in src/lib/ranking/subjects.ts — the app's single
+// standard subject-importance ranking (meeting cards, the meeting dashboard,
+// list_hot_subjects, …) — must agree on which body type outranks which. ONLY the
+// ordering is shared, and it is shared as a property the tests assert, not by
+// reading the other table's numbers.
+//
+// Reading them was wrong, not merely indirect. Nothing in subjects.ts fixes its
+// magnitudes: rankSubjects z-scores that column, and a z-score is invariant to
+// any affine rescale, so {1, 0.5, 0} and {1, 0, -1} rank identically there. The
+// second one is the natural way to write a centred scale, and it would have made
+// community and unassigned subjects score 0.85 here — a penalty, and one the
+// floor promised below forbids. It would also have understated
+// rankingMultiplierRatio, which assumes every floor is 1.0, so the tier-margin
+// check would have reported unsafe pairs as safe.
+//
+// The shares below are search's own scale: a fraction of ADMIN_BODY_BOOST_WEIGHT
+// per body type, floored at 1.0 so no body type is ever penalised. The two files
+// need different shapes anyway — subjects.ts z-scores an already-fetched
+// in-memory batch, which a per-document Elasticsearch script cannot do (there is
+// no "the rest of the result set" to compare against at scoring time).
 const ADMIN_BODY_BOOST_WEIGHT = 0.15;
-const ADMIN_BODY_WEIGHT = {
-    council: 1 + ADMIN_BODY_BOOST_WEIGHT * ADMIN_BODY_TIER.council,
-    committee: 1 + ADMIN_BODY_BOOST_WEIGHT * ADMIN_BODY_TIER.committee,
-    community: 1 + ADMIN_BODY_BOOST_WEIGHT * ADMIN_BODY_TIER.community,
-} as const;
+const ADMIN_BODY_BOOST_SHARE: Record<AdministrativeBodyType, number> = {
+    council: 1,
+    committee: 0.5,
+    community: 0,
+};
+const ADMIN_BODY_WEIGHT: Record<AdministrativeBodyType, number> = {
+    council: 1 + ADMIN_BODY_BOOST_WEIGHT * ADMIN_BODY_BOOST_SHARE.council,
+    committee: 1 + ADMIN_BODY_BOOST_WEIGHT * ADMIN_BODY_BOOST_SHARE.committee,
+    community: 1 + ADMIN_BODY_BOOST_WEIGHT * ADMIN_BODY_BOOST_SHARE.community,
+};
 // No administrative body assigned ranks like the lowest tier (community), not the
 // best one — never below the floor of 1.0 (no penalty), just no boost.
-const DEFAULT_ADMIN_BODY_WEIGHT = 1 + ADMIN_BODY_BOOST_WEIGHT * ADMIN_BODY_TIER.community;
+const DEFAULT_ADMIN_BODY_WEIGHT = ADMIN_BODY_WEIGHT.community;
 
 // log1p(minutes) keeps a subject the council spent an hour on from dominating one
 // that got a brief mention. At this weight an hour-long discussion nets roughly
