@@ -166,6 +166,17 @@ function textDisMaxOf(
     return must.find((c) => c.dis_max)?.dis_max;
 }
 
+// The bool carrying the tiered should-clauses, in either shape the builder
+// emits: the first branch of the dis_max when the semantic arm is on, and the
+// text clause itself when it is off.
+function lexicalBoolOf(
+    query: estypes.QueryDslQueryContainer | undefined
+): estypes.QueryDslBoolQuery | undefined {
+    const must = (rankedQueryOf(query)?.bool?.must ?? []) as estypes.QueryDslQueryContainer[];
+    const textClause = must[0];
+    return (textClause?.dis_max?.queries?.[0] ?? textClause)?.bool;
+}
+
 function markMatched(hit: estypes.SearchHit<EvalSource>): string {
     const highlight = hit.highlight ?? {};
     let m = '';
@@ -196,10 +207,19 @@ async function runQuery(
     // under `must` (see buildSemanticFallbackQuery). Keep only that branch so
     // its mapped scores and survivors are visible in isolation.
     if (mode === 'semantic') {
-        const disMax = textDisMaxOf(rankedQueryOf(q.query));
+        const textCore = rankedQueryOf(q.query);
+        const disMax = textDisMaxOf(textCore);
         const semantic = disMax?.queries.find((c) => c.function_score);
-        if (!disMax || !semantic) throw new Error('semantic fallback branch missing');
+        if (!disMax || !textCore || !semantic) throw new Error('semantic fallback branch missing');
         disMax.queries = [semantic];
+        // Lift the text core out of applyRanking. This mode exists to calibrate
+        // SEMANTIC_MAPPED_BASE and SEMANTIC_MAPPED_SCALE, and the multiplier
+        // (boost_mode multiply, up to ~1.48x) makes the printed numbers unusable
+        // for that: a document sitting exactly at the cutoff maps to 26 and
+        // prints anywhere between 26.0 and ~38.6. Which documents survive is
+        // unaffected either way — min_score gates inside the semantic clause,
+        // before the outer multiply.
+        q.query = textCore;
     }
 
     const res = await client.search<EvalSource>({
@@ -252,8 +272,10 @@ function printRows(rows: HitRow[]) {
  *   - Is the ordering broken NOW? Measured with the ranking multiplier active,
  *     because that is the order users see. Any title match scoring below any
  *     non-title match is a FAIL.
- *   - Could it break from metadata alone? Measured with the multiplier stripped,
- *     so the ratio is a property of the tiers only. A pre-multiplier ratio above
+ *   - Could it break from metadata alone? Measured with the multiplier AND the
+ *     semantic arm stripped, so the ratio is a property of the tiers only (a
+ *     semantic-only hit carries no matched_queries, so leaving that arm on put
+ *     the semantic mapping constants in the denominator). A ratio above
  *     MAX_RANKING_MULTIPLIER_RATIO means no assignment of administrative body,
  *     discussion length and date can invert the pair — the tiers hold
  *     structurally. Below it, the pair is inside the multiplier's reach and only
@@ -262,11 +284,28 @@ function printRows(rows: HitRow[]) {
  * The queries are the surname/topic stem collisions FIELD_TIER worries about,
  * where a person name and a common word share a stem, plus plain topic queries
  * as a control.
+ *
+ * Half of them have to be MULTI-TERM, and those are the half that matter. A
+ * one-word query collapses LEXICAL_MINIMUM_SHOULD_MATCH ('2<75%') to "one
+ * term", so both halves of every coverage pair fire together and a partial
+ * match cannot be told from a full one. The case this check exists to catch — a
+ * document that covers ONE term of the query in its title and stacks the lower
+ * tiers underneath — only exists from two terms up, and it is common there,
+ * because the greek stemmer does not always map an inflection to the stem the
+ * query produces (σχολικές -> σχολικ, but Σχολικών -> σχολ). Measured Aug 2026:
+ * the one-word queries below report 1.50-2.57, the multi-term ones 1.11-1.86.
+ *
+ * A person-plus-topic query cannot be measured here, whatever it exposes
+ * elsewhere: no subject carries both a person name and a topic word in its
+ * title, so the check finds no title match and skips.
  */
 const TIER_MARGIN_QUERIES = [
     'Δήμος', 'Γεωργίου', 'Οικονόμου', 'Χρήστου', 'Παπαδόπουλος', 'Αθηνά',
     'Δούκας', 'Νικολάου', 'Βασιλείου', 'Μακρής', 'πρόεδρος', 'αντιδήμαρχος',
     'ανακύκλωση', 'προϋπολογισμός', 'καθαριότητα', 'δάνειο', 'φωτισμός', 'πάρκα',
+    'ηλεκτρικά πατίνια', 'άδεια μουσικής', 'πάρκα Κυψέλης', 'παιδικοί σταθμοί',
+    'χώροι πρασίνου', 'ανάπλαση πλατείας', 'αδέσποτα ζώα', 'σχολικές επιτροπές',
+    'διαχείριση απορριμμάτων', 'κοινόχρηστοι χώροι', 'τεχνικό πρόγραμμα',
 ];
 
 // Which tier each scoring clause belongs to, recovered from the clause shape.
@@ -304,12 +343,27 @@ function tierLabel(inner: estypes.QueryDslQueryContainer): string {
 // clause typed loose.
 type Nameable = { _name?: string };
 
+// The minimum_should_match a clause asks for, read through the dis_max over
+// spellings and the nested wrapper. It is what tells the two halves of a
+// coverage pair apart: the strict half takes LEXICAL_MINIMUM_SHOULD_MATCH, the
+// partial half takes 1.
+function coverageOf(inner: estypes.QueryDslQueryContainer): string | number | undefined {
+    if (inner.dis_max?.queries.length) return coverageOf(inner.dis_max.queries[0]);
+    if (inner.nested?.query) return coverageOf(inner.nested.query);
+    const options = Object.values(inner.match ?? {})[0];
+    return typeof options === 'object' && options !== null
+        ? options.minimum_should_match
+        : undefined;
+}
+
 // Tags every scoring clause with _name so matched_queries reports which tiers
-// fired on each hit. Each field emits more than one clause (a strict/partial
-// coverage pair), so repeats get a #N suffix.
+// fired on each hit. Each field emits a strict/partial coverage pair, and the
+// two mean different things to this check, so the partial half is labelled as
+// such rather than counted off as a repeat: a `#2` suffix reads as "the same
+// tier again", which is how a partial name match came to be scored as a title
+// match below.
 function stampTierNames(query: estypes.QueryDslQueryContainer | undefined): void {
-    const disMax = textDisMaxOf(rankedQueryOf(query));
-    const should = (disMax?.queries?.[0]?.bool?.should ?? []) as estypes.QueryDslQueryContainer[];
+    const should = (lexicalBoolOf(query)?.should ?? []) as estypes.QueryDslQueryContainer[];
     if (!should.length) throw new Error('lexical should-clauses missing');
 
     const counts: Record<string, number> = {};
@@ -317,7 +371,7 @@ function stampTierNames(query: estypes.QueryDslQueryContainer | undefined): void
         const functionScore = clause.function_score;
         const inner = functionScore && !Array.isArray(functionScore) ? functionScore.query : undefined;
         if (!inner) continue;
-        const base = tierLabel(inner);
+        const base = coverageOf(inner) === 1 ? `${tierLabel(inner)}#partial` : tierLabel(inner);
         counts[base] = (counts[base] ?? 0) + 1;
         stampClause(inner, counts[base] > 1 ? `${base}#${counts[base]}` : base);
     }
@@ -342,15 +396,29 @@ function stampClause(inner: estypes.QueryDslQueryContainer, name: string): void 
 
 interface TierHit { score: number; name: string; tiers: string[]; title: boolean }
 
-async function runTierQuery(queryText: string, withRanking: boolean): Promise<TierHit[]> {
+/**
+ * The two runs the check compares.
+ *
+ * `live` is the production query exactly as a user gets it: the semantic arm is
+ * on and the multiplier applies, because that is the order that can be wrong
+ * right now.
+ *
+ * `bare` must hold nothing but the field tiers, so it strips BOTH. The
+ * multiplier comes off by lifting the query it wraps, and the semantic arm comes
+ * off at build time: a semantic-only hit carries no matched_queries, so it is
+ * labelled non-title and lands in the ratio's denominator, where it measures
+ * SEMANTIC_MAPPED_BASE and SEMANTIC_MAPPED_SCALE instead of the tiers this run
+ * exists to measure.
+ */
+type TierRun = 'live' | 'bare';
+
+async function runTierQuery(queryText: string, run: TierRun): Promise<TierHit[]> {
     const q = buildSearchQuery(
-        { query: queryText, config: { size: 100, enableSemanticSearch: true } },
+        { query: queryText, config: { size: 100, enableSemanticSearch: run === 'live' } },
         NO_EXTRACTED_FILTERS
     );
     stampTierNames(q.query);
-    // Drop the post-relevance multiplier by lifting the query it wraps, leaving
-    // the field tiers as the only thing scoring.
-    const query = withRanking ? q.query : rankedQueryOf(q.query);
+    const query = run === 'live' ? q.query : rankedQueryOf(q.query);
 
     const res = await client.search<EvalSource>({
         index: q.index,
@@ -366,7 +434,15 @@ async function runTierQuery(queryText: string, withRanking: boolean): Promise<Ti
             score: h._score ?? 0,
             name: (h._source?.name ?? '(no name)').slice(0, 64),
             tiers: names,
-            title: names.some((t) => t.startsWith('nameTerm') || t.startsWith('namePhrase')),
+            // A title match is a document whose TITLE covers the query — the
+            // strict half of the name clause, or the name phrase. The partial
+            // half fires on a single matching term (minimum_should_match 1), so
+            // counting it here labelled a one-word-of-three match a title match:
+            // it then stood as `worstTitle` against a legitimate non-title
+            // stack and printed an inversion for correct behaviour, while the
+            // real inversion — a partial name match ON TOP of that stack —
+            // could never reach the non-title side to be seen.
+            title: names.some((t) => t === 'nameTerm' || t === 'namePhrase'),
         };
     });
 }
@@ -413,8 +489,8 @@ async function runTierMargin(): Promise<void> {
     let failed = 0, warned = 0, skipped = 0;
     for (const queryText of TIER_MARGIN_QUERIES) {
         const [live, bare] = await Promise.all([
-            runTierQuery(queryText, true),
-            runTierQuery(queryText, false),
+            runTierQuery(queryText, 'live'),
+            runTierQuery(queryText, 'bare'),
         ]);
 
         const split = (hits: TierHit[]) => ({

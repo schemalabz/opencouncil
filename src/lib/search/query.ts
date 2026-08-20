@@ -282,9 +282,24 @@ const NAME_FUZZY_PREFIX_LENGTH = 2;
  * hit actually outranks a title match. Run it after changing a base, a k, or a
  * multiplier weight — the arithmetic alone will not warn you.
  *
- * Last run (Aug 2026, 9.1k released docs): zero inversions, 15 of 16 measurable
- * queries structurally safe. The one exception is "Δούκας" at 1.47 against a
- * 1.484 ceiling — currently held by metadata, not by the constants.
+ * Last run (Aug 2026, 9.1k released docs): zero inversions, 19 of 27 measurable
+ * queries structurally safe against a 1.484 ceiling.
+ *
+ * The eight inside the multiplier's reach are almost all MULTI-TERM, and the
+ * split is sharp: one-word queries measure 1.50-2.57, multi-term queries
+ * 1.11-1.86. The partial share above is why. A multi-term query hands its name
+ * tier's partial share to any document that carries ONE of its terms in the
+ * title, and the greek stemmer creates that case constantly, because it does
+ * not always map an inflection to the stem the query produces: σχολικές stems
+ * to σχολικ while Σχολικών stems to σχολ, so `Κατάργηση Σχολικών Επιτροπών`
+ * takes the partial share of "σχολικές επιτροπές" and never the strict clause.
+ * "χώροι πρασίνου" is the tightest measured pair at 1.11.
+ *
+ * So the corpus correlation holds, but it holds with far less room on a
+ * multi-term query than the earlier one-word-only query set suggested. Nothing
+ * is inverted today, and only metadata separates those eight pairs.
+ * ("Δούκας" at 1.47 predates the harness fixes and re-measures the same, so it
+ * was never an artifact of them.)
  *
  * Within one tier the multiplier is meant to decide, and k per tier keeps the
  * log tiebreak's spread near +-5%, well under the multiplier's reach. The
