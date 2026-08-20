@@ -3,10 +3,10 @@ import { SearchRequest, ExtractedFilters, Location } from './types';
 import { env } from '@/env.mjs';
 import { ADMIN_BODY_TIER } from '@/lib/ranking/subjects';
 
-// Additive score for subjects pinned within an AI-extracted location's radius
-// (see buildLocationClauses). Small next to the lexical field tiers
-// (FIELD_TIER): proximity breaks ties among text matches, it does not outrank a
-// better text match.
+// Score added ONCE to a subject pinned within an AI-extracted location's radius
+// (see buildLocationClause). Small next to the lexical field tiers (FIELD_TIER):
+// proximity breaks ties among text matches, it does not outrank a better text
+// match.
 const LOCATION_BOOST = 2;
 
 /**
@@ -600,14 +600,27 @@ export function buildFilters(request: SearchRequest): estypes.QueryDslQueryConta
     return filters;
 }
 
-// Location proximity clauses. Only the AI filter-extraction path produces
-// `locations` (no UI, API or MCP caller passes them). They must NOT become a
-// hard filter on a text search: only ~45% of subjects carry a location pin,
-// and a geo_distance filter drops every pin-less document. A query like
-// "παλαιστίνη" — extracted as a location and geocoded somewhere — would then
-// return zero results even though subjects carry it in the title. As `should`
-// clauses on the scoring query, nearby pinned subjects rank higher and
-// everything else still matches on text alone.
+// Location proximity, as ONE clause: "pinned near any of the extracted
+// locations". Only the AI filter-extraction path produces `locations` (no UI,
+// API or MCP caller passes them).
+//
+// The collapse is not cosmetic. processFilters geocodes the extracted name in
+// EVERY municipality (it calls getCities() with no realm argument), and adjacent
+// Attica cities bias Google Places towards the same landmark, so one extracted
+// place routinely resolves to about ten near-identical points. As separate
+// should-clauses on the scoring query they each scored, so a subject inside K of
+// those radii collected K x LOCATION_BOOST: +20 at K=10, which is the whole
+// namePhrase tier and more than descriptionTerm. Proximity has to break ties
+// among text matches, never outrank a better text match, so the boost is
+// awarded once for being near the place — however many points the geocoder
+// returned for it.
+//
+// It must NOT become a hard filter on a text search: only ~45% of subjects carry
+// a location pin, and a geo_distance filter drops every pin-less document. A
+// query like "παλαιστίνη" — extracted as a location and geocoded somewhere —
+// would then return zero results even though subjects carry it in the title. The
+// scored path wraps this clause in a constant_score under `should`, so nearby
+// pinned subjects rank higher and everything else still matches on text alone.
 //
 // The radius is in METRES (Location.radiusMeters), so the geo_distance unit
 // suffix must be `m`. Reading it as `km` made the clause useless without
@@ -615,27 +628,24 @@ export function buildFilters(request: SearchRequest): estypes.QueryDslQueryConta
 // maximum distance between two points on Earth, so every pinned subject matched
 // and the clause degenerated into a flat bonus for carrying a pin at all, with
 // no proximity signal left in it.
-//
-// `boost` is what makes a clause a proximity BOOST rather than a plain match, so
-// the scored path passes LOCATION_BOOST and the filter-only browse path passes
-// nothing: a boost inside filter context is discarded by Elasticsearch, and
-// carrying one there would read as if proximity still ordered a listing that
-// sorts by meeting_date.
-function buildLocationClauses(
-    locations: Location[] | undefined,
-    boost?: number
-): estypes.QueryDslQueryContainer[] {
-    if (!locations || locations.length === 0) return [];
-    return locations.map(loc => ({
-        geo_distance: {
-            distance: `${loc.radiusMeters}m`,
-            'location_geojson': {
-                lat: loc.point.lat,
-                lon: loc.point.lon
-            },
-            ...(boost === undefined ? {} : { boost })
+function buildLocationClause(
+    locations: Location[] | undefined
+): estypes.QueryDslQueryContainer | undefined {
+    if (!locations || locations.length === 0) return undefined;
+    return {
+        bool: {
+            should: locations.map(loc => ({
+                geo_distance: {
+                    distance: `${loc.radiusMeters}m`,
+                    'location_geojson': {
+                        lat: loc.point.lat,
+                        lon: loc.point.lon
+                    }
+                }
+            })),
+            minimum_should_match: 1
         }
-    }));
+    };
 }
 
 // Transcripts are long enough that a bare OR match lets an off-topic query match
@@ -1028,14 +1038,12 @@ export function buildSearchQuery(
     const filters = buildFilters(mergedRequest);
     if (!queryText) {
         // With no text to score, a location can only act as a filter — so the
-        // clauses carry no boost here. Unreachable today (locations only come
-        // from AI extraction, which requires query text), but kept so an
-        // explicit filter-only location request stays a location browse rather
-        // than being ignored.
-        const locationFilters = buildLocationClauses(mergedRequest.locations);
-        const browseFilters = locationFilters.length > 0
-            ? [...filters, { bool: { should: locationFilters, minimum_should_match: 1 } }]
-            : filters;
+        // clause enters in filter context, where it contributes no score.
+        // Unreachable today (locations only come from AI extraction, which
+        // requires query text), but kept so an explicit filter-only location
+        // request stays a location browse rather than being ignored.
+        const locationClause = buildLocationClause(mergedRequest.locations);
+        const browseFilters = locationClause ? [...filters, locationClause] : filters;
         return {
             index: env.ELASTICSEARCH_INDEX,
             size: request.config?.size || 10,
@@ -1101,11 +1109,19 @@ export function buildSearchQuery(
             filter: filters
         }
     };
-    // Proximity lifts pinned subjects near the extracted location, inside `must`
-    // so a location-only match without any text match cannot surface.
-    const locationBoosts = buildLocationClauses(mergedRequest.locations, LOCATION_BOOST);
-    const scoredQuery: estypes.QueryDslQueryContainer = locationBoosts.length > 0
-        ? { bool: { must: [textCore], should: locationBoosts } }
+    // Proximity lifts pinned subjects near the extracted location. The text core
+    // stays in `must`, so a location-only match without any text match cannot
+    // surface. constant_score awards LOCATION_BOOST once for being near the
+    // place: the geo clauses sit in ITS filter context, where the number of
+    // points the geocoder returned for one place cannot reach the score.
+    const locationClause = buildLocationClause(mergedRequest.locations);
+    const scoredQuery: estypes.QueryDslQueryContainer = locationClause
+        ? {
+            bool: {
+                must: [textCore],
+                should: [{ constant_score: { filter: locationClause, boost: LOCATION_BOOST } }]
+            }
+        }
         : textCore;
 
     return {

@@ -607,6 +607,27 @@ describe('buildSearchQuery location handling', () => {
     // "40km", which agreed with the consumer's `km` suffix but not with any
     // value the app ever passes, so it hid the unit bug.
     const LOCATIONS = [{ point: { lat: 38.0, lon: 23.7 }, radiusMeters: 2000 }];
+    // What one extracted place name actually resolves to: processFilters
+    // geocodes it in every municipality, and adjacent Attica cities bias Google
+    // Places towards the same landmark, so about ten near-identical points for
+    // one place is the normal case, not an edge case.
+    const SAME_PLACE_GEOCODED_TWICE = [
+        { point: { lat: 38.0, lon: 23.7 }, radiusMeters: 2000 },
+        { point: { lat: 38.0001, lon: 23.7001 }, radiusMeters: 2000 },
+    ];
+
+    // The proximity clause on the scored path: one constant_score whose filter
+    // holds the geo clauses.
+    function proximityClauseOf(q: ReturnType<typeof buildSearchQuery>) {
+        const should = (lexicalQueryOf(q)?.bool?.should ?? []) as estypes.QueryDslQueryContainer[];
+        expect(should).toHaveLength(1);
+        return should[0].constant_score;
+    }
+
+    function geoClausesOf(q: ReturnType<typeof buildSearchQuery>) {
+        const filter = proximityClauseOf(q)?.filter as estypes.QueryDslQueryContainer;
+        return (filter?.bool?.should ?? []) as estypes.QueryDslQueryContainer[];
+    }
 
     function lexicalQueryOf(q: ReturnType<typeof buildSearchQuery>) {
         return unwrapRanking(q.query).inner;
@@ -650,11 +671,49 @@ describe('buildSearchQuery location handling', () => {
         // Text clauses sit inside `must`; geo boosts are `should`-only, so a
         // subject near the location but matching no text cannot surface.
         const must = (lexical?.bool?.must ?? []) as estypes.QueryDslQueryContainer[];
-        const should = (lexical?.bool?.should ?? []) as estypes.QueryDslQueryContainer[];
         expect(must).toHaveLength(1);
-        expect(should).toHaveLength(1);
-        expect(should[0]?.geo_distance).toMatchObject({ distance: '2000m' });
+        expect(geoClausesOf(q)[0]?.geo_distance).toMatchObject({ distance: '2000m' });
         expect(lexical?.bool?.minimum_should_match).toBeUndefined();
+    });
+
+    // Regression: the geo clauses used to sit in the scoring bool.should
+    // directly, one per geocoded point, so their boosts SUMMED. One extracted
+    // place resolves to about ten points across the Attica municipalities, so a
+    // subject inside K radii collected K x LOCATION_BOOST — +20 at K=10, the
+    // whole namePhrase tier and more than descriptionTerm. Proximity breaks ties
+    // among text matches; it must not outrank a better text match.
+    it('awards the proximity boost once, however many points one place geocoded to', () => {
+        const one = buildSearchQuery(
+            { query: 'πάρκα', locations: LOCATIONS },
+            NO_EXTRACTED_FILTERS
+        );
+        const many = buildSearchQuery(
+            { query: 'πάρκα', locations: SAME_PLACE_GEOCODED_TWICE },
+            NO_EXTRACTED_FILTERS
+        );
+
+        // Both points are searched...
+        expect(geoClausesOf(one)).toHaveLength(1);
+        expect(geoClausesOf(many)).toHaveLength(2);
+        // ...and being near either one is worth the same single boost. The geo
+        // clauses carry no boost of their own, and they sit in the
+        // constant_score's filter context, where a score cannot accumulate.
+        expect(proximityClauseOf(one)?.boost).toBe(proximityClauseOf(many)?.boost);
+        expect(JSON.stringify(geoClausesOf(many))).not.toContain('boost');
+    });
+
+    // The boost has to stay small next to the field tiers, or proximity stops
+    // being a tiebreak: at the description tier every subject in the place
+    // gained the same 15, which put tree cutting and a theatre booking above
+    // school maintenance for "σχολεία Άργους".
+    it('keeps the proximity boost below the weakest content tier', () => {
+        const q = buildSearchQuery(
+            { query: 'πάρκα', locations: LOCATIONS },
+            NO_EXTRACTED_FILTERS
+        );
+        const bases = tierBaseByField(scoredShouldClauses('πάρκα'));
+
+        expect(proximityClauseOf(q)?.boost).toBeLessThan(bases.transcript);
     });
 
     // Regression: the clause emitted `${radiusMeters}km`, so the metre value
@@ -668,8 +727,7 @@ describe('buildSearchQuery location handling', () => {
             { query: 'παλαιστίνη', locations: LOCATIONS },
             NO_EXTRACTED_FILTERS
         );
-        const should = (lexicalQueryOf(q)?.bool?.should ?? []) as estypes.QueryDslQueryContainer[];
-        const distance = should[0]?.geo_distance?.distance as string;
+        const distance = geoClausesOf(q)[0]?.geo_distance?.distance as string;
 
         expect(distance).toMatch(/^\d+m$/);
         expect(parseInt(distance, 10)).toBe(LOCATIONS[0].radiusMeters);
