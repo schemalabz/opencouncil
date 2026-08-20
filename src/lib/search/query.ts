@@ -706,7 +706,10 @@ function buildLexicalShouldClauses(
     // Name and description sit in different tiers, so each field gets its own
     // clause (a shared best_fields multi_match could not carry two bases).
     // Matching several fields sums their tiers — more evidence, higher score —
-    // which preserves the old multi_match-plus-phrases additivity.
+    // which preserves the old multi_match-plus-phrases additivity. That sum is
+    // also what stops the tiers from being ranks: a document collects every
+    // tier it matches, so a stack of low tiers can approach a single high one.
+    // FIELD_TIER holds the measured margins and the check that watches them.
     //
     // Every term clause is a strict/partial pair (see PARTIAL_COVERAGE_SHARE):
     // covering the whole query in a field still totals that field's tier,
