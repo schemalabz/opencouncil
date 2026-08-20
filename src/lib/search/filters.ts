@@ -7,7 +7,7 @@ import { calculateGeometryBounds } from '@/lib/geo';
 import { Location } from './types';
 
 // Radius of the proximity boost applied to subjects pinned near an AI-extracted
-// location (see buildLocationBoostClauses).
+// location (see buildLocationClauses).
 //
 // Sized to the scale of what `locationName` actually holds: the extraction
 // prompt asks for a single place name and gives landmark examples ("Πλατεία

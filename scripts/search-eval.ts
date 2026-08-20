@@ -7,17 +7,18 @@
  * bypassed (NO_EXTRACTED_FILTERS) — this evaluates ES ranking in isolation.
  *
  * Usage:
- *   SKIP_ENV_VALIDATION=1 npx tsx scripts/search-eval.ts                 # full suite
- *   SKIP_ENV_VALIDATION=1 npx tsx scripts/search-eval.ts --mode lexical  # lexical arm only
- *   SKIP_ENV_VALIDATION=1 npx tsx scripts/search-eval.ts --query "..."   # one ad-hoc query
- *   SKIP_ENV_VALIDATION=1 npx tsx scripts/search-eval.ts --tier-margin   # field-tier ordering
+ *   SKIP_ENV_VALIDATION=1 npx tsx scripts/search-eval.ts                    # full suite
+ *   SKIP_ENV_VALIDATION=1 npx tsx scripts/search-eval.ts --mode lexical     # lexical arm only
+ *   SKIP_ENV_VALIDATION=1 npx tsx scripts/search-eval.ts --query "..."      # one ad-hoc query
+ *   SKIP_ENV_VALIDATION=1 npx tsx scripts/search-eval.ts --min-score 0.94   # sweep the semantic cutoff
+ *   SKIP_ENV_VALIDATION=1 npx tsx scripts/search-eval.ts --tier-margin      # field-tier ordering
  */
-import { config } from 'dotenv';
-config();
-process.env.ELASTICSEARCH_INDEX = process.env.ELASTICSEARCH_INDEX || 'subjects';
+// Must stay the FIRST import: it loads .env before `../src/lib/search/query`
+// initialises `@/env.mjs`. See scripts/search-eval-env.ts.
+import './search-eval-env';
 
 import { Client, estypes } from '@elastic/elasticsearch';
-import { buildSearchQuery, MAX_RANKING_MULTIPLIER_RATIO } from '../src/lib/search/query';
+import { buildSearchQuery, rankingMultiplierRatio, MAX_RANKING_MULTIPLIER_RATIO } from '../src/lib/search/query';
 import type { ExtractedFilters, SearchRequest } from '../src/lib/search/types';
 
 const NO_EXTRACTED_FILTERS: ExtractedFilters = {
@@ -126,7 +127,7 @@ interface HitRow {
     body: string;
     date: string;
     minutes: number;
-    matched: string; // N=name D=description T=transcript
+    matched: string; // N=name D=description
 }
 
 const client = new Client({
@@ -134,19 +135,49 @@ const client = new Client({
     auth: { apiKey: process.env.ELASTICSEARCH_API_KEY! },
 });
 
-function markMatched(hit: any): string {
-    const hl = hit.highlight || {};
+// The _source fields this harness asks for. Narrower than SubjectDocument on
+// purpose: every field here is one the printed rows read.
+interface EvalSource {
+    id?: string;
+    name?: string;
+    city_name?: string;
+    administrative_body_type?: string;
+    meeting_date?: string;
+    discussion_speaking_seconds?: number;
+}
+
+// Unwraps applyRanking's function_score to the query it multiplies. The
+// container type also allows a bare function array; buildSearchQuery always
+// emits the full query form.
+function rankedQueryOf(
+    query: estypes.QueryDslQueryContainer | undefined
+): estypes.QueryDslQueryContainer | undefined {
+    const functionScore = query?.function_score;
+    return functionScore && !Array.isArray(functionScore) ? functionScore.query : undefined;
+}
+
+// The dis_max holding [lexical, semantic] (see buildSearchQuery). Absent when
+// semantic search is off, and one level deeper when location boosts wrap the
+// text core.
+function textDisMaxOf(
+    query: estypes.QueryDslQueryContainer | undefined
+): estypes.QueryDslDisMaxQuery | undefined {
+    const must = (query?.bool?.must ?? []) as estypes.QueryDslQueryContainer[];
+    return must.find((c) => c.dis_max)?.dis_max;
+}
+
+function markMatched(hit: estypes.SearchHit<EvalSource>): string {
+    const highlight = hit.highlight ?? {};
     let m = '';
-    if (hl['name']) m += 'N';
-    if (hl['description']) m += 'D';
-    const inner = hit.inner_hits?.speaker_contributions?.hits?.total?.value;
-    if (inner) m += 'T';
+    if (highlight['name']) m += 'N';
+    if (highlight['description']) m += 'D';
     return m || '·';
 }
 
 async function runQuery(
     queryText: string,
     mode: 'full' | 'lexical' | 'semantic',
+    semanticMinScore?: number,
     size = 10
 ): Promise<{ total: number; rows: HitRow[] }> {
     const request: SearchRequest = {
@@ -154,6 +185,9 @@ async function runQuery(
         config: {
             size,
             enableSemanticSearch: mode !== 'lexical',
+            // Left undefined unless --min-score was passed, so the default run
+            // measures DEFAULT_SEMANTIC_MIN_SCORE exactly as production applies it.
+            semanticMinScore,
         },
     };
     const q = buildSearchQuery(request, NO_EXTRACTED_FILTERS);
@@ -162,18 +196,13 @@ async function runQuery(
     // under `must` (see buildSemanticFallbackQuery). Keep only that branch so
     // its mapped scores and survivors are visible in isolation.
     if (mode === 'semantic') {
-        const ranking = q.query?.function_score;
-        // function_score's container type also allows a bare function array;
-        // buildSearchQuery always emits the full query form.
-        const bool = ranking && !Array.isArray(ranking) ? ranking.query?.bool : undefined;
-        const must = (bool?.must ?? []) as estypes.QueryDslQueryContainer[];
-        const disMax = must.find((c) => c.dis_max)?.dis_max;
+        const disMax = textDisMaxOf(rankedQueryOf(q.query));
         const semantic = disMax?.queries.find((c) => c.function_score);
         if (!disMax || !semantic) throw new Error('semantic fallback branch missing');
         disMax.queries = [semantic];
     }
 
-    const body: any = {
+    const res = await client.search<EvalSource>({
         ...q,
         _source: [
             'id', 'name', 'city_name', 'administrative_body_type',
@@ -183,11 +212,8 @@ async function runQuery(
             fields: { name: {}, description: {} },
             pre_tags: ['«'], post_tags: ['»'],
         },
-    };
-    delete body.index;
-
-    const res: any = await client.search({ index: process.env.ELASTICSEARCH_INDEX!, ...body });
-    const rows: HitRow[] = res.hits.hits.map((h: any) => ({
+    });
+    const rows: HitRow[] = res.hits.hits.map((h) => ({
         score: h._score ?? 0,
         name: (h._source?.name ?? '(no name)').slice(0, 78),
         city: h._source?.city_name ?? '?',
@@ -196,7 +222,8 @@ async function runQuery(
         minutes: Math.round((h._source?.discussion_speaking_seconds ?? 0) / 60),
         matched: markMatched(h),
     }));
-    return { total: res.hits.total.value, rows };
+    const total = res.hits.total;
+    return { total: typeof total === 'number' ? total : total?.value ?? 0, rows };
 }
 
 function printRows(rows: HitRow[]) {
@@ -245,10 +272,15 @@ const TIER_MARGIN_QUERIES = [
 // Which tier each scoring clause belongs to, recovered from the clause shape.
 // Used only to tell name clauses from the rest, but the full label makes the
 // printed failures readable.
-function tierLabel(inner: any): string {
+function tierLabel(inner: estypes.QueryDslQueryContainer): string {
     if (inner.match) {
         const field = Object.keys(inner.match)[0];
-        if (field === 'name') return inner.match[field].fuzziness ? 'fuzzyName' : 'nameTerm';
+        const match = inner.match[field];
+        if (field === 'name') {
+            return typeof match === 'object' && match !== null && 'fuzziness' in match
+                ? 'fuzzyName'
+                : 'nameTerm';
+        }
         if (field === 'description') return 'descriptionTerm';
         if (field === 'introduced_by_person_name') return 'introducer';
         if (field === 'location_text') return 'locationText';
@@ -259,32 +291,53 @@ function tierLabel(inner: any): string {
     if (inner.match_phrase) {
         return Object.keys(inner.match_phrase)[0] === 'name' ? 'namePhrase' : 'descriptionPhrase';
     }
-    if (inner.nested) return tierLabel(inner.nested.query);
+    if (inner.nested?.query) return tierLabel(inner.nested.query);
+    // A field's alternate spellings share one dis_max and therefore one tier
+    // (see anySpelling), so the first branch names the whole clause.
+    if (inner.dis_max?.queries.length) return tierLabel(inner.dis_max.queries[0]);
     return 'unknown';
 }
 
+// `_name` is a query-level annotation Elasticsearch echoes back in
+// matched_queries. estypes models it on the leaf option objects but not on every
+// container, so stamping needs a narrow index signature rather than the whole
+// clause typed loose.
+type Nameable = { _name?: string };
+
 // Tags every scoring clause with _name so matched_queries reports which tiers
 // fired on each hit. Each field emits more than one clause (a strict/partial
-// coverage pair, plus one per alternate spelling), so repeats get a #N suffix.
-function stampTierNames(query: estypes.SearchRequest['query']): void {
-    const ranking = (query as any)?.function_score;
-    const disMax = (ranking?.query?.bool?.must ?? []).find((c: any) => c.dis_max)?.dis_max;
-    const should = disMax?.queries?.[0]?.bool?.should;
-    if (!should) throw new Error('lexical should-clauses missing');
+// coverage pair), so repeats get a #N suffix.
+function stampTierNames(query: estypes.QueryDslQueryContainer | undefined): void {
+    const disMax = textDisMaxOf(rankedQueryOf(query));
+    const should = (disMax?.queries?.[0]?.bool?.should ?? []) as estypes.QueryDslQueryContainer[];
+    if (!should.length) throw new Error('lexical should-clauses missing');
 
     const counts: Record<string, number> = {};
     for (const clause of should) {
-        const inner = clause.function_score?.query;
+        const functionScore = clause.function_score;
+        const inner = functionScore && !Array.isArray(functionScore) ? functionScore.query : undefined;
         if (!inner) continue;
         const base = tierLabel(inner);
         counts[base] = (counts[base] ?? 0) + 1;
-        const name = counts[base] > 1 ? `${base}#${counts[base]}` : base;
-        if (inner.nested) { inner.nested._name = name; continue; }
-        const kind = inner.match ? 'match' : inner.match_phrase ? 'match_phrase' : null;
-        if (!kind) continue;
-        const field = Object.keys(inner[kind])[0];
-        if (typeof inner[kind][field] === 'object') inner[kind][field]._name = name;
+        stampClause(inner, counts[base] > 1 ? `${base}#${counts[base]}` : base);
     }
+}
+
+// One clause may be a dis_max over spellings, so every branch takes the same
+// name — matched_queries reports the tier, whichever spelling matched.
+function stampClause(inner: estypes.QueryDslQueryContainer, name: string): void {
+    if (inner.dis_max) {
+        for (const branch of inner.dis_max.queries) stampClause(branch, name);
+        return;
+    }
+    if (inner.nested) {
+        (inner.nested as Nameable)._name = name;
+        return;
+    }
+    const leaf = inner.match ?? inner.match_phrase;
+    if (!leaf) return;
+    const options = Object.values(leaf)[0];
+    if (typeof options === 'object' && options !== null) (options as Nameable)._name = name;
 }
 
 interface TierHit { score: number; name: string; tiers: string[]; title: boolean }
@@ -297,32 +350,65 @@ async function runTierQuery(queryText: string, withRanking: boolean): Promise<Ti
     stampTierNames(q.query);
     // Drop the post-relevance multiplier by lifting the query it wraps, leaving
     // the field tiers as the only thing scoring.
-    const query = withRanking ? q.query : (q.query as any).function_score.query;
+    const query = withRanking ? q.query : rankedQueryOf(q.query);
 
-    const res: any = await client.search({
-        index: process.env.ELASTICSEARCH_INDEX!,
+    const res = await client.search<EvalSource>({
+        index: q.index,
         query,
         size: 100,
         track_total_hits: true,
         _source: ['name'],
     });
-    return res.hits.hits.map((h: any) => {
-        const tiers: string[] = h.matched_queries ?? [];
+    return res.hits.hits.map((h) => {
+        const tiers = h.matched_queries ?? [];
+        const names = Array.isArray(tiers) ? tiers : Object.keys(tiers);
         return {
             score: h._score ?? 0,
             name: (h._source?.name ?? '(no name)').slice(0, 64),
-            tiers,
-            title: tiers.some((t) => t.startsWith('nameTerm') || t.startsWith('namePhrase')),
+            tiers: names,
+            title: names.some((t) => t.startsWith('nameTerm') || t.startsWith('namePhrase')),
         };
     });
 }
 
+/**
+ * The real multiplier ceiling for the index as it stands right now.
+ *
+ * MAX_RANKING_MULTIPLIER_RATIO is computed from LONGEST_DISCUSSION_MINUTES, a
+ * measurement taken once against a smaller index. The longest discussion only
+ * grows, so trusting the constant would let this check print "structurally safe"
+ * for pairs the multiplier can in fact invert. Measuring the maximum here costs
+ * one aggregation and keeps the guard honest; the constant stays as the offline
+ * default and this reports when it has drifted.
+ */
+async function measureMultiplierCeiling(index: string | undefined): Promise<number> {
+    const res = await client.search<EvalSource>({
+        index,
+        size: 0,
+        query: { term: { 'meeting_released': true } },
+        aggs: { longest: { max: { field: 'discussion_speaking_seconds' } } },
+    });
+    const longest = res.aggregations?.longest;
+    const seconds = longest && 'value' in longest ? longest.value ?? 0 : 0;
+    return rankingMultiplierRatio(seconds / 60);
+}
+
 async function runTierMargin(): Promise<void> {
+    const index = process.env.ELASTICSEARCH_INDEX;
+    const ceiling = await measureMultiplierCeiling(index);
     console.log(
         `\nTier-margin check — a pre-multiplier ratio above ` +
-        `${MAX_RANKING_MULTIPLIER_RATIO.toFixed(3)} (MAX_RANKING_MULTIPLIER_RATIO) means\n` +
-        `the tiers hold on their own; below it, only the current metadata keeps the pair in order.\n`
+        `${ceiling.toFixed(3)} means\n` +
+        `the tiers hold on their own; below it, only the current metadata keeps the pair in order.`
     );
+    if (ceiling > MAX_RANKING_MULTIPLIER_RATIO + 0.001) {
+        console.log(
+            `  ! measured against the live index; MAX_RANKING_MULTIPLIER_RATIO says ` +
+            `${MAX_RANKING_MULTIPLIER_RATIO.toFixed(3)}.\n` +
+            `    Update LONGEST_DISCUSSION_MINUTES in src/lib/search/query.ts — the unit tests read the constant.`
+        );
+    }
+    console.log('');
 
     let failed = 0, warned = 0, skipped = 0;
     for (const queryText of TIER_MARGIN_QUERIES) {
@@ -357,7 +443,7 @@ async function runTierMargin(): Promise<void> {
             console.log(`  ✗    "${queryText}" — a non-title hit outranks a title match`);
             console.log(`          title     ${worstTitle.score.toFixed(1).padStart(7)} [${worstTitle.tiers.join(',')}] ${worstTitle.name}`);
             console.log(`          non-title ${bestOther.score.toFixed(1).padStart(7)} [${bestOther.tiers.join(',')}] ${bestOther.name}`);
-        } else if (bareRatio < MAX_RANKING_MULTIPLIER_RATIO) {
+        } else if (bareRatio < ceiling) {
             warned++;
             console.log(
                 `  !    "${queryText}" — holds, but inside the multiplier's reach ` +
@@ -383,14 +469,25 @@ async function main() {
         await runTierMargin();
         return;
     }
-    const modeIdx = args.indexOf('--mode');
-    const mode = (modeIdx >= 0 ? args[modeIdx + 1] : 'full') as 'full' | 'lexical' | 'semantic';
-    const queryIdx = args.indexOf('--query');
+    const flagValue = (flag: string): string | undefined => {
+        const i = args.indexOf(flag);
+        return i >= 0 ? args[i + 1] : undefined;
+    };
 
-    if (queryIdx >= 0) {
-        const q = args[queryIdx + 1];
-        const { total, rows } = await runQuery(q, mode);
-        console.log(`\n▶ "${q}" [${mode}] — total=${total}`);
+    const mode = (flagValue('--mode') ?? 'full') as 'full' | 'lexical' | 'semantic';
+    // Sweeps DEFAULT_SEMANTIC_MIN_SCORE without editing query.ts: run the suite
+    // at several cutoffs and read where the on-topic and paraphrase cases start
+    // to go empty and the junk ones stop. That sweep is what produced 0.930.
+    const rawMinScore = flagValue('--min-score');
+    const semanticMinScore = rawMinScore === undefined ? undefined : Number(rawMinScore);
+    if (semanticMinScore !== undefined && !Number.isFinite(semanticMinScore)) {
+        throw new Error(`--min-score expects a number, got "${rawMinScore}"`);
+    }
+    const query = flagValue('--query');
+
+    if (query !== undefined) {
+        const { total, rows } = await runQuery(query, mode, semanticMinScore);
+        console.log(`\n▶ "${query}" [${mode}] — total=${total}`);
         printRows(rows);
         return;
     }
@@ -398,14 +495,15 @@ async function main() {
     let pass = 0;
     const failures: string[] = [];
     for (const c of CASES) {
-        const { total, rows } = await runQuery(c.query, mode);
+        const { total, rows } = await runQuery(c.query, mode, semanticMinScore);
         const ok = c.expect === 'empty' ? total === 0 : total > 0;
         if (ok) pass++; else failures.push(c.query);
         const flag = ok ? '✓' : '✗';
         console.log(`\n${flag} "${c.query}" (${c.note}) [expect ${c.expect}] — total=${total}`);
         printRows(rows.slice(0, c.expect === 'empty' ? 5 : 8));
     }
-    console.log(`\n═══ ${pass}/${CASES.length} expectations met (mode=${mode})` +
+    console.log(`\n═══ ${pass}/${CASES.length} expectations met (mode=${mode}` +
+        `${semanticMinScore === undefined ? '' : `, min-score=${semanticMinScore}`})` +
         (failures.length ? ` — failing: ${failures.map(f => `"${f}"`).join(', ')}` : ''));
     // A missed expectation is a failure, not a note in the log. Without this the
     // suite printed its ✗ marks and still exited 0, so nothing that reads an

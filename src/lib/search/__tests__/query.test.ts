@@ -358,12 +358,19 @@ describe('buildSearchQuery lexical ranking', () => {
         })).toBeUndefined();
     });
 
-    it('keeps inner_hits on the transcript clause', () => {
+    // Nothing between the query and the search results reads inner_hits
+    // (partitionHits works off `_source.id`), so asking for them made
+    // Elasticsearch run a sub-search per hit for a payload no code opened.
+    it('asks for no inner_hits on any nested clause', () => {
         const should = lexicalShouldClauses('πάρκα');
-        const transcript = nestedClauseOn(should, 'speaker_contributions.text');
-        expect(transcript?.inner?.nested?.inner_hits).toEqual({
-            _source: ['speaker_contributions.contribution_id'],
-        });
+
+        const nested = should
+            .map(unflatten)
+            .filter(({ inner }) => inner?.nested !== undefined);
+        expect(nested.length).toBeGreaterThan(0);
+        for (const { inner } of nested) {
+            expect(inner!.nested!.inner_hits).toBeUndefined();
+        }
     });
 
     // Transcripts are long, so a bare OR match there let off-topic queries match
@@ -425,11 +432,16 @@ describe('buildSearchQuery speaker-name clause', () => {
         expect(minimumShouldMatchOf(clause?.inner?.nested?.query)).toBe('2<75%');
     });
 
-    // inner_hits marks which contributions matched the query text. A speaker-name
-    // match would add contributions whose text never mentions the query.
-    it('carries no inner_hits, unlike the transcript clause', () => {
-        const clause = speakerNameClause('Χάρης Δούκας');
-        expect(clause?.inner?.nested?.inner_hits).toBeUndefined();
+    // A separate nested clause from the transcript one, so the two can carry
+    // different tiers: a subject the person spoke in is a far weaker answer than
+    // one whose debate says the words.
+    it('stays a clause of its own, apart from the transcript clause', () => {
+        const should = scoredShouldClauses('Χάρης Δούκας');
+        const speaker = nestedClauseOn(should, 'speaker_contributions.speaker_person_name');
+        const transcript = nestedClauseOn(should, 'speaker_contributions.text');
+
+        expect(speaker?.inner).not.toBe(transcript?.inner);
+        expect(speaker!.base!).not.toBe(transcript!.base!);
     });
 });
 
@@ -696,23 +708,67 @@ describe('buildSearchQuery punctuation variants', () => {
         }
     );
 
-    // Variant clauses are per-field and tier-wrapped like the main clauses:
-    // whichever shape the index holds, the score tier is the same. These
-    // helpers collect the exact term-clause query strings per field, main
-    // clause included. Each spelling emits a strict/partial pair, so this
-    // reads the strict half only and the assertions stay about spellings —
-    // the pairing itself is covered by its own describe block below.
+    // All of a field's spellings live inside ONE tier-wrapped clause, as a
+    // dis_max (see anySpelling), so the spellings compete instead of summing.
+    // This collects the query strings of that clause's branches per field, main
+    // spelling included. Each spelling set emits a strict/partial pair, so this
+    // reads the strict half only and the assertions stay about spellings — the
+    // pairing itself is covered by its own describe block below.
     function exactTermQueries(clauses: estypes.QueryDslQueryContainer[], field: string): string[] {
         const queries: string[] = [];
         for (const c of clauses) {
-            const m = unflatten(c).inner?.match?.[field];
-            if (typeof m === 'object' && m !== null && !('fuzziness' in m)
-                && typeof m.query === 'string' && m.minimum_should_match === '2<75%') {
-                queries.push(m.query);
+            const inner = unflatten(c).inner;
+            const branches = (inner?.dis_max?.queries ?? (inner ? [inner] : [])) as
+                estypes.QueryDslQueryContainer[];
+            for (const branch of branches) {
+                const m = branch.match?.[field];
+                if (typeof m === 'object' && m !== null && !('fuzziness' in m)
+                    && typeof m.query === 'string' && m.minimum_should_match === '2<75%') {
+                    queries.push(m.query);
+                }
             }
         }
         return queries;
     }
+
+    // Regression: each spelling used to be its own should-clause, and the
+    // clauses shared one bool, so they summed. The spellings differ only in
+    // their punctuated token, and the partial half of the pair needs just one
+    // term, so a document matching one spelling in full also collected the other
+    // spelling's partial share. Measured on this query, whose name clauses then
+    // offered 80 base points against a nameTerm tier of 40: `Τιμολόγια ΔΕΥΑΧ`
+    // scored 54, and `Τιμολόγια νερού` — which matches the common word and not
+    // the acronym at all — scored 28, the whole introducer tier, for half a
+    // match. dis_max with tie_breaker 0 takes the best spelling and drops the
+    // rest, so the field can still only reach its tier.
+    it('scores spellings against each other, never summed', () => {
+        const clauses = lexicalShouldClauses('τιμολόγια Δ.Ε.Υ.Α.Χ.');
+
+        const nameClauses = clauses
+            .map(unflatten)
+            .filter(({ inner }) =>
+                (inner?.dis_max?.queries ?? []).some((b) => b.match?.['name'] !== undefined));
+
+        // One clause per half of the coverage pair, not one per spelling.
+        expect(nameClauses).toHaveLength(2);
+        for (const { inner } of nameClauses) {
+            expect(inner!.dis_max!.tie_breaker).toBe(0);
+            expect(inner!.dis_max!.queries).toHaveLength(2);
+        }
+        // The two halves still sum back to the whole tier, exactly as they do
+        // for a query with no alternate spelling at all.
+        expect(nameClauses[0].base! + nameClauses[1].base!).toBeCloseTo(40, 5);
+    });
+
+    it('wraps a single-spelling query in no dis_max at all', () => {
+        const clauses = lexicalShouldClauses('πάρκα');
+        const nameTerm = tierClauseOn(clauses, (inner) => {
+            const m = inner.match?.['name'];
+            return typeof m === 'object' && m !== null && !('fuzziness' in m);
+        });
+
+        expect(nameTerm?.inner?.dis_max).toBeUndefined();
+    });
 
     it('adds a space-split variant clause for intra-word apostrophes', () => {
         const clauses = lexicalShouldClauses("δι'ευχών");
@@ -820,7 +876,7 @@ describe('buildSearchQuery cross-field coverage', () => {
         (coverageGate(query).should ?? []) as estypes.QueryDslQueryContainer[];
 
     // Term clauses on one field, as [strict, partial] by their msm.
-    function termPair(query: string, field: string, filters = NO_EXTRACTED_FILTERS) {
+    function termPair(query: string, field: string) {
         const clauses = (textArms(query).lexical?.should ?? []) as estypes.QueryDslQueryContainer[];
         const found = clauses
             .map(unflatten)
@@ -844,6 +900,45 @@ describe('buildSearchQuery cross-field coverage', () => {
             'name', 'description', 'introduced_by_person_name', 'location_text'
         ]);
         expect(combined[0]!.minimum_should_match).toBe('2<75%');
+    });
+
+    // Regression: the nested speaker-name alternative decides eligibility on its
+    // own, so at 2-of-3 the two-word name "Ιωάννης Μαλτέζος" admitted every
+    // subject the person merely spoke in — none of which match the topic word.
+    // Ranking put them last (FIELD_TIER.speakerName), but they still filled
+    // track_total_hits and the pages behind the real matches.
+    it('makes a speaker name cover the whole query before it admits a document', () => {
+        const speakerGate = (query: string) => {
+            const nested = gateAlternatives(query)
+                .map(c => c.nested?.query?.bool?.should as estypes.QueryDslQueryContainer[])
+                .find(Boolean);
+            return nested?.find(c => c.match?.['speaker_contributions.speaker_person_name']);
+        };
+
+        expect(minimumShouldMatchOf(speakerGate('Ιωάννης Μαλτέζος υδρονομείς'))).toBe('100%');
+        // The transcript alternative keeps the ordinary threshold: a contribution
+        // covering 2 of 3 terms is a real coverage claim, a name is not.
+        const transcript = gateAlternatives('Ιωάννης Μαλτέζος υδρονομείς')
+            .map(c => c.nested?.query?.bool?.should as estypes.QueryDslQueryContainer[])
+            .find(Boolean)
+            ?.find(c => c.match?.['speaker_contributions.text']);
+        expect(minimumShouldMatchOf(transcript)).toBe('2<75%');
+    });
+
+    // The clause exists to answer a bare person-name query with the subjects the
+    // person spoke in ("Χάρης Δούκας" 38 -> 110 hits on the production index).
+    // '100%' keeps that: the name covers the whole query, so those subjects
+    // still qualify. Only person-plus-topic queries have to find their topic
+    // term somewhere else.
+    it('still admits the subjects a person spoke in for a bare name query', () => {
+        const clauses = gateAlternatives('Χάρης Δούκας');
+        const speaker = clauses
+            .map(c => c.nested?.query?.bool?.should as estypes.QueryDslQueryContainer[])
+            .find(Boolean)
+            ?.find(c => c.match?.['speaker_contributions.speaker_person_name']);
+
+        expect(speaker?.match?.['speaker_contributions.speaker_person_name'])
+            .toMatchObject({ query: 'Χάρης Δούκας', minimum_should_match: '100%' });
     });
 
     it('keeps the gate out of the scoring path', () => {
@@ -926,5 +1021,33 @@ describe('buildSearchQuery cross-field coverage', () => {
     it('adds no location clause when the AI extracted no location', () => {
         const clauses = scoredShouldClauses('σχολεία Άργους');
         expect(clauses.map(unflatten).filter(({ inner }) => inner?.match?.['location_text'])).toHaveLength(0);
+    });
+
+    // The extractor is as free to return a Greek tonos or a smart quote as a
+    // mobile keyboard is, and an unnormalized spelling tokenizes differently
+    // from the indexed location_text — which drops the location tier out of the
+    // ranking in silence, since the gate scores the whole query and never
+    // notices. The location name gets the same treatment as the query text.
+    it('normalizes the extracted location name and spells out its variants', () => {
+        const q = buildSearchQuery(
+            { query: 'μπαρ' },
+            { ...NO_EXTRACTED_FILTERS, locationName: 'ΔΙ΄ΕΥΧΩΝ' }
+        );
+        const { inner } = unwrapRanking(q.query);
+        const textClause = ((inner?.bool as BoolQuery).must as estypes.QueryDslQueryContainer[])[0];
+        const should = ((textClause.bool as BoolQuery).should ?? []) as estypes.QueryDslQueryContainer[];
+
+        const branches = should
+            .map(unflatten)
+            .flatMap(({ inner: i }) => (i?.dis_max?.queries ?? []) as estypes.QueryDslQueryContainer[])
+            .filter((b) => b.match?.['location_text'] !== undefined);
+
+        const spellings = branches.map((b) => {
+            const m = b.match!['location_text'];
+            return typeof m === 'object' && m !== null ? m.query : undefined;
+        });
+        // The tonos is normalized to an ASCII apostrophe, then the space-split
+        // variant reaches the spelling the index actually holds.
+        expect(new Set(spellings)).toEqual(new Set(['ΔΙ ΕΥΧΩΝ', "ΔΙ'ΕΥΧΩΝ"]));
     });
 });

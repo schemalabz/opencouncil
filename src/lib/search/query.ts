@@ -4,7 +4,7 @@ import { env } from '@/env.mjs';
 import { ADMIN_BODY_TIER } from '@/lib/ranking/subjects';
 
 // Additive score for subjects pinned within an AI-extracted location's radius
-// (see buildLocationBoostClauses). Small next to the lexical field tiers
+// (see buildLocationClauses). Small next to the lexical field tiers
 // (FIELD_TIER): proximity breaks ties among text matches, it does not outrank a
 // better text match.
 const LOCATION_BOOST = 2;
@@ -121,6 +121,28 @@ const COVERAGE_GATE_FIELDS = [
     'introduced_by_person_name',
     'location_text'
 ] as const;
+
+/**
+ * The gate's threshold for the one entity field that cannot join the union
+ * above: speaker_person_name is nested, so it stands as its own alternative and
+ * decides eligibility ALONE (see buildCoverageGate).
+ *
+ * That is the per-field threshold this whole split was built to remove, so it
+ * cannot take LEXICAL_MINIMUM_SHOULD_MATCH: at 2-of-3, the two-word name
+ * "Ιωάννης Μαλτέζος" admits every subject the person merely spoke in for
+ * "Ιωάννης Μαλτέζος υδρονομείς", none of which match the topic word anywhere.
+ * Ranking already put them last (FIELD_TIER.speakerName), but they still filled
+ * track_total_hits with ~93 subjects and filled the pages behind the real ones.
+ *
+ * Requiring the whole query instead keeps the recall the clause exists for — a
+ * bare person-name query ("Χάρης Δούκας", "Μαλτέζος", "του Δούκα") is fully
+ * covered by the name, so the subjects the person spoke in still qualify — while
+ * a person-plus-topic query has to find its topic term somewhere else, which is
+ * the only place it can be judged. Subjects the person INTRODUCED are unaffected:
+ * their name is in the combined_fields union, where covering part of the query is
+ * a legitimate contribution to the document's coverage.
+ */
+const SPEAKER_NAME_GATE_MINIMUM_SHOULD_MATCH = '100%';
 
 /**
  * Share of a field's tier awarded for covering only part of the query.
@@ -287,7 +309,7 @@ const FIELD_TIER = {
 
 // Rescores a clause to its tier band: base + k * log1p(bm25). boost_mode
 // replace discards the raw BM25 magnitude; the log term keeps its ordering as
-// a within-tier tiebreak. Wrapping OUTSIDE a nested query preserves inner_hits.
+// a within-tier tiebreak.
 function flattenToTier(
     query: estypes.QueryDslQueryContainer,
     tier: { base: number; k: number }
@@ -314,6 +336,25 @@ function flattenToTier(
 // the log tiebreak keeps the same proportion to its band at every share.
 function scaleTier(tier: { base: number; k: number }, factor: number): { base: number; k: number } {
     return { base: tier.base * factor, k: tier.k * factor };
+}
+
+// Collapses one field's alternate-spelling clauses (see buildQueryTextVariants)
+// into a single clause scored by the BEST spelling.
+//
+// The spellings are renderings of the SAME query, so they must never sum. As
+// independent should-clauses they did: a document matching one spelling in full
+// also collected the OTHER spelling's partial share, because the two spellings
+// differ only in their punctuated token and the partial clause needs just one
+// term. Measured on `τιμολόγια Δ.Ε.Υ.Α.Χ.`, whose name clauses offered 80 base
+// points across two spellings against a nameTerm tier of 40: `Τιμολόγια ΔΕΥΑΧ`
+// scored 54, and `Τιμολόγια νερού` — which matches the common word and not the
+// acronym at all — scored 28, the whole introducer tier, for half a match.
+// dis_max with tie_breaker 0 keeps whichever spelling the index holds and
+// discards the rest, so the field totals its tier exactly, as FIELD_TIER says.
+function anySpelling(clauses: estypes.QueryDslQueryContainer[]): estypes.QueryDslQueryContainer {
+    return clauses.length === 1
+        ? clauses[0]
+        : { dis_max: { queries: clauses, tie_breaker: 0 } };
 }
 
 // Emits the strict/partial clause pair for one field (see PARTIAL_COVERAGE_SHARE).
@@ -377,10 +418,14 @@ const RECENCY_DECAY_SCALE_DAYS = 365;
 
 /**
  * Longest discussion in the index, in minutes (318.4 measured on the production
- * index, Aug 2026, 9.1k released docs). Only MAX_RANKING_MULTIPLIER_RATIO below
- * reads it — the ranking script itself has no ceiling. Re-measure it with a
- * `max` aggregation on discussion_speaking_seconds; the ratio moves slowly with
- * it, because log1p flattens the tail.
+ * index, Aug 2026, 9.1k released docs). Only the ratio below reads it — the
+ * ranking script itself has no ceiling.
+ *
+ * This is a snapshot of a number that only grows, so nothing may TRUST it: the
+ * tier-margin check measures the live maximum itself and calls
+ * rankingMultiplierRatio with that, which is what keeps the guard honest as the
+ * index grows. The constant is the offline default, for the unit tests and for
+ * reading the arithmetic here.
  */
 const LONGEST_DISCUSSION_MINUTES = 318.4;
 
@@ -388,7 +433,8 @@ const LONGEST_DISCUSSION_MINUTES = 318.4;
  * The widest ratio the post-relevance multiplier can open between two documents:
  * every factor at its ceiling over every factor at its floor. All three floors
  * are 1.0 (each factor is a boost that is never a penalty), so this is just the
- * product of the ceilings.
+ * product of the ceilings. Only the discussion length is unbounded, so it is the
+ * one input: pass the longest discussion in the index, in minutes.
  *
  * This is the number that decides whether the field tiers hold. Because the
  * lexical clauses share one bool.should, a document's score is the SUM of every
@@ -401,10 +447,14 @@ const LONGEST_DISCUSSION_MINUTES = 318.4;
  * that distance against the live index. Keep it derived from the weights above
  * rather than hardcoded, so changing a weight moves the check with it.
  */
-export const MAX_RANKING_MULTIPLIER_RATIO =
-    ADMIN_BODY_WEIGHT.council *
-    (1 + DISCUSSION_LENGTH_BOOST_WEIGHT * Math.log1p(LONGEST_DISCUSSION_MINUTES)) *
-    (1 + RECENCY_BOOST_WEIGHT);
+export function rankingMultiplierRatio(longestDiscussionMinutes: number): number {
+    return ADMIN_BODY_WEIGHT.council *
+        (1 + DISCUSSION_LENGTH_BOOST_WEIGHT * Math.log1p(longestDiscussionMinutes)) *
+        (1 + RECENCY_BOOST_WEIGHT);
+}
+
+/** The ratio at the last measured index size — see LONGEST_DISCUSSION_MINUTES. */
+export const MAX_RANKING_MULTIPLIER_RATIO = rankingMultiplierRatio(LONGEST_DISCUSSION_MINUTES);
 
 const RANKING_SCRIPT = `
     String bodyType = doc['administrative_body_type'].size() == 0 ? '' : doc['administrative_body_type'].value;
@@ -565,7 +615,16 @@ export function buildFilters(request: SearchRequest): estypes.QueryDslQueryConta
 // maximum distance between two points on Earth, so every pinned subject matched
 // and the clause degenerated into a flat bonus for carrying a pin at all, with
 // no proximity signal left in it.
-function buildLocationBoostClauses(locations: Location[] | undefined): estypes.QueryDslQueryContainer[] {
+//
+// `boost` is what makes a clause a proximity BOOST rather than a plain match, so
+// the scored path passes LOCATION_BOOST and the filter-only browse path passes
+// nothing: a boost inside filter context is discarded by Elasticsearch, and
+// carrying one there would read as if proximity still ordered a listing that
+// sorts by meeting_date.
+function buildLocationClauses(
+    locations: Location[] | undefined,
+    boost?: number
+): estypes.QueryDslQueryContainer[] {
     if (!locations || locations.length === 0) return [];
     return locations.map(loc => ({
         geo_distance: {
@@ -574,7 +633,7 @@ function buildLocationBoostClauses(locations: Location[] | undefined): estypes.Q
                 lat: loc.point.lat,
                 lon: loc.point.lon
             },
-            boost: LOCATION_BOOST
+            ...(boost === undefined ? {} : { boost })
         }
     }));
 }
@@ -585,12 +644,16 @@ function buildLocationBoostClauses(locations: Location[] | undefined): estypes.Q
 // noisiest field — routine words like "προϋπολογισμός" occur in almost every
 // meeting's discussion) comes from FIELD_TIER.transcript on the wrapper, not
 // from a boost here.
-function buildTranscriptMatch(field: string, queryText: string): estypes.QueryDslQueryContainer {
+function buildTranscriptMatch(
+    field: string,
+    queryText: string,
+    minimumShouldMatch: string | number = LEXICAL_MINIMUM_SHOULD_MATCH
+): estypes.QueryDslQueryContainer {
     return {
         match: {
             [field]: {
                 query: queryText,
-                minimum_should_match: LEXICAL_MINIMUM_SHOULD_MATCH
+                minimum_should_match: minimumShouldMatch
             }
         }
     };
@@ -623,6 +686,17 @@ function buildQueryTextVariants(queryText: string): string[] {
     return [...variants];
 }
 
+// Every spelling one piece of query text can take in the index: the alternate
+// spellings above, then the punctuation-normalized text itself. Applied to the
+// AI-extracted location name too, not just the user's query — the extractor is
+// as free to return a smart quote or a Greek tonos as a mobile keyboard is, and
+// an unnormalized ΔΙ΄-style spelling tokenizes differently from the indexed
+// location_text, which drops the location tier out of the ranking in silence.
+function spellingsOf(text: string): string[] {
+    const normalized = text.replace(APOSTROPHE_VARIANTS, "'");
+    return [...buildQueryTextVariants(normalized), normalized];
+}
+
 /**
  * Document-level precision gate: the query's terms must be covered across the
  * union of the searchable fields, rather than by any single field on its own
@@ -636,7 +710,9 @@ function buildQueryTextVariants(queryText: string): string[] {
  * all four are `greek`. The nested fields cannot join a combined_fields, so the
  * transcript and the speaker name are separate alternatives: a document
  * qualifies when the flat fields TOGETHER cover the query, or when the
- * transcript does, or when a speaker name does. Coverage cannot be pooled
+ * transcript does, or when a speaker name covers it WHOLE (a nested field
+ * decides alone, so it takes the stricter threshold — see
+ * SPEAKER_NAME_GATE_MINIMUM_SHOULD_MATCH). Coverage cannot be pooled
  * across the nested boundary (Elasticsearch scores nested documents
  * separately), so a subject whose title holds the topic and whose speaker list
  * holds the name still does not qualify — the same limit as before this gate,
@@ -682,7 +758,7 @@ function buildCoverageGate(queryText: string): estypes.QueryDslQueryContainer {
                                         match: {
                                             'speaker_contributions.speaker_person_name': {
                                                 query: text,
-                                                minimum_should_match: LEXICAL_MINIMUM_SHOULD_MATCH
+                                                minimum_should_match: SPEAKER_NAME_GATE_MINIMUM_SHOULD_MATCH
                                             }
                                         }
                                     }
@@ -716,26 +792,27 @@ function buildLexicalShouldClauses(
     // covering part of it now scores the tier's partial share instead of
     // nothing. buildCoverageGate keeps the loosened clauses from admitting
     // stray-term matches.
-    const termClause = (field: string, text: string) =>
-        (minimumShouldMatch: string | number): estypes.QueryDslQueryContainer => ({
-            match: {
-                [field]: {
-                    query: text,
-                    minimum_should_match: minimumShouldMatch
+    //
+    // A field's alternate spellings (see buildQueryTextVariants) all live inside
+    // ONE clause per half of the pair, so whichever shape the index holds scores
+    // the same tier and no document can collect two spellings at once — see
+    // anySpelling.
+    const termClause = (field: string, texts: string[]) =>
+        (minimumShouldMatch: string | number): estypes.QueryDslQueryContainer =>
+            anySpelling(texts.map(text => ({
+                match: {
+                    [field]: {
+                        query: text,
+                        minimum_should_match: minimumShouldMatch
+                    }
                 }
-            }
-        });
+            })));
+
+    const spellings = spellingsOf(queryText);
 
     return [
-        // One clause pair per alternate spelling (see buildQueryTextVariants),
-        // in the same tiers as the main clauses: whichever shape the index
-        // holds, the score tier is the same.
-        ...buildQueryTextVariants(queryText).flatMap(variant => [
-            ...coverageClauses(termClause('name', variant), FIELD_TIER.nameTerm),
-            ...coverageClauses(termClause('description', variant), FIELD_TIER.descriptionTerm),
-        ]),
-        ...coverageClauses(termClause('name', queryText), FIELD_TIER.nameTerm),
-        ...coverageClauses(termClause('description', queryText), FIELD_TIER.descriptionTerm),
+        ...coverageClauses(termClause('name', spellings), FIELD_TIER.nameTerm),
+        ...coverageClauses(termClause('description', spellings), FIELD_TIER.descriptionTerm),
         // Person-name queries ("Χάρης Δούκας", "Μαλτέζος") are a recurring
         // pattern in the logged user searches. This field covers the subjects
         // the person introduced — the strongest authorship signal. The subjects
@@ -746,7 +823,7 @@ function buildLexicalShouldClauses(
         // The pair matters most here: the full name earns the whole introducer
         // tier, while a query that shares only a first name with the introducer
         // earns the partial share. Before the split, both scored the same.
-        ...coverageClauses(termClause('introduced_by_person_name', queryText), FIELD_TIER.introducer),
+        ...coverageClauses(termClause('introduced_by_person_name', [queryText]), FIELD_TIER.introducer),
         // Matched against the EXTRACTED location name, not the whole query. The
         // field holds a place ("Άργος", "4ο Δημοτικό Σχολείο Άργους"), so
         // scoring it against "σχολεία Άργους" asks an address to answer the
@@ -758,7 +835,7 @@ function buildLexicalShouldClauses(
         // description clauses, which is the only place it can be judged.
         ...(extractedFilters.locationName
             ? coverageClauses(
-                termClause('location_text', extractedFilters.locationName),
+                termClause('location_text', spellingsOf(extractedFilters.locationName)),
                 FIELD_TIER.locationText
             )
             : []),
@@ -794,38 +871,30 @@ function buildLexicalShouldClauses(
                 'description': { query: queryText }
             }
         }, FIELD_TIER.descriptionPhrase),
-        // inner_hits rides the strict clause only. Two nested clauses on one
-        // path cannot both carry it under the same name, and the strict clause
-        // keeps the marked contributions to those matching the query the way
-        // they did before the split.
-        flattenToTier({
-            nested: {
-                path: 'speaker_contributions',
-                query: buildTranscriptMatch('speaker_contributions.text', queryText),
-                inner_hits: {
-                    _source: ['speaker_contributions.contribution_id']
+        // No inner_hits: nothing between here and the search results reads them
+        // (partitionHits works off `_source.id`), so requesting them made
+        // Elasticsearch run a sub-search per hit and return a payload no code
+        // opened. Restore the block here, and wire the contribution ids through
+        // src/lib/search/hits.ts, if a caller ever needs to know WHICH
+        // contributions matched.
+        ...coverageClauses(
+            minimumShouldMatch => ({
+                nested: {
+                    path: 'speaker_contributions',
+                    query: buildTranscriptMatch(
+                        'speaker_contributions.text',
+                        queryText,
+                        minimumShouldMatch
+                    )
                 }
-            }
-        }, scaleTier(FIELD_TIER.transcript, 1 - PARTIAL_COVERAGE_SHARE)),
-        flattenToTier({
-            nested: {
-                path: 'speaker_contributions',
-                query: {
-                    match: {
-                        'speaker_contributions.text': {
-                            query: queryText,
-                            minimum_should_match: 1
-                        }
-                    }
-                }
-            }
-        }, scaleTier(FIELD_TIER.transcript, PARTIAL_COVERAGE_SHARE)),
+            }),
+            FIELD_TIER.transcript
+        ),
         // Subjects the person spoke in, at the bottom of the field tier (see
         // FIELD_TIER.speakerName and the calibration note above it). A separate
         // nested clause rather than a second field on the transcript clause
-        // above: inner_hits marks which contributions matched the query text,
-        // and a speaker-name match would add contributions whose text does not
-        // contain the query at all.
+        // above: the two carry different tiers, and a subject the person spoke
+        // in is a far weaker answer than one whose debate says the words.
         ...coverageClauses(
             minimumShouldMatch => ({
                 nested: {
@@ -957,14 +1026,15 @@ export function buildSearchQuery(
     // for "everything a person spoke about" or "all subjects in a date range".
     const queryText = mergedRequest.query?.trim().replace(APOSTROPHE_VARIANTS, "'");
     const filters = buildFilters(mergedRequest);
-    const locationBoosts = buildLocationBoostClauses(mergedRequest.locations);
     if (!queryText) {
-        // With no text to score, a location can only act as a filter. Unreachable
-        // today (locations only come from AI extraction, which requires query
-        // text), but kept so an explicit filter-only location request stays a
-        // location browse rather than being ignored.
-        const browseFilters = locationBoosts.length > 0
-            ? [...filters, { bool: { should: locationBoosts, minimum_should_match: 1 } }]
+        // With no text to score, a location can only act as a filter — so the
+        // clauses carry no boost here. Unreachable today (locations only come
+        // from AI extraction, which requires query text), but kept so an
+        // explicit filter-only location request stays a location browse rather
+        // than being ignored.
+        const locationFilters = buildLocationClauses(mergedRequest.locations);
+        const browseFilters = locationFilters.length > 0
+            ? [...filters, { bool: { should: locationFilters, minimum_should_match: 1 } }]
             : filters;
         return {
             index: env.ELASTICSEARCH_INDEX,
@@ -1033,6 +1103,7 @@ export function buildSearchQuery(
     };
     // Proximity lifts pinned subjects near the extracted location, inside `must`
     // so a location-only match without any text match cannot surface.
+    const locationBoosts = buildLocationClauses(mergedRequest.locations, LOCATION_BOOST);
     const scoredQuery: estypes.QueryDslQueryContainer = locationBoosts.length > 0
         ? { bool: { must: [textCore], should: locationBoosts } }
         : textCore;
