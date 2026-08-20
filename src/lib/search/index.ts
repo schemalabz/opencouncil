@@ -5,7 +5,7 @@ import { Prisma } from '@prisma/client';
 import prisma from "@/lib/db/prisma";
 import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument, ExtractedFilters } from './types';
 import { buildSearchQuery } from './query';
-import { extractFilters, processFilters } from './filters';
+import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from './filters';
 import { sendErrorAdminAlert } from '@/lib/discord';
 import { executeElasticsearchWithRetry } from './retry';
 import { partitionHits, reportOrphanedHits } from './hits';
@@ -94,13 +94,7 @@ export async function search(
         });
 
         // Extract filters from the query using AI (non-fatal — search works without it)
-        const defaultFilters: ExtractedFilters = {
-            cityIds: null,
-            dateRange: null,
-            isLatest: null,
-            locationName: null,
-        };
-        let extractedFilters = defaultFilters;
+        let extractedFilters: ExtractedFilters = NO_EXTRACTED_FILTERS;
         if (queryText) {
             try {
                 extractedFilters = await extractFilters(queryText);

@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { ExtractedFilters } from './types';
 import { aiChat } from '@/lib/ai';
 import { getCities } from '@/lib/db/cities';
@@ -50,6 +51,37 @@ const FILTER_EXTRACTION_PROMPT = `Εξαγωγή Φίλτρων Αναζήτησ
 Διαθέσιμες πόλεις:
 {{CITIES_LIST}}`;
 
+/** Every filter absent. The neutral result of the extraction step. */
+export const NO_EXTRACTED_FILTERS: ExtractedFilters = {
+    cityIds: null,
+    dateRange: null,
+    isLatest: null,
+    locationName: null,
+};
+
+/**
+ * Validates the model's JSON against the shape the prompt asks for.
+ *
+ * `aiChat` parses the response and casts it, so before this schema the
+ * `ExtractedFilters` type stated what the prompt REQUESTS, not what arrives. A
+ * field of the wrong type used to be inert, because every consumer only tested
+ * it for truthiness. It is not inert any more: buildSearchQuery reads
+ * locationName as a string (spellingsOf calls String.replace on it), so an
+ * array there throws. That call sits OUTSIDE the two try/catch blocks in
+ * src/lib/search/index.ts that keep a failed extraction non-fatal, so one bad
+ * field returned a 500 for a query the lexical clauses could answer.
+ *
+ * Each field catches on its own, so a malformed field drops to null and the
+ * rest of the extraction survives. The outer catch covers a response that is
+ * not an object at all.
+ */
+const extractedFiltersSchema = z.object({
+    cityIds: z.array(z.string()).nullable().catch(null),
+    dateRange: z.object({ start: z.string(), end: z.string() }).nullable().catch(null),
+    isLatest: z.boolean().nullable().catch(null),
+    locationName: z.string().nullable().catch(null),
+}).catch(NO_EXTRACTED_FILTERS);
+
 // Get cities for the prompt
 async function getCitiesForPrompt(): Promise<{ id: string; name: string; name_en: string }[]> {
     const cities = await getCities();
@@ -78,8 +110,8 @@ export async function extractFilters(query: string): Promise<ExtractedFilters> {
         .replace('{{CITIES_LIST}}', citiesList)
         .replace('{{TODAY_DATE}}', today);
 
-    const { result } = await aiChat<ExtractedFilters>(prompt, query);
-    return result;
+    const { result } = await aiChat<unknown>(prompt, query);
+    return extractedFiltersSchema.parse(result);
 }
 
 // Resolve location coordinates
