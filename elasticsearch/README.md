@@ -55,11 +55,21 @@ When searching:
      - Concatenated speaker segment text
 
 3. **Hybrid Search**
-   - Combines both traditional and semantic search results
-   - Uses RRF (Reciprocal Rank Fusion) for result ranking
+   - One scored Elasticsearch query, not a rank-fusion retriever
+   - The lexical clauses share a single `bool.should`, so a document scores the sum of every field tier it matched (title, description, introducer, transcript, speaker name, location)
+   - Every lexical clause is rescored to `base + k * log1p(bm25)`, so the fields that matched set the score level and raw BM25 stays a small within-tier tiebreak
+   - A `combined_fields` gate in filter context decides eligibility across the union of the fields, so the term requirement is asked once per document instead of once per field
+   - The semantic arm is a fallback. It competes with the lexical sum through `dis_max` (score = max), it is gated by a similarity cutoff, and it maps into the description tier's score range
+   - A `function_score` multiplier then nudges among similar matches by administrative body, discussion length and recency
+   - Typical `_score`: about 26 for a paraphrase-only semantic hit, about 150-210 for a title match
    - Configurable parameters:
-     - `rank_window_size`: Number of results to consider from each retriever (default: 100)
-     - `rank_constant`: Controls the balance between retrievers (default: 60)
+     - `enableSemanticSearch`: adds the semantic fallback arm. The API route sets it to `true`
+     - `semanticMinScore`: the similarity cutoff for that arm (default 0.930)
+
+   RRF (Reciprocal Rank Fusion) is no longer used, and the `rank_window_size` and `rank_constant`
+   knobs are gone with it. Rank fusion double-counted whichever document cleared the semantic cutoff,
+   which reordered near-tied lexical matches. `src/lib/search/query.ts` holds the measured cases and
+   the calibration of every constant above.
 
 4. **Automatic Filter Derivation**
    - Intelligently extracts filters from natural language queries using AI
@@ -82,14 +92,19 @@ The search functionality is implemented across several files:
    - Validates request parameters using Zod
    - Implements error handling and pagination
 
-2. **Search Implementation** (`src/lib/search/search.ts`)
-   - Implements automatic filter derivation from natural language queries
-   - Core search functionality using Elasticsearch
-   - Implements hybrid search (traditional + semantic)
-   - Handles result transformation and enrichment
-   - Manages Elasticsearch client configuration
+2. **Search Implementation** (`src/lib/search/`)
+   - `index.ts`: orchestrates a search, hydrates the hits from PostgreSQL, and manages the Elasticsearch client
+   - `query.ts`: builds the Elasticsearch query. Every scoring constant lives here, with the measurement behind it
+   - `filters.ts`: derives filters from natural language with AI, and resolves a location name to coordinates
+   - `hits.ts`: partitions the hits, and reports the ones no subject backs
+   - `retry.ts`: retries a failed Elasticsearch call with exponential backoff
 
-3. **Types and Interfaces**
+3. **Ranking eval harness** (`scripts/search-eval.ts`)
+   - Runs a labeled query set against the live index through the production query builder
+   - `--tier-margin` measures whether the field tiers still hold, or whether only the metadata holds them
+   - Read-only. It issues `_search` calls and nothing else
+
+4. **Types and Interfaces**
    - `SearchRequest`: Defines the search request structure
    - `SearchConfig`: Configures search behavior
    - `SearchResult`: Defines the search result structure
@@ -636,7 +651,8 @@ Configuration on the staging app:
 
 ### 1. Simple Text Search
 
-This example demonstrates a basic text search query that searches across subject names, descriptions, and speaker segments:
+A hand-written query for exploring the index from Kibana. The app does not build this one — see
+[Hybrid Search](#2-hybrid-search) for the query it emits.
 
 ```json
 GET subjects/_search
@@ -701,114 +717,176 @@ Key features of this query:
 
 ### 2. Hybrid Search
 
-This example demonstrates how to combine traditional text search with semantic search using RRF (Reciprocal Rank Fusion):
+This is the query `buildSearchQuery` emits for a text search with the semantic arm on. It is one
+scored query. There is no `rrf` retriever, and there are no `rank_window_size` or `rank_constant`
+knobs.
 
-```json
+The block below is **abbreviated**: it keeps one clause of each kind and drops the repeats, so it
+shows the structure rather than a request you can paste. `src/lib/search/query.ts` is the source of
+truth, and the full request is one `console.log` away from a unit test.
+
+```jsonc
 GET subjects/_search
 {
-  "retriever": {
-    "rrf": {
-      "retrievers": [
-        {
-          "standard": {
-            "query": {
-              "bool": {
-                "should": [
-                  {
-                    "multi_match": {
-                      "query": "ηλεκτρικά πατίνια",
-                      "fields": [
-                        "name^4",
-                        "description^3"
-                      ],
-                      "type": "best_fields",
-                      "operator": "or"
-                    }
-                  },
-                  {
-                    "nested": {
-                      "path": "speaker_contributions",
-                      "query": {
-                        "match": {
-                          "speaker_contributions.text": {
-                            "query": "ηλεκτρικά πατίνια",
-                            "boost": 2
+  "size": 10,
+  "from": 0,
+  "track_total_hits": true,
+  "query": {
+    // Post-relevance multiplier: administrative body x discussion length x recency.
+    // It nudges among similar matches, so it multiplies a relevance score and never
+    // stands in for one. The filter-only browse path omits it and sorts by date.
+    "function_score": {
+      "boost_mode": "multiply",
+      "functions": [{ "script_score": { "script": {
+        "source": "<Painless: adminWeight * discussionFactor * recencyFactor>",
+        "params": {
+          "councilWeight": 1.15, "committeeWeight": 1.075, "communityWeight": 1.0,
+          "defaultAdminBodyWeight": 1.0, "discussionWeight": 0.03,
+          "recencyWeight": 0.1, "recencyScaleDays": 365, "nowMillis": 1787242196648
+        }
+      }}}],
+      "query": {
+        "bool": {
+          // Hard filters, applied to both arms.
+          "filter": [
+            { "term": { "meeting_released": true } },
+            { "terms": { "city_id": ["athens", "chania"] } }
+          ],
+          "must": [{
+            // Lexical sum vs. semantic fallback, score = max. tie_breaker 0: strong
+            // lexical matches sit ~2% apart, so any share of the semantic score
+            // would reorder them.
+            "dis_max": {
+              "tie_breaker": 0,
+              "queries": [
+                {
+                  "bool": {
+                    "minimum_should_match": 1,
+                    // Coverage gate, in filter context: it decides which documents are
+                    // eligible and contributes no score. The term requirement is asked
+                    // once across the union of the flat fields. The nested fields cannot
+                    // join a combined_fields, so they stand as their own alternatives.
+                    "filter": [{
+                      "bool": {
+                        "minimum_should_match": 1,
+                        "should": [
+                          {
+                            "combined_fields": {
+                              "query": "ηλεκτρικά πατίνια",
+                              "fields": ["name", "description", "introduced_by_person_name", "location_text"],
+                              "minimum_should_match": "2<75%"
+                            }
+                          },
+                          {
+                            "match": {
+                              "name": {
+                                "query": "ηλεκτρικά πατίνια",
+                                "fuzziness": "AUTO:4,10",
+                                "prefix_length": 2,
+                                "minimum_should_match": "2<75%"
+                              }
+                            }
                           }
+                          // ... plus a nested alternative over speaker_contributions.text
+                          // and speaker_contributions.speaker_person_name, and one copy of
+                          // every alternative per alternate spelling of the query.
+                        ]
+                      }
+                    }],
+                    // Scoring. Every clause is rescored to its tier band, so the score
+                    // says WHICH fields matched. A document collects the tier of every
+                    // clause it matches, and its score is that sum.
+                    "should": [
+                      {
+                        "function_score": {
+                          "boost_mode": "replace",
+                          "query": { "match": { "name": { "query": "ηλεκτρικά πατίνια", "minimum_should_match": "2<75%" } } },
+                          "functions": [{ "script_score": { "script": {
+                            "source": "params.base + params.k * Math.log1p(_score)",
+                            "params": { "base": 26, "k": 3.9 }
+                          }}}]
                         }
                       },
-                      "inner_hits": {
-                        "_source": ["speaker_contributions.contribution_id"]
+                      {
+                        "function_score": {
+                          "boost_mode": "replace",
+                          "query": { "match": { "name": { "query": "ηλεκτρικά πατίνια", "minimum_should_match": 1 } } },
+                          "functions": [{ "script_score": { "script": {
+                            "source": "params.base + params.k * Math.log1p(_score)",
+                            "params": { "base": 14, "k": 2.1 }
+                          }}}]
+                        }
                       }
-                    }
+                      // ... plus the same pair for description, introduced_by_person_name,
+                      // the nested transcript and the nested speaker name; the two phrase
+                      // clauses; the fuzzy name clause; and location_text when the AI
+                      // extracted a place.
+                    ]
                   }
-                ],
-                "minimum_should_match": 1,
-                "filter": [
-                  {
-                    "term": {
-                      "meeting_released": true
-                    }
-                  },
-                  {
-                    "terms": {
-                      "city_id": ["athens", "chania"]
-                    }
+                },
+                {
+                  // Semantic fallback. The two sub-fields combine with dis_max, so the
+                  // cutoff reads a plain similarity of the best field rather than an
+                  // agreement between both. The script maps that similarity into the
+                  // description tier's score range, and min_score drops everything below
+                  // the cutoff, which is what keeps off-topic queries empty.
+                  "function_score": {
+                    "boost_mode": "replace",
+                    "min_score": 26,
+                    "query": {
+                      "dis_max": {
+                        "tie_breaker": 0,
+                        "queries": [
+                          { "semantic": { "query": "ηλεκτρικά πατίνια", "field": "name.semantic" } },
+                          { "semantic": { "query": "ηλεκτρικά πατίνια", "field": "description.semantic" } }
+                        ]
+                      }
+                    },
+                    "functions": [{ "script_score": { "script": {
+                      "source": "Math.max(params.base + (_score - params.cutoff) * params.scale, 0)",
+                      "params": { "base": 26, "cutoff": 0.93, "scale": 320 }
+                    }}}]
                   }
-                ]
-              }
+                }
+              ]
             }
-          }
-        },
-        {
-          "standard": {
-            "query": {
-              "bool": {
-                "must": [
-                  {
-                    "semantic": {
-                      "query": "ηλεκτρικά πατίνια",
-                      "field": "description.semantic"
-                    }
-                  }
-                ],
-                "filter": [
-                  {
-                    "term": {
-                      "meeting_released": true
-                    }
-                  },
-                  {
-                    "terms": {
-                      "city_id": ["athens", "chania"]
-                    }
-                  }
-                ]
-              }
-            }
-          }
+          }]
         }
-      ],
-      "rank_window_size": 100,
-      "rank_constant": 60
+      }
     }
   }
 }
 ```
 
-Key features of this hybrid query:
-- Combines traditional text search with semantic search
-- Uses RRF to merge and rank results from both searches
-- Maintains field boosting for traditional search
-- Properly handles nested speaker segments search
-- Uses `inner_hits` to get IDs of matching speaker segments
-- Includes semantic search on description field
-- Filters by `meeting_released: true` to show only subjects from released meetings
-- Applies the same filters to both searches
-- Configurable ranking parameters:
-  - `rank_window_size`: Number of results to consider from each retriever (default: 100)
-  - `rank_constant`: Controls balance between retrievers (default: 60)
+#### Field tiers
 
+A clause's tier is the score level it awards. The pair of numbers is `base + k * log1p(bm25)`, so
+`base` sets the level and `k` sizes the within-tier tiebreak. Each term clause splits into a strict
+half (the field covers the query) and a partial half (the field matches one term), 65% and 35% of the
+tier. Both fire on a full match, so a covering field totals its tier exactly.
 
+| Clause | base | k |
+|--------|------|---|
+| `name` term | 40 | 6 |
+| `introduced_by_person_name` term | 28 | 4 |
+| `name` phrase | 20 | 3 |
+| `description` term | 15 | 4 |
+| `description` phrase | 8 | 2 |
+| `speaker_contributions.text` term | 6 | 3 |
+| `name` fuzzy | 4 | 2 |
+| `location_text` term | 3 | 1 |
+| `speaker_contributions.speaker_person_name` term | 0.3 | 0.2 |
+| semantic fallback (mapped) | 26 | — |
+| geo proximity (added once) | 2 | — |
+
+The tiers are additive, so a stack of low tiers can reach a high one. Whether title matches still
+lead is a property of the corpus, so it is measured rather than assumed:
+
+```bash
+SKIP_ENV_VALIDATION=1 npx tsx scripts/search-eval.ts --tier-margin
+```
+
+Run it after you change any base, any `k`, or any multiplier weight.
 
 ## Best Practices & FAQ
 
@@ -816,7 +894,7 @@ Key features of this hybrid query:
 
 1. **Search Configuration**
    - Use hybrid search for best results by setting `enableSemanticSearch: true`
-   - Configure appropriate `rank_window_size` (default: 100) and `rank_constant` (default: 60)
+   - Leave `semanticMinScore` alone unless you sweep it first: `npx tsx scripts/search-eval.ts --min-score <value>` reports where on-topic queries start to go empty and junk queries stop
    - Use filters to narrow down results and improve performance
 
 2. **Performance Optimization**
@@ -925,7 +1003,7 @@ A: Check the pgsync version that installed the `table_notify()` trigger function
 A: Views handle complex logic (PostGIS conversion, role-based party resolution, utterance concatenation) in PostgreSQL where it's more efficient. PGSync sees views as simple tables, keeping the sync configuration clean.
 
 **Q: Can I combine semantic search with traditional text search?**  
-A: Yes, the implementation uses RRF (Reciprocal Rank Fusion) to combine both traditional and semantic search results. You can control this with the `enableSemanticSearch` config option.
+A: Yes. Set `enableSemanticSearch: true`. The two arms compete inside a `dis_max`, so a document scores the higher of its lexical sum and its mapped semantic score. The semantic arm is a fallback for a query that shares no stems with the documents that answer it; it cannot add to, and so cannot reorder, documents that already match lexically. RRF (Reciprocal Rank Fusion) is not used — it double-counted whichever document cleared the semantic cutoff.
 
 **Q: How do I handle long texts in semantic search?**  
 A: The `semantic_text` field type automatically handles text chunking. The current implementation uses default chunking settings, but you can adjust them if needed.
@@ -934,7 +1012,7 @@ A: The `semantic_text` field type automatically handles text chunking. The curre
 A: Traditional search uses exact text matching and relevance scoring, while semantic search understands the meaning of the text. The hybrid approach combines both for better results.
 
 **Q: How do I handle pagination with hybrid search?**  
-A: The implementation supports standard pagination using `from` and `size` parameters. The RRF ranking ensures consistent ordering across pages.
+A: The implementation supports standard pagination using `from` and `size` parameters. A text search orders by score; the filter-only browse path sorts by `meeting_date` and breaks ties on `id`, because every subject of one meeting shares its date and Elasticsearch would otherwise order the tied documents arbitrarily per page.
 
 **Q: How do I monitor search performance?**  
 A: Use Elasticsearch's built-in monitoring tools and metrics. Key metrics to watch include:
