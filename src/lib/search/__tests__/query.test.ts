@@ -7,6 +7,7 @@ jest.mock('@/env.mjs', () => ({ env: { ELASTICSEARCH_INDEX: 'test-index' } }));
 
 import { buildFilters, buildSearchQuery, MAX_RANKING_MULTIPLIER_RATIO } from '../query';
 import { ADMIN_BODY_TIER } from '@/lib/ranking/subjects';
+import schema from '../../../../elasticsearch/schema.json';
 import type { ExtractedFilters } from '../types';
 
 const NO_EXTRACTED_FILTERS: ExtractedFilters = {
@@ -369,6 +370,16 @@ describe('buildSearchQuery lexical ranking', () => {
         expect(MAX_RANKING_MULTIPLIER_RATIO).toBeLessThan(fullOverPartial);
     });
 
+    // scaleTier scales the base AND the k of a tier band, so the log tiebreak
+    // keeps the same proportion to its band at every share. Scaling the base
+    // alone would leave the partial half of every pair with its whole tier's k,
+    // doubling the within-tier log spread the flattening exists to contain.
+    it('scales the log tiebreak with the share of the tier it belongs to', () => {
+        const [strict, partial] = termPair('πάρκα Κυψέλης', 'name');
+
+        expect(strict.k! / partial.k!).toBeCloseTo(strict.base! / partial.base!, 5);
+    });
+
     // Raw BM25 must not rank within a tier (title length normalization and
     // description term repetition buried a recent 139-minute subject under an
     // old 4-minute one for "δάνειο"): every clause is rescored to
@@ -436,6 +447,28 @@ describe('buildSearchQuery lexical ranking', () => {
 
     // Field tier name > description > transcript: transcripts are the noisiest
     // field, so a transcript-only match must not outweigh name/description hits.
+    // The clause scores the EXTRACTED location name, so it fires on every subject
+    // in the place: it says where a subject is, never what it is about. At the
+    // description tier every Argos subject gained the same 15 for "σχολεία
+    // Άργους", which put tree cutting and a theatre booking above school
+    // maintenance. It is sized like the geo boost, not like a content field.
+    it('keeps the location tier below every content tier', () => {
+        const bases = tierBaseByField(
+            scoredShouldClauses('σχολεία Άργους'),
+        );
+        const located = buildSearchQuery(
+            { query: 'σχολεία Άργους' },
+            { ...NO_EXTRACTED_FILTERS, locationName: 'Άργος' }
+        );
+        const locationText = tierBaseByField(
+            (unwrapRanking(located.query).inner?.bool?.must as estypes.QueryDslQueryContainer[])[0]
+                .bool?.should as estypes.QueryDslQueryContainer[]
+        ).locationText;
+
+        expect(locationText).toBeGreaterThan(0);
+        expect(locationText).toBeLessThan(bases.transcript);
+    });
+
     it('keeps the transcript tier below the name and description tiers', () => {
         const should = lexicalShouldClauses('προϋπολογισμός');
 
@@ -676,6 +709,23 @@ describe('buildSearchQuery ranking function', () => {
         for (const key of ['councilWeight', 'committeeWeight', 'communityWeight', 'defaultAdminBodyWeight']) {
             expect(params[key]).toBeGreaterThanOrEqual(1);
         }
+    });
+
+    // The decay scale is what makes recency a gentle preference for newer
+    // meetings rather than a cliff. At RECENCY_DECAY_SCALE_DAYS old a meeting
+    // keeps ~37% (1/e) of the boost, so a year-old meeting is still competitive
+    // and a decade-old one has effectively lost the edge. A scale of days would
+    // leave the whole archive tied at no boost at all, which the emitted number
+    // alone does not show.
+    it('decays recency over years, not days', () => {
+        const q = buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS);
+        const params = rankingScriptParams(q.query);
+        const shareOfBoostLeft = (ageDays: number) =>
+            Math.exp(-ageDays / params.recencyScaleDays);
+
+        expect(shareOfBoostLeft(0)).toBe(1);
+        expect(shareOfBoostLeft(365)).toBeGreaterThan(0.3);
+        expect(shareOfBoostLeft(365 * 10)).toBeLessThan(0.01);
     });
 
     it('scores recency against a concrete instant', () => {
@@ -1024,6 +1074,22 @@ describe('buildSearchQuery filter-only mode', () => {
         expect(q.size).toBe(5);
         expect(q.from).toBe(10);
     });
+
+    // Both branches page, and both report a total. The API route divides the
+    // total by the page size, so a request that stops tracking totals — or a
+    // scored branch that hardcodes from: 0 — hands every page the first ten
+    // results and a page count of NaN.
+    const pagedRequests: [string, SearchRequest][] = [
+        ['scored', { query: 'πάρκα', config: { size: 5, from: 10 } }],
+        ['filter-only', { personIds: ['p1'], config: { size: 5, from: 10 } }],
+    ];
+    it.each(pagedRequests)('pages the %s branch and counts every hit behind it', (_branch, request) => {
+        const q = buildSearchQuery(request, NO_EXTRACTED_FILTERS);
+
+        expect(q.size).toBe(5);
+        expect(q.from).toBe(10);
+        expect(q.track_total_hits).toBe(true);
+    });
 });
 
 // The per-field term requirement could not express "the query is covered by the
@@ -1209,5 +1275,161 @@ describe('buildSearchQuery cross-field coverage', () => {
         // The tonos is normalized to an ASCII apostrophe, then the space-split
         // variant reaches the spelling the index actually holds.
         expect(new Set(spellings)).toEqual(new Set(['ΔΙ ΕΥΧΩΝ', "ΔΙ'ΕΥΧΩΝ"]));
+    });
+});
+
+
+// The query names fields and reads doc values; the index has to hold both.
+// Nothing between the two is typed, so a renamed field, a field that lost its
+// doc values, or a param the script asks for and never receives fails at query
+// time on the live index and nowhere else.
+describe('buildSearchQuery agreement with the index mapping', () => {
+    type Json = { [key: string]: unknown };
+    const isObject = (value: unknown): value is Json =>
+        typeof value === 'object' && value !== null && !Array.isArray(value);
+
+    const MAPPING = schema[0].mapping as unknown as Json;
+
+    // Resolves a dotted path through the mapping's `properties` (nested objects)
+    // and `fields` (multi-fields, e.g. name.semantic) levels.
+    function mappingOf(path: string): Json | undefined {
+        let level: Json | undefined = MAPPING;
+        let node: Json | undefined;
+        for (const part of path.split('.')) {
+            const next: unknown = level?.[part];
+            if (!isObject(next)) return undefined;
+            node = next;
+            const properties: Json | undefined = isObject(node.properties) ? node.properties : undefined;
+            const fields: Json | undefined = isObject(node.fields) ? node.fields : undefined;
+            level = properties ?? fields;
+        }
+        return node;
+    }
+
+    // Every index field the query names, collected per clause type rather than by
+    // sweeping keys, so a structural key ("bool", "should") can never be read as
+    // a field name.
+    function fieldsNamedBy(node: unknown): string[] {
+        if (Array.isArray(node)) return node.flatMap(fieldsNamedBy);
+        if (!isObject(node)) return [];
+        const found: string[] = [];
+        for (const [key, value] of Object.entries(node)) {
+            if (isObject(value)) {
+                if (key === 'match' || key === 'match_phrase' || key === 'term'
+                    || key === 'terms' || key === 'range') {
+                    found.push(...Object.keys(value));
+                } else if (key === 'combined_fields' && Array.isArray(value.fields)) {
+                    found.push(...value.fields.filter((f): f is string => typeof f === 'string'));
+                } else if (key === 'nested' && typeof value.path === 'string') {
+                    found.push(value.path);
+                } else if (key === 'geo_distance') {
+                    found.push(...Object.keys(value).filter(k => k !== 'distance' && k !== 'boost'));
+                } else if (key === 'semantic' && typeof value.field === 'string') {
+                    found.push(value.field);
+                }
+            }
+            found.push(...fieldsNamedBy(value));
+        }
+        return found;
+    }
+
+    // Every script_score the query carries, with the params it was given.
+    function scriptsOf(node: unknown): { source: string; params: Json }[] {
+        if (Array.isArray(node)) return node.flatMap(scriptsOf);
+        if (!isObject(node)) return [];
+        const found: { source: string; params: Json }[] = [];
+        const scriptScore = isObject(node.script_score) ? node.script_score : undefined;
+        const script = scriptScore && isObject(scriptScore.script) ? scriptScore.script : undefined;
+        if (script && typeof script.source === 'string') {
+            found.push({ source: script.source, params: isObject(script.params) ? script.params : {} });
+        }
+        for (const value of Object.values(node)) found.push(...scriptsOf(value));
+        return found;
+    }
+
+    // One request that reaches every clause the builder can emit.
+    const everyClause = () => buildSearchQuery(
+        {
+            query: 'Χάρης Δούκας ανακύκλωση',
+            cityIds: ['athens'],
+            personIds: ['p1'],
+            partyIds: ['party1'],
+            topicIds: ['t1'],
+            dateRange: { start: '2026-01-01', end: '2026-02-01' },
+            locations: [{ point: { lat: 38.0, lon: 23.7 }, radiusMeters: 2000 }],
+            config: { enableSemanticSearch: true },
+        },
+        { ...NO_EXTRACTED_FILTERS, locationName: 'Άργος' }
+    );
+
+    it('names only fields the index mapping defines', () => {
+        const fields = new Set(fieldsNamedBy(everyClause().query));
+
+        // Guards the walker itself: a shape change that stopped it finding
+        // fields would otherwise turn this test into an empty loop.
+        expect(fields.size).toBeGreaterThan(10);
+        for (const field of fields) {
+            expect({ field, mapped: mappingOf(field) !== undefined })
+                .toEqual({ field, mapped: true });
+        }
+    });
+
+    it('sorts the browse listing on fields the index mapping defines', () => {
+        const sort = buildSearchQuery({ personIds: ['p1'] }, NO_EXTRACTED_FILTERS)
+            .sort as estypes.SortCombinations[];
+
+        const fields = sort.flatMap(entry => (isObject(entry) ? Object.keys(entry) : []));
+        expect(fields.length).toBeGreaterThan(0);
+        for (const field of fields) {
+            expect({ field, mapped: mappingOf(field) !== undefined })
+                .toEqual({ field, mapped: true });
+        }
+    });
+
+    // combined_fields treats its fields as one combined field, so Elasticsearch
+    // rejects the query outright unless they share an analyzer.
+    it('gates on fields that share one analyzer', () => {
+        const filter = (textArms('πάρκα Κυψέλης').lexical?.filter ?? []) as estypes.QueryDslQueryContainer[];
+        const combined = ((filter[0].bool?.should ?? []) as estypes.QueryDslQueryContainer[])
+            .map(c => c.combined_fields)
+            .find(Boolean)!;
+
+        const analyzers = combined.fields.map(field => mappingOf(field)?.analyzer);
+        expect(analyzers).toHaveLength(4);
+        expect(new Set(analyzers)).toEqual(new Set(['greek']));
+    });
+
+    // The ranking script reads doc values directly. A `text` field has none, and
+    // a renamed field returns nothing, so either one throws per document at
+    // query time. This checks the field names and the types the script's own
+    // operations require; only a run against a live index checks the Painless.
+    it('reads doc fields the index can serve at scoring time', () => {
+        const { functionScore } = unwrapRanking(buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS).query);
+        const fn = functionScore.functions?.[0] as estypes.QueryDslFunctionScoreContainer;
+        const source = (fn.script_score?.script as estypes.Script).source as string;
+
+        const docFields = [...source.matchAll(/doc\['([^']+)'\]/g)].map(m => m[1]);
+        expect(docFields.length).toBeGreaterThan(0);
+        for (const field of docFields) {
+            const mapping = mappingOf(field);
+            expect({ field, mapped: mapping !== undefined }).toEqual({ field, mapped: true });
+            expect({ field, type: mapping!.type }).not.toEqual({ field, type: 'text' });
+        }
+
+        // The operations the script performs on each one.
+        expect(mappingOf('administrative_body_type')!.type).toBe('keyword');
+        expect(mappingOf('meeting_date')!.type).toBe('date');
+        expect(['float', 'double', 'long', 'integer'])
+            .toContain(mappingOf('discussion_speaking_seconds')!.type);
+    });
+
+    it('gives every script exactly the params it reads', () => {
+        const scripts = scriptsOf(everyClause().query);
+
+        expect(scripts.length).toBeGreaterThan(1);
+        for (const { source, params } of scripts) {
+            const referenced = [...new Set([...source.matchAll(/params\.(\w+)/g)].map(m => m[1]))];
+            expect(referenced.sort()).toEqual(Object.keys(params).sort());
+        }
     });
 });
