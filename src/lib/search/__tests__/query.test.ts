@@ -112,6 +112,27 @@ function tierBaseByField(should: estypes.QueryDslQueryContainer[]): Record<strin
     return totals;
 }
 
+// Every query string a clause can match on, gathered through the shapes the
+// builders emit: a dis_max over spellings, a nested wrapper, a bool.should, and
+// the match / match_phrase / combined_fields leaves. Used to assert that a
+// clause reaches every spelling of the query, whichever family it belongs to.
+function queryTextsOf(clause: estypes.QueryDslQueryContainer | undefined): string[] {
+    if (!clause) return [];
+    if (clause.dis_max) {
+        return (clause.dis_max.queries as estypes.QueryDslQueryContainer[]).flatMap(queryTextsOf);
+    }
+    if (clause.nested) return queryTextsOf(clause.nested.query);
+    if (clause.bool?.should) {
+        return (clause.bool.should as estypes.QueryDslQueryContainer[]).flatMap(queryTextsOf);
+    }
+    if (clause.combined_fields) return [clause.combined_fields.query];
+    const leaf = clause.match ?? clause.match_phrase;
+    if (!leaf) return [];
+    return Object.values(leaf).map((options) =>
+        typeof options === 'object' && options !== null ? String(options.query) : String(options)
+    );
+}
+
 function findPersonFilter(
     filters: estypes.QueryDslQueryContainer[]
 ): estypes.QueryDslQueryContainer | undefined {
@@ -805,7 +826,12 @@ describe('buildSearchQuery punctuation variants', () => {
         const nameClauses = clauses
             .map(unflatten)
             .filter(({ inner }) =>
-                (inner?.dis_max?.queries ?? []).some((b) => b.match?.['name'] !== undefined));
+                (inner?.dis_max?.queries ?? []).some((b) => {
+                    const m = b.match?.['name'];
+                    // The fuzzy clause spells its query out too, and carries its
+                    // own tier; the pair asserted below is the exact one.
+                    return typeof m === 'object' && m !== null && !('fuzziness' in m);
+                }));
 
         // One clause per half of the coverage pair, not one per spelling.
         expect(nameClauses).toHaveLength(2);
@@ -853,6 +879,24 @@ describe('buildSearchQuery punctuation variants', () => {
         // One variant per punctuation class plus the intact query — each
         // variant targets its own index spelling, they do not compound.
         expect(exactTermQueries(clauses, 'name')).toEqual(["δι ευχών Δ.Ε.", "δι'ευχών ΔΕ.", "δι'ευχών Δ.Ε."]);
+    });
+
+    // Regression: only the name, description and location_text term clauses read
+    // the spellings. The phrases, the fuzzy name clause, both transcript clauses,
+    // both speaker-name clauses and the introducer clause all queried the raw
+    // text, so `Τιμολόγια ΔΕΥΑΧ` — the spelling the index actually holds — could
+    // reach the nameTerm tier and nothing else, a 28-point gap decided by index
+    // punctuation. Worse, the gate admits a transcript-only match on the glued
+    // spelling that the dotted transcript clause could not then score, and
+    // minimum_should_match 1 dropped it.
+    it('offers every clause family both spellings, not the term clauses alone', () => {
+        const clauses = lexicalShouldClauses('τιμολόγια Δ.Ε.Υ.Α.Χ.');
+        const spellings = new Set(['τιμολόγια ΔΕΥΑΧ.', 'τιμολόγια Δ.Ε.Υ.Α.Χ.']);
+
+        expect(clauses.length).toBeGreaterThan(0);
+        for (const clause of clauses) {
+            expect(new Set(queryTextsOf(unflatten(clause).inner))).toEqual(spellings);
+        }
     });
 
     it('adds no variant clause for punctuation-free queries', () => {
@@ -1025,11 +1069,17 @@ describe('buildSearchQuery cross-field coverage', () => {
     it('gates each alternate spelling, so a variant-only match is not rejected first', () => {
         // Δ.Ε.Υ.Α.Χ. is indexed plain, so gating the dotted spelling alone
         // would reject the query before its variant clauses could score it.
-        const queries = gateAlternatives('Δ.Ε.Υ.Α.Χ.')
-            .map(c => c.combined_fields?.query)
-            .filter(Boolean);
         // Only dots BETWEEN letters are stripped, so the trailing one stays.
-        expect(queries).toEqual(['Δ.Ε.Υ.Α.Χ.', 'ΔΕΥΑΧ.']);
+        const spellings = ['ΔΕΥΑΧ.', 'Δ.Ε.Υ.Α.Χ.'];
+        const alternatives = gateAlternatives('Δ.Ε.Υ.Α.Χ.');
+
+        // Every alternative of the gate, not only the combined_fields one: a
+        // spelling the gate admits on one alternative and rejects on another is
+        // a document the scoring clauses never see.
+        expect(alternatives.map(c => c.combined_fields?.query).filter(Boolean)).toEqual(spellings);
+        expect(alternatives.filter(c => c.match?.['name']).flatMap(queryTextsOf)).toEqual(spellings);
+        expect(alternatives.filter(c => c.nested).flatMap(queryTextsOf))
+            .toEqual([spellings[0], spellings[0], spellings[1], spellings[1]]);
     });
 
     it('scores partial field coverage below full coverage in the same tier', () => {

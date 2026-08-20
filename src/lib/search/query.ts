@@ -702,9 +702,39 @@ function buildQueryTextVariants(queryText: string): string[] {
 // as free to return a smart quote or a Greek tonos as a mobile keyboard is, and
 // an unnormalized ΔΙ΄-style spelling tokenizes differently from the indexed
 // location_text, which drops the location tier out of the ranking in silence.
+//
+// EVERY clause reads its text through this, the coverage gate included. A clause
+// family left on the raw query text does not simply miss its share — it
+// mis-ranks and it drops documents:
+//   - Score. For `τιμολόγια Δ.Ε.Υ.Α.Χ.`, the subjects the index holds plain
+//     (`Τιμολόγια ΔΕΥΑΧ`) reached the nameTerm tier alone while an identical
+//     subject indexed dotted also collected namePhrase and descriptionPhrase.
+//     Index punctuation, not relevance, decided a 28-point gap.
+//   - Recall. The gate admits a document per spelling, so a subject that names
+//     the acronym only in its debate passed the gate on the glued spelling. With
+//     the transcript clause still querying the dotted token, no should-clause
+//     matched — the fuzzy clause cannot bridge δ.ε.υ.α.χ to δευαχ at
+//     prefix_length 2 — and minimum_should_match 1 dropped the document. The
+//     gate paid for a nested query per spelling that could not produce a hit.
 function spellingsOf(text: string): string[] {
     const normalized = text.replace(APOSTROPHE_VARIANTS, "'");
     return [...buildQueryTextVariants(normalized), normalized];
+}
+
+// The name field's typo-tolerant match. Shared so the coverage gate and the
+// scoring clause cannot drift apart: the gate is exact-only without it, and a
+// typo query would be rejected before the clause built to recover it can score.
+function buildFuzzyNameMatch(text: string): estypes.QueryDslQueryContainer {
+    return {
+        match: {
+            'name': {
+                query: text,
+                fuzziness: NAME_FUZZINESS,
+                prefix_length: NAME_FUZZY_PREFIX_LENGTH,
+                minimum_should_match: LEXICAL_MINIMUM_SHOULD_MATCH
+            }
+        }
+    };
 }
 
 /**
@@ -733,7 +763,7 @@ function spellingsOf(text: string): string[] {
  * plain) before its variant clauses could score it.
  */
 function buildCoverageGate(queryText: string): estypes.QueryDslQueryContainer {
-    const spellings = [queryText, ...buildQueryTextVariants(queryText)];
+    const spellings = spellingsOf(queryText);
     return {
         bool: {
             should: spellings.flatMap(text => [
@@ -744,19 +774,7 @@ function buildCoverageGate(queryText: string): estypes.QueryDslQueryContainer {
                         minimum_should_match: LEXICAL_MINIMUM_SHOULD_MATCH
                     }
                 },
-                // Mirrors the fuzzy scoring clause exactly. Without it the gate
-                // is exact-only, so a typo query ("ανακίκλωση") is rejected
-                // before the clause built to recover it can score anything.
-                {
-                    match: {
-                        'name': {
-                            query: text,
-                            fuzziness: NAME_FUZZINESS,
-                            prefix_length: NAME_FUZZY_PREFIX_LENGTH,
-                            minimum_should_match: LEXICAL_MINIMUM_SHOULD_MATCH
-                        }
-                    }
-                },
+                buildFuzzyNameMatch(text),
                 {
                     nested: {
                         path: 'speaker_contributions',
@@ -806,7 +824,14 @@ function buildLexicalShouldClauses(
     // A field's alternate spellings (see buildQueryTextVariants) all live inside
     // ONE clause per half of the pair, so whichever shape the index holds scores
     // the same tier and no document can collect two spellings at once — see
-    // anySpelling.
+    // anySpelling. Every clause family below is built this way: a family left on
+    // the raw query text reaches only the index spelling that matched the typed
+    // punctuation, which both mis-ranks and drops documents (see spellingsOf).
+    const spellings = spellingsOf(queryText);
+    const perSpelling = (
+        build: (text: string) => estypes.QueryDslQueryContainer
+    ): estypes.QueryDslQueryContainer => anySpelling(spellings.map(build));
+
     const termClause = (field: string, texts: string[]) =>
         (minimumShouldMatch: string | number): estypes.QueryDslQueryContainer =>
             anySpelling(texts.map(text => ({
@@ -817,8 +842,6 @@ function buildLexicalShouldClauses(
                     }
                 }
             })));
-
-    const spellings = spellingsOf(queryText);
 
     return [
         ...coverageClauses(termClause('name', spellings), FIELD_TIER.nameTerm),
@@ -833,7 +856,7 @@ function buildLexicalShouldClauses(
         // The pair matters most here: the full name earns the whole introducer
         // tier, while a query that shares only a first name with the introducer
         // earns the partial share. Before the split, both scored the same.
-        ...coverageClauses(termClause('introduced_by_person_name', [queryText]), FIELD_TIER.introducer),
+        ...coverageClauses(termClause('introduced_by_person_name', spellings), FIELD_TIER.introducer),
         // Matched against the EXTRACTED location name, not the whole query. The
         // field holds a place ("Άργος", "4ο Δημοτικό Σχολείο Άργους"), so
         // scoring it against "σχολεία Άργους" asks an address to answer the
@@ -856,31 +879,20 @@ function buildLexicalShouldClauses(
         // only clause that matches. No partial twin: a fuzzy match on a single
         // term of a multi-term query is the noisiest signal in the query, and
         // the gate would have to admit the document on that term alone.
-        flattenToTier({
-            match: {
-                'name': {
-                    query: queryText,
-                    fuzziness: NAME_FUZZINESS,
-                    prefix_length: NAME_FUZZY_PREFIX_LENGTH,
-                    minimum_should_match: LEXICAL_MINIMUM_SHOULD_MATCH
-                }
-            }
-        }, FIELD_TIER.fuzzyName),
+        flattenToTier(perSpelling(buildFuzzyNameMatch), FIELD_TIER.fuzzyName),
         // Phrase match on the title: a contiguous phrase match in the most
         // important field should clearly outrank scattered terms. Phrases are
         // all-or-nothing by nature, so they take no partial twin.
-        flattenToTier({
-            match_phrase: {
-                'name': { query: queryText }
-            }
-        }, FIELD_TIER.namePhrase),
+        flattenToTier(
+            perSpelling(text => ({ match_phrase: { 'name': { query: text } } })),
+            FIELD_TIER.namePhrase
+        ),
         // Phrase match on the description, a tier below the title phrase so
         // long descriptions don't overweight phrase proximity.
-        flattenToTier({
-            match_phrase: {
-                'description': { query: queryText }
-            }
-        }, FIELD_TIER.descriptionPhrase),
+        flattenToTier(
+            perSpelling(text => ({ match_phrase: { 'description': { query: text } } })),
+            FIELD_TIER.descriptionPhrase
+        ),
         // No inner_hits: nothing between here and the search results reads them
         // (partitionHits works off `_source.id`), so requesting them made
         // Elasticsearch run a sub-search per hit and return a payload no code
@@ -888,16 +900,16 @@ function buildLexicalShouldClauses(
         // src/lib/search/hits.ts, if a caller ever needs to know WHICH
         // contributions matched.
         ...coverageClauses(
-            minimumShouldMatch => ({
+            minimumShouldMatch => perSpelling(text => ({
                 nested: {
                     path: 'speaker_contributions',
                     query: buildTranscriptMatch(
                         'speaker_contributions.text',
-                        queryText,
+                        text,
                         minimumShouldMatch
                     )
                 }
-            }),
+            })),
             FIELD_TIER.transcript
         ),
         // Subjects the person spoke in, at the bottom of the field tier (see
@@ -906,19 +918,19 @@ function buildLexicalShouldClauses(
         // above: the two carry different tiers, and a subject the person spoke
         // in is a far weaker answer than one whose debate says the words.
         ...coverageClauses(
-            minimumShouldMatch => ({
+            minimumShouldMatch => perSpelling(text => ({
                 nested: {
                     path: 'speaker_contributions',
                     query: {
                         match: {
                             'speaker_contributions.speaker_person_name': {
-                                query: queryText,
+                                query: text,
                                 minimum_should_match: minimumShouldMatch
                             }
                         }
                     }
                 }
-            }),
+            })),
             FIELD_TIER.speakerName
         )
     ];
