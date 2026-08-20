@@ -387,11 +387,18 @@ export function buildFilters(request: SearchRequest): estypes.QueryDslQueryConta
 // return zero results even though subjects carry it in the title. As `should`
 // clauses on the scoring query, nearby pinned subjects rank higher and
 // everything else still matches on text alone.
+//
+// The radius is in METRES (Location.radiusMeters), so the geo_distance unit
+// suffix must be `m`. Reading it as `km` made the clause useless without
+// failing: at the then-current 40000m it asked for 40000km, past the ~20015km
+// maximum distance between two points on Earth, so every pinned subject matched
+// and the clause degenerated into a flat bonus for carrying a pin at all, with
+// no proximity signal left in it.
 function buildLocationBoostClauses(locations: Location[] | undefined): estypes.QueryDslQueryContainer[] {
     if (!locations || locations.length === 0) return [];
     return locations.map(loc => ({
         geo_distance: {
-            distance: `${loc.radius}km`,
+            distance: `${loc.radiusMeters}m`,
             'location_geojson': {
                 lat: loc.point.lat,
                 lon: loc.point.lon

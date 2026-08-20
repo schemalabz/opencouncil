@@ -501,7 +501,11 @@ describe('buildSearchQuery ranking function', () => {
 });
 
 describe('buildSearchQuery location handling', () => {
-    const LOCATIONS = [{ point: { lat: 38.0, lon: 23.7 }, radius: 40 }];
+    // radiusMeters is METRES: 2000 is the 2km that resolveLocationCoordinates
+    // actually produces. The earlier fixture used `radius: 40` and asserted
+    // "40km", which agreed with the consumer's `km` suffix but not with any
+    // value the app ever passes, so it hid the unit bug.
+    const LOCATIONS = [{ point: { lat: 38.0, lon: 23.7 }, radiusMeters: 2000 }];
 
     function lexicalQueryOf(q: ReturnType<typeof buildSearchQuery>) {
         return unwrapRanking(q.query).inner;
@@ -535,8 +539,26 @@ describe('buildSearchQuery location handling', () => {
         const should = (lexical?.bool?.should ?? []) as estypes.QueryDslQueryContainer[];
         expect(must).toHaveLength(1);
         expect(should).toHaveLength(1);
-        expect(should[0]?.geo_distance).toMatchObject({ distance: '40km' });
+        expect(should[0]?.geo_distance).toMatchObject({ distance: '2000m' });
         expect(lexical?.bool?.minimum_should_match).toBeUndefined();
+    });
+
+    // Regression: the clause emitted `${radiusMeters}km`, so the metre value
+    // was read as kilometres — a 1000x overshoot. It never threw: at the
+    // then-current 40000m the clause asked for 40000km, past the ~20015km
+    // furthest two points on Earth can be apart, so every pinned subject
+    // matched and the boost stopped expressing proximity at all. It became a
+    // flat bonus for carrying a pin. Assert the unit, not just the number.
+    it('emits the radius in metres, not kilometres', () => {
+        const q = buildSearchQuery(
+            { query: 'παλαιστίνη', locations: LOCATIONS },
+            NO_EXTRACTED_FILTERS
+        );
+        const should = (lexicalQueryOf(q)?.bool?.should ?? []) as estypes.QueryDslQueryContainer[];
+        const distance = should[0]?.geo_distance?.distance as string;
+
+        expect(distance).toMatch(/^\d+m$/);
+        expect(parseInt(distance, 10)).toBe(LOCATIONS[0].radiusMeters);
     });
 
     it('adds no geo clause when no locations are extracted', () => {

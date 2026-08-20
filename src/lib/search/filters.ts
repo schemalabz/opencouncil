@@ -6,6 +6,26 @@ import { getPlaceSuggestions, getPlaceDetails } from '@/lib/google-maps';
 import { calculateGeometryBounds } from '@/lib/geo';
 import { Location } from './types';
 
+// Radius of the proximity boost applied to subjects pinned near an AI-extracted
+// location (see buildLocationBoostClauses).
+//
+// Sized to the scale of what `locationName` actually holds: the extraction
+// prompt asks for a single place name and gives landmark examples ("Πλατεία
+// Συντάγματος", "Εθνικός Κήπος"), and the municipality is already handled by
+// the separate cityIds filter, so the value is always a sub-city feature — a
+// square, a park, a street, a neighbourhood.
+//
+// 2km is the radius the landing page's address search already uses for the same
+// job (ADDRESS_RADIUS_KM in useFilteredSubjects.ts); the MCP list_nearby_subjects
+// tool defaults to 1km. Not imported from either: one is a client UI hook and
+// the other a tool default, so they are free to diverge from search ranking.
+//
+// This replaces the 40km SEARCH_RADIUS copied from actions.ts, which is a
+// Google Places geocoding bias — a different job. At 40km the boost covered the
+// whole Attica basin, so nearly every pinned subject in an Attica city received
+// it and proximity did not discriminate.
+const LOCATION_BOOST_RADIUS_METERS = 2000;
+
 // Define the system prompt for filter extraction
 const FILTER_EXTRACTION_PROMPT = `Εξαγωγή Φίλτρων Αναζήτησης
 
@@ -100,7 +120,7 @@ export async function resolveLocationCoordinates(locationName: string, cityId: s
                 lat: details.coordinates[1],
                 lon: details.coordinates[0]
             },
-            radius: 40000 // Using the same radius as in actions.ts
+            radiusMeters: LOCATION_BOOST_RADIUS_METERS
         };
     } catch (error) {
         console.error('[Location] Error resolving location coordinates:', error);

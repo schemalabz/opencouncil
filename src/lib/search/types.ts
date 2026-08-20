@@ -19,7 +19,11 @@ export type Location = {
         lat: number;
         lon: number;
     };
-    radius: number;
+    /** Proximity-boost radius in METRES. The name carries the unit because the
+     *  only producer (resolveLocationCoordinates) and the only consumer
+     *  (buildLocationBoostClauses) sit in different files; an unlabelled
+     *  `radius` let the consumer read metres as kilometres. */
+    radiusMeters: number;
 };
 
 // Search request type
