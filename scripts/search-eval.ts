@@ -10,13 +10,14 @@
  *   SKIP_ENV_VALIDATION=1 npx tsx scripts/search-eval.ts                 # full suite
  *   SKIP_ENV_VALIDATION=1 npx tsx scripts/search-eval.ts --mode lexical  # lexical arm only
  *   SKIP_ENV_VALIDATION=1 npx tsx scripts/search-eval.ts --query "..."   # one ad-hoc query
+ *   SKIP_ENV_VALIDATION=1 npx tsx scripts/search-eval.ts --tier-margin   # field-tier ordering
  */
 import { config } from 'dotenv';
 config();
 process.env.ELASTICSEARCH_INDEX = process.env.ELASTICSEARCH_INDEX || 'subjects';
 
 import { Client, estypes } from '@elastic/elasticsearch';
-import { buildSearchQuery } from '../src/lib/search/query';
+import { buildSearchQuery, MAX_RANKING_MULTIPLIER_RATIO } from '../src/lib/search/query';
 import type { ExtractedFilters, SearchRequest } from '../src/lib/search/types';
 
 const NO_EXTRACTED_FILTERS: ExtractedFilters = {
@@ -207,8 +208,181 @@ function printRows(rows: HitRow[]) {
     }
 }
 
+/**
+ * Tier-margin check: is name dominance still holding, and is it still only the
+ * data holding it?
+ *
+ * The lexical clauses share one bool.should, so a document scores the SUM of
+ * every tier it matched (see FIELD_TIER). Nothing in the constants stops a stack
+ * of low tiers — introducer + description + phrase + transcript + speaker name —
+ * from reaching a single name tier. What keeps title matches on top is a
+ * property of the corpus: a subject's title terms recur in its description and
+ * its debate, so a title match's clause set is in practice a superset of a
+ * stacked non-title match's. That is an empirical claim about the index, and it
+ * can stop being true, so this measures it instead of trusting it.
+ *
+ * Two separate questions, measured on two runs of the same query:
+ *   - Is the ordering broken NOW? Measured with the ranking multiplier active,
+ *     because that is the order users see. Any title match scoring below any
+ *     non-title match is a FAIL.
+ *   - Could it break from metadata alone? Measured with the multiplier stripped,
+ *     so the ratio is a property of the tiers only. A pre-multiplier ratio above
+ *     MAX_RANKING_MULTIPLIER_RATIO means no assignment of administrative body,
+ *     discussion length and date can invert the pair — the tiers hold
+ *     structurally. Below it, the pair is inside the multiplier's reach and only
+ *     the current metadata is keeping it in order: a WARN, not a failure.
+ *
+ * The queries are the surname/topic stem collisions FIELD_TIER worries about,
+ * where a person name and a common word share a stem, plus plain topic queries
+ * as a control.
+ */
+const TIER_MARGIN_QUERIES = [
+    'Δήμος', 'Γεωργίου', 'Οικονόμου', 'Χρήστου', 'Παπαδόπουλος', 'Αθηνά',
+    'Δούκας', 'Νικολάου', 'Βασιλείου', 'Μακρής', 'πρόεδρος', 'αντιδήμαρχος',
+    'ανακύκλωση', 'προϋπολογισμός', 'καθαριότητα', 'δάνειο', 'φωτισμός', 'πάρκα',
+];
+
+// Which tier each scoring clause belongs to, recovered from the clause shape.
+// Used only to tell name clauses from the rest, but the full label makes the
+// printed failures readable.
+function tierLabel(inner: any): string {
+    if (inner.match) {
+        const field = Object.keys(inner.match)[0];
+        if (field === 'name') return inner.match[field].fuzziness ? 'fuzzyName' : 'nameTerm';
+        if (field === 'description') return 'descriptionTerm';
+        if (field === 'introduced_by_person_name') return 'introducer';
+        if (field === 'location_text') return 'locationText';
+        if (field.endsWith('.text')) return 'transcript';
+        if (field.endsWith('speaker_person_name')) return 'speakerName';
+        return field;
+    }
+    if (inner.match_phrase) {
+        return Object.keys(inner.match_phrase)[0] === 'name' ? 'namePhrase' : 'descriptionPhrase';
+    }
+    if (inner.nested) return tierLabel(inner.nested.query);
+    return 'unknown';
+}
+
+// Tags every scoring clause with _name so matched_queries reports which tiers
+// fired on each hit. Each field emits more than one clause (a strict/partial
+// coverage pair, plus one per alternate spelling), so repeats get a #N suffix.
+function stampTierNames(query: estypes.SearchRequest['query']): void {
+    const ranking = (query as any)?.function_score;
+    const disMax = (ranking?.query?.bool?.must ?? []).find((c: any) => c.dis_max)?.dis_max;
+    const should = disMax?.queries?.[0]?.bool?.should;
+    if (!should) throw new Error('lexical should-clauses missing');
+
+    const counts: Record<string, number> = {};
+    for (const clause of should) {
+        const inner = clause.function_score?.query;
+        if (!inner) continue;
+        const base = tierLabel(inner);
+        counts[base] = (counts[base] ?? 0) + 1;
+        const name = counts[base] > 1 ? `${base}#${counts[base]}` : base;
+        if (inner.nested) { inner.nested._name = name; continue; }
+        const kind = inner.match ? 'match' : inner.match_phrase ? 'match_phrase' : null;
+        if (!kind) continue;
+        const field = Object.keys(inner[kind])[0];
+        if (typeof inner[kind][field] === 'object') inner[kind][field]._name = name;
+    }
+}
+
+interface TierHit { score: number; name: string; tiers: string[]; title: boolean }
+
+async function runTierQuery(queryText: string, withRanking: boolean): Promise<TierHit[]> {
+    const q = buildSearchQuery(
+        { query: queryText, config: { size: 100, enableSemanticSearch: true } },
+        NO_EXTRACTED_FILTERS
+    );
+    stampTierNames(q.query);
+    // Drop the post-relevance multiplier by lifting the query it wraps, leaving
+    // the field tiers as the only thing scoring.
+    const query = withRanking ? q.query : (q.query as any).function_score.query;
+
+    const res: any = await client.search({
+        index: process.env.ELASTICSEARCH_INDEX!,
+        query,
+        size: 100,
+        track_total_hits: true,
+        _source: ['name'],
+    });
+    return res.hits.hits.map((h: any) => {
+        const tiers: string[] = h.matched_queries ?? [];
+        return {
+            score: h._score ?? 0,
+            name: (h._source?.name ?? '(no name)').slice(0, 64),
+            tiers,
+            title: tiers.some((t) => t.startsWith('nameTerm') || t.startsWith('namePhrase')),
+        };
+    });
+}
+
+async function runTierMargin(): Promise<void> {
+    console.log(
+        `\nTier-margin check — a pre-multiplier ratio above ` +
+        `${MAX_RANKING_MULTIPLIER_RATIO.toFixed(3)} (MAX_RANKING_MULTIPLIER_RATIO) means\n` +
+        `the tiers hold on their own; below it, only the current metadata keeps the pair in order.\n`
+    );
+
+    let failed = 0, warned = 0, skipped = 0;
+    for (const queryText of TIER_MARGIN_QUERIES) {
+        const [live, bare] = await Promise.all([
+            runTierQuery(queryText, true),
+            runTierQuery(queryText, false),
+        ]);
+
+        const split = (hits: TierHit[]) => ({
+            titles: hits.filter((h) => h.title),
+            others: hits.filter((h) => !h.title),
+        });
+        const liveSplit = split(live);
+        const bareSplit = split(bare);
+        if (!liveSplit.titles.length || !liveSplit.others.length ||
+            !bareSplit.titles.length || !bareSplit.others.length) {
+            skipped++;
+            const why = !liveSplit.titles.length ? 'no title match' : 'no non-title hit';
+            console.log(`  ·    "${queryText}" — skipped (${why} in top 100)`);
+            continue;
+        }
+
+        // The invariant: every title match outranks every non-title match.
+        const worstTitle = liveSplit.titles.reduce((a, b) => (a.score <= b.score ? a : b));
+        const bestOther = liveSplit.others.reduce((a, b) => (a.score >= b.score ? a : b));
+        const bareRatio =
+            Math.min(...bareSplit.titles.map((h) => h.score)) /
+            Math.max(...bareSplit.others.map((h) => h.score));
+
+        if (worstTitle.score <= bestOther.score) {
+            failed++;
+            console.log(`  ✗    "${queryText}" — a non-title hit outranks a title match`);
+            console.log(`          title     ${worstTitle.score.toFixed(1).padStart(7)} [${worstTitle.tiers.join(',')}] ${worstTitle.name}`);
+            console.log(`          non-title ${bestOther.score.toFixed(1).padStart(7)} [${bestOther.tiers.join(',')}] ${bestOther.name}`);
+        } else if (bareRatio < MAX_RANKING_MULTIPLIER_RATIO) {
+            warned++;
+            console.log(
+                `  !    "${queryText}" — holds, but inside the multiplier's reach ` +
+                `(tier ratio ${bareRatio.toFixed(2)}); best non-title: ${bestOther.name}`
+            );
+        } else {
+            console.log(`  ✓    "${queryText}" — tier ratio ${bareRatio.toFixed(2)}`);
+        }
+    }
+
+    const checked = TIER_MARGIN_QUERIES.length - skipped;
+    console.log(
+        `\n═══ tier margin: ${checked - failed - warned}/${checked} structurally safe, ` +
+        `${warned} inside multiplier reach, ${failed} inverted` +
+        (skipped ? ` (${skipped} skipped)` : '')
+    );
+    if (failed) process.exitCode = 1;
+}
+
 async function main() {
     const args = process.argv.slice(2);
+    if (args.includes('--tier-margin')) {
+        await runTierMargin();
+        return;
+    }
     const modeIdx = args.indexOf('--mode');
     const mode = (modeIdx >= 0 ? args[modeIdx + 1] : 'full') as 'full' | 'lexical' | 'semantic';
     const queryIdx = args.indexOf('--query');

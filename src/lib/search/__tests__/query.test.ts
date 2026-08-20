@@ -5,7 +5,7 @@ import type { SearchRequest } from '../types';
 // itself does not read env, only the module-level import does.
 jest.mock('@/env.mjs', () => ({ env: { ELASTICSEARCH_INDEX: 'test-index' } }));
 
-import { buildFilters, buildSearchQuery } from '../query';
+import { buildFilters, buildSearchQuery, MAX_RANKING_MULTIPLIER_RATIO } from '../query';
 import type { ExtractedFilters } from '../types';
 
 const NO_EXTRACTED_FILTERS: ExtractedFilters = {
@@ -77,6 +77,39 @@ function nestedClauseOn(
             inner.nested?.path === 'speaker_contributions' &&
             inner.nested.query?.match?.[field] !== undefined
     );
+}
+
+// Total tier base each field contributes to a document that matches it. A field
+// emits more than one clause (the strict/partial coverage pair), and they share
+// one bool.should, so a document collects the SUM of both — see FIELD_TIER.
+function tierBaseByField(should: estypes.QueryDslQueryContainer[]): Record<string, number> {
+    const totals: Record<string, number> = {};
+    const add = (label: string, base: number | undefined) => {
+        totals[label] = (totals[label] ?? 0) + (base ?? 0);
+    };
+
+    for (const clause of should) {
+        const { inner, base } = unflatten(clause);
+        if (!inner) continue;
+        if (inner.nested) {
+            const field = Object.keys(inner.nested.query?.match ?? {})[0] ?? '';
+            add(field.endsWith('speaker_person_name') ? 'speakerName' : 'transcript', base);
+            continue;
+        }
+        if (inner.match_phrase) {
+            add(Object.keys(inner.match_phrase)[0] === 'name' ? 'namePhrase' : 'descriptionPhrase', base);
+            continue;
+        }
+        const field = Object.keys(inner.match ?? {})[0];
+        if (!field) continue;
+        const m = inner.match![field];
+        const fuzzy = typeof m === 'object' && m !== null && 'fuzziness' in m;
+        if (field === 'name') add(fuzzy ? 'fuzzyName' : 'nameTerm', base);
+        else if (field === 'description') add('descriptionTerm', base);
+        else if (field === 'introduced_by_person_name') add('introducer', base);
+        else if (field === 'location_text') add('locationText', base);
+    }
+    return totals;
 }
 
 function findPersonFilter(
@@ -256,6 +289,32 @@ describe('buildSearchQuery lexical ranking', () => {
         expect(nameTerm!.base!).toBeGreaterThan(introducer!.base!);
         expect(introducer!.base!).toBeGreaterThan(descriptionTerm!.base!);
         expect(namePhrase!.base!).toBeGreaterThan(descriptionPhrase!.base!);
+    });
+
+    // The clauses share one bool.should, so a document scores the SUM of every
+    // tier it matched — a stack of low tiers can approach a single high one.
+    // FIELD_TIER states that arithmetic and the conclusion that follows from it
+    // (name dominance is a property of the corpus, not of these constants), so
+    // pin both here: the live-index check that measures the corpus side needs an
+    // index, and changing a base moves these numbers silently otherwise.
+    it('leaves a stack of low tiers within the multiplier’s reach of a title match', () => {
+        const bases = tierBaseByField(lexicalShouldClauses('πάρκα Κυψέλης'));
+
+        // Every clause a title match fires. The strict/partial pair of nameTerm
+        // sums back to its whole tier, so this is the tier total, not a share.
+        const titleStack = bases.nameTerm + bases.namePhrase + bases.fuzzyName;
+        // The strongest stack available without any name clause.
+        const nonTitleStack = bases.introducer + bases.descriptionTerm
+            + bases.descriptionPhrase + bases.transcript + bases.speakerName;
+
+        expect(titleStack).toBeCloseTo(64, 5);
+        expect(nonTitleStack).toBeCloseTo(57.3, 5);
+        // Closer together than the post-relevance multiplier can span, so
+        // metadata alone can invert the pair. Run the tier-margin check
+        // (scripts/search-eval.ts --tier-margin) after moving a base: if this
+        // ratio ever clears the ceiling, the tiers hold on their own and
+        // FIELD_TIER's note needs rewriting.
+        expect(titleStack / nonTitleStack).toBeLessThan(MAX_RANKING_MULTIPLIER_RATIO);
     });
 
     // Raw BM25 must not rank within a tier (title length normalization and

@@ -206,11 +206,11 @@ const NAME_FUZZY_PREFIX_LENGTH = 2;
 
 /**
  * Field-tier score flattening: every lexical clause is rescored to
- * base + k * log1p(bm25), so WHICH field matched (the tier: name >
- * description/introducer > transcript > speaker name) sets the score level,
+ * base + k * log1p(bm25), so WHICH fields matched (the tiers: name >
+ * description/introducer > transcript > speaker name) set the score level,
  * raw BM25 shrinks to a small within-tier tiebreak, and the post-relevance
- * multiplier (admin body, discussion length, recency; up to ~1.42x) decides
- * among same-tier matches.
+ * multiplier (admin body, discussion length, recency; up to ~1.45x at the
+ * longest discussions in the index) decides among same-tier matches.
  *
  * Raw BM25 must not rank within a tier: measured on the production index
  * ("δάνειο"), two title matches differed by 26% in summed BM25 purely through
@@ -219,13 +219,45 @@ const NAME_FUZZY_PREFIX_LENGTH = 2;
  * subject under an old, briefly-discussed one. Under the flattening the same
  * pair differs by ~2% before the multiplier, so recency and discussion decide.
  *
- * Tier levels are chosen so the multiplier can reorder within a tier but not
- * across tiers: a full name match (term+phrase, ~58-88 with its log parts)
- * stays above the strongest boosted description match (~30 * 1.42 = 43); a
- * description match stays above transcript-only (~16 * 1.42 = 23). The
+ * A document does NOT sit in one tier. The clauses share a single bool.should
+ * (see buildLexicalShouldClauses), so a document collects the tier of EVERY
+ * clause it matches, and its score is that sum. Measured on the production
+ * index (final scores, after the multiplier): a real title match reaches
+ * ~150-210, because all six of nameTerm, namePhrase, fuzzyName,
+ * descriptionTerm, descriptionPhrase and transcript fire together. The
+ * strongest sum without any name clause — introducer + descriptionTerm +
+ * descriptionPhrase + transcript + speakerName — reaches ~107.
+ *
+ * Name dominance is therefore NOT a property of these constants. On bases
+ * alone a title match reaches 64 against the stacked 57.3, and the log parts
+ * narrow that further (the stacked document sums k = 13.2 against the title
+ * match's 11.0), leaving ~2-5% between them — inside the reach of a ~1.45x
+ * multiplier. What actually keeps title matches on top is a property of the
+ * data: a subject's title terms recur in its description and its debate, so a
+ * title match's clause set is in practice a superset of a stacked
+ * non-title match's, not a competitor at a similar level.
+ *
+ * That correlation is an empirical claim about the corpus, so it is measured
+ * rather than trusted:
+ *
+ *     SKIP_ENV_VALIDATION=1 npx tsx scripts/search-eval.ts --tier-margin
+ *
+ * The check runs the surname/topic stem collisions this file worries about
+ * elsewhere against the live index, and reports each query's ratio between its
+ * weakest title match and its strongest non-title hit, with the multiplier
+ * stripped so the ratio measures the tiers alone. A ratio above
+ * MAX_RANKING_MULTIPLIER_RATIO means no metadata can invert that pair; below it,
+ * only the current metadata is holding the order. It exits 1 when a non-title
+ * hit actually outranks a title match. Run it after changing a base, a k, or a
+ * multiplier weight — the arithmetic alone will not warn you.
+ *
+ * Last run (Aug 2026, 9.1k released docs): zero inversions, 15 of 16 measurable
+ * queries structurally safe. The one exception is "Δούκας" at 1.47 against a
+ * 1.484 ceiling — currently held by metadata, not by the constants.
+ *
+ * Within one tier the multiplier is meant to decide, and k per tier keeps the
+ * log tiebreak's spread near +-5%, well under the multiplier's reach. The
  * semantic fallback maps into the description band (see SEMANTIC_MAPPED_BASE).
- * k per tier keeps the log tiebreak's spread near +-5%, well under the
- * multiplier's reach.
  */
 const FIELD_TIER = {
     nameTerm: { base: 40, k: 6 },
@@ -342,6 +374,37 @@ const DISCUSSION_LENGTH_BOOST_WEIGHT = 0.03;
 // an old meeting loses the recency edge, it isn't penalized for its age.
 const RECENCY_BOOST_WEIGHT = 0.1;
 const RECENCY_DECAY_SCALE_DAYS = 365;
+
+/**
+ * Longest discussion in the index, in minutes (318.4 measured on the production
+ * index, Aug 2026, 9.1k released docs). Only MAX_RANKING_MULTIPLIER_RATIO below
+ * reads it — the ranking script itself has no ceiling. Re-measure it with a
+ * `max` aggregation on discussion_speaking_seconds; the ratio moves slowly with
+ * it, because log1p flattens the tail.
+ */
+const LONGEST_DISCUSSION_MINUTES = 318.4;
+
+/**
+ * The widest ratio the post-relevance multiplier can open between two documents:
+ * every factor at its ceiling over every factor at its floor. All three floors
+ * are 1.0 (each factor is a boost that is never a penalty), so this is just the
+ * product of the ceilings.
+ *
+ * This is the number that decides whether the field tiers hold. Because the
+ * lexical clauses share one bool.should, a document's score is the SUM of every
+ * tier it matched (see FIELD_TIER), so nothing in the constants stops a stack of
+ * low tiers from reaching a single high one — only the data does. Two documents
+ * of different tiers sitting closer than this ratio are documents the multiplier
+ * alone can reorder.
+ *
+ * Exported for the tier-margin check in scripts/search-eval.ts, which measures
+ * that distance against the live index. Keep it derived from the weights above
+ * rather than hardcoded, so changing a weight moves the check with it.
+ */
+export const MAX_RANKING_MULTIPLIER_RATIO =
+    ADMIN_BODY_WEIGHT.council *
+    (1 + DISCUSSION_LENGTH_BOOST_WEIGHT * Math.log1p(LONGEST_DISCUSSION_MINUTES)) *
+    (1 + RECENCY_BOOST_WEIGHT);
 
 const RANKING_SCRIPT = `
     String bodyType = doc['administrative_body_type'].size() == 0 ? '' : doc['administrative_body_type'].value;
