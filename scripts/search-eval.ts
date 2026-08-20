@@ -395,18 +395,23 @@ async function main() {
         return;
     }
 
-    let pass = 0, fail = 0;
+    let pass = 0;
     const failures: string[] = [];
     for (const c of CASES) {
         const { total, rows } = await runQuery(c.query, mode);
         const ok = c.expect === 'empty' ? total === 0 : total > 0;
-        if (ok) pass++; else { fail++; failures.push(c.query); }
+        if (ok) pass++; else failures.push(c.query);
         const flag = ok ? '✓' : '✗';
         console.log(`\n${flag} "${c.query}" (${c.note}) [expect ${c.expect}] — total=${total}`);
         printRows(rows.slice(0, c.expect === 'empty' ? 5 : 8));
     }
     console.log(`\n═══ ${pass}/${CASES.length} expectations met (mode=${mode})` +
         (failures.length ? ` — failing: ${failures.map(f => `"${f}"`).join(', ')}` : ''));
+    // A missed expectation is a failure, not a note in the log. Without this the
+    // suite printed its ✗ marks and still exited 0, so nothing that reads an
+    // exit status could tell a clean run from a broken one. runTierMargin does
+    // the same at the end of its own summary.
+    if (failures.length) process.exitCode = 1;
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
