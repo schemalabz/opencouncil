@@ -576,10 +576,10 @@ describe('buildSearchQuery semantic fallback (dis_max)', () => {
         const params = script.params as Record<string, number>;
         // A raw similarity, not a normalized one: minmax maps the best hit of
         // every query to 1.0, so a cutoff on it could never empty the results.
-        // 0.930 sits just under the measured paraphrase floor (0.9314) and above
-        // the off-topic band (<= 0.9300, one outlier aside) —
+        // 0.934 sits mid-way between the measured off-topic ceiling (0.9319, a
+        // keyboard mash) and the measured paraphrase floor ([0.936, 0.940)) —
         // see DEFAULT_SEMANTIC_MIN_SCORE.
-        expect(params.cutoff).toBe(0.930);
+        expect(params.cutoff).toBe(0.934);
         // base sits inside the flattened description band (~24-30, where weak
         // stem-coincidence matches like bar licenses matching "ζώα χωρίς
         // ιδιοκτήτη" via ζω/ιδιοκτητ land) and the mapped ceiling (~34) stays

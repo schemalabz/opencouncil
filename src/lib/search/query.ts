@@ -46,11 +46,35 @@ const LOCATION_BOOST = 2;
  * The old sum cutoff scored 11/12 and 10/11 for 0 off-topic — it bought that
  * last junk query by throttling every real query's recall 3-5x.
  *
+ * Re-measured Aug 2026 at 9,181 released docs, which is 65 more than the
+ * calibration above saw. The bands have moved apart, and the value moved with
+ * them, from 0.930 to 0.934:
+ *   - The off-topic ceiling ROSE. "ηνκξκ", a logged keyboard mash, reaches
+ *     0.9319 against one subject (`Μεταστέγαση ΕΝΕΓΙΛ`), so 0.930 stopped
+ *     emptying it. The nearest neighbour of a mash is arbitrary, so expect this
+ *     ceiling to keep moving as the index grows.
+ *   - The paraphrase floor ROSE further, to somewhere in [0.936, 0.940): every
+ *     paraphrase query still returns at 0.936, and "λεφτά για τον αθλητισμό"
+ *     empties at 0.940.
+ * That leaves a separating window where the calibration above had none. 0.934
+ * sits in the middle of it: ~0.002 above the junk ceiling and ~0.002 below the
+ * paraphrase floor, so neither side is one document away from crossing.
+ *
+ * The cost is paraphrase DEPTH, not paraphrase recall — no query goes empty,
+ * but the thinnest one ("χώροι για παρκάρισμα") returns 9 documents at 0.930,
+ * 6 at 0.932 and 2 at 0.936. That is why this sits mid-window instead of at the
+ * top of it: the arm exists for recall, and the junk it admits is one document
+ * on one query.
+ *
+ * Re-run the sweep when the eval suite starts to fail on either side:
+ *
+ *     SKIP_ENV_VALIDATION=1 npx tsx scripts/search-eval.ts --min-score 0.934
+ *
  * Do not normalize before applying this: `minmax` maps the best hit to exactly
  * 1.0 for every query, which makes any fractional cutoff unable to empty the
  * results.
  */
-const DEFAULT_SEMANTIC_MIN_SCORE = 0.930;
+const DEFAULT_SEMANTIC_MIN_SCORE = 0.934;
 
 /**
  * Mapping of the similarity into BM25 space for the dis_max fallback
