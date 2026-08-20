@@ -248,16 +248,25 @@ const NAME_FUZZY_PREFIX_LENGTH = 2;
  * ~150-210, because all six of nameTerm, namePhrase, fuzzyName,
  * descriptionTerm, descriptionPhrase and transcript fire together. The
  * strongest sum without any name clause — introducer + descriptionTerm +
- * descriptionPhrase + transcript + speakerName — reaches ~107.
+ * descriptionPhrase + transcript + speakerName — reaches ~107. That
+ * measurement predates the strict/partial coverage split, and it counts only
+ * documents with NO name clause at all; the arithmetic below is the worse case.
  *
- * Name dominance is therefore NOT a property of these constants. On bases
- * alone a title match reaches 64 against the stacked 57.3, and the log parts
- * narrow that further (the stacked document sums k = 13.2 against the title
- * match's 11.0), leaving ~2-5% between them — inside the reach of a ~1.45x
- * multiplier. What actually keeps title matches on top is a property of the
- * data: a subject's title terms recur in its description and its debate, so a
- * title match's clause set is in practice a superset of a stacked
- * non-title match's, not a competitor at a similar level.
+ * Name dominance is therefore NOT a property of these constants — the
+ * constants do not even establish it. On bases alone a title match reaches 64
+ * (nameTerm 40 + namePhrase 20 + fuzzyName 4) from its title alone, while the
+ * strongest stack against it reaches 71.3. That stack is not name-free: the
+ * partial half of the name clause takes a single matching term (see
+ * PARTIAL_COVERAGE_SHARE), so one title word plus introducer + descriptionTerm
+ * + descriptionPhrase + transcript + speakerName also collects the name tier's
+ * partial share (14). The log parts widen the gap rather than closing it (the
+ * stacked document sums k = 15.3 against the title match's 11.0). No metadata
+ * multiplier is needed to invert that pair — the arithmetic already does.
+ *
+ * What actually keeps title matches on top is a property of the data: a
+ * subject's title terms recur in its description and its debate, so a title
+ * match's clause set is in practice a superset of a stacked non-title match's,
+ * not a competitor at a similar level.
  *
  * That correlation is an empirical claim about the corpus, so it is measured
  * rather than trusted:

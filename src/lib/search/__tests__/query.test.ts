@@ -256,6 +256,17 @@ function scoredShouldClauses(
     return (textArms(query, config).lexical?.should ?? []) as estypes.QueryDslQueryContainer[];
 }
 
+// One field's term clauses, as [strict, partial] — the coverage pair emits them
+// in that order (see PARTIAL_COVERAGE_SHARE).
+function termPair(query: string, field: string) {
+    return scoredShouldClauses(query)
+        .map(unflatten)
+        .filter(({ inner }) => {
+            const m = inner?.match?.[field];
+            return typeof m === 'object' && m !== null && !('fuzziness' in m);
+        });
+}
+
 describe('buildSearchQuery lexical ranking', () => {
     const lexicalShouldClauses = scoredShouldClauses;
 
@@ -313,29 +324,48 @@ describe('buildSearchQuery lexical ranking', () => {
     });
 
     // The clauses share one bool.should, so a document scores the SUM of every
-    // tier it matched — a stack of low tiers can approach a single high one.
+    // tier it matched — a stack of low tiers can outscore a single high one.
     // FIELD_TIER states that arithmetic and the conclusion that follows from it
     // (name dominance is a property of the corpus, not of these constants), so
     // pin both here: the live-index check that measures the corpus side needs an
     // index, and changing a base moves these numbers silently otherwise.
-    it('leaves a stack of low tiers within the multiplier’s reach of a title match', () => {
+    it('lets a stack of low tiers outscore a title match on the bases alone', () => {
         const bases = tierBaseByField(lexicalShouldClauses('πάρκα Κυψέλης'));
+        const [, partialName] = termPair('πάρκα Κυψέλης', 'name');
 
-        // Every clause a title match fires. The strict/partial pair of nameTerm
-        // sums back to its whole tier, so this is the tier total, not a share.
+        // What a title match collects from its TITLE alone — its worst case, and
+        // the only case the corpus correlation below cannot help it in. The
+        // strict/partial pair of nameTerm sums back to its whole tier, so
+        // bases.nameTerm is the tier total, not a share.
         const titleStack = bases.nameTerm + bases.namePhrase + bases.fuzzyName;
-        // The strongest stack available without any name clause.
-        const nonTitleStack = bases.introducer + bases.descriptionTerm
+        // The strongest stack a document reaches WITHOUT covering the query in
+        // its title. It is not name-free: the partial half of the name clause
+        // takes a single matching term (see PARTIAL_COVERAGE_SHARE), so one
+        // title word plus the stack also collects the name tier's partial share.
+        const nonTitleStack = partialName.base! + bases.introducer + bases.descriptionTerm
             + bases.descriptionPhrase + bases.transcript + bases.speakerName;
 
         expect(titleStack).toBeCloseTo(64, 5);
-        expect(nonTitleStack).toBeCloseTo(57.3, 5);
-        // Closer together than the post-relevance multiplier can span, so
-        // metadata alone can invert the pair. Run the tier-margin check
-        // (scripts/search-eval.ts --tier-margin) after moving a base: if this
-        // ratio ever clears the ceiling, the tiers hold on their own and
+        expect(nonTitleStack).toBeCloseTo(71.3, 5);
+        // The stack already leads on the constants alone — no metadata is needed
+        // to invert the pair. Whether title matches actually lead is a property
+        // of the corpus, measured by scripts/search-eval.ts --tier-margin. If
+        // this ever flips, the tiers have started to hold on their own and
         // FIELD_TIER's note needs rewriting.
-        expect(titleStack / nonTitleStack).toBeLessThan(MAX_RANKING_MULTIPLIER_RATIO);
+        expect(nonTitleStack).toBeGreaterThan(titleStack);
+    });
+
+    // The multiplier is a tiebreak among comparable matches, so there is one gap
+    // it must never close: a document that covers the whole query in a field
+    // outranks one that covers a single term of it, whatever its administrative
+    // body, discussion length or date says. That bound moves with the weights,
+    // which is the point — the earlier assertion here divided by the multiplier
+    // ceiling, so widening the multiplier made it EASIER to pass.
+    it('keeps the ranking multiplier under the coverage gap it must not close', () => {
+        const [strict, partial] = termPair('πάρκα Κυψέλης', 'name');
+
+        const fullOverPartial = (strict.base! + partial.base!) / partial.base!;
+        expect(MAX_RANKING_MULTIPLIER_RATIO).toBeLessThan(fullOverPartial);
     });
 
     // Raw BM25 must not rank within a tier (title length normalization and
@@ -976,18 +1006,6 @@ describe('buildSearchQuery cross-field coverage', () => {
     }
     const gateAlternatives = (query: string) =>
         (coverageGate(query).should ?? []) as estypes.QueryDslQueryContainer[];
-
-    // Term clauses on one field, as [strict, partial] by their msm.
-    function termPair(query: string, field: string) {
-        const clauses = (textArms(query).lexical?.should ?? []) as estypes.QueryDslQueryContainer[];
-        const found = clauses
-            .map(unflatten)
-            .filter(({ inner }) => {
-                const m = inner?.match?.[field];
-                return typeof m === 'object' && m !== null && !('fuzziness' in m);
-            });
-        return found;
-    }
 
     it('gates on the document, not on any single field', () => {
         const combined = gateAlternatives('Ιωάννης Μαλτέζος υδρονομείς')
