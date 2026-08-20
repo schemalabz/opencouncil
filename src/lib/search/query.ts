@@ -295,18 +295,18 @@ function buildRankingFunction(): estypes.QueryDslFunctionScoreContainer {
     };
 }
 
-// Wraps a query with the ranking function. `multiply` nudges an existing relevance
-// score; a filter-only query (no should/must clauses) scores every hit 0, so the
-// browse path (no query text) uses `replace` to rank on the function alone.
+// Wraps a scored query with the ranking function. `multiply` nudges an existing
+// relevance score, which is the only role this function has: it is a tiebreak
+// among text matches, never a sort key of its own. The filter-only browse path
+// therefore does not use it at all (see buildSearchQuery).
 function applyRanking(
-    query: estypes.QueryDslQueryContainer,
-    boostMode: 'multiply' | 'replace'
+    query: estypes.QueryDslQueryContainer
 ): estypes.QueryDslQueryContainer {
     return {
         function_score: {
             query,
             functions: [buildRankingFunction()],
-            boost_mode: boostMode,
+            boost_mode: 'multiply',
         },
     };
 }
@@ -676,9 +676,8 @@ export function buildSearchQuery(
     };
 
     // Filter-only search: no query text to rank on, so skip the text clauses
-    // (they require a query) and rank the filtered set by administrative body,
-    // discussion length, and recency alone. Used e.g. for "everything a person
-    // spoke about" or "all subjects in a date range".
+    // (they require a query) and return the filtered set newest-first. Used e.g.
+    // for "everything a person spoke about" or "all subjects in a date range".
     const queryText = mergedRequest.query?.trim().replace(APOSTROPHE_VARIANTS, "'");
     const filters = buildFilters(mergedRequest);
     const locationBoosts = buildLocationBoostClauses(mergedRequest.locations);
@@ -695,9 +694,23 @@ export function buildSearchQuery(
             size: request.config?.size || 10,
             from: request.config?.from || 0,
             track_total_hits: true,
-            // A filter-only bool query scores every hit 0, so 'replace' ranks on the
-            // function alone instead of nudging a (nonexistent) relevance score.
-            query: applyRanking({ bool: { filter: browseFilters } }, 'replace')
+            query: { bool: { filter: browseFilters } },
+            // Newest first, NOT the ranking function. That function is calibrated as
+            // a tiebreak between text matches (see RANKING_SCRIPT), so it cannot
+            // order a browse listing: its administrative-body span (up to 1.15)
+            // is wider than its recency span (up to 1.10), so the council factor's
+            // floor stays above the community factor's ceiling. A council subject of
+            // any age then outranks a community subject from today, and date order
+            // disappears from a listing whose whole purpose is date order.
+            //
+            // `id` breaks ties because every subject of one meeting carries the same
+            // meeting_date. Without a unique second key, Elasticsearch orders tied
+            // documents arbitrarily per shard request, so paging through a person's
+            // subjects can repeat one subject and skip another.
+            sort: [
+                { 'meeting_date': { order: 'desc' } },
+                { 'id': { order: 'asc' } }
+            ]
         };
     }
 
@@ -747,6 +760,6 @@ export function buildSearchQuery(
         size: request.config?.size || 10,
         from: request.config?.from || 0,
         track_total_hits: true,
-        query: applyRanking(scoredQuery, 'multiply')
+        query: applyRanking(scoredQuery)
     };
 }

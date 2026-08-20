@@ -502,15 +502,24 @@ describe('buildSearchQuery ranking function', () => {
         expect(params.recencyWeight).toBeGreaterThan(0);
     });
 
-    it('uses the same ranking function in the filter-only branch, replacing the (zero) filter score', () => {
+    // The ranking function only nudges an existing relevance score. It must not
+    // reach the browse path, where it would become the sort key: its
+    // administrative-body span is wider than its recency span, so a council
+    // subject of any age would outrank a community subject from today.
+    it('keeps the ranking function out of the filter-only branch', () => {
         const q = buildSearchQuery({ personIds: ['p1'] }, NO_EXTRACTED_FILTERS);
+
+        expect(q.query?.function_score).toBeUndefined();
+
+        const filter = (q.query?.bool?.filter ?? []) as estypes.QueryDslQueryContainer[];
+        expect(findPersonFilter(filter)).toBeDefined();
+    });
+
+    it('applies the ranking function multiplicatively on the text path', () => {
+        const q = buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS);
         const functionScore = q.query?.function_score as estypes.QueryDslFunctionScoreQuery;
 
-        expect(functionScore.boost_mode).toBe('replace');
-        expect(q.sort).toBeUndefined();
-
-        const filter = (functionScore.query?.bool?.filter ?? []) as estypes.QueryDslQueryContainer[];
-        expect(findPersonFilter(filter)).toBeDefined();
+        expect(functionScore.boost_mode).toBe('multiply');
     });
 
     it('scores recency against a concrete instant', () => {
@@ -592,8 +601,7 @@ describe('buildSearchQuery location handling', () => {
 
     it('keeps locations as a hard filter in the filter-only browse path', () => {
         const q = buildSearchQuery({ locations: LOCATIONS }, NO_EXTRACTED_FILTERS);
-        const functionScore = q.query?.function_score as estypes.QueryDslFunctionScoreQuery;
-        const filter = (functionScore.query?.bool?.filter ?? []) as estypes.QueryDslQueryContainer[];
+        const filter = (q.query?.bool?.filter ?? []) as estypes.QueryDslQueryContainer[];
 
         expect(JSON.stringify(filter)).toContain('geo_distance');
     });
@@ -674,7 +682,7 @@ describe('buildSearchQuery filter-only mode', () => {
     });
 
     it.each([undefined, '', '   '])(
-        'builds a filter-only query ranked by the ranking function when query is %p',
+        'builds a filter-only query sorted newest-first when query is %p',
         (query) => {
             const q = buildSearchQuery(
                 {
@@ -685,21 +693,33 @@ describe('buildSearchQuery filter-only mode', () => {
                 NO_EXTRACTED_FILTERS
             );
 
-            // No text clauses (they require query text)...
+            // No text clauses (they require query text), and no scoring at all:
+            // an explicit sort orders the listing.
             expect(q.retriever).toBeUndefined();
-            // ...instead a filtered query whose function_score (boost_mode: 'replace',
-            // see the dedicated ranking-function describe block) ranks it, so there's
-            // no separate explicit sort.
-            expect(q.sort).toBeUndefined();
+            expect(q.query?.function_score).toBeUndefined();
+            // `Sort` also allows a bare (non-array) form; buildSearchQuery always
+            // emits the array form.
+            const sort = q.sort as estypes.SortCombinations[];
+            expect(sort[0]).toEqual({ 'meeting_date': { order: 'desc' } });
 
-            const functionScore = q.query!.function_score as estypes.QueryDslFunctionScoreQuery;
-            const filter = (functionScore.query?.bool?.filter ??
-                []) as estypes.QueryDslQueryContainer[];
+            const filter = (q.query?.bool?.filter ?? []) as estypes.QueryDslQueryContainer[];
             expect(filter.some((f) => f.term?.['meeting_released'] !== undefined)).toBe(true);
             expect(findPersonFilter(filter)).toBeDefined();
             expect(filter.some((f) => f.range?.['meeting_date'] !== undefined)).toBe(true);
         }
     );
+
+    // Every subject of one meeting shares its meeting_date, so the date alone
+    // leaves large groups tied. Elasticsearch orders tied documents arbitrarily,
+    // which lets paging repeat one subject and skip another.
+    it('breaks meeting_date ties on a unique key so paging stays stable', () => {
+        const q = buildSearchQuery({ personIds: ['p1'] }, NO_EXTRACTED_FILTERS);
+
+        expect(q.sort).toEqual([
+            { 'meeting_date': { order: 'desc' } },
+            { 'id': { order: 'asc' } },
+        ]);
+    });
 
     it('respects pagination config in the filter-only branch', () => {
         const q = buildSearchQuery({ config: { size: 5, from: 10 } }, NO_EXTRACTED_FILTERS);

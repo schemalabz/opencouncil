@@ -30,8 +30,7 @@ export type Location = {
 // Search request type
 export type SearchRequest = {
     /** Free-text query. When omitted/empty, the search is filter-only: results
-     *  match the filters below, ranked by administrative body, discussion length
-     *  and recency (not strictly sorted by date). */
+     *  match the filters below and are sorted by meeting date (newest first). */
     query?: string;
     cityIds?: string[];
     personIds?: string[];
