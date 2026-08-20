@@ -85,6 +85,68 @@ const SEMANTIC_MAPPED_SCALE = 320;
 const LEXICAL_MINIMUM_SHOULD_MATCH = '2<75%';
 
 /**
+ * Fields whose content is a subset of a mixed query by construction, and the
+ * gate that makes LEXICAL_MINIMUM_SHOULD_MATCH mean what it was meant to mean.
+ *
+ * The term requirement above is evaluated per field, and a per-field threshold
+ * silently assumes every field could hold the whole query. That holds for
+ * name/description/transcript. It fails for the entity fields
+ * (introduced_by_person_name, location_text, speaker_person_name), whose whole
+ * content is a name or a place. There the threshold is never a real test — it
+ * is either trivially met or impossible:
+ *   - A councillor's two-word name satisfies 2-of-3 of "Ιωάννης Μαλτέζος
+ *     υδρονομείς" on its own. Measured on the production index, that clause
+ *     matched all 93 subjects the person introduced, while the name and
+ *     description clauses matched 0 (neither field reaches 2-of-3 on the topic
+ *     word alone). The results were then the same 93 subjects in the same order
+ *     for every topic word, including the one subject that actually matched all
+ *     three terms — it ranked 2nd, 1.4% behind an unrelated one.
+ *   - A one-word location can never satisfy 2-of-2 of "σχολεία Άργους", so the
+ *     location_text clause was unreachable for its purpose. It fired only where
+ *     the topic word happened to name the building ("4ο Δημοτικό Σχολείο
+ *     Άργους"), which put three subjects about tree cutting and object disposal
+ *     above the actual school-maintenance subject.
+ *
+ * The fix splits the two jobs the threshold was doing at once:
+ *   - Precision ("do not surface a document that matched one stray term") is a
+ *     per-DOCUMENT question, so buildCoverageGate asks it once across the union
+ *     of the fields.
+ *   - Evidence weighting ("a field that covers more of the query is a stronger
+ *     signal") stays per field, but becomes graded instead of all-or-nothing:
+ *     see PARTIAL_COVERAGE_SHARE.
+ */
+const COVERAGE_GATE_FIELDS = [
+    'name',
+    'description',
+    'introduced_by_person_name',
+    'location_text'
+] as const;
+
+/**
+ * Share of a field's tier awarded for covering only part of the query.
+ *
+ * Every lexical field emits two clauses instead of one: the strict clause
+ * (LEXICAL_MINIMUM_SHOULD_MATCH, as before) at 1 - PARTIAL_COVERAGE_SHARE of
+ * the tier, and a partial clause (any single term) at PARTIAL_COVERAGE_SHARE.
+ * Both fire when the field covers the query, so a full match still totals
+ * exactly the tier value in FIELD_TIER — the whole existing calibration
+ * (tier separation, the 1.42x post-relevance multiplier, the semantic mapping)
+ * carries over untouched. A partial match, which scored nothing at all before,
+ * now enters below every full match in the same tier.
+ *
+ * This is what restores the topic word to a person-name query: for "Ιωάννης
+ * Μαλτέζος υδρονομείς" the subject that also matches the topic in its title
+ * adds the name tier's partial share on top of the introducer tier, while the
+ * other 92 subjects the person introduced score the introducer tier alone.
+ *
+ * Raw BM25 cannot carry this signal instead: flattenToTier deliberately
+ * discards its magnitude (see FIELD_TIER), so a field matching 1 of 3 terms and
+ * one matching 3 of 3 land within ~7% of each other — inside the reach of the
+ * post-relevance multiplier. Coverage has to be scored explicitly.
+ */
+const PARTIAL_COVERAGE_SHARE = 0.35;
+
+/**
  * Apostrophe-like characters normalized to the ASCII apostrophe before any
  * clause sees the query: the single quotes mobile keyboards auto-substitute
  * (U+2018/U+2019), the modifier apostrophe (U+02BC), the Greek tonos (U+0384)
@@ -177,7 +239,13 @@ const FIELD_TIER = {
     // match still outranks a same-named introducer (stem collisions like
     // Δήμος the surname vs δήμος the word).
     introducer: { base: 28, k: 4 },
-    locationText: { base: 15, k: 4 },
+    // Sized like LOCATION_BOOST, not like a content field. The clause scores
+    // the extracted location name, so it fires on EVERY subject in the place —
+    // it says where a subject is, never what it is about. At the description
+    // tier it drowned the topic: for "σχολεία Άργους" every Argos subject
+    // gained the same 15, which put tree cutting and a theatre booking above
+    // school maintenance. Kept small, it orders topic matches by place.
+    locationText: { base: 3, k: 1 },
     // Uniform for correctly-spelled queries (a fuzzy expansion includes the
     // exact term), the only name-tier signal for typo queries.
     fuzzyName: { base: 4, k: 2 },
@@ -208,6 +276,28 @@ function flattenToTier(
             boost_mode: 'replace'
         }
     };
+}
+
+// Scales a tier band so a field can award part of it. Both base and k scale, so
+// the log tiebreak keeps the same proportion to its band at every share.
+function scaleTier(tier: { base: number; k: number }, factor: number): { base: number; k: number } {
+    return { base: tier.base * factor, k: tier.k * factor };
+}
+
+// Emits the strict/partial clause pair for one field (see PARTIAL_COVERAGE_SHARE).
+// `build` takes the minimum_should_match to apply, so each caller keeps its own
+// clause shape (plain match, nested, alternate spelling).
+function coverageClauses(
+    build: (minimumShouldMatch: string | number) => estypes.QueryDslQueryContainer,
+    tier: { base: number; k: number }
+): estypes.QueryDslQueryContainer[] {
+    return [
+        flattenToTier(
+            build(LEXICAL_MINIMUM_SHOULD_MATCH),
+            scaleTier(tier, 1 - PARTIAL_COVERAGE_SHARE)
+        ),
+        flattenToTier(build(1), scaleTier(tier, PARTIAL_COVERAGE_SHARE)),
+    ];
 }
 
 /**
@@ -470,6 +560,81 @@ function buildQueryTextVariants(queryText: string): string[] {
     return [...variants];
 }
 
+/**
+ * Document-level precision gate: the query's terms must be covered across the
+ * union of the searchable fields, rather than by any single field on its own
+ * (see COVERAGE_GATE_FIELDS for what the per-field form got wrong).
+ *
+ * Applied in filter context, so it decides only WHICH documents are eligible.
+ * All scoring stays with the tiered should-clauses.
+ *
+ * combined_fields treats its fields as one combined field, which is exactly the
+ * per-document question, and it requires every field to share one analyzer —
+ * all four are `greek`. The nested fields cannot join a combined_fields, so the
+ * transcript and the speaker name are separate alternatives: a document
+ * qualifies when the flat fields TOGETHER cover the query, or when the
+ * transcript does, or when a speaker name does. Coverage cannot be pooled
+ * across the nested boundary (Elasticsearch scores nested documents
+ * separately), so a subject whose title holds the topic and whose speaker list
+ * holds the name still does not qualify — the same limit as before this gate,
+ * and one that only a flat copy of the speaker names at index time can lift.
+ *
+ * Alternate spellings each get their own alternative, otherwise the gate would
+ * reject a query whose only index spelling is a variant (Δ.Ε.Υ.Α.Χ. is indexed
+ * plain) before its variant clauses could score it.
+ */
+function buildCoverageGate(queryText: string): estypes.QueryDslQueryContainer {
+    const spellings = [queryText, ...buildQueryTextVariants(queryText)];
+    return {
+        bool: {
+            should: spellings.flatMap(text => [
+                {
+                    combined_fields: {
+                        query: text,
+                        fields: [...COVERAGE_GATE_FIELDS],
+                        minimum_should_match: LEXICAL_MINIMUM_SHOULD_MATCH
+                    }
+                },
+                // Mirrors the fuzzy scoring clause exactly. Without it the gate
+                // is exact-only, so a typo query ("ανακίκλωση") is rejected
+                // before the clause built to recover it can score anything.
+                {
+                    match: {
+                        'name': {
+                            query: text,
+                            fuzziness: NAME_FUZZINESS,
+                            prefix_length: NAME_FUZZY_PREFIX_LENGTH,
+                            minimum_should_match: LEXICAL_MINIMUM_SHOULD_MATCH
+                        }
+                    }
+                },
+                {
+                    nested: {
+                        path: 'speaker_contributions',
+                        query: {
+                            bool: {
+                                should: [
+                                    buildTranscriptMatch('speaker_contributions.text', text),
+                                    {
+                                        match: {
+                                            'speaker_contributions.speaker_person_name': {
+                                                query: text,
+                                                minimum_should_match: LEXICAL_MINIMUM_SHOULD_MATCH
+                                            }
+                                        }
+                                    }
+                                ],
+                                minimum_should_match: 1
+                            }
+                        }
+                    }
+                }
+            ]),
+            minimum_should_match: 1
+        }
+    };
+}
+
 // Lexical should-clauses: BM25 match on title/description/transcripts.
 function buildLexicalShouldClauses(
     queryText: string,
@@ -479,40 +644,65 @@ function buildLexicalShouldClauses(
     // clause (a shared best_fields multi_match could not carry two bases).
     // Matching several fields sums their tiers — more evidence, higher score —
     // which preserves the old multi_match-plus-phrases additivity.
-    const termClause = (field: string, text: string): estypes.QueryDslQueryContainer => ({
-        match: {
-            [field]: {
-                query: text,
-                minimum_should_match: LEXICAL_MINIMUM_SHOULD_MATCH
+    //
+    // Every term clause is a strict/partial pair (see PARTIAL_COVERAGE_SHARE):
+    // covering the whole query in a field still totals that field's tier,
+    // covering part of it now scores the tier's partial share instead of
+    // nothing. buildCoverageGate keeps the loosened clauses from admitting
+    // stray-term matches.
+    const termClause = (field: string, text: string) =>
+        (minimumShouldMatch: string | number): estypes.QueryDslQueryContainer => ({
+            match: {
+                [field]: {
+                    query: text,
+                    minimum_should_match: minimumShouldMatch
+                }
             }
-        }
-    });
+        });
 
     return [
         // One clause pair per alternate spelling (see buildQueryTextVariants),
         // in the same tiers as the main clauses: whichever shape the index
         // holds, the score tier is the same.
         ...buildQueryTextVariants(queryText).flatMap(variant => [
-            flattenToTier(termClause('name', variant), FIELD_TIER.nameTerm),
-            flattenToTier(termClause('description', variant), FIELD_TIER.descriptionTerm),
+            ...coverageClauses(termClause('name', variant), FIELD_TIER.nameTerm),
+            ...coverageClauses(termClause('description', variant), FIELD_TIER.descriptionTerm),
         ]),
-        flattenToTier(termClause('name', queryText), FIELD_TIER.nameTerm),
-        flattenToTier(termClause('description', queryText), FIELD_TIER.descriptionTerm),
+        ...coverageClauses(termClause('name', queryText), FIELD_TIER.nameTerm),
+        ...coverageClauses(termClause('description', queryText), FIELD_TIER.descriptionTerm),
         // Person-name queries ("Χάρης Δούκας", "Μαλτέζος") are a recurring
         // pattern in the logged user searches. This field covers the subjects
         // the person introduced — the strongest authorship signal. The subjects
         // they only spoke in match through the much weaker nested speaker-name
         // clause below. The greek analyzer also stems name declensions, so
         // "του Δούκα" matches "Δούκας".
-        flattenToTier(termClause('introduced_by_person_name', queryText), FIELD_TIER.introducer),
+        //
+        // The pair matters most here: the full name earns the whole introducer
+        // tier, while a query that shares only a first name with the introducer
+        // earns the partial share. Before the split, both scored the same.
+        ...coverageClauses(termClause('introduced_by_person_name', queryText), FIELD_TIER.introducer),
+        // Matched against the EXTRACTED location name, not the whole query. The
+        // field holds a place ("Άργος", "4ο Δημοτικό Σχολείο Άργους"), so
+        // scoring it against "σχολεία Άργους" asks an address to answer the
+        // topic word too. That inverted the clause: it stayed silent for the
+        // subjects actually in the place, and fired only where the topic word
+        // happened to name the building, which put three subjects about tree
+        // cutting and object disposal above the school-maintenance subject.
+        // Given the location term here, the topic term is left to the name and
+        // description clauses, which is the only place it can be judged.
         ...(extractedFilters.locationName
-            ? [flattenToTier(termClause('location_text', queryText), FIELD_TIER.locationText)]
+            ? coverageClauses(
+                termClause('location_text', extractedFilters.locationName),
+                FIELD_TIER.locationText
+            )
             : []),
         // Typo tolerance for citizen-style queries (often misspelled), on the
         // name field only — see NAME_FUZZINESS for why description is exact-only.
         // For correctly-spelled queries this adds a near-uniform tier score (a
         // fuzzy expansion includes the exact term); for typo queries it is the
-        // only clause that matches.
+        // only clause that matches. No partial twin: a fuzzy match on a single
+        // term of a multi-term query is the noisiest signal in the query, and
+        // the gate would have to admit the document on that term alone.
         flattenToTier({
             match: {
                 'name': {
@@ -524,7 +714,8 @@ function buildLexicalShouldClauses(
             }
         }, FIELD_TIER.fuzzyName),
         // Phrase match on the title: a contiguous phrase match in the most
-        // important field should clearly outrank scattered terms.
+        // important field should clearly outrank scattered terms. Phrases are
+        // all-or-nothing by nature, so they take no partial twin.
         flattenToTier({
             match_phrase: {
                 'name': { query: queryText }
@@ -537,6 +728,10 @@ function buildLexicalShouldClauses(
                 'description': { query: queryText }
             }
         }, FIELD_TIER.descriptionPhrase),
+        // inner_hits rides the strict clause only. Two nested clauses on one
+        // path cannot both carry it under the same name, and the strict clause
+        // keeps the marked contributions to those matching the query the way
+        // they did before the split.
         flattenToTier({
             nested: {
                 path: 'speaker_contributions',
@@ -545,26 +740,42 @@ function buildLexicalShouldClauses(
                     _source: ['speaker_contributions.contribution_id']
                 }
             }
-        }, FIELD_TIER.transcript),
+        }, scaleTier(FIELD_TIER.transcript, 1 - PARTIAL_COVERAGE_SHARE)),
+        flattenToTier({
+            nested: {
+                path: 'speaker_contributions',
+                query: {
+                    match: {
+                        'speaker_contributions.text': {
+                            query: queryText,
+                            minimum_should_match: 1
+                        }
+                    }
+                }
+            }
+        }, scaleTier(FIELD_TIER.transcript, PARTIAL_COVERAGE_SHARE)),
         // Subjects the person spoke in, at the bottom of the field tier (see
         // FIELD_TIER.speakerName and the calibration note above it). A separate
         // nested clause rather than a second field on the transcript clause
         // above: inner_hits marks which contributions matched the query text,
         // and a speaker-name match would add contributions whose text does not
         // contain the query at all.
-        flattenToTier({
-            nested: {
-                path: 'speaker_contributions',
-                query: {
-                    match: {
-                        'speaker_contributions.speaker_person_name': {
-                            query: queryText,
-                            minimum_should_match: LEXICAL_MINIMUM_SHOULD_MATCH
+        ...coverageClauses(
+            minimumShouldMatch => ({
+                nested: {
+                    path: 'speaker_contributions',
+                    query: {
+                        match: {
+                            'speaker_contributions.speaker_person_name': {
+                                query: queryText,
+                                minimum_should_match: minimumShouldMatch
+                            }
                         }
                     }
                 }
-            }
-        }, FIELD_TIER.speakerName)
+            }),
+            FIELD_TIER.speakerName
+        )
     ];
 }
 
@@ -719,8 +930,13 @@ export function buildSearchQuery(
     // (score = max) — see buildSemanticFallbackQuery for why neither RRF nor
     // an additive clause works. Filters wrap the dis_max so both sides stay
     // scoped identically.
+    // The gate sits in filter context (it decides eligibility, never score);
+    // the tiered should-clauses carry all of the scoring. minimum_should_match
+    // stays 1 so a document that somehow clears the gate without any scoring
+    // clause cannot enter at score 0.
     const lexicalBool: estypes.QueryDslQueryContainer = {
         bool: {
+            filter: [buildCoverageGate(queryText)],
             should: buildLexicalShouldClauses(queryText, extractedFilters),
             minimum_should_match: 1
         }

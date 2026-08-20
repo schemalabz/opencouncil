@@ -627,12 +627,15 @@ describe('buildSearchQuery punctuation variants', () => {
     // Variant clauses are per-field and tier-wrapped like the main clauses:
     // whichever shape the index holds, the score tier is the same. These
     // helpers collect the exact term-clause query strings per field, main
-    // clause included.
+    // clause included. Each spelling emits a strict/partial pair, so this
+    // reads the strict half only and the assertions stay about spellings —
+    // the pairing itself is covered by its own describe block below.
     function exactTermQueries(clauses: estypes.QueryDslQueryContainer[], field: string): string[] {
         const queries: string[] = [];
         for (const c of clauses) {
             const m = unflatten(c).inner?.match?.[field];
-            if (typeof m === 'object' && m !== null && !('fuzziness' in m) && typeof m.query === 'string') {
+            if (typeof m === 'object' && m !== null && !('fuzziness' in m)
+                && typeof m.query === 'string' && m.minimum_should_match === '2<75%') {
                 queries.push(m.query);
             }
         }
@@ -726,5 +729,130 @@ describe('buildSearchQuery filter-only mode', () => {
 
         expect(q.size).toBe(5);
         expect(q.from).toBe(10);
+    });
+});
+
+// The per-field term requirement could not express "the query is covered by the
+// document", only "the query is covered by THIS field". These cover the split
+// that replaced it: a per-document gate for precision, graded per-field tiers
+// for evidence weighting.
+describe('buildSearchQuery cross-field coverage', () => {
+    // The gate lives in filter context on the lexical bool, so it decides
+    // eligibility without contributing score.
+    function coverageGate(query: string): BoolQuery {
+        const filter = (textArms(query).lexical?.filter ?? []) as estypes.QueryDslQueryContainer[];
+        expect(filter).toHaveLength(1);
+        return filter[0].bool as BoolQuery;
+    }
+    const gateAlternatives = (query: string) =>
+        (coverageGate(query).should ?? []) as estypes.QueryDslQueryContainer[];
+
+    // Term clauses on one field, as [strict, partial] by their msm.
+    function termPair(query: string, field: string, filters = NO_EXTRACTED_FILTERS) {
+        const clauses = (textArms(query).lexical?.should ?? []) as estypes.QueryDslQueryContainer[];
+        const found = clauses
+            .map(unflatten)
+            .filter(({ inner }) => {
+                const m = inner?.match?.[field];
+                return typeof m === 'object' && m !== null && !('fuzziness' in m);
+            });
+        return found;
+    }
+
+    it('gates on the document, not on any single field', () => {
+        const combined = gateAlternatives('Ιωάννης Μαλτέζος υδρονομείς')
+            .map(c => c.combined_fields)
+            .filter(Boolean);
+
+        // One combined_fields over the flat fields: a two-word name can satisfy
+        // the term requirement alone per field, but the requirement is asked
+        // once across their union here.
+        expect(combined).toHaveLength(1);
+        expect(combined[0]!.fields).toEqual([
+            'name', 'description', 'introduced_by_person_name', 'location_text'
+        ]);
+        expect(combined[0]!.minimum_should_match).toBe('2<75%');
+    });
+
+    it('keeps the gate out of the scoring path', () => {
+        const lexical = textArms('πάρκα Κυψέλης').lexical!;
+        // filter context contributes no score; every point comes from the
+        // tiered should-clauses, and msm 1 keeps a gate-only match out.
+        expect((lexical.filter as estypes.QueryDslQueryContainer[])).toHaveLength(1);
+        expect(lexical.minimum_should_match).toBe(1);
+        expect((lexical.should as estypes.QueryDslQueryContainer[]).length).toBeGreaterThan(0);
+    });
+
+    it('lets the gate admit everything the scoring clauses can match', () => {
+        const alternatives = gateAlternatives('ανακίκλωση');
+        // A typo query matches nothing exactly, so without a fuzzy alternative
+        // the gate would reject it before the fuzzy name clause could score it.
+        const fuzzy = alternatives.find(c => {
+            const m = c.match?.['name'];
+            return typeof m === 'object' && m !== null && 'fuzziness' in m;
+        });
+        expect(fuzzy).toBeDefined();
+        // Nested fields cannot join a combined_fields, so transcript and
+        // speaker name are their own alternatives.
+        expect(alternatives.some(c => c.nested?.path === 'speaker_contributions')).toBe(true);
+    });
+
+    it('gates each alternate spelling, so a variant-only match is not rejected first', () => {
+        // Δ.Ε.Υ.Α.Χ. is indexed plain, so gating the dotted spelling alone
+        // would reject the query before its variant clauses could score it.
+        const queries = gateAlternatives('Δ.Ε.Υ.Α.Χ.')
+            .map(c => c.combined_fields?.query)
+            .filter(Boolean);
+        // Only dots BETWEEN letters are stripped, so the trailing one stays.
+        expect(queries).toEqual(['Δ.Ε.Υ.Α.Χ.', 'ΔΕΥΑΧ.']);
+    });
+
+    it('scores partial field coverage below full coverage in the same tier', () => {
+        const [strict, partial] = termPair('Ιωάννης Μαλτέζος υδρονομείς', 'name');
+
+        expect(strict.inner?.match?.['name']).toMatchObject({ minimum_should_match: '2<75%' });
+        expect(partial.inner?.match?.['name']).toMatchObject({ minimum_should_match: 1 });
+        // Covering part of the query now scores the tier's partial share
+        // instead of nothing, and stays below a full match in the same tier.
+        expect(partial.base!).toBeLessThan(strict.base!);
+        // Both fire on a full match, so the tier value is unchanged from before
+        // the split — the whole existing calibration carries over.
+        expect(strict.base! + partial.base!).toBeCloseTo(40, 5);
+    });
+
+    it('gives the introducer field the same graded treatment', () => {
+        const [strict, partial] = termPair('Ιωάννης Μαλτέζος υδρονομείς', 'introduced_by_person_name');
+
+        // Before the split, a query sharing only a first name with the
+        // introducer scored the same as the full name.
+        expect(partial.base!).toBeLessThan(strict.base!);
+        expect(strict.base! + partial.base!).toBeCloseTo(28, 5);
+    });
+
+    it('scores location_text against the extracted location, not the query text', () => {
+        const q = buildSearchQuery(
+            { query: 'σχολεία Άργους' },
+            { ...NO_EXTRACTED_FILTERS, locationName: 'Άργος' }
+        );
+        const { inner } = unwrapRanking(q.query);
+        // Semantic search is off by default here, so the lexical bool stands
+        // alone under `must` rather than inside a dis_max.
+        const textClause = ((inner?.bool as BoolQuery).must as estypes.QueryDslQueryContainer[])[0];
+        const lexical = textClause.bool as BoolQuery;
+        const loc = (lexical.should as estypes.QueryDslQueryContainer[])
+            .map(unflatten)
+            .filter(({ inner: i }) => i?.match?.['location_text']);
+
+        expect(loc.length).toBeGreaterThan(0);
+        // An address holds a place, so asking it to answer the topic word too
+        // left the clause silent for the subjects actually in the place.
+        for (const { inner: i } of loc) {
+            expect(i!.match!['location_text']).toMatchObject({ query: 'Άργος' });
+        }
+    });
+
+    it('adds no location clause when the AI extracted no location', () => {
+        const clauses = scoredShouldClauses('σχολεία Άργους');
+        expect(clauses.map(unflatten).filter(({ inner }) => inner?.match?.['location_text'])).toHaveLength(0);
     });
 });

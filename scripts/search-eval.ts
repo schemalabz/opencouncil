@@ -86,6 +86,15 @@ const CASES: EvalCase[] = [
     { query: 'Χάρης Δούκας', expect: 'results', note: 'logged user query: Athens mayor' },
     { query: 'Μαλτέζος', expect: 'results', note: 'logged user query: councillor surname' },
     { query: 'του Δούκα', expect: 'results', note: 'genitive declension of Δούκας' },
+    // Cross-field queries: the terms live in DIFFERENT fields, so no single
+    // field holds the whole query. Before the coverage gate, the per-field term
+    // requirement made these degenerate — a two-word name satisfied a 3-term
+    // query on its own, so "<person> <topic>" returned the same subjects in the
+    // same order for every topic word. Check the printed order by eye: the
+    // subject matching BOTH the person and the topic must lead.
+    { query: 'Ιωάννης Μαλτέζος υδρονομείς', expect: 'results', note: 'person + topic; exactly 1 subject matches all 3 terms, it must rank 1st' },
+    { query: 'Χάρης Δούκας ανακύκλωση', expect: 'results', note: 'person + topic where NO subject covers all 3 terms: must degrade to his subjects, not go empty' },
+    { query: 'Μαλτέζος προϋπολογισμός', expect: 'results', note: 'surname + topic (2 terms, both fields needed)' },
     // Paraphrases: no shared stems with likely doc wording — semantic-only
     // recall. These guard the semantic cutoff from being raised too far.
     { query: 'διαχείριση σκουπιδιών', expect: 'results', note: 'paraphrase: garbage (docs say απορρίμματα)' },
