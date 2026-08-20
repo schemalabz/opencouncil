@@ -6,6 +6,7 @@ import { env } from "./env.mjs"
 import { isTestUserEmail } from "./lib/dev/test-users"
 import { signInUrlForRequest } from "./lib/auth/signInUrl"
 import { localeForRequest } from "./lib/auth/requestLocale"
+import { buildResendAuthErrorMessage } from "./lib/email/authError"
 
 // In development, use port-specific session cookie names to allow multiple
 // instances on different ports to have independent sessions. Without this,
@@ -24,7 +25,7 @@ export default {
         },
     } : undefined,
     providers: [Resend({
-        from: 'OpenCouncil <auth@opencouncil.gr>',
+        from: env.AUTH_EMAIL_FROM,
         apiKey: env.RESEND_API_KEY,
         sendVerificationRequest: async (params) => {
             const { identifier: to, provider, url, request } = params
@@ -61,8 +62,18 @@ export default {
                 }),
             })
 
-            if (!res.ok)
-                throw new Error("Resend error: " + JSON.stringify(await res.json()))
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({})) as { name?: string; message?: string }
+                const errorMessage = buildResendAuthErrorMessage({
+                    status: res.status,
+                    from: provider.from,
+                    to: emailTo,
+                    body,
+                    statusText: res.statusText,
+                })
+                console.error(`[Auth][Resend] Failed to send sign-in email${body.name ? ` (${body.name})` : ''}: ${errorMessage}`)
+                throw new Error(errorMessage)
+            }
         }
     })],
 } satisfies NextAuthConfig
