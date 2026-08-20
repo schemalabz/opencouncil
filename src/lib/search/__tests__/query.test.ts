@@ -600,6 +600,21 @@ describe('buildSearchQuery location handling', () => {
         return unwrapRanking(q.query).inner;
     }
 
+    // The hard filters sit on the text core. With locations present, the scored
+    // query wraps that core in one more bool (must: [core], should: geo), and
+    // the wrapper carries no `filter` of its own — so reading `filter` off the
+    // outer bool yields [] and asserts nothing. The `meeting_released` check
+    // fails the test if this walk ever stops finding the real array again.
+    function hardFiltersOf(q: ReturnType<typeof buildSearchQuery>): estypes.QueryDslQueryContainer[] {
+        const outer = lexicalQueryOf(q)?.bool as BoolQuery;
+        const core = outer.filter
+            ? outer
+            : ((outer.must as estypes.QueryDslQueryContainer[])[0].bool as BoolQuery);
+        const filters = (core.filter ?? []) as estypes.QueryDslQueryContainer[];
+        expect(filters.some((f) => f.term?.['meeting_released'] !== undefined)).toBe(true);
+        return filters;
+    }
+
     // Regression: locations used to be a hard geo_distance filter. Only ~45% of
     // subjects carry a location pin, so any AI-extracted location silently
     // dropped every pin-less subject — "παλαιστίνη" returned zero results even
@@ -609,10 +624,8 @@ describe('buildSearchQuery location handling', () => {
             { query: 'παλαιστίνη', locations: LOCATIONS },
             NO_EXTRACTED_FILTERS
         );
-        const lexical = lexicalQueryOf(q);
 
-        const filters = (lexical?.bool?.filter ?? []) as estypes.QueryDslQueryContainer[];
-        expect(JSON.stringify(filters)).not.toContain('geo_distance');
+        expect(JSON.stringify(hardFiltersOf(q))).not.toContain('geo_distance');
     });
 
     it('applies locations as a proximity boost that cannot match on its own', () => {
