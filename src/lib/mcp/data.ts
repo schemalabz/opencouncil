@@ -1,7 +1,7 @@
 import prisma from '@/lib/db/prisma';
 import { Prisma, DiscussionStatus } from '@prisma/client';
-import { search } from '@/lib/search';
-import { getCities, getCity, getListedCityAtPoint } from '@/lib/db/cities';
+import { searchInRealm } from '@/lib/search/core';
+import { getCities, getCity, getListedCityAtPoint, filterCityIdsByRealm } from '@/lib/db/cities';
 import { getHotSubjectsNearPoint, withDistances } from '@/lib/hotSubjects';
 import { getCouncilMeetingsForCity } from '@/lib/db/meetings';
 import { getPeopleForCity, getPerson, type PersonWithRelations } from '@/lib/db/people';
@@ -151,11 +151,7 @@ export async function mcpListCities() {
 async function assertCitiesInRealm(cityIds: string[]): Promise<void> {
     if (cityIds.length === 0) return;
 
-    const inRealm = await prisma.city.findMany({
-        where: { id: { in: cityIds }, realm: currentRealm() },
-        select: { id: true },
-    });
-    const allowed = new Set(inRealm.map(city => city.id));
+    const allowed = new Set(await filterCityIdsByRealm(cityIds, currentRealm()));
     const unknown = cityIds.filter(id => !allowed.has(id));
     if (unknown.length > 0) {
         throw new NotFoundError(`Unknown municipality: ${unknown.join(', ')}. See list_cities.`);
@@ -698,17 +694,17 @@ export async function mcpSearch(
 ) {
     const topicIds = args.topics?.length ? await resolveTopicIds(args.topics) : undefined;
 
-    // The index has no notion of realms, so the city filter is what keeps a
-    // connector inside its own: caller-supplied ids are checked, and an absent
-    // filter defaults to this realm's municipalities rather than all of them.
+    // searchInRealm caps the search to the realm it is given — an absent city
+    // filter defaults to that realm's municipalities. The realm travels as an
+    // argument because a tool handler runs outside a request scope, so the
+    // Host-based resolution behind the `search()` Server Action is unavailable
+    // here. The check below only turns a city id from another realm into a
+    // clear error instead of an empty page.
     await assertCitiesInRealm(args.cityIds ?? []);
-    const cityIds = args.cityIds?.length
-        ? args.cityIds
-        : (await getCities({}, currentRealm())).map(city => city.id);
 
-    const response = await search({
+    const response = await searchInRealm({
         query: args.query,
-        cityIds,
+        cityIds: args.cityIds,
         personIds: args.personIds,
         partyIds: args.partyIds,
         topicIds,
@@ -724,7 +720,7 @@ export async function mcpSearch(
             enableSemanticSearch: true,
             detailed: false,
         },
-    });
+    }, currentRealm());
 
     // Stale-index hits (unreleased/deleted after indexing) are dropped inside
     // search() at the DB-hydration boundary, which also alerts admins. When

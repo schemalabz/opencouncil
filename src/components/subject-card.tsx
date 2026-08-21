@@ -4,8 +4,8 @@ import { SubjectWithRelations } from "@/lib/db/subject";
 import { SubjectCardContent } from "./subject/SubjectCardContent";
 import { SubjectCardFooter } from "./subject/SubjectCardFooter";
 import { subjectCardStats } from "@/lib/subjectCardStats";
+import { subjectDisplayedSpeakers } from "@/lib/subjectSpeakers";
 import { Loader2 } from "lucide-react";
-import { getPartyFromRoles } from "@/lib/utils";
 import { getAgendaLabel, getWithdrawnLabel } from "@/lib/utils/subjects";
 import { Link, useRouter } from "@/i18n/routing";
 import { PersonWithRelations } from '@/lib/db/people';
@@ -52,29 +52,7 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
         router.push(`/${city.id}/${meeting.id}/subjects/${subject.id}`);
     };
 
-    // Get top 5 speakers by speaking time (spread to avoid mutating shared data)
-    const topSpeakers = [...(subject.statistics?.people ?? [])]
-        .sort((a, b) => b.speakingSeconds - a.speakingSeconds)
-        .slice(0, 5)
-        .map(p => ({
-            ...p.item,
-            party: getPartyFromRoles(p.item.roles)
-        })) || [];
-
-    // Add the introducer at the start if they exist and aren't already in top speakers
-    const introducerWithParty = subject.introducedBy ? {
-        ...subject.introducedBy,
-        party: getPartyFromRoles(subject.introducedBy.roles),
-        isIntroducer: true
-    } : null;
-
-    const displayedSpeakers = introducerWithParty
-        ? [introducerWithParty, ...topSpeakers.filter(s => s.id !== introducerWithParty.id)]
-        : topSpeakers;
-
-    const fullDisplayedSpeakers = displayedSpeakers
-        .map(s => persons.find(p => p.id === s.id))
-        .filter((p): p is PersonWithRelations => p !== undefined);
+    const fullDisplayedSpeakers = subjectDisplayedSpeakers(subject, persons);
 
     const stats = subjectCardStats(
         subject.statistics,
@@ -91,6 +69,7 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
         <SubjectCardFooter
             stats={stats}
             speakers={fullDisplayedSpeakers}
+            introducerId={subject.introducedBy?.id}
             withdrawn={subject.withdrawn}
             withdrawnLabel={getWithdrawnLabel(t, subject)}
             minutesText={t('minutesCount', { count: stats.minutes })}

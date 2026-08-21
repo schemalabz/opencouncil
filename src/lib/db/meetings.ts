@@ -259,8 +259,11 @@ export async function getMeetingDataForOG(cityId: string, meetingId: string) {
                 cityId_id: { cityId, id: meetingId },
                 released: true
             },
+            // The `_en` columns come along because the OG image renders in the
+            // locale of the page that embeds it, English included.
             select: {
                 name: true,
+                name_en: true,
                 dateTime: true,
                 subjects: {
                     select: {
@@ -272,6 +275,7 @@ export async function getMeetingDataForOG(cityId: string, meetingId: string) {
                         topic: {
                             select: {
                                 name: true,
+                                name_en: true,
                                 colorHex: true,
                                 icon: true
                             }
@@ -281,12 +285,14 @@ export async function getMeetingDataForOG(cityId: string, meetingId: string) {
                 city: {
                     select: {
                         name_municipality: true,
+                        name_municipality_en: true,
                         logoImage: true
                     }
                 },
                 administrativeBody: {
                     select: {
-                        name: true
+                        name: true,
+                        name_en: true
                     }
                 }
             }

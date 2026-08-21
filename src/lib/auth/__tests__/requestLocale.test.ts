@@ -39,7 +39,7 @@ describe('localeForRequest', () => {
 
     it('honors a realm override on a preview host, so previews send the real email', () => {
         expect(
-            localeForRequest(reqWith({ host: 'pr-7.preview.opencouncil.gr', cookie: 'oc-realm=serbia' }))
+            localeForRequest(reqWith({ host: 'pr-7.opencouncil.dev', cookie: 'oc-realm=serbia' }))
         ).toBe('sr');
     });
 

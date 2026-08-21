@@ -1,130 +1,17 @@
 "use client";
-import React, { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { useLocale, useTranslations } from "next-intl";
+import React, { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { useSession } from "next-auth/react";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import type { HighlightWithUtterances } from "@/lib/db/highlights";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Clock, Users, Star, Play, Loader2, Calendar, Tag, User } from "lucide-react";
-import { formatTime, formatRelativeTime } from "@/lib/utils";
+import { Clapperboard, Clock, Play, Star } from "lucide-react";
 import { useHighlight } from "./HighlightContext";
 import { CreateHighlightButton } from "./CreateHighlightButton";
 import { useTranscriptOptions } from "./options/OptionsContext";
-
-interface HighlightCardProps {
-  highlight: HighlightWithUtterances;
-}
-
-const HighlightCard = ({ highlight }: HighlightCardProps) => {
-  const router = useRouter();
-  const locale = useLocale();
-  const { calculateHighlightData } = useHighlight();
-  const { subjects } = useCouncilMeetingData();
-  const { options } = useTranscriptOptions();
-  const [isLoading, setIsLoading] = useState(false);
-  const t = useTranslations('highlights');
-
-  const highlightData = calculateHighlightData(highlight);
-
-  // Extract the statistics we need, with fallbacks
-  const duration = highlightData?.statistics.duration || 0;
-  const speakerCount = highlightData?.statistics.speakerCount || 0;
-  const utteranceCount = highlightData?.statistics.utteranceCount || 0;
-
-  // Only show creator for city editors (they can see all highlights)
-  const canEditCity = options.editsAllowed;
-  const creatorName = canEditCity ? highlight.createdBy?.name : null;
-
-  const handleCardClick = () => {
-    if (isLoading) return; // Prevent multiple clicks
-
-    setIsLoading(true);
-    try {
-      router.push(`/${highlight.cityId}/${highlight.meetingId}/highlights/${highlight.id}`);
-    } catch (error) {
-      console.error('Navigation error:', error);
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <Card
-      className={`hover:shadow-md transition-all cursor-pointer ${
-        isLoading ? 'opacity-75 pointer-events-none' : ''
-      }`}
-      onClick={handleCardClick}
-    >
-      <CardContent className="p-4">
-        <div className="space-y-3">
-          {/* Header with title and status */}
-          <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-2 mb-3">
-                <h3 className="font-semibold text-lg truncate">{highlight.name}</h3>
-                {highlight.isShowcased && (
-                  <Star className="h-4 w-4 text-yellow-500 flex-shrink-0" />
-                )}
-                {isLoading && (
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground flex-shrink-0" />
-                )}
-              </div>
-
-              {/* Subject badge and creator info */}
-              <div className="mb-3 space-y-2">
-                <div className="flex items-center space-x-2">
-                  <Tag className="h-3 w-3 text-muted-foreground" />
-                  {highlight.subjectId ? (
-                    <Badge variant="secondary" className="text-xs font-medium">
-                      {subjects.find(s => s.id === highlight.subjectId)?.name || t('common.connectedSubject')}
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-xs text-muted-foreground">
-                      {t('common.noConnectedSubject')}
-                    </Badge>
-                  )}
-                </div>
-
-                {/* Creator info */}
-                {creatorName && (
-                  <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                    <User className="h-3 w-3" />
-                    <span>{creatorName}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Stats row - compact and organized */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-muted-foreground">
-                <div className="flex items-center space-x-3 sm:space-x-4">
-                  <div className="flex items-center space-x-1 bg-muted/30 px-2 py-1 rounded-md">
-                    <Clock className="h-3 w-3" />
-                    <span className="font-medium">{formatTime(duration)}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Users className="h-3 w-3" />
-                    <span>{speakerCount}</span>
-                  </div>
-                  <span className="text-xs">
-                    {utteranceCount} <span className="hidden sm:inline">{t('common.utterances')}</span>
-                  </span>
-                </div>
-
-                {/* Updated timestamp - subtle but visible */}
-                <div className="flex items-center space-x-1 text-xs text-muted-foreground/70">
-                  <Calendar className="h-3 w-3" />
-                  <span>{formatRelativeTime(highlight.updatedAt, locale)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
+import { generateHighlightFileName } from "@/lib/export/download";
+import { HighlightsGrid } from "@/components/highlights/HighlightsGrid";
+import type { HighlightCardData } from "@/components/highlights/HighlightCard";
 
 const AddHighlightButton = () => {
   const { editingHighlight } = useHighlight();
@@ -152,107 +39,69 @@ const AddHighlightButton = () => {
   );
 };
 
-function HighlightsGrid({ highlights, showCreateButton }: { highlights: HighlightWithUtterances[]; showCreateButton: boolean }) {
+/**
+ * The meeting's highlights, split by how far along they are: showcased first,
+ * then the ones with a video, then the ones still being rendered.
+ */
+function HighlightSections({
+  items,
+  action,
+  onRenamed,
+  onDeleted,
+}: {
+  items: HighlightCardData[];
+  action?: React.ReactNode;
+  onRenamed?: (id: string, name: string) => void;
+  onDeleted?: (id: string) => void;
+}) {
   const t = useTranslations('highlights');
 
-  const showcasedHighlights = highlights.filter(h => h.isShowcased);
-  const highlightsWithVideo = highlights.filter(h => h.videoUrl && !h.isShowcased);
-  const draftHighlights = highlights.filter(h => !h.videoUrl && !h.isShowcased);
+  const showcased = items.filter(item => item.isShowcased);
+  const withVideo = items.filter(item => item.video && !item.isShowcased);
+  const drafts = items.filter(item => !item.video && !item.isShowcased);
+
+  if (items.length === 0) {
+    return <HighlightsGrid items={[]} surface="meeting" action={action} />;
+  }
+
+  const sections = [
+    { key: 'showcased', icon: Star, className: 'text-yellow-500', items: showcased },
+    { key: 'video', icon: Play, className: 'text-green-500', items: withVideo },
+    { key: 'draft', icon: Clock, className: 'text-blue-500', items: drafts },
+  ].filter(section => section.items.length > 0);
 
   return (
-    <div className="space-y-6">
-      {/* Create New Highlight Button */}
-      {showCreateButton && highlights.length > 0 && (
-        <div className="flex justify-center">
-          <AddHighlightButton />
-        </div>
-      )}
-
-      {/* Showcased Highlights */}
-      {showcasedHighlights.length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold mb-4 flex items-center">
-            <Star className="w-5 h-5 mr-2 text-yellow-500" />
-            {t('sections.showcased')}
+    <div className="space-y-8">
+      {action && <div className="flex justify-center">{action}</div>}
+      {sections.map(({ key, icon: Icon, className, items: sectionItems }) => (
+        <section key={key}>
+          <h3 className="mb-4 flex items-center text-lg font-semibold">
+            <Icon className={`mr-2 h-5 w-5 ${className}`} />
+            {t(`sections.${key}`)}
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {showcasedHighlights.map(highlight => (
-              <HighlightCard
-                key={highlight.id}
-                highlight={highlight}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Highlights with Video */}
-      {highlightsWithVideo.length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold mb-4 flex items-center">
-            <Play className="w-5 h-5 mr-2 text-green-500" />
-            {t('sections.video')}
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {highlightsWithVideo.map(highlight => (
-              <HighlightCard
-                key={highlight.id}
-                highlight={highlight}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Draft Highlights */}
-      {draftHighlights.length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold mb-4 flex items-center">
-            <Clock className="h-5 w-5 mr-2 text-blue-500" />
-            {t('sections.draft')}
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {draftHighlights.map(highlight => (
-              <HighlightCard
-                key={highlight.id}
-                highlight={highlight}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Empty State */}
-      {highlights.length === 0 && (
-        <div className="text-center py-12">
-          <div className="text-muted-foreground">
-            <Star className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-semibold mb-2">{t('emptyState.title')}</h3>
-            <p className="text-sm mb-4">
-              {t('emptyState.description')}
-            </p>
-            {showCreateButton && <AddHighlightButton />}
-          </div>
-        </div>
-      )}
-
-      {/* No Draft Highlights State */}
-      {highlights.length > 0 && draftHighlights.length === 0 && (
-        <div className="text-center py-8">
-          <div className="text-muted-foreground">
-            <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">
-              {t('highlightCard.allHighlightsProcessed')}
-            </p>
-          </div>
-        </div>
+          <HighlightsGrid
+            items={sectionItems}
+            surface="meeting"
+            onRenamed={onRenamed}
+            onDeleted={onDeleted}
+          />
+        </section>
+      ))}
+      {drafts.length === 0 && (
+        <p className="text-center text-sm text-muted-foreground">
+          {t('highlightCard.allHighlightsProcessed')}
+        </p>
       )}
     </div>
   );
 }
 
 export default function HighlightsList() {
-  const { highlights } = useCouncilMeetingData();
+  // The meeting's highlights live in this client context, seeded once from the
+  // server. router.refresh() re-renders the server tree but leaves that state
+  // alone, so a rename or a delete has to be applied here too.
+  const { highlights, subjects, updateHighlight, removeHighlight } = useCouncilMeetingData();
+  const { calculateHighlightData } = useHighlight();
   const { options } = useTranscriptOptions();
   const { data: session } = useSession();
   const canCreateHighlights = options.canCreateHighlights;
@@ -262,36 +111,80 @@ export default function HighlightsList() {
   const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
   const currentUserId = session?.user?.id;
 
-  const { myHighlights, othersHighlights, aiHighlights } = useMemo(() => {
+  // Not memoized: calculateHighlightData keeps a stable identity across
+  // transcript and speaker-tag changes, so a memo keyed on it would hold the
+  // statistics from the first render even after an edit changes them.
+  const toCardData = (highlight: HighlightWithUtterances): HighlightCardData => {
+    const statistics = calculateHighlightData(highlight)?.statistics;
+    return {
+      id: highlight.id,
+      name: highlight.name,
+      isShowcased: highlight.isShowcased,
+      updatedAt: highlight.updatedAt,
+      href: `/${highlight.cityId}/${highlight.meetingId}/highlights/${highlight.id}`,
+      duration: statistics?.duration || 0,
+      speakerCount: statistics?.speakerCount || 0,
+      utteranceCount: statistics?.utteranceCount || 0,
+      subjectName: highlight.subjectId
+        ? (subjects.find(s => s.id === highlight.subjectId)?.name || t('common.connectedSubject'))
+        : null,
+      // Only show creator for city editors (they can see all highlights)
+      creatorName: isAdmin ? highlight.createdBy?.name ?? null : null,
+      // Same rule the server applies: an editor of the city, or the author.
+      canManage: isAdmin || (!!currentUserId && highlight.createdById === currentUserId),
+      video: highlight.videoUrl
+        ? {
+          url: highlight.videoUrl,
+          playbackId: highlight.muxPlaybackId,
+          fileName: generateHighlightFileName(highlight.cityId, highlight.meetingId, highlight.name),
+        }
+        : undefined,
+    };
+  };
+
+  // The partition depends on the highlights alone, so it is safe to memoize.
+  const { myHighlights, othersHighlights, aiHighlights, userHighlights } = useMemo(() => {
     const my: HighlightWithUtterances[] = [];
     const others: HighlightWithUtterances[] = [];
     const ai: HighlightWithUtterances[] = [];
+    // All non-AI highlights in original order — the regular-user view
+    const user: HighlightWithUtterances[] = [];
 
     for (const h of highlights) {
       if (h.createdById === null) {
         ai.push(h);
-      } else if (h.createdById === currentUserId) {
-        my.push(h);
       } else {
-        others.push(h);
+        user.push(h);
+        if (h.createdById === currentUserId) {
+          my.push(h);
+        } else {
+          others.push(h);
+        }
       }
     }
 
-    return { myHighlights: my, othersHighlights: others, aiHighlights: ai };
+    return { myHighlights: my, othersHighlights: others, aiHighlights: ai, userHighlights: user };
   }, [highlights, currentUserId]);
 
-  // Regular users: no tabs, filter out AI highlights defensively
+  const createButton = canCreateHighlights ? <AddHighlightButton /> : undefined;
+  const handleRenamed = (id: string, name: string) => updateHighlight(id, { name });
+  const handleDeleted = (id: string) => removeHighlight(id);
+
+  const header = (
+    <div className="bg-muted/50 rounded-lg p-4">
+      <h2 className="text-lg font-semibold mb-2">{t('title')}</h2>
+      <p className="text-sm text-muted-foreground mb-3 text-center">
+        {t('description')}
+      </p>
+    </div>
+  );
+
+  // Regular users: no tabs, AI highlights already filtered out defensively above
   if (!isAdmin) {
-    const userHighlights = highlights.filter(h => h.createdById !== null);
     return (
       <div className="space-y-6">
-        <div className="bg-muted/50 rounded-lg p-4">
-          <h2 className="text-lg font-semibold mb-2">{t('title')}</h2>
-          <p className="text-sm text-muted-foreground mb-3 text-center">
-            {t('description')}
-          </p>
-        </div>
-        <HighlightsGrid highlights={userHighlights} showCreateButton={canCreateHighlights} />
+        {header}
+        <HighlightSections items={userHighlights.map(toCardData)} action={createButton} onRenamed={handleRenamed} onDeleted={handleDeleted} />
       </div>
     );
   }
@@ -299,12 +192,7 @@ export default function HighlightsList() {
   // Admin / superadmin: tabbed view
   return (
     <div className="space-y-6">
-      <div className="bg-muted/50 rounded-lg p-4">
-        <h2 className="text-lg font-semibold mb-2">{t('title')}</h2>
-        <p className="text-sm text-muted-foreground mb-3 text-center">
-          {t('description')}
-        </p>
-      </div>
+      {header}
 
       <Tabs defaultValue="mine" searchParam="highlights-tab">
         <TabsList>
@@ -322,16 +210,16 @@ export default function HighlightsList() {
         </TabsList>
 
         <TabsContent value="mine">
-          <HighlightsGrid highlights={myHighlights} showCreateButton={canCreateHighlights} />
+          <HighlightSections items={myHighlights.map(toCardData)} action={createButton} onRenamed={handleRenamed} onDeleted={handleDeleted} />
         </TabsContent>
 
         <TabsContent value="others">
-          <HighlightsGrid highlights={othersHighlights} showCreateButton={false} />
+          <HighlightSections items={othersHighlights.map(toCardData)} onRenamed={handleRenamed} onDeleted={handleDeleted} />
         </TabsContent>
 
         {isSuperAdmin && (
           <TabsContent value="ai">
-            <HighlightsGrid highlights={aiHighlights} showCreateButton={false} />
+            <HighlightSections items={aiHighlights.map(toCardData)} onRenamed={handleRenamed} onDeleted={handleDeleted} />
           </TabsContent>
         )}
       </Tabs>

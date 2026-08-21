@@ -69,7 +69,7 @@ To verify a change in a running app (e.g. during PR review) without the magic-li
 ## Preview Server
 
 PR previews run on a NixOS droplet (`ssh root@159.89.98.26`), managed by [nix-openclaw](https://github.com/schemalabz/nix-openclaw). Each PR gets:
-- **App**: `https://pr-N.preview.opencouncil.gr` (port `3000 + N`)
+- **App**: `https://pr-N.opencouncil.dev` (port `3000 + N`)
 - **DB** (migration PRs): local PostgreSQL on port `5432 + N`, user/db both `opencouncil`, trust auth
 
 `psql` is on the system PATH. For debugging, direct DB manipulation, and deployment details see [docs/guides/preview-deployments.md](./docs/guides/preview-deployments.md).

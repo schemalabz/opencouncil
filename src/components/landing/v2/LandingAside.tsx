@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Map as MapIcon, Landmark, HelpCircle, MoreHorizontal, LogIn, LogOut, User, Phone, Mail, ArrowRight } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
-import { Link } from '@/i18n/routing';
+import { Link, getPathname } from '@/i18n/routing';
+import { openAfterMenuCloses } from '@/lib/utils/menus';
+import { useAccountLinks } from '@/components/layout/account-links';
 import { cn } from '@/lib/utils';
 import {
     DropdownMenu,
@@ -17,7 +19,7 @@ import {
 import Image from 'next/image';
 import type { InfoSurface, LandingView } from '@/lib/landing/landingCore';
 import { footerGroups, isInternalHref, reopenCookiePreferences } from './navLinks';
-import { NotifyMunicipalityDialog, openAfterMenuCloses } from './NotifyMunicipalityDialog';
+import { NotifyMunicipalityDialog } from './NotifyMunicipalityDialog';
 import ScriptSwitcher from '@/components/layout/ScriptSwitcher';
 import { captureLandingAction } from '@/lib/landing/analytics';
 import type { LandingListCity } from '@/lib/landing/landingData';
@@ -48,6 +50,9 @@ export function LandingAside({
     realm: Realm;
 }) {
     const t = useTranslations('landingV2');
+    const tAccount = useTranslations('account');
+    const accountLinks = useAccountLinks();
+    const locale = useLocale();
     const [notifyOpen, setNotifyOpen] = useState(false);
     const { data: session, status } = useSession();
     // Auth UI depends on the client session, which differs server vs. first client render
@@ -226,14 +231,50 @@ export function LandingAside({
 
                 {!mounted || status === 'loading' ? null : session?.user ? (
                     <>
-                        <Link
-                            href="/profile"
-                            aria-label={t('account.profile')}
-                            className="flex h-14 w-14 flex-col items-center justify-center gap-1 rounded-xl text-muted-foreground no-underline transition-colors hover:bg-muted hover:text-foreground hover:no-underline"
-                        >
-                            <User className="h-5 w-5" />
-                            <span className="text-[12px] font-medium leading-none">{t('account.profile')}</span>
-                        </Link>
+                        {/* profile menu: the rail item opens a small menu instead of navigating,
+                            so the personal highlights page gets an entry point here too */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                {/* An anchor, not a button: a plain click opens the menu, while
+                                    cmd-click, middle-click and "copy link" still reach /profile. */}
+                                <a
+                                    href={getPathname({ href: '/profile', locale })}
+                                    // Radix opens the menu on pointerdown, and only
+                                    // excludes ctrl. Close it again when a modified
+                                    // click means "open this somewhere else".
+                                    onPointerDown={(e) => {
+                                        if (e.metaKey || e.shiftKey || e.altKey) e.preventDefault();
+                                    }}
+                                    onClick={(e) => {
+                                        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                                        e.preventDefault();
+                                    }}
+                                    aria-label={tAccount('profile')}
+                                    className="flex h-14 w-14 flex-col items-center justify-center gap-1 rounded-xl text-muted-foreground no-underline transition-colors hover:bg-muted hover:text-foreground hover:no-underline"
+                                >
+                                    <User className="h-5 w-5" />
+                                    <span className="text-[12px] font-medium leading-none">{tAccount('profile')}</span>
+                                </a>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                                side="right"
+                                align="end"
+                                className="w-56 rounded-2xl border-border bg-card p-2 text-muted-foreground"
+                            >
+                                {accountLinks.map(({ href, labelKey, icon: Icon }) => (
+                                    <DropdownMenuItem
+                                        key={href}
+                                        asChild
+                                        className="rounded-lg text-muted-foreground focus:bg-muted focus:text-foreground"
+                                    >
+                                        <Link href={href} className="flex items-center gap-2">
+                                            <Icon className="h-4 w-4" />
+                                            {tAccount(labelKey)}
+                                        </Link>
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                         <button
                             type="button"
                             onClick={() => signOut()}

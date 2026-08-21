@@ -32,5 +32,10 @@
   "parties": {
     "title": "Groups | {cityName} | OpenCouncil",
     "description": "The council groups of {cityName}, their members and their activity in the council."
+  },
+  "landing": {
+    "title": "OpenCouncil — what your council is discussing",
+    "description": "Subjects from council meetings on a map: search by area, by category and by date, and get notified when your neighbourhood comes up.",
+    "ogAlt": "OpenCouncil — council subjects on a map"
   }
 }

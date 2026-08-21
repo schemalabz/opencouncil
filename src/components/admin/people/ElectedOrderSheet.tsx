@@ -25,7 +25,7 @@ import { GripVertical, Loader2, Download, Upload } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
 import { compareRanks } from '@/lib/sorting/people';
-import { downloadFile } from '@/lib/export/meetings';
+import { downloadFile } from '@/lib/export/download';
 
 interface ElectedOrderSheetProps {
     open: boolean;

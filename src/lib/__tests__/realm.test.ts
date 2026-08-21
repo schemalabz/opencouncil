@@ -2,10 +2,12 @@ import {
     realmForHost,
     createRealmResolver,
     isKnownRealmHost,
+    PREVIEW_DOMAIN,
     computeForeignLocales,
     foreignLocalesForRealm,
     isRealm,
     isRealmApexHost,
+    metadataBaseForHost,
     realmOverride,
     effectiveRealm,
     getRealmCountry,
@@ -59,14 +61,14 @@ describe('realmForHost', () => {
         expect(realmForHost('opencouncil.rs')).toBe('serbia');
     });
 
-    it('resolves preview subdomains of a realm domain to that realm', () => {
-        expect(realmForHost('pr-7.preview.opencouncil.gr')).toBe('greece');
-        expect(realmForHost('pr-7.preview.opencouncil.fr')).toBe('france');
-        expect(realmForHost('pr-7.preview.opencouncil.cy')).toBe('cyprus');
-        expect(realmForHost('pr-7.preview.opencouncil.rs')).toBe('serbia');
+    it('resolves subdomains of a realm domain to that realm', () => {
+        expect(realmForHost('www.opencouncil.gr')).toBe('greece');
+        expect(realmForHost('www.opencouncil.fr')).toBe('france');
+        expect(realmForHost('www.opencouncil.cy')).toBe('cyprus');
+        expect(realmForHost('www.opencouncil.rs')).toBe('serbia');
     });
 
-    it.each([null, undefined, '', 'localhost:3000', 'example.com'])(
+    it.each([null, undefined, '', 'localhost:3000', 'example.com', 'pr-7.opencouncil.dev'])(
         'defaults %p to greece',
         (host) => {
             expect(realmForHost(host)).toBe('greece');
@@ -79,7 +81,21 @@ describe('isKnownRealmHost', () => {
         expect(isKnownRealmHost('opencouncil.gr')).toBe(true);
         expect(isKnownRealmHost('opencouncil.fr')).toBe(true);
         expect(isKnownRealmHost('opencouncil.cy')).toBe(true);
-        expect(isKnownRealmHost('pr-7.preview.opencouncil.fr')).toBe(true);
+        expect(isKnownRealmHost('www.opencouncil.fr')).toBe(true);
+    });
+
+    // Previews belong to no realm, so `realmForHost` defaults them to greece —
+    // but they are still our own hosts, and the checks gated on this one (SEO
+    // redirects, magic-link host rewrite, OG metadata base) must run there too.
+    it('accepts the preview domain and its subdomains', () => {
+        expect(isKnownRealmHost(PREVIEW_DOMAIN)).toBe(true);
+        expect(isKnownRealmHost(`pr-7.${PREVIEW_DOMAIN}`)).toBe(true);
+        expect(isKnownRealmHost(`PR-7.${PREVIEW_DOMAIN.toUpperCase()}:443`)).toBe(true);
+    });
+
+    it('rejects a lookalike of the preview domain', () => {
+        expect(isKnownRealmHost(`${PREVIEW_DOMAIN}.evil.com`)).toBe(false);
+        expect(isKnownRealmHost(`evil${PREVIEW_DOMAIN}`)).toBe(false);
     });
 
     it('rejects unknown hosts', () => {
@@ -110,7 +126,7 @@ describe('isRealmApexHost', () => {
     });
 
     it('rejects subdomains (previews), localhost and unknown hosts', () => {
-        expect(isRealmApexHost('pr-7.preview.opencouncil.gr')).toBe(false);
+        expect(isRealmApexHost('pr-7.opencouncil.dev')).toBe(false);
         expect(isRealmApexHost('www.opencouncil.gr')).toBe(false);
         expect(isRealmApexHost('localhost:3000')).toBe(false);
         expect(isRealmApexHost('evil.com')).toBe(false);
@@ -120,8 +136,8 @@ describe('isRealmApexHost', () => {
 
 describe('realmOverride / effectiveRealm', () => {
     it('honors a valid override cookie on preview hosts and localhost', () => {
-        expect(realmOverride('pr-7.preview.opencouncil.gr', 'serbia')).toBe('serbia');
-        expect(effectiveRealm('pr-7.preview.opencouncil.gr', 'serbia')).toBe('serbia');
+        expect(realmOverride('pr-7.opencouncil.dev', 'serbia')).toBe('serbia');
+        expect(effectiveRealm('pr-7.opencouncil.dev', 'serbia')).toBe('serbia');
         expect(effectiveRealm('localhost:3000', 'france')).toBe('france');
     });
 
@@ -132,9 +148,9 @@ describe('realmOverride / effectiveRealm', () => {
     });
 
     it('ignores invalid or absent cookie values and falls back to the host realm', () => {
-        expect(realmOverride('pr-7.preview.opencouncil.gr', 'atlantis')).toBeUndefined();
-        expect(effectiveRealm('pr-7.preview.opencouncil.gr', 'atlantis')).toBe('greece');
-        expect(effectiveRealm('pr-7.preview.opencouncil.fr', undefined)).toBe('france');
+        expect(realmOverride('pr-7.opencouncil.dev', 'atlantis')).toBeUndefined();
+        expect(effectiveRealm('pr-7.opencouncil.dev', 'atlantis')).toBe('greece');
+        expect(effectiveRealm('www.opencouncil.fr', undefined)).toBe('france');
         expect(effectiveRealm('localhost:3000', undefined)).toBe('greece');
     });
 });
@@ -219,5 +235,27 @@ describe('telHref', () => {
 
     it('keeps a national trunk zero — the Serbian line is domestic-only', () => {
         expect(telHref('0800 301167')).toBe('tel:0800301167');
+    });
+});
+
+describe('metadataBaseForHost', () => {
+    it('uses the realm canonical URL on a production apex', () => {
+        expect(metadataBaseForHost('opencouncil.gr', 'greece')).toBe('https://opencouncil.gr');
+        expect(metadataBaseForHost('opencouncil.fr', 'france')).toBe('https://opencouncil.fr');
+    });
+
+    it('uses the preview host itself, so a preview unfurls its own OG images', () => {
+        expect(metadataBaseForHost('pr-7.opencouncil.dev', 'greece'))
+            .toBe('https://pr-7.opencouncil.dev');
+        // The realm override makes a preview render as serbia; the images
+        // still have to come from the preview, not from opencouncil.rs.
+        expect(metadataBaseForHost('pr-7.opencouncil.dev', 'serbia'))
+            .toBe('https://pr-7.opencouncil.dev');
+    });
+
+    it('ignores a host we do not own', () => {
+        expect(metadataBaseForHost('evil.com', 'greece')).toBe('https://opencouncil.gr');
+        expect(metadataBaseForHost('localhost:3000', 'france')).toBe('https://opencouncil.fr');
+        expect(metadataBaseForHost(null, 'serbia')).toBe('https://opencouncil.rs');
     });
 });
