@@ -8,6 +8,7 @@ import { SearchInputPill } from '@/components/ui/search-input-pill';
 import {
     detectMunicipalityQuery,
     detectCategoryQuery,
+    looksLikeAddress,
     type LandingListCity,
     type LandingSubject,
     type QueryKind,
@@ -18,8 +19,9 @@ import { SearchBody } from './SearchBody';
 import { captureLandingAction } from '@/lib/landing/analytics';
 
 /* The search field, shared by dropdown and overlay. Enter applies a matched
-   category/municipality filter (clearing the text) or geocodes an address, then calls
-   onAfterSubmit. `className` carries the per-context shadow. */
+   category/municipality filter, searches the discussions, or geocodes an address —
+   all three clear the text, since each turns it into something the map shows —
+   then calls onAfterSubmit. `className` carries the per-context shadow. */
 function SearchField({
     query,
     onQueryChange,
@@ -30,6 +32,7 @@ function SearchField({
     onToggleCat,
     onFiltersChange,
     onLocateAddress,
+    onCommitSearch,
     onAfterSubmit,
     inputRef,
     autoFocus,
@@ -45,6 +48,7 @@ function SearchField({
     onToggleCat: (topicId: string) => void;
     onFiltersChange: (next: MapFilters) => void;
     onLocateAddress: (q: string) => void;
+    onCommitSearch: (q: string) => void;
     /** caller-specific action after a committed search (close the dropdown / overlay, blur) */
     onAfterSubmit?: () => void;
     inputRef: RefObject<HTMLInputElement | null>;
@@ -59,12 +63,22 @@ function SearchField({
             onChange={onQueryChange}
             onKeyDown={(e) => {
                 if (e.key !== 'Enter' || !query.trim()) return;
-                // category/municipality → apply filter; anything else → geocode as address
+                // A category or a municipality names something the map already
+                // filters by. Otherwise the text is a question about what the
+                // councils discussed — unless it is shaped like an address, in
+                // which case it is somewhere to go.
                 const catId = detectCategoryQuery(query, topics);
                 const municipality = detectMunicipalityQuery(query, cities);
+                const isAddress = !catId && municipality?.kind !== 'known' && looksLikeAddress(query);
                 captureLandingAction('search', {
                     query_length: query.trim().length,
-                    kind: catId ? 'category' : municipality?.kind === 'known' ? 'municipality' : 'address',
+                    kind: catId
+                        ? 'category'
+                        : municipality?.kind === 'known'
+                          ? 'municipality'
+                          : isAddress
+                            ? 'address'
+                            : 'subjects',
                 });
                 if (catId) {
                     if (!cats.includes(catId)) onToggleCat(catId);
@@ -72,8 +86,11 @@ function SearchField({
                 } else if (municipality?.kind === 'known') {
                     onFiltersChange({ ...filters, cityIds: [municipality.cityId] });
                     onQueryChange('');
-                } else {
+                } else if (isAddress) {
                     onLocateAddress(query);
+                } else {
+                    onCommitSearch(query);
+                    onQueryChange('');
                 }
                 onAfterSubmit?.();
             }}
@@ -105,6 +122,7 @@ export function DesktopSearch({
     loading,
     onPickResult,
     onLocateAddress,
+    onCommitSearch,
 }: {
     topics: Topic[];
     cities: LandingListCity[];
@@ -120,6 +138,8 @@ export function DesktopSearch({
     loading?: boolean;
     onPickResult: (id: string) => void;
     onLocateAddress: (q: string) => void;
+    /** commit the text as a search filter over the map's subjects */
+    onCommitSearch: (q: string) => void;
 }) {
     const t = useTranslations('landingV2');
     const [open, setOpen] = useState(false);
@@ -159,6 +179,7 @@ export function DesktopSearch({
                     onToggleCat={onToggleCat}
                     onFiltersChange={onFiltersChange}
                     onLocateAddress={onLocateAddress}
+                    onCommitSearch={onCommitSearch}
                     onAfterSubmit={() => {
                         setOpen(false);
                         inputRef.current?.blur();
@@ -200,6 +221,12 @@ export function DesktopSearch({
                             // picking a category toggles the filter in place — keep the dropdown open
                             onToggleCat={onToggleCat}
                             onClearCats={onClearCats}
+                            onCommitSearch={(q) => {
+                                onCommitSearch(q);
+                                onQueryChange('');
+                                setOpen(false);
+                                inputRef.current?.blur();
+                            }}
                             onLocateAddress={(q) => {
                                 onLocateAddress(q);
                                 setOpen(false);
@@ -230,6 +257,7 @@ export function MobileSearchOverlay({
     onToggleCat,
     onClearCats,
     onLocateAddress,
+    onCommitSearch,
     autoFocusInput = true,
     scrollToActiveFilter = false,
 }: {
@@ -248,6 +276,8 @@ export function MobileSearchOverlay({
     onToggleCat: (topicId: string) => void;
     onClearCats: () => void;
     onLocateAddress: (q: string) => void;
+    /** commit the text as a search filter over the map's subjects */
+    onCommitSearch: (q: string) => void;
     /** focus the input (open the keyboard) — false when opened via the filters icon */
     autoFocusInput?: boolean;
     /** scroll to the first active filter on open (used when opened via the filters icon) */
@@ -311,6 +341,7 @@ export function MobileSearchOverlay({
                     onToggleCat={onToggleCat}
                     onFiltersChange={onFiltersChange}
                     onLocateAddress={onLocateAddress}
+                    onCommitSearch={onCommitSearch}
                     onAfterSubmit={onClose}
                     inputRef={inputRef}
                     autoFocus={autoFocusInput}
@@ -334,6 +365,11 @@ export function MobileSearchOverlay({
                     onPickKeyword={(k) => onQueryChange(k)}
                     onToggleCat={onToggleCat}
                     onClearCats={onClearCats}
+                    onCommitSearch={(q) => {
+                        onCommitSearch(q);
+                        onQueryChange('');
+                        onClose();
+                    }}
                     onLocateAddress={(q) => {
                         onLocateAddress(q);
                         onClose();

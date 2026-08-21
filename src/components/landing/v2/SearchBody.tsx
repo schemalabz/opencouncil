@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { MapPin, Landmark, Loader2 } from 'lucide-react';
+import { MapPin, Landmark, Loader2, Search } from 'lucide-react';
 import type { Topic } from '@prisma/client';
 import { cn, normalizeText } from '@/lib/utils';
 import Icon from '@/components/icon';
@@ -69,6 +69,7 @@ export function SearchBody({
     loading,
     onPickResult,
     onLocateAddress,
+    onCommitSearch,
     forceFilters = false,
 }: {
     topics: Topic[];
@@ -90,6 +91,8 @@ export function SearchBody({
     onPickResult: (id: string) => void;
     /** geocode the query as an address and fly there (also closes the dropdown) */
     onLocateAddress: (q: string) => void;
+    /** commit the text as a search over the councils' discussions */
+    onCommitSearch: (q: string) => void;
     /** opened via the filters icon → show the filters even if a query is present (until the input is
      *  focused), so the icon reliably lands on the filters rather than the query's results */
     forceFilters?: boolean;
@@ -155,6 +158,23 @@ export function SearchBody({
                         </span>
                     </button>
                 )}
+                {/* Above the address row, and shown whatever the text looks like:
+                    the local matches below only cover titles and street names of
+                    the subjects already loaded, so this is the only row that can
+                    answer a question about what was said. */}
+                <button
+                    type="button"
+                    onClick={() => onCommitSearch(query)}
+                    className="mb-3 flex w-full items-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5 text-left text-sm transition-colors hover:border-foreground/30"
+                >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--orange))]/10 text-[hsl(var(--orange))]">
+                        <Search className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0 flex-1 text-muted-foreground">
+                        {t('search.searchDiscussions')}{' '}
+                        <span className="font-semibold text-foreground">“{query.trim()}”</span>
+                    </span>
+                </button>
                 {showAddress && (
                     <button
                         type="button"
@@ -175,9 +195,9 @@ export function SearchBody({
                         <Loader2 className="h-4 w-4 animate-spin" /> {t('list.loading')}
                     </div>
                 ) : results.length === 0 ? (
-                    unknownMunicipality || matchedTopic || knownMunicipality || showAddress ? null : (
-                        <div className="py-6 text-center text-sm text-muted-foreground">{t('search.noResults')}</div>
-                    )
+                    // The search row above is always offered, so an empty local
+                    // match list is never a dead end and needs no message.
+                    null
                 ) : (
                     <div className="flex flex-col gap-0.5">
                         {results.map((s) => (

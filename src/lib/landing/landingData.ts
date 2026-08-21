@@ -319,6 +319,34 @@ export type QueryKind = 'empty' | 'subject' | 'address';
  * Whether a query reads as a subject title or an address, by matching it against loaded subjects'
  * titles vs. location texts (location wins ties). No match → 'address'; empty → 'empty'.
  */
+/**
+ * The words a Greek address opens with, unaccented (normalizeText strips the
+ * accents before this is consulted), with any trailing full stop removed.
+ */
+const ADDRESS_PREFIXES = new Set([
+    'οδος', 'οδου', 'οδο', 'λεωφορος', 'λεωφορου', 'λεωφ', 'πλατεια', 'πλατειας', 'πλ', 'αγ',
+]);
+
+/**
+ * Whether the text reads as a street address rather than as a question.
+ *
+ * Enter has to choose between moving the map and searching the discussions, and
+ * the subject index cannot make that call: "Πατησίων 76" matches no subject
+ * title, which is exactly what an unanswerable question looks like too. So the
+ * choice rests on the shape of the text — a house number above all, then the
+ * words an address actually starts with.
+ *
+ * Deliberately narrow. Everything it does not recognise becomes a search, and
+ * the address row stays in the dropdown one click away for what it misses.
+ */
+export function looksLikeAddress(query: string): boolean {
+    const text = normalizeText(query).trim();
+    if (!text) return false;
+    if (/\d/.test(text)) return true;
+    const [first] = text.split(/\s+/);
+    return ADDRESS_PREFIXES.has(first.replace(/\.+$/, ''));
+}
+
 export function classifySearchQuery(query: string, subjects: LandingSubject[]): QueryKind {
     const q = normalizeText(query).trim();
     if (!q) return 'empty';

@@ -58,6 +58,7 @@ export function MobileLayout({
     geoError,
     onDismissGeoError,
     onLocateAddress,
+    onCommitSearch,
     overviewActive,
     explainOpen,
     explainAvailable,
@@ -325,6 +326,10 @@ export function MobileLayout({
                     onClose={() => setSearchMode(null)}
                     onToggleCat={onToggleCat}
                     onClearCats={onClearCats}
+                    onCommitSearch={(q) => {
+                        onCommitSearch(q);
+                        setSearchMode(null);
+                    }}
                     onLocateAddress={(q) => {
                         onLocateAddress(q);
                         setSearchMode(null);

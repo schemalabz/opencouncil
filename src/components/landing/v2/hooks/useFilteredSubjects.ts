@@ -84,6 +84,9 @@ export type FilteredSubjects = {
     generalCities: LandingGeneralCity[];
     visibleGeneralCities: LandingGeneralCity[];
     ordered: LandingSubject[];
+    /** Located and non-located together, ranked, ignoring the viewport — every
+     *  subject the current filters match, which is what the map should frame. */
+    orderedAll: LandingSubject[];
     allGeneralSubjects: LandingSubject[];
     visibleGeneralSubjects: LandingSubject[];
     listSubjects: LandingSubject[];
@@ -243,6 +246,7 @@ export function useFilteredSubjects({
         ordered,
         allGeneralSubjects,
         visibleGeneralSubjects,
+        orderedAll: orderedMerged,
         listSubjects,
         outsideViewCount,
         searchResults,

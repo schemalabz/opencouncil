@@ -51,6 +51,7 @@ export function DesktopLayout({
     toggleMapStyle,
     locate,
     onLocateAddress,
+    onCommitSearch,
     zoomIn,
     zoomOut,
     displayedMunicipality,
@@ -205,6 +206,7 @@ export function DesktopLayout({
                                 loading={loading}
                                 onPickResult={(id) => selectSubject(id, 'search')}
                                 onLocateAddress={onLocateAddress}
+                                onCommitSearch={onCommitSearch}
                             />
                         </div>
                         <DateRangePill value={range} onChange={setRange} />

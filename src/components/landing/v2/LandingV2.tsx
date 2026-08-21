@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { type Map as MapboxMap } from 'mapbox-gl';
+import { LngLatBounds, type Map as MapboxMap } from 'mapbox-gl';
 import { useSession } from 'next-auth/react';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { useTopics } from '@/hooks/useTopics';
@@ -286,6 +286,7 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         generalCities,
         visibleGeneralCities,
         ordered,
+        orderedAll,
         allGeneralSubjects,
         visibleGeneralSubjects,
         listSubjects,
@@ -682,6 +683,20 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         />
     );
 
+    /**
+     * Frame every result of the committed search.
+     *
+     * The map deliberately stays put when a search is committed — a reader who
+     * zoomed somewhere keeps their place, and the list says how much sits
+     * outside it. This is the way out of that, for when the answer is elsewhere.
+     */
+    const fitSearchResults = useCallback(() => {
+        if (!mapInstance || orderedAll.length === 0) return;
+        const bounds = new LngLatBounds();
+        for (const subject of orderedAll) bounds.extend([subject.lng, subject.lat]);
+        mapInstance.fitBounds(bounds, { padding: isMobile ? 48 : 96, maxZoom: 14, duration: 600 });
+    }, [mapInstance, orderedAll, isMobile]);
+
     // Analytics-tracked wrappers — used ONLY in layoutProps, so the internal setState calls above
     // stay untracked; only user actions fire.
     const trackedSetView = (v: LandingView) => {
@@ -804,6 +819,15 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         geoError,
         onDismissGeoError: dismissGeoError,
         onLocateAddress: locateAddress,
+        onCommitSearch: commitSearch,
+        committedSearch,
+        searchPending,
+        // Clears the search only. Anything it derived is a real filter now, with
+        // a chip of its own to clear — dropping those here would take away
+        // narrowing the reader can see, without being asked to.
+        onClearSearch: clearCommittedSearch,
+        outsideViewCount,
+        onFitSearchResults: fitSearchResults,
         zoomIn: trackedZoomIn,
         zoomOut: trackedZoomOut,
         overviewActive: showMunicipalityCounts,
