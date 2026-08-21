@@ -7,6 +7,8 @@ interface SubjectCardFooterProps {
     stats: SubjectCardStats;
     /** Introducer + top speakers for the avatar row. */
     speakers: PersonWithRelations[];
+    /** The introducer, marked with a pen badge in the avatar row. */
+    introducerId?: string;
     withdrawn?: boolean;
     withdrawnLabel?: string;
     /** Localized speaking-time text, already pluralized (e.g. "12 minutes"). */
@@ -26,6 +28,7 @@ interface SubjectCardFooterProps {
 export function SubjectCardFooter({
     stats,
     speakers,
+    introducerId,
     withdrawn,
     withdrawnLabel,
     minutesText,
@@ -67,7 +70,7 @@ export function SubjectCardFooter({
                 <div className="w-full text-xs text-muted-foreground/70 italic">{withdrawnLabel}</div>
             ) : (
                 <div onClick={onAvatarsClick} className="w-full">
-                    <PersonAvatarList users={speakers} autoScroll={avatarsAutoScroll} isHovered={avatarsHovered} />
+                    <PersonAvatarList users={speakers} introducerId={introducerId} autoScroll={avatarsAutoScroll} isHovered={avatarsHovered} />
                 </div>
             )}
         </>
