@@ -156,7 +156,7 @@ describe('searchInRealm — realm isolation', () => {
     it('returns nothing when every requested city is outside the realm', async () => {
         const response = await searchInRealm({ query: 'ανακύκλωση', cityIds: ['paris'] }, 'greece');
 
-        expect(response).toEqual({ results: [], total: 0, dropped: 0 });
+        expect(response).toEqual({ results: [], total: 0, dropped: 0, derivedFilters: {} });
         expect(esSearchMock).not.toHaveBeenCalled();
     });
 
@@ -164,5 +164,48 @@ describe('searchInRealm — realm isolation', () => {
         await searchInRealm({ query: 'ανακύκλωση' }, async () => 'greece');
 
         expect(extractFiltersMock).toHaveBeenCalledWith('ανακύκλωση', 'greece');
+    });
+});
+
+describe('searchInRealm — reporting what the query text supplied', () => {
+    it('reports a derived city', async () => {
+        processFiltersMock.mockResolvedValue({ cityIds: ['chania'], dateRange: undefined, locations: undefined });
+
+        const response = await searchInRealm({ query: 'ανακύκλωση στα Χανιά' }, 'greece');
+
+        expect(response.derivedFilters).toEqual({ cityIds: ['chania'] });
+    });
+
+    it('reports a derived date range', async () => {
+        const derived = { start: '2025-01-01T00:00:00.000Z', end: '2025-12-31T23:59:59.999Z' };
+        processFiltersMock.mockResolvedValue({ cityIds: undefined, dateRange: derived, locations: undefined });
+
+        const response = await searchInRealm({ query: 'προϋπολογισμός πέρσι' }, 'greece');
+
+        expect(response.derivedFilters).toEqual({ dateRange: derived });
+    });
+
+    // A filter the caller set is not derived, even when the query text names
+    // one too — the merge kept the caller's, so that is what the pills show.
+    it('reports nothing for a filter the caller set', async () => {
+        processFiltersMock.mockResolvedValue({ cityIds: ['chania'], dateRange: undefined, locations: undefined });
+
+        const response = await searchInRealm({ query: 'πάρκα Χανίων', cityIds: ['athens'] }, 'greece');
+
+        expect(response.derivedFilters).toEqual({});
+    });
+
+    it('reports nothing when the realm default supplied the cities', async () => {
+        const response = await searchInRealm({ query: 'ανακύκλωση' }, 'greece');
+
+        expect(response.derivedFilters).toEqual({});
+    });
+
+    it('reports nothing when extraction is off', async () => {
+        processFiltersMock.mockResolvedValue({ cityIds: ['chania'], dateRange: undefined, locations: undefined });
+
+        const response = await searchInRealm({ query: 'ανακύκλωση στα Χανιά', config: { extractFilters: false } }, 'greece');
+
+        expect(response.derivedFilters).toEqual({});
     });
 });

@@ -69,6 +69,20 @@ export type SearchResultDetailed = SearchResultLight & {
     context?: string;
 };
 
+/**
+ * The filters the search read out of the query text, because the caller had not
+ * set them. Empty when extraction is off, or when it found nothing.
+ *
+ * A caller that shows filters on screen must show these too. Extraction that
+ * narrows a search invisibly leaves the results disagreeing with the controls
+ * next to them, and the reader has nothing to correct.
+ */
+export type DerivedFilters = {
+    cityIds?: string[];
+    dateRange?: { start: string; end: string };
+    locations?: Location[];
+};
+
 // Search response type
 export type SearchResponse = {
     results: SearchResultLight[] | SearchResultDetailed[];
@@ -80,6 +94,8 @@ export type SearchResponse = {
      *  matches on other pages — callers that must not leak the existence of
      *  non-public content should omit the total instead of reporting it. */
     dropped: number;
+    /** What the query text supplied that the caller had not. See DerivedFilters. */
+    derivedFilters: DerivedFilters;
 };
 
 // Extracted filters from query
