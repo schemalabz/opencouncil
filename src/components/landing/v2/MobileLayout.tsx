@@ -9,6 +9,7 @@ import Icon from '@/components/icon';
 import { formatDate, formatDateTime } from '@/lib/formatters/time';
 import { captureLandingAction } from '@/lib/landing/analytics';
 import { ListHeader, RankedListHint } from './conceptShared';
+import { SearchChip } from './searchSummary';
 import { subjectLocationLine, type LandingSubject, type LandingListCity, type LandingPetitionedCity, type UpcomingMeeting } from '@/lib/landing/landingData';
 import { PETITION_DISPLAY_THRESHOLD } from '@/lib/landing/petitions';
 import { hasActiveFilters, type LayoutProps } from '@/lib/landing/landingCore';
@@ -59,6 +60,8 @@ export function MobileLayout({
     onDismissGeoError,
     onLocateAddress,
     onCommitSearch,
+    committedSearch,
+    onClearSearch,
     overviewActive,
     explainOpen,
     explainAvailable,
@@ -264,9 +267,13 @@ export function MobileLayout({
                                     {/* what the strip actually is — a small pill floating over the
                                         map (costs no layout space). Hidden while a text search
                                         re-purposes the list into plain matches. */}
-                                    {tab === 'subjects' && !query.trim() && trending.length > 0 && (
+                                    {tab === 'subjects' && !query.trim() && (committedSearch || trending.length > 0) && (
                                         <div className="mb-2 px-3">
-                                            <RankedListHint floating />
+                                            {committedSearch ? (
+                                                <SearchChip search={committedSearch} onClear={onClearSearch} floating />
+                                            ) : (
+                                                <RankedListHint floating />
+                                            )}
                                         </div>
                                     )}
                                     {tab === 'subjects' ? (

@@ -373,8 +373,6 @@ export type LayoutProps = {
     onCommitSearch: (q: string) => void;
     /** the search currently committed, or null */
     committedSearch: CommittedSearch | null;
-    /** the committed search is still loading its results */
-    searchPending: boolean;
     /** drop the committed search and go back to the map's own subjects */
     onClearSearch: () => void;
     /** matches whose pin sits outside the current viewport */

@@ -1,4 +1,5 @@
 import {
+    buildSearchHref,
     DERIVED_FILTER_PARAMS,
     filterDateRangeToInstants,
     formatFilterDate,
@@ -109,5 +110,31 @@ describe('derived filter keys', () => {
         for (const params of Object.values(DERIVED_FILTER_PARAMS)) {
             expect(params.length).toBeGreaterThan(0);
         }
+    });
+});
+
+describe('buildSearchHref', () => {
+    it('carries the query and the filters that are set', () => {
+        expect(buildSearchHref({ query: 'κατοικίδια', cityId: 'chania', topicIds: 't1,t2' }))
+            .toBe('/search?query=%CE%BA%CE%B1%CF%84%CE%BF%CE%B9%CE%BA%CE%AF%CE%B4%CE%B9%CE%B1&cityId=chania&topicIds=t1%2Ct2');
+    });
+
+    it('leaves out what is not set', () => {
+        expect(buildSearchHref({ query: 'πάρκα' })).toBe('/search?query=%CF%80%CE%AC%CF%81%CE%BA%CE%B1');
+    });
+
+    // A handoff with nothing to hand on is still a link to the search page.
+    it('is the bare page when there is nothing to carry', () => {
+        expect(buildSearchHref({})).toBe('/search');
+        expect(buildSearchHref({ query: '   ' })).toBe('/search');
+    });
+
+    it('round-trips through the params the page reads', () => {
+        const href = buildSearchHref({ query: 'x', cityId: 'athens', dateFrom: '2026-01-01', dateTo: '2026-02-01' });
+        const params = new URLSearchParams(href.split('?')[1]);
+        expect(params.get('query')).toBe('x');
+        expect(params.get('cityId')).toBe('athens');
+        expect(params.get('dateFrom')).toBe('2026-01-01');
+        expect(params.get('dateTo')).toBe('2026-02-01');
     });
 });

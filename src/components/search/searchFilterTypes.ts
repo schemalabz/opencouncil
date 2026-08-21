@@ -51,6 +51,31 @@ export function serializeDerivedKeys(keys: DerivedFilterKey[]): string | undefin
     return keys.length > 0 ? keys.join(",") : undefined;
 }
 
+/** The filter params, in the order a /search link spells them. */
+const SEARCH_FILTER_KEYS = [
+    "cityId", "partyId", "personId", "adminBodyType", "adminBodyId", "topicIds", "dateFrom", "dateTo",
+] as const;
+
+/**
+ * A /search link for a query and a set of filters.
+ *
+ * Every entry point built this string by hand, and none of them agreed on which
+ * params exist — the header sent a query and a city, the party page a query and
+ * a party, the landing sent nothing at all. Handing a search on from one
+ * surface to another needs one answer to that, so this is it.
+ */
+export function buildSearchHref(params: SearchFilterParams & { query?: string }): string {
+    const search = new URLSearchParams();
+    const query = params.query?.trim();
+    if (query) search.set("query", query);
+    for (const key of SEARCH_FILTER_KEYS) {
+        const value = params[key];
+        if (value) search.set(key, value);
+    }
+    const qs = search.toString();
+    return qs ? `/search?${qs}` : "/search";
+}
+
 /** Whether any filter is currently set — drives the filter button's active (dot) state. */
 export function hasActiveSearchFilters(filters: SearchFilterParams): boolean {
     return Boolean(

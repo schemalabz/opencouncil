@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { ListHeader, RankedListHint, ZoomGroup } from './conceptShared';
 import { type LayoutProps, type LandingView } from '@/lib/landing/landingCore';
 import { CategoryFilterBar, DateRangePill, FewResultsHint, MapStyleToggle, MunicipalityPageButton } from './controls';
+import { SearchChip, SearchResultsFooter } from './searchSummary';
 import { DesktopSearch } from './SearchPanel';
 import { CoLocatedBox, GeneralSubjectsBox } from './mapMarkers';
 import { MunicipalitiesList } from './MunicipalitiesList';
@@ -52,6 +53,10 @@ export function DesktopLayout({
     locate,
     onLocateAddress,
     onCommitSearch,
+    committedSearch,
+    onClearSearch,
+    outsideViewCount,
+    onFitSearchResults,
     zoomIn,
     zoomOut,
     displayedMunicipality,
@@ -133,7 +138,10 @@ export function DesktopLayout({
                         Part of the white header block; hidden while a text search re-purposes the
                         list into plain matches, and while there is no ranked list to describe —
                         an empty or still-loading list must not be captioned "most-discussed". */}
-                    {!infoOpen && view === 'subjects' && !query.trim() && !loading && count > 0 && (
+                    {/* A committed search re-orders the list by relevance, so this caption
+                        would describe the wrong thing — the chip in the filter bar above
+                        the map says what the list is instead. */}
+                    {!infoOpen && view === 'subjects' && !query.trim() && !committedSearch && !loading && count > 0 && (
                         <div className="-mt-2 bg-card px-4 pb-2.5">
                             <RankedListHint />
                         </div>
@@ -165,6 +173,15 @@ export function DesktopLayout({
                             loading={loading}
                             variant="desktop"
                             footer={
+                                committedSearch ? (
+                                    <SearchResultsFooter
+                                        search={committedSearch}
+                                        outsideViewCount={outsideViewCount}
+                                        cats={cats}
+                                        filters={filters}
+                                        onFitResults={onFitSearchResults}
+                                    />
+                                ) : (
                                 <FewResultsHint
                                     loading={loading}
                                     count={count}
@@ -178,6 +195,7 @@ export function DesktopLayout({
                                     setRange={setRange}
                                     onZoomOut={zoomOut}
                                 />
+                                )
                             }
                         />
                     )}
@@ -212,7 +230,17 @@ export function DesktopLayout({
                         <DateRangePill value={range} onChange={setRange} />
                     </div>
                     <div className="pointer-events-auto relative z-10">
-                        <CategoryFilterBar topics={topics} selected={cats} onToggle={onToggleCat} onClear={onClearCats} />
+                        <CategoryFilterBar
+                            topics={topics}
+                            selected={cats}
+                            onToggle={onToggleCat}
+                            onClear={onClearCats}
+                            leading={
+                                committedSearch ? (
+                                    <SearchChip search={committedSearch} onClear={onClearSearch} />
+                                ) : undefined
+                            }
+                        />
                     </div>
                 </div>
             )}
