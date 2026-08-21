@@ -1432,6 +1432,9 @@ EOF
 
               # Static + public assets live next to the workspace's server.js
               cp -r services/notis/.next/static $out/services/notis/.next/static
+              # Prisma schema + migrations: the preview createHook runs
+              # notis's migrations from the deployed closure.
+              cp -r services/notis/prisma $out/services/notis/prisma
               # Next's monorepo standalone output does NOT include public/ —
               # copy it in (the target dir does not pre-exist).
               if [ -d services/notis/public ]; then
@@ -1537,7 +1540,10 @@ EOF
       #   services.pr-previews.projects = opencouncil.previews // ...;
       # The host supplies envFile with NOTIS_ADMIN_SECRET and a (dummy)
       # ANTHROPIC_API_KEY — see docs/guides/preview-deployments.md.
-      previews.notis = {
+      previews.notis = let
+        postgresCompat = self.lib.mkPostgresCompat;
+        prismaEnv = self.lib.mkPrismaEnv;
+      in {
         hostPattern = "notis-pr-@id@.opencouncil.dev";
         # 20000+N: clear of the main app (3000+N), tasks (4000+N), and the
         # ad-hoc isolated-DB ports (5432+N) — 5000+N would collide with a DB
@@ -1545,16 +1551,72 @@ EOF
         basePort = 20000;
         environment = [ "NODE_ENV=production" "HOSTNAME=0.0.0.0" ];
 
+        # When the paired main preview runs an isolated cluster (migration
+        # PRs — --with-db), give notis its own database there, run notis's
+        # migrations, and bridge the login role onto notis_reader (created
+        # NOLOGIN by the main app's views migration). The cluster uses
+        # trust auth on 127.0.0.1, so no passwords. Skipped when no
+        # isolated cluster exists — the envFile's staging URLs then apply.
+        createHook = pkgs: ctx: let
+          pc = postgresCompat pkgs;
+          pe = prismaEnv pkgs;
+        in ''
+          oc_dir="/var/lib/opencouncil-previews/pr-$pr_num"
+          if [ -f "$oc_dir/.has-local-db" ]; then
+            db_port=$(cat "$oc_dir/.db-port")
+
+            echo "Setting up notis database in the paired cluster (port $db_port)..."
+            ${pc}/bin/psql -h 127.0.0.1 -p "$db_port" -U opencouncil -d postgres \
+              -tc "SELECT 1 FROM pg_database WHERE datname = 'notis'" | grep -q 1 || \
+              ${pc}/bin/createdb -h 127.0.0.1 -p "$db_port" -U opencouncil notis
+
+            echo "Running notis migrations..."
+            ${pe}
+            export NOTIS_DATABASE_URL="postgresql://opencouncil@127.0.0.1:$db_port/notis"
+            ${pkgs.nodePackages.prisma}/bin/prisma migrate deploy \
+              --schema "$store_path/services/notis/prisma/schema.prisma"
+
+            # Login role for the read-only main-DB views. notis_reader is
+            # created (idempotently, NOLOGIN) by the main app's migration,
+            # which the paired preview has already run.
+            ${pc}/bin/psql -h 127.0.0.1 -p "$db_port" -U opencouncil -d opencouncil <<'SQL'
+          DO $$ BEGIN
+            IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'notis_service') THEN
+              CREATE ROLE notis_service LOGIN IN ROLE notis_reader;
+            END IF;
+          END $$;
+          SQL
+
+            echo "Notis database ready (isolated, port $db_port)"
+          else
+            echo "No isolated cluster for PR #$pr_num - notis uses the envFile's staging database"
+          fi
+        '';
+
         startScript = _: ctx: ''
           # Point the REST proxies and MCP wakes at this PR's paired main
           # preview instead of production.
           export OPENCOUNCIL_BASE_URL="${ctx.siblings.opencouncil.url}"
           export NOTIS_MCP_URL="${ctx.siblings.opencouncil.url}/mcp"
+
+          # Shared-cookie session validation against the paired preview: the
+          # main app mirrors its session as __Secure-oc-session-prN on the
+          # shared parent domain (see previews.opencouncil).
+          export MAIN_SESSION_COOKIE_NAME="__Secure-oc-session-pr$PR_NUM"
+
+          # Isolated-cluster case (migration PRs): notis's own database and
+          # the read-only views connection, provisioned by createHook.
+          oc_dir="/var/lib/opencouncil-previews/pr-$PR_NUM"
+          if [ -f "$oc_dir/.has-local-db" ]; then
+            db_port=$(cat "$oc_dir/.db-port")
+            export NOTIS_DATABASE_URL="postgresql://opencouncil@127.0.0.1:$db_port/notis"
+            export MAIN_DATABASE_URL="postgresql://notis_service@127.0.0.1:$db_port/opencouncil"
+          fi
+
           export NOTIS_RUN_DIR="$PR_DIR/work"
           exec "$APP_DIR/start.sh"
         '';
       };
-
       previews.opencouncil = let
         postgresCompat = self.lib.mkPostgresCompat;
         prismaEnv = self.lib.mkPrismaEnv;
@@ -1682,6 +1744,13 @@ EOF
           fi
 
           export NEXTAUTH_URL="https://${ctx.host}"
+
+          # Mirror the session onto the shared preview parent so the paired
+          # notis preview can validate it; the per-PR suffix keeps previews
+          # from clobbering each other's cookies.
+          export SESSION_COOKIE_DOMAIN=".opencouncil.dev"
+          export SESSION_COOKIE_SUFFIX="-pr$PR_NUM"
+
           export OC_RUN_DIR="$PR_DIR/work"
           exec "$APP_DIR/start.sh"
         '';
