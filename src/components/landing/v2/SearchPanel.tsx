@@ -171,6 +171,11 @@ export function DesktopSearch({
 }) {
     const t = useTranslations('landingV2');
     const [open, setOpen] = useState(false);
+    // Which half of the panel the reader asked for. The box holds its query
+    // after a search, so "is there text" no longer says whether they are
+    // composing a search or reaching for the filters — the control they opened
+    // it with does. Mirrors MobileSearchOverlay, which has always worked this way.
+    const [showFilters, setShowFilters] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const rootRef = useRef<HTMLDivElement>(null);
 
@@ -219,14 +224,33 @@ export function DesktopSearch({
                     onQueryChange={onQueryChange}
                     onKeyDown={onKeyDown}
                     combobox={{
-                        expanded: open,
-                        activeOptionId: open && options[highlightedIndex] ? searchOptionId(options[highlightedIndex], highlightedIndex) : undefined,
+                        expanded: open && !showFilters,
+                        activeOptionId:
+                            open && !showFilters && options[highlightedIndex]
+                                ? searchOptionId(options[highlightedIndex], highlightedIndex)
+                                : undefined,
                     }}
                     inputRef={inputRef}
-                    onFocus={() => setOpen(true)}
+                    onFocus={() => {
+                        setOpen(true);
+                        setShowFilters(false);
+                    }}
                     className="shadow-lg"
                 />
-                <FilterIconButton active={hasActiveFilters(filters)} onClick={() => setOpen((o) => !o)} />
+                {/* Toggles its own half of the panel, not the panel: closing on a
+                    second click only makes sense if the first one is what opened
+                    the filters. */}
+                <FilterIconButton
+                    active={hasActiveFilters(filters)}
+                    onClick={() => {
+                        if (open && showFilters) {
+                            setOpen(false);
+                            return;
+                        }
+                        setOpen(true);
+                        setShowFilters(true);
+                    }}
+                />
             </div>
             {open && (
                 <div className="absolute inset-x-0 top-[calc(100%+8px)] flex max-h-[min(560px,calc(100dvh-220px))] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
@@ -254,6 +278,7 @@ export function DesktopSearch({
                             onActivate={activate}
                             onToggleCat={onToggleCat}
                             onClearCats={onClearCats}
+                            forceFilters={showFilters}
                         />
                     </div>
                 </div>
