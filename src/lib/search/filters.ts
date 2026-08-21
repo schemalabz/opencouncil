@@ -159,8 +159,20 @@ export async function resolveLocationCoordinates(locationName: string, cityId: s
     }
 }
 
-// Process extracted filters and resolve locations
-export async function processFilters(extractedFilters: ExtractedFilters, realm: Realm): Promise<{
+/**
+ * Resolve an extraction into filters the search can use, geocoding a place name
+ * against `candidateCityIds` — the cities the search itself will cover.
+ *
+ * Scoping the geocode to those cities rather than to the whole realm matters:
+ * each candidate costs a geometry read and two Google Places requests, so a
+ * search the caller already pinned to one municipality should pay for one
+ * lookup, not for every municipality on the platform.
+ */
+export async function processFilters(
+    extractedFilters: ExtractedFilters,
+    realm: Realm,
+    candidateCityIds: string[],
+): Promise<{
     cityIds: string[] | undefined;
     dateRange: { start: string; end: string; } | undefined;
     locations: Location[] | undefined;
@@ -187,14 +199,11 @@ export async function processFilters(extractedFilters: ExtractedFilters, realm: 
                 locations.push(location);
             }
         } else {
-            // If no specific city, try every city of the realm
-            const cities = await getCities({}, realm);
-
-            // Try each city and collect all matches
-            const locationPromises = cities.map(async (city) => {
+            // No city named in the query, so try the ones the search covers
+            const locationPromises = candidateCityIds.map(async (cityId) => {
                 const location = await resolveLocationCoordinates(
                     locationName,
-                    city.id
+                    cityId
                 );
                 return location;
             });

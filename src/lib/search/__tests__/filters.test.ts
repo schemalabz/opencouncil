@@ -6,6 +6,7 @@ jest.mock('@/lib/ai', () => ({ aiChat: jest.fn() }));
 jest.mock('@/lib/db/cities', () => ({
     getCities: jest.fn().mockResolvedValue([]),
     getCity: jest.fn(),
+    filterCityIdsByRealm: jest.fn(),
 }));
 jest.mock('@/lib/google-maps', () => ({
     getPlaceSuggestions: jest.fn(),
@@ -13,7 +14,9 @@ jest.mock('@/lib/google-maps', () => ({
 }));
 
 import { aiChat } from '@/lib/ai';
-import { extractFilters, NO_EXTRACTED_FILTERS } from '../filters';
+import { getCity, filterCityIdsByRealm } from '@/lib/db/cities';
+import { getPlaceSuggestions, getPlaceDetails } from '@/lib/google-maps';
+import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from '../filters';
 
 const aiChatMock = aiChat as jest.MockedFunction<typeof aiChat>;
 
@@ -81,5 +84,59 @@ describe('extractFilters', () => {
             ...NO_EXTRACTED_FILTERS,
             locationName: 'Άργος',
         });
+    });
+});
+
+describe('processFilters', () => {
+    const getCityMock = getCity as jest.MockedFunction<typeof getCity>;
+    const suggestionsMock = getPlaceSuggestions as jest.MockedFunction<typeof getPlaceSuggestions>;
+    const detailsMock = getPlaceDetails as jest.MockedFunction<typeof getPlaceDetails>;
+    const filterByRealmMock = filterCityIdsByRealm as jest.MockedFunction<typeof filterCityIdsByRealm>;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        filterByRealmMock.mockImplementation(async (ids: string[]) => ids);
+        getCityMock.mockImplementation(async (id: string) => ({
+            id,
+            name: id,
+            geometry: { type: 'Point', coordinates: [0, 0] },
+        }) as never);
+        suggestionsMock.mockResolvedValue({ data: [{ placeId: 'p1' }], error: null } as never);
+        detailsMock.mockResolvedValue({ coordinates: [23.7, 37.9] } as never);
+    });
+
+    const withLocation = (cityIds: string[] | null) => ({
+        ...NO_EXTRACTED_FILTERS,
+        cityIds,
+        locationName: 'Πλατεία Συντάγματος',
+    });
+
+    // Each candidate costs a geometry read and two Google Places requests, so
+    // the fan-out has to follow the search's own scope rather than the realm's.
+    it('geocodes only against the cities the search covers', async () => {
+        await processFilters(withLocation(null), 'greece', ['athens']);
+
+        expect(getCityMock).toHaveBeenCalledTimes(1);
+        expect(getCityMock).toHaveBeenCalledWith('athens', expect.anything());
+    });
+
+    it('geocodes against every candidate when the search covers the realm', async () => {
+        await processFilters(withLocation(null), 'greece', ['athens', 'chania', 'argos']);
+
+        expect(getCityMock).toHaveBeenCalledTimes(3);
+    });
+
+    it('prefers a city the query named over the candidates', async () => {
+        await processFilters(withLocation(['chania']), 'greece', ['athens', 'argos']);
+
+        expect(getCityMock).toHaveBeenCalledTimes(1);
+        expect(getCityMock).toHaveBeenCalledWith('chania', expect.anything());
+    });
+
+    it('geocodes nothing when the query names no place', async () => {
+        const result = await processFilters(NO_EXTRACTED_FILTERS, 'greece', ['athens']);
+
+        expect(getCityMock).not.toHaveBeenCalled();
+        expect(result.locations).toBeUndefined();
     });
 });
