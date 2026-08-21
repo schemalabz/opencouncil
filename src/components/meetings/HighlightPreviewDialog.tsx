@@ -14,6 +14,7 @@ import { Video } from './Video';
 import { toast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import type { CaptionStyle } from '@/lib/apiTypes';
 
 export function HighlightPreviewDialog() {
   const {
@@ -44,9 +45,11 @@ export function HighlightPreviewDialog() {
   const captionsId = useId();
   const speakersId = useId();
   const aspectRatioName = useId();
+  const captionStyleName = useId();
 
   // Render settings (session-scoped only)
   const [includeCaptions, setIncludeCaptions] = useState(true);
+  const [captionStyle, setCaptionStyle] = useState<CaptionStyle>('outline');
   const [overlaySpeakerNames, setOverlaySpeakerNames] = useState(true);
   const [aspectRatio, setAspectRatio] = useState<'default' | 'social-9x16'>('default');
   const isSocial = aspectRatio === 'social-9x16';
@@ -75,6 +78,7 @@ export function HighlightPreviewDialog() {
           highlightId: editingHighlight.id,
           options: {
             includeCaptions,
+            captionStyle,
             includeSpeakerOverlay: overlaySpeakerNames,
             aspectRatio,
             ...(aspectRatio === 'social-9x16' && { socialOptions: { marginType: 'blur', zoomFactor: 1.0 } })
@@ -227,17 +231,43 @@ export function HighlightPreviewDialog() {
               </Label>
             </div>
             {includeCaptions && (
-              <p
-                className={cn(
-                  "flex items-start gap-1.5 pl-[26px] pb-1 text-xs leading-snug",
-                  isTranscriptVerified ? "text-green-700 dark:text-green-400" : "text-yellow-700 dark:text-yellow-500"
-                )}
-              >
-                {isTranscriptVerified
-                  ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  : <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
-                <span>{isTranscriptVerified ? t('previewDialog.captionsVerified') : t('previewDialog.captionsUnverified')}</span>
-              </p>
+              <>
+                <p
+                  className={cn(
+                    "flex items-start gap-1.5 pl-[26px] pb-1 text-xs leading-snug",
+                    isTranscriptVerified ? "text-green-700 dark:text-green-400" : "text-yellow-700 dark:text-yellow-500"
+                  )}
+                >
+                  {isTranscriptVerified
+                    ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    : <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
+                  <span>{isTranscriptVerified ? t('previewDialog.captionsVerified') : t('previewDialog.captionsUnverified')}</span>
+                </p>
+                <div className="pl-[26px]">
+                  <label className="flex cursor-pointer items-center gap-2.5 py-1 text-sm">
+                    <input
+                      type="radio"
+                      name={captionStyleName}
+                      value="outline"
+                      checked={captionStyle === 'outline'}
+                      onChange={() => setCaptionStyle('outline')}
+                      className="h-4 w-4 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    />
+                    <span className={cn(captionStyle === 'outline' && "font-medium")}>{t('previewDialog.captionStyleOutline')}</span>
+                  </label>
+                  <label className="flex cursor-pointer items-center gap-2.5 py-1 text-sm">
+                    <input
+                      type="radio"
+                      name={captionStyleName}
+                      value="boxed"
+                      checked={captionStyle === 'boxed'}
+                      onChange={() => setCaptionStyle('boxed')}
+                      className="h-4 w-4 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    />
+                    <span className={cn(captionStyle === 'boxed' && "font-medium")}>{t('previewDialog.captionStyleBoxed')}</span>
+                  </label>
+                </div>
+              </>
             )}
             <div className="flex items-center gap-2.5 py-1.5">
               <Checkbox

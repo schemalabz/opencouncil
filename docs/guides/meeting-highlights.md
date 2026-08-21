@@ -25,6 +25,7 @@ The system supports multiple video formats and rendering options:
 
 ### **Rendering Options**
 - **Captions**: Overlaid text transcription of spoken content
+- **Caption Style**: How the burnt-in captions are drawn. The `outline` style (default) draws white text with a black outline and shadow, so long captions do not cover the speaker. The `boxed` style draws white text on a semi-transparent black box.
 - **Speaker Overlays**: Visual identification of speakers during their segments
 - **Social Media Enhancements**: When using 9:16 format, additional options include:
   - Margin types: Blur or solid color backgrounds

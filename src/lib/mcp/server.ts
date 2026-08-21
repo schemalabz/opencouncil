@@ -462,6 +462,8 @@ function registerHighlightTools(server: McpServer) {
                 includeCaptions: z.boolean().default(true).describe('Burn subtitles into the video'),
                 includeSpeakerOverlay: z.boolean().default(true)
                     .describe('Show the speaker\'s name, role and party on screen'),
+                captionStyle: z.enum(['outline', 'boxed']).default('outline')
+                    .describe('"outline" is white subtitle text with a black outline; "boxed" is white text on a black box'),
             }),
         },
         (args, ctx: ServerContext) =>
@@ -470,6 +472,7 @@ function registerHighlightTools(server: McpServer) {
                     aspectRatio: args.aspectRatio,
                     includeCaptions: args.includeCaptions,
                     includeSpeakerOverlay: args.includeSpeakerOverlay,
+                    captionStyle: args.captionStyle,
                 })
             )
     );

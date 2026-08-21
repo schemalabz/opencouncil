@@ -179,6 +179,8 @@
     "captions": "Sous-titres",
     "captionsVerified": "La transcription a été révisée — les sous-titres seront exacts",
     "captionsUnverified": "La transcription n'a pas encore été révisée — certains sous-titres peuvent être inexacts",
+    "captionStyleOutline": "Texte blanc sans fond",
+    "captionStyleBoxed": "Texte blanc sur fond noir",
     "speakerOverlays": "Intervenants",
     "generateVideo": "Générer la vidéo",
     "regenerateVideo": "Régénérer la vidéo",

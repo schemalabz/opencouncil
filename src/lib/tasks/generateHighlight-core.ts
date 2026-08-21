@@ -11,7 +11,7 @@ import { getSpeakerDisplayInfo } from '@/lib/utils';
 
 export type GenerateHighlightOptions = Pick<
     GenerateHighlightRequest['render'],
-    'includeCaptions' | 'includeSpeakerOverlay' | 'aspectRatio' | 'socialOptions'
+    'includeCaptions' | 'includeSpeakerOverlay' | 'aspectRatio' | 'captionStyle' | 'socialOptions'
 > & {
     force?: boolean;
 };
@@ -114,6 +114,7 @@ export async function requestGenerateHighlightCore(highlightId: string, options?
             includeCaptions: options?.includeCaptions,
             includeSpeakerOverlay: options?.includeSpeakerOverlay,
             aspectRatio: options?.aspectRatio || 'default',
+            captionStyle: options?.captionStyle,
             ...(options?.aspectRatio === 'social-9x16' && options?.socialOptions && {
                 socialOptions: options.socialOptions
             }),

@@ -1,15 +1,16 @@
-import type { AspectRatio, GenerateHighlightRequest } from '@/lib/apiTypes';
+import type { AspectRatio, CaptionStyle, GenerateHighlightRequest } from '@/lib/apiTypes';
 import type { GenerateHighlightOptions } from '@/lib/tasks/generateHighlight-core';
 
 /**
  * The render settings an agent can choose for a highlight video — the same
- * three the website's highlight dialog offers. Pure module (no prisma) so the
+ * ones the website's highlight dialog offers. Pure module (no prisma) so the
  * defaulting and comparison logic is unit-testable on its own.
  */
 export type HighlightRenderOptions = {
     aspectRatio: AspectRatio;
     includeCaptions: boolean;
     includeSpeakerOverlay: boolean;
+    captionStyle: CaptionStyle;
 };
 
 /**
@@ -21,6 +22,7 @@ export const DEFAULT_RENDER_OPTIONS: HighlightRenderOptions = {
     aspectRatio: 'default',
     includeCaptions: true,
     includeSpeakerOverlay: true,
+    captionStyle: 'outline',
 };
 
 function definedOnly(options?: Partial<HighlightRenderOptions>): Partial<HighlightRenderOptions> {
@@ -44,6 +46,7 @@ export function toGenerateOptions(options: HighlightRenderOptions): GenerateHigh
         includeCaptions: options.includeCaptions,
         includeSpeakerOverlay: options.includeSpeakerOverlay,
         aspectRatio: options.aspectRatio,
+        captionStyle: options.captionStyle,
         ...(options.aspectRatio === 'social-9x16' && {
             socialOptions: { marginType: 'blur' as const, zoomFactor: 1.0 },
         }),
@@ -59,6 +62,9 @@ export function renderOptionsFromRequestBody(requestBody: string): HighlightRend
             aspectRatio: body.render.aspectRatio,
             includeCaptions: body.render.includeCaptions,
             includeSpeakerOverlay: body.render.includeSpeakerOverlay,
+            // Requests recorded before captionStyle existed rendered the boxed
+            // style, so a missing field means 'boxed', not today's default.
+            captionStyle: body.render.captionStyle ?? 'boxed',
         });
     } catch {
         return null;
@@ -68,5 +74,6 @@ export function renderOptionsFromRequestBody(requestBody: string): HighlightRend
 export function sameRenderOptions(a: HighlightRenderOptions, b: HighlightRenderOptions): boolean {
     return a.aspectRatio === b.aspectRatio
         && a.includeCaptions === b.includeCaptions
-        && a.includeSpeakerOverlay === b.includeSpeakerOverlay;
+        && a.includeSpeakerOverlay === b.includeSpeakerOverlay
+        && a.captionStyle === b.captionStyle;
 }

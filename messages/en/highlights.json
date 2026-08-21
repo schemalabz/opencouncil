@@ -179,6 +179,8 @@
     "captions": "Captions",
     "captionsVerified": "Transcript has been reviewed — captions will be accurate",
     "captionsUnverified": "Transcript not yet reviewed — some captions may be inaccurate",
+    "captionStyleOutline": "White text, no background",
+    "captionStyleBoxed": "White text on black box",
     "speakerOverlays": "Speakers",
     "generateVideo": "Generate Video",
     "regenerateVideo": "Re-generate Video",

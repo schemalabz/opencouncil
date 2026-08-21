@@ -8,11 +8,12 @@ import {
 } from '../render';
 
 describe('resolveRenderOptions', () => {
-    it('defaults to landscape with subtitles and speaker overlays, matching the web UI', () => {
+    it('defaults to landscape with outline subtitles and speaker overlays, matching the web UI', () => {
         expect(resolveRenderOptions()).toEqual({
             aspectRatio: 'default',
             includeCaptions: true,
             includeSpeakerOverlay: true,
+            captionStyle: 'outline',
         });
     });
 
@@ -25,6 +26,10 @@ describe('resolveRenderOptions', () => {
             ...DEFAULT_RENDER_OPTIONS,
             includeCaptions: false,
         });
+        expect(resolveRenderOptions({ captionStyle: 'boxed' })).toEqual({
+            ...DEFAULT_RENDER_OPTIONS,
+            captionStyle: 'boxed',
+        });
     });
 
     it('does not let explicit undefined clobber a default', () => {
@@ -33,15 +38,17 @@ describe('resolveRenderOptions', () => {
 });
 
 describe('toGenerateOptions', () => {
-    it('passes the three settings through', () => {
+    it('passes the settings through', () => {
         expect(toGenerateOptions({
             aspectRatio: 'default',
             includeCaptions: false,
             includeSpeakerOverlay: true,
+            captionStyle: 'boxed',
         })).toEqual({
             aspectRatio: 'default',
             includeCaptions: false,
             includeSpeakerOverlay: true,
+            captionStyle: 'boxed',
         });
     });
 
@@ -50,6 +57,7 @@ describe('toGenerateOptions', () => {
             aspectRatio: 'social-9x16',
             includeCaptions: true,
             includeSpeakerOverlay: true,
+            captionStyle: 'outline',
         });
         expect(social.socialOptions).toEqual({ marginType: 'blur', zoomFactor: 1.0 });
 
@@ -63,10 +71,26 @@ describe('renderOptionsFromRequestBody', () => {
             aspectRatio: 'social-9x16' as const,
             includeCaptions: false,
             includeSpeakerOverlay: true,
+            captionStyle: 'boxed' as const,
         };
         const requestBody = JSON.stringify({ render: toGenerateOptions(options) });
 
         expect(renderOptionsFromRequestBody(requestBody)).toEqual(options);
+    });
+
+    it('reads a pre-captionStyle request as boxed, since that is what it rendered', () => {
+        const requestBody = JSON.stringify({
+            render: {
+                aspectRatio: 'default',
+                includeCaptions: true,
+                includeSpeakerOverlay: true,
+            },
+        });
+
+        expect(renderOptionsFromRequestBody(requestBody)).toEqual({
+            ...DEFAULT_RENDER_OPTIONS,
+            captionStyle: 'boxed',
+        });
     });
 
     it('returns null for malformed or render-less bodies', () => {
@@ -89,6 +113,10 @@ describe('sameRenderOptions', () => {
         expect(sameRenderOptions(DEFAULT_RENDER_OPTIONS, {
             ...DEFAULT_RENDER_OPTIONS,
             includeSpeakerOverlay: false,
+        })).toBe(false);
+        expect(sameRenderOptions(DEFAULT_RENDER_OPTIONS, {
+            ...DEFAULT_RENDER_OPTIONS,
+            captionStyle: 'boxed',
         })).toBe(false);
     });
 });

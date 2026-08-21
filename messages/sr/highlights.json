@@ -179,6 +179,8 @@
         "captions": "Титлови",
         "captionsVerified": "Транскрипт је прегледан — титлови ће бити тачни",
         "captionsUnverified": "Транскрипт још није прегледан — неки титлови могу бити нетачни",
+        "captionStyleOutline": "Бели текст без позадине",
+        "captionStyleBoxed": "Бели текст на црној позадини",
         "speakerOverlays": "Говорници",
         "generateVideo": "Генериши видео",
         "regenerateVideo": "Поново генериши видео",

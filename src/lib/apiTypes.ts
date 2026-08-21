@@ -413,6 +413,11 @@ export interface GenerateHighlightRequest extends TaskRequest {
         includeSpeakerOverlay?: boolean;
         aspectRatio?: AspectRatio;
 
+        // How burnt-in captions are drawn (unset means 'outline'):
+        // 'outline' is white text with a black outline and shadow, no background box;
+        // 'boxed' is the legacy white text on a semi-transparent black box.
+        captionStyle?: CaptionStyle;
+
         // Social media formatting options (only used when aspectRatio is 'social-9x16')
         socialOptions?: {
             marginType?: 'blur' | 'solid';
@@ -423,6 +428,7 @@ export interface GenerateHighlightRequest extends TaskRequest {
 }
 // Shared rendering types
 export type AspectRatio = 'default' | 'social-9x16';
+export type CaptionStyle = 'outline' | 'boxed';
 
 export interface GenerateHighlightResult {
     parts: Array<{
