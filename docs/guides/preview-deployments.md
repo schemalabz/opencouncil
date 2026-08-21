@@ -28,7 +28,7 @@ On the droplet, each PR maps to:
 | File | Purpose |
 |------|---------|
 | `flake.nix` → `opencouncil-prod` | `buildNpmPackage` producing a Next.js standalone build |
-| `flake.nix` → `nixosModules.opencouncil-preview` | Self-contained NixOS module: systemd service, Caddy, sudo rules, management scripts, garbage collection |
+| `flake.nix` → `previews.opencouncil` | Preview config export (start script, DB lifecycle hooks) consumed by the generic [pr-previews](https://github.com/schemalabz/pr-previews) NixOS module, which generates the systemd service, Caddy vhosts, sudo rules, and management scripts |
 | `.github/workflows/preview-deploy.yml` | Build + deploy on PR open/sync (includes health check) |
 | `.github/workflows/preview-cleanup.yml` | Teardown on PR close |
 
@@ -86,7 +86,7 @@ The droplet consumes the NixOS module directly from the flake. You need two file
       system = "x86_64-linux";
       modules = [
         (nixpkgs + "/nixos/modules/virtualisation/digital-ocean-config.nix")
-        opencouncil.nixosModules.opencouncil-preview
+        pr-previews.nixosModules.default
         ./configuration.nix
       ];
     };
@@ -104,10 +104,14 @@ The droplet consumes the NixOS module directly from the flake. You need two file
 
   networking.hostName = "opencouncil-preview";
 
-  services.opencouncil-preview = {
+  services.pr-previews = {
     enable = true;
-    envFile = "/var/lib/opencouncil-previews/.env";
-    cachix.enable = true;
+    user = "opencouncil";
+    group = "opencouncil";
+    projects.opencouncil = lib.mkMerge [
+      opencouncil.previews.opencouncil
+      { envFile = "/var/lib/opencouncil-previews/.env"; }
+    ];
   };
 
   services.openssh = {
@@ -132,7 +136,7 @@ The module is self-contained — it includes Caddy, firewall rules, sudo rules, 
 
 ### Updating the Module
 
-When `nixosModules.opencouncil-preview` changes in the repo, pull the update on the droplet:
+When the `previews.opencouncil` export (or the pr-previews module) changes, pull the update on the droplet:
 
 ```bash
 # Update the opencouncil flake input to latest commit
