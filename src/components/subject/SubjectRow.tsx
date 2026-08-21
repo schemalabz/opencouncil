@@ -25,7 +25,7 @@ interface SubjectRowProps {
     city: City;
     meeting: CouncilMeeting & { administrativeBody?: AdministrativeBody | null };
     persons: PersonWithRelations[];
-    /** Show the city / body / date line — off when the row already sits inside a meeting. */
+    /** Show the city / body / date line and the meeting name — off when the row already sits inside its meeting. */
     showContext?: boolean;
     openInNewTab?: boolean;
 }
@@ -150,7 +150,7 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
                             )}
 
                             <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                                <MetaItem icon={ScrollText}>{getLocalizedName(meeting, locale)}</MetaItem>
+                                {showContext && <MetaItem icon={ScrollText}>{getLocalizedName(meeting, locale)}</MetaItem>}
                                 <MetaItem icon={MapPin}>{locationText ?? t("noLocation")}</MetaItem>
                             </div>
                         </div>
@@ -196,7 +196,10 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
                                         )}
                                     </div>
                                 )}
-                                <div className="shrink-0 sm:mt-auto" onClick={(e) => e.stopPropagation()}>
+                                {/* ml-auto, not just the parent's justify-between: a subject with no
+                                    speaking stats has only this child, and justify-between would drop
+                                    the avatars to the left edge. */}
+                                <div className="ml-auto shrink-0 sm:mt-auto" onClick={(e) => e.stopPropagation()}>
                                     <PersonAvatarList users={speakers} size="sm" maxDisplayed={4} stacked />
                                 </div>
                             </>

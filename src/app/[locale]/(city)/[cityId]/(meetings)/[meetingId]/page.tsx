@@ -107,22 +107,16 @@ export default function MeetingPage() {
                     </div>
                 )}
 
-                {(beforeAgendaSubjects.length > 0 || outOfAgendaSubjects.length > 0) && (
-                    <div className={`max-w-4xl mx-auto ${beforeAgendaSubjects.length <= 1 && outOfAgendaSubjects.length <= 1 ? "flex flex-col lg:flex-row lg:flex-wrap gap-x-8" : "flex flex-col"}`}>
-                        <SubjectSection
-                            title={subjectCategories.beforeAgenda.label}
-                            explainerText={subjectCategories.beforeAgenda.explainerText}
-                            subjects={beforeAgendaSubjects}
-                            className="flex-1 min-w-0"
-                        />
-                        <SubjectSection
-                            title={subjectCategories.outOfAgenda.label}
-                            explainerText={subjectCategories.outOfAgenda.explainerText}
-                            subjects={outOfAgendaSubjects}
-                            className="flex-1 min-w-0"
-                        />
-                    </div>
-                )}
+                <SubjectSection
+                    title={subjectCategories.beforeAgenda.label}
+                    explainerText={subjectCategories.beforeAgenda.explainerText}
+                    subjects={beforeAgendaSubjects}
+                />
+                <SubjectSection
+                    title={subjectCategories.outOfAgenda.label}
+                    explainerText={subjectCategories.outOfAgenda.explainerText}
+                    subjects={outOfAgendaSubjects}
+                />
 
                 {(beforeAgendaSubjects.length > 0 || outOfAgendaSubjects.length > 0) && agendaSubjects.length > 0 && (
                     <div className="max-w-4xl mx-auto mt-10"><hr className="border-border" /></div>
