@@ -251,6 +251,13 @@ export default function SearchPage() {
 
         const runId = ++searchRunIdRef.current;
         const isCurrentRun = () => runId === searchRunIdRef.current;
+        // The marker describes a search that has already finished, so starting
+        // another one makes it stale. Left set, a later pass could match it and
+        // skip a search this one is about to contradict: clear a derived filter
+        // and restore it while the first change is still in flight, and the
+        // results that land are the unfiltered ones, under a pill saying
+        // otherwise.
+        executedSearchRef.current = null;
 
         // Skip search if temporarily disabled
         if (SEARCH_TEMPORARILY_DISABLED) {
@@ -311,12 +318,6 @@ export default function SearchPage() {
                 derivedUpdates.cityId = derivedCityIds[0];
                 newlyDerived.push('city');
             }
-            // The date the URL will carry, which is not the date the model
-            // answered with: a derived range goes into the URL as a calendar
-            // day and comes back out bounded on local day edges. The key below
-            // has to hold that value, or it can never match and the search it
-            // exists to skip runs anyway.
-            let effectiveDateRange = requestedDateRange;
             if (derivedRange) {
                 const from = parseFilterDate(derivedRange.start);
                 const to = parseFilterDate(derivedRange.end);
@@ -324,20 +325,28 @@ export default function SearchPage() {
                     derivedUpdates.dateFrom = formatFilterDate(from);
                     derivedUpdates.dateTo = formatFilterDate(to);
                     newlyDerived.push('date');
-                    effectiveDateRange = filterDateRangeToInstants(derivedUpdates.dateFrom, derivedUpdates.dateTo);
                 }
             }
 
-            // Record the search that produced these results by the filters it
-            // ran with, not the ones that were asked for — the write below
-            // turns the derived ones into explicit params, and that must not
-            // read as a different search.
+            // Record what this search actually ran with, so the pass that
+            // follows the URL write can tell whether it would be asking the
+            // same question.
             //
-            // The city stays as the whole derived list on purpose. Only its
+            // A derived date usually means it would not. The model answers with
+            // a range of its own, while the URL carries a calendar day and
+            // reads back local day edges — rarely the same instants. The second
+            // search is the correction for that, not waste: recording the URL's
+            // interval here instead would suppress it and leave the results on
+            // screen describing one period while the pill and the shareable
+            // link claim another.
+            //
+            // The city is the whole derived list for the same reason: only its
             // first entry reaches the URL, so a query naming two municipalities
-            // deliberately fails to match here and searches again, narrowed to
-            // the one the pill shows.
-            executedSearchRef.current = searchedWith(derivedCityIds ?? requestedCityIds, effectiveDateRange);
+            // searches again, narrowed to the one the pill shows.
+            executedSearchRef.current = searchedWith(
+                derivedCityIds ?? requestedCityIds,
+                requestedDateRange ?? derivedRange,
+            );
 
             setState({
                 results: response.results,
