@@ -1453,7 +1453,10 @@ EOF
         prismaEnv = self.lib.mkPrismaEnv;
         opensslEnv = self.lib.mkOpenSslEnv;
       in {
-        hostPattern = "pr-@id@.preview.opencouncil.gr";
+        hostPattern = "pr-@id@.opencouncil.dev";
+        # Keep the old preview URLs answering with 301s during the move;
+        # drop once the migration settles.
+        redirectFrom = [ "pr-@id@.preview.opencouncil.gr" ];
         basePort = 3000;
         caddyBaseVirtualHost = true;
 

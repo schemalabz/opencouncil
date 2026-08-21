@@ -16,6 +16,11 @@ concurrency:
 
 env:
   CACHIX_CACHE_NAME: ${{ secrets.CACHIX_CACHE_NAME || 'opencouncil' }}
+  # Preview hostnames: pr-<N>.<PREVIEW_DOMAIN>. Keep PREVIEW_DOMAIN in step with
+  # services.opencouncil-preview.previewDomain on the droplet — the droplet is
+  # what actually serves the host, this only names it for links and health checks.
+  PREVIEW_DOMAIN: opencouncil.dev
+  TASKS_PREVIEW_DOMAIN: tasks.opencouncil.dev
 
 jobs:
   # Route the deploy through the right environment: PRs authored by users
@@ -318,7 +323,7 @@ jobs:
 
           echo "### 🚀 Preview Deployed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Preview URL: https://pr-$PR_NUM.preview.opencouncil.gr" >> $GITHUB_STEP_SUMMARY
+          echo "Preview URL: https://pr-$PR_NUM.$PREVIEW_DOMAIN" >> $GITHUB_STEP_SUMMARY
           echo "Port: $PORT" >> $GITHUB_STEP_SUMMARY
           if [ "$HAS_MIGRATIONS" = "true" ]; then
             echo "Database: Isolated (PostGIS 3.3.5, seed data)" >> $GITHUB_STEP_SUMMARY
@@ -326,14 +331,14 @@ jobs:
             echo "Database: Shared staging" >> $GITHUB_STEP_SUMMARY
           fi
           if [ -n "${LINKED_TASKS_PR:-}" ]; then
-            echo "Tasks API: https://pr-${LINKED_TASKS_PR}.tasks.opencouncil.gr" >> $GITHUB_STEP_SUMMARY
+            echo "Tasks API: https://pr-${LINKED_TASKS_PR}.$TASKS_PREVIEW_DOMAIN" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Health check
         id: health-check
         run: |
           PR_NUM="${{ github.event.pull_request.number }}"
-          URL="https://pr-${PR_NUM}.preview.opencouncil.gr"
+          URL="https://pr-${PR_NUM}.${PREVIEW_DOMAIN}"
           for i in $(seq 1 10); do
             HTTP_CODE=$(curl -sL -o /dev/null -w '%{http_code}' --max-time 10 "$URL" || echo "000")
             if [ "$HTTP_CODE" = "200" ]; then
@@ -353,7 +358,7 @@ jobs:
           script: |
             const commentId = ${{ steps.pr-comment.outputs.comment-id }};
             const prNumber = context.payload.pull_request.number;
-            const previewUrl = 'https://pr-' + prNumber + '.preview.opencouncil.gr';
+            const previewUrl = 'https://pr-' + prNumber + '.' + process.env.PREVIEW_DOMAIN;
             const commitSha = context.payload.pull_request.head.sha.substring(0, 7);
             const healthStatus = '${{ steps.health-check.outputs.status }}';
             const logsUrl = context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId;
@@ -370,7 +375,7 @@ jobs:
               + '**Database:** ' + (hasMigrations ? 'Isolated (PostGIS 3.3.5, seed data)' : 'Shared staging') + '\n';
 
             if (linkedTasksPr) {
-              body += '**Tasks API:** https://pr-' + linkedTasksPr + '.tasks.opencouncil.gr\n';
+              body += '**Tasks API:** https://pr-' + linkedTasksPr + '.' + process.env.TASKS_PREVIEW_DOMAIN + '\n';
             }
 
             body += '\nThe preview will be automatically updated when you push new commits.\n'

@@ -1,6 +1,6 @@
 # PR Preview Deployments
 
-Automated per-PR preview environments on a NixOS droplet. Each PR gets a subdomain (`pr-123.preview.opencouncil.gr`), a systemd service, and Caddy reverse proxy entry. All previews share a staging database.
+Automated per-PR preview environments on a NixOS droplet. Each PR gets a subdomain (`pr-123.opencouncil.dev`), a systemd service, and Caddy reverse proxy entry. All previews share a staging database.
 
 ## How It Works
 
@@ -21,14 +21,14 @@ On the droplet, each PR maps to:
 - **Port**: `3000 + PR_NUMBER` (PR #123 → port 3123)
 - **Service**: `opencouncil-preview@3123.service`
 - **Caddy config**: `/etc/caddy/conf.d/pr-123.conf` → reverse proxy to `localhost:3123`
-- **URL**: `https://pr-123.preview.opencouncil.gr`
+- **URL**: `https://pr-123.opencouncil.dev`
 
 ## Repository Files
 
 | File | Purpose |
 |------|---------|
 | `flake.nix` → `opencouncil-prod` | `buildNpmPackage` producing a Next.js standalone build |
-| `flake.nix` → `nixosModules.opencouncil-preview` | Self-contained NixOS module: systemd service, Caddy, sudo rules, management scripts, garbage collection |
+| `flake.nix` → `previews.opencouncil` | Preview config export (start script, DB lifecycle hooks) consumed by the generic [pr-previews](https://github.com/schemalabz/pr-previews) NixOS module, which generates the systemd service, Caddy vhosts, sudo rules, and management scripts |
 | `.github/workflows/preview-deploy.yml` | Build + deploy on PR open/sync (includes health check) |
 | `.github/workflows/preview-cleanup.yml` | Teardown on PR close |
 
@@ -48,7 +48,25 @@ The `opencouncil-prod` package in `flake.nix` uses `buildNpmPackage` with these 
 
 - NixOS droplet
 - Minimum: 2 GB RAM, 20 GB disk
-- DNS: `A preview → <ip>` and `A *.preview → <ip>` for `opencouncil.gr`
+- DNS. `opencouncil.dev` is delegated to the DigitalOcean nameservers, the same
+  as `opencouncil.gr`. Add the domain under **Networking → Domains**, then add
+  two records that point at the droplet IP:
+
+  | Type | Hostname | Value |
+  |------|----------|-------|
+  | A | `@` | `<droplet-ip>` |
+  | A | `*` | `<droplet-ip>` |
+
+  A DNS wildcard matches one label only. A preview host must therefore stay one
+  label deep: `pr-123.opencouncil.dev` resolves, `pr-123.preview.opencouncil.dev`
+  does not. Do not put a TLS-terminating proxy in front of these records. Caddy
+  answers the ACME challenge itself, and a proxy in front of it blocks the
+  challenge.
+
+  `.dev` is on the HSTS preload list, so browsers force HTTPS on every preview.
+  Caddy issues one certificate per hostname on demand, which satisfies that.
+  Previews also stop consuming the Let's Encrypt certificate quota of
+  `opencouncil.gr`.
 
 ### Configuration
 
@@ -68,7 +86,7 @@ The droplet consumes the NixOS module directly from the flake. You need two file
       system = "x86_64-linux";
       modules = [
         (nixpkgs + "/nixos/modules/virtualisation/digital-ocean-config.nix")
-        opencouncil.nixosModules.opencouncil-preview
+        pr-previews.nixosModules.default
         ./configuration.nix
       ];
     };
@@ -86,10 +104,14 @@ The droplet consumes the NixOS module directly from the flake. You need two file
 
   networking.hostName = "opencouncil-preview";
 
-  services.opencouncil-preview = {
+  services.pr-previews = {
     enable = true;
-    envFile = "/var/lib/opencouncil-previews/.env";
-    cachix.enable = true;
+    user = "opencouncil";
+    group = "opencouncil";
+    projects.opencouncil = lib.mkMerge [
+      opencouncil.previews.opencouncil
+      { envFile = "/var/lib/opencouncil-previews/.env"; }
+    ];
   };
 
   services.openssh = {
@@ -114,7 +136,7 @@ The module is self-contained — it includes Caddy, firewall rules, sudo rules, 
 
 ### Updating the Module
 
-When `nixosModules.opencouncil-preview` changes in the repo, pull the update on the droplet:
+When the `previews.opencouncil` export (or the pr-previews module) changes, pull the update on the droplet:
 
 ```bash
 # Update the opencouncil flake input to latest commit
@@ -123,6 +145,42 @@ nix flake update opencouncil --flake /etc/nixos
 # Apply
 nixos-rebuild switch --flake /etc/nixos#preview
 ```
+
+### Changing the Preview Domain
+
+The domain lives in three places. Change all three together:
+
+1. `services.opencouncil-preview.previewDomain` in the module (`flake.nix`). It
+   sets the Caddy vhost of each preview and the `NEXTAUTH_URL` of each instance.
+2. `PREVIEW_DOMAIN` in `.github/workflows/preview-deploy.yml`. It sets the
+   health-check URL and the URL in the PR comment.
+3. `PREVIEW_DOMAIN` in `src/lib/realm.ts`. `isKnownRealmHost` gates the SEO
+   redirects and the magic-link host rewrite on it. A preview on a host that
+   this constant does not cover stops reproducing production.
+
+To keep the old hostnames alive during the move, set `legacyPreviewDomain` to
+the previous domain. Each preview then gets a second vhost,
+`pr-<N>.<legacyPreviewDomain>`, that 301s to the new URL. Old DNS must stay in
+place while this option is set. Set the option back to `null` after every open
+PR redeploys.
+
+An open PR keeps its old Caddy config until its next deployment. To move the
+existing previews immediately, regenerate their configs on the droplet:
+
+```bash
+for f in /etc/caddy/conf.d/pr-*.conf; do
+  n=$(basename "$f" .conf)
+  n=${n#pr-}
+  port=$((3000 + n))
+  caddy-add-preview "$n"
+  systemctl is-active --quiet "opencouncil-preview@$port" && systemctl restart "opencouncil-preview@$port"
+done
+```
+
+`nixos-rebuild switch` normally restarts the instances itself, because the new
+`NEXTAUTH_URL` changes the unit. The explicit restart makes that certain. A
+preview that keeps the old `NEXTAUTH_URL` serves on the new host but still mails
+magic links that point at the old one.
 
 ### SSH Key for GitHub Actions
 
@@ -148,7 +206,7 @@ The app requires many env vars at runtime (API keys, storage config, etc.). Thes
 - `PORT` — `basePort + PR_NUMBER`
 - `NODE_ENV=production`
 - `HOSTNAME=0.0.0.0`
-- `NEXTAUTH_URL` — `https://pr-<N>.preview.opencouncil.gr` (used for all URL construction: callbacks, emails, etc.)
+- `NEXTAUTH_URL` — `https://pr-<N>.opencouncil.dev` (used for all URL construction: callbacks, emails, etc.)
 
 **Shared (env file at `/var/lib/opencouncil-previews/.env`):**
 
@@ -266,7 +324,7 @@ ssh root@$DROPLET "sudo opencouncil-preview-create 999 $(readlink ./result)"
 ### 4. Verify
 
 ```bash
-curl -sI https://pr-999.preview.opencouncil.gr | head -20
+curl -sI https://pr-999.opencouncil.dev | head -20
 ```
 
 ### 5. Teardown
@@ -320,7 +378,7 @@ STORE_PATH=$(readlink ./result)
 ssh root@<droplet-ip> "sudo opencouncil-preview-create 9999 '$STORE_PATH' --with-db"
 
 # 5. Test the preview
-curl -I https://pr-9999.preview.opencouncil.gr
+curl -I https://pr-9999.opencouncil.dev
 
 # 6. Check logs if needed
 ssh root@<droplet-ip> "journalctl -u opencouncil-preview@12999 -n 50"
@@ -360,13 +418,13 @@ psql -h 127.0.0.1 -p $((5432 + PR_NUM)) -U opencouncil -d opencouncil
 
 ## Testing Other Realms
 
-Preview hosts are subdomains of `opencouncil.gr`, so every preview resolves to
-the **greece** realm by Host header — and some realm domains (e.g.
+`opencouncil.dev` belongs to no realm, so every preview resolves to the
+**greece** realm by Host header — and some realm domains (e.g.
 `opencouncil.rs`) have no DNS at all yet. To review another realm, append
 `?realm=<realm>` to any preview URL:
 
 ```
-https://pr-288.preview.opencouncil.gr/?realm=serbia
+https://pr-288.opencouncil.dev/?realm=serbia
 ```
 
 The proxy stores the realm in an `oc-realm` cookie (30 days) and redirects to
@@ -395,7 +453,7 @@ sudo opencouncil-preview-create <num> "$STORE_PATH" --with-db
 To avoid this, prefer creating additive migrations instead of amending existing ones. If you must amend, remember to reset the preview DB afterwards.
 
 **Preview not accessible:**
-1. DNS: `dig pr-123.preview.opencouncil.gr` should resolve to droplet IP
+1. DNS: `dig pr-123.opencouncil.dev` should resolve to droplet IP
 2. Caddy: `systemctl status caddy` + check `/etc/caddy/conf.d/pr-123.conf` exists
 3. Service: `systemctl status opencouncil-preview@3123` should be active
 4. Logs: `journalctl -u opencouncil-preview@3123 -n 100`
