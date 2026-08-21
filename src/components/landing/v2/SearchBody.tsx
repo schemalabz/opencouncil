@@ -1,18 +1,18 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { MapPin, Landmark, Loader2, Search } from 'lucide-react';
+import { MapPin, Landmark, Search } from 'lucide-react';
 import type { Topic } from '@prisma/client';
-import { cn, normalizeText } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import Icon from '@/components/icon';
 import { Eyebrow } from './shared';
 import { topicStyle } from '@/lib/topicStyle';
 import { TopicIcon } from '@/components/TopicIcon';
-import { type LandingListCity, type LandingSubject, type QueryKind } from '@/lib/landing/landingData';
-import { PetitionCta } from './MunicipalitiesList';
+import { type LandingListCity } from '@/lib/landing/landingData';
 import { BODY_TYPES, EMPTY_FILTERS, toggleValue, type MapFilters } from '@/lib/landing/landingCore';
 import { CityAvatar } from './controls';
 import { useSearchMatches } from './hooks/useSearchMatches';
+import { searchOptionId, type SearchOption } from './hooks/useSearchOptions';
 
 /* native date input with a Greek placeholder. Browsers localise the field from the UI
    language (not `lang`), so when empty we hide the native text and overlay "ηη/μμ/εεεε". */
@@ -51,25 +51,100 @@ function DateField({
     );
 }
 
-/* Search dropdown/overlay body — same on desktop and mobile. Typing shows actionable options
-   (apply category, filter by δήμος, petition, fly to address) + matching subjects; idle shows
-   popular searches + filters. Query interpretation lives in useSearchMatches. */
+/**
+ * One action row.
+ *
+ * `highlighted` is the keyboard cursor, not a selection — the pointer moving over
+ * a row takes it, so the two input methods never argue about which row Enter
+ * would act on.
+ */
+function SearchOptionRow({
+    id,
+    option,
+    query,
+    highlighted,
+    onHighlight,
+    onActivate,
+}: {
+    id: string;
+    option: SearchOption;
+    query: string;
+    highlighted: boolean;
+    onHighlight: () => void;
+    onActivate: () => void;
+}) {
+    const t = useTranslations('landingV2');
+
+    const { label, value, icon, accent } = (() => {
+        switch (option.kind) {
+            case 'category':
+                return {
+                    label: t('search.filterCategory'),
+                    value: option.topic.name,
+                    icon: <TopicIcon color={option.topic.colorHex} icon={option.topic.icon} size="sm" className="h-7 w-7 p-0" />,
+                    accent: false,
+                };
+            case 'municipality':
+                return {
+                    label: t('search.filterMunicipality'),
+                    value: option.municipality.nameMunicipality,
+                    icon: <Landmark className="h-4 w-4" />,
+                    accent: false,
+                };
+            case 'subjects':
+                return { label: t('search.searchSubjects'), value: `“${query.trim()}”`, icon: <Search className="h-4 w-4" />, accent: true };
+            case 'address':
+                return { label: t('search.subjectsNearAddress'), value: `“${query.trim()}”`, icon: <MapPin className="h-4 w-4" />, accent: true };
+        }
+    })();
+
+    return (
+        <button
+            type="button"
+            id={id}
+            role="option"
+            aria-selected={highlighted}
+            onClick={onActivate}
+            onMouseMove={onHighlight}
+            className={cn(
+                'flex w-full items-center gap-2 rounded-xl border bg-background px-3 py-2.5 text-left text-sm transition-colors',
+                highlighted ? 'border-foreground/30 bg-muted' : 'border-border',
+            )}
+        >
+            {option.kind === 'category' ? (
+                icon
+            ) : (
+                <span
+                    className={cn(
+                        'flex h-7 w-7 shrink-0 items-center justify-center rounded-full',
+                        accent ? 'bg-[hsl(var(--orange))]/10 text-[hsl(var(--orange))]' : 'bg-muted text-foreground/70',
+                    )}
+                >
+                    {icon}
+                </span>
+            )}
+            <span className="min-w-0 flex-1 text-muted-foreground">
+                {label} <span className="font-semibold text-foreground">{value}</span>
+            </span>
+        </button>
+    );
+}
+
+/* Search dropdown/overlay body — same on desktop and mobile. Typing shows the actions on offer
+   for what was typed; idle shows the filters. Query interpretation lives in useSearchMatches. */
 export function SearchBody({
     topics,
     cities,
     cats,
     filters,
     onFiltersChange,
-    onPickKeyword,
     onToggleCat,
     onClearCats,
     query,
-    queryKind,
-    results,
-    loading,
-    onPickResult,
-    onLocateAddress,
-    onCommitSearch,
+    options,
+    highlightedIndex,
+    onHighlight,
+    onActivate,
     forceFilters = false,
 }: {
     topics: Topic[];
@@ -78,155 +153,40 @@ export function SearchBody({
     cats: string[];
     filters: MapFilters;
     onFiltersChange: (next: MapFilters) => void;
-    /** a popular search was chosen → fill the search bar with it */
-    onPickKeyword: (keyword: string) => void;
     onToggleCat: (topicId: string) => void;
     onClearCats: () => void;
     query: string;
-    queryKind: QueryKind;
-    /** subject matches for the current query (title/address) */
-    results: LandingSubject[];
-    /** the subjects are being (re)fetched → show a spinner instead of stale results */
-    loading?: boolean;
-    onPickResult: (id: string) => void;
-    /** geocode the query as an address and fly there (also closes the dropdown) */
-    onLocateAddress: (q: string) => void;
-    /** commit the text as a search over the councils' discussions */
-    onCommitSearch: (q: string) => void;
+    /** the actions on offer for the current text, in display order */
+    options: SearchOption[];
+    /** which option the keyboard is on — always a valid index while options exist */
+    highlightedIndex: number;
+    /** the pointer moved onto an option, so the keyboard cursor follows it */
+    onHighlight: (index: number) => void;
+    onActivate: (option: SearchOption) => void;
     /** opened via the filters icon → show the filters even if a query is present (until the input is
      *  focused), so the icon reliably lands on the filters rather than the query's results */
     forceFilters?: boolean;
 }) {
     const t = useTranslations('landingV2');
-    const { unknownMunicipality, matchedTopic, knownMunicipality, showAddressOption, dateActive, anyFilterActive } = useSearchMatches({
-        query,
-        queryKind,
-        cities,
-        topics,
-        cats,
-        filters,
-    });
-    // Guard the "near address" option against curated topic keywords: classifySearchQuery falls back
-    // to 'address' for any keyword matching no loaded subject, so without this, typing a topic like
-    // "Προϋπολογισμός" would wrongly offer to geocode it. Uses the curated list (not the retired
-    // dynamic popular-searches feed, whose real-query data could suppress genuine address searches).
-    const curatedKeywords = t.raw('popularSearches') as string[];
-    const normalizedQuery = normalizeText(query).trim();
-    const isCuratedKeyword = curatedKeywords.some((k) => normalizeText(k).trim() === normalizedQuery);
-    const showAddress = showAddressOption && !isCuratedKeyword;
+    const { dateActive, anyFilterActive } = useSearchMatches({ query, cities, topics, cats, filters });
 
-    // While typing, replace the default suggestions/filters with the matching subjects — unless the
+    // While typing, replace the default suggestions/filters with the actions on offer — unless the
     // panel was opened via the filters icon, which wants the filters shown even with a query present.
     if (query.trim() && !forceFilters) {
         return (
-            <>
-                {unknownMunicipality && (
-                    <div className="mb-3">
-                        <PetitionCta unknownName={unknownMunicipality} source="search" />
-                    </div>
-                )}
-                {matchedTopic && (
-                    <button
-                        type="button"
-                        onClick={() => onToggleCat(matchedTopic.id)}
-                        className="mb-3 flex w-full items-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5 text-left text-sm transition-colors hover:border-foreground/30"
-                    >
-                        <TopicIcon
-                            color={matchedTopic.colorHex}
-                            icon={matchedTopic.icon}
-                            size="sm"
-                            className="h-7 w-7 p-0"
-                        />
-                        <span className="min-w-0 flex-1 text-muted-foreground">
-                            {t('search.filterCategory')}{' '}
-                            <span className="font-semibold text-foreground">{matchedTopic.name}</span>
-                        </span>
-                    </button>
-                )}
-                {knownMunicipality && (
-                    <button
-                        type="button"
-                        onClick={() => onFiltersChange({ ...filters, cityIds: [knownMunicipality.cityId] })}
-                        className="mb-3 flex w-full items-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5 text-left text-sm transition-colors hover:border-foreground/30"
-                    >
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-foreground/70">
-                            <Landmark className="h-4 w-4" />
-                        </span>
-                        <span className="min-w-0 flex-1 text-muted-foreground">
-                            {t('search.filterMunicipality')}{' '}
-                            <span className="font-semibold text-foreground">{knownMunicipality.nameMunicipality}</span>
-                        </span>
-                    </button>
-                )}
-                {/* Above the address row, and shown whatever the text looks like:
-                    the local matches below only cover titles and street names of
-                    the subjects already loaded, so this is the only row that can
-                    answer a question about what was said. */}
-                <button
-                    type="button"
-                    onClick={() => onCommitSearch(query)}
-                    className="mb-3 flex w-full items-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5 text-left text-sm transition-colors hover:border-foreground/30"
-                >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--orange))]/10 text-[hsl(var(--orange))]">
-                        <Search className="h-4 w-4" />
-                    </span>
-                    <span className="min-w-0 flex-1 text-muted-foreground">
-                        {t('search.searchDiscussions')}{' '}
-                        <span className="font-semibold text-foreground">“{query.trim()}”</span>
-                    </span>
-                </button>
-                {showAddress && (
-                    <button
-                        type="button"
-                        onClick={() => onLocateAddress(query)}
-                        className="mb-3 flex w-full items-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5 text-left text-sm transition-colors hover:border-foreground/30"
-                    >
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--orange))]/10 text-[hsl(var(--orange))]">
-                            <MapPin className="h-4 w-4" />
-                        </span>
-                        <span className="min-w-0 flex-1 text-muted-foreground">
-                            {t('search.subjectsNearAddress')}{' '}
-                            <span className="font-semibold text-foreground">“{query.trim()}”</span>
-                        </span>
-                    </button>
-                )}
-                {loading ? (
-                    <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" /> {t('list.loading')}
-                    </div>
-                ) : results.length === 0 ? (
-                    // The search row above is always offered, so an empty local
-                    // match list is never a dead end and needs no message.
-                    null
-                ) : (
-                    <div className="flex flex-col gap-0.5">
-                        {results.map((s) => (
-                            <button
-                                key={s.id}
-                                type="button"
-                                onClick={() => onPickResult(s.id)}
-                                className="flex w-full items-start gap-2.5 rounded-xl px-2 py-2 text-left transition-colors hover:bg-muted"
-                            >
-                                <TopicIcon
-                                    color={s.topic.color}
-                                    icon={s.topic.icon}
-                                    size="sm"
-                                    className="mt-0.5 h-7 w-7 p-0"
-                                />
-                                <span className="min-w-0 flex-1">
-                                    <span className="line-clamp-2 text-[14px] font-medium leading-snug text-foreground">
-                                        {s.title}
-                                    </span>
-                                    <span className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                                        <MapPin className="h-3 w-3 shrink-0" />
-                                        <span className="truncate">{s.where || s.cityName}</span>
-                                    </span>
-                                </span>
-                            </button>
-                        ))}
-                    </div>
-                )}
-            </>
+            <div role="listbox" aria-label={t('search.optionsLabel')} className="flex flex-col gap-2">
+                {options.map((option, index) => (
+                    <SearchOptionRow
+                        key={searchOptionId(option, index)}
+                        id={searchOptionId(option, index)}
+                        option={option}
+                        query={query}
+                        highlighted={index === highlightedIndex}
+                        onHighlight={() => onHighlight(index)}
+                        onActivate={() => onActivate(option)}
+                    />
+                ))}
+            </div>
         );
     }
 

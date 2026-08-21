@@ -34,7 +34,6 @@ export function MobileLayout({
     setFilters,
     query,
     setQuery,
-    queryKind,
     topics,
     cities,
     subjectCountByCity,
@@ -46,7 +45,6 @@ export function MobileLayout({
     previewId,
     previewSubject,
     loading,
-    searchResults,
     coLocated,
     onCoLocatedSelect,
     onCoLocatedClose,
@@ -267,13 +265,12 @@ export function MobileLayout({
                                     {/* what the strip actually is — a small pill floating over the
                                         map (costs no layout space). Hidden while a text search
                                         re-purposes the list into plain matches. */}
-                                    {tab === 'subjects' && !query.trim() && (committedSearch || trending.length > 0) && (
-                                        <div className="mb-2 px-3">
-                                            {committedSearch ? (
+                                    {tab === 'subjects' && (committedSearch || trending.length > 0) && (
+                                        <div className="mb-2 flex items-center gap-2 px-3">
+                                            {committedSearch && (
                                                 <SearchChip search={committedSearch} onClear={onClearSearch} floating />
-                                            ) : (
-                                                <RankedListHint floating />
                                             )}
+                                            <RankedListHint floating searchQuery={committedSearch?.query} />
                                         </div>
                                     )}
                                     {tab === 'subjects' ? (
@@ -321,15 +318,8 @@ export function MobileLayout({
                     onFiltersChange={setFilters}
                     query={query}
                     onQueryChange={setQuery}
-                    queryKind={queryKind}
-                    results={searchResults}
-                    loading={loading}
                     autoFocusInput={searchMode === 'search'}
                     scrollToActiveFilter={searchMode === 'filters'}
-                    onPickResult={(id) => {
-                        selectSubject(id);
-                        setSearchMode(null);
-                    }}
                     onClose={() => setSearchMode(null)}
                     onToggleCat={onToggleCat}
                     onClearCats={onClearCats}

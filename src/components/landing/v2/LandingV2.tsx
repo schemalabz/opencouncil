@@ -208,14 +208,9 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         ),
     });
 
-    // A free-text search ignores the range dropdown so it spans every subject (see useLandingData).
-    // Not while a search is committed: its results are what the map shows, so
-    // fetching the whole realm behind them would be work nothing reads.
-    const searching = !committedSearch && query.trim().length > 0;
     const { cities, upcoming, subjectCountByCity, mapCities, petitionedCities, petitionedBelowThreshold, mapSubjects, generalRows, loading } = useLandingData({
         range,
         filters,
-        searching,
         initial,
     });
     const activeMapSubjects = committedSearch ? committedSearch.located : mapSubjects;
@@ -233,7 +228,7 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         setView(init.view);
         setInfoOpen(init.infoOpen);
         setCats(init.cats);
-        setQuery(init.query);
+        setQuery(init.search || init.query);
         setRange(init.range);
         setFilters(init.filters);
         // A shared link carries the search, not its results — re-run it so the
@@ -271,7 +266,9 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         else if (view !== 'subjects') p.set('view', view);
         if (selectedId) p.set('subject', selectedId);
         if (cats.length) p.set('cat', cats.join(','));
-        if (query.trim()) p.set('q', query.trim());
+        // `q` is only what is being typed. Once it has been committed it travels
+        // as `search`, so a link does not carry the same string twice.
+        if (query.trim() && query.trim() !== committedSearch?.query) p.set('q', query.trim());
         if (committedSearch) p.set('search', committedSearch.query);
         if (range !== DEFAULT_RANGE) p.set('range', range);
         if (filters.cityIds.length) p.set('city', filters.cityIds[0]);
@@ -285,7 +282,6 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
     // All derived subject views (see useFilteredSubjects).
     const {
         allSubjects,
-        queryKind,
         visibleSubjects,
         generalCities,
         visibleGeneralCities,
@@ -295,14 +291,12 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         visibleGeneralSubjects,
         listSubjects,
         outsideViewCount,
-        searchResults,
         findSubject,
         selectedSubject,
     } = useFilteredSubjects({
         mapSubjects: activeMapSubjects,
         generalRows: activeGeneralRows,
         cats,
-        query,
         filters,
         addressPoint,
         mapView,
@@ -360,10 +354,14 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         const match = detectMunicipalityQuery(query, cities);
         if (match) setInterested(match);
     }, [query, cities]);
-    // Clearing the search removes the searched-address marker.
+    // Emptying the box ends whatever the text had turned into. Both a geocoded
+    // address and a committed search keep their text, so the box reading empty
+    // while the map still shows their results would leave no way back.
     useEffect(() => {
-        if (!query.trim()) setAddressPoint(null);
-    }, [query]);
+        if (query.trim()) return;
+        setAddressPoint(null);
+        clearCommittedSearch();
+    }, [query, setAddressPoint, clearCommittedSearch]);
 
     // The municipality chosen in the filters (single-select) — drives the blue-gray overlay.
     const filterCityId = filters.cityIds[filters.cityIds.length - 1] ?? null;
@@ -798,7 +796,6 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         setFilters: trackedSetFilters,
         query,
         setQuery,
-        queryKind,
         topics,
         cities,
         subjectCountByCity,
@@ -816,7 +813,6 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         ordered: listSubjects,
         trending: listSubjects,
         count: listSubjects.length,
-        searchResults,
         coLocated,
         // mobile: a co-located / general subject opens the preview (not the full selection)
         onCoLocatedSelect: (id: string) => {

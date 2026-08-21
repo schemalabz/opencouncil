@@ -34,8 +34,13 @@ export function TopicChip({ topic, small, iconOnly }: { topic: SubjectTopic; sma
    A Popover rather than a tooltip so the ⓘ works on tap (mobile) as well as hover-less desktops.
    `floating` wraps it as a self-contained pill for sitting over the map (mobile strip); without
    it, it renders as a plain inline row for the desktop panel header. */
-export function RankedListHint({ floating }: { floating?: boolean }) {
+export function RankedListHint({ floating, searchQuery }: { floating?: boolean; searchQuery?: string }) {
     const t = useTranslations('landingV2');
+    // A committed search re-orders the list by how well each subject answers it,
+    // so the ordering has to say which question it is answering. Without the
+    // query the caption describes the map's own ranking instead.
+    const title = searchQuery ? t('list.relevanceTitle', { query: searchQuery }) : t('list.rankedTitle');
+    const explain = searchQuery ? t('list.relevanceExplain', { query: searchQuery }) : t('list.rankedExplain');
     return (
         <Popover onOpenChange={(open) => open && captureLandingAction('ranking_explain_opened', {})}>
             <PopoverTrigger asChild>
@@ -47,7 +52,7 @@ export function RankedListHint({ floating }: { floating?: boolean }) {
                     )}
                 >
                     <Flame className="h-3.5 w-3.5 text-[hsl(var(--orange))]" aria-hidden />
-                    {t('list.rankedTitle')}
+                    {title}
                     <Info className="h-3.5 w-3.5 opacity-60" aria-hidden />
                 </button>
             </PopoverTrigger>
@@ -56,7 +61,7 @@ export function RankedListHint({ floating }: { floating?: boolean }) {
                 align="start"
                 className="w-72 rounded-xl border-border p-3 text-xs leading-relaxed text-muted-foreground shadow-lg"
             >
-                {t('list.rankedExplain')}
+                {explain}
             </PopoverContent>
         </Popover>
     );

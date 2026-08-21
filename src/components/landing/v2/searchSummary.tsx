@@ -38,11 +38,11 @@ export function SearchChip({
     const t = useTranslations('landingV2');
     return (
         <div
+            // Opaque in both variants. This sits over the map, and a tinted
+            // background let place labels read straight through the text.
             className={cn(
-                'inline-flex max-w-full items-center gap-1.5 rounded-full border text-sm',
-                floating
-                    ? 'border-border bg-card/95 px-3 py-1.5 shadow-md backdrop-blur'
-                    : 'border-[hsl(var(--orange))]/40 bg-[hsl(var(--orange))]/5 px-3 py-1',
+                'inline-flex shrink-0 max-w-[16rem] items-center gap-1.5 rounded-full border bg-card text-sm shadow-md',
+                floating ? 'border-border px-3 py-1.5 backdrop-blur' : 'h-8 border-[hsl(var(--orange))]/40 px-3',
             )}
         >
             <Search className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--orange))]" aria-hidden="true" />
