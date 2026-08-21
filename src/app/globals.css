@@ -224,20 +224,6 @@ a:hover.unstyled {
   animation: gradientFlow 3s ease infinite;
 }
 
-/* Aurora animation */
-@keyframes aurora {
-  from {
-    background-position: 50% 50%, 50% 50%;
-  }
-  to {
-    background-position: 350% 50%, 350% 50%;
-  }
-}
-
-.animate-aurora {
-  animation: aurora 60s linear infinite;
-}
-
 /* Custom scrollbar styling for horizontal scrolling */
 .scrollbar-thin::-webkit-scrollbar {
   height: 6px;
