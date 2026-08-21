@@ -101,7 +101,6 @@
         "account": "Λογαριασμός",
         "canEditPage": "Μπορείτε να επεξεργαστείτε αυτή τη σελίδα",
         "profile": "Προφίλ",
-        "myHighlights": "Τα στιγμιότυπά μου",
         "signOut": "Αποσύνδεση",
         "greeting": "👋 Γεια σου!",
         "greetingNamed": "👋 Γεια σου {name}!",
@@ -720,7 +719,6 @@
         "deleteNetworkError": "Σφάλμα κατά τη διαγραφή"
     },
     "Profile": {
-        "myHighlights": "Τα στιγμιότυπά μου",
         "myHighlightsDescription": "Δείτε όλα τα στιγμιότυπα που έχετε δημιουργήσει, από κάθε συνεδρίαση.",
         "viewMyHighlights": "Δείτε τα στιγμιότυπά σας",
         "welcomeOnboard": "Καλώς ήρθατε στο OpenCouncil",

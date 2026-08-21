@@ -1,5 +1,7 @@
-import { getTranslations } from "next-intl/server";
-import { redirect } from "next/navigation";
+import { getLocale, getTranslations } from "next-intl/server";
+// The locale-aware redirect: next/navigation's would send a bare "/sign-in",
+// dropping the locale prefix and landing the user on the Greek page.
+import { redirect } from "@/i18n/routing";
 import { Metadata } from "next";
 import { getCurrentUser } from "@/lib/auth";
 import { getMyHighlights } from "@/lib/db/highlights";
@@ -12,9 +14,9 @@ export const metadata: Metadata = {
 
 export default async function MyHighlightsPage() {
     const user = await getCurrentUser();
-    if (!user) redirect("/sign-in");
+    if (!user) redirect({ href: "/sign-in?callbackUrl=/profile/highlights", locale: await getLocale() });
 
-    const [highlights, t] = await Promise.all([
+    const [{ highlights, truncated }, t] = await Promise.all([
         getMyHighlights(),
         getTranslations("highlights.myHighlights"),
     ]);
@@ -25,7 +27,7 @@ export default async function MyHighlightsPage() {
                 <h1 className="text-3xl font-bold">{t("title")}</h1>
                 <p className="text-muted-foreground mt-2">{t("description")}</p>
             </div>
-            <MyHighlights highlights={highlights} />
+            <MyHighlights highlights={highlights} truncated={truncated} />
         </div>
     );
 }

@@ -1,6 +1,8 @@
 "use client";
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+// The locale-aware router: next/navigation's would push a bare path,
+// dropping the locale prefix and landing the user on the Greek page.
+import { useRouter } from "@/i18n/routing";
 import { useLocale, useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -119,7 +121,9 @@ export function HighlightCard({ data }: { data: HighlightCardData }) {
             </div>
 
             {data.download && (
-              <div className="ml-3 flex-shrink-0">
+              // The button stops propagation itself, but a disabled button gets
+              // pointer-events-none, so the click would reach the card instead.
+              <div className="ml-3 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                 <DownloadHighlightButton
                   videoUrl={data.download.videoUrl}
                   fileName={data.download.fileName}

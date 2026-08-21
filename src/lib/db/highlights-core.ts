@@ -37,9 +37,10 @@ export type HighlightWithUtterances = Prisma.HighlightGetPayload<{
     include: typeof highlightWithUtterancesInclude
 }>;
 
-// Lighter include for cross-meeting highlight lists: no utterance text
-// (a page of highlights must not ship whole transcripts), just enough to
-// compute card statistics plus the meeting/city/subject labels.
+// Include for cross-meeting highlight lists: the meeting/city/subject labels a
+// card shows, and nothing from the transcript. The card statistics come from
+// getHighlightStatistics instead, because joining every highlighted utterance
+// to sum three numbers costs more than the whole rest of the page.
 export const highlightWithMeetingInclude = {
     meeting: {
         select: {
@@ -48,30 +49,67 @@ export const highlightWithMeetingInclude = {
             name: true,
             name_en: true,
             dateTime: true,
+            released: true,
             city: { select: { id: true, name: true, name_en: true, logoImage: true, timezone: true } }
         }
     },
-    subject: { select: { id: true, name: true } },
-    highlightedUtterances: {
-        select: {
-            utterance: {
-                select: {
-                    startTimestamp: true,
-                    endTimestamp: true,
-                    speakerSegment: {
-                        select: {
-                            speakerTag: { select: { personId: true, label: true } }
-                        }
-                    }
-                }
-            }
-        }
-    }
+    subject: { select: { id: true, name: true } }
 } satisfies Prisma.HighlightInclude;
 
 export type HighlightWithMeeting = Prisma.HighlightGetPayload<{
     include: typeof highlightWithMeetingInclude
 }>;
+
+export type HighlightWithMeetingAndStatistics = HighlightWithMeeting & {
+    statistics: HighlightStatistics;
+};
+
+/** How many highlights the personal highlights page loads at once. */
+export const MY_HIGHLIGHTS_LIMIT = 200;
+
+/** The three numbers a highlight card shows. */
+export interface HighlightStatistics {
+    duration: number;
+    utteranceCount: number;
+    speakerCount: number;
+}
+
+/**
+ * Card statistics for many highlights in one aggregate. Speakers count by
+ * identity (the person, or the tag label for an unassigned speaker), which is
+ * the same rule calculateHighlightData applies on the meeting page.
+ */
+export async function getHighlightStatistics(
+    highlightIds: Highlight["id"][]
+): Promise<Map<string, HighlightStatistics>> {
+    if (highlightIds.length === 0) {
+        return new Map();
+    }
+
+    const rows = await prisma.$queryRaw<Array<{
+        highlightId: string;
+        duration: number;
+        utteranceCount: number;
+        speakerCount: number;
+    }>>`
+        SELECT hu."highlightId" AS "highlightId",
+               COALESCE(SUM(u."endTimestamp" - u."startTimestamp"), 0)::double precision AS "duration",
+               COUNT(*)::int AS "utteranceCount",
+               COUNT(DISTINCT COALESCE(st."personId", st."label", 'unknown'))::int AS "speakerCount"
+        FROM "HighlightedUtterance" hu
+        JOIN "Utterance" u ON u."id" = hu."utteranceId"
+        JOIN "SpeakerSegment" ss ON ss."id" = u."speakerSegmentId"
+        JOIN "SpeakerTag" st ON st."id" = ss."speakerTagId"
+        WHERE hu."highlightId" IN (${Prisma.join(highlightIds)})
+        GROUP BY hu."highlightId"
+    `;
+
+    return new Map(rows.map(row => [row.highlightId, {
+        duration: row.duration,
+        utteranceCount: row.utteranceCount,
+        speakerCount: row.speakerCount
+    }]));
+}
 
 /**
  * Who is performing a highlight write. Mirrors the shape returned by

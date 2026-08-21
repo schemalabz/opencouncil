@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { downloadFile } from "@/lib/export/meetings";
+import { downloadFile } from "@/lib/export/download";
 
 /**
  * Downloads a highlight's rendered video as an mp4 file. Shared by the
@@ -62,7 +62,9 @@ export function DownloadHighlightButton({
             size={size}
             onClick={handleDownload}
             disabled={isDownloading}
-            aria-label={t('details.download')}
+            // Names the button for icon-only use, and follows the state, so a
+            // screen reader hears the download start.
+            aria-label={isDownloading ? t('details.downloading') : t('details.download')}
         >
             {isDownloading ? (
                 <>
