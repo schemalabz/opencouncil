@@ -1390,8 +1390,92 @@ EOF
               exec newsboat -u "$urls_file" -C "$config_file" -c "$tmp_dir/cache.db"
             '';
           };
+          # Notis production build (services/notis workspace). Standalone Next
+          # server; runtime pinned to Node 24 per its engines requirement —
+          # the preview execs $out/start.sh so it always runs on this toolchain
+          # (runtime-ownership rule, see pr-previews README).
+          notis-prod = (pkgs.buildNpmPackage.override { nodejs = pkgs-unstable.nodejs_24; }) {
+            pname = "notis-prod";
+            version = "0.1.0";
+            src = ./.;
+
+            npmDeps = mkNpmDeps pkgs;
+            npmConfigHook = pkgs.importNpmLock.npmConfigHook;
+            makeCacheWritable = true;
+            npmFlags = [ "--legacy-peer-deps" ];
+            npmInstallFlags = [ "--ignore-scripts" ];
+
+            nativeBuildInputs = mkNpmNativeBuildInputs pkgs;
+            buildInputs = mkNpmBuildInputs pkgs;
+
+            preBuild = ''
+              export HOME=$TMPDIR
+              ${mkPrismaEnv pkgs}
+              export SKIP_ENV_VALIDATION=1
+              npm run postinstall
+              # Next's type-check resolves from the workspace root (turbopack.root),
+              # which pulls in root files importing the generated Prisma client.
+              npx prisma generate
+            '';
+
+            # NB: buildNpmPackage has no `npmBuild` attr — the real knob is
+            # npmBuildFlags (appended to `npm run build`).
+            npmBuildFlags = [ "--workspace=notis" ];
+
+            installPhase = ''
+              runHook preInstall
+              mkdir -p $out
+
+              shopt -s dotglob
+              cp -r services/notis/.next/standalone/* $out/
+              shopt -u dotglob
+
+              # Static + public assets live next to the workspace's server.js
+              cp -r services/notis/.next/static $out/services/notis/.next/static
+              # Next's monorepo standalone output does NOT include public/ —
+              # copy it in (the target dir does not pre-exist).
+              if [ -d services/notis/public ]; then
+                mkdir -p $out/services/notis/public
+                cp -rn services/notis/public/* $out/services/notis/public/
+              fi
+
+              # Runtime-owned entrypoint: Node 24 from this flake's unstable
+              # pin. The store is read-only but Next's fetch cache writes to
+              # .next/cache under the server's __dirname — so mirror the app
+              # into a writable work dir (same pattern as the main app's
+              # start.sh): symlink everything, copy server.js (its __dirname
+              # must resolve inside the work dir), real .next/cache.
+              cat > $out/start.sh <<EOF
+              #!${pkgs.runtimeShell}
+              set -euo pipefail
+              APP="$out/services/notis"
+              RUN="\''${NOTIS_RUN_DIR:-/tmp/notis-run-\$\$}"
+              mkdir -p "\$RUN/services/notis/.next/cache"
+              ln -sfn "$out/node_modules" "\$RUN/node_modules"
+              for item in "\$APP"/*; do
+                name="\$(basename "\$item")"
+                case "\$name" in
+                  server.js) rm -f "\$RUN/services/notis/server.js"; cp "\$item" "\$RUN/services/notis/server.js" ;;
+                  .next) : ;;
+                  *) ln -sfn "\$item" "\$RUN/services/notis/\$name" ;;
+                esac
+              done
+              for item in "\$APP/.next"/*; do
+                name="\$(basename "\$item")"
+                [ "\$name" = cache ] || ln -sfn "\$item" "\$RUN/services/notis/.next/\$name"
+              done
+              cd "\$RUN/services/notis"
+              exec ${pkgs-unstable.nodejs_24}/bin/node server.js
+              EOF
+              chmod +x $out/start.sh
+              runHook postInstall
+            '';
+
+            meta = { description = "Notis production build"; mainProgram = "start.sh"; };
+          };
+
         in {
-          inherit oc-dev oc-dev-db-nix oc-dev-db-nix-locked oc-dev-db-docker oc-dev-cache oc-dev-app-local oc-studio oc-cleanup oc-rss opencouncil-prod;
+          inherit oc-dev oc-dev-db-nix oc-dev-db-nix-locked oc-dev-db-docker oc-dev-cache oc-dev-app-local oc-studio oc-cleanup oc-rss opencouncil-prod notis-prod;
         });
 
       checks = forAllSystems (_system: pkgs: _pkgs-unstable:
@@ -1448,6 +1532,29 @@ EOF
 
       # Preview deployment config for the generic preview module in nix-openclaw.
       # See nix-openclaw/generic-preview.nix for the full interface spec.
+      # Notis preview config (paired with the same PR's opencouncil preview
+      # via the pr-previews `siblings` context). Consumed by the preview host:
+      #   services.pr-previews.projects = opencouncil.previews // ...;
+      # The host supplies envFile with NOTIS_ADMIN_SECRET and a (dummy)
+      # ANTHROPIC_API_KEY — see docs/guides/preview-deployments.md.
+      previews.notis = {
+        hostPattern = "notis-pr-@id@.opencouncil.dev";
+        # 20000+N: clear of the main app (3000+N), tasks (4000+N), and the
+        # ad-hoc isolated-DB ports (5432+N) — 5000+N would collide with a DB
+        # whenever notis PR = DB PR + 432.
+        basePort = 20000;
+        environment = [ "NODE_ENV=production" "HOSTNAME=0.0.0.0" ];
+
+        startScript = _: ctx: ''
+          # Point the REST proxies and MCP wakes at this PR's paired main
+          # preview instead of production.
+          export OPENCOUNCIL_BASE_URL="${ctx.siblings.opencouncil.url}"
+          export NOTIS_MCP_URL="${ctx.siblings.opencouncil.url}/mcp"
+          export NOTIS_RUN_DIR="$PR_DIR/work"
+          exec "$APP_DIR/start.sh"
+        '';
+      };
+
       previews.opencouncil = let
         postgresCompat = self.lib.mkPostgresCompat;
         prismaEnv = self.lib.mkPrismaEnv;
