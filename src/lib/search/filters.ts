@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { ExtractedFilters } from './types';
 import { aiChat } from '@/lib/ai';
 import { getCities } from '@/lib/db/cities';
@@ -5,6 +6,26 @@ import { getCity } from '@/lib/db/cities';
 import { getPlaceSuggestions, getPlaceDetails } from '@/lib/google-maps';
 import { calculateGeometryBounds } from '@/lib/geo';
 import { Location } from './types';
+
+// Radius of the proximity boost applied to subjects pinned near an AI-extracted
+// location (see buildLocationClauses).
+//
+// Sized to the scale of what `locationName` actually holds: the extraction
+// prompt asks for a single place name and gives landmark examples ("Πλατεία
+// Συντάγματος", "Εθνικός Κήπος"), and the municipality is already handled by
+// the separate cityIds filter, so the value is always a sub-city feature — a
+// square, a park, a street, a neighbourhood.
+//
+// 2km is the radius the landing page's address search already uses for the same
+// job (ADDRESS_RADIUS_KM in useFilteredSubjects.ts); the MCP list_nearby_subjects
+// tool defaults to 1km. Not imported from either: one is a client UI hook and
+// the other a tool default, so they are free to diverge from search ranking.
+//
+// This replaces the 40km SEARCH_RADIUS copied from actions.ts, which is a
+// Google Places geocoding bias — a different job. At 40km the boost covered the
+// whole Attica basin, so nearly every pinned subject in an Attica city received
+// it and proximity did not discriminate.
+const LOCATION_BOOST_RADIUS_METERS = 2000;
 
 // Define the system prompt for filter extraction
 const FILTER_EXTRACTION_PROMPT = `Εξαγωγή Φίλτρων Αναζήτησης
@@ -29,6 +50,37 @@ const FILTER_EXTRACTION_PROMPT = `Εξαγωγή Φίλτρων Αναζήτησ
 
 Διαθέσιμες πόλεις:
 {{CITIES_LIST}}`;
+
+/** Every filter absent. The neutral result of the extraction step. */
+export const NO_EXTRACTED_FILTERS: ExtractedFilters = {
+    cityIds: null,
+    dateRange: null,
+    isLatest: null,
+    locationName: null,
+};
+
+/**
+ * Validates the model's JSON against the shape the prompt asks for.
+ *
+ * `aiChat` parses the response and casts it, so before this schema the
+ * `ExtractedFilters` type stated what the prompt REQUESTS, not what arrives. A
+ * field of the wrong type used to be inert, because every consumer only tested
+ * it for truthiness. It is not inert any more: buildSearchQuery reads
+ * locationName as a string (spellingsOf calls String.replace on it), so an
+ * array there throws. That call sits OUTSIDE the two try/catch blocks in
+ * src/lib/search/index.ts that keep a failed extraction non-fatal, so one bad
+ * field returned a 500 for a query the lexical clauses could answer.
+ *
+ * Each field catches on its own, so a malformed field drops to null and the
+ * rest of the extraction survives. The outer catch covers a response that is
+ * not an object at all.
+ */
+const extractedFiltersSchema = z.object({
+    cityIds: z.array(z.string()).nullable().catch(null),
+    dateRange: z.object({ start: z.string(), end: z.string() }).nullable().catch(null),
+    isLatest: z.boolean().nullable().catch(null),
+    locationName: z.string().nullable().catch(null),
+}).catch(NO_EXTRACTED_FILTERS);
 
 // Get cities for the prompt
 async function getCitiesForPrompt(): Promise<{ id: string; name: string; name_en: string }[]> {
@@ -58,8 +110,8 @@ export async function extractFilters(query: string): Promise<ExtractedFilters> {
         .replace('{{CITIES_LIST}}', citiesList)
         .replace('{{TODAY_DATE}}', today);
 
-    const { result } = await aiChat<ExtractedFilters>(prompt, query);
-    return result;
+    const { result } = await aiChat<unknown>(prompt, query);
+    return extractedFiltersSchema.parse(result);
 }
 
 // Resolve location coordinates
@@ -100,7 +152,7 @@ export async function resolveLocationCoordinates(locationName: string, cityId: s
                 lat: details.coordinates[1],
                 lon: details.coordinates[0]
             },
-            radius: 40000 // Using the same radius as in actions.ts
+            radiusMeters: LOCATION_BOOST_RADIUS_METERS
         };
     } catch (error) {
         console.error('[Location] Error resolving location coordinates:', error);

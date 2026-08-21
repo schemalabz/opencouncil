@@ -5,11 +5,12 @@ import { SegmentWithRelations } from "@/lib/db/speakerSegments";
 // Search configuration
 export type SearchConfig = {
     enableSemanticSearch?: boolean;
+    /** Similarity cutoff (normalized cosine, 0-1) for the semantic fallback.
+     *  See DEFAULT_SEMANTIC_MIN_SCORE. */
+    semanticMinScore?: number;
     enableHighlights?: boolean;
     size?: number;
     from?: number;
-    rankWindowSize?: number;
-    rankConstant?: number;
     detailed?: boolean; // Whether to return detailed results
 };
 
@@ -19,7 +20,11 @@ export type Location = {
         lat: number;
         lon: number;
     };
-    radius: number;
+    /** Proximity-boost radius in METRES. The name carries the unit because the
+     *  only producer (resolveLocationCoordinates) and the only consumer
+     *  (buildLocationClauses) sit in different files; an unlabelled
+     *  `radius` let the consumer read metres as kilometres. */
+    radiusMeters: number;
 };
 
 // Search request type
