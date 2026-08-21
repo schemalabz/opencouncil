@@ -1,9 +1,6 @@
 import { Bell, Clock, FileText, Landmark, MessageCircle, Search, Send, Users } from 'lucide-react';
 import { StatsCard } from '@/components/ui/stats-card';
-// Temporarily disabled: getReviewStats() crashes the DB with shared-memory
-// errors under data growth (see investigation issue). Re-enable once the
-// reviews queries are fixed.
-// import { ReviewsOverviewWidget } from '@/components/admin/reviews/ReviewsOverviewWidget';
+import { ReviewsOverviewWidget } from '@/components/admin/reviews/ReviewsOverviewWidget';
 import { NotificationSubscribersChart } from '@/components/admin/NotificationSubscribersChart';
 import { getAdminDashboardStats, getNotificationSubscribersByCity } from '@/lib/db/adminStats';
 
@@ -127,11 +124,9 @@ export default async function Page() {
                 />
             </section>
 
-            {/* Temporarily disabled — see note on the import above.
             <section>
                 <ReviewsOverviewWidget />
             </section>
-            */}
         </div>
     );
 }
