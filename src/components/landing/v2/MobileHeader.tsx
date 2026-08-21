@@ -3,9 +3,10 @@
 import { useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Menu, Home, ChevronDown, User, Bell, LogOut, LogIn, Search, Phone, Mail, ArrowRight, HelpCircle, Star } from 'lucide-react';
+import { Menu, Home, ChevronDown, User, LogOut, LogIn, Search, Phone, Mail, ArrowRight, HelpCircle } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { Link } from '@/i18n/routing';
+import { ACCOUNT_LINKS } from '@/components/layout/account-links';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger, SheetClose, SheetTitle } from '@/components/ui/sheet';
 import { footerGroups, isInternalHref, reopenCookiePreferences, type FooterLink } from './navLinks';
@@ -41,6 +42,7 @@ export function MobileHeader({
     realm: Realm;
 }) {
     const t = useTranslations('landingV2');
+    const tAccount = useTranslations('account');
     const [notifyOpen, setNotifyOpen] = useState(false);
     const { data: session, status } = useSession();
     return (
@@ -132,20 +134,18 @@ export function MobileHeader({
                                         <p className="truncate text-xs text-muted-foreground">{session.user.email}</p>
                                     </div>
                                 </div>
-                                <DrawerLink href="/profile" icon={<User className="h-[18px] w-[18px]" />}>{t('account.profile')}</DrawerLink>
-                                <DrawerLink href="/profile/highlights" icon={<Star className="h-[18px] w-[18px]" />}>
-                                    {t('account.myHighlights')}
-                                </DrawerLink>
-                                <DrawerLink href="/profile?tab=notifications" icon={<Bell className="h-[18px] w-[18px]" />}>
-                                    {t('account.notifications')}
-                                </DrawerLink>
+                                {ACCOUNT_LINKS.map(({ href, labelKey, icon: Icon }) => (
+                                    <DrawerLink key={href} href={href} icon={<Icon className="h-[18px] w-[18px]" />}>
+                                        {tAccount(labelKey)}
+                                    </DrawerLink>
+                                ))}
                                 <SheetClose asChild>
                                     <button
                                         type="button"
                                         onClick={() => signOut()}
                                         className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-400 transition-colors hover:bg-red-500/15"
                                     >
-                                        <LogOut className="h-[18px] w-[18px]" /> {t('account.signOut')}
+                                        <LogOut className="h-[18px] w-[18px]" /> {tAccount('signOut')}
                                     </button>
                                 </SheetClose>
                             </>

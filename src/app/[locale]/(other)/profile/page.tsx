@@ -22,18 +22,21 @@ export default async function ProfilePage() {
     const user = await getCurrentUser();
     if (!user) redirect("/sign-in");
 
-    const t = await getTranslations("Profile");
+    const [t, tAccount] = await Promise.all([
+        getTranslations("Profile"),
+        getTranslations("account"),
+    ]);
 
     return (
         <div className="container max-w-2xl py-8 space-y-8 !px-3 sm:!px-8">
             <h1 className="text-3xl font-bold">{t("title")}</h1>
             <DevelopmentSection isPreview={env.DEPLOYMENT_ENV === 'preview'} />
             {user.onboarded && (user.isSuperAdmin || user.administers.length > 0) && <AdminSection user={user} t={t} />}
-            <Card>
+            {user.onboarded && <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Star className="h-5 w-5" />
-                        {t("myHighlights")}
+                        {tAccount("myHighlights")}
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -42,7 +45,7 @@ export default async function ProfilePage() {
                         <Link href="/profile/highlights">{t("viewMyHighlights")}</Link>
                     </Button>
                 </CardContent>
-            </Card>
+            </Card>}
             <UserInfoForm user={user} isOnboarded={!!user.onboarded} />
         </div>
     );

@@ -3,27 +3,11 @@ import { Landmark } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { formatDate } from "@/lib/formatters/time";
 import { getLocalizedName } from "@/lib/formatters/name";
-import type { HighlightWithMeeting } from "@/lib/db/highlights";
+import { generateHighlightFileName } from "@/lib/export/download";
+import type { HighlightWithMeetingAndStatistics, MyHighlights as MyHighlightsData } from "@/lib/db/highlights";
 import { HighlightsGrid, type HighlightCardData } from "./HighlightCards";
 
-// Server-side view of the personal highlights page (/profile/highlights):
-// the user's highlights grouped by meeting, one section per meeting.
-
-function toCardData(highlight: HighlightWithMeeting): HighlightCardData {
-    const utterances = highlight.highlightedUtterances.map(hu => hu.utterance);
-
-    const duration = utterances.reduce(
-        (total, u) => total + (u.endTimestamp - u.startTimestamp), 0
-    );
-
-    // Distinct speakers, matching the meeting page's per-name counting as
-    // closely as the DB payload allows (person first, then tag label).
-    const speakerKeys = new Set(
-        utterances.map(u => u.speakerSegment.speakerTag.personId
-            ?? u.speakerSegment.speakerTag.label
-            ?? 'unknown')
-    );
-
+function toCardData(highlight: HighlightWithMeetingAndStatistics): HighlightCardData {
     return {
         id: highlight.id,
         name: highlight.name,
@@ -31,23 +15,23 @@ function toCardData(highlight: HighlightWithMeeting): HighlightCardData {
         hasVideo: !!highlight.videoUrl,
         updatedAt: highlight.updatedAt,
         href: `/${highlight.cityId}/${highlight.meetingId}/highlights/${highlight.id}`,
-        duration,
-        speakerCount: speakerKeys.size,
-        utteranceCount: utterances.length,
+        duration: highlight.statistics.duration,
+        speakerCount: highlight.statistics.speakerCount,
+        utteranceCount: highlight.statistics.utteranceCount,
         subjectName: highlight.subject?.name ?? null,
         // Every highlight on this page belongs to the viewer.
         creatorName: null,
         download: highlight.videoUrl
             ? {
                 videoUrl: highlight.videoUrl,
-                fileName: `${highlight.cityId}_${highlight.meetingId}_${highlight.name || 'highlight'}`,
+                fileName: generateHighlightFileName(highlight.cityId, highlight.meetingId, highlight.name),
             }
             : undefined,
     };
 }
 
 interface MeetingGroup {
-    meeting: HighlightWithMeeting["meeting"];
+    meeting: HighlightWithMeetingAndStatistics["meeting"];
     items: HighlightCardData[];
 }
 
@@ -57,21 +41,21 @@ interface MeetingGroup {
  * distinct meetings can share a dateTime and would otherwise split into
  * repeated groups for the same meeting.
  */
-function groupByMeeting(highlights: HighlightWithMeeting[]): MeetingGroup[] {
+function groupByMeeting(highlights: HighlightWithMeetingAndStatistics[]): MeetingGroup[] {
     const groups = new Map<string, MeetingGroup>();
     for (const highlight of highlights) {
         const key = `${highlight.cityId}/${highlight.meetingId}`;
-        const group = groups.get(key);
-        if (group) {
-            group.items.push(toCardData(highlight));
-        } else {
-            groups.set(key, { meeting: highlight.meeting, items: [toCardData(highlight)] });
+        let group = groups.get(key);
+        if (!group) {
+            group = { meeting: highlight.meeting, items: [] };
+            groups.set(key, group);
         }
+        group.items.push(toCardData(highlight));
     }
     return [...groups.values()];
 }
 
-export async function MyHighlights({ highlights }: { highlights: HighlightWithMeeting[] }) {
+export async function MyHighlights({ highlights, truncated }: MyHighlightsData) {
     const [t, locale] = await Promise.all([
         getTranslations('highlights.myHighlights'),
         getLocale(),
@@ -119,6 +103,12 @@ export async function MyHighlights({ highlights }: { highlights: HighlightWithMe
                     <HighlightsGrid items={items} grouped={false} />
                 </section>
             ))}
+
+            {truncated && (
+                <p className="text-sm text-muted-foreground text-center">
+                    {t('truncated', { count: highlights.length })}
+                </p>
+            )}
         </div>
     );
 }

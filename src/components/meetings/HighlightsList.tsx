@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useCallback } from "react";
+import React, { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { useSession } from "next-auth/react";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
@@ -49,7 +49,10 @@ export default function HighlightsList() {
   const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
   const currentUserId = session?.user?.id;
 
-  const toCardData = useCallback((highlight: HighlightWithUtterances): HighlightCardData => {
+  // Not memoized: calculateHighlightData keeps a stable identity across
+  // transcript and speaker-tag changes, so a memo keyed on it would hold the
+  // statistics from the first render even after an edit changes them.
+  const toCardData = (highlight: HighlightWithUtterances): HighlightCardData => {
     const statistics = calculateHighlightData(highlight)?.statistics;
     return {
       id: highlight.id,
@@ -67,31 +70,31 @@ export default function HighlightsList() {
       // Only show creator for city editors (they can see all highlights)
       creatorName: isAdmin ? highlight.createdBy?.name ?? null : null,
     };
-  }, [calculateHighlightData, subjects, isAdmin, t]);
+  };
 
+  // The partition depends on the highlights alone, so it is safe to memoize.
   const { myHighlights, othersHighlights, aiHighlights, userHighlights } = useMemo(() => {
-    const my: HighlightCardData[] = [];
-    const others: HighlightCardData[] = [];
-    const ai: HighlightCardData[] = [];
+    const my: HighlightWithUtterances[] = [];
+    const others: HighlightWithUtterances[] = [];
+    const ai: HighlightWithUtterances[] = [];
     // All non-AI highlights in original order — the regular-user view
-    const user: HighlightCardData[] = [];
+    const user: HighlightWithUtterances[] = [];
 
     for (const h of highlights) {
-      const card = toCardData(h);
       if (h.createdById === null) {
-        ai.push(card);
+        ai.push(h);
       } else {
-        user.push(card);
+        user.push(h);
         if (h.createdById === currentUserId) {
-          my.push(card);
+          my.push(h);
         } else {
-          others.push(card);
+          others.push(h);
         }
       }
     }
 
     return { myHighlights: my, othersHighlights: others, aiHighlights: ai, userHighlights: user };
-  }, [highlights, currentUserId, toCardData]);
+  }, [highlights, currentUserId]);
 
   const createButton = canCreateHighlights ? <AddHighlightButton /> : undefined;
 
@@ -105,7 +108,7 @@ export default function HighlightsList() {
             {t('description')}
           </p>
         </div>
-        <HighlightsGrid items={userHighlights} createButton={createButton} />
+        <HighlightsGrid items={userHighlights.map(toCardData)} createButton={createButton} />
       </div>
     );
   }
@@ -136,16 +139,16 @@ export default function HighlightsList() {
         </TabsList>
 
         <TabsContent value="mine">
-          <HighlightsGrid items={myHighlights} createButton={createButton} />
+          <HighlightsGrid items={myHighlights.map(toCardData)} createButton={createButton} />
         </TabsContent>
 
         <TabsContent value="others">
-          <HighlightsGrid items={othersHighlights} />
+          <HighlightsGrid items={othersHighlights.map(toCardData)} />
         </TabsContent>
 
         {isSuperAdmin && (
           <TabsContent value="ai">
-            <HighlightsGrid items={aiHighlights} />
+            <HighlightsGrid items={aiHighlights.map(toCardData)} />
           </TabsContent>
         )}
       </Tabs>

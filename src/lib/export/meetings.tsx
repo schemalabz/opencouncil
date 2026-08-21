@@ -78,14 +78,7 @@ export function generateMeetingFileName(cityId: string, meetingId: string, forma
   return `${cityId}_council_meeting_${meetingId}.${format}`;
 }
 
-export function downloadFile(blob: Blob, fileName: string): void {
-  const blobUrl = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = blobUrl;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(blobUrl);
-}
+// Re-exported for callers that already import it from here. New callers should
+// import from ./download directly, to stay clear of this module's renderers.
+export { downloadFile } from './download';
 

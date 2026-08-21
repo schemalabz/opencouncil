@@ -101,7 +101,6 @@
     "account": "Compte",
     "canEditPage": "Vous pouvez modifier cette page",
     "profile": "Profil",
-    "myHighlights": "Mes temps forts",
     "signOut": "Se déconnecter",
     "greeting": "👋 Salut !",
     "greetingNamed": "👋 Salut {name} !",
@@ -720,7 +719,6 @@
     "deleteNetworkError": "Erreur lors de la suppression"
   },
   "Profile": {
-    "myHighlights": "Mes temps forts",
     "myHighlightsDescription": "Consultez tous les temps forts que vous avez créés, pour chaque séance.",
     "viewMyHighlights": "Voir vos temps forts",
     "welcomeOnboard": "Bienvenue sur OpenCouncil",

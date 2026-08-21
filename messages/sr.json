@@ -86,7 +86,6 @@
         "account": "Налог",
         "canEditPage": "Можете да уређујете ову страницу",
         "profile": "Профил",
-        "myHighlights": "Моји истакнути снимци",
         "signOut": "Одјавите се",
         "greeting": "👋 Здраво!",
         "greetingNamed": "👋 Здраво, {name}!",
@@ -730,7 +729,6 @@
         "deleteNetworkError": "Грешка при брисању"
     },
     "Profile": {
-        "myHighlights": "Моји истакнути снимци",
         "myHighlightsDescription": "Погледајте све истакнуте снимке које сте направили, из сваке седнице.",
         "viewMyHighlights": "Погледајте своје истакнуте снимке",
         "welcomeOnboard": "Добро дошли у OpenCouncil",

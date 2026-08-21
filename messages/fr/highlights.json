@@ -315,6 +315,7 @@
     "title": "Mes temps forts",
     "description": "Tous les temps forts que vous avez créés, dans toutes les villes et toutes les séances.",
     "empty": "Aucun temps fort pour l'instant",
-    "emptyDescription": "Vous n'avez pas encore créé de temps forts. Ouvrez la transcription d'une séance pour en créer un."
+    "emptyDescription": "Vous n'avez pas encore créé de temps forts. Ouvrez la transcription d'une séance pour en créer un.",
+    "truncated": "Affichage de vos {count} temps forts les plus récents."
   }
 }
