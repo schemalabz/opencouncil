@@ -729,6 +729,8 @@
         "deleteNetworkError": "Error while deleting"
     },
     "Profile": {
+        "myHighlightsDescription": "See all the highlights you have created, from every meeting.",
+        "viewMyHighlights": "View your highlights",
         "welcomeOnboard": "Welcome to OpenCouncil",
         "personalInfo": "Personal Information",
         "onboardingDescription": "Please fill in the following information to complete your registration.",

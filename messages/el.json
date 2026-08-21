@@ -719,6 +719,8 @@
         "deleteNetworkError": "Σφάλμα κατά τη διαγραφή"
     },
     "Profile": {
+        "myHighlightsDescription": "Δείτε όλα τα στιγμιότυπα που έχετε δημιουργήσει, από κάθε συνεδρίαση.",
+        "viewMyHighlights": "Δείτε τα στιγμιότυπά σας",
         "welcomeOnboard": "Καλώς ήρθατε στο OpenCouncil",
         "personalInfo": "Προσωπικές Πληροφορίες",
         "onboardingDescription": "Παρακαλούμε συμπληρώστε τις παρακάτω πληροφορίες για να ολοκληρώσετε την εγγραφή σας.",

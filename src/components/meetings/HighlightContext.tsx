@@ -17,6 +17,8 @@ export interface HighlightUtterance {
   endTimestamp: number;
   speakerSegmentId: string;
   speakerName: string;
+  /** Identifies the speaker for counting. Two people can share a display name. */
+  speakerKey: string;
 }
 
 export interface HighlightStatistics {
@@ -160,7 +162,8 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
           startTimestamp: utterance.startTimestamp,
           endTimestamp: utterance.endTimestamp,
           speakerSegmentId: utterance.speakerSegmentId,
-          speakerName
+          speakerName,
+          speakerKey: speakerTag?.personId ?? speakerTag?.label ?? 'unknown'
         });
       }
     });
@@ -175,12 +178,13 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
       return total + (utterance.endTimestamp - utterance.startTimestamp);
     }, 0);
 
-    // Calculate speaker count
-    const speakerNames = new Set<string>();
+    // Count speakers by identity, not by display name: two council members can
+    // share a short name, and getHighlightStatistics counts the same way.
+    const speakerKeys = new Set<string>();
     utterances.forEach(utterance => {
-      speakerNames.add(utterance.speakerName);
+      speakerKeys.add(utterance.speakerKey);
     });
-    const speakerCount = speakerNames.size;
+    const speakerCount = speakerKeys.size;
 
     const statistics = {
       duration,
