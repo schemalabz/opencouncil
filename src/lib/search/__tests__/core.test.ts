@@ -56,6 +56,31 @@ beforeEach(() => {
     processFiltersMock.mockResolvedValue({ cityIds: undefined, dateRange: undefined, locations: undefined });
 });
 
+describe('searchInRealm — deriving filters from the query text', () => {
+    it('consults the model by default', async () => {
+        await searchInRealm({ query: 'ανακύκλωση' }, 'greece');
+
+        expect(extractFiltersMock).toHaveBeenCalledWith('ανακύκλωση', 'greece');
+        expect(processFiltersMock).toHaveBeenCalled();
+    });
+
+    // The derivation costs a model call plus a geocode per candidate city. A
+    // caller whose UI already holds the filters must be able to pay for neither.
+    it('consults nothing when the caller turns extraction off', async () => {
+        await searchInRealm({ query: 'ανακύκλωση', config: { extractFilters: false } }, 'greece');
+
+        expect(extractFiltersMock).not.toHaveBeenCalled();
+        expect(processFiltersMock).not.toHaveBeenCalled();
+        expect(esSearchMock).toHaveBeenCalled();
+    });
+
+    it('consults nothing for a filter-only search, which has no text to read', async () => {
+        await searchInRealm({ cityIds: ['athens'] }, 'greece');
+
+        expect(extractFiltersMock).not.toHaveBeenCalled();
+    });
+});
+
 describe('searchInRealm — extraction is advisory', () => {
     it('fills a city the caller left unset', async () => {
         processFiltersMock.mockResolvedValue({ cityIds: ['chania'], dateRange: undefined, locations: undefined });
