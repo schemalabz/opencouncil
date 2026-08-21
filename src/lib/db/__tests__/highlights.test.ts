@@ -1,6 +1,8 @@
 /** @jest-environment node */
 
 const mockFindMany = jest.fn();
+const mockFindFirst = jest.fn();
+const mockCityFindFirst = jest.fn();
 const mockQueryRaw = jest.fn();
 
 jest.mock('../prisma', () => ({
@@ -8,6 +10,10 @@ jest.mock('../prisma', () => ({
     default: {
         highlight: {
             findMany: (...args: unknown[]) => mockFindMany(...args),
+            findFirst: (...args: unknown[]) => mockFindFirst(...args),
+        },
+        city: {
+            findFirst: (...args: unknown[]) => mockCityFindFirst(...args),
         },
         $queryRaw: (...args: unknown[]) => mockQueryRaw(...args),
     },
@@ -21,7 +27,7 @@ jest.mock('../../auth', () => ({
     withUserAuthorizedToEdit: jest.fn(),
 }));
 
-import { getMyHighlights } from '../highlights';
+import { canAccessMyHighlights, getMyHighlights } from '../highlights';
 import { MY_HIGHLIGHTS_LIMIT } from '../highlights-core';
 
 const highlight = (id: string) => ({
@@ -40,7 +46,57 @@ beforeEach(() => {
     jest.clearAllMocks();
     mockGetCurrentUser.mockResolvedValue({ id: 'user-1', isSuperAdmin: false, administers: [] });
     mockFindMany.mockResolvedValue([]);
+    mockFindFirst.mockResolvedValue(null);
+    mockCityFindFirst.mockResolvedValue(null);
     mockQueryRaw.mockResolvedValue([]);
+});
+
+describe('canAccessMyHighlights', () => {
+    it('is false for a signed-out visitor', async () => {
+        mockGetCurrentUser.mockResolvedValue(null);
+
+        expect(await canAccessMyHighlights()).toBe(false);
+        expect(mockCityFindFirst).not.toHaveBeenCalled();
+    });
+
+    it('is true for a superadmin without touching the database', async () => {
+        mockGetCurrentUser.mockResolvedValue({ id: 'user-1', isSuperAdmin: true, administers: [] });
+
+        expect(await canAccessMyHighlights()).toBe(true);
+        expect(mockCityFindFirst).not.toHaveBeenCalled();
+    });
+
+    it('is true for an administrator of a city', async () => {
+        mockGetCurrentUser.mockResolvedValue({
+            id: 'user-1',
+            isSuperAdmin: false,
+            administers: [{ cityId: 'athens' }],
+        });
+
+        expect(await canAccessMyHighlights()).toBe(true);
+        expect(mockCityFindFirst).not.toHaveBeenCalled();
+    });
+
+    it('is true when any city opens creation to everyone', async () => {
+        mockCityFindFirst.mockResolvedValue({ id: 'zografou' });
+
+        expect(await canAccessMyHighlights()).toBe(true);
+        // The answer is settled; the second probe is not worth a round trip.
+        expect(mockFindFirst).not.toHaveBeenCalled();
+    });
+
+    it('counts only highlights the page would actually list', async () => {
+        mockFindFirst.mockResolvedValue({ id: 'h-1' });
+
+        expect(await canAccessMyHighlights()).toBe(true);
+        expect(mockFindFirst).toHaveBeenCalledWith(expect.objectContaining({
+            where: { createdById: 'user-1', meeting: { released: true } },
+        }));
+    });
+
+    it('is false when every city closes creation and the user holds nothing', async () => {
+        expect(await canAccessMyHighlights()).toBe(false);
+    });
 });
 
 describe('getMyHighlights', () => {

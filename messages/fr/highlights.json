@@ -317,5 +317,9 @@
     "empty": "Aucun temps fort pour l'instant",
     "emptyDescription": "Vous n'avez pas encore créé de temps forts. Ouvrez la transcription d'une séance pour en créer un.",
     "truncated": "Affichage de vos {count} temps forts les plus récents."
+  },
+  "actions": {
+    "menu": "Actions du temps fort",
+    "rename": "Renommer"
   }
 }

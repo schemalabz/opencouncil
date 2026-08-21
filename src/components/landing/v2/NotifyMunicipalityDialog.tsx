@@ -8,20 +8,6 @@ import { CityAvatar } from './controls';
 import { captureLandingAction } from '@/lib/landing/analytics';
 
 /**
- * Opens the dialog once the menu that launched it has finished closing.
- *
- * Both entry points sit inside a Radix modal layer — the mobile nav Sheet, the desktop dropdown —
- * and each of those puts `pointer-events: none` on <body> for as long as it is open. Opening the
- * dialog in the same tick means two layers add and remove that lock while overlapping, and it can be
- * left behind on <body> after the dialog closes: the page then renders normally but ignores every
- * click. Waiting for the closing layer to unmount keeps the locks strictly sequential.
- */
-export function openAfterMenuCloses(open: () => void): void {
-    // longer than the menus' exit animation (duration-200), so the old layer is gone first
-    setTimeout(open, 260);
-}
-
-/**
  * "Which δήμος do you care about?" — the notifications entry point offered from the menus on both
  * viewports.
  *

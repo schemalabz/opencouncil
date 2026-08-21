@@ -5,11 +5,13 @@ import { useSession } from "next-auth/react";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import type { HighlightWithUtterances } from "@/lib/db/highlights";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Clock } from "lucide-react";
+import { Clapperboard, Clock, Play, Star } from "lucide-react";
 import { useHighlight } from "./HighlightContext";
 import { CreateHighlightButton } from "./CreateHighlightButton";
 import { useTranscriptOptions } from "./options/OptionsContext";
-import { HighlightsGrid, type HighlightCardData } from "@/components/highlights/HighlightCards";
+import { generateHighlightFileName } from "@/lib/export/download";
+import { HighlightsGrid } from "@/components/highlights/HighlightsGrid";
+import type { HighlightCardData } from "@/components/highlights/HighlightCard";
 
 const AddHighlightButton = () => {
   const { editingHighlight } = useHighlight();
@@ -37,8 +39,68 @@ const AddHighlightButton = () => {
   );
 };
 
+/**
+ * The meeting's highlights, split by how far along they are: showcased first,
+ * then the ones with a video, then the ones still being rendered.
+ */
+function HighlightSections({
+  items,
+  action,
+  onRenamed,
+  onDeleted,
+}: {
+  items: HighlightCardData[];
+  action?: React.ReactNode;
+  onRenamed?: (id: string, name: string) => void;
+  onDeleted?: (id: string) => void;
+}) {
+  const t = useTranslations('highlights');
+
+  const showcased = items.filter(item => item.isShowcased);
+  const withVideo = items.filter(item => item.video && !item.isShowcased);
+  const drafts = items.filter(item => !item.video && !item.isShowcased);
+
+  if (items.length === 0) {
+    return <HighlightsGrid items={[]} surface="meeting" action={action} />;
+  }
+
+  const sections = [
+    { key: 'showcased', icon: Star, className: 'text-yellow-500', items: showcased },
+    { key: 'video', icon: Play, className: 'text-green-500', items: withVideo },
+    { key: 'draft', icon: Clock, className: 'text-blue-500', items: drafts },
+  ].filter(section => section.items.length > 0);
+
+  return (
+    <div className="space-y-8">
+      {action && <div className="flex justify-center">{action}</div>}
+      {sections.map(({ key, icon: Icon, className, items: sectionItems }) => (
+        <section key={key}>
+          <h3 className="mb-4 flex items-center text-lg font-semibold">
+            <Icon className={`mr-2 h-5 w-5 ${className}`} />
+            {t(`sections.${key}`)}
+          </h3>
+          <HighlightsGrid
+            items={sectionItems}
+            surface="meeting"
+            onRenamed={onRenamed}
+            onDeleted={onDeleted}
+          />
+        </section>
+      ))}
+      {drafts.length === 0 && (
+        <p className="text-center text-sm text-muted-foreground">
+          {t('highlightCard.allHighlightsProcessed')}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function HighlightsList() {
-  const { highlights, subjects } = useCouncilMeetingData();
+  // The meeting's highlights live in this client context, seeded once from the
+  // server. router.refresh() re-renders the server tree but leaves that state
+  // alone, so a rename or a delete has to be applied here too.
+  const { highlights, subjects, updateHighlight, removeHighlight } = useCouncilMeetingData();
   const { calculateHighlightData } = useHighlight();
   const { options } = useTranscriptOptions();
   const { data: session } = useSession();
@@ -58,7 +120,6 @@ export default function HighlightsList() {
       id: highlight.id,
       name: highlight.name,
       isShowcased: highlight.isShowcased,
-      hasVideo: !!highlight.videoUrl,
       updatedAt: highlight.updatedAt,
       href: `/${highlight.cityId}/${highlight.meetingId}/highlights/${highlight.id}`,
       duration: statistics?.duration || 0,
@@ -69,6 +130,15 @@ export default function HighlightsList() {
         : null,
       // Only show creator for city editors (they can see all highlights)
       creatorName: isAdmin ? highlight.createdBy?.name ?? null : null,
+      // Same rule the server applies: an editor of the city, or the author.
+      canManage: isAdmin || (!!currentUserId && highlight.createdById === currentUserId),
+      video: highlight.videoUrl
+        ? {
+          url: highlight.videoUrl,
+          playbackId: highlight.muxPlaybackId,
+          fileName: generateHighlightFileName(highlight.cityId, highlight.meetingId, highlight.name),
+        }
+        : undefined,
     };
   };
 
@@ -97,18 +167,24 @@ export default function HighlightsList() {
   }, [highlights, currentUserId]);
 
   const createButton = canCreateHighlights ? <AddHighlightButton /> : undefined;
+  const handleRenamed = (id: string, name: string) => updateHighlight(id, { name });
+  const handleDeleted = (id: string) => removeHighlight(id);
+
+  const header = (
+    <div className="bg-muted/50 rounded-lg p-4">
+      <h2 className="text-lg font-semibold mb-2">{t('title')}</h2>
+      <p className="text-sm text-muted-foreground mb-3 text-center">
+        {t('description')}
+      </p>
+    </div>
+  );
 
   // Regular users: no tabs, AI highlights already filtered out defensively above
   if (!isAdmin) {
     return (
       <div className="space-y-6">
-        <div className="bg-muted/50 rounded-lg p-4">
-          <h2 className="text-lg font-semibold mb-2">{t('title')}</h2>
-          <p className="text-sm text-muted-foreground mb-3 text-center">
-            {t('description')}
-          </p>
-        </div>
-        <HighlightsGrid items={userHighlights.map(toCardData)} createButton={createButton} />
+        {header}
+        <HighlightSections items={userHighlights.map(toCardData)} action={createButton} onRenamed={handleRenamed} onDeleted={handleDeleted} />
       </div>
     );
   }
@@ -116,12 +192,7 @@ export default function HighlightsList() {
   // Admin / superadmin: tabbed view
   return (
     <div className="space-y-6">
-      <div className="bg-muted/50 rounded-lg p-4">
-        <h2 className="text-lg font-semibold mb-2">{t('title')}</h2>
-        <p className="text-sm text-muted-foreground mb-3 text-center">
-          {t('description')}
-        </p>
-      </div>
+      {header}
 
       <Tabs defaultValue="mine" searchParam="highlights-tab">
         <TabsList>
@@ -139,16 +210,16 @@ export default function HighlightsList() {
         </TabsList>
 
         <TabsContent value="mine">
-          <HighlightsGrid items={myHighlights.map(toCardData)} createButton={createButton} />
+          <HighlightSections items={myHighlights.map(toCardData)} action={createButton} onRenamed={handleRenamed} onDeleted={handleDeleted} />
         </TabsContent>
 
         <TabsContent value="others">
-          <HighlightsGrid items={othersHighlights.map(toCardData)} />
+          <HighlightSections items={othersHighlights.map(toCardData)} onRenamed={handleRenamed} onDeleted={handleDeleted} />
         </TabsContent>
 
         {isSuperAdmin && (
           <TabsContent value="ai">
-            <HighlightsGrid items={aiHighlights.map(toCardData)} />
+            <HighlightSections items={aiHighlights.map(toCardData)} onRenamed={handleRenamed} onDeleted={handleDeleted} />
           </TabsContent>
         )}
       </Tabs>

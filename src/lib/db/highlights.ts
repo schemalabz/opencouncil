@@ -1,5 +1,5 @@
 "use server";
-import { City, CouncilMeeting, Highlight, Subject, Utterance, Prisma } from '@prisma/client';
+import { City, CouncilMeeting, Highlight, HighlightCreationPermission, Subject, Utterance, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { getCurrentUser, isUserAuthorizedToEdit, withUserAuthorizedToEdit } from "../auth";
 import { UnauthorizedError, ForbiddenError, NotFoundError, BadRequestError } from "../api/errors";
@@ -9,6 +9,7 @@ import {
     getHighlightStatistics,
     upsertHighlightCore,
     MY_HIGHLIGHTS_LIMIT,
+    HIGHLIGHT_NAME_MAX_LENGTH,
     type HighlightWithUtterances,
     type HighlightWithMeetingAndStatistics
 } from "./highlights-core";
@@ -111,6 +112,37 @@ export async function getHighlightsForMeeting(
 }
 
 /**
+ * Whether to offer the signed-in user the personal highlights page.
+ *
+ * True when they can create a highlight somewhere: a superadmin and a city
+ * administrator always can, anyone can in a city that opens creation to
+ * everyone. Also true when they already hold a highlight, so that a city which
+ * closes creation again does not strand the author of one. False for everyone
+ * else, who would only ever reach an empty page with no way to fill it.
+ */
+export async function canAccessMyHighlights(): Promise<boolean> {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) return false;
+    if (currentUser.isSuperAdmin) return true;
+    if (currentUser.administers.some(administers => administers.cityId !== null)) return true;
+
+    const openCity = await prisma.city.findFirst({
+        where: { highlightCreationPermission: HighlightCreationPermission.EVERYONE },
+        select: { id: true }
+    });
+    if (openCity !== null) return true;
+
+    // The same visibility rule the list applies, so that the link never opens
+    // onto a page that filtered everything out.
+    const ownHighlight = await prisma.highlight.findFirst({
+        where: { createdById: currentUser.id, meeting: { released: true } },
+        select: { id: true }
+    });
+
+    return ownHighlight !== null;
+}
+
+/**
  * All highlights the signed-in user created, across every city and meeting.
  * The identity comes from the session, never from a parameter: this module
  * is "use server", so a userId argument would let any client read the
@@ -183,6 +215,56 @@ export async function upsertHighlight(
     }
 
     return upsertHighlightCore({ type: 'user', userId: currentUser.id }, highlightData);
+}
+
+/**
+ * Renames a highlight, and nothing else. upsertHighlight also takes a name,
+ * but it rewrites the utterance set with the one it is given, which a rename
+ * has no business doing.
+ */
+export async function renameHighlight(
+    id: Highlight["id"],
+    name: string
+): Promise<void> {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+        throw new UnauthorizedError('Authentication required');
+    }
+
+    const trimmed = name.trim();
+    if (trimmed.length === 0) {
+        throw new BadRequestError('A highlight needs a name');
+    }
+    // Highlight.name is unbounded text, and the name travels in the payload of
+    // every list that shows the highlight. Cap it here, where a caller reaches
+    // the column directly.
+    if (trimmed.length > HIGHLIGHT_NAME_MAX_LENGTH) {
+        throw new BadRequestError(`A highlight name is at most ${HIGHLIGHT_NAME_MAX_LENGTH} characters`);
+    }
+
+    const highlight = await prisma.highlight.findUnique({
+        where: { id },
+        select: { cityId: true, createdById: true }
+    });
+
+    if (!highlight) {
+        throw new NotFoundError('Highlight not found');
+    }
+
+    // Same rule as deleteHighlight: the author, or an editor of the city.
+    const canEditCity = await isUserAuthorizedToEdit({ cityId: highlight.cityId });
+    if (!canEditCity && highlight.createdById !== currentUser.id) {
+        throw new ForbiddenError('Not authorized to rename this highlight');
+    }
+
+    // Returns nothing: the caller only needs to know the rename went through,
+    // and reading the utterances back to answer that would be a whole
+    // transcript on the wire for a one-column write.
+    await prisma.highlight.update({
+        where: { id },
+        data: { name: trimmed },
+        select: { id: true }
+    });
 }
 
 export async function deleteHighlight(id: Highlight["id"]) {

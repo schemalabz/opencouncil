@@ -7,7 +7,7 @@ import type { HighlightWithUtterances } from "@/lib/db/highlights";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Users, Star, Edit, Trash, ArrowLeft, Calendar, User } from "lucide-react";
+import { Clapperboard, Clock, Star, Users, Edit, Trash, ArrowLeft, Calendar, User } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { HighlightVideo } from './HighlightVideo';
 import { formatTime, formatRelativeTime } from "@/lib/utils";
@@ -15,6 +15,7 @@ import { HighlightPreview } from "./HighlightPreview";
 import { useHighlight } from "./HighlightContext";
 import { useTranscriptOptions } from "./options/OptionsContext";
 import { DownloadHighlightButton } from "@/components/highlights/DownloadHighlightButton";
+import { generateHighlightFileName } from "@/lib/export/download";
 
 interface HighlightViewProps {
   highlight: HighlightWithUtterances;
@@ -208,7 +209,7 @@ export function HighlightView({ highlight }: HighlightViewProps) {
                 {highlight.videoUrl && (
                   <DownloadHighlightButton
                     videoUrl={highlight.videoUrl}
-                    fileName={`${meeting.cityId}_${meeting.id}_${highlight.name || 'highlight'}`}
+                    fileName={generateHighlightFileName(meeting.cityId, meeting.id, highlight.name)}
                   />
                 )}
                 <Button size="sm" variant="outline" onClick={handleDelete}>

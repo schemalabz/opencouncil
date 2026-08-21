@@ -16,6 +16,8 @@ export function DownloadHighlightButton({
     fileName,
     showLabel = true,
     size = "sm",
+    className,
+    onDownload,
 }: {
     videoUrl: string;
     /** Name of the saved file, without the .mp4 extension. */
@@ -23,6 +25,9 @@ export function DownloadHighlightButton({
     /** false renders an icon-only button (for compact card layouts). */
     showLabel?: boolean;
     size?: "sm" | "icon";
+    className?: string;
+    /** Called once the file is on its way, for analytics. */
+    onDownload?: () => void;
 }) {
     const [isDownloading, setIsDownloading] = useState(false);
     const t = useTranslations('highlights');
@@ -38,6 +43,7 @@ export function DownloadHighlightButton({
 
             const blob = await response.blob();
             downloadFile(blob, `${fileName}.mp4`);
+            onDownload?.();
 
             toast({
                 title: t('common.success'),
@@ -60,6 +66,7 @@ export function DownloadHighlightButton({
         <Button
             variant="outline"
             size={size}
+            className={className}
             onClick={handleDownload}
             disabled={isDownloading}
             // Names the button for icon-only use, and follows the state, so a

@@ -1,6 +1,9 @@
 import { City, CouncilMeeting, Highlight, Subject, Utterance, Prisma, HighlightCreationPermission } from '@prisma/client';
 import prisma from "./prisma";
 import { ForbiddenError, NotFoundError, BadRequestError } from "../api/errors";
+import { HIGHLIGHT_NAME_MAX_LENGTH, MY_HIGHLIGHTS_LIMIT } from "../highlights/constants";
+
+export { HIGHLIGHT_NAME_MAX_LENGTH, MY_HIGHLIGHTS_LIMIT };
 
 // NOT a "use server" module: upsertHighlightCore takes an explicit identity,
 // so exposing it as a server action would let clients act as anyone. Only
@@ -50,6 +53,7 @@ export const highlightWithMeetingInclude = {
             name_en: true,
             dateTime: true,
             released: true,
+            administrativeBody: { select: { name: true, name_en: true } },
             city: { select: { id: true, name: true, name_en: true, logoImage: true, timezone: true } }
         }
     },
@@ -63,9 +67,6 @@ export type HighlightWithMeeting = Prisma.HighlightGetPayload<{
 export type HighlightWithMeetingAndStatistics = HighlightWithMeeting & {
     statistics: HighlightStatistics;
 };
-
-/** How many highlights the personal highlights page loads at once. */
-export const MY_HIGHLIGHTS_LIMIT = 200;
 
 /** The three numbers a highlight card shows. */
 export interface HighlightStatistics {
