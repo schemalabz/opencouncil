@@ -30,14 +30,12 @@ describe('extractFilters', () => {
         modelReturns({
             cityIds: ['athens'],
             dateRange: { start: '2026-01-01', end: '2026-02-01' },
-            isLatest: null,
             locationName: 'Άργος',
         });
 
         expect(await extractFilters('σχολεία Άργους', 'greece')).toEqual({
             cityIds: ['athens'],
             dateRange: { start: '2026-01-01', end: '2026-02-01' },
-            isLatest: null,
             locationName: 'Άργος',
         });
     });
@@ -47,7 +45,7 @@ describe('extractFilters', () => {
     // non-string here returned a 500 (and a Discord alert) for a query the
     // lexical clauses could answer.
     it('drops a locationName that is not a string', async () => {
-        modelReturns({ cityIds: null, dateRange: null, isLatest: null, locationName: ['Άργος'] });
+        modelReturns({ cityIds: null, dateRange: null, locationName: ['Άργος'] });
 
         expect((await extractFilters('πάρκα', 'greece')).locationName).toBeNull();
     });
@@ -57,14 +55,12 @@ describe('extractFilters', () => {
         modelReturns({
             cityIds: ['athens'],
             dateRange: 'last month',
-            isLatest: true,
             locationName: 42,
         });
 
         expect(await extractFilters('τελευταία συνεδρίαση', 'greece')).toEqual({
             cityIds: ['athens'],
             dateRange: null,
-            isLatest: true,
             locationName: null,
         });
     });

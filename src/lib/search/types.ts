@@ -83,7 +83,6 @@ export interface ExtractedFilters {
         start: string;
         end: string;
     } | null;
-    isLatest: boolean | null;
     locationName: string | null;
 }
 

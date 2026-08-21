@@ -36,7 +36,6 @@ const FILTER_EXTRACTION_PROMPT = `Εξαγωγή Φίλτρων Αναζήτησ
 {
     "cityIds": string[] | null,
     "dateRange": { start: string, end: string } | null,
-    "isLatest": boolean | null,
     "locationName": string | null
 }
 
@@ -46,8 +45,7 @@ const FILTER_EXTRACTION_PROMPT = `Εξαγωγή Φίλτρων Αναζήτησ
 3. Για τα IDs των πόλεων, χρησιμοποιήστε τα ακριβή IDs από τη λίστα πόλεων
 4. Για τοποθεσίες, εξάγετε μόνο το όνομα της τοποθεσίας (π.χ., "Πλατεία Συντάγματος", "Εθνικός Κήπος")
 5. Επιστρέψτε null (όχι undefined) για οποιοδήποτε φίλτρο δεν βρέθηκε
-6. Για ερωτήσεις "τελευταία", ορίστε isLatest σε true και συμπεριλάβετε το σχετικό cityId
-7. Σημερινή ημερομηνία: {{TODAY_DATE}}
+6. Σημερινή ημερομηνία: {{TODAY_DATE}}
 
 Διαθέσιμες πόλεις:
 {{CITIES_LIST}}`;
@@ -56,7 +54,6 @@ const FILTER_EXTRACTION_PROMPT = `Εξαγωγή Φίλτρων Αναζήτησ
 export const NO_EXTRACTED_FILTERS: ExtractedFilters = {
     cityIds: null,
     dateRange: null,
-    isLatest: null,
     locationName: null,
 };
 
@@ -79,7 +76,6 @@ export const NO_EXTRACTED_FILTERS: ExtractedFilters = {
 const extractedFiltersSchema = z.object({
     cityIds: z.array(z.string()).nullable().catch(null),
     dateRange: z.object({ start: z.string(), end: z.string() }).nullable().catch(null),
-    isLatest: z.boolean().nullable().catch(null),
     locationName: z.string().nullable().catch(null),
 }).catch(NO_EXTRACTED_FILTERS);
 
