@@ -3,6 +3,7 @@ import { useTranslations } from 'next-intl';
 import { ArrowRight, Maximize2, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { buildSearchHref } from '@/components/search/searchFilterTypes';
+import { captureLandingAction } from '@/lib/landing/analytics';
 import type { MapFilters } from '@/lib/landing/landingCore';
 import type { CommittedSearch } from './hooks/useCommittedSearch';
 
@@ -93,7 +94,11 @@ export function SearchResultsFooter({
                     {t('search.outsideArea', { count: outsideViewCount })}
                 </button>
             )}
-            <Link href={landingSearchHref(search.query, cats, filters)} className={rowClass}>
+            <Link
+                href={landingSearchHref(search.query, cats, filters)}
+                onClick={() => captureLandingAction('search_handoff', { query_length: search.query.length })}
+                className={rowClass}
+            >
                 {t('search.everywhere')}
                 <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
             </Link>

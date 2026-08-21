@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MapFilters } from '@/lib/landing/landingCore';
 import type { GeneralCityRow, MapSubject } from '@/lib/landing/landingData';
+import { captureLanding } from '@/lib/landing/analytics';
 
 /** Filters the search read out of the query text, because the reader had not set them. */
 export type DerivedSearchFilters = {
@@ -84,6 +85,7 @@ export function useCommittedSearch({ cats, filters, onDerivedFilters }: Args) {
 
     const run = useCallback(async (query: string, extract: boolean) => {
         const id = ++requestRef.current;
+        const startedAt = performance.now();
         lastRunRef.current = buildParams(query, cats, filters, true);
         setPending(true);
         try {
@@ -99,6 +101,24 @@ export function useCommittedSearch({ cats, filters, onDerivedFilters }: Args) {
                 total: data.total ?? 0,
                 truncated: Boolean(data.truncated),
             });
+            if (extract) {
+                // What a search cost and what it found. Without this, "the reader
+                // got 12 results and opened none of them" is invisible, and every
+                // argument about relevance stays an opinion.
+                captureLanding('search_committed', {
+                    query_length: query.length,
+                    // `results_shown`, not `results`: this counts the rows that
+                    // survived hydration and fit under the map's cap, which is
+                    // not the number of matches. /search reports the real total
+                    // as `results_count`, and the two must not average together.
+                    results_shown: data.total ?? 0,
+                    truncated: Boolean(data.truncated),
+                    derived: Object.keys(data.derivedFilters ?? {}),
+                    duration_ms: Math.round(performance.now() - startedAt),
+                    has_category_filter: cats.length > 0,
+                    has_city_filter: filters.cityIds.length > 0,
+                });
+            }
             if (extract && data.derivedFilters) {
                 onDerivedFilters(data.derivedFilters);
                 // The caller is about to move its chips to match, which changes
@@ -109,6 +129,12 @@ export function useCommittedSearch({ cats, filters, onDerivedFilters }: Args) {
         } catch (error) {
             if (id !== requestRef.current) return;
             console.error('[Landing] Search failed:', error);
+            // Without this a failure and a search that matched nothing are the
+            // same absence: `search_committed` only fires on success.
+            captureLanding('search_failed', {
+                query_length: query.length,
+                duration_ms: Math.round(performance.now() - startedAt),
+            });
             // An empty result set reads as "nothing matched", which would be a
             // lie. Drop back to the map's own subjects instead.
             setCommitted(null);
