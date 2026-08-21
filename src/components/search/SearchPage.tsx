@@ -98,7 +98,8 @@ export default function SearchPage() {
         // Any change other than paging itself invalidates the current page.
         // Keyed on which keys were passed, not on their values: clearing a filter
         // passes `undefined`, and that has to reset the page just like setting one.
-        if (Object.keys(updates).some(key => key !== 'page')) {
+        const changesFilters = Object.keys(updates).some(key => key !== 'page');
+        if (changesFilters) {
             params.set('page', '1');
         }
 
@@ -109,7 +110,17 @@ export default function SearchPage() {
             }
         }
 
-        router.push(`?${params.toString()}`, { scroll: false });
+        // Refining a search replaces the current entry; paging pushes a new one.
+        // Every pill click and every debounced keystroke goes through here, so
+        // pushing them all buried the entry the user arrived from: leaving
+        // /search took one Back press per filter they had touched. Paging still
+        // pushes, so Back returns to the previous page of results.
+        const href = `?${params.toString()}`;
+        if (changesFilters) {
+            router.replace(href, { scroll: false });
+        } else {
+            router.push(href, { scroll: false });
+        }
     }, [router, searchParams]);
 
     // One instance for both filter surfaces. They are mounted together (the
@@ -128,8 +139,17 @@ export default function SearchPage() {
         return () => clearTimeout(timeoutId);
     }, [localQuery, query, updateSearchParams]);
 
+    // Every run claims the next id, and only the newest one may write to state.
+    // Filter extraction is an AI call, so a request started earlier can finish
+    // later: without this, checking two topics in quick succession could leave
+    // the results of the first on screen while the filter bar shows both.
+    const searchRunIdRef = useRef(0);
+
     // Perform search
     const performSearch = useCallback(async () => {
+        const runId = ++searchRunIdRef.current;
+        const isCurrentRun = () => runId === searchRunIdRef.current;
+
         // Skip search if temporarily disabled
         if (SEARCH_TEMPORARILY_DISABLED) {
             setState(prev => ({ ...prev, results: [], total: 0, isLoading: false }));
@@ -172,6 +192,8 @@ export default function SearchPage() {
                 }
             }, { skipQueryLog });
 
+            if (!isCurrentRun()) return;
+
             setState({
                 results: response.results,
                 total: response.total,
@@ -194,6 +216,9 @@ export default function SearchPage() {
         } catch (err) {
             const error = err instanceof Error ? err : new Error('An error occurred during search');
             posthog.captureException(err);
+            // A superseded run's failure says nothing about the search on
+            // screen, so it must not replace its results with an error page.
+            if (!isCurrentRun()) return;
             setState(prev => ({ ...prev, error, isLoading: false }));
             toast({
                 variant: "destructive",

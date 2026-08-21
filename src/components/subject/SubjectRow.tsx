@@ -197,7 +197,7 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
                                     </div>
                                 )}
                                 <div className="shrink-0 sm:mt-auto" onClick={(e) => e.stopPropagation()}>
-                                    <PersonAvatarList users={speakers} size="sm" maxDisplayed={4} stacked />
+                                    <PersonAvatarList users={speakers} introducerId={subject.introducedBy?.id} size="sm" maxDisplayed={4} stacked />
                                 </div>
                             </>
                         )}

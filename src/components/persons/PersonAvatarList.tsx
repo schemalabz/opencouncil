@@ -1,6 +1,7 @@
 "use client";
 import { PersonBadge } from "./PersonBadge";
 import { cn } from "@/lib/utils";
+import { Pen } from "lucide-react";
 import { PersonWithRelations } from '@/lib/db/people';
 import { useRef, useState, useEffect, useCallback } from "react";
 
@@ -24,6 +25,21 @@ const STACK_SPACING: Record<AvatarSize, string> = {
     xl: '-space-x-4 sm:-space-x-6',
 };
 
+/** The introducer marker, scaled to the avatar it sits on. */
+const INTRODUCER_BADGE_SIZES: Record<AvatarSize, string> = {
+    sm: 'h-3.5 w-3.5',
+    md: 'h-4 w-4',
+    lg: 'h-4 w-4',
+    xl: 'h-4 w-4',
+};
+
+const INTRODUCER_ICON_SIZES: Record<AvatarSize, string> = {
+    sm: 'h-2 w-2 text-foreground',
+    md: 'h-2.5 w-2.5 text-foreground',
+    lg: 'h-2.5 w-2.5 text-foreground',
+    xl: 'h-2.5 w-2.5 text-foreground',
+};
+
 interface PersonAvatarListProps {
     users: PersonWithRelations[];
     className?: string;
@@ -35,6 +51,8 @@ interface PersonAvatarListProps {
     size?: AvatarSize;
     /** Overlap the circles into a stack, each ringed against the card and lifting on hover. */
     stacked?: boolean;
+    /** Marks this person as the subject's introducer with a pen badge. */
+    introducerId?: string;
 }
 
 export function PersonAvatarList({
@@ -46,6 +64,7 @@ export function PersonAvatarList({
     isHovered = false,
     size = 'md',
     stacked = false,
+    introducerId,
 }: PersonAvatarListProps) {
     const displayCount = Math.min(users.length, maxDisplayed);
     const remainingCount = numMore ?? (users.length - displayCount);
@@ -165,6 +184,14 @@ export function PersonAvatarList({
                             // by a fraction of the avatar, not of the avatar plus its padding.
                             className={stacked ? "p-0 sm:p-0 rounded-full" : undefined}
                         />
+                        {user.id === introducerId && (
+                            <div className={cn(
+                                "absolute top-0 left-0 flex items-center justify-center rounded-full bg-background ring-[1.5px] ring-background",
+                                INTRODUCER_BADGE_SIZES[size],
+                            )}>
+                                <Pen className={INTRODUCER_ICON_SIZES[size]} />
+                            </div>
+                        )}
                     </div>
                 ))}
                 {remainingCount > 0 && (

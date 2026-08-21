@@ -69,6 +69,7 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
         <SubjectCardFooter
             stats={stats}
             speakers={fullDisplayedSpeakers}
+            introducerId={subject.introducedBy?.id}
             withdrawn={subject.withdrawn}
             withdrawnLabel={getWithdrawnLabel(t, subject)}
             minutesText={t('minutesCount', { count: stats.minutes })}
