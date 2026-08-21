@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode, useState } from "react";
-import { ChevronDown, X, type LucideIcon } from "lucide-react";
+import { ChevronDown, Sparkles, X, type LucideIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +20,13 @@ interface FilterPillProps {
      * Omit to hide the button (a filter that can only be changed, not removed).
      */
     clear?: { label: string; onClear: () => void };
+    /**
+     * Marks a filter the search read out of the query text rather than the
+     * reader setting it, and carries the wording that says so. Same shape as
+     * `clear`: the mark and its accessible name travel together, so a pill
+     * cannot show the mark without saying what it means.
+     */
+    derived?: { hint: string };
     /** Receives a callback that closes the panel, for single-select controls. */
     children: (close: () => void) => ReactNode;
     contentClassName?: string;
@@ -45,6 +52,7 @@ export default function FilterPill({
     icon: Icon,
     disabled = false,
     clear,
+    derived,
     children,
     contentClassName,
     widthClassName,
@@ -59,7 +67,9 @@ export default function FilterPill({
             disabled={disabled}
             // The icon alone identifies an active filter's field, so the value
             // gets the full pill width; the title restores the field name on hover.
-            title={isActive ? `${label}: ${value}${valueSuffix ? ` ${valueSuffix}` : ""}` : undefined}
+            title={isActive
+                ? `${label}: ${value}${valueSuffix ? ` ${valueSuffix}` : ""}${derived ? ` · ${derived.hint}` : ""}`
+                : undefined}
             className={cn(
                 "flex min-w-0 flex-1 items-center gap-1.5 h-9 pl-3 text-sm transition-colors",
                 isActive && clear ? "pr-1.5" : "pr-3",
@@ -71,6 +81,12 @@ export default function FilterPill({
                 {isActive ? <span className="font-medium">{value}</span> : label}
             </span>
             {isActive && valueSuffix && <span className="shrink-0 font-medium">{valueSuffix}</span>}
+            {isActive && derived && (
+                <>
+                    <Sparkles className="h-3 w-3 shrink-0 opacity-60" aria-hidden="true" />
+                    <span className="sr-only">{derived.hint}</span>
+                </>
+            )}
             {!isActive && <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" aria-hidden="true" />}
         </button>
     );

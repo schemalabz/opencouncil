@@ -36,6 +36,7 @@
         "loading": "Учитавање…",
         "clear": "Поништите",
         "clearField": "Обриши {field}",
+        "derivedFromQuery": "Из текста ваше претраге",
         "panelTitle": "Филтери",
         "back": "Назад"
     },
