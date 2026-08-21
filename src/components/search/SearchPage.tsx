@@ -302,22 +302,6 @@ export default function SearchPage() {
 
             const { cityIds: derivedCityIds, dateRange: derivedRange } = response.derivedFilters;
 
-            // Record the search that produced these results by the filters it
-            // ran with, not the ones that were asked for — the write below
-            // turns the derived ones into explicit params, and that must not
-            // read as a different search.
-            executedSearchRef.current = searchedWith(
-                derivedCityIds ?? requestedCityIds,
-                requestedDateRange ?? derivedRange
-            );
-
-            setState({
-                results: response.results,
-                total: response.total,
-                isLoading: false,
-                error: null
-            });
-
             // Show what the query text supplied. A derived location has no
             // filter on this page to land on, so it stays unshown — it only
             // boosts proximity, it does not narrow the results.
@@ -327,6 +311,12 @@ export default function SearchPage() {
                 derivedUpdates.cityId = derivedCityIds[0];
                 newlyDerived.push('city');
             }
+            // The date the URL will carry, which is not the date the model
+            // answered with: a derived range goes into the URL as a calendar
+            // day and comes back out bounded on local day edges. The key below
+            // has to hold that value, or it can never match and the search it
+            // exists to skip runs anyway.
+            let effectiveDateRange = requestedDateRange;
             if (derivedRange) {
                 const from = parseFilterDate(derivedRange.start);
                 const to = parseFilterDate(derivedRange.end);
@@ -334,8 +324,28 @@ export default function SearchPage() {
                     derivedUpdates.dateFrom = formatFilterDate(from);
                     derivedUpdates.dateTo = formatFilterDate(to);
                     newlyDerived.push('date');
+                    effectiveDateRange = filterDateRangeToInstants(derivedUpdates.dateFrom, derivedUpdates.dateTo);
                 }
             }
+
+            // Record the search that produced these results by the filters it
+            // ran with, not the ones that were asked for — the write below
+            // turns the derived ones into explicit params, and that must not
+            // read as a different search.
+            //
+            // The city stays as the whole derived list on purpose. Only its
+            // first entry reaches the URL, so a query naming two municipalities
+            // deliberately fails to match here and searches again, narrowed to
+            // the one the pill shows.
+            executedSearchRef.current = searchedWith(derivedCityIds ?? requestedCityIds, effectiveDateRange);
+
+            setState({
+                results: response.results,
+                total: response.total,
+                isLoading: false,
+                error: null
+            });
+
             if (newlyDerived.length > 0) {
                 applyDerivedFilters(derivedUpdates, newlyDerived);
             }
