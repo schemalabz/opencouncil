@@ -7,14 +7,14 @@ import type { HighlightWithUtterances } from "@/lib/db/highlights";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Users, Star, Edit, Trash, Download, ArrowLeft, Calendar, User } from "lucide-react";
+import { Clock, Users, Star, Edit, Trash, ArrowLeft, Calendar, User } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { HighlightVideo } from './HighlightVideo';
 import { formatTime, formatRelativeTime } from "@/lib/utils";
 import { HighlightPreview } from "./HighlightPreview";
 import { useHighlight } from "./HighlightContext";
 import { useTranscriptOptions } from "./options/OptionsContext";
-import { downloadFile } from "@/lib/export/meetings";
+import { DownloadHighlightButton } from "@/components/highlights/DownloadHighlightButton";
 
 interface HighlightViewProps {
   highlight: HighlightWithUtterances;
@@ -29,7 +29,6 @@ export function HighlightView({ highlight }: HighlightViewProps) {
   const canCreateHighlights = options.canCreateHighlights;
   const canEditCity = options.editsAllowed;
   const [latestPendingTask, setLatestPendingTask] = useState<string | null>(null);
-  const [isDownloading, setIsDownloading] = useState(false);
   const t = useTranslations('highlights');
 
   // Only show creator for city editors (they can see all highlights)
@@ -132,35 +131,6 @@ export function HighlightView({ highlight }: HighlightViewProps) {
     }
   };
 
-  const handleDownload = async () => {
-    if (!highlight.videoUrl) return;
-    
-    setIsDownloading(true);
-    try {
-      const response = await fetch(highlight.videoUrl);
-      if (!response.ok) throw new Error('Failed to fetch video');
-      
-      const blob = await response.blob();
-      const fileName = `${meeting.cityId}_${meeting.id}_${highlight.name || 'highlight'}.mp4`;
-      downloadFile(blob, fileName);
-      
-      toast({
-        title: t('common.success'),
-        description: t('toasts.downloadStarted'),
-        variant: "default",
-      });
-    } catch (error) {
-      console.error('Failed to download video:', error);
-      toast({
-        title: t('common.error'),
-        description: t('toasts.downloadError'),
-        variant: "destructive",
-      });
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       {/* Header with back button */}
@@ -236,24 +206,10 @@ export function HighlightView({ highlight }: HighlightViewProps) {
                   </Button>
                 )}
                 {highlight.videoUrl && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDownload}
-                    disabled={isDownloading}
-                  >
-                    {isDownloading ? (
-                      <>
-                        <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                        {t('details.downloading')}
-                      </>
-                    ) : (
-                      <>
-                        <Download className="h-4 w-4 mr-2" />
-                        {t('details.download')}
-                      </>
-                    )}
-                  </Button>
+                  <DownloadHighlightButton
+                    videoUrl={highlight.videoUrl}
+                    fileName={`${meeting.cityId}_${meeting.id}_${highlight.name || 'highlight'}`}
+                  />
                 )}
                 <Button size="sm" variant="outline" onClick={handleDelete}>
                   <Trash className="h-4 w-4" />
