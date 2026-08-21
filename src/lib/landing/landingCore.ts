@@ -246,6 +246,9 @@ export type InitialUrlState = {
     infoOpen: boolean;
     cats: string[];
     query: string;
+    /** A committed search, carried so a shared link re-runs it. Distinct from
+     *  `query`, which is only whatever is being typed at the moment. */
+    search: string;
     range: DateRangeKey;
     filters: MapFilters;
 };
@@ -270,6 +273,7 @@ export function parseInitialUrlState(search: string): InitialUrlState {
     const catParam = p.get('cat');
     const cats = catParam ? catParam.split(',').filter(Boolean) : [];
     const query = p.get('q') ?? '';
+    const committedSearch = p.get('search') ?? '';
 
     const r = p.get('range');
     const range: DateRangeKey = r && DATE_RANGES.some((d) => d.key === r) ? (r as DateRangeKey) : DEFAULT_RANGE;
@@ -291,7 +295,7 @@ export function parseInitialUrlState(search: string): InitialUrlState {
               }
             : EMPTY_FILTERS;
 
-    return { selectedId: subject, view, infoOpen, cats, query, range, filters };
+    return { selectedId: subject, view, infoOpen, cats, query, search: committedSearch, range, filters };
 }
 
 /** Props shared by the desktop and mobile layouts. */
