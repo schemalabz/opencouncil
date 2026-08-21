@@ -10,6 +10,8 @@ import { sendPetitionReceivedAdminAlert, sendUserOnboardedAdminAlert, sendNotifi
 import { matchUsersToSubjects } from "@/lib/notifications/matching";
 import { generateEmailContent, generateSmsContent } from "@/lib/notifications/content";
 import { sendWelcomeMessages } from "@/lib/notifications/welcome";
+import { IS_DEV } from "@/lib/utils";
+import { saveNotificationPreferencesSchema, savePetitionSchema } from "@/lib/zod-schemas/onboarding";
 
 // Type definitions for user preferences data
 export type PetitionWithRelations = Petition & {
@@ -248,9 +250,25 @@ type OnboardingData = {
     phone?: string;
     email?: string; // For non-authenticated users
     name?: string;
-    // If provided, the user is being seeded from the seed-users API
-    // This bypasses the session check and the magic link check
+    // Dev-seed-only convenience: lets the seed-users API create users without a
+    // session and without a magic link. SECURITY: these actions are reachable as
+    // Server Actions from the public onboarding client, so this field is
+    // attacker-controllable. It is always run through sanitizeSeedUser(), which
+    // returns undefined off local dev and otherwise allow-lists benign fields —
+    // never isSuperAdmin or identity fields. Never spread the raw value.
     seedUser?: Partial<User>;
+}
+
+// Neutralize the dev-seed convenience field before it can influence auth or user
+// creation. Off local dev (production/preview: IS_DEV === false) it is ignored
+// entirely, so the onboarding Server Actions cannot skip the session check or
+// mass-assign privileges. In local dev only the four benign seed fields survive.
+function sanitizeSeedUser(
+    seedUser: Partial<User> | undefined
+): Partial<Pick<User, 'createdAt' | 'onboarded' | 'allowProductUpdates' | 'allowPetitionUpdates'>> | undefined {
+    if (!IS_DEV || !seedUser) return undefined;
+    const { createdAt, onboarded, allowProductUpdates, allowPetitionUpdates } = seedUser;
+    return { createdAt, onboarded, allowProductUpdates, allowPetitionUpdates };
 }
 
 /**
@@ -260,7 +278,14 @@ export async function saveNotificationPreferences(data: OnboardingData & {
     locationIds: string[];
     topicIds: string[];
 }): Promise<Result<NotificationPreference>> {
-    const { cityId, locationIds, topicIds, phone, email, name, seedUser } = data;
+    const validation = saveNotificationPreferencesSchema.safeParse(data);
+    if (!validation.success) {
+        return createError('Invalid input');
+    }
+    const { cityId, locationIds, topicIds, phone, email, name, seedUser: rawSeedUser } = data;
+    // Harden the attacker-controllable seed field: undefined off local dev, and
+    // otherwise stripped to benign fields only (see sanitizeSeedUser).
+    const seedUser = sanitizeSeedUser(rawSeedUser);
     // Only call getServerSession if not in seed/CLI mode (avoids Next.js request context requirement)
     const session = seedUser ? null : await getServerSession();
 
@@ -480,7 +505,14 @@ export async function savePetition(data: OnboardingData & {
     isResident: boolean;
     isCitizen: boolean;
 }): Promise<Result<Petition>> {
-    const { cityId, isResident, isCitizen, phone, email, name, seedUser } = data;
+    const validation = savePetitionSchema.safeParse(data);
+    if (!validation.success) {
+        return createError('Invalid input');
+    }
+    const { cityId, isResident, isCitizen, phone, email, name, seedUser: rawSeedUser } = data;
+    // Harden the attacker-controllable seed field: undefined off local dev, and
+    // otherwise stripped to benign fields only (see sanitizeSeedUser).
+    const seedUser = sanitizeSeedUser(rawSeedUser);
     const session = await getServerSession();
 
     let userId: string;
