@@ -107,6 +107,13 @@ jobs:
 
             PR_NUM="$1"
 
+            # Paired notis preview (exists only for notis-touching PRs).
+            # Gate on command existence (host may predate the notis wiring);
+            # let REAL destroy failures print a warning like the main path.
+            if command -v notis-preview-destroy >/dev/null; then
+              sudo notis-preview-destroy "$PR_NUM" || echo "Warning: notis preview destroy failed"
+            fi
+
             echo "Destroying preview instance for PR #$PR_NUM..."
             sudo opencouncil-preview-destroy "$PR_NUM" || {
               echo "Warning: Failed to destroy preview cleanly"
