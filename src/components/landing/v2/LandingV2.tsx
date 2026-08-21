@@ -791,7 +791,9 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         petitionedBelowThreshold,
         onOpenPetitioned: (city: LandingPetitionedCity) => openPetitioned(city, 'list'),
         upcoming,
-        loading,
+        // A committed search fetches its own results; the panel's loading state
+        // covers both, since either way the list is about to change under the reader.
+        loading: loading || searchPending,
         selectedId,
         selectSubject: (id: string, source: 'list' | 'search' = 'list') => trackedSelectSubject(id, source),
         clearSelection,
@@ -821,7 +823,6 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         onLocateAddress: locateAddress,
         onCommitSearch: commitSearch,
         committedSearch,
-        searchPending,
         // Clears the search only. Anything it derived is a real filter now, with
         // a chip of its own to clear — dropping those here would take away
         // narrowing the reader can see, without being asked to.
