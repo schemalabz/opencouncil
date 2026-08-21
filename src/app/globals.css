@@ -304,3 +304,34 @@ body.landing-scroll-lock {
     overflow: hidden;
     overscroll-behavior: none;
 }
+
+/* Opt-in scrollbar gutter. Pages whose content height changes while the user works
+   (search results replacing the empty state) gain and lose the classic scrollbar of
+   Windows and Linux browsers. That changes the viewport width, so every centred
+   column — the search bar included — jumps sideways. Reserve the gutter on
+   those pages only: full-bleed layouts (meeting, admin, embed) must not get a blank
+   strip on the right. Browsers with overlay scrollbars reserve nothing. */
+html:has([data-stable-scrollbar-gutter]) {
+    scrollbar-gutter: stable;
+}
+
+/* Transient full-screen overlay (added by useBodyScrollLock): stop the page
+   underneath from scrolling and rubber-banding while the overlay is open.
+   Unlike .landing-scroll-lock above, this leaves html/body sizing alone —
+   the page below keeps its scroll position for when the overlay closes.
+
+   Gated on the same breakpoint that hides the overlay it guards (`md`, 768px).
+   The only user of this is the /search filter panel, which React mounts on
+   state but Tailwind hides with `md:hidden`. Locking on the state alone let the
+   two disagree: widening past `md` with the panel open left the page locked
+   behind an invisible overlay, with the close button and the filter icon both
+   hidden and nothing on screen able to release it. Expressing the lock as a
+   media query keeps one condition, evaluated by the same cascade, so the lock
+   cannot outlive the overlay — and it needs no resize listener to keep up. */
+@media (max-width: 767px) {
+    html.overlay-scroll-lock,
+    body.overlay-scroll-lock {
+        overflow: hidden;
+        overscroll-behavior: none;
+    }
+}

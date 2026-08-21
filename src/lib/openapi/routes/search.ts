@@ -42,7 +42,9 @@ registry.registerPath({
     method: 'post',
     path: '/api/search',
     summary: 'Full-text search across transcripts',
-    description: 'Searches meeting transcripts using Elasticsearch. Supports filtering by city, person, party, topic, date range, and geographic location.',
+    description: 'Searches meeting transcripts using Elasticsearch. Supports filtering by city, person, party, topic, date range, and geographic location. '
+        + 'Results are limited to the municipalities of the host the request arrives on (opencouncil.gr returns Greek municipalities, opencouncil.fr French ones), '
+        + 'whether or not `cityIds` is set. A `cityIds` entry outside that country matches nothing.',
     tags: ['Search'],
     request: {
         body: {

@@ -1,9 +1,15 @@
 "use client";
 
-import { Search, Sparkles, AlertTriangle, ArrowLeft } from "lucide-react";
+import { AlertTriangle, ArrowLeft } from "lucide-react";
 import { Link } from "@/i18n/routing";
-import { Input } from "../ui/input";
-import MetadataFilters from "./MetadataFilters";
+import { SearchInputPill } from "@/components/ui/search-input-pill";
+import { SEARCH_FIELD_STYLE } from "@/lib/landing/landingCore";
+import { FilterIconButton } from "@/components/landing/v2/controls";
+import SearchFilters from "./SearchFilters";
+import SearchFilterSections from "./SearchFilterSections";
+import { filterDateRangeToInstants, hasActiveSearchFilters, type SearchFilterParams } from "./searchFilterTypes";
+import { useSearchFilterData } from "./hooks/useSearchFilterData";
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { SearchResultLight, search as searchFn } from "@/lib/search";
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -14,10 +20,11 @@ import { Skeleton } from "../ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { SubjectListContainer } from "@/components/subject/SubjectListContainer";
 import { getPartyFromRoles } from "@/lib/utils";
+import { toAdministrativeBodyType } from "@/lib/utils/administrativeBodies";
 import { useTranslations } from 'next-intl';
 import posthog from "posthog-js";
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 15;
 const SEARCH_DELAY = 500;
 
 // Temporary flag to disable search functionality
@@ -30,15 +37,34 @@ export default function SearchPage() {
     // The last query persisted to the search log, so that filter and page
     // changes re-executing the same query don't log the same intent again.
     const lastLoggedQueryRef = useRef<string | null>(null);
+    const searchInputRef = useRef<HTMLInputElement>(null);
+    const [filtersOpen, setFiltersOpen] = useState(false);
+    // The filter panel is a full-screen layer; without this the results list
+    // scrolls behind it and the page rubber-bands on iOS. The lock is gated on
+    // the same `md` breakpoint that hides the overlay (see globals.css), so
+    // widening the viewport releases it through the cascade rather than through
+    // a resize listener.
+    useBodyScrollLock(filtersOpen);
     const t = useTranslations('Common');
     const ts = useTranslations('search');
+    const tf = useTranslations('search.filters');
 
     // Get all search parameters from URL
     const query = searchParams.get('query') || "";
     const cityId = searchParams.get('cityId') || undefined;
     const personId = searchParams.get('personId') || undefined;
     const partyId = searchParams.get('partyId') || undefined;
+    const adminBodyType = searchParams.get('adminBodyType') || undefined;
+    const adminBodyId = searchParams.get('adminBodyId') || undefined;
+    const topicIds = searchParams.get('topicIds') || undefined;
+    const dateFrom = searchParams.get('dateFrom') || undefined;
+    const dateTo = searchParams.get('dateTo') || undefined;
     const page = parseInt(searchParams.get('page') || '1');
+
+    const filters = useMemo<SearchFilterParams>(
+        () => ({ cityId, personId, partyId, adminBodyType, adminBodyId, topicIds, dateFrom, dateTo }),
+        [cityId, personId, partyId, adminBodyType, adminBodyId, topicIds, dateFrom, dateTo]
+    );
 
     // Local state for search input
     const [localQuery, setLocalQuery] = useState(query);
@@ -69,18 +95,11 @@ export default function SearchPage() {
             }
         });
 
-        // Reset to page 1 when query or filters change
-        if (updates.query !== undefined || updates.cityId !== undefined ||
-            updates.personId !== undefined || updates.partyId !== undefined) {
+        // Any change other than paging itself invalidates the current page.
+        // Keyed on which keys were passed, not on their values: clearing a filter
+        // passes `undefined`, and that has to reset the page just like setting one.
+        if (Object.keys(updates).some(key => key !== 'page')) {
             params.set('page', '1');
-        }
-
-        // If all filters are cleared, ensure we keep the query if it exists
-        if (updates.cityId === undefined && updates.personId === undefined && updates.partyId === undefined) {
-            const query = params.get('query');
-            if (query) {
-                params.set('query', query);
-            }
         }
 
         // Remove empty parameters
@@ -92,6 +111,11 @@ export default function SearchPage() {
 
         router.push(`?${params.toString()}`, { scroll: false });
     }, [router, searchParams]);
+
+    // One instance for both filter surfaces. They are mounted together (the
+    // desktop bar is hidden with CSS, not unmounted), so a hook call inside each
+    // would fetch every list twice.
+    const filterData = useSearchFilterData(filters, updateSearchParams);
 
     // Debounced URL update for search
     useEffect(() => {
@@ -126,11 +150,20 @@ export default function SearchPage() {
             const skipQueryLog = lastLoggedQueryRef.current === query;
             lastLoggedQueryRef.current = query;
 
+            // An unknown adminBodyType in a hand-edited URL is dropped rather
+            // than sent: the pill leaves it unlabelled, so filtering on it would
+            // empty the results with nothing on screen to explain why.
+            const adminBodyTypeFilter = toAdministrativeBodyType(adminBodyType);
+
             const response = await searchFn({
                 query,
                 cityIds: cityId ? [cityId] : undefined,
                 personIds: personId ? [personId] : undefined,
                 partyIds: partyId ? [partyId] : undefined,
+                adminBodyIds: adminBodyId ? [adminBodyId] : undefined,
+                adminBodyTypes: adminBodyTypeFilter ? [adminBodyTypeFilter] : undefined,
+                topicIds: topicIds ? topicIds.split(',').filter(Boolean) : undefined,
+                dateRange: filterDateRangeToInstants(dateFrom, dateTo),
                 config: {
                     enableSemanticSearch: true,
                     size: PAGE_SIZE,
@@ -152,6 +185,9 @@ export default function SearchPage() {
                     has_city_filter: !!cityId,
                     has_person_filter: !!personId,
                     has_party_filter: !!partyId,
+                    has_admin_body_filter: !!(adminBodyType || adminBodyId),
+                    has_topic_filter: !!topicIds,
+                    has_date_filter: !!dateFrom,
                     results_count: response.total,
                 });
             }
@@ -166,15 +202,30 @@ export default function SearchPage() {
             });
             console.error('Search error:', err);
         }
-    }, [query, cityId, personId, partyId, page, toast]);
+    }, [query, cityId, personId, partyId, adminBodyType, adminBodyId, topicIds, dateFrom, dateTo, page, toast]);
 
     // Search when URL parameters change
     useEffect(() => {
         performSearch();
-    }, [query, cityId, personId, partyId, page, performSearch]);
+    }, [performSearch]);
 
-    // Fetch initial filter data
+    // Reconcile the identity filters in the URL against the database: drop ids
+    // that no longer resolve, and fill in the city (and party) a person or party
+    // id implies. Runs only when one of those three ids actually changes.
+    //
+    // `updateSearchParams` and `toast` are held in refs rather than listed as
+    // dependencies: `updateSearchParams` is rebuilt from `searchParams`, so
+    // depending on it re-ran this on every URL change — three server round trips
+    // per pagination click, purely to re-derive values that had not moved.
+    const updateSearchParamsRef = useRef(updateSearchParams);
+    const toastRef = useRef(toast);
     useEffect(() => {
+        updateSearchParamsRef.current = updateSearchParams;
+        toastRef.current = toast;
+    });
+
+    useEffect(() => {
+        let live = true;
         const fetchInitialFilterData = async () => {
             try {
                 const updates: Record<string, string | undefined> = {};
@@ -206,12 +257,25 @@ export default function SearchPage() {
                     }
                 }
 
-                if (Object.keys(updates).length > 0) {
-                    updateSearchParams(updates);
+                // A newer set of ids superseded this run while it was in flight;
+                // its answers describe filters that are no longer on screen.
+                if (!live) return;
+
+                // Push only genuine changes. Pushing the already-current values
+                // would reset the page to 1 on each paginate and pin the results
+                // to page 1 forever.
+                const current: Record<string, string | undefined> = { cityId, personId, partyId };
+                const changed = Object.fromEntries(
+                    Object.entries(updates).filter(([key, value]) => value !== current[key])
+                );
+
+                if (Object.keys(changed).length > 0) {
+                    updateSearchParamsRef.current(changed);
                 }
             } catch (err) {
+                if (!live) return;
                 console.error('Error fetching initial filter data:', err);
-                toast({
+                toastRef.current({
                     variant: "destructive",
                     title: "Error",
                     description: "Failed to load filter data"
@@ -220,7 +284,8 @@ export default function SearchPage() {
         };
 
         fetchInitialFilterData();
-    }, [cityId, personId, partyId, updateSearchParams, toast]);
+        return () => { live = false; };
+    }, [cityId, personId, partyId]);
 
     const totalPages = Math.ceil(state.total / PAGE_SIZE);
 
@@ -228,14 +293,21 @@ export default function SearchPage() {
     const resultsGrid = useMemo(() => (
         <SubjectListContainer
             subjects={state.results}
-            layout="grid"
+            layout="list"
+            variant="row"
             showContext={true}
             openInNewTab={true}
         />
     ), [state.results]);
 
     return (
-        <div className="flex flex-col gap-6 max-w-7xl mx-auto px-4 py-8">
+        // data-stable-scrollbar-gutter: results arriving make the page scroll, and the
+        // classic scrollbar that browsers on Windows and Linux then show would narrow
+        // the viewport and shift this centred column left. See globals.css.
+        <div
+            data-stable-scrollbar-gutter
+            className="flex flex-col gap-6 max-w-7xl mx-auto px-4 py-8"
+        >
             {/* Home affordance — the search page otherwise has no obvious way
                 back; a user resorted to hand-editing the URL (#405). Real
                 navigational <Link>, keyboard-focusable with a visible focus
@@ -265,70 +337,102 @@ export default function SearchPage() {
                 </div>
             )}
 
-            <div className="flex flex-col gap-2">
-                <div className="flex justify-center mb-2">
-                    <div className="flex items-center justify-center">
-                        <div className="p-3 rounded-full bg-[hsl(var(--orange))]/10">
-                            <Sparkles className="w-8 h-8 text-[hsl(var(--orange))]" />
-                        </div>
-                    </div>
-                </div>
-                <div className="text-center">
-                    <h2 className="text-2xl font-bold mb-2 bg-gradient-to-r from-[hsl(var(--orange))] to-[hsl(var(--accent))] bg-clip-text text-transparent">
-                        {ts('heading')}
-                    </h2>
-                    <p className="text-muted-foreground text-sm">
-                        {ts('subheading')}
-                    </p>
-                </div>
-            </div>
+            <div className="flex flex-col gap-4">
+                {/* In normal page flow — the bar scrolls away with the results. Desktop keeps
+                    the inline pill row (SearchFilters); mobile collapses the same fields behind
+                    a filter icon that opens a full-screen overlay (SearchFilterSections), since
+                    a row of pills has to scroll sideways on a narrow screen.
 
-            <div className="flex flex-col lg:flex-row gap-4">
-                <div className="w-full lg:w-1/4">
-                    <div className="sticky top-4">
-                        <MetadataFilters
-                            className="w-full"
-                            filters={{ cityId, personId, partyId }}
-                            setFilters={(filters) => updateSearchParams(filters)}
+                    The split is a CSS breakpoint (md, 768px — same value as useIsMobile), not a
+                    JS check: a JS check renders the desktop bar in the SSR HTML, and a phone on
+                    a slow connection shows that until hydration completes. */}
+                <div className="pb-3 pt-2">
+                    <div className="mx-auto w-full max-w-6xl">
+                        <div className="flex items-center gap-2">
+                            <form
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    if (!SEARCH_TEMPORARILY_DISABLED) {
+                                        updateSearchParams({ query: localQuery });
+                                    }
+                                }}
+                                className="relative flex-1"
+                            >
+                                <SearchInputPill
+                                    value={localQuery}
+                                    onChange={setLocalQuery}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            if (!SEARCH_TEMPORARILY_DISABLED) {
+                                                updateSearchParams({ query: localQuery });
+                                            }
+                                        }
+                                    }}
+                                    placeholder={SEARCH_TEMPORARILY_DISABLED ? ts('placeholderDisabled') : ts('placeholder')}
+                                    ariaLabel={t('search')}
+                                    clearAriaLabel={ts('clearQuery')}
+                                    inputRef={searchInputRef}
+                                    disabled={SEARCH_TEMPORARILY_DISABLED}
+                                    size="lg"
+                                    className="shadow-lg"
+                                    style={SEARCH_FIELD_STYLE}
+                                />
+                            </form>
+                            <div className="shrink-0 md:hidden">
+                                <FilterIconButton
+                                    active={hasActiveSearchFilters(filters)}
+                                    onClick={() => setFiltersOpen(true)}
+                                    ariaLabel={tf('panelTitle')}
+                                />
+                            </div>
+                        </div>
+
+                        <SearchFilters
+                            className="mt-3 hidden md:flex"
+                            filters={filters}
+                            setFilters={updateSearchParams}
+                            data={filterData}
                             disabled={SEARCH_TEMPORARILY_DISABLED}
                         />
                     </div>
-                </div>
-                <div className="w-full lg:w-3/4">
-                    <form
-                        onSubmit={(e) => {
-                            e.preventDefault();
-                            if (!SEARCH_TEMPORARILY_DISABLED) {
-                                updateSearchParams({ query: localQuery });
-                            }
-                        }}
-                        className="relative w-full"
-                    >
-                        <div className="relative">
-                            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                            <Input
-                                placeholder={SEARCH_TEMPORARILY_DISABLED ? ts('placeholderDisabled') : ts('placeholder')}
-                                aria-label={t('search')}
-                                className="pl-12 h-12 text-base"
-                                value={localQuery}
-                                onChange={(e) => {
-                                    if (!SEARCH_TEMPORARILY_DISABLED) {
-                                        setLocalQuery(e.target.value);
-                                    }
-                                }}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        e.preventDefault();
-                                        if (!SEARCH_TEMPORARILY_DISABLED) {
-                                            updateSearchParams({ query: localQuery });
-                                        }
-                                    }
-                                }}
-                                disabled={SEARCH_TEMPORARILY_DISABLED}
-                            />
-                        </div>
-                    </form>
 
+                    {filtersOpen && (
+                        <div className="fixed inset-0 z-[60] flex flex-col bg-background md:hidden">
+                            <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
+                                <button
+                                    type="button"
+                                    onClick={() => setFiltersOpen(false)}
+                                    aria-label={tf('back')}
+                                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
+                                >
+                                    <ArrowLeft className="h-5 w-5" />
+                                </button>
+                                <span className="text-base font-semibold text-foreground">{tf('panelTitle')}</span>
+                            </div>
+                            <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-5">
+                                <SearchFilterSections
+                                    filters={filters}
+                                    setFilters={updateSearchParams}
+                                    data={filterData}
+                                    disabled={SEARCH_TEMPORARILY_DISABLED}
+                                />
+                            </div>
+                            <div className="flex shrink-0 items-center justify-end border-t border-border bg-card px-4 py-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setFiltersOpen(false)}
+                                    className="rounded-xl bg-foreground px-6 py-2 text-sm font-semibold text-background transition hover:brightness-110"
+                                >
+                                    {ts('resultsCount', { count: state.total })}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Same max width as the search bar above, so the results column lines up with it. */}
+                <div className="mx-auto w-full max-w-6xl">
                     {state.error ? (
                         <div className="flex justify-center items-center min-h-[400px]">
                             <div className="text-center space-y-3">
@@ -346,9 +450,9 @@ export default function SearchPage() {
                             </div>
                         </div>
                     ) : state.isLoading ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+                        <div className="flex flex-col gap-4 mt-6">
                             {Array.from({ length: PAGE_SIZE }).map((_, i) => (
-                                <Skeleton key={i} className="h-[280px] w-full rounded-lg" />
+                                <Skeleton key={i} className="h-[136px] w-full rounded-lg" />
                             ))}
                         </div>
                     ) : !query ? (
