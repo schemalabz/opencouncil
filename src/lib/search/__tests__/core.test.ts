@@ -25,10 +25,11 @@ jest.mock('../retry', () => ({
 jest.mock('../query', () => ({ buildSearchQuery: jest.fn(() => ({ query: { match_all: {} } })) }));
 
 import { Client } from '@elastic/elasticsearch';
+import prisma from '@/lib/db/prisma';
 import { getCities, filterCityIdsByRealm } from '@/lib/db/cities';
 import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from '../filters';
 import { buildSearchQuery } from '../query';
-import { searchInRealm } from '../core';
+import { searchInRealm, searchSubjectsInRealm } from '../core';
 import type { SearchRequest } from '../types';
 
 const extractFiltersMock = extractFilters as jest.MockedFunction<typeof extractFilters>;
@@ -38,6 +39,8 @@ const getCitiesMock = getCities as jest.MockedFunction<typeof getCities>;
 const filterCityIdsByRealmMock = filterCityIdsByRealm as jest.MockedFunction<typeof filterCityIdsByRealm>;
 
 const REALM_CITIES = ['athens', 'chania', 'argos'];
+
+const findManyMock = prisma.subject.findMany as jest.Mock;
 
 // The Elasticsearch client is constructed once at module scope, so the search
 // mock has to be read off that instance rather than re-mocked per test.
@@ -52,6 +55,7 @@ beforeEach(() => {
     getCitiesMock.mockResolvedValue(REALM_CITIES.map(id => ({ id })) as never);
     // Every candidate id is inside the realm unless a case says otherwise.
     filterCityIdsByRealmMock.mockImplementation(async (ids: string[]) => ids.filter(id => REALM_CITIES.includes(id)));
+    findManyMock.mockResolvedValue([]);
     extractFiltersMock.mockResolvedValue(NO_EXTRACTED_FILTERS);
     processFiltersMock.mockResolvedValue({ cityIds: undefined, dateRange: undefined, locations: undefined });
 });
@@ -207,5 +211,70 @@ describe('searchInRealm — reporting what the query text supplied', () => {
         const response = await searchInRealm({ query: 'ανακύκλωση στα Χανιά', config: { extractFilters: false } }, 'greece');
 
         expect(response.derivedFilters).toEqual({});
+    });
+});
+
+describe('searchSubjectsInRealm — retrieval', () => {
+    const hit = (id: string, score: number) => ({ _score: score, _source: { id } });
+    const released = (id: string, isReleased = true) => ({ id, councilMeeting: { released: isReleased } });
+
+    const indexReturns = (hits: ReturnType<typeof hit>[], total = hits.length) => {
+        esSearchMock.mockResolvedValue({ hits: { total: { value: total, relation: 'eq' }, hits }, took: 1 });
+    };
+
+    it('answers with the ids in relevance order, carrying their scores', async () => {
+        indexReturns([hit('a', 9), hit('b', 4)]);
+        findManyMock.mockResolvedValue([released('b'), released('a')]);
+
+        const result = await searchSubjectsInRealm({ query: 'ανακύκλωση' }, 'greece');
+
+        expect(result.hits).toEqual([{ id: 'a', score: 9 }, { id: 'b', score: 4 }]);
+        expect(result.total).toBe(2);
+        expect(result.dropped).toBe(0);
+    });
+
+    // The index can lag the database. A meeting unreleased after indexing still
+    // matches the indexed released flag, so the hit has to be dropped here.
+    it('drops a hit the database no longer marks released, and says so in the total', async () => {
+        indexReturns([hit('a', 9), hit('b', 4)]);
+        findManyMock.mockResolvedValue([released('a'), released('b', false)]);
+
+        const result = await searchSubjectsInRealm({ query: 'ανακύκλωση' }, 'greece');
+
+        expect(result.hits).toEqual([{ id: 'a', score: 9 }]);
+        expect(result.total).toBe(1);
+        expect(result.dropped).toBe(1);
+    });
+
+    it('drops a hit with no row behind it at all', async () => {
+        indexReturns([hit('a', 9), hit('gone', 4)]);
+        findManyMock.mockResolvedValue([released('a')]);
+
+        const result = await searchSubjectsInRealm({ query: 'ανακύκλωση' }, 'greece');
+
+        expect(result.hits).toEqual([{ id: 'a', score: 9 }]);
+        expect(result.dropped).toBe(1);
+    });
+
+    // Retrieval exists so a caller can hydrate in its own shape. Reading whole
+    // rows here would hand every caller the cost it was split out to avoid.
+    it('reads only what the visibility check needs', async () => {
+        indexReturns([hit('a', 9)]);
+        findManyMock.mockResolvedValue([released('a')]);
+
+        await searchSubjectsInRealm({ query: 'ανακύκλωση' }, 'greece');
+
+        const [args] = findManyMock.mock.calls[0];
+        expect(args.select).toEqual({ id: true, councilMeeting: { select: { released: true } } });
+        expect(args.include).toBeUndefined();
+    });
+
+    it('reports what the query text supplied, like the hydrated search does', async () => {
+        indexReturns([]);
+        processFiltersMock.mockResolvedValue({ cityIds: ['chania'], dateRange: undefined, locations: undefined });
+
+        const result = await searchSubjectsInRealm({ query: 'ανακύκλωση στα Χανιά' }, 'greece');
+
+        expect(result.derivedFilters).toEqual({ cityIds: ['chania'] });
     });
 });

@@ -52,6 +52,49 @@ const subjectDiscussionSegmentInclude = {
 
 type SubjectDiscussionSegment = Prisma.SpeakerSegmentGetPayload<{ include: typeof subjectDiscussionSegmentInclude }>;
 
+/** One Elasticsearch hit that survived the release re-check, in relevance order. */
+export type SubjectSearchHit = { id: string; score: number };
+
+/** What retrieval knows before anything is hydrated. */
+export type SubjectSearchHits = {
+    hits: SubjectSearchHit[];
+    total: number;
+    dropped: number;
+    derivedFilters: DerivedFilters;
+};
+
+/** Log the failure, alert the team, and raise a message that leaks nothing. */
+function failSearch(request: SearchRequest, error: unknown): never {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+    logEssential('Search Session Failed', {
+        query: request.query,
+        error: errorMessage,
+        filters: {
+            cityIds: request.cityIds,
+            personIds: request.personIds,
+            partyIds: request.partyIds,
+            topicIds: request.topicIds,
+            dateRange: request.dateRange,
+            hasLocations: request.locations ? request.locations.length > 0 : false
+        }
+    });
+
+    // Notify team via Discord (fire-and-forget)
+    sendErrorAdminAlert({
+        source: 'Search',
+        error: errorMessage,
+        context: {
+            query: request.query,
+            cityIds: request.cityIds?.join(', '),
+            personIds: request.personIds?.join(', '),
+            partyIds: request.partyIds?.join(', '),
+        },
+    }).catch(() => {});
+
+    throw new Error('Failed to execute search');
+}
+
 /**
  * The realm to search, either resolved already or as a resolver to call. The
  * resolver form exists so that `getRealm()` — which reads the request headers
@@ -61,21 +104,25 @@ type SubjectDiscussionSegment = Prisma.SpeakerSegmentGetPayload<{ include: typeo
 export type RealmSource = Realm | (() => Promise<Realm>);
 
 /**
- * The search implementation, capped to an explicitly supplied realm.
+ * Retrieval: everything up to the point where a hit becomes a row. Runs the
+ * query, re-checks visibility, and answers with ids in relevance order.
+ *
+ * Split out from `searchInRealm` because hydration is the expensive half and
+ * not every caller wants the shape it produces. A `SearchResultLight` carries
+ * the subject's introducer, every contribution with each speaker's roles, its
+ * highlights, its decision — the map wants a pin and a card, and would discard
+ * nearly all of it. Callers like that hydrate the ids themselves, in whatever
+ * shape their surface actually needs.
  *
  * Deliberately NOT a Server Action: the realm decides which tenant's data the
  * search may reach, so it must come from the server (the request Host, or the
- * MCP request context), never from a caller who could name any realm. The
- * client-facing entry point is `search()` in ./index.ts, which passes the
- * request-scoped resolver; server-side callers that hold their own realm
- * context (the MCP tool handlers, which run outside a request scope) pass the
- * realm itself.
+ * MCP request context), never from a caller who could name any realm.
  */
-export async function searchInRealm(
+export async function searchSubjectsInRealm(
     request: SearchRequest,
     realmSource: RealmSource,
     options?: { skipQueryLog?: boolean }
-): Promise<SearchResponse> {
+): Promise<SubjectSearchHits> {
     try {
         const realm = typeof realmSource === 'function' ? await realmSource() : realmSource;
         // Persist the query for usage analytics. Skipped for paginated requests
@@ -102,7 +149,7 @@ export async function searchInRealm(
         // city filter" to buildFilters, which would search every realm.
         if (cityIds.length === 0) {
             logEssential('Search Session Skipped — no city in realm', { query: request.query, realm });
-            return { results: [], total: 0, dropped: 0, derivedFilters: {} };
+            return { hits: [], total: 0, dropped: 0, derivedFilters: {} };
         }
 
         // Log search session start with query and filters
@@ -205,10 +252,75 @@ export async function searchInRealm(
             }
         });
 
-        // Process the results
-        const subjectIds = response.hits.hits
+        // The index can be stale: a meeting unreleased after indexing must not
+        // surface. The database is the source of truth, so re-check before
+        // anything downstream trusts these ids. Only the release flag is read,
+        // so the check costs one narrow query instead of riding along with the
+        // full hydration it used to sit inside.
+        const hitIds = response.hits.hits
             .map(hit => hit._source?.id)
             .filter((id): id is string => id !== undefined);
+
+        const visible = await prisma.subject.findMany({
+            where: { id: { in: hitIds } },
+            select: { id: true, councilMeeting: { select: { released: true } } },
+        });
+        const visibleById = new Map(visible.map(subject => [subject.id, subject]));
+
+        const { resolved, orphanedIds, unreleasedIds, droppedWithoutSource } = partitionHits(
+            response.hits.hits,
+            visibleById,
+            subject => subject.councilMeeting.released,
+        );
+
+        if (orphanedIds.length > 0 || unreleasedIds.length > 0 || droppedWithoutSource > 0) {
+            logEssential('[Search] Dropped unresolvable hits', { orphanedIds, unreleasedIds, droppedWithoutSource });
+            void reportOrphanedHits({
+                orphanedIds,
+                unreleasedIds,
+                droppedWithoutSource,
+                // Filter-only searches have no query text; label them so the
+                // alert reads sensibly instead of showing an empty string.
+                query: queryText || '(filter-only)',
+                index: env.ELASTICSEARCH_INDEX,
+            });
+        }
+
+        // ES's total includes hits we dropped; subtract this page's drops so the
+        // count degrades along with the results. Still approximate — other pages
+        // may hold more drops, so callers that must not leak the existence of
+        // hidden content should withhold the total whenever `dropped` > 0.
+        const dropped = response.hits.hits.length - resolved.length;
+        return {
+            hits: resolved.map(({ hit, subject }) => ({ id: subject.id, score: hit._score || 0 })),
+            total: totalHits - dropped,
+            dropped,
+            derivedFilters,
+        };
+    } catch (error) {
+        failSearch(request, error);
+    }
+}
+
+/**
+ * Search, hydrated into full subject rows.
+ *
+ * The client-facing entry point is `search()` in ./index.ts, which passes the
+ * request-scoped realm resolver; server-side callers that hold their own realm
+ * context (the MCP tool handlers, which run outside a request scope) pass the
+ * realm itself. A caller that wants a lighter shape than `SearchResultLight`
+ * should use `searchSubjectsInRealm` and hydrate the ids its own way.
+ */
+export async function searchInRealm(
+    request: SearchRequest,
+    realmSource: RealmSource,
+    options?: { skipQueryLog?: boolean }
+): Promise<SearchResponse> {
+    const { hits, total, dropped, derivedFilters } = await searchSubjectsInRealm(request, realmSource, options);
+    if (hits.length === 0) return { results: [], total, dropped, derivedFilters };
+
+    try {
+        const subjectIds = hits.map(hit => hit.id);
 
         // Fetch all subjects in a single query
         const subjects = await prisma.subject.findMany({
@@ -308,124 +420,66 @@ export async function searchInRealm(
             locationCoordinates.map(loc => [loc.id, { x: loc.x, y: loc.y }])
         );
 
-        // The ES query filters on the indexed released flag, but the database
-        // is the source of truth: a meeting unreleased after indexing (PGSync
-        // lag or outage) must not surface. Re-checked here, at the hydration
-        // boundary, so every search consumer gets the defense and the drop
-        // counts below see it.
-        const { resolved, orphanedIds, unreleasedIds, droppedWithoutSource } = partitionHits(
-            response.hits.hits,
-            subjectMap,
-            subject => subject.councilMeeting.released,
-        );
+        const results = hits.flatMap(({ id, score }) => {
+            const subject = subjectMap.get(id);
+            // Retrieval already re-checked every id against the database, so a
+            // miss here means the row went away between the two queries. Drop
+            // it rather than fail the search over a race.
+            if (!subject) return [];
 
-        if (orphanedIds.length > 0 || unreleasedIds.length > 0 || droppedWithoutSource > 0) {
-            logEssential('[Search] Dropped unresolvable hits', { orphanedIds, unreleasedIds, droppedWithoutSource });
-            void reportOrphanedHits({
-                orphanedIds,
-                unreleasedIds,
-                droppedWithoutSource,
-                // Filter-only searches have no query text; label them so the
-                // alert reads sensibly instead of showing an empty string.
-                query: queryText || '(filter-only)',
-                index: env.ELASTICSEARCH_INDEX,
-            });
-        }
-
-        const results = await Promise.all(
-            resolved.map(async ({ hit, subject }) => {
-                // Get location coordinates if available
-                let locationWithCoordinates = null;
-                if (subject.location) {
-                    const coordinates = locationCoordinatesMap.get(subject.location.id);
-                    if (coordinates) {
-                        locationWithCoordinates = {
-                            ...subject.location,
-                            coordinates
-                        };
-                    }
+            // Get location coordinates if available
+            let locationWithCoordinates = null;
+            if (subject.location) {
+                const coordinates = locationCoordinatesMap.get(subject.location.id);
+                if (coordinates) {
+                    locationWithCoordinates = {
+                        ...subject.location,
+                        coordinates
+                    };
                 }
-
-                // Base result with common fields
-                const baseResult: SearchResultLight = {
-                    ...subject,
-                    location: locationWithCoordinates,
-                    score: hit._score || 0,
-                    councilMeeting: subject.councilMeeting,
-                    votes: [],
-                    attendance: []
-                };
-
-                // If detailed results are requested, add speaker segment text
-                if (request.config?.detailed) {
-                    const speakerSegments = (segmentsBySubject.get(subject.id) ?? [])
-                        .filter(segment => {
-                            const text = segment.utterances.map(u => u.text).join(' ');
-                            const hasPerson = segment.speakerTag?.person != null;
-                            const hasRoles = Array.isArray(segment.speakerTag?.person?.roles);
-                            return text.length >= 100 && hasPerson && hasRoles;
-                        })
-                        .map(segment => ({
-                            id: segment.id,
-                            startTimestamp: segment.startTimestamp,
-                            endTimestamp: segment.endTimestamp,
-                            meeting: segment.meeting,
-                            person: segment.speakerTag?.person || null,
-                            text: segment.utterances.map(u => u.text).join(' '),
-                            summary: segment.summary ? { text: segment.summary.text } : null
-                        }));
-
-                    return {
-                        ...baseResult,
-                        speakerSegments,
-                        context: subject.context
-                    } as SearchResultDetailed;
-                }
-
-                return baseResult;
-            })
-        );
-
-        // ES's total includes hits we dropped; subtract this page's drops so the
-        // count degrades along with the results. Still approximate — other pages
-        // may hold more drops, so callers that must not leak the existence of
-        // hidden content should withhold the total whenever `dropped` > 0.
-        const dropped = response.hits.hits.length - resolved.length;
-        return {
-            results,
-            total: totalHits - dropped,
-            dropped,
-            derivedFilters,
-        };
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
-        // Log search session failure
-        logEssential('Search Session Failed', {
-            query: request.query,
-            error: errorMessage,
-            filters: {
-                cityIds: request.cityIds,
-                personIds: request.personIds,
-                partyIds: request.partyIds,
-                topicIds: request.topicIds,
-                dateRange: request.dateRange,
-                hasLocations: request.locations ? request.locations.length > 0 : false
             }
+
+            // Base result with common fields
+            const baseResult: SearchResultLight = {
+                ...subject,
+                location: locationWithCoordinates,
+                score,
+                councilMeeting: subject.councilMeeting,
+                votes: [],
+                attendance: []
+            };
+
+            // If detailed results are requested, add speaker segment text
+            if (request.config?.detailed) {
+                const speakerSegments = (segmentsBySubject.get(subject.id) ?? [])
+                    .filter(segment => {
+                        const text = segment.utterances.map(u => u.text).join(' ');
+                        const hasPerson = segment.speakerTag?.person != null;
+                        const hasRoles = Array.isArray(segment.speakerTag?.person?.roles);
+                        return text.length >= 100 && hasPerson && hasRoles;
+                    })
+                    .map(segment => ({
+                        id: segment.id,
+                        startTimestamp: segment.startTimestamp,
+                        endTimestamp: segment.endTimestamp,
+                        meeting: segment.meeting,
+                        person: segment.speakerTag?.person || null,
+                        text: segment.utterances.map(u => u.text).join(' '),
+                        summary: segment.summary ? { text: segment.summary.text } : null
+                    }));
+
+                return [{
+                    ...baseResult,
+                    speakerSegments,
+                    context: subject.context
+                } as SearchResultDetailed];
+            }
+
+            return [baseResult];
         });
 
-        // Notify team via Discord (fire-and-forget)
-        sendErrorAdminAlert({
-            source: 'Search',
-            error: errorMessage,
-            context: {
-                query: request.query,
-                cityIds: request.cityIds?.join(', '),
-                personIds: request.personIds?.join(', '),
-                partyIds: request.partyIds?.join(', '),
-            },
-        }).catch(() => {});
-
-        throw new Error('Failed to execute search');
+        return { results, total, dropped, derivedFilters };
+    } catch (error) {
+        failSearch(request, error);
     }
 }
