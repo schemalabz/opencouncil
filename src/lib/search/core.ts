@@ -144,7 +144,7 @@ export async function searchInRealm(
         };
         if (derivingFilters) {
             try {
-                processedFilters = await processFilters(extractedFilters, realm);
+                processedFilters = await processFilters(extractedFilters, realm, cityIds);
             } catch (error) {
                 console.error('[Search] Filter processing failed, continuing without processed filters:', error);
             }
