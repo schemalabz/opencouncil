@@ -501,7 +501,18 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
     // load must not count as the session's first action.
     const trackedSelectSubject = (id: string, source: 'list' | 'search' | 'map_pin' | 'cluster' | 'city_hall') => {
         const s = findSubject(id);
-        captureLandingAction('subject_selected', { subject_id: id, city_id: s?.cityId ?? null, source });
+        // Where in the results it sat, when a search produced them: a click at
+        // rank 1 and a click at rank 40 say different things about the ranking.
+        const searchPosition = committedSearch ? listSubjects.findIndex((subject) => subject.id === id) : -1;
+        captureLandingAction('subject_selected', {
+            subject_id: id,
+            city_id: s?.cityId ?? null,
+            source,
+            ...(committedSearch && {
+                search_query_length: committedSearch.query.length,
+                search_position: searchPosition >= 0 ? searchPosition : null,
+            }),
+        });
         selectSubject(id);
     };
 
