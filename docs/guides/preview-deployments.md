@@ -271,6 +271,31 @@ The NixOS module loads this file via systemd `EnvironmentFile=`. Optional vars (
 | `PREVIEW_HOST` | Droplet IP (e.g., `113.54.65.12`) |
 | `PREVIEW_USER` | `opencouncil` |
 
+## Paired Notis Previews
+
+A PR that touches `services/notis/` or `packages/ui/` (or carries the
+`preview-notis` label) also gets a notis preview in the same workflow run:
+
+- The URL is `https://notis-pr-N.opencouncil.dev` (port 20000+N).
+- CI builds it from `.#notis-prod`. The `start.sh` entrypoint pins Node 24
+  (the `engines` requirement), so the preview runs the toolchain that built
+  it.
+- The instance points `OPENCOUNCIL_BASE_URL` and `NOTIS_MCP_URL` at the
+  same PR's main preview, not at production. The pr-previews `siblings`
+  context computes those URLs.
+- The cleanup workflow destroys the notis preview together with the main
+  one when the PR closes.
+
+Manual management mirrors the main app: `notis-preview-list`,
+`notis-preview-logs <N>`, `sudo notis-preview-create <N> <store-path>`,
+and `sudo notis-preview-destroy <N>`. The shared env lives in
+`/var/lib/notis-previews/.env`. It holds `NOTIS_ADMIN_SECRET` and a dummy
+`ANTHROPIC_API_KEY` — the trust model allows preview-grade secrets only,
+so agent calls fail by design.
+
+The per-PR notis database and the shared-cookie session validation are not
+wired yet. They land with the notis-db PR.
+
 ## Manual Management
 
 SSH to the droplet, then:
