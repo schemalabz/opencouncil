@@ -38,6 +38,7 @@ function subjectFilterKey(f: MapSubjectFilters): string {
         (f.bodyTypes ?? []).slice().sort().join('.'),
         f.dateFrom ?? '',
         f.dateTo ?? '',
+        (f.subjectIds ?? []).slice().sort().join('.'),
     ].join('|');
 }
 
@@ -179,6 +180,10 @@ export type MapSubjectFilters = {
     /** true → located subjects (map pins); false → non-located (general/city list);
      *  omitted → both (the "hot subjects" ranking doesn't care where a subject is). */
     located?: boolean;
+    /** Restrict to these subjects, for a caller that already chose them — the
+     *  landing's search hydrates the ids Elasticsearch ranked. Never parsed from
+     *  the query string: the other filters describe a window, this one names rows. */
+    subjectIds?: string[];
 };
 
 /**
@@ -288,6 +293,7 @@ export function buildMapSubjectWhere(realm: Realm, f: MapSubjectFilters): Prisma
         locationId: f.located === undefined ? undefined : f.located === false ? null : { not: null },
         // only subjects actually discussed (≥1 speaker contribution)
         contributions: { some: {} },
+        ...(f.subjectIds?.length ? { id: { in: f.subjectIds } } : {}),
         ...(f.topicIds?.length ? { topicId: { in: f.topicIds } } : {}),
         ...(f.cityIds?.length ? { cityId: { in: f.cityIds } } : {}),
         councilMeeting: {
@@ -323,37 +329,42 @@ function toGeneralSubjectRow(s: MapSubjectPayload, discussionSeconds: Map<string
     };
 }
 
+/** The query behind getMapSubjectsCached, uncached — for a caller whose filter set is
+ *  unbounded (a search result set names its rows), which would otherwise fill the data
+ *  cache with entries no second request ever reads. */
+export async function getMapSubjects(realm: Realm, filters: MapSubjectFilters): Promise<MapSubjectRow[]> {
+    const subjects = await prisma.subject.findMany({
+        where: buildMapSubjectWhere(realm, { ...filters, located: true }),
+        include: mapSubjectInclude,
+    });
+
+    const locationIds = subjects.map((s) => s.locationId).filter((id): id is string => Boolean(id));
+    if (locationIds.length === 0) return [];
+
+    const geometries = await prisma.$queryRaw<{ id: string; geometry: string }[]>`
+        SELECT id, ST_AsGeoJSON(coordinates, 15, 0)::text AS geometry
+        FROM "Location"
+        WHERE id IN (${Prisma.join(locationIds)})
+    `;
+    const geometryMap = new Map<string, GeoJSON.Geometry>(
+        geometries.map((g) => [g.id, JSON.parse(g.geometry) as GeoJSON.Geometry] as const),
+    );
+
+    const located = subjects.filter((s) => s.locationId && geometryMap.has(s.locationId));
+    const discussionSeconds = await getDiscussionSecondsForSubjects(located.map((s) => s.id));
+    return located.map((s) => ({
+        ...toGeneralSubjectRow(s, discussionSeconds),
+        locationText: s.location?.text,
+        locationType: s.location?.type,
+        geometry: geometryMap.get(s.locationId!)!,
+    }));
+}
+
 /** Located subjects (map pins) for the landing map, realm-scoped. Discussion time matches the
  *  subject page (getDiscussionSecondsForSubjects). Backs both /api/map/subjects and the initial load. */
 export async function getMapSubjectsCached(realm: Realm, filters: MapSubjectFilters): Promise<MapSubjectRow[]> {
     return createCache(
-        async () => {
-            const subjects = await prisma.subject.findMany({
-                where: buildMapSubjectWhere(realm, { ...filters, located: true }),
-                include: mapSubjectInclude,
-            });
-
-            const locationIds = subjects.map((s) => s.locationId).filter((id): id is string => Boolean(id));
-            if (locationIds.length === 0) return [];
-
-            const geometries = await prisma.$queryRaw<{ id: string; geometry: string }[]>`
-                SELECT id, ST_AsGeoJSON(coordinates, 15, 0)::text AS geometry
-                FROM "Location"
-                WHERE id IN (${Prisma.join(locationIds)})
-            `;
-            const geometryMap = new Map<string, GeoJSON.Geometry>(
-                geometries.map((g) => [g.id, JSON.parse(g.geometry) as GeoJSON.Geometry] as const),
-            );
-
-            const located = subjects.filter((s) => s.locationId && geometryMap.has(s.locationId));
-            const discussionSeconds = await getDiscussionSecondsForSubjects(located.map((s) => s.id));
-            return located.map((s) => ({
-                ...toGeneralSubjectRow(s, discussionSeconds),
-                locationText: s.location?.text,
-                locationType: s.location?.type,
-                geometry: geometryMap.get(s.locationId!)!,
-            }));
-        },
+        () => getMapSubjects(realm, filters),
         ['map-subjects', realm, subjectFilterKey(filters)],
         { revalidate: LANDING_SUBJECTS_TTL, tags: [landingSubjectsTag(realm)] },
     )();
@@ -389,55 +400,58 @@ export async function getHotSubjectsCached(
     )();
 }
 
+/** The query behind getGeneralSubjectsCached, uncached — see getMapSubjects. */
+export async function getGeneralSubjects(realm: Realm, filters: MapSubjectFilters): Promise<GeneralCityRow[]> {
+    const subjects = await prisma.subject.findMany({
+        where: buildMapSubjectWhere(realm, { ...filters, located: false }),
+        include: mapSubjectInclude,
+    });
+    if (subjects.length === 0) return [];
+
+    const discussionSeconds = await getDiscussionSecondsForSubjects(subjects.map((s) => s.id));
+
+    // Group by city.
+    const byCity = new Map<string, MapSubjectPayload[]>();
+    for (const s of subjects) {
+        const list = byCity.get(s.cityId);
+        if (list) list.push(s);
+        else byCity.set(s.cityId, [s]);
+    }
+
+    // One centroid per city (PostGIS; City geometry is SRID 4326 → ST_X=lng, ST_Y=lat).
+    // The city's display fields ride on the subject rows (see mapSubjectInclude).
+    const centroids = await prisma.$queryRaw<{ id: string; lng: number; lat: number }[]>`
+        SELECT id,
+               ST_X(ST_Centroid(geometry)) AS lng,
+               ST_Y(ST_Centroid(geometry)) AS lat
+        FROM "City"
+        WHERE id IN (${Prisma.join([...byCity.keys()])}) AND geometry IS NOT NULL
+    `;
+    const centroidMap = new Map(centroids.map((c) => [c.id, c]));
+
+    return [...byCity.entries()]
+        .map(([cityId, subs]): GeneralCityRow | null => {
+            const c = centroidMap.get(cityId);
+            if (!c) return null; // city without geometry → can't place a marker
+            const rows = subs.map((s) => toGeneralSubjectRow(s, discussionSeconds));
+            return {
+                cityId,
+                cityName: rows[0].cityName,
+                nameMunicipality: rows[0].nameMunicipality,
+                logoImage: rows[0].logoImage,
+                lng: Number(c.lng),
+                lat: Number(c.lat),
+                subjects: rows,
+            };
+        })
+        .filter((c): c is GeneralCityRow => c !== null);
+}
+
 /** Non-located subjects grouped per municipality (+ city centroid), realm-scoped. Shares the
  *  where-clause and wire fields with getMapSubjectsCached. */
 export async function getGeneralSubjectsCached(realm: Realm, filters: MapSubjectFilters): Promise<GeneralCityRow[]> {
     return createCache(
-        async () => {
-            const subjects = await prisma.subject.findMany({
-                where: buildMapSubjectWhere(realm, { ...filters, located: false }),
-                include: mapSubjectInclude,
-            });
-            if (subjects.length === 0) return [];
-
-            const discussionSeconds = await getDiscussionSecondsForSubjects(subjects.map((s) => s.id));
-
-            // Group by city.
-            const byCity = new Map<string, MapSubjectPayload[]>();
-            for (const s of subjects) {
-                const list = byCity.get(s.cityId);
-                if (list) list.push(s);
-                else byCity.set(s.cityId, [s]);
-            }
-
-            // One centroid per city (PostGIS; City geometry is SRID 4326 → ST_X=lng, ST_Y=lat).
-            // The city's display fields ride on the subject rows (see mapSubjectInclude).
-            const centroids = await prisma.$queryRaw<{ id: string; lng: number; lat: number }[]>`
-                SELECT id,
-                       ST_X(ST_Centroid(geometry)) AS lng,
-                       ST_Y(ST_Centroid(geometry)) AS lat
-                FROM "City"
-                WHERE id IN (${Prisma.join([...byCity.keys()])}) AND geometry IS NOT NULL
-            `;
-            const centroidMap = new Map(centroids.map((c) => [c.id, c]));
-
-            return [...byCity.entries()]
-                .map(([cityId, subs]): GeneralCityRow | null => {
-                    const c = centroidMap.get(cityId);
-                    if (!c) return null; // city without geometry → can't place a marker
-                    const rows = subs.map((s) => toGeneralSubjectRow(s, discussionSeconds));
-                    return {
-                        cityId,
-                        cityName: rows[0].cityName,
-                        nameMunicipality: rows[0].nameMunicipality,
-                        logoImage: rows[0].logoImage,
-                        lng: Number(c.lng),
-                        lat: Number(c.lat),
-                        subjects: rows,
-                    };
-                })
-                .filter((c): c is GeneralCityRow => c !== null);
-        },
+        () => getGeneralSubjects(realm, filters),
         ['general-subjects', realm, subjectFilterKey(filters)],
         { revalidate: LANDING_SUBJECTS_TTL, tags: [landingSubjectsTag(realm)] },
     )();
