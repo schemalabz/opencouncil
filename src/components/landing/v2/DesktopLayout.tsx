@@ -27,7 +27,6 @@ export function DesktopLayout({
     setFilters,
     query,
     setQuery,
-    queryKind,
     topics,
     cities,
     subjectCountByCity,
@@ -41,7 +40,6 @@ export function DesktopLayout({
     clearSelection,
     ordered,
     count,
-    searchResults,
     coLocated,
     onCoLocatedSelect,
     onCoLocatedClose,
@@ -138,12 +136,12 @@ export function DesktopLayout({
                         Part of the white header block; hidden while a text search re-purposes the
                         list into plain matches, and while there is no ranked list to describe —
                         an empty or still-loading list must not be captioned "most-discussed". */}
-                    {/* A committed search re-orders the list by relevance, so this caption
-                        would describe the wrong thing — the chip in the filter bar above
-                        the map says what the list is instead. */}
-                    {!infoOpen && view === 'subjects' && !query.trim() && !committedSearch && !loading && count > 0 && (
+                    {/* Keyed on the committed search rather than on the box having text:
+                        the text now stays after committing, and that is exactly when the
+                        caption has to name the query the list is ordered against. */}
+                    {!infoOpen && view === 'subjects' && !loading && count > 0 && (
                         <div className="-mt-2 bg-card px-4 pb-2.5">
-                            <RankedListHint />
+                            <RankedListHint searchQuery={committedSearch?.query} />
                         </div>
                     )}
 
@@ -219,10 +217,6 @@ export function DesktopLayout({
                                 onFiltersChange={setFilters}
                                 query={query}
                                 onQueryChange={setQuery}
-                                queryKind={queryKind}
-                                results={searchResults}
-                                loading={loading}
-                                onPickResult={(id) => selectSubject(id, 'search')}
                                 onLocateAddress={onLocateAddress}
                                 onCommitSearch={onCommitSearch}
                             />

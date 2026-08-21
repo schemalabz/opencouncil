@@ -1,28 +1,28 @@
 'use client';
 
-import { useEffect, useRef, useState, type RefObject } from 'react';
+// Aliased: the window-level Escape listener below needs the DOM KeyboardEvent, which the
+// React one would otherwise shadow.
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type RefObject } from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft, ChevronUp } from 'lucide-react';
 import type { Topic } from '@prisma/client';
 import { SearchInputPill } from '@/components/ui/search-input-pill';
-import {
-    detectMunicipalityQuery,
-    detectCategoryQuery,
-    looksLikeAddress,
-    type LandingListCity,
-    type LandingSubject,
-    type QueryKind,
-} from '@/lib/landing/landingData';
+import { type LandingListCity } from '@/lib/landing/landingData';
 import { EMPTY_FILTERS, hasActiveFilters, SEARCH_FIELD_STYLE, type MapFilters } from '@/lib/landing/landingCore';
 import { FilterIconButton } from './controls';
 import { SearchBody } from './SearchBody';
+import { searchOptionId, useSearchOptions, type SearchOption } from './hooks/useSearchOptions';
 import { captureLandingAction } from '@/lib/landing/analytics';
 
-/* The search field, shared by dropdown and overlay. Enter applies a matched
-   category/municipality filter, searches the discussions, or geocodes an address —
-   all three clear the text, since each turns it into something the map shows —
-   then calls onAfterSubmit. `className` carries the per-context shadow. */
-function SearchField({
+/**
+ * The options for what was typed, plus the keyboard that walks them.
+ *
+ * Shared by the dropdown and the overlay so both offer the same actions in the
+ * same order. The cursor returns to the top on every keystroke, because every
+ * keystroke changes what is on offer — leaving it where it was would point it
+ * at a different action than the one the reader was looking at.
+ */
+function useSearchDropdown({
     query,
     onQueryChange,
     topics,
@@ -33,11 +33,7 @@ function SearchField({
     onFiltersChange,
     onLocateAddress,
     onCommitSearch,
-    onAfterSubmit,
-    inputRef,
-    autoFocus,
-    onFocus,
-    className,
+    onClosePanel,
 }: {
     query: string;
     onQueryChange: (v: string) => void;
@@ -49,8 +45,79 @@ function SearchField({
     onFiltersChange: (next: MapFilters) => void;
     onLocateAddress: (q: string) => void;
     onCommitSearch: (q: string) => void;
-    /** caller-specific action after a committed search (close the dropdown / overlay, blur) */
-    onAfterSubmit?: () => void;
+    onClosePanel: () => void;
+}) {
+    const { options } = useSearchOptions({ query, cities, topics, cats, filters });
+    const [highlightedIndex, setHighlightedIndex] = useState(0);
+
+    useEffect(() => setHighlightedIndex(0), [query]);
+
+    const activate = (option: SearchOption) => {
+        // `option`, not `kind`: this used to name what the box decided to do
+        // with the text, and now names which row of a fixed list was picked.
+        // Same four values, different question — a rename keeps the old data
+        // from being read as though it answered the new one.
+        captureLandingAction('search', { query_length: query.trim().length, option: option.kind });
+        switch (option.kind) {
+            case 'category':
+                // The text has become a named filter, so the pill carries it now.
+                // Stays open: applying one category is often the first of two.
+                if (!cats.includes(option.topic.id)) onToggleCat(option.topic.id);
+                onQueryChange('');
+                return;
+            case 'municipality':
+                onFiltersChange({ ...filters, cityIds: [option.municipality.cityId] });
+                onQueryChange('');
+                return;
+            case 'subjects':
+                // The text stays: it is what the map is now showing, and the box
+                // should read back the search rather than go blank under it.
+                onCommitSearch(query);
+                onClosePanel();
+                return;
+            case 'address':
+                // Also stays — the geocoded point lives only as long as the text
+                // does (see the effect in LandingV2 that clears it on an empty box).
+                onLocateAddress(query);
+                onClosePanel();
+                return;
+        }
+    };
+
+    const onKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
+        if (!query.trim() || options.length === 0) return;
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setHighlightedIndex((i) => (i + 1) % options.length);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setHighlightedIndex((i) => (i - 1 + options.length) % options.length);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            activate(options[Math.min(highlightedIndex, options.length - 1)]);
+        }
+    };
+
+    return { options, highlightedIndex, setHighlightedIndex, activate, onKeyDown };
+}
+
+/* The search field, shared by dropdown and overlay. The keys that walk the options come from
+   useSearchDropdown; `className` carries the per-context shadow. */
+function SearchField({
+    query,
+    onQueryChange,
+    onKeyDown,
+    combobox,
+    inputRef,
+    autoFocus,
+    onFocus,
+    className,
+}: {
+    query: string;
+    onQueryChange: (v: string) => void;
+    onKeyDown: (e: ReactKeyboardEvent<HTMLInputElement>) => void;
+    /** ARIA for the option list this input drives — see SearchInputPill */
+    combobox?: { expanded: boolean; activeOptionId?: string };
     inputRef: RefObject<HTMLInputElement | null>;
     autoFocus?: boolean;
     onFocus?: () => void;
@@ -61,39 +128,7 @@ function SearchField({
         <SearchInputPill
             value={query}
             onChange={onQueryChange}
-            onKeyDown={(e) => {
-                if (e.key !== 'Enter' || !query.trim()) return;
-                // A category or a municipality names something the map already
-                // filters by. Otherwise the text is a question about what the
-                // councils discussed — unless it is shaped like an address, in
-                // which case it is somewhere to go.
-                const catId = detectCategoryQuery(query, topics);
-                const municipality = detectMunicipalityQuery(query, cities);
-                const isAddress = !catId && municipality?.kind !== 'known' && looksLikeAddress(query);
-                captureLandingAction('search', {
-                    query_length: query.trim().length,
-                    kind: catId
-                        ? 'category'
-                        : municipality?.kind === 'known'
-                          ? 'municipality'
-                          : isAddress
-                            ? 'address'
-                            : 'subjects',
-                });
-                if (catId) {
-                    if (!cats.includes(catId)) onToggleCat(catId);
-                    onQueryChange('');
-                } else if (municipality?.kind === 'known') {
-                    onFiltersChange({ ...filters, cityIds: [municipality.cityId] });
-                    onQueryChange('');
-                } else if (isAddress) {
-                    onLocateAddress(query);
-                } else {
-                    onCommitSearch(query);
-                    onQueryChange('');
-                }
-                onAfterSubmit?.();
-            }}
+            onKeyDown={onKeyDown}
             onFocus={onFocus}
             placeholder={t('search.placeholder')}
             clearAriaLabel={t('search.clearSearch')}
@@ -101,6 +136,7 @@ function SearchField({
             autoFocus={autoFocus}
             className={className}
             style={SEARCH_FIELD_STYLE}
+            combobox={combobox}
         />
     );
 }
@@ -117,10 +153,6 @@ export function DesktopSearch({
     onFiltersChange,
     query,
     onQueryChange,
-    queryKind,
-    results,
-    loading,
-    onPickResult,
     onLocateAddress,
     onCommitSearch,
 }: {
@@ -133,10 +165,6 @@ export function DesktopSearch({
     onFiltersChange: (next: MapFilters) => void;
     query: string;
     onQueryChange: (v: string) => void;
-    queryKind: QueryKind;
-    results: LandingSubject[];
-    loading?: boolean;
-    onPickResult: (id: string) => void;
     onLocateAddress: (q: string) => void;
     /** commit the text as a search filter over the map's subjects */
     onCommitSearch: (q: string) => void;
@@ -145,6 +173,23 @@ export function DesktopSearch({
     const [open, setOpen] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const rootRef = useRef<HTMLDivElement>(null);
+
+    const { options, highlightedIndex, setHighlightedIndex, activate, onKeyDown } = useSearchDropdown({
+        query,
+        onQueryChange,
+        topics,
+        cities,
+        cats,
+        filters,
+        onToggleCat,
+        onFiltersChange,
+        onLocateAddress,
+        onCommitSearch,
+        onClosePanel: () => {
+            setOpen(false);
+            inputRef.current?.blur();
+        },
+    });
 
     // Close on outside click or Escape. Ignore date inputs — the native calendar renders
     // outside the dropdown.
@@ -172,17 +217,10 @@ export function DesktopSearch({
                 <SearchField
                     query={query}
                     onQueryChange={onQueryChange}
-                    topics={topics}
-                    cities={cities}
-                    cats={cats}
-                    filters={filters}
-                    onToggleCat={onToggleCat}
-                    onFiltersChange={onFiltersChange}
-                    onLocateAddress={onLocateAddress}
-                    onCommitSearch={onCommitSearch}
-                    onAfterSubmit={() => {
-                        setOpen(false);
-                        inputRef.current?.blur();
+                    onKeyDown={onKeyDown}
+                    combobox={{
+                        expanded: open,
+                        activeOptionId: open && options[highlightedIndex] ? searchOptionId(options[highlightedIndex], highlightedIndex) : undefined,
                     }}
                     inputRef={inputRef}
                     onFocus={() => setOpen(true)}
@@ -210,28 +248,12 @@ export function DesktopSearch({
                             filters={filters}
                             onFiltersChange={onFiltersChange}
                             query={query}
-                            queryKind={queryKind}
-                            results={results}
-                            loading={loading}
-                            onPickResult={(id) => {
-                                onPickResult(id);
-                                setOpen(false);
-                            }}
-                            onPickKeyword={(k) => onQueryChange(k)}
-                            // picking a category toggles the filter in place — keep the dropdown open
+                            options={options}
+                            highlightedIndex={highlightedIndex}
+                            onHighlight={setHighlightedIndex}
+                            onActivate={activate}
                             onToggleCat={onToggleCat}
                             onClearCats={onClearCats}
-                            onCommitSearch={(q) => {
-                                onCommitSearch(q);
-                                onQueryChange('');
-                                setOpen(false);
-                                inputRef.current?.blur();
-                            }}
-                            onLocateAddress={(q) => {
-                                onLocateAddress(q);
-                                setOpen(false);
-                                inputRef.current?.blur();
-                            }}
                         />
                     </div>
                 </div>
@@ -249,10 +271,6 @@ export function MobileSearchOverlay({
     onFiltersChange,
     query,
     onQueryChange,
-    queryKind,
-    results,
-    loading,
-    onPickResult,
     onClose,
     onToggleCat,
     onClearCats,
@@ -268,10 +286,6 @@ export function MobileSearchOverlay({
     onFiltersChange: (next: MapFilters) => void;
     query: string;
     onQueryChange: (v: string) => void;
-    queryKind: QueryKind;
-    results: LandingSubject[];
-    loading?: boolean;
-    onPickResult: (id: string) => void;
     onClose: () => void;
     onToggleCat: (topicId: string) => void;
     onClearCats: () => void;
@@ -289,6 +303,20 @@ export function MobileSearchOverlay({
     // Opened via the filters icon → show the filters even with a query present. Focusing the input
     // switches to the query's results.
     const [showFilters, setShowFilters] = useState(scrollToActiveFilter);
+
+    const { options, highlightedIndex, setHighlightedIndex, activate, onKeyDown } = useSearchDropdown({
+        query,
+        onQueryChange,
+        topics,
+        cities,
+        cats,
+        filters,
+        onToggleCat,
+        onFiltersChange,
+        onLocateAddress,
+        onCommitSearch,
+        onClosePanel: onClose,
+    });
 
     // Snapshot the filter state on open (the overlay remounts each time) so we can show a hint once
     // the user changes anything — filters apply live, so they need to go back to see the results.
@@ -334,15 +362,11 @@ export function MobileSearchOverlay({
                 <SearchField
                     query={query}
                     onQueryChange={onQueryChange}
-                    topics={topics}
-                    cities={cities}
-                    cats={cats}
-                    filters={filters}
-                    onToggleCat={onToggleCat}
-                    onFiltersChange={onFiltersChange}
-                    onLocateAddress={onLocateAddress}
-                    onCommitSearch={onCommitSearch}
-                    onAfterSubmit={onClose}
+                    onKeyDown={onKeyDown}
+                    combobox={{
+                        expanded: !showFilters && query.trim().length > 0,
+                        activeOptionId: options[highlightedIndex] ? searchOptionId(options[highlightedIndex], highlightedIndex) : undefined,
+                    }}
                     inputRef={inputRef}
                     autoFocus={autoFocusInput}
                     onFocus={() => setShowFilters(false)}
@@ -358,22 +382,12 @@ export function MobileSearchOverlay({
                     filters={filters}
                     onFiltersChange={onFiltersChange}
                     query={query}
-                    queryKind={queryKind}
-                    results={results}
-                    loading={loading}
-                    onPickResult={onPickResult}
-                    onPickKeyword={(k) => onQueryChange(k)}
+                    options={options}
+                    highlightedIndex={highlightedIndex}
+                    onHighlight={setHighlightedIndex}
+                    onActivate={activate}
                     onToggleCat={onToggleCat}
                     onClearCats={onClearCats}
-                    onCommitSearch={(q) => {
-                        onCommitSearch(q);
-                        onQueryChange('');
-                        onClose();
-                    }}
-                    onLocateAddress={(q) => {
-                        onLocateAddress(q);
-                        onClose();
-                    }}
                     forceFilters={showFilters}
                 />
             </div>

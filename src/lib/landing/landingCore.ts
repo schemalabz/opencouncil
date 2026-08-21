@@ -9,7 +9,6 @@ import type {
     LandingPetitionedCity,
     LandingSubject,
     LandingGeneralCity,
-    QueryKind,
     UpcomingMeeting,
 } from './landingData';
 import type { ReactNode } from 'react';
@@ -324,7 +323,6 @@ export type LayoutProps = {
     setFilters: (v: MapFilters) => void;
     query: string;
     setQuery: (v: string) => void;
-    queryKind: QueryKind;
     topics: Topic[];
     cities: LandingListCity[];
     /** unfiltered total subjects per cityId (for the Δήμοι tab stats) */
@@ -339,7 +337,7 @@ export type LayoutProps = {
     loading: boolean;
     selectedId: string | null;
     /** `source` feeds the subject_selected analytics event; defaults to 'list' */
-    selectSubject: (id: string, source?: 'list' | 'search') => void;
+    selectSubject: (id: string, source?: 'list') => void;
     clearSelection: () => void;
     selectedSubject: LandingSubject | null;
     /** in-view subjects for the desktop panel (sorted), with nearest-N fallback */
@@ -347,8 +345,6 @@ export type LayoutProps = {
     /** in-view subjects for the mobile sheet */
     trending: LandingSubject[];
     count: number;
-    /** free-text search matches (title/address), shown in the search panel while typing */
-    searchResults: LandingSubject[];
     /** open co-located-subjects box (subjects at one point + screen position), or null */
     coLocated: { subjects: LandingSubject[]; x: number; y: number } | null;
     onCoLocatedSelect: (id: string) => void;

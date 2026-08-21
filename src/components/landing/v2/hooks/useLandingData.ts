@@ -29,9 +29,6 @@ export type LandingInitialData = {
 type Args = {
     range: DateRangeKey;
     filters: MapFilters;
-    /** a free-text query is active → fetch every subject (ignore the range dropdown) so the
-     *  search spans all time, not just the selected window */
-    searching: boolean;
     /** server-loaded initial data — seeds the state so the map renders before any client fetch */
     initial: LandingInitialData;
 };
@@ -56,12 +53,9 @@ export type LandingData = {
 
 /** Query string for the subjects/general-subjects endpoints. Shared by the fetch effect and
  *  the seed guard so the server-loaded first page isn't re-fetched on mount. */
-function buildSubjectParams(range: DateRangeKey, filters: MapFilters, searching: boolean): string {
+function buildSubjectParams(range: DateRangeKey, filters: MapFilters): string {
     const params = new URLSearchParams();
-    if (searching) {
-        // A free-text search spans every subject, regardless of the range dropdown / date pane.
-        params.set('allTime', 'true');
-    } else if (filters.dateFrom || filters.dateTo) {
+    if (filters.dateFrom || filters.dateTo) {
         // Explicit date range from the filter pane overrides the quick-range pill.
         if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
         if (filters.dateTo) params.set('dateTo', filters.dateTo);
@@ -132,8 +126,8 @@ function useKeyedList<T>(
  * range and refetch only when the range or server-applied filters change (minDuration is
  * client-side, so buildSubjectParams excludes it and the key doesn't change).
  */
-export function useLandingData({ range, filters, searching, initial }: Args): LandingData {
-    const key = buildSubjectParams(range, filters, searching);
+export function useLandingData({ range, filters, initial }: Args): LandingData {
+    const key = buildSubjectParams(range, filters);
     // Located subjects (map pins) drive the map's loading pill; the general list refreshes silently.
     const { data: mapSubjects, loading } = useKeyedList<MapSubject>(key, initial.subjects, subjectsUrl, true);
     const { data: generalRows } = useKeyedList<GeneralCityRow>(key, initial.generalRows, generalUrl, true);

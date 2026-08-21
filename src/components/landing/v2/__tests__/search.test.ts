@@ -1,8 +1,7 @@
+import { buildSearchOptions } from '../hooks/useSearchOptions';
 import {
-    classifySearchQuery,
     looksLikeAddress,
     detectMunicipalityQuery,
-    filterSubjectsByQuery,
     groupByLocation,
     nearestSubjects,
     subjectInViewport,
@@ -33,56 +32,6 @@ describe('normalizeText (search normalization)', () => {
     it('lowercases and strips accents', () => {
         expect(normalizeText('Γυθείου').trim()).toBe('γυθειου');
         expect(normalizeText('  ΠΡΟΫΠΟΛΟΓΙΣΜΌΣ ').trim()).toBe('προυπολογισμος');
-    });
-});
-
-describe('classifySearchQuery', () => {
-    it('returns empty for blank input', () => {
-        expect(classifySearchQuery('', SUBJECTS)).toBe('empty');
-        expect(classifySearchQuery('   ', SUBJECTS)).toBe('empty');
-    });
-
-    it('classifies a query that matches a location text as an address', () => {
-        expect(classifySearchQuery('Ανδρούτσου', SUBJECTS)).toBe('address');
-        expect(classifySearchQuery('αμπελοκηποι', SUBJECTS)).toBe('address'); // accent/case-insensitive
-    });
-
-    it('classifies a query that matches a subject title as a subject', () => {
-        expect(classifySearchQuery('πεύκων', SUBJECTS)).toBe('subject');
-        expect(classifySearchQuery('προϋπολογισμού', SUBJECTS)).toBe('subject');
-    });
-
-    it('treats anything with no data match as an address to locate', () => {
-        // A query that doesn't match any subject title/address is treated as a place to find on
-        // the map, so a bare street name behaves the same as one with a number.
-        expect(classifySearchQuery('οδός Ερμού', SUBJECTS)).toBe('address'); // street keyword
-        expect(classifySearchQuery('Πατησίων 42', SUBJECTS)).toBe('address'); // has a number
-        expect(classifySearchQuery('Πυθαγόρα', SUBJECTS)).toBe('address'); // bare street name
-    });
-});
-
-describe('filterSubjectsByQuery', () => {
-    it('returns all subjects for an empty query', () => {
-        expect(filterSubjectsByQuery(SUBJECTS, '')).toHaveLength(3);
-    });
-
-    it('matches against title or location text, accent-insensitive', () => {
-        expect(filterSubjectsByQuery(SUBJECTS, 'σταθμευσης').map((s) => s.title)).toEqual(['Κατάργηση στάθμευσης']);
-        expect(filterSubjectsByQuery(SUBJECTS, 'χαλανδρι').map((s) => s.title)).toEqual(['Κοπή πεύκων']);
-    });
-});
-
-describe('viewport helpers', () => {
-    const view: MapViewport = { w: 23.7, s: 37.9, e: 23.8, n: 38.0, clng: 23.75, clat: 37.95 };
-
-    it('subjectInViewport tests inclusive bounds', () => {
-        expect(subjectInViewport(at('in', 23.75, 37.95), view)).toBe(true);
-        expect(subjectInViewport(at('out', 23.9, 37.95), view)).toBe(false);
-    });
-
-    it('nearestSubjects returns the N closest to a point, nearest first', () => {
-        const subjects = [at('far', 23.79, 37.99), at('near', 23.751, 37.951), at('mid', 23.77, 37.97)];
-        expect(nearestSubjects(subjects, 37.95, 23.75, 2).map((s) => s.id)).toEqual(['near', 'mid']);
     });
 });
 
@@ -151,5 +100,42 @@ describe('looksLikeAddress', () => {
     // name that merely contains one of them is not an address.
     it('does not read a street word in the middle as an address', () => {
         expect(looksLikeAddress('ανάπλαση πλατείας')).toBe(false);
+    });
+});
+
+describe('buildSearchOptions', () => {
+    const TOPIC = { id: 't1', name: 'Καθαριότητα' } as Parameters<typeof buildSearchOptions>[0]['matchedTopic'];
+    const CITY = { kind: 'known', cityId: 'chania', nameMunicipality: 'Δήμος Χανίων' } as Parameters<
+        typeof buildSearchOptions
+    >[0]['knownMunicipality'];
+    const base = { matchedTopic: null, knownMunicipality: null, addressFirst: false, dateActive: false, anyFilterActive: false };
+    const kinds = (matches: Parameters<typeof buildSearchOptions>[0]) =>
+        buildSearchOptions(matches).map((o) => o.kind);
+
+    // Nothing local can rule out that the index has an answer, so searching is
+    // always offered — and it leads whenever nothing more specific matched.
+    it('always offers a search, first when nothing else matched', () => {
+        expect(kinds(base)).toEqual(['subjects', 'address']);
+    });
+
+    it('puts a matched category and municipality ahead of the search', () => {
+        expect(kinds({ ...base, matchedTopic: TOPIC, knownMunicipality: CITY }))
+            .toEqual(['category', 'municipality', 'subjects', 'address']);
+    });
+
+    // No rule recognises every place name, so the address option never
+    // disappears — it just stays out of the way.
+    it('keeps the address option last when the text is not address-shaped', () => {
+        expect(kinds({ ...base, matchedTopic: TOPIC }).at(-1)).toBe('address');
+    });
+
+    // "Πατησίων 76" should fly to the address on Enter, not search for it.
+    it('leads with the address when the text is address-shaped', () => {
+        expect(kinds({ ...base, addressFirst: true })).toEqual(['address', 'subjects']);
+    });
+
+    it('offers every option exactly once', () => {
+        const all = kinds({ ...base, matchedTopic: TOPIC, knownMunicipality: CITY, addressFirst: true });
+        expect(new Set(all).size).toBe(all.length);
     });
 });

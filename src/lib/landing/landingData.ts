@@ -298,27 +298,8 @@ export function toLandingSubjects(
     return subjects;
 }
 
-/** Popular free-text searches shown as suggestions when the search field is focused. */
-export const SEARCH_KEYWORDS = [
-    'Προϋπολογισμός',
-    'Στάθμευση',
-    'Πεζοδρόμηση',
-    'Πράσινο & δέντρα',
-    'Λαϊκές αγορές',
-    'Αντιπλημμυρικά',
-    'Σχολεία',
-    'Καθαριότητα',
-];
-
 /* ============================ SEARCH ============================ */
 
-/** What a search query looks like — drives the hint and how results are matched. */
-export type QueryKind = 'empty' | 'subject' | 'address';
-
-/**
- * Whether a query reads as a subject title or an address, by matching it against loaded subjects'
- * titles vs. location texts (location wins ties). No match → 'address'; empty → 'empty'.
- */
 /**
  * The words a Greek address opens with, unaccented (normalizeText strips the
  * accents before this is consulted), with any trailing full stop removed.
@@ -347,23 +328,6 @@ export function looksLikeAddress(query: string): boolean {
     return ADDRESS_PREFIXES.has(first.replace(/\.+$/, ''));
 }
 
-export function classifySearchQuery(query: string, subjects: LandingSubject[]): QueryKind {
-    const q = normalizeText(query).trim();
-    if (!q) return 'empty';
-
-    let titleHits = 0;
-    let addressHits = 0;
-    for (const s of subjects) {
-        if (normalizeText(s.title).trim().includes(q)) titleHits++;
-        if (s.where && normalizeText(s.where).trim().includes(q)) addressHits++;
-    }
-    if (addressHits > 0 && addressHits >= titleHits) return 'address';
-    if (titleHits > 0) return 'subject';
-
-    // No match → treat as a place to locate on the map.
-    return 'address';
-}
-
 /** True when the address text already names its municipality, so a card can drop the extra label. */
 export function addressNamesCity(where: string, cityName: string): boolean {
     if (!where || !cityName) return false;
@@ -378,15 +342,6 @@ export function subjectLocationLine(subject: LandingSubject): string {
     if (!subject.where) return subject.nameMunicipality;
     const hideCity = addressNamesCity(subject.where, subject.cityName);
     return [subject.where, hideCity ? null : subject.nameMunicipality].filter(Boolean).join(', ');
-}
-
-/** Narrows subjects to those whose title or location text contains the query. */
-export function filterSubjectsByQuery(subjects: LandingSubject[], query: string): LandingSubject[] {
-    const q = normalizeText(query).trim();
-    if (!q) return subjects;
-    return subjects.filter(
-        (s) => normalizeText(s.title).trim().includes(q) || (s.where ? normalizeText(s.where).trim().includes(q) : false),
-    );
 }
 
 /* ============================ VIEWPORT ============================ */
