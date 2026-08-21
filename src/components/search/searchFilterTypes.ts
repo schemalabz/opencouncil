@@ -16,6 +16,41 @@ export type SearchFilterParams = {
 
 export type FilterPatch = Partial<Record<keyof SearchFilterParams, string | undefined>>;
 
+/**
+ * A filter the search read out of the query text, rather than the reader
+ * setting it. The search can also derive a location, but there is no location
+ * filter on this page to show it on, so only these two are tracked.
+ *
+ * They live in the URL beside the filters themselves, so a shared link carries
+ * the provenance, and so the page can tell a filter the previous query supplied
+ * (drop it, the next query derives its own) from one the reader chose (keep it).
+ */
+export type DerivedFilterKey = "city" | "date";
+
+/** The URL param carrying the derived keys, beside the filters they mark. */
+export const DERIVED_FILTER_PARAM = "derived";
+
+/** The filter params each derived key owns. */
+export const DERIVED_FILTER_PARAMS: Record<DerivedFilterKey, (keyof SearchFilterParams)[]> = {
+    city: ["cityId"],
+    date: ["dateFrom", "dateTo"],
+};
+
+const DERIVED_FILTER_KEYS = Object.keys(DERIVED_FILTER_PARAMS) as DerivedFilterKey[];
+
+/** Read the `derived` param, ignoring anything a hand-edited URL invented. */
+export function parseDerivedKeys(value: string | null | undefined): DerivedFilterKey[] {
+    if (!value) return [];
+    return value
+        .split(",")
+        .filter((key): key is DerivedFilterKey => DERIVED_FILTER_KEYS.includes(key as DerivedFilterKey));
+}
+
+/** The `derived` param for these keys, or undefined when there are none to mark. */
+export function serializeDerivedKeys(keys: DerivedFilterKey[]): string | undefined {
+    return keys.length > 0 ? keys.join(",") : undefined;
+}
+
 /** Whether any filter is currently set — drives the filter button's active (dot) state. */
 export function hasActiveSearchFilters(filters: SearchFilterParams): boolean {
     return Boolean(
