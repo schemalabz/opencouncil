@@ -1,7 +1,7 @@
 "use client"
 import { SubjectWithRelations } from "@/lib/db/subject";
 import { Statistics } from "@/lib/statistics";
-import { SubjectCard } from "../subject-card";
+import { SubjectRow } from "../subject/SubjectRow";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
@@ -17,7 +17,6 @@ interface SubjectSectionProps {
     sortMode?: 'speakingTime' | 'agendaIndex';
     onSortModeChange?: (mode: 'speakingTime' | 'agendaIndex') => void;
     showSortToggle?: boolean;
-    className?: string;
 }
 
 export function SubjectSection({
@@ -27,9 +26,8 @@ export function SubjectSection({
     sortMode,
     onSortModeChange,
     showSortToggle,
-    className,
 }: SubjectSectionProps) {
-    const { city, meeting, parties, people } = useCouncilMeetingData();
+    const { city, meeting, people } = useCouncilMeetingData();
     const t = useTranslations("Subject");
     const [showExplainer, setShowExplainer] = useState(false);
     const [showAll, setShowAll] = useState(false);
@@ -39,13 +37,8 @@ export function SubjectSection({
     const hasMore = subjects.length > INITIAL_VISIBLE;
     const visibleSubjects = showAll ? subjects : subjects.slice(0, INITIAL_VISIBLE);
 
-    // When few subjects, cards stack vertically; otherwise use multi-column grid
-    const cardGridClass = subjects.length <= 2
-        ? "flex flex-col gap-4 flex-1"
-        : "flex flex-wrap gap-4 flex-1 [&>*]:w-full [&>*]:sm:w-[calc(50%-0.5rem)] [&>*]:lg:w-[calc(33.333%-0.75rem)] [&>*]:lg:min-w-[calc(33.333%-0.75rem)]";
-
     return (
-        <section className={cn("mt-8 flex flex-col", className ?? "w-full max-w-4xl mx-auto")}>
+        <section className="mt-8 flex flex-col w-full max-w-4xl mx-auto">
             <div className="flex flex-col gap-3 mb-5">
                 <div>
                     <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
@@ -98,15 +91,15 @@ export function SubjectSection({
                 )}
             </div>
 
-            <div className={cardGridClass}>
+            <div className="flex flex-col gap-4 flex-1">
                 {visibleSubjects.map(subject => (
-                    <SubjectCard
+                    <SubjectRow
                         key={subject.id}
                         subject={subject}
                         city={city}
                         meeting={meeting}
-                        parties={parties}
                         persons={people}
+                        showContext={false}
                     />
                 ))}
             </div>

@@ -87,17 +87,20 @@ export function FilterIconButton({
     active,
     onClick,
     compact,
+    ariaLabel,
 }: {
     active: boolean;
     onClick: () => void;
     compact?: boolean;
+    /** overrides the default (landing map) label — other callers reusing this button aren't in the landingV2 namespace */
+    ariaLabel?: string;
 }) {
     const t = useTranslations('landingV2');
     return (
         <button
             type="button"
             onClick={onClick}
-            aria-label={t('map.filters')}
+            aria-label={ariaLabel ?? t('map.filters')}
             className={cn(
                 'relative inline-flex shrink-0 items-center justify-center rounded-full border bg-card transition-colors',
                 compact ? 'h-8 w-8 shadow-md' : 'h-11 w-11 shadow-lg',

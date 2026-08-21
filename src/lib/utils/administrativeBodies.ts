@@ -8,7 +8,12 @@ type MeetingWithAdminBody = {
 };
 
 /** Canonical ordering for admin body types */
-const ADMIN_BODY_TYPE_ORDER: AdministrativeBodyType[] = ['council', 'committee', 'community'];
+export const ADMIN_BODY_TYPE_ORDER: AdministrativeBodyType[] = ['council', 'committee', 'community'];
+
+/** Narrow an unvalidated value — a URL parameter — to an admin body type. */
+export function toAdministrativeBodyType(value: string | undefined): AdministrativeBodyType | undefined {
+    return ADMIN_BODY_TYPE_ORDER.find(type => type === value);
+}
 
 /**
  * Extract which admin body types exist from a flat list of admin bodies.

@@ -34,7 +34,7 @@ describe('extractFilters', () => {
             locationName: 'Άργος',
         });
 
-        expect(await extractFilters('σχολεία Άργους')).toEqual({
+        expect(await extractFilters('σχολεία Άργους', 'greece')).toEqual({
             cityIds: ['athens'],
             dateRange: { start: '2026-01-01', end: '2026-02-01' },
             isLatest: null,
@@ -49,7 +49,7 @@ describe('extractFilters', () => {
     it('drops a locationName that is not a string', async () => {
         modelReturns({ cityIds: null, dateRange: null, isLatest: null, locationName: ['Άργος'] });
 
-        expect((await extractFilters('πάρκα')).locationName).toBeNull();
+        expect((await extractFilters('πάρκα', 'greece')).locationName).toBeNull();
     });
 
     // One bad field must not cost the extraction its good ones.
@@ -61,7 +61,7 @@ describe('extractFilters', () => {
             locationName: 42,
         });
 
-        expect(await extractFilters('τελευταία συνεδρίαση')).toEqual({
+        expect(await extractFilters('τελευταία συνεδρίαση', 'greece')).toEqual({
             cityIds: ['athens'],
             dateRange: null,
             isLatest: true,
@@ -74,14 +74,14 @@ describe('extractFilters', () => {
         async (result) => {
             modelReturns(result);
 
-            expect(await extractFilters('πάρκα')).toEqual(NO_EXTRACTED_FILTERS);
+            expect(await extractFilters('πάρκα', 'greece')).toEqual(NO_EXTRACTED_FILTERS);
         }
     );
 
     it('fills in the fields the model left out', async () => {
         modelReturns({ locationName: 'Άργος' });
 
-        expect(await extractFilters('Άργος')).toEqual({
+        expect(await extractFilters('Άργος', 'greece')).toEqual({
             ...NO_EXTRACTED_FILTERS,
             locationName: 'Άργος',
         });

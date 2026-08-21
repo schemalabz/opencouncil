@@ -1,7 +1,8 @@
 import { z } from 'zod';
+import { Realm } from '@prisma/client';
 import { ExtractedFilters } from './types';
 import { aiChat } from '@/lib/ai';
-import { getCities } from '@/lib/db/cities';
+import { getCities, filterCityIdsByRealm } from '@/lib/db/cities';
 import { getCity } from '@/lib/db/cities';
 import { getPlaceSuggestions, getPlaceDetails } from '@/lib/google-maps';
 import { calculateGeometryBounds } from '@/lib/geo';
@@ -82,9 +83,11 @@ const extractedFiltersSchema = z.object({
     locationName: z.string().nullable().catch(null),
 }).catch(NO_EXTRACTED_FILTERS);
 
-// Get cities for the prompt
-async function getCitiesForPrompt(): Promise<{ id: string; name: string; name_en: string }[]> {
-    const cities = await getCities();
+// Get cities for the prompt. Realm-scoped: a city the search cannot return is a
+// city the model must not be able to name, or it answers "Παρίσι" on
+// opencouncil.gr with a filter that empties the results.
+async function getCitiesForPrompt(realm: Realm): Promise<{ id: string; name: string; name_en: string }[]> {
+    const cities = await getCities({}, realm);
     return cities.map(city => ({
         id: city.id,
         name: city.name,
@@ -93,9 +96,9 @@ async function getCitiesForPrompt(): Promise<{ id: string; name: string; name_en
 }
 
 // Extract filters using AI
-export async function extractFilters(query: string): Promise<ExtractedFilters> {
+export async function extractFilters(query: string, realm: Realm): Promise<ExtractedFilters> {
     // Get cities for the prompt
-    const cities = await getCitiesForPrompt();
+    const cities = await getCitiesForPrompt(realm);
 
     // Format cities list for the prompt
     const citiesList = cities.map(city =>
@@ -161,7 +164,7 @@ export async function resolveLocationCoordinates(locationName: string, cityId: s
 }
 
 // Process extracted filters and resolve locations
-export async function processFilters(extractedFilters: ExtractedFilters): Promise<{
+export async function processFilters(extractedFilters: ExtractedFilters, realm: Realm): Promise<{
     cityIds: string[] | undefined;
     dateRange: { start: string; end: string; } | undefined;
     locations: Location[] | undefined;
@@ -171,18 +174,25 @@ export async function processFilters(extractedFilters: ExtractedFilters): Promis
     // Resolve location coordinates if a location name was extracted
     if (extractedFilters.locationName) {
         const locationName = extractedFilters.locationName;
-        if (extractedFilters.cityIds?.[0]) {
+        // The model reads a realm-scoped city list but can still name anything,
+        // and getCity() applies no realm filter of its own. Cap the id here too,
+        // so the one caller-influenced id that reaches the database on this path
+        // cannot bias the geocode with a municipality of another realm.
+        const [extractedCityId] = extractedFilters.cityIds?.length
+            ? await filterCityIdsByRealm(extractedFilters.cityIds, realm)
+            : [];
+        if (extractedCityId) {
             // If we have a specific city, try that first
             const location = await resolveLocationCoordinates(
                 locationName,
-                extractedFilters.cityIds[0]
+                extractedCityId
             );
             if (location) {
                 locations.push(location);
             }
         } else {
-            // If no specific city, try all cities
-            const cities = await getCities();
+            // If no specific city, try every city of the realm
+            const cities = await getCities({}, realm);
 
             // Try each city and collect all matches
             const locationPromises = cities.map(async (city) => {

@@ -1,4 +1,4 @@
-import { AdministrativeBody, City, CouncilMeeting } from "@prisma/client";
+import { AdministrativeBody, AdministrativeBodyType, City, CouncilMeeting } from "@prisma/client";
 import { SubjectWithRelations } from "@/lib/db/subject";
 import { SegmentWithRelations } from "@/lib/db/speakerSegments";
 
@@ -35,6 +35,10 @@ export type SearchRequest = {
     cityIds?: string[];
     personIds?: string[];
     partyIds?: string[];
+    /** Named administrative bodies of the meeting a subject belongs to. */
+    adminBodyIds?: string[];
+    /** Every administrative body of these types (every committee, for example). */
+    adminBodyTypes?: AdministrativeBodyType[];
     topicIds?: string[];
     dateRange?: {
         start: string;
