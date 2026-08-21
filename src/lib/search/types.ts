@@ -5,6 +5,12 @@ import { SegmentWithRelations } from "@/lib/db/speakerSegments";
 // Search configuration
 export type SearchConfig = {
     enableSemanticSearch?: boolean;
+    /** Read city, date and location filters out of the query text with a model,
+     *  for callers whose whole query is one free-text box. On by default.
+     *  Turn it off when the caller already knows its filters: the derivation
+     *  costs a model call, plus a geocode for every candidate city when the
+     *  query names a place. */
+    extractFilters?: boolean;
     /** Similarity cutoff (normalized cosine, 0-1) for the semantic fallback.
      *  See DEFAULT_SEMANTIC_MIN_SCORE. */
     semanticMinScore?: number;

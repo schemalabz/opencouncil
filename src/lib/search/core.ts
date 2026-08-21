@@ -119,9 +119,15 @@ export async function searchInRealm(
             }
         });
 
+        // Reading filters out of the query text is for callers whose whole
+        // query is one free-text box. It costs a model call, plus a geocode per
+        // candidate city when the query names a place, so a caller that already
+        // holds its filters can decline both.
+        const derivingFilters = request.config?.extractFilters ?? true;
+
         // Extract filters from the query using AI (non-fatal — search works without it)
         let extractedFilters: ExtractedFilters = NO_EXTRACTED_FILTERS;
-        if (queryText) {
+        if (queryText && derivingFilters) {
             try {
                 extractedFilters = await extractFilters(queryText, realm);
                 logEssential('[Search] Extracted filters:', extractedFilters);
@@ -136,10 +142,12 @@ export async function searchInRealm(
             dateRange: undefined,
             locations: undefined,
         };
-        try {
-            processedFilters = await processFilters(extractedFilters, realm);
-        } catch (error) {
-            console.error('[Search] Filter processing failed, continuing without processed filters:', error);
+        if (derivingFilters) {
+            try {
+                processedFilters = await processFilters(extractedFilters, realm);
+            } catch (error) {
+                console.error('[Search] Filter processing failed, continuing without processed filters:', error);
+            }
         }
 
         // The AI's reading of the query text is advisory: it only fills in a
