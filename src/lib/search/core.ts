@@ -1,7 +1,7 @@
 import { Client } from '@elastic/elasticsearch';
 import { Prisma, Realm } from '@prisma/client';
 import prisma from "@/lib/db/prisma";
-import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument, ExtractedFilters } from './types';
+import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument, ExtractedFilters, DerivedFilters } from './types';
 import { buildSearchQuery } from './query';
 import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from './filters';
 import { sendErrorAdminAlert } from '@/lib/discord';
@@ -102,7 +102,7 @@ export async function searchInRealm(
         // city filter" to buildFilters, which would search every realm.
         if (cityIds.length === 0) {
             logEssential('Search Session Skipped — no city in realm', { query: request.query, realm });
-            return { results: [], total: 0, dropped: 0 };
+            return { results: [], total: 0, dropped: 0, derivedFilters: {} };
         }
 
         // Log search session start with query and filters
@@ -166,6 +166,16 @@ export async function searchInRealm(
             cityIds: extractedCityIds.length > 0 ? extractedCityIds : cityIds,
             dateRange: request.dateRange ?? processedFilters.dateRange,
             locations: request.locations ?? processedFilters.locations
+        };
+
+        // Report back the filters the query text supplied, so a caller showing
+        // filters on screen can show these too rather than narrowing silently.
+        // Mirrors the merge above: a field is derived exactly when the merge
+        // took the extraction's value instead of the caller's.
+        const derivedFilters: DerivedFilters = {
+            ...(extractedCityIds.length > 0 && { cityIds: extractedCityIds }),
+            ...(!request.dateRange && processedFilters.dateRange && { dateRange: processedFilters.dateRange }),
+            ...(!request.locations && processedFilters.locations && { locations: processedFilters.locations }),
         };
 
         // Build and execute the search query with retry logic
@@ -385,6 +395,7 @@ export async function searchInRealm(
             results,
             total: totalHits - dropped,
             dropped,
+            derivedFilters,
         };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
