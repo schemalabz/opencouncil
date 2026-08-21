@@ -10,6 +10,7 @@ import { useMapFeatures } from './hooks/useMapFeatures';
 import { useMapActions } from './hooks/useMapActions';
 import { useFilteredSubjects } from './hooks/useFilteredSubjects';
 import { useLandingData, type LandingInitialData } from './hooks/useLandingData';
+import { applyDerivedFilters, useCommittedSearch } from './hooks/useCommittedSearch';
 import { useNotifyPrompt } from './hooks/useNotifyPrompt';
 import { useSubjectSelection } from './hooks/useSubjectSelection';
 import {
@@ -198,6 +199,25 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         initial,
     });
 
+    // A committed search replaces the map's own subjects with its results, so
+    // the pins, the list and the counts all describe the search rather than the
+    // last three months with the search filtered out of it.
+    const {
+        committed: committedSearch,
+        pending: searchPending,
+        commit: commitSearch,
+        clear: clearCommittedSearch,
+    } = useCommittedSearch({
+        cats,
+        filters,
+        onDerivedFilters: useCallback(
+            (derived) => setFilters((prev) => applyDerivedFilters(prev, derived)),
+            [],
+        ),
+    });
+    const activeMapSubjects = committedSearch ? committedSearch.located : mapSubjects;
+    const activeGeneralRows = committedSearch ? committedSearch.general : generalRows;
+
     // ---- URL state sync ----
     // A subject id restored from the URL, pending a map fly-to once the data + map are ready.
     const restoreSubjectRef = useRef<string | null>(null);
@@ -213,6 +233,9 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         setQuery(init.query);
         setRange(init.range);
         setFilters(init.filters);
+        // A shared link carries the search, not its results — re-run it so the
+        // map shows what the sender saw.
+        if (init.search) commitSearch(init.search);
         setLandingContext({ view: init.view });
         captureLanding('viewed', {
             view: init.view,
@@ -245,6 +268,7 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         if (selectedId) p.set('subject', selectedId);
         if (cats.length) p.set('cat', cats.join(','));
         if (query.trim()) p.set('q', query.trim());
+        if (committedSearch) p.set('search', committedSearch.query);
         if (range !== DEFAULT_RANGE) p.set('range', range);
         if (filters.cityIds.length) p.set('city', filters.cityIds[0]);
         if (filters.bodyTypes.length) p.set('body', filters.bodyTypes.join(','));
@@ -252,7 +276,7 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         if (filters.dateTo) p.set('to', filters.dateTo);
         const qs = p.toString();
         window.history.replaceState(null, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
-    }, [view, infoOpen, selectedId, cats, query, range, filters]);
+    }, [view, infoOpen, selectedId, cats, query, range, filters, committedSearch]);
 
     // All derived subject views (see useFilteredSubjects).
     const {
@@ -265,12 +289,13 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         allGeneralSubjects,
         visibleGeneralSubjects,
         listSubjects,
+        outsideViewCount,
         searchResults,
         findSubject,
         selectedSubject,
     } = useFilteredSubjects({
-        mapSubjects,
-        generalRows,
+        mapSubjects: activeMapSubjects,
+        generalRows: activeGeneralRows,
         cats,
         query,
         filters,
@@ -279,6 +304,7 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         mapZoom,
         selectedId,
         previewId,
+        relevanceOrder: committedSearch?.order ?? null,
     });
 
     // Total subjects per δήμος (located + non-located), from the same filtered sets the list uses.

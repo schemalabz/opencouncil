@@ -52,7 +52,14 @@ export async function GET(request: Request) {
             topicIds: list(searchParams.get('topicIds')),
             adminBodyTypes: list(searchParams.get('bodyType')).filter(isBodyType),
             dateRange: dateFrom && dateTo ? { start: dateFrom, end: dateTo } : undefined,
-            config: { enableSemanticSearch: true, size: MAX_RESULTS },
+            config: {
+                enableSemanticSearch: true,
+                size: MAX_RESULTS,
+                // Reading the query text for filters is worth a model call once,
+                // when the reader commits the search. A caller re-running the
+                // same text after changing a filter already holds what it gave.
+                extractFilters: searchParams.get('extract') !== 'false',
+            },
         }, realm);
 
         const subjectIds = hits.map(hit => hit.id);
