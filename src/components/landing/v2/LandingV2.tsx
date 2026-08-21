@@ -190,14 +190,6 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
     const [range, setRange] = useState<DateRangeKey>(DEFAULT_RANGE);
     const [filters, setFilters] = useState<MapFilters>(EMPTY_FILTERS);
     const [query, setQuery] = useState('');
-    // A free-text search ignores the range dropdown so it spans every subject (see useLandingData).
-    const searching = query.trim().length > 0;
-    const { cities, upcoming, subjectCountByCity, mapCities, petitionedCities, petitionedBelowThreshold, mapSubjects, generalRows, loading } = useLandingData({
-        range,
-        filters,
-        searching,
-        initial,
-    });
 
     // A committed search replaces the map's own subjects with its results, so
     // the pins, the list and the counts all describe the search rather than the
@@ -214,6 +206,17 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
             (derived) => setFilters((prev) => applyDerivedFilters(prev, derived)),
             [],
         ),
+    });
+
+    // A free-text search ignores the range dropdown so it spans every subject (see useLandingData).
+    // Not while a search is committed: its results are what the map shows, so
+    // fetching the whole realm behind them would be work nothing reads.
+    const searching = !committedSearch && query.trim().length > 0;
+    const { cities, upcoming, subjectCountByCity, mapCities, petitionedCities, petitionedBelowThreshold, mapSubjects, generalRows, loading } = useLandingData({
+        range,
+        filters,
+        searching,
+        initial,
     });
     const activeMapSubjects = committedSearch ? committedSearch.located : mapSubjects;
     const activeGeneralRows = committedSearch ? committedSearch.general : generalRows;
@@ -234,8 +237,9 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         setRange(init.range);
         setFilters(init.filters);
         // A shared link carries the search, not its results — re-run it so the
-        // map shows what the sender saw.
-        if (init.search) commitSearch(init.search);
+        // map shows what the sender saw. Under the filters the link carried:
+        // the state set two lines up is not readable until the next render.
+        if (init.search) commitSearch(init.search, { cats: init.cats, filters: init.filters });
         setLandingContext({ view: init.view });
         captureLanding('viewed', {
             view: init.view,

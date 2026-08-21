@@ -83,13 +83,18 @@ export function useCommittedSearch({ cats, filters, onDerivedFilters }: Args) {
     // filter actually changing from the state settling after a commit.
     const lastRunRef = useRef<string | null>(null);
 
-    const run = useCallback(async (query: string, extract: boolean) => {
+    const run = useCallback(async (
+        query: string,
+        extract: boolean,
+        runCats: string[],
+        runFilters: MapFilters,
+    ) => {
         const id = ++requestRef.current;
         const startedAt = performance.now();
-        lastRunRef.current = buildParams(query, cats, filters, true);
+        lastRunRef.current = buildParams(query, runCats, runFilters, true);
         setPending(true);
         try {
-            const response = await fetch(`/api/map/search?${buildParams(query, cats, filters, extract)}`);
+            const response = await fetch(`/api/map/search?${buildParams(query, runCats, runFilters, extract)}`);
             if (!response.ok) throw new Error(`Search failed: ${response.status}`);
             const data = await response.json();
             if (id !== requestRef.current) return;
@@ -115,8 +120,8 @@ export function useCommittedSearch({ cats, filters, onDerivedFilters }: Args) {
                     truncated: Boolean(data.truncated),
                     derived: Object.keys(data.derivedFilters ?? {}),
                     duration_ms: Math.round(performance.now() - startedAt),
-                    has_category_filter: cats.length > 0,
-                    has_city_filter: filters.cityIds.length > 0,
+                    has_category_filter: runCats.length > 0,
+                    has_city_filter: runFilters.cityIds.length > 0,
                 });
             }
             if (extract && data.derivedFilters) {
@@ -124,7 +129,7 @@ export function useCommittedSearch({ cats, filters, onDerivedFilters }: Args) {
                 // The caller is about to move its chips to match, which changes
                 // the filters the re-run effect watches. Record where that
                 // lands, so settling here doesn't read as a filter change.
-                lastRunRef.current = buildParams(query, cats, applyDerivedFilters(filters, data.derivedFilters), true);
+                lastRunRef.current = buildParams(query, runCats, applyDerivedFilters(runFilters, data.derivedFilters), true);
             }
         } catch (error) {
             if (id !== requestRef.current) return;
@@ -141,12 +146,19 @@ export function useCommittedSearch({ cats, filters, onDerivedFilters }: Args) {
         } finally {
             if (id === requestRef.current) setPending(false);
         }
-    }, [cats, filters, onDerivedFilters]);
+    }, [onDerivedFilters]);
 
-    const commit = useCallback((query: string) => {
+    /**
+     * Run the search.
+     *
+     * `at` names the filters to run under, for a caller that knows them before
+     * React does — restoring a shared link sets the filters and commits the
+     * search in the same pass, and the state it just set is not readable yet.
+     */
+    const commit = useCallback((query: string, at?: { cats: string[]; filters: MapFilters }) => {
         const trimmed = query.trim();
-        if (trimmed) void run(trimmed, true);
-    }, [run]);
+        if (trimmed) void run(trimmed, true, at?.cats ?? cats, at?.filters ?? filters);
+    }, [run, cats, filters]);
 
     const clear = useCallback(() => {
         requestRef.current++;
@@ -163,7 +175,7 @@ export function useCommittedSearch({ cats, filters, onDerivedFilters }: Args) {
         if (!activeQuery) return;
         // The commit that produced these results already asked for exactly this.
         if (buildParams(activeQuery, cats, filters, true) === lastRunRef.current) return;
-        void run(activeQuery, false);
+        void run(activeQuery, false, cats, filters);
         // `run` closes over the filters this is watching; depending on it here
         // would re-run on its identity rather than on a filter actually changing.
         // eslint-disable-next-line react-hooks/exhaustive-deps
