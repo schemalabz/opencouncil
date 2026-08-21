@@ -13,6 +13,7 @@ import type {
     UpcomingMeeting,
 } from './landingData';
 import type { ReactNode } from 'react';
+import type { CommittedSearch } from '@/components/landing/v2/hooks/useCommittedSearch';
 
 // OpenCouncil location ([lng, lat]) — Κων/νου Σμολένσκη 22, Αθήνα 114 72.
 export const EXPLAIN_LNGLAT: [number, number] = [23.740061, 37.986179];
@@ -367,6 +368,19 @@ export type LayoutProps = {
     onDismissGeoError: () => void;
     /** geocode a typed address query and fly the map to it */
     onLocateAddress: (q: string) => void;
+    /** commit the text as a search over the councils' discussions, replacing the
+     *  map's subjects with the results */
+    onCommitSearch: (q: string) => void;
+    /** the search currently committed, or null */
+    committedSearch: CommittedSearch | null;
+    /** the committed search is still loading its results */
+    searchPending: boolean;
+    /** drop the committed search and go back to the map's own subjects */
+    onClearSearch: () => void;
+    /** matches whose pin sits outside the current viewport */
+    outsideViewCount: number;
+    /** fit the map to every result of the committed search */
+    onFitSearchResults: () => void;
     zoomIn: () => void;
     zoomOut: () => void;
     /** the map is in the zoomed-out municipality overview (cluster numbers, no subject detail) — mobile

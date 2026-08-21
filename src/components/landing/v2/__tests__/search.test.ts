@@ -1,5 +1,6 @@
 import {
     classifySearchQuery,
+    looksLikeAddress,
     detectMunicipalityQuery,
     filterSubjectsByQuery,
     groupByLocation,
@@ -121,5 +122,34 @@ describe('groupByLocation', () => {
         ]);
         expect(groups).toHaveLength(2);
         expect(groups.find((g) => g.length === 2)?.map((s) => s.id)).toEqual(['a', 'b']);
+    });
+});
+
+describe('looksLikeAddress', () => {
+    // A house number is the one signal no subject title carries.
+    it.each(['Πατησίων 76', 'Ερμού 12', 'λεωφ. Κηφισίας 200'])('reads %p as an address', (q) => {
+        expect(looksLikeAddress(q)).toBe(true);
+    });
+
+    it.each(['οδός Σταδίου', 'Λεωφόρος Αλεξάνδρας', 'πλατεία Συντάγματος', 'Αγ. Παρασκευής'])(
+        'reads %p as an address from the word it opens with',
+        (q) => {
+            expect(looksLikeAddress(q)).toBe(true);
+        },
+    );
+
+    // Everything else is a question about the discussions. The address row is
+    // still in the dropdown for whatever this misses.
+    it.each(['κατοικίδια', 'ανακύκλωση', 'παιδικοί σταθμοί', 'Χάρης Δούκας', ''])(
+        'reads %p as a search',
+        (q) => {
+            expect(looksLikeAddress(q)).toBe(false);
+        },
+    );
+
+    // The prefixes are matched unaccented, on the first word only — a street
+    // name that merely contains one of them is not an address.
+    it('does not read a street word in the middle as an address', () => {
+        expect(looksLikeAddress('ανάπλαση πλατείας')).toBe(false);
     });
 });
