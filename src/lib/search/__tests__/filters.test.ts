@@ -43,6 +43,24 @@ describe('extractFilters', () => {
         });
     });
 
+    // Extraction runs in front of every text search, so it is on the reader's
+    // critical path — it must not silently move to a slower model.
+    it('runs on the fast model with a small output cap', async () => {
+        modelReturns(NO_EXTRACTED_FILTERS);
+
+        await extractFilters('ανακύκλωση', 'greece');
+
+        expect(aiChatMock).toHaveBeenCalledWith(
+            expect.any(String),
+            'ανακύκλωση',
+            undefined,
+            undefined,
+            expect.objectContaining({ model: 'claude-haiku-4-5' }),
+        );
+        const { maxTokens } = aiChatMock.mock.calls[0][4] as { maxTokens: number };
+        expect(maxTokens).toBeLessThanOrEqual(1024);
+    });
+
     // Regression: buildSearchQuery reads locationName as a string, and it runs
     // outside the try/catch blocks that keep a failed extraction non-fatal, so a
     // non-string here returned a 500 (and a Discord alert) for a query the
