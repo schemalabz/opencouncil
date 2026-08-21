@@ -317,5 +317,9 @@
     "empty": "No highlights yet",
     "emptyDescription": "You have not created any highlights yet. Open a meeting transcript to create one.",
     "truncated": "Showing your {count} most recent highlights."
+  },
+  "actions": {
+    "menu": "Highlight actions",
+    "rename": "Rename"
   }
 }

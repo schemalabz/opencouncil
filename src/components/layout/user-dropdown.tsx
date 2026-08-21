@@ -12,7 +12,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { LogOut, LogIn, ShieldCheck } from "lucide-react"
-import { ACCOUNT_LINKS } from "./account-links"
+import { useAccountLinks } from "./account-links"
 import { signOut } from "next-auth/react"
 // The locale-aware router: next/navigation's would push a bare "/sign-in",
 // dropping the locale prefix and landing the user on the Greek sign-in page.
@@ -27,6 +27,7 @@ export default function UserDropdown({ currentEntity }: { currentEntity?: { city
     const { data: session, status } = useSession()
     const t = useTranslations("Header")
     const tAccount = useTranslations("account")
+    const accountLinks = useAccountLinks()
     const locale = useLocale()
     const router = useRouter()
     const [canEdit, setCanEdit] = useState(false);
@@ -94,7 +95,7 @@ export default function UserDropdown({ currentEntity }: { currentEntity?: { city
                     <DropdownMenuSeparator />
                 </>}
 
-                {ACCOUNT_LINKS.map(({ href, labelKey, icon: Icon }) => (
+                {accountLinks.map(({ href, labelKey, icon: Icon }) => (
                     <DropdownMenuItem key={href} asChild>
                         <Link href={href} className="cursor-pointer">
                             <Icon className="mr-2 h-4 w-4" />

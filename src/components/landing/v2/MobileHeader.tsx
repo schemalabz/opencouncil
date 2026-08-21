@@ -6,12 +6,13 @@ import Image from 'next/image';
 import { Menu, Home, ChevronDown, User, LogOut, LogIn, Search, Phone, Mail, ArrowRight, HelpCircle } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { Link } from '@/i18n/routing';
-import { ACCOUNT_LINKS } from '@/components/layout/account-links';
+import { openAfterMenuCloses } from '@/lib/utils/menus';
+import { useAccountLinks } from '@/components/layout/account-links';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger, SheetClose, SheetTitle } from '@/components/ui/sheet';
 import { footerGroups, isInternalHref, reopenCookiePreferences, type FooterLink } from './navLinks';
 import ScriptSwitcher from '@/components/layout/ScriptSwitcher';
-import { NotifyMunicipalityDialog, openAfterMenuCloses } from './NotifyMunicipalityDialog';
+import { NotifyMunicipalityDialog } from './NotifyMunicipalityDialog';
 import { captureLandingAction } from '@/lib/landing/analytics';
 import type { InfoSurface } from '@/lib/landing/landingCore';
 import type { LandingListCity } from '@/lib/landing/landingData';
@@ -43,6 +44,7 @@ export function MobileHeader({
 }) {
     const t = useTranslations('landingV2');
     const tAccount = useTranslations('account');
+    const accountLinks = useAccountLinks();
     const [notifyOpen, setNotifyOpen] = useState(false);
     const { data: session, status } = useSession();
     return (
@@ -134,7 +136,7 @@ export function MobileHeader({
                                         <p className="truncate text-xs text-muted-foreground">{session.user.email}</p>
                                     </div>
                                 </div>
-                                {ACCOUNT_LINKS.map(({ href, labelKey, icon: Icon }) => (
+                                {accountLinks.map(({ href, labelKey, icon: Icon }) => (
                                     <DrawerLink key={href} href={href} icon={<Icon className="h-[18px] w-[18px]" />}>
                                         {tAccount(labelKey)}
                                     </DrawerLink>

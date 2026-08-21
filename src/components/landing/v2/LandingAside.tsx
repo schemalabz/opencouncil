@@ -5,7 +5,8 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Map as MapIcon, Landmark, HelpCircle, MoreHorizontal, LogIn, LogOut, User, Phone, Mail, ArrowRight } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { Link, getPathname } from '@/i18n/routing';
-import { ACCOUNT_LINKS } from '@/components/layout/account-links';
+import { openAfterMenuCloses } from '@/lib/utils/menus';
+import { useAccountLinks } from '@/components/layout/account-links';
 import { cn } from '@/lib/utils';
 import {
     DropdownMenu,
@@ -18,7 +19,7 @@ import {
 import Image from 'next/image';
 import type { InfoSurface, LandingView } from '@/lib/landing/landingCore';
 import { footerGroups, isInternalHref, reopenCookiePreferences } from './navLinks';
-import { NotifyMunicipalityDialog, openAfterMenuCloses } from './NotifyMunicipalityDialog';
+import { NotifyMunicipalityDialog } from './NotifyMunicipalityDialog';
 import ScriptSwitcher from '@/components/layout/ScriptSwitcher';
 import { captureLandingAction } from '@/lib/landing/analytics';
 import type { LandingListCity } from '@/lib/landing/landingData';
@@ -50,6 +51,7 @@ export function LandingAside({
 }) {
     const t = useTranslations('landingV2');
     const tAccount = useTranslations('account');
+    const accountLinks = useAccountLinks();
     const locale = useLocale();
     const [notifyOpen, setNotifyOpen] = useState(false);
     const { data: session, status } = useSession();
@@ -237,6 +239,12 @@ export function LandingAside({
                                     cmd-click, middle-click and "copy link" still reach /profile. */}
                                 <a
                                     href={getPathname({ href: '/profile', locale })}
+                                    // Radix opens the menu on pointerdown, and only
+                                    // excludes ctrl. Close it again when a modified
+                                    // click means "open this somewhere else".
+                                    onPointerDown={(e) => {
+                                        if (e.metaKey || e.shiftKey || e.altKey) e.preventDefault();
+                                    }}
                                     onClick={(e) => {
                                         if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
                                         e.preventDefault();
@@ -253,7 +261,7 @@ export function LandingAside({
                                 align="end"
                                 className="w-56 rounded-2xl border-border bg-card p-2 text-muted-foreground"
                             >
-                                {ACCOUNT_LINKS.map(({ href, labelKey, icon: Icon }) => (
+                                {accountLinks.map(({ href, labelKey, icon: Icon }) => (
                                     <DropdownMenuItem
                                         key={href}
                                         asChild

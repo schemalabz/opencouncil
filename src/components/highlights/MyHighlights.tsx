@@ -5,14 +5,14 @@ import { formatDate } from "@/lib/formatters/time";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { generateHighlightFileName } from "@/lib/export/download";
 import type { HighlightWithMeetingAndStatistics, MyHighlights as MyHighlightsData } from "@/lib/db/highlights";
-import { HighlightsGrid, type HighlightCardData } from "./HighlightCards";
+import { HighlightsGrid } from "./HighlightsGrid";
+import type { HighlightCardData } from "./HighlightCard";
 
 function toCardData(highlight: HighlightWithMeetingAndStatistics): HighlightCardData {
     return {
         id: highlight.id,
         name: highlight.name,
         isShowcased: highlight.isShowcased,
-        hasVideo: !!highlight.videoUrl,
         updatedAt: highlight.updatedAt,
         href: `/${highlight.cityId}/${highlight.meetingId}/highlights/${highlight.id}`,
         duration: highlight.statistics.duration,
@@ -21,9 +21,11 @@ function toCardData(highlight: HighlightWithMeetingAndStatistics): HighlightCard
         subjectName: highlight.subject?.name ?? null,
         // Every highlight on this page belongs to the viewer.
         creatorName: null,
-        download: highlight.videoUrl
+        canManage: true,
+        video: highlight.videoUrl
             ? {
-                videoUrl: highlight.videoUrl,
+                url: highlight.videoUrl,
+                playbackId: highlight.muxPlaybackId,
                 fileName: generateHighlightFileName(highlight.cityId, highlight.meetingId, highlight.name),
             }
             : undefined,
@@ -65,6 +67,7 @@ export async function MyHighlights({ highlights, truncated }: MyHighlightsData) 
         return (
             <HighlightsGrid
                 items={[]}
+                surface="profile"
                 emptyState={{ title: t('empty'), description: t('emptyDescription') }}
             />
         );
@@ -82,10 +85,10 @@ export async function MyHighlights({ highlights, truncated }: MyHighlightsData) 
                                 alt=""
                                 width={40}
                                 height={40}
-                                className="h-10 w-10 rounded-full object-contain flex-shrink-0"
+                                className="h-10 w-10 shrink-0 rounded-md object-contain"
                             />
                         ) : (
-                            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
                                 <Landmark className="h-5 w-5" />
                             </span>
                         )}
@@ -94,13 +97,15 @@ export async function MyHighlights({ highlights, truncated }: MyHighlightsData) 
                                 {getLocalizedName(meeting, locale)}
                             </h2>
                             <p className="text-sm text-muted-foreground truncate">
-                                {getLocalizedName(meeting.city, locale)}
-                                {' · '}
-                                {formatDate(meeting.dateTime, meeting.city.timezone, locale)}
+                                {[
+                                    getLocalizedName(meeting.city, locale),
+                                    meeting.administrativeBody ? getLocalizedName(meeting.administrativeBody, locale) : null,
+                                    formatDate(meeting.dateTime, meeting.city.timezone, locale),
+                                ].filter(Boolean).join(' · ')}
                             </p>
                         </div>
                     </div>
-                    <HighlightsGrid items={items} grouped={false} />
+                    <HighlightsGrid items={items} surface="profile" />
                 </section>
             ))}
 
