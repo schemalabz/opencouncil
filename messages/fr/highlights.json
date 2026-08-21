@@ -310,5 +310,11 @@
         "description": "La barre ambrée en haut indique que vous êtes en mode d'édition de temps fort. Elle affiche des statistiques en temps réel (durée, nombre d'intervenants, nombre d'énoncés) et donne accès à toutes les commandes d'édition."
       }
     }
+  },
+  "myHighlights": {
+    "title": "Mes temps forts",
+    "description": "Tous les temps forts que vous avez créés, dans toutes les villes et toutes les séances.",
+    "empty": "Aucun temps fort pour l'instant",
+    "emptyDescription": "Vous n'avez pas encore créé de temps forts. Ouvrez la transcription d'une séance pour en créer un."
   }
 }

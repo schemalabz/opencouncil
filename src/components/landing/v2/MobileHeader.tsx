@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Menu, Home, ChevronDown, User, Bell, LogOut, LogIn, Search, Phone, Mail, ArrowRight, HelpCircle } from 'lucide-react';
+import { Menu, Home, ChevronDown, User, Bell, LogOut, LogIn, Search, Phone, Mail, ArrowRight, HelpCircle, Star } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
@@ -133,6 +133,9 @@ export function MobileHeader({
                                     </div>
                                 </div>
                                 <DrawerLink href="/profile" icon={<User className="h-[18px] w-[18px]" />}>{t('account.profile')}</DrawerLink>
+                                <DrawerLink href="/profile/highlights" icon={<Star className="h-[18px] w-[18px]" />}>
+                                    {t('account.myHighlights')}
+                                </DrawerLink>
                                 <DrawerLink href="/profile?tab=notifications" icon={<Bell className="h-[18px] w-[18px]" />}>
                                     {t('account.notifications')}
                                 </DrawerLink>

@@ -24,6 +24,7 @@
   },
   "account": {
     "profile": "Profil",
+    "myHighlights": "Mes temps forts",
     "logout": "Se déconnecter",
     "signOut": "Se déconnecter",
     "signIn": "Se connecter",

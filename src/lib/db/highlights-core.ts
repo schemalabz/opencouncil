@@ -37,6 +37,42 @@ export type HighlightWithUtterances = Prisma.HighlightGetPayload<{
     include: typeof highlightWithUtterancesInclude
 }>;
 
+// Lighter include for cross-meeting highlight lists: no utterance text
+// (a page of highlights must not ship whole transcripts), just enough to
+// compute card statistics plus the meeting/city/subject labels.
+export const highlightWithMeetingInclude = {
+    meeting: {
+        select: {
+            id: true,
+            cityId: true,
+            name: true,
+            name_en: true,
+            dateTime: true,
+            city: { select: { id: true, name: true, name_en: true, logoImage: true, timezone: true } }
+        }
+    },
+    subject: { select: { id: true, name: true } },
+    highlightedUtterances: {
+        select: {
+            utterance: {
+                select: {
+                    startTimestamp: true,
+                    endTimestamp: true,
+                    speakerSegment: {
+                        select: {
+                            speakerTag: { select: { personId: true, label: true } }
+                        }
+                    }
+                }
+            }
+        }
+    }
+} satisfies Prisma.HighlightInclude;
+
+export type HighlightWithMeeting = Prisma.HighlightGetPayload<{
+    include: typeof highlightWithMeetingInclude
+}>;
+
 /**
  * Who is performing a highlight write. Mirrors the shape returned by
  * withServiceOrUserAuth in src/lib/auth.ts: a user acts under their own

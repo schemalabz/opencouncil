@@ -4,13 +4,14 @@ import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Users, Star, Play, Loader2, Calendar, Tag, User, FileText } from "lucide-react";
+import { Clock, Users, Star, Play, Loader2, Calendar, Tag, User } from "lucide-react";
 import { formatTime, formatRelativeTime } from "@/lib/utils";
+import { DownloadHighlightButton } from "./DownloadHighlightButton";
 
 // Presentational card/grid shared by the meeting highlights page and the
-// admin highlights library. Data arrives via props: the meeting page maps
+// personal highlights page. Data arrives via props: the meeting page maps
 // from its React contexts (see src/components/meetings/HighlightsList.tsx),
-// the admin page maps from the DB payload on the server.
+// the personal page maps from the DB payload on the server.
 export interface HighlightCardData {
   id: string;
   name: string;
@@ -25,8 +26,8 @@ export interface HighlightCardData {
   /** Label of the connected subject; null renders the "no subject" badge. */
   subjectName: string | null;
   creatorName: string | null;
-  /** Library page only: which meeting the highlight belongs to. */
-  meetingLabel?: string;
+  /** Renders a download button on the card when the highlight has a video. */
+  download?: { videoUrl: string; fileName: string };
 }
 
 export function HighlightCard({ data }: { data: HighlightCardData }) {
@@ -84,14 +85,6 @@ export function HighlightCard({ data }: { data: HighlightCardData }) {
                   )}
                 </div>
 
-                {/* Meeting info (library page only) */}
-                {data.meetingLabel && (
-                  <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                    <FileText className="h-3 w-3" />
-                    <span className="truncate">{data.meetingLabel}</span>
-                  </div>
-                )}
-
                 {/* Creator info */}
                 {data.creatorName && (
                   <div className="flex items-center space-x-1 text-xs text-muted-foreground">
@@ -124,6 +117,17 @@ export function HighlightCard({ data }: { data: HighlightCardData }) {
                 </div>
               </div>
             </div>
+
+            {data.download && (
+              <div className="ml-3 flex-shrink-0">
+                <DownloadHighlightButton
+                  videoUrl={data.download.videoUrl}
+                  fileName={data.download.fileName}
+                  showLabel={false}
+                  size="icon"
+                />
+              </div>
+            )}
           </div>
         </div>
       </CardContent>
@@ -131,8 +135,56 @@ export function HighlightCard({ data }: { data: HighlightCardData }) {
   );
 }
 
-export function HighlightsGrid({ items, createButton }: { items: HighlightCardData[]; createButton?: React.ReactNode }) {
+export function HighlightsGrid({
+  items,
+  createButton,
+  grouped = true,
+  emptyState,
+}: {
+  items: HighlightCardData[];
+  createButton?: React.ReactNode;
+  /**
+   * Group into showcased/video/draft sections (the meeting page). The
+   * personal highlights page passes false: it already groups by meeting,
+   * so per-status sections inside each meeting would fragment the list.
+   */
+  grouped?: boolean;
+  /** Overrides the default "create your first highlight" empty state (the personal page). */
+  emptyState?: { title: string; description: string };
+}) {
   const t = useTranslations('highlights');
+
+  if (items.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-muted-foreground">
+          <Star className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <h3 className="text-lg font-semibold mb-2">{emptyState?.title ?? t('emptyState.title')}</h3>
+          <p className="text-sm mb-4">
+            {emptyState?.description ?? t('emptyState.description')}
+          </p>
+          {createButton}
+        </div>
+      </div>
+    );
+  }
+
+  if (!grouped) {
+    return (
+      <div className="space-y-6">
+        {createButton && (
+          <div className="flex justify-center">
+            {createButton}
+          </div>
+        )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {items.map(item => (
+            <HighlightCard key={item.id} data={item} />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const showcasedHighlights = items.filter(h => h.isShowcased);
   const highlightsWithVideo = items.filter(h => h.hasVideo && !h.isShowcased);
@@ -141,7 +193,7 @@ export function HighlightsGrid({ items, createButton }: { items: HighlightCardDa
   return (
     <div className="space-y-6">
       {/* Create New Highlight Button */}
-      {createButton && items.length > 0 && (
+      {createButton && (
         <div className="flex justify-center">
           {createButton}
         </div>
@@ -192,22 +244,8 @@ export function HighlightsGrid({ items, createButton }: { items: HighlightCardDa
         </div>
       )}
 
-      {/* Empty State */}
-      {items.length === 0 && (
-        <div className="text-center py-12">
-          <div className="text-muted-foreground">
-            <Star className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-semibold mb-2">{t('emptyState.title')}</h3>
-            <p className="text-sm mb-4">
-              {t('emptyState.description')}
-            </p>
-            {createButton}
-          </div>
-        </div>
-      )}
-
-      {/* No Draft Highlights State */}
-      {items.length > 0 && draftHighlights.length === 0 && (
+      {/* No Draft Highlights State — only meaningful next to the draft section above */}
+      {draftHighlights.length === 0 && (
         <div className="text-center py-8">
           <div className="text-muted-foreground">
             <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
