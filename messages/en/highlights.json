@@ -1,7 +1,7 @@
 {
   "common": {
     "utterances": "utterances",
-    "speakers": "speakers", 
+    "speakers": "speakers",
     "duration": "duration",
     "close": "Close",
     "cancel": "Cancel",
@@ -60,7 +60,7 @@
     "whatNext": "What would you like to do next?",
     "trackProgress": "Track Progress",
     "trackProgressDescription": "View this highlight",
-    "viewAll": "View All Highlights", 
+    "viewAll": "View All Highlights",
     "viewAllDescription": "Browse highlights",
     "returnToTranscript": "Return to Transcript",
     "returnToTranscriptDescription": "Continue reading"
@@ -310,5 +310,11 @@
         "description": "The amber bar at the top indicates you're in highlight editing mode. It shows real-time statistics (duration, speaker count, utterance count) and provides access to all editing controls."
       }
     }
+  },
+  "myHighlights": {
+    "title": "My highlights",
+    "description": "All the highlights you have created, across all cities and meetings.",
+    "empty": "No highlights yet",
+    "emptyDescription": "You have not created any highlights yet. Open a meeting transcript to create one."
   }
 }

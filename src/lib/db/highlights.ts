@@ -3,9 +3,9 @@ import { City, CouncilMeeting, Highlight, Subject, Utterance, Prisma } from '@pr
 import prisma from "./prisma";
 import { getCurrentUser, isUserAuthorizedToEdit, withUserAuthorizedToEdit } from "../auth";
 import { UnauthorizedError, ForbiddenError, NotFoundError, BadRequestError } from "../api/errors";
-import { highlightWithUtterancesInclude, upsertHighlightCore, type HighlightWithUtterances } from "./highlights-core";
+import { highlightWithUtterancesInclude, highlightWithMeetingInclude, upsertHighlightCore, type HighlightWithUtterances, type HighlightWithMeeting } from "./highlights-core";
 
-export type { HighlightWithUtterances } from "./highlights-core";
+export type { HighlightWithUtterances, HighlightWithMeeting } from "./highlights-core";
 
 /**
  * Gets the current user's permission context for highlights.
@@ -87,6 +87,33 @@ export async function getHighlightsForMeeting(
         where,
         include: highlightWithUtterancesInclude,
         orderBy: { updatedAt: 'desc' }
+    });
+}
+
+/**
+ * All highlights the signed-in user created, across every city and meeting.
+ * The identity comes from the session, never from a parameter: this module
+ * is "use server", so a userId argument would let any client read the
+ * highlights of any user.
+ */
+export async function getMyHighlights(): Promise<HighlightWithMeeting[]> {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+        throw new UnauthorizedError("You must be signed in to list your highlights");
+    }
+
+    // Meeting date first so the page can group by meeting in render order.
+    // meetingId second because distinct meetings can share a dateTime: without
+    // it the highlights of two same-time meetings interleave. updatedAt last
+    // orders the cards inside each group.
+    return prisma.highlight.findMany({
+        where: { createdById: currentUser.id },
+        include: highlightWithMeetingInclude,
+        orderBy: [
+            { meeting: { dateTime: 'desc' } },
+            { meetingId: 'desc' },
+            { updatedAt: 'desc' }
+        ]
     });
 }
 

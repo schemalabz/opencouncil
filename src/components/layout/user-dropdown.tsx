@@ -11,7 +11,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { User, LogOut, LogIn, Edit, ShieldCheck } from "lucide-react"
+import { User, LogOut, LogIn, Edit, ShieldCheck, Star } from "lucide-react"
 import { signOut } from "next-auth/react"
 // The locale-aware router: next/navigation's would push a bare "/sign-in",
 // dropping the locale prefix and landing the user on the Greek sign-in page.
@@ -96,6 +96,12 @@ export default function UserDropdown({ currentEntity }: { currentEntity?: { city
                     <Link href="/profile" className="cursor-pointer">
                         <User className="mr-2 h-4 w-4" />
                         {t("profile")}
+                    </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                    <Link href="/profile/highlights" className="cursor-pointer">
+                        <Star className="mr-2 h-4 w-4" />
+                        {t("myHighlights")}
                     </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem

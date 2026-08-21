@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import { Map as MapIcon, Landmark, HelpCircle, MoreHorizontal, LogIn, LogOut, User, Phone, Mail, ArrowRight } from 'lucide-react';
+import { Map as MapIcon, Landmark, HelpCircle, MoreHorizontal, LogIn, LogOut, User, Phone, Mail, ArrowRight, Star } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
@@ -226,14 +226,44 @@ export function LandingAside({
 
                 {!mounted || status === 'loading' ? null : session?.user ? (
                     <>
-                        <Link
-                            href="/profile"
-                            aria-label={t('account.profile')}
-                            className="flex h-14 w-14 flex-col items-center justify-center gap-1 rounded-xl text-muted-foreground no-underline transition-colors hover:bg-muted hover:text-foreground hover:no-underline"
-                        >
-                            <User className="h-5 w-5" />
-                            <span className="text-[12px] font-medium leading-none">{t('account.profile')}</span>
-                        </Link>
+                        {/* profile menu: the rail item opens a small menu instead of navigating,
+                            so the personal highlights page gets an entry point here too */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button
+                                    type="button"
+                                    aria-label={t('account.profile')}
+                                    className="flex h-14 w-14 flex-col items-center justify-center gap-1 rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                                >
+                                    <User className="h-5 w-5" />
+                                    <span className="text-[12px] font-medium leading-none">{t('account.profile')}</span>
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                                side="right"
+                                align="end"
+                                className="w-56 rounded-2xl border-border bg-card p-2 text-muted-foreground"
+                            >
+                                <DropdownMenuItem
+                                    asChild
+                                    className="rounded-lg text-muted-foreground focus:bg-muted focus:text-foreground"
+                                >
+                                    <Link href="/profile" className="flex items-center gap-2">
+                                        <User className="h-4 w-4" />
+                                        {t('account.profile')}
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    asChild
+                                    className="rounded-lg text-muted-foreground focus:bg-muted focus:text-foreground"
+                                >
+                                    <Link href="/profile/highlights" className="flex items-center gap-2">
+                                        <Star className="h-4 w-4" />
+                                        {t('account.myHighlights')}
+                                    </Link>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                         <button
                             type="button"
                             onClick={() => signOut()}

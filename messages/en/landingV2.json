@@ -24,6 +24,7 @@
   },
   "account": {
     "profile": "Profile",
+    "myHighlights": "My highlights",
     "logout": "Log out",
     "signOut": "Sign out",
     "signIn": "Sign in",

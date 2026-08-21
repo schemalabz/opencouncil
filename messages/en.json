@@ -86,6 +86,7 @@
         "account": "Account",
         "canEditPage": "You can edit this page",
         "profile": "Profile",
+        "myHighlights": "My highlights",
         "signOut": "Sign out",
         "greeting": "👋 Hi!",
         "greetingNamed": "👋 Hi {name}!",
@@ -729,6 +730,9 @@
         "deleteNetworkError": "Error while deleting"
     },
     "Profile": {
+        "myHighlights": "My highlights",
+        "myHighlightsDescription": "See all the highlights you have created, from every meeting.",
+        "viewMyHighlights": "View your highlights",
         "welcomeOnboard": "Welcome to OpenCouncil",
         "personalInfo": "Personal Information",
         "onboardingDescription": "Please fill in the following information to complete your registration.",

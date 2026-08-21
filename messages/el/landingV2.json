@@ -24,6 +24,7 @@
   },
   "account": {
     "profile": "Προφίλ",
+    "myHighlights": "Τα στιγμιότυπά μου",
     "logout": "Έξοδος",
     "signOut": "Αποσύνδεση",
     "signIn": "Σύνδεση",
