@@ -28,6 +28,18 @@ import { Location } from './types';
 // it and proximity did not discriminate.
 const LOCATION_BOOST_RADIUS_METERS = 2000;
 
+/**
+ * Extraction sits in front of every text search, so its latency is the reader's
+ * latency. The task is small and mechanical — read a short query against a
+ * fixed city list and answer with a JSON object of at most three fields — so it
+ * runs on the fastest model rather than the one the rest of the app defaults to.
+ *
+ * The output is a handful of tokens; the cap only bounds a runaway response,
+ * which the schema would reject as malformed anyway.
+ */
+const EXTRACTION_MODEL = 'claude-haiku-4-5';
+const EXTRACTION_MAX_TOKENS = 512;
+
 // Define the system prompt for filter extraction
 const FILTER_EXTRACTION_PROMPT = `Εξαγωγή Φίλτρων Αναζήτησης
 
@@ -109,7 +121,13 @@ export async function extractFilters(query: string, realm: Realm): Promise<Extra
         .replace('{{CITIES_LIST}}', citiesList)
         .replace('{{TODAY_DATE}}', today);
 
-    const { result } = await aiChat<unknown>(prompt, query);
+    const { result } = await aiChat<unknown>(
+        prompt,
+        query,
+        undefined,
+        undefined,
+        { maxTokens: EXTRACTION_MAX_TOKENS, model: EXTRACTION_MODEL },
+    );
     return extractedFiltersSchema.parse(result);
 }
 
