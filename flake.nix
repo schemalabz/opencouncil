@@ -1369,7 +1369,7 @@ EOF
 
               export PRISMA_QUERY_ENGINE_LIBRARY="$WORK_DIR/prisma/libquery_engine.node"
               cd "$WORK_DIR"
-              exec ${pkgs-unstable.nodejs_24}/bin/node server.js
+              exec ${pkgs.nodejs}/bin/node server.js
               STARTEOF
               chmod +x $out/start.sh
             '';
@@ -1431,10 +1431,9 @@ EOF
             '';
           };
           # Notis production build (services/notis workspace). Standalone Next
-          # server; runtime pinned to Node 24 per its engines requirement —
-          # the preview execs $out/start.sh so it always runs on this toolchain
-          # (runtime-ownership rule, see pr-previews README).
-          notis-prod = (pkgs.buildNpmPackage.override { nodejs = pkgs-unstable.nodejs_24; }) {
+          # server; the preview execs $out/start.sh so it always runs on this
+          # toolchain (runtime-ownership rule, see pr-previews README).
+          notis-prod = pkgs.buildNpmPackage {
             pname = "notis-prod";
             version = "0.1.0";
             src = ./.;
