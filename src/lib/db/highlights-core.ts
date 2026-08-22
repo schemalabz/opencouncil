@@ -1,3 +1,8 @@
+// Server-only: upsertHighlightCore/canUserEditCity take an explicit identity
+// (see the note below), so they must never be exposed to a client bundle or as
+// a Server Action. Only highlights.ts (session wrapper) and the MCP server may
+// import them.
+import "server-only";
 import { City, CouncilMeeting, Highlight, Subject, Utterance, Prisma, HighlightCreationPermission } from '@prisma/client';
 import prisma from "./prisma";
 import { ForbiddenError, NotFoundError, BadRequestError } from "../api/errors";

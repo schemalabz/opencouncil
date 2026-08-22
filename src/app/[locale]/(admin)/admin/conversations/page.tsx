@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import type { Message } from '@prisma/client';
 import { getConversationSummaries } from '@/lib/db/conversations';
+import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { formatNumericDateTime } from '@/lib/formatters/time';
 import {
     Table,
@@ -273,6 +274,9 @@ interface PageProps {
 }
 
 export default async function ConversationsPage(props: PageProps) {
+    // This page returns participant phone numbers and full message bodies. The
+    // (admin) layout guard does not re-run on RSC navigation, so gate here too.
+    await withUserAuthorizedToEdit({});
     const searchParams = await props.searchParams;
     // Default view hides outbound-only threads (broadcasts no one answered,
     // failed deliveries) so the admin can focus on conversations that need

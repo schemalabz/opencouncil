@@ -10,10 +10,7 @@ jest.mock('@/lib/notifications/tokens', () => ({
 jest.mock('@/lib/db/notifications', () => ({
     disableNotificationPreferenceByCityId: jest.fn(),
     disableAllNotificationPreferences: jest.fn(),
-}));
-
-jest.mock('@/lib/db/users', () => ({
-    updateUserProfile: jest.fn(),
+    setUserEmailSubscriptionFlags: jest.fn(),
 }));
 
 import { POST } from '../route';
@@ -21,13 +18,15 @@ import { verifyUnsubscribeToken } from '@/lib/notifications/tokens';
 import {
     disableNotificationPreferenceByCityId,
     disableAllNotificationPreferences,
+    setUserEmailSubscriptionFlags,
 } from '@/lib/db/notifications';
-import { updateUserProfile } from '@/lib/db/users';
 
 const mockVerify = verifyUnsubscribeToken as jest.MockedFunction<typeof verifyUnsubscribeToken>;
 const mockDisableCity = disableNotificationPreferenceByCityId as jest.MockedFunction<typeof disableNotificationPreferenceByCityId>;
 const mockDisableAll = disableAllNotificationPreferences as jest.MockedFunction<typeof disableAllNotificationPreferences>;
-const mockUpdateProfile = updateUserProfile as jest.MockedFunction<typeof updateUserProfile>;
+// The unsubscribe flow now sets the user-level email flags via the token-scoped
+// setUserEmailSubscriptionFlags (no session), not updateUserProfile.
+const mockUpdateProfile = setUserEmailSubscriptionFlags as jest.MockedFunction<typeof setUserEmailSubscriptionFlags>;
 
 function makeRequest(body: unknown) {
     return { json: async () => body } as Request;

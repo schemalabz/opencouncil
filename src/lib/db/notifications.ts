@@ -2,6 +2,7 @@
 
 import { NotificationPreference, Petition, City, Topic, User, Location, Prisma } from '@prisma/client';
 import { auth, signIn } from "@/auth";
+import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth";
 import { attachGeometryToCities } from "./cities";
 import prisma from "@/lib/db/prisma";
 import { Result, createSuccess, createError } from "@/lib/result";
@@ -49,6 +50,20 @@ async function getServerSession() {
     return await auth();
 }
 
+/**
+ * Ownership guard for the userId-parameterised functions below. Every export
+ * in this "use server" module is a directly POST-able Server Action, so a
+ * function that takes a userId cannot trust it — the caller could pass anyone's
+ * id. Require the current session to own that id, or be a superadmin. This must
+ * NOT be used by the token-authorised unsubscribe path (which has no session).
+ */
+async function requireSelfOrSuperadmin(userId: string): Promise<void> {
+    const actor = await getCurrentUser();
+    if (!actor || (actor.id !== userId && !actor.isSuperAdmin)) {
+        throw new Error("Not authorized");
+    }
+}
+
 // Helper function to send a magic link to the user
 async function sendMagicLink(email: string) {
     try {
@@ -68,6 +83,7 @@ async function sendMagicLink(email: string) {
  * Returns the preference with topics and locations, or null.
  */
 export async function getNotificationPreferenceForCity(userId: string, cityId: string) {
+    await requireSelfOrSuperadmin(userId);
     return prisma.notificationPreference.findUnique({
         where: { userId_cityId: { userId, cityId } },
         include: { interests: true, locations: true },
@@ -677,6 +693,11 @@ export async function calculateProximityMatches(
  * Core notification creation function
  * Creates notifications for a meeting based on subject importance and user preferences
  */
+// Caller-gated: invoked by the processAgenda/summarize tasks (no user session)
+// as well as the per-city notifications route and the superadmin conversations
+// action. Because a task caller has no session, this cannot take an inner auth
+// gate; its user-facing callers authorize first. Moving it off the "use server"
+// surface is a tracked follow-up.
 export async function createNotificationsForMeeting(
     cityId: string,
     meetingId: string,
@@ -924,6 +945,9 @@ export async function createNotificationsForMeeting(
 /**
  * Update delivery status after send attempt
  */
+// Caller-gated: driven by the delivery sender (deliver.ts), which runs from the
+// admin/city "release notifications" routes. No cityId is available here to
+// scope on; the routes authorize. Tracked follow-up to move off the action surface.
 export async function updateDeliveryStatus(
     deliveryId: string,
     status: 'sent' | 'failed',
@@ -983,6 +1007,7 @@ export async function getNotificationsForAdmin(filters: {
     limit?: number;
     offset?: number;
 }) {
+    await withUserAuthorizedToEdit({});
     const { cityId, status, type, limit = 50, offset = 0 } = filters;
 
     const whereClause: any = {};
@@ -1078,6 +1103,7 @@ export async function getNotificationsGroupedByMeeting(filters: {
     page?: number;
     pageSize?: number;
 }): Promise<MeetingNotificationsGrouped> {
+    await withUserAuthorizedToEdit({});
     const {
         cityId,
         status,
@@ -1259,6 +1285,7 @@ export async function getNotificationsForMeeting(
     cityId: string,
     type?: 'beforeMeeting' | 'afterMeeting'
 ) {
+    await withUserAuthorizedToEdit({ cityId });
     const whereClause: Prisma.NotificationWhereInput = {
         meetingId,
         cityId
@@ -1316,6 +1343,7 @@ export async function deleteNotificationsForMeetings(
     meetingKeys: Array<{ meetingId: string; cityId: string }>,
     type?: 'beforeMeeting' | 'afterMeeting'
 ): Promise<number> {
+    await withUserAuthorizedToEdit({});
     const result = await prisma.notification.deleteMany({
         where: {
             OR: meetingKeys.map(mk => ({
@@ -1333,6 +1361,7 @@ export async function deleteNotificationsForMeetings(
  * Get all cities that have notifications (for filter dropdown)
  */
 export async function getCitiesWithNotifications(): Promise<Array<{ id: string; name: string }>> {
+    await withUserAuthorizedToEdit({});
     const cities = await prisma.notification.findMany({
         select: {
             city: {
@@ -1356,6 +1385,7 @@ export async function getCitiesWithNotifications(): Promise<Array<{ id: string; 
  * Get all notification preferences for a user
  */
 export async function getUserNotificationPreferences(userId: string) {
+    await requireSelfOrSuperadmin(userId);
     try {
         const preferences = await prisma.notificationPreference.findMany({
             where: { userId },
@@ -1400,6 +1430,7 @@ export async function updateNotificationPreferenceChannels(
     userId: string,
     channels: { notifyByEmail?: boolean; notifyByPhone?: boolean }
 ) {
+    await requireSelfOrSuperadmin(userId);
     const preference = await prisma.notificationPreference.findUnique({
         where: { id: preferenceId }
     });
@@ -1418,6 +1449,7 @@ export async function updateNotificationPreferenceChannels(
  * Delete a notification preference
  */
 export async function deleteNotificationPreference(preferenceId: string, userId: string) {
+    await requireSelfOrSuperadmin(userId);
     try {
         // Verify this preference belongs to the user
         const preference = await prisma.notificationPreference.findUnique({
@@ -1484,10 +1516,32 @@ export async function getUnsubscribeContext(userId: string, cityId?: string): Pr
     };
 }
 
+// The three unsubscribe functions below take a userId but are authorized by a
+// signed unsubscribe token at the route/page (no session), so they cannot use
+// requireSelfOrSuperadmin. They only ever clear a subscription flag or read the
+// unsubscribe context, so a POST with a guessed userId can at worst opt someone
+// out of email — never read protected data or escalate. Moving them to a
+// server-only module (off the action surface) is a tracked follow-up.
 export async function disableAllNotificationPreferences(userId: string) {
     await prisma.notificationPreference.updateMany({
         where: { userId },
         data: { notifyByEmail: false, notifyByPhone: false },
+    });
+}
+
+/**
+ * Set the user-level email subscription flags. Authorized by the unsubscribe
+ * token at the calling route — see the note above disableAllNotificationPreferences.
+ * The email-unsubscribe flow uses this instead of updateUserProfile, which
+ * requires a session.
+ */
+export async function setUserEmailSubscriptionFlags(
+    userId: string,
+    flags: { allowProductUpdates?: boolean; allowPetitionUpdates?: boolean },
+): Promise<void> {
+    await prisma.user.update({
+        where: { id: userId },
+        data: flags,
     });
 }
 
@@ -1505,6 +1559,7 @@ export async function disableNotificationPreferenceByCityId(userId: string, city
  * Get notifications for a user in a specific city
  */
 export async function getUserNotifications(userId: string, cityId?: string, limit: number = 50) {
+    await requireSelfOrSuperadmin(userId);
     try {
         const notifications = await prisma.notification.findMany({
             where: {
@@ -1653,6 +1708,7 @@ export async function getNotificationForView(id: string) {
  * Cascade deletes will handle related NotificationSubject and NotificationDelivery records
  */
 export async function deleteNotification(id: string): Promise<void> {
+    await withUserAuthorizedToEdit({});
     await prisma.notification.delete({
         where: { id }
     });
@@ -1677,6 +1733,7 @@ export async function getNotificationImpactPreviewData(
         interests: { id: string }[];
     }>;
 }> {
+    await withUserAuthorizedToEdit({ cityId });
     // Fetch meeting with subjects
     const meeting = await prisma.councilMeeting.findUnique({
         where: { cityId_id: { cityId, id: meetingId } },
@@ -1771,6 +1828,7 @@ export async function getNotificationMapData(meetingId: string, cityId: string):
         coordinates: [number, number];
     }>;
 }> {
+    await withUserAuthorizedToEdit({ cityId });
     // Get ALL subjects for this meeting (not just matched ones)
     const allSubjects = await prisma.subject.findMany({
         where: {

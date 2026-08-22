@@ -4,7 +4,12 @@ import { Location, LocationType, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 
 /**
- * Create a new location
+ * Create a new location.
+ *
+ * Intentionally unauthenticated: the notification/petition onboarding flow
+ * (OnboardingContext) lets anonymous users pin the locations they care about
+ * before they have an account, so this write must stay open. A Location row is
+ * a geocoded point with a text label — no city scope and no sensitive data.
  */
 export async function createLocation(data: {
     text: string;

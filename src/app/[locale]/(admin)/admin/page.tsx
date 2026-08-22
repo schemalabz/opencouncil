@@ -6,8 +6,10 @@ import { StatsCard } from '@/components/ui/stats-card';
 // import { ReviewsOverviewWidget } from '@/components/admin/reviews/ReviewsOverviewWidget';
 import { NotificationSubscribersChart } from '@/components/admin/NotificationSubscribersChart';
 import { getAdminDashboardStats, getNotificationSubscribersByCity } from '@/lib/db/adminStats';
+import { withUserAuthorizedToEdit } from '@/lib/auth';
 
 export default async function Page() {
+    await withUserAuthorizedToEdit({});
     const [stats, citySubscribers] = await Promise.all([
         getAdminDashboardStats(),
         getNotificationSubscribersByCity(),

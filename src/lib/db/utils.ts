@@ -1,4 +1,8 @@
-"use server"
+// Not "use server": every export here is called only from server-side task
+// orchestration (processAgenda, summarize), never from a client component.
+// Marking the module server-only keeps these functions — including the
+// bulk-writing saveSubjectsForMeeting — off the public Server Action surface.
+import "server-only";
 
 import { getTranscript } from "./transcript";
 import { getPeopleForMeeting } from "./people";

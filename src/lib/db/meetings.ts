@@ -9,6 +9,10 @@ import { landingSubjectsTag } from './subject';
 import { CUSTOMER_CITY_WHERE, PUBLIC_CITY_WHERE } from '../cityStatus';
 // Import from the cache leaf (see the note in subject.ts) to keep the barrel's heavy chain out.
 import { createCache } from '../cache/index';
+// createCouncilMeetingDirect lives in a server-only module (not this "use server"
+// one) so it is never a directly-callable action. createCouncilMeeting wraps it
+// with the auth check.
+import { createCouncilMeetingDirect } from './meetingsCreate';
 
 const meetingWithAdminBodyInclude = {
     administrativeBody: true,
@@ -51,18 +55,6 @@ export async function deleteCouncilMeeting(cityId: string, id: string): Promise<
 export async function createCouncilMeeting(meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl'> & { audioUrl?: string, videoUrl?: string }): Promise<CouncilMeetingWithAdminBody> {
     await withUserAuthorizedToEdit({ cityId: meetingData.cityId });
     return createCouncilMeetingDirect(meetingData);
-}
-
-/**
- * Create a council meeting without auth checks.
- * Use when authorization has already been verified by the caller
- * (e.g., via withServiceOrUserAuth in API route handlers).
- */
-export async function createCouncilMeetingDirect(meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl'> & { audioUrl?: string, videoUrl?: string }): Promise<CouncilMeetingWithAdminBody> {
-    return prisma.councilMeeting.create({
-        data: meetingData,
-        include: meetingWithAdminBodyInclude,
-    });
 }
 
 /**
@@ -357,6 +349,8 @@ function toMeetingListItem(m: MeetingListItemRow): MeetingListItem {
  * These metrics are not review-specific, so they belong in meetings.ts
  */
 export async function getMeetingUploadLists(last30Days: boolean = false): Promise<MeetingUploadLists> {
+    // Cross-city review dashboard data (superadmin-only /admin/reviews).
+    await withUserAuthorizedToEdit({});
     const now = new Date();
 
     const [needsUpload, scheduled] = await Promise.all([

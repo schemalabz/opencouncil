@@ -37,6 +37,7 @@ export async function getTopics(realm: Realm): Promise<Topic[]> {
 }
 
 export async function getAllTopicsWithSubjectCount(): Promise<TopicWithSubjectCount[]> {
+    await withUserAuthorizedToEdit({});
     try {
         const topics = await prisma.topic.findMany({
             orderBy: { name: 'asc' },

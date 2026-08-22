@@ -1,3 +1,7 @@
+// Server-only: mints and validates service API keys. Callers (the admin
+// api-keys routes and validateBearerAuth) authorize; this must never reach a
+// client bundle or the Server Action surface.
+import "server-only";
 import { createHash, randomBytes } from 'crypto';
 import prisma from '@/lib/db/prisma';
 

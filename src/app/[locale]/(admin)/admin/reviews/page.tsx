@@ -8,6 +8,7 @@ import { Last30DaysFilter } from '@/components/admin/reviews/Last30DaysFilter';
 import { formatDistanceToNow } from 'date-fns';
 import { formatDurationMs } from '@/lib/formatters/time';
 import { Card, CardContent } from '@/components/ui/card';
+import { withUserAuthorizedToEdit } from '@/lib/auth';
 
 interface PageProps {
   searchParams: Promise<{
@@ -51,6 +52,9 @@ function calculateReviewMetrics(reviews: ReviewListItem[]) {
 }
 
 export default async function ReviewsPage(props: PageProps) {
+  // This page returns reviewer PII and the full review queue. The (admin)
+  // layout guard does not re-run on RSC navigation, so gate here too.
+  await withUserAuthorizedToEdit({});
   const searchParams = await props.searchParams;
   const { show = 'needsAttention', reviewerId, last30Days } = searchParams;
   const last30DaysBool = last30Days !== 'false';

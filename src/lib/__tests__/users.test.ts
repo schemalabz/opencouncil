@@ -121,15 +121,35 @@ describe('users db layer - normalization and duplicate handling', () => {
       ).rejects.toThrow('A user with this email already exists.');
     });
 
-    it('skips auth check when skipAuthCheck is enabled', async () => {
-      await createUser(
-        {
-          email: 'skip-auth@example.com',
-        },
-        { skipAuthCheck: true }
-      );
+    it('skips auth check when skipAuthCheck is enabled and dev tools are allowed', async () => {
+      const prev = process.env.DEPLOYMENT_ENV;
+      process.env.DEPLOYMENT_ENV = 'development';
+      try {
+        await createUser(
+          {
+            email: 'skip-auth@example.com',
+          },
+          { skipAuthCheck: true }
+        );
 
-      expect(mockWithUserAuthorizedToEdit).not.toHaveBeenCalled();
+        expect(mockWithUserAuthorizedToEdit).not.toHaveBeenCalled();
+      } finally {
+        process.env.DEPLOYMENT_ENV = prev;
+      }
+    });
+
+    it('rejects skipAuthCheck when dev tools are not allowed (production)', async () => {
+      const prev = process.env.DEPLOYMENT_ENV;
+      process.env.DEPLOYMENT_ENV = 'production';
+      try {
+        await expect(
+          createUser({ email: 'skip-auth-prod@example.com' }, { skipAuthCheck: true })
+        ).rejects.toThrow('skipAuthCheck is only permitted');
+        // The bypass must not create the user.
+        expect(prisma.user.create).not.toHaveBeenCalled();
+      } finally {
+        process.env.DEPLOYMENT_ENV = prev;
+      }
     });
 
     it('throws BadRequestError for empty email', async () => {
