@@ -29,7 +29,14 @@ jobs:
   # with write access deploy automatically via 'preview-auto', everyone
   # else (forks, dependabot) goes through the reviewer-gated 'preview'.
   gate:
-    if: github.event.action != 'labeled' || github.event.label.name == 'preview-notis'
+    # Skip bot-authored PRs (Dependabot, Renovate). Two reasons: a lockfile
+    # bump has nothing to preview, and pull_request_target grants secrets — a
+    # dependency-bump PR must not be built with them. `user.type` catches every
+    # app-authored PR, unlike a list of bot login names. Bots push branches to
+    # this repo, so a same-repo/fork check does not exclude them.
+    if: >-
+      (github.event.action != 'labeled' || github.event.label.name == 'preview-notis')
+      && github.event.pull_request.user.type != 'Bot'
     name: Determine Deploy Environment
     runs-on: ubuntu-latest
     outputs:
@@ -60,7 +67,14 @@ jobs:
 
   # Pre-flight checks (fast, run before expensive nix build)
   preflight:
-    if: github.event.action != 'labeled' || github.event.label.name == 'preview-notis'
+    # Skip bot-authored PRs (Dependabot, Renovate). Two reasons: a lockfile
+    # bump has nothing to preview, and pull_request_target grants secrets — a
+    # dependency-bump PR must not be built with them. `user.type` catches every
+    # app-authored PR, unlike a list of bot login names. Bots push branches to
+    # this repo, so a same-repo/fork check does not exclude them.
+    if: >-
+      (github.event.action != 'labeled' || github.event.label.name == 'preview-notis')
+      && github.event.pull_request.user.type != 'Bot'
     name: Pre-flight Checks
     runs-on: ubuntu-latest
     outputs:
