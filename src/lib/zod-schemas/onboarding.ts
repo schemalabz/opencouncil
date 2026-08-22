@@ -22,7 +22,13 @@ const onboardingBaseFields = {
 export const saveNotificationPreferencesSchema = z
     .object({
         ...onboardingBaseFields,
-        locationIds: z.array(z.string()),
+        // Locations are created server-side inside saveNotificationPreferences
+        // (in the preference's transaction), so the client sends their raw
+        // data — text + [lng, lat] — not pre-created ids.
+        locations: z.array(z.object({
+            text: z.string(),
+            coordinates: z.tuple([z.number(), z.number()]),
+        })),
         topicIds: z.array(z.string()),
     })
     .passthrough();

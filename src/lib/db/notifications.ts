@@ -291,14 +291,14 @@ function sanitizeSeedUser(
  * Create or update notification preferences
  */
 export async function saveNotificationPreferences(data: OnboardingData & {
-    locationIds: string[];
+    locations: { text: string; coordinates: [number, number] }[];
     topicIds: string[];
 }): Promise<Result<NotificationPreference>> {
     const validation = saveNotificationPreferencesSchema.safeParse(data);
     if (!validation.success) {
         return createError('Invalid input');
     }
-    const { cityId, locationIds, topicIds, phone, email, name, seedUser: rawSeedUser } = data;
+    const { cityId, locations, topicIds, phone, email, name, seedUser: rawSeedUser } = data;
     // Harden the attacker-controllable seed field: undefined off local dev, and
     // otherwise stripped to benign fields only (see sanitizeSeedUser).
     const seedUser = sanitizeSeedUser(rawSeedUser);
@@ -309,7 +309,7 @@ export async function saveNotificationPreferences(data: OnboardingData & {
     let isNewlyCreatedUser = false;
 
     console.log('Saving notification preferences for cityId:', cityId);
-    console.log('Location IDs:', locationIds);
+    console.log('Locations:', locations);
     console.log('Topic IDs:', topicIds);
     console.log('Phone:', phone);
     console.log('Email:', email);
@@ -371,143 +371,97 @@ export async function saveNotificationPreferences(data: OnboardingData & {
             throw new Error("Either authenticated session or email must be provided");
         }
 
-        // Verify locations and topics exist before trying to connect them
-        let validLocationIds: string[] = [];
+        // Verify the topics exist before connecting them. Topics are a global,
+        // pre-existing taxonomy looked up by id; locations, by contrast, are
+        // created below from their raw data.
         let validTopicIds: string[] = [];
-
-        if (locationIds && locationIds.length > 0) {
-            // Verify locations exist
-            const locations = await prisma.location.findMany({
-                where: {
-                    id: {
-                        in: locationIds
-                    }
-                },
-                select: { id: true }
-            });
-            validLocationIds = locations.map(loc => loc.id);
-
-            console.log('Valid location IDs:', validLocationIds);
-        }
-
         if (topicIds && topicIds.length > 0) {
-            // Verify topics exist
             const topics = await prisma.topic.findMany({
-                where: {
-                    id: {
-                        in: topicIds
-                    }
-                },
+                where: { id: { in: topicIds } },
                 select: { id: true }
             });
             validTopicIds = topics.map(topic => topic.id);
-
-            console.log('Valid topic IDs:', validTopicIds);
         }
 
-        // Check if notification preferences already exist
-        const existingPreference = await prisma.notificationPreference.findUnique({
-            where: {
-                userId_cityId: {
-                    userId,
-                    cityId
-                }
+        // Create the locations and the preference in one transaction. The
+        // locations are created here (server-side, at submit time) rather than
+        // by a separate client action, and they commit only together with the
+        // preference — so an abandoned or failing submit (e.g. the email_exists
+        // return above) never leaves orphaned Location rows behind.
+        const { preference, wasNew } = await prisma.$transaction(async (tx) => {
+            const locationIds: string[] = [];
+            for (const loc of locations) {
+                const rows = await tx.$queryRaw<{ id: string }[]>`
+                    INSERT INTO "Location" ("id", "text", "type", "coordinates")
+                    VALUES (
+                        gen_random_uuid(),
+                        ${loc.text},
+                        'point'::"LocationType",
+                        ST_SetSRID(ST_MakePoint(${loc.coordinates[0]}, ${loc.coordinates[1]}), 4326)
+                    )
+                    RETURNING id
+                `;
+                if (rows[0]) locationIds.push(rows[0].id);
             }
+
+            const locationConnect = locationIds.length > 0
+                ? { connect: locationIds.map(id => ({ id })) }
+                : undefined;
+            const interestConnect = validTopicIds.length > 0
+                ? { connect: validTopicIds.map(id => ({ id })) }
+                : undefined;
+
+            const existing = await tx.notificationPreference.findUnique({
+                where: { userId_cityId: { userId, cityId } },
+                select: { id: true },
+            });
+
+            if (existing) {
+                // Replace the connections wholesale: clear, then reconnect.
+                await tx.notificationPreference.update({
+                    where: { id: existing.id },
+                    data: { locations: { set: [] }, interests: { set: [] } },
+                });
+                const updated = await tx.notificationPreference.update({
+                    where: { id: existing.id },
+                    data: { locations: locationConnect, interests: interestConnect },
+                    include: { city: true, locations: true, interests: true },
+                });
+                return { preference: updated, wasNew: false };
+            }
+
+            const created = await tx.notificationPreference.create({
+                data: { userId, cityId, locations: locationConnect, interests: interestConnect },
+                include: { city: true, locations: true, interests: true },
+            });
+            return { preference: created, wasNew: true };
         });
 
-        if (existingPreference) {
-            // For existing preferences, update using Prisma's connect/disconnect
-            const updatedPreference = await prisma.notificationPreference.update({
-                where: { id: existingPreference.id },
-                data: {
-                    // Disconnect all existing locations and topics
-                    locations: {
-                        set: [] // First clear all connections
-                    },
-                    interests: {
-                        set: [] // First clear all connections
-                    }
-                }
-            });
-
-            // Then add the new connections if there are any
-            if (validLocationIds.length > 0) {
-                await prisma.notificationPreference.update({
-                    where: { id: updatedPreference.id },
-                    data: {
-                        locations: {
-                            connect: validLocationIds.map(id => ({ id }))
-                        }
-                    }
-                });
-            }
-
-            if (validTopicIds.length > 0) {
-                await prisma.notificationPreference.update({
-                    where: { id: updatedPreference.id },
-                    data: {
-                        interests: {
-                            connect: validTopicIds.map(id => ({ id }))
-                        }
-                    }
-                });
-            }
-
-            // Finally, fetch the updated preferences with the new relationships
-            const result = await prisma.notificationPreference.findUnique({
-                where: { id: updatedPreference.id },
-                include: {
-                    city: true,
-                    locations: true,
-                    interests: true
-                }
-            }) as NotificationPreference;
-            return createSuccess(result);
-        } else {
-            // Create new preferences with existing relationships
-            const result = await prisma.notificationPreference.create({
-                data: {
-                    userId,
-                    cityId,
-                    // Connect locations and topics directly
-                    locations: validLocationIds.length > 0 ? {
-                        connect: validLocationIds.map(id => ({ id }))
-                    } : undefined,
-                    interests: validTopicIds.length > 0 ? {
-                        connect: validTopicIds.map(id => ({ id }))
-                    } : undefined
-                },
-                include: {
-                    city: true,
-                    locations: true,
-                    interests: true
-                }
-            });
-
-            // Send Discord admin alert for new citizen notification signup
+        // Alerts and welcome messages fire only for a brand-new preference, and
+        // only after the transaction commits.
+        if (wasNew) {
             sendNotificationSignupAdminAlert({
                 cityId,
-                cityName: result.city.name_en,
-                locationCount: validLocationIds.length,
-                topicCount: validTopicIds.length,
+                cityName: preference.city.name_en,
+                locationCount: preference.locations.length,
+                topicCount: preference.interests.length,
             });
 
-            // Send Discord admin alert for user onboarding (if we just created the user)
             if (isNewlyCreatedUser) {
                 sendUserOnboardedAdminAlert({
                     cityId,
-                    cityName: result.city.name_en,
+                    cityName: preference.city.name_en,
                     onboardingSource: 'notification_preferences',
                 });
             }
 
             // Send welcome messages to new signups (non-blocking)
-            sendWelcomeMessages(userId, result.city, phone).catch(err =>
+            sendWelcomeMessages(userId, preference.city, phone).catch(err =>
                 console.error('Error sending welcome messages:', err)
             );
-
-            return createSuccess(result);
         }
+
+        return createSuccess(preference);
     } catch (error) {
         console.error('Error saving notification preferences:', error);
         return createError('An unexpected error occurred.');
@@ -1539,7 +1493,9 @@ export async function setUserEmailSubscriptionFlags(
     userId: string,
     flags: { allowProductUpdates?: boolean; allowPetitionUpdates?: boolean },
 ): Promise<void> {
-    await prisma.user.update({
+    // updateMany (not update) so a stale unsubscribe link for a since-deleted
+    // user is a no-op rather than a P2025 500 — matching disableAll/disableByCity.
+    await prisma.user.updateMany({
         where: { id: userId },
         data: flags,
     });
