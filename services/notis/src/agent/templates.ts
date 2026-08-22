@@ -133,8 +133,14 @@ export function renderTemplate(name: TemplateName, text = ""): RenderedTemplate 
   return { template: name, body, footer: def.footer, buttons: def.buttons };
 }
 
+/**
+ * The origins whose threads open with an intro template. An inbound-origin
+ * thread opens with the reader's own message and never gets one.
+ */
+export type EnrollmentOrigin = "transition" | "signup";
+
 /** Which shell opens the thread, by how the reader entered Notis. */
-export function introTemplateFor(origin: "transition" | "signup"): TemplateName {
+export function introTemplateFor(origin: EnrollmentOrigin): TemplateName {
   return origin === "transition" ? "demos_transition" : "demos_intro";
 }
 

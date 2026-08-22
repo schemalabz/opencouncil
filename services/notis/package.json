@@ -14,13 +14,15 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",
-    "@prisma/client": "^5.22.0",
-    "mapbox-gl": "^3.8.0",
     "@opencouncil/ui": "*",
+    "@prisma/client": "^5.22.0",
     "@t3-oss/env-nextjs": "^0.13.8",
+    "facehash": "^0.1.0",
+    "mapbox-gl": "^3.8.0",
     "next": "^16.2.6",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "recharts": "^3.10.1",
     "zod": "^3.25.67"
   },
   "devDependencies": {

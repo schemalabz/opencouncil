@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  AlertCircle,
   Check,
   CheckCheck,
+  Clock3,
   ExternalLink,
   FastForward,
   Send,
@@ -15,7 +17,7 @@ import {
 import { Button } from "@opencouncil/ui/button";
 import { RenderedTemplate, introTemplateFor, renderTemplate } from "@/agent/templates";
 import { fmtDateChip, fmtTime } from "../_lib/format";
-import { Origin, WakeRecord } from "../_lib/records";
+import { MessageDelivery, Origin, WakeRecord } from "../_lib/records";
 import { WA } from "../_lib/whatsapp";
 
 /** Simulator affordances — omit them for the read-only conversation viewer. */
@@ -199,6 +201,29 @@ function Tail({ side }: { side: "in" | "out" }) {
   );
 }
 
+/**
+ * Real delivery-lifecycle glyph for a Notis send (DB-backed viewer): the
+ * WhatsApp tick ladder, plus an unmistakable red mark when Bird never
+ * delivered the message.
+ */
+function DeliveryGlyph({ delivery }: { delivery: MessageDelivery }) {
+  const cls = "ml-0.5 inline h-3.5 w-3.5 align-text-bottom";
+  switch (delivery.status) {
+    case "pending":
+      return <Clock3 className={cls} style={{ color: "#8696a0" }} />;
+    case "sent":
+      return <Check className={cls} style={{ color: "#8696a0" }} />;
+    case "delivered":
+      return <CheckCheck className={cls} style={{ color: "#8696a0" }} />;
+    case "read":
+      return <CheckCheck className={cls} style={{ color: "#53bdeb" }} />;
+    case "failed":
+      return <AlertCircle className={cls} style={{ color: "#b42318" }} />;
+    default:
+      return null;
+  }
+}
+
 function Bubble({
   side,
   time,
@@ -208,6 +233,7 @@ function Bubble({
   onClick,
   text,
   ticks,
+  delivery,
 }: {
   side: "in" | "out";
   time: string;
@@ -218,15 +244,18 @@ function Bubble({
   text: string;
   /** Status ticks (out bubbles only): "live" animates the read progression. */
   ticks?: "live" | "read";
+  /** Real delivery lifecycle (in bubbles, DB-backed viewer only). */
+  delivery?: MessageDelivery;
 }) {
   const url = side === "in" ? firstUrl(text) : undefined;
+  const failed = delivery?.status === "failed";
   return (
     <div className={`flex ${side === "out" ? "justify-end" : "justify-start"} px-4`}>
       <div
         onClick={onClick}
         className={`relative max-w-[75%] cursor-pointer px-3 pb-2 pt-1.5 text-[14.2px] leading-[19px] text-[#111b21] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] ${
           side === "in" ? "rounded-lg rounded-tl-none bg-white" : "rounded-lg rounded-tr-none"
-        } ${selected ? "ring-2 ring-orange" : ""}`}
+        } ${selected ? "ring-2 ring-orange" : ""} ${failed ? "ring-1 ring-[#f2b8b5]" : ""}`}
         style={side === "out" ? { backgroundColor: OUT } : undefined}
       >
         {first && <Tail side={side} />}
@@ -237,9 +266,16 @@ function Bubble({
         <span className="whitespace-pre-wrap break-words">
           <Linkified text={text} />
         </span>
+        {failed && (
+          <p className="mt-1.5 border-t border-[#f2e2e1] pt-1.5 text-[11px] leading-snug text-[#b42318]">
+            Δεν παραδόθηκε
+            {delivery?.failureReason ? ` — ${delivery.failureReason}` : ""}
+          </p>
+        )}
         <span className="float-right ml-2 mt-2 select-none text-[11px] leading-none text-[#667781]">
           {time}
           {side === "out" && ticks && <Ticks live={ticks === "live"} />}
+          {side === "in" && delivery && <DeliveryGlyph delivery={delivery} />}
         </span>
       </div>
     </div>
@@ -318,7 +354,7 @@ function SilenceChip({ item, selected, onClick }: { item: WakeRecord; selected: 
           selected ? "ring-2 ring-orange" : ""
         }`}
       >
-        🤫 {eventCaption(item) || item.event.type} — ο Νότης δεν έγραψε
+        {eventCaption(item) || item.event.type} — ο Νότης δεν έγραψε
       </button>
     </div>
   );
@@ -383,7 +419,8 @@ export function WhatsAppChat({
   // silently no-op. The composer stays live (inbound survives a ΣΤΟΠ).
   const stopped = records.some((r) => r.outcome?.unsubscribe);
   const next = stopped ? undefined : records.find((q) => q.status === "pending");
-  const intro = renderTemplate(introTemplateFor(origin));
+  // Inbound-origin threads open with the reader's own message — no intro shell.
+  const intro = origin === "inbound" ? undefined : renderTemplate(introTemplateFor(origin));
   const introAt = new Date(startAt).toISOString();
 
   // Scroll ONLY the thread container. Never scrollIntoView here: it walks and
@@ -432,20 +469,24 @@ export function WhatsAppChat({
         style={{ backgroundColor: BG, backgroundImage: PATTERN, backgroundSize: "14px 14px" }}
       >
         {/* enrollment: the origin-appropriate approved template opens the thread */}
-        <div className="flex justify-center px-4 py-1">
-          <span className="rounded-md bg-[#ffffffcc] px-3 py-1 text-[11px] font-medium text-[#54656f] shadow-sm">
-            {fmtDateChip(introAt)}
-          </span>
-        </div>
-        <TemplateBubble
-          rendered={intro}
-          time={fmtTime(introAt)}
-          first
-          busy={busy || autoRun}
-          onQuickReply={sim?.onUserMessage}
-        />
+        {intro && (
+          <>
+            <div className="flex justify-center px-4 py-1">
+              <span className="rounded-md bg-[#ffffffcc] px-3 py-1 text-[11px] font-medium text-[#54656f] shadow-sm">
+                {fmtDateChip(introAt)}
+              </span>
+            </div>
+            <TemplateBubble
+              rendered={intro}
+              time={fmtTime(introAt)}
+              first
+              busy={busy || autoRun}
+              onQuickReply={sim?.onUserMessage}
+            />
+          </>
+        )}
         {(() => {
-          lastDay = fmtDateChip(introAt);
+          lastDay = intro ? fmtDateChip(introAt) : "";
           return null;
         })()}
         {visible.map((item) => {
@@ -476,7 +517,7 @@ export function WhatsAppChat({
               {item.status === "skipped" && (
                 <div className="flex justify-center px-4">
                   <span className="rounded-md bg-[#ffffff99] px-3 py-1 text-[11px] text-[#8696a0] shadow-sm">
-                    ⏭ {eventCaption(item)} — παραλείφθηκε
+                    {eventCaption(item)} — παραλείφθηκε
                   </span>
                 </div>
               )}
@@ -492,7 +533,7 @@ export function WhatsAppChat({
                       selected ? "ring-2 ring-orange" : ""
                     }`}
                   >
-                    🛑 Ο Νότης σταμάτησε τις ειδοποιήσεις (unsubscribe)
+                    Ο Νότης σταμάτησε τις ειδοποιήσεις (unsubscribe)
                   </button>
                 </div>
               )}
@@ -501,7 +542,7 @@ export function WhatsAppChat({
                   <TemplateBubble
                     key={i}
                     rendered={renderTemplate(item.delivery.template, m)}
-                    time={fmtTime(item.event.at)}
+                    time={fmtTime(item.deliveries?.[i]?.at ?? item.event.at)}
                     first={i === 0}
                     selected={selected}
                     busy={busy || autoRun}
@@ -513,11 +554,12 @@ export function WhatsAppChat({
                     key={i}
                     side="in"
                     first={i === 0}
-                    time={fmtTime(item.event.at)}
+                    time={fmtTime(item.deliveries?.[i]?.at ?? item.event.at)}
                     caption={i === 0 ? eventCaption(item) || undefined : undefined}
                     selected={selected}
                     onClick={() => onSelect(item.id)}
                     text={m}
+                    delivery={item.deliveries?.[i]}
                   />
                 ),
               )}

@@ -25,10 +25,11 @@ enum SubscriptionStatus {
   unsubscribed
 }
 
-// How the subscription came to exist. `inbound` arrives with PR 3.
+// How the subscription came to exist.
 enum SubscriptionOrigin {
   transition
   signup
+  inbound
 }
 
 model NotisSubscription {
@@ -42,6 +43,10 @@ model NotisSubscription {
   // Only a user action moves a row into or out of `unsubscribed`:
   // ΣΤΟΠ, the agent's unsubscribe tool, or the profile checkbox.
   unsubscribedAt DateTime?
+
+  // The Bird conversation that carries this user's WhatsApp thread — one per
+  // phone, refreshed on every inbound webhook. Replies are sent into it.
+  birdConversationId String?
 
   // The agent-maintained free-text profile. Seeded once from notification
   // preferences at enrollment, rewritten wholesale by update_taste_profile.
@@ -59,6 +64,7 @@ model NotisSubscription {
   queueItems     NotisWakeQueue[]
 
   @@index([status])
+  @@index([phone])
 }
 
 enum WakeDecision {
@@ -142,9 +148,20 @@ model NotisMessage {
   // Outbound only: which shell carried the text.
   deliveryMode MessageDeliveryMode?
   template     String?
-  // Delivery lifecycle, outbound only; Bird webhooks update it (PR 3/4).
+  // Delivery lifecycle, outbound only; Bird webhooks update it.
   status        MessageStatus?
-  birdMessageId String?
+  // Why the delivery failed (Bird error / webhook failure description) —
+  // feeds the overview's failure breakdown.
+  failureReason String?
+  // Unique: inbound dedupe (Bird retries webhooks) and the status-update key.
+  birdMessageId String? @unique
+  // Set while a send for this row is in flight. The sweeper claims a row by
+  // writing it in a fenced UPDATE and acts only when that update matched, so
+  // two overlapping sweeps (or two instances) cannot both call Bird for the
+  // same row — the idempotency key would then be racing itself, which is the
+  // weakest case for any deduplication. A claim older than the send timeout
+  // is stale and may be retaken.
+  sendingAt DateTime?
 
   createdAt DateTime @default(now())
 
@@ -221,6 +238,9 @@ model NotisWakeQueue {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Plus a partial unique index Prisma cannot express (migration
+  // 20260816170000): at most one `running` row per subscription — the
+  // database-level backstop for claimNext's serialization.
   @@index([status, runAfter])
   @@index([subscriptionId, status])
 }

@@ -50,7 +50,7 @@ export function AdminSidebar({ live }: { live: boolean }) {
         })}
       </nav>
       <div className="border-t p-4 text-[11px] leading-relaxed text-muted-foreground">
-        <p>{live ? "Συνδεδεμένη βάση" : "Χωρίς βάση δεδομένων · μηδενικά"}</p>
+        {!live && <p>Χωρίς βάση δεδομένων · μηδενικά</p>}
         <a
           href="https://opencouncil.gr"
           target="_blank"

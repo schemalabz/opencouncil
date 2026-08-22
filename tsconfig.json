@@ -39,6 +39,7 @@
     "node_modules",
     "result",
     "result-*",
-    "services"
+    "services",
+    "tests"
   ]
 }
