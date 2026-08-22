@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Activity,
   FlaskConical,
+  Gauge,
   LayoutDashboard,
   LayoutTemplate,
   MessagesSquare,
@@ -15,6 +16,7 @@ const NAV = [
   { href: "/admin", label: "Επισκόπηση", icon: LayoutDashboard, exact: true },
   { href: "/admin/conversations", label: "Συνομιλίες", icon: MessagesSquare },
   { href: "/admin/wakes", label: "Wakes", icon: Activity },
+  { href: "/admin/system", label: "Σύστημα", icon: Gauge },
   { href: "/admin/playground", label: "Playground", icon: FlaskConical },
   { href: "/admin/templates", label: "Templates", icon: LayoutTemplate },
   { href: "/admin/settings", label: "Ρυθμίσεις", icon: Settings },

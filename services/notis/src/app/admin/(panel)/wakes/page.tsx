@@ -1,3 +1,4 @@
+import { EVENT_LABELS } from "../_lib/records";
 import { Activity } from "lucide-react";
 import Link from "next/link";
 import { EmptyState } from "../_components/EmptyState";
@@ -22,14 +23,6 @@ export const metadata = { title: "Wakes · Νότης admin" };
  * rationale — the rationale is what an admin actually reviews. Rows link
  * into the conversation; the full trace lives in its inspector.
  */
-
-const EVENT_LABELS: Record<string, string> = {
-  user_message: "μήνυμα χρήστη",
-  agenda_processed: "ατζέντα",
-  meeting_summarized: "απολογισμός",
-  scheduled: "προγραμματισμένο",
-  heartbeat: "heartbeat",
-};
 
 const DECISION_FILTERS: Array<{ key: DecisionFilter; label: string }> = [
   { key: "all", label: "Όλα" },

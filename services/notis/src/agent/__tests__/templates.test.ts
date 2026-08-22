@@ -1,9 +1,16 @@
+import { WakeEvent } from "../types";
 import {
   TEMPLATES,
   isWindowOpen,
   renderTemplate,
   templateForEvent,
 } from "../templates";
+
+// templateForEvent reads only type (and origin for scheduled); the stub
+// skips the meeting payloads.
+function ev(type: string): WakeEvent {
+  return { type, at: "2026-03-10T10:00:00Z" } as unknown as WakeEvent;
+}
 
 describe("templates", () => {
   it("renders variable templates with the fixed shell around the agent text", () => {
@@ -21,10 +28,24 @@ describe("templates", () => {
   });
 
   it("maps wake events to the right shell", () => {
-    expect(templateForEvent("agenda_processed")).toBe("demos_update_agenda");
-    expect(templateForEvent("meeting_summarized")).toBe("demos_update_news");
-    expect(templateForEvent("scheduled")).toBe("demos_followup");
-    expect(templateForEvent("heartbeat")).toBe("demos_update_news");
+    expect(templateForEvent(ev("agenda_processed"))).toBe("demos_update_agenda");
+    expect(templateForEvent(ev("meeting_summarized"))).toBe("demos_update_news");
+    expect(templateForEvent(ev("heartbeat"))).toBe("demos_update_news");
+  });
+
+  it("a scheduled wake's shell follows the schedule's origin — absent means reply", () => {
+    expect(templateForEvent({ type: "scheduled", at: "2026-03-10T10:00:00Z", reason: "r" }))
+      .toBe("demos_followup");
+    expect(
+      templateForEvent({
+        type: "scheduled", at: "2026-03-10T10:00:00Z", reason: "r", origin: "reply",
+      }),
+    ).toBe("demos_followup");
+    expect(
+      templateForEvent({
+        type: "scheduled", at: "2026-03-10T10:00:00Z", reason: "r", origin: "proactive",
+      }),
+    ).toBe("demos_update_news");
   });
 
   it("24h window: open only within a day of the last user message", () => {

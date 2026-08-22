@@ -106,7 +106,7 @@ export default function PlaygroundPage() {
       const isUserMsg = event.type === "user_message";
       const delivery =
         outcome.messages.length > 0
-          ? decideDelivery(event.type, current.sim.lastUserMessageAt, new Date(event.at))
+          ? decideDelivery(event, current.sim.lastUserMessageAt, new Date(event.at))
           : undefined;
       dispatch({
         type: "stepDone",

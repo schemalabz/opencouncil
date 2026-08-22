@@ -50,7 +50,7 @@ describe("golden scenarios (recorded replay)", () => {
         mcp: { call: async () => null },
       };
 
-      const { outcome, trace } = await runWake(fixture.state, fixture.event, deps);
+      const { outcome, trace } = await runWake(fixture.state, [fixture.event], deps);
 
       expect(outcome.decision).toBe(fixture.expected.decision);
       expect(outcome.messages).toHaveLength(fixture.expected.messageCount);

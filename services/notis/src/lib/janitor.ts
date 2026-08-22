@@ -25,6 +25,8 @@ const JANITOR_LOCK_KEY = 0x6e6f7469;
  *  alone — instrumentation.ts fires that run 60s after boot, so the cold
  *  path is on every deploy. */
 const DELETE_TIMEOUT_MS = 30_000;
+/** How long a consumed queue row stays inspectable in the panel. */
+const QUEUE_RETENTION_MS = 30 * 24 * 60 * 60_000;
 
 export interface JanitorResult {
   ran: boolean;
@@ -60,6 +62,18 @@ export async function runJanitor(): Promise<JanitorResult> {
     // costs two queries — while holding a transaction open across a
     // cross-database round trip risks P2028 and loses the whole run.
     const db = notisDb();
+
+    // Consumed queue rows carry full briefs per subscriber; bound their
+    // growth. 30 days keeps recent history inspectable in the panel. This is
+    // independent of the orphan pass — no lock, no guard, and it still runs
+    // on a run the blast radius refuses.
+    await db.notisWakeQueue.deleteMany({
+      where: {
+        status: { in: ["done", "failed"] },
+        updatedAt: { lt: new Date(Date.now() - QUEUE_RETENTION_MS) },
+      },
+    });
+
     const subscriptions = await db.notisSubscription.findMany({
       select: { id: true, userId: true },
     });

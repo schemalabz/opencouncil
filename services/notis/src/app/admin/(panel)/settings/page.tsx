@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DEFAULT_CONFIG } from "@/agent/types";
+import { POLLER_STATUS_KEY, getSetting } from "@/lib/settings";
 import { PageHeader } from "../_components/PageHeader";
-import { KillSwitch } from "./KillSwitch";
+import { ProactiveControls } from "./ProactiveControls";
 
 export const metadata = { title: "Ρυθμίσεις · Νότης admin" };
 export const dynamic = "force-dynamic";
@@ -28,7 +29,10 @@ function EnvBadge({ present }: { present: boolean }) {
   );
 }
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const pollerStatus = (await getSetting(POLLER_STATUS_KEY)) as
+    | ({ at: string } & Record<string, number | string>)
+    | undefined;
   const promptsDir = path.join(process.cwd(), "prompts");
   const systemStat = fs.statSync(path.join(promptsDir, "system.md"));
   const contextFiles = fs
@@ -37,15 +41,33 @@ export default function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Ρυθμίσεις">
-        <span className="self-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-          μόνο ανάγνωση
-        </span>
-      </PageHeader>
+      <PageHeader title="Ρυθμίσεις" />
 
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
         <div className="grid max-w-3xl gap-4">
-          <KillSwitch />
+          <ProactiveControls />
+
+          <section className="rounded-lg border bg-background p-4">
+            <p className="text-sm font-medium">Poller</p>
+            {pollerStatus ? (
+              <div className="mt-2">
+                <Row
+                  label="τελευταίο tick"
+                  value={String(pollerStatus.at).replace("T", " ").slice(0, 19)}
+                />
+                {Object.entries(pollerStatus)
+                  .filter(([k, v]) => k !== "at" && typeof v === "number" && v !== 0)
+                  .map(([k, v]) => (
+                    <Row key={k} label={k} value={String(v)} />
+                  ))}
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Κανένα tick ακόμη — τρέχει κάθε 5 λεπτά, ή χειροκίνητα μέσω POST
+                /api/admin/poll.
+              </p>
+            )}
+          </section>
 
           <section className="rounded-lg border bg-background p-4">
             <p className="text-sm font-medium">Μοντέλο</p>
@@ -121,6 +143,21 @@ export default function SettingsPage() {
                 label="BIRD_WEBHOOK_SECRET"
                 value={<EnvBadge present={Boolean(process.env.BIRD_WEBHOOK_SECRET)} />}
               />
+              {(
+                [
+                  "BIRD_WHATSAPP_TEMPLATE_DEMOS_TRANSITION",
+                  "BIRD_WHATSAPP_TEMPLATE_DEMOS_INTRO",
+                  "BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_AGENDA",
+                  "BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_NEWS",
+                  "BIRD_WHATSAPP_TEMPLATE_DEMOS_FOLLOWUP",
+                ] as const
+              ).map((name) => (
+                <Row
+                  key={name}
+                  label={name}
+                  value={<EnvBadge present={Boolean(process.env[name])} />}
+                />
+              ))}
             </div>
             <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
               Ο Νότης έχει ΔΙΚΟ του webhook subscription στο Bird (
@@ -133,13 +170,22 @@ export default function SettingsPage() {
           </section>
 
           <section className="rounded-lg border bg-background p-4">
+            <p className="text-sm font-medium">Σκληροί κανόνες proactive</p>
+            <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-muted-foreground">
+              <li>Έως 3 αυθόρμητα μηνύματα ανά χρήστη ανά κυλιόμενη εβδομάδα</li>
+              <li>
+                Ώρες ησυχίας 23:00–09:00 (Αθήνα): οι αποστολές κρατούνται έως τις 09:00
+                και φεύγουν με τυχαία καθυστέρηση — ποτέ δεν χάνονται
+              </li>
+              <li>Νέο deployment ξεκινά με κλειστό διακόπτη — το άνοιγμα είναι η κυκλοφορία</li>
+              <li>Cold sends μόνο με εγκεκριμένα templates· free-form μόνο στο 24ωρο παράθυρο</li>
+              <li>Οι απαντήσεις σε εισερχόμενα δεν περιορίζονται ποτέ</li>
+            </ul>
+          </section>
+
+          <section className="rounded-lg border bg-background p-4">
             <p className="text-sm font-medium">Έρχονται στα επόμενα PRs</p>
             <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-muted-foreground">
-              <li>
-                Proactive αποστολές: poller συνεδριάσεων, batch lane, quiet hours και
-                εβδομαδιαίο όριο μηνυμάτων (PR 4)
-              </li>
-              <li>SMS fallback όταν το WhatsApp αποτυγχάνει (PR 4)</li>
               <li>Review queue απεσταλμένων μηνυμάτων με τα σκεπτικά τους (PR 5)</li>
               <li>Ενότητα Νότη στο /profile — εγγραφή/απεγγραφή από τον ίδιο τον χρήστη (PR 5)</li>
             </ul>

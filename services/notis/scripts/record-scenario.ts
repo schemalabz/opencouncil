@@ -46,7 +46,7 @@ async function main() {
 
   const deps = buildDeps();
   const recorder = new RecordingAnthropic(deps.anthropic);
-  const { outcome, trace } = await runWake(fixture.state, fixture.event, {
+  const { outcome, trace } = await runWake(fixture.state, [fixture.event], {
     ...deps,
     anthropic: recorder,
   });

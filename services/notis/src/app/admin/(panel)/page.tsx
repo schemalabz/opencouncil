@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { CalendarClock, EyeOff, Gauge, Moon, OctagonAlert, Sun } from "lucide-react";
+import { EVENT_LABELS } from "./_lib/records";
+import { getRailsNow } from "./_lib/system";
+import { Countdown } from "./_components/Countdown";
 import { DeltaChip } from "./_components/DeltaChip";
 import { MetricCard, MetricPoint } from "./_components/MetricCard";
 import { PageHeader } from "./_components/PageHeader";
@@ -22,14 +26,6 @@ export const metadata = { title: "Νότης · admin" };
  * The overview: one window (default 7 days), every number beside its change
  * versus the period before it. Server-rendered; the range picker is links.
  */
-
-const EVENT_LABELS: Record<string, string> = {
-  user_message: "μηνύματα χρηστών",
-  agenda_processed: "ατζέντες",
-  meeting_summarized: "απολογισμοί",
-  scheduled: "προγραμματισμένα",
-  heartbeat: "heartbeat",
-};
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "σε αναμονή",
@@ -283,14 +279,16 @@ function DeliveryPanel({ current, previous }: { current: PeriodStats; previous: 
 }
 
 function CostPanel({ current, previous }: { current: PeriodStats; previous: PeriodStats }) {
-  const perUser = current.activeUsers > 0 ? current.costUsd / current.activeUsers : null;
+  const totalCost = current.costUsd + current.editorialCostUsd;
+  const previousTotal = previous.costUsd + previous.editorialCostUsd;
+  const perUser = current.activeUsers > 0 ? totalCost / current.activeUsers : null;
   return (
     <section className="rounded-lg border bg-background p-4">
       <div className="flex items-baseline justify-between">
         <h2 className="text-sm font-medium">Κόστος</h2>
         <div className="flex items-baseline gap-2">
-          <span className="text-lg font-semibold tabular-nums">{fmtUsd(current.costUsd)}</span>
-          <DeltaChip current={current.costUsd} previous={previous.costUsd} invert />
+          <span className="text-lg font-semibold tabular-nums">{fmtUsd(totalCost)}</span>
+          <DeltaChip current={totalCost} previous={previousTotal} invert />
         </div>
       </div>
       <p className="mt-0.5 text-xs text-muted-foreground">
@@ -307,7 +305,12 @@ function CostPanel({ current, previous }: { current: PeriodStats; previous: Peri
               .map((r) => ({
                 label: EVENT_LABELS[r.eventType] ?? r.eventType,
                 value: r.costUsd,
-              }))}
+              }))
+              .concat(
+                current.editorialCostUsd > 0
+                  ? [{ label: "editorial pass", value: current.editorialCostUsd }]
+                  : [],
+              )}
             barClass="bg-orange/60"
             format={fmtUsd}
           />
@@ -362,6 +365,102 @@ function RecentInboundList({ stats }: { stats: OverviewStats }) {
   );
 }
 
+const SUPPRESSION_LABELS: Record<string, string> = {
+  "weekly cap": "όριο εβδομάδας",
+  paused: "παύση",
+  unsubscribed: "απεγγραφή",
+};
+
+async function RailsStrip({ suppressions }: { suppressions: Array<{ reason: string; count: number }> }) {
+  const rails = await getRailsNow();
+  if (!rails) return null;
+  const suppressedTotal = suppressions.reduce((a, r) => a + r.count, 0);
+  const cell = "flex items-center gap-2.5 px-4";
+  return (
+    <div className="flex items-stretch overflow-x-auto rounded-lg border bg-background py-2.5 text-xs [&>*+*]:border-l">
+      <div className={cell}>
+        {rails.settings.paused ? (
+          <span className="flex items-center gap-1 rounded bg-destructive/10 px-2 py-1 font-semibold uppercase tracking-wider text-destructive">
+            <OctagonAlert className="h-3 w-3" /> παύση
+          </span>
+        ) : (
+          <span className="rounded bg-green-600/10 px-2 py-1 font-semibold uppercase tracking-wider text-green-700">
+            ενεργό
+          </span>
+        )}
+      </div>
+
+      <div className={cell}>
+        {rails.phase.kind === "active" ? (
+          <Sun className="h-4 w-4 shrink-0 text-muted-foreground" />
+        ) : (
+          <Moon className="h-4 w-4 shrink-0 text-muted-foreground" />
+        )}
+        <div className="leading-tight">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            {rails.phase.kind === "active" ? "ησυχία" : "απελευθέρωση"}
+          </p>
+          <Countdown
+            prefix="σε"
+            target={rails.phase.until}
+            start={rails.phase.since}
+            className="mt-0.5 w-24"
+          />
+        </div>
+      </div>
+
+      {rails.heldUntilRelease > 0 && (
+        <div className={cell}>
+          <CalendarClock className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <div className="leading-tight">
+            <p className="text-sm font-semibold tabular-nums">{rails.heldUntilRelease}</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              σε αναμονή
+            </p>
+          </div>
+        </div>
+      )}
+
+      {rails.atCapCount > 0 && (
+        <div className={cell}>
+          <Gauge className="h-4 w-4 shrink-0 text-amber-600" />
+          <div className="leading-tight">
+            <p className="text-sm font-semibold tabular-nums text-amber-700">
+              {rails.atCapCount}
+            </p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              στο όριο
+            </p>
+          </div>
+        </div>
+      )}
+
+      {suppressedTotal > 0 && (
+        <div className={cell}>
+          <EyeOff className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <div className="leading-tight">
+            <p className="text-sm font-semibold tabular-nums">{suppressedTotal}</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              {suppressions
+                .map((r) => `${SUPPRESSION_LABELS[r.reason] ?? r.reason} ${r.count}`)
+                .join(" · ")}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="ml-auto flex items-center pl-4 pr-2">
+        <Link
+          href="/admin/system"
+          className="rounded-md border px-2.5 py-1.5 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          Σύστημα →
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 export default async function DashboardPage(props: {
   searchParams: Promise<{ range?: string }>;
 }) {
@@ -384,6 +483,7 @@ export default async function DashboardPage(props: {
       </PageHeader>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
+        <RailsStrip suppressions={current.suppressions} />
         <div className="grid divide-y rounded-lg border bg-background sm:grid-cols-2 sm:divide-y-0 xl:grid-cols-4 xl:divide-x">
           <MetricCard
             label="Ενεργοί χρήστες"

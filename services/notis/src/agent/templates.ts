@@ -145,25 +145,22 @@ export function introTemplateFor(origin: EnrollmentOrigin): TemplateName {
 }
 
 /**
- * Which shell a cold proactive send must use, by the event that woke the agent.
- *
- * Known gaps to close before this goes live in PR 4:
- * - "scheduled" → demos_followup assumes the wake answers a reader question
- *   («Σχετικά με αυτό που με ρώτησες»). A wake the agent scheduled after a
- *   PROACTIVE send hits the same case and would frame an answer to a question
- *   nobody asked; the mapping needs the schedule's origin, which the event
- *   does not carry yet.
- * - "heartbeat" falls through to demos_update_news; nothing produces
- *   heartbeats in PR 1, so this default is untested.
+ * Which shell a cold proactive send must use, by the event that woke the
+ * agent. A scheduled wake's shell depends on why the schedule existed: a
+ * promised answer to a reader question rides demos_followup («Σχετικά με
+ * αυτό που με ρώτησες»); a self-scheduled follow-up to proactive news must
+ * NOT frame an answer to a question nobody asked, so it rides
+ * demos_update_news. An absent origin is a pre-PR-4 record — every one of
+ * those came from a user_message wake, so "reply" is the honest default.
  */
-export function templateForEvent(eventType: WakeEvent["type"]): TemplateName {
-  switch (eventType) {
+export function templateForEvent(event: WakeEvent): TemplateName {
+  switch (event.type) {
     case "agenda_processed":
       return "demos_update_agenda";
     case "meeting_summarized":
       return "demos_update_news";
     case "scheduled":
-      return "demos_followup";
+      return event.origin === "proactive" ? "demos_update_news" : "demos_followup";
     default:
       return "demos_update_news";
   }

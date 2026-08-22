@@ -1,16 +1,20 @@
 import { seedProfileFromPreferences } from "@/agent/profileSeed";
 import type { WakeEvent } from "@/agent/types";
+import { isQuietHour } from "@/lib/active-hours";
 import { alert as sendAlert } from "@/lib/alert";
 import { BirdLike } from "@/lib/bird";
 import { ExtractedMessageFields } from "@/lib/bird-extract";
 import { citiesForUser, findEnabledUserByPhone } from "@/lib/fanout";
 import { hasMainDb, mainDb } from "@/lib/main-db";
 import { normalizePhone } from "@/lib/phone";
-import { sendPendingMessages } from "@/lib/queue";
+import { SMS_HELD_FOR_QUIET_HOURS, sendPendingMessages } from "@/lib/queue";
 import { enqueueLiveWake } from "@/lib/queue-core";
 import { STOP_ALREADY_TEXT, STOP_CONFIRMATION_TEXT, isBareStop } from "@/lib/stop";
+import { renderTemplate, type TemplateName } from "@/agent/templates";
+import { getProactiveSettings } from "@/lib/settings";
 import type {
   MessageStatus,
+  NotisMessage,
   NotisSubscription,
   Prisma,
   PrismaClient,
@@ -53,10 +57,13 @@ const STATUS_RANK: Record<MessageStatus, number> = {
   failed: 2,
   delivered: 2,
   read: 3,
+  // Suppressed rows never reached Bird, so no webhook can reference them;
+  // ranked terminal for type completeness.
+  suppressed: 3,
 };
 
 export function isForwardProgression(current: MessageStatus, next: MessageStatus): boolean {
-  if (current === "read" || current === "failed") return false;
+  if (current === "read" || current === "failed" || current === "suppressed") return false;
   // A failure report AFTER the handset confirmed delivery is a stale or
   // out-of-order replay (Bird redelivers hours-old events) — delivered can
   // only advance to read, same terminal-delivered defense as the main app.
@@ -68,8 +75,9 @@ export function isForwardProgression(current: MessageStatus, next: MessageStatus
  *  Unknown ids are the main app's messages — not ours to track. */
 export async function handleOutboundStatus(
   fields: ExtractedMessageFields,
-  { db }: HandlerDeps,
+  deps: HandlerDeps,
 ): Promise<InboundResult> {
+  const { db } = deps;
   if (!fields.birdMessageId) return { action: "ignored", reason: "no birdMessageId" };
   const existing = await db.notisMessage.findUnique({
     where: { birdMessageId: fields.birdMessageId },
@@ -88,9 +96,93 @@ export async function handleOutboundStatus(
           fields.status === "failed" ? (fields.failureReason ?? null)?.slice(0, 300) : null,
       },
     });
+    if (fields.status === "failed") {
+      await maybeSendSmsFallback(existing, deps);
+    }
     return { action: "status-updated" };
   }
   return { action: "ignored", reason: "no forward progression" };
+}
+
+/**
+ * The notify-only SMS fallback (PRD §6): when WhatsApp delivery of a
+ * PROACTIVE template send fails, the same text goes out once as an SMS.
+ * The sms row is inserted FIRST with fallbackForId unique on the failed
+ * message — a replayed failure webhook loses the insert and stops, so one
+ * failure can never fire two SMS. Skipped while paused; reactive replies
+ * and freeform sends get no fallback (the reader is reachable on
+ * WhatsApp — they just wrote to us there).
+ *
+ * Quiet hours hold it rather than drop it. Bird redelivers hours-old status
+ * events and a handset can fail a message long after the send, so a template
+ * that correctly went out at 22:40 can fail at 03:00 — and the fallback is
+ * proactive, so it obeys the same 23:00-09:00 rail as everything else. The
+ * row is written held; the sweeper releases it after the 09:00 boundary.
+ */
+async function maybeSendSmsFallback(
+  failed: NotisMessage,
+  { db, bird, alert }: HandlerDeps,
+): Promise<void> {
+  if (
+    failed.channel !== "whatsapp" ||
+    failed.deliveryMode !== "template" ||
+    !failed.proactive ||
+    !failed.template
+  ) {
+    return;
+  }
+  const settings = await getProactiveSettings(db);
+  if (settings.paused) return;
+
+  const sub = await db.notisSubscription.findUnique({ where: { id: failed.subscriptionId } });
+  if (!sub?.phone || sub.status === "unsubscribed") return;
+
+  const rendered = renderTemplate(failed.template as TemplateName, failed.body);
+  const text = `${rendered.body}\n\n${rendered.footer}`;
+  const held = isQuietHour(new Date());
+
+  let smsId: string;
+  try {
+    const sms = await db.notisMessage.create({
+      data: {
+        subscriptionId: failed.subscriptionId,
+        wakeId: failed.wakeId,
+        direction: "outbound",
+        body: text,
+        channel: "sms",
+        proactive: failed.proactive,
+        fallbackForId: failed.id,
+        status: "pending",
+        ...(held ? { failureReason: SMS_HELD_FOR_QUIET_HOURS } : {}),
+      },
+      select: { id: true },
+    });
+    smsId = sms.id;
+  } catch (error) {
+    if ((error as { code?: string }).code === "P2002") return; // replayed webhook
+    throw error;
+  }
+
+  // Held rows leave here pending; the sweeper sends them at the release.
+  if (held) return;
+
+  const result = await bird.sendSms({ phone: sub.phone, text });
+  if (result.success) {
+    await db.notisMessage.update({
+      where: { id: smsId },
+      data: { status: "sent", birdMessageId: result.messageId },
+    });
+  } else {
+    // Never re-sent (the channels API has no idempotency key) — mark it
+    // and alert; the reader misses one notification, not a conversation.
+    await db.notisMessage.update({
+      where: { id: smsId },
+      data: { status: "failed", failureReason: (result.error ?? "unknown error").slice(0, 300) },
+    });
+    await (alert ?? ((m: string) => sendAlert("webhook", m)))(
+      `SMS fallback failed for message ${failed.id}: ${result.error ?? "unknown error"}`,
+    );
+  }
 }
 
 async function findSubscriptionByPhone(
@@ -268,11 +360,8 @@ export async function handleInbound(
       if (current && current !== normalizePhone(fields.phone)) {
         return { action: "ignored", reason: "message from a number the user no longer has" };
       }
-      // Canonicalize the stored form when it differs only by the leading "+":
-      // the lookup above accepts both, and later sends address whatever is
-      // stored. A genuinely different number cannot reach here — it fails the
-      // guard above, and the reader's new number self-heals through the
-      // enrollment upsert instead.
+      // Canonicalize a stored form that differs only by the leading "+": the
+      // lookup accepts both, and later sends address whatever is stored.
       if (current && current !== sub.phone) {
         sub = await db.notisSubscription.update({
           where: { id: sub.id },

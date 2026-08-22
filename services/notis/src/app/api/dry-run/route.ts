@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
   const deps = buildDeps(options ?? {});
 
   try {
-    const { outcome, trace } = await runWake(state, event, deps);
+    const { outcome, trace } = await runWake(state, [event], deps);
     return NextResponse.json({
       outcome,
       trace,

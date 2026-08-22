@@ -1,7 +1,9 @@
-import { JournalEntry, WakeOutcome, WakeTrace } from "@/agent/types";
+import { CityPreference, JournalEntry, WakeOutcome, WakeTrace } from "@/agent/types";
+import { clampToActiveHours } from "@/lib/active-hours";
 import { TemplateName } from "@/agent/templates";
 import { hasNotisDb, notisDb } from "@/lib/db";
-import { hasMainDb, mainDb } from "@/lib/main-db";
+import { citiesForUsers } from "@/lib/fanout";
+import { hasMainDb } from "@/lib/main-db";
 import { CityMeta, MessageDelivery, Origin, RecordEvent, WakeRecord } from "./records";
 
 /**
@@ -32,11 +34,22 @@ export interface ConversationSummary {
   unsubscribedAt?: string;
 }
 
+export interface UpcomingWake {
+  id: string;
+  reason: string;
+  origin: "reply" | "proactive";
+  /** After the quiet-hours clamp — where the fire actually lands. */
+  firesAt: string;
+  createdAt: string;
+}
+
 export interface ConversationDetail {
   summary: ConversationSummary;
   records: WakeRecord[];
   cityMeta?: CityMeta;
   profile: string;
+  /** The agent's un-fired scheduled wakes for this reader, due-first. */
+  upcoming: UpcomingWake[];
 }
 
 interface SubscriptionRow {
@@ -50,35 +63,13 @@ interface SubscriptionRow {
   unsubscribedAt: Date | null;
 }
 
-interface SubCity {
-  cityId: string;
-  cityName: string;
-}
-
-/**
- * The cities a reader follows, live from notis_fanout_targets. There is no
- * stored copy: preferences live in the main database, and a snapshot here
- * would be a second truth that goes stale between reads. The panel renders
- * without city chips when no main database is configured, or when it is
- * briefly unreachable — a conversation is still worth reading.
- */
-async function citiesByUser(userIds: string[]): Promise<Map<string, SubCity[]>> {
+/** Live preference cities per user; the panel renders without them when the
+ *  main database is absent or unreachable. */
+async function liveCities(userIds: string[]): Promise<Map<string, CityPreference[]>> {
   if (!hasMainDb() || userIds.length === 0) return new Map();
   try {
-    const rows = await mainDb().fanoutTargetRow.findMany({
-      where: { userId: { in: userIds } },
-      select: { userId: true, cityId: true, cityName: true },
-      orderBy: [{ userId: "asc" }, { cityId: "asc" }],
-    });
-    const byUser = new Map<string, SubCity[]>();
-    for (const row of rows) {
-      const list = byUser.get(row.userId) ?? [];
-      list.push({ cityId: row.cityId, cityName: row.cityName });
-      byUser.set(row.userId, list);
-    }
-    return byUser;
-  } catch (e) {
-    console.warn("[notis:panel] live city fetch failed, rendering without chips:", e);
+    return await citiesForUsers(userIds);
+  } catch {
     return new Map();
   }
 }
@@ -89,7 +80,7 @@ function toSummary(
     ConversationSummary,
     "messagesSent" | "messagesReceived" | "messagesFailed" | "wakes" | "costUsd" | "lastMessage"
   >,
-  cities: SubCity[],
+  cities: CityPreference[],
 ): ConversationSummary {
   return {
     id: sub.id,
@@ -139,7 +130,7 @@ export async function listConversations(search?: string, page = 1): Promise<Conv
   if (subs.length === 0) return { conversations: [], total, page: current, pages };
   const ids = subs.map((s) => s.id);
 
-  const [counts, failures, wakes, costs, lastMessages] = await Promise.all([
+  const [counts, failures, wakes, costs, lastMessages, citiesByUser] = await Promise.all([
     db.notisMessage.groupBy({
       by: ["subscriptionId", "direction"],
       where: { subscriptionId: { in: ids } },
@@ -173,6 +164,7 @@ export async function listConversations(search?: string, page = 1): Promise<Conv
       WHERE "subscriptionId" = ANY(${ids}::text[])
       ORDER BY "subscriptionId", "createdAt" DESC, id DESC
     `,
+    liveCities(subs.map((s) => s.userId)),
   ]);
 
   const countMap = new Map(
@@ -192,8 +184,6 @@ export async function listConversations(search?: string, page = 1): Promise<Conv
     ]),
   );
 
-  const cities = await citiesByUser(subs.map((s) => s.userId));
-
   return {
     conversations: subs.map((sub) =>
       toSummary(sub, {
@@ -203,7 +193,7 @@ export async function listConversations(search?: string, page = 1): Promise<Conv
         wakes: wakeMap.get(sub.id) ?? 0,
         costUsd: costMap.get(sub.id) ?? 0,
         lastMessage: lastMap.get(sub.id),
-      }, cities.get(sub.userId) ?? []),
+      }, citiesByUser.get(sub.userId) ?? []),
     ),
     total,
     page: current,
@@ -222,7 +212,14 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
         // No `trace`: a full WakeTrace runs to hundreds of KB per wake and
         // the inspector shows one at a time — the client fetches a single
         // trace lazily via getWakeTrace.
-        select: { id: true, event: true, outcome: true, deliveryMode: true, deliveryTemplate: true },
+        select: {
+          id: true,
+          event: true,
+          events: true,
+          outcome: true,
+          deliveryMode: true,
+          deliveryTemplate: true,
+        },
       },
     },
   });
@@ -232,24 +229,35 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     db.notisMessage.count({ where: { subscriptionId: id, direction: "outbound" } }),
     db.notisMessage.count({ where: { subscriptionId: id, direction: "inbound" } }),
     db.notisMessage.findMany({
-      where: { subscriptionId: id, direction: "outbound" },
+      // WhatsApp rows only: the index-alignment with outcome.messages
+      // depends on row order matching the outcome, and SMS fallback rows
+      // share the wakeId without being outcome messages.
+      where: { subscriptionId: id, direction: "outbound", channel: "whatsapp" },
       // All of a wake's rows share one transaction timestamp — the id
       // tiebreaker (cuids are monotonic per process) pins insertion order,
       // which is what the index-alignment with outcome.messages needs.
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-      select: { wakeId: true, status: true, failureReason: true, createdAt: true },
+      select: { id: true, wakeId: true, status: true, failureReason: true, createdAt: true },
     }),
   ]);
+
+  // SMS fallbacks mark the failed WhatsApp send they replaced.
+  const smsFallbacks = await db.notisMessage.findMany({
+    where: { subscriptionId: id, channel: "sms", fallbackForId: { not: null } },
+    select: { fallbackForId: true },
+  });
+  const fallbackFor = new Set(smsFallbacks.map((m) => m.fallbackForId));
 
   // Real delivery lifecycles, index-aligned with each wake's messages
   // (created in outcome order inside one transaction).
   const deliveriesByWake = new Map<string, MessageDelivery[]>();
   const wakelessDeliveries: MessageDelivery[] = [];
   for (const message of outbound) {
-    const delivery = {
+    const delivery: MessageDelivery = {
       status: message.status,
       failureReason: message.failureReason,
       at: message.createdAt.toISOString(),
+      ...(fallbackFor.has(message.id) ? { smsFallback: true } : {}),
     };
     if (message.wakeId === null) wakelessDeliveries.push(delivery);
     else {
@@ -275,6 +283,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
         }
       : {}),
     ...(deliveriesByWake.has(wake.id) ? { deliveries: deliveriesByWake.get(wake.id) } : {}),
+    ...(Array.isArray(wake.events) ? { coalesced: (wake.events as unknown[]).length } : {}),
   }));
 
   // The deterministic ΣΤΟΠ pre-step answers without a wake; its journal
@@ -287,15 +296,20 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
   });
   // Wake-less replies (the ΣΤΟΠ confirmations) pair with wake-less journal
   // entries in order — each entry consumed its messages' worth of sends.
+  // The cursor advances for EVERY entry that produced messages, including
+  // the ones that do not render: the poller's enrollment ceremony writes an
+  // `enrollment` entry alongside a wake-less intro send, and skipping it
+  // without consuming its slot hands the intro's delivery status to the
+  // next ΣΤΟΠ reply.
   let wakelessCursor = 0;
   for (const row of wakeless) {
     const entry = row.entry as unknown as JournalEntry;
-    if (entry.event !== "user_message" || entry.received === undefined) continue;
     const deliveries = wakelessDeliveries.slice(
       wakelessCursor,
       wakelessCursor + entry.messages.length,
     );
     wakelessCursor += entry.messages.length;
+    if (entry.event !== "user_message" || entry.received === undefined) continue;
     records.push({
       id: `journal-${row.seq}`,
       event: { type: "user_message", at: entry.at, text: entry.received },
@@ -317,12 +331,31 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
   // placed a wake's replies at the moment it was TRIGGERED, so a 36-second
   // wake whose reader sent ΣΤΟΠ mid-run rendered as question → answer → ΣΤΟΠ
   // when what reached them was question → ΣΤΟΠ → confirmation → the answer
-  // half a minute later. This viewer is where "did we message someone after
-  // they unsubscribed?" gets answered, so the order has to be the reader's.
+  // half a minute later. Worse once wakes fire on world events, where
+  // event.at is the meeting's own time. This viewer is where "did we message
+  // someone after they unsubscribed?" gets answered, so the order has to be
+  // the reader's.
   const sortKey = (r: WakeRecord) => r.deliveries?.[0]?.at ?? r.event.at;
   records.sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
 
-  const cities = (await citiesByUser([sub.userId])).get(sub.userId) ?? [];
+  const pendingNotes = await db.notisScheduledWake.findMany({
+    where: { subscriptionId: id, firedAt: null },
+    orderBy: { runAfter: "asc" },
+    select: { id: true, reason: true, origin: true, runAfter: true, createdAt: true },
+  });
+  const nowMs = Date.now();
+  const upcoming: UpcomingWake[] = pendingNotes.map((note) => ({
+    id: note.id,
+    reason: note.reason,
+    origin: note.origin,
+    firesAt: clampToActiveHours(
+      note.runAfter.getTime() > nowMs ? note.runAfter : new Date(nowMs),
+      () => 0,
+    ).toISOString(),
+    createdAt: note.createdAt.toISOString(),
+  }));
+
+  const cities = (await liveCities([sub.userId])).get(sub.userId) ?? [];
 
   return {
     summary: toSummary(sub, {
@@ -336,6 +369,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     records,
     cityMeta: Object.fromEntries(cities.map((c) => [c.cityId, { name: c.cityName }])),
     profile: sub.profileText,
+    upcoming,
   };
 }
 

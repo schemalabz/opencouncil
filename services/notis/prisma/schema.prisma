@@ -80,9 +80,15 @@ model NotisWake {
 
   // WakeEvent type (agenda_processed, meeting_summarized, user_message,
   // scheduled, heartbeat) — the world's timeline lives in eventAt.
+  // For a coalesced wake these describe the PRIMARY event (user_message >
+  // meeting_summarized > agenda_processed > scheduled) and eventAt is the
+  // LAST event's timestamp.
   eventType String
   eventAt   DateTime
   event     Json
+  // The full coalesced array, only when the wake consumed more than one
+  // event; null for the common single-event wake.
+  events Json?
 
   decision  WakeDecision
   rationale String
@@ -134,6 +140,15 @@ enum MessageStatus {
   delivered
   read
   failed
+  // A rail stopped the send (weekly cap, pause, unsubscribed
+  // race); failureReason names which. Terminal, like failed.
+  suppressed
+}
+
+enum MessageChannel {
+  whatsapp
+  // Notify-only fallback when a proactive WhatsApp template send fails.
+  sms
 }
 
 model NotisMessage {
@@ -145,6 +160,15 @@ model NotisMessage {
 
   direction MessageDirection
   body      String
+  channel   MessageChannel   @default(whatsapp)
+  // Cap-countable (unprompted) send: the wake had no user_message event and
+  // was not purely a reply-continuation follow-up. Not the same as
+  // deliveryMode=template — a scheduled wake inside the 24h window sends
+  // freeform yet is unprompted.
+  proactive Boolean          @default(false)
+  // The failed WhatsApp message this SMS replaces. Unique: a replayed
+  // failure webhook cannot fire a second SMS.
+  fallbackForId String? @unique
   // Outbound only: which shell carried the text.
   deliveryMode MessageDeliveryMode?
   template     String?
@@ -193,6 +217,15 @@ model NotisJournalEntry {
   @@unique([subscriptionId, seq])
 }
 
+// Why the schedule exists decides the template shell when it fires outside
+// the 24h window: a promised answer to a reader question rides
+// demos_followup; a self-scheduled follow-up to proactive news rides
+// demos_update_news. Reply-origin fires are also cap-exempt.
+enum ScheduledWakeOrigin {
+  reply
+  proactive
+}
+
 model NotisScheduledWake {
   id             String            @id @default(cuid())
   subscription   NotisSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
@@ -200,6 +233,7 @@ model NotisScheduledWake {
 
   runAfter DateTime
   reason   String
+  origin   ScheduledWakeOrigin @default(reply)
   firedAt  DateTime?
 
   createdAt DateTime @default(now())
@@ -226,7 +260,10 @@ model NotisWakeQueue {
 
   lane QueueLane
   // Coalesced WakeEvent[] — a subscription keeps at most one pending batch
-  // row; new events merge into it (enforced by the queue code, PR 4).
+  // row; new events merge into it. Enforced by enqueueBatchWake plus the
+  // partial unique index NotisWakeQueue_one_pending_batch_per_sub
+  // (subscriptionId WHERE status='pending' AND lane='batch'), which Prisma
+  // cannot express — see migration 20260817090000.
   events   Json
   runAfter DateTime
 
@@ -245,6 +282,16 @@ model NotisWakeQueue {
   @@index([subscriptionId, status])
 }
 
+// Server-side operational settings, one row per key: proactivePaused (the
+// kill switch — absent means PAUSED, so a fresh deployment starts dark) and
+// pollerStatus (last tick, for the panel).
+model NotisSetting {
+  key   String @id
+  value Json
+
+  updatedAt DateTime @default(now())
+}
+
 // Dedup log against notis_meeting_events. The identity is the MEETING and
 // the phase — (cityId, meetingId, type) — never the task id: re-processing a
 // meeting writes a new task row, and keying on it would fan the same agenda
@@ -260,6 +307,17 @@ model NotisProcessedEvent {
   type      String
   cityId    String
   meetingId String
+  // Display metadata for the editorial ledger, copied from the view row at
+  // record time. Nullable: rows recorded before PR 4's ledger have none.
+  meetingName   String?
+  meetingDate   DateTime?
+  adminBodyName String?
+
+  // The shared editorial pass output, run once per taskId before fan-out;
+  // every enqueued event embeds it verbatim. Null only for seed-only
+  // processing (backlog marked consumed without fan-out).
+  brief        Json?
+  briefCostUsd Float?
 
   processedAt DateTime @default(now())
 

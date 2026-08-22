@@ -35,8 +35,6 @@ export type RecordEvent =
 
 /** Real delivery lifecycle of one outbound message (DB-backed viewer only). */
 export interface MessageDelivery {
-  status: "pending" | "sent" | "delivered" | "read" | "failed" | null;
-  failureReason?: string | null;
   /**
    * When the message row was written — which is when it went out, not when
    * the wake that produced it was triggered. The thread sorts and stamps on
@@ -44,6 +42,10 @@ export interface MessageDelivery {
    * it belongs in between. Absent in the playground (no real rows).
    */
   at?: string;
+  status: "pending" | "sent" | "delivered" | "read" | "failed" | "suppressed" | null;
+  failureReason?: string | null;
+  /** A notify-only SMS went out after this WhatsApp send failed. */
+  smsFallback?: boolean;
 }
 
 export interface WakeRecord {
@@ -63,6 +65,9 @@ export interface WakeRecord {
    * Absent in the playground — the simulator has no real deliveries.
    */
   deliveries?: MessageDelivery[];
+  /** Number of events this wake consumed at once; absent for the common
+   *  single-event wake. */
+  coalesced?: number;
 }
 
 export function hasPendingBrief(
@@ -76,3 +81,13 @@ export function hasPendingBrief(
     "pending" in event.brief
   );
 }
+
+/** Greek display labels for wake event types, shared by the overview, the
+ *  wakes feed and the system page. */
+export const EVENT_LABELS: Record<string, string> = {
+  user_message: "μηνύματα χρηστών",
+  agenda_processed: "ατζέντες",
+  meeting_summarized: "απολογισμοί",
+  scheduled: "προγραμματισμένα",
+  heartbeat: "heartbeat",
+};

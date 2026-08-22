@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  AlarmClock,
   AlertCircle,
   Check,
   CheckCheck,
   Clock3,
   ExternalLink,
+  EyeOff,
   FastForward,
   Send,
   SkipForward,
@@ -16,6 +18,8 @@ import {
 /* eslint-disable @next/next/no-img-element */
 import { Button } from "@opencouncil/ui/button";
 import { RenderedTemplate, introTemplateFor, renderTemplate } from "@/agent/templates";
+import { Countdown } from "./Countdown";
+import type { UpcomingWake } from "../_lib/conversations";
 import { fmtDateChip, fmtTime } from "../_lib/format";
 import { MessageDelivery, Origin, WakeRecord } from "../_lib/records";
 import { WA } from "../_lib/whatsapp";
@@ -42,6 +46,8 @@ interface Props {
   busyItemId?: string;
   onSelect(id: string): void;
   sim?: SimControls;
+  /** The agent's un-fired scheduled wakes (DB-backed viewer only). */
+  upcoming?: UpcomingWake[];
 }
 
 /* WhatsApp visual constants (palette lives in ../_lib/whatsapp) */
@@ -52,16 +58,29 @@ const PATTERN =
 
 function eventCaption(item: WakeRecord): string {
   const e = item.event;
+  let caption: string;
   switch (e.type) {
     case "agenda_processed":
-      return `πριν τη συνεδρίαση · ${e.meetingName}`;
+      caption = `πριν τη συνεδρίαση · ${e.meetingName}`;
+      break;
     case "meeting_summarized":
-      return `${e.meetingName}`;
+      caption = `${e.meetingName}`;
+      break;
     case "scheduled":
-      return "follow-up";
+      // A promised answer to the reader is a follow-up; the agent's own
+      // proactive note must not pretend to be one.
+      caption = e.origin === "proactive" ? "προγραμματισμένο" : "follow-up";
+      break;
     default:
-      return "";
+      caption = "";
   }
+  // A coalesced wake consumed several events at once; the caption names the
+  // primary one and counts the rest.
+  if (item.coalesced && item.coalesced > 1) {
+    const extra = `+${item.coalesced - 1} ακόμη`;
+    caption = caption ? `${caption} · ${extra}` : extra;
+  }
+  return caption;
 }
 
 /* ---- links: WhatsApp-style linkify + OG preview card ---- */
@@ -219,6 +238,9 @@ function DeliveryGlyph({ delivery }: { delivery: MessageDelivery }) {
       return <CheckCheck className={cls} style={{ color: "#53bdeb" }} />;
     case "failed":
       return <AlertCircle className={cls} style={{ color: "#b42318" }} />;
+    case "suppressed":
+      // A rail (weekly cap, pause) stopped the send.
+      return <EyeOff className={cls} style={{ color: "#8696a0" }} />;
     default:
       return null;
   }
@@ -249,6 +271,7 @@ function Bubble({
 }) {
   const url = side === "in" ? firstUrl(text) : undefined;
   const failed = delivery?.status === "failed";
+  const suppressed = delivery?.status === "suppressed";
   return (
     <div className={`flex ${side === "out" ? "justify-end" : "justify-start"} px-4`}>
       <div
@@ -269,6 +292,13 @@ function Bubble({
         {failed && (
           <p className="mt-1.5 border-t border-[#f2e2e1] pt-1.5 text-[11px] leading-snug text-[#b42318]">
             Δεν παραδόθηκε
+            {delivery?.failureReason ? ` — ${delivery.failureReason}` : ""}
+            {delivery?.smsFallback ? " — εστάλη SMS" : ""}
+          </p>
+        )}
+        {suppressed && (
+          <p className="mt-1.5 border-t border-[#e6e0d4] pt-1.5 text-[11px] leading-snug text-[#667781]">
+            Δεν στάλθηκε
             {delivery?.failureReason ? ` — ${delivery.failureReason}` : ""}
           </p>
         )}
@@ -404,6 +434,7 @@ export function WhatsAppChat({
   busyItemId,
   onSelect,
   sim,
+  upcoming,
 }: Props) {
   const threadRef = useRef<HTMLDivElement>(null);
   const busy = sim?.busy ?? false;
@@ -582,6 +613,18 @@ export function WhatsAppChat({
             </div>
           </div>
         )}
+        {/* The agent's future: un-fired scheduled wakes, as system chips. */}
+        {upcoming?.map((note) => (
+          <div key={note.id} className="flex justify-center px-4 pt-1">
+            <div className="flex max-w-[85%] items-center gap-2.5 rounded-full border border-[#e6e0d4] bg-[#fdf6ee] py-1.5 pl-3 pr-4 shadow-sm">
+              <AlarmClock className="h-3.5 w-3.5 shrink-0 text-orange" />
+              <span className="min-w-0 truncate text-[11.5px] text-[#54656f]">
+                {note.origin === "reply" ? "θα επανέλθει" : "θα το ξαναδεί"} · «{note.reason}»
+              </span>
+              <Countdown prefix="σε" target={note.firesAt} start={note.createdAt} overdueLabel="στο επόμενο tick" className="w-20 shrink-0" />
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* controls + composer — simulator only; the viewer is read-only */}

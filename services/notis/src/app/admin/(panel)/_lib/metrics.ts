@@ -103,6 +103,11 @@ export interface PeriodStats {
   wakesByDecision: { send: number; silence: number; error: number };
   wakesByEvent: WakeEventStats[];
   costUsd: number;
+  /** Shared editorial passes in the period — once per meeting event, on top
+   *  of the per-wake model cost. */
+  editorialCostUsd: number;
+  /** Rail-stopped sends in the period, by reason (weekly cap, παύση, …). */
+  suppressions: Array<{ reason: string; count: number }>;
 }
 
 export interface RecentInbound {
@@ -146,6 +151,8 @@ const EMPTY_PERIOD: PeriodStats = {
   wakesByDecision: { send: 0, silence: 0, error: 0 },
   wakesByEvent: [],
   costUsd: 0,
+  editorialCostUsd: 0,
+  suppressions: [],
 };
 
 type Db = ReturnType<typeof notisDb>;
@@ -287,6 +294,8 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
     unsubscribes,
     wakesByDecision,
     wakesByEvent,
+    editorialCost,
+    suppressed,
   ] = await Promise.all([
     db.notisMessage.groupBy({ by: ["direction"], where: createdInPeriod, _count: { _all: true } }),
     db.notisMessage.groupBy({
@@ -311,6 +320,15 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
       where: createdInPeriod,
       _count: { _all: true },
       _sum: { costUsd: true },
+    }),
+    db.notisProcessedEvent.aggregate({
+      where: { processedAt: { gte: from, lt: to } },
+      _sum: { briefCostUsd: true },
+    }),
+    db.notisMessage.groupBy({
+      by: ["failureReason"],
+      where: { ...createdInPeriod, direction: "outbound", status: "suppressed" },
+      _count: { _all: true },
     }),
   ]);
 
@@ -355,6 +373,10 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
     },
     wakesByEvent: byEvent,
     costUsd: byEvent.reduce((a, r) => a + r.costUsd, 0),
+    editorialCostUsd: editorialCost._sum.briefCostUsd ?? 0,
+    suppressions: suppressed
+      .map((r) => ({ reason: r.failureReason ?? "—", count: r._count._all }))
+      .sort((a, b) => b.count - a.count),
   };
 }
 

@@ -53,17 +53,31 @@ export function toCityPreferences(rows: FanoutTargetRow[]): CityPreference[] {
   }));
 }
 
-/**
- * Live city preferences for one user, straight from the view — the
- * subscription's `cities` snapshot is only a fallback for when the main
- * database is unreachable.
- */
+/** Live city preferences for one user, straight from the view. */
 export async function citiesForUser(userId: string): Promise<CityPreference[]> {
   const rows = await mainDb().fanoutTargetRow.findMany({
     where: { userId },
     orderBy: { cityId: "asc" },
   });
   return toCityPreferences(rows);
+}
+
+/** Live city preferences for many users in one view read, keyed by user id. */
+export async function citiesForUsers(
+  userIds: string[],
+): Promise<Map<string, CityPreference[]>> {
+  if (userIds.length === 0) return new Map();
+  const rows = await mainDb().fanoutTargetRow.findMany({
+    where: { userId: { in: userIds } },
+    orderBy: [{ userId: "asc" }, { cityId: "asc" }],
+  });
+  const byUser = new Map<string, FanoutTargetRow[]>();
+  for (const row of rows) {
+    const list = byUser.get(row.userId) ?? [];
+    list.push(row);
+    byUser.set(row.userId, list);
+  }
+  return new Map([...byUser].map(([userId, list]) => [userId, toCityPreferences(list)]));
 }
 
 /**
