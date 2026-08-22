@@ -1,6 +1,6 @@
 import { Link } from '@/i18n/routing';
 import { useTranslations } from 'next-intl';
-import { ArrowRight, Maximize2, Search, X } from 'lucide-react';
+import { AlertCircle, ArrowRight, Maximize2, RotateCw, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { buildSearchHref } from '@/components/search/searchFilterTypes';
 import { captureLandingAction } from '@/lib/landing/analytics';
@@ -63,6 +63,38 @@ export function SearchChip({
 }
 
 /**
+ * A search that did not answer.
+ *
+ * Sits beside the chip, in the one place both layouts already have. Without it
+ * a failure is silent: the map keeps whatever the last successful run put there,
+ * which is the right thing to keep — it is not the right thing to leave
+ * unexplained, because it reads as an answer to the query still in the box.
+ */
+export function SearchErrorPill({ onRetry, floating }: { onRetry: () => void; floating?: boolean }) {
+    const t = useTranslations('landingV2');
+    return (
+        <div
+            className={cn(
+                'inline-flex shrink-0 items-center gap-1.5 rounded-full border border-destructive/40 bg-card text-sm shadow-md',
+                floating ? 'px-3 py-1.5' : 'h-8 px-3',
+            )}
+            role="status"
+        >
+            <AlertCircle className="h-3.5 w-3.5 shrink-0 text-destructive" aria-hidden="true" />
+            <span className="min-w-0 truncate text-muted-foreground">{t('search.failed')}</span>
+            <button
+                type="button"
+                onClick={onRetry}
+                className="-mr-1 inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 font-medium text-foreground transition-colors hover:bg-muted"
+            >
+                <RotateCw className="h-3 w-3" aria-hidden="true" />
+                {t('search.retry')}
+            </button>
+        </div>
+    );
+}
+
+/**
  * What the viewport is hiding, at the foot of the list.
  *
  * The map does not move when a search is committed, so results can land
@@ -104,6 +136,54 @@ export function SearchResultsFooter({
             </Link>
             {search.truncated && (
                 <p className="px-1 text-center text-xs text-muted-foreground">{t('search.truncated')}</p>
+            )}
+        </div>
+    );
+}
+
+/**
+ * The same three things, as the last card of the mobile strip.
+ *
+ * The strip is horizontal, so it has no foot to put a row under — but its end is
+ * where a reader who has been through the results arrives, which is the position
+ * the desktop footer occupies. Matches StripCard's dimensions so the row keeps
+ * one height.
+ */
+export function SearchResultsCard({
+    search,
+    outsideViewCount,
+    cats,
+    filters,
+    onFitResults,
+}: {
+    search: CommittedSearch;
+    outsideViewCount: number;
+    cats: string[];
+    filters: MapFilters;
+    onFitResults: () => void;
+}) {
+    const t = useTranslations('landingV2');
+    const rowClass =
+        'flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-border px-2 py-2 text-center text-xs font-medium text-muted-foreground';
+
+    return (
+        <div className="flex h-[150px] w-[248px] shrink-0 flex-col justify-center gap-2 rounded-2xl border border-black/20 bg-card p-3 shadow-md">
+            {outsideViewCount > 0 && (
+                <button type="button" onClick={onFitResults} className={rowClass}>
+                    <Maximize2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    {t('search.outsideArea', { count: outsideViewCount })}
+                </button>
+            )}
+            <Link
+                href={landingSearchHref(search.query, cats, filters)}
+                onClick={() => captureLandingAction('search_handoff', { query_length: search.query.length })}
+                className={rowClass}
+            >
+                {t('search.everywhere')}
+                <ArrowRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            </Link>
+            {search.truncated && (
+                <p className="px-1 text-center text-[11px] text-muted-foreground">{t('search.truncated')}</p>
             )}
         </div>
     );

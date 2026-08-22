@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, HelpCircle, Loader2, LocateFixed, CalendarDays, MapPin, Bell, Clock, Landmark } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
@@ -9,7 +9,7 @@ import Icon from '@/components/icon';
 import { formatDate, formatDateTime } from '@/lib/formatters/time';
 import { captureLandingAction } from '@/lib/landing/analytics';
 import { ListHeader, RankedListHint } from './conceptShared';
-import { SearchChip } from './searchSummary';
+import { SearchChip, SearchErrorPill, SearchResultsCard } from './searchSummary';
 import { subjectLocationLine, type LandingSubject, type LandingListCity, type LandingPetitionedCity, type UpcomingMeeting } from '@/lib/landing/landingData';
 import { PETITION_DISPLAY_THRESHOLD } from '@/lib/landing/petitions';
 import { hasActiveFilters, type LayoutProps } from '@/lib/landing/landingCore';
@@ -60,6 +60,10 @@ export function MobileLayout({
     onCommitSearch,
     committedSearch,
     onClearSearch,
+    searchFailed,
+    onRetrySearch,
+    outsideViewCount,
+    onFitSearchResults,
     overviewActive,
     explainOpen,
     explainAvailable,
@@ -265,11 +269,15 @@ export function MobileLayout({
                                     {/* what the strip actually is — a small pill floating over the
                                         map (costs no layout space). Hidden while a text search
                                         re-purposes the list into plain matches. */}
-                                    {tab === 'subjects' && (committedSearch || trending.length > 0) && (
-                                        <div className="mb-2 flex items-center gap-2 px-3">
+                                    {tab === 'subjects' && (committedSearch || searchFailed || trending.length > 0) && (
+                                        <div
+                                            className="mb-2 flex items-center gap-2 overflow-x-auto px-3 [&::-webkit-scrollbar]:hidden"
+                                            style={{ scrollbarWidth: 'none' }}
+                                        >
                                             {committedSearch && (
                                                 <SearchChip search={committedSearch} onClear={onClearSearch} floating />
                                             )}
+                                            {searchFailed && <SearchErrorPill onRetry={onRetrySearch} floating />}
                                             <RankedListHint floating searchQuery={committedSearch?.query} />
                                         </div>
                                     )}
@@ -279,6 +287,17 @@ export function MobileLayout({
                                             previewId={previewId}
                                             onPreview={previewSubject}
                                             onSelect={selectSubject}
+                                            trailing={
+                                                committedSearch ? (
+                                                    <SearchResultsCard
+                                                        search={committedSearch}
+                                                        outsideViewCount={outsideViewCount}
+                                                        cats={cats}
+                                                        filters={filters}
+                                                        onFitResults={onFitSearchResults}
+                                                    />
+                                                ) : null
+                                            }
                                         />
                                     ) : (
                                         <MobileMunicipalityStrip
@@ -345,11 +364,14 @@ function MobileSubjectStrip({
     previewId,
     onPreview,
     onSelect,
+    trailing,
 }: {
     subjects: LandingSubject[];
     previewId: string | null;
     onPreview: (id: string | null) => void;
     onSelect: (id: string) => void;
+    /** A last card after the subjects — what the search found and where the rest of it is. */
+    trailing?: ReactNode;
 }) {
     const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -369,7 +391,10 @@ function MobileSubjectStrip({
         root.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
     }, [previewId]);
 
-    if (!subjects.length) return null;
+    // An empty strip used to render nothing at all. Under a search that is the
+    // one case the reader most needs a card for: the matches are real, they are
+    // simply not in view, and the trailing card is what says so.
+    if (!subjects.length && !trailing) return null;
     return (
         <div
             ref={scrollRef}
@@ -385,6 +410,7 @@ function MobileSubjectStrip({
                     onClick={() => (s.id === previewId ? onSelect(s.id) : onPreview(s.id))}
                 />
             ))}
+            {trailing}
         </div>
     );
 }

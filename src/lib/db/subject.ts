@@ -38,7 +38,9 @@ function subjectFilterKey(f: MapSubjectFilters): string {
         (f.bodyTypes ?? []).slice().sort().join('.'),
         f.dateFrom ?? '',
         f.dateTo ?? '',
-        (f.subjectIds ?? []).slice().sort().join('.'),
+        // Prefixed so that "no id restriction" and "restrict to no ids" — which
+        // now mean opposite things in buildMapSubjectWhere — cannot share a key.
+        f.subjectIds ? `ids:${f.subjectIds.slice().sort().join('.')}` : '',
     ].join('|');
 }
 
@@ -293,7 +295,10 @@ export function buildMapSubjectWhere(realm: Realm, f: MapSubjectFilters): Prisma
         locationId: f.located === undefined ? undefined : f.located === false ? null : { not: null },
         // only subjects actually discussed (≥1 speaker contribution)
         contributions: { some: {} },
-        ...(f.subjectIds?.length ? { id: { in: f.subjectIds } } : {}),
+        // Presence, not length: this filter names rows rather than describing a
+        // window, so an empty list means "none of them" and must not fall back
+        // to the whole realm the way the window filters below do.
+        ...(f.subjectIds ? { id: { in: f.subjectIds } } : {}),
         ...(f.topicIds?.length ? { topicId: { in: f.topicIds } } : {}),
         ...(f.cityIds?.length ? { cityId: { in: f.cityIds } } : {}),
         councilMeeting: {

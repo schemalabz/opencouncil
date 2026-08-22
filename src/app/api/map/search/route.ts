@@ -3,6 +3,7 @@ import { AdministrativeBodyType } from '@prisma/client'
 import { getRealm } from '@/lib/realm.server'
 import { getGeneralSubjects, getMapSubjects } from '@/lib/db/subject'
 import { searchSubjectsInRealm } from '@/lib/search/core'
+import { SUBJECT_DOT_THRESHOLD } from '@/lib/landing/landingCore'
 
 // Per-query, and every query is different. Nothing to cache.
 export const dynamic = 'force-dynamic';
@@ -10,18 +11,22 @@ export const dynamic = 'force-dynamic';
 /**
  * The most results one search puts on the map.
  *
- * Above ~150 pins the map degrades them to plain dots, so a larger set buys no
- * fidelity — and it costs: the marker layer rebuilds on every viewport change,
- * its packing pass is roughly quadratic, and each pin mounts its own root.
- * Measured against the production index, the broadest single-word queries land
- * in the low hundreds, so the cap bites rarely and the response says when it did.
+ * Tied to the threshold at which the marker layer degrades pins to plain dots,
+ * because that is the reason for the cap: past it a larger set buys no fidelity
+ * — and it costs, since the layer rebuilds on every viewport change, its packing
+ * pass is roughly quadratic, and each pin mounts its own root. Measured against
+ * the production index, the broadest single-word queries land in the low
+ * hundreds, so the cap bites rarely and the response says when it did.
  */
-const MAX_RESULTS = 150;
+const MAX_RESULTS = SUBJECT_DOT_THRESHOLD;
 
 const isBodyType = (b: string): b is AdministrativeBodyType =>
     (Object.values(AdministrativeBodyType) as string[]).includes(b);
 
 const list = (value: string | null) => (value || '').split(',').filter(Boolean);
+
+/** The lower bound for a date filter that names only its end. Matches mcpSearch. */
+const OPEN_RANGE_START = '1970-01-01';
 
 /**
  * Search, answered in the landing map's own shape.
@@ -51,7 +56,13 @@ export async function GET(request: Request) {
             cityIds: list(searchParams.get('cityIds')),
             topicIds: list(searchParams.get('topicIds')),
             adminBodyTypes: list(searchParams.get('bodyType')).filter(isBodyType),
-            dateRange: dateFrom && dateTo ? { start: dateFrom, end: dateTo } : undefined,
+            // Either bound alone is a real filter — the map's own endpoints
+            // honour one, so a search over them must too, or committing would
+            // widen the window the reader just set. The missing bound stays
+            // open rather than collapsing the range onto the one that is set.
+            dateRange: dateFrom || dateTo
+                ? { start: dateFrom ?? OPEN_RANGE_START, end: dateTo ?? new Date().toISOString() }
+                : undefined,
             config: {
                 enableSemanticSearch: true,
                 size: MAX_RESULTS,

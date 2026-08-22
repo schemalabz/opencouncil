@@ -45,6 +45,8 @@
     "placeholder": "Rechercher un sujet ou une adresse",
     "locationError": "Un problème est survenu lors de la localisation. Essayez d'autoriser la localisation dans votre navigateur et réessayez.",
     "clearSearch": "Effacer la recherche",
+    "failed": "La recherche a échoué",
+    "retry": "Réessayer",
     "filterCategory": "Filtrer par catégorie :",
     "filterMunicipality": "Filtrer par commune :",
     "searchingFor": "Recherche :",
