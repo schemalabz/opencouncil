@@ -36,6 +36,7 @@
         "loading": "Chargement…",
         "clear": "Effacer",
         "clearField": "Effacer {field}",
+        "derivedFromQuery": "D'après le texte de votre recherche",
         "panelTitle": "Filtres",
         "back": "Retour"
     },

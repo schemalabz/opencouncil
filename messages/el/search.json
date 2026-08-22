@@ -36,6 +36,7 @@
         "loading": "Φόρτωση…",
         "clear": "Καθαρισμός",
         "clearField": "Καθαρισμός φίλτρου: {field}",
+        "derivedFromQuery": "Από το κείμενο της αναζήτησής σου",
         "panelTitle": "Φίλτρα",
         "back": "Πίσω"
     },

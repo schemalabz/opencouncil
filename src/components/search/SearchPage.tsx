@@ -7,7 +7,18 @@ import { SEARCH_FIELD_STYLE } from "@/lib/landing/landingCore";
 import { FilterIconButton } from "@/components/landing/v2/controls";
 import SearchFilters from "./SearchFilters";
 import SearchFilterSections from "./SearchFilterSections";
-import { filterDateRangeToInstants, hasActiveSearchFilters, type SearchFilterParams } from "./searchFilterTypes";
+import {
+    DERIVED_FILTER_PARAM,
+    DERIVED_FILTER_PARAMS,
+    filterDateRangeToInstants,
+    formatFilterDate,
+    hasActiveSearchFilters,
+    parseDerivedKeys,
+    parseFilterDate,
+    serializeDerivedKeys,
+    type DerivedFilterKey,
+    type SearchFilterParams,
+} from "./searchFilterTypes";
 import { useSearchFilterData } from "./hooks/useSearchFilterData";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
@@ -60,6 +71,11 @@ export default function SearchPage() {
     const dateFrom = searchParams.get('dateFrom') || undefined;
     const dateTo = searchParams.get('dateTo') || undefined;
     const page = parseInt(searchParams.get('page') || '1');
+    // Which of the filters above the query text supplied, rather than the
+    // reader choosing. Kept as a string until it is needed, so the memo below
+    // is keyed on something stable.
+    const derivedParam = searchParams.get(DERIVED_FILTER_PARAM) || undefined;
+    const derivedKeys = useMemo(() => parseDerivedKeys(derivedParam), [derivedParam]);
 
     const filters = useMemo<SearchFilterParams>(
         () => ({ cityId, personId, partyId, adminBodyType, adminBodyId, topicIds, dateFrom, dateTo }),
@@ -85,6 +101,30 @@ export default function SearchPage() {
     // Update URL parameters
     const updateSearchParams = useCallback((updates: Record<string, string | undefined>) => {
         const params = new URLSearchParams(searchParams.toString());
+
+        // A derived filter belongs to the query that produced it, and only
+        // until one of two things happens.
+        const derived = parseDerivedKeys(params.get(DERIVED_FILTER_PARAM));
+        let stillDerived: DerivedFilterKey[];
+        if ('query' in updates) {
+            // New text to read: drop the previous query's filters, values and
+            // all, so the next extraction is not fenced in by the last one's
+            // answer. Keyed on the key being present, not on its value —
+            // clearing the box is a new query too.
+            for (const key of derived) {
+                for (const param of DERIVED_FILTER_PARAMS[key]) params.delete(param);
+            }
+            stillDerived = [];
+        } else {
+            // The reader set or cleared the filter by hand: it is theirs now,
+            // so it survives the next query instead of being re-derived.
+            stillDerived = derived.filter(
+                key => !DERIVED_FILTER_PARAMS[key].some(param => param in updates)
+            );
+        }
+        const derivedParam = serializeDerivedKeys(stillDerived);
+        if (derivedParam) params.set(DERIVED_FILTER_PARAM, derivedParam);
+        else params.delete(DERIVED_FILTER_PARAM);
 
         // Update or remove parameters
         Object.entries(updates).forEach(([key, value]) => {
@@ -123,6 +163,52 @@ export default function SearchPage() {
         }
     }, [router, searchParams]);
 
+    /**
+     * Put what the query text supplied onto the filter pills, so the reader can
+     * see the search narrowed itself, share the link with the narrowing intact,
+     * and take it off.
+     *
+     * Deliberately not routed through `updateSearchParams`: that function reads
+     * an incoming filter param as the reader claiming the filter, which is the
+     * opposite of what this is. `replace`, not `push`, because this refines the
+     * search the reader just ran rather than starting another one — a Back
+     * press should leave the results, not peel the pills off them.
+     */
+    const applyDerivedFilters = useCallback((
+        updates: Record<string, string | undefined>,
+        keys: DerivedFilterKey[]
+    ) => {
+        const params = new URLSearchParams(searchParams.toString());
+        Object.entries(updates).forEach(([key, value]) => {
+            if (value) params.set(key, value);
+            else params.delete(key);
+        });
+        const derivedParam = serializeDerivedKeys(keys);
+        if (derivedParam) params.set(DERIVED_FILTER_PARAM, derivedParam);
+        router.replace(`?${params.toString()}`, { scroll: false });
+    }, [router, searchParams]);
+
+    /**
+     * The search whose results are on screen, as the filters it actually ran
+     * with. Writing derived filters into the URL re-runs the search effect with
+     * the same effective search — the derived values are simply explicit params
+     * now — so without this the page would search twice, and flicker, for every
+     * query the model reads a filter out of.
+     */
+    const executedSearchRef = useRef<string | null>(null);
+
+    /**
+     * The query text already read for filters. Taking a derived filter off is a
+     * decision — "yes it says Χανιά, search everywhere anyway" — and clearing
+     * the pill un-marks it, so without this the next search would read the same
+     * text and put it straight back, leaving the pill impossible to remove.
+     *
+     * A reload starts over and derives again. That is the right default for
+     * someone arriving at the link fresh; it just does not remember a decision
+     * the previous reader made.
+     */
+    const extractedQueryRef = useRef<string | null>(null);
+
     // One instance for both filter surfaces. They are mounted together (the
     // desktop bar is hidden with CSS, not unmounted), so a hook call inside each
     // would fetch every list twice.
@@ -147,8 +233,31 @@ export default function SearchPage() {
 
     // Perform search
     const performSearch = useCallback(async () => {
+        // An unknown adminBodyType in a hand-edited URL is dropped rather
+        // than sent: the pill leaves it unlabelled, so filtering on it would
+        // empty the results with nothing on screen to explain why.
+        const adminBodyTypeFilter = toAdministrativeBodyType(adminBodyType);
+        const requestedCityIds = cityId ? [cityId] : undefined;
+        const requestedDateRange = filterDateRangeToInstants(dateFrom, dateTo);
+        const searchedWith = (cityIds?: string[], dateRange?: { start: string; end: string }) =>
+            JSON.stringify([query, cityIds, personId, partyId, adminBodyId, adminBodyTypeFilter, topicIds, dateRange, page]);
+
+        // Already ran this exact search — see executedSearchRef. Checked before
+        // the run id below is claimed, because skipping a search is not the same
+        // as superseding one: taking the id here would strip the current run
+        // from a request still in flight, which would then finish, find itself
+        // stale, discard its own results, and leave nothing to replace them.
+        if (query && executedSearchRef.current === searchedWith(requestedCityIds, requestedDateRange)) return;
+
         const runId = ++searchRunIdRef.current;
         const isCurrentRun = () => runId === searchRunIdRef.current;
+        // The marker describes a search that has already finished, so starting
+        // another one makes it stale. Left set, a later pass could match it and
+        // skip a search this one is about to contradict: clear a derived filter
+        // and restore it while the first change is still in flight, and the
+        // results that land are the unfiltered ones, under a pill saying
+        // otherwise.
+        executedSearchRef.current = null;
 
         // Skip search if temporarily disabled
         if (SEARCH_TEMPORARILY_DISABLED) {
@@ -158,11 +267,17 @@ export default function SearchPage() {
 
         if (!query) {
             // Clearing the search box ends the intent: re-submitting the same
-            // query afterwards should be logged as a new search.
+            // query afterwards should be logged as a new search — and read for
+            // filters again, since clearing the box took the filters the last
+            // extraction supplied off the URL with it.
             lastLoggedQueryRef.current = null;
+            executedSearchRef.current = null;
+            extractedQueryRef.current = null;
             setState(prev => ({ ...prev, results: [], total: 0 }));
             return;
         }
+
+        const shouldExtract = derivedKeys.length === 0 && extractedQueryRef.current !== query;
 
         setState(prev => ({ ...prev, isLoading: true, error: null }));
 
@@ -170,22 +285,21 @@ export default function SearchPage() {
             const skipQueryLog = lastLoggedQueryRef.current === query;
             lastLoggedQueryRef.current = query;
 
-            // An unknown adminBodyType in a hand-edited URL is dropped rather
-            // than sent: the pill leaves it unlabelled, so filtering on it would
-            // empty the results with nothing on screen to explain why.
-            const adminBodyTypeFilter = toAdministrativeBodyType(adminBodyType);
-
             const response = await searchFn({
                 query,
-                cityIds: cityId ? [cityId] : undefined,
+                cityIds: requestedCityIds,
                 personIds: personId ? [personId] : undefined,
                 partyIds: partyId ? [partyId] : undefined,
                 adminBodyIds: adminBodyId ? [adminBodyId] : undefined,
                 adminBodyTypes: adminBodyTypeFilter ? [adminBodyTypeFilter] : undefined,
                 topicIds: topicIds ? topicIds.split(',').filter(Boolean) : undefined,
-                dateRange: filterDateRangeToInstants(dateFrom, dateTo),
+                dateRange: requestedDateRange,
                 config: {
                     enableSemanticSearch: true,
+                    // Read the query text for filters once per query: after
+                    // that, what it gave is in the URL and on the pills, and
+                    // what the reader took off should stay off.
+                    extractFilters: shouldExtract,
                     size: PAGE_SIZE,
                     from: (page - 1) * PAGE_SIZE,
                     detailed: false
@@ -194,12 +308,59 @@ export default function SearchPage() {
 
             if (!isCurrentRun()) return;
 
+            if (shouldExtract) extractedQueryRef.current = query;
+
+            const { cityIds: derivedCityIds, dateRange: derivedRange } = response.derivedFilters;
+
+            // Show what the query text supplied. A derived location has no
+            // filter on this page to land on, so it stays unshown — it only
+            // boosts proximity, it does not narrow the results.
+            const derivedUpdates: Record<string, string | undefined> = {};
+            const newlyDerived: DerivedFilterKey[] = [];
+            if (derivedCityIds?.[0]) {
+                derivedUpdates.cityId = derivedCityIds[0];
+                newlyDerived.push('city');
+            }
+            if (derivedRange) {
+                const from = parseFilterDate(derivedRange.start);
+                const to = parseFilterDate(derivedRange.end);
+                if (from && to) {
+                    derivedUpdates.dateFrom = formatFilterDate(from);
+                    derivedUpdates.dateTo = formatFilterDate(to);
+                    newlyDerived.push('date');
+                }
+            }
+
+            // Record what this search actually ran with, so the pass that
+            // follows the URL write can tell whether it would be asking the
+            // same question.
+            //
+            // A derived date usually means it would not. The model answers with
+            // a range of its own, while the URL carries a calendar day and
+            // reads back local day edges — rarely the same instants. The second
+            // search is the correction for that, not waste: recording the URL's
+            // interval here instead would suppress it and leave the results on
+            // screen describing one period while the pill and the shareable
+            // link claim another.
+            //
+            // The city is the whole derived list for the same reason: only its
+            // first entry reaches the URL, so a query naming two municipalities
+            // searches again, narrowed to the one the pill shows.
+            executedSearchRef.current = searchedWith(
+                derivedCityIds ?? requestedCityIds,
+                requestedDateRange ?? derivedRange,
+            );
+
             setState({
                 results: response.results,
                 total: response.total,
                 isLoading: false,
                 error: null
             });
+
+            if (newlyDerived.length > 0) {
+                applyDerivedFilters(derivedUpdates, newlyDerived);
+            }
 
             if (!skipQueryLog) {
                 posthog.capture("search_performed", {
@@ -227,7 +388,7 @@ export default function SearchPage() {
             });
             console.error('Search error:', err);
         }
-    }, [query, cityId, personId, partyId, adminBodyType, adminBodyId, topicIds, dateFrom, dateTo, page, toast]);
+    }, [query, cityId, personId, partyId, adminBodyType, adminBodyId, topicIds, dateFrom, dateTo, page, derivedKeys, applyDerivedFilters, toast]);
 
     // Search when URL parameters change
     useEffect(() => {
@@ -414,6 +575,7 @@ export default function SearchPage() {
                         </div>
 
                         <SearchFilters
+                            derivedKeys={derivedKeys}
                             className="mt-3 hidden md:flex"
                             filters={filters}
                             setFilters={updateSearchParams}
@@ -437,6 +599,7 @@ export default function SearchPage() {
                             </div>
                             <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-5">
                                 <SearchFilterSections
+                                    derivedKeys={derivedKeys}
                                     filters={filters}
                                     setFilters={updateSearchParams}
                                     data={filterData}

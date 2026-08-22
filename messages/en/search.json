@@ -36,6 +36,7 @@
         "loading": "Loading…",
         "clear": "Clear",
         "clearField": "Clear {field}",
+        "derivedFromQuery": "From your search text",
         "panelTitle": "Filters",
         "back": "Back"
     },

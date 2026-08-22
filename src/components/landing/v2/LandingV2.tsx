@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { type Map as MapboxMap } from 'mapbox-gl';
+import { LngLatBounds, type Map as MapboxMap } from 'mapbox-gl';
 import { useSession } from 'next-auth/react';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { useTopics } from '@/hooks/useTopics';
@@ -10,6 +10,7 @@ import { useMapFeatures } from './hooks/useMapFeatures';
 import { useMapActions } from './hooks/useMapActions';
 import { useFilteredSubjects } from './hooks/useFilteredSubjects';
 import { useLandingData, type LandingInitialData } from './hooks/useLandingData';
+import { applyDerivedFilters, useCommittedSearch } from './hooks/useCommittedSearch';
 import { useNotifyPrompt } from './hooks/useNotifyPrompt';
 import { useSubjectSelection } from './hooks/useSubjectSelection';
 import {
@@ -189,14 +190,33 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
     const [range, setRange] = useState<DateRangeKey>(DEFAULT_RANGE);
     const [filters, setFilters] = useState<MapFilters>(EMPTY_FILTERS);
     const [query, setQuery] = useState('');
-    // A free-text search ignores the range dropdown so it spans every subject (see useLandingData).
-    const searching = query.trim().length > 0;
+
+    // A committed search replaces the map's own subjects with its results, so
+    // the pins, the list and the counts all describe the search rather than the
+    // last three months with the search filtered out of it.
+    const {
+        committed: committedSearch,
+        pending: searchPending,
+        failed: searchFailed,
+        commit: commitSearch,
+        clear: clearCommittedSearch,
+        retry: retrySearch,
+    } = useCommittedSearch({
+        cats,
+        filters,
+        onDerivedFilters: useCallback(
+            (derived) => setFilters((prev) => applyDerivedFilters(prev, derived)),
+            [],
+        ),
+    });
+
     const { cities, upcoming, subjectCountByCity, mapCities, petitionedCities, petitionedBelowThreshold, mapSubjects, generalRows, loading } = useLandingData({
         range,
         filters,
-        searching,
         initial,
     });
+    const activeMapSubjects = committedSearch ? committedSearch.located : mapSubjects;
+    const activeGeneralRows = committedSearch ? committedSearch.general : generalRows;
 
     // ---- URL state sync ----
     // A subject id restored from the URL, pending a map fly-to once the data + map are ready.
@@ -210,9 +230,13 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         setView(init.view);
         setInfoOpen(init.infoOpen);
         setCats(init.cats);
-        setQuery(init.query);
+        setQuery(init.search || init.query);
         setRange(init.range);
         setFilters(init.filters);
+        // A shared link carries the search, not its results — re-run it so the
+        // map shows what the sender saw. Under the filters the link carried:
+        // the state set two lines up is not readable until the next render.
+        if (init.search) commitSearch(init.search, { cats: init.cats, filters: init.filters });
         setLandingContext({ view: init.view });
         captureLanding('viewed', {
             view: init.view,
@@ -244,7 +268,10 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         else if (view !== 'subjects') p.set('view', view);
         if (selectedId) p.set('subject', selectedId);
         if (cats.length) p.set('cat', cats.join(','));
-        if (query.trim()) p.set('q', query.trim());
+        // `q` is only what is being typed. Once it has been committed it travels
+        // as `search`, so a link does not carry the same string twice.
+        if (query.trim() && query.trim() !== committedSearch?.query) p.set('q', query.trim());
+        if (committedSearch) p.set('search', committedSearch.query);
         if (range !== DEFAULT_RANGE) p.set('range', range);
         if (filters.cityIds.length) p.set('city', filters.cityIds[0]);
         if (filters.bodyTypes.length) p.set('body', filters.bodyTypes.join(','));
@@ -252,33 +279,33 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         if (filters.dateTo) p.set('to', filters.dateTo);
         const qs = p.toString();
         window.history.replaceState(null, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
-    }, [view, infoOpen, selectedId, cats, query, range, filters]);
+    }, [view, infoOpen, selectedId, cats, query, range, filters, committedSearch]);
 
     // All derived subject views (see useFilteredSubjects).
     const {
         allSubjects,
-        queryKind,
         visibleSubjects,
         generalCities,
         visibleGeneralCities,
         ordered,
+        orderedAll,
         allGeneralSubjects,
         visibleGeneralSubjects,
         listSubjects,
-        searchResults,
+        outsideViewCount,
         findSubject,
         selectedSubject,
     } = useFilteredSubjects({
-        mapSubjects,
-        generalRows,
+        mapSubjects: activeMapSubjects,
+        generalRows: activeGeneralRows,
         cats,
-        query,
         filters,
         addressPoint,
         mapView,
         mapZoom,
         selectedId,
         previewId,
+        relevanceOrder: committedSearch?.order ?? null,
     });
 
     // Total subjects per δήμος (located + non-located), from the same filtered sets the list uses.
@@ -329,10 +356,23 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         const match = detectMunicipalityQuery(query, cities);
         if (match) setInterested(match);
     }, [query, cities]);
-    // Clearing the search removes the searched-address marker.
+    // Emptying the box ends whatever the text had turned into. Both a geocoded
+    // address and a committed search keep their text, so the box reading empty
+    // while the map still shows their results would leave no way back.
+    //
+    // The first run is skipped, as in the URL-writing effect above: the box is
+    // empty until the restore effect fills it, and clearing here would cancel
+    // the search that same effect just committed from a shared link.
+    const emptyBoxRanOnceRef = useRef(false);
     useEffect(() => {
-        if (!query.trim()) setAddressPoint(null);
-    }, [query]);
+        if (!emptyBoxRanOnceRef.current) {
+            emptyBoxRanOnceRef.current = true;
+            return;
+        }
+        if (query.trim()) return;
+        setAddressPoint(null);
+        clearCommittedSearch();
+    }, [query, setAddressPoint, clearCommittedSearch]);
 
     // The municipality chosen in the filters (single-select) — drives the blue-gray overlay.
     const filterCityId = filters.cityIds[filters.cityIds.length - 1] ?? null;
@@ -474,7 +514,18 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
     // load must not count as the session's first action.
     const trackedSelectSubject = (id: string, source: 'list' | 'search' | 'map_pin' | 'cluster' | 'city_hall') => {
         const s = findSubject(id);
-        captureLandingAction('subject_selected', { subject_id: id, city_id: s?.cityId ?? null, source });
+        // Where in the results it sat, when a search produced them: a click at
+        // rank 1 and a click at rank 40 say different things about the ranking.
+        const searchPosition = committedSearch ? committedSearch.order.indexOf(id) : -1;
+        captureLandingAction('subject_selected', {
+            subject_id: id,
+            city_id: s?.cityId ?? null,
+            source,
+            ...(committedSearch && {
+                search_query_length: committedSearch.query.length,
+                search_position: searchPosition >= 0 ? searchPosition : null,
+            }),
+        });
         selectSubject(id);
     };
 
@@ -656,6 +707,20 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         />
     );
 
+    /**
+     * Frame every result of the committed search.
+     *
+     * The map deliberately stays put when a search is committed — a reader who
+     * zoomed somewhere keeps their place, and the list says how much sits
+     * outside it. This is the way out of that, for when the answer is elsewhere.
+     */
+    const fitSearchResults = useCallback(() => {
+        if (!mapInstance || orderedAll.length === 0) return;
+        const bounds = new LngLatBounds();
+        for (const subject of orderedAll) bounds.extend([subject.lng, subject.lat]);
+        mapInstance.fitBounds(bounds, { padding: isMobile ? 48 : 96, maxZoom: 14, duration: 600 });
+    }, [mapInstance, orderedAll, isMobile]);
+
     // Analytics-tracked wrappers — used ONLY in layoutProps, so the internal setState calls above
     // stay untracked; only user actions fire.
     const trackedSetView = (v: LandingView) => {
@@ -742,7 +807,6 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         setFilters: trackedSetFilters,
         query,
         setQuery,
-        queryKind,
         topics,
         cities,
         subjectCountByCity,
@@ -750,7 +814,9 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         petitionedBelowThreshold,
         onOpenPetitioned: (city: LandingPetitionedCity) => openPetitioned(city, 'list'),
         upcoming,
-        loading,
+        // A committed search fetches its own results; the panel's loading state
+        // covers both, since either way the list is about to change under the reader.
+        loading: loading || searchPending,
         selectedId,
         selectSubject: (id: string, source: 'list' | 'search' = 'list') => trackedSelectSubject(id, source),
         clearSelection,
@@ -758,7 +824,6 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         ordered: listSubjects,
         trending: listSubjects,
         count: listSubjects.length,
-        searchResults,
         coLocated,
         // mobile: a co-located / general subject opens the preview (not the full selection)
         onCoLocatedSelect: (id: string) => {
@@ -778,6 +843,16 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         geoError,
         onDismissGeoError: dismissGeoError,
         onLocateAddress: locateAddress,
+        onCommitSearch: commitSearch,
+        committedSearch,
+        // Clears the search only. Anything it derived is a real filter now, with
+        // a chip of its own to clear — dropping those here would take away
+        // narrowing the reader can see, without being asked to.
+        onClearSearch: clearCommittedSearch,
+        searchFailed,
+        onRetrySearch: retrySearch,
+        outsideViewCount,
+        onFitSearchResults: fitSearchResults,
         zoomIn: trackedZoomIn,
         zoomOut: trackedZoomOut,
         overviewActive: showMunicipalityCounts,

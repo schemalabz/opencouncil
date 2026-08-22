@@ -45,10 +45,17 @@
     "placeholder": "Search for a subject or address",
     "locationError": "There was a problem finding your location. Try granting location permissions to your browser and try again.",
     "clearSearch": "Clear search",
+    "failed": "The search failed",
+    "retry": "Try again",
     "filterCategory": "Filter by category:",
     "filterMunicipality": "Filter by municipality:",
+    "searchingFor": "Search:",
+    "outsideArea": "{count} more outside this area",
+    "everywhere": "Search everywhere",
+    "truncated": "Showing the most relevant results.",
+    "searchSubjects": "Search the subjects:",
+    "optionsLabel": "Search options",
     "subjectsNearAddress": "Subjects near the address:",
-    "noResults": "No subjects found.",
     "popular": "Popular searches",
     "categories": "Categories",
     "municipalities": "Municipalities",
@@ -63,6 +70,8 @@
   "list": {
     "loading": "Loading subjects…",
     "emptyLocated": "No subjects with a location found.",
+    "relevanceTitle": "Most relevant to “{query}”",
+    "relevanceExplain": "Showing subjects in the current map area that best match the search “{query}”, starting with the most relevant.",
     "rankedTitle": "Recently much-discussed",
     "rankedExplain": "Showing subjects in the current map area, starting with those discussed most recently and at greatest length in council meetings."
   },
@@ -172,16 +181,6 @@
       "cookies": "Cookie preferences"
     }
   },
-  "popularSearches": [
-    "Budget",
-    "Parking",
-    "Pedestrianization",
-    "Green & trees",
-    "Street markets",
-    "Flood protection",
-    "Schools",
-    "Cleanliness"
-  ],
   "info": {
     "title": "What is this?",
     "intro": "The map shows the subjects discussed in municipal council meetings. You can find the ones that interest you by category, by area, or straight from the map.",
