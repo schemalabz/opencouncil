@@ -41,16 +41,108 @@
         prisma = prismaPkgs.nodePackages.prisma;
       };
 
+      # package.json's engines.node is the single source of truth for the Node
+      # major: DO App Platform's Node buildpack selects the production runtime
+      # from it. Nothing reconciled it with the Nix toolchain, so the two drifted
+      # for a month — CI tested on EOL Node 20 while production ran Node 24 (see
+      # issue #547). Fail the build instead of drifting again.
+      # Node version consistency. package.json's engines.node is the source of
+      # truth: DO App Platform's Node buildpack selects production's runtime
+      # from it. Nothing reconciled it with the Nix toolchain, so the two
+      # drifted for a month — CI tested on EOL Node 20 while production ran
+      # Node 24 (see issue #547).
+      #
+      # Workspaces share one lockfile and one runtime, so every manifest that
+      # declares engines.node must declare the SAME range; a workspace cannot
+      # actually run a different Node. Checking only "nixpkgs satisfies each"
+      # would let root ">=24 <25" and a workspace ">=22 <23" both pass while
+      # disagreeing. The workspace list comes from the root's workspaces globs,
+      # so a new workspace is covered without editing this file.
+      nodeConsistency =
+        let
+          inherit (nixpkgs) lib;
+          rootPkg = lib.importJSON ./package.json;
+          dirsOf = glob:
+            let
+              base = lib.removeSuffix "/*" glob;
+              dir = ./. + "/${base}";
+            in
+            if lib.hasSuffix "/*" glob && builtins.pathExists dir then
+              map (n: "${base}/${n}")
+                (builtins.attrNames
+                  (lib.filterAttrs (_: t: t == "directory") (builtins.readDir dir)))
+            else [ glob ];
+          candidates = [ "." ] ++ lib.concatMap dirsOf (rootPkg.workspaces or [ ]);
+          present = lib.filter (d: builtins.pathExists (./. + "/${d}/package.json")) candidates;
+          declaring = lib.filter
+            (d: ((lib.importJSON (./. + "/${d}/package.json")).engines or { }) ? node)
+            present;
+          rangeOf = d: (lib.importJSON (./. + "/${d}/package.json")).engines.node;
+          nameOf = d: if d == "." then "package.json" else "${d}/package.json";
+          ranges = map (d: { manifest = nameOf d; range = rangeOf d; }) declaring;
+          rootRange = rootPkg.engines.node or null;
+          disagreeing = lib.filter (r: r.range != rootRange) ranges;
+          # builtins.match anchors to the whole string, so this accepts only a
+          # bare ">=X <Y". A compound range does not match and falls through to
+          # the parse error, rather than being compared against whichever bound
+          # happened to be captured.
+          parsed = builtins.match " *>=([0-9]+(\\.[0-9]+)*) +<([0-9]+(\\.[0-9]+)*) *" rootRange;
+        in
+        { inherit disagreeing rootRange parsed; };
+
+      assertNodeSatisfiesEngines = pkgs:
+        let
+          inherit (nixpkgs) lib;
+          inherit (nodeConsistency) disagreeing rootRange parsed;
+          have = pkgs.nodejs.version;
+        in
+        if rootRange == null then
+          throw ''
+            flake.nix: package.json declares no engines.node.
+
+            It is the source of truth for the Node major — DO App Platform's
+            buildpack selects the runtime from it, and the notis CI job derives
+            its version from it. Restore it, or remove this check deliberately.
+          ''
+        else if disagreeing != [ ] then
+          throw ''
+            flake.nix: engines.node disagrees across workspaces.
+
+            package.json declares "${rootRange}", but:
+            ${lib.concatMapStringsSep "\n" (r: "  ${r.manifest} declares \"${r.range}\"") disagreeing}
+
+            Workspaces share one lockfile and one Node runtime, so these cannot
+            legitimately differ. Make them identical.
+          ''
+        else if parsed == null then
+          throw ''
+            flake.nix: cannot parse engines.node ("${rootRange}") from package.json.
+            This check understands ranges shaped ">=X <Y". Update
+            assertNodeSatisfiesEngines in flake.nix alongside the new range.
+          ''
+        else if !(lib.versionAtLeast have (builtins.elemAt parsed 0))
+             || !(lib.versionOlder have (builtins.elemAt parsed 2)) then
+          throw ''
+            flake.nix: nixpkgs provides Node ${have}, which does not satisfy
+            engines.node ("${rootRange}") in package.json.
+
+            The buildpack picks production's runtime from engines.node, so a
+            mismatch means CI and previews test a runtime production does not use.
+            Fix by moving the nixpkgs input, or by changing engines.node if the
+            supported range genuinely changed.
+          ''
+        else pkgs;
+
       forAllSystems =
         f: nixpkgs.lib.genAttrs systems (system:
           let
             prismaPkgs = import nixpkgs-pinned { inherit system; };
           in
           f system
-            (import nixpkgs {
+            (assertNodeSatisfiesEngines (import nixpkgs {
               inherit system;
               overlays = [ (prismaOverlay prismaPkgs) ];
-            })
+            }))
             (import nixpkgs-unstable {
               inherit system;
               config.allowUnfreePredicate = pkg:
