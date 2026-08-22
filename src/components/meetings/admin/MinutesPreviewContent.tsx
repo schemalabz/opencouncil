@@ -419,7 +419,7 @@ function TOCTable({ subjects, useSequentialNumbers }: { subjects: MinutesSubject
                         <td className="py-1 pr-2 text-gray-500">
                             {subject.withdrawn
                                 ? getWithdrawnLabelGreek(subject)
-                                : (subject.decision?.protocolNumber ?? '')}
+                                : (subject.decision?.decisionNumber ?? '')}
                         </td>
                     </tr>
                 ))}
@@ -494,7 +494,7 @@ function formatMemberList(members: MinutesMember[]) {
 }
 
 function SubjectFooter({ subject }: { subject: MinutesSubject }) {
-    const hasFooter = subject.voteResult || subject.decision?.protocolNumber;
+    const hasFooter = subject.voteResult || subject.decision?.decisionNumber;
     if (!hasFooter) return null;
 
     return (
@@ -542,9 +542,9 @@ function SubjectFooter({ subject }: { subject: MinutesSubject }) {
             )}
 
             {/* Decision number (right-aligned) */}
-            {subject.decision?.protocolNumber && (
+            {subject.decision?.decisionNumber && (
                 <p className="text-right font-bold mt-2">
-                    Αρ. Απόφασης: {subject.decision.protocolNumber}
+                    Αρ. Απόφασης: {subject.decision.decisionNumber}
                 </p>
             )}
         </div>

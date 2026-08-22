@@ -251,6 +251,7 @@ export async function getMinutesData(
             } : null,
             discussedElsewhere,
             decision: s.decision ? {
+                decisionNumber: s.decision.decisionNumber ?? null,
                 protocolNumber: s.decision.protocolNumber,
                 excerpt: s.decision.excerpt ?? null,
                 references: s.decision.references ?? null,
