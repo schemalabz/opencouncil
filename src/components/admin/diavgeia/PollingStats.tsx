@@ -31,7 +31,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Search, Clock, Activity, CalendarClock, ArrowUpDown, ChevronDown, Eye, Copy, Check, ExternalLink, Loader2, AlertTriangle } from 'lucide-react';
-import { resolveAdaConflict } from '@/lib/tasks/pollDecisions';
+import { resolveCandidateConflict } from '@/lib/tasks/pollDecisions';
 import { useUrlParams } from '@/hooks/useUrlParams';
 import { formatRelativeTime } from '@/lib/formatters/time';
 
@@ -84,6 +84,7 @@ interface StillPollingMeeting {
 }
 
 interface AdaConflict {
+  candidateId: string;
   claimingSubject: {
     id: string;
     name: string;
@@ -291,7 +292,7 @@ function ConflictsSection({ conflicts }: { conflicts: AdaConflict[] }) {
     setResolvingAda(conflict.ada);
     setError(null);
     try {
-      await resolveAdaConflict(conflict.claimingSubject.id, resolution);
+      await resolveCandidateConflict(conflict.candidateId, resolution);
       updateParam('_t', String(Date.now()));
     } catch (err) {
       console.error('Failed to resolve conflict:', err);

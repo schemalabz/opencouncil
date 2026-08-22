@@ -11,6 +11,7 @@ export { getDecisionForSubject };
 import { withUserAuthorizedToEdit } from "../auth";
 import { getPeopleForMeeting } from "../db/people";
 import { deriveWindowDays, localCalendarDate } from "./decisionWindow";
+import { getConflictingCandidates, applyCandidateConflictResolution } from "../db/decisionCandidates";
 import { isRoleActiveAt, isMayorRole } from "../utils/roles";
 import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, BACKOFF_SCHEDULE, MAX_POLLING_DAYS, LOGODOSIA_NAME_PATTERN } from "./pollDecisionsBackoff";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "../discord";
@@ -546,67 +547,18 @@ export async function getPollingStats(cityId?: string, councilMeetingId?: string
         ])];
     }
 
-    // ADA conflicts: subjects with claimedAda set
-    const claimingSubjects = await prisma.subject.findMany({
-        where: {
-            claimedAda: { not: null },
-            ...(cityId && { cityId }),
-            ...(councilMeetingId && { councilMeetingId }),
-        },
-        select: {
-            id: true,
-            name: true,
-            cityId: true,
-            councilMeetingId: true,
-            claimedAda: true,
-        },
+    // ADA conflicts: unresolved candidates whose proposed subject collides with
+    // an ADA already held by another subject's Decision (issue #617 phase 4).
+    const candidateConflicts = await getConflictingCandidates({
+        ...(cityId && { cityId }),
+        ...(councilMeetingId && { councilMeetingId }),
     });
-
-    // Look up existing decisions for the claimed ADAs
-    const claimedAdas = claimingSubjects.map(s => s.claimedAda!);
-    const existingDecisionsForClaims = claimedAdas.length > 0
-        ? await prisma.decision.findMany({
-            where: { ada: { in: claimedAdas } },
-            select: {
-                ada: true,
-                title: true,
-                pdfUrl: true,
-                subjectId: true,
-                subject: {
-                    select: {
-                        id: true,
-                        name: true,
-                        cityId: true,
-                        councilMeetingId: true,
-                    },
-                },
-            },
-        })
-        : [];
-    const decisionByAda = new Map(existingDecisionsForClaims.map(d => [d.ada!, d]));
-
-    const conflicts = claimingSubjects.map(claiming => {
-        const existingDecision = decisionByAda.get(claiming.claimedAda!);
-        return {
-            claimingSubject: {
-                id: claiming.id,
-                name: claiming.name,
-                cityId: claiming.cityId,
-                councilMeetingId: claiming.councilMeetingId,
-            },
-            ada: claiming.claimedAda!,
-            existingDecision: existingDecision ? {
-                title: existingDecision.title,
-                pdfUrl: existingDecision.pdfUrl,
-                currentSubject: {
-                    id: existingDecision.subject.id,
-                    name: existingDecision.subject.name,
-                    cityId: existingDecision.subject.cityId,
-                    councilMeetingId: existingDecision.subject.councilMeetingId,
-                },
-            } : null,
-        };
-    });
+    const conflicts = candidateConflicts.map(c => ({
+        candidateId: c.candidateId,
+        claimingSubject: c.claimingSubject,
+        ada: c.ada,
+        existingDecision: c.existingDecision,
+    }));
 
     // Recent poll tasks for the "Recent Polls" table
     const recentPollTasks = await prisma.taskStatus.findMany({
@@ -831,87 +783,19 @@ export async function getLastPollTimeForMeeting(
     return lastTask?.createdAt.toISOString() ?? null;
 }
 
-export async function resolveAdaConflict(
-    subjectId: string,
+export async function resolveCandidateConflict(
+    candidateId: string,
     resolution: 'reassign' | 'dismiss',
 ) {
-    const subject = await prisma.subject.findUnique({
-        where: { id: subjectId },
-        select: { id: true, cityId: true, claimedAda: true },
+    const candidate = await prisma.decisionCandidate.findUnique({
+        where: { id: candidateId },
+        select: { cityId: true },
     });
-
-    if (!subject) {
-        throw new Error("Subject not found");
+    if (!candidate) {
+        throw new Error('Candidate not found');
     }
-
-    await withUserAuthorizedToEdit({ cityId: subject.cityId });
-
-    if (!subject.claimedAda) {
-        throw new Error("Subject has no claimed ADA");
-    }
-
-    if (resolution === 'dismiss') {
-        await prisma.subject.update({
-            where: { id: subjectId },
-            data: { claimedAda: null },
-        });
-        return;
-    }
-
-    // resolution === 'reassign'
-    await prisma.$transaction(async (tx) => {
-        // Re-read claimedAda inside the transaction to avoid using a stale value
-        const freshSubject = await tx.subject.findUnique({
-            where: { id: subjectId },
-            select: { claimedAda: true },
-        });
-
-        if (!freshSubject?.claimedAda) {
-            // Claim was resolved concurrently — nothing to do
-            return;
-        }
-
-        // Only move the decision if the claiming subject doesn't already have one
-        const existingOnClaiming = await tx.decision.findUnique({
-            where: { subjectId },
-        });
-
-        if (!existingOnClaiming) {
-            const existingDecision = await tx.decision.findUnique({
-                where: { ada: freshSubject.claimedAda },
-                include: { subject: { select: { cityId: true } } },
-            });
-
-            if (existingDecision) {
-                // Defensive: polls are per-city so cross-city conflicts shouldn't occur,
-                // but guard against it to prevent modifying another city's data.
-                if (existingDecision.subject.cityId !== subject.cityId) {
-                    throw new Error("Cannot reassign a decision that belongs to a different city");
-                }
-
-                // Delete existing decision to free ADA unique constraint, then recreate on claiming subject
-                await tx.decision.delete({ where: { id: existingDecision.id } });
-                await tx.decision.create({
-                    data: {
-                        subjectId,
-                        ada: existingDecision.ada,
-                        pdfUrl: existingDecision.pdfUrl,
-                        protocolNumber: existingDecision.protocolNumber,
-                        title: existingDecision.title,
-                        publishDate: existingDecision.publishDate,
-                        taskId: existingDecision.taskId,
-                        createdById: existingDecision.createdById,
-                    },
-                });
-            }
-        }
-
-        // Always clear the claim
-        await tx.subject.update({
-            where: { id: subjectId },
-            data: { claimedAda: null },
-        });
-    });
+    await withUserAuthorizedToEdit({ cityId: candidate.cityId });
+    await applyCandidateConflictResolution(candidateId, resolution);
 }
 
 /** Per-meeting entry in the batch completion summary. */
@@ -1122,10 +1006,25 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
             if (match.ada) {
                 const existingSubjectId = adaToExistingSubject.get(match.ada);
                 if (existingSubjectId && existingSubjectId !== match.subjectId) {
-                    // Record the claim on the incoming subject, skip the upsert
-                    await tx.subject.update({
-                        where: { id: match.subjectId },
-                        data: { claimedAda: match.ada },
+                    // Record the conflicting proposal as a candidate, skip the upsert
+                    await tx.decisionCandidate.upsert({
+                        where: { cityId_ada: { cityId: task.cityId, ada: match.ada } },
+                        create: {
+                            cityId: task.cityId,
+                            ada: match.ada,
+                            title: match.decisionTitle ?? null,
+                            pdfUrl: match.pdfUrl,
+                            publishDate: match.publishDate ? new Date(match.publishDate) : null,
+                            protocolNumber: match.protocolNumber ?? null,
+                            readStatus: 'unread',
+                            councilMeetingId: task.councilMeetingId,
+                            subjectId: match.subjectId,
+                            confidence: match.matchConfidence,
+                            reasoning: match.reasoning ?? null,
+                        },
+                        // Recorded once; the join to the holding Decision is what
+                        // surfaces the conflict in the admin views.
+                        update: {},
                     });
                     conflictCount++;
                     console.log(`ADA conflict: ${match.ada} already belongs to subject ${existingSubjectId}, claimed by subject ${match.subjectId}`);
@@ -1157,9 +1056,24 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
                 // Concurrent poll race: another transaction committed a decision with the same
                 // ADA between our conflict check and this upsert. Fall back to recording a claim.
                 if (match.ada && (e as { code?: string })?.code === 'P2002') {
-                    await tx.subject.update({
-                        where: { id: match.subjectId },
-                        data: { claimedAda: match.ada },
+                    await tx.decisionCandidate.upsert({
+                        where: { cityId_ada: { cityId: task.cityId, ada: match.ada } },
+                        create: {
+                            cityId: task.cityId,
+                            ada: match.ada,
+                            title: match.decisionTitle ?? null,
+                            pdfUrl: match.pdfUrl,
+                            publishDate: match.publishDate ? new Date(match.publishDate) : null,
+                            protocolNumber: match.protocolNumber ?? null,
+                            readStatus: 'unread',
+                            councilMeetingId: task.councilMeetingId,
+                            subjectId: match.subjectId,
+                            confidence: match.matchConfidence,
+                            reasoning: match.reasoning ?? null,
+                        },
+                        // Recorded once; the join to the holding Decision is what
+                        // surfaces the conflict in the admin views.
+                        update: {},
                     });
                     conflictCount++;
                     console.log(`ADA conflict (concurrent): ${match.ada} claimed by subject ${match.subjectId}`);
@@ -1167,12 +1081,6 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
                 }
                 throw e;
             }
-
-            // Clear any stale conflict claim now that this subject has a valid decision
-            await tx.subject.updateMany({
-                where: { id: match.subjectId, claimedAda: { not: null } },
-                data: { claimedAda: null },
-            });
 
             processedCount++;
 

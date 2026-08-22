@@ -5,7 +5,7 @@ jest.mock('@/lib/tasks/generateHighlight', () => ({
     handleGenerateHighlightResult: jest.fn(),
 }))
 
-// Mock auth for resolveAdaConflict tests
+// Mock auth for resolveCandidateConflict tests
 jest.mock('@/lib/auth', () => ({
     withUserAuthorizedToEdit: jest.fn(),
     isUserAuthorizedToEdit: jest.fn().mockResolvedValue(true),
@@ -14,7 +14,7 @@ jest.mock('@/lib/auth', () => ({
 import prisma from '@/lib/db/prisma'
 import { handleProcessAgendaResult } from '@/lib/tasks/processAgenda'
 import { handleSummarizeResult } from '@/lib/tasks/summarize'
-import { handlePollDecisionsResult, resolveAdaConflict } from '@/lib/tasks/pollDecisions'
+import { handlePollDecisionsResult, resolveCandidateConflict } from '@/lib/tasks/pollDecisions'
 import { resetDatabase } from '../helpers/test-db'
 import {
     createAdministrativeBody,
@@ -683,14 +683,12 @@ describe('handlePollDecisionsResult', () => {
         expect(decisions[1].ada).toBe('ADA-2')
         expect(decisions[1].subjectId).toBe(subjectB.id)
 
-        // No claimedAda set
-        const subjects = await prisma.subject.findMany({
-            where: { claimedAda: { not: null } },
-        })
-        expect(subjects).toHaveLength(0)
+        // No conflicting candidates recorded
+        const candidates = await prisma.decisionCandidate.findMany()
+        expect(candidates).toHaveLength(0)
     })
 
-    test('ADA conflict detected — claim set, other matches still saved', async () => {
+    test('ADA conflict detected — conflicting candidate recorded, other matches still saved', async () => {
         // Meeting 1 subject already has a decision with ADA-X
         const subjectA = await createSubject(meetingId1, cityId, { name: 'Subject A', agendaItemIndex: 1 })
         await prisma.decision.create({
@@ -709,15 +707,18 @@ describe('handlePollDecisionsResult', () => {
             ],
         }))
 
-        // SubjectB should have claimedAda set, no decision created
-        const updatedB = await prisma.subject.findUnique({ where: { id: subjectB.id } })
-        expect(updatedB!.claimedAda).toBe('ADA-X')
+        // The conflicting proposal is recorded as an unresolved candidate; no decision created
+        const candidateB = await prisma.decisionCandidate.findUnique({ where: { cityId_ada: { cityId, ada: 'ADA-X' } } })
+        expect(candidateB).not.toBeNull()
+        expect(candidateB!.subjectId).toBe(subjectB.id)
+        expect(candidateB!.decisionId).toBeNull()
+        expect(candidateB!.dismissedAt).toBeNull()
         const decisionB = await prisma.decision.findUnique({ where: { subjectId: subjectB.id } })
         expect(decisionB).toBeNull()
 
-        // SubjectC should have a normal decision, no claimedAda
-        const updatedC = await prisma.subject.findUnique({ where: { id: subjectC.id } })
-        expect(updatedC!.claimedAda).toBeNull()
+        // SubjectC should have a normal decision, no candidate recorded for it
+        const candidateY = await prisma.decisionCandidate.findUnique({ where: { cityId_ada: { cityId, ada: 'ADA-Y' } } })
+        expect(candidateY).toBeNull()
         const decisionC = await prisma.decision.findUnique({ where: { subjectId: subjectC.id } })
         expect(decisionC).not.toBeNull()
         expect(decisionC!.ada).toBe('ADA-Y')
@@ -753,12 +754,11 @@ describe('handlePollDecisionsResult', () => {
         expect(decision!.ada).toBe('ADA-X')
         expect(decision!.pdfUrl).toBe('https://example.com/new.pdf')
 
-        // No claimedAda set
-        const subject = await prisma.subject.findUnique({ where: { id: subjectA.id } })
-        expect(subject!.claimedAda).toBeNull()
+        // No conflicting candidates recorded
+        expect(await prisma.decisionCandidate.count()).toBe(0)
     })
 
-    test('multiple conflicts in one poll — both get claimedAda, non-conflicting matches saved', async () => {
+    test('multiple conflicts in one poll — both recorded as candidates, non-conflicting matches saved', async () => {
         // Existing decisions in meeting 1
         const subjectA = await createSubject(meetingId1, cityId, { name: 'Subject A', agendaItemIndex: 1 })
         const subjectB = await createSubject(meetingId1, cityId, { name: 'Subject B', agendaItemIndex: 2 })
@@ -783,11 +783,11 @@ describe('handlePollDecisionsResult', () => {
             ],
         }))
 
-        // SubjectC and SubjectD should have claimedAda
-        const updatedC = await prisma.subject.findUnique({ where: { id: subjectC.id } })
-        expect(updatedC!.claimedAda).toBe('ADA-X')
-        const updatedD = await prisma.subject.findUnique({ where: { id: subjectD.id } })
-        expect(updatedD!.claimedAda).toBe('ADA-Y')
+        // Both conflicting proposals recorded as unresolved candidates
+        const candX = await prisma.decisionCandidate.findUnique({ where: { cityId_ada: { cityId, ada: 'ADA-X' } } })
+        expect(candX!.subjectId).toBe(subjectC.id)
+        const candY = await prisma.decisionCandidate.findUnique({ where: { cityId_ada: { cityId, ada: 'ADA-Y' } } })
+        expect(candY!.subjectId).toBe(subjectD.id)
 
         // SubjectE should have a normal decision
         const decisionE = await prisma.decision.findUnique({ where: { subjectId: subjectE.id } })
@@ -801,23 +801,20 @@ describe('handlePollDecisionsResult', () => {
         expect(decisionD).toBeNull()
     })
 
-    test('subsequent poll overwrites prior unresolved claimedAda', async () => {
+    test('subsequent poll records an additional conflicting candidate; both persist', async () => {
         // SubjectA in meeting 1 already owns ADA-X
         const subjectA = await createSubject(meetingId1, cityId, { name: 'Subject A', agendaItemIndex: 1 })
         await prisma.decision.create({
             data: { subjectId: subjectA.id, ada: 'ADA-X', pdfUrl: 'https://example.com/x.pdf' },
         })
 
-        // SubjectB in meeting 2 — first poll claims ADA-X
+        // SubjectB in meeting 2 — first poll proposes ADA-X (conflict)
         const subjectB = await createSubject(meetingId2, cityId, { name: 'Subject B', agendaItemIndex: 1 })
         const task1 = await createTaskStatus(meetingId2, cityId, { type: 'pollDecisions' })
 
         await handlePollDecisionsResult(task1.id, makePollDecisionsResult({
             matches: [makePollDecisionsMatch({ subjectId: subjectB.id, ada: 'ADA-X' })],
         }))
-
-        const afterPoll1 = await prisma.subject.findUnique({ where: { id: subjectB.id } })
-        expect(afterPoll1!.claimedAda).toBe('ADA-X')
 
         // Second poll — same subject now matches ADA-Y (also owned by someone else)
         const subjectC = await createSubject(meetingId1, cityId, { name: 'Subject C', agendaItemIndex: 2 })
@@ -831,38 +828,47 @@ describe('handlePollDecisionsResult', () => {
             matches: [makePollDecisionsMatch({ subjectId: subjectB.id, ada: 'ADA-Y' })],
         }))
 
-        // claimedAda is overwritten — only the latest claim is preserved
-        const afterPoll2 = await prisma.subject.findUnique({ where: { id: subjectB.id } })
-        expect(afterPoll2!.claimedAda).toBe('ADA-Y')
+        // Candidates persist as the record of every proposal — one per ADA
+        const candidates = await prisma.decisionCandidate.findMany({ orderBy: { ada: 'asc' } })
+        expect(candidates).toHaveLength(2)
+        expect(candidates[0].ada).toBe('ADA-X')
+        expect(candidates[0].subjectId).toBe(subjectB.id)
+        expect(candidates[1].ada).toBe('ADA-Y')
+        expect(candidates[1].subjectId).toBe(subjectB.id)
     })
 
-    test('successful upsert clears stale claimedAda', async () => {
-        // SubjectA owns ADA-X, SubjectB previously claimed it
+    test('a decision on the claiming subject makes its old claim a stale non-conflict', async () => {
+        const { getConflictingCandidates } = await import('@/lib/db/decisionCandidates')
+        // SubjectA owns ADA-X; SubjectB has an unresolved candidate claiming it
         const subjectA = await createSubject(meetingId1, cityId, { name: 'Subject A', agendaItemIndex: 1 })
         await prisma.decision.create({
             data: { subjectId: subjectA.id, ada: 'ADA-X', pdfUrl: 'https://example.com/x.pdf' },
         })
         const subjectB = await createSubject(meetingId2, cityId, { name: 'Subject B', agendaItemIndex: 1 })
-        await prisma.subject.update({ where: { id: subjectB.id }, data: { claimedAda: 'ADA-X' } })
+        await prisma.decisionCandidate.create({
+            data: {
+                cityId, ada: 'ADA-X', pdfUrl: 'https://example.com/x.pdf',
+                readStatus: 'unread', councilMeetingId: meetingId2, subjectId: subjectB.id,
+            },
+        })
+        expect(await getConflictingCandidates({ cityId })).toHaveLength(1)
 
         // New poll gives subjectB a different, non-conflicting ADA
         const task = await createTaskStatus(meetingId2, cityId, { type: 'pollDecisions' })
-
         await handlePollDecisionsResult(task.id, makePollDecisionsResult({
             matches: [makePollDecisionsMatch({ subjectId: subjectB.id, ada: 'ADA-NEW' })],
         }))
 
-        // Decision created and stale claimedAda cleared
+        // Decision created; the old claim stays recorded but is no longer an
+        // actionable conflict (the claiming subject has its own decision now)
         const decision = await prisma.decision.findUnique({ where: { subjectId: subjectB.id } })
-        expect(decision).not.toBeNull()
         expect(decision!.ada).toBe('ADA-NEW')
-
-        const updated = await prisma.subject.findUnique({ where: { id: subjectB.id } })
-        expect(updated!.claimedAda).toBeNull()
+        expect(await prisma.decisionCandidate.count()).toBe(1)
+        expect(await getConflictingCandidates({ cityId })).toHaveLength(0)
     })
 })
 
-describe('resolveAdaConflict', () => {
+describe('resolveCandidateConflict', () => {
     let cityId: string
     let meetingId1: string
     let meetingId2: string
@@ -881,32 +887,40 @@ describe('resolveAdaConflict', () => {
         meetingId2 = meeting2.id
     })
 
-    test('dismiss — clears claimedAda without moving the decision', async () => {
+    async function createClaim(ada: string, subjectId: string, extra: Record<string, unknown> = {}) {
+        return prisma.decisionCandidate.create({
+            data: {
+                cityId, ada,
+                pdfUrl: `https://diavgeia.gov.gr/doc/${ada}`,
+                readStatus: 'unread',
+                councilMeetingId: meetingId2,
+                subjectId,
+                ...extra,
+            },
+        })
+    }
+
+    test('dismiss — marks the candidate dismissed without moving the decision', async () => {
         const subjectA = await createSubject(meetingId1, cityId, { name: 'Subject A', agendaItemIndex: 1 })
         await prisma.decision.create({
             data: { subjectId: subjectA.id, ada: 'ADA-X', pdfUrl: 'https://example.com/x.pdf', title: 'Original' },
         })
-
         const subjectB = await createSubject(meetingId2, cityId, { name: 'Subject B', agendaItemIndex: 1 })
-        await prisma.subject.update({ where: { id: subjectB.id }, data: { claimedAda: 'ADA-X' } })
+        const claim = await createClaim('ADA-X', subjectB.id)
 
-        await resolveAdaConflict(subjectB.id, 'dismiss')
+        await resolveCandidateConflict(claim.id, 'dismiss')
 
-        // claimedAda cleared
-        const updatedB = await prisma.subject.findUnique({ where: { id: subjectB.id } })
-        expect(updatedB!.claimedAda).toBeNull()
+        const updated = await prisma.decisionCandidate.findUnique({ where: { id: claim.id } })
+        expect(updated!.dismissedAt).not.toBeNull()
+        expect(updated!.decisionId).toBeNull()
 
-        // Original decision untouched
+        // Original decision untouched, no decision on claiming subject
         const decisionA = await prisma.decision.findUnique({ where: { subjectId: subjectA.id } })
-        expect(decisionA).not.toBeNull()
         expect(decisionA!.ada).toBe('ADA-X')
-
-        // No decision on claiming subject
-        const decisionB = await prisma.decision.findUnique({ where: { subjectId: subjectB.id } })
-        expect(decisionB).toBeNull()
+        expect(await prisma.decision.findUnique({ where: { subjectId: subjectB.id } })).toBeNull()
     })
 
-    test('reassign — moves decision to the claiming subject', async () => {
+    test('reassign — moves the decision to the claiming subject and links the candidate', async () => {
         const subjectA = await createSubject(meetingId1, cityId, { name: 'Subject A', agendaItemIndex: 1 })
         await prisma.decision.create({
             data: {
@@ -917,43 +931,44 @@ describe('resolveAdaConflict', () => {
                 protocolNumber: '42/2025',
             },
         })
-
         const subjectB = await createSubject(meetingId2, cityId, { name: 'Subject B', agendaItemIndex: 1 })
-        await prisma.subject.update({ where: { id: subjectB.id }, data: { claimedAda: 'ADA-X' } })
+        const claim = await createClaim('ADA-X', subjectB.id, { decisionNumber: '17/2025' })
 
-        await resolveAdaConflict(subjectB.id, 'reassign')
+        await resolveCandidateConflict(claim.id, 'reassign')
 
-        // claimedAda cleared
-        const updatedB = await prisma.subject.findUnique({ where: { id: subjectB.id } })
-        expect(updatedB!.claimedAda).toBeNull()
-
-        // Decision moved to subjectB
+        // Decision moved to subjectB, enriched with the candidate's reading
         const decisionB = await prisma.decision.findUnique({ where: { subjectId: subjectB.id } })
         expect(decisionB).not.toBeNull()
         expect(decisionB!.ada).toBe('ADA-X')
         expect(decisionB!.pdfUrl).toBe('https://example.com/x.pdf')
         expect(decisionB!.title).toBe('Original Title')
         expect(decisionB!.protocolNumber).toBe('42/2025')
+        expect(decisionB!.decisionNumber).toBe('17/2025')
 
-        // No decision on original subject
-        const decisionA = await prisma.decision.findUnique({ where: { subjectId: subjectA.id } })
-        expect(decisionA).toBeNull()
+        // No decision on original subject; candidate linked to the moved decision
+        expect(await prisma.decision.findUnique({ where: { subjectId: subjectA.id } })).toBeNull()
+        const updated = await prisma.decisionCandidate.findUnique({ where: { id: claim.id } })
+        expect(updated!.decisionId).toBe(decisionB!.id)
     })
 
-    test('reassign — when existing decision was deleted, just clears claim', async () => {
+    test('reassign — when the holding decision was deleted, completes the assignment from candidate data', async () => {
+        // Semantics change vs claimedAda (2026-08-14): the old claim carried no
+        // document data, so a vanished holder could only clear the claim. A
+        // candidate carries everything needed, so admin intent is honoured by
+        // creating the decision.
         const subjectB = await createSubject(meetingId2, cityId, { name: 'Subject B', agendaItemIndex: 1 })
-        await prisma.subject.update({ where: { id: subjectB.id }, data: { claimedAda: 'ADA-X' } })
+        const claim = await createClaim('ADA-X', subjectB.id, { title: 'From candidate', decisionNumber: '9/2025' })
 
-        // No decision with ADA-X exists (it was deleted)
-        await resolveAdaConflict(subjectB.id, 'reassign')
+        await resolveCandidateConflict(claim.id, 'reassign')
 
-        // claimedAda cleared
-        const updatedB = await prisma.subject.findUnique({ where: { id: subjectB.id } })
-        expect(updatedB!.claimedAda).toBeNull()
-
-        // No decision created
         const decisionB = await prisma.decision.findUnique({ where: { subjectId: subjectB.id } })
-        expect(decisionB).toBeNull()
+        expect(decisionB).not.toBeNull()
+        expect(decisionB!.ada).toBe('ADA-X')
+        expect(decisionB!.title).toBe('From candidate')
+        expect(decisionB!.decisionNumber).toBe('9/2025')
+
+        const updated = await prisma.decisionCandidate.findUnique({ where: { id: claim.id } })
+        expect(updated!.decisionId).toBe(decisionB!.id)
     })
 
     test('reassign — when claiming subject already has a decision, dismisses instead', async () => {
@@ -961,27 +976,20 @@ describe('resolveAdaConflict', () => {
         await prisma.decision.create({
             data: { subjectId: subjectA.id, ada: 'ADA-X', pdfUrl: 'https://example.com/x.pdf' },
         })
-
         const subjectB = await createSubject(meetingId2, cityId, { name: 'Subject B', agendaItemIndex: 1 })
-        // SubjectB already has its own decision
         await prisma.decision.create({
             data: { subjectId: subjectB.id, ada: 'ADA-Y', pdfUrl: 'https://example.com/y.pdf' },
         })
-        await prisma.subject.update({ where: { id: subjectB.id }, data: { claimedAda: 'ADA-X' } })
+        const claim = await createClaim('ADA-X', subjectB.id)
 
-        await resolveAdaConflict(subjectB.id, 'reassign')
+        await resolveCandidateConflict(claim.id, 'reassign')
 
-        // claimedAda cleared
-        const updatedB = await prisma.subject.findUnique({ where: { id: subjectB.id } })
-        expect(updatedB!.claimedAda).toBeNull()
+        const updated = await prisma.decisionCandidate.findUnique({ where: { id: claim.id } })
+        expect(updated!.dismissedAt).not.toBeNull()
 
-        // SubjectB keeps its original decision (ADA-Y)
-        const decisionB = await prisma.decision.findUnique({ where: { subjectId: subjectB.id } })
-        expect(decisionB!.ada).toBe('ADA-Y')
-
-        // SubjectA keeps its decision (ADA-X) — not moved
-        const decisionA = await prisma.decision.findUnique({ where: { subjectId: subjectA.id } })
-        expect(decisionA!.ada).toBe('ADA-X')
+        // Both decisions unchanged
+        expect((await prisma.decision.findUnique({ where: { subjectId: subjectB.id } }))!.ada).toBe('ADA-Y')
+        expect((await prisma.decision.findUnique({ where: { subjectId: subjectA.id } }))!.ada).toBe('ADA-X')
     })
 })
 
