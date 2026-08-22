@@ -28,6 +28,50 @@ export async function fetchCities(): Promise<CityOption[]> {
   return parsed.data.map((c) => ({ id: c.id, name: c.name, logoImage: c.logoImage ?? null }));
 }
 
+const realUserSchema = z.object({
+  userId: z.string(),
+  name: z.string().nullable(),
+  phone: z.string().nullable(),
+  notisEnabledAt: z.string().nullable(),
+  cities: z.array(
+    z.object({
+      cityId: z.string(),
+      cityName: z.string(),
+      topics: z.array(z.string()),
+      // Coordinates are geometry centroids from the fanout view; null when
+      // the source row predates the coordinate columns.
+      locations: z.array(
+        z.object({
+          text: z.string(),
+          lng: z.number().nullable(),
+          lat: z.number().nullable(),
+        }),
+      ),
+    }),
+  ),
+});
+
+const realUsersResponseSchema = z.object({
+  available: z.boolean(),
+  users: z.array(realUserSchema),
+});
+
+export type RealUser = z.infer<typeof realUserSchema>;
+
+/**
+ * Real users from the notis_fanout_targets view, for "select a real user".
+ * available:false means the deployment has no MAIN_DATABASE_URL — the wizard
+ * hides the mode entirely.
+ */
+export async function fetchRealUsers(q = ""): Promise<{ available: boolean; users: RealUser[] }> {
+  const res = await fetch(`/api/admin/real-users${q ? `?q=${encodeURIComponent(q)}` : ""}`);
+  if (!res.ok) throw new Error(`real-users failed: ${res.status}`);
+  const parsed = realUsersResponseSchema.safeParse(await res.json());
+  if (!parsed.success)
+    throw new Error(`real-users: unexpected response shape (${parsed.error.issues[0]?.message})`);
+  return parsed.data;
+}
+
 const topicSchema = z.object({ id: z.string(), name: z.string() });
 
 export type TopicOption = z.infer<typeof topicSchema>;

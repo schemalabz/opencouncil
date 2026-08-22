@@ -4,6 +4,7 @@ import { applyOutcome, runWake } from "@/agent/runWake";
 import { effortSchema, wakeEventSchema, wakeStateSchema } from "@/agent/schemas";
 import { errorResponse, parseJsonBody } from "@/lib/api";
 import { buildDeps } from "@/lib/deps";
+import { requireAdmin } from "@/lib/session-auth";
 
 export const maxDuration = 120;
 
@@ -24,6 +25,9 @@ const requestSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const { data, error } = await parseJsonBody(request, requestSchema);
   if (error) return error;
 

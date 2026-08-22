@@ -80,8 +80,12 @@ export default function SettingsPage() {
                 value={<EnvBadge present={Boolean(process.env.ANTHROPIC_API_KEY)} />}
               />
               <Row
-                label="NOTIS_ADMIN_SECRET"
-                value={<EnvBadge present={Boolean(process.env.NOTIS_ADMIN_SECRET)} />}
+                label="NOTIS_DATABASE_URL"
+                value={<EnvBadge present={Boolean(process.env.NOTIS_DATABASE_URL)} />}
+              />
+              <Row
+                label="MAIN_DATABASE_URL"
+                value={<EnvBadge present={Boolean(process.env.MAIN_DATABASE_URL)} />}
               />
               <Row
                 label="NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN"

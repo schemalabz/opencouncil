@@ -4,6 +4,8 @@ import { TEST_USERS } from '@/lib/dev/test-users'
 import { DEV_TOOLS_ALLOWED } from '@/lib/deployment'
 import { env } from '@/env.mjs'
 import { createUser } from '@/lib/db/users'
+import { createLocation } from '@/lib/db/location'
+import { getCityCentroid } from '@/lib/db/cities'
 
 const DEV_TEST_CITY_ID = env.DEV_TEST_CITY_ID
 
@@ -37,6 +39,72 @@ export async function POST(request: NextRequest) {
       select: { id: true, name: true }
     })
 
+    // A couple of topics make the test users show up with interests in the
+    // notis fanout view and the playground's real-user picker.
+    const testTopics = await prisma.topic.findMany({ take: 2, select: { id: true } })
+
+    // Pinned locations near a city's centroid (Athens fallback when the city
+    // has no geometry), through the shared src/lib/db helpers so the SQL
+    // lives in one place.
+    async function ensureLocation(id: string, text: string, cityId: string, offset: number) {
+      const centroid = await getCityCentroid(cityId)
+      await createLocation({
+        id,
+        skipIfExists: true,
+        text,
+        coordinates: [(centroid?.lng ?? 23.7275) + offset, (centroid?.lat ?? 37.9838) + offset]
+      })
+      return id
+    }
+
+    // Every test user gets a fake phone and a phone-enabled notification
+    // preference, so the Notis release panel counts them as eligible and the
+    // playground can mirror them. Re-runs upgrade users from earlier seeds —
+    // including notifyByPhone, which eligibility requires.
+    async function ensurePreference(userId: string, cityId: string, locationIds: string[]) {
+      const data = {
+        notifyByPhone: true,
+        interests: { connect: testTopics.map(t => ({ id: t.id })) },
+        locations: { connect: locationIds.map(id => ({ id })) }
+      }
+      await prisma.notificationPreference.upsert({
+        where: { userId_cityId: { userId, cityId } },
+        update: data,
+        create: { userId, cityId, notifyByEmail: true, ...data }
+      })
+    }
+
+    async function ensureNotisFixtures(userId: string, testUser: (typeof TEST_USERS)[number]) {
+      await prisma.user.update({ where: { id: userId }, data: { phone: testUser.phone } })
+
+      // Superadmin and readonly carry pinned locations, so the picker and the
+      // seeded profile exercise the locations path; the others stay topic-only.
+      const withLocations = testUser.adminType === 'superadmin' || testUser.adminType === 'readonly'
+      const locationIds = withLocations
+        ? [
+            await ensureLocation('ntest-loc-1', 'Κεντρική Πλατεία', DEV_TEST_CITY_ID, 0.003),
+            await ensureLocation('ntest-loc-2', 'Δημοτικό Στάδιο', DEV_TEST_CITY_ID, -0.004),
+          ]
+        : []
+      await ensurePreference(userId, DEV_TEST_CITY_ID, locationIds)
+
+      // The superadmin also follows a second municipality, so the multi-city
+      // wake path (one shared budget across cities) is testable.
+      if (testUser.adminType === 'superadmin') {
+        const secondCity = await prisma.city.findFirst({
+          where: {
+            id: { not: DEV_TEST_CITY_ID },
+            councilMeetings: { some: { released: true } }
+          },
+          select: { id: true }
+        })
+        if (secondCity) {
+          const loc = await ensureLocation('ntest-loc-3', 'Δημαρχείο', secondCity.id, 0.002)
+          await ensurePreference(userId, secondCity.id, [loc])
+        }
+      }
+    }
+
     const createdUsers = []
     const skippedUsers = []
 
@@ -47,6 +115,8 @@ export async function POST(request: NextRequest) {
       })
 
       if (existingUser) {
+        // Upgrade users from earlier seeds that predate the notis fixtures.
+        await ensureNotisFixtures(existingUser.id, testUser)
         skippedUsers.push({
           email: testUser.email,
           name: testUser.name,
@@ -97,6 +167,7 @@ export async function POST(request: NextRequest) {
         administers
       }, { skipAuthCheck: true })
 
+      await ensureNotisFixtures(newUser.id, testUser)
 
       createdUsers.push({
         email: newUser.email,

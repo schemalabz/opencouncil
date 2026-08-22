@@ -2,7 +2,7 @@ import NextAuth, { DefaultSession } from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import prisma from "@/lib/db/prisma"
 import authConfig from "@/auth.config"
-import { isRealmApexHost } from "@/lib/realm"
+import { isTrustedExternalRedirect } from "@/lib/auth/trustedRedirect"
 
 declare module "next-auth" {
     interface Session {
@@ -32,15 +32,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
          * Deliberately narrower than `isKnownRealmHost`, which also matches every
          * subdomain: `data.opencouncil.gr` is the Spaces bucket, and letting our own
          * auth endpoint redirect to attacker-uploaded content there would be an open
-         * redirect with our name on it. Production apexes over https only —
+         * redirect with our name on it. The allowlist (production apexes and the
+         * Notis admin hosts, https only) lives in isTrustedExternalRedirect —
          * previews and localhost still work, via the same-origin branch.
          */
         redirect({ url, baseUrl }) {
             if (url.startsWith('/')) return `${baseUrl}${url}`;
             try {
-                const { origin, host, protocol } = new URL(url);
+                const { origin } = new URL(url);
                 if (origin === baseUrl) return url;
-                if (protocol === 'https:' && isRealmApexHost(host)) return url;
+                if (isTrustedExternalRedirect(url)) return url;
             } catch {
                 // malformed URL — fall through to the safe default
             }

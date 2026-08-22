@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     // Otherwise, return meeting-grouped notifications
     const cityId = searchParams.get('cityId') || undefined;
-    const status = searchParams.get('status') as 'pending' | 'sent' | 'failed' | undefined;
+    const status = searchParams.get('status') as 'pending' | 'sent' | 'failed' | 'skipped' | undefined;
     const type = searchParams.get('type') as 'beforeMeeting' | 'afterMeeting' | undefined;
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('pageSize') || '20');

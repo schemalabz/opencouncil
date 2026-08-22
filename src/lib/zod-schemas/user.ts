@@ -4,7 +4,9 @@ import { z } from 'zod';
 
 const profileFields = {
     name: z.string().trim().min(1, "Name cannot be empty").nullable(),
-    phone: z.string().nullable(),
+    // Null means "no phone"; an empty string is the same thing wearing a
+    // different type, and it reads as a phone to every IS NOT NULL query.
+    phone: z.string().trim().min(1, "Phone cannot be empty").nullable(),
     allowProductUpdates: z.boolean(),
     allowPetitionUpdates: z.boolean(),
     allowFeedbackCalls: z.boolean(),

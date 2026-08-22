@@ -2,7 +2,7 @@ import { Activity, Euro, MessagesSquare, Users } from "lucide-react";
 import { StatsCard } from "@opencouncil/ui/stats-card";
 import { PageHeader } from "./_components/PageHeader";
 import { fmtInt } from "./_lib/format";
-import { LIVE_DATA, getPanelMetrics } from "./_lib/metrics";
+import { getPanelMetrics, liveData } from "./_lib/metrics";
 
 export const metadata = { title: "Νότης · admin" };
 
@@ -23,15 +23,15 @@ function EmptyPanel({ title, hint }: { title: string; hint: string }) {
   );
 }
 
-export default function DashboardPage() {
-  const m = getPanelMetrics();
+export default async function DashboardPage() {
+  const m = await getPanelMetrics();
   const silenceRate =
     m.wakes.total > 0 ? `${Math.round((m.wakes.silences / m.wakes.total) * 100)}%` : "—";
 
   return (
     <>
       <PageHeader title="Επισκόπηση">
-        {!LIVE_DATA && (
+        {!liveData() && (
           <span className="self-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
             χωρίς βάση · μηδενικά
           </span>

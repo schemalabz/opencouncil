@@ -7,6 +7,7 @@ import { REALMS, REALM_OVERRIDE_COOKIE, isRealm, isRealmApexHost, realmForHost, 
 import { LOCALE_PREFIX_RE, SERBIAN_SCRIPT_COOKIE, foreignLocaleRedirectPath, serbianScriptAdoption, serbianScriptParamTarget, serbianScriptRedirectPath, wwwRedirectTarget } from './lib/seo-redirects';
 import { isSerbianScript } from './lib/serbian/transliterate';
 import { mcpRewriteTarget } from './lib/mcp/rewrite';
+import { applySessionMirror } from './lib/auth/sessionMirror';
 
 const i18nMiddleware = createIntlMiddleware(routing);
 
@@ -24,6 +25,11 @@ const APP_PATH = /^\/(?!api|_next|_vercel|qr\/|\..+).*/;
 
 
 export default async function proxy(req: NextRequest) {
+    return applySessionMirror(req, await proxyInner(req));
+}
+
+
+async function proxyInner(req: NextRequest): Promise<Response | undefined> {
     // Basic auth check
     if (!isHttpBasicAuthAuthenticated(req)) {
         return new NextResponse('Authentication required', {
@@ -201,7 +207,9 @@ export default async function proxy(req: NextRequest) {
         }
     }
 
-    return auth(req as any);
+    // NextAuth's typings do not model this direct-request call form; at
+    // runtime it returns a Response (or undefined to continue).
+    return (await auth(req as any)) as unknown as Response | undefined;
 }
 
 export const config = {
@@ -210,6 +218,19 @@ export const config = {
     // basic auth and i18n routing, or events get swallowed by locale 404s.
     matcher: ['/((?!api|ingest|_next|_vercel|.*\\..*).*)'],
 };
+
+/*
+ * Session-mirror note: the Notis admin (notis.opencouncil.gr) authenticates
+ * with a domain-scoped mirror cookie rather than a Domain on the Auth.js
+ * session cookie itself — this app serves several realm domains
+ * (opencouncil.gr/.fr/.rs) from one deployment, Auth.js cookie config is
+ * static, and a browser rejects a Set-Cookie whose Domain does not match the
+ * request host. The mirror carries a SHA-256 of the token (no replayable
+ * authority on subdomain hosts); construction and the authoritative set/clear
+ * on the Auth.js route live in src/lib/auth/sessionMirror.ts. The
+ * applySessionMirror call above is the page-navigation refresher for sessions
+ * that predate a deploy.
+ */
 
 function isHttpBasicAuthAuthenticated(req: Request) {
     if (!env.BASIC_AUTH_USERNAME || !env.BASIC_AUTH_PASSWORD) {

@@ -1,0 +1,248 @@
+// The Notis service's own database: subscriptions, wakes, messages, journal,
+// queue. userId references the main database by id only — no cross-database
+// foreign keys. Rollout state (User.notisEnabledAt) lives in the main
+// database; Notis reads it through the notis_* views (see main-views.prisma).
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("NOTIS_DATABASE_URL")
+}
+
+// Two states only, and THIS COLUMN IS THE TRUTH — there is no second copy.
+// "Phone removed" is an unsubscribe, not a separate pause. ΣΤΟΠ and the
+// agent's unsubscribe tool write this column directly; the main app's
+// profile checkbox displays it and toggles it through an authenticated
+// notis API (PR 5) — the main app is a client of this state, never an
+// owner. The poller only refreshes phones and unsubscribes when a phone
+// is gone (PR 4); it never re-activates anyone.
+enum SubscriptionStatus {
+  active
+  unsubscribed
+}
+
+// How the subscription came to exist. `inbound` arrives with PR 3.
+enum SubscriptionOrigin {
+  transition
+  signup
+}
+
+model NotisSubscription {
+  id     String @id @default(cuid())
+  // Main-database User.id. One subscription per user, spanning all cities.
+  userId String @unique
+  phone  String?
+
+  status SubscriptionStatus @default(active)
+  origin SubscriptionOrigin
+  // Only a user action moves a row into or out of `unsubscribed`:
+  // ΣΤΟΠ, the agent's unsubscribe tool, or the profile checkbox.
+  unsubscribedAt DateTime?
+
+  // The agent-maintained free-text profile. Seeded once from notification
+  // preferences at enrollment, rewritten wholesale by update_taste_profile.
+  profileText String
+
+  userName String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  wakes          NotisWake[]
+  messages       NotisMessage[]
+  journalEntries NotisJournalEntry[]
+  scheduledWakes NotisScheduledWake[]
+  queueItems     NotisWakeQueue[]
+
+  @@index([status])
+}
+
+enum WakeDecision {
+  send
+  silence
+  error
+}
+
+model NotisWake {
+  id             String            @id @default(cuid())
+  subscription   NotisSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String
+
+  // WakeEvent type (agenda_processed, meeting_summarized, user_message,
+  // scheduled, heartbeat) — the world's timeline lives in eventAt.
+  eventType String
+  eventAt   DateTime
+  event     Json
+
+  decision  WakeDecision
+  rationale String
+  // The full WakeOutcome, verbatim — the admin conversation viewer replays
+  // it into a WakeRecord without reassembly. The scalar columns beside it
+  // (decision, rationale, repairs, ...) exist for querying and metrics.
+  outcome Json
+  // How the messages went out; template name only when mode is template.
+  deliveryMode     MessageDeliveryMode?
+  deliveryTemplate String?
+  // Repair nudges that fired; empty = healthy wake.
+  repairs           String[] @default([])
+  truncated         Boolean  @default(false)
+  finishWakeMissing Boolean  @default(false)
+
+  model            String
+  inputTokens      Int   @default(0)
+  outputTokens     Int   @default(0)
+  cacheReadTokens  Int   @default(0)
+  cacheWriteTokens Int   @default(0)
+  // The 1h-TTL share of cacheWriteTokens (bills at 2×); null = unknown split.
+  cacheWrite1hTokens Int?
+  costUsd    Float
+  durationMs Int
+  // Full WakeTrace for the admin conversation inspector.
+  trace Json
+
+  createdAt DateTime @default(now())
+
+  messages NotisMessage[]
+
+  @@index([subscriptionId, createdAt])
+  @@index([createdAt])
+}
+
+enum MessageDirection {
+  inbound
+  outbound
+}
+
+enum MessageDeliveryMode {
+  template
+  freeform
+}
+
+enum MessageStatus {
+  pending
+  sent
+  delivered
+  read
+  failed
+}
+
+model NotisMessage {
+  id             String            @id @default(cuid())
+  subscription   NotisSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String
+  wake           NotisWake?        @relation(fields: [wakeId], references: [id], onDelete: SetNull)
+  wakeId         String?
+
+  direction MessageDirection
+  body      String
+  // Outbound only: which shell carried the text.
+  deliveryMode MessageDeliveryMode?
+  template     String?
+  // Delivery lifecycle, outbound only; Bird webhooks update it (PR 3/4).
+  status        MessageStatus?
+  birdMessageId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([subscriptionId, createdAt])
+}
+
+model NotisJournalEntry {
+  id             String            @id @default(cuid())
+  subscription   NotisSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String
+  wakeId         String?
+
+  // Per-subscription append order; the wake input takes the latest
+  // JOURNAL_WINDOW entries by seq.
+  seq   Int
+  // journalEntrySchema shape (at, event, decision, rationale, messages, ...).
+  entry Json
+
+  createdAt DateTime @default(now())
+
+  // Retention: we keep every entry for the life of the subscription. The
+  // agent reads only the most recent JOURNAL_WINDOW entries; older ones stay
+  // for the audit trail and the admin panel, and profileText is the lossy
+  // compaction of what fell outside that window. Unsubscribing does NOT
+  // delete the journal — the record of what we sent stays, and a reader who
+  // returns keeps their continuity. Account deletion does: the janitor
+  // removes the subscription and this cascades with it. That is the whole
+  // answer to "what does Notis remember about me".
+  @@unique([subscriptionId, seq])
+}
+
+model NotisScheduledWake {
+  id             String            @id @default(cuid())
+  subscription   NotisSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String
+
+  runAfter DateTime
+  reason   String
+  firedAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([runAfter])
+}
+
+enum QueueLane {
+  live
+  batch
+}
+
+enum QueueItemStatus {
+  pending
+  running
+  done
+  failed
+}
+
+model NotisWakeQueue {
+  id             String            @id @default(cuid())
+  subscription   NotisSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String
+
+  lane QueueLane
+  // Coalesced WakeEvent[] — a subscription keeps at most one pending batch
+  // row; new events merge into it (enforced by the queue code, PR 4).
+  events   Json
+  runAfter DateTime
+
+  status    QueueItemStatus @default(pending)
+  claimedAt DateTime?
+  attempts  Int             @default(0)
+  lastError String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, runAfter])
+  @@index([subscriptionId, status])
+}
+
+// Dedup log against notis_meeting_events. The identity is the MEETING and
+// the phase — (cityId, meetingId, type) — never the task id: re-processing a
+// meeting writes a new task row, and keying on it would fan the same agenda
+// or the same summary out a second time. WhatsApp messages cannot be
+// recalled, and the tool that re-runs tasks works on lists.
+//
+// A genuine retry still works: a task that FAILED never recorded a row here,
+// so its next run is the first success and fires normally. taskId stays as
+// the audit trail of which run produced the record.
+model NotisProcessedEvent {
+  id        String   @id @default(cuid())
+  taskId    String
+  type      String
+  cityId    String
+  meetingId String
+
+  processedAt DateTime @default(now())
+
+  @@unique([cityId, meetingId, type])
+  @@index([taskId])
+}

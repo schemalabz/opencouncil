@@ -1,22 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ADMIN_COOKIE, verifyToken } from "@/lib/admin-auth";
-import { env } from "@/env.mjs";
+import { sessionCookieName } from "@/lib/session-cookie";
 
-// Everything under /admin and /api requires the admin cookie, except the
-// health check and the login endpoint itself. The landing page (/) is public.
-const PUBLIC_API = ["/api/health", "/api/admin/login"];
+// Coarse gate only: a request without the main app's session cookie cannot be
+// authenticated, so bounce it here for fast UX. Real validation (the token
+// exists in notis_admin_sessions and has not expired) happens server-side —
+// getAdminSession() in the panel layout, requireAdmin() in every API route —
+// because the edge runtime has no database access.
+const PUBLIC_API = ["/api/health"];
 
-export default async function proxy(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (PUBLIC_API.some((p) => pathname === p)) {
     return NextResponse.next();
   }
 
-  const token = request.cookies.get(ADMIN_COOKIE)?.value;
-  const authorized = await verifyToken(token, env.NOTIS_ADMIN_SECRET);
-
-  if (authorized) {
+  if (request.cookies.get(sessionCookieName())?.value) {
     return NextResponse.next();
   }
 

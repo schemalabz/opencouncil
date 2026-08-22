@@ -36,6 +36,50 @@ describe("assembleUserTurn", () => {
     expect(turn).toContain("hyperlocal 5/5");
   });
 
+  it("computes per-subject distances to the reader's coordinate-bearing places", () => {
+    const state = makeState({
+      user: {
+        name: "Μαρία",
+        cities: [
+          {
+            cityId: "athens",
+            cityName: "Αθήνα",
+            topics: [],
+            // One place with coordinates, one legacy free-text place.
+            locations: [{ text: "Σπίτι", lng: 23.712, lat: 37.97 }, "Κυψέλη"],
+          },
+          {
+            cityId: "zografou",
+            cityName: "Ζωγράφου",
+            topics: [],
+            // Another city's pin: never measured against an Athens meeting.
+            locations: [{ text: "Πανεπιστημιούπολη", lng: 23.766, lat: 37.977 }],
+          },
+        ],
+      },
+    });
+    const event = meetingEvent();
+    const brief = (event as Extract<typeof event, { type: "meeting_summarized" }>).brief;
+    brief.subjects[0].location = { text: "Πλατεία Κυψέλης", lng: 23.7405, lat: 37.9948 };
+
+    const turn = assembleUserTurn(state, event, FIXED_NOW);
+    expect(turn).toContain("distance from their places:");
+    expect(turn).toMatch(/χλμ από «Σπίτι»/);
+    // The coordless legacy place renders in the profile but gets no distance.
+    expect(turn).not.toContain("από «Κυψέλη»");
+    // Distances stay within the meeting's city.
+    expect(turn).not.toContain("από «Πανεπιστημιούπολη»");
+    expect(turn).toContain("places [Σπίτι; Κυψέλη]");
+  });
+
+  it("renders no distance line when the reader has no coordinates", () => {
+    const event = meetingEvent();
+    const brief = (event as Extract<typeof event, { type: "meeting_summarized" }>).brief;
+    brief.subjects[0].location = { text: "Πλατεία Κυψέλης", lng: 23.7405, lat: 37.9948 };
+    const turn = assembleUserTurn(makeState(), event, FIXED_NOW);
+    expect(turn).not.toContain("distance from their places:");
+  });
+
   it("truncates the journal to the last JOURNAL_WINDOW entries", () => {
     const journal: JournalEntry[] = Array.from({ length: JOURNAL_WINDOW + 10 }, (_, i) => ({
       at: `2026-01-01T00:00:${String(i % 60).padStart(2, "0")}.000Z`,

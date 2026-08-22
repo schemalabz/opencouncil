@@ -36,13 +36,28 @@ export const journalEntrySchema = z.object({
   truncated: z.boolean().optional(),
 });
 
+/**
+ * A pinned place. The bare-string form is the PR 1 shape (free text only) and
+ * stays valid so recorded fixtures and stored playground states replay
+ * unchanged; new producers (the fanout view, the wizard) emit the object form
+ * with coordinates so wake assembly can compute subject distances.
+ */
+export const preferenceLocationSchema = z.union([
+  z.string(),
+  z.object({
+    text: z.string(),
+    lng: z.number().optional(),
+    lat: z.number().optional(),
+  }),
+]);
+
 export const cityPreferenceSchema = z.object({
   cityId: z.string(),
   cityName: z.string(),
   /** Greek topic labels, as MCP search accepts them. */
   topics: z.array(z.string()),
-  /** Free-text streets/neighbourhoods. */
-  locations: z.array(z.string()),
+  /** Pinned streets/neighbourhoods. */
+  locations: z.array(preferenceLocationSchema),
 });
 
 export const wakeStateSchema = z.object({
@@ -73,6 +88,18 @@ export const editorialSubjectSchema = z.object({
   note: z.string(),
   /** Streets/squares/neighbourhoods named in the record. */
   locationHints: z.array(z.string()),
+  /**
+   * The subject's mapped location (geometry centroid), copied mechanically
+   * from the MCP record — never model-written. Wake assembly uses it to
+   * compute distances to the reader's pinned places.
+   */
+  location: z
+    .object({
+      text: z.string().nullish(),
+      lng: z.number(),
+      lat: z.number(),
+    })
+    .nullish(),
   /** The subject's opencouncil.gr page — carried so no-research sends never build links by hand. */
   url: z.string().optional(),
 });

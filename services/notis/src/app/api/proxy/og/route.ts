@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/session-auth";
 
 /**
  * OG metadata for opencouncil.gr links, so the playground chat can render
@@ -27,6 +28,9 @@ function decode(s: string): string {
 }
 
 export async function GET(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const raw = request.nextUrl.searchParams.get("url");
   if (!raw) return NextResponse.json({ error: "url required" }, { status: 400 });
   let url: URL;

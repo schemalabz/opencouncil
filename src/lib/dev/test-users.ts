@@ -23,6 +23,7 @@ export function isTestUserEmail(email: string): boolean {
 export const TEST_USERS = [
   {
     email: TEST_USER_EMAILS.SUPER_ADMIN,
+    phone: '+306990000001',
     name: 'Development Super Admin',
     isSuperAdmin: true,
     adminType: 'superadmin' as const,
@@ -30,6 +31,7 @@ export const TEST_USERS = [
   },
   {
     email: TEST_USER_EMAILS.CITY_ADMIN,
+    phone: '+306990000002',
     name: 'City Admin', // Will be updated with actual city name during seeding/creation
     isSuperAdmin: false,
     adminType: 'city' as const,
@@ -37,6 +39,7 @@ export const TEST_USERS = [
   },
   {
     email: TEST_USER_EMAILS.PARTY_ADMIN,
+    phone: '+306990000003',
     name: 'Party Admin', // Will be updated with actual party name during seeding
     isSuperAdmin: false,
     adminType: 'party' as const,
@@ -44,6 +47,7 @@ export const TEST_USERS = [
   },
   {
     email: TEST_USER_EMAILS.PERSON_ADMIN,
+    phone: '+306990000004',
     name: 'Person Admin', // Will be updated with actual person name during seeding
     isSuperAdmin: false,
     adminType: 'person' as const,
@@ -51,6 +55,7 @@ export const TEST_USERS = [
   },
   {
     email: TEST_USER_EMAILS.READ_ONLY,
+    phone: '+306990000005',
     name: 'Read Only User',
     isSuperAdmin: false,
     adminType: 'readonly' as const,
