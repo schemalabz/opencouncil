@@ -197,8 +197,10 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
     const {
         committed: committedSearch,
         pending: searchPending,
+        failed: searchFailed,
         commit: commitSearch,
         clear: clearCommittedSearch,
+        retry: retrySearch,
     } = useCommittedSearch({
         cats,
         filters,
@@ -357,7 +359,16 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
     // Emptying the box ends whatever the text had turned into. Both a geocoded
     // address and a committed search keep their text, so the box reading empty
     // while the map still shows their results would leave no way back.
+    //
+    // The first run is skipped, as in the URL-writing effect above: the box is
+    // empty until the restore effect fills it, and clearing here would cancel
+    // the search that same effect just committed from a shared link.
+    const emptyBoxRanOnceRef = useRef(false);
     useEffect(() => {
+        if (!emptyBoxRanOnceRef.current) {
+            emptyBoxRanOnceRef.current = true;
+            return;
+        }
         if (query.trim()) return;
         setAddressPoint(null);
         clearCommittedSearch();
@@ -505,7 +516,7 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         const s = findSubject(id);
         // Where in the results it sat, when a search produced them: a click at
         // rank 1 and a click at rank 40 say different things about the ranking.
-        const searchPosition = committedSearch ? listSubjects.findIndex((subject) => subject.id === id) : -1;
+        const searchPosition = committedSearch ? committedSearch.order.indexOf(id) : -1;
         captureLandingAction('subject_selected', {
             subject_id: id,
             city_id: s?.cityId ?? null,
@@ -838,6 +849,8 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         // a chip of its own to clear — dropping those here would take away
         // narrowing the reader can see, without being asked to.
         onClearSearch: clearCommittedSearch,
+        searchFailed,
+        onRetrySearch: retrySearch,
         outsideViewCount,
         onFitSearchResults: fitSearchResults,
         zoomIn: trackedZoomIn,

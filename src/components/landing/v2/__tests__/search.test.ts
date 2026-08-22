@@ -35,6 +35,20 @@ describe('normalizeText (search normalization)', () => {
     });
 });
 
+describe('viewport helpers', () => {
+    const view: MapViewport = { w: 23.7, s: 37.9, e: 23.8, n: 38.0, clng: 23.75, clat: 37.95 };
+
+    it('subjectInViewport tests inclusive bounds', () => {
+        expect(subjectInViewport(at('in', 23.75, 37.95), view)).toBe(true);
+        expect(subjectInViewport(at('out', 23.9, 37.95), view)).toBe(false);
+    });
+
+    it('nearestSubjects returns the N closest to a point, nearest first', () => {
+        const subjects = [at('far', 23.79, 37.99), at('near', 23.751, 37.951), at('mid', 23.77, 37.97)];
+        expect(nearestSubjects(subjects, 37.95, 23.75, 2).map((s) => s.id)).toEqual(['near', 'mid']);
+    });
+});
+
 describe('detectMunicipalityQuery', () => {
     it('resolves a "δήμος X" search to a known city, accent/case-insensitive', () => {
         expect(detectMunicipalityQuery('δήμος Χαλανδρίου', CITIES)).toEqual({
@@ -91,6 +105,15 @@ describe('looksLikeAddress', () => {
     // still in the dropdown for whatever this misses.
     it.each(['κατοικίδια', 'ανακύκλωση', 'παιδικοί σταθμοί', 'Χάρης Δούκας', ''])(
         'reads %p as a search',
+        (q) => {
+            expect(looksLikeAddress(q)).toBe(false);
+        },
+    );
+
+    // A year is the number a question about the councils carries, and it is the
+    // one shape a house number never takes.
+    it.each(['προϋπολογισμός 2026', 'τεχνικό πρόγραμμα 2025', 'ΣΔΙΤ 2024'])(
+        'reads %p as a search, not an address',
         (q) => {
             expect(looksLikeAddress(q)).toBe(false);
         },

@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MapFilters } from '@/lib/landing/landingCore';
 import type { GeneralCityRow, MapSubject } from '@/lib/landing/landingData';
+import type { DerivedFilters } from '@/lib/search/types';
 import { captureLanding } from '@/lib/landing/analytics';
 
-/** Filters the search read out of the query text, because the reader had not set them. */
-export type DerivedSearchFilters = {
-    cityIds?: string[];
-    dateRange?: { start: string; end: string };
-};
+/**
+ * Filters the search read out of the query text, because the reader had not set
+ * them — the arms of the server's own `DerivedFilters` the landing can show. A
+ * derived location has no chip here to land on, so it stays out.
+ */
+export type DerivedSearchFilters = Pick<DerivedFilters, 'cityIds' | 'dateRange'>;
 
 /** A search the reader committed: the result set, and how to order and describe it. */
 export type CommittedSearch = {
@@ -76,12 +78,20 @@ function buildParams(query: string, cats: string[], filters: MapFilters, extract
 export function useCommittedSearch({ cats, filters, onDerivedFilters }: Args) {
     const [committed, setCommitted] = useState<CommittedSearch | null>(null);
     const [pending, setPending] = useState(false);
+    // The last request did not answer. Held apart from `committed`, which keeps
+    // whatever the last successful one produced: the two together are what let
+    // the panel say "these results are one filter out of date" instead of
+    // showing a stale set as though it were the answer.
+    const [failed, setFailed] = useState(false);
     // Only the newest request may write. Without this a slow first search can
     // land after a faster second one and put the wrong results on the map.
     const requestRef = useRef(0);
     // What the last request asked for, so the re-run effect below can tell a
     // filter actually changing from the state settling after a commit.
     const lastRunRef = useRef<string | null>(null);
+    // The query the last request carried, so retrying does not need a committed
+    // search to read it back from — the first search of all can fail too.
+    const lastQueryRef = useRef<string | null>(null);
 
     const run = useCallback(async (
         query: string,
@@ -92,7 +102,9 @@ export function useCommittedSearch({ cats, filters, onDerivedFilters }: Args) {
         const id = ++requestRef.current;
         const startedAt = performance.now();
         lastRunRef.current = buildParams(query, runCats, runFilters, true);
+        lastQueryRef.current = query;
         setPending(true);
+        setFailed(false);
         try {
             const response = await fetch(`/api/map/search?${buildParams(query, runCats, runFilters, extract)}`);
             if (!response.ok) throw new Error(`Search failed: ${response.status}`);
@@ -125,14 +137,28 @@ export function useCommittedSearch({ cats, filters, onDerivedFilters }: Args) {
                 // The caller is about to move its chips to match, which changes
                 // the filters the re-run effect watches. Record where that
                 // lands, so settling here doesn't read as a filter change.
-                lastRunRef.current = buildParams(query, runCats, applyDerivedFilters(runFilters, data.derivedFilters), true);
+                //
+                // Only when the derivation lands whole. A query naming two
+                // municipalities gets one chip, so the key is deliberately left
+                // stale: the effect then re-runs under the filters the reader
+                // can actually see, rather than leaving pins on the map from a
+                // municipality nothing on screen names.
+                if ((data.derivedFilters.cityIds?.length ?? 0) <= 1) {
+                    lastRunRef.current = buildParams(query, runCats, applyDerivedFilters(runFilters, data.derivedFilters), true);
+                }
             }
         } catch (error) {
             if (id !== requestRef.current) return;
             console.error('[Landing] Search failed:', error);
-            // An empty result set reads as "nothing matched", which would be a
-            // lie. Drop back to the map's own subjects instead.
-            setCommitted(null);
+            setFailed(true);
+            // Whatever the last successful run put on the map stays there.
+            // Dropping the search instead swapped in the map's own recent
+            // subjects under the reader's query text — a failure that reads as
+            // an answer — and ended the search, which the re-run effect is gated
+            // on, so no later filter change could retry it. Leaving the results
+            // costs the reader a set that is one filter out of date; the next
+            // filter change runs again, because lastRunRef still names the
+            // request that failed.
         } finally {
             if (id === requestRef.current) setPending(false);
         }
@@ -153,9 +179,25 @@ export function useCommittedSearch({ cats, filters, onDerivedFilters }: Args) {
     const clear = useCallback(() => {
         requestRef.current++;
         lastRunRef.current = null;
+        lastQueryRef.current = null;
         setCommitted(null);
         setPending(false);
+        setFailed(false);
     }, []);
+
+    /**
+     * Run the last query again, under the filters as they stand now.
+     *
+     * The only other way back from a failure is changing a filter, which is a
+     * change the reader did not want to make — and after a failed first search
+     * there is no committed search for the re-run effect to work from at all.
+     */
+    const retry = useCallback(() => {
+        const query = lastQueryRef.current;
+        // Read the text again only if the last attempt never got an answer out
+        // of it; a re-run failing means it was already read and applied.
+        if (query) void run(query, !committed, cats, filters);
+    }, [run, committed, cats, filters]);
 
     // Re-run when a filter changes under an active search. The query text has
     // already been read once, and what it gave is applied — reading it again
@@ -171,5 +213,5 @@ export function useCommittedSearch({ cats, filters, onDerivedFilters }: Args) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeQuery, cats, filters]);
 
-    return { committed, pending, commit, clear };
+    return { committed, pending, failed, commit, clear, retry };
 }

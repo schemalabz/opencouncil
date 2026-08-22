@@ -267,9 +267,12 @@ export default function SearchPage() {
 
         if (!query) {
             // Clearing the search box ends the intent: re-submitting the same
-            // query afterwards should be logged as a new search.
+            // query afterwards should be logged as a new search — and read for
+            // filters again, since clearing the box took the filters the last
+            // extraction supplied off the URL with it.
             lastLoggedQueryRef.current = null;
             executedSearchRef.current = null;
+            extractedQueryRef.current = null;
             setState(prev => ({ ...prev, results: [], total: 0 }));
             return;
         }

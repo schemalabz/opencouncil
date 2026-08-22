@@ -309,6 +309,16 @@ const ADDRESS_PREFIXES = new Set([
 ]);
 
 /**
+ * A house number: a whole number of at most three digits.
+ *
+ * The length is what separates it from the number a question about the councils
+ * actually carries, which is a year — "προϋπολογισμός 2026" must reach the
+ * index, not the geocoder. Three digits covers nearly every street number, and
+ * what it misses still has the address row one key away.
+ */
+const HOUSE_NUMBER = /(?:^|\s)\d{1,3}\b/;
+
+/**
  * Whether the text reads as a street address rather than as a question.
  *
  * Enter has to choose between moving the map and searching the discussions, and
@@ -323,7 +333,7 @@ const ADDRESS_PREFIXES = new Set([
 export function looksLikeAddress(query: string): boolean {
     const text = normalizeText(query).trim();
     if (!text) return false;
-    if (/\d/.test(text)) return true;
+    if (HOUSE_NUMBER.test(text)) return true;
     const [first] = text.split(/\s+/);
     return ADDRESS_PREFIXES.has(first.replace(/\.+$/, ''));
 }

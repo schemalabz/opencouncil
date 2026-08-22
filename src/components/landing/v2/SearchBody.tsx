@@ -204,8 +204,7 @@ export function SearchBody({
                     {t('common.clearAll')}
                 </button>
             )}
-            {/* Popular searches suggestions hidden — the dynamic real-query feed was low quality.
-                The curated keyword list is still used above to guard the "near address" option. */}
+            {/* Popular searches suggestions hidden — the dynamic real-query feed was low quality. */}
             <div className="flex items-center justify-between">
                 <Eyebrow className="block">{t('search.categories')}</Eyebrow>
                 {cats.length > 0 && (

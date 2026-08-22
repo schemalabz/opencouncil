@@ -371,6 +371,11 @@ export type LayoutProps = {
     committedSearch: CommittedSearch | null;
     /** drop the committed search and go back to the map's own subjects */
     onClearSearch: () => void;
+    /** the last search request did not answer; `committedSearch`, if set, is what
+     *  the last successful one produced and is now one filter out of date */
+    searchFailed: boolean;
+    /** run the last query again, under the filters as they stand now */
+    onRetrySearch: () => void;
     /** matches whose pin sits outside the current viewport */
     outsideViewCount: number;
     /** fit the map to every result of the committed search */
