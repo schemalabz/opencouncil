@@ -163,6 +163,7 @@ jobs:
             const commitSha = context.payload.pull_request.head.sha.substring(0, 7);
             const logsUrl = context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId;
             const hasMigrations = '${{ needs.preflight.outputs.has-migrations }}' === 'true';
+            const deployNotis = '${{ needs.preflight.outputs.deploy-notis }}' === 'true';
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -177,6 +178,10 @@ jobs:
             const dbNote = hasMigrations
               ? '*This preview will use an **isolated database** with seed data (migrations detected).*'
               : '*This preview uses the staging database - any changes will affect other previews.*';
+
+            const notisNote = deployNotis
+              ? '\n\n*A paired **notis** preview will be deployed alongside this one.*'
+              : '';
 
             const body = '## ⏳ Preview deployment in progress\n\n'
               + '**Commit:** `' + commitSha + '`\n'
