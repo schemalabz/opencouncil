@@ -35,10 +35,10 @@ function parseArgs() {
 
 /**
  * The document prints a local calendar date; CouncilMeeting.dateTime is UTC.
- * A 22:00Z meeting is the next day in Athens, which is the date printed.
+ * A 22:00Z meeting is the next day locally, which is the date printed.
  */
-function athensDate(d: Date): string {
-    return d.toLocaleDateString("en-CA", { timeZone: "Europe/Athens" });
+function localDate(d: Date, timeZone: string): string {
+    return d.toLocaleDateString("en-CA", { timeZone });
 }
 
 async function main() {
@@ -46,7 +46,7 @@ async function main() {
 
     const body = await prisma.administrativeBody.findUnique({
         where: { id: bodyId },
-        select: { id: true, name: true, cityId: true },
+        select: { id: true, name: true, cityId: true, city: { select: { timezone: true } } },
     });
     if (!body) throw new Error(`Administrative body "${bodyId}" not found`);
 
@@ -67,7 +67,7 @@ async function main() {
             .map((s) => ({
                 ada: s.decision!.ada!,
                 pdfUrl: s.decision!.pdfUrl,
-                expectedMeetingDate: athensDate(m.dateTime),
+                expectedMeetingDate: localDate(m.dateTime, body.city.timezone),
             })),
     );
 
