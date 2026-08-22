@@ -3,13 +3,28 @@
 
   inputs = {
     # Version pinning is handled by flake.lock (single source of truth).
-    # We pin via flake.lock, but choose a channel that contains Prisma 5.22.x
-    # so NixOS can use nixpkgs-provided Prisma engines without version mismatches.
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
-    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+
+    # `nixpkgs-unstable` is kept as a name so the many call sites that take a
+    # third `pkgs-unstable` argument keep working. It resolves to the same
+    # node as `nixpkgs`; the only reason it stays a separate instantiation is
+    # the unfree predicate below.
+    nixpkgs-unstable.follows = "nixpkgs";
+
+    # The previous nixos-24.11 pin, kept for the two things that must not move
+    # with the channel. Dependabot must not advance it (see dependabot.yml):
+    #
+    #   prisma-engines / prisma  5.22.0 — must correspond to `prisma` and
+    #     `@prisma/client` 5.22.x in package.json. Current nixpkgs carries only
+    #     6.x/7.x. Bump only together with a Prisma upgrade.
+    #   postgresql_16 + postgis  3.3.5 — matches production. PostGIS 3.3.5
+    #     cannot build against the current channel's GEOS 3.14, whose configure
+    #     no longer installs geos-config. Postgres comes from here too, because
+    #     an extension must be built against the server it loads into.
+    nixpkgs-pinned.url = "github:NixOS/nixpkgs/50ab793786d9de88ee30ec4e4c24fb4236fc2674";
   };
 
-  outputs = { self, nixpkgs, nixpkgs-unstable }:
+  outputs = { self, nixpkgs, nixpkgs-unstable, nixpkgs-pinned }:
     let
       systems = [
         "x86_64-linux"
@@ -18,27 +33,53 @@
         "aarch64-darwin"
       ];
 
+      # nixpkgs removed the `nodePackages` set and moved the Prisma CLI to a
+      # top-level `prisma` attribute. Both it and prisma-engines come from the
+      # pinned rev instead — see the nixpkgs-pinned comment above.
+      prismaOverlay = prismaPkgs: _final: _prev: {
+        inherit (prismaPkgs) prisma-engines;
+        prisma = prismaPkgs.nodePackages.prisma;
+      };
+
       forAllSystems =
-        f: nixpkgs.lib.genAttrs systems (system: f system
-          (import nixpkgs { inherit system; })
-          (import nixpkgs-unstable {
-            inherit system;
-            config.allowUnfreePredicate = pkg:
-              builtins.elem (nixpkgs-unstable.lib.getName pkg) [ "ngrok" ];
-          }));
+        f: nixpkgs.lib.genAttrs systems (system:
+          let
+            prismaPkgs = import nixpkgs-pinned { inherit system; };
+          in
+          f system
+            (import nixpkgs {
+              inherit system;
+              overlays = [ (prismaOverlay prismaPkgs) ];
+            })
+            (import nixpkgs-unstable {
+              inherit system;
+              config.allowUnfreePredicate = pkg:
+                builtins.elem (nixpkgs-unstable.lib.getName pkg) [ "ngrok" ];
+            }));
 
       # Shared PostGIS 3.3.5 builder - used by dev packages and preview module
       # This ensures both use the same locked version matching production
-      mkPostgis335 = pkgs: pkgs.postgresql_16.pkgs.postgis.overrideAttrs (old: rec {
-        version = "3.3.5";
-        src = pkgs.fetchurl {
-          url = "https://download.osgeo.org/postgis/source/postgis-${version}.tar.gz";
-          sha256 = "sha256-1w73FkGIHCIr55r32pbdpDI8T1+TWewbnBCFU53YQX8=";
-        };
-        doCheck = false;
-      });
+      # `pkgs` supplies only the system: the Postgres stack itself comes from
+      # nixpkgs-pinned, so callers get the same build whatever channel they are
+      # on. See the nixpkgs-pinned comment above for why it cannot follow the
+      # channel.
+      pinnedFor = pkgs: import nixpkgs-pinned {
+        inherit (pkgs.stdenv.hostPlatform) system;
+      };
 
-      mkPostgresCompat = pkgs: pkgs.postgresql_16.withPackages (_: [ (mkPostgis335 pkgs) ]);
+      mkPostgis335 = pkgs:
+        let pinned = pinnedFor pkgs; in
+        pinned.postgresql_16.pkgs.postgis.overrideAttrs (old: rec {
+          version = "3.3.5";
+          src = pinned.fetchurl {
+            url = "https://download.osgeo.org/postgis/source/postgis-${version}.tar.gz";
+            sha256 = "sha256-1w73FkGIHCIr55r32pbdpDI8T1+TWewbnBCFU53YQX8=";
+          };
+          doCheck = false;
+        });
+
+      mkPostgresCompat = pkgs:
+        (pinnedFor pkgs).postgresql_16.withPackages (_: [ (mkPostgis335 pkgs) ]);
 
       # Shared Prisma environment setup (used by devShell, builds, and preview module)
       # Returns a string of export statements for shell scripts
@@ -87,8 +128,7 @@
       # so their environments can't drift.
       mkPrismaToolchain = pkgs: with pkgs; [
         nodejs
-        nodePackages.npm
-        nodePackages.prisma
+        prisma
         openssl
       ];
 
@@ -165,7 +205,7 @@
         cairo pango libjpeg giflib pixman libpng glib librsvg
       ];
       mkNpmNativeBuildInputs = pkgs: with pkgs; [
-        nodejs nodePackages.prisma prisma-engines openssl pkg-config python3
+        nodejs prisma prisma-engines openssl pkg-config python3
         cairo pango libjpeg giflib librsvg pixman libpng glib
       ] ++ (pkgs.lib.optionals pkgs.stdenv.isLinux [ pkgs.util-linux ]);
     in {
@@ -1329,7 +1369,7 @@ EOF
 
               export PRISMA_QUERY_ENGINE_LIBRARY="$WORK_DIR/prisma/libquery_engine.node"
               cd "$WORK_DIR"
-              exec ${pkgs.nodejs}/bin/node server.js
+              exec ${pkgs-unstable.nodejs_24}/bin/node server.js
               STARTEOF
               chmod +x $out/start.sh
             '';
@@ -1465,7 +1505,7 @@ EOF
                 [ "\$name" = cache ] || ln -sfn "\$item" "\$RUN/services/notis/.next/\$name"
               done
               cd "\$RUN/services/notis"
-              exec ${pkgs-unstable.nodejs_24}/bin/node server.js
+              exec ${pkgs.nodejs}/bin/node server.js
               EOF
               chmod +x $out/start.sh
               runHook postInstall
@@ -1762,7 +1802,7 @@ EOF
             export PATH="${pkgs.nodejs}/bin:$PATH"
 
             echo "Running migrations..."
-            ${pkgs.nodePackages.prisma}/bin/prisma migrate deploy
+            ${pkgs.prisma}/bin/prisma migrate deploy
 
             echo "Seeding database..."
             SEED_DATA_URL="https://raw.githubusercontent.com/schemalabz/opencouncil-seed-data/refs/heads/main/seed_data.json"
