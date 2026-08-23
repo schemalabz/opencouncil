@@ -13,6 +13,12 @@ import { DeltaChip } from "./DeltaChip";
  */
 
 export interface MetricPoint {
+  /** Unique x value (the bucket key). The tooltip matches points by the x
+   *  axis dataKey, and labels repeat — a 24h window starts and ends inside
+   *  the same wall-clock hour, so two points share «22:00–23:00» and the
+   *  lookup lands on the first one (yesterday's), showing 0 for an hour
+   *  that has traffic. */
+  key: string;
   /** Tooltip label, e.g. «Σαβ 16/8». */
   label: string;
   value: number;
@@ -84,7 +90,7 @@ export function MetricCard({
                 <stop offset="100%" stopColor={colors.fillFrom} stopOpacity={0.02} />
               </linearGradient>
             </defs>
-            <XAxis dataKey="label" hide />
+            <XAxis dataKey="key" hide />
             <YAxis hide domain={[0, "dataMax"]} allowDecimals={false} />
             <Tooltip
               content={<MiniTooltip />}
