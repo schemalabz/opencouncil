@@ -1,4 +1,7 @@
-import "server-only";
+// Not "server-only": this module also exports types and pure helpers that
+// client components import (e.g. ConversationDetail in the thread view).
+// The data-fetching functions here are guarded at their server-page call
+// sites (getAdminSession); see the (panel) auth-guard test.
 import { CityPreference, JournalEntry, WakeOutcome, WakeTrace } from "@/agent/types";
 import { clampToActiveHours } from "@/lib/active-hours";
 import { TemplateName } from "@/agent/templates";
