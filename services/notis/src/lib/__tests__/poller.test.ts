@@ -66,8 +66,18 @@ function makeFakeMain(seed: FakeMainSeed = {}) {
   const events = seed.events ?? [];
   return {
     notisUserRow: {
-      findMany: async ({ where }: { where: { id: { in: string[] } } }) =>
-        users.filter((u) => where.id.in.includes(u.id as string)),
+      findMany: async ({
+        where,
+      }: {
+        where: { id: { in: string[] }; notisEnabledAt?: { not: null } };
+      }) =>
+        users.filter((u) => {
+          if (!where.id.in.includes(u.id as string)) return false;
+          // The rollout-flag filter (fireScheduledWakes uses it); reconcile
+          // omits it and gets every row.
+          if (where.notisEnabledAt && u.notisEnabledAt === null) return false;
+          return true;
+        }),
     },
     fanoutTargetRow: {
       findMany: async ({ where }: { where: Row }) =>
@@ -350,6 +360,56 @@ describe("scheduled fires", () => {
     expect(result.scheduledFired).toBe(0);
     expect(db.store.scheduled[0].firedAt).not.toBeNull();
     expect(db.store.queue.size).toBe(0);
+  });
+
+  it("consumes a note without a wake when the reader was rolled back in the panel", async () => {
+    // Disable in the release panel clears notisEnabledAt. The poller never
+    // removes the subscription, so the scheduled leg is where the rollback
+    // must bite — otherwise a promised follow-up double-serves a reader the
+    // old notification path now handles again.
+    const db = makeFakeDb({ subscriptions: [activeSub("sub1", "user1")] });
+    db.store.scheduled.push({
+      id: "sw1",
+      subscriptionId: "sub1",
+      runAfter: new Date(NOW.getTime() - 60_000),
+      reason: "υποσχέθηκα",
+      origin: "reply",
+      firedAt: null,
+    });
+    // Rolled back: still a user row (so reconcile leaves the sub alone), phone
+    // intact, but notisEnabledAt cleared.
+    const main = makeFakeMain({
+      users: [{ id: "user1", name: "Μαρία", phone: "+306900000001", notisEnabledAt: null }],
+    });
+
+    const result = await runPollerTick({ db, main, bird: new FakeBird(), alert: async () => {}, now });
+
+    expect(result.scheduledFired).toBe(0);
+    expect(db.store.scheduled[0].firedAt).not.toBeNull(); // consumed, not left to retry
+    expect(db.store.queue.size).toBe(0);
+    expect(db.store.subscriptions.get("sub1")!.status).toBe("active"); // rollback does not unsubscribe
+  });
+
+  it("fires the note when the reader still carries the rollout flag", async () => {
+    const db = makeFakeDb({ subscriptions: [activeSub("sub1", "user1")] });
+    db.store.scheduled.push({
+      id: "sw1",
+      subscriptionId: "sub1",
+      runAfter: new Date(NOW.getTime() - 60_000),
+      reason: "υποσχέθηκα",
+      origin: "reply",
+      firedAt: null,
+    });
+    const main = makeFakeMain({
+      users: [
+        { id: "user1", name: "Μαρία", phone: "+306900000001", notisEnabledAt: new Date("2026-08-01") },
+      ],
+    });
+
+    const result = await runPollerTick({ db, main, bird: new FakeBird(), alert: async () => {}, now });
+
+    expect(result.scheduledFired).toBe(1);
+    expect(db.store.queue.size).toBe(1);
   });
 
   it("a note due at 02:00 Athens lands after the 09:00 release", async () => {

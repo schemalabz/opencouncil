@@ -135,7 +135,7 @@ async function tick(
     await enrollNewTargets(db, main, bird, alert, now, result);
     await reconcileSubscriptions(db, main, now, result);
   }
-  await fireScheduledWakes(db, now, rng, result);
+  await fireScheduledWakes(db, main, now, rng, result);
   if (main) {
     await processMeetingEvents(db, main, alert, now, rng, editorial, opts, result);
   }
@@ -347,9 +347,18 @@ async function reconcileSubscriptions(
  * 09:00, and enqueued on the batch lane where it coalesces with any
  * meeting events of the same morning. Notes of unsubscribed readers are
  * consumed without a wake — ΣΤΟΠ said stop.
+ *
+ * A note is also consumed without a wake when the reader was rolled back in
+ * the release panel (notisEnabledAt cleared): the old notification path serves
+ * them again, so a proactive send here would double-serve. The poller never
+ * removes or resurrects the subscription, so this is the only place the
+ * scheduled leg learns of a rollback — the fan-out audience query and the
+ * inbound webhook already honor it. Fail open when the main DB is unreachable,
+ * matching the inbound webhook's stance.
  */
 async function fireScheduledWakes(
   db: PrismaClient,
+  main: MainViewsClient | null,
   now: () => Date,
   rng: () => number,
   result: PollerResult,
@@ -358,12 +367,28 @@ async function fireScheduledWakes(
     where: { firedAt: null, runAfter: { lte: now() } },
     take: 100,
   });
+  if (due.length === 0) return;
+
+  const subs = await db.notisSubscription.findMany({
+    where: { id: { in: [...new Set(due.map((n) => n.subscriptionId))] } },
+    select: { id: true, userId: true, status: true },
+  });
+  const subById = new Map(subs.map((s) => [s.id, s]));
+
+  // Which of these readers still carry the rollout flag. Null means the main
+  // DB is unreachable this tick — fail open (fire the notes) rather than hold
+  // promised follow-ups hostage to a transient outage.
+  let enabledUserIds: Set<string> | null = null;
+  if (main) {
+    const rows = await main.notisUserRow.findMany({
+      where: { id: { in: [...new Set(subs.map((s) => s.userId))] }, notisEnabledAt: { not: null } },
+      select: { id: true },
+    });
+    enabledUserIds = new Set(rows.map((r) => r.id));
+  }
 
   for (const note of due) {
-    const sub = await db.notisSubscription.findUnique({
-      where: { id: note.subscriptionId },
-      select: { status: true },
-    });
+    const sub = subById.get(note.subscriptionId);
     const clamped = clampToActiveHours(now(), rng);
     await db.$transaction(async (tx) => {
       const fenced = await tx.notisScheduledWake.updateMany({
@@ -372,6 +397,7 @@ async function fireScheduledWakes(
       });
       if (fenced.count !== 1) return;
       if (!sub || sub.status === "unsubscribed") return;
+      if (enabledUserIds && !enabledUserIds.has(sub.userId)) return;
       const event: WakeEvent = {
         type: "scheduled",
         at: clamped.toISOString(),
