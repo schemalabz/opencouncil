@@ -65,7 +65,10 @@ function eventCaption(item: WakeRecord): string {
       caption = `πριν τη συνεδρίαση · ${e.meetingName}`;
       break;
     case "meeting_summarized":
-      caption = `${e.meetingName}`;
+      // Labeled like the agenda wake: without the prefix, a silence chip for
+      // a published record reads identically to any other meeting mention
+      // and the thread looks all pre-meeting.
+      caption = `απολογισμός · ${e.meetingName}`;
       break;
     case "scheduled":
       // A promised answer to the reader is a follow-up; the agent's own
