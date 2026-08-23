@@ -13,7 +13,6 @@ import type { ExtractedFilters } from '../types';
 const NO_EXTRACTED_FILTERS: ExtractedFilters = {
     cityIds: null,
     dateRange: null,
-    isLatest: null,
     locationName: null,
 };
 

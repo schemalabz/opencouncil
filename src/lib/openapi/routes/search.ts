@@ -21,6 +21,15 @@ const SearchResultSchema = z.object({
         pageSize: z.number().int(),
         totalPages: z.number().int(),
     }),
+    derivedFilters: z.object({
+        cityIds: z.array(z.string()).optional(),
+        dateRange: z.object({ start: z.string(), end: z.string() }).optional(),
+    }).openapi({
+        description:
+            'The filters the search read out of the query text, because the request had not set them. '
+            + 'A query naming a municipality or a period in prose narrows the results; these are the '
+            + 'filters it narrowed by. Empty when the query text supplied nothing.',
+    }),
 }).openapi('SearchResponse');
 
 // Matches the actual { error: { code, message, details } } shape returned by the handler

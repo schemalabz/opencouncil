@@ -3,8 +3,6 @@ import { useTranslations } from 'next-intl';
 import {
     toLandingSubjects,
     toGeneralCities,
-    classifySearchQuery,
-    filterSubjectsByQuery,
     subjectInViewport,
     subjectsWithinKm,
     type LandingSubject,
@@ -12,7 +10,6 @@ import {
     type MapSubject,
     type GeneralCityRow,
     type MapViewport,
-    type QueryKind,
 } from '@/lib/landing/landingData';
 import { type MapFilters } from '@/lib/landing/landingCore';
 import { rankAndSortSubjects, type RankableSubject } from '@/lib/ranking/subjects';
@@ -36,6 +33,21 @@ const rankVisible = (subjects: LandingSubject[]): LandingSubject[] =>
         RANKING_DEBUG ? { ...r.item, _debugRanking: { score: r.score, components: r.components } } : r.item,
     );
 
+/**
+ * Order by search relevance instead of map importance.
+ *
+ * A committed search brings its own order, and the two have no common reading:
+ * importance ranks by how much a council discussed something, relevance by how
+ * well it answers what was typed. Mixing them would leave a list whose top is
+ * neither. Anything the order doesn't name sorts last rather than disappearing.
+ */
+const orderByRelevance = (subjects: LandingSubject[], order: string[]): LandingSubject[] => {
+    const position = new Map(order.map((id, index) => [id, index]));
+    return subjects
+        .slice()
+        .sort((a, b) => (position.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (position.get(b.id) ?? Number.MAX_SAFE_INTEGER));
+};
+
 // Address search narrows the list + pins to subjects within this radius (km) of the geocoded point.
 const ADDRESS_RADIUS_KM = 2;
 
@@ -46,8 +58,6 @@ type Args = {
     generalRows: GeneralCityRow[];
     /** active category (topic) ids — empty means "all" */
     cats: string[];
-    /** free-text search query */
-    query: string;
     filters: MapFilters;
     /** geocoded searched-address point (narrows by radius), or null */
     addressPoint: LatLng | null;
@@ -57,19 +67,25 @@ type Args = {
     selectedId: string | null;
     /** mobile: the previewed subject — kept in the list even if outside the viewport */
     previewId: string | null;
+    /** Subject ids in search-relevance order. Set while a search is committed;
+     *  the list follows it instead of the map's importance ranking. */
+    relevanceOrder?: string[] | null;
 };
 
 export type FilteredSubjects = {
     allSubjects: LandingSubject[];
-    queryKind: QueryKind;
     visibleSubjects: LandingSubject[];
     generalCities: LandingGeneralCity[];
     visibleGeneralCities: LandingGeneralCity[];
     ordered: LandingSubject[];
+    /** Located and non-located together, ranked, ignoring the viewport — every
+     *  subject the current filters match, which is what the map should frame. */
+    orderedAll: LandingSubject[];
     allGeneralSubjects: LandingSubject[];
     visibleGeneralSubjects: LandingSubject[];
     listSubjects: LandingSubject[];
-    searchResults: LandingSubject[];
+    /** Matches whose pin sits outside the current viewport — what the list is not showing. */
+    outsideViewCount: number;
     findSubject: (id: string) => LandingSubject | null;
     selectedSubject: LandingSubject | null;
 };
@@ -83,12 +99,12 @@ export function useFilteredSubjects({
     mapSubjects,
     generalRows,
     cats,
-    query,
     filters,
     addressPoint,
     mapView,
     selectedId,
     previewId,
+    relevanceOrder,
 }: Args): FilteredSubjects {
     const t = useTranslations('landingV2');
     const generalLabel = t('topic.general');
@@ -98,21 +114,17 @@ export function useFilteredSubjects({
         [mapSubjects, generalLabel],
     );
 
-    // Classify the free-text query as a subject-title or address search.
-    const queryKind = useMemo<QueryKind>(() => classifySearchQuery(query, allSubjects), [query, allSubjects]);
     const visibleSubjects = useMemo(() => {
         const byCat =
             cats.length === 0 ? allSubjects : allSubjects.filter((s) => s.topicId != null && cats.includes(s.topicId));
-        // An address query locates the map; it shouldn't narrow the subjects by text.
-        const byQuery = queryKind === 'address' ? byCat : filterSubjectsByQuery(byCat, query);
         // Discussion-time filter is client-side (duration is computed per subject after fetch).
         const byDuration =
-            filters.minDuration != null ? byQuery.filter((s) => s.durationMin >= filters.minDuration!) : byQuery;
+            filters.minDuration != null ? byCat.filter((s) => s.durationMin >= filters.minDuration!) : byCat;
         // A geocoded address narrows the list + pins to subjects within ADDRESS_RADIUS_KM.
         return addressPoint
             ? subjectsWithinKm(byDuration, addressPoint.lat, addressPoint.lng, ADDRESS_RADIUS_KM)
             : byDuration;
-    }, [allSubjects, cats, query, queryKind, filters.minDuration, addressPoint]);
+    }, [allSubjects, cats, filters.minDuration, addressPoint]);
 
     // Non-located subjects per municipality (city-hall markers).
     const generalCities = useMemo(
@@ -127,17 +139,20 @@ export function useFilteredSubjects({
                     cats.length === 0
                         ? city.subjects
                         : city.subjects.filter((s) => s.topicId != null && cats.includes(s.topicId));
-                const byQuery = queryKind === 'address' ? byCat : filterSubjectsByQuery(byCat, query);
                 const subjects =
                     filters.minDuration != null
-                        ? byQuery.filter((s) => s.durationMin >= filters.minDuration!)
-                        : byQuery;
+                        ? byCat.filter((s) => s.durationMin >= filters.minDuration!)
+                        : byCat;
                 return { ...city, subjects };
             })
             .filter((city) => city.subjects.length > 0);
-    }, [generalCities, cats, query, queryKind, filters.minDuration]);
-    // Importance-ranked over the current visible set (see @/lib/ranking/subjects).
-    const ordered = useMemo(() => rankVisible(visibleSubjects), [visibleSubjects]);
+    }, [generalCities, cats, filters.minDuration]);
+    // Importance-ranked over the current visible set (see @/lib/ranking/subjects),
+    // unless a committed search brought its own order.
+    const ordered = useMemo(
+        () => (relevanceOrder ? orderByRelevance(visibleSubjects, relevanceOrder) : rankVisible(visibleSubjects)),
+        [visibleSubjects, relevanceOrder],
+    );
 
     // Flattened general subjects — selection lookups fall back here after the located ones.
     const allGeneralSubjects = useMemo(() => generalCities.flatMap((c) => c.subjects), [generalCities]);
@@ -148,10 +163,10 @@ export function useFilteredSubjects({
     // Located + non-located ranked as ONE set, so a hot municipality-wide subject can outrank
     // weak located ones. The ranker's z-scores adapt to the merged distribution, and its
     // `location` weight is the deliberate located-over-unlocated tiebreaker.
-    const orderedMerged = useMemo(
-        () => rankVisible([...visibleSubjects, ...visibleGeneralSubjects]),
-        [visibleSubjects, visibleGeneralSubjects],
-    );
+    const orderedMerged = useMemo(() => {
+        const merged = [...visibleSubjects, ...visibleGeneralSubjects];
+        return relevanceOrder ? orderByRelevance(merged, relevanceOrder) : rankVisible(merged);
+    }, [visibleSubjects, visibleGeneralSubjects, relevanceOrder]);
     const findSubject = (id: string): LandingSubject | null =>
         allSubjects.find((s) => s.id === id) ?? allGeneralSubjects.find((s) => s.id === id) ?? null;
 
@@ -185,14 +200,12 @@ export function useFilteredSubjects({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [ordered, orderedMerged, mapView, selectedId, previewId, allSubjects, allGeneralSubjects, addressPoint]);
 
-    // Free-text search-panel results, independent of the category filter / viewport. Searches
-    // located AND municipality-wide subjects (the latter would otherwise be invisible to search).
-    const searchResults = useMemo(
-        () =>
-            query.trim()
-                ? filterSubjectsByQuery([...allSubjects, ...allGeneralSubjects], query).slice(0, 20)
-                : [],
-        [allSubjects, allGeneralSubjects, query],
+    // What the viewport is hiding. Counted against the matches themselves rather
+    // than against `listSubjects`, which also carries the selected and previewed
+    // subjects back in and would report one or two fewer.
+    const outsideViewCount = useMemo(
+        () => (mapView ? orderedMerged.filter((s) => !subjectInViewport(s, mapView)).length : 0),
+        [orderedMerged, mapView],
     );
 
     const selectedSubject = useMemo(
@@ -203,15 +216,15 @@ export function useFilteredSubjects({
 
     return {
         allSubjects,
-        queryKind,
         visibleSubjects,
         generalCities,
         visibleGeneralCities,
         ordered,
         allGeneralSubjects,
         visibleGeneralSubjects,
+        orderedAll: orderedMerged,
         listSubjects,
-        searchResults,
+        outsideViewCount,
         findSubject,
         selectedSubject,
     };

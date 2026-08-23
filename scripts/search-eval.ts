@@ -19,14 +19,8 @@ import './search-eval-env';
 
 import { Client, estypes } from '@elastic/elasticsearch';
 import { buildSearchQuery, rankingMultiplierRatio, MAX_RANKING_MULTIPLIER_RATIO } from '../src/lib/search/query';
-import type { ExtractedFilters, SearchRequest } from '../src/lib/search/types';
-
-const NO_EXTRACTED_FILTERS: ExtractedFilters = {
-    cityIds: null,
-    dateRange: null,
-    isLatest: null,
-    locationName: null,
-};
+import type { SearchRequest } from '../src/lib/search/types';
+import { NO_EXTRACTED_FILTERS } from '../src/lib/search/filters';
 
 type Expectation = 'results' | 'empty';
 

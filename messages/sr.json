@@ -91,6 +91,7 @@
         "greetingNamed": "👋 Здраво, {name}!",
         "about": "За општине",
         "search": "Претрага",
+        "mcp": "OpenCouncil MCP",
         "login": "Пријавите се",
         "notificationsBreadcrumb": "Обавештења",
         "petitionBreadcrumb": "Подржите своју општину"

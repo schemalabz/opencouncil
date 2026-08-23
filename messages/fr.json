@@ -106,6 +106,7 @@
     "greetingNamed": "👋 Salut {name} !",
     "about": "Pour les communes",
     "search": "Rechercher",
+    "mcp": "OpenCouncil MCP",
     "login": "Connexion",
     "notificationsBreadcrumb": "Notifications",
     "petitionBreadcrumb": "Soutenez votre commune"

@@ -6,6 +6,7 @@ jest.mock('@/lib/ai', () => ({ aiChat: jest.fn() }));
 jest.mock('@/lib/db/cities', () => ({
     getCities: jest.fn().mockResolvedValue([]),
     getCity: jest.fn(),
+    filterCityIdsByRealm: jest.fn(),
 }));
 jest.mock('@/lib/google-maps', () => ({
     getPlaceSuggestions: jest.fn(),
@@ -13,7 +14,9 @@ jest.mock('@/lib/google-maps', () => ({
 }));
 
 import { aiChat } from '@/lib/ai';
-import { extractFilters, NO_EXTRACTED_FILTERS } from '../filters';
+import { getCity, filterCityIdsByRealm } from '@/lib/db/cities';
+import { getPlaceSuggestions, getPlaceDetails } from '@/lib/google-maps';
+import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from '../filters';
 
 const aiChatMock = aiChat as jest.MockedFunction<typeof aiChat>;
 
@@ -30,16 +33,32 @@ describe('extractFilters', () => {
         modelReturns({
             cityIds: ['athens'],
             dateRange: { start: '2026-01-01', end: '2026-02-01' },
-            isLatest: null,
             locationName: 'Άργος',
         });
 
         expect(await extractFilters('σχολεία Άργους', 'greece')).toEqual({
             cityIds: ['athens'],
             dateRange: { start: '2026-01-01', end: '2026-02-01' },
-            isLatest: null,
             locationName: 'Άργος',
         });
+    });
+
+    // Extraction runs in front of every text search, so it is on the reader's
+    // critical path — it must not silently move to a slower model.
+    it('runs on the fast model with a small output cap', async () => {
+        modelReturns(NO_EXTRACTED_FILTERS);
+
+        await extractFilters('ανακύκλωση', 'greece');
+
+        expect(aiChatMock).toHaveBeenCalledWith(
+            expect.any(String),
+            'ανακύκλωση',
+            undefined,
+            undefined,
+            expect.objectContaining({ model: 'claude-haiku-4-5' }),
+        );
+        const { maxTokens } = aiChatMock.mock.calls[0][4] as { maxTokens: number };
+        expect(maxTokens).toBeLessThanOrEqual(1024);
     });
 
     // Regression: buildSearchQuery reads locationName as a string, and it runs
@@ -47,7 +66,7 @@ describe('extractFilters', () => {
     // non-string here returned a 500 (and a Discord alert) for a query the
     // lexical clauses could answer.
     it('drops a locationName that is not a string', async () => {
-        modelReturns({ cityIds: null, dateRange: null, isLatest: null, locationName: ['Άργος'] });
+        modelReturns({ cityIds: null, dateRange: null, locationName: ['Άργος'] });
 
         expect((await extractFilters('πάρκα', 'greece')).locationName).toBeNull();
     });
@@ -57,14 +76,12 @@ describe('extractFilters', () => {
         modelReturns({
             cityIds: ['athens'],
             dateRange: 'last month',
-            isLatest: true,
             locationName: 42,
         });
 
         expect(await extractFilters('τελευταία συνεδρίαση', 'greece')).toEqual({
             cityIds: ['athens'],
             dateRange: null,
-            isLatest: true,
             locationName: null,
         });
     });
@@ -85,5 +102,59 @@ describe('extractFilters', () => {
             ...NO_EXTRACTED_FILTERS,
             locationName: 'Άργος',
         });
+    });
+});
+
+describe('processFilters', () => {
+    const getCityMock = getCity as jest.MockedFunction<typeof getCity>;
+    const suggestionsMock = getPlaceSuggestions as jest.MockedFunction<typeof getPlaceSuggestions>;
+    const detailsMock = getPlaceDetails as jest.MockedFunction<typeof getPlaceDetails>;
+    const filterByRealmMock = filterCityIdsByRealm as jest.MockedFunction<typeof filterCityIdsByRealm>;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        filterByRealmMock.mockImplementation(async (ids: string[]) => ids);
+        getCityMock.mockImplementation(async (id: string) => ({
+            id,
+            name: id,
+            geometry: { type: 'Point', coordinates: [0, 0] },
+        }) as never);
+        suggestionsMock.mockResolvedValue({ data: [{ placeId: 'p1' }], error: null } as never);
+        detailsMock.mockResolvedValue({ coordinates: [23.7, 37.9] } as never);
+    });
+
+    const withLocation = (cityIds: string[] | null) => ({
+        ...NO_EXTRACTED_FILTERS,
+        cityIds,
+        locationName: 'Πλατεία Συντάγματος',
+    });
+
+    // Each candidate costs a geometry read and two Google Places requests, so
+    // the fan-out has to follow the search's own scope rather than the realm's.
+    it('geocodes only against the cities the search covers', async () => {
+        await processFilters(withLocation(null), 'greece', ['athens']);
+
+        expect(getCityMock).toHaveBeenCalledTimes(1);
+        expect(getCityMock).toHaveBeenCalledWith('athens', expect.anything());
+    });
+
+    it('geocodes against every candidate when the search covers the realm', async () => {
+        await processFilters(withLocation(null), 'greece', ['athens', 'chania', 'argos']);
+
+        expect(getCityMock).toHaveBeenCalledTimes(3);
+    });
+
+    it('prefers a city the query named over the candidates', async () => {
+        await processFilters(withLocation(['chania']), 'greece', ['athens', 'argos']);
+
+        expect(getCityMock).toHaveBeenCalledTimes(1);
+        expect(getCityMock).toHaveBeenCalledWith('chania', expect.anything());
+    });
+
+    it('geocodes nothing when the query names no place', async () => {
+        const result = await processFilters(NO_EXTRACTED_FILTERS, 'greece', ['athens']);
+
+        expect(getCityMock).not.toHaveBeenCalled();
+        expect(result.locations).toBeUndefined();
     });
 });

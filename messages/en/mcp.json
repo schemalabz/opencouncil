@@ -1,10 +1,10 @@
 {
     "metadata": {
-        "title": "OpenCouncil AI — Ask your AI assistant about your municipality",
+        "title": "OpenCouncil MCP — Ask your AI assistant about your municipality",
         "description": "Connect Claude, ChatGPT or any AI assistant you use to OpenCouncil and ask what is being discussed and decided in municipal councils."
     },
     "home": "Home",
-    "breadcrumb": "OpenCouncil AI",
+    "breadcrumb": "OpenCouncil MCP",
     "hero": {
         "title": "Ask your AI assistant about your municipality",
         "lead": "Connect Claude, ChatGPT or any AI assistant you use to OpenCouncil. Your assistant gains access to search, municipalities, people and the full transcribed records of council meetings — and answers with references to the source.",

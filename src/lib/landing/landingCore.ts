@@ -9,10 +9,10 @@ import type {
     LandingPetitionedCity,
     LandingSubject,
     LandingGeneralCity,
-    QueryKind,
     UpcomingMeeting,
 } from './landingData';
 import type { ReactNode } from 'react';
+import type { CommittedSearch } from '@/components/landing/v2/hooks/useCommittedSearch';
 
 // OpenCouncil location ([lng, lat]) — Κων/νου Σμολένσκη 22, Αθήνα 114 72.
 export const EXPLAIN_LNGLAT: [number, number] = [23.740061, 37.986179];
@@ -246,6 +246,9 @@ export type InitialUrlState = {
     infoOpen: boolean;
     cats: string[];
     query: string;
+    /** A committed search, carried so a shared link re-runs it. Distinct from
+     *  `query`, which is only whatever is being typed at the moment. */
+    search: string;
     range: DateRangeKey;
     filters: MapFilters;
 };
@@ -270,6 +273,7 @@ export function parseInitialUrlState(search: string): InitialUrlState {
     const catParam = p.get('cat');
     const cats = catParam ? catParam.split(',').filter(Boolean) : [];
     const query = p.get('q') ?? '';
+    const committedSearch = p.get('search') ?? '';
 
     const r = p.get('range');
     const range: DateRangeKey = r && DATE_RANGES.some((d) => d.key === r) ? (r as DateRangeKey) : DEFAULT_RANGE;
@@ -291,7 +295,7 @@ export function parseInitialUrlState(search: string): InitialUrlState {
               }
             : EMPTY_FILTERS;
 
-    return { selectedId: subject, view, infoOpen, cats, query, range, filters };
+    return { selectedId: subject, view, infoOpen, cats, query, search: committedSearch, range, filters };
 }
 
 /** Props shared by the desktop and mobile layouts. */
@@ -319,7 +323,6 @@ export type LayoutProps = {
     setFilters: (v: MapFilters) => void;
     query: string;
     setQuery: (v: string) => void;
-    queryKind: QueryKind;
     topics: Topic[];
     cities: LandingListCity[];
     /** unfiltered total subjects per cityId (for the Δήμοι tab stats) */
@@ -334,7 +337,7 @@ export type LayoutProps = {
     loading: boolean;
     selectedId: string | null;
     /** `source` feeds the subject_selected analytics event; defaults to 'list' */
-    selectSubject: (id: string, source?: 'list' | 'search') => void;
+    selectSubject: (id: string, source?: 'list') => void;
     clearSelection: () => void;
     selectedSubject: LandingSubject | null;
     /** in-view subjects for the desktop panel (sorted), with nearest-N fallback */
@@ -342,8 +345,6 @@ export type LayoutProps = {
     /** in-view subjects for the mobile sheet */
     trending: LandingSubject[];
     count: number;
-    /** free-text search matches (title/address), shown in the search panel while typing */
-    searchResults: LandingSubject[];
     /** open co-located-subjects box (subjects at one point + screen position), or null */
     coLocated: { subjects: LandingSubject[]; x: number; y: number } | null;
     onCoLocatedSelect: (id: string) => void;
@@ -363,6 +364,22 @@ export type LayoutProps = {
     onDismissGeoError: () => void;
     /** geocode a typed address query and fly the map to it */
     onLocateAddress: (q: string) => void;
+    /** commit the text as a search over the councils' discussions, replacing the
+     *  map's subjects with the results */
+    onCommitSearch: (q: string) => void;
+    /** the search currently committed, or null */
+    committedSearch: CommittedSearch | null;
+    /** drop the committed search and go back to the map's own subjects */
+    onClearSearch: () => void;
+    /** the last search request did not answer; `committedSearch`, if set, is what
+     *  the last successful one produced and is now one filter out of date */
+    searchFailed: boolean;
+    /** run the last query again, under the filters as they stand now */
+    onRetrySearch: () => void;
+    /** matches whose pin sits outside the current viewport */
+    outsideViewCount: number;
+    /** fit the map to every result of the committed search */
+    onFitSearchResults: () => void;
     zoomIn: () => void;
     zoomOut: () => void;
     /** the map is in the zoomed-out municipality overview (cluster numbers, no subject detail) — mobile

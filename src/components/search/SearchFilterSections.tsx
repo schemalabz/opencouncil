@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { ChevronDown, Landmark, MapPin, User, Users, X } from "lucide-react";
+import { ChevronDown, Landmark, MapPin, User, Users, X, Sparkles } from "lucide-react";
 import { cn, getPartyFromRoles } from "@/lib/utils";
 import { getLocalizedName, getLocalizedShortName } from "@/lib/formatters/name";
 import Icon from "@/components/icon";
@@ -12,7 +12,7 @@ import { Command, CommandEmpty, CommandGroup, CommandList } from "@/components/u
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { AdminBodyOptions, FilterListItem } from "./filterOptionList";
 import { type SearchFilterData } from "./hooks/useSearchFilterData";
-import { hasActiveSearchFilters, type FilterPatch, type SearchFilterParams } from "./searchFilterTypes";
+import { hasActiveSearchFilters, type FilterPatch, type SearchFilterParams, type DerivedFilterKey } from "./searchFilterTypes";
 
 /** Touch feedback the desktop popover rows don't need. */
 const MOBILE_ITEM_CLASS = "active:bg-accent";
@@ -32,6 +32,7 @@ function SectionHeader({
     onToggle,
     onClear,
     clearLabel,
+    derivedHint,
 }: {
     label: string;
     value: string | null;
@@ -42,6 +43,8 @@ function SectionHeader({
     onClear?: () => void;
     /** Accessible name for the clear button, e.g. "Clear city". Already localized. */
     clearLabel: string;
+    /** Present when the search read this filter out of the query text. Already localized. */
+    derivedHint?: string;
 }) {
     return (
         <div className="flex items-center gap-1">
@@ -57,6 +60,12 @@ function SectionHeader({
                 <SectionIcon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <span className="text-[15px] font-medium text-foreground">{label}</span>
                 {value && <span className="min-w-0 truncate text-sm text-muted-foreground">{value}</span>}
+                {value && derivedHint && (
+                    <>
+                        <Sparkles className="h-3 w-3 shrink-0 text-muted-foreground opacity-70" aria-hidden="true" />
+                        <span className="sr-only">{derivedHint}</span>
+                    </>
+                )}
                 <ChevronDown
                     className={cn(
                         "ml-auto h-4 w-4 shrink-0 text-muted-foreground/70 transition-transform",
@@ -93,6 +102,7 @@ export default function SearchFilterSections({
     filters,
     setFilters,
     data,
+    derivedKeys = [],
     disabled = false,
     className,
 }: {
@@ -100,6 +110,9 @@ export default function SearchFilterSections({
     setFilters: (patch: FilterPatch) => void;
     /** Shared with the desktop bar — see SearchPage, which owns the one instance. */
     data: SearchFilterData;
+    /** Filters the search read out of the query text, marked so the reader can
+     *  see the search narrowed itself and undo it. */
+    derivedKeys?: DerivedFilterKey[];
     disabled?: boolean;
     className?: string;
 }) {
@@ -154,6 +167,7 @@ export default function SearchFilterSections({
                 onToggle={() => toggleSection("city")}
                 onClear={selectedCity ? () => onCityChange(undefined) : undefined}
                     clearLabel={t("clearField", { field: t("city") })}
+                derivedHint={derivedKeys.includes("city") ? t("derivedFromQuery") : undefined}
             />
             {expanded === "city" && (
                 <Command value="" className="mb-1 mt-2 rounded-xl border border-border">
@@ -348,7 +362,15 @@ export default function SearchFilterSections({
                 for as long as it is open. */}
             <div className="mt-5 border-t border-border pt-4">
                 <div className="flex items-center justify-between">
-                    <Eyebrow>{t("date")}</Eyebrow>
+                    <div className="flex items-center gap-1.5">
+                        <Eyebrow>{t("date")}</Eyebrow>
+                        {dateActive && derivedKeys.includes("date") && (
+                            <>
+                                <Sparkles className="h-3 w-3 text-muted-foreground opacity-70" aria-hidden="true" />
+                                <span className="sr-only">{t("derivedFromQuery")}</span>
+                            </>
+                        )}
+                    </div>
                     {dateActive && (
                         <button
                             type="button"

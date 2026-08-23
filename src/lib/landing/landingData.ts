@@ -298,42 +298,44 @@ export function toLandingSubjects(
     return subjects;
 }
 
-/** Popular free-text searches shown as suggestions when the search field is focused. */
-export const SEARCH_KEYWORDS = [
-    'Προϋπολογισμός',
-    'Στάθμευση',
-    'Πεζοδρόμηση',
-    'Πράσινο & δέντρα',
-    'Λαϊκές αγορές',
-    'Αντιπλημμυρικά',
-    'Σχολεία',
-    'Καθαριότητα',
-];
-
 /* ============================ SEARCH ============================ */
 
-/** What a search query looks like — drives the hint and how results are matched. */
-export type QueryKind = 'empty' | 'subject' | 'address';
+/**
+ * The words a Greek address opens with, unaccented (normalizeText strips the
+ * accents before this is consulted), with any trailing full stop removed.
+ */
+const ADDRESS_PREFIXES = new Set([
+    'οδος', 'οδου', 'οδο', 'λεωφορος', 'λεωφορου', 'λεωφ', 'πλατεια', 'πλατειας', 'πλ', 'αγ',
+]);
 
 /**
- * Whether a query reads as a subject title or an address, by matching it against loaded subjects'
- * titles vs. location texts (location wins ties). No match → 'address'; empty → 'empty'.
+ * A house number: a whole number of at most three digits.
+ *
+ * The length is what separates it from the number a question about the councils
+ * actually carries, which is a year — "προϋπολογισμός 2026" must reach the
+ * index, not the geocoder. Three digits covers nearly every street number, and
+ * what it misses still has the address row one key away.
  */
-export function classifySearchQuery(query: string, subjects: LandingSubject[]): QueryKind {
-    const q = normalizeText(query).trim();
-    if (!q) return 'empty';
+const HOUSE_NUMBER = /(?:^|\s)\d{1,3}\b/;
 
-    let titleHits = 0;
-    let addressHits = 0;
-    for (const s of subjects) {
-        if (normalizeText(s.title).trim().includes(q)) titleHits++;
-        if (s.where && normalizeText(s.where).trim().includes(q)) addressHits++;
-    }
-    if (addressHits > 0 && addressHits >= titleHits) return 'address';
-    if (titleHits > 0) return 'subject';
-
-    // No match → treat as a place to locate on the map.
-    return 'address';
+/**
+ * Whether the text reads as a street address rather than as a question.
+ *
+ * Enter has to choose between moving the map and searching the discussions, and
+ * the subject index cannot make that call: "Πατησίων 76" matches no subject
+ * title, which is exactly what an unanswerable question looks like too. So the
+ * choice rests on the shape of the text — a house number above all, then the
+ * words an address actually starts with.
+ *
+ * Deliberately narrow. Everything it does not recognise becomes a search, and
+ * the address row stays in the dropdown one click away for what it misses.
+ */
+export function looksLikeAddress(query: string): boolean {
+    const text = normalizeText(query).trim();
+    if (!text) return false;
+    if (HOUSE_NUMBER.test(text)) return true;
+    const [first] = text.split(/\s+/);
+    return ADDRESS_PREFIXES.has(first.replace(/\.+$/, ''));
 }
 
 /** True when the address text already names its municipality, so a card can drop the extra label. */
@@ -350,15 +352,6 @@ export function subjectLocationLine(subject: LandingSubject): string {
     if (!subject.where) return subject.nameMunicipality;
     const hideCity = addressNamesCity(subject.where, subject.cityName);
     return [subject.where, hideCity ? null : subject.nameMunicipality].filter(Boolean).join(', ');
-}
-
-/** Narrows subjects to those whose title or location text contains the query. */
-export function filterSubjectsByQuery(subjects: LandingSubject[], query: string): LandingSubject[] {
-    const q = normalizeText(query).trim();
-    if (!q) return subjects;
-    return subjects.filter(
-        (s) => normalizeText(s.title).trim().includes(q) || (s.where ? normalizeText(s.where).trim().includes(q) : false),
-    );
 }
 
 /* ============================ VIEWPORT ============================ */
