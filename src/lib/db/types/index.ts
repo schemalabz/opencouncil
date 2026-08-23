@@ -43,15 +43,3 @@ export interface SeedData {
     topics: Topic[];
     administrativeBodies: AdministrativeBody[];
 }
-
-/**
- * Type guards and utility types
- */
-
-
-export function isMeetingWithAllData(meeting: any): meeting is MeetingWithAllData {
-    return meeting && 
-           'subjects' in meeting && 
-           'speakerSegments' in meeting && 
-           'highlights' in meeting;
-} 
