@@ -198,9 +198,55 @@ async function runOneWake(
     decisions,
   };
 
+  // Incremental delivery, reactive wakes only: someone is waiting and no
+  // rail applies to a reply, so each send goes out the moment the model
+  // writes it. The row is created wakeId-less here and adopted by the wake
+  // row at persistence; a row the send left pending is the sweeper's to
+  // finish. The batch lane (and every deliver-less caller: playground,
+  // dry-run, fixtures) keeps batch delivery at the boundary.
+  const incrementalIds: string[] = [];
+  const wakeDeps: Deps = reactive
+    ? {
+        ...deps,
+        deliver: async (text: string) => {
+          const message = await db.notisMessage.create({
+            data: {
+              subscriptionId: sub.id,
+              direction: "outbound",
+              body: text,
+              channel: "whatsapp",
+              proactive: capCountable,
+              deliveryMode: "freeform",
+              status: "pending",
+            },
+            select: { id: true },
+          });
+          incrementalIds.push(message.id);
+          try {
+            await deliverPendingMessage(db, bird, message.id, sub, alert);
+          } catch (error) {
+            return {
+              ok: false,
+              detail: error instanceof Error ? error.message : String(error),
+            };
+          }
+          const after = await db.notisMessage.findUnique({
+            where: { id: message.id },
+            select: { status: true, failureReason: true },
+          });
+          return after?.status === "sent"
+            ? { ok: true }
+            : {
+                ok: false,
+                detail: after?.failureReason ?? `status: ${after?.status ?? "unknown"}`,
+              };
+        },
+      }
+    : deps;
+
   // The wall clock, not the events' timestamps: this wake may have waited
   // out quiet hours or a pause since they were recorded.
-  const { outcome, trace } = await runWake(state, ordered, deps, { now: new Date() });
+  const { outcome, trace } = await runWake(state, ordered, wakeDeps, { now: new Date() });
 
   // The primary event picks the shell; the 24h window is judged at the SEND
   // moment, which is now — never at the event's timestamp. A meeting event
@@ -282,22 +328,31 @@ async function runOneWake(
     }
 
     const ids: string[] = [];
-    for (const text of outcome.messages) {
-      const message = await tx.notisMessage.create({
-        data: {
-          subscriptionId: sub.id,
-          wakeId: wake.id,
-          direction: "outbound",
-          body: text,
-          channel: "whatsapp",
-          proactive: capCountable,
-          deliveryMode: delivery?.mode,
-          template: delivery?.mode === "template" ? delivery.template : undefined,
-          status: "pending",
-        },
-        select: { id: true },
+    if (incrementalIds.length > 0) {
+      // The rows already exist (created mid-loop, delivered or left to the
+      // sweeper) — adopt them, so the panel's wakeId alignment holds.
+      await tx.notisMessage.updateMany({
+        where: { id: { in: incrementalIds } },
+        data: { wakeId: wake.id },
       });
-      ids.push(message.id);
+    } else {
+      for (const text of outcome.messages) {
+        const message = await tx.notisMessage.create({
+          data: {
+            subscriptionId: sub.id,
+            wakeId: wake.id,
+            direction: "outbound",
+            body: text,
+            channel: "whatsapp",
+            proactive: capCountable,
+            deliveryMode: delivery?.mode,
+            template: delivery?.mode === "template" ? delivery.template : undefined,
+            status: "pending",
+          },
+          select: { id: true },
+        });
+        ids.push(message.id);
+      }
     }
 
     // The claim fence: if the item was reclaimed while the model ran,
@@ -312,17 +367,39 @@ async function runOneWake(
     // P2028 also does not fire at the deadline — Prisma notices on the next
     // query — so a long lock wait blocks for its full duration, then dies.
     { timeout: PERSIST_TIMEOUT_MS },
-  );
+  ).catch(async (error: unknown) => {
+    // The record rolls back; incremental sends do not. A claim lost after
+    // real deliveries means the reclaimer will run the model again and may
+    // answer again — rare (this wake outlived STALE_CLAIM_MS), and the
+    // re-run's state assembly sees the sent rows, but the operator should
+    // know it happened.
+    if (error instanceof ClaimLostError && incrementalIds.length > 0) {
+      await alert(
+        `wake for ${sub.id} lost its claim after ${incrementalIds.length} incremental ` +
+          "deliveries — the reclaimer may answer again",
+      );
+    }
+    throw error;
+  });
 
   for (const at of unparseableSchedules) {
     await alert(`wake for ${sub.id} scheduled an unparseable instant (${at}) — note dropped`);
+  }
+
+  if (outcome.partialDeliveryError) {
+    await alert(
+      `wake for ${sub.id} finalized after a partial delivery ` +
+        `(${incrementalIds.length} rows): ${outcome.partialDeliveryError}`,
+    );
   }
 
   if (outboundIds.length === 0) return;
 
   if (reactive) {
     // A reply bypasses every rail — it goes out at 03:00 if the reader
-    // texted at 03:00, and decideDelivery guarantees freeform.
+    // texted at 03:00, and decideDelivery guarantees freeform. (With
+    // incremental delivery the sends already happened mid-loop and
+    // outboundIds is empty; this path is the deliver-less fallback.)
     await sendPendingMessages(db, bird, outboundIds, sub, alert);
     return;
   }

@@ -30,9 +30,11 @@ function textOf(content: unknown[]): string {
  * time, defensively), all consumed in a single invocation so the reader gets
  * one considered response instead of a burst.
  *
- * Pure over Deps: never mutates `state`, performs no side effects — client
- * tool calls are recorded into the outcome and answered with synthetic
- * tool_results; MCP research runs server-side inside the API call.
+ * Pure over Deps: never mutates `state` — client tool calls are recorded
+ * into the outcome and answered with synthetic tool_results; MCP research
+ * runs server-side inside the API call. The one deliberate side-effect
+ * channel is deps.deliver (incremental delivery): when present, each
+ * send_message is handed to the shell the moment it is emitted.
  */
 export async function runWake(
   state: WakeState,
@@ -84,6 +86,11 @@ export async function runWake(
   };
 
   const sent: string[] = [];
+  // How many times deps.deliver was invoked — attempted, not succeeded: a
+  // transiently-failed row stays pending and the sweeper may still deliver
+  // it, so any attempt at all makes a model re-run a duplicate risk.
+  let deliveryAttempts = 0;
+  let partialDeliveryError: string | undefined;
   let profileRewrite: string | undefined;
   const scheduledWakes: Array<{ at: string; reason: string }> = [];
   let unsubscribe: { reason: string } | undefined;
@@ -116,6 +123,12 @@ export async function runWake(
   let preNudgeRationale: string | undefined;
   let sentAtNudge = -1;
 
+  // Fail-forward fence: once a delivery attempt has been made, an error can
+  // no longer roll this wake back — a retry would re-run the model after the
+  // reader already received (or may yet receive) messages, and a duplicate
+  // answer is worse than a truncated one. The loop finalizes with what it
+  // has; before the first attempt, errors propagate and the queue retries.
+  try {
   for (let turn = 0; turn < deps.config.maxTurns; turn++) {
     const response = await deps.anthropic.create({
       model: deps.config.model,
@@ -153,8 +166,21 @@ export async function runWake(
         switch (block.name) {
           case "send_message": {
             const t = String(block.input.text ?? "");
-            if (t) sent.push(t);
-            ack = "delivered";
+            if (t) {
+              sent.push(t);
+              if (deps.deliver) {
+                deliveryAttempts++;
+                const result = await deps.deliver(t);
+                ack = result.ok
+                  ? "delivered"
+                  : `delivery failed: ${result.detail ?? "unknown error"} — the message ` +
+                    "did not reach the reader now; do not repeat it verbatim";
+              } else {
+                ack = "delivered";
+              }
+            } else {
+              ack = "delivered";
+            }
             break;
           }
           case "update_taste_profile":
@@ -307,6 +333,10 @@ export async function runWake(
     // end_turn, max_tokens, or anything else: stop.
     break;
   }
+  } catch (error) {
+    if (deliveryAttempts === 0) throw error;
+    partialDeliveryError = error instanceof Error ? error.message : String(error);
+  }
 
   if (preNudgeRationale && sent.length === sentAtNudge) {
     rationale = preNudgeRationale;
@@ -319,13 +349,20 @@ export async function runWake(
   if (truncated && !rationale) {
     rationale = "(cut at the token ceiling — no decision was made)";
   }
+  if (partialDeliveryError) {
+    // The error is the story now — whatever rationale the model had written
+    // describes a wake that did not finish the way it thought it would.
+    rationale =
+      `Το wake διακόπηκε από σφάλμα μετά από ${deliveryAttempts} απόπειρες παράδοσης: ` +
+      partialDeliveryError;
+  }
   if (!rationale) {
     rationale = "(no rationale emitted)";
   }
 
   // finish_wake is REQUIRED by the prompt; when the loop ends without it (and
   // without a terminal anomaly explaining why), record the contract breach.
-  const finishWakeMissing = !finished && !refused && !truncated;
+  const finishWakeMissing = !finished && !refused && !truncated && !partialDeliveryError;
 
   const outcome: WakeOutcome = {
     decision,
@@ -337,6 +374,7 @@ export async function runWake(
     ...(profileRewrite !== undefined ? { profileRewrite } : {}),
     scheduledWakes,
     ...(unsubscribe ? { unsubscribe } : {}),
+    ...(partialDeliveryError !== undefined ? { partialDeliveryError } : {}),
   };
 
   const trace: WakeTrace = {

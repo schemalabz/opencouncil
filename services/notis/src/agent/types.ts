@@ -43,6 +43,13 @@ export interface WakeOutcome {
   profileRewrite?: string;
   scheduledWakes: Array<{ at: string; reason: string }>;
   unsubscribe?: { reason: string };
+  /**
+   * The wake errored AFTER at least one incremental delivery reached (or
+   * may still reach) the reader. The loop was finalized instead of retried:
+   * re-running the model after real delivery risks duplicate messages,
+   * which is worse than a truncated answer.
+   */
+  partialDeliveryError?: string;
 }
 
 export interface Usage {
@@ -160,6 +167,19 @@ export interface Deps {
   prompts: Prompts;
   config: DepsConfig;
   mcp: McpLike;
+  /**
+   * Incremental delivery: hand each send_message to the reader the moment
+   * the model emits it, instead of batching at wake persistence. The shell
+   * injects this for reactive wakes only (someone is waiting; no rail
+   * applies to a reply). Absent — playground, dry-run, batch lane — the
+   * loop only records sends, exactly as before.
+   *
+   * `ok: false` means the text did not reach the reader NOW (the row may
+   * still be swept later); the tool_result tells the model so it can react.
+   * Once called at all, the wake becomes fail-forward: see
+   * WakeOutcome.partialDeliveryError.
+   */
+  deliver?(text: string): Promise<{ ok: boolean; detail?: string }>;
 }
 
 export const DEFAULT_CONFIG: DepsConfig = {
