@@ -6,9 +6,11 @@ import { FakeBird } from "./fake-bird";
 
 /**
  * processItem against an in-memory Prisma fake: the shell's ordering
- * invariants (wake committed before Bird, idempotency key = message id,
- * failure → pending retry with Bird untouched) are what's under test —
- * runWake itself has its own suite.
+ * invariants are what's under test — runWake itself has its own suite.
+ * Reactive wakes deliver INCREMENTALLY (each send goes out mid-loop, the
+ * wake row adopts the rows at persistence); everything else keeps the old
+ * order (wake committed before Bird, idempotency key = message id,
+ * failure → pending retry with Bird untouched).
  */
 
 
@@ -47,7 +49,7 @@ function seedClaim(db: ReturnType<typeof makeFakeDb>, attempts = 1) {
 }
 
 describe("processItem", () => {
-  it("persists the wake and message BEFORE calling Bird, keyed by the message id", async () => {
+  it("delivers the reply mid-wake, then persists the wake and adopts the rows", async () => {
     const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
     seedClaim(db);
     const bird = new FakeBird();
@@ -77,10 +79,52 @@ describe("processItem", () => {
     expect(outbound.birdMessageId).toBe("bird-1");
     expect(outbound.deliveryMode).toBe("freeform");
 
-    // Ordering: the wake row and the done-mark precede the send.
+    // Incremental ordering: the reader has the message BEFORE the wake row
+    // exists, and the wake adopts the row at persistence.
     const sendIndex = db.calls.indexOf("message-created:outbound");
-    expect(db.calls.indexOf("wake-created")).toBeLessThan(sendIndex);
+    expect(sendIndex).toBeLessThan(db.calls.indexOf("wake-created"));
+    expect(outbound.wakeId).toBe(db.store.wakes[0].id);
     expect(alerts).toHaveLength(0);
+  });
+
+  it("finalizes fail-forward when the model errors after a delivery", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    seedClaim(db);
+    const bird = new FakeBird();
+    const alerts: string[] = [];
+
+    await processItem(ITEM, {
+      db,
+      bird,
+      // Turn 1 sends without finish_wake; turn 2 does not exist, so the
+      // model call throws mid-wake — after the reader already got a message.
+      deps: makeDeps(
+        new FakeAnthropic([
+          {
+            content: [toolUse("t1", "send_message", { text: "Πρώτο μισό." })],
+            stop_reason: "tool_use",
+          },
+        ]),
+      ),
+      alert: async (m) => {
+        alerts.push(m);
+      },
+    });
+
+    // Re-running the model after a real delivery risks a duplicate answer,
+    // so the error finalizes the wake with what it has instead of retrying.
+    expect(bird.sends).toHaveLength(1);
+    expect(db.store.wakes).toHaveLength(1);
+    const wake = db.store.wakes[0];
+    expect(wake.decision).toBe("send");
+    expect(
+      (wake.outcome as { partialDeliveryError?: string }).partialDeliveryError,
+    ).toContain("exhausted");
+    expect(db.store.queue.get("q1")?.status).toBe("done");
+    const outbound = db.store.messages.find((m) => m.direction === "outbound")!;
+    expect(outbound.status).toBe("sent");
+    expect(outbound.wakeId).toBe(wake.id);
+    expect(alerts.some((m) => m.includes("partial delivery"))).toBe(true);
   });
 
   it("returns the item to pending when the wake throws — Bird untouched, nothing persisted", async () => {
@@ -190,25 +234,35 @@ describe("processItem", () => {
     expect(alerts).toHaveLength(0);
   });
 
-  it("aborts without side effects when the claim was reclaimed mid-wake (fence)", async () => {
+  it("a lost claim aborts the record — delivered bytes stay delivered, with an alert", async () => {
     const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
     // The reclaimer bumped attempts: this worker's fence no longer matches.
     db.store.queue.set("q1", { id: "q1", status: "running", attempts: ITEM.attempts + 1 });
     const bird = new FakeBird();
+    const alerts: string[] = [];
 
     await processItem(ITEM, {
       db,
       bird,
       deps: makeDeps(new FakeAnthropic(sendTurn)),
-      alert: async () => {},
+      alert: async (m) => {
+        alerts.push(m);
+      },
     });
 
-    // The persist tx threw ClaimLostError: nothing landed, nothing sent,
-    // and the reclaimer's row was left untouched.
+    // The persist tx threw ClaimLostError: no wake row landed and the
+    // reclaimer's row was left untouched — it owns the item now.
     expect(db.store.wakes).toHaveLength(0);
-    expect(bird.sends).toHaveLength(0);
     expect(db.store.queue.get("q1")?.status).toBe("running");
     expect(db.store.queue.get("q1")?.attempts).toBe(ITEM.attempts + 1);
+    // But the incremental send went out mid-loop and cannot be recalled:
+    // the row stays wakeId-less, the reclaimer's run sees it in the
+    // conversation, and the alert is the operator's signal.
+    expect(bird.sends).toHaveLength(1);
+    const outbound = db.store.messages.find((m) => m.direction === "outbound")!;
+    expect(outbound.status).toBe("sent");
+    expect(outbound.wakeId ?? null).toBeNull();
+    expect(alerts.some((m) => m.includes("lost its claim"))).toBe(true);
   });
 });
 

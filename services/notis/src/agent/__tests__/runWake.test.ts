@@ -379,3 +379,95 @@ describe("runWake", () => {
   });
 
 });
+
+describe("runWake incremental delivery (deps.deliver)", () => {
+  const userEvent = {
+    type: "user_message" as const,
+    at: "2026-03-10T10:00:00.000Z",
+    text: "Τι ψηφίστηκε;",
+  };
+  const sendFinishTurn = [
+    {
+      content: [
+        toolUse("t1", "send_message", { text: "Η απάντηση." }),
+        toolUse("t2", "finish_wake", { rationale: "Απάντησα." }),
+      ],
+      stop_reason: "tool_use" as const,
+    },
+  ];
+
+  it("hands each send to deliver the moment it is emitted", async () => {
+    const fake = new FakeAnthropic(sendFinishTurn);
+    const delivered: string[] = [];
+    const { outcome } = await runWake(makeState(), [userEvent], {
+      ...makeDeps(fake),
+      deliver: async (t) => {
+        delivered.push(t);
+        return { ok: true };
+      },
+    });
+
+    expect(delivered).toEqual(["Η απάντηση."]);
+    expect(outcome.decision).toBe("send");
+    expect(outcome.partialDeliveryError).toBeUndefined();
+  });
+
+  it("a failed delivery reaches the model in the tool_result", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [toolUse("t1", "send_message", { text: "Χάθηκε." })],
+        stop_reason: "tool_use" as const,
+      },
+      {
+        content: [toolUse("t2", "finish_wake", { rationale: "Δεν βγήκε." })],
+        stop_reason: "tool_use" as const,
+      },
+    ]);
+    await runWake(makeState(), [userEvent], {
+      ...makeDeps(fake),
+      deliver: async () => ({ ok: false, detail: "503 from Bird" }),
+    });
+
+    // requests[] aliases the live messages array, so find t1's tool_result
+    // by id instead of by position.
+    const blocks = (
+      fake.requests[1].messages as Array<{ content: unknown }>
+    ).flatMap((m) => (Array.isArray(m.content) ? m.content : [])) as Array<{
+      type: string;
+      tool_use_id?: string;
+      content?: string;
+    }>;
+    const toolResult = blocks.find((b) => b.type === "tool_result" && b.tool_use_id === "t1");
+    expect(toolResult?.content).toContain("delivery failed: 503 from Bird");
+  });
+
+  it("fail-forward: an error after a delivery attempt finalizes instead of throwing", async () => {
+    // One send turn without finish_wake; the second model call throws.
+    const fake = new FakeAnthropic([
+      {
+        content: [toolUse("t1", "send_message", { text: "Πρώτο μισό." })],
+        stop_reason: "tool_use" as const,
+      },
+    ]);
+    const { outcome } = await runWake(makeState(), [userEvent], {
+      ...makeDeps(fake),
+      deliver: async () => ({ ok: true }),
+    });
+
+    expect(outcome.decision).toBe("send");
+    expect(outcome.partialDeliveryError).toContain("exhausted");
+    expect(outcome.rationale).toContain("διακόπηκε");
+    // The breach is explained by the error, not the finish_wake contract.
+    expect(outcome.finishWakeMissing).toBeUndefined();
+  });
+
+  it("an error before any delivery attempt still throws — the queue retries", async () => {
+    const fake = new FakeAnthropic([]);
+    await expect(
+      runWake(makeState(), [userEvent], {
+        ...makeDeps(fake),
+        deliver: async () => ({ ok: true }),
+      }),
+    ).rejects.toThrow("exhausted");
+  });
+});
