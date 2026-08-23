@@ -71,8 +71,6 @@
       "notificationsSubtitle": "Créez des notifications pour les utilisateurs intéressés par les sujets de cette séance.",
       "cacheManagement": "Gestion du cache",
       "cacheManagementSubtitle": "Forcez l'actualisation des données en cache pour voir immédiatement les dernières modifications.",
-      "podcastSpecs": "Spécifications du podcast",
-      "podcastSpecsSubtitle": "Gérez les spécifications de génération de podcast pour cette séance.",
       "decisions": "Décisions",
       "decisionsSubtitle": "Associez les décisions Diavgeia aux sujets de la séance.",
       "minutes": "Aperçu des procès-verbaux",
