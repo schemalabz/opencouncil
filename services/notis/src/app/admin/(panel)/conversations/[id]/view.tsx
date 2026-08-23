@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Download } from "lucide-react";
 import { WakeTrace } from "@/agent/types";
 import { ConversationView } from "../../_components/ConversationView";
 import { fmtDate } from "../../_lib/format";
@@ -38,6 +39,15 @@ export function ConversationDetailView({ detail }: { detail: ConversationDetail 
           {s.phone} · {s.cityNames.join(", ")} · από {fmtDate(s.startedAt)}
         </span>
         {s.unsubscribedAt && <StopBadge at={s.unsubscribedAt} />}
+        <a
+          href={`/api/admin/conversations/${s.id}/export`}
+          download
+          className="ml-auto flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          title="Όλα τα δεδομένα της συνομιλίας (μηνύματα, wakes, traces) σε ένα JSON — για αξιολόγηση"
+        >
+          <Download className="h-3.5 w-3.5" />
+          Εξαγωγή JSON
+        </a>
       </PageHeader>
       <ConversationView
         records={detail.records}
