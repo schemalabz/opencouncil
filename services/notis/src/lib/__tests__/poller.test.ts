@@ -443,6 +443,50 @@ describe("meeting events", () => {
     });
   }
 
+  it("consumes a stale meeting's event without editorial spend or a wake", async () => {
+    // completedAt is TaskStatus.updatedAt underneath: a re-run (batchRerun
+    // --force) or a bulk touch of old rows makes a years-old meeting look
+    // fresh. The meeting's own date is the guard — old news is recorded as
+    // consumed and nobody is messaged about it.
+    const db = seededDb();
+    const main = makeFakeMain({
+      users: [{ id: "user1", name: "Μαρία", phone: "+306900000001" }],
+      targets: [target("user1", "athens")],
+      events: [
+        meetingRow("task-old", {
+          meetingId: "m-old",
+          meetingDate: new Date("2024-03-10T18:00:00.000Z"),
+        }),
+      ],
+    });
+
+    const result = await runPollerTick({
+      db,
+      main,
+      bird: new FakeBird(),
+      alert: async () => {},
+      now,
+      editorial: editorialOk,
+    });
+
+    expect(editorialOk).not.toHaveBeenCalled();
+    expect(result.staleConsumed).toBe(1);
+    expect(result.wakesEnqueued).toBe(0);
+    expect(db.store.queue.size).toBe(0);
+    // Recorded like seedOnly, so it stops re-surfacing every tick.
+    expect(processedFor(db, "athens", "m-old", "summarize")).toBeDefined();
+
+    const again = await runPollerTick({
+      db,
+      main,
+      bird: new FakeBird(),
+      alert: async () => {},
+      now,
+      editorial: editorialOk,
+    });
+    expect(again.staleConsumed).toBe(0);
+  });
+
   it("fans out a released event to matching active subs, records the brief and cost", async () => {
     const db = seededDb();
     const main = makeFakeMain({

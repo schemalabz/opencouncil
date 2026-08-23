@@ -56,6 +56,8 @@ export interface PollerResult {
   scheduledFired: number;
   eventsProcessed: number;
   wakesEnqueued: number;
+  /** Events consumed without a wake because the meeting itself is old news. */
+  staleConsumed: number;
   editorialCostUsd: number;
 }
 
@@ -65,6 +67,16 @@ export const MAX_EVENTS_PER_TICK = 4;
 /** How far back the event feed looks. completedAt moves on task-row
  *  rewrites, so this is a coarse window — dedup is by meeting and phase. */
 export const EVENT_LOOKBACK_MS = 7 * 24 * 60 * 60_000;
+/**
+ * A meeting older than this is never news, whatever its task rows say.
+ * completedAt is TaskStatus.updatedAt underneath: a re-run (batchRerun
+ * --force writes NEW succeeded rows) or any client-side touch of old rows
+ * re-enters them into the lookback, and the meeting-identity dedup only
+ * protects meetings notis has already recorded — pre-launch history is not.
+ * Without this guard one maintenance script would pay an editorial pass per
+ * old meeting and WhatsApp whole cohorts about years-old news.
+ */
+export const STALE_MEETING_MS = 30 * 24 * 60 * 60_000;
 /** Budget for the meeting fan-out transaction, which grows with the audience.
  *  Well above the queue's 30s persist budget because this one loops over every
  *  subscriber of a meeting; see the call site in processMeetingEvents. */
@@ -80,6 +92,7 @@ const emptyResult = (ran: boolean, reason?: string): PollerResult => ({
   scheduledFired: 0,
   eventsProcessed: 0,
   wakesEnqueued: 0,
+  staleConsumed: 0,
   editorialCostUsd: 0,
 });
 
@@ -447,7 +460,34 @@ async function processMeetingEvents(
     select: { cityId: true, meetingId: true, type: true },
   });
   const processedIds = new Set(processed.map(identity));
-  const fresh = candidates.filter((c) => !processedIds.has(identity(c)));
+  const unprocessed = candidates.filter((c) => !processedIds.has(identity(c)));
+
+  // Consume stale meetings without a wake: record them like seedOnly does so
+  // they stop re-surfacing every tick, but pay no editorial pass and enqueue
+  // nothing. Agenda events for upcoming meetings have future dates and are
+  // untouched.
+  const staleBefore = new Date(now().getTime() - STALE_MEETING_MS);
+  const stale = unprocessed.filter((c) => c.meetingDate < staleBefore);
+  for (const row of stale) {
+    try {
+      await db.notisProcessedEvent.create({
+        data: {
+          taskId: row.taskId,
+          type: row.type,
+          cityId: row.cityId,
+          meetingId: row.meetingId,
+          meetingName: row.meetingName,
+          meetingDate: row.meetingDate,
+          adminBodyName: row.adminBodyName,
+        },
+      });
+      result.staleConsumed++;
+    } catch {
+      // Raced by a concurrent tick — already recorded.
+    }
+  }
+
+  const fresh = unprocessed.filter((c) => c.meetingDate >= staleBefore);
   if (fresh.length === 0) return;
 
   if (opts.seedOnly) {
