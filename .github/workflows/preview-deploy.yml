@@ -2,7 +2,9 @@ name: Deploy PR Preview
 
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened]
+    # `labeled` lets the preview-notis label trigger a paired notis deploy
+    # on an already-open PR; the root jobs skip every other label event.
+    types: [opened, synchronize, reopened, labeled]
     branches: [main]
 
 permissions:
@@ -16,12 +18,25 @@ concurrency:
 
 env:
   CACHIX_CACHE_NAME: ${{ secrets.CACHIX_CACHE_NAME || 'opencouncil' }}
+  # Preview hostnames: pr-<N>.<PREVIEW_DOMAIN>. Keep PREVIEW_DOMAIN in step with
+  # services.opencouncil-preview.previewDomain on the droplet — the droplet is
+  # what actually serves the host, this only names it for links and health checks.
+  PREVIEW_DOMAIN: opencouncil.dev
+  TASKS_PREVIEW_DOMAIN: tasks.opencouncil.dev
 
 jobs:
   # Route the deploy through the right environment: PRs authored by users
   # with write access deploy automatically via 'preview-auto', everyone
   # else (forks, dependabot) goes through the reviewer-gated 'preview'.
   gate:
+    # Skip bot-authored PRs (Dependabot, Renovate). Two reasons: a lockfile
+    # bump has nothing to preview, and pull_request_target grants secrets — a
+    # dependency-bump PR must not be built with them. `user.type` catches every
+    # app-authored PR, unlike a list of bot login names. Bots push branches to
+    # this repo, so a same-repo/fork check does not exclude them.
+    if: >-
+      (github.event.action != 'labeled' || github.event.label.name == 'preview-notis')
+      && github.event.pull_request.user.type != 'Bot'
     name: Determine Deploy Environment
     runs-on: ubuntu-latest
     outputs:
@@ -52,10 +67,19 @@ jobs:
 
   # Pre-flight checks (fast, run before expensive nix build)
   preflight:
+    # Skip bot-authored PRs (Dependabot, Renovate). Two reasons: a lockfile
+    # bump has nothing to preview, and pull_request_target grants secrets — a
+    # dependency-bump PR must not be built with them. `user.type` catches every
+    # app-authored PR, unlike a list of bot login names. Bots push branches to
+    # this repo, so a same-repo/fork check does not exclude them.
+    if: >-
+      (github.event.action != 'labeled' || github.event.label.name == 'preview-notis')
+      && github.event.pull_request.user.type != 'Bot'
     name: Pre-flight Checks
     runs-on: ubuntu-latest
     outputs:
       has-migrations: ${{ steps.check-migrations.outputs.has-migrations }}
+      deploy-notis: ${{ steps.check-notis.outputs.deploy-notis }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -89,6 +113,22 @@ jobs:
           else
             echo "has-migrations=false" >> $GITHUB_OUTPUT
             echo "✅ No migrations detected - preview will use shared staging database" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check for notis changes
+        id: check-notis
+        run: |
+          set -euo pipefail
+          # Deploy a paired notis preview only when the PR touches notis (or
+          # carries the preview-notis label) — resource policy lives here in
+          # CI, not in the preview module.
+          CHANGED_NOTIS=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '^services/notis/\|^packages/ui/' || true)
+          HAS_LABEL="${{ contains(github.event.pull_request.labels.*.name, 'preview-notis') }}"
+          if [ -n "$CHANGED_NOTIS" ] || [ "$HAS_LABEL" = "true" ]; then
+            echo "deploy-notis=true" >> $GITHUB_OUTPUT
+            echo "🛰️ Notis changes detected — a paired notis preview will be deployed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "deploy-notis=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Check lockfile freshness
@@ -137,6 +177,7 @@ jobs:
             const commitSha = context.payload.pull_request.head.sha.substring(0, 7);
             const logsUrl = context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId;
             const hasMigrations = '${{ needs.preflight.outputs.has-migrations }}' === 'true';
+            const deployNotis = '${{ needs.preflight.outputs.deploy-notis }}' === 'true';
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -152,12 +193,16 @@ jobs:
               ? '*This preview will use an **isolated database** with seed data (migrations detected).*'
               : '*This preview uses the staging database - any changes will affect other previews.*';
 
+            const notisNote = deployNotis
+              ? '\n\n*A paired **notis** preview will be deployed alongside this one.*'
+              : '';
+
             const body = '## ⏳ Preview deployment in progress\n\n'
               + '**Commit:** `' + commitSha + '`\n'
               + '**Status:** Building...\n\n'
               + 'Follow along in the [workflow logs](' + logsUrl + ').\n\n'
               + '---\n'
-              + dbNote;
+              + dbNote + notisNote;
 
             let commentId;
             if (botComment) {
@@ -318,7 +363,7 @@ jobs:
 
           echo "### 🚀 Preview Deployed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Preview URL: https://pr-$PR_NUM.preview.opencouncil.gr" >> $GITHUB_STEP_SUMMARY
+          echo "Preview URL: https://pr-$PR_NUM.$PREVIEW_DOMAIN" >> $GITHUB_STEP_SUMMARY
           echo "Port: $PORT" >> $GITHUB_STEP_SUMMARY
           if [ "$HAS_MIGRATIONS" = "true" ]; then
             echo "Database: Isolated (PostGIS 3.3.5, seed data)" >> $GITHUB_STEP_SUMMARY
@@ -326,14 +371,69 @@ jobs:
             echo "Database: Shared staging" >> $GITHUB_STEP_SUMMARY
           fi
           if [ -n "${LINKED_TASKS_PR:-}" ]; then
-            echo "Tasks API: https://pr-${LINKED_TASKS_PR}.tasks.opencouncil.gr" >> $GITHUB_STEP_SUMMARY
+            echo "Tasks API: https://pr-${LINKED_TASKS_PR}.$TASKS_PREVIEW_DOMAIN" >> $GITHUB_STEP_SUMMARY
           fi
+
+      - name: Deploy paired notis preview
+        id: notis-deploy
+        if: needs.preflight.outputs.deploy-notis == 'true'
+        env:
+          PREVIEW_HOST: ${{ secrets.PREVIEW_HOST }}
+          PREVIEW_USER: ${{ secrets.PREVIEW_USER || 'opencouncil' }}
+        run: |
+          set -euo pipefail
+          PR_NUM="${{ github.event.pull_request.number }}"
+          SSH_CMD="ssh -i ~/.ssh/deploy_key ${PREVIEW_USER}@${PREVIEW_HOST}"
+
+          # Rollout guard: the notis scripts exist on the host only once the
+          # companion nix-openclaw change is deployed. Skip (loudly) until then.
+          if ! $SSH_CMD "command -v notis-preview-create >/dev/null"; then
+            echo "::warning::notis-preview-create not on the preview host yet (nix-openclaw companion not deployed) — skipping notis preview"
+            echo "Notis preview: skipped (host not wired yet)" >> $GITHUB_STEP_SUMMARY
+            echo "deployed=skipped" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Building notis..."
+          NOTIS_STORE_PATH=$(nix build .#notis-prod --print-out-paths | tail -1)
+
+          # Push the closure to Cachix synchronously — the droplet's
+          # nix-store --realise can only substitute what is already uploaded
+          # (the action's async post-job push is too late; same reason the
+          # main app pushes ./result explicitly).
+          echo "Pushing notis closure to Cachix..."
+          cachix push "$CACHIX_CACHE_NAME" "$NOTIS_STORE_PATH"
+
+          echo "Creating paired notis preview..."
+          $SSH_CMD "sudo notis-preview-create '$PR_NUM' '$NOTIS_STORE_PATH'"
+
+          # App readiness is guaranteed by notis-preview-create itself (the
+          # pr-previews create script polls the instance and fails with the
+          # journal if the app never answers). This probe only verifies the
+          # PUBLIC route — DNS, TLS, and the Caddy vhost. Same allowlist:
+          # only a code proving the app answered through the proxy passes.
+          NOTIS_URL="https://notis-pr-$PR_NUM.opencouncil.dev"
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$NOTIS_URL" || true)
+          case "$CODE" in
+            2??|3??|401|403) : ;;
+            *)
+              sleep 10
+              CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$NOTIS_URL" || true)
+              case "$CODE" in
+                2??|3??|401|403) : ;;
+                *)
+                  echo "::error::Notis preview unreachable through the proxy at $NOTIS_URL (HTTP ${CODE:-none})"
+                  exit 1 ;;
+              esac ;;
+          esac
+          echo "Notis preview: $NOTIS_URL (HTTP $CODE)" >> $GITHUB_STEP_SUMMARY
+          echo "deployed=true" >> $GITHUB_OUTPUT
 
       - name: Health check
         id: health-check
         run: |
           PR_NUM="${{ github.event.pull_request.number }}"
-          URL="https://pr-${PR_NUM}.preview.opencouncil.gr"
+          URL="https://pr-${PR_NUM}.${PREVIEW_DOMAIN}"
           for i in $(seq 1 10); do
             HTTP_CODE=$(curl -sL -o /dev/null -w '%{http_code}' --max-time 10 "$URL" || echo "000")
             if [ "$HTTP_CODE" = "200" ]; then
@@ -353,12 +453,13 @@ jobs:
           script: |
             const commentId = ${{ steps.pr-comment.outputs.comment-id }};
             const prNumber = context.payload.pull_request.number;
-            const previewUrl = 'https://pr-' + prNumber + '.preview.opencouncil.gr';
+            const previewUrl = 'https://pr-' + prNumber + '.' + process.env.PREVIEW_DOMAIN;
             const commitSha = context.payload.pull_request.head.sha.substring(0, 7);
             const healthStatus = '${{ steps.health-check.outputs.status }}';
             const logsUrl = context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId;
             const hasMigrations = '${{ needs.preflight.outputs.has-migrations }}' === 'true';
             const linkedTasksPr = '${{ steps.preview-links.outputs.tasks-pr }}';
+            const notisDeployed = '${{ steps.notis-deploy.outputs.deployed }}' === 'true';
 
             const dbNote = hasMigrations
               ? '*This preview uses an **isolated database** with seed data (migrations were applied).*'
@@ -369,8 +470,12 @@ jobs:
               + '**Commit:** `' + commitSha + '`\n'
               + '**Database:** ' + (hasMigrations ? 'Isolated (PostGIS 3.3.5, seed data)' : 'Shared staging') + '\n';
 
+            if (notisDeployed) {
+              body += '**Notis:** https://notis-pr-' + prNumber + '.opencouncil.dev\n';
+            }
+
             if (linkedTasksPr) {
-              body += '**Tasks API:** https://pr-' + linkedTasksPr + '.tasks.opencouncil.gr\n';
+              body += '**Tasks API:** https://pr-' + linkedTasksPr + '.' + process.env.TASKS_PREVIEW_DOMAIN + '\n';
             }
 
             body += '\nThe preview will be automatically updated when you push new commits.\n'

@@ -1,23 +1,21 @@
 /**
  * Tests for the dev-tooling gate (issue #250): dev tooling is allowed in local
- * dev and on previews, never on staging or real production. DEPLOYMENT_ENV
- * itself is resolved and validated in src/env.mjs (zod enum + default), so the
- * cases here mock the resolved value.
+ * dev and on previews, never on staging or real production. The gate reads
+ * DEPLOYMENT_ENV from process.env directly (see src/lib/deployment.ts), so these
+ * cases set the process env rather than mocking env.mjs.
  */
 
-describe('DEV_TOOLS_ALLOWED', () => {
-    afterEach(() => {
-        jest.resetModules();
-    });
+import { devToolsAllowed } from '../deployment';
 
-    const load = (deploymentEnv: string) => {
-        let mod!: typeof import('../deployment');
-        jest.isolateModules(() => {
-            jest.doMock('@/env.mjs', () => ({ env: { DEPLOYMENT_ENV: deploymentEnv } }));
-            mod = require('../deployment');
-        });
-        return mod;
-    };
+describe('devToolsAllowed', () => {
+    const prev = process.env.DEPLOYMENT_ENV;
+    afterEach(() => {
+        if (prev === undefined) {
+            delete process.env.DEPLOYMENT_ENV;
+        } else {
+            process.env.DEPLOYMENT_ENV = prev;
+        }
+    });
 
     it.each([
         ['development', true],
@@ -25,6 +23,12 @@ describe('DEV_TOOLS_ALLOWED', () => {
         ['staging', false],
         ['production', false],
     ])('%s → %s', (deploymentEnv, expected) => {
-        expect(load(deploymentEnv).DEV_TOOLS_ALLOWED).toBe(expected);
+        process.env.DEPLOYMENT_ENV = deploymentEnv;
+        expect(devToolsAllowed()).toBe(expected);
+    });
+
+    it('an unrecognized value resolves to the locked (production) side', () => {
+        process.env.DEPLOYMENT_ENV = 'something-else';
+        expect(devToolsAllowed()).toBe(false);
     });
 });

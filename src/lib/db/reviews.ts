@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import prisma from './prisma';
 import { buildDateFilter } from './reviews/dateFilters';
 import { CUSTOMER_CITY_WHERE } from '../cityStatus';
+import { withUserAuthorizedToEdit } from '@/lib/auth';
 
 // ============================================================================
 // SHARED PRISMA PATTERNS
@@ -911,6 +912,7 @@ async function getAggregatedMeetingStatsBatch(
  * Optimized for list views - uses aggregations, no session detection
  */
 export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}): Promise<ReviewListItem[]> {
+  await withUserAuthorizedToEdit({});
   const { show = 'needsAttention', reviewerId, last30Days = false } = filters;
 
   // Build database filter conditions
@@ -995,6 +997,7 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
  * Get high-level review statistics
  */
 export async function getReviewStats(): Promise<ReviewStats> {
+  await withUserAuthorizedToEdit({});
   // We can derive needsReview/inProgress from presence of any user edits.
   const baseNeedsAttentionWhere: Prisma.CouncilMeetingWhereInput = buildStatusWhereConditions('needsAttention');
 
@@ -1087,6 +1090,7 @@ export async function getReviewStats(): Promise<ReviewStats> {
 export async function getReviewProgressForMeeting(
   meetingId: MeetingId
 ): Promise<ReviewDetail | null> {
+  await withUserAuthorizedToEdit({ cityId: meetingId.cityId });
   // Get basic meeting info
   const meetingRecord = await prisma.councilMeeting.findUnique({
     where: meetingKey(meetingId.cityId, meetingId.meetingId),
@@ -1168,6 +1172,7 @@ export async function getReviewProgressForMeeting(
  * Returns unique list of users who have made edits
  */
 export async function getReviewers(): Promise<Array<{ id: string; name: string | null; email: string }>> {
+  await withUserAuthorizedToEdit({});
   const users = await prisma.user.findMany({
     where: {
       utteranceEdits: {
@@ -1195,6 +1200,7 @@ export async function getReviewers(): Promise<Array<{ id: string; name: string |
  * Used when marking a review as complete to show the actual work done
  */
 export async function getMeetingReviewStats(meetingId: MeetingId) {
+  await withUserAuthorizedToEdit({ cityId: meetingId.cityId });
   // Use the existing calculateReviewProgress which already identifies reviewers
   const progress = await getReviewProgressForMeeting(meetingId);
 

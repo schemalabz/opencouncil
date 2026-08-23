@@ -80,11 +80,24 @@ const hostMatchesDomain = (host: string, domain: string): boolean =>
     host === domain || host.endsWith(`.${domain}`);
 
 /**
+ * The domain PR previews are served from: `pr-165.opencouncil.dev` for PR #165.
+ *
+ * It belongs to no realm — a preview resolves to `greece` like any other
+ * unrecognised host, and reaches the other realms through `?realm=` (see
+ * `REALM_OVERRIDE_COOKIE`). It is still one of our own hosts, so
+ * `isKnownRealmHost` accepts it: the SEO redirects, the magic-link host rewrite
+ * and the OG metadata base are gated on that check, and a preview that skipped
+ * them would stop reproducing production.
+ */
+export const PREVIEW_DOMAIN = 'opencouncil.dev';
+
+/**
  * Builds a resolver mapping a Host header value to a realm of `realms`, or null
  * when none matches. The port is stripped and the host lowercased so
  * `localhost:3000`-style hosts and a spoofed `Host: opencouncil.fr` both work;
- * each realm's domain matches as the apex or any subdomain (so preview hosts
- * like `pr-7.preview.opencouncil.fr` resolve correctly). Domains are checked
+ * each realm's domain matches as the apex or any subdomain (so
+ * `www.opencouncil.fr` resolves to france, not to the default). Domains are
+ * checked
  * most-specific (longest) first — a subdomain is always longer than its parent
  * domain — so a realm hosted on a subdomain of another realm's domain wins over
  * the parent regardless of declaration order.
@@ -122,15 +135,17 @@ export function realmForHost(host: string | null | undefined): Realm {
 }
 
 /**
- * Whether a Host header value is one of our own domains (apex or subdomain of a
- * realm domain — so production and preview hosts match, but `localhost` and any
- * attacker-supplied host do not). Unlike `realmForHost` (which defaults unknown
- * hosts to `greece`), this is a strict membership check — use it before trusting
- * a request's Host for anything sensitive, e.g. building a magic-link URL.
+ * Whether a Host header value is one of our own domains: a realm domain or
+ * `PREVIEW_DOMAIN`, as the apex or any subdomain — so production and preview
+ * hosts match, but `localhost` and any attacker-supplied host do not. Unlike
+ * `realmForHost` (which defaults unknown hosts to `greece`), this is a strict
+ * membership check — use it before trusting a request's Host for anything
+ * sensitive, e.g. building a magic-link URL.
  */
 export function isKnownRealmHost(host: string | null | undefined): boolean {
     const normalized = (host ?? '').split(':')[0].toLowerCase();
     if (!normalized) return false;
+    if (hostMatchesDomain(normalized, PREVIEW_DOMAIN)) return true;
     return Object.values(REALMS).some(({ domain }) => hostMatchesDomain(normalized, domain));
 }
 
@@ -139,8 +154,9 @@ export function isKnownRealmHost(host: string | null | undefined): boolean {
  * `isRealmApexHost`). Set by the proxy when a request arrives with
  * `?realm=<realm>`; read by the proxy, `getRealm()` and `realmForBrowser()` so
  * previews and localhost can be viewed as any realm despite their Host
- * resolving elsewhere (preview hosts are subdomains of opencouncil.gr, and
- * some realm domains — e.g. opencouncil.rs — have no DNS yet).
+ * resolving elsewhere (preview hosts are subdomains of `PREVIEW_DOMAIN`, which
+ * belongs to no realm, and some realm domains — e.g. opencouncil.rs — have no
+ * DNS yet).
  */
 export const REALM_OVERRIDE_COOKIE = 'oc-realm';
 
@@ -153,8 +169,8 @@ export function isRealm(value: string | null | undefined): value is Realm {
 
 /**
  * Whether a Host header value is exactly a realm's canonical production apex
- * (`opencouncil.gr`, not `pr-7.preview.opencouncil.gr` or `localhost`). The
- * realm override is honored only on non-apex hosts: production domains must
+ * (`opencouncil.gr`, not `pr-7.opencouncil.dev` or `localhost`). The realm
+ * override is honored only on non-apex hosts: production domains must
  * stay deterministic per-Host for SEO and CDN sanity, while previews and local
  * dev — which can't reach other realms by Host at all — get the escape hatch.
  */
@@ -225,6 +241,30 @@ export function foreignLocalesForRealm(realm: Realm): string[] {
  */
 export function getRealmBaseUrl(realm: Realm): string {
     return `https://${REALMS[realm].domain}`;
+}
+
+/**
+ * Base URL for resolving a page's relative metadata URLs — today only the
+ * `/api/og` images, since canonicals and hreflang are built absolute by
+ * `buildCanonicalAlternates`.
+ *
+ * On a realm's production apex this is the canonical realm URL, so
+ * opencouncil.gr and opencouncil.fr each unfurl their own images. On a preview
+ * host it is the preview's own origin: resolving previews against the canonical
+ * domain makes them unfurl *production's* renderer, so a change to an OG image
+ * cannot be reviewed on the PR that makes it — the preview page keeps showing
+ * whatever production draws.
+ *
+ * Only hosts we own earn that (`isKnownRealmHost`, which covers the realm
+ * domains and `PREVIEW_DOMAIN`), so an arbitrary `Host:` header can never steer
+ * a page's image URL to a domain we do not own. Everything else (localhost,
+ * direct IP) keeps the canonical URL.
+ */
+export function metadataBaseForHost(host: string | null | undefined, realm: Realm): string {
+    if (!isRealmApexHost(host) && isKnownRealmHost(host)) {
+        return `https://${host!.toLowerCase()}`;
+    }
+    return getRealmBaseUrl(realm);
 }
 
 /** Bare domain for a realm (e.g. `opencouncil.fr`), for display in URL chrome. */

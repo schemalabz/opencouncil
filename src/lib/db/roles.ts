@@ -1,6 +1,7 @@
 "use server";
 import prisma from "./prisma";
 import { RoleRanking, ElectedOrderRanking } from "./types";
+import { withUserAuthorizedToEdit } from "@/lib/auth";
 
 /**
  * Updates role rankings for roles belonging to a specific party and city.
@@ -16,6 +17,7 @@ export async function updateRoleRankings(
     partyId: string,
     rankings: RoleRanking[]
 ): Promise<void> {
+    await withUserAuthorizedToEdit({ cityId });
     const roleIds = rankings.map(r => r.roleId);
 
     // First verify the party exists and belongs to the specified city
@@ -81,6 +83,7 @@ export async function updateElectedOrder(
     administrativeBodyId: string,
     rankings: ElectedOrderRanking[]
 ): Promise<void> {
+    await withUserAuthorizedToEdit({ cityId });
     const roleIds = rankings.map(r => r.roleId);
 
     // Verify all roles exist and belong to the specified administrative body

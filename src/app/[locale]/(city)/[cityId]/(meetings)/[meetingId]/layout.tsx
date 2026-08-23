@@ -25,6 +25,7 @@ import { NotificationPreferenceProvider } from '@/contexts/NotificationPreferenc
 import { getTranslations } from 'next-intl/server';
 import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 import { getLocalizedName } from '@/lib/formatters/name';
+import { buildOgImageUrl } from '@/lib/og/locale';
 
 export async function generateImageMetadata(
     props: {
@@ -47,7 +48,7 @@ export async function generateImageMetadata(
             size: { width: 1200, height: 630 },
             id: 'og',
             alt: meetingName,
-            url: `/api/og?meetingId=${meetingId}&cityId=${cityId}`
+            url: buildOgImageUrl(locale, { meetingId, cityId })
         },
         {
             contentType: 'image/png',
@@ -86,7 +87,7 @@ export async function generateMetadata(
     // Use the hero text for description, which is already optimized for Greek audience
     const description = "To OpenCouncil χρησιμοποιεί τεχνητή νοημοσύνη για να παρακολουθεί τα δημοτικά συμβούλια και να τα κάνει απλά και κατανοητά";
 
-    const imageUrl = `/api/og?meetingId=${meetingId}&cityId=${cityId}`;
+    const imageUrl = buildOgImageUrl(locale, { meetingId, cityId });
 
     return {
         title: optimizedTitle,

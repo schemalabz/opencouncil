@@ -1,60 +1,12 @@
 "use server";
 
-import { Location, LocationType, Prisma } from '@prisma/client';
+import { Location } from '@prisma/client';
 import prisma from "./prisma";
 
-/**
- * Create a new location
- */
-export async function createLocation(data: {
-    text: string;
-    coordinates: [number, number]; // [longitude, latitude]
-    // Deterministic id + idempotent insert, for seed/fixture callers that
-    // re-run: an existing row with the id is kept as-is.
-    id?: string;
-    skipIfExists?: boolean;
-}): Promise<Location> {
-    const { text, coordinates, id, skipIfExists } = data;
-    const [longitude, latitude] = coordinates;
-
-    console.log('Creating location:', text, coordinates);
-    try {
-        // Create a new location with proper PostGIS geometry and explicit UUID generation
-        // The Location model doesn't have explicit createdAt/updatedAt fields
-        const result = await prisma.$queryRaw<Location[]>`
-            INSERT INTO "Location" ("id", "text", "type", "coordinates")
-            VALUES (
-                ${id ? Prisma.sql`${id}` : Prisma.sql`gen_random_uuid()`},
-                ${text},
-                'point'::"LocationType",
-                ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)
-            )
-            ${skipIfExists ? Prisma.sql`ON CONFLICT ("id") DO NOTHING` : Prisma.empty}
-            RETURNING id, text, type;
-        `;
-
-        // ON CONFLICT DO NOTHING returns no row when the id already exists —
-        // that is the requested outcome, so fall through to the fetch below.
-        if ((!result || result.length === 0) && !(skipIfExists && id)) {
-            throw new Error('Failed to create location: no result returned');
-        }
-
-        // Fetch the complete location record
-        const location = await prisma.location.findUnique({
-            where: { id: id ?? result[0].id }
-        });
-
-        if (!location) {
-            throw new Error('Failed to retrieve newly created location');
-        }
-
-        console.log('Location created successfully:', location);
-        return location;
-    } catch (error) {
-        console.error('Error creating location:', error);
-        throw new Error('Failed to create location');
-    }
-}
+// Note: locations are created inside saveNotificationPreferences /
+// saveSubjectsForMeeting (in the same transaction as the row that references
+// them), not by a standalone action here — that avoids orphaned Location rows
+// and keeps this write off the public Server Action surface.
 
 /**
  * Find locations by coordinates within a certain distance

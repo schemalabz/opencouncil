@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { getNotisRolloutOverview, getNotisRolloutUsers } from '@/lib/db/notis-rollout';
+import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { formatNumericDateTime } from '@/lib/formatters/time';
 import { NotisToggleButton } from '@/components/admin/notis/NotisToggleButton';
 import { EnableBatchForm } from '@/components/admin/notis/EnableBatchForm';
@@ -28,6 +29,9 @@ const PAGE_SIZE = 20;
 export default async function NotisReleasePage(props: {
     searchParams: Promise<{ q?: string; page?: string }>;
 }) {
+    // Superadmin re-check in the page body: the (admin) layout guard does not
+    // re-run on RSC soft-navigations (see src/lib/__tests__/admin-auth-guard).
+    await withUserAuthorizedToEdit({});
     const searchParams = await props.searchParams;
     const search = typeof searchParams.q === 'string' ? searchParams.q.trim() : '';
     const pageParam = Number.parseInt(searchParams.page ?? '1', 10);

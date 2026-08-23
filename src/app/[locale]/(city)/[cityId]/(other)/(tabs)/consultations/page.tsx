@@ -7,6 +7,7 @@ import { getAllConsultationsForCity, isConsultationActive } from "@/lib/db/consu
 import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 import { getLocalizedName } from "@/lib/formatters/name";
 import { getOgLocale } from '@/i18n/config';
+import { buildOgImageUrl } from '@/lib/og/locale';
 
 interface PageProps {
     params: Promise<{ cityId: string; locale: string }>;
@@ -41,7 +42,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
         : `Δεν υπάρχουν διαβουλεύσεις στον Δήμο ${cityName} αυτή τη στιγμή. Ελέγχετε ξανά σύντομα για νέες ευκαιρίες συμμετοχής.`;
 
     // Generate OG image URL for city
-    const ogImageUrl = `/api/og?cityId=${params.cityId}`;
+    const ogImageUrl = buildOgImageUrl(params.locale, { cityId: params.cityId });
 
     return {
         title: `Δημόσιες Διαβουλεύσεις | ${cityName} | OpenCouncil`,

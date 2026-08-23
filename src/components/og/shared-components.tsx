@@ -98,7 +98,8 @@ export const Container = ({
 
 interface MeetingMetaRowProps {
     formattedDate: string;
-    subjectsCount: number;
+    /** Localized subject count, e.g. "12 θέματα" — the caller owns the wording. */
+    subjectsLabel: string;
     fontSize?: number;
     gap?: number;
     iconGap?: number;
@@ -112,7 +113,7 @@ interface MeetingMetaRowProps {
 
 export const MeetingMetaRow = ({
     formattedDate,
-    subjectsCount,
+    subjectsLabel,
     fontSize = 28,
     gap = 24,
     iconGap = 8,
@@ -134,7 +135,7 @@ export const MeetingMetaRow = ({
                 </div>
                 <div style={{ display: "flex", alignItems: "center" }}>
                     <span style={{ marginRight: `${iconGap}px` }}>📋</span>
-                    <span>{subjectsCount} Θέματα</span>
+                    <span>{subjectsLabel}</span>
                 </div>
             </div>
         );
@@ -159,7 +160,7 @@ export const MeetingMetaRow = ({
             )}
             <div style={{ display: "flex", alignItems: "center" }}>
                 <span style={{ marginRight: `${iconGap}px` }}>📋</span>
-                <span>{subjectsCount} Θέματα</span>
+                <span>{subjectsLabel}</span>
             </div>
         </div>
     );
@@ -194,7 +195,8 @@ interface SubjectPillsProps {
     subjects: SubjectWithTopic[];
     limit: number;
     styles?: SubjectPillsStyle;
-    remainingLabel?: (remainingCount: number) => string;
+    /** Localized "+N more subjects" line, rendered when the list is truncated. */
+    remainingLabel: (remainingCount: number) => string;
 }
 
 export const SubjectPills = ({
@@ -279,7 +281,7 @@ export const SubjectPills = ({
                     }}
                 >
                     <span style={{ display: "flex" }}>
-                        {remainingLabel ? remainingLabel(remainingCount) : `+${remainingCount} ακόμα θέματα`}
+                        {remainingLabel(remainingCount)}
                     </span>
                 </div>
             )}

@@ -705,6 +705,9 @@ model Highlight {
 
   @@index([meetingId, cityId])
   @@index([cityId, createdById])
+  // The personal highlights page filters on the author alone, which the
+  // cityId-leading index above cannot serve.
+  @@index([createdById])
 }
 
 model HighlightedUtterance {
@@ -718,6 +721,9 @@ model HighlightedUtterance {
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  @@index([highlightId])
+  @@index([utteranceId])
 }
 
 model PodcastSpec {

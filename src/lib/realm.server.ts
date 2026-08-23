@@ -3,7 +3,7 @@
 // client bundles and out of unstable_cache callbacks.
 import { cookies, headers } from 'next/headers';
 import { Realm } from '@prisma/client';
-import { REALM_OVERRIDE_COOKIE, effectiveRealm, getRealmBaseUrl } from './realm';
+import { REALM_OVERRIDE_COOKIE, effectiveRealm, getRealmBaseUrl, metadataBaseForHost } from './realm';
 
 /**
  * Resolves the current request's realm from its Host header, honoring the
@@ -27,4 +27,10 @@ export async function getRealm(): Promise<Realm> {
 /** Canonical absolute base URL for the current request's realm. */
 export async function getRealmBaseUrlFromRequest(): Promise<string> {
     return getRealmBaseUrl(await getRealm());
+}
+
+/** `metadataBaseForHost` for the current request (see it for the rule). */
+export async function getMetadataBaseFromRequest(): Promise<string> {
+    const host = (await headers()).get('host');
+    return metadataBaseForHost(host, await getRealm());
 }

@@ -5,7 +5,6 @@ import { CityWithGeometry } from '@/lib/db/cities';
 import { OnboardingContextType, OnboardingStage } from '@/lib/types/onboarding';
 import { saveNotificationPreferences, savePetition, getUserPreferences } from '@/lib/db/notifications';
 import { useSession } from 'next-auth/react';
-import { createLocation } from '@/lib/db/location';
 import { useTranslations } from 'next-intl';
 import posthog from "posthog-js";
 
@@ -162,24 +161,18 @@ export function OnboardingProvider({
         setEmailExistsError(null);
 
         try {
-            // Create new locations in the database first
-            const locationPromises = selectedLocations.map(location =>
-                createLocation({
-                    text: location.text,
-                    coordinates: location.coordinates
-                })
-            );
-
-            const createdLocations = await Promise.all(locationPromises);
-            const locationIds = createdLocations.map(location => location.id);
-
             // Get topic IDs
             const topicIds = selectedTopics.map(topic => topic.id);
 
-            // Submit notification preferences
+            // Submit notification preferences. The locations are created
+            // server-side inside the same transaction as the preference, so an
+            // abandoned or failing submit leaves no orphaned Location rows.
             const result = await saveNotificationPreferences({
                 cityId: city.id,
-                locationIds,
+                locations: selectedLocations.map(location => ({
+                    text: location.text,
+                    coordinates: location.coordinates,
+                })),
                 topicIds,
                 email: session?.user?.email || email,
                 phone,
@@ -195,7 +188,7 @@ export function OnboardingProvider({
             } else {
                 posthog.capture("notification_signup_completed", {
                     city_id: city.id,
-                    location_count: locationIds.length,
+                    location_count: selectedLocations.length,
                     topic_count: topicIds.length,
                     has_phone: !!phone,
                 });

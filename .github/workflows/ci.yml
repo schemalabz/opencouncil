@@ -33,9 +33,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: '24'
+          # Derived from engines.node rather than repeated here: setup-node
+          # reads volta.node, then devEngines.runtime, then engines.node from
+          # the manifest, and this repo declares only the last. One fewer place
+          # for the Node version to drift.
+          node-version-file: package.json
           cache: npm
 
       # Workspace install at the root covers packages/ui and services/notis.

@@ -719,6 +719,8 @@
     "deleteNetworkError": "Erreur lors de la suppression"
   },
   "Profile": {
+    "myHighlightsDescription": "Consultez tous les temps forts que vous avez créés, pour chaque séance.",
+    "viewMyHighlights": "Voir vos temps forts",
     "welcomeOnboard": "Bienvenue sur OpenCouncil",
     "personalInfo": "Informations personnelles",
     "onboardingDescription": "Veuillez renseigner les informations suivantes pour finaliser votre inscription.",

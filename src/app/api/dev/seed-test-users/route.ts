@@ -4,7 +4,6 @@ import { TEST_USERS } from '@/lib/dev/test-users'
 import { DEV_TOOLS_ALLOWED } from '@/lib/deployment'
 import { env } from '@/env.mjs'
 import { createUser } from '@/lib/db/users'
-import { createLocation } from '@/lib/db/location'
 import { getCityCentroid } from '@/lib/db/cities'
 
 const DEV_TEST_CITY_ID = env.DEV_TEST_CITY_ID
@@ -44,16 +43,21 @@ export async function POST(request: NextRequest) {
     const testTopics = await prisma.topic.findMany({ take: 2, select: { id: true } })
 
     // Pinned locations near a city's centroid (Athens fallback when the city
-    // has no geometry), through the shared src/lib/db helpers so the SQL
-    // lives in one place.
+    // has no geometry). The insert lives here: production creates locations
+    // only inside the transactions that reference them (see src/lib/db/
+    // location.ts), and a dev seed is not a reason to put a location write
+    // back on that surface. Deterministic id + ON CONFLICT keep re-runs
+    // idempotent.
     async function ensureLocation(id: string, text: string, cityId: string, offset: number) {
       const centroid = await getCityCentroid(cityId)
-      await createLocation({
-        id,
-        skipIfExists: true,
-        text,
-        coordinates: [(centroid?.lng ?? 23.7275) + offset, (centroid?.lat ?? 37.9838) + offset]
-      })
+      const lng = (centroid?.lng ?? 23.7275) + offset
+      const lat = (centroid?.lat ?? 37.9838) + offset
+      await prisma.$executeRaw`
+        INSERT INTO "Location" (id, type, text, coordinates)
+        VALUES (${id}, 'point'::"LocationType", ${text},
+                ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326))
+        ON CONFLICT (id) DO NOTHING
+      `
       return id
     }
 

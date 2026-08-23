@@ -68,7 +68,7 @@ Style conventions:
 `opencouncil.rs` has no DNS yet, so use the `?realm=serbia` override on any
 non-production host (see the preview deployments guide):
 
-- **PR preview**: open `https://pr-N.preview.opencouncil.gr/?realm=serbia`.
+- **PR preview**: open `https://pr-N.opencouncil.dev/?realm=serbia`.
   The seed data includes a Belgrade review fixture — open `/beograd` for a
   released meeting with a Cyrillic-stored and a Latin-stored speaker segment,
   agenda subjects and Serbian topics; use the Ћир | Lat switcher (or the
@@ -117,6 +117,7 @@ Modular catalogs (`messages/sr/`):
 - [ ] CookieConsent, topicFilter, search, reviews
 - [ ] transcript, editing, highlights
 - [ ] landingV2, admin, about
+- [ ] metadata, presentation, mcp, og
 
 Cross-cutting:
 

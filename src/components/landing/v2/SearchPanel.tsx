@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslations } from 'next-intl';
-import { Search, ArrowLeft, ChevronUp, X } from 'lucide-react';
+import { ArrowLeft, ChevronUp } from 'lucide-react';
 import type { Topic } from '@prisma/client';
-import { cn } from '@/lib/utils';
+import { SearchInputPill } from '@/components/ui/search-input-pill';
 import {
     detectMunicipalityQuery,
     detectCategoryQuery,
@@ -17,8 +17,8 @@ import { FilterIconButton } from './controls';
 import { SearchBody } from './SearchBody';
 import { captureLandingAction } from '@/lib/landing/analytics';
 
-/* The search field (icon · input · clear), shared by dropdown and overlay. Enter applies a
-   matched category/municipality filter (clearing the text) or geocodes an address, then calls
+/* The search field, shared by dropdown and overlay. Enter applies a matched
+   category/municipality filter (clearing the text) or geocodes an address, then calls
    onAfterSubmit. `className` carries the per-context shadow. */
 function SearchField({
     query,
@@ -54,57 +54,37 @@ function SearchField({
 }) {
     const t = useTranslations('landingV2');
     return (
-        <label
+        <SearchInputPill
+            value={query}
+            onChange={onQueryChange}
+            onKeyDown={(e) => {
+                if (e.key !== 'Enter' || !query.trim()) return;
+                // category/municipality → apply filter; anything else → geocode as address
+                const catId = detectCategoryQuery(query, topics);
+                const municipality = detectMunicipalityQuery(query, cities);
+                captureLandingAction('search', {
+                    query_length: query.trim().length,
+                    kind: catId ? 'category' : municipality?.kind === 'known' ? 'municipality' : 'address',
+                });
+                if (catId) {
+                    if (!cats.includes(catId)) onToggleCat(catId);
+                    onQueryChange('');
+                } else if (municipality?.kind === 'known') {
+                    onFiltersChange({ ...filters, cityIds: [municipality.cityId] });
+                    onQueryChange('');
+                } else {
+                    onLocateAddress(query);
+                }
+                onAfterSubmit?.();
+            }}
+            onFocus={onFocus}
+            placeholder={t('search.placeholder')}
+            clearAriaLabel={t('search.clearSearch')}
+            inputRef={inputRef}
+            autoFocus={autoFocus}
+            className={className}
             style={SEARCH_FIELD_STYLE}
-            className={cn(
-                'flex h-11 flex-1 items-center gap-2.5 rounded-2xl border px-4 focus-within:ring-2 focus-within:ring-[hsl(var(--orange))]/25',
-                className,
-            )}
-        >
-            <Search className="h-4 w-4 shrink-0 text-[hsl(var(--orange))]" />
-            <input
-                ref={inputRef}
-                autoFocus={autoFocus}
-                value={query}
-                onChange={(e) => onQueryChange(e.target.value)}
-                onKeyDown={(e) => {
-                    if (e.key !== 'Enter' || !query.trim()) return;
-                    // category/municipality → apply filter; anything else → geocode as address
-                    const catId = detectCategoryQuery(query, topics);
-                    const municipality = detectMunicipalityQuery(query, cities);
-                    captureLandingAction('search', {
-                        query_length: query.trim().length,
-                        kind: catId ? 'category' : municipality?.kind === 'known' ? 'municipality' : 'address',
-                    });
-                    if (catId) {
-                        if (!cats.includes(catId)) onToggleCat(catId);
-                        onQueryChange('');
-                    } else if (municipality?.kind === 'known') {
-                        onFiltersChange({ ...filters, cityIds: [municipality.cityId] });
-                        onQueryChange('');
-                    } else {
-                        onLocateAddress(query);
-                    }
-                    onAfterSubmit?.();
-                }}
-                onFocus={onFocus}
-                className="w-full bg-transparent text-[15px] text-foreground outline-none placeholder:text-muted-foreground/70"
-                placeholder={t('search.placeholder')}
-            />
-            {query && (
-                <button
-                    type="button"
-                    aria-label={t('search.clearSearch')}
-                    onClick={() => {
-                        onQueryChange('');
-                        inputRef.current?.focus();
-                    }}
-                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                >
-                    <X className="h-4 w-4" />
-                </button>
-            )}
-        </label>
+        />
     );
 }
 

@@ -11,14 +11,19 @@ import { routing, LOCALE_OVERRIDE_HEADER } from "@/i18n/routing";
 import { getLocale, getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
 import { Metadata } from "next";
-import { getRealmBaseUrlFromRequest } from "@/lib/realm.server";
+import { getMetadataBaseFromRequest, getRealmBaseUrlFromRequest } from "@/lib/realm.server";
 
 export async function generateMetadata(): Promise<Metadata> {
     // metadataBase is the realm's canonical domain (resolved from the request
     // Host), so opencouncil.gr and opencouncil.fr each resolve their own
-    // relative OG-image / canonical URLs. Child pages set relative `/api/og`
-    // image URLs that get resolved against this base per host.
-    const baseUrl = await getRealmBaseUrlFromRequest();
+    // relative OG-image URLs. Child pages set relative `/api/og` image URLs that
+    // get resolved against this base per host. On a preview host it is the
+    // preview's own origin instead, so an OG-image change is reviewable on its
+    // own PR — see getMetadataBaseFromRequest.
+    const [baseUrl, metadataBase] = await Promise.all([
+        getRealmBaseUrlFromRequest(),
+        getMetadataBaseFromRequest(),
+    ]);
 
     return {
         title: 'OpenCouncil',
@@ -26,7 +31,7 @@ export async function generateMetadata(): Promise<Metadata> {
         icons: {
             icon: '/favicon.ico',
         },
-        metadataBase: new URL(baseUrl),
+        metadataBase: new URL(metadataBase),
         openGraph: {
             title: 'OpenCouncil',
             description: 'Ανοιχτή τοπική αυτοδιοίκηση',

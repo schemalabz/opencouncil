@@ -11,7 +11,8 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { User, LogOut, LogIn, Edit, ShieldCheck } from "lucide-react"
+import { LogOut, LogIn, ShieldCheck } from "lucide-react"
+import { useAccountLinks } from "./account-links"
 import { signOut } from "next-auth/react"
 // The locale-aware router: next/navigation's would push a bare "/sign-in",
 // dropping the locale prefix and landing the user on the Greek sign-in page.
@@ -25,6 +26,8 @@ import { isUserAuthorizedToEdit } from "@/lib/auth"
 export default function UserDropdown({ currentEntity }: { currentEntity?: { cityId: string } }) {
     const { data: session, status } = useSession()
     const t = useTranslations("Header")
+    const tAccount = useTranslations("account")
+    const accountLinks = useAccountLinks()
     const locale = useLocale()
     const router = useRouter()
     const [canEdit, setCanEdit] = useState(false);
@@ -92,18 +95,20 @@ export default function UserDropdown({ currentEntity }: { currentEntity?: { city
                     <DropdownMenuSeparator />
                 </>}
 
-                <DropdownMenuItem asChild>
-                    <Link href="/profile" className="cursor-pointer">
-                        <User className="mr-2 h-4 w-4" />
-                        {t("profile")}
-                    </Link>
-                </DropdownMenuItem>
+                {accountLinks.map(({ href, labelKey, icon: Icon }) => (
+                    <DropdownMenuItem key={href} asChild>
+                        <Link href={href} className="cursor-pointer">
+                            <Icon className="mr-2 h-4 w-4" />
+                            {tAccount(labelKey)}
+                        </Link>
+                    </DropdownMenuItem>
+                ))}
                 <DropdownMenuItem
                     className="text-red-600 focus:text-red-600 cursor-pointer"
                     onClick={() => signOut()}
                 >
                     <LogOut className="mr-2 h-4 w-4" />
-                    {t("signOut")}
+                    {tAccount("signOut")}
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>

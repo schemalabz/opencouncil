@@ -37,10 +37,19 @@ describe('buildCanonicalAlternates', () => {
         });
     });
 
-    it('resolves preview subdomains to their realm', async () => {
-        currentHost = 'pr-7.preview.opencouncil.fr';
+    it('resolves realm subdomains to their realm', async () => {
+        currentHost = 'www.opencouncil.fr';
         expect(await buildCanonicalAlternates('/x')).toEqual({
             canonical: 'https://opencouncil.fr/x',
+        });
+    });
+
+    // A preview must never canonicalize to itself — the whole point of the
+    // canonical is to point crawlers at the production page.
+    it('canonicalizes a preview host to the production apex', async () => {
+        currentHost = 'pr-7.opencouncil.dev';
+        expect(await buildCanonicalAlternates('/x')).toEqual({
+            canonical: 'https://opencouncil.gr/x',
         });
     });
 });

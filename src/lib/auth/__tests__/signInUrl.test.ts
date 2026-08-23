@@ -70,12 +70,23 @@ describe('signInUrlForRequest', () => {
         expect(result).toBe(greekUrl);
     });
 
-    it('allows a preview subdomain of a realm domain', () => {
+    it('allows a subdomain of a realm domain', () => {
         const result = signInUrlForRequest(
             greekUrl,
-            reqWith({ 'x-forwarded-host': 'pr-7.preview.opencouncil.fr' })
+            reqWith({ 'x-forwarded-host': 'www.opencouncil.fr' })
         );
-        expect(new URL(result).host).toBe('pr-7.preview.opencouncil.fr');
+        expect(new URL(result).host).toBe('www.opencouncil.fr');
+    });
+
+    // Previews belong to no realm, so the host allowlist has to admit the
+    // preview domain in its own right — otherwise every preview would mail out
+    // links pointing at whichever host the build's NEXTAUTH_URL names.
+    it('allows a preview host', () => {
+        const result = signInUrlForRequest(
+            greekUrl,
+            reqWith({ 'x-forwarded-host': 'pr-7.opencouncil.dev' })
+        );
+        expect(new URL(result).host).toBe('pr-7.opencouncil.dev');
     });
 
     // Auth.js resolves the relative `redirectTo` against NEXTAUTH_URL's origin

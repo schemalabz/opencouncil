@@ -1,3 +1,8 @@
+// Server-only: these message reads/writes are called from the notification
+// sender and the Bird webhook (service context), never from a client. The
+// import keeps the module — and its message.create/update — off any client
+// bundle and off the Server Action surface.
+import "server-only";
 import prisma from './prisma';
 import type { Message, MessageChannel, MessageDirection, MessageStatus } from '@prisma/client';
 import { normalizePhone } from '@/lib/notifications/phone';

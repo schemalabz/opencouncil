@@ -1,3 +1,9 @@
+// Server-only: not a "use server" module, so these functions are never client
+// -invocable actions. The user-facing path goes through the decisions API route
+// (gated per-method by withUserAuthorizedToEdit({ cityId })); the write path is
+// also driven by the pollDecisions service task, which has no user session — so
+// gating must stay at the callers, not inside these functions.
+import "server-only";
 import prisma from './prisma';
 import { AttendanceStatus, DataSource, Decision, Prisma, TaskStatus, User, VoteType } from '@prisma/client';
 

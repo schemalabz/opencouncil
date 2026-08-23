@@ -11,6 +11,7 @@ import {
     createSubject,
     createTopic,
     createUser,
+    signInAsSuperAdmin,
 } from '../helpers/factories'
 
 describe('notis rollout exclusion in the notification pipeline', () => {
@@ -20,6 +21,7 @@ describe('notis rollout exclusion in the notification pipeline', () => {
 
     beforeEach(async () => {
         await resetDatabase(prisma as any)
+        await signInAsSuperAdmin()
     })
 
     async function setupMatchingMeeting() {

@@ -57,19 +57,24 @@ export async function getTasksForMeeting(cityId: string, meetingId: string): Pro
 }
 
 export async function getTaskStatus(taskStatusId: string): Promise<TaskStatus | null> {
-    try {
-        const taskStatus = await prisma.taskStatus.findUnique({
-            where: { id: taskStatusId },
-        });
-
-        return taskStatus;
-    } catch (error) {
-        console.error('Error fetching task status:', error);
-        throw new Error('Failed to fetch task status');
-    }
+    const taskStatus = await prisma.taskStatus.findUnique({
+        where: { id: taskStatusId },
+    });
+    // Scope to the task's own city; a missing task requires superadmin so the
+    // id space can't be probed anonymously.
+    await withUserAuthorizedToEdit(taskStatus ? { cityId: taskStatus.cityId } : {});
+    return taskStatus;
 }
 
 export async function deleteTaskStatus(taskStatusId: string): Promise<void> {
+    // Called directly from client components (admin tasks + voiceprint actions),
+    // so it must gate itself. Scope to the task's own city; a missing task
+    // requires superadmin so a bare delete cannot be fired against any id.
+    const task = await prisma.taskStatus.findUnique({
+        where: { id: taskStatusId },
+        select: { cityId: true },
+    });
+    await withUserAuthorizedToEdit(task ? { cityId: task.cityId } : {});
     try {
         await prisma.taskStatus.delete({
             where: { id: taskStatusId },
@@ -162,6 +167,10 @@ export async function getVoiceprintTasksForPerson(personId: string): Promise<Tas
  * Derive which meeting tasks have been completed for a specific meeting
  */
 export async function getMeetingTaskStatus(cityId: string, meetingId: string): Promise<MeetingTaskStatus> {
+    // Public/cached: called inside the createCache-wrapped getMeetingData path,
+    // so it must not call headers() (auth). Returns only which processing tasks
+    // have completed (booleans) — no sensitive data — and drives public meeting
+    // status. Do not add an auth gate here.
     // Single optimized query to get all succeeded tasks for this meeting
     const succeededTasks = await prisma.taskStatus.findMany({
         where: {

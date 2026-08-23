@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyUnsubscribeToken } from '@/lib/notifications/tokens';
-import { disableNotificationPreferenceByCityId, disableAllNotificationPreferences } from '@/lib/db/notifications';
-import { updateUserProfile } from '@/lib/db/users';
+import { disableNotificationPreferenceByCityId, disableAllNotificationPreferences, setUserEmailSubscriptionFlags } from '@/lib/db/notifications';
 import { handleApiError } from '@/lib/api/errors';
 
 export async function POST(request: NextRequest) {
@@ -29,7 +28,7 @@ export async function POST(request: NextRequest) {
     try {
         if (action === 'all') {
             await Promise.all([
-                updateUserProfile(data.userId, { allowProductUpdates: false, allowPetitionUpdates: false }),
+                setUserEmailSubscriptionFlags(data.userId, { allowProductUpdates: false, allowPetitionUpdates: false }),
                 disableAllNotificationPreferences(data.userId),
             ]);
         } else if (action === 'city') {
@@ -50,7 +49,7 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({ error: 'Token has no city scope' }, { status: 400 });
             }
             const operations: Promise<unknown>[] = [
-                updateUserProfile(data.userId, { allowProductUpdates, allowPetitionUpdates }),
+                setUserEmailSubscriptionFlags(data.userId, { allowProductUpdates, allowPetitionUpdates }),
             ];
             if (unsubscribeCity === true && data.cityId) {
                 operations.push(disableNotificationPreferenceByCityId(data.userId, data.cityId));

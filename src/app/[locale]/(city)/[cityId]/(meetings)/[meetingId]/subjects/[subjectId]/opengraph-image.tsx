@@ -1,11 +1,13 @@
 // See src/app/api/og/route.tsx for why we use @vercel/og directly instead of next/og.
 import { ImageResponse } from "@vercel/og";
+import { getTranslations } from "next-intl/server";
 import { Container, OgHeader, formatCityDisplayName } from "@/components/og/shared-components";
 import { getMeetingDataForOG } from "@/lib/db/meetings";
 import { getPeopleForCityCached, getSubjectsForMeetingCached, getSubjectStatisticsCached } from "@/lib/cache/queries";
-import { LOGO_BLACK_DATA_URI } from "@/lib/og/serverAssets";
+import { LOGO_BLACK_DATA_URI, OG_FONTS } from "@/lib/og/serverAssets";
 import { PersonWithRelations } from '@/lib/db/people';
-import { getInitials } from "@/lib/formatters/name";
+import { getInitials, getLocalizedMunicipalityName, getLocalizedName } from "@/lib/formatters/name";
+import { localizeText } from "@/lib/serbian";
 import { ColorPercentageRingProps } from "@/components/ui/color-percentage-ring";
 
 // Image configuration
@@ -21,11 +23,14 @@ export const contentType = "image/png";
 function ColorPercentageRing({
     data,
     totalMinutes,
+    minutesLabel,
     size = 120,
     thickness = 14,
     emptyColor = "#e5e7eb",
 }: Omit<ColorPercentageRingProps, "children"> & {
     totalMinutes: number;
+    /** Localized unit under the number, e.g. "λεπτά". */
+    minutesLabel: string;
 }) {
     const radius = size / 2;
     let startAngle = 0;
@@ -141,7 +146,7 @@ function ColorPercentageRing({
                         display: "flex",
                     }}
                 >
-                    λεπτά
+                    {minutesLabel}
                 </div>
             </div>
         </div>
@@ -159,7 +164,8 @@ export default async function SubjectOgImage({
         subjectId: string;
     }>;
 }) {
-    const { cityId, meetingId, subjectId } = await params;
+    const { locale, cityId, meetingId, subjectId } = await params;
+    const t = await getTranslations({ locale, namespace: "og" });
 
     const [meeting, subjects, people] = await Promise.all([
         getMeetingDataForOG(cityId, meetingId),
@@ -182,7 +188,7 @@ export default async function SubjectOgImage({
                     }}
                 />
             ),
-            { ...size },
+            { ...size, fonts: OG_FONTS },
         );
     }
 
@@ -231,6 +237,7 @@ export default async function SubjectOgImage({
                     <ColorPercentageRing
                         data={colorPercentages}
                         totalMinutes={totalMinutes}
+                        minutesLabel={t("subject.minutes")}
                         size={180}
                         thickness={20}
                     />
@@ -238,7 +245,10 @@ export default async function SubjectOgImage({
 
                 <OgHeader
                     city={{
-                        name: formatCityDisplayName(meeting.city.name_municipality, meeting.administrativeBody?.name),
+                        name: formatCityDisplayName(
+                            getLocalizedMunicipalityName(meeting.city, locale),
+                            meeting.administrativeBody ? getLocalizedName(meeting.administrativeBody, locale) : null,
+                        ),
                         logoImage: meeting.city.logoImage,
                     }}
                 />
@@ -260,7 +270,7 @@ export default async function SubjectOgImage({
                             marginBottom: "8px",
                         }}
                     >
-                        {meeting.name}
+                        {getLocalizedName(meeting, locale)}
                     </span>
 
                     {/* Subject name with padding on the right to make room for the ring */}
@@ -276,7 +286,7 @@ export default async function SubjectOgImage({
                             display: "flex",
                         }}
                     >
-                        {subject.name}
+                        {localizeText(subject.name, locale)}
                     </h1>
 
                     {/* Topic and location badges */}
@@ -314,7 +324,7 @@ export default async function SubjectOgImage({
                                         display: "flex",
                                     }}
                                 />
-                                <span style={{ display: "flex" }}>{subject.topic.name}</span>
+                                <span style={{ display: "flex" }}>{getLocalizedName(subject.topic, locale)}</span>
                             </div>
                         )}
 
@@ -334,7 +344,7 @@ export default async function SubjectOgImage({
                                 }}
                             >
                                 <span style={{ display: "flex" }}>📍</span>
-                                <span style={{ display: "flex" }}>{subject.location.text}</span>
+                                <span style={{ display: "flex" }}>{localizeText(subject.location.text, locale)}</span>
                             </div>
                         )}
                     </div>
@@ -356,22 +366,14 @@ export default async function SubjectOgImage({
                                 }}
                             >
                                 {topSpeakers.slice(0, 9).map((person, index) => {
-                                    // Find party from roles
-                                    let partyName: string | null = null;
-                                    let partyColor: string | null = null;
-
-                                    if (person.roles && person.roles.length > 0) {
-                                        const roleWithParty = person.roles.find(r => r.party);
-                                        if (roleWithParty && roleWithParty.party) {
-                                            partyName = roleWithParty.party.name_short;
-                                            partyColor = roleWithParty.party.colorHex;
-                                        }
-                                    }
+                                    // The party only tints the avatar ring here — its name is not drawn.
+                                    const partyColor = person.roles?.find(r => r.party)?.party?.colorHex ?? null;
 
                                     // Check if this is the introducer
                                     const isIntroducer = introducedByPerson && person.id === introducedByPerson.id;
 
-                                    const initials = getInitials(person.name);
+                                    const personName = getLocalizedName(person, locale);
+                                    const initials = getInitials(personName);
 
                                     return (
                                         <div
@@ -406,7 +408,7 @@ export default async function SubjectOgImage({
                                                     // eslint-disable-next-line @next/next/no-img-element
                                                     <img
                                                         src={person.image}
-                                                        alt={person.name}
+                                                        alt={personName}
                                                         width='100'
                                                         height='100'
                                                         style={{ objectFit: "cover" }}
@@ -493,6 +495,6 @@ export default async function SubjectOgImage({
                 </div>
             </Container>
         ),
-        { ...size },
+        { ...size, fonts: OG_FONTS },
     );
 }

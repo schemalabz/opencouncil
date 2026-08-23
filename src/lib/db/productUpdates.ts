@@ -1,6 +1,7 @@
 "use server";
 
 import prisma from './prisma';
+import { withUserAuthorizedToEdit } from '@/lib/auth';
 
 /**
  * Audience for product-update emails: every user who has consented to receive
@@ -14,6 +15,7 @@ export interface ProductUpdateRecipient {
 }
 
 export async function getProductUpdateRecipients(): Promise<ProductUpdateRecipient[]> {
+    await withUserAuthorizedToEdit({});
     const users = await prisma.user.findMany({
         where: {
             allowProductUpdates: true,
@@ -36,6 +38,7 @@ export async function getProductUpdateRecipientCount(): Promise<{
     optedIn: number;
     total: number;
 }> {
+    await withUserAuthorizedToEdit({});
     const [optedIn, total] = await Promise.all([
         prisma.user.count({
             where: { allowProductUpdates: true },

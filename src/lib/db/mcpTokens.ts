@@ -1,3 +1,7 @@
+// Server-only: mints/validates personal MCP tokens. The mcp actions module
+// derives the userId from the session before calling these; keep them off the
+// client bundle and the Server Action surface.
+import "server-only";
 import { createHash, randomBytes } from 'crypto';
 import prisma from '@/lib/db/prisma';
 

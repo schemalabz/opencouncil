@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { z } from 'zod';
-import { createCouncilMeetingDirect, getCouncilMeetingsForCity, generateUniqueMeetingId } from '@/lib/db/meetings';
+import { getCouncilMeetingsForCity, generateUniqueMeetingId } from '@/lib/db/meetings';
+import { createCouncilMeetingDirect } from '@/lib/db/meetingsCreate';
 import { withServiceOrUserAuth } from '@/lib/auth';
 import { sendMeetingCreatedAdminAlert } from '@/lib/discord';
 import { createMeetingCalendarEvent, calculateMeetingEndTime } from '@/lib/google-calendar';

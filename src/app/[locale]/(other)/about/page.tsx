@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server'
 import { getSupportedCitiesWithLogosCached, getAboutPageStatsCached, getGitHubStatsCached } from '@/lib/cache/queries'
 import { buildCanonicalAlternates } from '@/lib/utils/hreflang'
 import { getRealm } from '@/lib/realm.server'
+import { buildOgImageUrl } from '@/lib/og/locale'
 
 export async function generateMetadata(
     props: {
@@ -22,7 +23,7 @@ export async function generateMetadata(
     const description = t('description')
     const keywords = t('keywords').split(',')
 
-    const ogImageUrl = `/api/og?pageType=about`;
+    const ogImageUrl = buildOgImageUrl(locale, { pageType: 'about' });
 
     return {
         title,

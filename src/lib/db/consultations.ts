@@ -1,6 +1,7 @@
 import { Consultation, User, ConsultationComment, ConsultationCommentEntityType } from '@prisma/client';
 import { Session } from 'next-auth';
 import prisma from "./prisma";
+import { withUserAuthorizedToEdit } from "@/lib/auth";
 import { sendConsultationCommentEmail } from "../email/consultation";
 import { RegulationData } from "@/components/consultations/types";
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
@@ -18,6 +19,7 @@ export type ConsultationForAdmin = Consultation & {
 // ----- Admin CRUD functions -----
 
 export async function getConsultationsForAdmin(): Promise<ConsultationForAdmin[]> {
+    await withUserAuthorizedToEdit({});
     return prisma.consultation.findMany({
         orderBy: { createdAt: 'desc' },
         include: {
@@ -34,6 +36,7 @@ export async function createConsultation(data: {
     isActive?: boolean;
     cityId: string;
 }) {
+    await withUserAuthorizedToEdit({});
     // Validate the city exists and has consultations enabled
     const city = await prisma.city.findUnique({
         where: { id: data.cityId },
@@ -66,6 +69,7 @@ export async function updateConsultation(
     id: string,
     data: { name?: string; jsonUrl?: string; endDate?: string; isActive?: boolean }
 ) {
+    await withUserAuthorizedToEdit({});
     return prisma.consultation.update({
         where: { id },
         data: {
@@ -81,10 +85,12 @@ export async function updateConsultation(
 }
 
 export async function deleteConsultation(id: string) {
+    await withUserAuthorizedToEdit({});
     return prisma.consultation.delete({ where: { id } });
 }
 
 export async function getAdminCityOptions() {
+    await withUserAuthorizedToEdit({});
     return prisma.city.findMany({
         where: { consultationsEnabled: true },
         select: { id: true, name: true },
@@ -203,10 +209,13 @@ export async function getConsultationDataForOG(cityId: string, consultationId: s
         },
         include: {
             city: {
+                // `name_municipality_en` comes along because the OG image renders
+                // in the locale of the page that embeds it, English included.
                 select: {
                     id: true,
                     name: true,
                     name_municipality: true,
+                    name_municipality_en: true,
                     logoImage: true,
                     authorityType: true,
                 }

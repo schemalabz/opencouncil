@@ -1,0 +1,58 @@
+{
+    "meeting": {
+        "subjects": "{count, plural, =0 {Aucun sujet} one {# sujet} other {# sujets}}",
+        "moreSubjects": "{count, plural, one {+# autre sujet} other {+# autres sujets}}"
+    },
+    "city": {
+        "meetingsRecorded": "{count, plural, =0 {Aucune séance enregistrée} one {# séance enregistrée} other {# séances enregistrées}}",
+        "stats": {
+            "meetings": "Séances",
+            "people": "Membres",
+            "parties": "Groupes"
+        },
+        "supportedByMunicipality": "Avec le soutien de la commune",
+        "supportedByRegion": "Avec le soutien de la région",
+        "noSupportFromMunicipality": "Sans soutien officiel de la commune",
+        "noSupportFromRegion": "Sans soutien officiel de la région"
+    },
+    "consultation": {
+        "badge": "Consultation publique",
+        "keyTopics": "Sujets principaux :",
+        "untitledChapter": "Chapitre sans titre"
+    },
+    "person": {
+        "council": "Conseil municipal"
+    },
+    "people": {
+        "title": "Conseillers municipaux",
+        "count": "{count, plural, one {# conseiller} other {# conseillers}}",
+        "more": "et {count} de plus..."
+    },
+    "subject": {
+        "minutes": "minutes"
+    },
+    "search": {
+        "title": "Rechercher",
+        "description": "Retrouvez les sujets abordés, les interventions des conseillers et les statistiques de tous les conseils municipaux",
+        "footer": "OpenCouncil • Recherche intelligente"
+    },
+    "about": {
+        "tags": [
+            "Transcriptions",
+            "Procès-verbaux",
+            "Alertes citoyennes",
+            "Carte des sujets"
+        ]
+    },
+    "landing": {
+        "headlineTop": "Ce dont parle le conseil municipal,",
+        "headlineBottom": "sur une carte",
+        "subtitle": "Les sujets des séances du conseil municipal — par quartier, par catégorie et par date.",
+        "tags": [
+            "Carte des sujets",
+            "Recherche",
+            "Alertes",
+            "Séances"
+        ]
+    }
+}

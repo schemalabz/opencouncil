@@ -12,6 +12,7 @@ import { Metadata } from "next";
 import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 import { getLocalizedName } from "@/lib/formatters/name";
 import { getOgLocale } from '@/i18n/config';
+import { buildOgImageUrl } from '@/lib/og/locale';
 
 export async function generateMetadata(
     props: { params: Promise<{ locale: string, personId: string, cityId: string }> }
@@ -46,7 +47,7 @@ export async function generateMetadata(
     const description = `Προφίλ του προσώπου ${personName} ${roleDescription} | ${cityName} | Στατιστικά συμμετοχής, τοποθετήσεις, δραστηριότητα στο δημοτικό συμβούλιο.`;
 
     // Generate OG image URL
-    const ogImageUrl = `/api/og?cityId=${params.cityId}&personId=${params.personId}`;
+    const ogImageUrl = buildOgImageUrl(params.locale, { cityId: params.cityId, personId: params.personId });
 
     return {
         title: `${personName} | ${cityName} | OpenCouncil`,

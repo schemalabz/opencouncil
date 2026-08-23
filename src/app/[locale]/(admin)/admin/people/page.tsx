@@ -5,12 +5,16 @@ import { sortPersonsByLastName } from "@/lib/sorting/people";
 import CitySelector from "@/components/admin/people/city-selector";
 import People from "@/components/admin/people/people";
 import { AdministrativeBody } from "@prisma/client";
+import { withUserAuthorizedToEdit } from "@/lib/auth";
 
 interface PageProps {
     searchParams: Promise<{ cityId?: string }>;
 }
 
 export default async function PeoplePage(props: PageProps) {
+    // This page had no server guard of its own. The (admin) layout guard does
+    // not re-run on RSC navigation, so re-assert the superadmin gate here.
+    await withUserAuthorizedToEdit({});
     const searchParams = await props.searchParams;
     const cities = await getCities({ includeNonPublic: true });
 

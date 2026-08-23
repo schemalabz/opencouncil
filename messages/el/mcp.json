@@ -21,19 +21,26 @@
         "copy": "Αντιγραφή",
         "copied": "Αντιγράφηκε"
     },
+    "video": {
+        "title": "Οδηγός σε βίντεο",
+        "caption": "Τέσσερα λεπτά: πώς συνδέετε το Claude και το ChatGPT, και τι μπορείτε να ρωτήσετε στη συνέχεια.",
+        "iframeTitle": "Πώς να συνδέσετε το Claude και το ChatGPT με το OpenCouncil"
+    },
     "clients": {
         "claude": {
             "title": "Claude",
             "step1": "Στο claude.ai, ανοίξτε Settings → Connectors.",
             "step2": "Πατήστε «Add custom connector».",
-            "step3": "Δώστε το όνομα OpenCouncil και επικολλήστε τη διεύθυνση.",
+            "step3": "Δώστε το όνομα OpenCouncil και επικολλήστε τη διεύθυνση. Τα υπόλοιπα πεδία μένουν κενά.",
+            "step4": "Πατήστε «Add» και μετά «Connect» — ο connector εμφανίζεται ως συνδεδεμένος.",
             "openSettings": "Άνοιγμα ρυθμίσεων claude.ai"
         },
         "chatgpt": {
             "title": "ChatGPT",
             "step1": "Στο ChatGPT, ανοίξτε Settings → Apps & Connectors και ενεργοποιήστε το Developer mode (στο Advanced).",
-            "step2": "Πατήστε «Create» για νέο connector.",
+            "step2": "Επιστρέψτε στα Apps & Connectors και πατήστε «Create».",
             "step3": "Δώστε το όνομα OpenCouncil, επικολλήστε τη διεύθυνση και επιλέξτε «No authentication».",
+            "step4": "Πατήστε «Create» και μετά «Connect» — ο connector εμφανίζεται ως συνδεδεμένος.",
             "openSettings": "Άνοιγμα ρυθμίσεων ChatGPT"
         },
         "claudeCode": {

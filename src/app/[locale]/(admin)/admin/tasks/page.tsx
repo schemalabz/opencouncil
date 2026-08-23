@@ -5,6 +5,7 @@ import { TaskFilters } from "@/components/admin/tasks/TaskFilters";
 import { BatchRerunActions, type BatchMeeting } from "@/components/admin/tasks/BatchRerunActions";
 import { ActiveTasks } from "@/components/admin/tasks/ActiveTasks";
 import { MeetingTaskType } from "@/lib/tasks/types";
+import { withUserAuthorizedToEdit } from "@/lib/auth";
 
 const DEFAULT_TASK_TYPES: MeetingTaskType[] = ['transcribe', 'processAgenda', 'summarize'];
 
@@ -20,6 +21,7 @@ interface PageProps {
 }
 
 export default async function TasksPage(props: PageProps) {
+    await withUserAuthorizedToEdit({});
     const searchParams = await props.searchParams;
     // Parse date range — default dateFrom is Jan 1 of current year, "all" = no filter
     const currentYear = new Date().getFullYear();

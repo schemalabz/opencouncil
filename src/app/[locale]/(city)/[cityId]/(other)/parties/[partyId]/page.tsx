@@ -9,6 +9,7 @@ import { Metadata } from "next";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getLocalizedName, getLocalizedShortName } from "@/lib/formatters/name";
 import { getOgLocale } from '@/i18n/config';
+import { buildOgImageUrl } from '@/lib/og/locale';
 
 // Request-scoped dedup so generateMetadata and PartyPage share a single fetch.
 const getPartyCached = cache(getParty);
@@ -34,7 +35,7 @@ export async function generateMetadata(
     const partyName = getLocalizedName(party, params.locale);
     const cityName = getLocalizedName(city, params.locale);
     const description = `Η παράταξη ${partyName} στο Δημοτικό Συμβούλιο του Δήμου ${cityName}. Δείτε τα μέλη, τις τοποθετήσεις και τη δραστηριότητά της στις συνεδριάσεις.`;
-    const ogImageUrl = `/api/og?cityId=${params.cityId}`;
+    const ogImageUrl = buildOgImageUrl(params.locale, { cityId: params.cityId });
 
     return {
         title: `${partyName} | ${cityName} | OpenCouncil`,

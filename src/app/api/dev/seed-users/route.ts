@@ -128,7 +128,7 @@ export async function POST(request: Request) {
                         name,
                         cityId: selectedCity.id,
                         topicIds: selectedTopics.map(t => t.id),
-                        locationIds: [],
+                        locations: [],
                         seedUser: userData
                     })
 
