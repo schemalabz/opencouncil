@@ -1,3 +1,5 @@
+import { getAdminSession } from "@/lib/session-auth";
+import { redirect } from "next/navigation";
 import { Activity, Euro, MessagesSquare, Users } from "lucide-react";
 import { StatsCard } from "@opencouncil/ui/stats-card";
 import { PageHeader } from "./_components/PageHeader";
@@ -24,6 +26,11 @@ function EmptyPanel({ title, hint }: { title: string; hint: string }) {
 }
 
 export default async function DashboardPage() {
+  // Re-assert auth in the page body: the (panel) layout guard does not
+  // re-run on an RSC soft-navigation, so a segment request can reach this
+  // page without it (enforced by the admin-auth-guard test).
+  const session = await getAdminSession();
+  if (!session) redirect("/admin/login");
   const m = await getPanelMetrics();
   const silenceRate =
     m.wakes.total > 0 ? `${Math.round((m.wakes.silences / m.wakes.total) * 100)}%` : "—";

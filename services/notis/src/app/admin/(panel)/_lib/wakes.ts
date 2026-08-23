@@ -1,3 +1,4 @@
+import "server-only";
 import { WakeOutcome } from "@/agent/types";
 import { hasNotisDb, notisDb } from "@/lib/db";
 
