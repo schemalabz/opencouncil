@@ -92,8 +92,11 @@ export async function handleOutboundStatus(
         status: fields.status,
         // Only keep a reason on failure; clear it otherwise (same rule as
         // the main app's webhook).
+        // `?? null` must come LAST: a `(x ?? null)?.slice()` on a missing
+        // reason yields undefined, which Prisma reads as "leave unchanged" —
+        // keeping a stale reason from an earlier failure.
         failureReason:
-          fields.status === "failed" ? (fields.failureReason ?? null)?.slice(0, 300) : null,
+          fields.status === "failed" ? (fields.failureReason?.slice(0, 300) ?? null) : null,
       },
     });
     if (fields.status === "failed") {
