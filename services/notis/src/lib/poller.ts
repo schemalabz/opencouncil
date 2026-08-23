@@ -244,6 +244,7 @@ async function enrollNewTargets(
           body: rendered.body,
           channel: "whatsapp",
           proactive: true,
+          railed: true,
           deliveryMode: "template",
           template: "demos_transition",
           status: "pending",

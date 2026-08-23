@@ -343,6 +343,9 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
   );
   const outboundTotal = Object.values(outboundByStatus).reduce((a, b) => a + b, 0);
   const failed = outboundByStatus.failed ?? 0;
+  // Suppressed rows were never given to Bird — counting them in the fail
+  // rate's denominator dilutes it with sends that could not fail.
+  const sendable = outboundTotal - (outboundByStatus.suppressed ?? 0);
 
   const decisionCount = (d: string) =>
     wakesByDecision.find((r) => r.decision === d)?._count._all ?? 0;
@@ -364,7 +367,7 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
     messagesReceived: directionCount("inbound"),
     unsubscribes,
     outboundByStatus,
-    failRate: outboundTotal > 0 ? failed / outboundTotal : null,
+    failRate: sendable > 0 ? failed / sendable : null,
     failureReasons: failures.map((r) => ({
       reason: r.failureReason ?? "άγνωστος λόγος",
       count: r._count._all,

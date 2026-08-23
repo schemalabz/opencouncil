@@ -243,7 +243,13 @@ describe("runWake", () => {
       },
       { content: [text("They wanted out; let them go warmly.")], stop_reason: "end_turn" },
     ]);
-    const { outcome } = await runWake(makeState(), [meetingEvent()], makeDeps(fake));
+    // A user_message event: only the reader can unsubscribe the reader, and
+    // the guard ignores the tool on wakes without one.
+    const { outcome } = await runWake(
+      makeState(),
+      [{ type: "user_message", at: FIXED_NOW.toISOString(), text: "σταμάτα να μου στέλνεις" }],
+      makeDeps(fake),
+    );
     expect(outcome.unsubscribe).toEqual({ reason: "asked to stop" });
     expect(outcome.messages).toHaveLength(1);
   });
@@ -378,6 +384,23 @@ describe("runWake", () => {
     expect(markers).toBe(2);
   });
 
+});
+
+describe("unsubscribe guard", () => {
+  it("ignores unsubscribe_user on a wake without a reader message", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "unsubscribe_user", { reason: "hallucinated" }),
+          toolUse("t2", "finish_wake", { rationale: "Τίποτα σχετικό." }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const { outcome } = await runWake(makeState(), [meetingEvent()], makeDeps(fake));
+
+    expect(outcome.unsubscribe).toBeUndefined();
+  });
 });
 
 describe("runWake incremental delivery (deps.deliver)", () => {

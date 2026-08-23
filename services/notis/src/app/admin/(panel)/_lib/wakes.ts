@@ -6,14 +6,17 @@ import { hasNotisDb, notisDb } from "@/lib/db";
 /** The cross-user wake feed. Empty without NOTIS_DATABASE_URL. */
 
 export type DecisionFilter = "all" | "send" | "silence" | "error";
-export type EventFilter = "all" | (typeof WAKE_EVENT_TYPES)[number];
+// "system" is a real eventType on shell-side wakes (ΣΤΟΠ pre-step, cap skip,
+// phone-gone) even though it is not a WakeEvent — the filter must accept it
+// or the panel's own chip silently resets to «όλα».
+export type EventFilter = "all" | (typeof WAKE_EVENT_TYPES)[number] | "system";
 
 export function parseDecisionFilter(value: string | undefined): DecisionFilter {
   return value === "send" || value === "silence" || value === "error" ? value : "all";
 }
 
 export function parseEventFilter(value: string | undefined): EventFilter {
-  return value && (WAKE_EVENT_TYPES as readonly string[]).includes(value)
+  return value && ([...WAKE_EVENT_TYPES, "system"] as readonly string[]).includes(value)
     ? (value as EventFilter)
     : "all";
 }

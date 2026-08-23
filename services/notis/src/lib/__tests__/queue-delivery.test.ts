@@ -66,15 +66,16 @@ describe("deliverPendingMessage — rails on the retry path", () => {
   afterEach(() => jest.useRealTimers());
 
   it("suppresses a reply-continuation template (proactive:false) when the reader unsubscribed", async () => {
-    // A promised follow-up is cap-exempt, so proactive is false — but it is a
-    // template send, so it is unprompted and must still respect a ΣΤΟΠ. The
-    // rail keys on proactive OR template for exactly this row.
+    // A promised follow-up is cap-exempt, so proactive is false — but it is
+    // unprompted at delivery, so it is stamped railed and must still respect
+    // a ΣΤΟΠ. The rail keys on the stamp, not on mode inference.
     const db = makeFakeDb({
       subscriptions: [{ ...SUB, status: "unsubscribed", unsubscribedAt: new Date() }],
       settings: liveSettings(),
     });
     const id = seedMessage(db, {
       proactive: false,
+      railed: true,
       deliveryMode: "template",
       template: "demos_followup",
     });
@@ -95,6 +96,7 @@ describe("deliverPendingMessage — rails on the retry path", () => {
     });
     const id = seedMessage(db, {
       proactive: true,
+      railed: true,
       deliveryMode: "template",
       template: "demos_update_news",
     });
@@ -170,6 +172,7 @@ describe("resendStalePendingMessages — held SMS release honors the rails", () 
       id: "sms1",
       channel: "sms",
       proactive: true,
+      railed: true,
       failureReason: SMS_HELD_FOR_QUIET_HOURS,
       createdAt: new Date(Date.now() - RESEND_STALE_AFTER_MS - 60_000),
     });

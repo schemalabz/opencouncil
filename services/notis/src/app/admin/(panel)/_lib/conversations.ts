@@ -258,8 +258,15 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
   ]);
 
   // SMS fallbacks mark the failed WhatsApp send they replaced.
+  // Only fallbacks that reached (or verifiably left for) the reader earn the
+  // «εστάλη SMS» marker — a failed or still-held SMS did not rescue anything.
   const smsFallbacks = await db.notisMessage.findMany({
-    where: { subscriptionId: id, channel: "sms", fallbackForId: { not: null } },
+    where: {
+      subscriptionId: id,
+      channel: "sms",
+      fallbackForId: { not: null },
+      status: { in: ["sent", "delivered", "read"] },
+    },
     select: { fallbackForId: true },
   });
   const fallbackFor = new Set(smsFallbacks.map((m) => m.fallbackForId));

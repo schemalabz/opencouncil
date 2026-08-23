@@ -2,7 +2,7 @@ import type { ExtractedMessageFields } from "@/lib/bird-extract";
 import { STOP_ALREADY_TEXT, STOP_CONFIRMATION_TEXT } from "@/lib/stop";
 import { type Row, makeFakeDb } from "../../../../../lib/__tests__/fake-db";
 import { FakeBird } from "../../../../../lib/__tests__/fake-bird";
-import { handleInbound, handleOutboundStatus, isForwardProgression } from "../handlers";
+import { handleInbound, handleOutboundStatus, isForwardProgression, handleSmsInbound } from "../handlers";
 import { SMS_HELD_FOR_QUIET_HOURS } from "../../../../../lib/queue";
 
 // Enrollment reads the main-DB views through these two modules; the fakes
@@ -270,6 +270,90 @@ describe("handleInbound", () => {
   });
 });
 
+describe("inbound SMS for served phones", () => {
+  it("a bare ΣΤΟΠ over SMS unsubscribes and confirms over SMS", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    const bird = new FakeBird();
+
+    const result = await handleSmsInbound(inbound({ body: "ΣΤΟΠ", channel: "sms" }), {
+      db,
+      bird,
+      alert: async () => {},
+    });
+
+    expect(result).toEqual({ action: "stopped" });
+    expect(db.store.subscriptions.get("sub1")!.status).toBe("unsubscribed");
+    // Confirmation went out over SMS, not the WhatsApp conversation.
+    expect(bird.smsSends).toHaveLength(1);
+    expect(bird.smsSends[0].text).toBe(STOP_CONFIRMATION_TEXT);
+    expect(bird.sends).toHaveLength(0);
+    const reply = db.store.messages.find((m) => m.direction === "outbound")!;
+    expect(reply.channel).toBe("sms");
+    expect(reply.status).toBe("sent");
+  });
+
+  it("a normal SMS reply persists and wakes the agent", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    const bird = new FakeBird();
+
+    const result = await handleSmsInbound(
+      inbound({ body: "Τι έγινε με το πάρκο;", channel: "sms" }),
+      { db, bird, alert: async () => {} },
+    );
+
+    expect(result.action).toBe("enqueued");
+    const stored = db.store.messages.find((m) => m.direction === "inbound")!;
+    expect(stored.channel).toBe("sms");
+    expect(db.store.queue.size).toBe(1);
+  });
+
+  it("ignores SMS from a phone notis does not serve — the main app owns it", async () => {
+    const db = makeFakeDb({ subscriptions: [] });
+    const bird = new FakeBird();
+
+    const result = await handleSmsInbound(
+      inbound({ body: "ΣΤΟΠ", channel: "sms", phone: "+306900000099" }),
+      { db, bird, alert: async () => {} },
+    );
+
+    expect(result).toEqual({ action: "ignored", reason: "sms from a phone notis does not serve" });
+    expect(db.store.messages).toHaveLength(0);
+    expect(bird.smsSends).toHaveLength(0);
+  });
+
+  it("a failed SMS delivery status alerts — there is no next channel", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    await db.notisMessage.create({
+      data: {
+        subscriptionId: "sub1",
+        direction: "outbound",
+        channel: "sms",
+        body: "Νέα από τον δήμο.",
+        birdMessageId: "bm-sms",
+        status: "sent",
+        railed: true,
+      },
+    });
+    const bird = new FakeBird();
+    const alerts: string[] = [];
+
+    await handleOutboundStatus(
+      inbound({ birdMessageId: "bm-sms", direction: "outbound", status: "failed" }),
+      {
+        db,
+        bird,
+        alert: async (m) => {
+          alerts.push(m);
+        },
+      },
+    );
+
+    expect(alerts.some((m) => m.includes("SMS delivery failed"))).toBe(true);
+    // No cascade: an SMS failure must not try to fire another SMS.
+    expect(bird.smsSends).toHaveLength(0);
+  });
+});
+
 describe("SMS fallback on failed proactive templates", () => {
   const LIVE = [{ key: "proactivePaused", value: false }];
 
@@ -295,6 +379,10 @@ describe("SMS fallback on failed proactive templates", () => {
     inbound({ birdMessageId: "bm-out", direction: "outbound", status: "failed" });
 
   it("sends ONE SMS with the rendered shell when a live proactive template fails", async () => {
+    // Pin the clock inside active hours: the fallback holds through quiet
+    // hours, so on a real clock this test would fail every night.
+    jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate"] });
+    jest.setSystemTime(new Date("2026-03-11T10:00:00.000Z")); // 12:00 Athens
     const db = makeFakeDb({ subscriptions: [{ ...SUB }], settings: LIVE });
     await seedFailedCandidate(db);
     const bird = new FakeBird();
@@ -315,6 +403,7 @@ describe("SMS fallback on failed proactive templates", () => {
     await handleOutboundStatus(failedEvent(), { db, bird });
     expect(bird.smsSends).toHaveLength(1);
     expect(db.store.messages.filter((m) => m.channel === "sms")).toHaveLength(1);
+    jest.useRealTimers();
   });
 
   it("holds the SMS through quiet hours instead of ringing at 03:00", async () => {
@@ -376,6 +465,8 @@ describe("SMS fallback on failed proactive templates", () => {
   });
 
   it("an SMS send failure marks the row failed and alerts, and is never retried", async () => {
+    jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate"] });
+    jest.setSystemTime(new Date("2026-03-11T10:00:00.000Z")); // 12:00 Athens
     const db = makeFakeDb({ subscriptions: [{ ...SUB }], settings: LIVE });
     await seedFailedCandidate(db);
     const bird = new FakeBird({ success: false, error: "sms rejected" });
@@ -392,6 +483,7 @@ describe("SMS fallback on failed proactive templates", () => {
     const sms = db.store.messages.find((m) => m.channel === "sms")!;
     expect(sms.status).toBe("failed");
     expect(alerts.some((m) => m.includes("SMS fallback failed"))).toBe(true);
+    jest.useRealTimers();
   });
 });
 

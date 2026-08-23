@@ -35,6 +35,7 @@ const STATUS_LABELS: Record<string, string> = {
   delivered: "παραδόθηκαν",
   read: "διαβάστηκαν",
   failed: "απέτυχαν",
+  suppressed: "κατεστάλησαν",
 };
 
 const STATUS_BAR: Record<string, string> = {

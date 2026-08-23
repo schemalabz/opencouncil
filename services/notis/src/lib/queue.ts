@@ -68,6 +68,17 @@ export const RESEND_STALE_AFTER_MS = 2 * 60_000;
  *  twice under its idempotency key while a slow send is still in flight. */
 const SEND_CLAIM_TTL_MS = 2 * SEND_TIMEOUT_MS + 30_000;
 
+/**
+ * Gap between consecutive sends of one batch. Bird accepts same-second
+ * messages in order but WhatsApp shows no sub-minute ordering, and
+ * same-second deliveries have been observed inverted on the handset — the
+ * gap keeps each message's timestamp (and delivery) behind the previous
+ * one's. Applied between sends, never before the first.
+ */
+export const SEND_SPACING_MS = 1_000;
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 /** The persist transaction's budget. It holds the subscription's row lock —
  *  the same lock every inbound webhook for that reader waits on — so it needs
  *  room for contention, not just for its own writes. */
@@ -205,6 +216,7 @@ async function runOneWake(
   // finish. The batch lane (and every deliver-less caller: playground,
   // dry-run, fixtures) keeps batch delivery at the boundary.
   const incrementalIds: string[] = [];
+  let lastDeliverAt = 0;
   const wakeDeps: Deps = reactive
     ? {
         ...deps,
@@ -216,12 +228,23 @@ async function runOneWake(
               body: text,
               channel: "whatsapp",
               proactive: capCountable,
+              // Reactive by construction: the closure exists only on
+              // reactive wakes, and a reply is never railed.
+              railed: false,
               deliveryMode: "freeform",
               status: "pending",
             },
             select: { id: true },
           });
           incrementalIds.push(message.id);
+          // Same-turn tool calls arrive back-to-back; without a gap Bird
+          // accepts them in the same second and the handset may show them
+          // inverted. Cross-turn gaps already exceed the spacing.
+          const sinceLast = Date.now() - lastDeliverAt;
+          if (lastDeliverAt > 0 && sinceLast < SEND_SPACING_MS) {
+            await sleep(SEND_SPACING_MS - sinceLast);
+          }
+          lastDeliverAt = Date.now();
           try {
             await deliverPendingMessage(db, bird, message.id, sub, alert);
           } catch (error) {
@@ -364,6 +387,7 @@ async function runOneWake(
             body: text,
             channel: "whatsapp",
             proactive: capCountable,
+            railed: !reactive,
             deliveryMode: delivery?.mode,
             template: delivery?.mode === "template" ? delivery.template : undefined,
             status: "pending",
@@ -606,11 +630,14 @@ export async function sendPendingMessages(
   sub: Pick<NotisSubscription, "id" | "birdConversationId">,
   alert: (message: string) => Promise<void>,
 ): Promise<void> {
+  let sentAny = false;
   for (const id of messageIds) {
     const message = await db.notisMessage.findUnique({ where: { id } });
     if (!message || message.status !== "pending") continue;
+    if (sentAny) await sleep(SEND_SPACING_MS);
     if (!(await claimForSend(db, id))) continue;
     await sendFreeform(db, bird, message, sub, alert);
+    sentAny = true;
   }
 }
 
@@ -643,7 +670,7 @@ export async function deliverPendingMessage(
   const message = await db.notisMessage.findUnique({ where: { id: messageId } });
   if (!message || message.status !== "pending") return;
 
-  if (message.proactive || message.deliveryMode === "template") {
+  if (message.railed) {
     const blocked = await proactiveBlockReason(db, sub.id);
     if (blocked) {
       await suppressMessages(db, [messageId], blocked);
@@ -775,6 +802,7 @@ export async function sendProactiveMessages(
     remaining = Math.max(0, WEEKLY_CAP - (await capUsage(db, sub.id, messageIds)));
   }
 
+  let sentAny = false;
   for (const id of messageIds) {
     const row = byId.get(id);
     if (!row) continue;
@@ -785,7 +813,9 @@ export async function sendProactiveMessages(
       }
       remaining--;
     }
+    if (sentAny) await sleep(SEND_SPACING_MS);
     await deliverPendingMessage(db, bird, id, sub, alert);
+    sentAny = true;
   }
 }
 
