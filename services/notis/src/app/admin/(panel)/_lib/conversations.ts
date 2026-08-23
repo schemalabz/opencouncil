@@ -1,3 +1,4 @@
+import "server-only";
 import { JournalEntry, WakeOutcome, WakeTrace } from "@/agent/types";
 import { TemplateName } from "@/agent/templates";
 import { hasNotisDb, notisDb } from "@/lib/db";

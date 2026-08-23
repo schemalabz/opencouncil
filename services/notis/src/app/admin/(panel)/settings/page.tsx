@@ -1,3 +1,5 @@
+import { getAdminSession } from "@/lib/session-auth";
+import { redirect } from "next/navigation";
 import fs from "node:fs";
 import path from "node:path";
 import { DEFAULT_CONFIG } from "@/agent/types";
@@ -28,7 +30,12 @@ function EnvBadge({ present }: { present: boolean }) {
   );
 }
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  // Re-assert auth in the page body: the (panel) layout guard does not
+  // re-run on an RSC soft-navigation, so a segment request can reach this
+  // page without it (enforced by the admin-auth-guard test).
+  const session = await getAdminSession();
+  if (!session) redirect("/admin/login");
   const promptsDir = path.join(process.cwd(), "prompts");
   const systemStat = fs.statSync(path.join(promptsDir, "system.md"));
   const contextFiles = fs

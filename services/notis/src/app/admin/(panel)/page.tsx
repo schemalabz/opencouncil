@@ -1,3 +1,5 @@
+import { getAdminSession } from "@/lib/session-auth";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { DeltaChip } from "./_components/DeltaChip";
 import { MetricCard, MetricPoint } from "./_components/MetricCard";
@@ -365,6 +367,11 @@ function RecentInboundList({ stats }: { stats: OverviewStats }) {
 export default async function DashboardPage(props: {
   searchParams: Promise<{ range?: string }>;
 }) {
+  // Re-assert auth in the page body: the (panel) layout guard does not
+  // re-run on an RSC soft-navigation, so a segment request can reach this
+  // page without it (enforced by the admin-auth-guard test).
+  const session = await getAdminSession();
+  if (!session) redirect("/admin/login");
   const range = parseRange((await props.searchParams).range);
   const stats = await getOverviewStats(range);
   const { current, previous, totals } = stats;
