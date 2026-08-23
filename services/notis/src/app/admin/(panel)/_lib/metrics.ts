@@ -415,19 +415,33 @@ export async function getOverviewStats(range: RangeKey): Promise<OverviewStats> 
     periodStats(db, currentFrom, now),
     periodStats(db, previousFrom, currentFrom),
     bucketedSeries(db, currentFrom, now, bucket),
-    db.notisMessage.findMany({
-      // Ranged like everything else on the page: an unfiltered list sat under
-      // a received-counter reading 0 for the same window.
-      where: { direction: "inbound", createdAt: { gte: currentFrom, lte: now } },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-      select: {
-        id: true,
-        body: true,
-        createdAt: true,
-        subscription: { select: { id: true, userId: true, userName: true } },
-      },
-    }),
+    // Ranged like everything else on the page, and DISTINCT ON the
+    // subscription: one active reader must not fill all five rows with
+    // their own back-and-forth — the list answers «ποιοι μιλάνε», not
+    // «τι ειπώθηκε τελευταίο».
+    db.$queryRaw<
+      Array<{
+        id: string;
+        body: string;
+        createdAt: Date;
+        subscriptionId: string;
+        userId: string;
+        userName: string | null;
+      }>
+    >`
+      SELECT m.id, m.body, m."createdAt", s.id AS "subscriptionId",
+             s."userId", s."userName"
+      FROM (
+        SELECT DISTINCT ON ("subscriptionId") id, body, "createdAt", "subscriptionId"
+        FROM "NotisMessage"
+        WHERE direction = 'inbound'::"MessageDirection"
+          AND "createdAt" >= ${currentFrom} AND "createdAt" <= ${now}
+        ORDER BY "subscriptionId", "createdAt" DESC, id DESC
+      ) m
+      JOIN "NotisSubscription" s ON s.id = m."subscriptionId"
+      ORDER BY m."createdAt" DESC
+      LIMIT 5
+    `,
     db.notisSubscription.count(),
     db.notisSubscription.count({ where: { status: "unsubscribed" } }),
   ]);
@@ -439,9 +453,9 @@ export async function getOverviewStats(range: RangeKey): Promise<OverviewStats> 
     series,
     recentInbound: recent.map((m) => ({
       id: m.id,
-      subscriptionId: m.subscription.id,
-      userId: m.subscription.userId,
-      userName: m.subscription.userName ?? "—",
+      subscriptionId: m.subscriptionId,
+      userId: m.userId,
+      userName: m.userName ?? "—",
       body: m.body,
       at: m.createdAt.toISOString(),
     })),
