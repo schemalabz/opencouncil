@@ -25,6 +25,7 @@ import {
   MAX_ATTEMPTS,
   claimNext,
   completeItem,
+  consumePendingLiveEvents,
   deferItem,
   failItem,
   markFailed,
@@ -217,9 +218,19 @@ async function runOneWake(
   // dry-run, fixtures) keeps batch delivery at the boundary.
   const incrementalIds: string[] = [];
   let lastDeliverAt = 0;
+  const absorbEventsSchema = z.array(wakeEventSchema);
   const wakeDeps: Deps = reactive
     ? {
         ...deps,
+        // Mid-run absorption: messages that arrive while this wake runs are
+        // consumed (their queued wakes closed) and handed to the model, so
+        // the reader's correction supersedes the request it corrected.
+        absorb: async () => {
+          const raw = await consumePendingLiveEvents(db, sub.id);
+          if (raw.length === 0) return [];
+          const parsed = absorbEventsSchema.safeParse(raw);
+          return parsed.success ? parsed.data : [];
+        },
         deliver: async (text: string) => {
           const message = await db.notisMessage.create({
             data: {
@@ -269,7 +280,18 @@ async function runOneWake(
 
   // The wall clock, not the events' timestamps: this wake may have waited
   // out quiet hours or a pause since they were recorded.
-  const { outcome, trace } = await runWake(state, ordered, wakeDeps, { now: new Date() });
+  const { outcome, trace, absorbed } = await runWake(state, ordered, wakeDeps, {
+    now: new Date(),
+  });
+
+  // Absorbed reader messages belong to THIS wake now — their queue rows are
+  // consumed, so this record is the only place they can appear.
+  const finalEvents =
+    absorbed.length > 0
+      ? [...ordered, ...absorbed].sort((a, b) => a.at.localeCompare(b.at))
+      : ordered;
+  const finalPrimary = absorbed.length > 0 ? primaryEvent(finalEvents) : primary;
+  const finalLastAt = finalEvents[finalEvents.length - 1].at;
 
   // The primary event picks the shell; the 24h window is judged at the SEND
   // moment, which is now — never at the event's timestamp. A meeting event
@@ -320,12 +342,12 @@ async function runOneWake(
     const wake = await tx.notisWake.create({
       data: {
         subscriptionId: sub.id,
-        eventType: primary.type,
-        eventAt: new Date(lastAt),
-        event: primary as unknown as Prisma.InputJsonValue,
+        eventType: finalPrimary.type,
+        eventAt: new Date(finalLastAt),
+        event: finalPrimary as unknown as Prisma.InputJsonValue,
         // The full array only when the wake coalesced several events.
         events:
-          ordered.length > 1 ? (ordered as unknown as Prisma.InputJsonValue) : undefined,
+          finalEvents.length > 1 ? (finalEvents as unknown as Prisma.InputJsonValue) : undefined,
         decision: outcome.decision,
         rationale: outcome.rationale,
         outcome: outcome as unknown as Prisma.InputJsonValue,

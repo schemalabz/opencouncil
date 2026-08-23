@@ -122,6 +122,30 @@ describe("handleInbound", () => {
     expect(String(sub.profileText)).toContain("Αθήνα");
   });
 
+  it("a second message before the wake starts coalesces into the pending live row", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    const bird = new FakeBird();
+    const deps = { db, bird, alert: async () => {} };
+
+    const first = await handleInbound(inbound({ birdMessageId: "bm-a", body: "Τι γίνεται με το μετρό στα Εξάρχεια;" }), deps);
+    const second = await handleInbound(
+      inbound({ birdMessageId: "bm-b", body: "Σόρρυ άκυρο — στην Κυψέλη εννοούσα" }),
+      deps,
+    );
+
+    expect(first.action).toBe("enqueued");
+    expect(second.action).toBe("enqueued");
+    // ONE pending wake holding both messages — not a queue of two answers.
+    expect(db.store.queue.size).toBe(1);
+    const item = [...db.store.queue.values()][0];
+    expect((item.events as Array<{ text?: string }>).map((e) => e.text)).toEqual([
+      "Τι γίνεται με το μετρό στα Εξάρχεια;",
+      "Σόρρυ άκυρο — στην Κυψέλη εννοούσα",
+    ]);
+    // Both inbound rows persisted — the conversation loses nothing.
+    expect(db.store.messages.filter((m) => m.direction === "inbound")).toHaveLength(2);
+  });
+
   it("a bare ΣΤΟΠ unsubscribes deterministically — no wake, confirmation sent", async () => {
     const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
     const bird = new FakeBird();

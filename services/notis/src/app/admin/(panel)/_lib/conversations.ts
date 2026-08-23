@@ -16,6 +16,7 @@ import {
   RecordEvent,
   WakeRecord,
   queueBackedRecords,
+  readerMessagesOf,
 } from "./records";
 
 /**
@@ -292,10 +293,13 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     ]);
   }
 
-  const records: WakeRecord[] = sub.wakes.map((wake) => ({
+  const records: WakeRecord[] = sub.wakes.map((wake) => {
+    const readers = Array.isArray(wake.events) ? readerMessagesOf(wake.events as unknown[]) : [];
+    return {
     id: wake.id,
     event: wake.event as unknown as RecordEvent,
-    status: "done",
+    status: "done" as const,
+    ...(readers.length > 1 ? { readerMessages: readers } : {}),
     outcome: wake.outcome as unknown as WakeOutcome,
     ...(wake.model !== null ? { traceRef: wake.id } : {}),
     ...(wake.deliveryMode
@@ -308,7 +312,8 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
       : {}),
     ...(deliveriesByWake.has(wake.id) ? { deliveries: deliveriesByWake.get(wake.id) } : {}),
     ...(Array.isArray(wake.events) ? { coalesced: (wake.events as unknown[]).length } : {}),
-  }));
+    };
+  });
 
   // Wakes still in the queue — pending, running, or terminally failed. The
   // reader's message exists before its wake does, and the thread must show

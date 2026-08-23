@@ -45,10 +45,44 @@ export interface ClaimedItem {
   attempts: number;
 }
 
+/**
+ * Enqueue on the live lane, coalescing per subscription like the batch lane:
+ * while a pending live row exists (the previous message's wake has not been
+ * claimed yet), a new inbound APPENDS its event instead of queueing behind —
+ * so «τι γίνεται με Χ;» followed seconds later by «άκυρο, Υ εννοούσα» runs as
+ * ONE wake that sees both messages, and the reader never gets an answer to a
+ * request they already corrected.
+ *
+ * The append is a compare-and-swap fenced on updatedAt (no raw SQL: the
+ * webhook handlers call this inside their interactive transaction, where a
+ * caught 23505 would poison the transaction — see enqueueBatchWake). A CAS
+ * loss re-reads; a row the claimer flipped to running no longer matches and
+ * the event correctly becomes a fresh pending row. The residual both-create
+ * race hits the partial unique index and fails the webhook, which Bird
+ * retries — the retry lands on the append path.
+ */
 export async function enqueueLiveWake(
   db: Db,
   input: { subscriptionId: string; event: unknown; runAfter?: Date },
 ): Promise<string> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const pending = await db.notisWakeQueue.findFirst({
+      where: { subscriptionId: input.subscriptionId, lane: "live", status: "pending" },
+      select: { id: true, events: true, updatedAt: true },
+    });
+    if (!pending) break;
+    const appended = await db.notisWakeQueue.updateMany({
+      where: { id: pending.id, status: "pending", updatedAt: pending.updatedAt },
+      data: {
+        events: [
+          ...(pending.events as Prisma.InputJsonValue[]),
+          input.event,
+        ] as Prisma.InputJsonValue,
+        updatedAt: new Date(),
+      },
+    });
+    if (appended.count === 1) return pending.id;
+  }
   const row = await db.notisWakeQueue.create({
     data: {
       subscriptionId: input.subscriptionId,
@@ -59,6 +93,38 @@ export async function enqueueLiveWake(
     select: { id: true },
   });
   return row.id;
+}
+
+/**
+ * Consume the subscription's pending live rows and return their events — the
+ * mid-run absorption primitive: a running wake adopts messages that arrived
+ * after it started, and the rows that would have answered them separately
+ * are closed as done so the reader never gets two answers.
+ *
+ * Ordering makes it lose-nothing: rows are flipped pending→done first
+ * (fenced, one by one), and events are read back AFTER the flip — an append
+ * that raced in before the flip is included in the read; one that lost the
+ * fence created a fresh pending row that stays for the next wake.
+ */
+export async function consumePendingLiveEvents(db: Db, subscriptionId: string): Promise<unknown[]> {
+  const rows = await db.notisWakeQueue.findMany({
+    where: { subscriptionId, lane: "live", status: "pending" },
+    select: { id: true },
+  });
+  if (rows.length === 0) return [];
+  const consumed: string[] = [];
+  for (const row of rows) {
+    const flipped = await db.notisWakeQueue.updateMany({
+      where: { id: row.id, status: "pending" },
+      data: { status: "done" },
+    });
+    if (flipped.count === 1) consumed.push(row.id);
+  }
+  if (consumed.length === 0) return [];
+  const done = await Promise.all(
+    consumed.map((id) => db.notisWakeQueue.findUnique({ where: { id } })),
+  );
+  return done.flatMap((r) => (Array.isArray(r?.events) ? (r.events as unknown[]) : []));
 }
 
 /**

@@ -10,6 +10,7 @@ import {
     STALE_CLAIM_MS,
     claimNext,
     completeItem,
+    consumePendingLiveEvents,
     deferItem,
     enqueueBatchWake,
     enqueueLiveWake,
@@ -122,10 +123,12 @@ describe('notis wake queue (live lane)', () => {
     test('one running wake per subscription: the second item waits for the first', async () => {
         const sub = await createSubscription('s3')
         await enqueueLiveWake(notisDb, { subscriptionId: sub, event: EVENT })
-        await enqueueLiveWake(notisDb, { subscriptionId: sub, event: { ...EVENT, text: 'δεύτερο' } })
 
         const first = await claimNext(notisDb)
         expect(first).not.toBeNull()
+        // The claim flipped the row to running, so the next message opens a
+        // FRESH pending row (before the claim it would have coalesced).
+        await enqueueLiveWake(notisDb, { subscriptionId: sub, event: { ...EVENT, text: 'δεύτερο' } })
         // Same subscription, first still running → nothing to claim.
         expect(await claimNext(notisDb)).toBeNull()
 
@@ -232,10 +235,11 @@ describe('notis wake queue (live lane)', () => {
     test('the partial unique index allows at most one running row per subscription', async () => {
         const sub = await createSubscription('s9')
         await enqueueLiveWake(notisDb, { subscriptionId: sub, event: EVENT })
-        await enqueueLiveWake(notisDb, { subscriptionId: sub, event: { ...EVENT, text: 'δεύτερο' } })
 
         const first = await claimNext(notisDb)
         expect(first).not.toBeNull()
+        // Enqueued after the claim: a fresh pending row beside the running one.
+        await enqueueLiveWake(notisDb, { subscriptionId: sub, event: { ...EVENT, text: 'δεύτερο' } })
 
         // Forcing the second row to running — what a raced claim would do —
         // must violate the index; claimNext maps that to nothing-claimable.
@@ -459,5 +463,66 @@ describe('notis wake queue (live lane)', () => {
         await deferItem(notisDb, claimed!.id, claimed!.attempts, new Date())
         const after = await notisDb.notisWakeQueue.findUnique({ where: { id: claimed!.id } })
         expect(after?.runAfter.getTime()).toBe(runAfter.getTime())
+    })
+})
+
+describe('live-lane coalescing and absorption', () => {
+    const msg = (text: string, at: string) => ({ type: 'user_message', at, text })
+
+    it('appends a second message to the pending live row, then consumes it atomically', async () => {
+        const sub = await createSubscription('coal1')
+        const firstId = await enqueueLiveWake(notisDb, {
+            subscriptionId: sub,
+            event: msg('Τι γίνεται με το μετρό στα Εξάρχεια;', '2026-03-10T10:00:00.000Z'),
+        })
+        const secondId = await enqueueLiveWake(notisDb, {
+            subscriptionId: sub,
+            event: msg('Σόρρυ άκυρο — στην Κυψέλη εννοούσα', '2026-03-10T10:00:20.000Z'),
+        })
+        // ONE row holding both messages, in arrival order.
+        expect(secondId).toBe(firstId)
+        const row = await notisDb.notisWakeQueue.findUnique({ where: { id: firstId } })
+        expect((row!.events as Array<{ text: string }>).map((e) => e.text)).toEqual([
+            'Τι γίνεται με το μετρό στα Εξάρχεια;',
+            'Σόρρυ άκυρο — στην Κυψέλη εννοούσα',
+        ])
+
+        // The partial unique index refuses a second pending live row outright.
+        await expect(
+            notisDb.notisWakeQueue.create({
+                data: { subscriptionId: sub, lane: 'live', events: [], runAfter: new Date() },
+            }),
+        ).rejects.toMatchObject({ code: 'P2002' })
+
+        // Consume: events come back, the row closes, a re-consume is empty.
+        const consumed = await consumePendingLiveEvents(notisDb, sub)
+        expect((consumed as Array<{ text: string }>).map((e) => e.text)).toEqual([
+            'Τι γίνεται με το μετρό στα Εξάρχεια;',
+            'Σόρρυ άκυρο — στην Κυψέλη εννοούσα',
+        ])
+        const after = await notisDb.notisWakeQueue.findUnique({ where: { id: firstId } })
+        expect(after!.status).toBe('done')
+        expect(await consumePendingLiveEvents(notisDb, sub)).toEqual([])
+    })
+
+    it('a running row is not appended to — the correction becomes a fresh pending row', async () => {
+        const sub = await createSubscription('coal2')
+        const firstId = await enqueueLiveWake(notisDb, {
+            subscriptionId: sub,
+            event: msg('πρώτο', '2026-03-10T10:00:00.000Z'),
+            runAfter: new Date(Date.now() - 1000),
+        })
+        const claimed = await claimNext(notisDb)
+        expect(claimed?.id).toBe(firstId)
+
+        const secondId = await enqueueLiveWake(notisDb, {
+            subscriptionId: sub,
+            event: msg('δεύτερο', '2026-03-10T10:00:20.000Z'),
+        })
+        expect(secondId).not.toBe(firstId)
+        // ...which is exactly what the running wake's absorb then consumes.
+        const consumed = await consumePendingLiveEvents(notisDb, sub)
+        expect((consumed as Array<{ text: string }>).map((e) => e.text)).toEqual(['δεύτερο'])
+        await completeItem(notisDb, claimed!.id, claimed!.attempts)
     })
 })

@@ -545,17 +545,23 @@ export function WhatsAppChat({
                   </span>
                 </div>
               )}
-              {item.event.type === "user_message" && (
+              {(
+                item.readerMessages ??
+                (item.event.type === "user_message"
+                  ? [{ at: item.event.at, text: item.event.text }]
+                  : [])
+              ).map((reader, readerIdx) => (
                 <Bubble
+                  key={readerIdx}
                   side="out"
                   first
-                  time={fmtTime(item.event.at)}
+                  time={fmtTime(reader.at)}
                   selected={selected}
                   onClick={() => onSelect(item.id)}
-                  text={item.event.text}
+                  text={reader.text}
                   ticks={item.id === busyItemId ? "live" : "read"}
                 />
-              )}
+              ))}
               {item.status === "skipped" && (
                 <div className="flex justify-center px-4">
                   <span className="rounded-md bg-[#ffffff99] px-3 py-1 text-[11px] text-[#8696a0] shadow-sm">

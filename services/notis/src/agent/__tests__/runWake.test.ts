@@ -386,6 +386,96 @@ describe("runWake", () => {
 
 });
 
+describe("mid-run absorption (deps.absorb)", () => {
+  const userEvent = {
+    type: "user_message" as const,
+    at: "2026-03-10T10:00:00.000Z",
+    text: "Τι γίνεται με το μετρό στα Εξάρχεια;",
+  };
+  const correction = {
+    type: "user_message" as const,
+    at: "2026-03-10T10:00:20.000Z",
+    text: "Σόρρυ άκυρο — στην Κυψέλη εννοούσα",
+  };
+
+  it("injects a turn-start update into the conversation and returns it", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "send_message", { text: "Για την Κυψέλη λοιπόν..." }),
+          toolUse("t2", "finish_wake", { rationale: "Απάντησα στη διόρθωση." }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    let calls = 0;
+    const { absorbed, outcome } = await runWake(makeState(), [userEvent], {
+      ...makeDeps(fake),
+      absorb: async () => (++calls === 1 ? [correction] : []),
+    });
+
+    expect(absorbed).toEqual([correction]);
+    expect(outcome.messages).toEqual(["Για την Κυψέλη λοιπόν..."]);
+    // The note rides in the FIRST request, appended to the user turn.
+    const first = fake.requests[0].messages as Array<{ content: Array<{ text?: string }> }>;
+    const blocks = first[0].content;
+    expect(blocks).toHaveLength(2);
+    expect(blocks[1].text).toContain("Κυψέλη εννοούσα");
+    expect(blocks[1].text).toContain("reader update");
+  });
+
+  it("holds a turn's sends when the reader wrote during it, then delivers the corrected answer", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "send_message", { text: "Για τα Εξάρχεια: ..." }),
+          toolUse("t2", "finish_wake", { rationale: "Απάντησα." }),
+        ],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [
+          toolUse("t3", "send_message", { text: "Για την Κυψέλη: ..." }),
+          toolUse("t4", "finish_wake", { rationale: "Απάντησα στη διόρθωση." }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const delivered: string[] = [];
+    let calls = 0;
+    const { outcome, absorbed } = await runWake(makeState(), [userEvent], {
+      ...makeDeps(fake),
+      deliver: async (t) => {
+        delivered.push(t);
+        return { ok: true };
+      },
+      // Turn-0 start: nothing. Pre-send probe of turn 1: the correction.
+      // Everything after: nothing.
+      absorb: async () => (++calls === 2 ? [correction] : []),
+    });
+
+    // The stale Εξάρχεια answer never left; only the corrected one did.
+    expect(delivered).toEqual(["Για την Κυψέλη: ..."]);
+    expect(outcome.messages).toEqual(["Για την Κυψέλη: ..."]);
+    expect(outcome.repairs).toContain("reader-update/held-sends");
+    expect(absorbed).toEqual([correction]);
+    // The held turn's tool_results tell the model exactly what happened.
+    const second = fake.requests[1].messages as Array<{ content: unknown }>;
+    const resultBlocks = second
+      .flatMap((m) => (Array.isArray(m.content) ? m.content : []))
+      .filter(
+        (b): b is { type: string; content?: string; text?: string } =>
+          typeof b === "object" && b !== null,
+      );
+    expect(
+      resultBlocks.some((b) => b.type === "tool_result" && b.content?.includes("held")),
+    ).toBe(true);
+    expect(resultBlocks.some((b) => b.type === "text" && b.text?.includes("reader update"))).toBe(
+      true,
+    );
+  });
+});
+
 describe("unsubscribe guard", () => {
   it("ignores unsubscribe_user on a wake without a reader message", async () => {
     const fake = new FakeAnthropic([
