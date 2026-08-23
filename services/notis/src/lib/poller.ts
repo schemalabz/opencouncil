@@ -12,7 +12,7 @@ import { buildDeps } from "./deps";
 import { toCityPreferences } from "./fanout";
 import { hasMainDb, mainDb } from "./main-db";
 import { normalizePhone } from "./phone";
-import { deliverPendingMessage } from "./queue";
+import { deliverPendingMessage, suppressPendingOutbound } from "./queue";
 import { enqueueBatchWake, isUniqueViolation } from "./queue-core";
 import { POLLER_STATUS_KEY, getProactiveSettings, putSetting } from "./settings";
 
@@ -304,6 +304,12 @@ async function reconcileSubscriptions(
             where: { id: sub.id },
             data: { status: "unsubscribed", unsubscribedAt: at, phone: null },
           });
+          // The third unsubscribe site gets the same cleanup as the other
+          // two: nothing queued may outlive the opt-out. sendFreeform needs
+          // only birdConversationId (which survives), so without this the
+          // sweeper would deliver a leftover pending row after the phone
+          // was removed.
+          await suppressPendingOutbound(tx, sub.id);
           // A model-less wake row: why this reader went silent must survive in
           // the decision log (the audit answer to "who unsubscribed them").
           const rationale =

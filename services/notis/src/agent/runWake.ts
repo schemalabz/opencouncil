@@ -108,7 +108,16 @@ export async function runWake(
     const news = await deps.absorb();
     if (news.length === 0) return;
     absorbedAll.push(...news);
-    const note = absorbNote(news);
+    let note = absorbNote(news);
+    if (unsubscribe) {
+      // A newer message supersedes the latched opt-out too: clear it and
+      // make the model re-decide with the update in hand — otherwise a
+      // retraction («όχι τελικά») could not stop the unsubscribe.
+      unsubscribe = undefined;
+      note +=
+        "\n(Your earlier unsubscribe_user call was cancelled pending this " +
+        "update — call it again if the reader still wants to stop.)";
+    }
     recordInjected(note);
     // Merge into the trailing user message when one exists; the API's
     // message list stays well-formed either way.
@@ -161,8 +170,19 @@ export async function runWake(
   // reader already received (or may yet receive) messages, and a duplicate
   // answer is worse than a truncated one. The loop finalizes with what it
   // has; before the first attempt, errors propagate and the queue retries.
+  // A held turn consumes its slot without producing anything the reader
+  // sees; without a granted extra turn a hold on the FINAL turn strands the
+  // wake (sends discarded, absorbed rows consumed, nothing pending). Two
+  // grants bound the extension.
+  let bonusTurns = 0;
   try {
-  for (let turn = 0; turn < deps.config.maxTurns; turn++) {
+  for (let turn = 0; turn < deps.config.maxTurns + bonusTurns; turn++) {
+    if (deps.heartbeat && !(await deps.heartbeat())) {
+      // The claim is no longer ours: a reclaimer is (or will be) running
+      // this wake. Stop immediately — before the first delivery this is a
+      // clean abort into the retry path; after it, fail-forward finalizes.
+      throw new Error("claim lost mid-wake — another worker owns this item now");
+    }
     await absorbAtTurnStart();
     const response = await deps.anthropic.create({
       model: deps.config.model,
@@ -208,6 +228,7 @@ export async function runWake(
           holdNote = absorbNote(news);
           repairs.push("reader-update/held-sends");
           recordInjected(holdNote);
+          if (bonusTurns < 2) bonusTurns++;
         }
       }
       const results: unknown[] = [];
@@ -241,15 +262,33 @@ export async function runWake(
             break;
           }
           case "update_taste_profile":
+            if (holdNote) {
+              ack = "held: re-decide after the reader update below";
+              break;
+            }
             profileRewrite = String(block.input.profile ?? "");
             break;
           case "schedule_wakeup":
+            // A held turn's schedule must not survive it: a follow-up
+            // planned for a request the reader just changed would fire
+            // days later about the cancelled topic.
+            if (holdNote) {
+              ack = "held: re-decide after the reader update below";
+              break;
+            }
             scheduledWakes.push({
               at: String(block.input.at ?? ""),
               reason: String(block.input.reason ?? ""),
             });
             break;
           case "unsubscribe_user":
+            if (holdNote) {
+              ack =
+                "held: the reader just sent a new message — re-decide the " +
+                "unsubscribe against it, and call unsubscribe_user again if " +
+                "they still want to stop";
+              break;
+            }
             // Only the reader can unsubscribe the reader. On a wake without
             // a user_message there is no reader request to honor — prompt
             // guidance alone must not be the only thing standing between a

@@ -381,6 +381,10 @@ describe("inbound SMS for served phones", () => {
 describe("SMS fallback on failed proactive templates", () => {
   const LIVE = [{ key: "proactivePaused", value: false }];
 
+  // Fake timers restore in afterEach, not inline: an assertion failure must
+  // not leak a pinned clock into every later test in the file.
+  afterEach(() => jest.useRealTimers());
+
   async function seedFailedCandidate(db: ReturnType<typeof makeFakeDb>, overrides: Row = {}) {
     await db.notisMessage.create({
       data: {
@@ -427,7 +431,6 @@ describe("SMS fallback on failed proactive templates", () => {
     await handleOutboundStatus(failedEvent(), { db, bird });
     expect(bird.smsSends).toHaveLength(1);
     expect(db.store.messages.filter((m) => m.channel === "sms")).toHaveLength(1);
-    jest.useRealTimers();
   });
 
   it("holds the SMS through quiet hours instead of ringing at 03:00", async () => {
@@ -507,7 +510,6 @@ describe("SMS fallback on failed proactive templates", () => {
     const sms = db.store.messages.find((m) => m.channel === "sms")!;
     expect(sms.status).toBe("failed");
     expect(alerts.some((m) => m.includes("SMS fallback failed"))).toBe(true);
-    jest.useRealTimers();
   });
 });
 

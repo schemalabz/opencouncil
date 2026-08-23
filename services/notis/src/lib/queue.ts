@@ -27,8 +27,10 @@ import {
   completeItem,
   consumePendingLiveEvents,
   deferItem,
+  enqueueLiveWake,
   failItem,
   markFailed,
+  touchClaim,
 } from "./queue-core";
 import { getProactiveSettings } from "./settings";
 
@@ -174,7 +176,10 @@ async function runOneWake(
   });
 
   const lastInbound = await db.notisMessage.findFirst({
-    where: { subscriptionId: sub.id, direction: "inbound" },
+    // WhatsApp only: Meta's 24h customer-service window opens on WhatsApp
+    // inbound alone — an SMS reply must not steer decideDelivery into a
+    // freeform send the platform will reject.
+    where: { subscriptionId: sub.id, direction: "inbound", channel: "whatsapp" },
     orderBy: { createdAt: "desc" },
     select: { createdAt: true },
   });
@@ -218,20 +223,49 @@ async function runOneWake(
   // dry-run, fixtures) keeps batch delivery at the boundary.
   const incrementalIds: string[] = [];
   let lastDeliverAt = 0;
-  const absorbEventsSchema = z.array(wakeEventSchema);
+  // Everything absorb has consumed so far: if the wake later fails BEFORE
+  // any delivery (the retry path), these must be re-enqueued or the
+  // messages die with rows nobody will ever run.
+  const consumedAbsorbed: WakeEvent[] = [];
+  // The heartbeat keeps a long wake's claim fresh so the stale reclaim only
+  // fires for actually-dead workers — wired for BOTH lanes.
+  const heartbeat = () => touchClaim(db, item.id, item.attempts);
   const wakeDeps: Deps = reactive
     ? {
         ...deps,
+        heartbeat,
         // Mid-run absorption: messages that arrive while this wake runs are
         // consumed (their queued wakes closed) and handed to the model, so
         // the reader's correction supersedes the request it corrected.
         absorb: async () => {
           const raw = await consumePendingLiveEvents(db, sub.id);
           if (raw.length === 0) return [];
-          const parsed = absorbEventsSchema.safeParse(raw);
-          return parsed.success ? parsed.data : [];
+          // Per element, not wholesale: one malformed row must not discard
+          // its well-formed siblings after they were already consumed.
+          const events: WakeEvent[] = [];
+          for (const candidate of raw) {
+            const parsed = wakeEventSchema.safeParse(candidate);
+            if (parsed.success) events.push(parsed.data);
+            else await alert(`absorb dropped an unparseable event for ${sub.id}`);
+          }
+          consumedAbsorbed.push(...events);
+          return events;
         },
         deliver: async (text: string) => {
+          // The consent boundary, re-read at the send instant: a ΣΤΟΠ that
+          // arrived after this wake started must stop its sends too — it is
+          // never enqueued, so absorb cannot surface it.
+          const freshSub = await db.notisSubscription.findUnique({
+            where: { id: sub.id },
+            select: { status: true },
+          });
+          if (freshSub?.status === "unsubscribed") {
+            return {
+              ok: false,
+              detail:
+                "the reader unsubscribed — send nothing further and finish the wake silently",
+            };
+          }
           const message = await db.notisMessage.create({
             data: {
               subscriptionId: sub.id,
@@ -268,21 +302,43 @@ async function runOneWake(
             where: { id: message.id },
             select: { status: true, failureReason: true },
           });
-          return after?.status === "sent"
-            ? { ok: true }
-            : {
-                ok: false,
-                detail: after?.failureReason ?? `status: ${after?.status ?? "unknown"}`,
-              };
+          // delivered/read can land between applySendResult and this read
+          // (Bird's status webhook) — they are success, not failure.
+          if (after && ["sent", "delivered", "read"].includes(after.status ?? "")) {
+            return { ok: true };
+          }
+          if (after?.status === "suppressed") {
+            return {
+              ok: false,
+              detail:
+                "suppressed: the reader unsubscribed — send nothing further and " +
+                "finish the wake silently",
+            };
+          }
+          return {
+            ok: false,
+            detail: after?.failureReason ?? `status: ${after?.status ?? "unknown"}`,
+          };
         },
       }
-    : deps;
+    : { ...deps, heartbeat };
 
   // The wall clock, not the events' timestamps: this wake may have waited
   // out quiet hours or a pause since they were recorded.
-  const { outcome, trace, absorbed } = await runWake(state, ordered, wakeDeps, {
-    now: new Date(),
-  });
+  let runResult: Awaited<ReturnType<typeof runWake>>;
+  try {
+    runResult = await runWake(state, ordered, wakeDeps, { now: new Date() });
+  } catch (error) {
+    // A pre-delivery failure retries the item — but absorb has already
+    // consumed the newer messages' own rows. Re-enqueue them (the CAS
+    // append merges into any newer pending row) so nothing the reader sent
+    // dies with a retryable error.
+    for (const event of consumedAbsorbed) {
+      await enqueueLiveWake(db, { subscriptionId: sub.id, event });
+    }
+    throw error;
+  }
+  const { outcome, trace, absorbed } = runResult;
 
   // Absorbed reader messages belong to THIS wake now — their queue rows are
   // consumed, so this record is the only place they can appear.
@@ -305,7 +361,7 @@ async function runOneWake(
       : undefined;
 
   const unparseableSchedules: string[] = [];
-  const outboundIds = await db.$transaction(
+  const persistOnce = () => db.$transaction(
     async (tx) => {
     // updatedAt is always touched: it is the conversation list's activity
     // sort key. (The update also serializes concurrent writers of this
@@ -316,27 +372,18 @@ async function runOneWake(
     // fires only on a user_message wake, so this is the user doing it.
     if (outcome.unsubscribe && sub.status !== "unsubscribed") {
       subData.status = "unsubscribed";
-      subData.unsubscribedAt = new Date(lastAt);
+      // finalLastAt, not lastAt: an unsubscribe honored from an ABSORBED
+      // message must not be dated before the request itself.
+      subData.unsubscribedAt = new Date(finalLastAt);
     }
     await tx.notisSubscription.update({ where: { id: sub.id }, data: subData });
 
-    // Nothing queued may outlive an unsubscribe: a pending row the sweeper
-    // would retry later (a transiently-failed send, held news) must die with
-    // the subscription — the rail predicate at delivery does not cover
-    // freeform reply rows. This wake's OWN rows are exempt: the goodbye the
-    // agent sends alongside unsubscribe_user must still go out (incremental
-    // rows already exist, so they are excluded by id; batch rows are created
-    // after this statement).
+    // Nothing queued may outlive an unsubscribe. This wake's OWN rows are
+    // exempt: the goodbye the agent sends alongside unsubscribe_user must
+    // still go out (incremental rows already exist, so they are excluded by
+    // id; batch rows are created after this statement).
     if (outcome.unsubscribe) {
-      await tx.notisMessage.updateMany({
-        where: {
-          subscriptionId: sub.id,
-          direction: "outbound",
-          status: "pending",
-          ...(incrementalIds.length > 0 ? { id: { notIn: incrementalIds } } : {}),
-        },
-        data: { status: "suppressed", failureReason: "unsubscribed" },
-      });
+      await suppressPendingOutbound(tx, sub.id, incrementalIds);
     }
 
     const wake = await tx.notisWake.create({
@@ -432,20 +479,47 @@ async function runOneWake(
     // P2028 also does not fire at the deadline — Prisma notices on the next
     // query — so a long lock wait blocks for its full duration, then dies.
     { timeout: PERSIST_TIMEOUT_MS },
-  ).catch(async (error: unknown) => {
-    // The record rolls back; incremental sends do not. A claim lost after
-    // real deliveries means the reclaimer will run the model again and may
-    // answer again — rare (this wake outlived STALE_CLAIM_MS), and the
-    // re-run's state assembly sees the sent rows, but the operator should
-    // know it happened.
-    if (error instanceof ClaimLostError && incrementalIds.length > 0) {
-      await alert(
-        `wake for ${sub.id} lost its claim after ${incrementalIds.length} incremental ` +
-          "deliveries — the reclaimer may answer again",
-      );
+  );
+
+  // The record can roll back; incremental sends cannot. After real
+  // deliveries a plain rethrow would retry the ITEM — re-running the model
+  // and re-delivering with fresh idempotency keys — so the persist step
+  // fails FORWARD like the loop does: one retry, then close the item with
+  // the loudest alert we have. Losing the record is bad; answering twice
+  // is worse.
+  let outboundIds: string[];
+  try {
+    outboundIds = await persistOnce();
+  } catch (error) {
+    if (error instanceof ClaimLostError) {
+      if (incrementalIds.length > 0) {
+        await alert(
+          `wake for ${sub.id} lost its claim after ${incrementalIds.length} incremental ` +
+            "deliveries — the reclaimer may answer again",
+        );
+      }
+      throw error;
     }
-    throw error;
-  });
+    if (incrementalIds.length === 0) throw error;
+    try {
+      outboundIds = await persistOnce();
+    } catch (secondError) {
+      if (secondError instanceof ClaimLostError) throw secondError;
+      const detail = secondError instanceof Error ? secondError.message : String(secondError);
+      await alert(
+        `wake for ${sub.id} DELIVERED ${incrementalIds.length} message(s) but its record ` +
+          `failed to persist twice (${detail}) — closing the item so the model does not ` +
+          "re-run; this wake has no record",
+      );
+      await markFailed(
+        db,
+        item.id,
+        item.attempts,
+        `delivered but persist failed: ${detail}`.slice(0, 300),
+      );
+      return;
+    }
+  }
 
   for (const at of unparseableSchedules) {
     await alert(`wake for ${sub.id} scheduled an unparseable instant (${at}) — note dropped`);
@@ -529,6 +603,28 @@ export const SUPPRESSION_REASONS = {
 } as const;
 
 export type SuppressionReason = keyof typeof SUPPRESSION_REASONS;
+
+/**
+ * Kill every pending outbound row of a subscription — the unsubscribe
+ * cleanup, shared by ALL status→unsubscribed sites (bare ΣΤΟΠ, the agent's
+ * unsubscribe_user, the poller's phone-gone). exceptIds spares the goodbye
+ * the unsubscribing wake itself sends.
+ */
+export async function suppressPendingOutbound(
+  db: PrismaClient | Prisma.TransactionClient,
+  subscriptionId: string,
+  exceptIds: string[] = [],
+): Promise<void> {
+  await db.notisMessage.updateMany({
+    where: {
+      subscriptionId,
+      direction: "outbound",
+      status: "pending",
+      ...(exceptIds.length > 0 ? { id: { notIn: exceptIds } } : {}),
+    },
+    data: { status: "suppressed", failureReason: "unsubscribed" satisfies SuppressionReason },
+  });
+}
 
 export async function suppressMessages(
   db: PrismaClient,
@@ -692,7 +788,9 @@ export async function deliverPendingMessage(
   const message = await db.notisMessage.findUnique({ where: { id: messageId } });
   if (!message || message.status !== "pending") return;
 
-  if (message.railed) {
+  // The union keeps the deploy window safe: rows written by OLD code after
+  // the backfill carry railed=false but still say proactive/template.
+  if (message.railed || message.proactive || message.deliveryMode === "template") {
     const blocked = await proactiveBlockReason(db, sub.id);
     if (blocked) {
       await suppressMessages(db, [messageId], blocked);
@@ -844,16 +942,16 @@ export async function sendProactiveMessages(
 /** Close a wake the weekly cap makes pointless, before any model spend. The
  *  events are consumed — a slot opens only as the week rolls, by which time
  *  this news is old — so a model-less wake row records what went unexamined. */
-async function skipCappedWake(
+/** Close an item without a model run, leaving a model-less wake row so the
+ *  decision log shows what went unexamined and why. */
+async function completeModelLessWake(
   db: PrismaClient,
   item: ClaimedItem,
   events: WakeEvent[],
+  rationale: string,
 ): Promise<void> {
   const ordered = [...events].sort((a, b) => a.at.localeCompare(b.at));
   const primary = primaryEvent(ordered);
-  const what =
-    ordered.length === 1 ? "Μία ενημέρωση δεν εξετάστηκε" : `${ordered.length} ενημερώσεις δεν εξετάστηκαν`;
-  const rationale = `(σύστημα) ${what} — ο χρήστης έχει ήδη ${WEEKLY_CAP} αυθόρμητα μηνύματα αυτή την εβδομάδα.`;
   await db.$transaction(async (tx) => {
     const owned = await completeItem(tx, item.id, item.attempts);
     if (!owned) throw new ClaimLostError(item.id);
@@ -881,6 +979,39 @@ async function skipCappedWake(
       },
     });
   });
+}
+
+async function skipCappedWake(
+  db: PrismaClient,
+  item: ClaimedItem,
+  events: WakeEvent[],
+): Promise<void> {
+  const what =
+    events.length === 1
+      ? "Μία ενημέρωση δεν εξετάστηκε"
+      : `${events.length} ενημερώσεις δεν εξετάστηκαν`;
+  await completeModelLessWake(
+    db,
+    item,
+    events,
+    `(σύστημα) ${what} — ο χρήστης έχει ήδη ${WEEKLY_CAP} αυθόρμητα μηνύματα αυτή την εβδομάδα.`,
+  );
+}
+
+/** A queued non-reactive wake for an unsubscribed reader must not burn a
+ *  model run whose every send the boundary would suppress anyway — and
+ *  must not write a post-unsubscribe «send» decision into the log. */
+async function skipUnsubscribedWake(
+  db: PrismaClient,
+  item: ClaimedItem,
+  events: WakeEvent[],
+): Promise<void> {
+  await completeModelLessWake(
+    db,
+    item,
+    events,
+    "(σύστημα) Ο αναγνώστης απεγγράφηκε πριν τρέξει το wake — καταναλώθηκε χωρίς μοντέλο.",
+  );
 }
 
 export async function processItem(item: ClaimedItem, overrides: DrainDeps = {}): Promise<void> {
@@ -925,6 +1056,13 @@ export async function processItem(item: ClaimedItem, overrides: DrainDeps = {}):
     const sub = await db.notisSubscription.findUnique({ where: { id: item.subscriptionId } });
     if (!sub) {
       await markFailed(db, item.id, item.attempts, "subscription no longer exists");
+      return;
+    }
+    // Reactive wakes still run for unsubscribed readers by design (a direct
+    // message deserves an answer); queued NON-reactive work died with the
+    // subscription — consume it without paying for a model run.
+    if (sub.status === "unsubscribed" && !isReactiveWake(events)) {
+      await skipUnsubscribedWake(db, item, events);
       return;
     }
     await runOneWake(db, item, sub, events, overrides);
@@ -1047,6 +1185,9 @@ export async function resendStalePendingMessages(overrides: DrainDeps = {}): Pro
       // that claim goes stale.
       OR: [{ sendingAt: null }, { sendingAt: { lt: staleClaimBefore } }],
     },
+    // Original order: unordered re-sends can reproduce the same-second
+    // handset inversion SEND_SPACING_MS exists to prevent.
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     select: {
       id: true,
       body: true,

@@ -331,31 +331,156 @@ describe("processItem", () => {
     expect(bird.sends[0].text).toBe("Για την Κυψέλη λοιπόν...");
   });
 
-  it("a lost claim aborts the record — delivered bytes stay delivered, with an alert", async () => {
+  it("re-enqueues absorbed messages when the wake fails before any delivery", async () => {
     const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
-    // The reclaimer bumped attempts: this worker's fence no longer matches.
+    seedClaim(db);
+    // The correction queued while q1 was claimed.
+    db.store.queue.set("q2", {
+      id: "q2",
+      subscriptionId: "sub1",
+      lane: "live",
+      status: "pending",
+      attempts: 0,
+      events: [
+        { type: "user_message", at: "2026-03-10T10:00:20.000Z", text: "Διόρθωση." },
+      ],
+      runAfter: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const bird = new FakeBird();
+
+    // Zero scripted turns: turn 0 absorbs q2, then the model call throws.
+    await processItem(ITEM, {
+      db,
+      bird,
+      deps: makeDeps(new FakeAnthropic([])),
+      alert: async () => {},
+    });
+
+    // Nothing was delivered, no wake landed — and the absorbed correction
+    // is back in a pending row instead of dying as done.
+    expect(bird.sends).toHaveLength(0);
+    expect(db.store.wakes).toHaveLength(0);
+    const pendingTexts = [...db.store.queue.values()]
+      .filter((q) => q.lane === "live" && q.status === "pending")
+      .flatMap((q) => (q.events as Array<{ text?: string }>).map((e) => e.text));
+    expect(pendingTexts).toContain("Διόρθωση.");
+    // The original item retries on its own row (failItem re-pended it).
+    expect(db.store.queue.get("q1")?.status).toBe("pending");
+  });
+
+  it("stops sending the moment the reader unsubscribes mid-wake", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    seedClaim(db);
+    const bird = new FakeBird();
+    const inner = new FakeAnthropic([
+      {
+        content: [toolUse("t1", "send_message", { text: "Πρώτο." })],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [
+          toolUse("t2", "send_message", { text: "Δεύτερο." }),
+          toolUse("t3", "finish_wake", { rationale: "Τέλος." }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    let calls = 0;
+    const stopping = {
+      create: async (params: Parameters<typeof inner.create>[0]) => {
+        calls++;
+        if (calls === 2) {
+          // Bare ΣΤΟΠ landed between turns: the handler flips the status.
+          db.store.subscriptions.get("sub1")!.status = "unsubscribed";
+        }
+        return inner.create(params);
+      },
+    };
+
+    await processItem(ITEM, {
+      db,
+      bird,
+      deps: makeDeps(stopping),
+      alert: async () => {},
+    });
+
+    // The second send never left and never even created a row: the deliver
+    // closure re-reads the subscription at the send instant.
+    expect(bird.sends).toHaveLength(1);
+    expect(bird.sends[0].text).toBe("Πρώτο.");
+    expect(db.store.messages.filter((m) => m.direction === "outbound")).toHaveLength(1);
+  });
+
+  it("a claim lost BEFORE the first turn aborts cleanly — nothing is sent", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    // The reclaimer bumped attempts: this worker's fence no longer matches,
+    // and the turn-0 heartbeat notices before any model call or delivery.
     db.store.queue.set("q1", { id: "q1", status: "running", attempts: ITEM.attempts + 1 });
     const bird = new FakeBird();
-    const alerts: string[] = [];
 
     await processItem(ITEM, {
       db,
       bird,
       deps: makeDeps(new FakeAnthropic(sendTurn)),
+      alert: async () => {},
+    });
+
+    expect(bird.sends).toHaveLength(0);
+    expect(db.store.wakes).toHaveLength(0);
+    expect(db.store.queue.get("q1")?.status).toBe("running");
+    expect(db.store.queue.get("q1")?.attempts).toBe(ITEM.attempts + 1);
+  });
+
+  it("a claim lost AFTER a delivery finalizes fail-forward — bytes stay delivered, with an alert", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    seedClaim(db);
+    const bird = new FakeBird();
+    const alerts: string[] = [];
+    // Two turns; the reclaimer steals the claim between them.
+    const inner = new FakeAnthropic([
+      {
+        content: [toolUse("t1", "send_message", { text: "Πρώτο μισό." })],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [toolUse("t2", "finish_wake", { rationale: "Τέλος." })],
+        stop_reason: "tool_use",
+      },
+    ]);
+    let calls = 0;
+    const stealing = {
+      create: async (params: Parameters<typeof inner.create>[0]) => {
+        calls++;
+        if (calls === 2) {
+          // Reclaim between turn 1 (delivered) and turn 2.
+          db.store.queue.set("q1", {
+            id: "q1",
+            status: "running",
+            attempts: ITEM.attempts + 1,
+          });
+        }
+        return inner.create(params);
+      },
+    };
+
+    await processItem(ITEM, {
+      db,
+      bird,
+      deps: makeDeps(stealing),
       alert: async (m) => {
         alerts.push(m);
       },
     });
 
-    // The persist tx threw ClaimLostError: no wake row landed and the
-    // reclaimer's row was left untouched — it owns the item now.
-    expect(db.store.wakes).toHaveLength(0);
-    expect(db.store.queue.get("q1")?.status).toBe("running");
-    expect(db.store.queue.get("q1")?.attempts).toBe(ITEM.attempts + 1);
-    // But the incremental send went out mid-loop and cannot be recalled:
-    // the row stays wakeId-less, the reclaimer's run sees it in the
-    // conversation, and the alert is the operator's signal.
+    // The heartbeat caught the loss at turn 2, fail-forward finalized, and
+    // the persist's completeItem fence threw ClaimLostError: no wake row,
+    // the reclaimer's row untouched, but the delivered byte stands and the
+    // operator hears about the possible double answer.
     expect(bird.sends).toHaveLength(1);
+    expect(db.store.wakes).toHaveLength(0);
+    expect(db.store.queue.get("q1")?.attempts).toBe(ITEM.attempts + 1);
     const outbound = db.store.messages.find((m) => m.direction === "outbound")!;
     expect(outbound.status).toBe("sent");
     expect(outbound.wakeId ?? null).toBeNull();

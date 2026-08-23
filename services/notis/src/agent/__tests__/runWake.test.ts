@@ -476,6 +476,91 @@ describe("mid-run absorption (deps.absorb)", () => {
   });
 });
 
+describe("held turns and superseded decisions", () => {
+  const userEvent = {
+    type: "user_message" as const,
+    at: "2026-03-10T10:00:00.000Z",
+    text: "Σταμάτα να μου στέλνεις.",
+  };
+  const retraction = {
+    type: "user_message" as const,
+    at: "2026-03-10T10:00:30.000Z",
+    text: "Όχι τελικά — συνέχισε!",
+  };
+
+  it("a held turn commits neither the schedule nor the unsubscribe", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "send_message", { text: "Εντάξει, σταματώ. Γεια!" }),
+          toolUse("t2", "schedule_wakeup", {
+            at: "2026-03-12T10:00:00.000Z",
+            reason: "τελευταία υπενθύμιση",
+          }),
+          toolUse("t3", "unsubscribe_user", { reason: "το ζήτησε" }),
+          toolUse("t4", "finish_wake", { rationale: "Απεγγραφή." }),
+        ],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [
+          toolUse("t5", "send_message", { text: "Χαίρομαι! Συνεχίζω κανονικά." }),
+          toolUse("t6", "finish_wake", { rationale: "Ανακάλεσε την απεγγραφή." }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const delivered: string[] = [];
+    let calls = 0;
+    const { outcome } = await runWake(makeState(), [userEvent], {
+      ...makeDeps(fake),
+      deliver: async (t) => {
+        delivered.push(t);
+        return { ok: true };
+      },
+      // The retraction lands in the pre-send probe of the goodbye turn.
+      absorb: async () => (++calls === 2 ? [retraction] : []),
+    });
+
+    expect(outcome.unsubscribe).toBeUndefined();
+    expect(outcome.scheduledWakes).toEqual([]);
+    expect(delivered).toEqual(["Χαίρομαι! Συνεχίζω κανονικά."]);
+    expect(outcome.messages).toEqual(["Χαίρομαι! Συνεχίζω κανονικά."]);
+  });
+
+  it("a turn-start update clears a latched unsubscribe and tells the model", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [toolUse("t1", "unsubscribe_user", { reason: "το ζήτησε" })],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [
+          toolUse("t2", "send_message", { text: "Μένουμε λοιπόν!" }),
+          toolUse("t3", "finish_wake", { rationale: "Ανακλήθηκε." }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    let calls = 0;
+    const { outcome, trace } = await runWake(makeState(), [userEvent], {
+      ...makeDeps(fake),
+      deliver: async () => ({ ok: true }),
+      // Turn-0 start: nothing. Turn-1 start: the retraction (no sends in
+      // turn 0's response, so no pre-send probe fires).
+      absorb: async () => (++calls === 2 ? [retraction] : []),
+    });
+
+    expect(outcome.unsubscribe).toBeUndefined();
+    const injected = trace.turns.filter((t) => t.role === "injected");
+    expect(
+      injected.some((t) =>
+        String((t.content[0] as { text?: string }).text).includes("cancelled pending"),
+      ),
+    ).toBe(true);
+  });
+});
+
 describe("unsubscribe guard", () => {
   it("ignores unsubscribe_user on a wake without a reader message", async () => {
     const fake = new FakeAnthropic([
