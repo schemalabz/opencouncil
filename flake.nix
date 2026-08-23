@@ -1655,7 +1655,8 @@ EOF
           };
           tests = mkCheck {
             name = "tests";
-            # Exclude integration tests (they need Docker/testcontainers).
+            # Exclude integration tests: the sandbox has no Docker, which
+            # testcontainers needs. They run in the integration job in ci.yml.
             # Limit workers to avoid exhausting memory in the nix sandbox.
             checkScript = "npm test -- --testPathIgnorePatterns='tests/integration' --maxWorkers=2";
           };
