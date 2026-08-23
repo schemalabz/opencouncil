@@ -71,7 +71,6 @@ The seeding process follows a specific order to respect entity dependencies:
    - Speaker segments (with summaries, topic labels, subject connections)
    - Utterances and words
    - Highlights (with highlighted utterance connections)
-   - Podcast specs (with parts and utterance connections)
 
 5. **Post-Processing**
    - Task statuses (synthetic, based on meeting data state)
