@@ -1669,8 +1669,10 @@ EOF
       # Notis preview config (paired with the same PR's opencouncil preview
       # via the pr-previews `siblings` context). Consumed by the preview host:
       #   services.pr-previews.projects = opencouncil.previews // ...;
-      # The host supplies envFile with NOTIS_ADMIN_SECRET and a (dummy)
-      # ANTHROPIC_API_KEY — see docs/guides/preview-deployments.md.
+      # The host supplies envFile with a (dummy) ANTHROPIC_API_KEY and — for
+      # non-isolated previews, where the createHook below does not run — the
+      # staging NOTIS_DATABASE_URL / MAIN_DATABASE_URL. See
+      # docs/guides/preview-deployments.md.
       previews.notis = let
         postgresCompat = self.lib.mkPostgresCompat;
         prismaEnv = self.lib.mkPrismaEnv;
@@ -1704,7 +1706,7 @@ EOF
             echo "Running notis migrations..."
             ${pe}
             export NOTIS_DATABASE_URL="postgresql://opencouncil@127.0.0.1:$db_port/notis"
-            ${pkgs.nodePackages.prisma}/bin/prisma migrate deploy \
+            ${pkgs.prisma}/bin/prisma migrate deploy \
               --schema "$store_path/services/notis/prisma/schema.prisma"
 
             # Login role for the read-only main-DB views. notis_reader is
