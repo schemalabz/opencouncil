@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, X, Plus, Minus, Flame, Info } from 'lucide-react';
+import { ArrowLeft, X, Plus, Minus, Flame, Info, Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Topic } from '@prisma/client';
 import { cn } from '@/lib/utils';
@@ -41,6 +41,11 @@ export function RankedListHint({ floating, searchQuery }: { floating?: boolean; 
     // query the caption describes the map's own ranking instead.
     const title = searchQuery ? t('list.relevanceTitle', { query: searchQuery }) : t('list.rankedTitle');
     const explain = searchQuery ? t('list.relevanceExplain', { query: searchQuery }) : t('list.rankedExplain');
+    // The flame means hottest and most recent, which is the map's own ranking.
+    // A search orders by relevance instead, so it gets its own glyph — sharing
+    // the flame would make the two orderings indistinguishable at a glance,
+    // which is the one thing this caption exists to prevent.
+    const OrderingIcon = searchQuery ? Search : Flame;
     return (
         <Popover onOpenChange={(open) => open && captureLandingAction('ranking_explain_opened', {})}>
             <PopoverTrigger asChild>
@@ -51,7 +56,7 @@ export function RankedListHint({ floating, searchQuery }: { floating?: boolean; 
                         floating && 'rounded-full border border-border bg-card/95 px-3 py-1.5 shadow-md backdrop-blur',
                     )}
                 >
-                    <Flame className="h-3.5 w-3.5 text-[hsl(var(--orange))]" aria-hidden />
+                    <OrderingIcon className="h-3.5 w-3.5 text-[hsl(var(--orange))]" aria-hidden />
                     {title}
                     <Info className="h-3.5 w-3.5 opacity-60" aria-hidden />
                 </button>

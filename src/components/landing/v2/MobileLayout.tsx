@@ -9,7 +9,7 @@ import Icon from '@/components/icon';
 import { formatDate, formatDateTime } from '@/lib/formatters/time';
 import { captureLandingAction } from '@/lib/landing/analytics';
 import { ListHeader, RankedListHint } from './conceptShared';
-import { SearchChip, SearchErrorPill, SearchResultsCard } from './searchSummary';
+import { SearchErrorPill, SearchResultsCard } from './searchSummary';
 import { subjectLocationLine, type LandingSubject, type LandingListCity, type LandingPetitionedCity, type UpcomingMeeting } from '@/lib/landing/landingData';
 import { PETITION_DISPLAY_THRESHOLD } from '@/lib/landing/petitions';
 import { hasActiveFilters, type LayoutProps } from '@/lib/landing/landingCore';
@@ -59,7 +59,6 @@ export function MobileLayout({
     onLocateAddress,
     onCommitSearch,
     committedSearch,
-    onClearSearch,
     searchFailed,
     onRetrySearch,
     outsideViewCount,
@@ -267,16 +266,14 @@ export function MobileLayout({
                             {!listCollapsed && (
                                 <div className="absolute inset-x-0 bottom-[62px] z-[9]">
                                     {/* what the strip actually is — a small pill floating over the
-                                        map (costs no layout space). Hidden while a text search
-                                        re-purposes the list into plain matches. */}
+                                        map (costs no layout space). It names the ordering, so a
+                                        committed search changes what it says rather than hiding
+                                        it, and the query is not repeated in a chip beside it. */}
                                     {tab === 'subjects' && (committedSearch || searchFailed || trending.length > 0) && (
                                         <div
                                             className="mb-2 flex items-center gap-2 overflow-x-auto px-3 [&::-webkit-scrollbar]:hidden"
                                             style={{ scrollbarWidth: 'none' }}
                                         >
-                                            {committedSearch && (
-                                                <SearchChip search={committedSearch} onClear={onClearSearch} floating />
-                                            )}
                                             {searchFailed && <SearchErrorPill onRetry={onRetrySearch} floating />}
                                             <RankedListHint floating searchQuery={committedSearch?.query} />
                                         </div>

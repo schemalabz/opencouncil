@@ -28,21 +28,18 @@ export function landingSearchHref(query: string, cats: string[], filters: MapFil
 export function SearchChip({
     search,
     onClear,
-    floating,
 }: {
     search: CommittedSearch;
     onClear: () => void;
-    /** pill over the map (mobile) rather than a row in the panel header */
-    floating?: boolean;
 }) {
     const t = useTranslations('landingV2');
     return (
         <div
-            // Opaque in both variants. This sits over the map, and a tinted
-            // background let place labels read straight through the text.
+            // Opaque: this sits over the map, and a tinted background let place
+            // labels read straight through the text.
             className={cn(
-                'inline-flex shrink-0 max-w-[16rem] items-center gap-1.5 rounded-full border bg-card text-sm shadow-md',
-                floating ? 'border-border px-3 py-1.5 backdrop-blur' : 'h-8 border-[hsl(var(--orange))]/40 px-3',
+                'inline-flex h-8 shrink-0 max-w-[16rem] items-center gap-1.5 rounded-full border px-3',
+                'border-[hsl(var(--orange))]/40 bg-card text-sm shadow-md',
             )}
         >
             <Search className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--orange))]" aria-hidden="true" />
