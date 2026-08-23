@@ -54,6 +54,13 @@ export interface DrainResult {
  *  sweeper — covers a crash between the persist commit and the Bird call. */
 export const RESEND_STALE_AFTER_MS = 2 * 60_000;
 
+/** How long a send claim (`sendingAt`) is honored before another worker may
+ *  re-claim the row. Above the worst-case send: the cold template path makes
+ *  two sequential Bird calls, each capped at SEND_TIMEOUT_MS. The send
+ *  boundary and the sweeper both claim through this, so one row is never sent
+ *  twice under its idempotency key while a slow send is still in flight. */
+const SEND_CLAIM_TTL_MS = 2 * SEND_TIMEOUT_MS + 30_000;
+
 /** The persist transaction's budget. It holds the subscription's row lock —
  *  the same lock every inbound webhook for that reader waits on — so it needs
  *  room for contention, not just for its own writes. */
@@ -467,10 +474,60 @@ async function proactiveBlockReason(
   return null;
 }
 
+/**
+ * Fence one pending row for sending: the first caller wins and stamps
+ * `sendingAt`; a concurrent one — the send boundary racing the sweeper, or
+ * two overlapping sweeps — gets false and leaves the row alone, so Bird never
+ * receives two requests for one row under the same idempotency key. Every
+ * send path claims through here, so the fence is not the sweeper's alone.
+ */
+async function claimForSend(db: PrismaClient, messageId: string): Promise<boolean> {
+  const now = Date.now();
+  const claimed = await db.notisMessage.updateMany({
+    where: {
+      id: messageId,
+      status: "pending",
+      OR: [{ sendingAt: null }, { sendingAt: { lt: new Date(now - SEND_CLAIM_TTL_MS) } }],
+    },
+    data: { sendingAt: new Date(now) },
+  });
+  return claimed.count === 1;
+}
+
+/** Send one free-form row into the existing conversation. Free-form is only
+ *  deliverable inside the 24h window, so the conversation already exists; a
+ *  row without one is a failure. The caller has already claimed the row. */
+async function sendFreeform(
+  db: PrismaClient,
+  bird: BirdLike,
+  message: { id: string; body: string },
+  sub: Pick<NotisSubscription, "id" | "birdConversationId">,
+  alert: (message: string) => Promise<void>,
+): Promise<void> {
+  if (!sub.birdConversationId) {
+    await applySendResult(
+      db,
+      message.id,
+      { success: false, retryable: false, error: "no birdConversationId on subscription" },
+      alert,
+    );
+    await alert(`subscription ${sub.id} has no birdConversationId — cannot deliver a reply`);
+    return;
+  }
+  const result = await bird.sendText({
+    conversationId: sub.birdConversationId,
+    text: message.body,
+    idempotencyKey: message.id,
+  });
+  await applySendResult(db, message.id, result, alert);
+}
+
 /** Send `pending` outbound rows into the subscription's conversation. Also
  *  used by the webhook's deterministic ΣΤΟΠ replies. Free-form only —
  *  reactive replies and in-window sends; templates ride
- *  sendProactiveMessages. */
+ *  sendProactiveMessages. Each row is claimed before it goes out, so a
+ *  reply the sweeper also picked up is never sent twice. Reactive replies
+ *  carry no rails by design — a ΣΤΟΠ confirmation must reach the reader. */
 export async function sendPendingMessages(
   db: PrismaClient,
   bird: BirdLike,
@@ -478,25 +535,11 @@ export async function sendPendingMessages(
   sub: Pick<NotisSubscription, "id" | "birdConversationId">,
   alert: (message: string) => Promise<void>,
 ): Promise<void> {
-  if (!sub.birdConversationId) {
-    await db.notisMessage.updateMany({
-      where: { id: { in: messageIds } },
-      data: { status: "failed", failureReason: "no birdConversationId on subscription" },
-    });
-    await alert(`subscription ${sub.id} has no birdConversationId — cannot deliver replies`);
-    return;
-  }
-
   for (const id of messageIds) {
     const message = await db.notisMessage.findUnique({ where: { id } });
     if (!message || message.status !== "pending") continue;
-
-    const result = await bird.sendText({
-      conversationId: sub.birdConversationId,
-      text: message.body,
-      idempotencyKey: message.id,
-    });
-    await applySendResult(db, id, result, alert);
+    if (!(await claimForSend(db, id))) continue;
+    await sendFreeform(db, bird, message, sub, alert);
   }
 }
 
@@ -506,12 +549,18 @@ export async function sendPendingMessages(
  * the returned conversation id is persisted so every later send reuses it.
  *
  * This is the single delivery choke point, so the rails that must hold at
- * the delivery instant live HERE rather than at one call site: the row's own
- * `proactive` flag decides whether they apply, and every caller — the send
- * boundary, the sweeper's stale-row retry, the poller's enrollment intro —
- * inherits them. The boundary alone was not enough: a transiently failed
- * proactive row stays pending by design, and the sweeper would re-send it
- * up to an hour later, long after a ΣΤΟΠ or a flipped kill switch.
+ * the delivery instant live HERE rather than at one call site, and every
+ * caller — the send boundary, the sweeper's stale-row retry, the poller's
+ * enrollment intro — inherits them. The boundary alone was not enough: a
+ * transiently failed row stays pending by design, and the sweeper would
+ * re-send it up to an hour later, long after a ΣΤΟΠ or a flipped kill switch.
+ *
+ * The rails apply to UNPROMPTED sends — a proactive row, or any template
+ * send. `proactive` alone was the wrong key: a reply-continuation follow-up
+ * is a template send but `proactive: false` (cap-exempt), and it must still
+ * respect a ΣΤΟΠ. A free-form row is a reactive reply (decideDelivery
+ * guarantees free-form for those), so it bypasses the rails — which is what
+ * lets a ΣΤΟΠ confirmation still reach a reader who just unsubscribed.
  */
 export async function deliverPendingMessage(
   db: PrismaClient,
@@ -523,7 +572,7 @@ export async function deliverPendingMessage(
   const message = await db.notisMessage.findUnique({ where: { id: messageId } });
   if (!message || message.status !== "pending") return;
 
-  if (message.proactive) {
+  if (message.proactive || message.deliveryMode === "template") {
     const blocked = await proactiveBlockReason(db, sub.id);
     if (blocked) {
       await suppressMessages(db, [messageId], blocked);
@@ -531,8 +580,10 @@ export async function deliverPendingMessage(
     }
   }
 
+  if (!(await claimForSend(db, messageId))) return;
+
   if (message.deliveryMode !== "template") {
-    await sendPendingMessages(db, bird, [messageId], sub, alert);
+    await sendFreeform(db, bird, message, sub, alert);
     return;
   }
 
@@ -794,17 +845,26 @@ async function releaseHeldSms(
   db: PrismaClient,
   bird: BirdLike,
   message: { id: string; body: string },
-  phone: string | null,
+  sub: Pick<NotisSubscription, "id" | "phone">,
   alert: (message: string) => Promise<void>,
 ): Promise<void> {
-  if (!phone) return;
+  if (!sub.phone) return;
+  // The reader may have unsubscribed, or the switch may have flipped, in the
+  // hours this SMS sat held between 23:00 and 09:00 — re-check the same rails
+  // a WhatsApp send gets at its delivery instant. A held SMS is always a
+  // proactive fallback, so it is always subject to them.
+  const blocked = await proactiveBlockReason(db, sub.id);
+  if (blocked) {
+    await suppressMessages(db, [message.id], blocked);
+    return;
+  }
   const claimed = await db.notisMessage.updateMany({
     where: { id: message.id, status: "pending", failureReason: SMS_HELD_FOR_QUIET_HOURS },
     data: { failureReason: null },
   });
   if (claimed.count !== 1) return;
 
-  const result = await bird.sendSms({ phone, text: message.body });
+  const result = await bird.sendSms({ phone: sub.phone, text: message.body });
   if (result.success) {
     await db.notisMessage.update({
       where: { id: message.id },
@@ -834,7 +894,7 @@ export async function resendStalePendingMessages(overrides: DrainDeps = {}): Pro
   const alert = resolveAlert(overrides);
 
   const now = Date.now();
-  const staleClaimBefore = new Date(now - SEND_TIMEOUT_MS);
+  const staleClaimBefore = new Date(now - SEND_CLAIM_TTL_MS);
   const stale = await db.notisMessage.findMany({
     where: {
       direction: "outbound",
@@ -881,25 +941,15 @@ export async function resendStalePendingMessages(overrides: DrainDeps = {}): Pro
     // out at all because quiet hours held it — this is its 09:00 release.
     if (message.channel === "sms") {
       if (held && !isQuietHour(new Date())) {
-        await releaseHeldSms(db, bird, message, message.subscription.phone, alert);
+        await releaseHeldSms(db, bird, message, message.subscription, alert);
       }
       continue;
     }
-    // Claim before sending. `count === 1` means this run owns the send; an
-    // overlapping sweep loses the race and moves on, so Bird never receives
-    // two simultaneous requests for one row — which is the weakest case for
-    // any idempotency-key implementation and the one our own deploy checklist
-    // still lists as unverified.
-    const claimed = await db.notisMessage.updateMany({
-      where: {
-        id: message.id,
-        status: "pending",
-        OR: [{ sendingAt: null }, { sendingAt: { lt: staleClaimBefore } }],
-      },
-      data: { sendingAt: new Date() },
-    });
-    if (claimed.count !== 1) continue;
-
+    // deliverPendingMessage claims the row (sendingAt) before it sends, so an
+    // overlapping sweep or the send boundary loses the race and moves on —
+    // Bird never gets two simultaneous requests for one row under its
+    // idempotency key. The stale filter above only avoids picking a row whose
+    // claim is still fresh; the claim inside is the authoritative fence.
     await deliverPendingMessage(db, bird, message.id, message.subscription, alert);
   }
   return stale.length;
