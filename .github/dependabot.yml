@@ -26,6 +26,14 @@ updates:
           - "patch"
     # Major bumps (e.g. Next.js 14 -> 16) are intentionally left as
     # individual, ungrouped PRs so they can be reviewed and tested on their own.
+    ignore:
+      # @types/node describes the runtime, so its major is set by
+      # engines.node — not by what npm has published. Dependabot cannot see
+      # that coupling and will always offer the newest major, which is wrong
+      # whenever it differs from the Node we run. Move this deliberately,
+      # together with engines.node and the nixpkgs input.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   # GitHub Actions used in workflows
   - package-ecosystem: "github-actions"
