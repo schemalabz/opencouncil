@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --turbo -p 3001",
     "build": "npm run prisma:generate && next build",
+    "prestart": "[ -z \"$NOTIS_DATABASE_URL\" ] || npm run prisma:deploy",
     "start": "next start",
     "test": "jest",
     "typecheck": "tsc --noEmit",
