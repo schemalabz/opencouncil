@@ -7,6 +7,7 @@ import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { getOgLocale } from '@/i18n/config';
 import { getTranslations } from 'next-intl/server';
+import { buildOgImageUrl } from '@/lib/og/locale';
 
 export async function generateMetadata(
     props: {
@@ -33,7 +34,7 @@ export async function generateMetadata(
 
     const cityName = getLocalizedName(city, locale);
     const description = t('description', { cityName });
-    const ogImageUrl = `/api/og?cityId=${cityId}`;
+    const ogImageUrl = buildOgImageUrl(locale, { cityId });
 
     return {
         title: `${cityName} | OpenCouncil`,

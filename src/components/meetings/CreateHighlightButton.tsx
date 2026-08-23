@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from '@/components/ui/button';
-import { Star, Loader2 } from 'lucide-react';
+import { Clapperboard, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useHighlight } from './HighlightContext';
 import { useTranscriptOptions } from './options/OptionsContext';
@@ -77,7 +77,7 @@ export function CreateHighlightButton({
         if (isEditing) return t('buttons.currentlyEditing');
         return children || (
             <>
-                <Star className="h-5 w-5 mr-2" />
+                <Clapperboard className="h-5 w-5 mr-2" />
                 {t('buttons.createHighlight')}
             </>
         );
@@ -97,7 +97,7 @@ export function CreateHighlightButton({
                 {isCreating ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                    <Star className="h-4 w-4" />
+                    <Clapperboard className="h-4 w-4" />
                 )}
             </Button>
         );

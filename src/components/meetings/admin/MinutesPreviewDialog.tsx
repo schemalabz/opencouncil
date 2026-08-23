@@ -7,7 +7,7 @@ import { Loader2, FileDown } from 'lucide-react';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
-import { downloadFile } from '@/lib/export/meetings';
+import { downloadFile } from '@/lib/export/download';
 import { MinutesData } from '@/lib/minutes/types';
 import { MinutesPreviewContent } from './MinutesPreviewContent';
 

@@ -16,6 +16,8 @@ export async function createVoicePrint(
             throw new Error("Person not found");
         }
 
+        await withUserAuthorizedToEdit({ cityId: person.cityId });
+
         try {
             const voicePrint = await prisma.voicePrint.create({
                 data: {

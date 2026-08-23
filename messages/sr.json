@@ -729,6 +729,8 @@
         "deleteNetworkError": "Грешка при брисању"
     },
     "Profile": {
+        "myHighlightsDescription": "Погледајте све истакнуте снимке које сте направили, из сваке седнице.",
+        "viewMyHighlights": "Погледајте своје истакнуте снимке",
         "welcomeOnboard": "Добро дошли у OpenCouncil",
         "personalInfo": "Лични подаци",
         "onboardingDescription": "Молимо попуните следеће податке да бисте довршили регистрацију.",

@@ -1,12 +1,15 @@
 "use server";
 import { type City, type Party, type Person, type CouncilMeeting, type User } from "@prisma/client";
+import { cache } from "react";
 import { auth } from "@/auth";
 import prisma from "@/lib/db/prisma";
 import { validateServiceApiKey } from "@/lib/db/apiKeys";
 import { UnauthorizedError } from "@/lib/api/errors";
 import { type NextRequest } from "next/server";
 
-export async function getCurrentUser() {
+// Request-scoped so the many call sites that each need the viewer — a page and
+// the queries it calls — resolve the session and the user row once per request.
+const currentUser = cache(async () => {
     const session = await auth();
     if (!session?.user?.email) return null;
 
@@ -22,6 +25,10 @@ export async function getCurrentUser() {
             }
         }
     });
+});
+
+export async function getCurrentUser() {
+    return currentUser();
 }
 
 async function checkUserAuthorization({

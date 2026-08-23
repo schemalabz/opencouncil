@@ -1,3 +1,4 @@
+import { __setSessionEmail } from '../mocks/auth'
 import prisma from '@/lib/db/prisma'
 import { Prisma } from '@prisma/client'
 
@@ -41,6 +42,17 @@ export async function createTopic(id: string, data?: Partial<Prisma.TopicCreateI
             ...data,
         },
     })
+}
+
+/**
+ * Seeds a superadmin and signs them in through the auth mock. Guarded
+ * data-layer functions (withUserAuthorizedToEdit and friends) then pass.
+ * Call it after every resetDatabase — the reset deletes the user row.
+ */
+export async function signInAsSuperAdmin() {
+    const admin = await createUser('superadmin@integration.test', { isSuperAdmin: true })
+    __setSessionEmail(admin.email)
+    return admin
 }
 
 export async function createUser(email: string, data?: Partial<Prisma.UserCreateInput>) {

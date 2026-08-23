@@ -10,6 +10,7 @@ import { getRealm, getRealmBaseUrlFromRequest } from '@/lib/realm.server';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
 import { getOgLocale } from '@/i18n/config';
+import { buildOgImageUrl } from '@/lib/og/locale';
 
 interface PageProps {
     params: Promise<{ cityId: string; id: string; locale: string }>;
@@ -47,7 +48,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
     const description = `${isActive ? 'Ενεργή δημόσια διαβούλευση' : 'Δημόσια διαβούλευση που έχει λήξει'} για "${title}" στον Δήμο ${cityName}. ${chaptersCount > 0 ? `Περιλαμβάνει ${chaptersCount} κεφάλαια${geosetsCount > 0 ? ` και ${geosetsCount} γεωγραφικές περιοχές` : ''}.` : ''} Μάθετε περισσότερα και συμμετέχετε στη διαβούλευση.`;
 
     // Generate OG image URL
-    const ogImageUrl = `/api/og?cityId=${params.cityId}&consultationId=${params.id}`;
+    const ogImageUrl = buildOgImageUrl(params.locale, { cityId: params.cityId, consultationId: params.id });
 
     return {
         title: `${title} | ${cityName} | OpenCouncil`,

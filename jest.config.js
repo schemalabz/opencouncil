@@ -6,6 +6,10 @@ const shared = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '\\.css$': '<rootDir>/__mocks__/styleMock.js',
+    // `server-only` / `client-only` are Next.js bundler marker modules with no
+    // runtime package to resolve. In jest they are harmless no-ops.
+    '^server-only$': '<rootDir>/__mocks__/empty.js',
+    '^client-only$': '<rootDir>/__mocks__/empty.js',
   },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/', '<rootDir>/tests/integration/'],

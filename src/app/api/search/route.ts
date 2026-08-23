@@ -5,9 +5,7 @@ import { searchRequestSchema } from '@/lib/zod-schemas/search';
 
 // Hardcoded search configuration
 const SEARCH_CONFIG = {
-    enableSemanticSearch: true,
-    rankWindowSize: 100,
-    rankConstant: 60
+    enableSemanticSearch: true
 } as const;
 
 export async function POST(request: NextRequest) {

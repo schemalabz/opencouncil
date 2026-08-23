@@ -12,6 +12,7 @@ import { getRealm } from "@/lib/realm.server";
 import { getRealmContactPhone } from "@/lib/realm";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { localizeText } from "@/lib/serbian";
+import { getSafeHtmlContent } from "@/lib/utils/sanitize";
 
 interface PageProps {
     params: Promise<{ cityId: string; id: string; locale: string }>;
@@ -350,7 +351,7 @@ export default async function CommentsPage(props: PageProps) {
                                         </div>
                                         <div
                                             className="text-gray-700 prose prose-sm max-w-none"
-                                            dangerouslySetInnerHTML={{ __html: comment.body }}
+                                            dangerouslySetInnerHTML={{ __html: getSafeHtmlContent(comment.body) }}
                                         />
                                         {index < documentComments.length - 1 && (
                                             <div className="mt-4 border-b border-gray-100"></div>
@@ -383,7 +384,7 @@ export default async function CommentsPage(props: PageProps) {
                                         </div>
                                         <div
                                             className="text-gray-700 prose prose-sm max-w-none"
-                                            dangerouslySetInnerHTML={{ __html: comment.body }}
+                                            dangerouslySetInnerHTML={{ __html: getSafeHtmlContent(comment.body) }}
                                         />
                                         {index < locationComments.length - 1 && (
                                             <div className="mt-4 border-b border-gray-100"></div>

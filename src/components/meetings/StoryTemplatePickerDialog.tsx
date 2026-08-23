@@ -11,7 +11,7 @@ import { STORY_TEMPLATES, type StoryTemplateId } from "@/components/og/story-tem
 import { renderStoryTemplate } from "@/components/og/story-templates";
 import { getSubjectSections, SECTION_LIMITS } from "@/components/og/story-templates/sections";
 import type { PreviewData } from "@/components/og/story-templates/types";
-import { downloadFile } from "@/lib/export/meetings";
+import { downloadFile } from "@/lib/export/download";
 import { renderStoryToBlob, resolveImageToDataUri } from "@/lib/export/storyImage";
 
 // Native template dimensions. Previews use CSS transform: scale() to fit thumbnail tiles.

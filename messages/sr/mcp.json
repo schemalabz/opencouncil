@@ -21,19 +21,26 @@
         "copy": "Копирај",
         "copied": "Копирано"
     },
+    "video": {
+        "title": "Видео упутство",
+        "caption": "Четири минута: како да повежете Claude и ChatGPT и шта затим можете да питате. Видео је на грчком.",
+        "iframeTitle": "Како да повежете Claude и ChatGPT са OpenCouncil-ом"
+    },
     "clients": {
         "claude": {
             "title": "Claude",
             "step1": "У claude.ai, отворите Settings → Connectors.",
             "step2": "Кликните на „Add custom connector“.",
-            "step3": "Назовите га OpenCouncil и налепите адресу.",
+            "step3": "Назовите га OpenCouncil и налепите адресу. Остала поља оставите празна.",
+            "step4": "Кликните на „Add“, па на „Connect“ — конектор се приказује као повезан.",
             "openSettings": "Отвори подешавања claude.ai"
         },
         "chatgpt": {
             "title": "ChatGPT",
             "step1": "У ChatGPT-у, отворите Settings → Apps & Connectors и укључите Developer mode (под Advanced).",
-            "step2": "Кликните на „Create“ за нови конектор.",
+            "step2": "Вратите се на Apps & Connectors и кликните на „Create“.",
             "step3": "Назовите га OpenCouncil, налепите адресу и изаберите „No authentication“.",
+            "step4": "Кликните на „Create“, па на „Connect“ — конектор се приказује као повезан.",
             "openSettings": "Отвори подешавања ChatGPT-а"
         },
         "claudeCode": {

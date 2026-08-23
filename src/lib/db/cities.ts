@@ -4,6 +4,7 @@ import prisma from "./prisma";
 import { createCache } from "../cache";
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getCurrentUser } from "../auth";
 import { UnauthorizedError } from "../api/errors";
+import { getRealm } from "../realm.server";
 import { CUSTOMER_CITY_WHERE, OUT_OF_NETWORK_CITY_WHERE, PUBLIC_CITY_WHERE } from "../cityStatus";
 import {
     PETITION_DISPLAY_THRESHOLD,
@@ -483,6 +484,21 @@ export async function getAllCityIds(realm?: Realm): Promise<string[]> {
 }
 
 /**
+ * The subset of `cityIds` that belongs to `realm`, in no particular order. The
+ * one way to cap a caller-supplied city filter to a realm: an id from another
+ * realm (or an id that does not exist) drops out, so the filter narrows the
+ * query instead of reaching across the tenant boundary.
+ */
+export async function filterCityIdsByRealm(cityIds: string[], realm: Realm): Promise<string[]> {
+    if (cityIds.length === 0) return [];
+    const cities = await prisma.city.findMany({
+        where: { id: { in: cityIds }, realm },
+        select: { id: true }
+    });
+    return cities.map(c => c.id);
+}
+
+/**
  * Retrieves cities based on user permissions and city status.
  *
  * One flag, not two. `includeUnlisted` and `includePending` were separate while
@@ -549,6 +565,20 @@ export async function getCities({ includeNonPublic = false }: { includeNonPublic
         console.error('Error fetching cities:', error);
         throw new Error('Failed to fetch cities');
     }
+}
+
+/**
+ * The public cities of the realm the request arrived on, for realm-scoped
+ * pickers in client components (the /search city filter).
+ *
+ * The realm comes from the request's Host, never from the caller, so a client
+ * cannot widen the list to another realm by asking for one. A client component
+ * with a server parent should still take the realm as a prop; this exists for
+ * the ones that only ever fetch the list from an effect, where a prop would buy
+ * no earlier paint.
+ */
+export async function getCitiesForRequestRealm(): Promise<CityWithCounts[]> {
+    return getCities({}, await getRealm());
 }
 
 /**

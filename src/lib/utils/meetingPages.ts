@@ -1,4 +1,4 @@
-import { LayoutDashboard, FileText, Mic, Map, Star, Settings, Bolt, type LucideIcon } from 'lucide-react';
+import { LayoutDashboard, FileText, Mic, Map, Clapperboard, Settings, Bolt, type LucideIcon } from 'lucide-react';
 
 /**
  * Meeting-page navigation segments with translated titles. Pass a translator
@@ -11,7 +11,7 @@ export function getMeetingPageSegments(
         overview:   { icon: LayoutDashboard, title: t('pages.overview') },
         map:        { icon: Map,             title: t('pages.map') },
         transcript: { icon: Mic,             title: t('pages.transcript') },
-        highlights: { icon: Star,            title: t('pages.highlights') },
+        highlights: { icon: Clapperboard,    title: t('pages.highlights') },
         settings:   { icon: Settings,        title: t('pages.settings') },
         admin:      { icon: Bolt,            title: t('pages.admin') },
         subjects:   { icon: FileText,        title: t('pages.subjects') },

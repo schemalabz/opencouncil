@@ -1,8 +1,5 @@
 import React from "react"
 import Header from "@/components/layout/Header"
-import Footer from "@/components/layout/Footer"
-import { Toaster } from "@/components/ui/toaster";
-import Aurora from "@/components/landing/AuroraClient"
 
 export default async function Layout({
   children
@@ -12,18 +9,11 @@ export default async function Layout({
 }) {
 
   return (
-    <>
-      <div className="relative overflow-hidden min-h-screen">
-        {/* Aurora at the very top of the page - absolute position to scroll with content */}
-        <div className="absolute top-0 left-0 w-full h-screen z-0" style={{ pointerEvents: 'auto' }}>
-          <Aurora className="w-full h-full" />
-        </div>
-
-        <Header path={[]} className="relative z-10" noContainer={true} />
-        <main id="main-content" className="min-h-[70vh] relative z-5">
-          {children}
-        </main>
-      </div>
-    </>
+    <div className="min-h-screen">
+      <Header path={[]} noContainer={true} />
+      <main id="main-content" className="min-h-[70vh]">
+        {children}
+      </main>
+    </div>
   );
 }

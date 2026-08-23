@@ -1,8 +1,8 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
-import { Statistics } from '@/lib/statistics';
-import { getStatisticsFor } from '@/lib/statistics';
+import { getBatchStatisticsForSubjects, type Statistics } from '@/lib/statistics';
 import List, { BaseListProps } from '@/components/List';
 import { SubjectCard } from '@/components/subject-card';
+import { SubjectRow } from './SubjectRow';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PersonWithRelations } from '@/lib/db/people';
 import { Party } from '@prisma/client';
@@ -14,6 +14,8 @@ interface SubjectListContainerProps {
   showContext?: boolean;
   translationKey?: string;
   openInNewTab?: boolean;
+  /** `card` is the grid/carousel tile; `row` is the full-width line used by search. */
+  variant?: 'card' | 'row';
 }
 
 // Helper function to fetch data from API
@@ -30,6 +32,7 @@ export function SubjectListContainer({
   showContext = true,
   translationKey,
   openInNewTab = false,
+  variant = 'card',
   ...listProps
 }: SubjectListContainerProps & BaseListProps) {
   // Get unique city IDs and meeting IDs from subjects
@@ -87,38 +90,58 @@ export function SubjectListContainer({
   const [isStatsLoading, setIsStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState<Error | null>(null);
 
+  // One batched call, not one per subject: getBatchStatisticsForSubjects groups
+  // the whole page in 2-3 queries, where a call each was a Server Action round
+  // trip per row — 15 of them on a page of search results.
   useEffect(() => {
+    let live = true;
+
     async function fetchStatistics() {
       try {
         setIsStatsLoading(true);
-        const statsPromises = subjects.map(subject =>
-          getStatisticsFor({ subjectId: subject.id }, ["person", "party"])
-        );
-        const statsResults = await Promise.all(statsPromises);
-        setStatistics(Object.fromEntries(
-          subjects.map((subject, index) => [subject.id, statsResults[index]])
-        ));
+        const statsMap = await getBatchStatisticsForSubjects(subjects.map(subject => subject.id));
+        if (!live) return;
+        setStatistics(Object.fromEntries(statsMap));
       } catch (err) {
+        if (!live) return;
         setStatsError(err instanceof Error ? err : new Error('Failed to fetch statistics'));
       } finally {
-        setIsStatsLoading(false);
+        if (live) setIsStatsLoading(false);
       }
     }
 
     if (subjects.length > 0) {
       fetchStatistics();
+    } else {
+      // Nothing to fetch — but the flag starts true, so leaving it set would
+      // hold the list on its skeleton forever.
+      setStatistics({});
+      setIsStatsLoading(false);
     }
+
+    return () => { live = false; };
   }, [subjects]);
 
   const ItemComponent = useCallback(({ item: subject }: { item: SearchResultLight }) => {
     const { people, parties } = cityData[subject.cityId] || { people: [], parties: [] };
+    const withStatistics = { ...subject, statistics: statistics[subject.id] };
+
+    if (variant === 'row') {
+      return (
+        <SubjectRow
+          subject={withStatistics}
+          city={subject.councilMeeting.city}
+          meeting={subject.councilMeeting}
+          persons={people}
+          showContext={showContext}
+          openInNewTab={openInNewTab}
+        />
+      );
+    }
 
     return (
       <SubjectCard
-        subject={{
-          ...subject,
-          statistics: statistics[subject.id]
-        }}
+        subject={withStatistics}
         city={subject.councilMeeting.city}
         meeting={subject.councilMeeting}
         parties={parties}
@@ -127,10 +150,18 @@ export function SubjectListContainer({
         openInNewTab={openInNewTab}
       />
     );
-  }, [cityData, statistics, showContext, openInNewTab]);
+  }, [cityData, statistics, showContext, openInNewTab, variant]);
 
   if (isDataLoading || isStatsLoading) {
-    return (
+    return variant === 'row' ? (
+      // As many placeholders as there are results, so the block doesn't visibly
+      // shrink and regrow when this skeleton hands over to the caller's.
+      <div className="flex flex-col gap-4">
+        {Array.from({ length: Math.max(subjects.length, 1) }).map((_, i) => (
+          <Skeleton key={i} className="h-[136px] w-full rounded-lg" />
+        ))}
+      </div>
+    ) : (
       <div className="flex gap-4 overflow-x-auto pb-4">
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="flex-none" style={{ width: listProps.carouselItemWidth || 320 }}>

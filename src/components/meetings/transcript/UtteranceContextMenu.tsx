@@ -1,7 +1,7 @@
 "use client";
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ArrowLeftToLine, ArrowRightToLine, ClipboardCopy, Copy, ListEnd, ListStart, Loader2, Scissors, Star } from 'lucide-react';
+import { ArrowLeftToLine, ArrowRightToLine, Clapperboard, ClipboardCopy, Copy, ListEnd, ListStart, Loader2, Scissors } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -262,7 +262,7 @@ export function UtteranceContextMenu({ children }: { children: React.ReactNode }
                         <>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={handleStartHighlight}>
-                                <Star className="h-4 w-4 mr-2" />
+                                <Clapperboard className="h-4 w-4 mr-2" />
                                 {t('contextMenu.startHighlightFromHere')}
                             </DropdownMenuItem>
                         </>

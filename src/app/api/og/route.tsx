@@ -3,6 +3,7 @@
 // leaks (vercel/next.js#65451, satori#393/#532). The standalone package at 0.11.1
 // ships satori@0.25 with those fixes.
 import { ImageResponse } from '@vercel/og';
+import type { Realm } from '@prisma/client';
 import { getMeetingDataForOG } from '@/lib/db/meetings';
 import { getCity } from '@/lib/db/cities';
 import { getConsultationDataForOG } from '@/lib/db/consultations';
@@ -14,9 +15,29 @@ import { getInitials } from '@/lib/formatters/name';
 import { sortSubjectsByImportance } from '@/lib/utils';
 import { Container, DarkHeroOGImage, MeetingMetaRow, OgHeader, SubjectPills, formatCityDisplayName } from '@/components/og/shared-components';
 import { tryAcquireOgSlot, getOgConcurrencyStats } from '@/lib/og/concurrency';
-import { LOGO_BLACK_DATA_URI } from '@/lib/og/serverAssets';
+import { OG_LOCALE_PARAM, resolveOgLocale } from '@/lib/og/locale';
+import { LOGO_BLACK_DATA_URI, OG_FONTS } from '@/lib/og/serverAssets';
 import SubjectOgImage from '@/app/[locale]/(city)/[cityId]/(meetings)/[meetingId]/subjects/[subjectId]/opengraph-image';
 import { isCustomer } from "@/lib/cityStatus";
+import { getTranslations } from 'next-intl/server';
+import { getRealm } from '@/lib/realm.server';
+import { getRealmDisplayName } from '@/lib/realm';
+import { getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters/name';
+import { localizeText } from '@/lib/serbian';
+import { formatDate, getIntlLocale } from '@/lib/formatters/time';
+
+/**
+ * A `getTranslations` result. The `og` catalog holds every string these images
+ * draw; the about image also reads `about.hero`, whose copy it mirrors.
+ */
+type Translator = Awaited<ReturnType<typeof getTranslations>>;
+
+/**
+ * Subject names are stored in the city's own language and have no translated
+ * column, so the only thing a locale changes about them is the Serbian script.
+ */
+const localizeSubjectNames = <T extends { name: string }>(subjects: T[], locale: string): T[] =>
+    subjects.map(subject => ({ ...subject, name: localizeText(subject.name, locale) }));
 
 // Hard ceiling on each render. Pairs with the in-process concurrency cap in
 // `@/lib/og/concurrency` to keep a single hung satori call from blocking a slot forever.
@@ -32,7 +53,7 @@ function logSubjectCounts(reqId: string, variant: string, subjects: { nonAgendaR
 }
 
 // Meeting OG Image (Landscape - 1200x630)
-const MeetingOGImage = async (cityId: string, meetingId: string, reqId: string) => {
+const MeetingOGImage = async (cityId: string, meetingId: string, reqId: string, locale: string, t: Translator) => {
     const fetchT0 = Date.now();
     console.log(`[og:${reqId}] fetching variant=default city=${cityId} meeting=${meetingId}`);
     const data = await getMeetingDataForOG(cityId, meetingId);
@@ -42,18 +63,16 @@ const MeetingOGImage = async (cityId: string, meetingId: string, reqId: string) 
     }
     logSubjectCounts(reqId, 'default', data.subjects ?? [], Date.now() - fetchT0);
 
-    const meetingDate = new Date(data.dateTime);
-    const formattedDate = meetingDate.toLocaleDateString('el-GR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-    });
+    const formattedDate = formatDate(new Date(data.dateTime), undefined, locale);
 
     const sortT0 = Date.now();
     const sortedSubjects = sortSubjectsByImportance(data.subjects);
     console.log(`[og:${reqId}] sorted variant=default in ${Date.now() - sortT0}ms`);
 
-    const cityDisplayName = formatCityDisplayName(data.city.name_municipality, data.administrativeBody?.name);
+    const cityDisplayName = formatCityDisplayName(
+        getLocalizedMunicipalityName(data.city, locale),
+        data.administrativeBody ? getLocalizedName(data.administrativeBody, locale) : null,
+    );
 
     return (
         <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI} watermarkProps={{ logoOnly: true, size: 80 }}>
@@ -80,12 +99,12 @@ const MeetingOGImage = async (cityId: string, meetingId: string, reqId: string) 
                     margin: 0,
                     maxWidth: '95%',
                 }}>
-                    {data.name}
+                    {getLocalizedName(data, locale)}
                 </h1>
 
                 <MeetingMetaRow
                     formattedDate={formattedDate}
-                    subjectsCount={data.subjects?.length || 0}
+                    subjectsLabel={t('meeting.subjects', { count: data.subjects?.length || 0 })}
                     fontSize={28}
                     gap={24}
                     iconGap={8}
@@ -93,8 +112,9 @@ const MeetingOGImage = async (cityId: string, meetingId: string, reqId: string) 
 
                 {sortedSubjects.length > 0 && (
                     <SubjectPills
-                        subjects={sortedSubjects}
+                        subjects={localizeSubjectNames(sortedSubjects, locale)}
                         limit={3}
+                        remainingLabel={count => t('meeting.moreSubjects', { count })}
                         styles={{
                             containerGap: 10,
                             containerMarginTop: 16,
@@ -116,7 +136,7 @@ const MeetingOGImage = async (cityId: string, meetingId: string, reqId: string) 
 };
 
 // City OG Image
-const CityOGImage = async (cityId: string) => {
+const CityOGImage = async (cityId: string, locale: string, t: Translator) => {
     // Fetch only the data we need in parallel
     const [city, counts] = await Promise.all([
         getCity(cityId),
@@ -130,6 +150,11 @@ const CityOGImage = async (cityId: string) => {
 
     const [peopleCount, partiesCount] = counts;
     const meetingsCount = city._count.councilMeetings;
+    const cityName = getLocalizedName(city, locale);
+    const isMunicipality = city.authorityType === 'municipality';
+    const supportLabel = isCustomer(city.status)
+        ? t(isMunicipality ? 'city.supportedByMunicipality' : 'city.supportedByRegion')
+        : t(isMunicipality ? 'city.noSupportFromMunicipality' : 'city.noSupportFromRegion');
 
     return (
         <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI}>
@@ -153,7 +178,7 @@ const CityOGImage = async (cityId: string) => {
                         <img
                             src={city.logoImage}
                             height="160"
-                            alt={`${city.name} logo`}
+                            alt={`${cityName} logo`}
                             style={{
                                 objectFit: 'contain',
                             }}
@@ -194,14 +219,14 @@ const CityOGImage = async (cityId: string) => {
                             margin: 0,
                             lineHeight: 1.2,
                         }}>
-                            {city.name}
+                            {cityName}
                         </h1>
                         <div style={{
                             display: 'flex',
                             fontSize: 24,
                             color: '#6b7280',
                         }}>
-                            {meetingsCount} καταγεγραμμένες συνεδριάσεις
+                            {t('city.meetingsRecorded', { count: meetingsCount })}
                         </div>
                     </div>
 
@@ -212,9 +237,9 @@ const CityOGImage = async (cityId: string) => {
                         marginTop: '8px',
                     }}>
                         {[
-                            { value: meetingsCount, label: 'Συνεδριάσεις' },
-                            { value: peopleCount, label: 'Μέλη' },
-                            { value: partiesCount, label: 'Παρατάξεις' }
+                            { value: meetingsCount, label: t('city.stats.meetings') },
+                            { value: peopleCount, label: t('city.stats.people') },
+                            { value: partiesCount, label: t('city.stats.parties') }
                         ].map(({ value, label }) => (
                             <div key={label} style={{
                                 display: 'flex',
@@ -260,10 +285,7 @@ const CityOGImage = async (cityId: string) => {
                         <span style={{
                             display: 'flex'
                         }}>
-                            {isCustomer(city.status)
-                                ? `Με την υποστήριξη ${city.authorityType === 'municipality' ? 'του δήμου' : 'της περιφέρειας'}`
-                                : `Χωρίς επίσημη υποστήριξη ${city.authorityType === 'municipality' ? 'του δήμου' : 'της περιφέρειας'}`
-                            }
+                            {supportLabel}
                         </span>
                     </div>
                 </div>
@@ -273,7 +295,7 @@ const CityOGImage = async (cityId: string) => {
 };
 
 // Consultation OG Image
-const ConsultationOGImage = async (cityId: string, consultationId: string) => {
+const ConsultationOGImage = async (cityId: string, consultationId: string, locale: string, t: Translator) => {
     // Helper function to fetch regulation data
     const fetchRegulationData = async (jsonUrl: string): Promise<RegulationData | null> => {
         try {
@@ -305,7 +327,7 @@ const ConsultationOGImage = async (cityId: string, consultationId: string) => {
         <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI} watermarkProps={{ logoOnly: true, size: 80 }}>
             <OgHeader
                 city={{
-                    name: consultationData.city.name_municipality,
+                    name: getLocalizedMunicipalityName(consultationData.city, locale),
                     logoImage: consultationData.city.logoImage
                 }}
             />
@@ -333,7 +355,7 @@ const ConsultationOGImage = async (cityId: string, consultationId: string) => {
                     marginBottom: '8px',
                 }}>
                     <span>💬</span>
-                    <span>Δημόσια Διαβούλευση</span>
+                    <span>{t('consultation.badge')}</span>
                 </div>
 
                 {/* Title */}
@@ -346,7 +368,7 @@ const ConsultationOGImage = async (cityId: string, consultationId: string) => {
                     maxWidth: '95%',
                     marginBottom: '24px',
                 }}>
-                    {regulationData?.title || consultationData.name}
+                    {localizeText(regulationData?.title || consultationData.name, locale)}
                 </h1>
 
 
@@ -364,7 +386,7 @@ const ConsultationOGImage = async (cityId: string, consultationId: string) => {
                             color: '#374151',
                             marginBottom: '4px',
                         }}>
-                            Κύρια Θέματα:
+                            {t('consultation.keyTopics')}
                         </div>
                         <div style={{
                             display: 'flex',
@@ -391,7 +413,7 @@ const ConsultationOGImage = async (cityId: string, consultationId: string) => {
                                             textOverflow: 'ellipsis',
                                             whiteSpace: 'nowrap',
                                         }}>
-                                            {chapter.num ? `${chapter.num}. ` : ''}{chapter.title?.substring(0, 40) || 'Άτιτλο Κεφάλαιο'}{chapter.title && chapter.title.length > 40 ? '...' : ''}
+                                            {chapter.num ? `${chapter.num}. ` : ''}{localizeText(chapter.title ?? '', locale).substring(0, 40) || t('consultation.untitledChapter')}{chapter.title && chapter.title.length > 40 ? '...' : ''}
                                         </span>
                                     </div>
                                 ))
@@ -405,7 +427,7 @@ const ConsultationOGImage = async (cityId: string, consultationId: string) => {
 };
 
 // Person OG Image
-const PersonOGImage = async (cityId: string, personId: string) => {
+const PersonOGImage = async (cityId: string, personId: string, locale: string, t: Translator) => {
     const [person, city, parties] = await Promise.all([
         getPerson(personId),
         getCity(cityId),
@@ -422,6 +444,7 @@ const PersonOGImage = async (cityId: string, personId: string) => {
     });
 
     const currentParty = currentRole?.party;
+    const personName = getLocalizedName(person, locale);
 
     return (
         <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI}>
@@ -449,13 +472,13 @@ const PersonOGImage = async (cityId: string, personId: string) => {
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                             src={person.image}
-                            alt={person.name}
+                            alt={personName}
                             width="160"
                             height="160"
                             style={{ borderRadius: '80px', objectFit: 'cover' }}
                         />
                     ) : (
-                        getInitials(person.name)
+                        getInitials(personName)
                     )}
                 </div>
 
@@ -472,7 +495,7 @@ const PersonOGImage = async (cityId: string, personId: string) => {
                         color: '#1f2937',
                         lineHeight: 1.2,
                     }}>
-                        {person.name}
+                        {personName}
                     </div>
 
                     {currentParty && (
@@ -489,7 +512,7 @@ const PersonOGImage = async (cityId: string, personId: string) => {
                                 borderRadius: '4px',
                                 backgroundColor: currentParty.colorHex || '#6b7280',
                             }} />
-                            {currentParty.name}
+                            {getLocalizedName(currentParty, locale)}
                         </div>
                     )}
 
@@ -497,7 +520,7 @@ const PersonOGImage = async (cityId: string, personId: string) => {
                         fontSize: '20px',
                         color: '#9ca3af',
                     }}>
-                        {city.name} • Δημοτικό Συμβούλιο
+                        {getLocalizedName(city, locale)} • {t('person.council')}
                     </div>
                 </div>
             </div>
@@ -506,7 +529,7 @@ const PersonOGImage = async (cityId: string, personId: string) => {
 };
 
 // People List OG Image  
-const PeopleOGImage = async (cityId: string) => {
+const PeopleOGImage = async (cityId: string, locale: string, t: Translator) => {
     const [city, people, parties] = await Promise.all([
         getCity(cityId),
         getPeopleForCity(cityId),
@@ -517,6 +540,7 @@ const PeopleOGImage = async (cityId: string) => {
 
     // Get first 6 people for display
     const displayPeople = people.slice(0, 6);
+    const cityName = getLocalizedName(city, locale);
 
     return (
         <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI}>
@@ -536,7 +560,7 @@ const PeopleOGImage = async (cityId: string) => {
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                             src={city.logoImage}
-                            alt={city.name}
+                            alt={cityName}
                             width="80"
                             height="80"
                             style={{ objectFit: 'contain' }}
@@ -552,13 +576,13 @@ const PeopleOGImage = async (cityId: string) => {
                             fontWeight: 'bold',
                             color: '#1f2937',
                         }}>
-                            Δημοτικοί Σύμβουλοι
+                            {t('people.title')}
                         </div>
                         <div style={{
                             fontSize: '24px',
                             color: '#6b7280',
                         }}>
-                            {city.name} • {people.length} σύμβουλοι
+                            {cityName} • {t('people.count', { count: people.length })}
                         </div>
                     </div>
                 </div>
@@ -569,50 +593,53 @@ const PeopleOGImage = async (cityId: string) => {
                     flexWrap: 'wrap',
                     gap: '16px',
                 }}>
-                    {displayPeople.map((person, index) => (
-                        <div key={person.id} style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                            padding: '12px 16px',
-                            backgroundColor: '#f9fafb',
-                            borderRadius: '8px',
-                            border: '1px solid #e5e7eb',
-                        }}>
-                            <div style={{
-                                width: '40px',
-                                height: '40px',
-                                borderRadius: '20px',
-                                backgroundColor: '#e5e7eb',
+                    {displayPeople.map(person => {
+                        const personName = getLocalizedName(person, locale);
+                        return (
+                            <div key={person.id} style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '16px',
-                                fontWeight: 'bold',
-                                color: '#6b7280',
+                                gap: '12px',
+                                padding: '12px 16px',
+                                backgroundColor: '#f9fafb',
+                                borderRadius: '8px',
+                                border: '1px solid #e5e7eb',
                             }}>
-                                {person.image ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
-                                        src={person.image}
-                                        alt={person.name}
-                                        width="40"
-                                        height="40"
-                                        style={{ borderRadius: '20px', objectFit: 'cover' }}
-                                    />
-                                ) : (
-                                    getInitials(person.name)
-                                )}
+                                <div style={{
+                                    width: '40px',
+                                    height: '40px',
+                                    borderRadius: '20px',
+                                    backgroundColor: '#e5e7eb',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '16px',
+                                    fontWeight: 'bold',
+                                    color: '#6b7280',
+                                }}>
+                                    {person.image ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            src={person.image}
+                                            alt={personName}
+                                            width="40"
+                                            height="40"
+                                            style={{ borderRadius: '20px', objectFit: 'cover' }}
+                                        />
+                                    ) : (
+                                        getInitials(personName)
+                                    )}
+                                </div>
+                                <div style={{
+                                    fontSize: '18px',
+                                    color: '#1f2937',
+                                    fontWeight: '500',
+                                }}>
+                                    {personName.length > 20 ? personName.substring(0, 20) + '...' : personName}
+                                </div>
                             </div>
-                            <div style={{
-                                fontSize: '18px',
-                                color: '#1f2937',
-                                fontWeight: '500',
-                            }}>
-                                {person.name.length > 20 ? person.name.substring(0, 20) + '...' : person.name}
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
 
                 {people.length > 6 && (
@@ -621,7 +648,7 @@ const PeopleOGImage = async (cityId: string) => {
                         color: '#9ca3af',
                         textAlign: 'center',
                     }}>
-                        και {people.length - 6} ακόμα...
+                        {t('people.more', { count: people.length - 6 })}
                     </div>
                 )}
             </div>
@@ -629,16 +656,49 @@ const PeopleOGImage = async (cityId: string) => {
     );
 };
 
-// About Page OG Image
-const AboutOGImage = () => (
+// About Page OG Image. Headline and counter labels come from the about page's
+// own hero copy, so the unfurl and the page it links to say the same thing; the
+// figures stay pinned here because the hero animates them from live stats.
+const AboutOGImage = async (locale: string, t: Translator) => {
+    const tHero = await getTranslations({ locale, namespace: 'about.hero' });
+    const number = new Intl.NumberFormat(getIntlLocale(locale));
+
+    return (
+        <DarkHeroOGImage
+            headline={[tHero('title'), tHero('titleHighlight')]}
+            statPills={[
+                `${number.format(10)} ${tHero('counters.municipalities')}`,
+                `${number.format(5000)}+ ${tHero('counters.subjects')}`,
+                `${number.format(400)}+ ${tHero('counters.meetingHours')}`,
+            ]}
+            tags={t.raw('about.tags') as string[]}
+        />
+    );
+};
+
+// Landing Page OG Image (the subjects map at `/`).
+//
+// Deliberately built on the same dark-hero scaffold as the about image: it draws
+// text only — no city logo, no avatar, no remote `<img>` for satori to fetch —
+// and reads nothing from the database. The landing page itself is the heaviest
+// query in the app, and its unfurl is the one every share of the bare domain
+// hits, so this variant stays the cheapest thing the renderer can produce.
+const LandingOGImage = (t: Translator, realm: Realm, locale: string) => (
     <DarkHeroOGImage
-        headline={['Το λειτουργικό σύστημα', 'των συλλογικών οργάνων']}
-        statPills={['10 δήμοι', '5.000+ θέματα', '400+ ώρες συνεδριάσεων']}
-        tags={['Απομαγνητοφωνήσεις', 'Πρακτικά', 'Ειδοποιήσεις δημοτών', 'Χάρτης θεμάτων']}
+        headline={[t('landing.headlineTop'), t('landing.headlineBottom')]}
+        // The realm decides which country the map covers, so the unfurl names it:
+        // "Ελλάδα" on .gr, "France" on .fr, "Србија" on .rs. `Intl.DisplayNames`
+        // derives the label from the realm's country code, so a new realm needs no
+        // new string. It is a locale-aware name, so /lat on .rs reads "Srbija".
+        statPills={[getRealmDisplayName(realm, locale)]}
+        subtitle={t('landing.subtitle')}
+        tags={t.raw('landing.tags') as string[]}
     />
 );
 
-// Explain Page OG Image (/explain — "Η τοπική αυτοδιοίκηση, απλά")
+// Explain Page OG Image (/explain — "Η τοπική αυτοδιοίκηση, απλά"). Greek only,
+// like the article itself: /explain is a Greece-realm page (see hasExplainPage)
+// and 404s everywhere else, so there is nothing to translate it into.
 const ExplainOGImage = () => (
     <DarkHeroOGImage
         headline={['Η τοπική αυτοδιοίκηση,', 'απλά']}
@@ -648,7 +708,7 @@ const ExplainOGImage = () => (
 );
 
 // Search Page OG Image
-const SearchOGImage = () => {
+const SearchOGImage = (t: Translator) => {
     return (
         <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI}>
             <div style={{
@@ -678,7 +738,7 @@ const SearchOGImage = () => {
                     fontWeight: 'bold',
                     color: '#1f2937',
                 }}>
-                    Αναζήτηση
+                    {t('search.title')}
                 </div>
 
                 <div style={{
@@ -687,14 +747,14 @@ const SearchOGImage = () => {
                     maxWidth: '600px',
                     lineHeight: 1.4,
                 }}>
-                    Βρείτε αναφορές σε θέματα, τοποθετήσεις συμβούλων και στατιστικά από όλα τα δημοτικά συμβούλια
+                    {t('search.description')}
                 </div>
 
                 <div style={{
                     fontSize: '18px',
                     color: '#9ca3af',
                 }}>
-                    OpenCouncil • Έξυπνη Αναζήτηση
+                    {t('search.footer')}
                 </div>
             </div>
         </Container>
@@ -708,11 +768,17 @@ export async function GET(request: Request) {
     const consultationId = searchParams.get('consultationId');
     const personId = searchParams.get('personId');
     const subjectId = searchParams.get('subjectId');
-    const pageType = searchParams.get('pageType'); // 'people', 'about', 'explain', 'search'
+    const pageType = searchParams.get('pageType'); // 'people', 'landing', 'about', 'explain', 'search'
+
+    // The page that embeds the image passes its own locale; a request without
+    // one falls back to the locale the host's readers see (see resolveOgLocale).
+    const realm = await getRealm();
+    const locale = resolveOgLocale(searchParams.get(OG_LOCALE_PARAM), realm);
+    const t = await getTranslations({ locale, namespace: 'og' });
 
     // Short per-request id so concurrent requests' logs can be untangled by grepping a tag.
     const reqId = crypto.randomUUID().slice(0, 8);
-    console.log(`[og:${reqId}] enter city=${cityId ?? '-'} meeting=${meetingId ?? '-'} subject=${subjectId ?? '-'} pageType=${pageType ?? '-'}`);
+    console.log(`[og:${reqId}] enter city=${cityId ?? '-'} meeting=${meetingId ?? '-'} subject=${subjectId ?? '-'} pageType=${pageType ?? '-'} locale=${locale}`);
 
     const slot = tryAcquireOgSlot();
     if (!slot) {
@@ -731,11 +797,10 @@ export async function GET(request: Request) {
         const height = 630;
 
         if (consultationId && cityId) {
-            element = await ConsultationOGImage(cityId, consultationId);
+            element = await ConsultationOGImage(cityId, consultationId, locale, t);
         } else if (subjectId && meetingId && cityId) {
             // Subject-specific OG image - reuse the native opengraph-image.tsx logic
-            // Note: locale doesn't affect the image content, so we use 'el' as default
-            return await SubjectOgImage({ params: Promise.resolve({ locale: 'el', cityId, meetingId, subjectId }) });
+            return await SubjectOgImage({ params: Promise.resolve({ locale, cityId, meetingId, subjectId }) });
         } else if (meetingId && cityId) {
             // ?variant=story and ?variant=feed are no longer served here — story exports
             // render client-side via src/lib/export/storyImage.tsx (moved off the server
@@ -743,19 +808,21 @@ export async function GET(request: Request) {
             // export was removed with the "Post" share option. A stray variant request
             // falls through to the default landscape, which is a reasonable fallback for
             // any external caller still on the old URL shape.
-            element = await MeetingOGImage(cityId, meetingId, reqId);
+            element = await MeetingOGImage(cityId, meetingId, reqId, locale, t);
         } else if (personId && cityId) {
-            element = await PersonOGImage(cityId, personId);
+            element = await PersonOGImage(cityId, personId, locale, t);
         } else if (pageType === 'people' && cityId) {
-            element = await PeopleOGImage(cityId);
+            element = await PeopleOGImage(cityId, locale, t);
+        } else if (pageType === 'landing') {
+            element = LandingOGImage(t, realm, locale);
         } else if (pageType === 'about') {
-            element = AboutOGImage();
+            element = await AboutOGImage(locale, t);
         } else if (pageType === 'explain') {
             element = ExplainOGImage();
         } else if (pageType === 'search') {
-            element = SearchOGImage();
+            element = SearchOGImage(t);
         } else if (cityId) {
-            element = await CityOGImage(cityId);
+            element = await CityOGImage(cityId, locale, t);
         } else {
             return new Response('Missing required parameters', { status: 400 });
         }
@@ -771,7 +838,7 @@ export async function GET(request: Request) {
         // instead of just capping handler invocations.
         console.log(`[og:${reqId}] image-construct dim=${width}x${height} t=${Date.now() - t0}ms`);
         const satoriT0 = Date.now();
-        const imageResponse = new ImageResponse(element, { width, height });
+        const imageResponse = new ImageResponse(element, { width, height, fonts: OG_FONTS });
         // Heartbeat while waiting for satori. If these logs FIRE during a hang, the
         // event loop is alive and satori is in an async wait (probably a fetch). If they
         // do NOT fire, satori is sync-blocked in WASM and no JS code can run on this
