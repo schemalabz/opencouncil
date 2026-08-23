@@ -65,6 +65,10 @@ export const MAX_EVENTS_PER_TICK = 4;
 /** How far back the event feed looks. completedAt moves on task-row
  *  rewrites, so this is a coarse window — dedup is by meeting and phase. */
 export const EVENT_LOOKBACK_MS = 7 * 24 * 60 * 60_000;
+/** Budget for the meeting fan-out transaction, which grows with the audience.
+ *  Well above the queue's 30s persist budget because this one loops over every
+ *  subscriber of a meeting; see the call site in processMeetingEvents. */
+const FANOUT_TIMEOUT_MS = 120_000;
 
 const emptyResult = (ran: boolean, reason?: string): PollerResult => ({
   ran,
@@ -532,25 +536,35 @@ async function processMeetingEvents(
     const runAfter = clampToActiveHours(now(), rng);
 
     try {
-      await db.$transaction(async (tx) => {
-        await tx.notisProcessedEvent.create({
-          data: {
-            taskId: row.taskId,
-            type: row.type,
-            cityId: row.cityId,
-            meetingId: row.meetingId,
-            meetingName: row.meetingName,
-            meetingDate: row.meetingDate,
-            adminBodyName: row.adminBodyName,
-            brief: brief as unknown as Prisma.InputJsonValue,
-            briefCostUsd: costUsd,
-          },
-        });
-        for (const sub of audience) {
-          await enqueueBatchWake(tx, { subscriptionId: sub.id, event, runAfter });
-          result.wakesEnqueued++;
-        }
-      });
+      // This transaction scales with the audience: one processed-event row plus
+      // one enqueueBatchWake per subscriber, each a few round trips. Prisma's
+      // default 5s budget rolls back at a few hundred subscribers, and because
+      // the paid editorial pass ran above (before the transaction), a rollback
+      // makes the next tick re-run it and time out again — a permanent loop. A
+      // generous budget holds it for a large audience; a set-based enqueue for
+      // the whole audience is the real fix when a single city grows past that.
+      await db.$transaction(
+        async (tx) => {
+          await tx.notisProcessedEvent.create({
+            data: {
+              taskId: row.taskId,
+              type: row.type,
+              cityId: row.cityId,
+              meetingId: row.meetingId,
+              meetingName: row.meetingName,
+              meetingDate: row.meetingDate,
+              adminBodyName: row.adminBodyName,
+              brief: brief as unknown as Prisma.InputJsonValue,
+              briefCostUsd: costUsd,
+            },
+          });
+          for (const sub of audience) {
+            await enqueueBatchWake(tx, { subscriptionId: sub.id, event, runAfter });
+            result.wakesEnqueued++;
+          }
+        },
+        { timeout: FANOUT_TIMEOUT_MS, maxWait: 10_000 },
+      );
       result.eventsProcessed++;
       result.editorialCostUsd += costUsd;
     } catch (error) {
