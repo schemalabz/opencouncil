@@ -90,6 +90,27 @@ export interface WakeRecord {
   /** Present only on records synthesized from a live queue row — the wake
    *  has not completed (or never will), so there is no NotisWake behind it. */
   queue?: QueueState;
+  /**
+   * Every reader message this wake carries, in order — a coalesced or
+   * absorbing wake holds several, and the thread must render each as its
+   * own bubble (the primary event alone would hide the correction the wake
+   * exists to honor). Absent = derive from the primary event.
+   */
+  readerMessages?: Array<{ at: string; text: string }>;
+}
+
+/** All user_message events of a wake, in order, for the thread's bubbles. */
+export function readerMessagesOf(events: unknown[]): Array<{ at: string; text: string }> {
+  return events
+    .filter(
+      (e): e is { type: "user_message"; at: string; text: string } =>
+        typeof e === "object" &&
+        e !== null &&
+        (e as { type?: unknown }).type === "user_message" &&
+        typeof (e as { text?: unknown }).text === "string" &&
+        typeof (e as { at?: unknown }).at === "string",
+    )
+    .map((e) => ({ at: e.at, text: e.text }));
 }
 
 const queueEventsSchema = z.array(wakeEventSchema);
@@ -120,10 +141,12 @@ export function queueBackedRecords(rows: QueueRowLike[], maxAttempts: number): W
     const events = parsed.data;
     const state =
       row.status === "failed" ? "failed" : row.status === "running" ? "running" : "pending";
+    const readers = readerMessagesOf(events);
     out.push({
       id: `queue:${row.id}`,
       event: primaryEvent(events),
       status: state === "failed" ? "failed" : "pending",
+      ...(readers.length > 1 ? { readerMessages: readers } : {}),
       queue: {
         state,
         attempts: row.attempts,

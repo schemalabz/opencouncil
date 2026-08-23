@@ -275,6 +275,62 @@ describe("processItem", () => {
     expect(goodbye.status).toBe("sent");
   });
 
+  it("absorbs a correction that queued while the wake was claimed — one answer, both bubbles", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    seedClaim(db);
+    // The correction arrived after q1 was claimed: live-lane coalescing
+    // could not append (q1 is running), so it created its own pending row.
+    db.store.queue.set("q2", {
+      id: "q2",
+      subscriptionId: "sub1",
+      lane: "live",
+      status: "pending",
+      attempts: 0,
+      events: [
+        {
+          type: "user_message",
+          at: "2026-03-10T10:00:20.000Z",
+          text: "Σόρρυ άκυρο — στην Κυψέλη εννοούσα",
+        },
+      ],
+      runAfter: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const bird = new FakeBird();
+
+    await processItem(ITEM, {
+      db,
+      bird,
+      deps: makeDeps(
+        new FakeAnthropic([
+          {
+            content: [
+              toolUse("t1", "send_message", { text: "Για την Κυψέλη λοιπόν..." }),
+              toolUse("t2", "finish_wake", { rationale: "Απάντησα στη διόρθωση." }),
+            ],
+            stop_reason: "tool_use",
+          },
+        ]),
+      ),
+      alert: async () => {},
+    });
+
+    // The correction's own wake was consumed — no second answer coming.
+    expect(db.store.queue.get("q2")?.status).toBe("done");
+    expect(db.store.queue.get("q1")?.status).toBe("done");
+    // One wake, both reader messages on its record.
+    expect(db.store.wakes).toHaveLength(1);
+    const wake = db.store.wakes[0];
+    expect(Array.isArray(wake.events)).toBe(true);
+    expect((wake.events as Array<{ text?: string }>).map((e) => e.text)).toEqual([
+      "Τι ψηφίστηκε χθες;",
+      "Σόρρυ άκυρο — στην Κυψέλη εννοούσα",
+    ]);
+    expect(bird.sends).toHaveLength(1);
+    expect(bird.sends[0].text).toBe("Για την Κυψέλη λοιπόν...");
+  });
+
   it("a lost claim aborts the record — delivered bytes stay delivered, with an alert", async () => {
     const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
     // The reclaimer bumped attempts: this worker's fence no longer matches.

@@ -180,6 +180,17 @@ export interface Deps {
    * WakeOutcome.partialDeliveryError.
    */
   deliver?(text: string): Promise<{ ok: boolean; detail?: string }>;
+  /**
+   * Mid-run absorption: return (and consume) reader messages that arrived
+   * AFTER this wake started, so the model answers the reader's CURRENT
+   * request instead of a superseded one. The loop calls it at each turn
+   * start and again before delivering a turn's sends; returned events are
+   * injected into the conversation and become part of this wake. The shell
+   * wires it for reactive wakes only, backed by consumePendingLiveEvents —
+   * consuming closes the messages' own queued wakes, so one message never
+   * draws two answers.
+   */
+  absorb?(): Promise<WakeEvent[]>;
 }
 
 export const DEFAULT_CONFIG: DepsConfig = {

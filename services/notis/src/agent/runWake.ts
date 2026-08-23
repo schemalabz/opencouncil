@@ -1,6 +1,6 @@
 import { buildDecisionEntry } from "./decisions";
 import { addUsage, emptyUsage, normalizeUsage, usageToCost } from "./pricing";
-import { assembleSystem, assembleUserTurn } from "./prompt";
+import { assembleSystem, assembleUserTurn, neutralizeFences } from "./prompt";
 import { buildMcpServers, buildTools } from "./tools";
 import {
   Deps,
@@ -41,7 +41,7 @@ export async function runWake(
   eventsInput: WakeEvent[],
   deps: Deps,
   opts: { now?: Date } = {},
-): Promise<{ outcome: WakeOutcome; trace: WakeTrace }> {
+): Promise<{ outcome: WakeOutcome; trace: WakeTrace; absorbed: WakeEvent[] }> {
   if (eventsInput.length === 0) throw new Error("runWake: no events");
   const events = [...eventsInput].sort((a, b) => a.at.localeCompare(b.at));
   const hasUserMessage = events.some((e) => e.type === "user_message");
@@ -86,6 +86,39 @@ export async function runWake(
   };
 
   const sent: string[] = [];
+  // Reader messages that arrived mid-run and were absorbed into this wake —
+  // their own queued wakes are consumed by deps.absorb, so answering them
+  // here is not optional: nobody else will.
+  const absorbedAll: WakeEvent[] = [];
+  const absorbNote = (events: WakeEvent[]): string => {
+    const texts = events
+      .filter((e): e is Extract<WakeEvent, { type: "user_message" }> => e.type === "user_message")
+      .map((e) => `«${neutralizeFences(e.text)}»`);
+    const count = texts.length === 1 ? "a new message" : `${texts.length} new messages`;
+    return (
+      `(reader update) The reader sent ${count} while you were working:\n` +
+      texts.join("\n") +
+      "\nThese are part of the conversation now. Respond to the reader's CURRENT " +
+      "request: if the new message changes or cancels the earlier one, do not send " +
+      "anything that no longer applies; if it adds a question, cover it too."
+    );
+  };
+  const absorbAtTurnStart = async (): Promise<void> => {
+    if (!deps.absorb) return;
+    const news = await deps.absorb();
+    if (news.length === 0) return;
+    absorbedAll.push(...news);
+    const note = absorbNote(news);
+    recordInjected(note);
+    // Merge into the trailing user message when one exists; the API's
+    // message list stays well-formed either way.
+    const last = messages[messages.length - 1] as { role?: string; content?: unknown };
+    if (last?.role === "user" && Array.isArray(last.content)) {
+      last.content.push({ type: "text", text: note });
+    } else {
+      messages.push({ role: "user", content: [{ type: "text", text: note }] });
+    }
+  };
   // How many times deps.deliver was invoked — attempted, not succeeded: a
   // transiently-failed row stays pending and the sweeper may still deliver
   // it, so any attempt at all makes a model re-run a duplicate risk.
@@ -130,6 +163,7 @@ export async function runWake(
   // has; before the first attempt, errors propagate and the queue retries.
   try {
   for (let turn = 0; turn < deps.config.maxTurns; turn++) {
+    await absorbAtTurnStart();
     const response = await deps.anthropic.create({
       model: deps.config.model,
       max_tokens: MAX_TOKENS,
@@ -159,6 +193,23 @@ export async function runWake(
     }
 
     if (response.stop_reason === "tool_use") {
+      // Last look before bytes leave: if the reader wrote again while this
+      // turn was streaming, hold its sends — the model re-decides with the
+      // new message in hand instead of delivering a superseded answer.
+      let holdNote: string | undefined;
+      if (
+        deps.absorb &&
+        deps.deliver &&
+        response.content.some((b) => isToolUseBlock(b) && b.name === "send_message")
+      ) {
+        const news = await deps.absorb();
+        if (news.length > 0) {
+          absorbedAll.push(...news);
+          holdNote = absorbNote(news);
+          repairs.push("reader-update/held-sends");
+          recordInjected(holdNote);
+        }
+      }
       const results: unknown[] = [];
       for (const block of response.content) {
         if (!isToolUseBlock(block)) continue;
@@ -166,6 +217,12 @@ export async function runWake(
         switch (block.name) {
           case "send_message": {
             const t = String(block.input.text ?? "");
+            if (holdNote) {
+              ack =
+                "held: the reader sent a new message before delivery (see the reader " +
+                "update below) — nothing was sent; decide again what to send now";
+              break;
+            }
             if (t) {
               sent.push(t);
               if (deps.deliver) {
@@ -206,6 +263,10 @@ export async function runWake(
             unsubscribe = { reason: String(block.input.reason ?? "") };
             break;
           case "finish_wake":
+            if (holdNote) {
+              ack = "not finished: address the reader's newest message first";
+              break;
+            }
             rationale = String(block.input.rationale ?? "") || rationale;
             finished = true;
             ack = "wake recorded";
@@ -273,8 +334,12 @@ export async function runWake(
       // A tool_use stop with no client tool calls happens when the turn holds
       // only server-side (MCP) blocks. There is nothing for us to answer —
       // an empty user message is an API error — so continue like pause_turn.
-      if (results.length > 0 || nudge) {
-        const content = nudge ? [...results, { type: "text", text: nudge }] : results;
+      if (results.length > 0 || nudge || holdNote) {
+        const extras = [
+          ...(holdNote ? [{ type: "text", text: holdNote }] : []),
+          ...(nudge ? [{ type: "text", text: nudge }] : []),
+        ];
+        const content = extras.length > 0 ? [...results, ...extras] : results;
         if (!finished) markLatest(content);
         messages.push({ role: "user", content });
       }
@@ -396,7 +461,7 @@ export async function runWake(
     durationMs: deps.now().getTime() - started,
   };
 
-  return { outcome, trace };
+  return { outcome, trace, absorbed: absorbedAll };
 }
 
 /**

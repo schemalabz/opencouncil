@@ -240,11 +240,25 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
     },
     notisWakeQueue: {
       create: async ({ data }: { data: Row }) => {
-        const row: Row = { id: id("q"), status: "pending", attempts: 0, ...data };
+        const row: Row = {
+          id: id("q"),
+          status: "pending",
+          attempts: 0,
+          updatedAt: new Date(),
+          ...data,
+        };
         store.queue.set(row.id as string, row);
         calls.push("queue-created");
         return row;
       },
+      findFirst: async ({ where }: { where?: Row } = {}) =>
+        [...store.queue.values()].find((q) =>
+          Object.entries(where ?? {}).every(([k, v]) => q[k] === v),
+        ) ?? null,
+      findMany: async ({ where }: { where?: Row } = {}) =>
+        [...store.queue.values()].filter((q) =>
+          Object.entries(where ?? {}).every(([k, v]) => q[k] === v),
+        ),
       // Fenced transitions: match id + optional status/attempts like the
       // real claim-ownership guards do, reporting the matched count.
       updateMany: async ({
