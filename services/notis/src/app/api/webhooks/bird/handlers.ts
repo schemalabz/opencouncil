@@ -268,6 +268,14 @@ async function handleBareStop(
         ...(alreadyUnsubscribed ? {} : { status: "unsubscribed" as const, unsubscribedAt: at }),
       },
     });
+    // Nothing queued may outlive a ΣΤΟΠ: a pending row the sweeper would
+    // retry later must die with the subscription. The confirmation reply is
+    // created below, after this statement, so it is the one outbound row
+    // that survives.
+    await tx.notisMessage.updateMany({
+      where: { subscriptionId: sub.id, direction: "outbound", status: "pending" },
+      data: { status: "suppressed", failureReason: "unsubscribed" },
+    });
     // A model-less wake row records the decision (the reader's text lives on
     // the inbound message row, the reply on its own row below — this is only
     // the "what happened and why"). model/trace stay null: no model ran.

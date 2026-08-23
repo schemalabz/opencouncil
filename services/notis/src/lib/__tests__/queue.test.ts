@@ -234,6 +234,47 @@ describe("processItem", () => {
     expect(alerts).toHaveLength(0);
   });
 
+  it("an unsubscribe wake suppresses other pending outbound rows, not its own goodbye", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    seedClaim(db);
+    // A stale pending row from an earlier wake — the kind the sweeper would
+    // otherwise retry and deliver after the reader said goodbye.
+    db.store.messages.push({
+      id: "stale1",
+      subscriptionId: "sub1",
+      direction: "outbound",
+      body: "Παλιά είδηση.",
+      status: "pending",
+      createdAt: new Date("2026-03-10T09:00:00.000Z"),
+    });
+    const bird = new FakeBird();
+
+    await processItem(ITEM, {
+      db,
+      bird,
+      deps: makeDeps(
+        new FakeAnthropic([
+          {
+            content: [
+              toolUse("t1", "unsubscribe_user", { reason: "το ζήτησε" }),
+              toolUse("t2", "send_message", { text: "Εντάξει, σταματώ. Γεια!" }),
+              toolUse("t3", "finish_wake", { rationale: "Ζήτησε διαγραφή." }),
+            ],
+            stop_reason: "tool_use",
+          },
+        ]),
+      ),
+      alert: async () => {},
+    });
+
+    const stale = db.store.messages.find((m) => m.id === "stale1")!;
+    expect(stale.status).toBe("suppressed");
+    expect(stale.failureReason).toBe("unsubscribed");
+    // The goodbye itself went out — the reader gets the confirmation.
+    const goodbye = db.store.messages.find((m) => m.body === "Εντάξει, σταματώ. Γεια!")!;
+    expect(goodbye.status).toBe("sent");
+  });
+
   it("a lost claim aborts the record — delivered bytes stay delivered, with an alert", async () => {
     const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
     // The reclaimer bumped attempts: this worker's fence no longer matches.
