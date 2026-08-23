@@ -7,6 +7,7 @@ import {
   Check,
   CheckCheck,
   Clock3,
+  Clock,
   ExternalLink,
   EyeOff,
   FastForward,
@@ -488,8 +489,9 @@ export function WhatsAppChat({
           <p className="text-[15px] font-medium text-[#111b21]">Νότης</p>
           {busy && !typingExpired && <p className="text-xs text-[#667781]">γράφει...</p>}
         </div>
-        <span className="ml-auto text-xs tabular-nums text-[#667781]">
-          🕐 {clock ? new Date(clock).toLocaleDateString("el-GR") : "—"}
+        <span className="ml-auto flex items-center gap-1 text-xs tabular-nums text-[#667781]">
+          <Clock className="h-3 w-3" />
+          {clock ? new Date(clock).toLocaleDateString("el-GR") : "—"}
         </span>
       </header>
 
