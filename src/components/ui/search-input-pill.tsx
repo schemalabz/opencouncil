@@ -36,6 +36,7 @@ export function SearchInputPill({
     autoFocus,
     disabled,
     size = "default",
+    combobox,
     className,
     style,
 }: {
@@ -50,6 +51,13 @@ export function SearchInputPill({
     autoFocus?: boolean;
     disabled?: boolean;
     size?: keyof typeof SIZE_STYLES;
+    /**
+     * Present when the input drives a list of options rendered elsewhere in the
+     * DOM. The three attributes travel together because none of them means
+     * anything alone: a combobox role without `expanded` is invalid, and an
+     * active option nothing points at is invisible to a screen reader.
+     */
+    combobox?: { expanded: boolean; activeOptionId?: string };
     className?: string;
     style?: CSSProperties;
 }) {
@@ -74,6 +82,10 @@ export function SearchInputPill({
                 onFocus={onFocus}
                 disabled={disabled}
                 aria-label={ariaLabel}
+                role={combobox ? "combobox" : undefined}
+                aria-expanded={combobox?.expanded}
+                aria-autocomplete={combobox ? "list" : undefined}
+                aria-activedescendant={combobox?.activeOptionId}
                 className={cn(
                     "w-full bg-transparent text-foreground outline-none placeholder:text-muted-foreground/70 disabled:cursor-not-allowed",
                     sizeStyles.input,

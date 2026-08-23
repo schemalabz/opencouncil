@@ -91,6 +91,7 @@
         "greetingNamed": "👋 Hi {name}!",
         "about": "For Municipalities",
         "search": "Search",
+        "mcp": "OpenCouncil MCP",
         "login": "Sign in",
         "notificationsBreadcrumb": "Notifications",
         "petitionBreadcrumb": "Support your municipality"

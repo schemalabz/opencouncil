@@ -11,6 +11,8 @@
     "dimosName": "Commune de {name}"
   },
   "nav": {
+    "searchPage": "Recherche",
+    "mcp": "MCP",
     "home": "Accueil",
     "subjects": "Sujets",
     "municipalities": "Communes",
@@ -45,10 +47,17 @@
     "placeholder": "Rechercher un sujet ou une adresse",
     "locationError": "Un problème est survenu lors de la localisation. Essayez d'autoriser la localisation dans votre navigateur et réessayez.",
     "clearSearch": "Effacer la recherche",
+    "failed": "La recherche a échoué",
+    "retry": "Réessayer",
     "filterCategory": "Filtrer par catégorie :",
     "filterMunicipality": "Filtrer par commune :",
+    "searchingFor": "Recherche :",
+    "outsideArea": "{count} autres hors de cette zone",
+    "everywhere": "Rechercher partout",
+    "truncated": "Affichage des résultats les plus pertinents.",
+    "searchSubjects": "Rechercher dans les sujets :",
+    "optionsLabel": "Options de recherche",
     "subjectsNearAddress": "Sujets près de l'adresse :",
-    "noResults": "Aucun sujet trouvé.",
     "popular": "Recherches populaires",
     "categories": "Catégories",
     "municipalities": "Communes",
@@ -63,6 +72,8 @@
   "list": {
     "loading": "Chargement des sujets…",
     "emptyLocated": "Aucun sujet avec une localisation trouvé.",
+    "relevanceTitle": "Les plus pertinents pour « {query} »",
+    "relevanceExplain": "Les sujets de la zone affichée qui correspondent le mieux à la recherche « {query} », en commençant par les plus pertinents.",
     "rankedTitle": "Récemment très débattus",
     "rankedExplain": "Les sujets de la zone affichée sur la carte, en commençant par ceux débattus le plus récemment et le plus longuement en séance."
   },
@@ -161,7 +172,7 @@
     "links": {
       "forMunicipalities": "Pour les communes",
       "search": "Recherche",
-      "ai": "OpenCouncil IA",
+      "ai": "OpenCouncil MCP",
       "api": "API",
       "jobs": "Emplois",
       "status": "État du service",
@@ -172,16 +183,6 @@
       "cookies": "Préférences de cookies"
     }
   },
-  "popularSearches": [
-    "Budget",
-    "Stationnement",
-    "Piétonnisation",
-    "Espaces verts et arbres",
-    "Marchés",
-    "Protection contre les inondations",
-    "Écoles",
-    "Propreté"
-  ],
   "info": {
     "title": "Qu'est-ce que c'est ?",
     "intro": "La carte montre les sujets débattus lors des séances des conseils municipaux. Vous pouvez trouver ceux qui vous intéressent par catégorie, par zone ou directement sur la carte.",

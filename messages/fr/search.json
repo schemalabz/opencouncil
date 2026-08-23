@@ -8,6 +8,7 @@
     "welcomeBody": "Tapez pour rechercher des sujets de conseil",
     "noResultsTitle": "Aucun résultat trouvé",
     "noResultsBody": "Essayez de modifier vos termes de recherche ou vos filtres",
+    "coverageNote": "La recherche porte sur les séances comprises dans la période de couverture d'OpenCouncil pour chaque municipalité. <link>En savoir plus ici</link>.",
     "resultsCount": "{count, plural, one {# résultat trouvé} other {# résultats trouvés}}",
     "previous": "Précédent",
     "next": "Suivant",
@@ -36,6 +37,7 @@
         "loading": "Chargement…",
         "clear": "Effacer",
         "clearField": "Effacer {field}",
+        "derivedFromQuery": "D'après le texte de votre recherche",
         "panelTitle": "Filtres",
         "back": "Retour"
     },
