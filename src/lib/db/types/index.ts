@@ -9,7 +9,6 @@ import type { PersonWithRelations } from '../people';
 import type { PartyWithPersons } from '../parties';
 import type { CityWithGeometry } from '../cities';
 import type { HighlightWithUtterances } from '../highlights';
-import type { PodcastSpecWithRelations } from '../podcasts';
 import type { SegmentWithRelations } from '../speakerSegments';
 import { CouncilMeetingWithAdminBodyAndSubjects } from '../meetings';
 
@@ -24,7 +23,6 @@ export type { PaginationParams } from "../../../../packages/ui/src/lib/paginatio
 export type MeetingWithAllData = CouncilMeetingWithAdminBodyAndSubjects & {
     speakerSegments: SegmentWithRelations[];
     highlights: HighlightWithUtterances[];
-    podcastSpecs: PodcastSpecWithRelations[];
     taskStatuses: TaskStatus[];
 };
 
@@ -55,6 +53,5 @@ export function isMeetingWithAllData(meeting: any): meeting is MeetingWithAllDat
     return meeting && 
            'subjects' in meeting && 
            'speakerSegments' in meeting && 
-           'highlights' in meeting && 
-           'podcastSpecs' in meeting;
+           'highlights' in meeting;
 } 
