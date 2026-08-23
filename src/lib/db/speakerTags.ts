@@ -87,6 +87,7 @@ export async function createEmptySpeakerSegmentAfter(
     cityId: string,
     meetingId: string
 ) {
+    await withUserAuthorizedToEdit({ cityId });
     // First get the segment we're inserting after to get its end timestamp
     const afterSegment = await prisma.speakerSegment.findUnique({
         where: { id: afterSegmentId },

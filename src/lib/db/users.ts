@@ -4,6 +4,7 @@ import { Prisma, User } from "@prisma/client";
 import prisma from "./prisma";
 import { BadRequestError, ConflictError, NotFoundError } from "@/lib/api/errors";
 import { withUserAuthorizedToEdit, getCurrentUser } from "../auth";
+import { devToolsAllowed } from "@/lib/deployment";
 
 const userWithAdministersInclude = {
     administers: {
@@ -95,6 +96,13 @@ export async function getUsers(): Promise<UserWithRelations[]> {
 }
 
 export async function createUser(data: AdminUserData, options: { skipAuthCheck?: boolean } = {}): Promise<UserWithAdministers> {
+    // `skipAuthCheck` exists only for dev/preview seeding (seed-test-users). This
+    // is a "use server" module, so a client can pass options directly — honoring
+    // the bypass in production would let anyone create a superadmin. Gate it
+    // behind DEV_TOOLS_ALLOWED so it is inert on real production.
+    if (options.skipAuthCheck && !devToolsAllowed()) {
+        throw new Error("skipAuthCheck is only permitted when dev tools are enabled");
+    }
     if (!options.skipAuthCheck) {
         await withUserAuthorizedToEdit({});
     }
@@ -203,6 +211,14 @@ export async function deleteCurrentUser(): Promise<void> {
 export type UserProfileUpdateData = Partial<Pick<User, 'name' | 'phone' | 'allowProductUpdates' | 'allowPetitionUpdates' | 'allowFeedbackCalls' | 'onboarded'>>;
 
 export async function updateUserProfile(id: string, data: UserProfileUpdateData): Promise<User> {
+    // Self-service profile edit: the actor may only edit their own profile.
+    // Superadmins may edit anyone. Token-authorized flows (e.g. email
+    // unsubscribe, which has no session) must not use this — they call a
+    // dedicated, token-scoped function instead.
+    const actor = await getCurrentUser();
+    if (!actor || (actor.id !== id && !actor.isSuperAdmin)) {
+        throw new Error("Not authorized");
+    }
     try {
         const updatedUser = await prisma.user.update({
             where: { id },

@@ -51,4 +51,24 @@ export default defineConfig([{
         // false positive. Disable.
         "@next/next/no-html-link-for-pages": "off",
     },
+}, {
+    // Client-side zones must never touch the database directly. Prisma access
+    // belongs in src/lib/db (see the full boundary in
+    // src/lib/__tests__/prisma-boundary.test.ts, which also covers server code).
+    // These directories are Prisma-free today, so this rule is purely
+    // preventive — it stops a regression at review time.
+    files: ["src/components/**/*.{ts,tsx}", "src/contexts/**/*.{ts,tsx}", "src/hooks/**/*.{ts,tsx}"],
+    rules: {
+        "no-restricted-imports": ["error", {
+            paths: [{
+                name: "@prisma/client",
+                importNames: ["PrismaClient"],
+                message: "Do not instantiate PrismaClient in client-side code. Call a data-access function from src/lib/db instead. Type-only imports from @prisma/client are fine.",
+            }],
+            patterns: [{
+                group: ["**/db/prisma", "@/lib/db/prisma"],
+                message: "Do not import the Prisma client in client-side code. Call a data-access function from src/lib/db instead.",
+            }],
+        }],
+    },
 }]);

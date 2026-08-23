@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { CacheRevalidationForm } from '@/components/admin/cache/CacheRevalidationForm';
 import { CacheStats } from '@/components/admin/cache/CacheStats';
+import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { Info } from 'lucide-react';
 
 export const metadata: Metadata = {
@@ -8,7 +9,8 @@ export const metadata: Metadata = {
     description: 'Revalidate cache across the application',
 };
 
-export default function CacheRevalidationPage() {
+export default async function CacheRevalidationPage() {
+    await withUserAuthorizedToEdit({});
     return (
         <div className="container mx-auto py-8">
             <h1 className="text-3xl font-bold mb-6">Cache Revalidation</h1>

@@ -2,6 +2,7 @@
 
 import { NotificationPreference, Petition, City, Topic, User, Location, Prisma } from '@prisma/client';
 import { auth, signIn } from "@/auth";
+import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth";
 import { attachGeometryToCities } from "./cities";
 import prisma from "@/lib/db/prisma";
 import { Result, createSuccess, createError } from "@/lib/result";
@@ -10,6 +11,8 @@ import { sendPetitionReceivedAdminAlert, sendUserOnboardedAdminAlert, sendNotifi
 import { matchUsersToSubjects } from "@/lib/notifications/matching";
 import { generateEmailContent, generateSmsContent } from "@/lib/notifications/content";
 import { sendWelcomeMessages } from "@/lib/notifications/welcome";
+import { IS_DEV } from "@/lib/utils";
+import { saveNotificationPreferencesSchema, savePetitionSchema } from "@/lib/zod-schemas/onboarding";
 
 // Type definitions for user preferences data
 export type PetitionWithRelations = Petition & {
@@ -47,6 +50,20 @@ async function getServerSession() {
     return await auth();
 }
 
+/**
+ * Ownership guard for the userId-parameterised functions below. Every export
+ * in this "use server" module is a directly POST-able Server Action, so a
+ * function that takes a userId cannot trust it — the caller could pass anyone's
+ * id. Require the current session to own that id, or be a superadmin. This must
+ * NOT be used by the token-authorised unsubscribe path (which has no session).
+ */
+async function requireSelfOrSuperadmin(userId: string): Promise<void> {
+    const actor = await getCurrentUser();
+    if (!actor || (actor.id !== userId && !actor.isSuperAdmin)) {
+        throw new Error("Not authorized");
+    }
+}
+
 // Helper function to send a magic link to the user
 async function sendMagicLink(email: string) {
     try {
@@ -66,6 +83,7 @@ async function sendMagicLink(email: string) {
  * Returns the preference with topics and locations, or null.
  */
 export async function getNotificationPreferenceForCity(userId: string, cityId: string) {
+    await requireSelfOrSuperadmin(userId);
     return prisma.notificationPreference.findUnique({
         where: { userId_cityId: { userId, cityId } },
         include: { interests: true, locations: true },
@@ -248,19 +266,42 @@ type OnboardingData = {
     phone?: string;
     email?: string; // For non-authenticated users
     name?: string;
-    // If provided, the user is being seeded from the seed-users API
-    // This bypasses the session check and the magic link check
+    // Dev-seed-only convenience: lets the seed-users API create users without a
+    // session and without a magic link. SECURITY: these actions are reachable as
+    // Server Actions from the public onboarding client, so this field is
+    // attacker-controllable. It is always run through sanitizeSeedUser(), which
+    // returns undefined off local dev and otherwise allow-lists benign fields —
+    // never isSuperAdmin or identity fields. Never spread the raw value.
     seedUser?: Partial<User>;
+}
+
+// Neutralize the dev-seed convenience field before it can influence auth or user
+// creation. Off local dev (production/preview: IS_DEV === false) it is ignored
+// entirely, so the onboarding Server Actions cannot skip the session check or
+// mass-assign privileges. In local dev only the four benign seed fields survive.
+function sanitizeSeedUser(
+    seedUser: Partial<User> | undefined
+): Partial<Pick<User, 'createdAt' | 'onboarded' | 'allowProductUpdates' | 'allowPetitionUpdates'>> | undefined {
+    if (!IS_DEV || !seedUser) return undefined;
+    const { createdAt, onboarded, allowProductUpdates, allowPetitionUpdates } = seedUser;
+    return { createdAt, onboarded, allowProductUpdates, allowPetitionUpdates };
 }
 
 /**
  * Create or update notification preferences
  */
 export async function saveNotificationPreferences(data: OnboardingData & {
-    locationIds: string[];
+    locations: { text: string; coordinates: [number, number] }[];
     topicIds: string[];
 }): Promise<Result<NotificationPreference>> {
-    const { cityId, locationIds, topicIds, phone, email, name, seedUser } = data;
+    const validation = saveNotificationPreferencesSchema.safeParse(data);
+    if (!validation.success) {
+        return createError('Invalid input');
+    }
+    const { cityId, locations, topicIds, phone, email, name, seedUser: rawSeedUser } = data;
+    // Harden the attacker-controllable seed field: undefined off local dev, and
+    // otherwise stripped to benign fields only (see sanitizeSeedUser).
+    const seedUser = sanitizeSeedUser(rawSeedUser);
     // Only call getServerSession if not in seed/CLI mode (avoids Next.js request context requirement)
     const session = seedUser ? null : await getServerSession();
 
@@ -268,7 +309,7 @@ export async function saveNotificationPreferences(data: OnboardingData & {
     let isNewlyCreatedUser = false;
 
     console.log('Saving notification preferences for cityId:', cityId);
-    console.log('Location IDs:', locationIds);
+    console.log('Locations:', locations);
     console.log('Topic IDs:', topicIds);
     console.log('Phone:', phone);
     console.log('Email:', email);
@@ -330,143 +371,97 @@ export async function saveNotificationPreferences(data: OnboardingData & {
             throw new Error("Either authenticated session or email must be provided");
         }
 
-        // Verify locations and topics exist before trying to connect them
-        let validLocationIds: string[] = [];
+        // Verify the topics exist before connecting them. Topics are a global,
+        // pre-existing taxonomy looked up by id; locations, by contrast, are
+        // created below from their raw data.
         let validTopicIds: string[] = [];
-
-        if (locationIds && locationIds.length > 0) {
-            // Verify locations exist
-            const locations = await prisma.location.findMany({
-                where: {
-                    id: {
-                        in: locationIds
-                    }
-                },
-                select: { id: true }
-            });
-            validLocationIds = locations.map(loc => loc.id);
-
-            console.log('Valid location IDs:', validLocationIds);
-        }
-
         if (topicIds && topicIds.length > 0) {
-            // Verify topics exist
             const topics = await prisma.topic.findMany({
-                where: {
-                    id: {
-                        in: topicIds
-                    }
-                },
+                where: { id: { in: topicIds } },
                 select: { id: true }
             });
             validTopicIds = topics.map(topic => topic.id);
-
-            console.log('Valid topic IDs:', validTopicIds);
         }
 
-        // Check if notification preferences already exist
-        const existingPreference = await prisma.notificationPreference.findUnique({
-            where: {
-                userId_cityId: {
-                    userId,
-                    cityId
-                }
+        // Create the locations and the preference in one transaction. The
+        // locations are created here (server-side, at submit time) rather than
+        // by a separate client action, and they commit only together with the
+        // preference — so an abandoned or failing submit (e.g. the email_exists
+        // return above) never leaves orphaned Location rows behind.
+        const { preference, wasNew } = await prisma.$transaction(async (tx) => {
+            const locationIds: string[] = [];
+            for (const loc of locations) {
+                const rows = await tx.$queryRaw<{ id: string }[]>`
+                    INSERT INTO "Location" ("id", "text", "type", "coordinates")
+                    VALUES (
+                        gen_random_uuid(),
+                        ${loc.text},
+                        'point'::"LocationType",
+                        ST_SetSRID(ST_MakePoint(${loc.coordinates[0]}, ${loc.coordinates[1]}), 4326)
+                    )
+                    RETURNING id
+                `;
+                if (rows[0]) locationIds.push(rows[0].id);
             }
+
+            const locationConnect = locationIds.length > 0
+                ? { connect: locationIds.map(id => ({ id })) }
+                : undefined;
+            const interestConnect = validTopicIds.length > 0
+                ? { connect: validTopicIds.map(id => ({ id })) }
+                : undefined;
+
+            const existing = await tx.notificationPreference.findUnique({
+                where: { userId_cityId: { userId, cityId } },
+                select: { id: true },
+            });
+
+            if (existing) {
+                // Replace the connections wholesale: clear, then reconnect.
+                await tx.notificationPreference.update({
+                    where: { id: existing.id },
+                    data: { locations: { set: [] }, interests: { set: [] } },
+                });
+                const updated = await tx.notificationPreference.update({
+                    where: { id: existing.id },
+                    data: { locations: locationConnect, interests: interestConnect },
+                    include: { city: true, locations: true, interests: true },
+                });
+                return { preference: updated, wasNew: false };
+            }
+
+            const created = await tx.notificationPreference.create({
+                data: { userId, cityId, locations: locationConnect, interests: interestConnect },
+                include: { city: true, locations: true, interests: true },
+            });
+            return { preference: created, wasNew: true };
         });
 
-        if (existingPreference) {
-            // For existing preferences, update using Prisma's connect/disconnect
-            const updatedPreference = await prisma.notificationPreference.update({
-                where: { id: existingPreference.id },
-                data: {
-                    // Disconnect all existing locations and topics
-                    locations: {
-                        set: [] // First clear all connections
-                    },
-                    interests: {
-                        set: [] // First clear all connections
-                    }
-                }
-            });
-
-            // Then add the new connections if there are any
-            if (validLocationIds.length > 0) {
-                await prisma.notificationPreference.update({
-                    where: { id: updatedPreference.id },
-                    data: {
-                        locations: {
-                            connect: validLocationIds.map(id => ({ id }))
-                        }
-                    }
-                });
-            }
-
-            if (validTopicIds.length > 0) {
-                await prisma.notificationPreference.update({
-                    where: { id: updatedPreference.id },
-                    data: {
-                        interests: {
-                            connect: validTopicIds.map(id => ({ id }))
-                        }
-                    }
-                });
-            }
-
-            // Finally, fetch the updated preferences with the new relationships
-            const result = await prisma.notificationPreference.findUnique({
-                where: { id: updatedPreference.id },
-                include: {
-                    city: true,
-                    locations: true,
-                    interests: true
-                }
-            }) as NotificationPreference;
-            return createSuccess(result);
-        } else {
-            // Create new preferences with existing relationships
-            const result = await prisma.notificationPreference.create({
-                data: {
-                    userId,
-                    cityId,
-                    // Connect locations and topics directly
-                    locations: validLocationIds.length > 0 ? {
-                        connect: validLocationIds.map(id => ({ id }))
-                    } : undefined,
-                    interests: validTopicIds.length > 0 ? {
-                        connect: validTopicIds.map(id => ({ id }))
-                    } : undefined
-                },
-                include: {
-                    city: true,
-                    locations: true,
-                    interests: true
-                }
-            });
-
-            // Send Discord admin alert for new citizen notification signup
+        // Alerts and welcome messages fire only for a brand-new preference, and
+        // only after the transaction commits.
+        if (wasNew) {
             sendNotificationSignupAdminAlert({
                 cityId,
-                cityName: result.city.name_en,
-                locationCount: validLocationIds.length,
-                topicCount: validTopicIds.length,
+                cityName: preference.city.name_en,
+                locationCount: preference.locations.length,
+                topicCount: preference.interests.length,
             });
 
-            // Send Discord admin alert for user onboarding (if we just created the user)
             if (isNewlyCreatedUser) {
                 sendUserOnboardedAdminAlert({
                     cityId,
-                    cityName: result.city.name_en,
+                    cityName: preference.city.name_en,
                     onboardingSource: 'notification_preferences',
                 });
             }
 
             // Send welcome messages to new signups (non-blocking)
-            sendWelcomeMessages(userId, result.city, phone).catch(err =>
+            sendWelcomeMessages(userId, preference.city, phone).catch(err =>
                 console.error('Error sending welcome messages:', err)
             );
-
-            return createSuccess(result);
         }
+
+        return createSuccess(preference);
     } catch (error) {
         console.error('Error saving notification preferences:', error);
         return createError('An unexpected error occurred.');
@@ -480,7 +475,14 @@ export async function savePetition(data: OnboardingData & {
     isResident: boolean;
     isCitizen: boolean;
 }): Promise<Result<Petition>> {
-    const { cityId, isResident, isCitizen, phone, email, name, seedUser } = data;
+    const validation = savePetitionSchema.safeParse(data);
+    if (!validation.success) {
+        return createError('Invalid input');
+    }
+    const { cityId, isResident, isCitizen, phone, email, name, seedUser: rawSeedUser } = data;
+    // Harden the attacker-controllable seed field: undefined off local dev, and
+    // otherwise stripped to benign fields only (see sanitizeSeedUser).
+    const seedUser = sanitizeSeedUser(rawSeedUser);
     const session = await getServerSession();
 
     let userId: string;
@@ -645,6 +647,11 @@ export async function calculateProximityMatches(
  * Core notification creation function
  * Creates notifications for a meeting based on subject importance and user preferences
  */
+// Caller-gated: invoked by the processAgenda/summarize tasks (no user session)
+// as well as the per-city notifications route and the superadmin conversations
+// action. Because a task caller has no session, this cannot take an inner auth
+// gate; its user-facing callers authorize first. Moving it off the "use server"
+// surface is a tracked follow-up.
 export async function createNotificationsForMeeting(
     cityId: string,
     meetingId: string,
@@ -895,6 +902,9 @@ export async function createNotificationsForMeeting(
 /**
  * Update delivery status after send attempt
  */
+// Caller-gated: driven by the delivery sender (deliver.ts), which runs from the
+// admin/city "release notifications" routes. No cityId is available here to
+// scope on; the routes authorize. Tracked follow-up to move off the action surface.
 export async function updateDeliveryStatus(
     deliveryId: string,
     status: 'sent' | 'failed' | 'skipped',
@@ -954,6 +964,7 @@ export async function getNotificationsForAdmin(filters: {
     limit?: number;
     offset?: number;
 }) {
+    await withUserAuthorizedToEdit({});
     const { cityId, status, type, limit = 50, offset = 0 } = filters;
 
     const whereClause: any = {};
@@ -1057,6 +1068,7 @@ export async function getNotificationsGroupedByMeeting(filters: {
     page?: number;
     pageSize?: number;
 }): Promise<MeetingNotificationsGrouped> {
+    await withUserAuthorizedToEdit({});
     const {
         cityId,
         status,
@@ -1250,6 +1262,7 @@ export async function getNotificationsForMeeting(
     cityId: string,
     type?: 'beforeMeeting' | 'afterMeeting'
 ) {
+    await withUserAuthorizedToEdit({ cityId });
     const whereClause: Prisma.NotificationWhereInput = {
         meetingId,
         cityId
@@ -1307,6 +1320,7 @@ export async function deleteNotificationsForMeetings(
     meetingKeys: Array<{ meetingId: string; cityId: string }>,
     type?: 'beforeMeeting' | 'afterMeeting'
 ): Promise<number> {
+    await withUserAuthorizedToEdit({});
     const result = await prisma.notification.deleteMany({
         where: {
             OR: meetingKeys.map(mk => ({
@@ -1324,6 +1338,7 @@ export async function deleteNotificationsForMeetings(
  * Get all cities that have notifications (for filter dropdown)
  */
 export async function getCitiesWithNotifications(): Promise<Array<{ id: string; name: string }>> {
+    await withUserAuthorizedToEdit({});
     const cities = await prisma.notification.findMany({
         select: {
             city: {
@@ -1347,6 +1362,7 @@ export async function getCitiesWithNotifications(): Promise<Array<{ id: string; 
  * Get all notification preferences for a user
  */
 export async function getUserNotificationPreferences(userId: string) {
+    await requireSelfOrSuperadmin(userId);
     try {
         const preferences = await prisma.notificationPreference.findMany({
             where: { userId },
@@ -1391,6 +1407,7 @@ export async function updateNotificationPreferenceChannels(
     userId: string,
     channels: { notifyByEmail?: boolean; notifyByPhone?: boolean }
 ) {
+    await requireSelfOrSuperadmin(userId);
     const preference = await prisma.notificationPreference.findUnique({
         where: { id: preferenceId }
     });
@@ -1409,6 +1426,7 @@ export async function updateNotificationPreferenceChannels(
  * Delete a notification preference
  */
 export async function deleteNotificationPreference(preferenceId: string, userId: string) {
+    await requireSelfOrSuperadmin(userId);
     try {
         // Verify this preference belongs to the user
         const preference = await prisma.notificationPreference.findUnique({
@@ -1475,10 +1493,34 @@ export async function getUnsubscribeContext(userId: string, cityId?: string): Pr
     };
 }
 
+// The three unsubscribe functions below take a userId but are authorized by a
+// signed unsubscribe token at the route/page (no session), so they cannot use
+// requireSelfOrSuperadmin. They only ever clear a subscription flag or read the
+// unsubscribe context, so a POST with a guessed userId can at worst opt someone
+// out of email — never read protected data or escalate. Moving them to a
+// server-only module (off the action surface) is a tracked follow-up.
 export async function disableAllNotificationPreferences(userId: string) {
     await prisma.notificationPreference.updateMany({
         where: { userId },
         data: { notifyByEmail: false, notifyByPhone: false },
+    });
+}
+
+/**
+ * Set the user-level email subscription flags. Authorized by the unsubscribe
+ * token at the calling route — see the note above disableAllNotificationPreferences.
+ * The email-unsubscribe flow uses this instead of updateUserProfile, which
+ * requires a session.
+ */
+export async function setUserEmailSubscriptionFlags(
+    userId: string,
+    flags: { allowProductUpdates?: boolean; allowPetitionUpdates?: boolean },
+): Promise<void> {
+    // updateMany (not update) so a stale unsubscribe link for a since-deleted
+    // user is a no-op rather than a P2025 500 — matching disableAll/disableByCity.
+    await prisma.user.updateMany({
+        where: { id: userId },
+        data: flags,
     });
 }
 
@@ -1496,6 +1538,7 @@ export async function disableNotificationPreferenceByCityId(userId: string, city
  * Get notifications for a user in a specific city
  */
 export async function getUserNotifications(userId: string, cityId?: string, limit: number = 50) {
+    await requireSelfOrSuperadmin(userId);
     try {
         const notifications = await prisma.notification.findMany({
             where: {
@@ -1644,6 +1687,7 @@ export async function getNotificationForView(id: string) {
  * Cascade deletes will handle related NotificationSubject and NotificationDelivery records
  */
 export async function deleteNotification(id: string): Promise<void> {
+    await withUserAuthorizedToEdit({});
     await prisma.notification.delete({
         where: { id }
     });
@@ -1668,6 +1712,7 @@ export async function getNotificationImpactPreviewData(
         interests: { id: string }[];
     }>;
 }> {
+    await withUserAuthorizedToEdit({ cityId });
     // Fetch meeting with subjects
     const meeting = await prisma.councilMeeting.findUnique({
         where: { cityId_id: { cityId, id: meetingId } },
@@ -1762,6 +1807,7 @@ export async function getNotificationMapData(meetingId: string, cityId: string):
         coordinates: [number, number];
     }>;
 }> {
+    await withUserAuthorizedToEdit({ cityId });
     // Get ALL subjects for this meeting (not just matched ones)
     const allSubjects = await prisma.subject.findMany({
         where: {

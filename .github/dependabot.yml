@@ -26,6 +26,14 @@ updates:
           - "patch"
     # Major bumps (e.g. Next.js 14 -> 16) are intentionally left as
     # individual, ungrouped PRs so they can be reviewed and tested on their own.
+    ignore:
+      # @types/node describes the runtime, so its major is set by
+      # engines.node — not by what npm has published. Dependabot cannot see
+      # that coupling and will always offer the newest major, which is wrong
+      # whenever it differs from the Node we run. Move this deliberately,
+      # together with engines.node and the nixpkgs input.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   # GitHub Actions used in workflows
   - package-ecosystem: "github-actions"
@@ -42,3 +50,23 @@ updates:
         update-types:
           - "minor"
           - "patch"
+
+  # Nix flake inputs (flake.lock). Without this, package-lock.json is automated
+  # and flake.lock is not, so the two halves of the toolchain drift apart — that
+  # is how the Nix build ended up on EOL Node 20 while package.json required
+  # Node 24. Version updates only; Dependabot does not do Nix security updates.
+  - package-ecosystem: "nix"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "nix"
+    ignore:
+      # nixpkgs-pinned is pinned to one rev on purpose. It supplies
+      # prisma-engines 5.22.0 (must match package.json) and the PostGIS 3.3.5
+      # Postgres stack (PostGIS 3.3.5 cannot build against current GEOS).
+      # Dependabot's Nix support does no version comparison — it moves an input
+      # to the newest upstream commit — so left alone it would silently swap
+      # both. Bump it only alongside the matching upgrade. See flake.nix.
+      - dependency-name: "nixpkgs-pinned"

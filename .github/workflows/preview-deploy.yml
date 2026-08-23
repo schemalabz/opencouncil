@@ -29,7 +29,14 @@ jobs:
   # with write access deploy automatically via 'preview-auto', everyone
   # else (forks, dependabot) goes through the reviewer-gated 'preview'.
   gate:
-    if: github.event.action != 'labeled' || github.event.label.name == 'preview-notis'
+    # Skip bot-authored PRs (Dependabot, Renovate). Two reasons: a lockfile
+    # bump has nothing to preview, and pull_request_target grants secrets — a
+    # dependency-bump PR must not be built with them. `user.type` catches every
+    # app-authored PR, unlike a list of bot login names. Bots push branches to
+    # this repo, so a same-repo/fork check does not exclude them.
+    if: >-
+      (github.event.action != 'labeled' || github.event.label.name == 'preview-notis')
+      && github.event.pull_request.user.type != 'Bot'
     name: Determine Deploy Environment
     runs-on: ubuntu-latest
     outputs:
@@ -60,7 +67,14 @@ jobs:
 
   # Pre-flight checks (fast, run before expensive nix build)
   preflight:
-    if: github.event.action != 'labeled' || github.event.label.name == 'preview-notis'
+    # Skip bot-authored PRs (Dependabot, Renovate). Two reasons: a lockfile
+    # bump has nothing to preview, and pull_request_target grants secrets — a
+    # dependency-bump PR must not be built with them. `user.type` catches every
+    # app-authored PR, unlike a list of bot login names. Bots push branches to
+    # this repo, so a same-repo/fork check does not exclude them.
+    if: >-
+      (github.event.action != 'labeled' || github.event.label.name == 'preview-notis')
+      && github.event.pull_request.user.type != 'Bot'
     name: Pre-flight Checks
     runs-on: ubuntu-latest
     outputs:
@@ -163,6 +177,7 @@ jobs:
             const commitSha = context.payload.pull_request.head.sha.substring(0, 7);
             const logsUrl = context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId;
             const hasMigrations = '${{ needs.preflight.outputs.has-migrations }}' === 'true';
+            const deployNotis = '${{ needs.preflight.outputs.deploy-notis }}' === 'true';
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -177,6 +192,10 @@ jobs:
             const dbNote = hasMigrations
               ? '*This preview will use an **isolated database** with seed data (migrations detected).*'
               : '*This preview uses the staging database - any changes will affect other previews.*';
+
+            const notisNote = deployNotis
+              ? '\n\n*A paired **notis** preview will be deployed alongside this one.*'
+              : '';
 
             const body = '## ⏳ Preview deployment in progress\n\n'
               + '**Commit:** `' + commitSha + '`\n'

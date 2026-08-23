@@ -8,6 +8,10 @@ module.exports = {
     modulePathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],
     testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],
     moduleNameMapper: {
+        // Next.js bundler marker modules with no runtime content — same
+        // mapping as jest.config.js.
+        '^server-only$': '<rootDir>/__mocks__/empty.js',
+        '^client-only$': '<rootDir>/__mocks__/empty.js',
         '^@/auth$': '<rootDir>/tests/mocks/auth.ts',
         '^@/env.mjs$': '<rootDir>/tests/mocks/env.ts',
         '^@/lib/notifications/content$': '<rootDir>/tests/mocks/notificationsContent.ts',

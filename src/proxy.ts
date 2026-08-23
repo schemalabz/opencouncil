@@ -42,6 +42,22 @@ async function proxyInner(req: NextRequest): Promise<Response | undefined> {
         return new NextResponse(null, { status: 404 });
     }
 
+    // The (admin) tree is superadmin-only. Its layout guard
+    // (src/app/[locale]/(admin)/admin/layout.tsx) does not re-run on an RSC
+    // soft-navigation / prefetch request, so a single header can render a page
+    // segment without it. Enforce the gate here too — every request (full
+    // navigation, RSC, prefetch) passes through the proxy. The data-layer
+    // guards in src/lib/db remain the primary defense; this is the belt.
+    // Note: only the superadmin `/admin` tree — the city-admin
+    // `/<cityId>/<meetingId>/admin` page is a different scope and must not match.
+    const adminPath = req.nextUrl.pathname.replace(LOCALE_PREFIX_RE, '/');
+    if (adminPath === '/admin' || adminPath.startsWith('/admin/')) {
+        const session = await auth();
+        if (!session?.user?.isSuperAdmin) {
+            return NextResponse.redirect(new URL('/sign-in', req.url));
+        }
+    }
+
     // www hosts duplicate the apex domain in Google's index — 301 them away.
     const wwwTarget = wwwRedirectTarget(
         req.headers.get('host'),

@@ -1,5 +1,6 @@
 import prisma from './prisma';
 import type { Message, MessageChannel } from '@prisma/client';
+import { withUserAuthorizedToEdit } from '@/lib/auth';
 
 /**
  * One row per (participant phone, channel) — what the admin sees in the
@@ -54,6 +55,8 @@ export async function getConversationSummaries(
         onlyWithInbound?: boolean;
     } = {},
 ): Promise<ConversationSummariesPage> {
+    // Returns participant phone numbers and full message bodies — superadmin only.
+    await withUserAuthorizedToEdit({});
     // Fetch newest-first so the window is the *recent* slice, not the oldest;
     // otherwise once the table exceeds `recentMessageWindow` rows, fresh
     // conversations would silently drop off the admin view. We reverse each

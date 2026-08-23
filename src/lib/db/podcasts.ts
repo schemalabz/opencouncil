@@ -1,5 +1,10 @@
-"use server"
+"use server";
+// Must stay "use server": getPodcastSpecsForMeeting is called as a server action
+// from the client PodcastSpecs component in the meeting admin. The cityId gate
+// below closes the direct-POST surface; getPodcastSpec (read by the
+// splitMediaFile task) stays caller-gated.
 import prisma from "./prisma";
+import { withUserAuthorizedToEdit } from "@/lib/auth";
 import { PodcastSpec, PodcastPart, PodcastPartAudioUtterance, Utterance } from "@prisma/client";
 
 export type PodcastSpecWithRelations = PodcastSpec & {
@@ -11,6 +16,7 @@ export type PodcastSpecWithRelations = PodcastSpec & {
 };
 
 export async function getPodcastSpecsForMeeting(cityId: string, councilMeetingId: string): Promise<PodcastSpecWithRelations[]> {
+    await withUserAuthorizedToEdit({ cityId });
     try {
         const podcastSpecs = await prisma.podcastSpec.findMany({
             where: {
