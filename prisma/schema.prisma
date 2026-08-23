@@ -848,6 +848,9 @@ model User {
   serviceApiKeys ServiceApiKey[]
   mcpTokens UserMcpToken[]
   searchQueries SearchQuery[]
+
+  // Webhook gates resolve senders by phone on every WhatsApp event.
+  @@index([phone])
 }
  
 model Account {

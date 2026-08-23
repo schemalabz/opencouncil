@@ -54,3 +54,29 @@ jobs:
       - run: npm test -w notis
 
       - run: SKIP_ENV_VALIDATION=1 npm run build -w notis
+
+  integration:
+    name: Integration (testcontainers)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: npm
+
+      - run: npm ci
+
+      # Both generated clients: the contract suites exercise the main views
+      # AND the notis queue against real PostgreSQL containers.
+      - run: npm run prisma:generate
+      - run: npm run prisma:generate -w notis
+
+      # The suites CI could not previously see: view/grant contracts
+      # (notis-views, notis-rollout, notis-exclusion), queue claims
+      # (notis-queue), migration replay, and the notification paths.
+      # Serially: parallel testcontainers flake under contention (observed
+      # locally — 9 spurious failures hot, 0 after warmup); CI runners are
+      # slower still, and a deterministic 2-minute job beats a fast red one.
+      - run: npm run test:integration -- --runInBand
