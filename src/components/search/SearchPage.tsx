@@ -281,7 +281,11 @@ export default function SearchPage() {
 
         setState(prev => ({ ...prev, isLoading: true, error: null }));
 
+        const startedAt = performance.now();
+
         try {
+            // Only the database log dedupes repeats of one query — it is a record
+            // of what people look for, not of what the page did.
             const skipQueryLog = lastLoggedQueryRef.current === query;
             lastLoggedQueryRef.current = query;
 
@@ -362,24 +366,37 @@ export default function SearchPage() {
                 applyDerivedFilters(derivedUpdates, newlyDerived);
             }
 
-            if (!skipQueryLog) {
-                posthog.capture("search_performed", {
-                    query_length: query.length,
-                    has_city_filter: !!cityId,
-                    has_person_filter: !!personId,
-                    has_party_filter: !!partyId,
-                    has_admin_body_filter: !!(adminBodyType || adminBodyId),
-                    has_topic_filter: !!topicIds,
-                    has_date_filter: !!dateFrom,
-                    results_count: response.total,
-                });
-            }
+            // Every execution, not every distinct query. This used to ride the
+            // database log's dedup flag, so changing a filter or turning a page
+            // — both real searches, with different results — recorded nothing,
+            // and the filter flags below described only a query's first run.
+            posthog.capture("search_performed", {
+                query_length: query.length,
+                page,
+                has_city_filter: !!cityId,
+                has_person_filter: !!personId,
+                has_party_filter: !!partyId,
+                has_admin_body_filter: !!(adminBodyType || adminBodyId),
+                has_topic_filter: !!topicIds,
+                has_date_filter: !!(dateFrom || dateTo),
+                derived: newlyDerived,
+                results_count: response.total,
+                duration_ms: Math.round(performance.now() - startedAt),
+            });
         } catch (err) {
             const error = err instanceof Error ? err : new Error('An error occurred during search');
-            posthog.captureException(err);
             // A superseded run's failure says nothing about the search on
-            // screen, so it must not replace its results with an error page.
+            // screen, so it must not replace its results with an error page —
+            // nor report an exception for something no reader ever saw.
             if (!isCurrentRun()) return;
+            posthog.captureException(err);
+            // Without this a failed search and one that matched nothing are the
+            // same event with results_count 0.
+            posthog.capture("search_failed", {
+                query_length: query.length,
+                page,
+                duration_ms: Math.round(performance.now() - startedAt),
+            });
             setState(prev => ({ ...prev, error, isLoading: false }));
             toast({
                 variant: "destructive",
@@ -479,6 +496,15 @@ export default function SearchPage() {
     const resultsGrid = useMemo(() => (
         <SubjectListContainer
             subjects={state.results}
+            // Rank across the whole result set, not the page — a click at rank 1
+            // and a click at rank 40 say different things about the ranking, and
+            // that is the point of recording it at all.
+            onSubjectOpen={(subject, index) => posthog.capture("search_result_opened", {
+                query_length: query.length,
+                rank: (page - 1) * PAGE_SIZE + index,
+                subject_id: subject.id,
+                city_id: subject.cityId,
+            })}
             layout="list"
             variant="row"
             showContext={true}
