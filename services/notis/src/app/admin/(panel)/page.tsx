@@ -77,7 +77,11 @@ function seriesFor(
   key: "activeUsers" | "sent" | "received" | "unsubscribes",
   bucket: BucketUnit,
 ): MetricPoint[] {
-  return series.map((point) => ({ label: fmtBucketLabel(point.key, bucket), value: point[key] }));
+  return series.map((point) => ({
+    key: point.key,
+    label: fmtBucketLabel(point.key, bucket),
+    value: point[key],
+  }));
 }
 
 function StackedBar({
