@@ -148,6 +148,30 @@ describe("handleInbound", () => {
     expect(bird.sends[0].idempotencyKey).toBe(reply.id);
   });
 
+  it("a ΣΤΟΠ suppresses queued outbound rows — only the confirmation survives", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    // A pending row waiting on the sweeper: without the suppression it
+    // would deliver AFTER the reader said stop.
+    db.store.messages.push({
+      id: "held1",
+      subscriptionId: "sub1",
+      direction: "outbound",
+      body: "Κρατημένη είδηση.",
+      status: "pending",
+      createdAt: new Date(),
+    });
+    const bird = new FakeBird();
+
+    await handleInbound(inbound({ body: "ΣΤΟΠ" }), { db, bird, alert: async () => {} });
+
+    const held = db.store.messages.find((m) => m.id === "held1")!;
+    expect(held.status).toBe("suppressed");
+    expect(held.failureReason).toBe("unsubscribed");
+    // Exactly one send left the building: the confirmation.
+    expect(bird.sends).toHaveLength(1);
+    expect(bird.sends[0].text).toBe(STOP_CONFIRMATION_TEXT);
+  });
+
   it("a repeated ΣΤΟΠ gets the already-unsubscribed reminder without touching state", async () => {
     const db = makeFakeDb({
       subscriptions: [{ ...SUB, status: "unsubscribed", unsubscribedAt: new Date("2026-08-01") }],

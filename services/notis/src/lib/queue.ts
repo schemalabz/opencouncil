@@ -275,6 +275,25 @@ async function runOneWake(
     }
     await tx.notisSubscription.update({ where: { id: sub.id }, data: subData });
 
+    // Nothing queued may outlive an unsubscribe: a pending row the sweeper
+    // would retry later (a transiently-failed send, held news) must die with
+    // the subscription — the rail predicate at delivery does not cover
+    // freeform reply rows. This wake's OWN rows are exempt: the goodbye the
+    // agent sends alongside unsubscribe_user must still go out (incremental
+    // rows already exist, so they are excluded by id; batch rows are created
+    // after this statement).
+    if (outcome.unsubscribe) {
+      await tx.notisMessage.updateMany({
+        where: {
+          subscriptionId: sub.id,
+          direction: "outbound",
+          status: "pending",
+          ...(incrementalIds.length > 0 ? { id: { notIn: incrementalIds } } : {}),
+        },
+        data: { status: "suppressed", failureReason: "unsubscribed" },
+      });
+    }
+
     const wake = await tx.notisWake.create({
       data: {
         subscriptionId: sub.id,
