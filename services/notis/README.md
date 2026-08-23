@@ -85,10 +85,14 @@ The app spec lives in the DO dashboard, not the repo. The Notis component:
 Same branch wiring as the main component: `production` branch → production,
 `main` → staging. The staging component gets its own domain
 (`notis.staging.opencouncil.gr`) and its own database URLs; nothing is shared
-with production. Staging must also set
-`MAIN_SESSION_COOKIE_NAME=__Secure-oc-session-staging`, because the main app
-derives that suffix per environment and Notis has no `DEPLOYMENT_ENV` of its
-own (see below). DNS per
+with production. Staging must also set three vars whose defaults point at
+production: `MAIN_SESSION_COOKIE_NAME=__Secure-oc-session-staging` (the main
+app derives that suffix per environment and Notis has no `DEPLOYMENT_ENV` of
+its own — see below), `OPENCOUNCIL_BASE_URL=https://staging.opencouncil.gr`
+(the login page links there; with the default, a staging admin is sent to the
+PRODUCTION sign-in, which mirrors under the unsuffixed cookie name, and login
+bounces forever) and `NOTIS_MCP_URL=https://staging.opencouncil.gr/mcp` (so
+wakes research staging data, not production). DNS per
 domain: a CNAME to the DO app's default hostname (DO then issues the
 certificate). The main app's component is untouched by this — its build still
 runs at the root and ignores `services/`.
