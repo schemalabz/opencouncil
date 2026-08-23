@@ -11,6 +11,8 @@
         "dimosName": "Општина {name}"
     },
     "nav": {
+        "searchPage": "Претрага",
+        "mcp": "MCP",
         "home": "Почетна",
         "subjects": "Теме",
         "municipalities": "Општине/градови",

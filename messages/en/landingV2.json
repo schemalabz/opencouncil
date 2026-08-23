@@ -11,6 +11,8 @@
     "dimosName": "Municipality of {name}"
   },
   "nav": {
+    "searchPage": "Search",
+    "mcp": "MCP",
     "home": "Home",
     "subjects": "Subjects",
     "municipalities": "Municipalities",

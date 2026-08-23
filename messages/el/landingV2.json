@@ -11,6 +11,8 @@
     "dimosName": "Δήμος {name}"
   },
   "nav": {
+    "searchPage": "Αναζήτηση",
+    "mcp": "MCP",
     "home": "Αρχική",
     "subjects": "Θέματα",
     "municipalities": "Δήμοι",
