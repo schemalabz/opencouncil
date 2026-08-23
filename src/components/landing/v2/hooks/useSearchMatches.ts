@@ -1,5 +1,5 @@
 import type { Topic } from '@prisma/client';
-import { detectMunicipalityQuery, detectCategoryQuery, type LandingListCity, type MunicipalityInterest, type QueryKind } from '@/lib/landing/landingData';
+import { detectMunicipalityQuery, detectCategoryQuery, looksLikeAddress, type LandingListCity, type MunicipalityInterest } from '@/lib/landing/landingData';
 import { hasActiveFilters, type MapFilters } from '@/lib/landing/landingCore';
 
 // The "known city" arm of MunicipalityInterest — derived, not re-declared, so it can't drift.
@@ -7,7 +7,6 @@ type KnownMunicipality = Extract<MunicipalityInterest, { kind: 'known' }>;
 
 type Args = {
     query: string;
-    queryKind: QueryKind;
     cities: LandingListCity[];
     topics: Topic[];
     /** selected category ids (empty = all) */
@@ -16,14 +15,12 @@ type Args = {
 };
 
 export type SearchMatches = {
-    /** a "δήμος X" search for a municipality outside our network → offer the petition */
-    unknownMunicipality: string | null;
     /** the query is similar to a category not yet active → offer to apply it as a filter */
     matchedTopic: Topic | null;
     /** the query matches an OC municipality not yet active → offer to filter by it */
     knownMunicipality: KnownMunicipality | null;
-    /** address-style query with no category/municipality match → offer to fly there */
-    showAddressOption: boolean;
+    /** the text is shaped like a place, so flying there leads the options rather than trailing them */
+    addressFirst: boolean;
     /** a date-range filter is set */
     dateActive: boolean;
     /** any category/filter is active (drives the "clear all" affordance) */
@@ -32,25 +29,26 @@ export type SearchMatches = {
 
 /**
  * Interprets the search query against topics, cities and filters, surfacing the actionable
- * options the search body offers (apply category, filter by δήμος, petition an out-of-network
- * δήμος, fly to an address) plus the filter-active flags. Pure derivations, shared by the
- * desktop dropdown and mobile overlay.
+ * options the search body offers (apply category, filter by δήμος, search the subjects, fly to
+ * an address) plus the filter-active flags. Pure derivations, shared by the desktop dropdown and
+ * mobile overlay.
  */
-export function useSearchMatches({ query, queryKind, cities, topics, cats, filters }: Args): SearchMatches {
+export function useSearchMatches({ query, cities, topics, cats, filters }: Args): SearchMatches {
     const municipality = detectMunicipalityQuery(query, cities);
-    const unknownMunicipality = municipality?.kind === 'unknown' ? municipality.name : null;
 
     const matchedCatId = detectCategoryQuery(query, topics);
     const matchedTopic =
         matchedCatId && !cats.includes(matchedCatId) ? topics.find((t) => t.id === matchedCatId) ?? null : null;
     const knownMunicipality = municipality?.kind === 'known' && !filters.cityIds.includes(municipality.cityId) ? municipality : null;
-    const showAddressOption = queryKind === 'address' && !matchedTopic && !knownMunicipality && !unknownMunicipality;
 
     return {
-        unknownMunicipality,
         matchedTopic,
         knownMunicipality,
-        showAddressOption,
+        // Decided by the shape of the text, the same way the Enter key decides.
+        // The two used to disagree: Enter read the shape, while the row read how
+        // many loaded subjects the text happened to match — so the dropdown could
+        // offer to geocode something Enter would have searched for.
+        addressFirst: looksLikeAddress(query) && !matchedTopic && !knownMunicipality,
         dateActive: !!(filters.dateFrom || filters.dateTo),
         anyFilterActive: cats.length > 0 || hasActiveFilters(filters),
     };

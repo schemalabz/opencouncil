@@ -16,6 +16,12 @@ interface SubjectListContainerProps {
   openInNewTab?: boolean;
   /** `card` is the grid/carousel tile; `row` is the full-width line used by search. */
   variant?: 'card' | 'row';
+  /**
+   * A result was opened, with its position in `subjects`. Row variant only —
+   * the caller adds whatever offset makes that a rank, since this list is one
+   * page of a larger set.
+   */
+  onSubjectOpen?: (subject: SearchResultLight, index: number) => void;
 }
 
 // Helper function to fetch data from API
@@ -33,6 +39,7 @@ export function SubjectListContainer({
   translationKey,
   openInNewTab = false,
   variant = 'card',
+  onSubjectOpen,
   ...listProps
 }: SubjectListContainerProps & BaseListProps) {
   // Get unique city IDs and meeting IDs from subjects
@@ -135,6 +142,7 @@ export function SubjectListContainer({
           persons={people}
           showContext={showContext}
           openInNewTab={openInNewTab}
+          onOpen={onSubjectOpen && (() => onSubjectOpen(subject, subjects.indexOf(subject)))}
         />
       );
     }
@@ -150,7 +158,7 @@ export function SubjectListContainer({
         openInNewTab={openInNewTab}
       />
     );
-  }, [cityData, statistics, showContext, openInNewTab, variant]);
+  }, [cityData, statistics, showContext, openInNewTab, variant, onSubjectOpen, subjects]);
 
   if (isDataLoading || isStatsLoading) {
     return variant === 'row' ? (

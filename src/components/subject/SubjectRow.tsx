@@ -28,6 +28,8 @@ interface SubjectRowProps {
     /** Show the city / body / date line — off when the row already sits inside a meeting. */
     showContext?: boolean;
     openInNewTab?: boolean;
+    /** The row was opened. Fires for a new tab too, where the Link navigates itself. */
+    onOpen?: () => void;
 }
 
 /** One fact of the meta line: an icon and its text. */
@@ -46,7 +48,7 @@ function MetaItem({ icon: Icon, children }: { icon: typeof MapPin; children: Rea
  * speaking stats, speakers), laid out horizontally. A result list then reads top to bottom,
  * one result per line, instead of as a grid of tiles.
  */
-export function SubjectRow({ subject, city, meeting, persons, showContext = true, openInNewTab }: SubjectRowProps) {
+export function SubjectRow({ subject, city, meeting, persons, showContext = true, openInNewTab, onOpen }: SubjectRowProps) {
     const router = useRouter();
     const pathname = usePathname();
     const t = useTranslations("Subject");
@@ -61,6 +63,7 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
     const href = `/${city.id}/${meeting.id}/subjects/${subject.id}`;
 
     const handleClick = (e: React.MouseEvent) => {
+        onOpen?.();
         if (openInNewTab) return; // let the Link handle it
         e.preventDefault();
         setIsLoading(true);

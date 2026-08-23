@@ -719,6 +719,13 @@ export async function mcpSearch(
             from: (args.page - 1) * args.pageSize,
             enableSemanticSearch: true,
             detailed: false,
+            // This tool takes its filters as arguments, and the tool description
+            // tells the caller to resolve names to ids first, so there is nothing
+            // for a model to read out of the free text that the caller could not
+            // state. Deriving it anyway narrows a page invisibly — and, because
+            // each page derives independently and the model is not deterministic,
+            // two pages of one query can be computed over different city sets.
+            extractFilters: false,
         },
     }, currentRealm());
 

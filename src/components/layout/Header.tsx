@@ -10,7 +10,7 @@ import { SidebarTrigger } from '../ui/sidebar'
 import { City } from '@prisma/client'
 import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
-import { Search, Building2, ChevronRight, type LucideIcon } from "lucide-react"
+import { Search, Bot, Building2, ChevronRight, type LucideIcon } from "lucide-react"
 import { useRouter, useSelectedLayoutSegment } from "next/navigation"
 import { useState, useRef, useEffect } from "react"
 import { createPortal } from "react-dom"
@@ -281,6 +281,14 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                 >
                     <Search className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                 </button>
+                <Link
+                    href="/mcp"
+                    className="flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 rounded-full hover:bg-accent transition-colors"
+                    aria-label={t('mcp')}
+                    title={t('mcp')}
+                >
+                    <Bot className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                </Link>
                 <UserDropdown currentEntity={currentEntity} />
             </div>
         </div>

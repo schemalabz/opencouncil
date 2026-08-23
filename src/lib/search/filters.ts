@@ -28,6 +28,18 @@ import { Location } from './types';
 // it and proximity did not discriminate.
 const LOCATION_BOOST_RADIUS_METERS = 2000;
 
+/**
+ * Extraction sits in front of every text search, so its latency is the reader's
+ * latency. The task is small and mechanical — read a short query against a
+ * fixed city list and answer with a JSON object of at most three fields — so it
+ * runs on the fastest model rather than the one the rest of the app defaults to.
+ *
+ * The output is a handful of tokens; the cap only bounds a runaway response,
+ * which the schema would reject as malformed anyway.
+ */
+const EXTRACTION_MODEL = 'claude-haiku-4-5';
+const EXTRACTION_MAX_TOKENS = 512;
+
 // Define the system prompt for filter extraction
 const FILTER_EXTRACTION_PROMPT = `Εξαγωγή Φίλτρων Αναζήτησης
 
@@ -36,7 +48,6 @@ const FILTER_EXTRACTION_PROMPT = `Εξαγωγή Φίλτρων Αναζήτησ
 {
     "cityIds": string[] | null,
     "dateRange": { start: string, end: string } | null,
-    "isLatest": boolean | null,
     "locationName": string | null
 }
 
@@ -46,8 +57,7 @@ const FILTER_EXTRACTION_PROMPT = `Εξαγωγή Φίλτρων Αναζήτησ
 3. Για τα IDs των πόλεων, χρησιμοποιήστε τα ακριβή IDs από τη λίστα πόλεων
 4. Για τοποθεσίες, εξάγετε μόνο το όνομα της τοποθεσίας (π.χ., "Πλατεία Συντάγματος", "Εθνικός Κήπος")
 5. Επιστρέψτε null (όχι undefined) για οποιοδήποτε φίλτρο δεν βρέθηκε
-6. Για ερωτήσεις "τελευταία", ορίστε isLatest σε true και συμπεριλάβετε το σχετικό cityId
-7. Σημερινή ημερομηνία: {{TODAY_DATE}}
+6. Σημερινή ημερομηνία: {{TODAY_DATE}}
 
 Διαθέσιμες πόλεις:
 {{CITIES_LIST}}`;
@@ -56,7 +66,6 @@ const FILTER_EXTRACTION_PROMPT = `Εξαγωγή Φίλτρων Αναζήτησ
 export const NO_EXTRACTED_FILTERS: ExtractedFilters = {
     cityIds: null,
     dateRange: null,
-    isLatest: null,
     locationName: null,
 };
 
@@ -76,10 +85,18 @@ export const NO_EXTRACTED_FILTERS: ExtractedFilters = {
  * rest of the extraction survives. The outer catch covers a response that is
  * not an object at all.
  */
+/** A date Elasticsearch and the filter pills can both read back. */
+const parsableDate = z.string().refine(value => !Number.isNaN(Date.parse(value)));
+
 const extractedFiltersSchema = z.object({
     cityIds: z.array(z.string()).nullable().catch(null),
-    dateRange: z.object({ start: z.string(), end: z.string() }).nullable().catch(null),
-    isLatest: z.boolean().nullable().catch(null),
+    // Both bounds go straight into the Elasticsearch `meeting_date` range, so a
+    // string the model invented has to be rejected here or it narrows the search
+    // to a period nobody asked for — silently, since a range no date filter can
+    // parse never reaches a pill either. The `.catch(null)` on the object turns
+    // a bad bound into no date filter, which is what "extraction is advisory"
+    // is supposed to mean.
+    dateRange: z.object({ start: parsableDate, end: parsableDate }).nullable().catch(null),
     locationName: z.string().nullable().catch(null),
 }).catch(NO_EXTRACTED_FILTERS);
 
@@ -113,7 +130,13 @@ export async function extractFilters(query: string, realm: Realm): Promise<Extra
         .replace('{{CITIES_LIST}}', citiesList)
         .replace('{{TODAY_DATE}}', today);
 
-    const { result } = await aiChat<unknown>(prompt, query);
+    const { result } = await aiChat<unknown>(
+        prompt,
+        query,
+        undefined,
+        undefined,
+        { maxTokens: EXTRACTION_MAX_TOKENS, model: EXTRACTION_MODEL },
+    );
     return extractedFiltersSchema.parse(result);
 }
 
@@ -163,8 +186,20 @@ export async function resolveLocationCoordinates(locationName: string, cityId: s
     }
 }
 
-// Process extracted filters and resolve locations
-export async function processFilters(extractedFilters: ExtractedFilters, realm: Realm): Promise<{
+/**
+ * Resolve an extraction into filters the search can use, geocoding a place name
+ * against `candidateCityIds` — the cities the search itself will cover.
+ *
+ * Scoping the geocode to those cities rather than to the whole realm matters:
+ * each candidate costs a geometry read and two Google Places requests, so a
+ * search the caller already pinned to one municipality should pay for one
+ * lookup, not for every municipality on the platform.
+ */
+export async function processFilters(
+    extractedFilters: ExtractedFilters,
+    realm: Realm,
+    candidateCityIds: string[],
+): Promise<{
     cityIds: string[] | undefined;
     dateRange: { start: string; end: string; } | undefined;
     locations: Location[] | undefined;
@@ -191,14 +226,11 @@ export async function processFilters(extractedFilters: ExtractedFilters, realm: 
                 locations.push(location);
             }
         } else {
-            // If no specific city, try every city of the realm
-            const cities = await getCities({}, realm);
-
-            // Try each city and collect all matches
-            const locationPromises = cities.map(async (city) => {
+            // No city named in the query, so try the ones the search covers
+            const locationPromises = candidateCityIds.map(async (cityId) => {
                 const location = await resolveLocationCoordinates(
                     locationName,
-                    city.id
+                    cityId
                 );
                 return location;
             });

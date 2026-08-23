@@ -12,7 +12,7 @@ import { TopicIcon } from "@/components/TopicIcon";
 import FilterPill from "./FilterPill";
 import { AdminBodyOptions, FilterListItem } from "./filterOptionList";
 import { DATE_PRESET_MONTHS, type SearchFilterData } from "./hooks/useSearchFilterData";
-import { type FilterPatch, type SearchFilterParams } from "./searchFilterTypes";
+import { type FilterPatch, type SearchFilterParams, type DerivedFilterKey } from "./searchFilterTypes";
 
 /** The /search page's desktop filter bar: one pill per filter, each opening its control in a
  *  popover. The mobile equivalent is SearchFilterSections, shown inside a full-screen overlay.
@@ -24,6 +24,7 @@ export default function SearchFilters({
     filters,
     setFilters,
     data,
+    derivedKeys = [],
     disabled = false,
     className,
 }: {
@@ -31,6 +32,9 @@ export default function SearchFilters({
     setFilters: (patch: FilterPatch) => void;
     /** Shared with the mobile panel — see SearchPage, which owns the one instance. */
     data: SearchFilterData;
+    /** Filters the search read out of the query text, marked so the reader can
+     *  see the search narrowed itself and undo it. */
+    derivedKeys?: DerivedFilterKey[];
     disabled?: boolean;
     className?: string;
 }) {
@@ -78,6 +82,7 @@ export default function SearchFilters({
                     label: t("clearField", { field: t("city") }),
                     onClear: () => onCityChange(undefined),
                 }}
+                derived={derivedKeys.includes("city") ? { hint: t("derivedFromQuery") } : undefined}
                 widthClassName="w-44"
             >
                 {close => (
@@ -278,6 +283,7 @@ export default function SearchFilters({
                     label: t("clearField", { field: t("date") }),
                     onClear: () => applyDateRange(undefined),
                 }}
+                derived={derivedKeys.includes("date") ? { hint: t("derivedFromQuery") } : undefined}
                 contentClassName="w-auto p-3"
                 widthClassName="w-52"
             >
