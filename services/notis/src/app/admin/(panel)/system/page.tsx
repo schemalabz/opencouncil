@@ -16,6 +16,8 @@ import {
 import { env } from "@/env.mjs";
 import { EVENT_LABELS } from "../_lib/records";
 import { getSystemSnapshot } from "../_lib/system";
+import { parsePage } from "../_lib/paging";
+import { Pager } from "../_components/Pager";
 import { AutoRefresh } from "../_components/AutoRefresh";
 import { Countdown } from "../_components/Countdown";
 import { PageHeader } from "../_components/PageHeader";
@@ -131,13 +133,16 @@ function ScoreBars({ scores }: { scores: Record<string, number> }) {
   );
 }
 
-export default async function SystemPage() {
+export default async function SystemPage(props: {
+  searchParams: Promise<{ digested?: string }>;
+}) {
   // Re-assert auth in the page body: the (panel) layout guard does not
   // re-run on an RSC soft-navigation, so a segment request can reach this
   // page without it (enforced by the admin-auth-guard test).
   const session = await getAdminSession();
   if (!session) redirect("/admin/login");
-  const snap = await getSystemSnapshot();
+  const searchParams = await props.searchParams;
+  const snap = await getSystemSnapshot(parsePage(searchParams.digested));
   const now = new Date(snap.now);
   const queueActive =
     (snap.queue.counts.pending ?? 0) + (snap.queue.counts.running ?? 0);
@@ -512,6 +517,16 @@ export default async function SystemPage() {
                   </li>
                 ))}
               </ul>
+            )}
+            {snap.digested.pages > 1 && (
+              <div className="px-4 pb-3">
+                <Pager
+                  page={snap.digested.page}
+                  pages={snap.digested.pages}
+                  total={snap.digested.total}
+                  hrefFor={(p) => (p === 1 ? "/admin/system" : `/admin/system?digested=${p}`)}
+                />
+              </div>
             )}
           </section>
         </div>

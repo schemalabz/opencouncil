@@ -15,7 +15,7 @@ import { WEEKLY_CAP } from "@/lib/queue";
 export const POLLER_INTERVAL_MS = 5 * 60_000;
 const QUEUE_LIST_LIMIT = 30;
 const SCHEDULE_LIST_LIMIT = 30;
-const BRIEF_LIST_LIMIT = 20;
+export const DIGESTED_PAGE_SIZE = 20;
 
 export interface QueueItemView {
   id: string;
@@ -88,7 +88,7 @@ export interface SystemSnapshot {
     };
   };
   scheduled: { items: ScheduledView[]; more: number; total: number };
-  digested: { items: DigestedMeetingView[]; total: number };
+  digested: { items: DigestedMeetingView[]; total: number; page: number; pages: number };
   atCap: Array<{ subscriptionId: string; userId: string; userName: string; count: number }>;
 }
 
@@ -99,7 +99,7 @@ const EMPTY: SystemSnapshot = {
   poller: { lastTickAt: null, nextTickAt: null },
   queue: { counts: {}, laneCounts: {}, heldUntilRelease: 0, items: [], more: 0, failures: { count: 0, latestAt: null, older: 0 } },
   scheduled: { items: [], more: 0, total: 0 },
-  digested: { items: [], total: 0 },
+  digested: { items: [], total: 0, page: 1, pages: 1 },
   atCap: [],
 };
 
@@ -179,7 +179,7 @@ export async function getRailsNow(): Promise<RailsNow | null> {
   };
 }
 
-export async function getSystemSnapshot(): Promise<SystemSnapshot> {
+export async function getSystemSnapshot(digestedPage = 1): Promise<SystemSnapshot> {
   if (!hasNotisDb()) return EMPTY;
   const db = notisDb();
   const now = new Date();
@@ -247,13 +247,16 @@ export async function getSystemSnapshot(): Promise<SystemSnapshot> {
     _max: { updatedAt: true },
   });
 
-  const [digestedTotal, digestedRows] = await Promise.all([
-    db.notisProcessedEvent.count(),
-    db.notisProcessedEvent.findMany({
-      orderBy: { processedAt: "desc" },
-      take: BRIEF_LIST_LIMIT,
-    }),
-  ]);
+  // Count first: the page is clamped into range, so a stale ?digested=99
+  // link lands on the last page instead of an empty list.
+  const digestedTotal = await db.notisProcessedEvent.count();
+  const digestedPages = Math.max(1, Math.ceil(digestedTotal / DIGESTED_PAGE_SIZE));
+  const digestedCurrent = Math.min(Math.max(1, digestedPage), digestedPages);
+  const digestedRows = await db.notisProcessedEvent.findMany({
+    orderBy: { processedAt: "desc" },
+    skip: (digestedCurrent - 1) * DIGESTED_PAGE_SIZE,
+    take: DIGESTED_PAGE_SIZE,
+  });
 
   // Fan-out width per digested meeting: wakes whose primary event named it.
   const meetingIds = [...new Set(digestedRows.map((r) => r.meetingId))];
@@ -338,6 +341,8 @@ export async function getSystemSnapshot(): Promise<SystemSnapshot> {
       total: scheduledTotal,
     },
     digested: {
+      page: digestedCurrent,
+      pages: digestedPages,
       items: digestedRows.map((row) => {
         const brief = (row.brief as unknown as EditorialBrief | null) ?? null;
         return {

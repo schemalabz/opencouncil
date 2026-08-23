@@ -190,13 +190,6 @@ export default async function SettingsPage() {
             </ul>
           </section>
 
-          <section className="rounded-lg border bg-background p-4">
-            <p className="text-sm font-medium">Έρχονται στα επόμενα PRs</p>
-            <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-muted-foreground">
-              <li>Review queue απεσταλμένων μηνυμάτων με τα σκεπτικά τους (PR 5)</li>
-              <li>Ενότητα Νότη στο /profile — εγγραφή/απεγγραφή από τον ίδιο τον χρήστη (PR 5)</li>
-            </ul>
-          </section>
         </div>
       </div>
     </>
