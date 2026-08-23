@@ -2,7 +2,7 @@
 // client components import (e.g. ConversationDetail in the thread view).
 // The data-fetching functions here are guarded at their server-page call
 // sites (getAdminSession); see the (panel) auth-guard test.
-import { CityPreference, JournalEntry, WakeOutcome, WakeTrace } from "@/agent/types";
+import { CityPreference, WakeOutcome, WakeTrace } from "@/agent/types";
 import { clampToActiveHours } from "@/lib/active-hours";
 import { TemplateName } from "@/agent/templates";
 import { hasNotisDb, notisDb } from "@/lib/db";
@@ -223,6 +223,10 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
           outcome: true,
           deliveryMode: true,
           deliveryTemplate: true,
+          // Null on a model-less wake (ΣΤΟΠ pre-step, cap skip): those rows
+          // have no trace, so the inspector's "deterministic" empty state
+          // must see NO traceRef rather than one that fetches nothing.
+          model: true,
         },
       },
     },
@@ -254,22 +258,23 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
 
   // Real delivery lifecycles, index-aligned with each wake's messages
   // (created in outcome order inside one transaction).
+  // Every outbound WhatsApp row carries its wake's id — including the ΣΤΟΠ
+  // pre-step's confirmation, which rides a model-less wake row. The one
+  // wakeId-less outbound row is the enrollment intro, whose bubble renders
+  // from the subscription's origin instead.
   const deliveriesByWake = new Map<string, MessageDelivery[]>();
-  const wakelessDeliveries: MessageDelivery[] = [];
   for (const message of outbound) {
+    if (message.wakeId === null) continue;
     const delivery: MessageDelivery = {
       status: message.status,
       failureReason: message.failureReason,
       at: message.createdAt.toISOString(),
       ...(fallbackFor.has(message.id) ? { smsFallback: true } : {}),
     };
-    if (message.wakeId === null) wakelessDeliveries.push(delivery);
-    else {
-      deliveriesByWake.set(message.wakeId, [
-        ...(deliveriesByWake.get(message.wakeId) ?? []),
-        delivery,
-      ]);
-    }
+    deliveriesByWake.set(message.wakeId, [
+      ...(deliveriesByWake.get(message.wakeId) ?? []),
+      delivery,
+    ]);
   }
 
   const records: WakeRecord[] = sub.wakes.map((wake) => ({
@@ -277,7 +282,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     event: wake.event as unknown as RecordEvent,
     status: "done",
     outcome: wake.outcome as unknown as WakeOutcome,
-    traceRef: wake.id,
+    ...(wake.model !== null ? { traceRef: wake.id } : {}),
     ...(wake.deliveryMode
       ? {
           delivery:
@@ -290,46 +295,6 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     ...(Array.isArray(wake.events) ? { coalesced: (wake.events as unknown[]).length } : {}),
   }));
 
-  // The deterministic ΣΤΟΠ pre-step answers without a wake; its journal
-  // entry (wakeId null, `received` set) is the only record of the exchange.
-  // Synthesize a WakeRecord so the thread shows it — no traceRef, there was
-  // no model call to inspect.
-  const wakeless = await db.notisJournalEntry.findMany({
-    where: { subscriptionId: id, wakeId: null },
-    orderBy: { seq: "asc" },
-  });
-  // Wake-less replies (the ΣΤΟΠ confirmations) pair with wake-less journal
-  // entries in order — each entry consumed its messages' worth of sends.
-  // The cursor advances for EVERY entry that produced messages, including
-  // the ones that do not render: the poller's enrollment ceremony writes an
-  // `enrollment` entry alongside a wake-less intro send, and skipping it
-  // without consuming its slot hands the intro's delivery status to the
-  // next ΣΤΟΠ reply.
-  let wakelessCursor = 0;
-  for (const row of wakeless) {
-    const entry = row.entry as unknown as JournalEntry;
-    const deliveries = wakelessDeliveries.slice(
-      wakelessCursor,
-      wakelessCursor + entry.messages.length,
-    );
-    wakelessCursor += entry.messages.length;
-    if (entry.event !== "user_message" || entry.received === undefined) continue;
-    records.push({
-      id: `journal-${row.seq}`,
-      event: { type: "user_message", at: entry.at, text: entry.received },
-      status: "done",
-      outcome: {
-        decision: entry.decision === "send" ? "send" : "silence",
-        rationale: entry.rationale,
-        messages: entry.messages,
-        scheduledWakes: [],
-        journalAppend: entry,
-        ...(entry.unsubscribed ? { unsubscribe: { reason: entry.rationale } } : {}),
-      },
-      ...(entry.messages.length > 0 ? { delivery: { mode: "freeform" as const } } : {}),
-      ...(deliveries.length > 0 ? { deliveries } : {}),
-    });
-  }
   // Sort on when each record's messages actually went out, falling back to
   // the trigger for records that sent nothing. Sorting on event.at alone
   // placed a wake's replies at the moment it was TRIGGERED, so a 36-second

@@ -83,7 +83,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, action: result.action });
   } catch (error) {
     // Only a unique-index race on birdMessageId is a concurrent duplicate
-    // delivery. Any OTHER P2002 (journal seq, subscription userId) means a
+    // delivery. Any OTHER P2002 (subscription userId) means a
     // real write was rolled back — 500 so Bird retries it.
     const code = (error as { code?: string } | undefined)?.code;
     const target = (error as { meta?: { target?: unknown } } | undefined)?.meta?.target;

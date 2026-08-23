@@ -69,7 +69,7 @@ export interface Snapshot {
 }
 
 export interface PlaygroundStore {
-  version: 2;
+  version: 3;
   setup: { done: boolean; from: string };
   sim: Sim;
   traces: Record<string, WakeTrace>;

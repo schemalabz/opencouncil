@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       outcome,
       trace,
-      appliedState: applyOutcome(state, outcome),
+      appliedState: applyOutcome(state, [event], outcome),
     });
   } catch (e) {
     return errorResponse(e);

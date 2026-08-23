@@ -58,7 +58,7 @@ export const CLIENT_TOOLS = [
       "Wake yourself at a future moment for something NO event will cover — a " +
       "process to recheck, a deadline outside the meeting flow. Never schedule " +
       "for a meeting's aftermath: the published record wakes you automatically " +
-      "(meeting_summarized), and the journal carries any promise you made.",
+      "(meeting_summarized), and your decision log carries any promise you made.",
     input_schema: {
       type: "object" as const,
       properties: {

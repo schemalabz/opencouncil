@@ -236,7 +236,7 @@ async function enrollFromInbound(
 /**
  * The deterministic ΣΤΟΠ pre-step: a bare stop keyword flips the
  * subscription without waking the agent. The inbound row, the state flip,
- * the journal entry and the pending reply commit together; the reply itself
+ * the decision row and the pending reply commit together; the reply itself
  * goes out after commit with the message row id as idempotency key.
  */
 async function handleBareStop(
@@ -265,30 +265,38 @@ async function handleBareStop(
         ...(alreadyUnsubscribed ? {} : { status: "unsubscribed" as const, unsubscribedAt: at }),
       },
     });
-    const { _max } = await tx.notisJournalEntry.aggregate({
-      where: { subscriptionId: sub.id },
-      _max: { seq: true },
-    });
-    await tx.notisJournalEntry.create({
+    // A model-less wake row records the decision (the reader's text lives on
+    // the inbound message row, the reply on its own row below — this is only
+    // the "what happened and why"). model/trace stay null: no model ran.
+    const rationale = alreadyUnsubscribed
+      ? "(σύστημα) Επανέλαβε ΣΤΟΠ ενώ ήταν ήδη απεγγεγραμμένος — υπενθύμιση."
+      : "(σύστημα) Έστειλε ΣΤΟΠ — άμεση απεγγραφή χωρίς αφύπνιση.";
+    const event = { type: "user_message", at: at.toISOString(), text: fields.body };
+    const wake = await tx.notisWake.create({
       data: {
         subscriptionId: sub.id,
-        seq: (_max.seq ?? 0) + 1,
-        entry: {
-          at: at.toISOString(),
-          event: "user_message",
+        eventType: "user_message",
+        eventAt: at,
+        event: event as unknown as Prisma.InputJsonValue,
+        decision: "send",
+        rationale,
+        outcome: {
           decision: "send",
-          rationale: alreadyUnsubscribed
-            ? "(σύστημα) Επανέλαβε ΣΤΟΠ ενώ ήταν ήδη απεγγεγραμμένος — υπενθύμιση."
-            : "(σύστημα) Έστειλε ΣΤΟΠ — άμεση απεγγραφή χωρίς αφύπνιση.",
+          rationale,
           messages: [replyText],
-          received: fields.body,
-          ...(alreadyUnsubscribed ? {} : { unsubscribed: true }),
-        } as Prisma.InputJsonValue,
+          scheduledWakes: [],
+          ...(alreadyUnsubscribed ? {} : { unsubscribe: { reason: "ΣΤΟΠ" } }),
+        } as unknown as Prisma.InputJsonValue,
+        deliveryMode: "freeform",
+        costUsd: 0,
+        durationMs: 0,
       },
+      select: { id: true },
     });
     const reply = await tx.notisMessage.create({
       data: {
         subscriptionId: sub.id,
+        wakeId: wake.id,
         direction: "outbound",
         body: replyText,
         deliveryMode: "freeform",

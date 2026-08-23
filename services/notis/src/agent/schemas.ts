@@ -17,19 +17,15 @@ export const WAKE_EVENT_TYPES = [
   "heartbeat",
 ] as const;
 
-export const journalEntrySchema = z.object({
+export const decisionEntrySchema = z.object({
   /** ISO timestamp of the wake's event (the world's timeline, not the wall clock). */
   at: z.string(),
-  /** The wake trigger — or "enrollment" for the system-sent intro/transition
-   *  template, "system" for shell-side bookkeeping (e.g. a phone-gone
-   *  unsubscribe by the poller). */
+  /** The wake trigger — or "system" for shell-side decisions made without a
+   *  model run (a ΣΤΟΠ pre-step, a cap skip, a phone-gone unsubscribe).
+   *  "enrollment" survives for replayed pre-refactor playground states. */
   event: z.enum([...WAKE_EVENT_TYPES, "enrollment", "system"]),
-  decision: z.enum(["silence", "send"]),
+  decision: z.enum(["silence", "send", "error"]),
   rationale: z.string(),
-  /** Texts sent (empty on silence). */
-  messages: z.array(z.string()),
-  /** What the user wrote, verbatim, on user_message wakes — the journal IS the conversation memory. */
-  received: z.string().optional(),
   /** The wake rewrote the taste profile — future wakes must see their own memory changed. */
   profileRewritten: z.boolean().optional(),
   /** The wake unsubscribed the reader. */
@@ -62,6 +58,16 @@ export const cityPreferenceSchema = z.object({
   locations: z.array(preferenceLocationSchema),
 });
 
+/** One turn of the real WhatsApp thread — what actually reached the reader
+ *  (sent/delivered/read outbound) and what they wrote (inbound). A suppressed
+ *  or failed message never appears, so the agent cannot mistake a stopped send
+ *  for a delivered one. */
+export const conversationMessageSchema = z.object({
+  at: z.string(),
+  from: z.enum(["reader", "notis"]),
+  text: z.string(),
+});
+
 export const wakeStateSchema = z.object({
   user: z.object({
     name: z.string(),
@@ -69,8 +75,20 @@ export const wakeStateSchema = z.object({
   }),
   /** Free-text taste profile. Model-owned: rewritten wholesale via update_taste_profile. */
   profile: z.string(),
-  /** Append-only, oldest first. The prompt receives the most recent JOURNAL_WINDOW entries. */
-  journal: z.array(journalEntrySchema),
+  /**
+   * The real conversation, oldest first — the record of what this reader has
+   * actually been told and what they wrote back. The production shell draws it
+   * from the message table's own delivery status; simulation surfaces build
+   * it themselves. There is no other copy of the message text.
+   */
+  conversation: z.array(conversationMessageSchema),
+  /**
+   * The agent's decision log, oldest first — one entry per wake: what
+   * triggered it, send or silence, and why. Drawn from the wake records
+   * (NotisWake) in production; the prompt receives the most recent
+   * DECISION_WINDOW entries.
+   */
+  decisions: z.array(decisionEntrySchema),
 });
 
 export const editorialSubjectSchema = z.object({
@@ -147,7 +165,7 @@ export const wakeEventSchema = z.discriminatedUnion("type", [
 
 /**
  * Which of a coalesced wake's events leads: the meatiest content wins the
- * template shell and the journal label, and user_message dominating keeps
+ * template shell and the decision-log label, and user_message dominating keeps
  * every reactive invariant (freeform delivery, repair nudges) intact.
  */
 export const EVENT_PRIORITY = [

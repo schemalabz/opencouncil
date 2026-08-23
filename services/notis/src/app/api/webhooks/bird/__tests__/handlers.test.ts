@@ -137,7 +137,10 @@ describe("handleInbound", () => {
     const sub = db.store.subscriptions.get("sub1")!;
     expect(sub.status).toBe("unsubscribed");
     expect(sub.unsubscribedAt).toBeInstanceOf(Date);
-    expect(db.store.journal).toHaveLength(1);
+    // The decision lands as a model-less wake row; the reply rides its id.
+    expect(db.store.wakes).toHaveLength(1);
+    expect(db.store.wakes[0]).toMatchObject({ eventType: "user_message", decision: "send" });
+    expect(db.store.wakes[0].model ?? null).toBeNull();
     expect(bird.sends).toHaveLength(1);
     expect(bird.sends[0].text).toBe(STOP_CONFIRMATION_TEXT);
     const reply = db.store.messages.find((m) => m.direction === "outbound")!;

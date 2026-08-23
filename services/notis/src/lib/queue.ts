@@ -3,7 +3,14 @@ import { decideDelivery } from "@/agent/delivery";
 import { runWake } from "@/agent/runWake";
 import { primaryEvent, wakeEventSchema } from "@/agent/schemas";
 import type { TemplateName } from "@/agent/templates";
-import { CityPreference, Deps, JOURNAL_WINDOW, JournalEntry, WakeEvent } from "@/agent/types";
+import {
+  CityPreference,
+  CONVERSATION_WINDOW,
+  Deps,
+  DECISION_WINDOW,
+  DecisionEntry,
+  WakeEvent,
+} from "@/agent/types";
 import type { NotisSubscription, Prisma, PrismaClient } from "../../generated/client";
 import { clampToActiveHours, isQuietHour } from "./active-hours";
 import { alert as sendAlert } from "./alert";
@@ -29,8 +36,8 @@ import { getProactiveSettings } from "./settings";
  *
  * Ordering invariants (PRD §4):
  * - runWake is pure; every side effect happens here.
- * - The NotisWake row, journal entry, profile/subscription deltas and the
- *   queue item's `done` all commit in ONE transaction BEFORE Bird is called:
+ * - The NotisWake row, profile/subscription deltas and the queue item's
+ *   `done` all commit in ONE transaction BEFORE Bird is called:
  *   once the model has run, a retry must never run it again.
  * - Bird sends happen after that commit, each with an idempotency key (the
  *   message row's id — allocated with the wake, stable across retries), so
@@ -131,12 +138,28 @@ async function runOneWake(
   const reactive = isReactiveWake(ordered);
   const capCountable = isCapCountable(ordered);
 
-  const journalRows = await db.notisJournalEntry.findMany({
+  // The decision log comes from the wake records themselves — one row per
+  // wake, including the shell's own model-less decisions (a ΣΤΟΠ pre-step, a
+  // cap skip). eventAt orders on the world's timeline; id breaks same-instant
+  // ties in insertion order.
+  const wakeRows = await db.notisWake.findMany({
     where: { subscriptionId: sub.id },
-    orderBy: { seq: "desc" },
-    take: JOURNAL_WINDOW,
+    orderBy: [{ eventAt: "desc" }, { id: "desc" }],
+    take: DECISION_WINDOW,
+    select: { eventType: true, eventAt: true, decision: true, rationale: true, outcome: true, truncated: true },
   });
-  const journal = journalRows.reverse().map((row) => row.entry as unknown as JournalEntry);
+  const decisions: DecisionEntry[] = wakeRows.reverse().map((row) => {
+    const o = row.outcome as { profileRewrite?: string; unsubscribe?: unknown } | null;
+    return {
+      at: row.eventAt.toISOString(),
+      event: row.eventType as DecisionEntry["event"],
+      decision: row.decision,
+      rationale: row.rationale,
+      ...(o?.profileRewrite !== undefined ? { profileRewritten: true } : {}),
+      ...(o?.unsubscribe ? { unsubscribed: true } : {}),
+      ...(row.truncated ? { truncated: true } : {}),
+    };
+  });
 
   const lastInbound = await db.notisMessage.findFirst({
     where: { subscriptionId: sub.id, direction: "inbound" },
@@ -144,11 +167,35 @@ async function runOneWake(
     select: { createdAt: true },
   });
 
+  // The conversation the agent sees is the real message record: inbound
+  // messages, and outbound messages that actually reached the reader. A
+  // suppressed or failed send is excluded, so the agent never treats a
+  // stopped message as delivered — the delivery status is the source of
+  // truth, not a claim written before the send.
+  const messageRows = await db.notisMessage.findMany({
+    where: {
+      subscriptionId: sub.id,
+      OR: [
+        { direction: "inbound" },
+        { direction: "outbound", status: { in: ["sent", "delivered", "read"] } },
+      ],
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: CONVERSATION_WINDOW,
+    select: { direction: true, body: true, createdAt: true },
+  });
+  const conversation = messageRows.reverse().map((m) => ({
+    at: m.createdAt.toISOString(),
+    from: m.direction === "inbound" ? ("reader" as const) : ("notis" as const),
+    text: m.body,
+  }));
+
   const cities = await assembleCities(sub);
   const state = {
     user: { name: sub.userName ?? "", cities },
     profile: sub.profileText,
-    journal,
+    conversation,
+    decisions,
   };
 
   // The wall clock, not the events' timestamps: this wake may have waited
@@ -169,16 +216,9 @@ async function runOneWake(
   const unparseableSchedules: string[] = [];
   const outboundIds = await db.$transaction(
     async (tx) => {
-    // FIRST, before anything reads the journal: this UPDATE takes the
-    // subscription's row lock, and every other writer of this reader's
-    // journal takes it too (the deterministic ΣΤΟΠ path included, which runs
-    // outside the queue's serialization). That lock is what makes the seq
-    // allocation below safe — two unlocked MAX(seq)+1 reads collide on
-    // NotisJournalEntry_subscriptionId_seq_key, and taking the two tables in
-    // opposite orders deadlocks outright (40P01).
-    //
-    // updatedAt is always touched anyway: it is the conversation list's
-    // activity sort key.
+    // updatedAt is always touched: it is the conversation list's activity
+    // sort key. (The update also serializes concurrent writers of this
+    // subscription on its row lock — the ΣΤΟΠ path touches the same row.)
     const subData: Prisma.NotisSubscriptionUpdateInput = { updatedAt: new Date() };
     if (outcome.profileRewrite !== undefined) subData.profileText = outcome.profileRewrite;
     // Only the user moves a row into `unsubscribed` — and unsubscribe_user
@@ -188,11 +228,6 @@ async function runOneWake(
       subData.unsubscribedAt = new Date(lastAt);
     }
     await tx.notisSubscription.update({ where: { id: sub.id }, data: subData });
-
-    const { _max } = await tx.notisJournalEntry.aggregate({
-      where: { subscriptionId: sub.id },
-      _max: { seq: true },
-    });
 
     const wake = await tx.notisWake.create({
       data: {
@@ -222,15 +257,6 @@ async function runOneWake(
         trace: trace as unknown as Prisma.InputJsonValue,
       },
       select: { id: true },
-    });
-
-    await tx.notisJournalEntry.create({
-      data: {
-        subscriptionId: sub.id,
-        wakeId: wake.id,
-        seq: (_max.seq ?? 0) + 1,
-        entry: outcome.journalAppend as unknown as Prisma.InputJsonValue,
-      },
     });
 
     for (const scheduled of outcome.scheduledWakes) {
@@ -353,7 +379,7 @@ async function applySendResult(
 }
 
 /** The rails' own vocabulary, Greek names included — one closed set shared
- *  by the writer, the journal correction and the panel. */
+ *  by the writer and the panel. */
 export const SUPPRESSION_REASONS = {
   unsubscribed: "απεγγραφή",
   paused: "παύση",
@@ -362,72 +388,21 @@ export const SUPPRESSION_REASONS = {
 
 export type SuppressionReason = keyof typeof SUPPRESSION_REASONS;
 
-/** Append a `system` journal entry. The agent reads the journal as the
- *  record of what this reader has actually been told, so anything that
- *  contradicts an earlier entry has to land here. */
-async function appendSystemEntry(
-  db: PrismaClient,
-  subscriptionId: string,
-  rationale: string,
-  tx?: Prisma.TransactionClient,
-): Promise<void> {
-  const client = tx ?? db;
-  const { _max } = await client.notisJournalEntry.aggregate({
-    where: { subscriptionId },
-    _max: { seq: true },
-  });
-  await client.notisJournalEntry.create({
-    data: {
-      subscriptionId,
-      seq: (_max.seq ?? 0) + 1,
-      entry: {
-        at: new Date().toISOString(),
-        event: "system",
-        decision: "silence",
-        rationale,
-        messages: [],
-      } as unknown as Prisma.InputJsonValue,
-    },
-  });
-}
-
 export async function suppressMessages(
   db: PrismaClient,
   messageIds: string[],
   reason: SuppressionReason,
 ): Promise<void> {
   if (messageIds.length === 0) return;
-  const rows = await db.notisMessage.findMany({
-    where: { id: { in: messageIds }, status: "pending" },
-    select: { id: true, subscriptionId: true },
-  });
-  if (rows.length === 0) return;
-
+  // Flip the rows to `suppressed`. No correction is needed anywhere: the
+  // agent reads the conversation from the real message record (see the state
+  // assembly in runOneWake), and a suppressed row is excluded there, so it
+  // can never be mistaken for a delivered message. The reason lives on the
+  // row for the panel; SUPPRESSION_REASONS still labels it there.
   await db.notisMessage.updateMany({
-    where: { id: { in: rows.map((r) => r.id) }, status: "pending" },
+    where: { id: { in: messageIds }, status: "pending" },
     data: { status: "suppressed", failureReason: reason },
   });
-
-  // The wake's journal entry recorded these texts as sent — it commits
-  // inside the persist transaction, before any rail runs. Left uncorrected,
-  // the agent reads its own memory as proof the reader saw them: it dedups
-  // the story on later wakes and can refer back to a message that never
-  // arrived. The correction is append-only, like the rest of the journal.
-  const bySubscription = new Map<string, number>();
-  for (const row of rows) {
-    bySubscription.set(row.subscriptionId, (bySubscription.get(row.subscriptionId) ?? 0) + 1);
-  }
-  for (const [subscriptionId, count] of bySubscription) {
-    const what =
-      count === 1
-        ? "Το προηγούμενο μήνυμα δεν στάλθηκε"
-        : `Τα ${count} προηγούμενα μηνύματα δεν στάλθηκαν`;
-    await appendSystemEntry(
-      db,
-      subscriptionId,
-      `(σύστημα) ${what} — ${SUPPRESSION_REASONS[reason]}. Ο χρήστης ΔΕΝ τα έλαβε.`,
-    );
-  }
 }
 
 /**
@@ -720,23 +695,43 @@ export async function sendProactiveMessages(
 
 /** Close a wake the weekly cap makes pointless, before any model spend. The
  *  events are consumed — a slot opens only as the week rolls, by which time
- *  this news is old — so the journal records what went unexamined. */
+ *  this news is old — so a model-less wake row records what went unexamined. */
 async function skipCappedWake(
   db: PrismaClient,
   item: ClaimedItem,
-  eventCount: number,
+  events: WakeEvent[],
 ): Promise<void> {
+  const ordered = [...events].sort((a, b) => a.at.localeCompare(b.at));
+  const primary = primaryEvent(ordered);
+  const what =
+    ordered.length === 1 ? "Μία ενημέρωση δεν εξετάστηκε" : `${ordered.length} ενημερώσεις δεν εξετάστηκαν`;
+  const rationale = `(σύστημα) ${what} — ο χρήστης έχει ήδη ${WEEKLY_CAP} αυθόρμητα μηνύματα αυτή την εβδομάδα.`;
   await db.$transaction(async (tx) => {
     const owned = await completeItem(tx, item.id, item.attempts);
     if (!owned) throw new ClaimLostError(item.id);
-    const what =
-      eventCount === 1 ? "Μία ενημέρωση δεν εξετάστηκε" : `${eventCount} ενημερώσεις δεν εξετάστηκαν`;
-    await appendSystemEntry(
-      db,
-      item.subscriptionId,
-      `(σύστημα) ${what} — ο χρήστης έχει ήδη ${WEEKLY_CAP} αυθόρμητα μηνύματα αυτή την εβδομάδα.`,
-      tx,
-    );
+    // A model-less wake row: the decision log must show what went unexamined,
+    // or the next wake re-litigates the same news. model/trace stay null —
+    // that is the marker for "no model ran" everywhere (panel, metrics).
+    await tx.notisWake.create({
+      data: {
+        subscriptionId: item.subscriptionId,
+        eventType: primary.type,
+        eventAt: new Date(ordered[ordered.length - 1].at),
+        event: primary as unknown as Prisma.InputJsonValue,
+        events:
+          ordered.length > 1 ? (ordered as unknown as Prisma.InputJsonValue) : undefined,
+        decision: "silence",
+        rationale,
+        outcome: {
+          decision: "silence",
+          rationale,
+          messages: [],
+          scheduledWakes: [],
+        } as unknown as Prisma.InputJsonValue,
+        costUsd: 0,
+        durationMs: 0,
+      },
+    });
   });
 }
 
@@ -771,10 +766,10 @@ export async function processItem(item: ClaimedItem, overrides: DrainDeps = {}):
       }
       // The weekly cap, before the model for the same reason: a saturated
       // reader's unprompted wake can only produce messages the boundary
-      // suppresses, so running it buys a journal entry the rails then have
+      // suppresses, so running it buys a decision entry the rails then have
       // to contradict — and pays for it. Reply-continuations are exempt.
       if (isCapCountable(events) && (await capUsage(db, item.subscriptionId)) >= WEEKLY_CAP) {
-        await skipCappedWake(db, item, events.length);
+        await skipCappedWake(db, item, events);
         return;
       }
     }

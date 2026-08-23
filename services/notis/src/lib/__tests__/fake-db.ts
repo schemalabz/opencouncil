@@ -47,7 +47,6 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
   const calls: string[] = [];
   const store = {
     subscriptions: new Map<string, Row>((seed.subscriptions ?? []).map((s) => [s.id as string, s])),
-    journal: [] as Row[],
     messages: [] as Row[],
     wakes: [] as Row[],
     scheduled: [] as Row[],
@@ -108,32 +107,6 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
         return row;
       },
     },
-    notisJournalEntry: {
-      findMany: async ({ where, take }: { where?: Row; take?: number } = {}) => {
-        const sorted = store.journal
-          .filter((r) => messageMatches(r, where))
-          .sort((a, b) => (b.seq as number) - (a.seq as number));
-        return take ? sorted.slice(0, take) : sorted;
-      },
-      // Scoped like the real query: a seq allocated from another
-      // subscription's sequence collides on (subscriptionId, seq). With the
-      // where ignored, dropping that scoping in production code left every
-      // test passing.
-      aggregate: async ({ where }: { where?: Row } = {}) => {
-        const scoped = store.journal.filter((r) => messageMatches(r, where));
-        return {
-          _max: {
-            seq: scoped.length ? Math.max(...scoped.map((j) => j.seq as number)) : null,
-          },
-        };
-      },
-      create: async ({ data }: { data: Row }) => {
-        const row: Row = { id: id("j"), ...data };
-        store.journal.push(row);
-        calls.push("journal-created");
-        return row;
-      },
-    },
     notisMessage: {
       count: async ({ where }: { where?: Row } = {}) =>
         store.messages.filter((m) => messageMatches(m, where)).length,
@@ -183,10 +156,20 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
     },
     notisWake: {
       create: async ({ data }: { data: Row }) => {
-        const row: Row = { id: id("wake"), ...data };
+        const row: Row = { id: id("wake"), createdAt: new Date(), ...data };
         store.wakes.push(row);
         calls.push("wake-created");
         return row;
+      },
+      // The decision-log read: newest first by eventAt, id as tiebreaker.
+      findMany: async ({ where, take }: { where?: Row; take?: number } = {}) => {
+        const sorted = store.wakes
+          .filter((r) => messageMatches(r, where))
+          .sort((a, b) => {
+            const at = (b.eventAt as Date).getTime() - (a.eventAt as Date).getTime();
+            return at !== 0 ? at : (b.id as string).localeCompare(a.id as string);
+          });
+        return take ? sorted.slice(0, take) : sorted;
       },
     },
     notisScheduledWake: {
@@ -288,7 +271,6 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
     $transaction: async <T>(fn: (tx: unknown) => Promise<T>): Promise<T> => {
       const snapshot = structuredClone({
         subscriptions: store.subscriptions,
-        journal: store.journal,
         messages: store.messages,
         wakes: store.wakes,
         scheduled: store.scheduled,
@@ -300,7 +282,6 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
         return await fn(db);
       } catch (error) {
         store.subscriptions = snapshot.subscriptions;
-        store.journal = snapshot.journal;
         store.messages = snapshot.messages;
         store.wakes = snapshot.wakes;
         store.scheduled = snapshot.scheduled;

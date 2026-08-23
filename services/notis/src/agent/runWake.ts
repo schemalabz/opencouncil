@@ -1,4 +1,4 @@
-import { buildJournalEntry } from "./journal";
+import { buildDecisionEntry } from "./decisions";
 import { addUsage, emptyUsage, normalizeUsage, usageToCost } from "./pricing";
 import { assembleSystem, assembleUserTurn } from "./prompt";
 import { buildMcpServers, buildTools } from "./tools";
@@ -255,7 +255,7 @@ export async function runWake(
       if (hasUserMessage && sent.length === 0 && !unsubscribe) {
         // Same rationale protection as the other three repair paths: if the
         // nudged turn adds no sends, post-nudge check-chatter must not become
-        // the journal rationale the next thirty wakes read as memory.
+        // the decision-log rationale the next thirty wakes read as memory.
         preNudgeRationale = rationale;
         sentAtNudge = sent.length;
         repaired = true;
@@ -327,12 +327,6 @@ export async function runWake(
   // without a terminal anomaly explaining why), record the contract breach.
   const finishWakeMissing = !finished && !refused && !truncated;
 
-  const journalAppend = buildJournalEntry(events, decision, rationale, sent, {
-    profileRewritten: profileRewrite !== undefined,
-    unsubscribed: Boolean(unsubscribe),
-    truncated,
-  });
-
   const outcome: WakeOutcome = {
     decision,
     rationale,
@@ -343,7 +337,6 @@ export async function runWake(
     ...(profileRewrite !== undefined ? { profileRewrite } : {}),
     scheduledWakes,
     ...(unsubscribe ? { unsubscribe } : {}),
-    journalAppend,
   };
 
   const trace: WakeTrace = {
@@ -358,11 +351,30 @@ export async function runWake(
   return { outcome, trace };
 }
 
-/** Apply an outcome to a state, returning the next state. Callers own persistence. */
-export function applyOutcome(state: WakeState, outcome: WakeOutcome): WakeState {
+/**
+ * Evolve a simulated state by one wake, the way the production shell's real
+ * records would: the events' reader messages and the outcome's sent texts
+ * join the conversation, and the derived decision entry joins the log. Used
+ * by the simulation surfaces (dry-run, playground) — production reads both
+ * from the database instead.
+ */
+export function applyOutcome(
+  state: WakeState,
+  events: WakeEvent[],
+  outcome: WakeOutcome,
+): WakeState {
+  const ordered = [...events].sort((a, b) => a.at.localeCompare(b.at));
+  const entry = buildDecisionEntry(ordered, outcome);
   return {
     ...state,
     profile: outcome.profileRewrite !== undefined ? outcome.profileRewrite : state.profile,
-    journal: [...state.journal, outcome.journalAppend],
+    conversation: [
+      ...state.conversation,
+      ...ordered
+        .filter((e): e is Extract<WakeEvent, { type: "user_message" }> => e.type === "user_message")
+        .map((e) => ({ at: e.at, from: "reader" as const, text: e.text })),
+      ...outcome.messages.map((text) => ({ at: entry.at, from: "notis" as const, text })),
+    ],
+    decisions: [...state.decisions, entry],
   };
 }

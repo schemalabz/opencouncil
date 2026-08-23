@@ -31,7 +31,10 @@ export type RecordEvent =
       meetingDate: string;
       adminBody?: string | null;
       brief: PendingBrief;
-    };
+    }
+  // A shell-side decision with no wake event behind it (e.g. the poller's
+  // phone-gone unsubscribe) — rendered as a silence chip in the thread.
+  | { type: "system"; at: string };
 
 /** Real delivery lifecycle of one outbound message (DB-backed viewer only). */
 export interface MessageDelivery {
@@ -90,4 +93,5 @@ export const EVENT_LABELS: Record<string, string> = {
   meeting_summarized: "απολογισμοί",
   scheduled: "προγραμματισμένα",
   heartbeat: "heartbeat",
+  system: "σύστημα",
 };

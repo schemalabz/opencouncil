@@ -179,27 +179,17 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
       const queue = deriveQueue(meetings, from);
       if (queue.length === 0)
         throw new Error("Καμία δημοσιευμένη συνεδρίαση μετά από αυτή την ημερομηνία.");
-      // Enrollment sends the origin-appropriate template before any wake; it
-      // enters the journal so the agent knows the reader already got an intro.
+      // The intro template opens the conversation, so the agent knows the
+      // reader already got it — same as production, where the intro's
+      // message row lands in the conversation once sent.
       const startAt = new Date(from).toISOString();
       const introTemplate = introTemplateFor(origin);
       const rendered = renderTemplate(introTemplate);
       const state: WakeState = {
         user: { name, cities: drafts.map(({ center: _c, logo: _l, ...pref }) => pref) },
         profile,
-        journal: [
-          {
-            at: startAt,
-            event: "enrollment",
-            decision: "send",
-            rationale: `(σύστημα) Εγγραφή μέσω ${
-              origin === "transition"
-                ? "μετάβασης από τις παλιές ειδοποιήσεις"
-                : "νέας εγγραφής στο site"
-            } — στάλθηκε το εγκεκριμένο template ${introTemplate}.`,
-            messages: [rendered.body],
-          },
-        ],
+        conversation: [{ at: startAt, from: "notis", text: rendered.body }],
+        decisions: [],
       };
       onComplete(
         {

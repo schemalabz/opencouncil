@@ -1,4 +1,4 @@
-// The Notis service's own database: subscriptions, wakes, messages, journal,
+// The Notis service's own database: subscriptions, wakes, messages,
 // queue. userId references the main database by id only — no cross-database
 // foreign keys. Rollout state (User.notisEnabledAt) lives in the main
 // database; Notis reads it through the notis_* views (see main-views.prisma).
@@ -59,7 +59,6 @@ model NotisSubscription {
 
   wakes          NotisWake[]
   messages       NotisMessage[]
-  journalEntries NotisJournalEntry[]
   scheduledWakes NotisScheduledWake[]
   queueItems     NotisWakeQueue[]
 
@@ -104,7 +103,10 @@ model NotisWake {
   truncated         Boolean  @default(false)
   finishWakeMissing Boolean  @default(false)
 
-  model            String
+  // Null on a model-less wake — the shell's own deterministic decisions (the
+  // ΣΤΟΠ pre-step, a cap skip, a phone-gone unsubscribe) record what happened
+  // without a model run. Null model ⇒ null trace, zero cost and tokens.
+  model            String?
   inputTokens      Int   @default(0)
   outputTokens     Int   @default(0)
   cacheReadTokens  Int   @default(0)
@@ -113,8 +115,9 @@ model NotisWake {
   cacheWrite1hTokens Int?
   costUsd    Float
   durationMs Int
-  // Full WakeTrace for the admin conversation inspector.
-  trace Json
+  // Full WakeTrace for the admin conversation inspector; null on a
+  // model-less wake (nothing to inspect).
+  trace Json?
 
   createdAt DateTime @default(now())
 
@@ -190,31 +193,6 @@ model NotisMessage {
   createdAt DateTime @default(now())
 
   @@index([subscriptionId, createdAt])
-}
-
-model NotisJournalEntry {
-  id             String            @id @default(cuid())
-  subscription   NotisSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-  subscriptionId String
-  wakeId         String?
-
-  // Per-subscription append order; the wake input takes the latest
-  // JOURNAL_WINDOW entries by seq.
-  seq   Int
-  // journalEntrySchema shape (at, event, decision, rationale, messages, ...).
-  entry Json
-
-  createdAt DateTime @default(now())
-
-  // Retention: we keep every entry for the life of the subscription. The
-  // agent reads only the most recent JOURNAL_WINDOW entries; older ones stay
-  // for the audit trail and the admin panel, and profileText is the lossy
-  // compaction of what fell outside that window. Unsubscribing does NOT
-  // delete the journal — the record of what we sent stays, and a reader who
-  // returns keeps their continuity. Account deletion does: the janitor
-  // removes the subscription and this cascades with it. That is the whole
-  // answer to "what does Notis remember about me".
-  @@unique([subscriptionId, seq])
 }
 
 // Why the schedule exists decides the template shell when it fires outside

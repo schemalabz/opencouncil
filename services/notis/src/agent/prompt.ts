@@ -1,7 +1,8 @@
 import { distanceLine, locationPoints, locationText } from "./geo";
 import {
+  CONVERSATION_WINDOW,
+  DECISION_WINDOW,
   EditorialBrief,
-  JOURNAL_WINDOW,
   Prompts,
   WakeEvent,
   WakeState,
@@ -107,23 +108,31 @@ export function assembleUserTurn(state: WakeState, events: WakeEvent[], now: Dat
     )
     .join("\n");
 
-  const omitted = Math.max(0, state.journal.length - JOURNAL_WINDOW);
-  const journal = state.journal
-    .slice(-JOURNAL_WINDOW)
+  // The conversation is the record of what actually reached this reader —
+  // in production, drawn from the message table's own delivery status, so a
+  // suppressed or failed send is absent and the model never treats a stopped
+  // message as delivered.
+  const turnsOmitted = Math.max(0, state.conversation.length - CONVERSATION_WINDOW);
+  const conversation = state.conversation
+    .slice(-CONVERSATION_WINDOW)
+    .map((m) => `[${m.at}] ${m.from === "reader" ? "they wrote" : "you sent"}: «${m.text}»`)
+    .join("\n");
+  const conversationHeader = turnsOmitted > 0 ? `(${turnsOmitted} older messages omitted)\n` : "";
+
+  // The decision log — why the agent acted, silences included. A send
+  // decision whose text is absent from the conversation was stopped or
+  // failed before it reached the reader.
+  const decisionsOmitted = Math.max(0, state.decisions.length - DECISION_WINDOW);
+  const decisions = state.decisions
+    .slice(-DECISION_WINDOW)
     .map(
-      (j) =>
-        `[${j.at}] ${j.event}${j.truncated ? " (cut at the token ceiling — not a decision)" : ""} → ${j.decision}${
-          j.received ? `\n  they wrote: «${j.received}»` : ""
-        }${
-          j.messages.length ? `\n  sent: ${j.messages.map((m) => `«${m}»`).join(" | ")}` : ""
-        }${j.profileRewritten ? "\n  (rewrote the taste profile this wake)" : ""}${
-          j.unsubscribed ? "\n  (unsubscribed them this wake)" : ""
-        }\n  why: ${j.rationale}`,
+      (d) =>
+        `[${d.at}] ${d.event}${d.truncated ? " (cut at the token ceiling — not a decision)" : ""} → ${d.decision}${
+          d.profileRewritten ? "\n  (rewrote the taste profile this wake)" : ""
+        }${d.unsubscribed ? "\n  (unsubscribed them this wake)" : ""}\n  why: ${d.rationale}`,
     )
     .join("\n");
-  // The prompt calls the journal the record of what they've been told; when
-  // the window clips, say so — otherwise the model confidently repeats itself.
-  const journalHeader = omitted > 0 ? `(${omitted} older entries omitted)\n` : "";
+  const decisionsHeader = decisionsOmitted > 0 ? `(${decisionsOmitted} older entries omitted)\n` : "";
 
   return [
     `<user_profile>`,
@@ -136,16 +145,20 @@ export function assembleUserTurn(state: WakeState, events: WakeEvent[], now: Dat
     state.profile || "(empty — you have not learned anything about them yet)",
     `</taste_profile>`,
     ``,
-    `<journal>`,
-    journalHeader + (journal || "(empty — you have never written to or heard from this person)"),
-    `</journal>`,
+    `<conversation>`,
+    conversationHeader +
+      (conversation || "(empty — you have never written to or heard from this person)"),
+    `</conversation>`,
+    ``,
+    `<decisions>`,
+    decisionsHeader + (decisions || "(empty — no decisions recorded yet)"),
+    `</decisions>`,
     ``,
     `<current_time>${now.toISOString()}</current_time>`,
     ``,
     // A coalesced wake carries several events (e.g. three cities' meetings
     // landing together): each renders in its own block, oldest first, with
-    // one factual preamble line. The single-event render is byte-identical
-    // to the pre-coalescing output, so recorded fixtures replay unchanged.
+    // one factual preamble line.
     ...(events.length > 1
       ? [`${events.length} events arrived together — process them as one wake, oldest first.`, ``]
       : []),

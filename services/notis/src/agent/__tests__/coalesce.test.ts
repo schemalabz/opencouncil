@@ -1,11 +1,11 @@
-import { buildJournalEntry } from "../journal";
+import { buildDecisionEntry } from "../decisions";
 import { assembleUserTurn } from "../prompt";
 import { primaryEvent } from "../schemas";
 import { runWake } from "../runWake";
 import { WakeEvent } from "../types";
 import { FakeAnthropic, makeDeps, makeState, meetingEvent, toolUse } from "./helpers";
 
-/** Coalesced (multi-event) wakes: ordering, priority, journal shape. */
+/** Coalesced (multi-event) wakes: ordering, priority, decision shape. */
 
 const T1 = "2026-03-09T10:00:00.000Z";
 const T2 = "2026-03-10T10:00:00.000Z";
@@ -43,17 +43,17 @@ describe("assembleUserTurn with several events", () => {
   });
 });
 
-describe("buildJournalEntry over several events", () => {
-  it("labels by the primary event, dates by the last, keeps the last user text", () => {
-    const entry = buildJournalEntry(
-      [userMsg, { ...meetingEvent(), at: T2 } as WakeEvent],
-      "send",
-      "γιατί",
-      ["μήνυμα"],
-    );
+describe("buildDecisionEntry over several events", () => {
+  it("labels by the primary event and dates by the last", () => {
+    const entry = buildDecisionEntry([userMsg, { ...meetingEvent(), at: T2 } as WakeEvent], {
+      decision: "send",
+      rationale: "γιατί",
+      messages: ["μήνυμα"],
+      scheduledWakes: [],
+    });
     expect(entry.event).toBe("user_message");
     expect(entry.at).toBe(T2);
-    expect(entry.received).toBe("τι έγινε;");
+    expect(entry.decision).toBe("send");
   });
 });
 

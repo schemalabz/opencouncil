@@ -19,8 +19,7 @@ describe("runWake", () => {
     expect(outcome.decision).toBe("silence");
     expect(outcome.messages).toEqual([]);
     expect(outcome.rationale).toContain("Staying quiet");
-    expect(outcome.journalAppend.decision).toBe("silence");
-    expect(outcome.journalAppend.at).toBe(FIXED_NOW.toISOString());
+    expect(outcome.decision).toBe("silence");
     expect(trace.turns).toHaveLength(1);
   });
 
@@ -303,17 +302,31 @@ describe("runWake", () => {
     expect(state).toEqual(snapshot);
   });
 
-  it("applyOutcome appends the journal entry and applies profile rewrites", async () => {
+  it("applyOutcome appends the decision, evolves the conversation, applies rewrites", async () => {
     const fake = new FakeAnthropic([
-      { content: [toolUse("t1", "update_taste_profile", { profile: "νέο προφίλ" })], stop_reason: "tool_use" },
-      { content: [text("learned something")], stop_reason: "end_turn" },
+      {
+        content: [
+          toolUse("t1", "update_taste_profile", { profile: "νέο προφίλ" }),
+          toolUse("t2", "send_message", { text: "Η απάντηση." }),
+          toolUse("t3", "finish_wake", { rationale: "απάντησα" }),
+        ],
+        stop_reason: "tool_use",
+      },
     ]);
     const state = makeState();
-    const { outcome } = await runWake(state, [meetingEvent()], makeDeps(fake));
-    const next = applyOutcome(state, outcome);
+    const events = [
+      { type: "user_message" as const, at: FIXED_NOW.toISOString(), text: "Τι έγινε;" },
+    ];
+    const { outcome } = await runWake(state, events, makeDeps(fake));
+    const next = applyOutcome(state, events, outcome);
     expect(next.profile).toBe("νέο προφίλ");
-    expect(next.journal).toHaveLength(1);
-    expect(state.journal).toHaveLength(0);
+    expect(next.decisions).toHaveLength(1);
+    expect(next.decisions[0]).toMatchObject({ event: "user_message", decision: "send" });
+    // The conversation evolves the way production's real records would:
+    // their message, then what the agent sent.
+    expect(next.conversation.map((m) => m.text)).toEqual(["Τι έγινε;", "Η απάντηση."]);
+    expect(state.decisions).toHaveLength(0);
+    expect(state.conversation).toHaveLength(0);
   });
   it("a turn cut at max_tokens records truncation, not a decision", async () => {
     const fake = new FakeAnthropic([
@@ -333,7 +346,7 @@ describe("runWake", () => {
     expect(outcome.truncated).toBe(true);
     expect(outcome.decision).toBe("silence");
     expect(outcome.messages).toEqual([]);
-    expect(outcome.journalAppend.truncated).toBe(true);
+    expect(outcome.truncated).toBe(true);
   });
 
   it("exactly one moving cache breakpoint survives across tool turns", async () => {

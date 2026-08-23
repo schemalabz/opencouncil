@@ -208,7 +208,7 @@ describe("enrollment", () => {
     expect(alerts.some((m) => m.includes("demos_transition"))).toBe(true);
   });
 
-  it("unpaused: creates the subscription, journals, and sends the intro via a new conversation", async () => {
+  it("unpaused: creates the subscription and sends the intro via a new conversation", async () => {
     const db = makeFakeDb({ settings: [{ key: PROACTIVE_PAUSED_KEY, value: false }] });
     const bird = new FakeBird();
     const main = makeFakeMain({
@@ -228,7 +228,9 @@ describe("enrollment", () => {
       birdConversationId: "conv-new-1",
     });
     expect(String(sub.profileText)).toContain("Αθήνα");
-    expect(db.store.journal[0].entry).toMatchObject({ event: "enrollment" });
+    // No decision row for enrollment: the intro reaches the agent through
+    // the conversation (its message row) once sent.
+    expect(db.store.wakes).toHaveLength(0);
     expect(bird.created).toHaveLength(1);
     expect(bird.created[0].template).toBe("demos_transition");
     const intro = db.store.messages[0];
@@ -283,7 +285,7 @@ describe("reconciliation", () => {
     expect(result.phonesRefreshed).toBe(1);
   });
 
-  it("phone gone: unsubscribes the active subscription once, with a system journal entry", async () => {
+  it("phone gone: unsubscribes the active subscription once, with a system decision row", async () => {
     const db = makeFakeDb({ subscriptions: [activeSub("sub1", "user1")] });
     const main = makeFakeMain({
       users: [{ id: "user1", name: "Μαρία", phone: null }],
@@ -295,12 +297,12 @@ describe("reconciliation", () => {
     const sub = db.store.subscriptions.get("sub1")!;
     expect(sub.status).toBe("unsubscribed");
     expect(result.phoneGoneUnsubscribed).toBe(1);
-    expect(db.store.journal[0].entry).toMatchObject({ event: "system", decision: "silence" });
+    expect(db.store.wakes[0]).toMatchObject({ eventType: "system", decision: "silence" });
 
-    // A second tick touches nothing — never a double journal, never a re-activation.
+    // A second tick touches nothing — never a double decision, never a re-activation.
     const again = await runPollerTick({ db, main, bird: new FakeBird(), alert: async () => {}, now });
     expect(again.phoneGoneUnsubscribed).toBe(0);
-    expect(db.store.journal).toHaveLength(1);
+    expect(db.store.wakes).toHaveLength(1);
   });
 
   it("a user row missing entirely is the janitor's problem, not the poller's", async () => {

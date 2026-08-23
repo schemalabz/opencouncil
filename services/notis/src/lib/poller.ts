@@ -83,17 +83,6 @@ const emptyResult = (ran: boolean, reason?: string): PollerResult => ({
   editorialCostUsd: 0,
 });
 
-async function nextJournalSeq(
-  tx: Prisma.TransactionClient,
-  subscriptionId: string,
-): Promise<number> {
-  const { _max } = await tx.notisJournalEntry.aggregate({
-    where: { subscriptionId },
-    _max: { seq: true },
-  });
-  return (_max.seq ?? 0) + 1;
-}
-
 /** One poller run is in flight at a time per process; a tick that lands
  *  while another runs is skipped, not queued. */
 let ticking = false;
@@ -216,7 +205,7 @@ async function enrollNewTargets(
     // A plain create, not an upsert: the unique userId is what makes the
     // ceremony run exactly once. Two ticks (a second instance, or the CLI
     // beside the interval) can both pass the `existing` pre-read, and an
-    // upsert would absorb the conflict and let the loser journal and send a
+    // upsert would absorb the conflict and let the loser send a
     // SECOND intro. The loser's transaction now rolls back whole.
     let enrollment: { subId: string; introId: string };
     try {
@@ -232,20 +221,9 @@ async function enrollNewTargets(
         },
         select: { id: true },
       });
-      await tx.notisJournalEntry.create({
-        data: {
-          subscriptionId: sub.id,
-          seq: await nextJournalSeq(tx, sub.id),
-          entry: {
-            at: at.toISOString(),
-            event: "enrollment",
-            decision: "send",
-            rationale:
-              "(σύστημα) Εγγραφή μέσω μετάβασης από τις παλιές ειδοποιήσεις — στάλθηκε το εγκεκριμένο template demos_transition.",
-            messages: [rendered.body],
-          } as Prisma.InputJsonValue,
-        },
-      });
+      // No decision row: the intro's text reaches the agent through the
+      // conversation (its message row, once sent), and the panel's intro
+      // bubble renders from the subscription's origin.
       const intro = await tx.notisMessage.create({
         data: {
           subscriptionId: sub.id,
@@ -280,7 +258,7 @@ async function enrollNewTargets(
  * Phase (b) — reconciliation for existing subscriptions: refresh phone and
  * name (write only on change — updatedAt is the conversation list's sort
  * key), and unsubscribe when the phone is GONE,
- * with a journal entry naming the reason. Never re-activates.
+ * with a model-less wake row naming the reason. Never re-activates.
  */
 async function reconcileSubscriptions(
   db: PrismaClient,
@@ -312,18 +290,27 @@ async function reconcileSubscriptions(
             where: { id: sub.id },
             data: { status: "unsubscribed", unsubscribedAt: at, phone: null },
           });
-          await tx.notisJournalEntry.create({
+          // A model-less wake row: why this reader went silent must survive in
+          // the decision log (the audit answer to "who unsubscribed them").
+          const rationale =
+            "(σύστημα) Ο αριθμός τηλεφώνου αφαιρέθηκε από τον λογαριασμό — απεγγραφή. Επανεγγραφή μόνο με ρητή ενέργεια του χρήστη.";
+          await tx.notisWake.create({
             data: {
               subscriptionId: sub.id,
-              seq: await nextJournalSeq(tx, sub.id),
-              entry: {
-                at: at.toISOString(),
-                event: "system",
+              eventType: "system",
+              eventAt: at,
+              event: { type: "system", at: at.toISOString() } as unknown as Prisma.InputJsonValue,
+              decision: "silence",
+              rationale,
+              outcome: {
                 decision: "silence",
-                rationale:
-                  "(σύστημα) Ο αριθμός τηλεφώνου αφαιρέθηκε από τον λογαριασμό — απεγγραφή. Επανεγγραφή μόνο με ρητή ενέργεια του χρήστη.",
+                rationale,
                 messages: [],
-              } as Prisma.InputJsonValue,
+                scheduledWakes: [],
+                unsubscribe: { reason: "phone removed" },
+              } as unknown as Prisma.InputJsonValue,
+              costUsd: 0,
+              durationMs: 0,
             },
           });
         });

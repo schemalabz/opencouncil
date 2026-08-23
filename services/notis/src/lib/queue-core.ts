@@ -145,7 +145,7 @@ export function isUniqueViolation(error: unknown): boolean {
  * Two eligibility rules beyond "pending and due":
  * - a running row whose claim went stale is claimable again (crash recovery);
  * - a subscription with a running row of ANY age yields nothing else. Wakes
- *   for one person run strictly one at a time, or journal seq allocation
+ *   for one person run strictly one at a time, or concurrent state reads
  *   would race and the conversation would interleave. The guard covers stale
  *   running rows too, and deliberately so: while a stale row exists it is
  *   the subscription's only candidate, so reclaiming it is the sole way

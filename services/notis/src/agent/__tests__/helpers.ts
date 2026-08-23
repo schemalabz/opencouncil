@@ -24,7 +24,8 @@ export function makeState(overrides: Partial<WakeState> = {}): WakeState {
       ],
     },
     profile: "Μένει στην Κυψέλη. Ενδιαφέρεται για αναπλάσεις και πάρκινγκ.",
-    journal: [],
+    conversation: [],
+    decisions: [],
     ...overrides,
   };
 }

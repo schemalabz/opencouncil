@@ -1,5 +1,5 @@
 import { assembleSystem, assembleUserTurn } from "../prompt";
-import { JOURNAL_WINDOW, JournalEntry } from "../types";
+import { DECISION_WINDOW, DecisionEntry } from "../types";
 import { FIXED_NOW, makeState, meetingEvent } from "./helpers";
 
 const prompts = { system: "SYSTEM", contextPack: "PACK", editorial: "ED" };
@@ -22,9 +22,16 @@ describe("assembleSystem", () => {
 });
 
 describe("assembleUserTurn", () => {
-  it("contains profile, journal, clock and event sections in order", () => {
+  it("contains profile, conversation, decisions, clock and event sections in order", () => {
     const turn = assembleUserTurn(makeState(), [meetingEvent()], FIXED_NOW);
-    const order = ["<user_profile>", "<taste_profile>", "<journal>", "<current_time>", "<event>"];
+    const order = [
+      "<user_profile>",
+      "<taste_profile>",
+      "<conversation>",
+      "<decisions>",
+      "<current_time>",
+      "<event>",
+    ];
     let last = -1;
     for (const tag of order) {
       const idx = turn.indexOf(tag);
@@ -80,17 +87,16 @@ describe("assembleUserTurn", () => {
     expect(turn).not.toContain("distance from their places:");
   });
 
-  it("truncates the journal to the last JOURNAL_WINDOW entries", () => {
-    const journal: JournalEntry[] = Array.from({ length: JOURNAL_WINDOW + 10 }, (_, i) => ({
-      at: `2026-01-01T00:00:${String(i % 60).padStart(2, "0")}.000Z`,
-      event: "heartbeat" as const,
-      decision: "silence" as const,
+  it("truncates the decision log to the last DECISION_WINDOW entries", () => {
+    const decisions: DecisionEntry[] = Array.from({ length: DECISION_WINDOW + 10 }, (_, i) => ({
+      at: `2026-03-0${(i % 9) + 1}T10:00:00.000Z`,
+      event: "meeting_summarized",
+      decision: "silence",
       rationale: `entry-${i}`,
-      messages: [],
     }));
-    const turn = assembleUserTurn(makeState({ journal }), [meetingEvent()], FIXED_NOW);
+    const turn = assembleUserTurn(makeState({ decisions }), [meetingEvent()], FIXED_NOW);
     expect(turn).not.toContain("entry-9\n");
-    expect(turn).toContain(`entry-${JOURNAL_WINDOW + 9}`);
+    expect(turn).toContain(`entry-${DECISION_WINDOW + 9}`);
     expect(turn).toContain(`entry-10`);
   });
 
@@ -103,21 +109,15 @@ describe("assembleUserTurn", () => {
     expect(turn).toContain("Τι έγινε με την πλατεία;");
   });
 
-  it("journal entries carry the user's past words so the conversation is remembered", () => {
+  it("renders the real conversation when the state carries one", () => {
     const state = makeState({
-      journal: [
-        {
-          at: "2026-03-01T10:00:00.000Z",
-          event: "user_message",
-          decision: "send",
-          rationale: "answered directly",
-          messages: ["Η απάντηση."],
-          received: "Πότε φτιάχνεται ο δρόμος μας;",
-        },
+      conversation: [
+        { at: "2026-03-01T10:00:00.000Z", from: "reader", text: "Πότε φτιάχνεται ο δρόμος μας;" },
+        { at: "2026-03-01T10:01:00.000Z", from: "notis", text: "Η απάντηση." },
       ],
     });
     const turn = assembleUserTurn(state, [meetingEvent()], FIXED_NOW);
     expect(turn).toContain("they wrote: «Πότε φτιάχνεται ο δρόμος μας;»");
-    expect(turn).toContain("sent: «Η απάντηση.»");
+    expect(turn).toContain("you sent: «Η απάντηση.»");
   });
 });

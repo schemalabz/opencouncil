@@ -1,10 +1,11 @@
 import { z } from "zod";
 import {
   cityPreferenceSchema,
+  conversationMessageSchema,
   editorialBriefSchema,
   editorialSubjectSchema,
   effortSchema,
-  journalEntrySchema,
+  decisionEntrySchema,
   wakeEventSchema,
   wakeStateSchema,
 } from "./schemas";
@@ -15,12 +16,13 @@ import {
  * the dry-run endpoint, the playground and the test suite all drive the same
  * code by injecting different Deps.
  *
- * Wire shapes (state, events, briefs, journal) have ONE source of truth: the
+ * Wire shapes (state, events, briefs, decisions) have ONE source of truth: the
  * zod schemas in ./schemas. The types below are derived from them.
  */
 
-export type JournalEntry = z.infer<typeof journalEntrySchema>;
+export type DecisionEntry = z.infer<typeof decisionEntrySchema>;
 export type CityPreference = z.infer<typeof cityPreferenceSchema>;
+export type ConversationMessage = z.infer<typeof conversationMessageSchema>;
 export type WakeState = z.infer<typeof wakeStateSchema>;
 export type EditorialSubject = z.infer<typeof editorialSubjectSchema>;
 export type EditorialBrief = z.infer<typeof editorialBriefSchema>;
@@ -41,8 +43,6 @@ export interface WakeOutcome {
   profileRewrite?: string;
   scheduledWakes: Array<{ at: string; reason: string }>;
   unsubscribe?: { reason: string };
-  /** Built deterministically by the core (journal.ts), never by the model. */
-  journalAppend: JournalEntry;
 }
 
 export interface Usage {
@@ -171,4 +171,8 @@ export const DEFAULT_CONFIG: DepsConfig = {
   effort: "low",
 };
 
-export const JOURNAL_WINDOW = 30;
+/** The most recent decision entries the prompt renders. */
+export const DECISION_WINDOW = 30;
+/** The most recent conversation turns the prompt renders. Messages outnumber
+ *  wakes, so this window is wider than the decision log's. */
+export const CONVERSATION_WINDOW = 40;

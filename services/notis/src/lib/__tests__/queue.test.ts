@@ -47,7 +47,7 @@ function seedClaim(db: ReturnType<typeof makeFakeDb>, attempts = 1) {
 }
 
 describe("processItem", () => {
-  it("persists the wake, journal and message BEFORE calling Bird, keyed by the message id", async () => {
+  it("persists the wake and message BEFORE calling Bird, keyed by the message id", async () => {
     const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
     seedClaim(db);
     const bird = new FakeBird();
@@ -64,8 +64,6 @@ describe("processItem", () => {
 
     // Everything committed, then exactly one Bird call.
     expect(db.store.wakes).toHaveLength(1);
-    expect(db.store.journal).toHaveLength(1);
-    expect(db.store.journal[0].seq).toBe(1);
     expect(db.store.queue.get("q1")?.status).toBe("done");
     expect(bird.sends).toHaveLength(1);
 
@@ -208,7 +206,6 @@ describe("processItem", () => {
     // The persist tx threw ClaimLostError: nothing landed, nothing sent,
     // and the reclaimer's row was left untouched.
     expect(db.store.wakes).toHaveLength(0);
-    expect(db.store.journal).toHaveLength(0);
     expect(bird.sends).toHaveLength(0);
     expect(db.store.queue.get("q1")?.status).toBe("running");
     expect(db.store.queue.get("q1")?.attempts).toBe(ITEM.attempts + 1);

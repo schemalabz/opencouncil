@@ -198,14 +198,15 @@ describe("proactive rails", () => {
     expect(bird.templateSends).toHaveLength(0);
     expect(db.store.messages.some((m) => m.wakeId)).toBe(false);
     expect(db.store.queue.get("q1")?.status).toBe("done");
-    // The journal says what went unexamined, so the next wake is not left
-    // believing this reader was told.
-    const entry = db.store.journal.at(-1)!.entry as { event: string; rationale: string };
-    expect(entry.event).toBe("system");
-    expect(entry.rationale).toContain("δεν εξετάστηκε");
+    // A model-less wake row says what went unexamined, so the next wake's
+    // decision log is not left believing this reader was told.
+    const skipped = db.store.wakes.at(-1)!;
+    expect(skipped.decision).toBe("silence");
+    expect(skipped.model ?? null).toBeNull();
+    expect(String(skipped.rationale)).toContain("δεν εξετάστηκε");
   });
 
-  it("weekly cap filled DURING the wake: the send is suppressed and the journal corrected", async () => {
+  it("weekly cap filled DURING the wake: the send is suppressed", async () => {
     const db = makeFakeDb({ subscriptions: [{ ...SUB }], settings: liveSettings() });
     seedClaim(db);
     const bird = new FakeBird();
@@ -238,9 +239,80 @@ describe("proactive rails", () => {
     expect(outbound.status).toBe("suppressed");
     expect(outbound.failureReason).toBe("weekly cap");
     expect(bird.templateSends).toHaveLength(0);
-    const entry = db.store.journal.at(-1)!.entry as { event: string; rationale: string };
-    expect(entry.event).toBe("system");
-    expect(entry.rationale).toContain("ΔΕΝ τα έλαβε");
+    // No correction is written anywhere: the suppressed row is simply
+    // excluded from the conversation the next wake reads, so the agent
+    // cannot mistake it for a delivered message.
+    expect(db.store.wakes.filter((w) => (w.model ?? null) === null)).toHaveLength(0);
+  });
+
+  it("the decision log the model sees comes from the wake rows", async () => {
+    // A past wake's decision — including a model-less one like a cap skip —
+    // reaches the next prompt from NotisWake itself; no separate journal.
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }], settings: liveSettings() });
+    seedClaim(db);
+    db.store.wakes.push({
+      id: "w-old",
+      subscriptionId: "sub1",
+      eventType: "meeting_summarized",
+      eventAt: new Date(Date.now() - 24 * 3_600_000),
+      decision: "silence",
+      rationale: "τίποτα κοντά τους αυτή τη φορά",
+      outcome: { decision: "silence", rationale: "τίποτα κοντά τους αυτή τη φορά", messages: [], scheduledWakes: [] },
+      truncated: false,
+      model: null,
+      createdAt: new Date(Date.now() - 24 * 3_600_000),
+    });
+    const silenceTurn = [
+      { content: [toolUse("t1", "finish_wake", { rationale: "όχι" })], stop_reason: "tool_use" },
+    ];
+    const anthropic = new FakeAnthropic(silenceTurn);
+
+    await processItem(batchItem([meetingEvent()]), {
+      db,
+      bird: new FakeBird(),
+      deps: makeDeps(anthropic),
+      alert: async () => {},
+    });
+
+    const userTurn = (
+      anthropic.requests[0].messages[0] as { content: Array<{ text: string }> }
+    ).content[0].text;
+    expect(userTurn).toContain("<decisions>");
+    expect(userTurn).toContain("meeting_summarized → silence");
+    expect(userTurn).toContain("τίποτα κοντά τους αυτή τη φορά");
+  });
+
+  it("the conversation the model sees is the real message record — a suppressed message is excluded", async () => {
+    // The core of #9: the prompt's conversation comes from the message table's
+    // delivery status, not a journal claim. A delivered message and an inbound
+    // reply appear; a suppressed one never does, so the agent cannot treat a
+    // stopped send as one the reader received.
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }], settings: liveSettings() });
+    seedClaim(db);
+    const past = new Date(Date.now() - 60 * 60_000);
+    db.store.messages.push(
+      { id: "d1", subscriptionId: "sub1", direction: "outbound", status: "delivered", body: "Η πλατεία ανακαινίζεται.", createdAt: past },
+      { id: "x1", subscriptionId: "sub1", direction: "outbound", status: "suppressed", body: "ΑΥΤΟ δεν εστάλη.", createdAt: past },
+      { id: "i1", subscriptionId: "sub1", direction: "inbound", status: null, body: "Πότε αρχίζει;", createdAt: past },
+    );
+    const silenceTurn = [
+      { content: [toolUse("t1", "finish_wake", { rationale: "όχι τώρα" })], stop_reason: "tool_use" },
+    ];
+    const anthropic = new FakeAnthropic(silenceTurn);
+
+    await processItem(batchItem([meetingEvent()]), {
+      db,
+      bird: new FakeBird(),
+      deps: makeDeps(anthropic),
+      alert: async () => {},
+    });
+
+    const userTurn = (
+      anthropic.requests[0].messages[0] as { content: Array<{ text: string }> }
+    ).content[0].text;
+    expect(userTurn).toContain("Η πλατεία ανακαινίζεται."); // delivered → shown
+    expect(userTurn).toContain("Πότε αρχίζει;"); // inbound → shown
+    expect(userTurn).not.toContain("ΑΥΤΟ δεν εστάλη."); // suppressed → hidden
   });
 
   it("cap ignores rows that never reached anyone (cap/pause suppressions, failures)", async () => {

@@ -6,7 +6,7 @@ import { hasMainDb, mainDb } from "./main-db";
  * Reconciliation janitor: every subscription belongs to an OpenCouncil user
  * (inbound never enrolls unknown numbers), so a userId with no notis_users
  * row means the account was deleted — purge the subscription, cascading its
- * wakes, messages and journal. Behind a blast-radius guard: a broken view
+ * wakes and messages. Behind a blast-radius guard: a broken view
  * looks exactly like a mass deletion, so past the threshold it alarms and
  * deletes nothing.
  *
