@@ -76,6 +76,10 @@ export interface SystemSnapshot {
     heldUntilRelease: number;
     items: QueueItemView[];
     more: number;
+    /** Terminal failures in the last 7 days. Failed rows are history, not
+     *  queue state — the table shows live work and this line shows the
+     *  toll, until the janitor removes the rows entirely (30 days). */
+    failures: { count: number; latestAt: string | null };
   };
   scheduled: { items: ScheduledView[]; more: number; total: number };
   digested: { items: DigestedMeetingView[]; total: number };
@@ -87,7 +91,7 @@ const EMPTY: SystemSnapshot = {
   phase: { kind: "active", since: new Date(0).toISOString(), until: new Date(0).toISOString() },
   settings: { paused: true },
   poller: { lastTickAt: null, nextTickAt: null },
-  queue: { counts: {}, laneCounts: {}, heldUntilRelease: 0, items: [], more: 0 },
+  queue: { counts: {}, laneCounts: {}, heldUntilRelease: 0, items: [], more: 0, failures: { count: 0, latestAt: null } },
   scheduled: { items: [], more: 0, total: 0 },
   digested: { items: [], total: 0 },
   atCap: [],
@@ -127,6 +131,10 @@ export interface RailsNow {
   settings: { paused: boolean };
   heldUntilRelease: number;
   atCapCount: number;
+  /** Wakes in trouble: terminal failures in the last 7 days, and live items
+   *  that have failed at least once and are waiting to retry. Zero on a
+   *  healthy system, so the overview can shout when it is not. */
+  queueTrouble: { failed: number; retrying: number };
 }
 
 /** The lightweight "now" slice the overview strip needs. */
@@ -135,11 +143,18 @@ export async function getRailsNow(): Promise<RailsNow | null> {
   const db = notisDb();
   const now = new Date();
   const phase = activePhase(now);
-  const [settings, heldUntilRelease, capped] = await Promise.all([
-    getProactiveSettings(db),
-    db.notisWakeQueue.count({ where: { status: "pending", runAfter: { gt: now } } }),
-    usersAtCap(db),
-  ]);
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60_000);
+  const [settings, heldUntilRelease, capped, failed, retryPending, retryRunning] =
+    await Promise.all([
+      getProactiveSettings(db),
+      db.notisWakeQueue.count({ where: { status: "pending", runAfter: { gt: now } } }),
+      usersAtCap(db),
+      db.notisWakeQueue.count({ where: { status: "failed", updatedAt: { gte: weekAgo } } }),
+      db.notisWakeQueue.count({ where: { status: "pending", attempts: { gt: 0 } } }),
+      // attempts counts claims, and a first run holds claim #1 — only a
+      // second-or-later claim means an earlier attempt failed.
+      db.notisWakeQueue.count({ where: { status: "running", attempts: { gt: 1 } } }),
+    ]);
   return {
     phase: {
       kind: phase.phase,
@@ -149,6 +164,7 @@ export async function getRailsNow(): Promise<RailsNow | null> {
     settings,
     heldUntilRelease,
     atCapCount: capped.length,
+    queueTrouble: { failed, retrying: retryPending + retryRunning },
   };
 }
 
@@ -171,10 +187,11 @@ export async function getSystemSnapshot(): Promise<SystemSnapshot> {
       db.notisWakeQueue.count({ where: { status: "pending", runAfter: { gt: now } } }),
     ]);
 
-  // Worst first: running (possibly stuck), then failed (needs eyes), then
-  // pending by due time. Done rows are history, not state.
+  // Live work only, worst first: running (possibly stuck), then pending by
+  // due time. Done and failed rows are history, not state — failures roll
+  // up into the `failures` line instead of squatting in the table.
   const activeItems = await db.notisWakeQueue.findMany({
-    where: { status: { in: ["running", "pending", "failed"] } },
+    where: { status: { in: ["running", "pending"] } },
     orderBy: [{ status: "desc" }, { runAfter: "asc" }],
     take: QUEUE_LIST_LIMIT + 1,
     select: {
@@ -209,6 +226,13 @@ export async function getSystemSnapshot(): Promise<SystemSnapshot> {
       },
     }),
   ]);
+
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60_000);
+  const failuresAgg = await db.notisWakeQueue.aggregate({
+    where: { status: "failed", updatedAt: { gte: weekAgo } },
+    _count: { _all: true },
+    _max: { updatedAt: true },
+  });
 
   const [digestedTotal, digestedRows] = await Promise.all([
     db.notisProcessedEvent.count(),
@@ -271,6 +295,10 @@ export async function getSystemSnapshot(): Promise<SystemSnapshot> {
       heldUntilRelease,
       items: queueItems,
       more: Math.max(0, activeItems.length - QUEUE_LIST_LIMIT),
+      failures: {
+        count: failuresAgg._count._all,
+        latestAt: failuresAgg._max.updatedAt?.toISOString() ?? null,
+      },
     },
     scheduled: {
       items: scheduledRows.slice(0, SCHEDULE_LIST_LIMIT).map((row) => ({

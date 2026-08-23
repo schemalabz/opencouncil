@@ -61,6 +61,7 @@ function circleClasses(item: WakeRecord, isNext: boolean, isSelected: boolean, i
     "flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 bg-background transition-all";
   const ring = isSelected ? " ring-2 ring-orange ring-offset-2 ring-offset-background" : "";
   if (isBusy) return `${base} animate-pulse border-orange${ring}`;
+  if (item.status === "failed") return `${base} border-red-600/60${ring}`;
   if (item.status === "skipped") return `${base} border-dashed border-muted-foreground/40${ring}`;
   if (item.status === "done" && item.outcome?.decision === "send")
     return `${base} border-orange${ring}`;

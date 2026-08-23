@@ -1,7 +1,7 @@
 import { getAdminSession } from "@/lib/session-auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { CalendarClock, EyeOff, Gauge, Moon, OctagonAlert, Sun } from "lucide-react";
+import { CalendarClock, EyeOff, Gauge, Moon, OctagonAlert, Sun, TriangleAlert } from "lucide-react";
 import { EVENT_LABELS } from "./_lib/records";
 import { getRailsNow } from "./_lib/system";
 import { Countdown } from "./_components/Countdown";
@@ -410,6 +410,29 @@ async function RailsStrip({ suppressions }: { suppressions: Array<{ reason: stri
           />
         </div>
       </div>
+
+      {(rails.queueTrouble.failed > 0 || rails.queueTrouble.retrying > 0) && (
+        <div className={cell}>
+          <TriangleAlert className="h-4 w-4 shrink-0 text-destructive" />
+          <div className="leading-tight">
+            <p className="text-sm font-semibold tabular-nums text-destructive">
+              {rails.queueTrouble.failed + rails.queueTrouble.retrying}
+            </p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              {[
+                rails.queueTrouble.failed > 0
+                  ? `απέτυχαν ${rails.queueTrouble.failed} (7ημ)`
+                  : "",
+                rails.queueTrouble.retrying > 0
+                  ? `ξαναδοκιμάζει ${rails.queueTrouble.retrying}`
+                  : "",
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          </div>
+        </div>
+      )}
 
       {rails.heldUntilRelease > 0 && (
         <div className={cell}>

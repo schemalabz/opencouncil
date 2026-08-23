@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   AlarmClock,
   AlertCircle,
+  AlertTriangle,
   Check,
   CheckCheck,
   Clock3,
@@ -11,6 +12,7 @@ import {
   ExternalLink,
   EyeOff,
   FastForward,
+  Loader2,
   Send,
   SkipForward,
   Square,
@@ -448,7 +450,11 @@ export function WhatsAppChat({
   // Pending records are invisible except the one actively running — that
   // keeps a just-sent user message visible instantly, while a rewind (which
   // returns records to pending without running them) clears their bubbles.
-  const visible = records.filter((q) => q.status !== "pending" || q.id === busyItemId);
+  // Queue-backed records (live viewer) are the opposite case: they exist
+  // BECAUSE the wake has not run, and hiding them hides the reader's message.
+  const visible = records.filter(
+    (q) => q.status !== "pending" || q.queue !== undefined || q.id === busyItemId,
+  );
   // Mirror the page's ΣΤΟΠ gate: once a wake unsubscribed the reader, the
   // remaining proactive items are dead — the buttons must look it, not just
   // silently no-op. The composer stays live (inbound survives a ΣΤΟΠ).
@@ -555,6 +561,52 @@ export function WhatsAppChat({
                   <span className="rounded-md bg-[#ffffff99] px-3 py-1 text-[11px] text-[#8696a0] shadow-sm">
                     {eventCaption(item)} — παραλείφθηκε
                   </span>
+                </div>
+              )}
+              {item.queue && (
+                <div className="flex flex-col items-center gap-1 px-4">
+                  <span
+                    className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-[11px] shadow-sm ${
+                      item.queue.state === "failed"
+                        ? "bg-[#ffffffcc] font-medium text-red-700"
+                        : "bg-[#ffffff99] text-[#8696a0]"
+                    }`}
+                  >
+                    {item.event.type !== "user_message" && <>{eventCaption(item)} — </>}
+                    {item.queue.state === "failed" ? (
+                      <>
+                        <AlertTriangle className="h-3 w-3 shrink-0" />
+                        η επεξεργασία απέτυχε οριστικά μετά από {item.queue.attempts} προσπάθειες
+                      </>
+                    ) : item.queue.state === "running" ? (
+                      <>
+                        <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
+                        επεξεργάζεται τώρα
+                      </>
+                    ) : item.queue.attempts > 0 ? (
+                      <>
+                        <AlertTriangle className="h-3 w-3 shrink-0 text-amber-600" />
+                        απέτυχε {item.queue.attempts}
+                        {item.queue.attempts === 1 ? " φορά" : " φορές"}
+                        {item.queue.nextTryAt
+                          ? ` · ξαναδοκιμάζει ${fmtTime(item.queue.nextTryAt)}`
+                          : ""}
+                      </>
+                    ) : (
+                      <>
+                        <Clock className="h-3 w-3 shrink-0" />
+                        σε αναμονή επεξεργασίας
+                      </>
+                    )}
+                  </span>
+                  {item.queue.lastError && item.queue.attempts > 0 && (
+                    <span
+                      className="max-w-[420px] truncate rounded-md bg-[#ffffff99] px-3 py-1 font-mono text-[10px] text-red-700/80 shadow-sm"
+                      title={item.queue.lastError}
+                    >
+                      {item.queue.lastError}
+                    </span>
+                  )}
                 </div>
               )}
               {item.outcome?.decision === "silence" && (

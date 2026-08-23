@@ -11,6 +11,7 @@ import {
   Moon,
   OctagonAlert,
   Sun,
+  TriangleAlert,
 } from "lucide-react";
 import { env } from "@/env.mjs";
 import { EVENT_LABELS } from "../_lib/records";
@@ -317,6 +318,19 @@ export default async function SystemPage() {
                   </li>
                 ))}
               </ul>
+            )}
+            {snap.queue.failures.count > 0 && (
+              <p className="flex items-center gap-1.5 border-t px-4 py-2.5 text-xs text-destructive">
+                <TriangleAlert className="h-3.5 w-3.5 shrink-0" />
+                {snap.queue.failures.count}{" "}
+                {snap.queue.failures.count === 1
+                  ? "οριστική αποτυχία"
+                  : "οριστικές αποτυχίες"}{" "}
+                τις τελευταίες 7 ημέρες
+                {snap.queue.failures.latestAt
+                  ? ` · τελευταία ${timeAgo(snap.queue.failures.latestAt, now)}`
+                  : ""}
+              </p>
             )}
           </section>
 
