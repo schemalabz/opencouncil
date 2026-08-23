@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { ListHeader, RankedListHint, ZoomGroup } from './conceptShared';
 import { type LayoutProps, type LandingView } from '@/lib/landing/landingCore';
 import { CategoryFilterBar, DateRangePill, FewResultsHint, MapStyleToggle, MunicipalityPageButton } from './controls';
-import { SearchChip, SearchErrorPill, SearchResultsFooter } from './searchSummary';
+import { landingSearchHref, SearchChip, SearchErrorPill, SearchResultsFooter } from './searchSummary';
 import { DesktopSearch } from './SearchPanel';
 import { CoLocatedBox, GeneralSubjectsBox } from './mapMarkers';
 import { MunicipalitiesList } from './MunicipalitiesList';
@@ -143,7 +143,10 @@ export function DesktopLayout({
                         caption has to name the query the list is ordered against. */}
                     {!infoOpen && view === 'subjects' && !loading && count > 0 && (
                         <div className="-mt-2 bg-card px-4 pb-2.5">
-                            <RankedListHint searchQuery={committedSearch?.query} />
+                            <RankedListHint
+                                searchQuery={committedSearch?.query}
+                                searchHref={committedSearch ? landingSearchHref(committedSearch.query, cats, filters) : undefined}
+                            />
                         </div>
                     )}
 

@@ -125,7 +125,7 @@ export function SearchResultsFooter({
             )}
             <Link
                 href={landingSearchHref(search.query, cats, filters)}
-                onClick={() => captureLandingAction('search_handoff', { query_length: search.query.length })}
+                onClick={() => captureLandingAction('search_handoff', { query_length: search.query.length, surface: 'list_footer' })}
                 className={rowClass}
             >
                 {t('search.everywhere')}
@@ -173,7 +173,7 @@ export function SearchResultsCard({
             )}
             <Link
                 href={landingSearchHref(search.query, cats, filters)}
-                onClick={() => captureLandingAction('search_handoff', { query_length: search.query.length })}
+                onClick={() => captureLandingAction('search_handoff', { query_length: search.query.length, surface: 'strip_card' })}
                 className={rowClass}
             >
                 {t('search.everywhere')}

@@ -9,7 +9,7 @@ import Icon from '@/components/icon';
 import { formatDate, formatDateTime } from '@/lib/formatters/time';
 import { captureLandingAction } from '@/lib/landing/analytics';
 import { ListHeader, RankedListHint } from './conceptShared';
-import { SearchErrorPill, SearchResultsCard } from './searchSummary';
+import { landingSearchHref, SearchErrorPill, SearchResultsCard } from './searchSummary';
 import { subjectLocationLine, type LandingSubject, type LandingListCity, type LandingPetitionedCity, type UpcomingMeeting } from '@/lib/landing/landingData';
 import { PETITION_DISPLAY_THRESHOLD } from '@/lib/landing/petitions';
 import { hasActiveFilters, type LayoutProps } from '@/lib/landing/landingCore';
@@ -275,7 +275,11 @@ export function MobileLayout({
                                             style={{ scrollbarWidth: 'none' }}
                                         >
                                             {searchFailed && <SearchErrorPill onRetry={onRetrySearch} floating />}
-                                            <RankedListHint floating searchQuery={committedSearch?.query} />
+                                            <RankedListHint
+                                                floating
+                                                searchQuery={committedSearch?.query}
+                                                searchHref={committedSearch ? landingSearchHref(committedSearch.query, cats, filters) : undefined}
+                                            />
                                         </div>
                                     )}
                                     {tab === 'subjects' ? (
