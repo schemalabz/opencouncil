@@ -157,14 +157,14 @@ export function InspectorPane({ item, trace, profile, sim }: Props) {
                   turn {i + 1} · stop: {turn.stopReason}
                 </p>
                 {(turn.content as RawBlock[]).map((b, j) => {
-                  if (b.type === "mcp_tool_use" || b.type === "tool_use")
+                  if (b.type === "mcp_tool_use" || b.type === "tool_use" || b.type === "server_tool_use")
                     return (
                       <p key={j} className="font-mono text-xs">
-                        {b.type === "mcp_tool_use" ? "[mcp]" : "[tool]"} {b.name}(
+                        {b.type === "mcp_tool_use" ? "[mcp]" : b.type === "server_tool_use" ? "[web]" : "[tool]"} {b.name}(
                         {JSON.stringify(b.input).slice(0, 120)})
                       </p>
                     );
-                  if (b.type === "mcp_tool_result")
+                  if (b.type === "mcp_tool_result" || b.type === "web_fetch_tool_result")
                     return (
                       <p key={j} className="font-mono text-xs text-muted-foreground">
                         ↳ result ({JSON.stringify(b.content).length} chars)
