@@ -200,6 +200,7 @@ model NotisMessage {
   createdAt DateTime @default(now())
 
   @@index([subscriptionId, createdAt])
+  @@index([createdAt])
 }
 
 // Why the schedule exists decides the template shell when it fires outside
