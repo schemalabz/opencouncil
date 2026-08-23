@@ -213,29 +213,38 @@ export function extractConflictingConversationId(
   json: Record<string, unknown> | null,
   _text: string | null,
 ): string | undefined {
-  const direct = json as
-    | { conversationId?: unknown; id?: unknown; details?: Record<string, unknown> }
-    | null;
-  const named = [
-    direct?.conversationId,
-    direct?.id,
-    direct?.details?.conversationId,
-    direct?.details?.id,
-    direct?.details?.conflictingResource,
-    direct?.details?.resource,
-    direct?.details?.existingConversationId,
-  ];
-  // A named value may be a path ("conversations/<uuid>"), so the id is
-  // extracted rather than taken whole.
-  for (const candidate of [...named, ...Object.values(direct?.details ?? {})]) {
+  // details.* ONLY, like the main app's battle-tested extractor: a root-level
+  // `id` on an error body is a request or incident identifier, and adopting
+  // one poisons the subscription — every later send targets a conversation
+  // that does not exist, until the reader happens to write in. Bird's
+  // documented ConflictError shape is { code, message, details }.
+  const details = ((json as { details?: Record<string, unknown> } | null)?.details ?? {}) as Record<
+    string,
+    unknown
+  >;
+  const isUuid = (v: unknown): v is string => typeof v === "string" && UUID_RE.test(v);
+
+  // The two resource-shaped keys may carry a path ("conversations/<uuid>"),
+  // so the id is extracted from them; every other candidate must BE a UUID,
+  // whole — a substring match on free text can grab an unrelated id.
+  for (const candidate of [details.conflictingResource, details.resource]) {
     if (typeof candidate !== "string") continue;
-    const match = candidate.match(UUID_RE);
+    const match = candidate.match(UUID_ANYWHERE_RE);
     if (match) return match[0];
+  }
+  for (const candidate of [
+    details.conversationId,
+    details.id,
+    details.existingConversationId,
+    ...Object.values(details),
+  ]) {
+    if (isUuid(candidate)) return candidate;
   }
   return undefined;
 }
 
-const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_ANYWHERE_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
 function conversationMessagesUrl(conversationId: string): string {
   return `https://api.bird.com/workspaces/${env.BIRD_WORKSPACE_ID}/conversations/${conversationId}/messages`;

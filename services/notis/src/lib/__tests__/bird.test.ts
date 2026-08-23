@@ -143,13 +143,48 @@ describe("sendSms", () => {
 });
 
 describe("extractConflictingConversationId", () => {
-  it("reads a UUID out of any details value, including a path", () => {
+  it("reads a UUID out of a details resource path", () => {
     expect(
       extractConflictingConversationId(
         { details: { resource: "conversations/9d0a2b1c-1111-2222-3333-444455556666" } },
         null,
       ),
     ).toBe("9d0a2b1c-1111-2222-3333-444455556666");
+  });
+
+  it("reads a whole-value UUID from a named details key", () => {
+    expect(
+      extractConflictingConversationId(
+        { details: { conversationId: "9d0a2b1c-1111-2222-3333-444455556666" } },
+        null,
+      ),
+    ).toBe("9d0a2b1c-1111-2222-3333-444455556666");
+  });
+
+  it("NEVER adopts a root-level id — that is a request id, not a conversation", () => {
+    // Adopting one poisons the subscription: every later send targets a
+    // conversation that does not exist, until the reader happens to write in.
+    expect(
+      extractConflictingConversationId(
+        { id: "9d0a2b1c-1111-2222-3333-444455556666", message: "conflict" },
+        null,
+      ),
+    ).toBeUndefined();
+    expect(
+      extractConflictingConversationId(
+        { conversationId: "9d0a2b1c-1111-2222-3333-444455556666" },
+        null,
+      ),
+    ).toBeUndefined();
+  });
+
+  it("does not substring-match a UUID out of free text in details", () => {
+    expect(
+      extractConflictingConversationId(
+        { details: { message: 'see incident "9d0a2b1c-1111-2222-3333-444455556666" for context' } },
+        null,
+      ),
+    ).toBeUndefined();
   });
 
   it("does NOT scan the raw body — a trace id there must never be adopted", () => {
