@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Map as MapIcon, Landmark, HelpCircle, MoreHorizontal, LogIn, LogOut, User, Phone, Mail, ArrowRight } from 'lucide-react';
+import { Map as MapIcon, Landmark, HelpCircle, MoreHorizontal, LogIn, LogOut, User, Phone, Mail, ArrowRight, Search, Bot } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { Link, getPathname } from '@/i18n/routing';
 import { openAfterMenuCloses } from '@/lib/utils/menus';
@@ -122,6 +122,11 @@ export function LandingAside({
 
             {/* bottom: script toggle (serbian realm only) + policy popover + account */}
             <div className="flex shrink-0 flex-col items-center gap-2">
+                {/* /search and /mcp exist in the "Περισσότερα" menu too, but a menu is where
+                    links go to hide — these two are product surfaces, so they get their own
+                    rows, in the sign-in link's shape but muted (orange stays the CTA). */}
+                <RailLink href="/search" icon={<Search className="h-5 w-5" />} label={t('nav.searchPage')} target="search" />
+                <RailLink href="/mcp" icon={<Bot className="h-5 w-5" />} label={t('nav.mcp')} ariaLabel="OpenCouncil MCP" target="mcp" />
                 <ScriptSwitcher />
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -298,6 +303,36 @@ export function LandingAside({
             </div>
         </div>
         </>
+    );
+}
+
+/* Bottom-group page link: icon over a small label, like the account items. The rail is
+   56px of usable width, so the MCP row carries the short label and the full name as its
+   accessible one. */
+function RailLink({
+    href,
+    icon,
+    label,
+    ariaLabel,
+    target,
+}: {
+    href: string;
+    icon: ReactNode;
+    label: string;
+    /** overrides the visible label as the accessible name, for a label too wide for the rail */
+    ariaLabel?: string;
+    target: 'search' | 'mcp';
+}) {
+    return (
+        <Link
+            href={href}
+            aria-label={ariaLabel}
+            onClick={() => captureLandingAction('nav_link', { target, surface: 'rail' })}
+            className="flex h-14 w-14 flex-col items-center justify-center gap-1 rounded-xl text-muted-foreground no-underline transition-colors hover:bg-muted hover:text-foreground hover:no-underline"
+        >
+            {icon}
+            <span className="text-[12px] font-medium leading-none">{label}</span>
+        </Link>
     );
 }
 

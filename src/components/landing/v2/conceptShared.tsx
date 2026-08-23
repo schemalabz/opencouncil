@@ -1,7 +1,8 @@
 'use client';
 
-import { ArrowLeft, X, Plus, Minus, Flame, Info } from 'lucide-react';
+import { ArrowLeft, ArrowRight, X, Plus, Minus, Flame, Info, Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/routing';
 import type { Topic } from '@prisma/client';
 import { cn } from '@/lib/utils';
 import Icon from '@/components/icon';
@@ -34,8 +35,27 @@ export function TopicChip({ topic, small, iconOnly }: { topic: SubjectTopic; sma
    A Popover rather than a tooltip so the ⓘ works on tap (mobile) as well as hover-less desktops.
    `floating` wraps it as a self-contained pill for sitting over the map (mobile strip); without
    it, it renders as a plain inline row for the desktop panel header. */
-export function RankedListHint({ floating }: { floating?: boolean }) {
+export function RankedListHint({
+    floating,
+    searchQuery,
+    searchHref,
+}: {
+    floating?: boolean;
+    searchQuery?: string;
+    /** /search?q=… carrying the committed query and filters — adds a handoff row to the popover */
+    searchHref?: string;
+}) {
     const t = useTranslations('landingV2');
+    // A committed search re-orders the list by how well each subject answers it,
+    // so the ordering has to say which question it is answering. Without the
+    // query the caption describes the map's own ranking instead.
+    const title = searchQuery ? t('list.relevanceTitle', { query: searchQuery }) : t('list.rankedTitle');
+    const explain = searchQuery ? t('list.relevanceExplain', { query: searchQuery }) : t('list.rankedExplain');
+    // The flame means hottest and most recent, which is the map's own ranking.
+    // A search orders by relevance instead, so it gets its own glyph — sharing
+    // the flame would make the two orderings indistinguishable at a glance,
+    // which is the one thing this caption exists to prevent.
+    const OrderingIcon = searchQuery ? Search : Flame;
     return (
         <Popover onOpenChange={(open) => open && captureLandingAction('ranking_explain_opened', {})}>
             <PopoverTrigger asChild>
@@ -46,8 +66,8 @@ export function RankedListHint({ floating }: { floating?: boolean }) {
                         floating && 'rounded-full border border-border bg-card/95 px-3 py-1.5 shadow-md backdrop-blur',
                     )}
                 >
-                    <Flame className="h-3.5 w-3.5 text-[hsl(var(--orange))]" aria-hidden />
-                    {t('list.rankedTitle')}
+                    <OrderingIcon className="h-3.5 w-3.5 text-[hsl(var(--orange))]" aria-hidden />
+                    {title}
                     <Info className="h-3.5 w-3.5 opacity-60" aria-hidden />
                 </button>
             </PopoverTrigger>
@@ -56,7 +76,19 @@ export function RankedListHint({ floating }: { floating?: boolean }) {
                 align="start"
                 className="w-72 rounded-xl border-border p-3 text-xs leading-relaxed text-muted-foreground shadow-lg"
             >
-                {t('list.rankedExplain')}
+                {explain}
+                {/* The explanation says the results stop at the map's edge — this is the
+                    reader who just learned that, so the way past the edge goes here. */}
+                {searchQuery && searchHref && (
+                    <Link
+                        href={searchHref}
+                        onClick={() => captureLandingAction('search_handoff', { query_length: searchQuery.length, surface: 'explainer' })}
+                        className="mt-2 flex items-center gap-1.5 border-t border-border pt-2 font-semibold text-foreground no-underline transition-colors hover:text-[hsl(var(--orange))] hover:no-underline"
+                    >
+                        {t('search.everywhere')}
+                        <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                    </Link>
+                )}
             </PopoverContent>
         </Popover>
     );

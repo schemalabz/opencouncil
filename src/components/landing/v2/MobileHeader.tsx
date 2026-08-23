@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Menu, Home, ChevronDown, User, LogOut, LogIn, Search, Phone, Mail, ArrowRight, HelpCircle } from 'lucide-react';
+import { Menu, Home, ChevronDown, User, LogOut, LogIn, Search, Bot, Phone, Mail, ArrowRight, HelpCircle } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { Link } from '@/i18n/routing';
 import { openAfterMenuCloses } from '@/lib/utils/menus';
@@ -93,6 +93,23 @@ export function MobileHeader({
                         <DrawerAction onClick={() => onToggleInfo('menu')} icon={<HelpCircle className="h-[18px] w-[18px]" />}>
                             {t('info.title')}
                         </DrawerAction>
+                        {/* /search and /mcp repeat in the Σύνδεσμοι accordion (it mirrors the site
+                            footer), but an accordion is closed by default — these two are product
+                            surfaces, so they get top-level rows. */}
+                        <DrawerLink
+                            href="/search"
+                            icon={<Search className="h-[18px] w-[18px]" />}
+                            onNavigate={() => captureLandingAction('nav_link', { target: 'search', surface: 'drawer' })}
+                        >
+                            {t('nav.searchPage')}
+                        </DrawerLink>
+                        <DrawerLink
+                            href="/mcp"
+                            icon={<Bot className="h-[18px] w-[18px]" />}
+                            onNavigate={() => captureLandingAction('nav_link', { target: 'mcp', surface: 'drawer' })}
+                        >
+                            {t('footer.links.ai')}
+                        </DrawerLink>
                         {footerGroups(realm).map((group) => (
                             <details key={group.title} className="group">
                                 <summary className="flex cursor-pointer list-none items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted [&::-webkit-details-marker]:hidden">
@@ -218,11 +235,12 @@ function DrawerAction({ onClick, icon, children }: { onClick: () => void; icon?:
     );
 }
 
-function DrawerLink({ href, icon, children }: { href: string; icon?: ReactNode; children: ReactNode }) {
+function DrawerLink({ href, icon, children, onNavigate }: { href: string; icon?: ReactNode; children: ReactNode; onNavigate?: () => void }) {
     return (
         <SheetClose asChild>
             <Link
                 href={href}
+                onClick={onNavigate}
                 className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground no-underline transition-colors hover:bg-muted hover:text-foreground hover:no-underline"
             >
                 {icon && <span className="shrink-0 text-muted-foreground">{icon}</span>}

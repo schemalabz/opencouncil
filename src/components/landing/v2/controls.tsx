@@ -155,7 +155,11 @@ export function CategoryFilterBar({
             ro.disconnect();
             el.removeEventListener('scroll', updateArrows);
         };
-    }, [updateArrows, topics]);
+        // `leading` is in here because mounting the search chip widens the row
+        // without resizing the scroller, so the observer never fires: the arrow
+        // and the fade would stay hidden and the trailing pills would sit clipped
+        // flat against the edge with nothing to say they can be scrolled to.
+    }, [updateArrows, topics, leading]);
 
     const scrollByDir = (dir: 1 | -1) => scrollRef.current?.scrollBy({ left: dir * 240, behavior: 'smooth' });
 

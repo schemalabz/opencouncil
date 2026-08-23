@@ -16,6 +16,66 @@ export type SearchFilterParams = {
 
 export type FilterPatch = Partial<Record<keyof SearchFilterParams, string | undefined>>;
 
+/**
+ * A filter the search read out of the query text, rather than the reader
+ * setting it. The search can also derive a location, but there is no location
+ * filter on this page to show it on, so only these two are tracked.
+ *
+ * They live in the URL beside the filters themselves, so a shared link carries
+ * the provenance, and so the page can tell a filter the previous query supplied
+ * (drop it, the next query derives its own) from one the reader chose (keep it).
+ */
+export type DerivedFilterKey = "city" | "date";
+
+/** The URL param carrying the derived keys, beside the filters they mark. */
+export const DERIVED_FILTER_PARAM = "derived";
+
+/** The filter params each derived key owns. */
+export const DERIVED_FILTER_PARAMS: Record<DerivedFilterKey, (keyof SearchFilterParams)[]> = {
+    city: ["cityId"],
+    date: ["dateFrom", "dateTo"],
+};
+
+const DERIVED_FILTER_KEYS = Object.keys(DERIVED_FILTER_PARAMS) as DerivedFilterKey[];
+
+/** Read the `derived` param, ignoring anything a hand-edited URL invented. */
+export function parseDerivedKeys(value: string | null | undefined): DerivedFilterKey[] {
+    if (!value) return [];
+    return value
+        .split(",")
+        .filter((key): key is DerivedFilterKey => DERIVED_FILTER_KEYS.includes(key as DerivedFilterKey));
+}
+
+/** The `derived` param for these keys, or undefined when there are none to mark. */
+export function serializeDerivedKeys(keys: DerivedFilterKey[]): string | undefined {
+    return keys.length > 0 ? keys.join(",") : undefined;
+}
+
+/** The filter params, in the order a /search link spells them. */
+const SEARCH_FILTER_KEYS = [
+    "cityId", "partyId", "personId", "adminBodyType", "adminBodyId", "topicIds", "dateFrom", "dateTo",
+] as const;
+
+/**
+ * A /search link for a query and a set of filters.
+ *
+ * Every entry point built this string by hand, and none of them agreed on which
+ * params exist — the header sent a query and a city, the party page a query and
+ * a party, the landing sent nothing at all. Handing a search on from one
+ * surface to another needs one answer to that, so this is it.
+ */
+export function buildSearchHref(params: SearchFilterParams & { query?: string }): string {
+    const search = new URLSearchParams();
+    const query = params.query?.trim();
+    if (query) search.set("query", query);
+    for (const key of SEARCH_FILTER_KEYS) {
+        const value = params[key];
+        if (value) search.set(key, value);
+    }
+    const qs = search.toString();
+    return qs ? `/search?${qs}` : "/search";
+}
+
 /** Whether any filter is currently set — drives the filter button's active (dot) state. */
 export function hasActiveSearchFilters(filters: SearchFilterParams): boolean {
     return Boolean(

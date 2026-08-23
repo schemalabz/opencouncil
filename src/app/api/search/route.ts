@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
         };
 
         // Perform the search
-        const { results, total } = await search(searchRequest);
+        const { results, total, derivedFilters } = await search(searchRequest);
 
         // Calculate pagination metadata
         const totalPages = Math.ceil(total / validatedRequest.pageSize);
@@ -42,7 +42,12 @@ export async function POST(request: NextRequest) {
                 page: validatedRequest.page,
                 pageSize: validatedRequest.pageSize,
                 totalPages
-            }
+            },
+            // The search reads the query text for filters, so a request that
+            // named a municipality or a period in prose comes back narrowed.
+            // Reporting it is the difference between a caller that can see the
+            // scope it got and one that reads a filtered page as the whole realm.
+            derivedFilters
         });
     } catch (error) {
         console.error('Search error:', error);

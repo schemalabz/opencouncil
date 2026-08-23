@@ -106,6 +106,7 @@
         "greetingNamed": "👋 Γεια σου {name}!",
         "about": "Για Δήμους",
         "search": "Αναζήτηση",
+        "mcp": "OpenCouncil MCP",
         "login": "Σύνδεση",
         "notificationsBreadcrumb": "Ενημερώσεις",
         "petitionBreadcrumb": "Υποστήριξη Δήμου"
