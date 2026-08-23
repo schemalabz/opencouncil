@@ -576,7 +576,8 @@ export function WhatsAppChat({
                     {item.queue.state === "failed" ? (
                       <>
                         <AlertTriangle className="h-3 w-3 shrink-0" />
-                        η επεξεργασία απέτυχε οριστικά μετά από {item.queue.attempts} προσπάθειες
+                        η επεξεργασία απέτυχε οριστικά μετά από{" "}
+                        {Math.min(item.queue.attempts, item.queue.maxAttempts)} προσπάθειες
                       </>
                     ) : item.queue.state === "running" ? (
                       <>

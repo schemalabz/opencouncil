@@ -100,7 +100,15 @@ export async function handleOutboundStatus(
       },
     });
     if (fields.status === "failed") {
-      await maybeSendSmsFallback(existing, deps);
+      if (existing.channel === "sms") {
+        // The SMS WAS the fallback — there is no next channel. The reader
+        // missed a notification; the operator hears about it.
+        await (deps.alert ?? ((m: string) => sendAlert("webhook", m)))(
+          `SMS delivery failed for message ${existing.id}: ${fields.failureReason ?? "unknown error"}`,
+        );
+      } else {
+        await maybeSendSmsFallback(existing, deps);
+      }
     }
     return { action: "status-updated" };
   }
@@ -154,6 +162,8 @@ async function maybeSendSmsFallback(
         body: text,
         channel: "sms",
         proactive: failed.proactive,
+        // Replaces a proactive template send; the rails follow it.
+        railed: true,
         fallbackForId: failed.id,
         status: "pending",
         ...(held ? { failureReason: SMS_HELD_FOR_QUIET_HOURS } : {}),
@@ -186,6 +196,59 @@ async function maybeSendSmsFallback(
       `SMS fallback failed for message ${failed.id}: ${result.error ?? "unknown error"}`,
     );
   }
+}
+
+/**
+ * Inbound SMS for a phone notis serves. SMS exists here because our own
+ * fallback footer says «ΣΤΟΠ για διακοπή» — so ΣΤΟΠ must work over SMS,
+ * and any other reply deserves the agent, not a void. No enrollment on SMS
+ * contact: an eligible first message enrolls via WhatsApp, never here.
+ * Unknown phones stay ignored — the main app's webhook owns them.
+ */
+export async function handleSmsInbound(
+  fields: ExtractedMessageFields,
+  deps: HandlerDeps,
+): Promise<InboundResult> {
+  const { db } = deps;
+  if (!fields.birdMessageId || !fields.phone) {
+    return { action: "ignored", reason: "missing message id or phone" };
+  }
+  const duplicate = await db.notisMessage.findUnique({
+    where: { birdMessageId: fields.birdMessageId },
+    select: { id: true },
+  });
+  if (duplicate) return { action: "ignored", reason: "duplicate birdMessageId" };
+
+  const sub = await findSubscriptionByPhone(db, fields.phone);
+  if (!sub) return { action: "ignored", reason: "sms from a phone notis does not serve" };
+
+  if (isBareStop(fields.body)) {
+    return handleBareStop(sub, fields, deps);
+  }
+
+  const event: WakeEvent = {
+    type: "user_message",
+    at: new Date().toISOString(),
+    text: fields.body,
+  };
+  const queueItemId = await db.$transaction(async (tx) => {
+    await tx.notisMessage.create({
+      data: {
+        subscriptionId: sub.id,
+        direction: "inbound",
+        channel: "sms",
+        body: fields.body,
+        birdMessageId: fields.birdMessageId,
+      },
+    });
+    // Always touched: updatedAt is the conversation list's activity sort key.
+    await tx.notisSubscription.update({
+      where: { id: sub.id },
+      data: { updatedAt: new Date() },
+    });
+    return enqueueLiveWake(tx, { subscriptionId: sub.id, event });
+  });
+  return { action: "enqueued", queueItemId };
 }
 
 async function findSubscriptionByPhone(
@@ -256,6 +319,7 @@ async function handleBareStop(
       data: {
         subscriptionId: sub.id,
         direction: "inbound",
+        channel: fields.channel,
         body: fields.body,
         birdMessageId: fields.birdMessageId,
       },
@@ -309,6 +373,7 @@ async function handleBareStop(
         subscriptionId: sub.id,
         wakeId: wake.id,
         direction: "outbound",
+        channel: fields.channel,
         body: replyText,
         deliveryMode: "freeform",
         status: "pending",
@@ -317,6 +382,36 @@ async function handleBareStop(
     });
     return reply.id;
   });
+
+  if (fields.channel === "sms") {
+    // The reader is talking to us over SMS — confirm there. Single attempt,
+    // no idempotency key (the channels API has none); a lost confirmation
+    // does not undo the unsubscribe, which committed above.
+    const notifyOps = alert ?? ((message: string) => sendAlert("webhook", message));
+    if (!sub.phone) {
+      await db.notisMessage.update({
+        where: { id: replyId },
+        data: { status: "failed", failureReason: "no phone on subscription" },
+      });
+      return { action: "stopped" };
+    }
+    const result = await bird.sendSms({ phone: sub.phone, text: replyText });
+    await db.notisMessage.update({
+      where: { id: replyId },
+      data: result.success
+        ? { status: "sent", birdMessageId: result.messageId }
+        : {
+            status: "failed",
+            failureReason: (result.error ?? "unknown error").slice(0, 300),
+          },
+    });
+    if (!result.success) {
+      await notifyOps(
+        `ΣΤΟΠ confirmation SMS failed for ${sub.id}: ${result.error ?? "unknown error"}`,
+      );
+    }
+    return { action: "stopped" };
+  }
 
   await sendPendingMessages(
     db,

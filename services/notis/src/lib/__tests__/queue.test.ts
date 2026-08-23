@@ -320,6 +320,7 @@ describe("resendStalePendingMessages", () => {
     body: "Νέα από τον δήμο σου.",
     channel: "whatsapp",
     proactive: true,
+    railed: true,
     deliveryMode: "template",
     template: "demos_update_news",
     status: "pending",
@@ -374,8 +375,15 @@ describe("resendStalePendingMessages", () => {
       subscriptions: [{ ...SUB }],
       settings: [{ key: "proactivePaused", value: true }],
     });
+    // railed: false is the stamp a reactive reply carries from creation —
+    // freeform mode alone no longer implies it.
     db.store.messages.push(
-      stalePendingProactive({ proactive: false, deliveryMode: "freeform", template: null }),
+      stalePendingProactive({
+        proactive: false,
+        railed: false,
+        deliveryMode: "freeform",
+        template: null,
+      }),
     );
     const bird = new FakeBird();
 

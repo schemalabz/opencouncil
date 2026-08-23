@@ -169,6 +169,13 @@ model NotisMessage {
   // deliveryMode=template — a scheduled wake inside the 24h window sends
   // freeform yet is unprompted.
   proactive Boolean          @default(false)
+  // The delivery-instant rails (unsubscribed / paused / shadow) apply to
+  // this row. Distinct from `proactive`: a reply-continuation follow-up is
+  // railed but cap-exempt, and a reactive reply (including the ΣΤΟΠ
+  // confirmation) is neither. Stamped at creation from the wake class, so
+  // every delivery path — boundary, sweeper, incremental — asks one flag
+  // instead of re-deriving the class per call site.
+  railed    Boolean          @default(false)
   // The failed WhatsApp message this SMS replaces. Unique: a replayed
   // failure webhook cannot fire a second SMS.
   fallbackForId String? @unique

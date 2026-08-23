@@ -291,7 +291,12 @@ export default async function SystemPage() {
                       {item.eventTypes
                         .map((t) => EVENT_LABELS[t as keyof typeof EVENT_LABELS] ?? t)
                         .join(" + ")}
-                      {item.attempts > 1 ? ` · ${item.attempts}η προσπάθεια` : ""}
+                      {item.status === "running" && item.attempts > 1
+                        ? ` · ${item.attempts}η προσπάθεια`
+                        : ""}
+                      {item.status === "pending" && item.attempts > 0
+                        ? ` · απέτυχε ${item.attempts} ${item.attempts === 1 ? "φορά" : "φορές"}`
+                        : ""}
                       {item.status === "failed" && item.lastError ? (
                         <span className="text-destructive"> · {item.lastError}</span>
                       ) : null}
@@ -329,6 +334,9 @@ export default async function SystemPage() {
                 τις τελευταίες 7 ημέρες
                 {snap.queue.failures.latestAt
                   ? ` · τελευταία ${timeAgo(snap.queue.failures.latestAt, now)}`
+                  : ""}
+                {snap.queue.failures.older > 0
+                  ? ` · +${snap.queue.failures.older} παλαιότερες`
                   : ""}
               </p>
             )}

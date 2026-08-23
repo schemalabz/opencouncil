@@ -79,7 +79,13 @@ export interface SystemSnapshot {
     /** Terminal failures in the last 7 days. Failed rows are history, not
      *  queue state — the table shows live work and this line shows the
      *  toll, until the janitor removes the rows entirely (30 days). */
-    failures: { count: number; latestAt: string | null };
+    failures: {
+      count: number;
+      latestAt: string | null;
+      /** Failed rows older than the 7-day window but not yet janitored
+       *  (up to 30 days) — otherwise invisible anywhere. */
+      older: number;
+    };
   };
   scheduled: { items: ScheduledView[]; more: number; total: number };
   digested: { items: DigestedMeetingView[]; total: number };
@@ -91,7 +97,7 @@ const EMPTY: SystemSnapshot = {
   phase: { kind: "active", since: new Date(0).toISOString(), until: new Date(0).toISOString() },
   settings: { paused: true },
   poller: { lastTickAt: null, nextTickAt: null },
-  queue: { counts: {}, laneCounts: {}, heldUntilRelease: 0, items: [], more: 0, failures: { count: 0, latestAt: null } },
+  queue: { counts: {}, laneCounts: {}, heldUntilRelease: 0, items: [], more: 0, failures: { count: 0, latestAt: null, older: 0 } },
   scheduled: { items: [], more: 0, total: 0 },
   digested: { items: [], total: 0 },
   atCap: [],
@@ -147,7 +153,12 @@ export async function getRailsNow(): Promise<RailsNow | null> {
   const [settings, heldUntilRelease, capped, failed, retryPending, retryRunning] =
     await Promise.all([
       getProactiveSettings(db),
-      db.notisWakeQueue.count({ where: { status: "pending", runAfter: { gt: now } } }),
+      // attempts: 0 — a retry-backoff row also has runAfter in the future,
+      // and it belongs to «ξαναδοκιμάζει», not «σε αναμονή»; without the
+      // filter one row shows up in both cells.
+      db.notisWakeQueue.count({
+        where: { status: "pending", runAfter: { gt: now }, attempts: 0 },
+      }),
       usersAtCap(db),
       db.notisWakeQueue.count({ where: { status: "failed", updatedAt: { gte: weekAgo } } }),
       db.notisWakeQueue.count({ where: { status: "pending", attempts: { gt: 0 } } }),
@@ -184,7 +195,9 @@ export async function getSystemSnapshot(): Promise<SystemSnapshot> {
         where: { status: { in: ["pending", "running"] } },
         _count: { _all: true },
       }),
-      db.notisWakeQueue.count({ where: { status: "pending", runAfter: { gt: now } } }),
+      db.notisWakeQueue.count({
+        where: { status: "pending", runAfter: { gt: now }, attempts: 0 },
+      }),
     ]);
 
   // Live work only, worst first: running (possibly stuck), then pending by
@@ -294,10 +307,16 @@ export async function getSystemSnapshot(): Promise<SystemSnapshot> {
       laneCounts: Object.fromEntries(laneStatusCounts.map((r) => [r.lane, r._count._all])),
       heldUntilRelease,
       items: queueItems,
-      more: Math.max(0, activeItems.length - QUEUE_LIST_LIMIT),
+      // From the full counts, not the LIMIT+1 fetch — that could only ever
+      // say «+1 ακόμη» no matter how deep the queue.
+      more: Math.max(
+        0,
+        (statusMap.pending ?? 0) + (statusMap.running ?? 0) - queueItems.length,
+      ),
       failures: {
         count: failuresAgg._count._all,
         latestAt: failuresAgg._max.updatedAt?.toISOString() ?? null,
+        older: Math.max(0, (statusMap.failed ?? 0) - failuresAgg._count._all),
       },
     },
     scheduled: {

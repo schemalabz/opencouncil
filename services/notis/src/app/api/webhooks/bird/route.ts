@@ -6,7 +6,7 @@ import { realBird } from "@/lib/bird";
 import { hasNotisDb, notisDb } from "@/lib/db";
 import { drainQueue } from "@/lib/queue";
 import { SIGNATURE_HEADER, TIMESTAMP_HEADER, verifyBirdSignature } from "@/lib/webhook-signature";
-import { handleInbound, handleOutboundStatus } from "./handlers";
+import { handleInbound, handleOutboundStatus, handleSmsInbound } from "./handlers";
 
 /**
  * Notis's own Bird webhook subscription — a SECOND subscription beside the
@@ -65,18 +65,22 @@ export async function POST(request: Request) {
     // birdConversationId with an SMS thread.
     sms: env.BIRD_SMS_CHANNEL_ID,
   });
-  if (fields.channel !== "whatsapp") {
-    return NextResponse.json({ ok: true, ignored: "not whatsapp" });
-  }
-
   const deps = { db: notisDb(), bird: realBird };
   try {
     if (fields.direction === "outbound") {
+      // Both channels: the SMS fallback rows have delivery lifecycles too,
+      // and their failures must alert — there is no next channel after SMS.
       await handleOutboundStatus(fields, deps);
       return NextResponse.json({ ok: true });
     }
 
-    const result = await handleInbound(fields, deps);
+    // Inbound SMS gets its own, narrower handler: our fallback's footer
+    // invites ΣΤΟΠ, so served phones must be heard there — but nothing
+    // enrolls over SMS, and unknown phones stay the main app's.
+    const result =
+      fields.channel === "sms"
+        ? await handleSmsInbound(fields, deps)
+        : await handleInbound(fields, deps);
     if (result.action === "enqueued") {
       after(() => drainQueue());
     }

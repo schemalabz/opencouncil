@@ -193,6 +193,16 @@ export async function runWake(
             });
             break;
           case "unsubscribe_user":
+            // Only the reader can unsubscribe the reader. On a wake without
+            // a user_message there is no reader request to honor — prompt
+            // guidance alone must not be the only thing standing between a
+            // hallucinated call and a silent permanent opt-out.
+            if (!hasUserMessage) {
+              ack =
+                "ignored: unsubscribe is only available while replying to the reader; " +
+                "this wake has no reader message";
+              break;
+            }
             unsubscribe = { reason: String(block.input.reason ?? "") };
             break;
           case "finish_wake":

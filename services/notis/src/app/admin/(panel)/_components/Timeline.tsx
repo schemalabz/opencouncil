@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlarmClock, FileText, ListTodo, MessageCircle, Moon } from "lucide-react";
+import { AlarmClock, FileText, ListTodo, MessageCircle, Moon, OctagonAlert } from "lucide-react";
 import { MeetingDetails, fetchMeetingDetails } from "../_lib/meetings";
 import { CityMeta, WakeRecord } from "../_lib/records";
 import { fmtLongDate } from "../_lib/format";
@@ -33,6 +33,10 @@ function icon(item: WakeRecord) {
       return <AlarmClock className="h-4 w-4" />;
     case "heartbeat":
       return <Moon className="h-4 w-4" />;
+    case "system":
+      // Shell-side decisions without a wake event behind them (ΣΤΟΠ
+      // pre-step, cap skip, phone-gone unsubscribe).
+      return <OctagonAlert className="h-4 w-4" />;
   }
 }
 
@@ -309,7 +313,9 @@ function HoverCard({
               ? "Μήνυμα χρήστη"
               : e.type === "scheduled"
                 ? "Προγραμματισμένο follow-up"
-                : "Heartbeat"}
+                : e.type === "system"
+                  ? "Απόφαση συστήματος"
+                  : "Heartbeat"}
           </p>
           <p className="text-xs text-muted-foreground">{when}</p>
           {e.type === "user_message" && (
