@@ -7,7 +7,11 @@ import { ExtractedMessageFields } from "@/lib/bird-extract";
 import { citiesForUser, findEnabledUserByPhone } from "@/lib/fanout";
 import { hasMainDb, mainDb } from "@/lib/main-db";
 import { normalizePhone } from "@/lib/phone";
-import { SMS_HELD_FOR_QUIET_HOURS, sendPendingMessages } from "@/lib/queue";
+import {
+  SMS_HELD_FOR_QUIET_HOURS,
+  sendPendingMessages,
+  suppressPendingOutbound,
+} from "@/lib/queue";
 import { enqueueLiveWake } from "@/lib/queue-core";
 import { STOP_ALREADY_TEXT, STOP_CONFIRMATION_TEXT, isBareStop } from "@/lib/stop";
 import { renderTemplate, type TemplateName } from "@/agent/templates";
@@ -219,8 +223,15 @@ export async function handleSmsInbound(
   });
   if (duplicate) return { action: "ignored", reason: "duplicate birdMessageId" };
 
-  const sub = await findSubscriptionByPhone(db, fields.phone);
-  if (!sub) return { action: "ignored", reason: "sms from a phone notis does not serve" };
+  const found = await findSubscriptionByPhone(db, fields.phone);
+  if (!found) return { action: "ignored", reason: "sms from a phone notis does not serve" };
+  // The same gate as WhatsApp: a rolled-back user or a reassigned number
+  // must not be agent-served — or unsubscribed by a stranger — over SMS.
+  const gated = await gateExistingSubscription(db, found, fields.phone);
+  if ("ignored" in gated) {
+    return { action: "ignored", reason: gated.ignored };
+  }
+  const sub = gated.sub;
 
   if (isBareStop(fields.body)) {
     return handleBareStop(sub, fields, deps);
@@ -249,6 +260,48 @@ export async function handleSmsInbound(
     return enqueueLiveWake(tx, { subscriptionId: sub.id, event });
   });
   return { action: "enqueued", queueItemId };
+}
+
+/**
+ * The main-DB gate for an EXISTING subscription, channel-agnostic: a
+ * rolled-back user (notisEnabledAt cleared) is the main app's again, and a
+ * number the user no longer owns is not the user — on WhatsApp or SMS.
+ * Returns the (possibly phone-canonicalized) subscription or the ignore
+ * reason. Fails open when the main DB is unreachable: dropping a served
+ * reader's message is worse than a rare double answer during an outage.
+ */
+async function gateExistingSubscription(
+  db: PrismaClient,
+  sub: NotisSubscription,
+  phone: string,
+): Promise<{ sub: NotisSubscription } | { ignored: string }> {
+  if (!hasMainDb()) return { sub };
+  const user = await mainDb().notisUserRow.findUnique({
+    where: { id: sub.userId },
+    select: { notisEnabledAt: true, phone: true },
+  });
+  if (!user?.notisEnabledAt) {
+    return { ignored: "user rolled back to the old path" };
+  }
+  // A number this reader no longer owns is not this reader. After a phone
+  // change, the OLD number still matches the stored subscription here while
+  // the main app's gate (which looks up User.phone) misses — treat it like
+  // a rollback and stay silent; the new number self-heals through the
+  // enrollment upsert.
+  const current = normalizePhone(user.phone);
+  if (current && current !== normalizePhone(phone)) {
+    return { ignored: "message from a number the user no longer has" };
+  }
+  // Canonicalize a stored form that differs only by the leading "+": the
+  // lookup accepts both, and later sends address whatever is stored.
+  if (current && current !== sub.phone) {
+    const updated = await db.notisSubscription.update({
+      where: { id: sub.id },
+      data: { phone: current },
+    });
+    return { sub: updated };
+  }
+  return { sub };
 }
 
 async function findSubscriptionByPhone(
@@ -332,14 +385,10 @@ async function handleBareStop(
         ...(alreadyUnsubscribed ? {} : { status: "unsubscribed" as const, unsubscribedAt: at }),
       },
     });
-    // Nothing queued may outlive a ΣΤΟΠ: a pending row the sweeper would
-    // retry later must die with the subscription. The confirmation reply is
-    // created below, after this statement, so it is the one outbound row
-    // that survives.
-    await tx.notisMessage.updateMany({
-      where: { subscriptionId: sub.id, direction: "outbound", status: "pending" },
-      data: { status: "suppressed", failureReason: "unsubscribed" },
-    });
+    // Nothing queued may outlive a ΣΤΟΠ. The confirmation reply is created
+    // below, after this statement, so it is the one outbound row that
+    // survives.
+    await suppressPendingOutbound(tx, sub.id);
     // A model-less wake row records the decision (the reader's text lives on
     // the inbound message row, the reply on its own row below — this is only
     // the "what happened and why"). model/trace stay null: no model ran.
@@ -450,39 +499,13 @@ export async function handleInbound(
       return { action: "ignored", reason: "not a notis-served phone" };
     }
   } else {
-    // The gate holds for EXISTING subscriptions too: an admin rolling a
-    // user back (clearing notisEnabledAt) hands their inbound to the main
-    // app's webhook again — answering here as well would double-reply.
-    // Fail open when the main DB is unreachable: dropping a served user's
-    // message is worse than a rare double answer during an outage.
-    if (hasMainDb()) {
-      const user = await mainDb().notisUserRow.findUnique({
-        where: { id: sub.userId },
-        select: { notisEnabledAt: true, phone: true },
-      });
-      if (!user?.notisEnabledAt) {
-        return { action: "ignored", reason: "user rolled back to the old path" };
-      }
-      // A number this reader no longer owns is not this reader. After a phone
-      // change, the OLD number still matches the stored subscription here
-      // while the main app's gate (which looks up User.phone) misses and
-      // sends its unsupported-number reply — so the sender would get two
-      // answers that contradict each other, on every message. Treat it like a
-      // rollback and stay silent; the new number self-heals through the
-      // enrollment upsert.
-      const current = normalizePhone(user.phone);
-      if (current && current !== normalizePhone(fields.phone)) {
-        return { action: "ignored", reason: "message from a number the user no longer has" };
-      }
-      // Canonicalize a stored form that differs only by the leading "+": the
-      // lookup accepts both, and later sends address whatever is stored.
-      if (current && current !== sub.phone) {
-        sub = await db.notisSubscription.update({
-          where: { id: sub.id },
-          data: { phone: current },
-        });
-      }
+    // The gate holds for EXISTING subscriptions too: answering a
+    // rolled-back user here as well as in the main app would double-reply.
+    const gated = await gateExistingSubscription(db, sub, fields.phone);
+    if ("ignored" in gated) {
+      return { action: "ignored", reason: gated.ignored };
     }
+    sub = gated.sub;
     if (fields.conversationId && sub.birdConversationId !== fields.conversationId) {
       sub = await db.notisSubscription.update({
         where: { id: sub.id },

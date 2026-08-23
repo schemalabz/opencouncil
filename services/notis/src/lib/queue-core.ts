@@ -68,9 +68,10 @@ export async function enqueueLiveWake(
   for (let attempt = 0; attempt < 3; attempt++) {
     const pending = await db.notisWakeQueue.findFirst({
       where: { subscriptionId: input.subscriptionId, lane: "live", status: "pending" },
-      select: { id: true, events: true, updatedAt: true },
+      select: { id: true, events: true, updatedAt: true, runAfter: true },
     });
     if (!pending) break;
+    const runAfter = input.runAfter ?? new Date();
     const appended = await db.notisWakeQueue.updateMany({
       where: { id: pending.id, status: "pending", updatedAt: pending.updatedAt },
       data: {
@@ -78,6 +79,13 @@ export async function enqueueLiveWake(
           ...(pending.events as Prisma.InputJsonValue[]),
           input.event,
         ] as Prisma.InputJsonValue,
+        // A fresh reader message must not inherit a retry-backoff row's
+        // fate: pull runAfter forward (LEAST, like the batch path) and
+        // reset the attempts budget — materially this is a new wake, and
+        // without the reset the appended message could be terminally
+        // failed without a single model run of its own.
+        runAfter: pending.runAfter < runAfter ? pending.runAfter : runAfter,
+        attempts: 0,
         updatedAt: new Date(),
       },
     });
@@ -93,6 +101,23 @@ export async function enqueueLiveWake(
     select: { id: true },
   });
   return row.id;
+}
+
+/**
+ * Refresh a running claim's claimedAt — the wake's heartbeat. A wake can
+ * legally run far past STALE_CLAIM_MS (turns x the Anthropic client budget),
+ * and without a heartbeat the reclaimer starts a SECOND model run while the
+ * first still delivers. Touching the claim each turn keeps a live worker's
+ * claim fresh; a dead worker stops touching it and is reclaimed on the old
+ * schedule. Returns false when the claim is no longer ours — the caller
+ * must stop working.
+ */
+export async function touchClaim(db: Db, id: string, attempts: number): Promise<boolean> {
+  const touched = await db.notisWakeQueue.updateMany({
+    where: { id, status: "running", attempts },
+    data: { claimedAt: new Date() },
+  });
+  return touched.count === 1;
 }
 
 /**
@@ -286,21 +311,24 @@ export async function claimNext(db: Db): Promise<ClaimedItem | null> {
  * processItem): a 23505 inside one would abort it before the recovery could
  * run. Keep it that way.
  */
-async function mergeIntoPendingBatch(
+async function mergeIntoPendingRow(
   db: Db,
   id: string,
   attempts: number,
   runAfter: Date,
   note: string,
 ): Promise<void> {
+  // Lane-agnostic on purpose: BOTH lanes now carry a one-pending-per-sub
+  // partial unique index, so a running row of either lane can lose its
+  // re-pend to a newer pending row and must merge into it — a batch-only
+  // merge left a live row stranded in `running` until the stale reclaim.
   await db.$queryRaw`
     WITH src AS (
-      SELECT id, "subscriptionId", events
+      SELECT id, "subscriptionId", lane, events
       FROM "NotisWakeQueue"
       WHERE id = ${id}
         AND status = 'running'::"QueueItemStatus"
         AND attempts = ${attempts}
-        AND lane = 'batch'::"QueueLane"
     ), merged AS (
       UPDATE "NotisWakeQueue" p
       SET events = p.events || src.events,
@@ -308,7 +336,7 @@ async function mergeIntoPendingBatch(
           "updatedAt" = now()
       FROM src
       WHERE p."subscriptionId" = src."subscriptionId"
-        AND p.lane = 'batch'::"QueueLane"
+        AND p.lane = src.lane
         AND p.status = 'pending'::"QueueItemStatus"
         AND p.id <> src.id
       RETURNING p.id
@@ -341,7 +369,7 @@ export async function deferItem(
     });
   } catch (error) {
     if (!isUniqueViolation(error)) throw error;
-    await mergeIntoPendingBatch(db, id, attempts, runAfter, "deferred into a newer pending batch row");
+    await mergeIntoPendingRow(db, id, attempts, runAfter, "deferred into a newer pending row");
   }
 }
 
@@ -394,7 +422,7 @@ export async function failItem(
     // the retry they were owed.
     const src = await db.notisWakeQueue.findUnique({ where: { id }, select: { runAfter: true } });
     if (!src) return;
-    await mergeIntoPendingBatch(
+    await mergeIntoPendingRow(
       db,
       id,
       attempts,

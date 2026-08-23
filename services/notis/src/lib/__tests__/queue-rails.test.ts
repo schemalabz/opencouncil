@@ -396,10 +396,15 @@ describe("proactive rails", () => {
       alert: async () => {},
     });
 
-    const outbound = db.store.messages.find((m) => m.direction === "outbound")!;
-    expect(outbound.status).toBe("suppressed");
-    expect(outbound.failureReason).toBe("unsubscribed");
+    // Better than suppression-at-boundary: the wake is consumed BEFORE the
+    // model runs — no outbound row exists at all, no model cost is paid,
+    // and the decision log records the model-less skip.
+    expect(db.store.messages.filter((m) => m.direction === "outbound")).toHaveLength(0);
     expect(bird.templateSends).toHaveLength(0);
+    expect(db.store.wakes).toHaveLength(1);
+    expect(db.store.wakes[0].rationale).toContain("απεγγράφηκε");
+    expect(db.store.wakes[0].model ?? null).toBeNull();
+    expect(db.store.queue.get("q1")?.status).toBe("done");
   });
 
   it("a coalesced wake persists the primary event plus the full array and scheduled origin", async () => {

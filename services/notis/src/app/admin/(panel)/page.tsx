@@ -44,6 +44,7 @@ const STATUS_BAR: Record<string, string> = {
   delivered: "bg-stone-400",
   read: "bg-[#53bdeb]",
   failed: "bg-red-500",
+  suppressed: "bg-stone-400/60",
 };
 
 function fmtPct(fraction: number): string {

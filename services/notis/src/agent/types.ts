@@ -191,6 +191,12 @@ export interface Deps {
    * draws two answers.
    */
   absorb?(): Promise<WakeEvent[]>;
+  /**
+   * Claim heartbeat, called once per model turn. Returns false when the
+   * queue item's claim is no longer this worker's (stale reclaim) — the
+   * loop must stop instead of racing the reclaimer's second run.
+   */
+  heartbeat?(): Promise<boolean>;
 }
 
 export const DEFAULT_CONFIG: DepsConfig = {

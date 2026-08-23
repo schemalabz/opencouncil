@@ -265,14 +265,19 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
         where,
         data,
       }: {
-        where: { id: string; status?: string; attempts?: number };
+        where: { id: string; status?: string; attempts?: number; updatedAt?: Date };
         data: Row;
       }) => {
         const row = store.queue.get(where.id);
         const matches =
           row &&
           (where.status === undefined || row.status === where.status) &&
-          (where.attempts === undefined || row.attempts === where.attempts);
+          (where.attempts === undefined || row.attempts === where.attempts) &&
+          // The CAS fence: enqueueLiveWake's append fences on updatedAt —
+          // ignoring it here would let a broken fence pass every unit test.
+          (where.updatedAt === undefined ||
+            (row.updatedAt instanceof Date &&
+              row.updatedAt.getTime() === where.updatedAt.getTime()));
         if (!matches) return { count: 0 };
         Object.assign(row, data);
         calls.push(`queue:${data.status}`);

@@ -254,7 +254,15 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
       // tiebreaker (cuids are monotonic per process) pins insertion order,
       // which is what the index-alignment with outcome.messages needs.
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-      select: { id: true, wakeId: true, status: true, failureReason: true, createdAt: true },
+      select: {
+        id: true,
+        wakeId: true,
+        status: true,
+        failureReason: true,
+        createdAt: true,
+        body: true,
+        deliveryMode: true,
+      },
     }),
   ]);
 
@@ -314,6 +322,34 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     ...(Array.isArray(wake.events) ? { coalesced: (wake.events as unknown[]).length } : {}),
     };
   });
+
+  // Orphaned deliveries: freeform outbound rows with no wake — a claim
+  // lost or a persist failure after an incremental send. The reader
+  // received these, so the audit view must show them; the enrollment intro
+  // is the one legitimate wakeId-less row (template mode) and renders from
+  // the subscription's origin instead.
+  for (const message of outbound) {
+    if (message.wakeId !== null || message.deliveryMode === "template") continue;
+    records.push({
+      id: `orphan:${message.id}`,
+      event: { type: "system", at: message.createdAt.toISOString() },
+      status: "done",
+      outcome: {
+        decision: "send",
+        rationale:
+          "(σύστημα) Ορφανή αποστολή: το μήνυμα στάλθηκε, αλλά το wake του δεν καταγράφηκε — χαμένο claim ή αποτυχία εγγραφής.",
+        messages: [message.body],
+        scheduledWakes: [],
+      },
+      deliveries: [
+        {
+          at: message.createdAt.toISOString(),
+          status: message.status,
+          failureReason: message.failureReason,
+        },
+      ],
+    });
+  }
 
   // Wakes still in the queue — pending, running, or terminally failed. The
   // reader's message exists before its wake does, and the thread must show
