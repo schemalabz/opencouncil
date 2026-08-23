@@ -1,3 +1,5 @@
+import { z } from "zod";
+import { primaryEvent, wakeEventSchema } from "@/agent/schemas";
 import { TemplateName } from "@/agent/templates";
 import { WakeEvent, WakeOutcome } from "@/agent/types";
 
@@ -51,10 +53,24 @@ export interface MessageDelivery {
   smsFallback?: boolean;
 }
 
+/**
+ * Live queue state carried by a synthesized record (see queueBackedRecords).
+ * `attempts` counts claims so far: on a pending row every claim ended in a
+ * retryable failure; on a running row the current claim is the attempts-th.
+ */
+export interface QueueState {
+  state: "pending" | "running" | "failed";
+  attempts: number;
+  maxAttempts: number;
+  lastError: string | null;
+  /** Next retry instant — present only on a pending row that failed before. */
+  nextTryAt?: string;
+}
+
 export interface WakeRecord {
   id: string;
   event: RecordEvent;
-  status: "pending" | "done" | "skipped";
+  status: "pending" | "done" | "skipped" | "failed";
   outcome?: WakeOutcome;
   traceRef?: string;
   /**
@@ -71,6 +87,56 @@ export interface WakeRecord {
   /** Number of events this wake consumed at once; absent for the common
    *  single-event wake. */
   coalesced?: number;
+  /** Present only on records synthesized from a live queue row — the wake
+   *  has not completed (or never will), so there is no NotisWake behind it. */
+  queue?: QueueState;
+}
+
+const queueEventsSchema = z.array(wakeEventSchema);
+
+/** The queue-row slice the synthesis needs; matches NotisWakeQueue columns. */
+export interface QueueRowLike {
+  id: string;
+  status: string;
+  events: unknown;
+  attempts: number;
+  lastError: string | null;
+  runAfter: Date;
+}
+
+/**
+ * A wake still sitting in the queue has no NotisWake row, so a thread built
+ * from wake records alone hides the reader's message exactly while it is
+ * pending or failing — the moment an operator is looking. The queue row
+ * itself carries the unconsumed events, so the thread synthesizes a record
+ * from it; once the wake completes, the row leaves the queue and the real
+ * record takes over.
+ */
+export function queueBackedRecords(rows: QueueRowLike[], maxAttempts: number): WakeRecord[] {
+  const out: WakeRecord[] = [];
+  for (const row of rows) {
+    const parsed = queueEventsSchema.safeParse(row.events);
+    if (!parsed.success || parsed.data.length === 0) continue;
+    const events = parsed.data;
+    const state =
+      row.status === "failed" ? "failed" : row.status === "running" ? "running" : "pending";
+    out.push({
+      id: `queue:${row.id}`,
+      event: primaryEvent(events),
+      status: state === "failed" ? "failed" : "pending",
+      queue: {
+        state,
+        attempts: row.attempts,
+        maxAttempts,
+        lastError: row.lastError,
+        ...(state === "pending" && row.attempts > 0
+          ? { nextTryAt: row.runAfter.toISOString() }
+          : {}),
+      },
+      ...(events.length > 1 ? { coalesced: events.length } : {}),
+    });
+  }
+  return out;
 }
 
 export function hasPendingBrief(

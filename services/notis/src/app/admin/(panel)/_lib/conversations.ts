@@ -8,7 +8,15 @@ import { TemplateName } from "@/agent/templates";
 import { hasNotisDb, notisDb } from "@/lib/db";
 import { citiesForUsers } from "@/lib/fanout";
 import { hasMainDb } from "@/lib/main-db";
-import { CityMeta, MessageDelivery, Origin, RecordEvent, WakeRecord } from "./records";
+import { MAX_ATTEMPTS } from "@/lib/queue-core";
+import {
+  CityMeta,
+  MessageDelivery,
+  Origin,
+  RecordEvent,
+  WakeRecord,
+  queueBackedRecords,
+} from "./records";
 
 /**
  * Conversation listing + loading, straight from the Notis database. A stored
@@ -294,6 +302,23 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     ...(deliveriesByWake.has(wake.id) ? { deliveries: deliveriesByWake.get(wake.id) } : {}),
     ...(Array.isArray(wake.events) ? { coalesced: (wake.events as unknown[]).length } : {}),
   }));
+
+  // Wakes still in the queue — pending, running, or terminally failed. The
+  // reader's message exists before its wake does, and the thread must show
+  // it (with the failure, if any) rather than go blank until the wake lands.
+  const queueRows = await db.notisWakeQueue.findMany({
+    where: { subscriptionId: id, status: { in: ["pending", "running", "failed"] } },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      status: true,
+      events: true,
+      attempts: true,
+      lastError: true,
+      runAfter: true,
+    },
+  });
+  records.push(...queueBackedRecords(queueRows, MAX_ATTEMPTS));
 
   // Sort on when each record's messages actually went out, falling back to
   // the trigger for records that sent nothing. Sorting on event.at alone
