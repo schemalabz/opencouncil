@@ -1,4 +1,13 @@
 /** @jest-environment node */
+
+// The query layer guards with withUserAuthorizedToEdit, which resolves a real
+// session. These tests exercise data shaping, not authorization, so stub the
+// guard — same pattern as task-handlers and the speaker-segment suites.
+jest.mock('@/lib/auth', () => ({
+    withUserAuthorizedToEdit: jest.fn(),
+    isUserAuthorizedToEdit: jest.fn().mockResolvedValue(true),
+}))
+
 import prisma from '@/lib/db/prisma'
 import { getNotificationsGroupedByMeeting, deleteNotificationsForMeetings } from '@/lib/db/notifications'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
