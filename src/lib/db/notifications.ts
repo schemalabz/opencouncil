@@ -3,6 +3,7 @@
 import { NotificationPreference, Petition, City, Topic, User, Location, Prisma } from '@prisma/client';
 import { auth, signIn } from "@/auth";
 import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth";
+import { classifyDeliveries, deliveriesWhereForStatus } from '@/lib/notifications/deliveryStatus';
 import { attachGeometryToCities } from "./cities";
 import prisma from "@/lib/db/prisma";
 import { Result, createSuccess, createError } from "@/lib/result";
@@ -954,74 +955,6 @@ export async function getPendingDeliveries(notificationIds: string[]) {
     });
 }
 
-/**
- * Get notifications for admin dashboard with filters (legacy - kept for backwards compatibility)
- */
-export async function getNotificationsForAdmin(filters: {
-    cityId?: string;
-    status?: 'pending' | 'sent' | 'failed' | 'skipped';
-    type?: 'beforeMeeting' | 'afterMeeting';
-    limit?: number;
-    offset?: number;
-}) {
-    await withUserAuthorizedToEdit({});
-    const { cityId, status, type, limit = 50, offset = 0 } = filters;
-
-    const whereClause: any = {};
-
-    if (cityId) {
-        whereClause.cityId = cityId;
-    }
-
-    if (type) {
-        whereClause.type = type;
-    }
-
-    // If status filter is provided, filter by delivery status
-    const notifications = await prisma.notification.findMany({
-        where: whereClause,
-        include: {
-            city: true,
-            meeting: {
-                include: {
-                    administrativeBody: true
-                }
-            },
-            deliveries: true,
-            subjects: {
-                include: {
-                    subject: true
-                }
-            },
-            user: {
-                select: {
-                    id: true,
-                    email: true,
-                    name: true
-                }
-            }
-        },
-        orderBy: {
-            createdAt: 'desc'
-        },
-        take: limit,
-        skip: offset
-    });
-
-    // Filter by delivery status if specified. A notification with no
-    // deliveries at all counts as skipped (nothing was dispatched — e.g. a
-    // phone-only user on the Notis rollout), matching the grouped stats.
-    if (status) {
-        return notifications.filter(n =>
-            status === 'skipped'
-                ? n.deliveries.length === 0 || n.deliveries.some(d => d.status === 'skipped')
-                : n.deliveries.some(d => d.status === status)
-        );
-    }
-
-    return notifications;
-}
-
 // Types for meeting-grouped notification stats
 export type NotificationStatusCounts = {
     sent: number;
@@ -1097,21 +1030,11 @@ export async function getNotificationsGroupedByMeeting(filters: {
         notificationWhere.type = type;
     }
 
-    // If status filter is provided, filter to notifications that have at least
-    // one delivery with that status. 'skipped' also matches notifications with
-    // NO deliveries (nothing was dispatched — e.g. a phone-only user on the
-    // Notis rollout), so the filter agrees with the stats classification.
-    if (status === 'skipped') {
-        notificationWhere.OR = [
-            { deliveries: { some: { status: 'skipped' } } },
-            { deliveries: { none: {} } },
-        ];
-    } else if (status) {
-        notificationWhere.deliveries = {
-            some: {
-                status: status
-            }
-        };
+    // The status filter must select exactly the notifications the stats below
+    // classify with that status — one shared rule builds both halves (see
+    // src/lib/notifications/deliveryStatus.ts).
+    if (status) {
+        Object.assign(notificationWhere, deliveriesWhereForStatus(status));
     }
 
     // First, get all distinct meeting IDs that have notifications matching our filters
@@ -1209,24 +1132,9 @@ export async function getNotificationsGroupedByMeeting(filters: {
 
         const stats = meetingStatsMap.get(key)!;
 
-        // Determine the status of this notification based on its deliveries:
-        // any pending delivery -> "pending"; else any failed -> "failed"; else
-        // nothing was actually dispatched -> "skipped" (all deliveries
-        // deliberately withheld, OR no delivery was ever created — e.g. a
-        // phone-only user on the Notis rollout, whose in-app notification
-        // exists but whose message medium belongs to Notis); otherwise "sent".
-        const deliveryStatuses = notification.deliveries.map(d => d.status);
-        let notificationStatus: 'sent' | 'pending' | 'failed' | 'skipped';
-
-        if (deliveryStatuses.includes('pending')) {
-            notificationStatus = 'pending';
-        } else if (deliveryStatuses.includes('failed')) {
-            notificationStatus = 'failed';
-        } else if (deliveryStatuses.every(s => s === 'skipped')) {
-            notificationStatus = 'skipped';
-        } else {
-            notificationStatus = 'sent';
-        }
+        // One shared rule with the status filter above — see
+        // src/lib/notifications/deliveryStatus.ts.
+        const notificationStatus = classifyDeliveries(notification.deliveries.map(d => d.status));
 
         // Update the appropriate type stats
         const typeKey = notification.type === 'beforeMeeting' ? 'before' : 'after';
