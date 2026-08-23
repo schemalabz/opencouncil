@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import type { NotificationDeliveryStatus } from '@prisma/client';
+import { classifyDeliveries } from '@/lib/notifications/deliveryStatus';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -56,6 +58,7 @@ export function CreateNotificationModal({
         sent: number;
         pending: number;
         failed: number;
+        skipped: number;
     } | null>(null);
 
     useEffect(() => {
@@ -72,16 +75,15 @@ export function CreateNotificationModal({
                 if (response.ok) {
                     const data = await response.json();
                     const notifications = data.notifications || [];
-                    const stats = { total: notifications.length, sent: 0, pending: 0, failed: 0 };
+                    // Same rule as the admin notifications page — one shared
+                    // classifier, so an all-skipped notification never reads
+                    // as sent here while /admin/notifications says skipped.
+                    const stats = { total: notifications.length, sent: 0, pending: 0, failed: 0, skipped: 0 };
                     for (const n of notifications) {
-                        const deliveryStatuses = n.deliveries.map((d: { status: string }) => d.status);
-                        if (deliveryStatuses.includes('pending')) {
-                            stats.pending++;
-                        } else if (deliveryStatuses.includes('failed')) {
-                            stats.failed++;
-                        } else if (deliveryStatuses.length > 0) {
-                            stats.sent++;
-                        }
+                        const status = classifyDeliveries(
+                            n.deliveries.map((d: { status: NotificationDeliveryStatus }) => d.status),
+                        );
+                        stats[status]++;
                     }
                     setExistingNotifications(stats);
                 }
@@ -262,6 +264,7 @@ export function CreateNotificationModal({
                                 existingNotifications.sent > 0 && `${existingNotifications.sent} sent`,
                                 existingNotifications.pending > 0 && `${existingNotifications.pending} pending`,
                                 existingNotifications.failed > 0 && `${existingNotifications.failed} failed`,
+                                existingNotifications.skipped > 0 && `${existingNotifications.skipped} skipped`,
                             ].filter(Boolean).join(', ')}
                         </p>
                     </div>

@@ -289,12 +289,19 @@ A PR that touches `services/notis/` or `packages/ui/` (or carries the
 Manual management mirrors the main app: `notis-preview-list`,
 `notis-preview-logs <N>`, `sudo notis-preview-create <N> <store-path>`,
 and `sudo notis-preview-destroy <N>`. The shared env lives in
-`/var/lib/notis-previews/.env`. It holds `NOTIS_ADMIN_SECRET` and a dummy
-`ANTHROPIC_API_KEY` — the trust model allows preview-grade secrets only,
-so agent calls fail by design.
+`/var/lib/notis-previews/.env`. It holds a dummy `ANTHROPIC_API_KEY` — the
+trust model allows preview-grade secrets only, so agent calls fail by
+design — and, for previews WITHOUT an isolated database, the staging
+`NOTIS_DATABASE_URL` and `MAIN_DATABASE_URL`. A droplet reboot wipes every
+preview, so this file is part of the recovery path: recreate it before
+recreating previews.
 
-The per-PR notis database and the shared-cookie session validation are not
-wired yet. They land with the notis-db PR.
+Migration PRs get the full pair automatically: the notis createHook creates
+a `notis` database in the per-PR cluster, runs the notis migrations from the
+deployed closure, and bridges `notis_service` onto the `notis_reader` role
+the main app's views migration creates. Admin access uses the shared-cookie
+session mirror (`__Secure-oc-session-prN` on `.opencouncil.dev`); there is
+no `NOTIS_ADMIN_SECRET` any more.
 
 ## Manual Management
 

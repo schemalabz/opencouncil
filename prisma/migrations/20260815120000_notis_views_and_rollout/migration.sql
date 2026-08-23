@@ -98,6 +98,14 @@ LEFT JOIN "AdministrativeBody" ab ON ab.id = cm."administrativeBodyId"
 WHERE ts.type IN ('processAgenda', 'summarize')
   AND ts.status = 'succeeded';
 
+-- The session views below are looked up by sessionTokenHash on every Notis
+-- admin request. Session's own unique index covers the RAW token only, so
+-- without this expression index each lookup seq-scans Session computing a
+-- pgcrypto digest per row. digest() is IMMUTABLE, so the planner matches the
+-- view's expression to this index and the lookup becomes an index probe.
+CREATE INDEX IF NOT EXISTS "Session_sessionTokenHash_idx"
+  ON "Session" ((encode(digest("sessionToken", 'sha256'), 'hex')));
+
 -- Cookie validation exposes a SHA-256 of the token, never the token: the
 -- browser-side mirror cookie carries the same hash, so nothing that reaches
 -- Notis (or any other subdomain host) can be replayed as the Auth.js session
