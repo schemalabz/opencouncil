@@ -1,4 +1,7 @@
-import "server-only";
+// Not "server-only": pctChange and the metric types are imported by client
+// components (DeltaChip, rendered inside the client MetricCard). The data
+// readers here are guarded at their server-page call sites; see the
+// (panel) auth-guard test.
 import { hasNotisDb, notisDb } from "@/lib/db";
 
 /**
