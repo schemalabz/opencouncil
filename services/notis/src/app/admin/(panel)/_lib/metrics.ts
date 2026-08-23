@@ -1,3 +1,4 @@
+import "server-only";
 import { hasNotisDb, notisDb } from "@/lib/db";
 
 /**

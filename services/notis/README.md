@@ -95,7 +95,7 @@ The app spec lives in the DO dashboard, not the repo. The Notis component:
 | Type | Web service, Node buildpack |
 | Source dir | `/` (repo root — the workspace install needs the root lockfile) |
 | Build command | `npm ci && SKIP_ENV_VALIDATION=1 npm run build -w notis` |
-| Run command | `npm start -w notis` (Next.js honors DO's injected `PORT`) |
+| Run command | `npm start -w notis` (Next.js honors DO's injected `PORT`) — a `prestart` runs `prisma migrate deploy` first when `NOTIS_DATABASE_URL` is set, so the buildpack deploy migrates its own database on boot; the Nix preview path runs migrations in its createHook instead |
 | Health check | `GET /api/health` |
 | Domain | `notis.opencouncil.gr` |
 | Instance | smallest available (stateless, I/O-bound) |

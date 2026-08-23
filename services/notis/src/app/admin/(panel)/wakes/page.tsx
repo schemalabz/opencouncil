@@ -1,3 +1,5 @@
+import { getAdminSession } from "@/lib/session-auth";
+import { redirect } from "next/navigation";
 import { EVENT_LABELS } from "../_lib/records";
 import { Activity } from "lucide-react";
 import Link from "next/link";
@@ -108,6 +110,11 @@ function HealthMarks({ wake }: { wake: WakeFeedEntry }) {
 export default async function WakesPage(props: {
   searchParams: Promise<{ decision?: string; event?: string; page?: string }>;
 }) {
+  // Re-assert auth in the page body: the (panel) layout guard does not
+  // re-run on an RSC soft-navigation, so a segment request can reach this
+  // page without it (enforced by the admin-auth-guard test).
+  const session = await getAdminSession();
+  if (!session) redirect("/admin/login");
   const searchParams = await props.searchParams;
   const filter: WakeFilter = {
     decision: parseDecisionFilter(searchParams.decision),

@@ -1,3 +1,5 @@
+import { getAdminSession } from "@/lib/session-auth";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
   AlarmClock,
@@ -129,6 +131,11 @@ function ScoreBars({ scores }: { scores: Record<string, number> }) {
 }
 
 export default async function SystemPage() {
+  // Re-assert auth in the page body: the (panel) layout guard does not
+  // re-run on an RSC soft-navigation, so a segment request can reach this
+  // page without it (enforced by the admin-auth-guard test).
+  const session = await getAdminSession();
+  if (!session) redirect("/admin/login");
   const snap = await getSystemSnapshot();
   const now = new Date(snap.now);
   const queueActive =

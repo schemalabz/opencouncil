@@ -1,3 +1,5 @@
+import { getAdminSession } from "@/lib/session-auth";
+import { redirect } from "next/navigation";
 import { MessagesSquare } from "lucide-react";
 import Link from "next/link";
 import { EmptyState } from "../_components/EmptyState";
@@ -53,6 +55,11 @@ function listHref(q: string, page = 1): string {
 export default async function ConversationsPage(props: {
   searchParams: Promise<{ q?: string; page?: string }>;
 }) {
+  // Re-assert auth in the page body: the (panel) layout guard does not
+  // re-run on an RSC soft-navigation, so a segment request can reach this
+  // page without it (enforced by the admin-auth-guard test).
+  const session = await getAdminSession();
+  if (!session) redirect("/admin/login");
   const searchParams = await props.searchParams;
   const q = (searchParams.q ?? "").trim();
   const { conversations, total, page, pages } = await listConversations(

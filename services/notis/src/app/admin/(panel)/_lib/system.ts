@@ -1,3 +1,4 @@
+import "server-only";
 import { EditorialBrief } from "@/agent/types";
 import { ActivePhase, activePhase, clampToActiveHours } from "@/lib/active-hours";
 import { hasNotisDb, notisDb } from "@/lib/db";

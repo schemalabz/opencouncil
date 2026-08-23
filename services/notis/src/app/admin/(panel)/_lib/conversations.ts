@@ -1,3 +1,4 @@
+import "server-only";
 import { CityPreference, JournalEntry, WakeOutcome, WakeTrace } from "@/agent/types";
 import { clampToActiveHours } from "@/lib/active-hours";
 import { TemplateName } from "@/agent/templates";
