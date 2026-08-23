@@ -8,6 +8,7 @@
     "welcomeBody": "Type to search council topics",
     "noResultsTitle": "No results found",
     "noResultsBody": "Try changing your search terms or filters",
+    "coverageNote": "Search covers the meetings within OpenCouncil's coverage period for each municipality. <link>Read more here</link>.",
     "resultsCount": "{count, plural, one {# result found} other {# results found}}",
     "previous": "Previous",
     "next": "Next",
