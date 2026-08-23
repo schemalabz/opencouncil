@@ -9,6 +9,7 @@ import {
     createNotificationPreference,
     createSubject,
     createUser,
+    signInAsSuperAdmin,
 } from '../helpers/factories'
 
 /**
@@ -30,6 +31,7 @@ describe('getNotificationsGroupedByMeeting - admin query layer', () => {
 
     beforeEach(async () => {
         await resetDatabase(prisma as any)
+        await signInAsSuperAdmin()
     })
 
     /**
@@ -592,6 +594,7 @@ describe('deleteNotificationsForMeetings - admin delete functionality', () => {
 
     beforeEach(async () => {
         await resetDatabase(prisma as any)
+        await signInAsSuperAdmin()
     })
 
     /**
