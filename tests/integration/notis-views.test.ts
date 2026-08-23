@@ -238,6 +238,24 @@ describe('notis views migration', () => {
         expect(rows).toHaveLength(2)
     })
 
+    test('the session-hash lookup is served by the expression index', async () => {
+        // The views compute encode(digest(sessionToken,'sha256'),'hex') per
+        // row; without the matching expression index every Notis admin
+        // request seq-scans Session. The index must exist AND the planner
+        // must actually pick it for the hash lookup.
+        const idx = await prisma.$queryRawUnsafe<Array<{ indexname: string }>>(
+            `SELECT indexname FROM pg_indexes
+             WHERE tablename = 'Session' AND indexname = 'Session_sessionTokenHash_idx'`,
+        )
+        expect(idx).toHaveLength(1)
+
+        const plan = await prisma.$queryRawUnsafe<Array<{ 'QUERY PLAN': string }>>(
+            `EXPLAIN SELECT * FROM "notis_admin_sessions" WHERE "sessionTokenHash" = 'x'`,
+        )
+        const planText = plan.map((r) => r['QUERY PLAN']).join('\n')
+        expect(planText).toContain('Session_sessionTokenHash_idx')
+    })
+
     test('notis_reader can read the views and nothing else', async () => {
         await createUser('reader@example.com')
 
