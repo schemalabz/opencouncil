@@ -819,6 +819,10 @@ model User {
   allowPetitionUpdates Boolean  @default(false)
   allowFeedbackCalls   Boolean  @default(true)
   isSuperAdmin  Boolean         @default(false)
+  // Notis rollout flag: null = old WhatsApp/SMS notification path. Set from
+  // the /admin release panel; Notis reads it through the notis_* views and
+  // enrolls the user on its next poll. Nulling it sends them back.
+  notisEnabledAt DateTime?
   accounts      Account[]
   sessions      Session[]
   Authenticator Authenticator[]
@@ -1229,6 +1233,9 @@ enum NotificationDeliveryStatus {
   pending
   sent
   failed
+  // The user moved to the Notis rollout after this delivery was created —
+  // the message medium is Notis's now, so the delivery is skipped, not sent.
+  skipped
 }
 
 model Message {

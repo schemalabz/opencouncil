@@ -45,6 +45,9 @@ jobs:
       # Workspace install at the root covers packages/ui and services/notis.
       - run: npm ci
 
+      # The generated Prisma clients are gitignored; typecheck needs them.
+      - run: npm run prisma:generate -w notis
+
       - run: npx tsc --noEmit
         working-directory: services/notis
 

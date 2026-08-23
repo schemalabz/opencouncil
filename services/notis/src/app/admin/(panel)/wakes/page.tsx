@@ -1,69 +1,239 @@
+import { getAdminSession } from "@/lib/session-auth";
+import { redirect } from "next/navigation";
+import { EVENT_LABELS } from "../_lib/records";
 import { Activity } from "lucide-react";
 import Link from "next/link";
-import { fmtDateTime } from "../_lib/format";
 import { EmptyState } from "../_components/EmptyState";
 import { PageHeader } from "../_components/PageHeader";
-import { listRecentWakes } from "../_lib/wakes";
+import { Pager } from "../_components/Pager";
+import { fmtDateTime, fmtInt, fmtTimeAgo } from "../_lib/format";
+import { parsePage } from "../_lib/paging";
+import {
+  DecisionFilter,
+  EventFilter,
+  WakeFeedEntry,
+  WakeFilter,
+  listRecentWakes,
+  parseDecisionFilter,
+  parseEventFilter,
+} from "../_lib/wakes";
 
 export const metadata = { title: "Wakes · Νότης admin" };
 
-export default function WakesPage() {
-  const wakes = listRecentWakes();
-  const sends = wakes.filter((w) => w.decision === "send").length;
-  const errors = wakes.filter((w) => w.decision === "error").length;
+/**
+ * The cross-user wake feed: every invocation with its decision AND its
+ * rationale — the rationale is what an admin actually reviews. Rows link
+ * into the conversation; the full trace lives in its inspector.
+ */
+
+const DECISION_FILTERS: Array<{ key: DecisionFilter; label: string }> = [
+  { key: "all", label: "Όλα" },
+  { key: "send", label: "Απαντήσεις" },
+  { key: "silence", label: "Σιωπές" },
+  { key: "error", label: "Σφάλματα" },
+];
+
+/** ?decision=…&event=…&page=…, omitting defaults so the URL stays canonical.
+ *  Filter chips omit `page` on purpose: a new filter restarts at page 1. */
+function feedHref(filter: WakeFilter, page = 1): string {
+  const params = new URLSearchParams();
+  if (filter.decision !== "all") params.set("decision", filter.decision);
+  if (filter.event !== "all") params.set("event", filter.event);
+  if (page > 1) params.set("page", String(page));
+  const query = params.toString();
+  return query ? `/admin/wakes?${query}` : "/admin/wakes";
+}
+
+function FilterChip({
+  href,
+  active,
+  label,
+  count,
+}: {
+  href: string;
+  active: boolean;
+  label: string;
+  count: number;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`rounded px-2 py-1 text-xs transition-colors ${
+        active
+          ? "bg-foreground font-medium text-background"
+          : "text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {label}
+      <span className="ml-1 tabular-nums opacity-60">{fmtInt(count)}</span>
+    </Link>
+  );
+}
+
+function DecisionBadge({ wake }: { wake: WakeFeedEntry }) {
+  if (wake.decision === "error") {
+    return (
+      <span className="rounded bg-red-50 px-1.5 py-0.5 text-[11px] font-medium text-red-700">
+        σφάλμα
+      </span>
+    );
+  }
+  if (wake.decision === "send") {
+    return (
+      <span className="rounded bg-orange/10 px-1.5 py-0.5 text-[11px] font-medium text-orange">
+        απάντησε{wake.messageCount > 1 ? ` ×${wake.messageCount}` : ""}
+      </span>
+    );
+  }
+  return (
+    <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+      σιωπή
+    </span>
+  );
+}
+
+/** Repair nudges, token-ceiling cuts, missing finish — amber marks only
+ *  when something needs a look; a healthy wake shows nothing. */
+function HealthMarks({ wake }: { wake: WakeFeedEntry }) {
+  const marks: string[] = [];
+  if (wake.repairs > 0) marks.push(wake.repairs === 1 ? "1 nudge" : `${wake.repairs} nudges`);
+  if (wake.truncated) marks.push("κομμένο");
+  if (wake.finishWakeMissing) marks.push("χωρίς finish");
+  if (marks.length === 0) return null;
+  return (
+    <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-700">
+      {marks.join(" · ")}
+    </span>
+  );
+}
+
+export default async function WakesPage(props: {
+  searchParams: Promise<{ decision?: string; event?: string; page?: string }>;
+}) {
+  // Re-assert auth in the page body: the (panel) layout guard does not
+  // re-run on an RSC soft-navigation, so a segment request can reach this
+  // page without it (enforced by the admin-auth-guard test).
+  const session = await getAdminSession();
+  if (!session) redirect("/admin/login");
+  const searchParams = await props.searchParams;
+  const filter: WakeFilter = {
+    decision: parseDecisionFilter(searchParams.decision),
+    event: parseEventFilter(searchParams.event),
+  };
+  const { entries, decisionCounts, eventCounts, total, page, pages } = await listRecentWakes(
+    filter,
+    parsePage(searchParams.page),
+  );
+  const eventTotal = eventCounts.reduce((a, r) => a + r.count, 0);
+  // Only event types that exist (or the active one) get a chip — no noise
+  // from types that arrive with PR 4.
+  const eventChips: Array<{ key: EventFilter; label: string; count: number }> = [
+    { key: "all" as const, label: "Όλα τα γεγονότα", count: eventTotal },
+    ...eventCounts
+      .filter((r) => r.count > 0 || r.eventType === filter.event)
+      .map((r) => ({
+        key: r.eventType as EventFilter,
+        label: EVENT_LABELS[r.eventType] ?? r.eventType,
+        count: r.count,
+      })),
+  ];
 
   return (
     <>
       <PageHeader title="Wakes">
-        <span className="text-xs tabular-nums text-muted-foreground">
-          {wakes.length} πρόσφατα · {sends} sends · {errors} σφάλματα
-        </span>
+        <nav className="flex items-center gap-0.5 rounded-md border p-0.5">
+          {DECISION_FILTERS.map(({ key, label }) => (
+            <FilterChip
+              key={key}
+              href={feedHref({ ...filter, decision: key })}
+              active={key === filter.decision}
+              label={label}
+              count={decisionCounts[key]}
+            />
+          ))}
+        </nav>
+        {eventChips.length > 1 && (
+          <nav className="flex items-center gap-0.5 rounded-md border p-0.5">
+            {eventChips.map(({ key, label, count }) => (
+              <FilterChip
+                key={key}
+                href={feedHref({ ...filter, event: key })}
+                active={key === filter.event}
+                label={label}
+                count={count}
+              />
+            ))}
+          </nav>
+        )}
       </PageHeader>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
-        {wakes.length === 0 ? (
+        {entries.length === 0 ? (
           <EmptyState icon={Activity}>
-            Κανένα wake ακόμα. Εδώ θα κυλάει κάθε αφύπνιση του Νότη σε όλους τους χρήστες —
-            γεγονός, απόφαση, κόστος, διάρκεια — με σύνδεσμο στη συνομιλία και το πλήρες trace
-            της.
+            {filter.decision === "all" && filter.event === "all"
+              ? "Κανένα wake ακόμα. Εδώ κυλάει κάθε αφύπνιση του Νότη — γεγονός, απόφαση, σκεπτικό, κόστος — με σύνδεσμο στη συνομιλία της."
+              : "Κανένα wake δεν ταιριάζει σε αυτά τα φίλτρα."}
           </EmptyState>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-xs text-muted-foreground">
-                {["Πότε", "Χρήστης", "Γεγονός", "Απόφαση", "Μηνύματα", "Κόστος", "Διάρκεια"].map(
-                  (c) => (
-                    <th key={c} className="pb-2 pr-4 font-medium">
-                      {c}
-                    </th>
-                  ),
-                )}
+                <th className="pb-2 pr-4 font-medium">Πότε</th>
+                <th className="pb-2 pr-4 font-medium">Χρήστης</th>
+                <th className="pb-2 pr-4 font-medium">Γεγονός</th>
+                <th className="pb-2 pr-4 font-medium">Απόφαση</th>
+                <th className="w-full pb-2 pr-4 font-medium">Σκεπτικό</th>
+                <th className="pb-2 pr-4 text-right font-medium">Κόστος</th>
+                <th className="pb-2 text-right font-medium">Διάρκεια</th>
               </tr>
             </thead>
             <tbody>
-              {wakes.map((w) => (
-                <tr key={w.id} className="border-b hover:bg-muted/40">
-                  <td className="py-2.5 pr-4 text-xs tabular-nums">{fmtDateTime(w.at)}</td>
-                  <td className="pr-4">
+              {entries.map((w) => (
+                <tr key={w.id} className="border-b align-middle hover:bg-muted/40">
+                  <td
+                    className="whitespace-nowrap py-2.5 pr-4 text-xs tabular-nums text-muted-foreground"
+                    title={fmtDateTime(w.at)}
+                  >
+                    {fmtTimeAgo(w.at)}
+                  </td>
+                  <td className="whitespace-nowrap py-2.5 pr-4">
                     <Link
                       href={`/admin/conversations/${w.conversationId}`}
-                      className="hover:underline"
+                      className="font-medium hover:underline"
                     >
                       {w.userName}
                     </Link>
                   </td>
-                  <td className="pr-4 text-xs">{w.eventType}</td>
-                  <td className="pr-4">
-                    {w.decision === "send" ? "✉ έστειλε" : w.decision === "error" ? "⚠ σφάλμα" : "🤫 σιωπή"}
+                  <td className="whitespace-nowrap py-2.5 pr-4 text-xs text-muted-foreground">
+                    {EVENT_LABELS[w.eventType] ?? w.eventType}
                   </td>
-                  <td className="pr-4 tabular-nums">{w.messageCount}</td>
-                  <td className="pr-4 tabular-nums">${w.costUsd.toFixed(3)}</td>
-                  <td className="tabular-nums">{(w.durationMs / 1000).toFixed(1)}s</td>
+                  <td className="whitespace-nowrap py-2.5 pr-4">
+                    <DecisionBadge wake={w} />
+                  </td>
+                  <td className="py-2.5 pr-4">
+                    <Link href={`/admin/conversations/${w.conversationId}`} className="block">
+                      <span className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                        {w.rationale}
+                      </span>
+                    </Link>
+                    <div className="mt-1 empty:hidden">
+                      <HealthMarks wake={w} />
+                    </div>
+                  </td>
+                  <td className="whitespace-nowrap py-2.5 pr-4 text-right text-xs tabular-nums">
+                    ${w.costUsd.toFixed(3)}
+                  </td>
+                  <td className="whitespace-nowrap py-2.5 text-right text-xs tabular-nums">
+                    {(w.durationMs / 1000).toFixed(1)}s
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
+        <div className="mt-3">
+          <Pager page={page} pages={pages} total={total} hrefFor={(p) => feedHref(filter, p)} />
+        </div>
       </div>
     </>
   );

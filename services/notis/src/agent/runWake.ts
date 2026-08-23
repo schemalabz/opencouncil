@@ -1,4 +1,4 @@
-import { buildJournalEntry } from "./journal";
+import { buildDecisionEntry } from "./decisions";
 import { addUsage, emptyUsage, normalizeUsage, usageToCost } from "./pricing";
 import { assembleSystem, assembleUserTurn } from "./prompt";
 import { buildMcpServers, buildTools } from "./tools";
@@ -24,7 +24,11 @@ function textOf(content: unknown[]): string {
 }
 
 /**
- * One agent invocation: (state, event, deps) → outcome + trace.
+ * One agent invocation: (state, events, deps) → outcome + trace.
+ *
+ * Usually one event; a coalesced batch wake carries several (sorted here by
+ * time, defensively), all consumed in a single invocation so the reader gets
+ * one considered response instead of a burst.
  *
  * Pure over Deps: never mutates `state`, performs no side effects — client
  * tool calls are recorded into the outcome and answered with synthetic
@@ -32,15 +36,24 @@ function textOf(content: unknown[]): string {
  */
 export async function runWake(
   state: WakeState,
-  event: WakeEvent,
+  eventsInput: WakeEvent[],
   deps: Deps,
+  opts: { now?: Date } = {},
 ): Promise<{ outcome: WakeOutcome; trace: WakeTrace }> {
+  if (eventsInput.length === 0) throw new Error("runWake: no events");
+  const events = [...eventsInput].sort((a, b) => a.at.localeCompare(b.at));
+  const hasUserMessage = events.some((e) => e.type === "user_message");
   const started = deps.now().getTime();
   const system = assembleSystem(deps.prompts);
-  // <current_time> is the event's time, not the wall clock: a wake is the
-  // processing of an event at its moment. In production the two coincide;
-  // under simulation only the event's clock tells the truth.
-  const userTurn = assembleUserTurn(state, event, new Date(event.at));
+  // <current_time> is when this wake is being processed — the caller says
+  // when that is. The shell passes the wall clock: a quiet-hours clamp or a
+  // pause deferral can put hours or days between an event and its wake, and
+  // a model reasoning from the event's timestamp writes «σήμερα» about
+  // yesterday and schedules follow-ups a day early. Simulation (playground,
+  // fixture replay) passes the simulated instant instead, which is why the
+  // default — the last event's time — is the honest one for a replay.
+  const now = opts.now ?? new Date(events[events.length - 1].at);
+  const userTurn = assembleUserTurn(state, events, now);
 
   // The user turn (with its multi-thousand-token brief) gets its own cache
   // breakpoint: the MCP connector's server-side research loop makes several
@@ -175,7 +188,7 @@ export async function runWake(
       // along with the tool_results and the loop continues once.
       let nudge: string | undefined;
       if (finished && !repaired) {
-        if (event.type === "user_message" && sent.length === 0 && !unsubscribe) {
+        if (hasUserMessage && sent.length === 0 && !unsubscribe) {
           preNudgeRationale = rationale;
           sentAtNudge = sent.length;
           // When the answer sits stranded as prose, quote it back. Without the
@@ -239,10 +252,10 @@ export async function runWake(
       // (a) The person wrote to us and the model produced neither a send nor
       // an unsubscribe: it wrote its answer into the final text instead of
       // the tool. Never fires on proactive wakes — silence is their default.
-      if (event.type === "user_message" && sent.length === 0 && !unsubscribe) {
+      if (hasUserMessage && sent.length === 0 && !unsubscribe) {
         // Same rationale protection as the other three repair paths: if the
         // nudged turn adds no sends, post-nudge check-chatter must not become
-        // the journal rationale the next thirty wakes read as memory.
+        // the decision-log rationale the next thirty wakes read as memory.
         preNudgeRationale = rationale;
         sentAtNudge = sent.length;
         repaired = true;
@@ -314,12 +327,6 @@ export async function runWake(
   // without a terminal anomaly explaining why), record the contract breach.
   const finishWakeMissing = !finished && !refused && !truncated;
 
-  const journalAppend = buildJournalEntry(event, decision, rationale, sent, {
-    profileRewritten: profileRewrite !== undefined,
-    unsubscribed: Boolean(unsubscribe),
-    truncated,
-  });
-
   const outcome: WakeOutcome = {
     decision,
     rationale,
@@ -330,7 +337,6 @@ export async function runWake(
     ...(profileRewrite !== undefined ? { profileRewrite } : {}),
     scheduledWakes,
     ...(unsubscribe ? { unsubscribe } : {}),
-    journalAppend,
   };
 
   const trace: WakeTrace = {
@@ -345,11 +351,30 @@ export async function runWake(
   return { outcome, trace };
 }
 
-/** Apply an outcome to a state, returning the next state. Callers own persistence. */
-export function applyOutcome(state: WakeState, outcome: WakeOutcome): WakeState {
+/**
+ * Evolve a simulated state by one wake, the way the production shell's real
+ * records would: the events' reader messages and the outcome's sent texts
+ * join the conversation, and the derived decision entry joins the log. Used
+ * by the simulation surfaces (dry-run, playground) — production reads both
+ * from the database instead.
+ */
+export function applyOutcome(
+  state: WakeState,
+  events: WakeEvent[],
+  outcome: WakeOutcome,
+): WakeState {
+  const ordered = [...events].sort((a, b) => a.at.localeCompare(b.at));
+  const entry = buildDecisionEntry(ordered, outcome);
   return {
     ...state,
     profile: outcome.profileRewrite !== undefined ? outcome.profileRewrite : state.profile,
-    journal: [...state.journal, outcome.journalAppend],
+    conversation: [
+      ...state.conversation,
+      ...ordered
+        .filter((e): e is Extract<WakeEvent, { type: "user_message" }> => e.type === "user_message")
+        .map((e) => ({ at: e.at, from: "reader" as const, text: e.text })),
+      ...outcome.messages.map((text) => ({ at: entry.at, from: "notis" as const, text })),
+    ],
+    decisions: [...state.decisions, entry],
   };
 }

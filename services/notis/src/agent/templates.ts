@@ -5,7 +5,8 @@ import { WakeEvent } from "./types";
  * (app.bird.com → OpenCouncil workspace → Message templates; first approved
  * by Meta 2026-08-04/05, revised 2026-08-15: intro/transition name the persona «ο Νότης»,
  * conditional agenda closing, «Τι είναι αυτό;» intro button, new
- * demos_checkin — revised versions pending Meta re-approval). If a template
+ * demos_checkin; revised again 2026-08-19 so every footer carries the AI
+ * disclosure the AI Act asks for). If a template
  * changes in Bird, this file must change with it — the simulator and the
  * production send path both render from here, so what you see simulated is
  * what Meta approved.
@@ -40,7 +41,21 @@ export interface TemplateDef {
   buttons: TemplateButton[];
 }
 
-const STOP_FOOTER = "Απάντησε ΣΤΟΠ για να μη λαμβάνεις μηνύματα.";
+/**
+ * Two obligations in 60 characters, which is WhatsApp's cap for a footer.
+ *
+ * The AI disclosure comes first: the EU AI Act (Article 50) requires telling
+ * a person they are dealing with an AI system, and every one of these shells
+ * carries text an agent wrote. The opt-out keeps its place beside it, in the
+ * shortest wording that still reads as an instruction — «Απάντησε ΣΤΟΠ για να
+ * μη λαμβάνεις μηνύματα.» plus the disclosure came to 72 characters, so
+ * something had to give and it was not the disclosure.
+ */
+const STOP_FOOTER = "Μήνυμα με τεχνητή νοημοσύνη. ΣΤΟΠ για διακοπή.";
+
+/** The transition cohort keeps receiving email, so ΣΤΟΠ means something
+ *  different for them: it narrows the channel rather than ending contact. */
+const STOP_FOOTER_EMAIL = "Μήνυμα με τεχνητή νοημοσύνη. ΣΤΟΠ για μόνο email.";
 
 export const TEMPLATES: Record<TemplateName, TemplateDef> = {
   demos_intro: {
@@ -63,7 +78,7 @@ export const TEMPLATES: Record<TemplateName, TemplateDef> = {
       "Οι ειδοποιήσεις του OpenCouncil αλλάζουν! Από εδώ και πέρα σου γράφω εγώ, ο Νότης, ο βοηθός του OpenCouncil. Θα σου στέλνω λιγότερα και πιο προσωπικά μηνύματα, μόνο όταν συμβαίνει κάτι που πραγματικά σε αφορά, και μπορείς να μου απαντάς και να με ρωτάς οτιδήποτε για τον δήμο σου. Τα email σου συνεχίζουν κανονικά.",
     bodySuffix: "",
     hasVariable: false,
-    footer: "Απάντησε ΣΤΟΠ για να λαμβάνεις μόνο email.",
+    footer: STOP_FOOTER_EMAIL,
     buttons: [
       { label: "Περισσότερα", kind: "url" },
       { label: "Ας γνωριστούμε", kind: "quick_reply" },
@@ -133,31 +148,34 @@ export function renderTemplate(name: TemplateName, text = ""): RenderedTemplate 
   return { template: name, body, footer: def.footer, buttons: def.buttons };
 }
 
+/**
+ * The origins whose threads open with an intro template. An inbound-origin
+ * thread opens with the reader's own message and never gets one.
+ */
+export type EnrollmentOrigin = "transition" | "signup";
+
 /** Which shell opens the thread, by how the reader entered Notis. */
-export function introTemplateFor(origin: "transition" | "signup"): TemplateName {
+export function introTemplateFor(origin: EnrollmentOrigin): TemplateName {
   return origin === "transition" ? "demos_transition" : "demos_intro";
 }
 
 /**
- * Which shell a cold proactive send must use, by the event that woke the agent.
- *
- * Known gaps to close before this goes live in PR 4:
- * - "scheduled" → demos_followup assumes the wake answers a reader question
- *   («Σχετικά με αυτό που με ρώτησες»). A wake the agent scheduled after a
- *   PROACTIVE send hits the same case and would frame an answer to a question
- *   nobody asked; the mapping needs the schedule's origin, which the event
- *   does not carry yet.
- * - "heartbeat" falls through to demos_update_news; nothing produces
- *   heartbeats in PR 1, so this default is untested.
+ * Which shell a cold proactive send must use, by the event that woke the
+ * agent. A scheduled wake's shell depends on why the schedule existed: a
+ * promised answer to a reader question rides demos_followup («Σχετικά με
+ * αυτό που με ρώτησες»); a self-scheduled follow-up to proactive news must
+ * NOT frame an answer to a question nobody asked, so it rides
+ * demos_update_news. An absent origin is a pre-PR-4 record — every one of
+ * those came from a user_message wake, so "reply" is the honest default.
  */
-export function templateForEvent(eventType: WakeEvent["type"]): TemplateName {
-  switch (eventType) {
+export function templateForEvent(event: WakeEvent): TemplateName {
+  switch (event.type) {
     case "agenda_processed":
       return "demos_update_agenda";
     case "meeting_summarized":
       return "demos_update_news";
     case "scheduled":
-      return "demos_followup";
+      return event.origin === "proactive" ? "demos_update_news" : "demos_followup";
     default:
       return "demos_update_news";
   }

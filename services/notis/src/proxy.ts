@@ -1,22 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ADMIN_COOKIE, verifyToken } from "@/lib/admin-auth";
-import { env } from "@/env.mjs";
+import { sessionCookieName } from "@/lib/session-cookie";
 
-// Everything under /admin and /api requires the admin cookie, except the
-// health check and the login endpoint itself. The landing page (/) is public.
-const PUBLIC_API = ["/api/health", "/api/admin/login"];
+// Coarse gate only, and the belt — not the primary defense. This runs on
+// every request (full navigation, RSC, prefetch), so it cannot depend on the
+// panel layout, which Next.js does not re-run on an RSC soft-navigation. But
+// the edge runtime has no database access, so it can only check that the
+// cookie is present, never that its value is a live superadmin session.
+// Real validation happens server-side, where the database is reachable:
+// getAdminSession() in the panel layout AND in every panel page body (a
+// segment RSC request skips the layout — see the (panel) auth-guard test),
+// and requireAdmin() in every API route.
+// The Bird webhook carries no session cookie; it authenticates with its own
+// HMAC signature inside the route.
+const PUBLIC_API = ["/api/health", "/api/webhooks/bird"];
 
-export default async function proxy(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (PUBLIC_API.some((p) => pathname === p)) {
     return NextResponse.next();
   }
 
-  const token = request.cookies.get(ADMIN_COOKIE)?.value;
-  const authorized = await verifyToken(token, env.NOTIS_ADMIN_SECRET);
-
-  if (authorized) {
+  if (request.cookies.get(sessionCookieName())?.value) {
     return NextResponse.next();
   }
 

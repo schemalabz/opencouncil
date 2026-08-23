@@ -2,11 +2,23 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, MapPin, X } from "lucide-react";
-import { introTemplateFor, renderTemplate } from "@/agent/templates";
+import { locationPoints, locationText } from "@/agent/geo";
+import { seedProfileFromPreferences } from "@/agent/profileSeed";
+import { EnrollmentOrigin, introTemplateFor, renderTemplate } from "@/agent/templates";
 import { CityPreference, WakeState } from "@/agent/types";
-import { CityOption, TopicOption, fetchCities, fetchMeetings, fetchTopics, geocode } from "../api";
+import {
+  CityOption,
+  RealUser,
+  TopicOption,
+  fetchCities,
+  fetchMeetings,
+  fetchRealUsers,
+  fetchTopics,
+  geocode,
+} from "../api";
 import { MeetingSummary, deriveQueue } from "../deriveQueue";
-import { LocationPoint, Origin, Sim } from "../types";
+import { UserAvatar } from "../../_components/UserAvatar";
+import { Sim } from "../types";
 import { AddressSearch } from "./AddressSearch";
 import { LocationsMap, MapFocus } from "./LocationsMap";
 
@@ -15,11 +27,15 @@ interface Props {
   onComplete(sim: Sim, from: string): void;
 }
 
+// Map pins are DERIVED from `locations` via locationPoints() — no parallel
+// array to keep in sync.
 interface CityDraft extends CityPreference {
-  points: LocationPoint[];
   center: MapFocus | null;
   logo?: string | null;
 }
+
+const DEFAULT_PROFILE =
+  "Μένει στην πόλη χρόνια. Ενδιαφέρεται για όσα αλλάζουν την καθημερινότητά της.";
 
 function SectionHeader({ n, title }: { n: string; title: string }) {
   return (
@@ -43,16 +59,48 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
   const [drafts, setDrafts] = useState<CityDraft[]>([]);
   const [focus, setFocus] = useState<MapFocus | null>(null);
   const [name, setName] = useState("Μαρία");
-  const [profile, setProfile] = useState(
-    "Μένει στην πόλη χρόνια. Ενδιαφέρεται για όσα αλλάζουν την καθημερινότητά της.",
-  );
-  const [origin, setOrigin] = useState<Origin>("transition");
+  const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  // Until the admin edits the textarea, the profile tracks the mechanical
+  // seeding rule — the same one migration enrollment uses — so tuning runs
+  // on launch-shaped profiles, not hand-typed ones.
+  const [profileDirty, setProfileDirty] = useState(false);
+  const [origin, setOrigin] = useState<EnrollmentOrigin>("transition");
   const [from, setFrom] = useState("2026-05-01");
+
+  const [realUsers, setRealUsers] = useState<{ available: boolean; users: RealUser[] } | null>(null);
+  const [realMode, setRealMode] = useState(false);
+  const [realLoading, setRealLoading] = useState(false);
+  const [realSearch, setRealSearch] = useState("");
+  const [selectedRealUserId, setSelectedRealUserId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCities().then(setCities).catch((e) => setError(String(e)));
     fetchTopics().then(setTopics).catch((e) => setError(String(e)));
   }, []);
+
+  // Real users load lazily when the mode opens, and the search runs
+  // server-side (debounced) — the server caps at 50 users, so a client-side
+  // filter would silently search a window.
+  useEffect(() => {
+    if (!realMode) return;
+    setRealLoading(true);
+    const timer = setTimeout(() => {
+      fetchRealUsers(realSearch.trim())
+        .then(setRealUsers)
+        .catch(() => setRealUsers({ available: false, users: [] }))
+        .finally(() => setRealLoading(false));
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [realMode, realSearch]);
+
+  useEffect(() => {
+    if (profileDirty) return;
+    setProfile(
+      drafts.length === 0
+        ? DEFAULT_PROFILE
+        : seedProfileFromPreferences(drafts.map(({ center: _c, logo: _l, ...pref }) => pref)),
+    );
+  }, [drafts, profileDirty]);
 
   const availableCities = useMemo(
     () =>
@@ -62,7 +110,7 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
     [cities, citySearch, drafts],
   );
 
-  const allPoints = useMemo(() => drafts.flatMap((d) => d.points), [drafts]);
+  const allPoints = useMemo(() => drafts.flatMap((d) => locationPoints(d.locations)), [drafts]);
 
   async function addCity(c: CityOption) {
     setCitySearch("");
@@ -71,7 +119,6 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
       cityName: c.name,
       topics: [],
       locations: [],
-      points: [],
       center: null,
       logo: c.logoImage ?? null,
     };
@@ -88,6 +135,40 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
     setDrafts((prev) => prev.map((d) => (d.cityId === cityId ? fn(d) : d)));
   }
 
+  /**
+   * Mirror a real user: their preferences become the drafts and the profile
+   * re-seeds mechanically. The fanout view carries location centroids, so
+   * their pinned places land on the map too.
+   */
+  function applyRealUser(user: RealUser) {
+    setSelectedRealUserId(user.userId);
+    setName(user.name ?? "Δημότης");
+    setProfileDirty(false);
+    const newDrafts: CityDraft[] = user.cities.map((pref) => ({
+      cityId: pref.cityId,
+      cityName: pref.cityName,
+      topics: pref.topics,
+      locations: pref.locations.map((l) => ({
+        text: l.text,
+        ...(l.lng != null && l.lat != null ? { lng: l.lng, lat: l.lat } : {}),
+      })),
+      center: null,
+      logo: cities.find((c) => c.id === pref.cityId)?.logoImage ?? null,
+    }));
+    setDrafts(newDrafts);
+    // locationPoints strips coordless and (0,0)-sentinel places.
+    const firstPoint = newDrafts.flatMap((d) => locationPoints(d.locations))[0];
+    if (firstPoint) setFocus({ lng: firstPoint.lng, lat: firstPoint.lat, zoom: 12.5 });
+    for (const draft of newDrafts) {
+      void geocode(draft.cityName, mapboxToken, undefined, "place,locality").then((hits) => {
+        const center = hits[0] ? { lng: hits[0].lng, lat: hits[0].lat, zoom: 11.5 } : null;
+        if (!center) return;
+        setDrafts((prev) => prev.map((d) => (d.cityId === draft.cityId ? { ...d, center } : d)));
+        if (!firstPoint && draft.cityId === newDrafts[0]?.cityId) setFocus(center);
+      });
+    }
+  }
+
   async function start() {
     setBusy(true);
     setError(null);
@@ -98,27 +179,17 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
       const queue = deriveQueue(meetings, from);
       if (queue.length === 0)
         throw new Error("Καμία δημοσιευμένη συνεδρίαση μετά από αυτή την ημερομηνία.");
-      // Enrollment sends the origin-appropriate template before any wake; it
-      // enters the journal so the agent knows the reader already got an intro.
+      // The intro template opens the conversation, so the agent knows the
+      // reader already got it — same as production, where the intro's
+      // message row lands in the conversation once sent.
       const startAt = new Date(from).toISOString();
       const introTemplate = introTemplateFor(origin);
       const rendered = renderTemplate(introTemplate);
       const state: WakeState = {
-        user: { name, cities: drafts.map(({ points: _p, center: _c, ...pref }) => pref) },
+        user: { name, cities: drafts.map(({ center: _c, logo: _l, ...pref }) => pref) },
         profile,
-        journal: [
-          {
-            at: startAt,
-            event: "enrollment",
-            decision: "send",
-            rationale: `(σύστημα) Εγγραφή μέσω ${
-              origin === "transition"
-                ? "μετάβασης από τις παλιές ειδοποιήσεις"
-                : "νέας εγγραφής στο site"
-            } — στάλθηκε το εγκεκριμένο template ${introTemplate}.`,
-            messages: [rendered.body],
-          },
-        ],
+        conversation: [{ at: startAt, from: "notis", text: rendered.body }],
+        decisions: [],
       };
       onComplete(
         {
@@ -126,7 +197,7 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
           clock: startAt,
           queue,
           settings: {},
-          locationPoints: Object.fromEntries(drafts.map((d) => [d.cityId, d.points])),
+          locationPoints: Object.fromEntries(drafts.map((d) => [d.cityId, locationPoints(d.locations)])),
           origin,
           cityMeta: Object.fromEntries(
             drafts.map((d) => [d.cityId, { name: d.cityName, logo: d.logo }]),
@@ -140,7 +211,10 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
     }
   }
 
-  const initial = (name.trim()[0] ?? ";").toUpperCase();
+  // The casting-sheet portrait: a real user keeps their stable face (same
+  // seed as the admin lists); a fictional one grows a face from the name as
+  // it is typed.
+  const avatarSeed = realMode && selectedRealUserId ? selectedRealUserId : name.trim() || "?";
 
   return (
     <div className="grid h-full lg:grid-cols-[minmax(480px,620px)_1fr]">
@@ -169,10 +243,98 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
           {/* 01 — who */}
           <section className="wizard-reveal space-y-5" style={{ animationDelay: "80ms" }}>
             <SectionHeader n="01" title="Ποιος είναι" />
-            <div className="flex items-start gap-5">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-foreground font-relative text-2xl text-background">
-                {initial}
+
+            {(
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      [false, "Φανταστικός δημότης", "Φτιάξ' τον από το μηδέν"],
+                      [true, "Πραγματικός χρήστης", "Από τις προτιμήσεις ειδοποιήσεων"],
+                    ] as const
+                  ).map(([mode, label, hint]) => (
+                    <button
+                      key={label}
+                      onClick={() => setRealMode(mode)}
+                      className={`border px-4 py-2.5 text-left transition-colors ${
+                        realMode === mode
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <span className="block text-sm font-medium">{label}</span>
+                      <span
+                        className={`block text-xs ${
+                          realMode === mode ? "text-background/70" : "text-muted-foreground/70"
+                        }`}
+                      >
+                        {hint}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                {realMode && realUsers && !realUsers.available && (
+                  <p className="text-sm text-muted-foreground">
+                    Μη διαθέσιμο — αυτό το περιβάλλον δεν έχει MAIN_DATABASE_URL.
+                  </p>
+                )}
+                {realMode && (realUsers?.available ?? true) && (
+                  <div className="space-y-2">
+                    <input
+                      value={realSearch}
+                      onChange={(e) => setRealSearch(e.target.value)}
+                      placeholder="Αναζήτηση ονόματος ή τηλεφώνου"
+                      className="h-9 w-full border-b border-border bg-transparent text-sm outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-foreground"
+                    />
+                    <ul className="max-h-64 divide-y overflow-y-auto border">
+                      {(realUsers?.users ?? []).map((u) => {
+                        const topicCount = u.cities.reduce((n, c) => n + c.topics.length, 0);
+                        const locationCount = u.cities.reduce((n, c) => n + c.locations.length, 0);
+                        return (
+                          <li key={u.userId}>
+                            <button
+                              onClick={() => applyRealUser(u)}
+                              className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-secondary ${
+                                selectedRealUserId === u.userId ? "bg-secondary" : ""
+                              }`}
+                            >
+                              <UserAvatar seed={u.userId} size={28} />
+                              <span className="min-w-0 flex-1">
+                              <span className="flex items-baseline gap-2">
+                                <span className="text-sm font-medium">{u.name ?? "—"}</span>
+                                {u.phone && (
+                                  <span className="text-xs text-muted-foreground">{u.phone}</span>
+                                )}
+                                {u.notisEnabledAt && (
+                                  <span className="text-[10px] font-medium uppercase tracking-wider text-orange">
+                                    notis
+                                  </span>
+                                )}
+                              </span>
+                              <span className="mt-0.5 block text-xs text-muted-foreground">
+                                {u.cities.map((c) => c.cityName).join(", ")}
+                                {" · "}
+                                {topicCount} θέματα · {locationCount} περιοχές
+                              </span>
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                      {(realUsers?.users ?? []).length === 0 && (
+                        <li className="px-3 py-2 text-sm text-muted-foreground">
+                          {realLoading ? "Φόρτωση..." : "Κανένα αποτέλεσμα."}
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                )}
               </div>
+            )}
+
+            <div className="flex items-start gap-5">
+              <UserAvatar seed={avatarSeed} size={56} />
               <div className="min-w-0 flex-1 space-y-1">
                 <input
                   value={name}
@@ -182,7 +344,10 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
                 />
                 <textarea
                   value={profile}
-                  onChange={(e) => setProfile(e.target.value)}
+                  onChange={(e) => {
+                    setProfileDirty(true);
+                    setProfile(e.target.value);
+                  }}
                   rows={2}
                   placeholder="Δυο λόγια — πού μένει, τι τον νοιάζει..."
                   className="w-full resize-none border-b border-transparent bg-transparent text-sm leading-relaxed text-muted-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-foreground focus:text-foreground"
@@ -215,6 +380,7 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
                 </button>
               ))}
             </div>
+
           </section>
 
           {/* 02 — where & what */}
@@ -312,21 +478,20 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
                     <div className="max-w-md space-y-1">
                       {draft.locations.map((l, i) => (
                         <div
-                          key={`${l}${i}`}
+                          key={`${locationText(l)}${i}`}
                           className="group/loc flex items-center gap-2 py-0.5 text-sm"
                         >
                           <MapPin className="h-3.5 w-3.5 shrink-0 text-orange" />
-                          <span className="truncate">{l}</span>
+                          <span className="truncate">{locationText(l)}</span>
                           <button
                             onClick={() =>
                               updateDraft(draft.cityId, (d) => ({
                                 ...d,
                                 locations: d.locations.filter((_, j) => j !== i),
-                                points: d.points.filter((_, j) => j !== i),
                               }))
                             }
                             className="ml-auto text-muted-foreground/0 transition-colors hover:!text-destructive group-hover/loc:text-muted-foreground"
-                            aria-label={`Αφαίρεση ${l}`}
+                            aria-label={`Αφαίρεση ${locationText(l)}`}
                           >
                             <X className="h-3.5 w-3.5" />
                           </button>
@@ -338,8 +503,10 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
                         onPick={(hit) =>
                           updateDraft(draft.cityId, (d) => ({
                             ...d,
-                            locations: [...d.locations, hit.text],
-                            points: [...d.points, hit],
+                            // Object form with coordinates: wake assembly
+                            // computes subject distances and the map derives
+                            // its pins from these.
+                            locations: [...d.locations, { text: hit.text, lng: hit.lng, lat: hit.lat }],
                           }))
                         }
                       />

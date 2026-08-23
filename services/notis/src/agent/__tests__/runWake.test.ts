@@ -14,13 +14,12 @@ describe("runWake", () => {
     const fake = new FakeAnthropic([
       { content: [text("Routine budget items only; nothing touching Κυψέλη. Staying quiet.")], stop_reason: "end_turn" },
     ]);
-    const { outcome, trace } = await runWake(makeState(), meetingEvent(), makeDeps(fake));
+    const { outcome, trace } = await runWake(makeState(), [meetingEvent()], makeDeps(fake));
 
     expect(outcome.decision).toBe("silence");
     expect(outcome.messages).toEqual([]);
     expect(outcome.rationale).toContain("Staying quiet");
-    expect(outcome.journalAppend.decision).toBe("silence");
-    expect(outcome.journalAppend.at).toBe(FIXED_NOW.toISOString());
+    expect(outcome.decision).toBe("silence");
     expect(trace.turns).toHaveLength(1);
   });
 
@@ -40,7 +39,7 @@ describe("runWake", () => {
       },
       { content: [text("Τίποτα που να αξίζει μήνυμα.")], stop_reason: "end_turn" },
     ]);
-    const { outcome, trace } = await runWake(makeState(), meetingEvent(), makeDeps(fake));
+    const { outcome, trace } = await runWake(makeState(), [meetingEvent()], makeDeps(fake));
 
     expect(outcome.decision).toBe("silence");
     expect(trace.turns).toHaveLength(2);
@@ -63,7 +62,7 @@ describe("runWake", () => {
     ]);
     const { outcome, trace } = await runWake(
       makeState(),
-      { type: "user_message", at: FIXED_NOW.toISOString(), text: "πες μου" },
+      [{ type: "user_message", at: FIXED_NOW.toISOString(), text: "πες μου" }],
       makeDeps(fake),
     );
 
@@ -90,7 +89,7 @@ describe("runWake", () => {
     ]);
     const { outcome, trace } = await runWake(
       makeState(),
-      { type: "user_message", at: FIXED_NOW.toISOString(), text: "λοιπόν;" },
+      [{ type: "user_message", at: FIXED_NOW.toISOString(), text: "λοιπόν;" }],
       makeDeps(fake),
     );
 
@@ -111,7 +110,7 @@ describe("runWake", () => {
     ]);
     const { outcome, trace } = await runWake(
       makeState(),
-      { type: "user_message", at: FIXED_NOW.toISOString(), text: "τι έγινε τελικά;" },
+      [{ type: "user_message", at: FIXED_NOW.toISOString(), text: "τι έγινε τελικά;" }],
       makeDeps(fake),
     );
 
@@ -139,7 +138,7 @@ describe("runWake", () => {
     ]);
     const { outcome, trace } = await runWake(
       makeState(),
-      { type: "user_message", at: FIXED_NOW.toISOString(), text: "τίποτα άλλο;" },
+      [{ type: "user_message", at: FIXED_NOW.toISOString(), text: "τίποτα άλλο;" }],
       makeDeps(fake),
     );
 
@@ -165,7 +164,7 @@ describe("runWake", () => {
     ]);
     const { outcome, trace } = await runWake(
       makeState(),
-      { type: "user_message", at: FIXED_NOW.toISOString(), text: "ok" },
+      [{ type: "user_message", at: FIXED_NOW.toISOString(), text: "ok" }],
       makeDeps(fake),
     );
 
@@ -189,7 +188,7 @@ describe("runWake", () => {
       },
       { content: [text("Sent because the plaza affects her street.")], stop_reason: "end_turn" },
     ]);
-    const { outcome } = await runWake(makeState(), meetingEvent(), makeDeps(fake));
+    const { outcome } = await runWake(makeState(), [meetingEvent()], makeDeps(fake));
 
     expect(outcome.decision).toBe("send");
     expect(outcome.messages).toEqual(["Πρώτο μήνυμα", "Δεύτερο μήνυμα"]);
@@ -210,7 +209,7 @@ describe("runWake", () => {
       { content: [toolUse("t2", "update_taste_profile", { profile: "v2" })], stop_reason: "tool_use" },
       { content: [text("Updated what I know.")], stop_reason: "end_turn" },
     ]);
-    const { outcome } = await runWake(makeState(), meetingEvent(), makeDeps(fake));
+    const { outcome } = await runWake(makeState(), [meetingEvent()], makeDeps(fake));
     expect(outcome.profileRewrite).toBe("v2");
     expect(outcome.decision).toBe("silence");
   });
@@ -226,7 +225,7 @@ describe("runWake", () => {
       },
       { content: [text("Will come back to it.")], stop_reason: "end_turn" },
     ]);
-    const { outcome } = await runWake(makeState(), meetingEvent(), makeDeps(fake));
+    const { outcome } = await runWake(makeState(), [meetingEvent()], makeDeps(fake));
     expect(outcome.scheduledWakes).toEqual([
       { at: "2026-04-01", reason: "check the tender" },
       { at: "2026-05-01", reason: "follow the vote" },
@@ -244,14 +243,14 @@ describe("runWake", () => {
       },
       { content: [text("They wanted out; let them go warmly.")], stop_reason: "end_turn" },
     ]);
-    const { outcome } = await runWake(makeState(), meetingEvent(), makeDeps(fake));
+    const { outcome } = await runWake(makeState(), [meetingEvent()], makeDeps(fake));
     expect(outcome.unsubscribe).toEqual({ reason: "asked to stop" });
     expect(outcome.messages).toHaveLength(1);
   });
 
   it("refusal: outcome is silence with a rationale that always exists", async () => {
     const fake = new FakeAnthropic([{ content: [], stop_reason: "refusal" }]);
-    const { outcome } = await runWake(makeState(), meetingEvent(), makeDeps(fake));
+    const { outcome } = await runWake(makeState(), [meetingEvent()], makeDeps(fake));
     expect(outcome.decision).toBe("silence");
     expect(outcome.rationale.length).toBeGreaterThan(0);
   });
@@ -261,7 +260,7 @@ describe("runWake", () => {
       { content: [text("looking things up...")], stop_reason: "pause_turn" },
       { content: [text("Nothing worth their attention.")], stop_reason: "end_turn" },
     ]);
-    const { outcome } = await runWake(makeState(), meetingEvent(), makeDeps(fake));
+    const { outcome } = await runWake(makeState(), [meetingEvent()], makeDeps(fake));
     expect(outcome.decision).toBe("silence");
     expect(fake.requests).toHaveLength(2);
     const second = fake.requests[1].messages as Array<{ role: string }>;
@@ -276,7 +275,7 @@ describe("runWake", () => {
     const fake = new FakeAnthropic(turns);
     const deps = makeDeps(fake);
     deps.config = { ...deps.config, maxTurns: 3 };
-    const { outcome, trace } = await runWake(makeState(), meetingEvent(), deps);
+    const { outcome, trace } = await runWake(makeState(), [meetingEvent()], deps);
     expect(trace.turns).toHaveLength(3);
     expect(outcome.rationale.length).toBeGreaterThan(0);
   });
@@ -286,7 +285,7 @@ describe("runWake", () => {
       { content: [toolUse("t1", "send_message", { text: "μήνυμα" })], stop_reason: "tool_use" },
       { content: [text("done")], stop_reason: "end_turn" },
     ]);
-    const { trace } = await runWake(makeState(), meetingEvent(), makeDeps(fake));
+    const { trace } = await runWake(makeState(), [meetingEvent()], makeDeps(fake));
     expect(trace.usageTotal).toEqual({ input: 2000, output: 200, cacheWrite: 0, cacheRead: 0 });
     // 2000/1M * $3 + 200/1M * $15 = 0.006 + 0.003
     expect(trace.costUsd).toBeCloseTo(0.009, 10);
@@ -299,21 +298,35 @@ describe("runWake", () => {
       { content: [toolUse("t1", "update_taste_profile", { profile: "new" })], stop_reason: "tool_use" },
       { content: [text("noted")], stop_reason: "end_turn" },
     ]);
-    await runWake(state, meetingEvent(), makeDeps(fake));
+    await runWake(state, [meetingEvent()], makeDeps(fake));
     expect(state).toEqual(snapshot);
   });
 
-  it("applyOutcome appends the journal entry and applies profile rewrites", async () => {
+  it("applyOutcome appends the decision, evolves the conversation, applies rewrites", async () => {
     const fake = new FakeAnthropic([
-      { content: [toolUse("t1", "update_taste_profile", { profile: "νέο προφίλ" })], stop_reason: "tool_use" },
-      { content: [text("learned something")], stop_reason: "end_turn" },
+      {
+        content: [
+          toolUse("t1", "update_taste_profile", { profile: "νέο προφίλ" }),
+          toolUse("t2", "send_message", { text: "Η απάντηση." }),
+          toolUse("t3", "finish_wake", { rationale: "απάντησα" }),
+        ],
+        stop_reason: "tool_use",
+      },
     ]);
     const state = makeState();
-    const { outcome } = await runWake(state, meetingEvent(), makeDeps(fake));
-    const next = applyOutcome(state, outcome);
+    const events = [
+      { type: "user_message" as const, at: FIXED_NOW.toISOString(), text: "Τι έγινε;" },
+    ];
+    const { outcome } = await runWake(state, events, makeDeps(fake));
+    const next = applyOutcome(state, events, outcome);
     expect(next.profile).toBe("νέο προφίλ");
-    expect(next.journal).toHaveLength(1);
-    expect(state.journal).toHaveLength(0);
+    expect(next.decisions).toHaveLength(1);
+    expect(next.decisions[0]).toMatchObject({ event: "user_message", decision: "send" });
+    // The conversation evolves the way production's real records would:
+    // their message, then what the agent sent.
+    expect(next.conversation.map((m) => m.text)).toEqual(["Τι έγινε;", "Η απάντηση."]);
+    expect(state.decisions).toHaveLength(0);
+    expect(state.conversation).toHaveLength(0);
   });
   it("a turn cut at max_tokens records truncation, not a decision", async () => {
     const fake = new FakeAnthropic([
@@ -326,14 +339,14 @@ describe("runWake", () => {
     ]);
     const { outcome } = await runWake(
       makeState(),
-      { type: "user_message", at: FIXED_NOW.toISOString(), text: "τι έγινε;" },
+      [{ type: "user_message", at: FIXED_NOW.toISOString(), text: "τι έγινε;" }],
       makeDeps(fake),
     );
 
     expect(outcome.truncated).toBe(true);
     expect(outcome.decision).toBe("silence");
     expect(outcome.messages).toEqual([]);
-    expect(outcome.journalAppend.truncated).toBe(true);
+    expect(outcome.truncated).toBe(true);
   });
 
   it("exactly one moving cache breakpoint survives across tool turns", async () => {
@@ -344,7 +357,7 @@ describe("runWake", () => {
     ]);
     await runWake(
       makeState(),
-      { type: "heartbeat", at: FIXED_NOW.toISOString() },
+      [{ type: "heartbeat", at: FIXED_NOW.toISOString() }],
       makeDeps(fake),
     );
 

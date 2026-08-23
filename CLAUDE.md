@@ -325,7 +325,7 @@ Do not narrate each step. Do not repeat what the diff already shows.
 **Build Verification**:
 - Run `npm run build` **once after all changes are complete** — not after every individual step
 - For schema changes: run `npm run prisma:generate` before building
-- Quick TypeScript check without full build: `npx tsc --noEmit`
+- Quick TypeScript check without full build: `npx tsc --project tsconfig.jest.json --noEmit` (covers `tests/` too; plain `npx tsc --noEmit` matches the `next build` scope, which excludes `tests/`)
 - **Tests**: `npm test` and `npm run test:integration` are fast — run them between changes to catch regressions early
 - **`package-lock.json` changes need no extra step**: the Nix build (`importNpmLock`) reads dependency hashes directly from the lockfile.
 

@@ -1,10 +1,17 @@
+import { getAdminSession } from "@/lib/session-auth";
+import { redirect } from "next/navigation";
 import { TEMPLATES } from "@/agent/templates";
 import { WA } from "../_lib/whatsapp";
 import { PageHeader } from "../_components/PageHeader";
 
 export const metadata = { title: "Templates · Νότης admin" };
 
-export default function TemplatesPage() {
+export default async function TemplatesPage() {
+  // Re-assert auth in the page body: the (panel) layout guard does not
+  // re-run on an RSC soft-navigation, so a segment request can reach this
+  // page without it (enforced by the admin-auth-guard test).
+  const session = await getAdminSession();
+  if (!session) redirect("/admin/login");
   const templates = Object.values(TEMPLATES);
 
   return (

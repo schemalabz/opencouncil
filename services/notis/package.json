@@ -4,19 +4,27 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbo -p 3001",
-    "build": "next build",
+    "build": "npm run prisma:generate && next build",
+    "prestart": "[ -z \"$NOTIS_DATABASE_URL\" ] || npm run prisma:deploy",
     "start": "next start",
     "test": "jest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prisma:generate": "prisma generate --schema prisma/schema.prisma && prisma generate --schema prisma/main-views.prisma",
+    "prisma:migrate": "prisma migrate dev --schema prisma/schema.prisma",
+    "prisma:deploy": "prisma migrate deploy --schema prisma/schema.prisma"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",
-    "mapbox-gl": "^3.8.0",
     "@opencouncil/ui": "*",
+    "@prisma/client": "^5.22.0",
     "@t3-oss/env-nextjs": "^0.13.8",
+    "facehash": "^0.1.0",
+    "mapbox-gl": "^3.8.0",
     "next": "^16.2.6",
+    "prisma": "^5.22.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "recharts": "^3.10.1",
     "zod": "^3.25.67"
   },
   "devDependencies": {

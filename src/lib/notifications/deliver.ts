@@ -39,6 +39,13 @@ export async function releaseNotifications(notificationIds: string[]): Promise<{
                         failed++;
                     }
                 } else if (delivery.medium === 'message') {
+                    // Defense in depth for the Notis rollout: a delivery created
+                    // before the user's notisEnabledAt flip must not send — Notis
+                    // owns their WhatsApp from that moment.
+                    if (delivery.notification?.user?.notisEnabledAt) {
+                        await updateDeliveryStatus(delivery.id, 'skipped');
+                        continue;
+                    }
                     const result = await sendMessageDelivery(delivery);
                     if (result) {
                         messagesSent++;

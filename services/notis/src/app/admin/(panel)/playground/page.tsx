@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Button } from "@opencouncil/ui/button";
-import { isWindowOpen, templateForEvent } from "@/agent/templates";
+import { decideDelivery } from "@/agent/delivery";
 import { WakeEvent, WakeOutcome } from "@/agent/types";
 import { env } from "@/env.mjs";
 import { ConversationView } from "../_components/ConversationView";
@@ -102,16 +102,11 @@ export default function PlaygroundPage() {
         ...current.sim.settings,
       });
       if (epoch !== runEpochRef.current) return undefined; // rewound/reset mid-flight
-      // WhatsApp rails: inside the 24h customer-service window (opened by the
-      // user's last message) sends go free-form; outside it every message must
-      // ride an approved template shell.
+      // WhatsApp rails — same decision the real send path makes.
       const isUserMsg = event.type === "user_message";
-      const windowOpen = isUserMsg || isWindowOpen(current.sim.lastUserMessageAt, new Date(event.at));
       const delivery =
         outcome.messages.length > 0
-          ? windowOpen
-            ? ({ mode: "freeform" } as const)
-            : ({ mode: "template", template: templateForEvent(event.type) } as const)
+          ? decideDelivery(event, current.sim.lastUserMessageAt, new Date(event.at))
           : undefined;
       dispatch({
         type: "stepDone",

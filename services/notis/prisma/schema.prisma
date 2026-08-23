@@ -1,0 +1,304 @@
+// The Notis service's own database: subscriptions, wakes, messages,
+// queue. userId references the main database by id only — no cross-database
+// foreign keys. Rollout state (User.notisEnabledAt) lives in the main
+// database; Notis reads it through the notis_* views (see main-views.prisma).
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("NOTIS_DATABASE_URL")
+}
+
+// Two states only, and THIS COLUMN IS THE TRUTH — there is no second copy.
+// "Phone removed" is an unsubscribe, not a separate pause. ΣΤΟΠ and the
+// agent's unsubscribe tool write this column directly; the main app's
+// profile checkbox displays it and toggles it through an authenticated
+// notis API (PR 5) — the main app is a client of this state, never an
+// owner. The poller only refreshes phones and unsubscribes when a phone
+// is gone (PR 4); it never re-activates anyone.
+enum SubscriptionStatus {
+  active
+  unsubscribed
+}
+
+// How the subscription came to exist.
+enum SubscriptionOrigin {
+  transition
+  signup
+  inbound
+}
+
+model NotisSubscription {
+  id     String @id @default(cuid())
+  // Main-database User.id. One subscription per user, spanning all cities.
+  userId String @unique
+  phone  String?
+
+  status SubscriptionStatus @default(active)
+  origin SubscriptionOrigin
+  // Only a user action moves a row into or out of `unsubscribed`:
+  // ΣΤΟΠ, the agent's unsubscribe tool, or the profile checkbox.
+  unsubscribedAt DateTime?
+
+  // The Bird conversation that carries this user's WhatsApp thread — one per
+  // phone, refreshed on every inbound webhook. Replies are sent into it.
+  birdConversationId String?
+
+  // The agent-maintained free-text profile. Seeded once from notification
+  // preferences at enrollment, rewritten wholesale by update_taste_profile.
+  profileText String
+
+  userName String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  wakes          NotisWake[]
+  messages       NotisMessage[]
+  scheduledWakes NotisScheduledWake[]
+  queueItems     NotisWakeQueue[]
+
+  @@index([status])
+  @@index([phone])
+}
+
+enum WakeDecision {
+  send
+  silence
+  error
+}
+
+model NotisWake {
+  id             String            @id @default(cuid())
+  subscription   NotisSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String
+
+  // WakeEvent type (agenda_processed, meeting_summarized, user_message,
+  // scheduled, heartbeat) — the world's timeline lives in eventAt.
+  // For a coalesced wake these describe the PRIMARY event (user_message >
+  // meeting_summarized > agenda_processed > scheduled) and eventAt is the
+  // LAST event's timestamp.
+  eventType String
+  eventAt   DateTime
+  event     Json
+  // The full coalesced array, only when the wake consumed more than one
+  // event; null for the common single-event wake.
+  events Json?
+
+  decision  WakeDecision
+  rationale String
+  // The full WakeOutcome, verbatim — the admin conversation viewer replays
+  // it into a WakeRecord without reassembly. The scalar columns beside it
+  // (decision, rationale, repairs, ...) exist for querying and metrics.
+  outcome Json
+  // How the messages went out; template name only when mode is template.
+  deliveryMode     MessageDeliveryMode?
+  deliveryTemplate String?
+  // Repair nudges that fired; empty = healthy wake.
+  repairs           String[] @default([])
+  truncated         Boolean  @default(false)
+  finishWakeMissing Boolean  @default(false)
+
+  // Null on a model-less wake — the shell's own deterministic decisions (the
+  // ΣΤΟΠ pre-step, a cap skip, a phone-gone unsubscribe) record what happened
+  // without a model run. Null model ⇒ null trace, zero cost and tokens.
+  model            String?
+  inputTokens      Int   @default(0)
+  outputTokens     Int   @default(0)
+  cacheReadTokens  Int   @default(0)
+  cacheWriteTokens Int   @default(0)
+  // The 1h-TTL share of cacheWriteTokens (bills at 2×); null = unknown split.
+  cacheWrite1hTokens Int?
+  costUsd    Float
+  durationMs Int
+  // Full WakeTrace for the admin conversation inspector; null on a
+  // model-less wake (nothing to inspect).
+  trace Json?
+
+  createdAt DateTime @default(now())
+
+  messages NotisMessage[]
+
+  @@index([subscriptionId, createdAt])
+  @@index([createdAt])
+}
+
+enum MessageDirection {
+  inbound
+  outbound
+}
+
+enum MessageDeliveryMode {
+  template
+  freeform
+}
+
+enum MessageStatus {
+  pending
+  sent
+  delivered
+  read
+  failed
+  // A rail stopped the send (weekly cap, pause, unsubscribed
+  // race); failureReason names which. Terminal, like failed.
+  suppressed
+}
+
+enum MessageChannel {
+  whatsapp
+  // Notify-only fallback when a proactive WhatsApp template send fails.
+  sms
+}
+
+model NotisMessage {
+  id             String            @id @default(cuid())
+  subscription   NotisSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String
+  wake           NotisWake?        @relation(fields: [wakeId], references: [id], onDelete: SetNull)
+  wakeId         String?
+
+  direction MessageDirection
+  body      String
+  channel   MessageChannel   @default(whatsapp)
+  // Cap-countable (unprompted) send: the wake had no user_message event and
+  // was not purely a reply-continuation follow-up. Not the same as
+  // deliveryMode=template — a scheduled wake inside the 24h window sends
+  // freeform yet is unprompted.
+  proactive Boolean          @default(false)
+  // The failed WhatsApp message this SMS replaces. Unique: a replayed
+  // failure webhook cannot fire a second SMS.
+  fallbackForId String? @unique
+  // Outbound only: which shell carried the text.
+  deliveryMode MessageDeliveryMode?
+  template     String?
+  // Delivery lifecycle, outbound only; Bird webhooks update it.
+  status        MessageStatus?
+  // Why the delivery failed (Bird error / webhook failure description) —
+  // feeds the overview's failure breakdown.
+  failureReason String?
+  // Unique: inbound dedupe (Bird retries webhooks) and the status-update key.
+  birdMessageId String? @unique
+  // Set while a send for this row is in flight. The sweeper claims a row by
+  // writing it in a fenced UPDATE and acts only when that update matched, so
+  // two overlapping sweeps (or two instances) cannot both call Bird for the
+  // same row — the idempotency key would then be racing itself, which is the
+  // weakest case for any deduplication. A claim older than the send timeout
+  // is stale and may be retaken.
+  sendingAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([subscriptionId, createdAt])
+}
+
+// Why the schedule exists decides the template shell when it fires outside
+// the 24h window: a promised answer to a reader question rides
+// demos_followup; a self-scheduled follow-up to proactive news rides
+// demos_update_news. Reply-origin fires are also cap-exempt.
+enum ScheduledWakeOrigin {
+  reply
+  proactive
+}
+
+model NotisScheduledWake {
+  id             String            @id @default(cuid())
+  subscription   NotisSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String
+
+  runAfter DateTime
+  reason   String
+  origin   ScheduledWakeOrigin @default(reply)
+  firedAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([runAfter])
+}
+
+enum QueueLane {
+  live
+  batch
+}
+
+enum QueueItemStatus {
+  pending
+  running
+  done
+  failed
+}
+
+model NotisWakeQueue {
+  id             String            @id @default(cuid())
+  subscription   NotisSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String
+
+  lane QueueLane
+  // Coalesced WakeEvent[] — a subscription keeps at most one pending batch
+  // row; new events merge into it. Enforced by enqueueBatchWake plus the
+  // partial unique index NotisWakeQueue_one_pending_batch_per_sub
+  // (subscriptionId WHERE status='pending' AND lane='batch'), which Prisma
+  // cannot express — see migration 20260817090000.
+  events   Json
+  runAfter DateTime
+
+  status    QueueItemStatus @default(pending)
+  claimedAt DateTime?
+  attempts  Int             @default(0)
+  lastError String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Plus a partial unique index Prisma cannot express (migration
+  // 20260816170000): at most one `running` row per subscription — the
+  // database-level backstop for claimNext's serialization.
+  @@index([status, runAfter])
+  @@index([subscriptionId, status])
+}
+
+// Server-side operational settings, one row per key: proactivePaused (the
+// kill switch — absent means PAUSED, so a fresh deployment starts dark) and
+// pollerStatus (last tick, for the panel).
+model NotisSetting {
+  key   String @id
+  value Json
+
+  updatedAt DateTime @default(now())
+}
+
+// Dedup log against notis_meeting_events. The identity is the MEETING and
+// the phase — (cityId, meetingId, type) — never the task id: re-processing a
+// meeting writes a new task row, and keying on it would fan the same agenda
+// or the same summary out a second time. WhatsApp messages cannot be
+// recalled, and the tool that re-runs tasks works on lists.
+//
+// A genuine retry still works: a task that FAILED never recorded a row here,
+// so its next run is the first success and fires normally. taskId stays as
+// the audit trail of which run produced the record.
+model NotisProcessedEvent {
+  id        String   @id @default(cuid())
+  taskId    String
+  type      String
+  cityId    String
+  meetingId String
+  // Display metadata for the editorial ledger, copied from the view row at
+  // record time. Nullable: rows recorded before PR 4's ledger have none.
+  meetingName   String?
+  meetingDate   DateTime?
+  adminBodyName String?
+
+  // The shared editorial pass output, run once per taskId before fan-out;
+  // every enqueued event embeds it verbatim. Null only for seed-only
+  // processing (backlog marked consumed without fan-out).
+  brief        Json?
+  briefCostUsd Float?
+
+  processedAt DateTime @default(now())
+
+  @@unique([cityId, meetingId, type])
+  @@index([taskId])
+}

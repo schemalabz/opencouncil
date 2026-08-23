@@ -23,6 +23,7 @@ import {
     MessageSquare,
     Clock,
     CheckCircle2,
+    MinusCircle,
     XCircle,
     Send,
     Loader2,
@@ -54,7 +55,7 @@ interface NotificationData {
     deliveries: Array<{
         id: string;
         medium: 'email' | 'message';
-        status: 'pending' | 'sent' | 'failed';
+        status: 'pending' | 'sent' | 'failed' | 'skipped';
         email: string | null;
         phone: string | null;
         messageSentVia: 'whatsapp' | 'sms' | null;
@@ -97,6 +98,12 @@ function StatusCounts({ counts, label }: { counts: NotificationStatusCounts | nu
                         {counts.failed}
                     </span>
                 )}
+                {counts.skipped > 0 && (
+                    <span className="flex items-center gap-1 text-gray-500" title="Deliveries deliberately skipped (Notis rollout)">
+                        <MinusCircle className="h-3 w-3" />
+                        {counts.skipped}
+                    </span>
+                )}
                 {counts.total === 0 && (
                     <span className="text-muted-foreground">0</span>
                 )}
@@ -110,7 +117,9 @@ function DeliveryRow({ delivery }: { delivery: NotificationData['deliveries'][0]
     const statusColors = {
         pending: 'bg-yellow-100 text-yellow-800',
         sent: 'bg-green-100 text-green-800',
-        failed: 'bg-red-100 text-red-800'
+        failed: 'bg-red-100 text-red-800',
+        // Deliberately withheld (e.g. the Notis rollout owns this user's WhatsApp)
+        skipped: 'bg-gray-100 text-gray-600'
     };
 
     return (

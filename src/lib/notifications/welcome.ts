@@ -44,8 +44,9 @@ export async function sendWelcomeMessages(userId: string, city: City, phone?: st
             html: welcomeEmailHtml
         }).catch(err => console.error('Error sending welcome email:', err));
 
-        // Send welcome WhatsApp/SMS if phone provided
-        if (phone) {
+        // Send welcome WhatsApp/SMS if phone provided. Notis-enabled users get
+        // their intro from Notis instead — only the welcome email for them.
+        if (phone && !user.notisEnabledAt) {
             const waResult = await sendAndPersistOutbound({
                 channel: 'whatsapp',
                 phone,

@@ -1,0 +1,87 @@
+// Typed read access to the main database's notis_* views — the only surface
+// Notis has into the main app. The connection user belongs to notis_reader,
+// which can SELECT the five views and nothing else, so this client physically
+// cannot write the main database.
+//
+// Generate-only: the views are owned by the ROOT prisma migration history
+// (prisma/migrations/20260815120000_notis_views_and_rollout). Never run
+// migrate against this schema.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/main-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("MAIN_DATABASE_URL")
+}
+
+model NotisUserRow {
+  id             String    @id
+  name           String?
+  phone          String?
+  notisEnabledAt DateTime?
+  createdAt      DateTime
+  updatedAt      DateTime
+
+  @@map("notis_users")
+}
+
+model FanoutTargetRow {
+  userId         String
+  userName       String?
+  phone          String?
+  notisEnabledAt DateTime?
+  notifyByPhone  Boolean
+  cityId         String
+  cityName       String
+  cityNameEn     String
+  realm          String
+  language       String
+  timezone       String
+  // [{id, name, name_en}]
+  topics    Json
+  // [{text, type, lng, lat}] — lng/lat are centroid coordinates, null-able
+  locations Json
+  updatedAt DateTime
+
+  @@id([userId, cityId])
+  @@map("notis_fanout_targets")
+}
+
+model MeetingEventRow {
+  taskId        String   @id
+  type          String
+  completedAt   DateTime
+  cityId        String
+  meetingId     String
+  meetingName   String
+  meetingDate   DateTime
+  released      Boolean
+  adminBodyName String?
+  realm         String
+  language      String
+  timezone      String
+
+  @@map("notis_meeting_events")
+}
+
+model SessionRow {
+  // SHA-256 of the Auth.js session token — the raw token never leaves the
+  // main app.
+  sessionTokenHash String   @id
+  userId           String
+  expires          DateTime
+
+  @@map("notis_sessions")
+}
+
+model AdminSessionRow {
+  sessionTokenHash String   @id
+  userId           String
+  expires          DateTime
+  userName         String?
+
+  @@map("notis_admin_sessions")
+}

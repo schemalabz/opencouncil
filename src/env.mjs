@@ -1,6 +1,35 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
+/**
+ * Session-mirror defaults. Both values are a function of where the app runs,
+ * and a mismatched pair is an admin lockout, so staging and production derive
+ * them instead of hand-setting two variables that must agree. Setting either
+ * variable still overrides.
+ *
+ * The domain is the deployment's own host — a cookie for ".opencouncil.gr"
+ * also reaches staging.opencouncil.gr, which is exactly why the name carries
+ * an environment suffix as well.
+ */
+const deploymentEnv =
+    process.env.DEPLOYMENT_ENV ??
+    (process.env.NODE_ENV === 'development' ? 'development' : 'production');
+
+function derivedCookieDomain() {
+    // Development and previews do not mirror: dev reads the Auth.js cookie
+    // directly, and a preview has no Notis service of its own.
+    if (deploymentEnv !== 'production' && deploymentEnv !== 'staging') return undefined;
+    try {
+        return `.${new URL(process.env.NEXTAUTH_URL ?? '').hostname}`;
+    } catch {
+        return undefined;
+    }
+}
+
+function derivedCookieSuffix() {
+    return deploymentEnv === 'production' ? '' : `-${deploymentEnv}`;
+}
+
 export const env = createEnv({
   /**
    * Specify your server-side environment variables schema here. This way you can ensure the app
@@ -21,6 +50,12 @@ export const env = createEnv({
     NEXTAUTH_URL: z.string().url(),
     BASIC_AUTH_USERNAME: z.string().optional(),
     BASIC_AUTH_PASSWORD: z.string().optional(),
+    // Session-mirror cookie for the Notis admin (see applySessionMirror in
+    // src/proxy.ts). Both default from DEPLOYMENT_ENV + NEXTAUTH_URL — see
+    // derivedCookieDomain/derivedCookieSuffix above; set either only to
+    // override. An unset domain disables mirroring.
+    SESSION_COOKIE_DOMAIN: z.string().optional(),
+    SESSION_COOKIE_SUFFIX: z.string().optional(),
 
     // Services
     ANTHROPIC_API_KEY: z.string().min(1),
@@ -114,6 +149,8 @@ export const env = createEnv({
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     BASIC_AUTH_USERNAME: process.env.BASIC_AUTH_USERNAME,
     BASIC_AUTH_PASSWORD: process.env.BASIC_AUTH_PASSWORD,
+    SESSION_COOKIE_DOMAIN: process.env.SESSION_COOKIE_DOMAIN ?? derivedCookieDomain(),
+    SESSION_COOKIE_SUFFIX: process.env.SESSION_COOKIE_SUFFIX ?? derivedCookieSuffix(),
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
     YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY,

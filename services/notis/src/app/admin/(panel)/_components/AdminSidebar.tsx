@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Activity,
   FlaskConical,
+  Gauge,
   LayoutDashboard,
   LayoutTemplate,
   MessagesSquare,
@@ -15,12 +16,13 @@ const NAV = [
   { href: "/admin", label: "Επισκόπηση", icon: LayoutDashboard, exact: true },
   { href: "/admin/conversations", label: "Συνομιλίες", icon: MessagesSquare },
   { href: "/admin/wakes", label: "Wakes", icon: Activity },
+  { href: "/admin/system", label: "Σύστημα", icon: Gauge },
   { href: "/admin/playground", label: "Playground", icon: FlaskConical },
   { href: "/admin/templates", label: "Templates", icon: LayoutTemplate },
   { href: "/admin/settings", label: "Ρυθμίσεις", icon: Settings },
 ];
 
-export function AdminSidebar() {
+export function AdminSidebar({ live }: { live: boolean }) {
   const pathname = usePathname();
 
   return (
@@ -50,7 +52,7 @@ export function AdminSidebar() {
         })}
       </nav>
       <div className="border-t p-4 text-[11px] leading-relaxed text-muted-foreground">
-        <p>PR 1 · χωρίς βάση δεδομένων</p>
+        {!live && <p>Χωρίς βάση δεδομένων · μηδενικά</p>}
         <a
           href="https://opencouncil.gr"
           target="_blank"

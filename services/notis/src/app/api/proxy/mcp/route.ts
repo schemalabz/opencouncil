@@ -3,6 +3,7 @@ import { z } from "zod";
 import { env } from "@/env.mjs";
 import { errorResponse, parseJsonBody } from "@/lib/api";
 import { McpClient } from "@/lib/mcp-client";
+import { requireAdmin } from "@/lib/session-auth";
 
 /**
  * Browser-facing pass-through to the public OpenCouncil MCP (CORS-avoiding).
@@ -18,6 +19,9 @@ const requestSchema = z.object({
 const mcp = new McpClient(env.NOTIS_MCP_URL);
 
 export async function POST(request: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const { data, error } = await parseJsonBody(request, requestSchema);
   if (error) return error;
   if (!ALLOWED_TOOLS.has(data.tool)) {

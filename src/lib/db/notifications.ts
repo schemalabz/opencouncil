@@ -3,6 +3,7 @@
 import { NotificationPreference, Petition, City, Topic, User, Location, Prisma } from '@prisma/client';
 import { auth, signIn } from "@/auth";
 import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth";
+import { classifyDeliveries, deliveriesWhereForStatus } from '@/lib/notifications/deliveryStatus';
 import { attachGeometryToCities } from "./cities";
 import prisma from "@/lib/db/prisma";
 import { Result, createSuccess, createError } from "@/lib/result";
@@ -858,8 +859,11 @@ export async function createNotificationsForMeeting(
                     });
                 }
 
-                // Create message delivery if user has phone and wants to be notified by phone
-                if (userPref.notifyByPhone && user.phone) {
+                // Create message delivery if user has phone and wants to be notified by phone.
+                // Users on the Notis rollout (notisEnabledAt set) get their WhatsApp
+                // messages from Notis — creating a message delivery here would serve
+                // them by both paths. Email stays untouched.
+                if (userPref.notifyByPhone && user.phone && !user.notisEnabledAt) {
                     const smsBody = await generateSmsContent(notificationData);
                     await prisma.notificationDelivery.create({
                         data: {
@@ -904,7 +908,7 @@ export async function createNotificationsForMeeting(
 // scope on; the routes authorize. Tracked follow-up to move off the action surface.
 export async function updateDeliveryStatus(
     deliveryId: string,
-    status: 'sent' | 'failed',
+    status: 'sent' | 'failed' | 'skipped',
     messageSentVia?: 'whatsapp' | 'sms'
 ) {
     await prisma.notificationDelivery.update({
@@ -951,75 +955,15 @@ export async function getPendingDeliveries(notificationIds: string[]) {
     });
 }
 
-/**
- * Get notifications for admin dashboard with filters (legacy - kept for backwards compatibility)
- */
-export async function getNotificationsForAdmin(filters: {
-    cityId?: string;
-    status?: 'pending' | 'sent' | 'failed';
-    type?: 'beforeMeeting' | 'afterMeeting';
-    limit?: number;
-    offset?: number;
-}) {
-    await withUserAuthorizedToEdit({});
-    const { cityId, status, type, limit = 50, offset = 0 } = filters;
-
-    const whereClause: any = {};
-
-    if (cityId) {
-        whereClause.cityId = cityId;
-    }
-
-    if (type) {
-        whereClause.type = type;
-    }
-
-    // If status filter is provided, filter by delivery status
-    const notifications = await prisma.notification.findMany({
-        where: whereClause,
-        include: {
-            city: true,
-            meeting: {
-                include: {
-                    administrativeBody: true
-                }
-            },
-            deliveries: true,
-            subjects: {
-                include: {
-                    subject: true
-                }
-            },
-            user: {
-                select: {
-                    id: true,
-                    email: true,
-                    name: true
-                }
-            }
-        },
-        orderBy: {
-            createdAt: 'desc'
-        },
-        take: limit,
-        skip: offset
-    });
-
-    // Filter by delivery status if specified
-    if (status) {
-        return notifications.filter(n =>
-            n.deliveries.some(d => d.status === status)
-        );
-    }
-
-    return notifications;
-}
-
 // Types for meeting-grouped notification stats
 export type NotificationStatusCounts = {
     sent: number;
     pending: number;
     failed: number;
+    // Every delivery deliberately withheld (e.g. the Notis rollout skipping
+    // the message medium) — distinct from sent so rollout observability is
+    // honest.
+    skipped: number;
     total: number;
 };
 
@@ -1050,7 +994,7 @@ export type MeetingNotificationsGrouped = {
  */
 export async function getNotificationsGroupedByMeeting(filters: {
     cityId?: string;
-    status?: 'pending' | 'sent' | 'failed';
+    status?: 'pending' | 'sent' | 'failed' | 'skipped';
     type?: 'beforeMeeting' | 'afterMeeting';
     startDate?: Date;
     endDate?: Date;
@@ -1086,13 +1030,11 @@ export async function getNotificationsGroupedByMeeting(filters: {
         notificationWhere.type = type;
     }
 
-    // If status filter is provided, filter to notifications that have at least one delivery with that status
+    // The status filter must select exactly the notifications the stats below
+    // classify with that status — one shared rule builds both halves (see
+    // src/lib/notifications/deliveryStatus.ts).
     if (status) {
-        notificationWhere.deliveries = {
-            some: {
-                status: status
-            }
-        };
+        Object.assign(notificationWhere, deliveriesWhereForStatus(status));
     }
 
     // First, get all distinct meeting IDs that have notifications matching our filters
@@ -1190,26 +1132,15 @@ export async function getNotificationsGroupedByMeeting(filters: {
 
         const stats = meetingStatsMap.get(key)!;
 
-        // Determine the status of this notification based on its deliveries
-        // A notification is "pending" if any delivery is pending
-        // A notification is "failed" if any delivery failed and none are pending
-        // A notification is "sent" if all deliveries are sent
-        const deliveryStatuses = notification.deliveries.map(d => d.status);
-        let notificationStatus: 'sent' | 'pending' | 'failed';
-
-        if (deliveryStatuses.includes('pending')) {
-            notificationStatus = 'pending';
-        } else if (deliveryStatuses.includes('failed')) {
-            notificationStatus = 'failed';
-        } else {
-            notificationStatus = 'sent';
-        }
+        // One shared rule with the status filter above — see
+        // src/lib/notifications/deliveryStatus.ts.
+        const notificationStatus = classifyDeliveries(notification.deliveries.map(d => d.status));
 
         // Update the appropriate type stats
         const typeKey = notification.type === 'beforeMeeting' ? 'before' : 'after';
 
         if (!stats[typeKey]) {
-            stats[typeKey] = { sent: 0, pending: 0, failed: 0, total: 0 };
+            stats[typeKey] = { sent: 0, pending: 0, failed: 0, skipped: 0, total: 0 };
         }
 
         stats[typeKey]![notificationStatus]++;

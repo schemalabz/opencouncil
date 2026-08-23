@@ -6,6 +6,7 @@ import { env } from "./env.mjs"
 import { isTestUserEmail } from "./lib/dev/test-users"
 import { signInUrlForRequest } from "./lib/auth/signInUrl"
 import { localeForRequest } from "./lib/auth/requestLocale"
+import { devSessionCookieName } from "./lib/auth/sessionMirror"
 
 // In development, use port-specific session cookie names to allow multiple
 // instances on different ports to have independent sessions. Without this,
@@ -19,7 +20,7 @@ export default {
     trustHost: true,
     cookies: isDev ? {
         sessionToken: {
-            name: `authjs.session-token-${port}`,
+            name: devSessionCookieName(port),
             options: { httpOnly: true, sameSite: 'lax' as const, path: '/', secure: false },
         },
     } : undefined,
