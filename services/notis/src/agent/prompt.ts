@@ -160,7 +160,10 @@ export function assembleUserTurn(state: WakeState, events: WakeEvent[], now: Dat
   // Defensive `?? []`: fixtures, eval cases and exported states are cast from
   // JSON rather than parsed, so the schema default never runs for them.
   const commitments = (state.commitments ?? [])
-    .map((c) => `[${c.slug}] since ${c.since} — ${neutralizeFences(c.what)}`)
+    .map(
+      (c) =>
+        `[${neutralizeFences(c.slug)}] since ${c.since} — ${neutralizeFences(c.what)}`,
+    )
     .join("\n");
 
   return [

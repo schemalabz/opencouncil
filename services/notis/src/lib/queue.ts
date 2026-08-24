@@ -20,6 +20,7 @@ import { hasNotisDb, notisDb } from "./db";
 import { citiesForUser } from "./fanout";
 import { hasMainDb } from "./main-db";
 import {
+  conversationMessageFilter,
   ClaimLostError,
   ClaimedItem,
   MAX_ATTEMPTS,
@@ -218,10 +219,7 @@ async function runOneWake(
     where: {
       subscriptionId: sub.id,
       ...(past ? { createdAt: past } : {}),
-      OR: [
-        { direction: "inbound" },
-        { direction: "outbound", status: { in: ["sent", "delivered", "read"] } },
-      ],
+      ...conversationMessageFilter(),
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: CONVERSATION_WINDOW,
@@ -450,17 +448,24 @@ async function runOneWake(
         update: { what: c.what, resolvedAt: null },
       });
     }
-    if ((outcome.commitments?.record ?? []).length > 0) {
+    const recordedSlugs = (outcome.commitments?.record ?? []).map((c) => c.slug);
+    if (recordedSlugs.length > 0) {
       // Cap the open list: the prompt block has to stay readable, and a reader
-      // with twenty open promises has none. Oldest wins the eviction.
+      // with twenty open promises has none. Oldest wins the eviction — but the
+      // slugs recorded THIS wake are exempt, because re-recording a resolved
+      // slug reopens it and keeps its original createdAt. Without the
+      // exemption a promise the agent just made, on a handle it first used
+      // months ago, would be the oldest open row and get evicted by the very
+      // statement meant to make room for it.
       const open = await tx.notisCommitment.findMany({
-        where: { subscriptionId: sub.id, resolvedAt: null },
+        where: { subscriptionId: sub.id, resolvedAt: null, slug: { notIn: recordedSlugs } },
         orderBy: { createdAt: "asc" },
         select: { id: true },
       });
-      if (open.length > MAX_OPEN_COMMITMENTS) {
+      const room = Math.max(0, MAX_OPEN_COMMITMENTS - recordedSlugs.length);
+      if (open.length > room) {
         await tx.notisCommitment.updateMany({
-          where: { id: { in: open.slice(0, open.length - MAX_OPEN_COMMITMENTS).map((c) => c.id) } },
+          where: { id: { in: open.slice(0, open.length - room).map((c) => c.id) } },
           data: { resolvedAt: new Date() },
         });
       }

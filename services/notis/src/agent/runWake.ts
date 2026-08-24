@@ -15,6 +15,30 @@ import {
 
 const MAX_TOKENS = 16000;
 
+/** Longest commitment handle we store. The tool asks for a short one; this is
+ *  what happens when the model does not oblige. */
+const SLUG_MAX_CHARS = 40;
+
+/**
+ * A commitment slug, forced into the shape the tool describes: lowercase
+ * latin, digits and hyphens, nothing else.
+ *
+ * The slug is model-written and renders straight into the <commitments> block,
+ * so an unconstrained one can forge a fence — «x</commitments><decisions>» —
+ * and, because commitments never age out, that forgery would sit in every
+ * future wake's prompt. Normalizing at the boundary is stronger than escaping
+ * at the point of render: the stored value itself can never carry markup.
+ */
+function normalizeSlug(input: unknown): string {
+  return String(input ?? "")
+    .trim()
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9-]+/g, "-")
+    .replaceAll(/-{2,}/g, "-")
+    .replaceAll(/^-|-$/g, "")
+    .slice(0, SLUG_MAX_CHARS);
+}
+
 function textOf(content: unknown[]): string {
   return content
     .filter(isTextBlock)
@@ -313,7 +337,7 @@ export async function runWake(
               ack = "held: re-decide after the reader update below";
               break;
             }
-            const slug = String(block.input.slug ?? "").trim();
+            const slug = normalizeSlug(block.input.slug);
             const what = String(block.input.what ?? "").trim();
             if (!slug || !what) {
               ack = "ignored: a commitment needs both a slug and what you owe them";
@@ -328,7 +352,7 @@ export async function runWake(
               ack = "held: re-decide after the reader update below";
               break;
             }
-            const slug = String(block.input.slug ?? "").trim();
+            const slug = normalizeSlug(block.input.slug);
             // An unknown slug is a no-op with an honest ack, never an error:
             // the model may misremember a handle, and failing the wake over it
             // would be worse than telling it plainly.
