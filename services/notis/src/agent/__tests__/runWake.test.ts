@@ -381,6 +381,201 @@ describe("runWake", () => {
     expect(trace.turns).toHaveLength(3);
   });
 
+  it("delivery is repaired before bookkeeping, and the commitment still lands", async () => {
+    // The reader asked a question; the model wrote the answer as prose next to
+    // its tool calls AND reported a promise. The prose is what the reader is
+    // waiting for, so it must win the first nudge — the commitment gets its
+    // own.
+    const stranded =
+      "Ναι, πέρασαν άλλα δύο θέματα: η ανάπλαση και το πάρκινγκ. Θα σου πω μόλις βγει η απόφαση για το δεύτερο.";
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          text(stranded),
+          toolUse("t1", "finish_wake", {
+            rationale: "Της απάντησα και της υποσχέθηκα συνέχεια.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: true,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [
+          toolUse("t2", "send_message", { text: "Ναι, πέρασαν άλλα δύο θέματα." }),
+          toolUse("t3", "finish_wake", {
+            rationale: "Της τα έστειλα.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: true,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [
+          toolUse("t4", "record_commitment", { slug: "parking", what: "Να της πω για το πάρκινγκ." }),
+          toolUse("t5", "finish_wake", {
+            rationale: "Της τα έστειλα και κατέγραψα την υπόσχεση.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: true,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const { outcome } = await runWake(
+      makeState(),
+      [{ type: "user_message", at: FIXED_NOW.toISOString(), text: "τίποτα άλλο;" }],
+      makeDeps(fake),
+    );
+
+    expect(outcome.decision).toBe("send");
+    expect(outcome.messages).toEqual(["Ναι, πέρασαν άλλα δύο θέματα."]);
+    // Delivery first, bookkeeping second — one budget each.
+    expect(outcome.repairs).toEqual(["stranded-prose/finish", "promised/no-commitment"]);
+    expect(outcome.commitments?.record).toEqual([
+      { slug: "parking", what: "Να της πω για το πάρκινγκ." },
+    ]);
+    // The rationale protection composes across both nudges: the bookkeeping
+    // turn adds no send, so the rationale from the delivery turn stands.
+    expect(outcome.rationale).toBe("Της τα έστειλα.");
+  });
+
+  it("a bookkeeping nudge leaves the delivery budget alone, in either order", async () => {
+    // Promise with no commitment fires first here (nothing is undelivered
+    // yet). The model then strands prose — the delivery repair must still be
+    // available for it.
+    const stranded =
+      "Α, και κάτι ακόμα που ξέχασα: η συνεδρίαση για το πάρκινγκ μετατέθηκε για την επόμενη εβδομάδα.";
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "send_message", { text: "Θα σου πω." }),
+          toolUse("t2", "finish_wake", {
+            rationale: "Της υποσχέθηκα ενημέρωση.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: true,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [
+          text(stranded),
+          toolUse("t3", "record_commitment", { slug: "parking", what: "Να της πω για το πάρκινγκ." }),
+          toolUse("t4", "finish_wake", {
+            rationale: "Το κατέγραψα.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: true,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [
+          toolUse("t5", "send_message", { text: "Α, και η συνεδρίαση μετατέθηκε." }),
+          toolUse("t6", "finish_wake", {
+            rationale: "Της είπα και για τη μετάθεση.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: true,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const { outcome } = await runWake(
+      makeState(),
+      [{ type: "user_message", at: FIXED_NOW.toISOString(), text: "θα με ενημερώσεις;" }],
+      makeDeps(fake),
+    );
+
+    expect(outcome.repairs).toEqual(["promised/no-commitment", "stranded-prose/finish"]);
+    expect(outcome.messages).toEqual(["Θα σου πω.", "Α, και η συνεδρίαση μετατέθηκε."]);
+  });
+
+  it("each budget is still one-shot: a second bookkeeping nudge never fires", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "send_message", { text: "Θα σου πω." }),
+          toolUse("t2", "finish_wake", {
+            rationale: "Της υποσχέθηκα ενημέρωση.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: true,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+      // Nudged, and still no commitment: the wake ends rather than looping.
+      {
+        content: [
+          toolUse("t3", "finish_wake", {
+            rationale: "Δεν χρειάζεται καταγραφή.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: true,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const { outcome, trace } = await runWake(
+      makeState(),
+      [{ type: "user_message", at: FIXED_NOW.toISOString(), text: "θα με ενημερώσεις;" }],
+      makeDeps(fake),
+    );
+
+    expect(outcome.repairs).toEqual(["promised/no-commitment"]);
+    expect(outcome.commitments).toBeUndefined();
+    // Two model turns plus the one injected nudge.
+    expect(trace.turns).toHaveLength(3);
+  });
+
+  it("the dangling-tool-call backstop still fires when a reader update lands the same turn", async () => {
+    // An end_turn that carries a tool_use block: the repair path appends the
+    // assistant turn verbatim, so the call sits unanswered in the MIDDLE of
+    // the message list. A message absorbed at the next turn's start must not
+    // hide it — the request would 400 with «`tool_use` ids were found without
+    // `tool_result` blocks», and every retry reproduces that.
+    const fake = new FakeAnthropic([
+      { content: [text("σκέψη"), toolUse("d1", "send_message", { text: "x" })], stop_reason: "end_turn" },
+      { content: [toolUse("t1", "send_message", { text: "Η απάντηση." })], stop_reason: "tool_use" },
+      { content: [text("Απάντησα.")], stop_reason: "end_turn" },
+    ]);
+    let calls = 0;
+    const { outcome } = await runWake(
+      makeState(),
+      [{ type: "user_message", at: FIXED_NOW.toISOString(), text: "ερώτηση" }],
+      makeDeps(fake, {
+        absorb: async () =>
+          ++calls === 2
+            ? [{ type: "user_message" as const, at: FIXED_NOW.toISOString(), text: "και κάτι ακόμα" }]
+            : [],
+        deliver: async () => ({ ok: true }),
+      }),
+    );
+
+    expect(outcome.repairs).toContain("dangling-tool-calls");
+    for (const req of fake.requests) {
+      const msgs = req.messages as Array<{ role?: string; content?: unknown }>;
+      msgs.forEach((m, i) => {
+        if (m.role !== "assistant" || !Array.isArray(m.content)) return;
+        const ids = m.content
+          .filter((b): b is { type: string; id: string } => (b as { type?: string }).type === "tool_use")
+          .map((b) => b.id);
+        if (ids.length === 0) return;
+        const next = msgs[i + 1];
+        const answered = new Set<string>();
+        if (next?.role === "user" && Array.isArray(next.content)) {
+          for (const block of next.content) {
+            const b = block as { type?: string; tool_use_id?: string };
+            if (b.type === "tool_result" && b.tool_use_id) answered.add(b.tool_use_id);
+          }
+        }
+        expect(ids.filter((id) => !answered.has(id))).toEqual([]);
+      });
+    }
+  });
+
   it("send: send_message tool calls become ordered messages and tool_results echo back", async () => {
     const fake = new FakeAnthropic([
       {
