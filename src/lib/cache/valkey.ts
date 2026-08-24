@@ -100,3 +100,17 @@ export async function cacheHas(key: string): Promise<boolean> {
         return false;
     }
 }
+
+/**
+ * Close the shared client and clear the singleton.
+ *
+ * The server never calls this — the connection is meant to live as long as the
+ * process. It exists so tests can release the socket; without it an open
+ * handle keeps the runner alive after the suite finishes.
+ */
+export async function disconnectCache(): Promise<void> {
+    const existing = client;
+    client = null;
+    connectingPromise = null;
+    if (existing) await existing.quit().catch(() => existing.disconnect());
+}
