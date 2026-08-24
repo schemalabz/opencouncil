@@ -171,7 +171,14 @@ export async function runWake(
   let unsubscribe: { reason: string } | undefined;
   let rationale = "";
   let refused = false;
-  let repaired = false;
+  // Repairs come in two kinds and must not compete for one budget. A
+  // DELIVERY repair puts an answer in front of a reader who is still
+  // waiting; a BOOKKEEPING repair only saves state that a later wake would
+  // like to have. One nudge each, delivery checked first: a wake that both
+  // stranded its answer as prose and reported a promise used to spend its
+  // single nudge on the commitment, and the reader got nothing at all.
+  let deliveryRepaired = false;
+  let bookkeepingRepaired = false;
   let finished = false;
   // Instrument-panel truth: repairs that fired, and terminal anomalies. A
   // rescued or cut wake must never be indistinguishable from a healthy one —
@@ -451,75 +458,101 @@ export async function runWake(
 
       // finish_wake ends the wake in the same turn as the sends — no extra
       // model pass — unless a repair is owed, in which case the nudge rides
-      // along with the tool_results and the loop continues once.
-      let nudge: string | undefined;
-      // Set by the branches that name their own repair; the fallthrough
-      // branches leave it unset and the shared block below picks the tag.
-      let repairTag: string | undefined;
-      if (finished && !repaired) {
-        if (declaredPromise && commitmentsRecorded.length === 0 && !unsubscribe) {
-          preNudgeRationale = rationale;
-          sentAtNudge = sent.length;
-          repairTag = "promised/no-commitment";
-          nudge =
-            "(system check) You answered that you promised the reader a follow-up, but " +
-            "you never called record_commitment — so nothing will remind you: the " +
-            "decision log rolls, and by the time the thing happens this exchange is out " +
-            "of view. Record it now with a short slug, then call finish_wake again. If " +
-            "you promised nothing after all, finish with promisedFollowUp false.";
-        } else if (declaredLearning && profileRewrite === undefined && !unsubscribe) {
-          preNudgeRationale = rationale;
-          sentAtNudge = sent.length;
-          repairTag = "declared-learning/no-profile";
-          nudge =
-            "(system check) You answered that this wake taught you something lasting " +
-            "about the reader, but you never called update_taste_profile — so it is " +
-            "about to be forgotten: the conversation and the decision log both roll. " +
-            "Write the durable part into the profile now (a few short sentences, taste " +
-            "not transcript), then call finish_wake again. If you were wrong and there " +
-            "is nothing lasting, finish with learnedSomethingLasting false.";
-        } else if (hasUserMessage && sent.length === 0 && !unsubscribe) {
-          preNudgeRationale = rationale;
-          sentAtNudge = sent.length;
+      // along with the tool_results and the loop continues. At most one nudge
+      // per turn: each one costs a model turn of its own.
+      let nudge: { text: string; tag: string; kind: "delivery" | "bookkeeping" } | undefined;
+      // Delivery repairs come first, and each kind carries its own budget:
+      // the reader feels an undelivered answer, and nobody but us feels a
+      // missing commitment. A spent delivery budget falls through to the
+      // bookkeeping checks, which still have theirs.
+      if (finished) {
+        if (!deliveryRepaired && hasUserMessage && sent.length === 0 && !unsubscribe) {
           // When the answer sits stranded as prose, quote it back. Without the
           // quote the model rereads its own text above and concludes it already
           // answered ("message already sent") — observed failure.
-          nudge = strandedProse
-            ? "(system check) The person asked you something directly and NOTHING has " +
-              "been delivered to them — they are still waiting. The text you wrote next " +
-              "to your tool calls was NOT delivered; nothing reaches the person except " +
-              "send_message content. The undelivered text was:\n«" +
+          nudge = {
+            kind: "delivery",
+            tag: strandedProse ? "stranded-prose/finish" : "zero-send/finish",
+            text: strandedProse
+              ? "(system check) The person asked you something directly and NOTHING has " +
+                "been delivered to them — they are still waiting. The text you wrote next " +
+                "to your tool calls was NOT delivered; nothing reaches the person except " +
+                "send_message content. The undelivered text was:\n«" +
+                strandedProse.slice(0, 1200) +
+                "»\nIf it was meant for them, send it now with send_message, then " +
+                "finish_wake again with the wake's own rationale — about the reader and " +
+                "this wake's decision, never about this check. If you truly intend to stay " +
+                "silent, call finish_wake again to confirm."
+              : "(system check) You finished the wake without sending anything, but the " +
+                "person asked you something directly. Nothing has been delivered to them — " +
+                "they are still waiting. If you meant to answer them, call send_message " +
+                "with the message now, then finish_wake again with the wake's own " +
+                "rationale — about the reader and this wake's decision, never about this " +
+                "check. If you truly intend to stay silent, call finish_wake again to " +
+                "confirm.",
+          };
+        } else if (!deliveryRepaired && strandedProse) {
+          nudge = {
+            kind: "delivery",
+            tag: "stranded-prose/finish",
+            text:
+              "(system check) You wrote prose in the same turn as your tool calls. That " +
+              "prose was NOT delivered — nothing reaches the person except send_message " +
+              "content. The undelivered text was:\n«" +
               strandedProse.slice(0, 1200) +
-              "»\nIf it was meant for them, send it now with send_message, then " +
-              "finish_wake again with the wake's own rationale — about the reader and " +
-              "this wake's decision, never about this check. If you truly intend to stay " +
-              "silent, call finish_wake again to confirm."
-            : "(system check) You finished the wake without sending anything, but the " +
-              "person asked you something directly. Nothing has been delivered to them — " +
-              "they are still waiting. If you meant to answer them, call send_message " +
-              "with the message now, then finish_wake again with the wake's own " +
-              "rationale — about the reader and this wake's decision, never about this " +
-              "check. If you truly intend to stay silent, call finish_wake again to " +
-              "confirm.";
-        } else if (strandedProse) {
-          preNudgeRationale = rationale;
-          sentAtNudge = sent.length;
-          nudge =
-            "(system check) You wrote prose in the same turn as your tool calls. That " +
-            "prose was NOT delivered — nothing reaches the person except send_message " +
-            "content. The undelivered text was:\n«" +
-            strandedProse.slice(0, 1200) +
-            "»\nIf it was meant for the person, send it now with send_message, rephrased " +
-            "so the conversation reads naturally, then finish_wake again. If it was only " +
-            "reasoning, call finish_wake again with the wake's own rationale — about the " +
-            "reader and this wake's decision, never about this check.";
+              "»\nIf it was meant for the person, send it now with send_message, rephrased " +
+              "so the conversation reads naturally, then finish_wake again. If it was only " +
+              "reasoning, call finish_wake again with the wake's own rationale — about the " +
+              "reader and this wake's decision, never about this check.",
+          };
+        } else if (
+          !bookkeepingRepaired &&
+          declaredPromise &&
+          commitmentsRecorded.length === 0 &&
+          !unsubscribe
+        ) {
+          nudge = {
+            kind: "bookkeeping",
+            tag: "promised/no-commitment",
+            text:
+              "(system check) You answered that you promised the reader a follow-up, but " +
+              "you never called record_commitment — so nothing will remind you: the " +
+              "decision log rolls, and by the time the thing happens this exchange is out " +
+              "of view. Record it now with a short slug, then call finish_wake again. If " +
+              "you promised nothing after all, finish with promisedFollowUp false.",
+          };
+        } else if (
+          !bookkeepingRepaired &&
+          declaredLearning &&
+          profileRewrite === undefined &&
+          !unsubscribe
+        ) {
+          nudge = {
+            kind: "bookkeeping",
+            tag: "declared-learning/no-profile",
+            text:
+              "(system check) You answered that this wake taught you something lasting " +
+              "about the reader, but you never called update_taste_profile — so it is " +
+              "about to be forgotten: the conversation and the decision log both roll. " +
+              "Write the durable part into the profile now (a few short sentences, taste " +
+              "not transcript), then call finish_wake again. If you were wrong and there " +
+              "is nothing lasting, finish with learnedSomethingLasting false.",
+          };
         }
         if (nudge) {
-          repaired = true;
+          preNudgeRationale = rationale;
+          sentAtNudge = sent.length;
           finished = false;
-          repairs.push(repairTag ?? (strandedProse ? "stranded-prose/finish" : "zero-send/finish"));
-          recordInjected(nudge);
-          strandedProse = undefined;
+          repairs.push(nudge.tag);
+          recordInjected(nudge.text);
+          if (nudge.kind === "delivery") {
+            deliveryRepaired = true;
+            // The quote is in the nudge now; a bookkeeping nudge quotes
+            // nothing, so it must leave the prose for the delivery check.
+            strandedProse = undefined;
+          } else {
+            bookkeepingRepaired = true;
+          }
         }
       }
 
@@ -530,7 +563,7 @@ export async function runWake(
       if (results.length > 0 || nudge || holdNote) {
         const extras = [
           ...(holdNote ? [{ type: "text", text: holdNote }] : []),
-          ...(nudge ? [{ type: "text", text: nudge }] : []),
+          ...(nudge ? [{ type: "text", text: nudge.text }] : []),
         ];
         const content = extras.length > 0 ? [...results, ...extras] : results;
         if (!finished) markLatest(content);
@@ -540,9 +573,11 @@ export async function runWake(
       continue;
     }
 
-    // end_turn: two observed low-effort failure modes get ONE bounded repair
-    // pass between them, so a broken wake self-corrects instead of shipping.
-    if (response.stop_reason === "end_turn" && !repaired) {
+    // end_turn: two observed low-effort failure modes, both of them an answer
+    // the reader never got, so both spend the delivery budget — ONE bounded
+    // repair pass between them, and a broken wake self-corrects before it
+    // ships.
+    if (response.stop_reason === "end_turn" && !deliveryRepaired) {
       // (a) The person wrote to us and the model produced neither a send nor
       // an unsubscribe: it wrote its answer into the final text instead of
       // the tool. Never fires on proactive wakes — silence is their default.
@@ -552,7 +587,7 @@ export async function runWake(
         // the decision-log rationale the next thirty wakes read as memory.
         preNudgeRationale = rationale;
         sentAtNudge = sent.length;
-        repaired = true;
+        deliveryRepaired = true;
         repairs.push("zero-send/end-turn");
         const nudge =
           "(system check) Your final text above is an operator rationale — it was NOT " +
@@ -571,7 +606,7 @@ export async function runWake(
       if (strandedProse) {
         preNudgeRationale = rationale;
         sentAtNudge = sent.length;
-        repaired = true;
+        deliveryRepaired = true;
         repairs.push("stranded-prose/end-turn");
         const nudge =
           "(system check) In an earlier turn you wrote prose in the same turn as your " +
