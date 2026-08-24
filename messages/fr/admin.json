@@ -229,11 +229,11 @@
     },
     "operator": {
       "title": "Opérateur sur place",
-      "subtitle": "Désignez le membre de l'équipe OpenCouncil présent à cette séance.",
-      "notAttended": "Non assistée",
+      "subtitle": "Désignez le membre de l'équipe OpenCouncil chargé d'assister à cette séance.",
+      "notAttended": "Non assignée",
       "updatedTitle": "Opérateur mis à jour",
       "assigned": "{name} a été désigné",
-      "markedNotAttended": "Marquée comme non assistée",
+      "markedNotAttended": "Marquée comme non assignée",
       "errorTitle": "Erreur",
       "updateFailed": "Impossible de mettre à jour l'opérateur"
     }

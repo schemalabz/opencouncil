@@ -229,11 +229,11 @@
         },
         "operator": {
             "title": "Оператер на лицу места",
-            "subtitle": "Одредите члана OpenCouncil тима који је присуствовао овој седници.",
-            "notAttended": "Без присуства",
+            "subtitle": "Одредите члана OpenCouncil тима задуженог за присуство овој седници.",
+            "notAttended": "Без доделе",
             "updatedTitle": "Оператер је ажуриран",
             "assigned": "Одређен/а је {name}",
-            "markedNotAttended": "Означено као без присуства",
+            "markedNotAttended": "Означено као без доделе",
             "errorTitle": "Грешка",
             "updateFailed": "Ажурирање оператера није успело"
         }

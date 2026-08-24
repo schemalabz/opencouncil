@@ -229,11 +229,11 @@
     },
     "operator": {
       "title": "In-person operator",
-      "subtitle": "Assign the OpenCouncil team member who attended this meeting in person.",
-      "notAttended": "Not attended",
+      "subtitle": "Assign the OpenCouncil team member responsible for attending this meeting in person.",
+      "notAttended": "Not assigned",
       "updatedTitle": "Operator updated",
       "assigned": "Assigned {name}",
-      "markedNotAttended": "Marked as not attended",
+      "markedNotAttended": "Marked as not assigned",
       "errorTitle": "Error",
       "updateFailed": "Failed to update the operator"
     }
