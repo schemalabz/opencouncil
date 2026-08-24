@@ -26,10 +26,13 @@ import {
     AlignLeft,
     AlignCenter,
     AlignRight,
+    Image as ImageIcon,
+    Loader2,
 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { buildImageTag, validateImageFile, ACCEPTED_IMAGE_TYPES } from './imageTag';
 
 export interface ProductUpdateEmailEditorHandle {
     /** Returns the current markdown source (with {{...}} placeholders intact). */
@@ -283,6 +286,64 @@ export const ProductUpdateEmailEditor = forwardRef<
     const [openPanel, setOpenPanel] = useState<'colors' | 'fontSize' | 'components' | null>(null);
     const [activeTab, setActiveTab] = useState<'compose' | 'preview'>('compose');
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [imageUploading, setImageUploading] = useState(false);
+    const [imageError, setImageError] = useState<string | null>(null);
+
+    /** Read the intrinsic width so the width attribute matches the real image. */
+    const readNaturalWidth = (file: File): Promise<number> =>
+        new Promise((resolve) => {
+            const objectUrl = URL.createObjectURL(file);
+            const probe = new window.Image();
+            probe.onload = () => {
+                URL.revokeObjectURL(objectUrl);
+                resolve(probe.naturalWidth);
+            };
+            probe.onerror = () => {
+                URL.revokeObjectURL(objectUrl);
+                resolve(0);
+            };
+            probe.src = objectUrl;
+        });
+
+    const handleImageSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = ''; // let the admin re-pick the same file
+        if (!file) return;
+
+        const validation = validateImageFile(file);
+        if (!validation.ok) {
+            setImageError(validation.error);
+            return;
+        }
+
+        setImageError(null);
+        setImageUploading(true);
+        try {
+            const naturalWidth = await readNaturalWidth(file);
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await fetch('/api/upload', { method: 'POST', body: formData });
+            if (!res.ok) throw new Error('upload failed');
+            const { url } = await res.json();
+            const tag = buildImageTag(url, naturalWidth);
+            // Splice into state rather than execCommand. The upload is async, so
+            // it can resolve after the admin switched to the Preview tab, which
+            // hides the textarea — focus()/execCommand would then be a no-op and
+            // silently drop the image. Read the live caret (still valid while
+            // hidden) so edits made during the upload are respected.
+            setMarkdown((prev) => {
+                const el = textareaRef.current;
+                const start = el ? el.selectionStart : prev.length;
+                const end = el ? el.selectionEnd : prev.length;
+                return prev.slice(0, start) + tag + prev.slice(end);
+            });
+        } catch {
+            setImageError('Could not upload the image. Try again.');
+        } finally {
+            setImageUploading(false);
+        }
+    };
 
     const togglePanel = (panel: 'colors' | 'fontSize' | 'components') =>
         setOpenPanel((prev) => (prev === panel ? null : panel));
@@ -462,7 +523,36 @@ export const ProductUpdateEmailEditor = forwardRef<
                     >
                         <Component className="h-4 w-4" />
                     </Button>
+
+                    {/* Image upload */}
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        title="Insert image"
+                        aria-label="Insert image"
+                        disabled={imageUploading}
+                        onClick={() => fileInputRef.current?.click()}
+                    >
+                        {imageUploading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <ImageIcon className="h-4 w-4" />
+                        )}
+                    </Button>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept={ACCEPTED_IMAGE_TYPES.join(',')}
+                        className="hidden"
+                        onChange={handleImageSelected}
+                    />
                 </div>
+
+                {imageError && (
+                    <p className="px-1 text-sm text-destructive">{imageError}</p>
+                )}
 
                 {openPanel === 'colors' && (
                     <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 p-2">
