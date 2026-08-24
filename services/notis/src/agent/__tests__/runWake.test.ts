@@ -576,6 +576,154 @@ describe("runWake", () => {
     }
   });
 
+  it("a repair nudge on the final turn is granted the turn it needs", async () => {
+    // Both repairs are owed, and the delivery one lands on the penultimate
+    // turn. Without a grant the bookkeeping nudge rides out on the final turn
+    // with nothing left to answer it: the commitment is lost, and the wake
+    // records finishWakeMissing for a contract the model was never given a
+    // turn to keep.
+    const stranded =
+      "Ναι, πέρασαν άλλα δύο θέματα: η ανάπλαση και το πάρκινγκ. Θα σου πω μόλις βγει η απόφαση για το δεύτερο.";
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          text(stranded),
+          toolUse("t1", "finish_wake", {
+            rationale: "Της απάντησα.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: true,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [
+          toolUse("t2", "send_message", { text: "Ναι, πέρασαν άλλα δύο θέματα." }),
+          toolUse("t3", "finish_wake", {
+            rationale: "Της τα έστειλα.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: true,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [
+          toolUse("t4", "record_commitment", { slug: "parking", what: "Να της πω για το πάρκινγκ." }),
+          toolUse("t5", "finish_wake", {
+            rationale: "Το κατέγραψα.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: true,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const deps = makeDeps(fake);
+    deps.config = { ...deps.config, maxTurns: 2 };
+    const { outcome, trace } = await runWake(
+      makeState(),
+      [{ type: "user_message", at: FIXED_NOW.toISOString(), text: "τίποτα άλλο;" }],
+      deps,
+    );
+
+    expect(outcome.repairs).toEqual(["stranded-prose/finish", "promised/no-commitment"]);
+    expect(outcome.messages).toEqual(["Ναι, πέρασαν άλλα δύο θέματα."]);
+    expect(outcome.commitments?.record).toEqual([
+      { slug: "parking", what: "Να της πω για το πάρκινγκ." },
+    ]);
+    // The nudge was answered, so the wake finished under its own contract.
+    expect(outcome.finishWakeMissing).toBeUndefined();
+    // Three model turns on a cap of two: one grant per nudge that had no
+    // turn left, and each repair is one-shot.
+    expect(trace.turns.filter((t) => t.role !== "injected")).toHaveLength(3);
+  });
+
+  it("the grant covers a single nudge on the final turn too", async () => {
+    // The same hazard with one repair: it predates the two budgets.
+    const fake = new FakeAnthropic([
+      {
+        content: [toolUse("t1", "finish_wake", { rationale: "Της απάντησα ήδη νοερά." })],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [
+          toolUse("t2", "send_message", { text: "Η απάντηση." }),
+          toolUse("t3", "finish_wake", { rationale: "Απάντησα μετά το nudge." }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const deps = makeDeps(fake);
+    deps.config = { ...deps.config, maxTurns: 1 };
+    const { outcome } = await runWake(
+      makeState(),
+      [{ type: "user_message", at: FIXED_NOW.toISOString(), text: "λοιπόν;" }],
+      deps,
+    );
+
+    expect(outcome.repairs).toEqual(["zero-send/finish"]);
+    expect(outcome.messages).toEqual(["Η απάντηση."]);
+    expect(outcome.finishWakeMissing).toBeUndefined();
+  });
+
+  it("a pause on the granted turn does not spend it", async () => {
+    // The nudge fires on the last allowed turn and takes its grant. The
+    // granted request comes back as a tool-less pause_turn — the server
+    // continuing its research, not the model answering. That pause must not
+    // be the turn the nudge was given.
+    const fake = new FakeAnthropic([
+      {
+        content: [toolUse("t1", "finish_wake", { rationale: "Της απάντησα ήδη νοερά." })],
+        stop_reason: "tool_use",
+      },
+      { content: [text("…")], stop_reason: "pause_turn" },
+      {
+        content: [
+          toolUse("t2", "send_message", { text: "Η απάντηση." }),
+          toolUse("t3", "finish_wake", { rationale: "Απάντησα μετά το nudge." }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const deps = makeDeps(fake);
+    deps.config = { ...deps.config, maxTurns: 1 };
+    const { outcome, trace } = await runWake(
+      makeState(),
+      [{ type: "user_message", at: FIXED_NOW.toISOString(), text: "λοιπόν;" }],
+      deps,
+    );
+
+    expect(outcome.messages).toEqual(["Η απάντηση."]);
+    expect(outcome.repairs).toEqual(["zero-send/finish"]);
+    expect(outcome.finishWakeMissing).toBeUndefined();
+    expect(trace.turns.filter((t) => t.role !== "injected")).toHaveLength(3);
+  });
+
+  it("the grant has a ceiling: an endless pause loop still terminates", async () => {
+    // Each pause asks for the grant again, so the extension needs a bound of
+    // its own. maxTurns 1 plus MAX_REPAIR_TURNS 4.
+    const fake = new FakeAnthropic([
+      {
+        content: [toolUse("t1", "finish_wake", { rationale: "Της απάντησα ήδη νοερά." })],
+        stop_reason: "tool_use",
+      },
+      ...Array.from({ length: 20 }, () => ({ content: [text("…")], stop_reason: "pause_turn" })),
+    ]);
+    const deps = makeDeps(fake);
+    deps.config = { ...deps.config, maxTurns: 1 };
+    const { outcome, trace } = await runWake(
+      makeState(),
+      [{ type: "user_message", at: FIXED_NOW.toISOString(), text: "λοιπόν;" }],
+      deps,
+    );
+
+    expect(trace.turns.filter((t) => t.role !== "injected")).toHaveLength(5);
+    // The wake really did run out without finishing, and it says so.
+    expect(outcome.finishWakeMissing).toBe(true);
+    expect(outcome.rationale).toBe("Της απάντησα ήδη νοερά.");
+  });
+
   it("send: send_message tool calls become ordered messages and tool_results echo back", async () => {
     const fake = new FakeAnthropic([
       {

@@ -15,6 +15,13 @@ import {
 
 const MAX_TOKENS = 16000;
 
+/**
+ * Hard ceiling on turns granted so a repair nudge can be answered. A
+ * server-side research loop can pause many times over, and each pause asks
+ * for the grant again, so the extension needs a bound of its own.
+ */
+const MAX_REPAIR_TURNS = 4;
+
 /** Longest commitment handle we store. The tool asks for a short one; this is
  *  what happens when the model does not oblige. */
 const SLUG_MAX_CHARS = 40;
@@ -215,6 +222,28 @@ export async function runWake(
   // wake (sends discarded, absorbed rows consumed, nothing pending). Two
   // grants bound the extension.
   let bonusTurns = 0;
+  // Turns granted so a repair nudge can be answered. Separate from
+  // bonusTurns: the hold grant caps itself at two, and a repair must not
+  // eat that allowance.
+  let repairTurns = 0;
+  // True from the moment a nudge is injected until a response arrives that
+  // could answer it. A tool-less pause_turn is the server continuing a turn,
+  // not the model answering, so it leaves the nudge outstanding.
+  let nudgeOutstanding = false;
+  /**
+   * A nudge asks the model to do something, so it needs a turn to be
+   * answered in. Fired on the last allowed turn it gets none: the loop
+   * exits with the nudge unanswered, the repair never happens, and the wake
+   * records finishWakeMissing — a contract breach the model did not commit,
+   * on a turn it was never given. Each repair kind is one-shot, so the
+   * repair paths ask at most twice, and only for a wake already at the
+   * ceiling. The pause path asks again for a nudge it left outstanding, so
+   * MAX_REPAIR_TURNS bounds the total.
+   */
+  const grantTurnForNudge = (turn: number) => {
+    if (repairTurns >= MAX_REPAIR_TURNS) return;
+    if (turn + 1 >= deps.config.maxTurns + bonusTurns + repairTurns) repairTurns++;
+  };
   /**
    * The API rejects any request whose assistant turn carries `tool_use`
    * blocks that the next message does not answer — and the whole wake dies
@@ -270,7 +299,7 @@ export async function runWake(
   };
 
   try {
-  for (let turn = 0; turn < deps.config.maxTurns + bonusTurns; turn++) {
+  for (let turn = 0; turn < deps.config.maxTurns + bonusTurns + repairTurns; turn++) {
     if (deps.heartbeat && !(await deps.heartbeat())) {
       // The claim is no longer ours: a reclaimer is (or will be) running
       // this wake. Stop immediately — before the first delivery this is a
@@ -309,8 +338,14 @@ export async function runWake(
     // fails the same way.
     if (response.stop_reason === "pause_turn" && !response.content.some(isToolUseBlock)) {
       messages.push({ role: "assistant", content: response.content });
+      // A pause is not an answer. If a nudge is still waiting for one, this
+      // iteration must not be the turn that was granted for it.
+      if (nudgeOutstanding) grantTurnForNudge(turn);
       continue;
     }
+    // Any other stop reason is the model answering — well, badly, or not at
+    // all, but the nudge has had its turn.
+    nudgeOutstanding = false;
 
     if (response.stop_reason === "tool_use" || response.stop_reason === "pause_turn") {
       // Last look before bytes leave: if the reader wrote again while this
@@ -543,6 +578,8 @@ export async function runWake(
           preNudgeRationale = rationale;
           sentAtNudge = sent.length;
           finished = false;
+          nudgeOutstanding = true;
+          grantTurnForNudge(turn);
           repairs.push(nudge.tag);
           recordInjected(nudge.text);
           if (nudge.kind === "delivery") {
@@ -588,6 +625,8 @@ export async function runWake(
         preNudgeRationale = rationale;
         sentAtNudge = sent.length;
         deliveryRepaired = true;
+        nudgeOutstanding = true;
+        grantTurnForNudge(turn);
         repairs.push("zero-send/end-turn");
         const nudge =
           "(system check) Your final text above is an operator rationale — it was NOT " +
@@ -607,6 +646,8 @@ export async function runWake(
         preNudgeRationale = rationale;
         sentAtNudge = sent.length;
         deliveryRepaired = true;
+        nudgeOutstanding = true;
+        grantTurnForNudge(turn);
         repairs.push("stranded-prose/end-turn");
         const nudge =
           "(system check) In an earlier turn you wrote prose in the same turn as your " +
