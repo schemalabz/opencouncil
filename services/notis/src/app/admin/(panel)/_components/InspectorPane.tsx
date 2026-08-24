@@ -20,6 +20,8 @@ interface Props {
   item?: WakeRecord;
   trace?: WakeTrace;
   profile: string;
+  /** The compacted past. Absent until a reader has enough history to fold. */
+  memory?: string;
   sim?: InspectorSimActions;
 }
 
@@ -49,7 +51,7 @@ interface RawBlock {
   content?: unknown;
 }
 
-export function InspectorPane({ item, trace, profile, sim }: Props) {
+export function InspectorPane({ item, trace, profile, memory, sim }: Props) {
   const [tab, setTab] = useState<Tab>("rationale");
 
   if (!item || !item.outcome) {
@@ -146,6 +148,15 @@ export function InspectorPane({ item, trace, profile, sim }: Props) {
               <p className="font-medium">Τρέχον προφίλ:</p>
               <p className="whitespace-pre-wrap text-muted-foreground">{profile}</p>
             </div>
+            {memory && (
+              <div>
+                {/* Everything past the two windows. After compaction this is
+                    the only place that history exists, so an operator asking
+                    "why did he answer that?" has to be able to read it. */}
+                <p className="font-medium">Συμπυκνωμένη μνήμη:</p>
+                <p className="whitespace-pre-wrap text-muted-foreground">{memory}</p>
+              </div>
+            )}
           </>
         )}
 

@@ -663,7 +663,13 @@ export function applyOutcome(
       }),
     ...recorded
       .filter((r) => !existing.some((c) => c.slug === r.slug))
-      .map((r) => ({ slug: r.slug, what: r.what, since: ordered[ordered.length - 1].at })),
+      // Date only, exactly as the shell renders it from createdAt — the
+      // simulation surfaces feed the model the same block production does.
+      .map((r) => ({
+        slug: r.slug,
+        what: r.what,
+        since: ordered[ordered.length - 1].at.slice(0, 10),
+      })),
   ];
 
   return {

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import fs from "node:fs";
 import path from "node:path";
 import { DEFAULT_CONFIG } from "@/agent/types";
+import { COMPACTION_STATUS_KEY } from "@/lib/compaction";
 import { POLLER_STATUS_KEY, getSetting } from "@/lib/settings";
 import { PageHeader } from "../_components/PageHeader";
 import { ProactiveControls } from "./ProactiveControls";
@@ -37,9 +38,10 @@ export default async function SettingsPage() {
   // page without it (enforced by the admin-auth-guard test).
   const session = await getAdminSession();
   if (!session) redirect("/admin/login");
-  const pollerStatus = (await getSetting(POLLER_STATUS_KEY)) as
-    | ({ at: string } & Record<string, number | string>)
-    | undefined;
+  const [pollerStatus, compactionStatus] = (await Promise.all([
+    getSetting(POLLER_STATUS_KEY),
+    getSetting(COMPACTION_STATUS_KEY),
+  ])) as Array<({ at: string } & Record<string, number | string>) | undefined>;
   const promptsDir = path.join(process.cwd(), "prompts");
   const systemStat = fs.statSync(path.join(promptsDir, "system.md"));
   const contextFiles = fs
@@ -72,6 +74,28 @@ export default async function SettingsPage() {
               <p className="mt-2 text-sm text-muted-foreground">
                 Κανένα tick ακόμη — τρέχει κάθε 5 λεπτά, ή χειροκίνητα μέσω POST
                 /api/admin/poll.
+              </p>
+            )}
+          </section>
+
+          <section className="rounded-lg border bg-background p-4">
+            <p className="text-sm font-medium">Συμπύκνωση μνήμης</p>
+            {compactionStatus ? (
+              <div className="mt-2">
+                <Row
+                  label="τελευταία συμπύκνωση"
+                  value={String(compactionStatus.at).replace("T", " ").slice(0, 19)}
+                />
+                {Object.entries(compactionStatus)
+                  .filter(([k, v]) => k !== "at" && v !== 0 && v !== "")
+                  .map(([k, v]) => (
+                    <Row key={k} label={k} value={String(v)} />
+                  ))}
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Καμία συμπύκνωση ακόμη — τρέχει μετά από ένα wake, μόλις ο
+                αναγνώστης ξεπεράσει τα παράθυρα.
               </p>
             )}
           </section>

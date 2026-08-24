@@ -67,27 +67,29 @@ export async function runJanitor(): Promise<JanitorResult> {
     // cross-database round trip risks P2028 and loses the whole run.
     const db = notisDb();
 
+    const now = Date.now();
+
     // Consumed queue rows carry full briefs per subscriber; bound their
     // growth. 30 days keeps recent history inspectable in the panel. This is
     // independent of the orphan pass — no lock, no guard, and it still runs
     // on a run the blast radius refuses.
-    // A promise nobody ever resolved is not a promise any more: close it, so the
-  // block the agent reads stays about things that are still live. Resolved
-  // rows are kept a while for the panel's «he promised X, delivered on Y».
-  const now = Date.now();
-  await db.notisCommitment.updateMany({
-    where: { resolvedAt: null, createdAt: { lt: new Date(now - COMMITMENT_EXPIRY_MS) } },
-    data: { resolvedAt: new Date() },
-  });
-  await db.notisCommitment.deleteMany({
-    where: { resolvedAt: { lt: new Date(now - COMMITMENT_RETENTION_MS) } },
-  });
-
-  await db.notisWakeQueue.deleteMany({
+    await db.notisWakeQueue.deleteMany({
       where: {
         status: { in: ["done", "failed"] },
-        updatedAt: { lt: new Date(Date.now() - QUEUE_RETENTION_MS) },
+        updatedAt: { lt: new Date(now - QUEUE_RETENTION_MS) },
       },
+    });
+
+    // A promise nobody ever resolved is not a promise any more: close it, so
+    // the block the agent reads stays about things that are still live.
+    // Resolved rows are kept a while for the panel's «he promised X on this
+    // date, closed it on that one».
+    await db.notisCommitment.updateMany({
+      where: { resolvedAt: null, createdAt: { lt: new Date(now - COMMITMENT_EXPIRY_MS) } },
+      data: { resolvedAt: new Date() },
+    });
+    await db.notisCommitment.deleteMany({
+      where: { resolvedAt: { lt: new Date(now - COMMITMENT_RETENTION_MS) } },
     });
 
     const subscriptions = await db.notisSubscription.findMany({

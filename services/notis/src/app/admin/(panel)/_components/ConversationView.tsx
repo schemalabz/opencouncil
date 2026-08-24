@@ -18,6 +18,7 @@ interface Props {
   origin: Origin;
   startAt: string;
   profile: string;
+  memory?: string;
   selectedId?: string;
   busyItemId?: string;
   onSelect(id: string | undefined): void;
@@ -35,6 +36,7 @@ export function ConversationView({
   origin,
   startAt,
   profile,
+  memory,
   selectedId,
   busyItemId,
   onSelect,
@@ -75,6 +77,7 @@ export function ConversationView({
             item={selectedItem}
             trace={selectedId ? traceFor(selectedId) : undefined}
             profile={profile}
+            memory={memory}
             sim={inspectorSim}
           />
         </div>
