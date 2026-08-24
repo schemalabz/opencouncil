@@ -147,14 +147,39 @@ export async function listConversations(search?: string, page = 1): Promise<Conv
   const total = await db.notisSubscription.count({ where });
   const pages = Math.max(1, Math.ceil(total / CONVERSATIONS_PAGE_SIZE));
   const current = Math.min(page, pages);
-  const subs = await db.notisSubscription.findMany({
-    where,
-    orderBy: { updatedAt: "desc" },
-    skip: (current - 1) * CONVERSATIONS_PAGE_SIZE,
-    take: CONVERSATIONS_PAGE_SIZE,
-  });
-  if (subs.length === 0) return { conversations: [], total, page: current, pages };
-  const ids = subs.map((s) => s.id);
+
+  // Order by the last message, not by NotisSubscription.updatedAt: that
+  // column also moves on a profile rewrite, a memory compaction and every
+  // poller phone refresh, so the list reshuffled while nobody had said a
+  // word. Prisma cannot order by a relation's max, so the page's ids come
+  // from a LATERAL top-1 per subscription — one seek each on the
+  // [subscriptionId, createdAt] index — and the rows follow by id.
+  // The search predicate here must stay the twin of `where` above, which
+  // counts the same rows.
+  const term = q ? `%${q}%` : null;
+  const ordered = await db.$queryRaw<Array<{ id: string }>>`
+    SELECT s.id
+    FROM "NotisSubscription" s
+    LEFT JOIN LATERAL (
+      SELECT m."createdAt"
+      FROM "NotisMessage" m
+      WHERE m."subscriptionId" = s.id
+      ORDER BY m."createdAt" DESC
+      LIMIT 1
+    ) last ON true
+    WHERE ${term}::text IS NULL
+       OR s."userName" ILIKE ${term}
+       OR s.phone LIKE ${term}
+    ORDER BY coalesce(last."createdAt", s."createdAt") DESC, s.id DESC
+    LIMIT ${CONVERSATIONS_PAGE_SIZE}
+    OFFSET ${(current - 1) * CONVERSATIONS_PAGE_SIZE}
+  `;
+  if (ordered.length === 0) return { conversations: [], total, page: current, pages };
+  const ids = ordered.map((r) => r.id);
+  const rank = new Map(ids.map((id, i) => [id, i]));
+  const subs = (await db.notisSubscription.findMany({ where: { id: { in: ids } } })).sort(
+    (a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0),
+  );
 
   const [counts, failures, wakes, costs, lastMessages, citiesByUser] = await Promise.all([
     db.notisMessage.groupBy({
