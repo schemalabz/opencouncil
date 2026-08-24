@@ -4,6 +4,7 @@
  * status instead of collapsing it into `delivered`.
  */
 import {
+  bodyIsPreviewOnly,
   extractBody,
   extractChannel,
   extractDirection,
@@ -182,6 +183,46 @@ describe("extractBody", () => {
   });
 });
 
+describe("bodyIsPreviewOnly", () => {
+  it("marks a body that is only Bird's truncated conversation-list snippet", () => {
+    expect(bodyIsPreviewOnly({ preview: { text: "cut at ~140 chars…" } })).toBe(true);
+  });
+
+  it("clears every shape that carries the message's own text", () => {
+    expect(bodyIsPreviewOnly({ preview: { text: "cut…" }, text: "full" })).toBe(false);
+    expect(bodyIsPreviewOnly({ preview: { text: "cut…" }, body: { text: { text: "full" } } })).toBe(
+      false,
+    );
+    expect(bodyIsPreviewOnly({ preview: { text: "cut…" }, body: { text: "full" } })).toBe(false);
+    expect(bodyIsPreviewOnly({ preview: { text: "cut…" }, body: "full" })).toBe(false);
+  });
+
+  it("clears an event with no text at all — an empty body is not a truncation", () => {
+    expect(bodyIsPreviewOnly({})).toBe(false);
+    expect(bodyIsPreviewOnly(undefined)).toBe(false);
+    expect(bodyIsPreviewOnly({ preview: {} })).toBe(false);
+  });
+
+  it("flags the conversation.updated shape end to end", () => {
+    const fields = extractMessageFields(
+      {
+        event: "conversation.updated",
+        payload: {
+          id: "conv-1",
+          lastMessage: {
+            id: "bm-1",
+            sender: { type: "contact", contact: { identifierValue: "+3069" } },
+            preview: { text: "Mou ehoun erthei dio emails gia theseis stathmefsis, kai" },
+          },
+        },
+      },
+      {},
+    );
+    expect(fields.bodyFromPreview).toBe(true);
+    expect(fields.body).toBe("Mou ehoun erthei dio emails gia theseis stathmefsis, kai");
+  });
+});
+
 describe("extractChannel", () => {
   const channelIds = { sms: "ch-sms-id", whatsapp: "ch-wa-id" };
 
@@ -235,6 +276,7 @@ describe("extractMessageFields", () => {
       birdMessageId: "msg-inbound-1",
       conversationId: "conv-1",
       direction: "inbound",
+      bodyFromPreview: false,
       phone: "+306900000100",
       body: "Τι ψηφίστηκε χθες;",
       channel: "whatsapp",

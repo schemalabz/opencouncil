@@ -66,6 +66,11 @@ export interface ExtractedMessageFields {
   direction: MessageDirection;
   phone?: string;
   body: string;
+  /** The body is Bird's conversation-list snippet, not the message: the
+   *  event carried no full body. The snippet stops at ~140 characters, so
+   *  the caller must read the message itself before it stores or answers
+   *  this text. */
+  bodyFromPreview: boolean;
   channel: MessageChannel;
   status: MessageStatus;
   failureReason?: string;
@@ -179,17 +184,35 @@ export function extractPhone(
     : extractInboundPhone(message);
 }
 
+/**
+ * The message's own text, across every body shape Bird has used. Undefined
+ * when the event carries none — which is when `preview.text` takes over in
+ * extractBody. Exported because the same shapes come back from the
+ * Conversations API when bird.ts reads a message directly.
+ */
+export function fullBodyText(message: BirdMessageLike | undefined): string | undefined {
+  return (
+    extractBodyText(message?.body) ??
+    message?.text ??
+    (typeof message?.body === "string" && message.body ? message.body : undefined)
+  );
+}
+
 export function extractBody(message: BirdMessageLike | undefined): string {
   // Prefer the full message body. `preview.text` is Bird's conversation-list
   // snippet — truncated to ~140 chars — so it's only a last-resort fallback
   // for events that carry no body at all.
-  return (
-    extractBodyText(message?.body) ??
-    message?.text ??
-    (typeof message?.body === "string" && message.body ? message.body : undefined) ??
-    message?.preview?.text ??
-    ""
-  );
+  return fullBodyText(message) ?? message?.preview?.text ?? "";
+}
+
+/**
+ * Did extractBody fall back to the truncated snippet? True only when the
+ * event carried no body of its own AND a snippet stood in — which is what
+ * `conversation.updated` events deliver. The caller repairs those; an empty
+ * body is not a truncation and has nothing to repair.
+ */
+export function bodyIsPreviewOnly(message: BirdMessageLike | undefined): boolean {
+  return fullBodyText(message) === undefined && Boolean(message?.preview?.text);
 }
 
 export function extractChannel(
@@ -217,6 +240,7 @@ export function extractMessageFields(event: unknown, channelIds: ChannelIds): Ex
     direction,
     phone,
     body,
+    bodyFromPreview: bodyIsPreviewOnly(message),
     channel,
     status: mapBirdMessageStatus(message?.status),
     failureReason: message?.reason ?? message?.failure?.description ?? undefined,
