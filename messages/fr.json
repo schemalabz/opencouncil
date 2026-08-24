@@ -1103,6 +1103,7 @@
     "lastSearched": "Dernière recherche {time}",
     "lastUpdated": "Dernière mise à jour {time}",
     "decisionTitle": "Titre",
+    "decisionNumber": "Numéro de décision",
     "protocolNumber": "Numéro de protocole",
     "publishDate": "Date de publication",
     "viewDecision": "Afficher la décision sur Diavgeia",

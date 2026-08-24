@@ -415,11 +415,18 @@ export interface ExtractedDecisionData {
     subjectInfo: { number: number; isOutOfAgenda: boolean } | null;
     fromCache?: boolean;
     warnings?: DecisionWarning[];
-    /** Protocol number — from Diavgeia API or PDF extraction */
+    /** The decision's own number (Αρ. Απόφασης / Πράξη), extracted from the document. */
+    decisionNumber?: string | null;
+    /**
+     * @deprecated Older tasks versions sent the extracted decision number under this
+     * name. It was never Diavgeia's protocol number. Read for transition tolerance only.
+     */
     protocolNumber?: string | null;
     /** Metadata fetched from Diavgeia API for needsExtraction subjects */
     diavgeiaTitle?: string;
     diavgeiaPublishDate?: string;
+    /** Diavgeia's own protocolNumber field, mirrored verbatim. Municipality-defined semantics. */
+    diavgeiaProtocolNumber?: string;
 }
 
 /*

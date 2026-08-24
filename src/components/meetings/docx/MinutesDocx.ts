@@ -542,7 +542,7 @@ function createTOCTable(subjects: MinutesSubject[], useSequentialNumbers: boolea
         const seqNum = useSequentialNumbers ? `${index + 1}` : `${subject.agendaItemIndex ?? ''}`;
         const decisionText = subject.withdrawn
             ? getWithdrawnLabelGreek(subject)
-            : (subject.decision?.protocolNumber ?? '');
+            : (subject.decision?.decisionNumber ?? '');
 
         return new TableRow({
             children: [
@@ -758,12 +758,15 @@ function createSubjectSection(subject: MinutesSubject): (Paragraph | Table)[] {
         }
     }
 
-    // Decision number (right-aligned)
-    if (subject.decision?.protocolNumber) {
+    // Decision number (right-aligned). decisionNumber, never protocolNumber:
+    // Diavgeia's protocol number means different things per municipality and
+    // is not the decision's own number everywhere. Blank is correct when
+    // unknown; a wrong number is not.
+    if (subject.decision?.decisionNumber) {
         paragraphs.push(new Paragraph({
             alignment: AlignmentType.RIGHT,
             spacing: { before: 120, after: 200 },
-            children: [new TextRun({ text: `Αρ. Απόφασης: ${subject.decision.protocolNumber}`, size: FONT_SIZE.BODY, bold: true })],
+            children: [new TextRun({ text: `Αρ. Απόφασης: ${subject.decision.decisionNumber}`, size: FONT_SIZE.BODY, bold: true })],
         }));
     }
 

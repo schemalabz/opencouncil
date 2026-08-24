@@ -520,6 +520,8 @@ model Decision {
   subjectId      String    @unique
   ada            String?   @unique  // Diavgeia unique identifier (e.g., "91ΥΔΩΡΦ-ΓΥ6")
   protocolNumber String?             // Protocol number (e.g., "261/2024")
+  decisionNumber String?             // The number the decision carries (Αρ. Απόφασης), read from the document. Distinct from protocolNumber, which mirrors Diavgeia's field and means different things per municipality.
+  meetingDate    DateTime?           // The session the document says produced it. Lets a link be verified against the decision itself.
   title          String?             // Decision title from Diavgeia
   pdfUrl         String
   publishDate    DateTime?           // Date published on Diavgeia

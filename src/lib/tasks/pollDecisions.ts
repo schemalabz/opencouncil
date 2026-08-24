@@ -1187,14 +1187,24 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
                         return;
                     }
 
+                    // The extracted Αρ. Απόφασης goes to decisionNumber, never to
+                    // protocolNumber: Diavgeia's protocol field is municipality-defined
+                    // and stays a faithful mirror of what Diavgeia published. Older
+                    // tasks versions sent this value under `protocolNumber`, but that
+                    // slot could carry Diavgeia's protocol instead of the decision's
+                    // own number, so it is not trusted here — during deploy skew the
+                    // number stays null and the next poll's reading fills it.
+                    const extractedDecisionNumber = decision.decisionNumber ?? null;
+
                     // 1. Update Decision excerpt, references, and backfill metadata if missing
                     await tx.decision.updateMany({
                         where: { subjectId: decision.subjectId },
                         data: {
                             excerpt: decision.excerpt || null,
                             references: decision.references || null,
+                            ...(extractedDecisionNumber ? { decisionNumber: extractedDecisionNumber } : {}),
                             ...(!existingDecision.title && decision.diavgeiaTitle ? { title: decision.diavgeiaTitle } : {}),
-                            ...(!existingDecision.protocolNumber && decision.protocolNumber ? { protocolNumber: decision.protocolNumber } : {}),
+                            ...(!existingDecision.protocolNumber && decision.diavgeiaProtocolNumber ? { protocolNumber: decision.diavgeiaProtocolNumber } : {}),
                             ...(!existingDecision.publishDate && decision.diavgeiaPublishDate ? { publishDate: new Date(decision.diavgeiaPublishDate) } : {}),
                         },
                     });

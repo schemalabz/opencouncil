@@ -1102,6 +1102,7 @@
         "lastSearched": "Last searched {time}",
         "lastUpdated": "Last updated {time}",
         "decisionTitle": "Title",
+        "decisionNumber": "Decision Number",
         "protocolNumber": "Protocol Number",
         "publishDate": "Publish Date",
         "viewDecision": "View decision on Diavgeia",
