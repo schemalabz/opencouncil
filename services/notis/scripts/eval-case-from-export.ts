@@ -84,8 +84,8 @@ const nameTokens = (data.subscription.userName ?? "")
   .filter((t) => t.length >= 3);
 
 /**
- * Greek accents make naive matching useless: the stored userName is «Ευφη»
- * while the agent writes «Εύφη». Stripping combining marks after NFD leaves
+ * Greek accents make naive matching useless: the stored userName may be unaccented
+ * while the agent writes it accented. Stripping combining marks after NFD leaves
  * the character count unchanged for Greek, so offsets found in the stripped
  * text apply directly to the original.
  */
@@ -93,19 +93,28 @@ function stripAccents(text: string): string {
   return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
+/** The pseudonym written over the reader's real name. */
+const ANON_NAME = "Εύα";
+
 function scrub<T>(value: T): T {
   if (nameTokens.length === 0) return value;
   let text = JSON.stringify(value);
   for (const token of nameTokens) {
-    // Match the stem, so inflected forms («Εύφης») go with the nominative.
+    // Match the stem, so inflected forms go with the nominative.
     const stem = stripAccents(token).slice(0, Math.max(3, token.length - 1));
+    // Search forward from the end of each replacement. Restarting at 0 hangs
+    // whenever the pseudonym itself matches the stem — a reader actually
+    // whose name matches the pseudonym has a stem the replacement strips to, and
+    // the search finds it again for ever.
+    let from = 0;
     for (;;) {
-      const at = stripAccents(text).toLowerCase().indexOf(stem.toLowerCase());
+      const at = stripAccents(text).toLowerCase().indexOf(stem.toLowerCase(), from);
       if (at === -1) break;
       // Consume the inflected ending too: letters immediately following.
       let end = at + stem.length;
       while (end < text.length && /\p{L}/u.test(text[end])) end++;
-      text = text.slice(0, at) + "Εύα" + text.slice(end);
+      text = text.slice(0, at) + ANON_NAME + text.slice(end);
+      from = at + ANON_NAME.length;
     }
   }
   return JSON.parse(text) as T;

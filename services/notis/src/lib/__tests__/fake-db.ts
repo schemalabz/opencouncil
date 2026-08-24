@@ -215,6 +215,8 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
       },
     },
     notisWake: {
+      findUnique: async ({ where }: { where: { id: string } }) =>
+        store.wakes.find((w) => w.id === where.id) ?? null,
       count: async ({ where }: { where?: Row } = {}) =>
         store.wakes.filter((w) => messageMatches(w, where)).length,
       create: async ({ data }: { data: Row }) => {
