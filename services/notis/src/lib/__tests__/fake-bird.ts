@@ -25,6 +25,11 @@ export class FakeBird implements BirdLike {
     idempotencyKey: string;
   }> = [];
   public smsSends: Array<{ phone: string; text: string }> = [];
+  public messageReads: Array<{ conversationId: string; messageId: string }> = [];
+
+  /** What fetchMessageBody returns. Null stands for a failed read — the
+   *  caller then keeps Bird's truncated preview. */
+  public messageBody: string | null = null;
 
   /** Configured by default — the fake stands in for a workspace where every
    *  demos_* template has its project id. Set false to exercise the
@@ -75,6 +80,11 @@ export class FakeBird implements BirdLike {
     this.created.push(input);
     if (this.createResult) return this.createResult;
     return { ...this.nextResult(), conversationId: `conv-new-${this.created.length}` };
+  }
+
+  async fetchMessageBody(input: { conversationId: string; messageId: string }) {
+    this.messageReads.push(input);
+    return this.messageBody;
   }
 
   async sendSms(input: { phone: string; text: string }) {

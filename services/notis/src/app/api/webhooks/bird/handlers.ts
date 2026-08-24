@@ -76,6 +76,43 @@ export function isForwardProgression(current: MessageStatus, next: MessageStatus
   return STATUS_RANK[next] > STATUS_RANK[current];
 }
 
+/**
+ * Repair a body that arrived as Bird's conversation-list snippet.
+ *
+ * A `conversation.updated` event carries `lastMessage.preview.text` and no
+ * body of its own. The snippet stops at about 140 characters, so storing it
+ * loses the end of what the reader wrote — and the wake then answers half a
+ * sentence. The message itself is read back before anything touches the
+ * text.
+ *
+ * A read that fails keeps the snippet: a cut message still beats no message,
+ * and the alert tells the operator which conversation to look at.
+ */
+export async function resolveInboundBody(
+  fields: ExtractedMessageFields,
+  deps: HandlerDeps,
+): Promise<ExtractedMessageFields> {
+  if (!fields.bodyFromPreview) return fields;
+  const alert = webhookAlert(deps.alert);
+  if (!fields.conversationId || !fields.birdMessageId) {
+    await alert(
+      `Inbound event carried only Bird's truncated preview and no ids to read the message back — storing the snippet (phone ${fields.phone ?? "unknown"})`,
+    );
+    return fields;
+  }
+  const body = await deps.bird.fetchMessageBody({
+    conversationId: fields.conversationId,
+    messageId: fields.birdMessageId,
+  });
+  if (!body) {
+    await alert(
+      `Could not read message ${fields.birdMessageId} back from Bird — storing its truncated preview (conversation ${fields.conversationId})`,
+    );
+    return fields;
+  }
+  return { ...fields, body, bodyFromPreview: false };
+}
+
 /** Outbound events: reconcile delivery status for a message notis sent.
  *  Unknown ids are the main app's messages — not ours to track. */
 export async function handleOutboundStatus(
@@ -154,14 +191,20 @@ export async function handleSmsInbound(
   }
   const sub = gated.sub;
 
-  if (isBareStop(fields.body)) {
-    return handleBareStop(sub, fields, deps);
+  // Only now, with the reader identified: an event that carried only Bird's
+  // preview holds a message cut at ~140 characters, and every read below
+  // needs the whole thing. After the gate, so an event for a phone notis
+  // does not serve never spends a Bird round trip inside the webhook.
+  const message = await resolveInboundBody(fields, deps);
+
+  if (isBareStop(message.body)) {
+    return handleBareStop(sub, message, deps);
   }
 
   const event: WakeEvent = {
     type: "user_message",
     at: new Date().toISOString(),
-    text: fields.body,
+    text: message.body,
   };
   const queueItemId = await db.$transaction(async (tx) => {
     await tx.notisMessage.create({
@@ -169,7 +212,7 @@ export async function handleSmsInbound(
         subscriptionId: sub.id,
         direction: "inbound",
         channel: "sms",
-        body: fields.body,
+        body: message.body,
         birdMessageId: fields.birdMessageId,
       },
     });
@@ -434,21 +477,27 @@ export async function handleInbound(
     }
   }
 
-  if (isBareStop(fields.body)) {
-    return handleBareStop(sub, fields, deps);
+  // Only now, with the reader identified: an event that carried only Bird's
+  // preview holds a message cut at ~140 characters, and every read below
+  // needs the whole thing. After the gate, so an event for a phone notis
+  // does not serve never spends a Bird round trip inside the webhook.
+  const message = await resolveInboundBody(fields, deps);
+
+  if (isBareStop(message.body)) {
+    return handleBareStop(sub, message, deps);
   }
 
   const event: WakeEvent = {
     type: "user_message",
     at: new Date().toISOString(),
-    text: fields.body,
+    text: message.body,
   };
   const queueItemId = await db.$transaction(async (tx) => {
     await tx.notisMessage.create({
       data: {
         subscriptionId: sub.id,
         direction: "inbound",
-        body: fields.body,
+        body: message.body,
         birdMessageId: fields.birdMessageId,
       },
     });

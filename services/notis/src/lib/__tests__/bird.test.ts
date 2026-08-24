@@ -152,6 +152,38 @@ describe("sendSms", () => {
   });
 });
 
+describe("fetchMessageBody", () => {
+  it("GETs the message and reads its text out of the nested body shape", async () => {
+    const fetchMock = mockFetch(200, { id: "bm-1", body: { text: { text: "the whole message" } } });
+
+    const body = await realBird.fetchMessageBody({
+      conversationId: "conv-1",
+      messageId: "bm-1",
+    });
+
+    expect(body).toBe("the whole message");
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://api.bird.com/workspaces/ws-1/conversations/conv-1/messages/bm-1");
+    expect(init.method).toBe("GET");
+    expect(init.headers.Authorization).toBe("AccessKey key");
+    expect(init.body).toBeUndefined();
+  });
+
+  it("returns null on an error status, so the caller keeps the preview", async () => {
+    mockFetch(404, { message: "not found" });
+    expect(
+      await realBird.fetchMessageBody({ conversationId: "conv-1", messageId: "bm-1" }),
+    ).toBeNull();
+  });
+
+  it("returns null when the message carries no text", async () => {
+    mockFetch(200, { id: "bm-1" });
+    expect(
+      await realBird.fetchMessageBody({ conversationId: "conv-1", messageId: "bm-1" }),
+    ).toBeNull();
+  });
+});
+
 describe("extractConflictingConversationId", () => {
   it("reads a UUID out of a details resource path", () => {
     expect(

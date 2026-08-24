@@ -1,5 +1,6 @@
 import { env } from "@/env.mjs";
 import { TEMPLATES, type TemplateName } from "@/agent/templates";
+import { type BirdMessageLike, fullBodyText } from "@/lib/bird-extract";
 
 /**
  * The Bird (WhatsApp/SMS) client: free-form text and template shells into
@@ -62,6 +63,14 @@ export interface BirdLike {
    *  configured? Asked BEFORE work that commits to sending it, so a missing
    *  env var stops the ceremony instead of burning it. */
   canSendTemplate(template: TemplateName): boolean;
+  /** The text of one message, read from the conversation. Webhook events
+   *  that carry only Bird's conversation-list snippet are repaired through
+   *  this. Null when the call fails or the message holds no text — the
+   *  caller then keeps the snippet. */
+  fetchMessageBody(input: {
+    conversationId: string;
+    messageId: string;
+  }): Promise<string | null>;
 }
 
 /**
@@ -78,6 +87,11 @@ export function isRetryableStatus(status: number): boolean {
  *  its staleness window, so a hung send is retaken exactly once it can no
  *  longer be in flight. */
 export const SEND_TIMEOUT_MS = 30_000;
+
+/** A read inside the webhook request, before it answers Bird. Shorter than
+ *  a send: Bird retries a webhook it considers timed out, and a duplicate
+ *  inbound event costs more than one repaired message. */
+export const READ_TIMEOUT_MS = 10_000;
 
 export function hasBird(): boolean {
   return Boolean(env.BIRD_API_KEY && env.BIRD_WORKSPACE_ID && env.BIRD_WHATSAPP_CHANNEL_ID);
@@ -154,21 +168,17 @@ interface RawBirdResponse {
   networkError?: string;
 }
 
-async function birdFetch(
-  url: string,
-  payload: unknown,
-  idempotencyKey?: string,
-): Promise<RawBirdResponse> {
+async function birdRequest(url: string, init: RequestInit & { timeoutMs: number }) {
+  const { timeoutMs, ...rest } = init;
   try {
     const response = await fetch(url, {
-      method: "POST",
-      signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
+      ...rest,
+      signal: AbortSignal.timeout(timeoutMs),
       headers: {
         Authorization: `AccessKey ${env.BIRD_API_KEY}`,
         "Content-Type": "application/json",
-        ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
+        ...rest.headers,
       },
-      body: JSON.stringify(payload),
     });
     const text = await response.text();
     let json: Record<string, unknown> | null = null;
@@ -187,6 +197,19 @@ async function birdFetch(
       networkError: error instanceof Error ? error.message : "Unknown error",
     };
   }
+}
+
+async function birdFetch(
+  url: string,
+  payload: unknown,
+  idempotencyKey?: string,
+): Promise<RawBirdResponse> {
+  return birdRequest(url, {
+    method: "POST",
+    timeoutMs: SEND_TIMEOUT_MS,
+    ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
+    body: JSON.stringify(payload),
+  });
 }
 
 /** Map a raw response to the send-result contract shared by every method:
@@ -378,6 +401,22 @@ export const realBird: BirdLike = {
       // fires. An absent id is honest, and the caller alerts on it.
       messageId: data.initialMessage?.id ?? data.lastMessage?.id ?? data.messageId,
     };
+  },
+
+  async fetchMessageBody({ conversationId, messageId }) {
+    if (!hasBird()) return null;
+    const raw = await birdRequest(`${conversationMessagesUrl(conversationId)}/${messageId}`, {
+      method: "GET",
+      timeoutMs: READ_TIMEOUT_MS,
+    });
+    if (!raw.ok) {
+      console.error(
+        `Bird read message ${messageId} failed (${raw.status}):`,
+        raw.networkError ?? raw.text,
+      );
+      return null;
+    }
+    return fullBodyText((raw.json as BirdMessageLike | null) ?? undefined) ?? null;
   },
 
   async sendSms({ phone, text }) {

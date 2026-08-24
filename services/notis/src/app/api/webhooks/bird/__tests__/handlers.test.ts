@@ -2,7 +2,13 @@ import type { ExtractedMessageFields } from "@/lib/bird-extract";
 import { STOP_ALREADY_TEXT, STOP_CONFIRMATION_TEXT } from "@/lib/stop";
 import { type Row, makeFakeDb } from "../../../../../lib/__tests__/fake-db";
 import { FakeBird } from "../../../../../lib/__tests__/fake-bird";
-import { handleInbound, handleOutboundStatus, isForwardProgression, handleSmsInbound } from "../handlers";
+import {
+  handleInbound,
+  handleOutboundStatus,
+  isForwardProgression,
+  handleSmsInbound,
+  resolveInboundBody,
+} from "../handlers";
 import { SMS_HELD_FOR_QUIET_HOURS } from "../../../../../lib/queue";
 
 // Enrollment reads the main-DB views through these two modules; the fakes
@@ -39,6 +45,7 @@ function inbound(overrides: Partial<ExtractedMessageFields> = {}): ExtractedMess
     direction: "inbound",
     phone: "+306900000001",
     body: "Τι ψηφίστηκε χθες;",
+    bodyFromPreview: false,
     channel: "whatsapp",
     status: "sent",
     ...overrides,
@@ -93,6 +100,39 @@ describe("handleInbound", () => {
     expect(db.store.messages).toHaveLength(0);
     expect(db.store.subscriptions.size).toBe(0);
     expect(bird.sends).toHaveLength(0);
+  });
+
+  it("stores and wakes on the whole message when the event carried only a preview", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    const bird = new FakeBird();
+    bird.messageBody = "Το πλήρες μήνυμα, όλες οι προτάσεις του.";
+
+    const result = await handleInbound(
+      inbound({ body: "Το πλήρες μήνυμα, όλες", bodyFromPreview: true }),
+      { db, bird, alert: async () => {} },
+    );
+
+    expect(result.action).toBe("enqueued");
+    expect(db.store.messages[0]).toMatchObject({
+      body: "Το πλήρες μήνυμα, όλες οι προτάσεις του.",
+    });
+    expect([...db.store.queue.values()][0].events).toEqual([
+      expect.objectContaining({ text: "Το πλήρες μήνυμα, όλες οι προτάσεις του." }),
+    ]);
+  });
+
+  it("does not read a message back for a phone notis does not serve", async () => {
+    const db = makeFakeDb();
+    const bird = new FakeBird();
+    bird.messageBody = "never read";
+
+    const result = await handleInbound(
+      inbound({ phone: "+306999999999", body: "cut…", bodyFromPreview: true }),
+      { db, bird, alert: async () => {} },
+    );
+
+    expect(result).toEqual({ action: "ignored", reason: "not a notis-served phone" });
+    expect(bird.messageReads).toEqual([]);
   });
 
   it("enrolls a rollout-enabled user on first contact, profile seeded from preferences", async () => {
@@ -526,6 +566,68 @@ describe("SMS fallback on failed proactive templates", () => {
     const sms = db.store.messages.find((m) => m.channel === "sms")!;
     expect(sms.status).toBe("failed");
     expect(alerts.some((m) => m.includes("SMS fallback failed"))).toBe(true);
+  });
+});
+
+describe("resolveInboundBody", () => {
+  const CUT = "Mou ehoun erthei dio emails gia theseis stathmefsis, kai";
+  const FULL = `${CUT} tha ithela na mou stelneis mono ta megala themata.`;
+
+  it("reads the message back when the event carried only Bird's preview", async () => {
+    const bird = new FakeBird();
+    bird.messageBody = FULL;
+    const alert = jest.fn();
+
+    const fields = await resolveInboundBody(
+      inbound({ body: CUT, bodyFromPreview: true }),
+      { db: makeFakeDb(), bird, alert },
+    );
+
+    expect(fields.body).toBe(FULL);
+    expect(fields.bodyFromPreview).toBe(false);
+    expect(bird.messageReads).toEqual([{ conversationId: "conv-1", messageId: "bm-1" }]);
+    expect(alert).not.toHaveBeenCalled();
+  });
+
+  it("leaves a full body alone and never calls Bird", async () => {
+    const bird = new FakeBird();
+    bird.messageBody = FULL;
+    const fields = inbound();
+
+    const resolved = await resolveInboundBody(fields, { db: makeFakeDb(), bird });
+
+    expect(resolved).toBe(fields);
+    expect(bird.messageReads).toEqual([]);
+  });
+
+  it("keeps the truncated preview and alerts when the read fails", async () => {
+    const bird = new FakeBird();
+    bird.messageBody = null;
+    const alert = jest.fn();
+
+    const fields = await resolveInboundBody(
+      inbound({ body: CUT, bodyFromPreview: true }),
+      { db: makeFakeDb(), bird, alert },
+    );
+
+    expect(fields.body).toBe(CUT);
+    expect(fields.bodyFromPreview).toBe(true);
+    expect(alert).toHaveBeenCalledTimes(1);
+    expect(alert.mock.calls[0][0]).toContain("bm-1");
+  });
+
+  it("alerts without calling Bird when the event names no message to read", async () => {
+    const bird = new FakeBird();
+    const alert = jest.fn();
+
+    const fields = await resolveInboundBody(
+      inbound({ body: CUT, bodyFromPreview: true, birdMessageId: undefined }),
+      { db: makeFakeDb(), bird, alert },
+    );
+
+    expect(fields.body).toBe(CUT);
+    expect(bird.messageReads).toEqual([]);
+    expect(alert).toHaveBeenCalledTimes(1);
   });
 });
 
