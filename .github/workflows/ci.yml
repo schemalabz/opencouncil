@@ -55,6 +55,35 @@ jobs:
 
       - run: SKIP_ENV_VALIDATION=1 npm run build -w notis
 
+      # The template mirror in src/agent/templates.ts is a hand-copy of the
+      # Bird console, and only Bird knows when it goes stale. A variable added
+      # there makes every send of that shell fail with a terminal 422 that
+      # degrades quietly to SMS, so the check belongs before the deploy rather
+      # than in a reader's inbox.
+      #
+      # Skipped without credentials — forks and Dependabot cannot read secrets,
+      # and a missing key must not fail their builds. It still runs on every
+      # push to this repository, which is where a template edit lands.
+      - name: Check the Bird template mirror for drift
+        # The skip is a shell test rather than a step `if`: a step's own env
+        # block is not visible to its condition, and `secrets` is not available
+        # there either. This way the skip is also visible in the log.
+        run: |
+          if [ -z "$BIRD_API_KEY" ]; then
+            echo "No Bird credentials in this context — skipping the drift check."
+            exit 0
+          fi
+          npm run check:templates -w notis
+        env:
+          BIRD_API_KEY: ${{ secrets.BIRD_API_KEY }}
+          BIRD_WORKSPACE_ID: ${{ secrets.BIRD_WORKSPACE_ID }}
+          BIRD_WHATSAPP_TEMPLATE_DEMOS_INTRO: ${{ secrets.BIRD_WHATSAPP_TEMPLATE_DEMOS_INTRO }}
+          BIRD_WHATSAPP_TEMPLATE_DEMOS_TRANSITION: ${{ secrets.BIRD_WHATSAPP_TEMPLATE_DEMOS_TRANSITION }}
+          BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_AGENDA: ${{ secrets.BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_AGENDA }}
+          BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_NEWS: ${{ secrets.BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_NEWS }}
+          BIRD_WHATSAPP_TEMPLATE_DEMOS_FOLLOWUP: ${{ secrets.BIRD_WHATSAPP_TEMPLATE_DEMOS_FOLLOWUP }}
+          SKIP_ENV_VALIDATION: "1"
+
   integration:
     name: Integration (testcontainers)
     runs-on: ubuntu-latest

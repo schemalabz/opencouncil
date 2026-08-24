@@ -252,3 +252,36 @@ export function linkPathFromText(text: string): string | undefined {
     .replace(/[.,;:!?»)\]]+$/, "");
   return path || undefined;
 }
+
+/**
+ * The variables a shell declares, as Bird names them.
+ *
+ * One list, used by two callers that must never disagree: the sender builds
+ * its parameters from it, and the drift check compares it to what the Bird
+ * console actually holds. A mirror checked against a different list from the
+ * one the sender uses would pass while the sends still failed.
+ */
+export function declaredVariables(name: TemplateName): string[] {
+  const def = TEMPLATES[name];
+  return [...(def.hasVariable ? ["demos_text"] : []), ...(def.hasLinkPath ? ["link_path"] : [])];
+}
+
+export interface TemplateDrift {
+  template: TemplateName;
+  /** Bird declares it; we never send it — every send of this shell 422s. */
+  missing: string[];
+  /** We send it; Bird does not declare it. Ignored today, but the mirror is wrong. */
+  unexpected: string[];
+}
+
+/** Compare one shell's mirror against the variable keys Bird reports. */
+export function compareTemplateVariables(
+  name: TemplateName,
+  birdKeys: string[],
+): TemplateDrift | null {
+  const ours = new Set(declaredVariables(name));
+  const theirs = new Set(birdKeys);
+  const missing = [...theirs].filter((k) => !ours.has(k)).sort();
+  const unexpected = [...ours].filter((k) => !theirs.has(k)).sort();
+  return missing.length || unexpected.length ? { template: name, missing, unexpected } : null;
+}

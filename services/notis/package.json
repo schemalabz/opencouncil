@@ -12,7 +12,8 @@
     "prisma:generate": "prisma generate --schema prisma/schema.prisma && prisma generate --schema prisma/main-views.prisma",
     "prisma:migrate": "prisma migrate dev --schema prisma/schema.prisma",
     "prisma:deploy": "prisma migrate deploy --schema prisma/schema.prisma",
-    "eval:prompt": "tsx scripts/eval-prompt.ts"
+    "eval:prompt": "tsx scripts/eval-prompt.ts",
+    "check:templates": "tsx scripts/check-template-drift.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

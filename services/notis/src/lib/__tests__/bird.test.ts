@@ -1,4 +1,10 @@
-import { FALLBACK_LINK_PATH, extractConflictingConversationId, realBird } from "../bird";
+import {
+  FALLBACK_LINK_PATH,
+  describeMissingVariable,
+  extractConflictingConversationId,
+  realBird,
+} from "../bird";
+import { compareTemplateVariables, declaredVariables } from "@/agent/templates";
 
 jest.mock("@/env.mjs", () => ({
   env: {
@@ -307,5 +313,51 @@ describe("template parameters", () => {
       idempotencyKey: "k3",
     });
     expect((calls[0]?.template as { parameters: unknown[] })?.parameters).toEqual([]);
+  });
+});
+
+describe("describeMissingVariable", () => {
+  it("lifts the variable name out of Bird's 422 body", () => {
+    const body = JSON.stringify({
+      code: "InvalidPayload",
+      message: "One or more fields provided in the request body are malformed",
+      details: { ".parameters": ["missing value for variable 'link_path'"] },
+    });
+    const described = describeMissingVariable(body);
+    expect(described).toContain("link_path");
+    expect(described).toContain("templates.ts");
+  });
+
+  it("says nothing for any other failure", () => {
+    expect(describeMissingVariable(JSON.stringify({ code: "RateLimited" }))).toBe("");
+    expect(describeMissingVariable(null)).toBe("");
+  });
+});
+
+describe("template variable mirror", () => {
+  it("the sender's parameters are exactly what the shell declares", () => {
+    // The drift check compares this same list against Bird, so the thing
+    // verified is the thing sent.
+    expect(declaredVariables("demos_update_news")).toEqual(["demos_text", "link_path"]);
+    expect(declaredVariables("demos_transition")).toEqual([]);
+  });
+
+  it("reports a variable Bird declares that we never send", () => {
+    const drift = compareTemplateVariables("demos_transition", ["link_path"]);
+    expect(drift).toEqual({ template: "demos_transition", missing: ["link_path"], unexpected: [] });
+  });
+
+  it("reports a variable we send that Bird does not declare", () => {
+    const drift = compareTemplateVariables("demos_update_news", ["demos_text"]);
+    expect(drift).toEqual({
+      template: "demos_update_news",
+      missing: [],
+      unexpected: ["link_path"],
+    });
+  });
+
+  it("is silent when the mirror is current", () => {
+    expect(compareTemplateVariables("demos_update_news", ["link_path", "demos_text"])).toBeNull();
+    expect(compareTemplateVariables("demos_intro", [])).toBeNull();
   });
 });

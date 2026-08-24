@@ -1,5 +1,5 @@
 import { env } from "@/env.mjs";
-import { TEMPLATES, type TemplateName } from "@/agent/templates";
+import { declaredVariables, type TemplateName } from "@/agent/templates";
 import { type BirdMessageLike, fullBodyText } from "@/lib/bird-extract";
 
 /**
@@ -147,16 +147,15 @@ export const FALLBACK_LINK_PATH = "explain";
 function templateBody(template: TemplateName, text: string, linkPath?: string) {
   const projectId = templateProjectId(template);
   if (!projectId) return null;
-  const def = TEMPLATES[template];
-  const parameters: Array<{ type: string; key: string; value: string }> = [];
-  if (def.hasVariable) parameters.push({ type: "string", key: "demos_text", value: text });
-  if (def.hasLinkPath) {
-    parameters.push({
-      type: "string",
-      key: "link_path",
-      value: linkPath?.trim() || FALLBACK_LINK_PATH,
-    });
-  }
+  const values: Record<string, string> = {
+    demos_text: text,
+    link_path: linkPath?.trim() || FALLBACK_LINK_PATH,
+  };
+  const parameters = declaredVariables(template).map((key) => ({
+    type: "string",
+    key,
+    value: values[key] ?? "",
+  }));
   return { projectId, version: "latest", locale: "el", parameters };
 }
 
@@ -214,6 +213,26 @@ async function birdFetch(
 
 /** Map a raw response to the send-result contract shared by every method:
  *  network → retryable, 5xx → retryable, 4xx and in-body rejections → not. */
+/**
+ * Bird names the variable it wanted; say so first.
+ *
+ * A missing template variable is a terminal 422 that hits EVERY send of that
+ * shell, and the operator sees one generic failure line per message with no
+ * hint that a whole class is broken. Lifting the variable name to the front
+ * of the error turns the alert into its own diagnosis: the shell is declaring
+ * something the mirror in templates.ts does not know about.
+ */
+const MISSING_VARIABLE = /missing value for variable '([^']+)'/i;
+
+export function describeMissingVariable(body: string | null): string {
+  const key = body ? MISSING_VARIABLE.exec(body)?.[1] : undefined;
+  if (!key) return "";
+  return (
+    `Bird requires the template variable '${key}', which this send did not supply — ` +
+    `the shell's entry in src/agent/templates.ts is out of date with the Bird console. `
+  );
+}
+
 function toSendResult(raw: RawBirdResponse, what: string): BirdSendResult {
   if (raw.networkError) {
     console.error(`Bird ${what} error:`, raw.networkError);
@@ -225,7 +244,7 @@ function toSendResult(raw: RawBirdResponse, what: string): BirdSendResult {
       success: false,
       status: raw.status,
       retryable: isRetryableStatus(raw.status),
-      error: `API returned ${raw.status}: ${raw.text}`,
+      error: `${describeMissingVariable(raw.text)}API returned ${raw.status}: ${raw.text}`,
     };
   }
   const envelope = (raw.json ?? {}) as BirdResponseEnvelope;
