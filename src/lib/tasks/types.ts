@@ -40,9 +40,6 @@ export const TASK_CONFIG = {
   generateHighlight: {
     requiredForPipeline: false,
   },
-  splitMediaFile: {
-    requiredForPipeline: false,
-  },
   generateVoiceprint: {
     requiredForPipeline: false,
   },

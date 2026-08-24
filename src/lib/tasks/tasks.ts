@@ -83,7 +83,7 @@ const taskStatusWithMeetingInclude = {
 
 export const startTask = async (taskType: MeetingTaskType, requestBody: any, councilMeetingId: string, cityId: string, options: { force?: boolean; silent?: boolean } = {}) => {
     // Only enforce idempotency for core pipeline tasks — non-pipeline tasks
-    // (generateHighlight, splitMediaFile, etc.) can legitimately run multiple times
+    // (generateHighlight, generateVoiceprint, etc.) can legitimately run multiple times
     if (TASK_CONFIG[taskType].requiredForPipeline) {
         const idempotency = await checkTaskIdempotency(taskType, cityId, councilMeetingId, options);
         if (!idempotency.proceed) {

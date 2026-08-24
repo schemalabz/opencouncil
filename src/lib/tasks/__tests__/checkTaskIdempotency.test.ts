@@ -237,11 +237,6 @@ describe('startTask — idempotency scoping', () => {
     expect(mockFindFirst).not.toHaveBeenCalled();
   });
 
-  it('skips idempotency for non-pipeline tasks (e.g. splitMediaFile)', async () => {
-    await startTask('splitMediaFile', {}, MEETING_ID, CITY_ID);
-    expect(mockFindFirst).not.toHaveBeenCalled();
-  });
-
   it('allows pipeline tasks with force:true to bypass the guard', async () => {
     mockFindFirst.mockResolvedValueOnce(succeededTask);
 
