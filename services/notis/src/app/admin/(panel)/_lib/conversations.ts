@@ -393,11 +393,22 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
   const sortKey = (r: WakeRecord) => r.deliveries?.[0]?.at ?? r.event.at;
   records.sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
 
-  const pendingNotes = await db.notisScheduledWake.findMany({
-    where: { subscriptionId: id, firedAt: null },
-    orderBy: { runAfter: "asc" },
-    select: { id: true, reason: true, origin: true, runAfter: true, createdAt: true },
-  });
+  // Three independent reads: one round trip, like the counts above.
+  const [pendingNotes, commitmentRows, cityMap] = await Promise.all([
+    db.notisScheduledWake.findMany({
+      where: { subscriptionId: id, firedAt: null },
+      orderBy: { runAfter: "asc" },
+      select: { id: true, reason: true, origin: true, runAfter: true, createdAt: true },
+    }),
+    db.notisCommitment.findMany({
+      where: { subscriptionId: id },
+      // Open promises first. Postgres sorts NULLs LAST on ASC, so the default
+      // would put every closed promise above the ones still owed.
+      orderBy: [{ resolvedAt: { sort: "asc", nulls: "first" } }, { createdAt: "desc" }],
+      select: { id: true, slug: true, what: true, createdAt: true, resolvedAt: true },
+    }),
+    liveCities([sub.userId]),
+  ]);
   const nowMs = Date.now();
   const upcoming: UpcomingWake[] = pendingNotes.map((note) => ({
     id: note.id,
@@ -410,11 +421,6 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     createdAt: note.createdAt.toISOString(),
   }));
 
-  const commitmentRows = await db.notisCommitment.findMany({
-    where: { subscriptionId: id },
-    orderBy: [{ resolvedAt: "asc" }, { createdAt: "desc" }],
-    select: { id: true, slug: true, what: true, createdAt: true, resolvedAt: true },
-  });
   const commitments: CommitmentNote[] = commitmentRows.map((c) => ({
     id: c.id,
     slug: c.slug,
@@ -423,7 +429,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     ...(c.resolvedAt ? { resolvedAt: c.resolvedAt.toISOString() } : {}),
   }));
 
-  const cities = (await liveCities([sub.userId])).get(sub.userId) ?? [];
+  const cities = cityMap.get(sub.userId) ?? [];
 
   return {
     summary: toSummary(sub, {

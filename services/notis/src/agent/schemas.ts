@@ -99,10 +99,14 @@ export const wakeStateSchema = z.object({
   /**
    * What the agent owes this reader and has not delivered yet. Unlike the two
    * windows above, commitments never age out — they leave only when the agent
-   * resolves them. Defaulted rather than required: fixtures and saved
-   * playground states written before commitments existed must keep parsing.
+   * resolves them.
+   *
+   * Optional, not defaulted: fixtures, eval cases and exported states are cast
+   * from JSON rather than parsed, so a default would never run for them and
+   * the type would promise a field that is absent at runtime. Read sites
+   * handle the absence, and the compiler now makes them.
    */
-  commitments: z.array(commitmentSchema).default([]),
+  commitments: z.array(commitmentSchema).optional(),
   /**
    * Everything that has aged out of both windows, folded into one running
    * narrative by the compaction pass. Absent until a reader has enough history
