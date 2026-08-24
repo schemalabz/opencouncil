@@ -14,7 +14,7 @@ The meeting lifecycle system operates across multiple layers:
 4. **Task Processing Layer**: Asynchronous background tasks for AI processing workflows
 5. **Status Tracking Layer**: Real-time meeting processing status with stage derivation and UI indicators
 6. **Authentication Layer**: Role-based access control with city-level permissions
-7. **Search Layer**: Elasticsearch integration for content discovery and search
+7. **Search Layer**: Elasticsearch integration for content discovery and search. pgsync replicates the database into the index continuously. There is no search-sync task.
 8. **Media Processing Layer**: Video processing for highlights
 
 ## Meeting Processing Pipeline Overview
@@ -30,8 +30,7 @@ flowchart TD
     E --> F[👤 Manual Review & Edits<br/>Human correction of transcript]
     F --> G[🤖 Summarization<br/>AI summaries + subject extraction]
     
-    G --> H[🔍 Search Sync<br/>Index content for search]
-    H --> I[✅ Meeting Ready<br/>Fully processed & searchable]
+    G --> I[✅ Meeting Ready<br/>Fully processed & searchable]
     
     I --> J[🎬 On-Demand: Highlights<br/>Video highlights from utterances]
     
@@ -52,12 +51,17 @@ The system includes comprehensive status tracking that provides real-time visibi
 Meetings progress through defined stages based on completed tasks. The stages are dynamically derived from the centralized task configuration:
 
 1. **Scheduled** - Initial state when meeting is created
-2. **Process Agenda** - Agenda PDF has been processed and subjects extracted (optional)
-3. **Transcribe** - Audio/video has been transcribed to text (required)
-4. **Fix Transcript** - Automatic transcript correction has been applied (required)
-5. **Human Review** - Manual review and correction completed by human (required)
-6. **Summarize** - AI summarization and topic extraction completed (required)
+2. **Transcribe** - Audio/video has been transcribed to text
+3. **Fix Transcript** - Automatic transcript correction has been applied
+4. **Human Review** - Manual review and correction completed by human
+5. **Transcript Sent** - The corrected transcript has been sent
+6. **Summarize** - AI summarization and topic extraction completed
 7. **Ready** - All required pipeline tasks completed, meeting fully processed
+
+`MEETING_STAGES` in `src/lib/meetingStatus.ts` derives the middle stages from
+`CORE_PROCESSING_TASKS`, which holds every `TASK_CONFIG` key with
+`requiredForPipeline: true`. Process Agenda is not a stage: it is optional, so
+it carries `requiredForPipeline: false`.
 
 The stage derivation logic automatically determines the current stage by checking completed tasks in reverse order, ensuring accurate status representation.
 
@@ -126,14 +130,6 @@ sequenceDiagram
     TaskServer->>API: Task completion callback
     API->>Cache: revalidateTag & revalidatePath
 
-    Note over User, Search: Step 5: Search Synchronization
-    User->>Frontend: Triggers search sync
-    Frontend->>API: POST search sync request
-    API->>TaskServer: Queue search sync task
-    TaskServer->>Search: Sync meeting data to Elasticsearch
-    TaskServer->>DB: Update sync status
-    TaskServer->>API: Task completion callback
-    API->>Cache: revalidateTag & revalidatePath
 
     Note over User, Search: On-Demand Tasks
     Note over User, Search: Highlights Generation
@@ -177,7 +173,7 @@ sequenceDiagram
     *   `src/lib/auth.ts` (withUserAuthorizedToEdit, isUserAuthorizedToEdit, hierarchical permissions)
 *   **Task Processing Pipeline**:
     *   **Core Pipeline**: Process Agenda (optional) → Transcribe → Fix Transcript → Human Review → Summarize
-    *   **Post-Processing**: Search Sync, Highlight Generation, Voiceprint Generation, Media File Splitting
+    *   **Post-Processing**: Highlight Generation, Voiceprint Generation, Decision Polling
 *   **Cache Management**:
     *   `src/lib/cache/queries.ts` (cache invalidation via Next.js API routes)
     *   `src/lib/cache/index.ts` (createCache utility with performance logging)
