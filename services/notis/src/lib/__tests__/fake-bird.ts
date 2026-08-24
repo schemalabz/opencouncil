@@ -13,6 +13,7 @@ export class FakeBird implements BirdLike {
     phone: string;
     template: TemplateName;
     text: string;
+    linkPath?: string;
     idempotencyKey: string;
   }> = [];
   public created: Array<{
@@ -20,6 +21,7 @@ export class FakeBird implements BirdLike {
     name: string;
     template: TemplateName;
     text: string;
+    linkPath?: string;
     idempotencyKey: string;
   }> = [];
   public smsSends: Array<{ phone: string; text: string }> = [];
@@ -55,6 +57,7 @@ export class FakeBird implements BirdLike {
     phone: string;
     template: TemplateName;
     text: string;
+    linkPath?: string;
     idempotencyKey: string;
   }) {
     this.templateSends.push(input);
@@ -66,6 +69,7 @@ export class FakeBird implements BirdLike {
     name: string;
     template: TemplateName;
     text: string;
+    linkPath?: string;
     idempotencyKey: string;
   }) {
     this.created.push(input);

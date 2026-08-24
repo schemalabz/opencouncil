@@ -1,8 +1,9 @@
 import { FakeAnthropic, makeDeps, meetingEvent, toolUse } from "../../agent/__tests__/helpers";
 import { WakeEvent } from "../../agent/types";
+import type { NotisSubscription } from "../../../generated/client";
 import { type ClaimedItem } from "../queue-core";
 import { PROACTIVE_PAUSED_KEY } from "../settings";
-import { WEEKLY_CAP, processItem } from "../queue";
+import { WEEKLY_CAP, deliverPendingMessage, processItem } from "../queue";
 import { type Row, makeFakeDb } from "./fake-db";
 import { FakeBird } from "./fake-bird";
 
@@ -21,6 +22,17 @@ const SUB: Row = {
   birdConversationId: "conv-1",
   profileText: "x",
   userName: "Μαρία",
+};
+
+/** Exactly the fields deliverPendingMessage reads, typed as it types them. */
+const SUB_ARG: Pick<
+  NotisSubscription,
+  "id" | "phone" | "userName" | "birdConversationId"
+> = {
+  id: "sub1",
+  phone: "+306900000001",
+  userName: "Μαρία",
+  birdConversationId: "conv-1",
 };
 
 const sendTurn = [
@@ -437,5 +449,103 @@ describe("proactive rails", () => {
     expect((wake.events as unknown[]).length).toBe(2);
     expect(db.store.scheduled[0].origin).toBe("proactive");
     expect(db.store.queue.get("q1")?.status).toBe("done");
+  });
+});
+
+describe("link_path on template sends", () => {
+  /**
+   * The regression guard for the production 422. Three shells declare
+   * {{link_path}} in Bird and reject the send without it — terminally, so the
+   * message is lost rather than retried. These assert the value actually
+   * reaches Bird, and that the event beats the body link.
+   */
+  const meetingWake = (events: unknown) => ({
+    id: "w-link",
+    subscriptionId: "sub1",
+    eventType: "meeting_summarized",
+    eventAt: new Date("2026-07-29T18:00:00.000Z"),
+    createdAt: new Date("2026-07-29T18:00:00.000Z"),
+    decision: "send",
+    rationale: "r",
+    event: events,
+  });
+
+  const pendingTemplate = (overrides: Record<string, unknown> = {}) => ({
+    id: "m-link",
+    subscriptionId: "sub1",
+    direction: "outbound",
+    status: "pending",
+    channel: "whatsapp",
+    deliveryMode: "template",
+    template: "demos_update_news",
+    proactive: true,
+    railed: false,
+    wakeId: "w-link",
+    body: "Νέα από τον δήμο. Δες https://opencouncil.gr/athens/OTHER/subjects/xyz",
+    createdAt: new Date(),
+    ...overrides,
+  });
+
+  it("sends the meeting from the wake's event, not the first link in the body", async () => {
+    const db = makeFakeDb({
+      subscriptions: [{ ...SUB }],
+      settings: [{ key: "proactivePaused", value: false }],
+    });
+    db.store.wakes.push(
+      meetingWake({
+        type: "meeting_summarized",
+        at: "2026-07-29T18:00:00.000Z",
+        cityId: "athens",
+        meetingId: "jul29_2_2026",
+        meetingName: "x",
+        meetingDate: "2026-07-29T12:00:00.000Z",
+        brief: { cityId: "athens", meetingId: "jul29_2_2026", generatedAt: "2026-07-29T18:00:00.000Z", headline: "h", subjects: [] },
+      }),
+    );
+    db.store.messages.push(pendingTemplate());
+    const bird = new FakeBird();
+
+    await deliverPendingMessage(db, bird, "m-link", SUB_ARG, async () => {});
+
+    expect(bird.templateSends).toHaveLength(1);
+    // The event wins: the body's link points somewhere else entirely.
+    expect(bird.templateSends[0].linkPath).toBe("athens/jul29_2_2026");
+  });
+
+  it("falls back to the body link when the event names no meeting", async () => {
+    const db = makeFakeDb({
+      subscriptions: [{ ...SUB }],
+      settings: [{ key: "proactivePaused", value: false }],
+    });
+    db.store.wakes.push(
+      meetingWake({ type: "scheduled", at: "2026-07-29T18:00:00.000Z", reason: "promised" }),
+    );
+    db.store.messages.push(
+      pendingTemplate({
+        template: "demos_followup",
+        body: "Σχετικά με αυτό που ρώτησες: https://opencouncil.gr/athens/aug18_2026",
+      }),
+    );
+    const bird = new FakeBird();
+
+    await deliverPendingMessage(db, bird, "m-link", SUB_ARG, async () => {});
+
+    expect(bird.templateSends[0].linkPath).toBe("athens/aug18_2026");
+  });
+
+  it("sends no link path for a shell that declares none", async () => {
+    const db = makeFakeDb({
+      subscriptions: [{ ...SUB }],
+      settings: [{ key: "proactivePaused", value: false }],
+    });
+    db.store.messages.push(
+      pendingTemplate({ template: "demos_transition", wakeId: null, body: "Οι ειδοποιήσεις αλλάζουν." }),
+    );
+    const bird = new FakeBird();
+
+    await deliverPendingMessage(db, bird, "m-link", SUB_ARG, async () => {});
+
+    // bird.ts drops it on the floor for a fixed shell; nothing to resolve.
+    expect(bird.templateSends[0].linkPath).toBeUndefined();
   });
 });

@@ -3,6 +3,7 @@ import { decideDelivery } from "@/agent/delivery";
 import { runWake } from "@/agent/runWake";
 import { primaryEvent, wakeEventSchema, wakeEventsSchema } from "@/agent/schemas";
 import {
+  TEMPLATES,
   linkPathForEvent,
   linkPathFromText,
   renderTemplate,
@@ -981,25 +982,6 @@ export async function sendPendingMessages(
 }
 
 /**
- * Deliver ONE pending outbound row, honoring its delivery mode. Template
- * sends with no conversation yet bootstrap one (the cold first contact);
- * the returned conversation id is persisted so every later send reuses it.
- *
- * This is the single delivery choke point, so the rails that must hold at
- * the delivery instant live HERE rather than at one call site, and every
- * caller — the send boundary, the sweeper's stale-row retry, the poller's
- * enrollment intro — inherits them. The boundary alone was not enough: a
- * transiently failed row stays pending by design, and the sweeper would
- * re-send it up to an hour later, long after a ΣΤΟΠ or a flipped kill switch.
- *
- * The rails apply to UNPROMPTED sends — a proactive row, or any template
- * send. `proactive` alone was the wrong key: a reply-continuation follow-up
- * is a template send but `proactive: false` (cap-exempt), and it must still
- * respect a ΣΤΟΠ. A free-form row is a reactive reply (decideDelivery
- * guarantees free-form for those), so it bypasses the rails — which is what
- * lets a ΣΤΟΠ confirmation still reach a reader who just unsubscribed.
- */
-/**
  * The meeting path for a message's wake, when its event names one. Costs one
  * indexed read, and only on the template path — a freeform reply never asks.
  * Any failure to resolve is a silent undefined: the caller falls back to the
@@ -1018,15 +1000,39 @@ async function linkPathForMessage(
     if (!wake?.event) return undefined;
     const parsed = wakeEventSchema.safeParse(wake.event);
     return parsed.success ? linkPathForEvent(parsed.data) : undefined;
-  } catch {
+  } catch (error) {
     // Deliberately swallowed. This lookup only chooses between two link
     // paths; the caller has a fallback for both. Letting it throw would fail
     // a message that is otherwise ready to send, which is the outcome this
-    // whole change exists to prevent.
+    // whole change exists to prevent. Logged rather than silent, so a lookup
+    // that is broken for everyone is visible instead of merely degraded.
+    console.warn(
+      `[notis:queue] link path lookup failed for message ${message.wakeId}:`,
+      error instanceof Error ? error.message : error,
+    );
     return undefined;
   }
 }
 
+/**
+ * Deliver ONE pending outbound row, honoring its delivery mode. Template
+ * sends with no conversation yet bootstrap one (the cold first contact);
+ * the returned conversation id is persisted so every later send reuses it.
+ *
+ * This is the single delivery choke point, so the rails that must hold at
+ * the delivery instant live HERE rather than at one call site, and every
+ * caller — the send boundary, the sweeper's stale-row retry, the poller's
+ * enrollment intro — inherits them. The boundary alone was not enough: a
+ * transiently failed row stays pending by design, and the sweeper would
+ * re-send it up to an hour later, long after a ΣΤΟΠ or a flipped kill switch.
+ *
+ * The rails apply to UNPROMPTED sends — a proactive row, or any template
+ * send. `proactive` alone was the wrong key: a reply-continuation follow-up
+ * is a template send but `proactive: false` (cap-exempt), and it must still
+ * respect a ΣΤΟΠ. A free-form row is a reactive reply (decideDelivery
+ * guarantees free-form for those), so it bypasses the rails — which is what
+ * lets a ΣΤΟΠ confirmation still reach a reader who just unsubscribed.
+ */
 export async function deliverPendingMessage(
   db: PrismaClient,
   bird: BirdLike,
@@ -1083,6 +1089,14 @@ export async function deliverPendingMessage(
   // page if both come back empty: a shell that declares {{link_path}} and
   // does not receive it is a terminal 422, not a retry.
   const linkPath = (await linkPathForMessage(db, message)) ?? linkPathFromText(message.body);
+  if (!linkPath && TEMPLATES[template].hasLinkPath) {
+    // The shell will get FALLBACK_LINK_PATH. Countable rather than silent:
+    // "how often is the button generic?" is the question that tells you
+    // whether the fallback is a safety net or the normal outcome.
+    console.warn(
+      `[notis:queue] no link path for ${template} message ${message.id} — button falls back to the explainer`,
+    );
+  }
 
   if (sub.birdConversationId) {
     const result = await bird.sendTemplate({
