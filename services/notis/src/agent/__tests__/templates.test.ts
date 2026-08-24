@@ -171,3 +171,29 @@ describe("linkPathForEvent", () => {
     expect(linkPathForEvent({ type: "heartbeat", at: "2026-07-29T18:00:00.000Z" })).toBeUndefined();
   });
 });
+
+describe("link path hardening", () => {
+  it("drops a query string or fragment", () => {
+    // Bird substitutes this into an approved base URL that expects a path.
+    expect(linkPathFromText("https://opencouncil.gr/athens/aug18_2026?utm=wa")).toBe(
+      "athens/aug18_2026",
+    );
+    expect(linkPathFromText("https://opencouncil.gr/athens/aug18_2026#top")).toBe(
+      "athens/aug18_2026",
+    );
+  });
+
+  it("encodes identifiers that would break the URL", () => {
+    expect(
+      linkPathForEvent({
+        type: "meeting_summarized",
+        at: "2026-07-29T18:00:00.000Z",
+        cityId: "a city",
+        meetingId: "jul/29",
+        meetingName: "x",
+        meetingDate: "2026-07-29T12:00:00.000Z",
+        brief: BRIEF,
+      }),
+    ).toBe("a%20city/jul%2F29");
+  });
+});

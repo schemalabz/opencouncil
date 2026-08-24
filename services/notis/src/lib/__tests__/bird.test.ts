@@ -22,8 +22,14 @@ function mockFetch(status: number, body: unknown): jest.Mock {
   return fn;
 }
 
+const ORIGINAL_FETCH = global.fetch;
+
 afterEach(() => {
   jest.restoreAllMocks();
+  // restoreAllMocks does not undo a plain assignment, and both helpers in
+  // this file assign global.fetch directly — without this the stub leaks
+  // into whatever runs next.
+  global.fetch = ORIGINAL_FETCH;
 });
 
 describe("sendTemplate", () => {

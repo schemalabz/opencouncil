@@ -254,7 +254,12 @@ export async function runWake(
         messages.splice(i + 1, 0, { role: "user", content: results });
       }
     }
-    if (repaired) repairs.push("dangling-tool-calls");
+    // Once per wake, like every other tag here — the backstop runs on every
+    // turn, so pushing per invocation double-counts a wake that orphans calls
+    // on two separate turns.
+    if (repaired && !repairs.includes("dangling-tool-calls")) {
+      repairs.push("dangling-tool-calls");
+    }
   };
 
   try {

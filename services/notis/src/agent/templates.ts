@@ -228,7 +228,9 @@ export function linkPathForEvent(event: WakeEvent): string | undefined {
   switch (event.type) {
     case "agenda_processed":
     case "meeting_summarized":
-      return `${event.cityId}/${event.meetingId}`;
+      // Encoded: these are internal slugs today, but they end up inside a
+      // public URL, and a stray space or slash would break the button.
+      return `${encodeURIComponent(event.cityId)}/${encodeURIComponent(event.meetingId)}`;
     default:
       // scheduled and heartbeat carry no meeting; user_message never sends a
       // template at all.
@@ -241,7 +243,12 @@ const OPENCOUNCIL_LINK = /https?:\/\/(?:www\.)?opencouncil\.gr\/([^\s)\]»,;]+)/
 export function linkPathFromText(text: string): string | undefined {
   const match = OPENCOUNCIL_LINK.exec(text);
   if (!match) return undefined;
-  // Trailing sentence punctuation is part of the prose, not the path.
-  const path = match[1].replace(/[.,;:!?»)\]]+$/, "");
+  // A query or fragment is not part of the path, and Bird substitutes this
+  // into an approved base URL that expects a path segment — sending
+  // «athens/x?utm=wa» risks the same 422 this whole mechanism exists to avoid.
+  const path = match[1]
+    .split(/[?#]/)[0]
+    // Trailing sentence punctuation is prose, not path.
+    .replace(/[.,;:!?»)\]]+$/, "");
   return path || undefined;
 }

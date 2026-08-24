@@ -115,6 +115,9 @@ const NOT_CONFIGURED: BirdSendResult = {
   error: "Bird is not configured (BIRD_* env vars missing)",
 };
 
+/** Where a dynamic URL button points when no path could be resolved. */
+export const FALLBACK_LINK_PATH = "explain";
+
 /**
  * The Bird wire shape for a template send. Every variable the shell declares
  * must be present or Bird rejects the whole send with a 422 — which is
@@ -127,8 +130,6 @@ const NOT_CONFIGURED: BirdSendResult = {
  *
  * Null when the project id env var is missing.
  */
-export const FALLBACK_LINK_PATH = "explain";
-
 function templateBody(template: TemplateName, text: string, linkPath?: string) {
   const projectId = templateProjectId(template);
   if (!projectId) return null;
