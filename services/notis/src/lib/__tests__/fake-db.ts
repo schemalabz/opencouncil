@@ -19,8 +19,9 @@ function commitmentMatches(c: Row, where: Row | undefined): boolean {
     if (cond === undefined) continue;
     const value = c[key] ?? null;
     if (typeof cond === "object" && cond !== null) {
-      const o = cond as { in?: unknown[]; not?: unknown; lt?: Date };
+      const o = cond as { in?: unknown[]; notIn?: unknown[]; not?: unknown; lt?: Date };
       if (o.in && !o.in.includes(value)) return false;
+      if (o.notIn && o.notIn.includes(value)) return false;
       if (o.not !== undefined && value === o.not) return false;
       if (o.lt && !(value instanceof Date && value < o.lt)) return false;
       continue;
@@ -215,7 +216,7 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
     },
     notisWake: {
       count: async ({ where }: { where?: Row } = {}) =>
-        store.wakes.filter((w) => commitmentMatches(w, where)).length,
+        store.wakes.filter((w) => messageMatches(w, where)).length,
       create: async ({ data }: { data: Row }) => {
         const row: Row = { id: id("wake"), createdAt: new Date(), ...data };
         store.wakes.push(row);

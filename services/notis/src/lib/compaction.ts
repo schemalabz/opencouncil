@@ -8,10 +8,10 @@ import {
   Deps,
   MEMORY_MAX_CHARS,
 } from "@/agent/types";
-import { usageToCost } from "@/agent/pricing";
-import { normalizeUsage } from "@/agent/pricing";
+import { normalizeUsage, usageToCost } from "@/agent/pricing";
 import { alert as sendAlert } from "./alert";
 import { buildDeps } from "./deps";
+import { conversationMessageFilter } from "./queue-core";
 import { putSetting } from "./settings";
 
 /**
@@ -48,29 +48,65 @@ export interface CompactionResult {
 }
 
 /**
- * The instant everything at or before is folded. Three bounds, and the
- * EARLIEST wins:
- *
- * - keep the newest DECISION_WINDOW wakes,
- * - keep the newest CONVERSATION_WINDOW messages (one watermark serves two
- *   streams, so the tighter of the two boundaries governs both),
- * - and never fold anything younger than COMPACT_SETTLE_MS.
- *
- * That last bound is correctness, not tidiness. The conversation only renders
- * outbound messages that reached the reader; a message still `pending` when
- * compaction runs is excluded from the summary AND, once the watermark passes
- * it, from the window behind it — losing it for good. Delivery statuses settle
- * slowly and unevenly, so the margin is generous.
+ * Cut to at most `max` characters on the last paragraph or sentence boundary,
+ * so a truncated memory still reads as prose rather than stopping mid-word.
+ * Falls back to a hard cut only when no boundary sits in the last half.
  */
-export function computeCut(
-  wakeCut: Date | undefined,
-  messageCut: Date | undefined,
-  now: Date,
-): Date | null {
-  const settle = new Date(now.getTime() - COMPACT_SETTLE_MS);
-  const candidates = [wakeCut, messageCut, settle].filter((d): d is Date => d instanceof Date);
-  if (candidates.length === 0) return null;
-  return new Date(Math.min(...candidates.map((d) => d.getTime())));
+export function truncateAtBoundary(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const slice = text.slice(0, max);
+  const boundary = Math.max(
+    slice.lastIndexOf("\n\n"),
+    slice.lastIndexOf(". "),
+    slice.lastIndexOf(".\n"),
+  );
+  return (boundary > max / 2 ? slice.slice(0, boundary + 1) : slice).trim();
+}
+
+/** One stream's contribution to the cut: how many rows sit past the watermark,
+ *  and the oldest row its window still keeps (absent when there are not
+ *  enough rows for the window to have an edge at all). */
+export interface StreamBound {
+  count: number;
+  edge?: Date;
+}
+
+/**
+ * The instant everything at or before is folded, or null when nothing can be.
+ *
+ * One watermark serves two streams with different window sizes, so each
+ * stream gets a veto and the EARLIEST bound wins. A stream contributes one of
+ * three things:
+ *
+ * - **no rows past the watermark** — it has nothing to lose, so no bound;
+ * - **fewer rows than its window** — every one of them is still live, so the
+ *   stream blocks the fold entirely and compaction waits;
+ * - **more than its window** — the oldest row the window still keeps.
+ *
+ * That middle case is the one worth stating. Treating a missing edge as "no
+ * constraint" lets the other stream's boundary fold rows that are still inside
+ * this one's live window: a reader with 100 wakes but only 20 messages would
+ * have most of those 20 messages folded away by the wake boundary and then
+ * excluded from the window behind the watermark — gone for good, despite all
+ * 20 sitting well inside the 40-message window.
+ *
+ * The settle margin caps all of it, and is correctness rather than tidiness.
+ * The conversation only renders outbound messages that reached the reader; a
+ * message still `pending` when compaction runs is excluded from the summary
+ * AND, once the watermark passes it, from the window behind it. Delivery
+ * statuses settle slowly and unevenly, so the margin is generous.
+ */
+export function computeCut(wake: StreamBound, message: StreamBound, now: Date): Date | null {
+  const bounds: Date[] = [new Date(now.getTime() - COMPACT_SETTLE_MS)];
+  for (const [stream, window] of [
+    [wake, DECISION_WINDOW],
+    [message, CONVERSATION_WINDOW],
+  ] as const) {
+    if (stream.count === 0) continue;
+    if (stream.count <= window || !stream.edge) return null;
+    bounds.push(stream.edge);
+  }
+  return new Date(Math.min(...bounds.map((d) => d.getTime())));
 }
 
 /**
@@ -91,36 +127,48 @@ export async function maybeCompact(
     if (sub.status === "unsubscribed") return { ran: false, reason: "unsubscribed" };
 
     const past = sub.memoryThrough ? { gt: sub.memoryThrough } : undefined;
+    // Every message query here — counting, edge-finding and folding — uses the
+    // SAME filter the live conversation uses. A boundary computed over rows the
+    // agent never sees (suppressed, failed, still pending) lands in the wrong
+    // place and folds visible messages out of the window behind it.
+    const wakeWhere = { subscriptionId: sub.id, ...(past ? { eventAt: past } : {}) };
+    const messageWhere = {
+      subscriptionId: sub.id,
+      ...(past ? { createdAt: past } : {}),
+      ...conversationMessageFilter(),
+    };
+
     const [wakeCount, messageCount] = await Promise.all([
-      db.notisWake.count({
-        where: { subscriptionId: sub.id, ...(past ? { eventAt: past } : {}) },
-      }),
-      db.notisMessage.count({
-        where: { subscriptionId: sub.id, ...(past ? { createdAt: past } : {}) },
-      }),
+      db.notisWake.count({ where: wakeWhere }),
+      db.notisMessage.count({ where: messageWhere }),
     ]);
     if (wakeCount <= COMPACT_WAKES_AT && messageCount <= COMPACT_MESSAGES_AT) {
       return { ran: false, reason: "below thresholds" };
     }
 
-    // The boundaries: the oldest row each window still keeps.
+    // The boundaries: the oldest row each window still keeps. Absent when the
+    // stream holds fewer rows than its window — computeCut reads that as a veto.
     const [wakeEdge, messageEdge] = await Promise.all([
       db.notisWake.findMany({
-        where: { subscriptionId: sub.id, ...(past ? { eventAt: past } : {}) },
+        where: wakeWhere,
         orderBy: { eventAt: "desc" },
         skip: DECISION_WINDOW,
         take: 1,
         select: { eventAt: true },
       }),
       db.notisMessage.findMany({
-        where: { subscriptionId: sub.id, ...(past ? { createdAt: past } : {}) },
+        where: messageWhere,
         orderBy: { createdAt: "desc" },
         skip: CONVERSATION_WINDOW,
         take: 1,
         select: { createdAt: true },
       }),
     ]);
-    const cut = computeCut(wakeEdge[0]?.eventAt, messageEdge[0]?.createdAt, now());
+    const cut = computeCut(
+      { count: wakeCount, edge: wakeEdge[0]?.eventAt },
+      { count: messageCount, edge: messageEdge[0]?.createdAt },
+      now(),
+    );
     if (!cut || (sub.memoryThrough && cut <= sub.memoryThrough)) {
       return { ran: false, reason: "nothing settled to fold" };
     }
@@ -133,16 +181,7 @@ export async function maybeCompact(
         select: { eventType: true, eventAt: true, decision: true, rationale: true },
       }),
       db.notisMessage.findMany({
-        // The SAME filter the live conversation uses, or the summary and the
-        // window disagree about what was actually said.
-        where: {
-          subscriptionId: sub.id,
-          createdAt: range,
-          OR: [
-            { direction: "inbound" },
-            { direction: "outbound", status: { in: ["sent", "delivered", "read"] } },
-          ],
-        },
+        where: { ...messageWhere, createdAt: range },
         orderBy: { createdAt: "asc" },
         select: { direction: true, body: true, createdAt: true },
       }),
@@ -196,33 +235,55 @@ export async function maybeCompact(
 
     // Paid work before the write, like the poller's editorial pass: a rollback
     // must never re-bill.
-    const response = await deps.anthropic.create({
-      model: deps.config.model,
-      max_tokens: 4000,
-      system: [{ type: "text", text: deps.prompts.compaction }],
-      messages: [{ role: "user", content: input }],
-      output_config: { effort: deps.config.effort },
-    });
-    const usage = normalizeUsage(response.usage);
-    const costUsd = usageToCost(usage, deps.config.model);
+    let costUsd = 0;
+    const summarise = async (corrective?: string): Promise<string> => {
+      const response = await deps.anthropic.create({
+        model: deps.config.model,
+        max_tokens: 4000,
+        system: [{ type: "text", text: deps.prompts.compaction }],
+        messages: [{ role: "user", content: corrective ? `${input}\n\n${corrective}` : input }],
+        output_config: { effort: deps.config.effort },
+      });
+      costUsd += usageToCost(normalizeUsage(response.usage), deps.config.model);
+      return (response.content as Array<{ type?: string; text?: string }>)
+        .filter((b) => b?.type === "text")
+        .map((b) => b.text ?? "")
+        .join("\n")
+        .trim();
+    };
 
-    const text = (response.content as Array<{ type?: string; text?: string }>)
-      .filter((b) => b?.type === "text")
-      .map((b) => b.text ?? "")
-      .join("\n")
-      .trim();
+    let text = await summarise();
+    if (!text || text.length > MEMORY_MAX_CHARS) {
+      // One corrective pass. Both failures are self-perpetuating otherwise:
+      // leaving the watermark means the next wake assembles the identical
+      // input, gets the identical answer and bills for it — on every wake,
+      // for as long as the reader keeps talking.
+      text = await summarise(
+        text
+          ? `(system) Your previous answer was ${text.length} characters. The hard limit ` +
+            `is ${MEMORY_MAX_CHARS}. Return the same memory, materially shorter.`
+          : "(system) Your previous answer was empty. Return the memory text alone.",
+      );
+    }
 
     if (!text) {
-      await alert(`compaction for ${sub.id} returned no text — memory left as it was`);
+      // Empty twice is an anomaly rather than a property of this input, so the
+      // watermark stays and the next wake tries again — bounded to two calls
+      // per wake, and loud enough that an operator sees it.
+      await alert(`compaction for ${sub.id} returned no text twice — memory left as it was`);
       return { ran: false, reason: "empty summary", costUsd };
     }
     if (text.length > MEMORY_MAX_CHARS) {
-      // A summary that keeps growing is not a summary. Keep what we had rather
-      // than persisting a blob that costs every future wake.
+      // Oversize twice IS a property of this input, so refusing to write would
+      // repeat forever. Truncating costs the tail of one summary; not
+      // truncating costs the watermark advance, and with it the same fold
+      // re-run and re-billed on every future wake. Take the smaller loss.
+      const trimmed = truncateAtBoundary(text, MEMORY_MAX_CHARS);
       await alert(
-        `compaction for ${sub.id} returned ${text.length} chars (max ${MEMORY_MAX_CHARS}) — memory left as it was`,
+        `compaction for ${sub.id} returned ${text.length} chars twice (max ` +
+          `${MEMORY_MAX_CHARS}) — stored ${trimmed.length} and advanced the watermark`,
       );
-      return { ran: false, reason: "summary too long", costUsd };
+      text = trimmed;
     }
 
     // Compare-and-swap on the watermark: if another compaction for this reader

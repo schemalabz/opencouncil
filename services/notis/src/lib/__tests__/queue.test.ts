@@ -726,6 +726,58 @@ describe("commitments", () => {
     expect(open.map((c) => c.slug)).toContain("ekti");
   });
 
+  it("re-recording an old slug does not let the cap evict the promise just made", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    // Five open promises, plus a sixth slug resolved long ago — the oldest row
+    // of all. Re-recording it reopens it, and a createdAt-ordered eviction
+    // would pick exactly that row.
+    db.store.commitments.push({
+      id: "ancient",
+      subscriptionId: "sub1",
+      slug: "metro",
+      what: "Παλιό κείμενο.",
+      createdAt: new Date(Date.UTC(2026, 0, 1)),
+      resolvedAt: new Date(Date.UTC(2026, 1, 1)),
+    });
+    for (let i = 0; i < MAX_OPEN_COMMITMENTS; i++) {
+      db.store.commitments.push({
+        id: `c${i}`,
+        subscriptionId: "sub1",
+        slug: `slug${i}`,
+        what: `Υπόσχεση ${i}.`,
+        createdAt: new Date(Date.UTC(2026, 2, i + 1)),
+        resolvedAt: null,
+      });
+    }
+    seedClaim(db);
+
+    await processItem(ITEM, {
+      db,
+      bird: new FakeBird(),
+      alert: async () => {},
+      deps: makeDeps(
+        new FakeAnthropic(
+          finishWith([
+            toolUse("t1", "record_commitment", { slug: "metro", what: "Το ξαναρώτησε." }),
+            toolUse("t2", "send_message", { text: "Το κρατάω." }),
+            toolUse("t3", "finish_wake", {
+              rationale: "Το ξανάνοιξε.",
+              learnedSomethingLasting: false,
+              promisedFollowUp: true,
+            }),
+          ]),
+        ),
+      ),
+    });
+
+    const open = db.store.commitments.filter((c) => c.resolvedAt === null);
+    // The reopened promise survives; the cap is still honoured by dropping the
+    // oldest of the others instead.
+    expect(open.map((c) => c.slug)).toContain("metro");
+    expect(open).toHaveLength(MAX_OPEN_COMMITMENTS);
+    expect(open.map((c) => c.slug)).not.toContain("slug0");
+  });
+
   it("an unsubscribe closes every open promise — none outlives the reader", async () => {
     const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
     db.store.commitments.push({

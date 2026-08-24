@@ -1,7 +1,18 @@
 import type { NotisSubscription } from "../../../generated/client";
-import { COMPACT_MESSAGES_AT, COMPACT_SETTLE_MS, COMPACT_WAKES_AT } from "@/agent/types";
+import {
+  COMPACT_MESSAGES_AT,
+  COMPACT_SETTLE_MS,
+  COMPACT_WAKES_AT,
+  CONVERSATION_WINDOW,
+  MEMORY_MAX_CHARS,
+} from "@/agent/types";
 import { FakeAnthropic, makeDeps, text } from "../../agent/__tests__/helpers";
-import { COMPACTION_STATUS_KEY, computeCut, maybeCompact } from "../compaction";
+import {
+  COMPACTION_STATUS_KEY,
+  computeCut,
+  maybeCompact,
+  truncateAtBoundary,
+} from "../compaction";
 import { type Row, makeFakeDb } from "./fake-db";
 
 /**
@@ -57,20 +68,51 @@ function summariser(summary = "Ρώτησε για την Κυψέλη. Τον �
 }
 
 describe("computeCut", () => {
+  const over = (edge: Date, window: number): { count: number; edge: Date } => ({
+    count: window + 10,
+    edge,
+  });
+
   test("takes the earliest of the two window edges and the settle margin", () => {
     const early = new Date("2026-03-01T00:00:00.000Z");
     const late = new Date("2026-03-05T00:00:00.000Z");
-    expect(computeCut(late, early, NOW)).toEqual(early);
-    expect(computeCut(early, late, NOW)).toEqual(early);
+    expect(
+      computeCut(over(late, COMPACT_WAKES_AT), over(early, COMPACT_MESSAGES_AT), NOW),
+    ).toEqual(early);
+    expect(
+      computeCut(over(early, COMPACT_WAKES_AT), over(late, COMPACT_MESSAGES_AT), NOW),
+    ).toEqual(early);
   });
 
   test("the settle margin wins over a window edge inside it", () => {
     const recent = new Date(NOW.getTime() - 60_000);
-    expect(computeCut(recent, recent, NOW)).toEqual(new Date(NOW.getTime() - COMPACT_SETTLE_MS));
+    expect(
+      computeCut(over(recent, COMPACT_WAKES_AT), over(recent, COMPACT_MESSAGES_AT), NOW),
+    ).toEqual(new Date(NOW.getTime() - COMPACT_SETTLE_MS));
   });
 
-  test("with no rows behind either window the settle margin still bounds it", () => {
-    expect(computeCut(undefined, undefined, NOW)).toEqual(
+  test("an empty stream has nothing to lose and does not constrain the cut", () => {
+    const edge = new Date("2026-03-01T00:00:00.000Z");
+    expect(computeCut(over(edge, COMPACT_WAKES_AT), { count: 0 }, NOW)).toEqual(edge);
+    expect(computeCut({ count: 0 }, over(edge, COMPACT_MESSAGES_AT), NOW)).toEqual(edge);
+  });
+
+  test("a stream with rows but under its window vetoes the fold entirely", () => {
+    const edge = new Date("2026-03-01T00:00:00.000Z");
+    // The regression: 100 wakes, 20 messages. Every one of those 20 is still
+    // inside the 40-message window, so the wake boundary must not fold them —
+    // once the watermark passes them they would leave the window for good.
+    expect(computeCut(over(edge, COMPACT_WAKES_AT), { count: 20 }, NOW)).toBeNull();
+    expect(computeCut({ count: 5 }, over(edge, COMPACT_MESSAGES_AT), NOW)).toBeNull();
+    // Exactly at the window is still "all live" — the window keeps all of them.
+    expect(
+      computeCut(over(edge, COMPACT_WAKES_AT), { count: CONVERSATION_WINDOW }, NOW),
+    ).toBeNull();
+  });
+
+  test("neither stream past its window means nothing to fold", () => {
+    expect(computeCut({ count: 3 }, { count: 4 }, NOW)).toBeNull();
+    expect(computeCut({ count: 0 }, { count: 0 }, NOW)).toEqual(
       new Date(NOW.getTime() - COMPACT_SETTLE_MS),
     );
   });
@@ -200,23 +242,82 @@ describe("maybeCompact", () => {
     expect(row?.memoryThrough).toBeNull();
   });
 
-  test("an oversized summary is discarded rather than persisted", async () => {
+  test("an oversized summary earns one corrective retry", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    seed(db, COMPACT_WAKES_AT + 20, COMPACT_MESSAGES_AT + 20);
+    const fake = new FakeAnthropic([
+      { content: [text("α".repeat(5000))], stop_reason: "end_turn" },
+      { content: [text("Σύντομη σύνοψη.")], stop_reason: "end_turn" },
+    ]);
+
+    const result = await maybeCompact(db, { ...SUB_ARG }, {
+      deps: makeDeps(fake),
+      now: () => NOW,
+    });
+
+    expect(result.ran).toBe(true);
+    expect(db.store.subscriptions.get("sub1")?.memory).toBe("Σύντομη σύνοψη.");
+    expect(JSON.stringify(fake.requests[1].messages)).toContain("materially shorter");
+  });
+
+  test("oversize twice truncates and still advances — never a per-wake retry loop", async () => {
     const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
     seed(db, COMPACT_WAKES_AT + 20, COMPACT_MESSAGES_AT + 20);
     const alerts: string[] = [];
+    const long = `${"Μια πρόταση. ".repeat(400)}`;
 
     const result = await maybeCompact(db, { ...SUB_ARG }, {
-      deps: summariser("α".repeat(5000)),
+      deps: makeDeps(
+        new FakeAnthropic([
+          { content: [text(long)], stop_reason: "end_turn" },
+          { content: [text(long)], stop_reason: "end_turn" },
+        ]),
+      ),
       now: () => NOW,
       alert: async (m) => {
         alerts.push(m);
       },
     });
 
-    expect(result.ran).toBe(false);
-    expect(result.reason).toBe("summary too long");
-    expect(alerts[0]).toContain("max");
-    expect(db.store.subscriptions.get("sub1")?.memory).toBeNull();
+    // The watermark MUST move: leaving it means the identical fold is re-sent
+    // and re-billed on every future wake for this reader.
+    expect(result.ran).toBe(true);
+    const row = db.store.subscriptions.get("sub1");
+    expect(row?.memoryThrough).toBeInstanceOf(Date);
+    const stored = row?.memory as string;
+    expect(stored.length).toBeLessThanOrEqual(MEMORY_MAX_CHARS);
+    expect(stored.endsWith(".")).toBe(true);
+    expect(alerts[0]).toContain("advanced the watermark");
+  });
+
+  test("empty twice leaves the watermark for the next wake", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    seed(db, COMPACT_WAKES_AT + 20, COMPACT_MESSAGES_AT + 20);
+    const alerts: string[] = [];
+
+    const result = await maybeCompact(db, { ...SUB_ARG }, {
+      deps: makeDeps(
+        new FakeAnthropic([
+          { content: [text("")], stop_reason: "end_turn" },
+          { content: [text("")], stop_reason: "end_turn" },
+        ]),
+      ),
+      now: () => NOW,
+      alert: async (m) => {
+        alerts.push(m);
+      },
+    });
+
+    expect(result.reason).toBe("empty summary");
+    expect(alerts[0]).toContain("twice");
+    expect(db.store.subscriptions.get("sub1")?.memoryThrough).toBeNull();
+  });
+
+  test("truncateAtBoundary cuts on a sentence, not mid-word", () => {
+    const text = "Πρώτη πρόταση. Δεύτερη πρόταση. Τρίτη πρόταση που κόβεται.";
+    const out = truncateAtBoundary(text, 32);
+    expect(out).toBe("Πρώτη πρόταση. Δεύτερη πρόταση.");
+    expect(truncateAtBoundary("σύντομο", 100)).toBe("σύντομο");
   });
 
   test("open commitments reach the summariser marked as already tracked", async () => {
