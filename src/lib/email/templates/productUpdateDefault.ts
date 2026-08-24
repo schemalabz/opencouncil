@@ -11,8 +11,9 @@ export const SANITIZE_CONFIG = {
         'blockquote', 'hr', 'br',
         'h1', 'h2', 'h3', 'h4', 'h5',
         'strong', 'em',
+        'img',
     ],
-    ALLOWED_ATTR: ['style', 'href'],
+    ALLOWED_ATTR: ['style', 'href', 'src', 'alt', 'width', 'height'],
 };
 
 /**
