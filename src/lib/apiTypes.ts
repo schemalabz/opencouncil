@@ -41,8 +41,6 @@ export interface HealthResponse {
     };
 }
 
-export type MediaType = "audio" | "video";
-
 /*
  * Task: Transcribe
  */
@@ -319,36 +317,6 @@ export interface SummarizeResult {
         utteranceId: string;
         status: DiscussionStatus;
         subjectId: string | null;  // only for SUBJECT_DISCUSSION and VOTE
-    }[];
-}
-
-/*
- * Split Media File
- */
-
-export interface SplitMediaFileRequest extends TaskRequest {
-    url: string; // an mp4 or mp3 url
-    type: MediaType;
-    parts: {
-        // a part of the file, consisting of multiple contiguous segments
-        id: string;
-        segments: {
-            // a contiguous segments of the media file
-            startTimestamp: number;
-            endTimestamp: number;
-        }[];
-    }[];
-}
-
-export interface SplitMediaFileResult {
-    parts: {
-        id: string;
-        url: string;
-        type: MediaType;
-        duration: number;
-        startTimestamp: number;
-        endTimestamp: number;
-        muxPlaybackId?: string;
     }[];
 }
 

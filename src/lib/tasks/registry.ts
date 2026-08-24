@@ -1,6 +1,5 @@
 import { handleTranscribeResult } from './transcribe';
 import { handleSummarizeResult } from './summarize';
-import { handleSplitMediaFileResult } from './splitMediaFile';
 import { handleFixTranscriptResult } from './fixTranscript';
 import { handleProcessAgendaResult } from './processAgenda';
 import { handleGenerateVoiceprintResult } from './generateVoiceprint';
@@ -13,7 +12,6 @@ export type TaskResultHandler = (taskId: string, result: any, options?: { force?
 export const taskHandlers: Record<string, TaskResultHandler> = {
     transcribe: handleTranscribeResult,
     summarize: handleSummarizeResult,
-    splitMediaFile: handleSplitMediaFileResult,
     fixTranscript: handleFixTranscriptResult,
     processAgenda: handleProcessAgendaResult,
     generateVoiceprint: handleGenerateVoiceprintResult,
