@@ -56,15 +56,10 @@ export async function getTasksForMeeting(cityId: string, meetingId: string): Pro
     }
 }
 
-export async function getTaskStatus(taskStatusId: string): Promise<TaskStatus | null> {
-    const taskStatus = await prisma.taskStatus.findUnique({
-        where: { id: taskStatusId },
-    });
-    // Scope to the task's own city; a missing task requires superadmin so the
-    // id space can't be probed anonymously.
-    await withUserAuthorizedToEdit(taskStatus ? { cityId: taskStatus.cityId } : {});
-    return taskStatus;
-}
+// Reading a single task status lives in tasksInternal.ts (server-only): its
+// sole caller is the task-server callback route, which authorizes by
+// possession of the unguessable id, so the read cannot carry a user gate and
+// must stay off the Server Action surface instead.
 
 export async function deleteTaskStatus(taskStatusId: string): Promise<void> {
     // Called directly from client components (admin tasks + voiceprint actions),

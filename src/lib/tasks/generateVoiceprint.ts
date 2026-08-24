@@ -6,7 +6,7 @@ import { withUserAuthorizedToEdit } from "../auth";
 import { startTask } from "./tasks";
 import { GenerateVoiceprintRequest, GenerateVoiceprintResult } from "../apiTypes";
 import { SpeakerSegment } from "@prisma/client";
-import { createVoicePrint } from "@/lib/db/voiceprints";
+import { createVoicePrintDirect } from "@/lib/db/voiceprintsCreate";
 
 const VOICEPRINT_DURATION = 30;
 
@@ -216,7 +216,7 @@ export async function handleGenerateVoiceprintResult(taskId: string, result: Gen
     const requestBody = JSON.parse(taskStatus.requestBody);
 
     try {
-        await createVoicePrint({
+        await createVoicePrintDirect({
             personId: requestBody.personId,
             sourceSegmentId: requestBody.segmentId,
             startTimestamp: requestBody.startTimestamp,

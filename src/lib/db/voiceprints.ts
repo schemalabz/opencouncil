@@ -1,48 +1,12 @@
 "use server";
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
-import { VoicePrint } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
-export async function createVoicePrint(
-    voiceprint: Omit<VoicePrint, "id" | "createdAt" | "updatedAt">,
-): Promise<string | null> {
-    try {
-        const person = await prisma.person.findUnique({
-            where: { id: voiceprint.personId },
-        });
-
-        if (!person) {
-            throw new Error("Person not found");
-        }
-
-        await withUserAuthorizedToEdit({ cityId: person.cityId });
-
-        try {
-            const voicePrint = await prisma.voicePrint.create({
-                data: {
-                    embedding: voiceprint.embedding,
-                    personId: voiceprint.personId,
-                    sourceSegmentId: voiceprint.sourceSegmentId,
-                    sourceAudioUrl: voiceprint.sourceAudioUrl,
-                    startTimestamp: voiceprint.startTimestamp,
-                    endTimestamp: voiceprint.endTimestamp,
-                },
-            });
-
-            revalidatePath(`/admin/people`, "page");
-
-            console.log(`Created voice print with ID: ${voicePrint.id}`);
-            return voicePrint.id;
-        } catch (error) {
-            console.error("Error creating voice print:", error);
-            throw new Error("Failed to create voice print");
-        }
-    } catch (error) {
-        console.error("Error creating voiceprint:", error);
-        throw new Error("Failed to create voiceprint");
-    }
-}
+// Creating a voiceprint lives in voiceprintsCreate.ts (server-only): its sole
+// caller is the task-server callback path, which has no session, so the
+// function cannot carry a user gate and must stay off the Server Action
+// surface instead.
 
 export async function deleteVoicePrint(voicePrintId: string): Promise<void> {
     try {

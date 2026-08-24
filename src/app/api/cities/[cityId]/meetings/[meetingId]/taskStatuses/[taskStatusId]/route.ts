@@ -3,12 +3,13 @@ import { revalidateTag } from 'next/cache';
 import { handleTaskUpdate } from '@/lib/tasks/tasks';
 import { taskHandlers } from '@/lib/tasks/registry';
 import { TaskUpdate } from '@/lib/apiTypes';
-import { deleteTaskStatus, getTaskStatus } from '@/lib/db/tasks';
+import { deleteTaskStatus } from '@/lib/db/tasks';
+import { getTaskStatusDirect } from '@/lib/db/tasksInternal';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 
 export async function GET(request: NextRequest, props: { params: Promise<{ taskStatusId: string }> }) {
     const params = await props.params;
-    const taskStatus = await getTaskStatus(params.taskStatusId);
+    const taskStatus = await getTaskStatusDirect(params.taskStatusId);
     if (!taskStatus) {
         return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
     }
@@ -36,7 +37,7 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ taskS
 
 export async function DELETE(request: NextRequest, props: { params: Promise<{ taskStatusId: string }> }) {
     const params = await props.params;
-    const taskStatus = await getTaskStatus(params.taskStatusId);
+    const taskStatus = await getTaskStatusDirect(params.taskStatusId);
 
     if (!taskStatus) {
         return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
@@ -60,7 +61,7 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ ta
 }
 
 async function handleUpdateRequest(request: NextRequest, taskStatusId: string) {
-    const taskStatus = await getTaskStatus(taskStatusId);
+    const taskStatus = await getTaskStatusDirect(taskStatusId);
 
     if (!taskStatus) {
         return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
