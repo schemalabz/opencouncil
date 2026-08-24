@@ -5,6 +5,7 @@ import { taskHandlers } from '@/lib/tasks/registry';
 import { TaskUpdate } from '@/lib/apiTypes';
 import { deleteTaskStatus } from '@/lib/db/tasks';
 import { getTaskStatusDirect } from '@/lib/db/tasksInternal';
+import { verifyCallbackToken } from '@/lib/tasks/callbackToken';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 
 export async function GET(request: NextRequest, props: { params: Promise<{ taskStatusId: string }> }) {
@@ -61,6 +62,18 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ ta
 }
 
 async function handleUpdateRequest(request: NextRequest, taskStatusId: string) {
+    const token = request.nextUrl.searchParams.get('token');
+    if (token !== null) {
+        if (!verifyCallbackToken(taskStatusId, token)) {
+            return NextResponse.json({ error: 'Invalid callback token' }, { status: 401 });
+        }
+    } else {
+        // Tasks started before tokens were minted into callback URLs still
+        // post token-less; accept those during the rollout, visibly, until the
+        // in-flight tail drains and this branch can turn into a rejection.
+        console.warn(`Task callback without token for ${taskStatusId} — accepted during token rollout`);
+    }
+
     const taskStatus = await getTaskStatusDirect(taskStatusId);
 
     if (!taskStatus) {

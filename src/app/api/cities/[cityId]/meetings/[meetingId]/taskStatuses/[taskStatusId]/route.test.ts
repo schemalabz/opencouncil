@@ -25,9 +25,14 @@ jest.mock('next/cache', () => ({
     revalidateTag: jest.fn(),
 }));
 
+jest.mock('@/env.mjs', () => ({
+    env: { NEXTAUTH_SECRET: 'test-secret' },
+}));
+
 import { GET, POST } from './route';
 import prisma from '@/lib/db/prisma';
 import { handleTaskUpdate } from '@/lib/tasks/tasks';
+import { mintCallbackToken } from '@/lib/tasks/callbackToken';
 
 const mockFindUnique = prisma.taskStatus.findUnique as jest.MockedFunction<typeof prisma.taskStatus.findUnique>;
 const mockHandleTaskUpdate = handleTaskUpdate as jest.MockedFunction<typeof handleTaskUpdate>;
@@ -49,14 +54,16 @@ const TASK = {
 
 const props = { params: Promise.resolve({ taskStatusId: 'task1' }) };
 
-function postRequest(body: unknown) {
-    return { json: async () => body } as never;
+function postRequest(body: unknown, token?: string) {
+    const url = new URL('http://localhost/api/x' + (token !== undefined ? `?token=${token}` : ''));
+    return { json: async () => body, nextUrl: url } as never;
 }
 
 describe('anonymous task-server callback (POST)', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         jest.spyOn(console, 'error').mockImplementation(() => { });
+        jest.spyOn(console, 'warn').mockImplementation(() => { });
     });
 
     it('accepts the update without a session', async () => {
@@ -75,6 +82,25 @@ describe('anonymous task-server callback (POST)', () => {
         const res = await POST(postRequest({ status: 'success' }), props);
 
         expect(res.status).toBe(404);
+        expect(mockHandleTaskUpdate).not.toHaveBeenCalled();
+    });
+
+    it('accepts the update with a valid callback token', async () => {
+        mockFindUnique.mockResolvedValue(TASK as never);
+        mockHandleTaskUpdate.mockResolvedValue(undefined as never);
+
+        const res = await POST(postRequest({ status: 'success' }, mintCallbackToken('task1')), props);
+
+        expect(res.status).toBe(200);
+        expect(mockHandleTaskUpdate).toHaveBeenCalled();
+    });
+
+    it('rejects an invalid callback token without touching the task', async () => {
+        mockFindUnique.mockResolvedValue(TASK as never);
+
+        const res = await POST(postRequest({ status: 'success' }, mintCallbackToken('other-task')), props);
+
+        expect(res.status).toBe(401);
         expect(mockHandleTaskUpdate).not.toHaveBeenCalled();
     });
 });

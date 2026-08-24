@@ -18,7 +18,7 @@ jest.mock('../../db/prisma', () => ({
     },
   },
 }));
-jest.mock('@/env.mjs', () => ({ env: { NEXTAUTH_URL: 'http://test', TASK_API_URL: 'http://test', TASK_API_KEY: 'key' } }));
+jest.mock('@/env.mjs', () => ({ env: { NEXTAUTH_URL: 'http://test', NEXTAUTH_SECRET: 'test-secret', TASK_API_URL: 'http://test', TASK_API_KEY: 'key' } }));
 jest.mock('next/cache', () => ({ revalidateTag: jest.fn() }));
 jest.mock('../../auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
 jest.mock('../../discord', () => ({

@@ -9,6 +9,7 @@ import { sendTaskAdminAlert } from '@/lib/discord';
 import { Prisma, TaskStatus } from '@prisma/client';
 import { revalidateTag } from 'next/cache';
 import { taskHandlers, taskTerminalHooks } from './registry';
+import { mintCallbackToken } from './callbackToken';
 
 export interface TaskIdempotencyResult {
     proceed: boolean;
@@ -106,8 +107,9 @@ export const startTask = async (taskType: MeetingTaskType, requestBody: any, cou
         include: taskStatusWithMeetingInclude
     });
 
-    // Prepare callback URL
-    const callbackUrl = `${env.NEXTAUTH_URL}/api/cities/${cityId}/meetings/${councilMeetingId}/taskStatuses/${newTask.id}`;
+    // Prepare callback URL; the task server posts back to it verbatim, so the
+    // token authenticates the callback without any task-server involvement
+    const callbackUrl = `${env.NEXTAUTH_URL}/api/cities/${cityId}/meetings/${councilMeetingId}/taskStatuses/${newTask.id}?token=${mintCallbackToken(newTask.id)}`;
     console.log(`Callback URL: ${callbackUrl}`);
 
     // Add callback URL to request body
