@@ -1,4 +1,5 @@
 import { z } from 'zod4';
+import { AdministrativeBodyType } from '@prisma/client';
 import type { McpServer, ServerContext, CallToolResult } from '@modelcontextprotocol/server';
 import { ApiError } from '@/lib/api/errors';
 import { identityFromContext } from './auth';
@@ -179,10 +180,13 @@ export function registerOpenCouncilServer(server: McpServer) {
             title: 'Get municipality',
             annotations: { readOnlyHint: true, openWorldHint: false },
             _meta: category('directory'),
-            description: 'Get a municipality profile, including its political parties.',
+            description:
+                'Get a municipality profile: its political parties, and its administrative ' +
+                'bodies — the council, committees and κοινότητες that hold meetings. Each body ' +
+                'carries the id that list_meetings filters by.',
             inputSchema: z.object({ cityId: z.string().min(1) }),
         },
-        args => run(() => mcpGetCity(args.cityId))
+        (args, ctx: ServerContext) => run(() => mcpGetCity(args.cityId, identityFromContext(ctx)))
     );
 
     server.registerTool(
@@ -230,12 +234,22 @@ export function registerOpenCouncilServer(server: McpServer) {
             title: 'List meetings',
             annotations: { readOnlyHint: true, openWorldHint: false },
             _meta: category('meetings'),
-            description: 'List a municipality\'s council meetings, newest first (or soonest first for upcoming).',
+            description:
+                'List a municipality\'s council meetings, newest first (or soonest first for ' +
+                'upcoming). Unfiltered it mixes scheduled meetings in with held ones, and a ' +
+                'scheduled meeting sorts ahead of every held one — pass timeFilter to separate ' +
+                'them. administrativeBodyIds answers "when did this body last meet": pair it ' +
+                'with timeFilter "past" for the last held session, "upcoming" for the next one.',
             inputSchema: z.object({
                 cityId: z.string().min(1),
                 from: z.iso.date().optional().describe('ISO date (YYYY-MM-DD), inclusive'),
                 to: z.iso.date().optional().describe('ISO date (YYYY-MM-DD), inclusive'),
-                timeFilter: z.enum(['upcoming', 'past']).optional(),
+                timeFilter: z.enum(['upcoming', 'past']).optional()
+                    .describe('Keep only meetings already held ("past") or still to come ("upcoming"). Omitted, the list holds both'),
+                administrativeBodyIds: z.array(z.string().min(1)).min(1).optional()
+                    .describe('Restrict to these administrative body ids (see get_city). An unknown id is an error, not an empty list. Takes precedence over administrativeBodyTypes'),
+                administrativeBodyTypes: z.array(z.enum(AdministrativeBodyType)).min(1).optional()
+                    .describe('Restrict to bodies of these kinds: council (Δημοτικό or Περιφερειακό Συμβούλιο), committee (Δημοτική or Περιφερειακή Επιτροπή), community (Δημοτική Κοινότητα; municipalities only)'),
                 pageSize: z.number().int().min(1).max(50).default(10),
                 ...paginationShape,
             }),
@@ -244,7 +258,15 @@ export function registerOpenCouncilServer(server: McpServer) {
             run(() =>
                 mcpListMeetings(
                     args.cityId,
-                    { page: args.page, pageSize: args.pageSize, from: args.from, to: args.to, timeFilter: args.timeFilter },
+                    {
+                        page: args.page,
+                        pageSize: args.pageSize,
+                        from: args.from,
+                        to: args.to,
+                        timeFilter: args.timeFilter,
+                        administrativeBodyIds: args.administrativeBodyIds,
+                        administrativeBodyTypes: args.administrativeBodyTypes,
+                    },
                     identityFromContext(ctx)
                 )
             )
