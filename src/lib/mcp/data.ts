@@ -1,11 +1,15 @@
 import prisma from '@/lib/db/prisma';
-import { Prisma, DiscussionStatus } from '@prisma/client';
+import { Prisma, DiscussionStatus, type AdministrativeBodyType } from '@prisma/client';
 import { searchInRealm } from '@/lib/search/core';
 import { getCities, getCity, getListedCityAtPoint, filterCityIdsByRealm } from '@/lib/db/cities';
 import { getHotSubjectsNearPoint, withDistances } from '@/lib/hotSubjects';
 import { getCouncilMeetingsForCity } from '@/lib/db/meetings';
 import { getPeopleForCity, getPerson, type PersonWithRelations } from '@/lib/db/people';
 import { getPartiesForCity, getParty } from '@/lib/db/parties';
+import {
+    getAdministrativeBodiesForCity,
+    getAdministrativeBodiesWithPublicMeetings,
+} from '@/lib/db/administrativeBodies';
 import { getSubject, getDiscussionSecondsForSubjects, getHotSubjectsCached } from '@/lib/db/subject';
 import { currentBaseUrl, currentRealm } from './realm-context';
 import { getTranscript } from '@/lib/db/transcript';
@@ -162,12 +166,42 @@ async function requireRealmCity(cityId: string): Promise<void> {
     return assertCitiesInRealm([cityId]);
 }
 
-export async function mcpGetCity(cityId: string) {
+/**
+ * Body ids are opaque to the caller, so a hallucinated id, a stale one, or one
+ * belonging to another city has to fail loudly. Filtering on it silently would
+ * return an empty list — indistinguishable from a body that never met, which
+ * is the reading these tools exist to prevent.
+ */
+async function requireCityBodies(cityId: string, bodyIds: string[]): Promise<void> {
+    const known = await prisma.administrativeBody.findMany({
+        where: { cityId, id: { in: bodyIds } },
+        select: { id: true },
+    });
+    const found = new Set(known.map(body => body.id));
+    const unknown = [...new Set(bodyIds)].filter(id => !found.has(id));
+    if (unknown.length > 0) {
+        throw new NotFoundError(
+            `Unknown administrative body for ${cityId}: ${unknown.join(', ')}. See get_city.`
+        );
+    }
+}
+
+export async function mcpGetCity(cityId: string, identity: McpIdentity) {
     await requireRealmCity(cityId);
-    const city = await getCity(cityId);
+    const [city, parties, includeUnreleased] = await Promise.all([
+        getCity(cityId),
+        getPartiesForCity(cityId),
+        canSeeUnreleased(identity, cityId),
+    ]);
     if (!city) throw new NotFoundError('City not found');
 
-    const parties = await getPartiesForCity(cityId);
+    // The bodies carry the ids list_meetings filters by, so a body whose
+    // meetings are all drafts would be a dead filter option for anyone who
+    // cannot see drafts — offer it only to the callers who can.
+    const administrativeBodies = includeUnreleased
+        ? await getAdministrativeBodiesForCity(cityId)
+        : await getAdministrativeBodiesWithPublicMeetings(cityId);
+
     return {
         id: city.id,
         name: city.name,
@@ -180,6 +214,12 @@ export async function mcpGetCity(cityId: string) {
             people: city._count.persons,
             parties: city._count.parties,
         },
+        administrativeBodies: administrativeBodies.map(body => ({
+            id: body.id,
+            name: body.name,
+            name_en: body.name_en,
+            type: body.type,
+        })),
         parties: parties.map(party => ({
             id: party.id,
             name: party.name,
@@ -245,10 +285,21 @@ export async function mcpGetParty(partyId: string) {
 
 export async function mcpListMeetings(
     cityId: string,
-    options: { page: number; pageSize: number; from?: string; to?: string; timeFilter?: 'upcoming' | 'past' },
+    options: {
+        page: number;
+        pageSize: number;
+        from?: string;
+        to?: string;
+        timeFilter?: 'upcoming' | 'past';
+        administrativeBodyIds?: string[];
+        administrativeBodyTypes?: AdministrativeBodyType[];
+    },
     identity: McpIdentity
 ) {
     await requireRealmCity(cityId);
+    if (options.administrativeBodyIds?.length) {
+        await requireCityBodies(cityId, options.administrativeBodyIds);
+    }
     const meetings = await getCouncilMeetingsForCity(cityId, {
         includeUnreleased: await canSeeUnreleased(identity, cityId),
         page: options.page,
@@ -256,6 +307,8 @@ export async function mcpListMeetings(
         from: options.from ? new Date(options.from) : undefined,
         to: options.to ? new Date(options.to) : undefined,
         timeFilter: options.timeFilter,
+        administrativeBodyIds: options.administrativeBodyIds,
+        administrativeBodyTypes: options.administrativeBodyTypes,
     });
 
     return {
@@ -785,7 +838,7 @@ async function editableCities(identity: McpIdentity): Promise<EditableCities> {
 
 export async function mcpFetch(id: string, identity: McpIdentity) {
     if (id.startsWith('city:')) {
-        const city = await mcpGetCity(id.slice('city:'.length));
+        const city = await mcpGetCity(id.slice('city:'.length), identity);
         return {
             id,
             title: city.name,

@@ -18,6 +18,7 @@ module.exports = {
         '^@/lib/notifications/welcome$': '<rootDir>/tests/mocks/notificationsWelcome.ts',
         '^@/lib/discord$': '<rootDir>/tests/mocks/discord.ts',
         '^@/lib/cities$': '<rootDir>/tests/mocks/cities.ts',
+        '^next-intl/server$': '<rootDir>/tests/mocks/nextIntlServer.ts',
         '^@/(.*)$': '<rootDir>/src/$1',
     },
     transform: {
