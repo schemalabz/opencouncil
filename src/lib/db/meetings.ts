@@ -130,19 +130,18 @@ export async function getCouncilMeetingsForCity(cityId: string, { includeUnrelea
         const skip = page ? (page - 1) * pageSize : undefined;
         const take = page ? pageSize : limit;
 
-        // Build dateTime filter
+        // Build dateTime filter. An explicit from/to range and timeFilter are
+        // independent constraints, so they intersect. Only `past` and `to` set
+        // the same bound, and there the earlier of the two wins.
         const now = new Date();
-        const timeFilterValue = timeFilter === 'upcoming'
-            ? { gt: now }
-            : timeFilter === 'past'
-                ? { lte: now }
-                : undefined;
-        const dateTimeFilter = (from || to)
-            ? {
-                ...(from && { gte: from }),
-                ...(to && { lte: to }),
-            }
-            : timeFilterValue;
+        const upperBound = timeFilter === 'past'
+            ? (to && to < now ? to : now)
+            : to;
+        const dateTimeFilter = {
+            ...(timeFilter === 'upcoming' && { gt: now }),
+            ...(from && { gte: from }),
+            ...(upperBound && { lte: upperBound }),
+        };
 
         // Specific bodies (ids) take precedence over the broader type filter.
         let bodyFilter: Prisma.CouncilMeetingWhereInput = {};
@@ -157,7 +156,7 @@ export async function getCouncilMeetingsForCity(cityId: string, { includeUnrelea
             where: {
                 cityId,
                 released: includeUnreleased ? undefined : true,
-                ...(dateTimeFilter && { dateTime: dateTimeFilter }),
+                ...(Object.keys(dateTimeFilter).length > 0 && { dateTime: dateTimeFilter }),
                 ...bodyFilter,
             },
             orderBy: timeFilter === 'upcoming'

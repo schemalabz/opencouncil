@@ -95,6 +95,80 @@ describe('getCouncilMeetingsForCity - Pagination', () => {
   });
 });
 
+describe('getCouncilMeetingsForCity - date range and timeFilter', () => {
+  const NOW = new Date('2026-08-24T12:00:00.000Z');
+
+  type DateTimeFilter = { gt?: Date; gte?: Date; lte?: Date };
+
+  const dateTimeArg = (): DateTimeFilter | undefined =>
+    (mockFindMany.mock.calls[0][0] as { where?: { dateTime?: DateTimeFilter } }).where?.dateTime;
+
+  const orderByArg = (): unknown =>
+    (mockFindMany.mock.calls[0][0] as { orderBy?: unknown }).orderBy;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers().setSystemTime(NOW);
+    mockFindMany.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('keeps the past bound when a from date is also given', async () => {
+    const from = new Date('2026-01-01T00:00:00.000Z');
+    await getCouncilMeetingsForCity('test-city', { from, timeFilter: 'past' });
+
+    expect(dateTimeArg()).toEqual({ gte: from, lte: NOW });
+    expect(orderByArg()).toEqual([{ dateTime: 'desc' }, { createdAt: 'desc' }]);
+  });
+
+  it('keeps the upcoming bound when a to date is also given', async () => {
+    const to = new Date('2026-12-31T23:59:59.999Z');
+    await getCouncilMeetingsForCity('test-city', { to, timeFilter: 'upcoming' });
+
+    expect(dateTimeArg()).toEqual({ gt: NOW, lte: to });
+    expect(orderByArg()).toEqual([{ dateTime: 'asc' }, { createdAt: 'asc' }]);
+  });
+
+  it('uses the to date as the upper bound when it is earlier than now', async () => {
+    const to = new Date('2026-06-30T23:59:59.999Z');
+    await getCouncilMeetingsForCity('test-city', { to, timeFilter: 'past' });
+
+    expect(dateTimeArg()).toEqual({ lte: to });
+  });
+
+  it('uses now as the upper bound when the to date is later than now', async () => {
+    await getCouncilMeetingsForCity('test-city', {
+      to: new Date('2026-12-31T23:59:59.999Z'),
+      timeFilter: 'past',
+    });
+
+    expect(dateTimeArg()).toEqual({ lte: NOW });
+  });
+
+  it('applies a from/to range on its own', async () => {
+    const from = new Date('2026-01-01T00:00:00.000Z');
+    const to = new Date('2026-03-31T23:59:59.999Z');
+    await getCouncilMeetingsForCity('test-city', { from, to });
+
+    expect(dateTimeArg()).toEqual({ gte: from, lte: to });
+  });
+
+  it('applies timeFilter on its own', async () => {
+    await getCouncilMeetingsForCity('test-city', { timeFilter: 'past' });
+
+    expect(dateTimeArg()).toEqual({ lte: NOW });
+  });
+
+  it('sets no dateTime filter when neither is given', async () => {
+    await getCouncilMeetingsForCity('test-city', {});
+
+    expect(dateTimeArg()).toBeUndefined();
+  });
+});
+
 describe('generateUniqueMeetingId', () => {
   const april20 = new Date('2026-04-20T12:00:00+03:00');
 
