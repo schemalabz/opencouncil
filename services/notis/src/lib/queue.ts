@@ -2,7 +2,7 @@ import { z } from "zod";
 import { decideDelivery } from "@/agent/delivery";
 import { runWake } from "@/agent/runWake";
 import { primaryEvent, wakeEventSchema, wakeEventsSchema } from "@/agent/schemas";
-import { renderTemplate, type TemplateName } from "@/agent/templates";
+import { linkPathFromText, renderTemplate, type TemplateName } from "@/agent/templates";
 import {
   CityPreference,
   CONVERSATION_WINDOW,
@@ -1043,12 +1043,19 @@ export async function deliverPendingMessage(
     );
   }
 
+  // The dynamic URL button takes the path the agent already linked to, so the
+  // button and the text land on the same page. bird.ts substitutes a safe
+  // default if this is undefined — a shell that declares {{link_path}} and
+  // does not receive it is a terminal 422, not a retry.
+  const linkPath = linkPathFromText(message.body);
+
   if (sub.birdConversationId) {
     const result = await bird.sendTemplate({
       conversationId: sub.birdConversationId,
       phone: sub.phone,
       template,
       text: message.body,
+      linkPath,
       idempotencyKey: message.id,
     });
     return finish(await applySendResult(db, messageId, result, alert));
@@ -1058,6 +1065,7 @@ export async function deliverPendingMessage(
     name: `Notis ${sub.userName ?? sub.phone}`,
     template,
     text: message.body,
+    linkPath,
     idempotencyKey: message.id,
   });
   if (created.alreadyExisted && created.conversationId) {
@@ -1071,6 +1079,7 @@ export async function deliverPendingMessage(
       phone: sub.phone,
       template,
       text: message.body,
+      linkPath,
       idempotencyKey: message.id,
     });
     return finish(await applySendResult(db, messageId, result, alert));

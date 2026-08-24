@@ -39,6 +39,8 @@ export interface BirdLike {
     phone: string;
     template: TemplateName;
     text: string;
+    /** Fills {{link_path}} on the shells whose URL button is dynamic. */
+    linkPath?: string;
     idempotencyKey: string;
   }): Promise<BirdSendResult>;
   /** Cold send to a phone with no conversation yet (enrollment intro, or a
@@ -50,6 +52,7 @@ export interface BirdLike {
     name: string;
     template: TemplateName;
     text: string;
+    linkPath?: string;
     idempotencyKey: string;
   }): Promise<BirdSendResult & { conversationId?: string; alreadyExisted?: boolean }>;
   /** Notify-only SMS (fallback when WhatsApp delivery fails). No
@@ -112,19 +115,34 @@ const NOT_CONFIGURED: BirdSendResult = {
   error: "Bird is not configured (BIRD_* env vars missing)",
 };
 
-/** The Bird wire shape for a template send; parameters only when the shell
- *  carries {{demos_text}}. Null when the project id env var is missing. */
-function templateBody(template: TemplateName, text: string) {
+/**
+ * The Bird wire shape for a template send. Every variable the shell declares
+ * must be present or Bird rejects the whole send with a 422 — which is
+ * terminal, not retryable, so the reader simply never gets the message.
+ *
+ * `link_path` fills the dynamic URL button on the three update shells. When a
+ * shell needs one and the caller has none, fall back to a page that exists
+ * rather than send nothing: a button pointing at the explainer is a far
+ * smaller loss than a failed delivery.
+ *
+ * Null when the project id env var is missing.
+ */
+export const FALLBACK_LINK_PATH = "explain";
+
+function templateBody(template: TemplateName, text: string, linkPath?: string) {
   const projectId = templateProjectId(template);
   if (!projectId) return null;
-  return {
-    projectId,
-    version: "latest",
-    locale: "el",
-    parameters: TEMPLATES[template].hasVariable
-      ? [{ type: "string", key: "demos_text", value: text }]
-      : [],
-  };
+  const def = TEMPLATES[template];
+  const parameters: Array<{ type: string; key: string; value: string }> = [];
+  if (def.hasVariable) parameters.push({ type: "string", key: "demos_text", value: text });
+  if (def.hasLinkPath) {
+    parameters.push({
+      type: "string",
+      key: "link_path",
+      value: linkPath?.trim() || FALLBACK_LINK_PATH,
+    });
+  }
+  return { projectId, version: "latest", locale: "el", parameters };
 }
 
 interface RawBirdResponse {
@@ -269,9 +287,9 @@ export const realBird: BirdLike = {
     return toSendResult(raw, "send");
   },
 
-  async sendTemplate({ conversationId, phone, template, text, idempotencyKey }) {
+  async sendTemplate({ conversationId, phone, template, text, linkPath, idempotencyKey }) {
     if (!hasBird()) return NOT_CONFIGURED;
-    const body = templateBody(template, text);
+    const body = templateBody(template, text, linkPath);
     if (!body) {
       return {
         success: false,
@@ -297,9 +315,9 @@ export const realBird: BirdLike = {
     return toSendResult(raw, `template ${template}`);
   },
 
-  async createConversationWithTemplate({ phone, name, template, text, idempotencyKey }) {
+  async createConversationWithTemplate({ phone, name, template, text, linkPath, idempotencyKey }) {
     if (!hasBird()) return NOT_CONFIGURED;
-    const body = templateBody(template, text);
+    const body = templateBody(template, text, linkPath);
     if (!body) {
       return {
         success: false,

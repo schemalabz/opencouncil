@@ -3,6 +3,7 @@ import {
   TEMPLATES,
   type TemplateName,
   isWindowOpen,
+  linkPathFromText,
   renderTemplate,
   templateForEvent,
 } from "../templates";
@@ -73,5 +74,55 @@ describe("templates", () => {
       expect(footer).toContain("ΣΤΟΠ");
       expect(footer.length).toBeLessThanOrEqual(60);
     }
+  });
+});
+
+describe("link_path", () => {
+  it("every shell with a URL button that Bird made dynamic declares hasLinkPath", () => {
+    // Verified against the Bird console 2026-08-24: the three shells carrying
+    // {{demos_text}} also carry {{link_path}}; intro, transition and checkin
+    // declare no variables at all. A shell that needs one and does not send it
+    // is a terminal 422 — the reader never gets the message.
+    expect(TEMPLATES.demos_update_agenda.hasLinkPath).toBe(true);
+    expect(TEMPLATES.demos_update_news.hasLinkPath).toBe(true);
+    expect(TEMPLATES.demos_followup.hasLinkPath).toBe(true);
+    expect(TEMPLATES.demos_intro.hasLinkPath).toBe(false);
+    expect(TEMPLATES.demos_transition.hasLinkPath).toBe(false);
+    expect(TEMPLATES.demos_checkin.hasLinkPath).toBe(false);
+  });
+
+  it("a shell that carries the text variable also carries the link", () => {
+    // Bird's own shapes: the shells that talk about a specific meeting are
+    // exactly the ones with a dynamic button. If this ever diverges, the
+    // divergence is in Bird and this file must be re-checked against it.
+    for (const def of Object.values(TEMPLATES)) {
+      expect(def.hasLinkPath).toBe(def.hasVariable);
+    }
+  });
+
+  it("takes the path from the link the agent wrote", () => {
+    expect(linkPathFromText("Δες το θέμα: https://opencouncil.gr/athens/jul29_2_2026")).toBe(
+      "athens/jul29_2_2026",
+    );
+    expect(
+      linkPathFromText("…στο https://opencouncil.gr/athens/jul29_2_2026/subjects/abc123 ."),
+    ).toBe("athens/jul29_2_2026/subjects/abc123");
+  });
+
+  it("drops trailing prose punctuation, and Greek quotes", () => {
+    expect(linkPathFromText("εδώ: https://opencouncil.gr/athens/aug18_2026.")).toBe(
+      "athens/aug18_2026",
+    );
+    expect(linkPathFromText("«https://opencouncil.gr/athens/aug18_2026»")).toBe("athens/aug18_2026");
+    expect(linkPathFromText("(https://www.opencouncil.gr/athens/aug18_2026)")).toBe(
+      "athens/aug18_2026",
+    );
+  });
+
+  it("returns nothing when the body carries no link", () => {
+    expect(linkPathFromText("Καμία σύνδεση εδώ.")).toBeUndefined();
+    expect(linkPathFromText("https://example.com/athens/x")).toBeUndefined();
+    // The bare domain has no path to send.
+    expect(linkPathFromText("https://opencouncil.gr/")).toBeUndefined();
   });
 });
