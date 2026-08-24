@@ -37,6 +37,15 @@ export interface TemplateDef {
   bodySuffix: string;
   /** true when the body carries the {{demos_text}} variable. */
   hasVariable: boolean;
+  /**
+   * true when the shell's URL button is DYNAMIC — Bird holds it as
+   * `https://opencouncil.gr/{{link_path}}` and rejects the send with a 422
+   * ("missing value for variable 'link_path'") unless the parameter is
+   * supplied. Verified against the Bird console: the three shells that carry
+   * {{demos_text}} also carry {{link_path}}; intro, transition and checkin
+   * declare no variables at all.
+   */
+  hasLinkPath: boolean;
   footer: string;
   buttons: TemplateButton[];
 }
@@ -65,6 +74,7 @@ export const TEMPLATES: Record<TemplateName, TemplateDef> = {
       "Γεια σου! Είμαι ο Νότης, ο βοηθός του OpenCouncil για τον δήμο σου. Θα σου γράφω σπάνια — μόνο όταν συμβαίνει κάτι που πιστεύω ότι σε αφορά — και μπορείς να μου απαντάς και να με ρωτάς οτιδήποτε για το δημοτικό συμβούλιο.",
     bodySuffix: "",
     hasVariable: false,
+    hasLinkPath: false,
     footer: STOP_FOOTER,
     buttons: [
       { label: "Περισσότερα", kind: "url" },
@@ -78,6 +88,7 @@ export const TEMPLATES: Record<TemplateName, TemplateDef> = {
       "Οι ειδοποιήσεις του OpenCouncil αλλάζουν! Από εδώ και πέρα σου γράφω εγώ, ο Νότης, ο βοηθός του OpenCouncil. Θα σου στέλνω λιγότερα και πιο προσωπικά μηνύματα, μόνο όταν συμβαίνει κάτι που πραγματικά σε αφορά, και μπορείς να μου απαντάς και να με ρωτάς οτιδήποτε για τον δήμο σου. Τα email σου συνεχίζουν κανονικά.",
     bodySuffix: "",
     hasVariable: false,
+    hasLinkPath: false,
     footer: STOP_FOOTER_EMAIL,
     buttons: [
       { label: "Περισσότερα", kind: "url" },
@@ -90,6 +101,7 @@ export const TEMPLATES: Record<TemplateName, TemplateDef> = {
     bodyPrefix: "Πριν την επόμενη συνεδρίαση, κάτι που σε αφορά:\n\n",
     bodySuffix: "\n\nΑν συζητηθεί κάτι που σε αφορά, θα σου πω.",
     hasVariable: true,
+    hasLinkPath: true,
     footer: STOP_FOOTER,
     buttons: [
       { label: "Δες το θέμα", kind: "url" },
@@ -102,6 +114,7 @@ export const TEMPLATES: Record<TemplateName, TemplateDef> = {
     bodyPrefix: "Νέα από τον δήμο σου:\n\n",
     bodySuffix: "\n\nΠερισσότερα στο link.",
     hasVariable: true,
+    hasLinkPath: true,
     footer: STOP_FOOTER,
     buttons: [
       { label: "Δες περισσότερα", kind: "url" },
@@ -117,6 +130,7 @@ export const TEMPLATES: Record<TemplateName, TemplateDef> = {
       "Επειδή δεν απαντάς σε αυτά τα μηνύματα, θα σου γράφω πλέον μόνο κάθε λίγους μήνες, για τα πολύ σημαντικά. Αν με θες πιο συχνά, γράψε μου.",
     bodySuffix: "",
     hasVariable: false,
+    hasLinkPath: false,
     footer: STOP_FOOTER,
     buttons: [{ label: "Θέλω πιο συχνά", kind: "quick_reply" }],
   },
@@ -126,6 +140,7 @@ export const TEMPLATES: Record<TemplateName, TemplateDef> = {
     bodyPrefix: "Σχετικά με αυτό που με ρώτησες:\n\n",
     bodySuffix: "\n\nΑν θες να το ψάξω κι άλλο, γράψε μου.",
     hasVariable: true,
+    hasLinkPath: true,
     footer: STOP_FOOTER,
     buttons: [
       { label: "Δες το θέμα", kind: "url" },
@@ -190,4 +205,23 @@ export const SERVICE_WINDOW_MS = 24 * 60 * 60 * 1000;
 export function isWindowOpen(lastUserMessageAt: string | undefined, now: Date): boolean {
   if (!lastUserMessageAt) return false;
   return now.getTime() - new Date(lastUserMessageAt).getTime() < SERVICE_WINDOW_MS;
+}
+
+/**
+ * The path AFTER https://opencouncil.gr/ for a template's URL button.
+ *
+ * Taken from the link the agent already wrote into the message, so the button
+ * and the text point at the same place. The shells that need one are exactly
+ * the ones that talk about a specific meeting or subject, and the prompt tells
+ * the agent to include that link — so the body is the most accurate source
+ * available at send time, and needs no extra column.
+ */
+const OPENCOUNCIL_LINK = /https?:\/\/(?:www\.)?opencouncil\.gr\/([^\s)\]»,;]+)/i;
+
+export function linkPathFromText(text: string): string | undefined {
+  const match = OPENCOUNCIL_LINK.exec(text);
+  if (!match) return undefined;
+  // Trailing sentence punctuation is part of the prose, not the path.
+  const path = match[1].replace(/[.,;:!?»)\]]+$/, "");
+  return path || undefined;
 }

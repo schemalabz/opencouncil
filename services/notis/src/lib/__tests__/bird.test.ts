@@ -1,4 +1,4 @@
-import { extractConflictingConversationId, realBird } from "../bird";
+import { FALLBACK_LINK_PATH, extractConflictingConversationId, realBird } from "../bird";
 
 jest.mock("@/env.mjs", () => ({
   env: {
@@ -35,6 +35,7 @@ describe("sendTemplate", () => {
       phone: "+306900000001",
       template: "demos_update_news",
       text: "Νέα από τον δήμο.",
+      linkPath: "athens/jul29_2_2026",
       idempotencyKey: "msg-1",
     });
 
@@ -52,7 +53,10 @@ describe("sendTemplate", () => {
         projectId: "proj-news",
         version: "latest",
         locale: "el",
-        parameters: [{ type: "string", key: "demos_text", value: "Νέα από τον δήμο." }],
+        parameters: [
+          { type: "string", key: "demos_text", value: "Νέα από τον δήμο." },
+          { type: "string", key: "link_path", value: "athens/jul29_2_2026" },
+        ],
       },
     });
   });
@@ -201,5 +205,69 @@ describe("extractConflictingConversationId", () => {
 
   it("returns undefined when nothing looks like a UUID", () => {
     expect(extractConflictingConversationId({}, "nope")).toBeUndefined();
+  });
+});
+
+describe("template parameters", () => {
+  /**
+   * The regression this exists for: Bird holds the three update shells with a
+   * dynamic URL button, and rejects the send with a terminal 422 when
+   * link_path is missing — "One or more fields provided in the request body
+   * are malformed: missing value for variable 'link_path'". A 422 is not
+   * retryable, so every one of those messages was simply lost.
+   */
+  const capture = () => {
+    const calls: Array<Record<string, unknown>> = [];
+    global.fetch = (async (_url: string, init: { body: string }) => {
+      calls.push(JSON.parse(init.body) as Record<string, unknown>);
+      return { ok: true, status: 200, json: async () => ({ id: "m1" }), text: async () => "" };
+    }) as unknown as typeof fetch;
+    return calls;
+  };
+
+  it("sends link_path for a shell whose URL button is dynamic", async () => {
+    const calls = capture();
+    await realBird.sendTemplate({
+      conversationId: "c1",
+      phone: "+306900000001",
+      template: "demos_update_news",
+      text: "Νέα: https://opencouncil.gr/athens/jul29_2_2026",
+      linkPath: "athens/jul29_2_2026",
+      idempotencyKey: "k1",
+    });
+    const params = (calls[0]?.template as { parameters: Array<{ key: string; value: string }> })
+      ?.parameters;
+    expect(params).toEqual(
+      expect.arrayContaining([
+        { type: "string", key: "demos_text", value: "Νέα: https://opencouncil.gr/athens/jul29_2_2026" },
+        { type: "string", key: "link_path", value: "athens/jul29_2_2026" },
+      ]),
+    );
+  });
+
+  it("substitutes a real page rather than sending an empty link_path", async () => {
+    const calls = capture();
+    await realBird.sendTemplate({
+      conversationId: "c1",
+      phone: "+306900000001",
+      template: "demos_update_news",
+      text: "Χωρίς σύνδεσμο.",
+      idempotencyKey: "k2",
+    });
+    const params = (calls[0]?.template as { parameters: Array<{ key: string; value: string }> })
+      ?.parameters;
+    expect(params).toContainEqual({ type: "string", key: "link_path", value: FALLBACK_LINK_PATH });
+  });
+
+  it("sends no parameters at all for a fixed shell", async () => {
+    const calls = capture();
+    await realBird.sendTemplate({
+      conversationId: "c1",
+      phone: "+306900000001",
+      template: "demos_transition",
+      text: "ignored",
+      idempotencyKey: "k3",
+    });
+    expect((calls[0]?.template as { parameters: unknown[] })?.parameters).toEqual([]);
   });
 });
