@@ -153,7 +153,11 @@ export default async function SystemPage(props: {
       <PageHeader title="Σύστημα" />
 
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
-        <div className="mx-auto grid max-w-5xl gap-4">
+        {/* Block children, not grid items: a grid track grows to its item's
+            content minimum, and `truncate` (white-space: nowrap) makes a long
+            headline's minimum the whole headline — which stretched the column,
+            and the page, far past max-w-5xl. */}
+        <div className="mx-auto max-w-5xl space-y-4">
           {/* ---- heartbeat strip ---- */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <section className="rounded-lg border bg-background p-4">
@@ -472,6 +476,11 @@ export default async function SystemPage(props: {
                       </summary>
                       {item.brief && (
                         <div className="border-t bg-muted/20 pb-1 pt-0.5">
+                          {item.headline && (
+                            <p className="px-4 pb-1 pt-1.5 text-xs leading-snug">
+                              {item.headline}
+                            </p>
+                          )}
                           <ol className="divide-y divide-border/60">
                             {item.brief.subjects.map((s, rank) => (
                               <li
