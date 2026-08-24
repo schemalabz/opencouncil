@@ -66,11 +66,11 @@ describe('anonymous task-server callback (POST)', () => {
         jest.spyOn(console, 'warn').mockImplementation(() => { });
     });
 
-    it('accepts the update without a session', async () => {
+    it('accepts a tokenized update with no session', async () => {
         mockFindUnique.mockResolvedValue(TASK as never);
         mockHandleTaskUpdate.mockResolvedValue(undefined as never);
 
-        const res = await POST(postRequest({ status: 'success', result: {}, version: 1 }), props);
+        const res = await POST(postRequest({ status: 'success', result: {}, version: 1 }, mintCallbackToken('task1')), props);
 
         expect(res.status).toBe(200);
         expect(mockHandleTaskUpdate).toHaveBeenCalledWith('task1', expect.anything(), expect.anything());
@@ -79,23 +79,22 @@ describe('anonymous task-server callback (POST)', () => {
     it('returns 404 for an unknown task id', async () => {
         mockFindUnique.mockResolvedValue(null as never);
 
-        const res = await POST(postRequest({ status: 'success' }), props);
+        const res = await POST(postRequest({ status: 'success' }, mintCallbackToken('task1')), props);
 
         expect(res.status).toBe(404);
         expect(mockHandleTaskUpdate).not.toHaveBeenCalled();
     });
 
-    it('accepts the update with a valid callback token', async () => {
+    it('rejects a callback with no token at all', async () => {
         mockFindUnique.mockResolvedValue(TASK as never);
-        mockHandleTaskUpdate.mockResolvedValue(undefined as never);
 
-        const res = await POST(postRequest({ status: 'success' }, mintCallbackToken('task1')), props);
+        const res = await POST(postRequest({ status: 'success' }), props);
 
-        expect(res.status).toBe(200);
-        expect(mockHandleTaskUpdate).toHaveBeenCalled();
+        expect(res.status).toBe(401);
+        expect(mockHandleTaskUpdate).not.toHaveBeenCalled();
     });
 
-    it('rejects an invalid callback token without touching the task', async () => {
+    it('rejects a token minted for a different task', async () => {
         mockFindUnique.mockResolvedValue(TASK as never);
 
         const res = await POST(postRequest({ status: 'success' }, mintCallbackToken('other-task')), props);

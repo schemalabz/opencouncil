@@ -62,16 +62,13 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ ta
 }
 
 async function handleUpdateRequest(request: NextRequest, taskStatusId: string) {
+    // The task server is the only caller of this path, and startTask always
+    // hands it a tokenized URL. Accepting an untokenized callback would leave
+    // a forger the option of simply omitting the token.
     const token = request.nextUrl.searchParams.get('token');
-    if (token !== null) {
-        if (!verifyCallbackToken(taskStatusId, token)) {
-            return NextResponse.json({ error: 'Invalid callback token' }, { status: 401 });
-        }
-    } else {
-        // Tasks started before tokens were minted into callback URLs still
-        // post token-less; accept those during the rollout, visibly, until the
-        // in-flight tail drains and this branch can turn into a rejection.
-        console.warn(`Task callback without token for ${taskStatusId} — accepted during token rollout`);
+    if (!token || !verifyCallbackToken(taskStatusId, token)) {
+        console.warn(`Rejected task callback for ${taskStatusId}: ${token ? 'invalid' : 'missing'} token`);
+        return NextResponse.json({ error: 'Invalid callback token' }, { status: 401 });
     }
 
     const taskStatus = await getTaskStatusDirect(taskStatusId);
