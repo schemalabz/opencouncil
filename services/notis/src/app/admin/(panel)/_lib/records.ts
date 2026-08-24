@@ -1,5 +1,4 @@
-import { z } from "zod";
-import { primaryEvent, wakeEventSchema } from "@/agent/schemas";
+import { primaryEvent, wakeEventsSchema } from "@/agent/schemas";
 import { TemplateName } from "@/agent/templates";
 import { WakeEvent, WakeOutcome } from "@/agent/types";
 
@@ -113,8 +112,6 @@ export function readerMessagesOf(events: unknown[]): Array<{ at: string; text: s
     .map((e) => ({ at: e.at, text: e.text }));
 }
 
-const queueEventsSchema = z.array(wakeEventSchema);
-
 /** The queue-row slice the synthesis needs; matches NotisWakeQueue columns. */
 export interface QueueRowLike {
   id: string;
@@ -136,7 +133,7 @@ export interface QueueRowLike {
 export function queueBackedRecords(rows: QueueRowLike[], maxAttempts: number): WakeRecord[] {
   const out: WakeRecord[] = [];
   for (const row of rows) {
-    const parsed = queueEventsSchema.safeParse(row.events);
+    const parsed = wakeEventsSchema.safeParse(row.events);
     if (!parsed.success || parsed.data.length === 0) continue;
     const events = parsed.data;
     const state =

@@ -1,6 +1,5 @@
 import { seedProfileFromPreferences } from "@/agent/profileSeed";
 import type { WakeEvent } from "@/agent/types";
-import { isQuietHour } from "@/lib/active-hours";
 import { alert as sendAlert } from "@/lib/alert";
 import { BirdLike } from "@/lib/bird";
 import { ExtractedMessageFields } from "@/lib/bird-extract";
@@ -8,14 +7,13 @@ import { citiesForUser, findEnabledUserByPhone } from "@/lib/fanout";
 import { hasMainDb, mainDb } from "@/lib/main-db";
 import { normalizePhone } from "@/lib/phone";
 import {
-  SMS_HELD_FOR_QUIET_HOURS,
+  maybeSendSmsFallback,
   sendPendingMessages,
+  sendSmsAndRecord,
   suppressPendingOutbound,
 } from "@/lib/queue";
 import { enqueueLiveWake } from "@/lib/queue-core";
 import { STOP_ALREADY_TEXT, STOP_CONFIRMATION_TEXT, isBareStop } from "@/lib/stop";
-import { renderTemplate, type TemplateName } from "@/agent/templates";
-import { getProactiveSettings } from "@/lib/settings";
 import type {
   MessageStatus,
   NotisMessage,
@@ -38,6 +36,9 @@ export interface HandlerDeps {
   bird: BirdLike;
   alert?: (message: string) => Promise<void>;
 }
+
+const webhookAlert = (alert?: (message: string) => Promise<void>) =>
+  alert ?? ((message: string) => sendAlert("webhook", message));
 
 export type InboundResult =
   | { action: "ignored"; reason: string }
@@ -107,11 +108,13 @@ export async function handleOutboundStatus(
       if (existing.channel === "sms") {
         // The SMS WAS the fallback — there is no next channel. The reader
         // missed a notification; the operator hears about it.
-        await (deps.alert ?? ((m: string) => sendAlert("webhook", m)))(
+        await webhookAlert(deps.alert)(
           `SMS delivery failed for message ${existing.id}: ${fields.failureReason ?? "unknown error"}`,
         );
       } else {
-        await maybeSendSmsFallback(existing, deps);
+        // Any terminal WhatsApp failure — template news OR a freeform reply
+        // — continues over SMS: the conversation's second leg.
+        await maybeSendSmsFallback(deps.db, deps.bird, existing, webhookAlert(deps.alert));
       }
     }
     return { action: "status-updated" };
@@ -119,88 +122,6 @@ export async function handleOutboundStatus(
   return { action: "ignored", reason: "no forward progression" };
 }
 
-/**
- * The notify-only SMS fallback (PRD §6): when WhatsApp delivery of a
- * PROACTIVE template send fails, the same text goes out once as an SMS.
- * The sms row is inserted FIRST with fallbackForId unique on the failed
- * message — a replayed failure webhook loses the insert and stops, so one
- * failure can never fire two SMS. Skipped while paused; reactive replies
- * and freeform sends get no fallback (the reader is reachable on
- * WhatsApp — they just wrote to us there).
- *
- * Quiet hours hold it rather than drop it. Bird redelivers hours-old status
- * events and a handset can fail a message long after the send, so a template
- * that correctly went out at 22:40 can fail at 03:00 — and the fallback is
- * proactive, so it obeys the same 23:00-09:00 rail as everything else. The
- * row is written held; the sweeper releases it after the 09:00 boundary.
- */
-async function maybeSendSmsFallback(
-  failed: NotisMessage,
-  { db, bird, alert }: HandlerDeps,
-): Promise<void> {
-  if (
-    failed.channel !== "whatsapp" ||
-    failed.deliveryMode !== "template" ||
-    !failed.proactive ||
-    !failed.template
-  ) {
-    return;
-  }
-  const settings = await getProactiveSettings(db);
-  if (settings.paused) return;
-
-  const sub = await db.notisSubscription.findUnique({ where: { id: failed.subscriptionId } });
-  if (!sub?.phone || sub.status === "unsubscribed") return;
-
-  const rendered = renderTemplate(failed.template as TemplateName, failed.body);
-  const text = `${rendered.body}\n\n${rendered.footer}`;
-  const held = isQuietHour(new Date());
-
-  let smsId: string;
-  try {
-    const sms = await db.notisMessage.create({
-      data: {
-        subscriptionId: failed.subscriptionId,
-        wakeId: failed.wakeId,
-        direction: "outbound",
-        body: text,
-        channel: "sms",
-        proactive: failed.proactive,
-        // Replaces a proactive template send; the rails follow it.
-        railed: true,
-        fallbackForId: failed.id,
-        status: "pending",
-        ...(held ? { failureReason: SMS_HELD_FOR_QUIET_HOURS } : {}),
-      },
-      select: { id: true },
-    });
-    smsId = sms.id;
-  } catch (error) {
-    if ((error as { code?: string }).code === "P2002") return; // replayed webhook
-    throw error;
-  }
-
-  // Held rows leave here pending; the sweeper sends them at the release.
-  if (held) return;
-
-  const result = await bird.sendSms({ phone: sub.phone, text });
-  if (result.success) {
-    await db.notisMessage.update({
-      where: { id: smsId },
-      data: { status: "sent", birdMessageId: result.messageId },
-    });
-  } else {
-    // Never re-sent (the channels API has no idempotency key) — mark it
-    // and alert; the reader misses one notification, not a conversation.
-    await db.notisMessage.update({
-      where: { id: smsId },
-      data: { status: "failed", failureReason: (result.error ?? "unknown error").slice(0, 300) },
-    });
-    await (alert ?? ((m: string) => sendAlert("webhook", m)))(
-      `SMS fallback failed for message ${failed.id}: ${result.error ?? "unknown error"}`,
-    );
-  }
-}
 
 /**
  * Inbound SMS for a phone notis serves. SMS exists here because our own
@@ -436,7 +357,6 @@ async function handleBareStop(
     // The reader is talking to us over SMS — confirm there. Single attempt,
     // no idempotency key (the channels API has none); a lost confirmation
     // does not undo the unsubscribe, which committed above.
-    const notifyOps = alert ?? ((message: string) => sendAlert("webhook", message));
     if (!sub.phone) {
       await db.notisMessage.update({
         where: { id: replyId },
@@ -444,21 +364,15 @@ async function handleBareStop(
       });
       return { action: "stopped" };
     }
-    const result = await bird.sendSms({ phone: sub.phone, text: replyText });
-    await db.notisMessage.update({
-      where: { id: replyId },
-      data: result.success
-        ? { status: "sent", birdMessageId: result.messageId }
-        : {
-            status: "failed",
-            failureReason: (result.error ?? "unknown error").slice(0, 300),
-          },
-    });
-    if (!result.success) {
-      await notifyOps(
-        `ΣΤΟΠ confirmation SMS failed for ${sub.id}: ${result.error ?? "unknown error"}`,
-      );
-    }
+    await sendSmsAndRecord(
+      db,
+      bird,
+      replyId,
+      sub.phone,
+      replyText,
+      webhookAlert(alert),
+      `ΣΤΟΠ confirmation SMS failed for ${sub.id}`,
+    );
     return { action: "stopped" };
   }
 
@@ -467,7 +381,7 @@ async function handleBareStop(
     bird,
     [replyId],
     { id: sub.id, birdConversationId: fields.conversationId ?? sub.birdConversationId },
-    alert ?? ((message) => sendAlert("webhook", message)),
+    webhookAlert(alert),
   );
   return { action: "stopped" };
 }

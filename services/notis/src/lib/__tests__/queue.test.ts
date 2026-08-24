@@ -331,6 +331,36 @@ describe("processItem", () => {
     expect(bird.sends[0].text).toBe("Για την Κυψέλη λοιπόν...");
   });
 
+  it("answers over SMS when WhatsApp cannot carry the reply", async () => {
+    // The reader is SMS-only: their WhatsApp conversation never existed
+    // (cold template failed once; they reached us via the SMS fallback).
+    const db = makeFakeDb({ subscriptions: [{ ...SUB, birdConversationId: null }] });
+    seedClaim(db);
+    const bird = new FakeBird();
+
+    await processItem(ITEM, {
+      db,
+      bird,
+      deps: makeDeps(new FakeAnthropic(sendTurn)),
+      alert: async () => {},
+    });
+
+    // The WhatsApp leg failed; the SMS leg carried the answer, raw.
+    expect(bird.sends).toHaveLength(0);
+    expect(bird.smsSends).toHaveLength(1);
+    expect(bird.smsSends[0].text).toBe("Η απάντηση.");
+    const whatsappRow = db.store.messages.find(
+      (m) => m.direction === "outbound" && m.channel === "whatsapp",
+    )!;
+    expect(whatsappRow.status).toBe("failed");
+    const smsRow = db.store.messages.find((m) => m.channel === "sms")!;
+    expect(smsRow.status).toBe("sent");
+    expect(smsRow.fallbackForId).toBe(whatsappRow.id);
+    // The wake completed normally — the reader got their answer.
+    expect(db.store.wakes).toHaveLength(1);
+    expect(db.store.queue.get("q1")?.status).toBe("done");
+  });
+
   it("re-enqueues absorbed messages when the wake fails before any delivery", async () => {
     const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
     seedClaim(db);

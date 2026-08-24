@@ -8,7 +8,7 @@ import { TemplateName } from "@/agent/templates";
 import { hasNotisDb, notisDb } from "@/lib/db";
 import { citiesForUsers } from "@/lib/fanout";
 import { hasMainDb } from "@/lib/main-db";
-import { MAX_ATTEMPTS } from "@/lib/queue-core";
+import { LIVE_QUEUE_STATUSES, MAX_ATTEMPTS } from "@/lib/queue-core";
 import {
   CityMeta,
   MessageDelivery,
@@ -355,7 +355,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
   // reader's message exists before its wake does, and the thread must show
   // it (with the failure, if any) rather than go blank until the wake lands.
   const queueRows = await db.notisWakeQueue.findMany({
-    where: { subscriptionId: id, status: { in: ["pending", "running", "failed"] } },
+    where: { subscriptionId: id, status: { in: [...LIVE_QUEUE_STATUSES] } },
     orderBy: { createdAt: "asc" },
     select: {
       id: true,

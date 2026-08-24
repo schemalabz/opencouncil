@@ -20,6 +20,10 @@ import type { NotisWakeQueue, Prisma, PrismaClient } from "../../generated/clien
 export type Db = PrismaClient | Prisma.TransactionClient;
 
 export const MAX_ATTEMPTS = 3;
+
+/** The queue states that are (or were) live work — what the panel thread
+ *  and the evaluation export both mean by "still in the queue". */
+export const LIVE_QUEUE_STATUSES = ["pending", "running", "failed"] as const;
 // Reclaim threshold for crash recovery. With the Anthropic client capped at
 // 3 minutes per call (lib/anthropic.ts), a single hung turn cannot push an
 // alive wake past this on its own; a pathological full-length wake that
