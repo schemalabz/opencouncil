@@ -218,19 +218,43 @@ export async function runWake(
    * conversation well-formed.
    */
   const answerDanglingToolCalls = () => {
-    const last = messages[messages.length - 1] as { role?: string; content?: unknown };
-    if (last?.role !== "assistant" || !Array.isArray(last.content)) return;
-    const dangling = last.content.filter(isToolUseBlock);
-    if (dangling.length === 0) return;
-    repairs.push("dangling-tool-calls");
-    messages.push({
-      role: "user",
-      content: dangling.map((b) => ({
+    let repaired = false;
+    // Every assistant turn, not just the last one. The end_turn repair paths
+    // append the assistant turn and then a plain-text nudge, so a turn that
+    // carried tool calls is orphaned in the MIDDLE of the list — checking only
+    // the tail never saw it, and the request 400s on a message far behind.
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i] as { role?: string; content?: unknown };
+      if (msg.role !== "assistant" || !Array.isArray(msg.content)) continue;
+      const calls = msg.content.filter(isToolUseBlock);
+      if (calls.length === 0) continue;
+
+      const next = messages[i + 1] as { role?: string; content?: unknown } | undefined;
+      const answered = new Set<string>();
+      if (next?.role === "user" && Array.isArray(next.content)) {
+        for (const block of next.content) {
+          const b = block as { type?: string; tool_use_id?: string };
+          if (b?.type === "tool_result" && b.tool_use_id) answered.add(b.tool_use_id);
+        }
+      }
+      const missing = calls.filter((c) => !answered.has(c.id));
+      if (missing.length === 0) continue;
+
+      repaired = true;
+      const results = missing.map((b) => ({
         type: "tool_result",
         tool_use_id: b.id,
         content: "noted",
-      })),
-    });
+      }));
+      // tool_result blocks must lead their user message, so merge at the front
+      // rather than appending after the nudge text.
+      if (next?.role === "user" && Array.isArray(next.content)) {
+        next.content.unshift(...results);
+      } else {
+        messages.splice(i + 1, 0, { role: "user", content: results });
+      }
+    }
+    if (repaired) repairs.push("dangling-tool-calls");
   };
 
   try {
