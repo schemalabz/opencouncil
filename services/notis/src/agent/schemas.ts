@@ -58,6 +58,13 @@ export const cityPreferenceSchema = z.object({
   locations: z.array(preferenceLocationSchema),
 });
 
+/** One thing the agent owes the reader, as the prompt sees it. */
+export const commitmentSchema = z.object({
+  slug: z.string(),
+  what: z.string(),
+  since: z.string(),
+});
+
 /** One turn of the real WhatsApp thread — what actually reached the reader
  *  (sent/delivered/read outbound) and what they wrote (inbound). A suppressed
  *  or failed message never appears, so the agent cannot mistake a stopped send
@@ -89,6 +96,19 @@ export const wakeStateSchema = z.object({
    * DECISION_WINDOW entries.
    */
   decisions: z.array(decisionEntrySchema),
+  /**
+   * What the agent owes this reader and has not delivered yet. Unlike the two
+   * windows above, commitments never age out — they leave only when the agent
+   * resolves them. Defaulted rather than required: fixtures and saved
+   * playground states written before commitments existed must keep parsing.
+   */
+  commitments: z.array(commitmentSchema).default([]),
+  /**
+   * Everything that has aged out of both windows, folded into one running
+   * narrative by the compaction pass. Absent until a reader has enough history
+   * to compact.
+   */
+  memory: z.string().optional(),
 });
 
 export const editorialSubjectSchema = z.object({

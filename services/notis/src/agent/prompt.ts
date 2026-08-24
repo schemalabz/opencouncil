@@ -77,7 +77,10 @@ function renderBrief(brief: EditorialBrief, places: ReaderPlace[]): string {
  * something tag-shaped was typed.
  */
 export function neutralizeFences(text: string): string {
-  return text.replaceAll(/<(\/?)(reader_message|conversation|decisions)>/gi, "[$1$2]");
+  return text.replaceAll(
+    /<(\/?)(reader_message|conversation|decisions|commitments|memory)>/gi,
+    "[$1$2]",
+  );
 }
 
 export function renderEvent(event: WakeEvent, state: WakeState): string {
@@ -151,6 +154,15 @@ export function assembleUserTurn(state: WakeState, events: WakeEvent[], now: Dat
     .join("\n");
   const decisionsHeader = decisionsOmitted > 0 ? `(${decisionsOmitted} older entries omitted)\n` : "";
 
+  // Open promises, oldest first. These never age out of the prompt — that is
+  // the whole point of them: the decision log that mentions a promise in
+  // passing rolls away within days, and the reader still expects the answer.
+  // Defensive `?? []`: fixtures, eval cases and exported states are cast from
+  // JSON rather than parsed, so the schema default never runs for them.
+  const commitments = (state.commitments ?? [])
+    .map((c) => `[${c.slug}] since ${c.since} — ${neutralizeFences(c.what)}`)
+    .join("\n");
+
   return [
     `<user_profile>`,
     `Name: ${state.user.name}`,
@@ -162,6 +174,13 @@ export function assembleUserTurn(state: WakeState, events: WakeEvent[], now: Dat
     state.profile || "(empty — you have not learned anything about them yet)",
     `</taste_profile>`,
     ``,
+    `<commitments>`,
+    commitments || "(none open)",
+    `</commitments>`,
+    ``,
+    ...(state.memory
+      ? [`<memory>`, neutralizeFences(state.memory), `</memory>`, ``]
+      : []),
     `<conversation>`,
     conversationHeader +
       (conversation || "(empty — you have never written to or heard from this person)"),

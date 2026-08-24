@@ -26,6 +26,7 @@ export const shippedPrompts: Prompts = {
   system: fs.readFileSync(path.join(PROMPTS_DIR, "system.md"), "utf8"),
   contextPack: loadContextPack(),
   editorial: fs.readFileSync(path.join(PROMPTS_DIR, "editorial.md"), "utf8"),
+  compaction: fs.readFileSync(path.join(PROMPTS_DIR, "compaction.md"), "utf8"),
 };
 
 const sharedMcp = new McpClient(env.NOTIS_MCP_URL);
@@ -46,6 +47,7 @@ export function buildDeps(overrides: DepsOverrides = {}): Deps {
       system: overrides.promptOverride ?? shippedPrompts.system,
       contextPack: overrides.contextPackOverride ?? shippedPrompts.contextPack,
       editorial: shippedPrompts.editorial,
+      compaction: shippedPrompts.compaction,
     },
     config: {
       model: overrides.model ?? DEFAULT_CONFIG.model,

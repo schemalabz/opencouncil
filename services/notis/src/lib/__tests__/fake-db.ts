@@ -11,6 +11,25 @@ export type Row = Record<string, unknown>;
 
 /** Enough of Prisma's where semantics for the shapes the shells issue:
  *  scalar equality, in/notIn, createdAt gte/lt, and a one-level OR. */
+/** Commitment where-matching: ids, slug, subscription and the resolvedAt
+ *  null-check the open-list read and the expiry sweeps rely on. */
+function commitmentMatches(c: Row, where: Row | undefined): boolean {
+  if (!where) return true;
+  for (const [key, cond] of Object.entries(where)) {
+    if (cond === undefined) continue;
+    const value = c[key] ?? null;
+    if (typeof cond === "object" && cond !== null) {
+      const o = cond as { in?: unknown[]; not?: unknown; lt?: Date };
+      if (o.in && !o.in.includes(value)) return false;
+      if (o.not !== undefined && value === o.not) return false;
+      if (o.lt && !(value instanceof Date && value < o.lt)) return false;
+      continue;
+    }
+    if (value !== cond) return false;
+  }
+  return true;
+}
+
 function messageMatches(m: Row, where: Row | undefined): boolean {
   if (!where) return true;
   for (const [key, cond] of Object.entries(where)) {
@@ -23,11 +42,12 @@ function messageMatches(m: Row, where: Row | undefined): boolean {
     // `{ sendingAt: null }` has to match a row that simply has no claim.
     const value = m[key] ?? null;
     if (typeof cond === "object" && cond !== null) {
-      const c = cond as { gte?: Date; lt?: Date; lte?: Date; in?: unknown[]; notIn?: unknown[]; not?: unknown };
+      const c = cond as { gt?: Date; gte?: Date; lt?: Date; lte?: Date; in?: unknown[]; notIn?: unknown[]; not?: unknown };
       if (c.in && !c.in.includes(value)) return false;
       if (c.notIn && c.notIn.includes(value)) return false;
       if (c.not !== undefined && value === c.not) return false;
       const at = value as Date | null;
+      if (c.gt && !(at instanceof Date && at > c.gt)) return false;
       if (c.gte && !(at instanceof Date && at >= c.gte)) return false;
       if (c.lt && !(at instanceof Date && at < c.lt)) return false;
       if (c.lte && !(at instanceof Date && at <= c.lte)) return false;
@@ -50,6 +70,7 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
     messages: [] as Row[],
     wakes: [] as Row[],
     scheduled: [] as Row[],
+    commitments: [] as Row[],
     queue: new Map<string, Row>(),
     settings: new Map<string, Row>((seed.settings ?? []).map((r) => [r.key as string, r])),
     processedEvents: new Map<string, Row>(),
@@ -78,6 +99,24 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
         store.subscriptions.set(row.id as string, row);
         calls.push("subscription-created");
         return row;
+      },
+      // Compaction's compare-and-swap: matches on the watermark it read, so a
+      // second compaction that lost the race updates nothing.
+      updateMany: async ({ where, data }: { where: Row; data: Row }) => {
+        const w = where as { id?: string; memoryThrough?: Date | null };
+        const row = w.id ? store.subscriptions.get(w.id) : undefined;
+        if (!row) return { count: 0 };
+        if ("memoryThrough" in w) {
+          const current = (row.memoryThrough as Date | null) ?? null;
+          const expected = w.memoryThrough ?? null;
+          const same =
+            current instanceof Date && expected instanceof Date
+              ? current.getTime() === expected.getTime()
+              : current === expected;
+          if (!same) return { count: 0 };
+        }
+        Object.assign(row, data);
+        return { count: 1 };
       },
       update: async ({ where, data }: { where: { id: string }; data: Row }) => {
         const row = store.subscriptions.get(where.id)!;
@@ -114,8 +153,28 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
         const matching = store.messages.filter((m) => messageMatches(m, where));
         return matching.length ? matching[matching.length - 1] : null;
       },
-      findMany: async ({ where, select }: { where?: Row; select?: Row } = {}) => {
-        const rows = store.messages.filter((m) => messageMatches(m, where));
+      findMany: async ({
+        where,
+        select,
+        orderBy,
+        skip,
+        take,
+      }: {
+        where?: Row;
+        select?: Row;
+        orderBy?: { createdAt?: "asc" | "desc" };
+        skip?: number;
+        take?: number;
+      } = {}) => {
+        let rows = store.messages.filter((m) => messageMatches(m, where));
+        if (orderBy?.createdAt) {
+          const dir = orderBy.createdAt === "asc" ? 1 : -1;
+          rows = [...rows].sort(
+            (a, b) => dir * ((a.createdAt as Date).getTime() - (b.createdAt as Date).getTime()),
+          );
+        }
+        rows = rows.slice(skip ?? 0);
+        if (take !== undefined) rows = rows.slice(0, take);
         if (!select?.subscription) return rows;
         return rows.map((m) => ({
           ...m,
@@ -155,6 +214,8 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
       },
     },
     notisWake: {
+      count: async ({ where }: { where?: Row } = {}) =>
+        store.wakes.filter((w) => commitmentMatches(w, where)).length,
       create: async ({ data }: { data: Row }) => {
         const row: Row = { id: id("wake"), createdAt: new Date(), ...data };
         store.wakes.push(row);
@@ -162,13 +223,23 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
         return row;
       },
       // The decision-log read: newest first by eventAt, id as tiebreaker.
-      findMany: async ({ where, take }: { where?: Row; take?: number } = {}) => {
+      // Compaction reads the same rows ascending, and finds its cut with
+      // skip/take, so both are honoured here.
+      findMany: async ({
+        where,
+        orderBy,
+        skip,
+        take,
+      }: { where?: Row; orderBy?: { eventAt?: "asc" | "desc" }; skip?: number; take?: number } = {}) => {
+        const asc = orderBy?.eventAt === "asc";
         const sorted = store.wakes
           .filter((r) => messageMatches(r, where))
           .sort((a, b) => {
             const at = (b.eventAt as Date).getTime() - (a.eventAt as Date).getTime();
-            return at !== 0 ? at : (b.id as string).localeCompare(a.id as string);
-          });
+            const tie = at !== 0 ? at : (b.id as string).localeCompare(a.id as string);
+            return asc ? -tie : tie;
+          })
+          .slice(skip ?? 0);
         return take ? sorted.slice(0, take) : sorted;
       },
     },
@@ -238,6 +309,44 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
         return row;
       },
     },
+    notisCommitment: {
+      findMany: async ({ where, orderBy: _o, select: _s }: { where?: Row; orderBy?: unknown; select?: Row } = {}) =>
+        store.commitments
+          .filter((c) => commitmentMatches(c, where))
+          .sort((a, b) => (a.createdAt as Date).getTime() - (b.createdAt as Date).getTime()),
+      upsert: async ({
+        where,
+        create,
+        update,
+      }: {
+        where: { subscriptionId_slug: { subscriptionId: string; slug: string } };
+        create: Row;
+        update: Row;
+      }) => {
+        const key = where.subscriptionId_slug;
+        const existing = store.commitments.find(
+          (c) => c.subscriptionId === key.subscriptionId && c.slug === key.slug,
+        );
+        if (existing) {
+          Object.assign(existing, update);
+          return existing;
+        }
+        const row: Row = {
+          id: id("cmt"),
+          createdAt: new Date(),
+          resolvedAt: null,
+          ...create,
+        };
+        store.commitments.push(row);
+        calls.push("commitment-created");
+        return row;
+      },
+      updateMany: async ({ where, data }: { where?: Row; data: Row } = { data: {} }) => {
+        const rows = store.commitments.filter((c) => commitmentMatches(c, where));
+        for (const row of rows) Object.assign(row, data);
+        return { count: rows.length };
+      },
+    },
     notisWakeQueue: {
       create: async ({ data }: { data: Row }) => {
         const row: Row = {
@@ -293,6 +402,7 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
         messages: store.messages,
         wakes: store.wakes,
         scheduled: store.scheduled,
+        commitments: store.commitments,
         queue: store.queue,
         settings: store.settings,
         processedEvents: store.processedEvents,
@@ -304,6 +414,7 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
         store.messages = snapshot.messages;
         store.wakes = snapshot.wakes;
         store.scheduled = snapshot.scheduled;
+        store.commitments = snapshot.commitments;
         store.queue = snapshot.queue;
         store.settings = snapshot.settings;
         store.processedEvents = snapshot.processedEvents;

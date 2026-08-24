@@ -1,6 +1,6 @@
 import { FakeAnthropic, makeDeps, toolUse } from "../../agent/__tests__/helpers";
 import { MAX_ATTEMPTS, type ClaimedItem } from "../queue-core";
-import { processItem, resendStalePendingMessages } from "../queue";
+import { MAX_OPEN_COMMITMENTS, processItem, resendStalePendingMessages } from "../queue";
 import { type Row, makeFakeDb } from "./fake-db";
 import { FakeBird } from "./fake-bird";
 
@@ -602,5 +602,161 @@ describe("resendStalePendingMessages", () => {
 
     expect(bird.sends).toHaveLength(1);
     expect(db.store.messages[0].status).toBe("sent");
+  });
+});
+
+describe("commitments", () => {
+  const finishWith = (calls: Array<ReturnType<typeof toolUse>>) => [
+    { content: calls, stop_reason: "tool_use" as const },
+  ];
+
+  it("records and resolves inside the wake's own transaction", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    db.store.commitments.push({
+      id: "old",
+      subscriptionId: "sub1",
+      slug: "palia",
+      what: "Παλιά υπόσχεση.",
+      createdAt: new Date("2026-03-01T00:00:00.000Z"),
+      resolvedAt: null,
+    });
+    seedClaim(db);
+
+    await processItem(ITEM, {
+      db,
+      bird: new FakeBird(),
+      alert: async () => {},
+      deps: makeDeps(
+        new FakeAnthropic(
+          finishWith([
+            toolUse("t1", "resolve_commitment", { slug: "palia" }),
+            toolUse("t2", "record_commitment", { slug: "nea", what: "Νέα υπόσχεση." }),
+            toolUse("t3", "send_message", { text: "Εντάξει." }),
+            toolUse("t4", "finish_wake", {
+              rationale: "Έκλεισα τη μία, άνοιξα την άλλη.",
+              learnedSomethingLasting: false,
+              promisedFollowUp: true,
+            }),
+          ]),
+        ),
+      ),
+    });
+
+    const byslug = Object.fromEntries(db.store.commitments.map((c) => [c.slug, c]));
+    expect(byslug.palia.resolvedAt).toBeInstanceOf(Date);
+    expect(byslug.nea.resolvedAt).toBeNull();
+    expect(byslug.nea.what).toBe("Νέα υπόσχεση.");
+  });
+
+  it("re-recording a resolved slug reopens it and keeps its age", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    const born = new Date("2026-03-01T00:00:00.000Z");
+    db.store.commitments.push({
+      id: "c1",
+      subscriptionId: "sub1",
+      slug: "metro",
+      what: "Παλιό κείμενο.",
+      createdAt: born,
+      resolvedAt: new Date("2026-03-05T00:00:00.000Z"),
+    });
+    seedClaim(db);
+
+    await processItem(ITEM, {
+      db,
+      bird: new FakeBird(),
+      alert: async () => {},
+      deps: makeDeps(
+        new FakeAnthropic(
+          finishWith([
+            toolUse("t1", "record_commitment", { slug: "metro", what: "Το ξαναρώτησε." }),
+            toolUse("t2", "send_message", { text: "Θα το δω." }),
+            toolUse("t3", "finish_wake", {
+              rationale: "Το ξανάνοιξε.",
+              learnedSomethingLasting: false,
+              promisedFollowUp: true,
+            }),
+          ]),
+        ),
+      ),
+    });
+
+    const row = db.store.commitments[0];
+    expect(row.resolvedAt).toBeNull();
+    expect(row.what).toBe("Το ξαναρώτησε.");
+    expect(row.createdAt).toEqual(born);
+  });
+
+  it("caps the open list at five, evicting the oldest", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    for (let i = 0; i < MAX_OPEN_COMMITMENTS; i++) {
+      db.store.commitments.push({
+        id: `c${i}`,
+        subscriptionId: "sub1",
+        slug: `slug${i}`,
+        what: `Υπόσχεση ${i}.`,
+        createdAt: new Date(Date.UTC(2026, 2, i + 1)),
+        resolvedAt: null,
+      });
+    }
+    seedClaim(db);
+
+    await processItem(ITEM, {
+      db,
+      bird: new FakeBird(),
+      alert: async () => {},
+      deps: makeDeps(
+        new FakeAnthropic(
+          finishWith([
+            toolUse("t1", "record_commitment", { slug: "ekti", what: "Η έκτη." }),
+            toolUse("t2", "send_message", { text: "Το κρατάω." }),
+            toolUse("t3", "finish_wake", {
+              rationale: "Έκτη υπόσχεση.",
+              learnedSomethingLasting: false,
+              promisedFollowUp: true,
+            }),
+          ]),
+        ),
+      ),
+    });
+
+    const open = db.store.commitments.filter((c) => c.resolvedAt === null);
+    expect(open).toHaveLength(MAX_OPEN_COMMITMENTS);
+    // The oldest lost its place; the newest kept it.
+    expect(open.map((c) => c.slug)).not.toContain("slug0");
+    expect(open.map((c) => c.slug)).toContain("ekti");
+  });
+
+  it("an unsubscribe closes every open promise — none outlives the reader", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    db.store.commitments.push({
+      id: "c1",
+      subscriptionId: "sub1",
+      slug: "anoikti",
+      what: "Ανοιχτή υπόσχεση.",
+      createdAt: new Date("2026-03-01T00:00:00.000Z"),
+      resolvedAt: null,
+    });
+    seedClaim(db);
+
+    await processItem(ITEM, {
+      db,
+      bird: new FakeBird(),
+      alert: async () => {},
+      deps: makeDeps(
+        new FakeAnthropic(
+          finishWith([
+            toolUse("t1", "send_message", { text: "Γεια σου." }),
+            toolUse("t2", "unsubscribe_user", { reason: "το ζήτησε" }),
+            toolUse("t3", "finish_wake", {
+              rationale: "Απεγγραφή.",
+              learnedSomethingLasting: false,
+              promisedFollowUp: false,
+            }),
+          ]),
+        ),
+      ),
+    });
+
+    expect(db.store.commitments[0].resolvedAt).toBeInstanceOf(Date);
   });
 });

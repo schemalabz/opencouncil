@@ -25,6 +25,7 @@ interface Props {
   chatSim?: SimControls;
   inspectorSim?: InspectorSimActions;
   upcoming?: import("../_lib/conversations").UpcomingWake[];
+  commitments?: import("../_lib/conversations").CommitmentNote[];
 }
 
 export function ConversationView({
@@ -41,6 +42,7 @@ export function ConversationView({
   chatSim,
   inspectorSim,
   upcoming,
+  commitments,
 }: Props) {
   const selectedItem = records.find((q) => q.id === selectedId);
 
@@ -65,6 +67,7 @@ export function ConversationView({
             onSelect={onSelect}
             sim={chatSim}
             upcoming={upcoming}
+            commitments={commitments}
           />
         </div>
         <div className="min-h-0 overflow-hidden border-l">

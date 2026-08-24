@@ -26,6 +26,7 @@ export function makeState(overrides: Partial<WakeState> = {}): WakeState {
     profile: "Μένει στην Κυψέλη. Ενδιαφέρεται για αναπλάσεις και πάρκινγκ.",
     conversation: [],
     decisions: [],
+    commitments: [],
     ...overrides,
   };
 }
@@ -96,7 +97,7 @@ export function makeDeps(anthropic: AnthropicLike, overrides: Partial<Deps> = {}
     prompts: {
       system: "SYSTEM PROMPT",
       contextPack: "CONTEXT PACK",
-      editorial: "EDITORIAL PROMPT",
+      editorial: "EDITORIAL PROMPT", compaction: "COMPACT",
     },
     config: { model: "claude-sonnet-5", maxTurns: 8, mcpUrl: "https://example.test/mcp", effort: "low" as const },
     mcp: { call: async () => null },

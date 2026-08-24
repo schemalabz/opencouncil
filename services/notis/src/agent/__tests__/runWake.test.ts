@@ -102,6 +102,180 @@ describe("runWake", () => {
     expect(outcome.repairs).toEqual(["zero-send/finish"]);
   });
 
+  it("repair: a declared promise with no record_commitment gets one nudge", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "send_message", { text: "Θα σου πω μόλις μάθω κάτι." }),
+          toolUse("t2", "finish_wake", {
+            rationale: "Της υποσχέθηκα ενημέρωση.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: true,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [
+          toolUse("t3", "record_commitment", {
+            slug: "kypseli-metro",
+            what: "Να της πω αν προχωρήσει η ζημιά στο μετρό Κυψέλης.",
+          }),
+          toolUse("t4", "finish_wake", {
+            rationale: "Της υποσχέθηκα ενημέρωση και το κατέγραψα.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: true,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const { outcome, trace } = await runWake(
+      makeState(),
+      [{ type: "user_message", at: FIXED_NOW.toISOString(), text: "θα με ενημερώσεις;" }],
+      makeDeps(fake),
+    );
+
+    expect(outcome.repairs).toEqual(["promised/no-commitment"]);
+    expect(outcome.commitments?.record).toEqual([
+      { slug: "kypseli-metro", what: "Να της πω αν προχωρήσει η ζημιά στο μετρό Κυψέλης." },
+    ]);
+    expect(trace.turns[1].role).toBe("injected");
+    // The nudge must not double the send that already went out.
+    expect(outcome.messages).toEqual(["Θα σου πω μόλις μάθω κάτι."]);
+  });
+
+  it("no nudge when the promise was recorded, and none when nothing was promised", async () => {
+    const recorded = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "record_commitment", { slug: "plateia", what: "Να της πω για την πλατεία." }),
+          toolUse("t2", "send_message", { text: "Θα επανέλθω." }),
+          toolUse("t3", "finish_wake", {
+            rationale: "Καταγράφηκε.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: true,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const a = await runWake(
+      makeState(),
+      [{ type: "user_message", at: FIXED_NOW.toISOString(), text: "θα μου πεις;" }],
+      makeDeps(recorded),
+    );
+    expect(a.outcome.repairs ?? []).toEqual([]);
+
+    const nothing = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "send_message", { text: "Ορίστε η απάντηση." }),
+          toolUse("t2", "finish_wake", {
+            rationale: "Απάντησα, τίποτα ανοιχτό.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: false,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const b = await runWake(
+      makeState(),
+      [{ type: "user_message", at: FIXED_NOW.toISOString(), text: "τι έγινε;" }],
+      makeDeps(nothing),
+    );
+    expect(b.outcome.repairs ?? []).toEqual([]);
+    expect(b.outcome.commitments).toBeUndefined();
+  });
+
+  it("resolve_commitment on an unknown slug is an honest ack, never an error", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [toolUse("t1", "resolve_commitment", { slug: "den-yparxei" })],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [
+          toolUse("t2", "send_message", { text: "Εντάξει." }),
+          toolUse("t3", "finish_wake", {
+            rationale: "Δεν υπήρχε τέτοια υπόσχεση.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: false,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const { outcome } = await runWake(
+      makeState({ commitments: [{ slug: "allo", what: "Κάτι άλλο.", since: "2026-03-01" }] }),
+      [{ type: "user_message", at: FIXED_NOW.toISOString(), text: "άστο αυτό" }],
+      makeDeps(fake),
+    );
+
+    expect(outcome.decision).toBe("send");
+    expect(outcome.commitments?.resolve ?? []).toEqual([]);
+    // The fake records params by reference, so every entry shares one mutated
+    // message array — assert on the conversation as a whole.
+    expect(JSON.stringify(fake.requests[1].messages)).toContain("no commitment with that id");
+  });
+
+  it("a held turn commits nothing — not the send, not the commitment", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "record_commitment", { slug: "x", what: "Κάτι." }),
+          toolUse("t2", "resolve_commitment", { slug: "y" }),
+          toolUse("t3", "send_message", { text: "Απάντηση σε παλιό μήνυμα." }),
+          toolUse("t4", "finish_wake", {
+            rationale: "Απάντησα.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: true,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [
+          toolUse("t5", "send_message", { text: "Α, τότε άλλο πράγμα." }),
+          toolUse("t6", "finish_wake", {
+            rationale: "Απάντησα στο καινούριο.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: false,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    let calls = 0;
+    const delivered: string[] = [];
+    const { outcome } = await runWake(
+      makeState({ commitments: [{ slug: "y", what: "Παλιά υπόσχεση.", since: "2026-03-01" }] }),
+      [{ type: "user_message", at: FIXED_NOW.toISOString(), text: "παλιό" }],
+      {
+        ...makeDeps(fake),
+        // The pre-send probe only runs when there is a delivery channel.
+        deliver: async (t) => {
+          delivered.push(t);
+          return { ok: true };
+        },
+        // The newer message lands in the pre-send probe, so the turn is held
+        // rather than absorbed at its start.
+        absorb: async () =>
+          ++calls === 2
+            ? [{ type: "user_message" as const, at: FIXED_NOW.toISOString(), text: "άκυρο, ρωτάω αλλιώς" }]
+            : [],
+      },
+    );
+
+    // Only the re-decided turn's message survives; the held turn's commitment
+    // tool calls left no trace at all.
+    expect(outcome.messages).toEqual(["Α, τότε άλλο πράγμα."]);
+    expect(delivered).toEqual(["Α, τότε άλλο πράγμα."]);
+    expect(outcome.commitments).toBeUndefined();
+    expect(outcome.repairs).toContain("reader-update/held-sends");
+  });
+
   it("repair: a user question answered only in final text gets one nudge to send", async () => {
     const fake = new FakeAnthropic([
       { content: [text("Η απάντηση, γραμμένη κατά λάθος μόνο στο rationale.")], stop_reason: "end_turn" },

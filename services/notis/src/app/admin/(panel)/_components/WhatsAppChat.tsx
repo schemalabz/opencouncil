@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   AlarmClock,
   AlertCircle,
+  BookMarked,
   AlertTriangle,
   Check,
   CheckCheck,
@@ -22,7 +23,7 @@ import {
 import { Button } from "@opencouncil/ui/button";
 import { RenderedTemplate, introTemplateFor, renderTemplate } from "@/agent/templates";
 import { Countdown } from "./Countdown";
-import type { UpcomingWake } from "../_lib/conversations";
+import type { CommitmentNote, UpcomingWake } from "../_lib/conversations";
 import { fmtDateChip, fmtTime } from "../_lib/format";
 import { MessageDelivery, Origin, WakeRecord } from "../_lib/records";
 import { WA } from "../_lib/whatsapp";
@@ -51,6 +52,7 @@ interface Props {
   sim?: SimControls;
   /** The agent's un-fired scheduled wakes (DB-backed viewer only). */
   upcoming?: UpcomingWake[];
+  commitments?: CommitmentNote[];
 }
 
 /* WhatsApp visual constants (palette lives in ../_lib/whatsapp) */
@@ -441,6 +443,7 @@ export function WhatsAppChat({
   onSelect,
   sim,
   upcoming,
+  commitments,
 }: Props) {
   const threadRef = useRef<HTMLDivElement>(null);
   const busy = sim?.busy ?? false;
@@ -697,6 +700,32 @@ export function WhatsAppChat({
             </div>
           </div>
         )}
+        {/* What the agent owes this reader. Open promises read as live; a
+            resolved one stays a while so the panel can show it was kept. */}
+        {commitments?.map((c) => (
+          <div key={c.id} className="flex justify-center px-4 pt-1">
+            <div
+              className={`flex max-w-[85%] items-center gap-2.5 rounded-full border py-1.5 pl-3 pr-4 shadow-sm ${
+                c.resolvedAt
+                  ? "border-[#e9e9e4] bg-[#f4f4f1] opacity-60"
+                  : "border-[#e6e0d4] bg-[#fdf6ee]"
+              }`}
+            >
+              <BookMarked
+                className={`h-3.5 w-3.5 shrink-0 ${c.resolvedAt ? "text-[#8696a0]" : "text-orange"}`}
+              />
+              <span className="min-w-0 truncate text-[11.5px] text-[#54656f]">
+                {c.resolvedAt ? "το έκλεισε" : "υπόσχεση"} · «{c.what}»
+              </span>
+              <span className="shrink-0 text-[10.5px] text-[#8696a0]">
+                {new Date(c.resolvedAt ?? c.createdAt).toLocaleDateString("el-GR", {
+                  day: "numeric",
+                  month: "short",
+                })}
+              </span>
+            </div>
+          </div>
+        ))}
         {/* The agent's future: un-fired scheduled wakes, as system chips. */}
         {upcoming?.map((note) => (
           <div key={note.id} className="flex justify-center px-4 pt-1">

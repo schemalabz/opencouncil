@@ -45,7 +45,7 @@ describe("golden scenarios (recorded replay)", () => {
       const deps: Deps = {
         anthropic: replay,
         now: () => FIXED_NOW,
-        prompts: { system: "SYSTEM", contextPack: "PACK", editorial: "ED" },
+        prompts: { system: "SYSTEM", contextPack: "PACK", editorial: "ED", compaction: "COMPACT" },
         config: { model: "claude-sonnet-5", maxTurns: 8, mcpUrl: "https://opencouncil.gr/mcp", effort: "low" },
         mcp: { call: async () => null },
       };
@@ -89,6 +89,8 @@ describe("golden scenarios (recorded replay)", () => {
         expect(tools.map((t) => t.name).filter(Boolean)).toEqual([
           "web_fetch",
           "finish_wake",
+          "record_commitment",
+          "resolve_commitment",
           "send_message",
           "update_taste_profile",
           "schedule_wakeup",

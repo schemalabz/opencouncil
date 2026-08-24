@@ -42,6 +42,12 @@ export interface WakeOutcome {
   /** Present iff the model called update_taste_profile (last call wins). */
   profileRewrite?: string;
   scheduledWakes: Array<{ at: string; reason: string }>;
+  /** Commitments the wake opened and closed; applied by the shell, which owns
+   *  every side effect. Absent when the wake touched none. */
+  commitments?: {
+    record?: Array<{ slug: string; what: string }>;
+    resolve?: string[];
+  };
   unsubscribe?: { reason: string };
   /**
    * The wake errored AFTER at least one incremental delivery reached (or
@@ -149,6 +155,8 @@ export interface Prompts {
   system: string;
   contextPack: string;
   editorial: string;
+  /** The summariser that folds aged-out history into a reader's memory. */
+  compaction: string;
 }
 
 export type Effort = z.infer<typeof effortSchema>;
@@ -213,3 +221,17 @@ export const DECISION_WINDOW = 30;
 /** The most recent conversation turns the prompt renders. Messages outnumber
  *  wakes, so this window is wider than the decision log's. */
 export const CONVERSATION_WINDOW = 40;
+
+/** How much history past the watermark accumulates before compaction folds the
+ *  excess. The gap above each window is what the summariser gets to read. */
+export const COMPACT_WAKES_AT = 50;
+export const COMPACT_MESSAGES_AT = 60;
+/** Nothing younger than this is ever folded. Delivery statuses settle slowly
+ *  and unevenly — Bird redelivers hours-old events and a read receipt can
+ *  arrive long after the send — and the conversation only renders messages
+ *  that reached the reader. Folding a row whose status has not settled would
+ *  drop it from the summary AND from the window behind the watermark, losing
+ *  it for good. */
+export const COMPACT_SETTLE_MS = 12 * 60 * 60_000;
+/** A summary that keeps growing is not a summary. */
+export const MEMORY_MAX_CHARS = 4000;

@@ -52,6 +52,13 @@ model NotisSubscription {
   // preferences at enrollment, rewritten wholesale by update_taste_profile.
   profileText String
 
+  // Everything that has aged out of both live windows, folded into one running
+  // narrative by the compaction pass. `memoryThrough` is the watermark: every
+  // message and wake at or before it is covered here and is no longer read
+  // row-by-row, so the two never overlap.
+  memory        String?
+  memoryThrough DateTime?
+
   userName String?
 
   createdAt DateTime @default(now())
@@ -61,9 +68,37 @@ model NotisSubscription {
   messages       NotisMessage[]
   scheduledWakes NotisScheduledWake[]
   queueItems     NotisWakeQueue[]
+  commitments    NotisCommitment[]
 
   @@index([status])
   @@index([phone])
+}
+
+/// What the agent has promised this reader and still owes them.
+///
+/// This is NOT the retired journal (see 20260823130000): that table was a
+/// parallel narrative of things the message and wake rows already recorded. A
+/// promise is state that exists nowhere else — it has a lifecycle (open →
+/// resolved), the decision log mentions it only in passing and then rolls out
+/// of its 30-entry window, and the shell (not the model) detects when one is
+/// owed.
+model NotisCommitment {
+  id             String            @id @default(cuid())
+  subscription   NotisSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String
+
+  // Agent-chosen stable handle, e.g. "exarcheia-metro" — resolve_commitment
+  // addresses one by name, never by an index that shifts as the list changes.
+  slug String
+  what String
+
+  createdAt  DateTime  @default(now())
+  // Set when the agent delivered on it, or when the reader dropped it. The
+  // row survives for the panel; the janitor prunes it later.
+  resolvedAt DateTime?
+
+  @@unique([subscriptionId, slug])
+  @@index([subscriptionId, resolvedAt])
 }
 
 enum WakeDecision {

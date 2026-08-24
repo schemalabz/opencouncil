@@ -19,8 +19,73 @@ export const CLIENT_TOOLS = [
           type: "string",
           description: "The rationale, written for the operator, about the reader — never to them.",
         },
+        // Asking makes the model consider it. Prompt text alone told it to
+        // record what a reader reveals and moved a live eval from 0/6 to
+        // ~1/5: readers reveal far more than they declare, and the wake
+        // ends before anyone thinks about it. A required answer forces the
+        // thought, and the shell nudges once when the answer is yes but
+        // update_taste_profile was never called.
+        learnedSomethingLasting: {
+          type: "boolean",
+          description:
+            "Did this wake teach you something lasting about the reader — what they " +
+            "chase, where they live or work, how they want to be written to? Their " +
+            "questions and corrections count, not only what they declare. Answer " +
+            "honestly; if true, call update_taste_profile before finishing.",
+        },
+        // Same reason as the field above: the wake ends before anyone thinks
+        // about it. A promise lives in no other row, and the decision log that
+        // mentions it in passing rolls out of view within days.
+        promisedFollowUp: {
+          type: "boolean",
+          description:
+            "Did you tell the reader you would come back to them about something — " +
+            "«θα σου πω», «το κρατάω», «θα σε ενημερώσω»? Answer honestly; if true, " +
+            "call record_commitment before finishing, or the promise is forgotten.",
+        },
       },
-      required: ["rationale"],
+      required: ["rationale", "learnedSomethingLasting", "promisedFollowUp"],
+    },
+  },
+  {
+    name: "record_commitment",
+    description:
+      "Remember something you owe this reader — a follow-up you promised, an update " +
+      "they asked you to watch for. It stays in front of you on every future wake, " +
+      "however long the conversation gets, until you resolve it. Use it whenever you " +
+      "tell them you will come back to them.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        slug: {
+          type: "string",
+          description:
+            "A short stable handle in lowercase latin letters and hyphens, e.g. " +
+            "\"exarcheia-metro\" or \"kipos-road\". You address the commitment by this " +
+            "later. Reusing an existing slug replaces what it says.",
+        },
+        what: {
+          type: "string",
+          description:
+            "One sentence in Greek: what you will tell them, and what has to happen " +
+            "first. Written for you, not for them.",
+        },
+      },
+      required: ["slug", "what"],
+    },
+  },
+  {
+    name: "resolve_commitment",
+    description:
+      "Close a commitment by its slug — you delivered on it, or the reader no longer " +
+      "wants it. It leaves your list immediately. Say which of the two happened in " +
+      "your rationale.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        slug: { type: "string", description: "The slug of the commitment to close." },
+      },
+      required: ["slug"],
     },
   },
   {

@@ -86,6 +86,11 @@ export async function runWake(
   };
 
   const sent: string[] = [];
+  // Commitments opened and closed this wake. The shell applies them; the core
+  // stays free of side effects apart from deliver/absorb.
+  const commitmentsRecorded: Array<{ slug: string; what: string }> = [];
+  const commitmentsResolved: string[] = [];
+  let declaredPromise = false;
   // Reader messages that arrived mid-run and were absorbed into this wake —
   // their own queued wakes are consumed by deps.absorb, so answering them
   // here is not optional: nobody else will.
@@ -133,6 +138,10 @@ export async function runWake(
   // it, so any attempt at all makes a model re-run a duplicate risk.
   let deliveryAttempts = 0;
   let partialDeliveryError: string | undefined;
+  // finish_wake's own answer to "did this teach you something lasting?".
+  // A yes with no update_taste_profile earns one nudge — the same shape as
+  // the zero-send and stranded-prose repairs.
+  let declaredLearning = false;
   let profileRewrite: string | undefined;
   const scheduledWakes: Array<{ at: string; reason: string }> = [];
   let unsubscribe: { reason: string } | undefined;
@@ -175,6 +184,31 @@ export async function runWake(
   // wake (sends discarded, absorbed rows consumed, nothing pending). Two
   // grants bound the extension.
   let bonusTurns = 0;
+  /**
+   * The API rejects any request whose assistant turn carries `tool_use`
+   * blocks that the next message does not answer — and the whole wake dies
+   * with a 400 that every retry reproduces. The loop answers them on every
+   * path it knows about; this is the backstop for the ones it does not, seen
+   * in a live eval as «`tool_use` ids were found without `tool_result`
+   * blocks». Synthesizing the missing acks costs nothing and keeps the
+   * conversation well-formed.
+   */
+  const answerDanglingToolCalls = () => {
+    const last = messages[messages.length - 1] as { role?: string; content?: unknown };
+    if (last?.role !== "assistant" || !Array.isArray(last.content)) return;
+    const dangling = last.content.filter(isToolUseBlock);
+    if (dangling.length === 0) return;
+    repairs.push("dangling-tool-calls");
+    messages.push({
+      role: "user",
+      content: dangling.map((b) => ({
+        type: "tool_result",
+        tool_use_id: b.id,
+        content: "noted",
+      })),
+    });
+  };
+
   try {
   for (let turn = 0; turn < deps.config.maxTurns + bonusTurns; turn++) {
     if (deps.heartbeat && !(await deps.heartbeat())) {
@@ -184,6 +218,7 @@ export async function runWake(
       throw new Error("claim lost mid-wake — another worker owns this item now");
     }
     await absorbAtTurnStart();
+    answerDanglingToolCalls();
     const response = await deps.anthropic.create({
       model: deps.config.model,
       max_tokens: MAX_TOKENS,
@@ -206,13 +241,18 @@ export async function runWake(
       break;
     }
 
-    if (response.stop_reason === "pause_turn") {
-      // Server-side (MCP) loop paused mid-turn; append and continue as-is.
+    // A pause_turn carrying NO client tool calls is a server-side (MCP) loop
+    // pausing mid-turn: append and continue as-is. One that DOES carry them
+    // must be answered like any tool_use turn — leaving its tool_use blocks
+    // unanswered makes the next request malformed ("`tool_use` ids were found
+    // without `tool_result` blocks"), which 400s the wake into a retry that
+    // fails the same way.
+    if (response.stop_reason === "pause_turn" && !response.content.some(isToolUseBlock)) {
       messages.push({ role: "assistant", content: response.content });
       continue;
     }
 
-    if (response.stop_reason === "tool_use") {
+    if (response.stop_reason === "tool_use" || response.stop_reason === "pause_turn") {
       // Last look before bytes leave: if the reader wrote again while this
       // turn was streaming, hold its sends — the model re-decides with the
       // new message in hand instead of delivering a superseded answer.
@@ -268,6 +308,41 @@ export async function runWake(
             }
             profileRewrite = String(block.input.profile ?? "");
             break;
+          case "record_commitment": {
+            if (holdNote) {
+              ack = "held: re-decide after the reader update below";
+              break;
+            }
+            const slug = String(block.input.slug ?? "").trim();
+            const what = String(block.input.what ?? "").trim();
+            if (!slug || !what) {
+              ack = "ignored: a commitment needs both a slug and what you owe them";
+              break;
+            }
+            commitmentsRecorded.push({ slug, what });
+            ack = `noted: [${slug}] stays in front of you until you resolve it`;
+            break;
+          }
+          case "resolve_commitment": {
+            if (holdNote) {
+              ack = "held: re-decide after the reader update below";
+              break;
+            }
+            const slug = String(block.input.slug ?? "").trim();
+            // An unknown slug is a no-op with an honest ack, never an error:
+            // the model may misremember a handle, and failing the wake over it
+            // would be worse than telling it plainly.
+            const known =
+              (state.commitments ?? []).some((c) => c.slug === slug) ||
+              commitmentsRecorded.some((c) => c.slug === slug);
+            if (!slug || !known) {
+              ack = `no commitment with that id${slug ? ` (${slug})` : ""}`;
+              break;
+            }
+            commitmentsResolved.push(slug);
+            ack = `closed: [${slug}]`;
+            break;
+          }
           case "schedule_wakeup":
             // A held turn's schedule must not survive it: a follow-up
             // planned for a request the reader just changed would fire
@@ -307,6 +382,8 @@ export async function runWake(
               break;
             }
             rationale = String(block.input.rationale ?? "") || rationale;
+            declaredLearning = block.input.learnedSomethingLasting === true;
+            declaredPromise = block.input.promisedFollowUp === true;
             finished = true;
             ack = "wake recorded";
             break;
@@ -323,8 +400,32 @@ export async function runWake(
       // model pass — unless a repair is owed, in which case the nudge rides
       // along with the tool_results and the loop continues once.
       let nudge: string | undefined;
+      // Set by the branches that name their own repair; the fallthrough
+      // branches leave it unset and the shared block below picks the tag.
+      let repairTag: string | undefined;
       if (finished && !repaired) {
-        if (hasUserMessage && sent.length === 0 && !unsubscribe) {
+        if (declaredPromise && commitmentsRecorded.length === 0 && !unsubscribe) {
+          preNudgeRationale = rationale;
+          sentAtNudge = sent.length;
+          repairTag = "promised/no-commitment";
+          nudge =
+            "(system check) You answered that you promised the reader a follow-up, but " +
+            "you never called record_commitment — so nothing will remind you: the " +
+            "decision log rolls, and by the time the thing happens this exchange is out " +
+            "of view. Record it now with a short slug, then call finish_wake again. If " +
+            "you promised nothing after all, finish with promisedFollowUp false.";
+        } else if (declaredLearning && profileRewrite === undefined && !unsubscribe) {
+          preNudgeRationale = rationale;
+          sentAtNudge = sent.length;
+          repairTag = "declared-learning/no-profile";
+          nudge =
+            "(system check) You answered that this wake taught you something lasting " +
+            "about the reader, but you never called update_taste_profile — so it is " +
+            "about to be forgotten: the conversation and the decision log both roll. " +
+            "Write the durable part into the profile now (a few short sentences, taste " +
+            "not transcript), then call finish_wake again. If you were wrong and there " +
+            "is nothing lasting, finish with learnedSomethingLasting false.";
+        } else if (hasUserMessage && sent.length === 0 && !unsubscribe) {
           preNudgeRationale = rationale;
           sentAtNudge = sent.length;
           // When the answer sits stranded as prose, quote it back. Without the
@@ -363,7 +464,7 @@ export async function runWake(
         if (nudge) {
           repaired = true;
           finished = false;
-          repairs.push(strandedProse ? "stranded-prose/finish" : "zero-send/finish");
+          repairs.push(repairTag ?? (strandedProse ? "stranded-prose/finish" : "zero-send/finish"));
           recordInjected(nudge);
           strandedProse = undefined;
         }
@@ -487,6 +588,14 @@ export async function runWake(
     ...(finishWakeMissing ? { finishWakeMissing: true as const } : {}),
     ...(profileRewrite !== undefined ? { profileRewrite } : {}),
     scheduledWakes,
+    ...(commitmentsRecorded.length > 0 || commitmentsResolved.length > 0
+      ? {
+          commitments: {
+            ...(commitmentsRecorded.length > 0 ? { record: commitmentsRecorded } : {}),
+            ...(commitmentsResolved.length > 0 ? { resolve: commitmentsResolved } : {}),
+          },
+        }
+      : {}),
     ...(unsubscribe ? { unsubscribe } : {}),
     ...(partialDeliveryError !== undefined ? { partialDeliveryError } : {}),
   };
@@ -517,8 +626,25 @@ export function applyOutcome(
 ): WakeState {
   const ordered = [...events].sort((a, b) => a.at.localeCompare(b.at));
   const entry = buildDecisionEntry(ordered, outcome);
+  const resolved = new Set(outcome.commitments?.resolve ?? []);
+  const recorded = outcome.commitments?.record ?? [];
+  const existing = state.commitments ?? [];
+  const commitments = [
+    // Re-recording an existing slug replaces what it says and keeps its age.
+    ...existing
+      .filter((c) => !resolved.has(c.slug))
+      .map((c) => {
+        const update = recorded.find((r) => r.slug === c.slug);
+        return update ? { ...c, what: update.what } : c;
+      }),
+    ...recorded
+      .filter((r) => !existing.some((c) => c.slug === r.slug))
+      .map((r) => ({ slug: r.slug, what: r.what, since: ordered[ordered.length - 1].at })),
+  ];
+
   return {
     ...state,
+    commitments,
     profile: outcome.profileRewrite !== undefined ? outcome.profileRewrite : state.profile,
     conversation: [
       ...state.conversation,

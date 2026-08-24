@@ -190,6 +190,7 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
         profile,
         conversation: [{ at: startAt, from: "notis", text: rendered.body }],
         decisions: [],
+        commitments: [],
       };
       onComplete(
         {
