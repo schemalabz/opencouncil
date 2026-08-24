@@ -452,6 +452,39 @@ export interface PollDecisionsRequest extends TaskRequest {
             needsExtraction?: boolean;
         };
     }>;
+    /** The polled meeting's administrative-body name, for the (body, date) partition. */
+    administrativeBodyName?: string | null;
+    /** Fetch window, derived from the city's publication-lag history. Absent = tasks uses its legacy 45-day window. */
+    window?: { fromDate: string; toDate: string };
+    /**
+     * Reading-cache handshake, scoped by the WINDOW, not the meeting: every
+     * DecisionCandidate the city holds whose publishDate falls inside the poll
+     * window. Presence + readStatus decide whether tasks reads again;
+     * meetingDate decides which partition the decision belongs to.
+     */
+    knownDecisions?: Array<{ ada: string; meetingDate: string | null; readStatus: string }>;
+}
+
+/**
+ * A decision read in the poll window (issue #617). subjectId null = unplaced;
+ * rows declaring another meeting carry no matching fields.
+ */
+export interface PollDecisionsReadDecision {
+    ada: string;
+    title: string | null;
+    pdfUrl: string;
+    protocolNumber: string | null;   // Diavgeia's field, verbatim
+    publishDate: string | null;
+    meetingDate: string | null;
+    decisionNumber: string | null;
+    /** The deliberative body as the document states it. */
+    body?: string | null;
+    readStatus: string;
+    /** True when the reading was echoed from knownDecisions, not freshly read. */
+    fromKnown?: boolean;
+    subjectId: string | null;
+    confidence: number | null;
+    reasoning: string | null;
 }
 
 export interface PollDecisionsMatch {
@@ -462,10 +495,14 @@ export interface PollDecisionsMatch {
     protocolNumber: string; // e.g., "231/2025"
     publishDate: string; // ISO date when published on Diavgeia
     matchConfidence: number; // 0-1 confidence score
+    reasoning?: string | null; // resolver's stated reasoning for this match
 }
 
 export interface PollDecisionsResult {
+    /** Every decision read in the poll window. Absent from older tasks versions. */
+    decisions?: PollDecisionsReadDecision[];
     matches: PollDecisionsMatch[];
+    /** Always empty since #617 phase 3; read-and-ignored for older tasks versions. */
     reassignments: Array<{
         ada: string;
         fromSubjectId: string;

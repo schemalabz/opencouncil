@@ -123,6 +123,7 @@ export function makePersonWithRoles(overrides: {
 }
 
 export function makePollDecisionsResult(params: {
+    decisions?: PollDecisionsResult['decisions']
     matches?: PollDecisionsMatch[]
     reassignments?: PollDecisionsResult['reassignments']
     unmatchedSubjects?: PollDecisionsResult['unmatchedSubjects']
@@ -131,6 +132,7 @@ export function makePollDecisionsResult(params: {
     costs?: PollDecisionsResult['costs']
 }): PollDecisionsResult {
     return {
+        ...(params.decisions ? { decisions: params.decisions } : {}),
         matches: params.matches ?? [],
         reassignments: params.reassignments ?? [],
         unmatchedSubjects: params.unmatchedSubjects ?? [],
