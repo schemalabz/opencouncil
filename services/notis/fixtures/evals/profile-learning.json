@@ -1,0 +1,174 @@
+{
+  "name": "profile-learning",
+  "note": "A reader says where she works while asking a question. In production the agent used the street to search, answered well, and recorded nothing — 27 wakes, zero profile writes.",
+  "state": {
+    "user": {
+      "name": "Ο αναγνώστης",
+      "cities": [
+        {
+          "cityId": "athens",
+          "cityName": "Αθήνα",
+          "topics": [],
+          "locations": []
+        }
+      ]
+    },
+    "profile": "Έχει ενεργοποιήσει ειδοποιήσεις για Αθήνα. Θέματα που έχει επιλέξει: Διοίκηση, Περιβάλλον, Πολεοδομία, Προϋπολογισμός & Οικονομία, Συγκοινωνίες, Συμμετοχή & Ψηφιακά, Τουρισμός.",
+    "conversation": [
+      {
+        "at": "2026-08-23T18:10:26.173Z",
+        "from": "notis",
+        "text": "Οι ειδοποιήσεις του OpenCouncil αλλάζουν! Από εδώ και πέρα σου γράφω εγώ, ο Νότης, ο βοηθός του OpenCouncil. Θα σου στέλνω λιγότερα και πιο προσωπικά μηνύματα, μόνο όταν συμβαίνει κάτι που πραγματικά σε αφορά, και μπορείς να μου απαντάς και να με ρωτάς οτιδήποτε για τον δήμο σου. Τα email σου συνεχίζουν κανονικά."
+      },
+      {
+        "at": "2026-08-23T18:12:20.527Z",
+        "from": "reader",
+        "text": "Πώς ξέρεις αν κατι \"πραγματικα με αφορα\";"
+      },
+      {
+        "at": "2026-08-23T18:12:31.669Z",
+        "from": "notis",
+        "text": "Καλή ερώτηση. Ξεκινάω από τα θέματα και τις τοποθεσίες που έχεις επιλέξει στο προφίλ σου (π.χ. για την Αθήνα: Πολεοδομία, Περιβάλλον, Συγκοινωνίες κ.ά.) — αυτά είναι η βάση."
+      },
+      {
+        "at": "2026-08-23T18:12:31.677Z",
+        "from": "notis",
+        "text": "Πέρα από αυτό, κρίνω κι εγώ: αν κάτι συζητήθηκε πολύ ή αφορά όλη την πόλη, σου γράφω· αν είναι διαδικαστικό ή πρώτο βήμα μιας μακράς διαδικασίας, περιμένω να δω τι θα βγει. Και αν μου πεις «λιγότερα για Χ» ή «θέλω περισσότερα για Υ», το κρατάω και προσαρμόζομαι."
+      },
+      {
+        "at": "2026-08-23T18:12:35.240Z",
+        "from": "reader",
+        "text": "Ας γνωριστούμε"
+      },
+      {
+        "at": "2026-08-23T18:12:50.899Z",
+        "from": "reader",
+        "text": "got it"
+      },
+      {
+        "at": "2026-08-23T18:12:54.417Z",
+        "from": "notis",
+        "text": "Ευχαρίστως! Είμαι ο Νότης, ο βοηθός του OpenCouncil. Δουλειά μου είναι να παρακολουθώ τις συνεδριάσεις του δήμου σου —εδώ της Αθήνας— και να σου γράφω μόνο όταν κάτι πραγματικά σε αφορά, όχι για κάθε διαδικαστικό θέμα."
+      },
+      {
+        "at": "2026-08-23T18:12:54.421Z",
+        "from": "notis",
+        "text": "Μπορείς να με ρωτάς οτιδήποτε: τι αποφασίστηκε σε μια συνεδρίαση, τι είπε κάποιος σύμβουλος, πότε είναι η επόμενη συνεδρίαση — ακόμα και για άλλους δήμους, όχι μόνο την Αθήνα. Και όποτε θες λιγότερα ή περισσότερα για κάτι, απλά πες μου το."
+      },
+      {
+        "at": "2026-08-23T18:12:54.424Z",
+        "from": "notis",
+        "text": "Ό,τι σου στέλνω βασίζεται πάντα στο δημόσιο αρχείο των συνεδριάσεων, με link για να το δεις κι εσύ. Δες περισσότερα στο opencouncil.gr/explain αν σε ενδιαφέρει πώς δουλεύω."
+      },
+      {
+        "at": "2026-08-23T18:13:11.909Z",
+        "from": "reader",
+        "text": "διαβασα για το χωροταξικο του τουρισμου που περασε προσφατα, για ολη την ελλαδα - τι αλλαζει στην αθηνα;"
+      },
+      {
+        "at": "2026-08-23T18:13:40.266Z",
+        "from": "notis",
+        "text": "Καλή ερώτηση. Ο Δήμος Αθηναίων είχε στείλει δύο φορές τις προτάσεις του στη διαβούλευση για το χωροταξικό, αλλά -όπως είπε η αντιδήμαρχος Μαρία Ευαγγελίδου στο συμβούλιο- «όχι μόνο δεν εισακούστηκαν, αλλά χειροτέρεψαν ορισμένα πράγματα σε σχέση με τον ρόλο του ΓΠΣ»."
+      },
+      {
+        "at": "2026-08-23T18:13:40.271Z",
+        "from": "notis",
+        "text": "Το πιο συγκεκριμένο παράδειγμα που ανέφερε: αν το ειδικό χωροταξικό βγει όπως έχει, σε περιοχές αμιγούς κατοικίας γύρω από τον Λυκαβηττό θα επιτρέπονται αυτομάτως ξενοδοχεία -κάτι που ως τώρα δεν ίσχυε, αφού τα στρατηγικά σχέδια θα υπερισχύουν των τοπικών διαταγμάτων χρήσεων γης."
+      },
+      {
+        "at": "2026-08-23T18:13:40.273Z",
+        "from": "notis",
+        "text": "Στη συνεδρίαση της 25/5 η δημοτική σύμβουλος Δέσποινα Αλεβυζάκη έθεσε το θέμα λέγοντας ότι το σχέδιο «υπολείπεται σοβαρά των αναγκών» απέναντι στην ανεξέλεγκτη τουριστικοποίηση, χωρίς περιορισμούς ακόμα και σε κορεσμένες περιοχές του Δήμου. Δεν υπήρξε ακόμα απάντηση από το Υπουργείο. Δες όλη τη συζήτηση εδώ: https://opencouncil.gr/athens/may25_2026/subjects/cmpo0k2hw0fm913y4d7gg2m4w"
+      },
+      {
+        "at": "2026-08-23T18:14:38.853Z",
+        "from": "reader",
+        "text": "αυτο δεν ισχυει, τα στρατηγικα σχεδια ηδη υπερισχυουν των τοπικων διαταγματων χρησεων γης αρα αυτο που παρουσιαζεις ως αλλαγη δεν ειναι πραγ"
+      },
+      {
+        "at": "2026-08-23T18:14:58.258Z",
+        "from": "notis",
+        "text": "Δίκιο έχεις να το επισημάνεις — να το διευκρινίσω: αυτό δεν είναι δικό μου συμπέρασμα, είναι όπως το περιέγραψε η ίδια η αντιδήμαρχος Μαρία Ευαγγελίδου στη συνεδρίαση, μιλώντας για «κάτι πρωτοφανές» ως προς τον ρόλο του ΓΠΣ σε σχέση με το ειδικό χωροταξικό."
+      },
+      {
+        "at": "2026-08-23T18:14:58.262Z",
+        "from": "notis",
+        "text": "Δεν μπορώ να κρίνω εγώ αν έχει δίκιο νομικά σε σχέση με το πώς ίσχυε ήδη η ιεράρχηση στρατηγικών-τοπικών σχεδίων — αυτό είναι δική της τοποθέτηση, όχι επιβεβαιωμένο γεγονός από εμένα. Το ανέφερα ως καταγραφή του τι είπε, όχι ως ανεξάρτητο δεδομένο."
+      },
+      {
+        "at": "2026-08-23T18:15:23.389Z",
+        "from": "reader",
+        "text": "θελω να μου φερεις συγκεκριμενο παραδειγμα καποιας παραμετρου του χωροταξικου με το οποιο καποιος αυτοδιοικητικος διαφωνει"
+      },
+      {
+        "at": "2026-08-23T18:15:46.298Z",
+        "from": "notis",
+        "text": "Ορίστε το ακριβές παράδειγμα που έδωσε η ίδια η αντιδήμαρχος Μαρία Ευαγγελίδου στη συνεδρίαση: «Αν βγει αυτό το ειδικό χωροταξικό έτσι όπως είναι, στην περιοχή γύρω από τον Λυκαβηττό που έχουμε αμιγή κατοικία για να προστατεύεται ο λόφος, ή και σε άλλους λόφους όπου έχουμε αμιγή κατοικία, αυτομάτως επιτρέπονται ξενοδοχεία»."
+      },
+      {
+        "at": "2026-08-23T18:15:46.303Z",
+        "from": "notis",
+        "text": "Η ίδια το χαρακτήρισε ως κάτι πρωτοφανές: «Δεν έχει ξαναγίνει... τα στρατηγικά σχέδια ξαφνικά να δίνουν όρους δόμησης και να αλλοιώνουν διατάγματα χρήσεων γης». Αυτή είναι η δική της τοποθέτηση για το πώς αλλάζει η ιεράρχηση σχεδίων — δες το ακριβές σημείο εδώ: https://opencouncil.gr/athens/may25_2026?t=6086"
+      },
+      {
+        "at": "2026-08-23T18:16:05.793Z",
+        "from": "reader",
+        "text": "μαλιστα"
+      }
+    ],
+    "decisions": [
+      {
+        "at": "2026-08-23T18:12:20.525Z",
+        "event": "user_message",
+        "decision": "send",
+        "rationale": "Reader asked a direct clarifying question about how relevance is judged; answered plainly from the brief, no tool calls needed since this is meta about the service, not a factual claim about a city record."
+      },
+      {
+        "at": "2026-08-23T18:12:35.237Z",
+        "event": "user_message",
+        "decision": "send",
+        "rationale": "Reader asked to get acquainted after the intro; replied with a short, warm self-introduction covering scope, capabilities, and grounding, no tool calls needed since this is about identity/service, not a city fact."
+      },
+      {
+        "at": "2026-08-23T18:12:50.896Z",
+        "event": "user_message",
+        "decision": "silence",
+        "rationale": "Reader just acknowledged the introduction with \"got it\" — no question or new content requiring a response. Staying silent to avoid pestering after already sending three intro messages."
+      },
+      {
+        "at": "2026-08-23T18:13:11.906Z",
+        "event": "user_message",
+        "decision": "send",
+        "rationale": "Reader asked a direct, specific question tied to something she read about, matching her Τουρισμός/Πολεοδομία interests. Found two concrete Athens council subjects (April and May 2026) on this exact national framework, with quoted specifics about hotels being allowed near Lycabettus and the city's unanswered objections — grounded, relevant, worth a reply with links."
+      },
+      {
+        "at": "2026-08-23T18:14:38.850Z",
+        "event": "user_message",
+        "decision": "send",
+        "rationale": "Reader correctly caught that I presented a councillor's characterization of the change (ΓΠΣ role/hotels near Lycabettus) as if it were an established fact, when it's her own contested framing. Corrected by re-attributing the claim clearly to Ευαγγελίδου as her stated position rather than a verified legal fact, since I have no independent source to adjudicate the legal question of whether strategic plans already override local zoning."
+      },
+      {
+        "at": "2026-08-23T18:15:23.386Z",
+        "event": "user_message",
+        "decision": "send",
+        "rationale": "Reader pushed back correctly on a prior claim and asked for one concrete, specific example of disagreement — fetched the verbatim transcript and sent the exact quoted example (hotels near Lycabettus) clearly attributed to the deputy mayor as her characterization, not adjudicated as fact. This directly satisfies her request without overstepping into legal judgment."
+      },
+      {
+        "at": "2026-08-23T18:16:05.790Z",
+        "event": "user_message",
+        "decision": "silence",
+        "rationale": "Reader just replied with a bare acknowledgment (\"μάλιστα\") after receiving the requested quote and clarification — no question or new content to respond to. Staying silent to avoid over-messaging."
+      }
+    ]
+  },
+  "event": {
+    "at": "2026-08-23T18:16:36.150Z",
+    "text": "εγω δουλευω στα εξαρχεια, στην οδο σμολενσκη - μπορεις να μου πεις τρια πραγματα ππυ συζητιουνται στον δημο που θα αλλαξουν καπως τη ζωη μου",
+    "type": "user_message"
+  },
+  "expect": {
+    "decision": "send",
+    "profileWritten": true,
+    "profileMatches": "Σμολένσκη|Εξάρχει"
+  }
+}
