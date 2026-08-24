@@ -77,8 +77,10 @@ export async function assignCandidate(cityId: string, meetingId: string, candida
             },
         });
 
-        await tx.decisionCandidate.update({
-            where: { id: candidateId },
+        // Conditional terminal write: a dismissal that committed after the
+        // read above must win — count 0 rolls the created Decision back.
+        const linked = await tx.decisionCandidate.updateMany({
+            where: { id: candidateId, decisionId: null, dismissedAt: null },
             data: {
                 decisionId: decision.id,
                 // Record the accepted placement when the pipeline had no suggestion;
@@ -86,6 +88,7 @@ export async function assignCandidate(cityId: string, meetingId: string, candida
                 ...(candidate.subjectId ? {} : { subjectId }),
             },
         });
+        if (linked.count === 0) throw new Error('Candidate is already resolved');
     });
 }
 
@@ -185,15 +188,20 @@ export async function applyCandidateConflictResolution(
         if (!candidate) throw new Error('Candidate not found');
         if (candidate.decisionId || candidate.dismissedAt) return; // resolved concurrently — nothing to do
 
+        // Terminal writes below are conditional on the row still being
+        // unresolved: a dismissal or assignment that commits between the read
+        // above and the write must win, not be overwritten.
+        const unresolved = { id: candidateId, decisionId: null, dismissedAt: null };
+
         if (resolution === 'dismiss' || !candidate.subjectId) {
-            await tx.decisionCandidate.update({ where: { id: candidateId }, data: { dismissedAt: new Date() } });
+            await tx.decisionCandidate.updateMany({ where: unresolved, data: { dismissedAt: new Date() } });
             return;
         }
 
         // Only move the decision if the claiming subject doesn't already have one
         const existingOnClaiming = await tx.decision.findUnique({ where: { subjectId: candidate.subjectId } });
         if (existingOnClaiming) {
-            await tx.decisionCandidate.update({ where: { id: candidateId }, data: { dismissedAt: new Date() } });
+            await tx.decisionCandidate.updateMany({ where: unresolved, data: { dismissedAt: new Date() } });
             return;
         }
 
@@ -231,7 +239,8 @@ export async function applyCandidateConflictResolution(
                     createdById: holding.createdById,
                 },
             });
-            await tx.decisionCandidate.update({ where: { id: candidateId }, data: { decisionId: moved.id } });
+            const linkedMoved = await tx.decisionCandidate.updateMany({ where: unresolved, data: { decisionId: moved.id } });
+            if (linkedMoved.count === 0) throw new Error('Candidate was resolved concurrently');
         } else {
             // Holder vanished concurrently — plain assignment
             const created = await tx.decision.create({
@@ -246,7 +255,8 @@ export async function applyCandidateConflictResolution(
                     meetingDate: candidate.meetingDate,
                 },
             });
-            await tx.decisionCandidate.update({ where: { id: candidateId }, data: { decisionId: created.id } });
+            const linkedCreated = await tx.decisionCandidate.updateMany({ where: unresolved, data: { decisionId: created.id } });
+            if (linkedCreated.count === 0) throw new Error('Candidate was resolved concurrently');
         }
     });
 }
