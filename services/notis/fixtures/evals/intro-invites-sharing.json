@@ -1,0 +1,42 @@
+{
+  "name": "intro-invites-sharing",
+  "note": "The reader taps «Ας γνωριστούμε» on the transition template — the first real exchange, and the best chance to learn who they are. The reply should end by inviting them to share something about themselves (a link to their work or anything they care about), which web_fetch can then read into the profile. In production it introduced itself and stopped.",
+  "state": {
+    "user": {
+      "name": "Ο αναγνώστης",
+      "cities": [
+        {
+          "cityId": "athens",
+          "cityName": "Αθήνα",
+          "topics": [],
+          "locations": []
+        },
+        {
+          "cityId": "samothraki",
+          "cityName": "Σαμοθράκη",
+          "topics": [],
+          "locations": []
+        }
+      ]
+    },
+    "profile": "Έχει ενεργοποιήσει ειδοποιήσεις για Αθήνα. Χωρίς συγκεκριμένα θέματα ή περιοχές.\nΈχει ενεργοποιήσει ειδοποιήσεις για Σαμοθράκη. Χωρίς συγκεκριμένα θέματα ή περιοχές.",
+    "conversation": [
+      {
+        "at": "2026-08-24T09:44:37.517Z",
+        "from": "notis",
+        "text": "Οι ειδοποιήσεις του OpenCouncil αλλάζουν! Από εδώ και πέρα σου γράφω εγώ, ο Νότης, ο βοηθός του OpenCouncil. Θα σου στέλνω λιγότερα και πιο προσωπικά μηνύματα, μόνο όταν συμβαίνει κάτι που πραγματικά σε αφορά, και μπορείς να μου απαντάς και να με ρωτάς οτιδήποτε για τον δήμο σου. Τα email σου συνεχίζουν κανονικά."
+      }
+    ],
+    "decisions": []
+  },
+  "event": {
+    "at": "2026-08-24T09:44:58.521Z",
+    "text": "Ας γνωριστούμε",
+    "type": "user_message"
+  },
+  "expect": {
+    "decision": "send",
+    "lastMessageMatches": "[;?]\\s*$",
+    "messageMatches": "link|σύνδεσμ|στείλ|μοιράσου|πες μου|τι σε ενδιαφέρ|με τι ασχολ"
+  }
+}
