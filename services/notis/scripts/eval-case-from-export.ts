@@ -93,8 +93,35 @@ function stripAccents(text: string): string {
   return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-/** The pseudonym written over the reader's real name. */
-const ANON_NAME = "Εύα";
+/**
+ * The pseudonym written over the reader's real name.
+ *
+ * Chosen per export rather than fixed, because a fixed one silently fails on
+ * the reader who happens to share it: the scrub runs, replaces «Εύα» with
+ * «Εύα», and the real name survives looking exactly like a pseudonym. A human
+ * reviewing the fixture sees the expected placeholder and moves on, so the
+ * collision defeats the one check that would otherwise catch it.
+ *
+ * Any candidate whose stem matches a name token is skipped. The last entry is
+ * not a name at all, so the list cannot be exhausted.
+ */
+const PSEUDONYMS = ["Εύα", "Νίκη", "Άννα", "Μάρω", "Ο αναγνώστης"];
+
+function stemOf(token: string): string {
+  return stripAccents(token).toLowerCase().slice(0, Math.max(3, token.length - 1));
+}
+
+const ANON_NAME =
+  PSEUDONYMS.find(
+    (candidate) =>
+      !nameTokens.some((token) => {
+        const a = stemOf(token);
+        const b = stripAccents(candidate).toLowerCase();
+        // Collides if either contains the other's stem — «Εύα» must not stand
+        // in for «Ευα», «Εύας» or «Ευαγγελία».
+        return b.startsWith(a) || a.startsWith(stemOf(candidate));
+      }),
+  ) ?? "Ο αναγνώστης";
 
 function scrub<T>(value: T): T {
   if (nameTokens.length === 0) return value;
