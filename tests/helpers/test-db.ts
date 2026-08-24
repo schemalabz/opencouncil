@@ -72,7 +72,7 @@ export async function ensureTestDb(): Promise<{ databaseUrl: string }> {
     const POSTGRES_PASSWORD = 'test'
     const POSTGRES_DB = 'testdb'
 
-    const container = await new GenericContainer('postgis/postgis:15-3.3')
+    const container = await new GenericContainer('postgis/postgis:16-3.5')
         .withEnvironment({
             POSTGRES_USER,
             POSTGRES_PASSWORD,
