@@ -159,8 +159,13 @@ OpenCouncil uses a **decoupled async job processing system**:
 
 **Task types** in `src/lib/tasks/`:
 - `transcribe.ts` - Audio transcription
+- `fixTranscript.ts` - Automatic transcript correction
 - `summarize.ts` - AI-generated summaries
+- `processAgenda.ts` - Subject extraction from the agenda PDF
+- `generateHighlight.ts` - Highlight video rendering
 - `generateVoiceprint.ts` - Speaker voice recognition
+- `pollDecisions.ts` - Diavgeia decision polling
+- `registry.ts` - Task type to result handler map
 - `tasks.ts` - Task orchestration
 
 **Discord Integration**: Admin alerts for task events via `DISCORD_WEBHOOK_URL`
