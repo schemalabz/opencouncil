@@ -9,6 +9,8 @@ Data model: cities (municipalities) hold council meetings; each meeting has subj
 How to work:
 - For "what is happening in the councils lately", start with \`list_hot_subjects\` — every municipality at once, ranked by debate time.
 - Use the \`search\` tool to find subjects by topic, person, party, city or date range. Use \`list_cities\` / \`list_people\` to resolve names to IDs first. Omit the query text for a filter-only listing (e.g. everything a person spoke about, newest first).
+- A \`search\` query returns subjects ranked by relevance, not by date. The top hit is not the newest one, and a page of results is not the whole record — never read "not on page 1" as "does not exist".
+- For "when did this body last meet", use \`list_meetings\` with \`administrativeBodyIds\` and \`timeFilter: "past"\` — \`get_city\` lists the bodies and their ids. Without \`timeFilter\` the top row can be a meeting that has not happened yet. \`search\` cannot answer this at all: it ranks subjects, and carries no body filter.
 - For "what has the council discussed near this address", use \`list_nearby_subjects\` with lat/lng: subjects pinned within the radius come first with distances, then municipality-wide ones (distanceMeters null). It only scans recent meetings — report an empty list as "nothing since oldestMeetingScanned", not "nothing".
 - Use \`get_subject\` for a subject's details and \`get_subject_transcript\` for exactly what was said about it, with utterance IDs.
 - To find which subjects of a meeting mattered, rank \`get_meeting\`'s subjects by \`discussionSeconds\` (debate time) — agenda order says nothing about importance, and most items pass without discussion.

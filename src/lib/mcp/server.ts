@@ -72,9 +72,14 @@ export function registerOpenCouncilServer(server: McpServer) {
             _meta: category('discovery'),
             description:
                 'Full-text and semantic search over council meeting subjects (agenda items). ' +
-                'Filter by city, person, party, topic or date range. Omit the query to list ' +
-                'everything matching the filters, newest first — e.g. all subjects a person ' +
-                'spoke about, or all subjects in a date range. Returns compact results with URLs; ' +
+                'Filter by city, person, party, topic or date range. With a query, results are ' +
+                'ranked by relevance, not by date: the top hit is not the most recent match, and ' +
+                'absence from the first page is not absence from the record — page on, or widen ' +
+                'the filters, before concluding something does not exist. It ranks subjects, not ' +
+                'meetings, and cannot filter by administrative body — use list_meetings for that. ' +
+                'Omit the query to list everything matching the filters, newest first — e.g. all ' +
+                'subjects a person spoke about, or all subjects in a date range. ' +
+                'Returns compact results with URLs; ' +
                 'use get_subject / get_subject_transcript with a result id for details. `total` is ' +
                 'the search index\'s own match count — report it as approximate ("about N"), and ' +
                 'note it is omitted entirely when results had to be withheld.',
