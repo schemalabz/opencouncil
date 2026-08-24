@@ -1,8 +1,17 @@
 import { WakeEvent } from "../types";
+
+const BRIEF = {
+  cityId: "athens",
+  meetingId: "m",
+  generatedAt: "2026-07-29T18:00:00.000Z",
+  headline: "h",
+  subjects: [],
+};
 import {
   TEMPLATES,
   type TemplateName,
   isWindowOpen,
+  linkPathForEvent,
   linkPathFromText,
   renderTemplate,
   templateForEvent,
@@ -124,5 +133,41 @@ describe("link_path", () => {
     expect(linkPathFromText("https://example.com/athens/x")).toBeUndefined();
     // The bare domain has no path to send.
     expect(linkPathFromText("https://opencouncil.gr/")).toBeUndefined();
+  });
+});
+
+describe("linkPathForEvent", () => {
+  it("names the meeting for the two shells built around one", () => {
+    expect(
+      linkPathForEvent({
+        type: "meeting_summarized",
+        at: "2026-07-29T18:00:00.000Z",
+        cityId: "athens",
+        meetingId: "jul29_2_2026",
+        meetingName: "x",
+        meetingDate: "2026-07-29T12:00:00.000Z",
+        brief: BRIEF,
+      }),
+    ).toBe("athens/jul29_2_2026");
+    expect(
+      linkPathForEvent({
+        type: "agenda_processed",
+        at: "2026-07-14T18:00:00.000Z",
+        cityId: "chania",
+        meetingId: "jul15_2026",
+        meetingName: "x",
+        meetingDate: "2026-07-15T12:00:00.000Z",
+        brief: BRIEF,
+      }),
+    ).toBe("chania/jul15_2026");
+  });
+
+  it("has nothing to name for a scheduled follow-up", () => {
+    // Which is why the body link stays as the second source: this is the one
+    // template send with no meeting on its event.
+    expect(
+      linkPathForEvent({ type: "scheduled", at: "2026-07-29T18:00:00.000Z", reason: "r" }),
+    ).toBeUndefined();
+    expect(linkPathForEvent({ type: "heartbeat", at: "2026-07-29T18:00:00.000Z" })).toBeUndefined();
   });
 });

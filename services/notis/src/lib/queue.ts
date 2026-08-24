@@ -2,7 +2,12 @@ import { z } from "zod";
 import { decideDelivery } from "@/agent/delivery";
 import { runWake } from "@/agent/runWake";
 import { primaryEvent, wakeEventSchema, wakeEventsSchema } from "@/agent/schemas";
-import { linkPathFromText, renderTemplate, type TemplateName } from "@/agent/templates";
+import {
+  linkPathForEvent,
+  linkPathFromText,
+  renderTemplate,
+  type TemplateName,
+} from "@/agent/templates";
 import {
   CityPreference,
   CONVERSATION_WINDOW,
@@ -994,6 +999,34 @@ export async function sendPendingMessages(
  * guarantees free-form for those), so it bypasses the rails — which is what
  * lets a ΣΤΟΠ confirmation still reach a reader who just unsubscribed.
  */
+/**
+ * The meeting path for a message's wake, when its event names one. Costs one
+ * indexed read, and only on the template path — a freeform reply never asks.
+ * Any failure to resolve is a silent undefined: the caller falls back to the
+ * body link, and neither source is worth failing a send over.
+ */
+async function linkPathForMessage(
+  db: PrismaClient,
+  message: Pick<NotisMessage, "wakeId" | "deliveryMode">,
+): Promise<string | undefined> {
+  if (message.deliveryMode !== "template" || !message.wakeId) return undefined;
+  try {
+    const wake = await db.notisWake.findUnique({
+      where: { id: message.wakeId },
+      select: { event: true },
+    });
+    if (!wake?.event) return undefined;
+    const parsed = wakeEventSchema.safeParse(wake.event);
+    return parsed.success ? linkPathForEvent(parsed.data) : undefined;
+  } catch {
+    // Deliberately swallowed. This lookup only chooses between two link
+    // paths; the caller has a fallback for both. Letting it throw would fail
+    // a message that is otherwise ready to send, which is the outcome this
+    // whole change exists to prevent.
+    return undefined;
+  }
+}
+
 export async function deliverPendingMessage(
   db: PrismaClient,
   bird: BirdLike,
@@ -1043,11 +1076,13 @@ export async function deliverPendingMessage(
     );
   }
 
-  // The dynamic URL button takes the path the agent already linked to, so the
-  // button and the text land on the same page. bird.ts substitutes a safe
-  // default if this is undefined — a shell that declares {{link_path}} and
+  // The dynamic URL button. The wake's own event is the first source — it
+  // names the meeting deterministically, which is what these shells were
+  // built around. A scheduled follow-up names no meeting, so there the link
+  // the agent wrote into the body is all there is. bird.ts substitutes a real
+  // page if both come back empty: a shell that declares {{link_path}} and
   // does not receive it is a terminal 422, not a retry.
-  const linkPath = linkPathFromText(message.body);
+  const linkPath = (await linkPathForMessage(db, message)) ?? linkPathFromText(message.body);
 
   if (sub.birdConversationId) {
     const result = await bird.sendTemplate({

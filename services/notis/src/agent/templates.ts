@@ -210,12 +210,32 @@ export function isWindowOpen(lastUserMessageAt: string | undefined, now: Date): 
 /**
  * The path AFTER https://opencouncil.gr/ for a template's URL button.
  *
- * Taken from the link the agent already wrote into the message, so the button
- * and the text point at the same place. The shells that need one are exactly
- * the ones that talk about a specific meeting or subject, and the prompt tells
- * the agent to include that link — so the body is the most accurate source
- * available at send time, and needs no extra column.
+ * Two sources, in this order:
+ *
+ * 1. The wake's event, when it names a meeting. Deterministic, always
+ *    present, and it matches what the shells were built for — every example
+ *    value in Bird is a meeting path («athens/jul15_2026»). The meeting page
+ *    also contains every subject the message mentions, so it is never the
+ *    wrong destination, only a less specific one.
+ * 2. The link the agent wrote into the body, for a scheduled follow-up, whose
+ *    event names no meeting and so has no first source.
+ *
+ * The body is deliberately the fallback rather than the primary. Reading it
+ * first meant a message covering two subjects silently pointed its button at
+ * whichever the agent happened to mention first.
  */
+export function linkPathForEvent(event: WakeEvent): string | undefined {
+  switch (event.type) {
+    case "agenda_processed":
+    case "meeting_summarized":
+      return `${event.cityId}/${event.meetingId}`;
+    default:
+      // scheduled and heartbeat carry no meeting; user_message never sends a
+      // template at all.
+      return undefined;
+  }
+}
+
 const OPENCOUNCIL_LINK = /https?:\/\/(?:www\.)?opencouncil\.gr\/([^\s)\]»,;]+)/i;
 
 export function linkPathFromText(text: string): string | undefined {

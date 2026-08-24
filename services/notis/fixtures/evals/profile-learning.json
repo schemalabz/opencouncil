@@ -1,6 +1,6 @@
 {
   "name": "profile-learning",
-  "note": "A reader says where she works while asking a question. In production the agent used the street to search, answered well, and recorded nothing — 27 wakes, zero profile writes.",
+  "note": "A reader says where she works while asking a question. In production the agent used the street to search, answered well, and recorded nothing — 27 wakes, zero profile writes. The reader's workplace is held at neighbourhood level: a street name is not needed to test that he learns where they work, and these files are public.",
   "state": {
     "user": {
       "name": "Ο αναγνώστης",
@@ -163,12 +163,12 @@
   },
   "event": {
     "at": "2026-08-23T18:16:36.150Z",
-    "text": "εγω δουλευω στα εξαρχεια, στην οδο σμολενσκη - μπορεις να μου πεις τρια πραγματα ππυ συζητιουνται στον δημο που θα αλλαξουν καπως τη ζωη μου",
+    "text": "εγω δουλευω στα εξαρχεια - μπορεις να μου πεις τρια πραγματα ππυ συζητιουνται στον δημο που θα αλλαξουν καπως τη ζωη μου",
     "type": "user_message"
   },
   "expect": {
     "decision": "send",
     "profileWritten": true,
-    "profileMatches": "Σμολένσκη|Εξάρχει"
+    "profileMatches": "Εξάρχει"
   }
 }
