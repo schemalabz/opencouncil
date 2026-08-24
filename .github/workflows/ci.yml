@@ -58,6 +58,9 @@ jobs:
   integration:
     name: Integration (testcontainers)
     runs-on: ubuntu-latest
+    # The suite runs in about two minutes. A container that never becomes
+    # ready would otherwise hold the runner for the six-hour default.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
 
