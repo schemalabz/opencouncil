@@ -304,8 +304,12 @@ export async function mcpListMeetings(
         includeUnreleased: await canSeeUnreleased(identity, cityId),
         page: options.page,
         pageSize: options.pageSize,
-        from: options.from ? new Date(options.from) : undefined,
-        to: options.to ? new Date(options.to) : undefined,
+        from: options.from ? new Date(`${options.from}T00:00:00.000Z`) : undefined,
+        // `to` is documented as inclusive, and the underlying filter is `lte`
+        // against a timestamp — so the bound has to be the end of that day.
+        // Parsed as a bare date it lands on midnight and drops every meeting
+        // held later that day.
+        to: options.to ? new Date(`${options.to}T23:59:59.999Z`) : undefined,
         timeFilter: options.timeFilter,
         administrativeBodyIds: options.administrativeBodyIds,
         administrativeBodyTypes: options.administrativeBodyTypes,
