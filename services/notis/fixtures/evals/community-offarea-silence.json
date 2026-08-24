@@ -1,0 +1,207 @@
+{
+  "name": "community-offarea-silence",
+  "note": "A REAL 7η Δημοτική Κοινότητα meeting (jul29_2026) in Αμπελόκηποι — six ωράριο μουσικής decisions for bars, plus branch collection after a storm. Topically this is her bullseye: bar noise and cleanliness. Geographically it is another community, ~2.5km from Ανθίμου Γαζή, and these are that community's own licensing decisions. The correct answer is silence, and this is the case most likely to break if the citywide rule is written too loosely.",
+  "state": {
+    "user": {
+      "name": "Ο αναγνώστης",
+      "cities": [
+        {
+          "cityId": "athens",
+          "cityName": "Αθήνα",
+          "topics": [
+            "Αθλητισμός",
+            "Δημόσια Ασφάλεια",
+            "Διοίκηση",
+            "Εμπόριο & Καταστήματα",
+            "Ζώα & Αδέσποτα",
+            "Καθαριότητα & Απορρίμματα",
+            "Παιδεία",
+            "Περιβάλλον",
+            "Πολεοδομία",
+            "Πολιτισμός",
+            "Πρόνοια",
+            "Προϋπολογισμός & Οικονομία",
+            "Συγκοινωνίες",
+            "Συμμετοχή & Ψηφιακά",
+            "Τουρισμός"
+          ],
+          "locations": [
+            {
+              "text": "Ανθίμου Γαζή, Αθήνα",
+              "lng": 23.7325,
+              "lat": 37.9842
+            }
+          ]
+        }
+      ]
+    },
+    "profile": "Μένει στην Ανθίμου Γαζή, στο κέντρο της Αθήνας, σε πολυκατοικία κοντά σε μπαράκια και νυχτερινή ζωή. Ενδιαφέρεται ιδιαίτερα για: καθαριότητα, ηχορύπανση από μπαράκια/καταστήματα εστίασης-αναψυχής, στάθμευση/παρκάρισμα στη γειτονιά της. Γενικά θέματα ενδιαφέροντος από εγγραφή: Αθλητισμός, Δημόσια Ασφάλεια, Διοίκηση, Εμπόριο & Καταστήματα, Ζώα & Αδέσποτα, Καθαριότητα & Απορρίμματα, Παιδεία, Περιβάλλον, Πολεοδομία, Πολιτισμός, Πρόνοια, Προϋπολογισμός & Οικονομία, Συγκοινωνίες, Συμμετοχή & Ψηφιακά, Τουρισμός. Δώσε προτεραιότητα σε ό,τι αφορά την περιοχή γύρω από την Ανθίμου Γαζή και ειδικά καθαριότητα/θόρυβο/πάρκινγκ.",
+    "conversation": [
+      {
+        "at": "2026-08-24T13:51:18.249Z",
+        "from": "notis",
+        "text": "Οι ειδοποιήσεις του OpenCouncil αλλάζουν! Από εδώ και πέρα σου γράφω εγώ, ο Νότης, ο βοηθός του OpenCouncil. Θα σου στέλνω λιγότερα και πιο προσωπικά μηνύματα, μόνο όταν συμβαίνει κάτι που πραγματικά σε αφορά, και μπορείς να μου απαντάς και να με ρωτάς οτιδήποτε για τον δήμο σου. Τα email σου συνεχίζουν κανονικά."
+      },
+      {
+        "at": "2026-08-24T13:55:08.004Z",
+        "from": "reader",
+        "text": "Ας γνωριστούμε"
+      },
+      {
+        "at": "2026-08-24T13:55:18.620Z",
+        "from": "notis",
+        "text": "Γεια σου Εύα! Είμαι ο Νότης — παρακολουθώ το δημοτικό συμβούλιο της Αθήνας (και όποιον άλλο δήμο σε ενδιαφέρει) και σου γράφω μόνο όταν κάτι πραγματικά αξίζει την προσοχή σου, όχι κάθε φορά που γίνεται συνεδρίαση."
+      },
+      {
+        "at": "2026-08-24T13:55:18.905Z",
+        "from": "notis",
+        "text": "Βλέπω ότι σε ενδιαφέρει η περιοχή γύρω από την Ανθίμου Γαζή. Μένεις ή δουλεύεις εκεί, και υπάρχει κάτι συγκεκριμένο στη γειτονιά που σε απασχολεί — κυκλοφορία, καθαριότητα, κάτι άλλο;"
+      },
+      {
+        "at": "2026-08-24T13:57:33.839Z",
+        "from": "reader",
+        "text": "Μένω στην Ανθίμου Γαζή, σε πολυκατοικία δίπλα σε μπαράκια\nΜε ενδιαφέρει η καθαριότητα ,η ηχορύπανση από τα μπαράκια ,η στάθμευση"
+      },
+      {
+        "at": "2026-08-24T13:57:55.007Z",
+        "from": "notis",
+        "text": "Κατάλαβα — καθαριότητα, ηχορύπανση από μπαράκια και στάθμευση γύρω από την Ανθίμου Γαζή. Θα κρατάω το μάτι μου ανοιχτό σε ό,τι περνάει από δημοτικό συμβούλιο ή επιτροπή για αυτά, ειδικά ό,τι αφορά την περιοχή σου, και θα σου γράφω μόνο όταν βγαίνει κάτι ουσιαστικό (απόφαση, ρύθμιση, νέος κανόνας ωραρίου κ.λπ.)."
+      }
+    ],
+    "decisions": [
+      {
+        "at": "2026-08-24T13:55:08.000Z",
+        "event": "user_message",
+        "decision": "send",
+        "rationale": "Reader tapped the «Ας γνωριστούμε» intro button; introduced myself briefly and asked an open question about her connection to Ανθίμου Γαζή and what she cares about, to seed the taste profile with her actual answer."
+      },
+      {
+        "at": "2026-08-24T13:57:33.835Z",
+        "event": "user_message",
+        "decision": "send",
+        "rationale": "Reader answered the get-to-know question with concrete, durable info: lives on Ανθίμου Γαζή, manages a property there, cares specifically about cleanliness, noise from bars, and parking. Saved this into her taste profile so future wakes prioritize these exact subtopics near her street, and confirmed back to her that I'll watch for it."
+      }
+    ]
+  },
+  "event": {
+    "type": "meeting_summarized",
+    "at": "2026-07-29T20:00:00.000Z",
+    "cityId": "athens",
+    "meetingId": "jul29_2026",
+    "meetingName": "Συνεδρίαση 29/07/26",
+    "meetingDate": "2026-07-29T15:30:00.000Z",
+    "adminBody": "7η Δημοτική Κοινότητα",
+    "brief": {
+      "cityId": "athens",
+      "meetingId": "jul29_2026",
+      "generatedAt": "2026-07-29T20:00:00.000Z",
+      "headline": "Η 7η Κοινότητα ενέκρινε παρατάσεις ωραρίου μουσικής σε πέντε καταστήματα των Αμπελοκήπων και συζήτησε την αποκομιδή κλαδιών μετά την κακοκαιρία.",
+      "meetingUrl": "https://opencouncil.gr/athens/jul29_2026",
+      "subjects": [
+        {
+          "subjectId": "cmryt6j6801ts6c6lgicy0rml",
+          "name": "Ωράριο μουσικής αναψυκτηρίου Ριανκούρ 19",
+          "topicLabels": [
+            "Εμπόριο & Καταστήματα"
+          ],
+          "discussionSeconds": 278,
+          "scores": {
+            "hyperlocal": 4,
+            "citywide": 1,
+            "contention": 2,
+            "novelty": 1,
+            "money": 0
+          },
+          "note": "Παράταση ωραρίου μουσικής παρά δύο εκκρεμείς μηνύσεις στην προηγούμενη επωνυμία.",
+          "locationHints": [
+            "Λουίζης Ριανκούρ 19, Αμπελόκηποι"
+          ],
+          "location": {
+            "text": "Λουίζης Ριανκούρ 19, Αμπελόκηποι",
+            "lng": 23.760514,
+            "lat": 37.9904062
+          },
+          "url": "https://opencouncil.gr/athens/jul29_2026/subjects/cmryt6j6801ts6c6lgicy0rml"
+        },
+        {
+          "subjectId": "cmryt6j7e01tv6c6lee7sdlcd",
+          "name": "Ωράριο μουσικής PHOS BAR Πανόρμου 113",
+          "topicLabels": [
+            "Εμπόριο & Καταστήματα"
+          ],
+          "discussionSeconds": 67,
+          "scores": {
+            "hyperlocal": 4,
+            "citywide": 1,
+            "contention": 1,
+            "novelty": 1,
+            "money": 0
+          },
+          "note": "Παράταση ωραρίου με μία εκκρεμή μήνυση.",
+          "locationHints": [
+            "Πανόρμου 113, Αμπελόκηποι"
+          ],
+          "location": {
+            "text": "Πανόρμου 113, Αμπελόκηποι",
+            "lng": 23.7651407,
+            "lat": 37.9934072
+          },
+          "url": "https://opencouncil.gr/athens/jul29_2026/subjects/cmryt6j7e01tv6c6lee7sdlcd"
+        },
+        {
+          "subjectId": "cms7lajyg0jxwfq37sfb8tgau",
+          "name": "Αποκομιδή κλαδιών μετά την κακοκαιρία",
+          "topicLabels": [
+            "Καθαριότητα & Απορρίμματα"
+          ],
+          "discussionSeconds": 204,
+          "scores": {
+            "hyperlocal": 4,
+            "citywide": 1,
+            "contention": 2,
+            "novelty": 1,
+            "money": 0
+          },
+          "note": "Μία εβδομάδα μετά την κακοκαιρία παραμένουν σπασμένα κλαδιά στην κοινότητα.",
+          "locationHints": [
+            "7η Δημοτική Κοινότητα"
+          ],
+          "location": {
+            "text": "7η Δημοτική Κοινότητα",
+            "lng": 23.7142158,
+            "lat": 37.9954539
+          },
+          "url": "https://opencouncil.gr/athens/jul29_2026/subjects/cms7lajyg0jxwfq37sfb8tgau"
+        },
+        {
+          "subjectId": "cmryt6j5l01tr6c6lie2y8lpt",
+          "name": "Μετατόπιση περιπτέρου στη Λ. Αλεξάνδρας",
+          "topicLabels": [
+            "Εμπόριο & Καταστήματα"
+          ],
+          "discussionSeconds": 312,
+          "scores": {
+            "hyperlocal": 4,
+            "citywide": 0,
+            "contention": 2,
+            "novelty": 1,
+            "money": 1
+          },
+          "note": "Μετατόπιση περιπτέρου 45 ετών μετά τον θάνατο του δικαιούχου.",
+          "locationHints": [
+            "Λεωφόρος Αλεξάνδρας 197"
+          ],
+          "location": {
+            "text": "Λεωφόρος Αλεξάνδρας 197, Αμπελόκηποι",
+            "lng": 23.7573747,
+            "lat": 37.9874394
+          },
+          "url": "https://opencouncil.gr/athens/jul29_2026/subjects/cmryt6j5l01tr6c6lie2y8lpt"
+        }
+      ]
+    }
+  },
+  "expect": {
+    "decision": "silence"
+  }
+}

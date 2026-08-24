@@ -9,6 +9,12 @@
  * repeat itself). The reader's name is replaced and the phone dropped: these
  * files live in the repository, the conversations are real people's.
  *
+ * Scrubbing is best-effort and NOT a substitute for reading the file. It
+ * replaces the reader's name everywhere it appears — the state field, the
+ * profile text and every message body, since the agent greets people by name —
+ * but a learned profile can still carry a street number, a workplace or a role
+ * that identifies someone. Read the output before you commit it.
+ *
  * Expectations are left empty on purpose — write them by hand after reading
  * what the case is actually testing.
  */
@@ -66,6 +72,45 @@ const decisions = data.wakes
     rationale: w.rationale,
   }));
 
+/**
+ * The agent greets people by name and writes what it learns into the profile,
+ * so the reader's name appears far outside the field that holds it. Replace
+ * every token of it, everywhere, before anything is written to disk.
+ */
+const ANON = "Ο αναγνώστης";
+const nameTokens = (data.subscription.userName ?? "")
+  .split(/\s+/)
+  .map((t) => t.trim())
+  .filter((t) => t.length >= 3);
+
+/**
+ * Greek accents make naive matching useless: the stored userName is «Ευφη»
+ * while the agent writes «Εύφη». Stripping combining marks after NFD leaves
+ * the character count unchanged for Greek, so offsets found in the stripped
+ * text apply directly to the original.
+ */
+function stripAccents(text: string): string {
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function scrub<T>(value: T): T {
+  if (nameTokens.length === 0) return value;
+  let text = JSON.stringify(value);
+  for (const token of nameTokens) {
+    // Match the stem, so inflected forms («Εύφης») go with the nominative.
+    const stem = stripAccents(token).slice(0, Math.max(3, token.length - 1));
+    for (;;) {
+      const at = stripAccents(text).toLowerCase().indexOf(stem.toLowerCase());
+      if (at === -1) break;
+      // Consume the inflected ending too: letters immediately following.
+      let end = at + stem.length;
+      while (end < text.length && /\p{L}/u.test(text[end])) end++;
+      text = text.slice(0, at) + "Εύα" + text.slice(end);
+    }
+  }
+  return JSON.parse(text) as T;
+}
+
 const evalCase = {
   name,
   note: `From a real conversation, wake ${wakeIdxArg}. Reader: ${JSON.stringify(
@@ -73,10 +118,10 @@ const evalCase = {
   )}`,
   state: {
     // Anonymized: the reader is a real person and this file is committed.
-    user: { name: "Ο αναγνώστης", cities: [] as unknown[] },
-    profile: data.subscription.profileText,
-    conversation,
-    decisions,
+    user: { name: ANON, cities: [] as unknown[] },
+    profile: scrub(data.subscription.profileText),
+    conversation: scrub(conversation),
+    decisions: scrub(decisions),
   },
   event: target.event,
   expect: {},
@@ -88,3 +133,7 @@ const out = path.join(dir, `${name}.json`);
 fs.writeFileSync(out, JSON.stringify(evalCase, null, 2) + "\n");
 console.log(`wrote ${out}`);
 console.log("cities[] and expect{} are yours to fill in.");
+console.log(
+  "READ THE FILE BEFORE COMMITTING: the name is replaced, but a learned profile " +
+    "can still carry a street number, a workplace or a role that identifies someone.",
+);
