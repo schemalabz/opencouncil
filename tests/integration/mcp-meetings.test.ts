@@ -143,6 +143,20 @@ describe('MCP meeting listing by administrative body - integration', () => {
         expect(meetings.map(m => m.id)).toEqual(['future', 'jul14'])
     })
 
+    test('both date bounds are inclusive of meetings held that day', async () => {
+        // jul14 is at 15:30. A bound parsed as bare midnight would drop it
+        // from either end, though both are documented as inclusive.
+        const to = await asRequest(() => mcpListMeetings('athens', {
+            ...page, administrativeBodyIds: [communityId], to: '2026-07-14',
+        }, ANON))
+        const from = await asRequest(() => mcpListMeetings('athens', {
+            ...page, administrativeBodyIds: [communityId], from: '2026-07-14',
+        }, ANON))
+
+        expect(to.meetings.map(m => m.id)).toEqual(['jul14', 'jan28'])
+        expect(from.meetings.map(m => m.id)).toEqual(['future', 'jul14'])
+    })
+
     test('get_city hands back body ids that list_meetings accepts', async () => {
         // The round trip is the point: a caller resolves «3η Δημοτική
         // Κοινότητα» to an id here and filters with it, without guessing.
