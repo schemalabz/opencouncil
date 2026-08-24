@@ -5,10 +5,9 @@ import { getCouncilMeetingsForCity, generateUniqueMeetingId } from '@/lib/db/mee
 import { createCouncilMeetingDirect } from '@/lib/db/meetingsCreate';
 import { withServiceOrUserAuth } from '@/lib/auth';
 import { sendMeetingCreatedAdminAlert } from '@/lib/discord';
-import { createMeetingCalendarEvent, calculateMeetingEndTime } from '@/lib/google-calendar';
+import { syncMeetingToCalendar } from '@/lib/google-calendar';
 import { requestProcessAgendaInternal } from '@/lib/tasks/processAgendaInternal';
 import { handleApiError } from '@/lib/api/errors';
-import { env } from '@/env.mjs';
 import prisma from '@/lib/db/prisma';
 import { Prisma } from '@prisma/client';
 import { meetingSchema } from '@/lib/zod-schemas/meeting';
@@ -76,7 +75,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
         // Fetch city data (should exist since meeting was created successfully)
         const city = await prisma.city.findUnique({
             where: { id: cityId },
-            select: { name_en: true, name: true, timezone: true }
+            select: { name_en: true }
         });
 
         if (!city) {
@@ -91,42 +90,10 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
                 meetingId: meetingId,
                 cityId: cityId,
             });
-
-            // Sync to Google Calendar
-            try {
-                // Build title in format: "city.name: administrative body.name" (using local names)
-                let calendarTitle = city.name;
-
-                if (meeting.administrativeBody?.name) {
-                    calendarTitle += `: ${meeting.administrativeBody.name}`;
-                }
-
-                // Build description with agenda URL and meeting link
-                const meetingUrl = `${env.NEXTAUTH_URL}/${cityId}/${meetingId}`;
-                const descriptionParts: string[] = [];
-
-                if (meeting.agendaUrl) {
-                    descriptionParts.push(`Ημερήσια Διάταξη: ${meeting.agendaUrl}`);
-                }
-
-                descriptionParts.push(`${meetingUrl}`);
-
-                const endTime = calculateMeetingEndTime(date, 2); // Default 2 hour meetings
-
-                await createMeetingCalendarEvent({
-                    title: calendarTitle,
-                    description: descriptionParts.join('\n\n'),
-                    startTime: date,
-                    endTime: endTime,
-                    timezone: city.timezone
-                });
-
-                console.log('Meeting synced to Google Calendar successfully');
-            } catch (error) {
-                // Don't fail the meeting creation if calendar sync fails
-                console.error('Failed to sync meeting to Google Calendar:', error);
-            }
         }
+
+        // Runs outside the city check above, because the sync loads the city itself.
+        await syncMeetingToCalendar(cityId, meetingId, { allowCreate: true });
 
         // Auto-trigger processAgenda if requested and agenda URL is present
         let processAgendaStatus: string | undefined;
