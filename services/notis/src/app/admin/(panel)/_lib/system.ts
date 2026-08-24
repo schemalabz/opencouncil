@@ -150,22 +150,29 @@ export async function getRailsNow(): Promise<RailsNow | null> {
   const now = new Date();
   const phase = activePhase(now);
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60_000);
-  const [settings, heldUntilRelease, capped, failed, retryPending, retryRunning] =
-    await Promise.all([
-      getProactiveSettings(db),
-      // attempts: 0 — a retry-backoff row also has runAfter in the future,
-      // and it belongs to «ξαναδοκιμάζει», not «σε αναμονή»; without the
-      // filter one row shows up in both cells.
-      db.notisWakeQueue.count({
-        where: { status: "pending", runAfter: { gt: now }, attempts: 0 },
-      }),
-      usersAtCap(db),
-      db.notisWakeQueue.count({ where: { status: "failed", updatedAt: { gte: weekAgo } } }),
-      db.notisWakeQueue.count({ where: { status: "pending", attempts: { gt: 0 } } }),
-      // attempts counts claims, and a first run holds claim #1 — only a
-      // second-or-later claim means an earlier attempt failed.
-      db.notisWakeQueue.count({ where: { status: "running", attempts: { gt: 1 } } }),
-    ]);
+  const [settings, capped, queueCounts] = await Promise.all([
+    getProactiveSettings(db),
+    usersAtCap(db),
+    // One scan for all four queue cells. held excludes retry-backoff rows
+    // (attempts > 0 belongs to «ξαναδοκιμάζει», not «σε αναμονή»), and
+    // running counts a retry only from the second claim — the first run
+    // holds claim #1.
+    db.$queryRaw<
+      Array<{ held: number; failed7d: number; retry_pending: number; retry_running: number }>
+    >`
+      SELECT
+        count(*) FILTER (
+          WHERE status = 'pending' AND "runAfter" > ${now} AND attempts = 0
+        )::int AS held,
+        count(*) FILTER (
+          WHERE status = 'failed' AND "updatedAt" >= ${weekAgo}
+        )::int AS failed7d,
+        count(*) FILTER (WHERE status = 'pending' AND attempts > 0)::int AS retry_pending,
+        count(*) FILTER (WHERE status = 'running' AND attempts > 1)::int AS retry_running
+      FROM "NotisWakeQueue"
+    `,
+  ]);
+  const q = queueCounts[0] ?? { held: 0, failed7d: 0, retry_pending: 0, retry_running: 0 };
   return {
     phase: {
       kind: phase.phase,
@@ -173,9 +180,9 @@ export async function getRailsNow(): Promise<RailsNow | null> {
       until: phase.until.toISOString(),
     },
     settings,
-    heldUntilRelease,
+    heldUntilRelease: q.held,
     atCapCount: capped.length,
-    queueTrouble: { failed, retrying: retryPending + retryRunning },
+    queueTrouble: { failed: q.failed7d, retrying: q.retry_pending + q.retry_running },
   };
 }
 
@@ -185,7 +192,8 @@ export async function getSystemSnapshot(digestedPage = 1): Promise<SystemSnapsho
   const now = new Date();
   const phase = activePhase(now);
 
-  const [settings, pollerRow, statusCounts, laneStatusCounts, heldUntilRelease] =
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60_000);
+  const [settings, pollerRow, statusCounts, laneStatusCounts, heldUntilRelease, failuresAgg] =
     await Promise.all([
       getProactiveSettings(db),
       db.notisSetting.findUnique({ where: { key: POLLER_STATUS_KEY } }),
@@ -197,6 +205,11 @@ export async function getSystemSnapshot(digestedPage = 1): Promise<SystemSnapsho
       }),
       db.notisWakeQueue.count({
         where: { status: "pending", runAfter: { gt: now }, attempts: 0 },
+      }),
+      db.notisWakeQueue.aggregate({
+        where: { status: "failed", updatedAt: { gte: weekAgo } },
+        _count: { _all: true },
+        _max: { updatedAt: true },
       }),
     ]);
 
@@ -239,13 +252,6 @@ export async function getSystemSnapshot(digestedPage = 1): Promise<SystemSnapsho
       },
     }),
   ]);
-
-  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60_000);
-  const failuresAgg = await db.notisWakeQueue.aggregate({
-    where: { status: "failed", updatedAt: { gte: weekAgo } },
-    _count: { _all: true },
-    _max: { updatedAt: true },
-  });
 
   // Count first: the page is clamped into range, so a stale ?digested=99
   // link lands on the last page instead of an empty list.

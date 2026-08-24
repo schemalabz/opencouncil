@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { decideDelivery } from "@/agent/delivery";
 import { runWake } from "@/agent/runWake";
-import { primaryEvent, wakeEventSchema } from "@/agent/schemas";
-import type { TemplateName } from "@/agent/templates";
+import { primaryEvent, wakeEventSchema, wakeEventsSchema } from "@/agent/schemas";
+import { renderTemplate, type TemplateName } from "@/agent/templates";
 import {
   CityPreference,
   CONVERSATION_WINDOW,
@@ -11,7 +11,7 @@ import {
   DecisionEntry,
   WakeEvent,
 } from "@/agent/types";
-import type { NotisSubscription, Prisma, PrismaClient } from "../../generated/client";
+import type { NotisMessage, NotisSubscription, Prisma, PrismaClient } from "../../generated/client";
 import { clampToActiveHours, isQuietHour } from "./active-hours";
 import { alert as sendAlert } from "./alert";
 import { BirdLike, SEND_TIMEOUT_MS, realBird } from "./bird";
@@ -82,6 +82,24 @@ export const SEND_SPACING_MS = 1_000;
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Keyed send pacing: one implementation for every send path. `pace(key)`
+ * waits out the remainder of SEND_SPACING_MS since the key's previous send
+ * — the first send per key never waits, and different keys (readers) never
+ * delay each other, which is what the sweeper needs.
+ */
+export function makeSendPacer(gapMs: number = SEND_SPACING_MS) {
+  const lastByKey = new Map<string, number>();
+  return async (key: string): Promise<void> => {
+    const last = lastByKey.get(key);
+    if (last !== undefined) {
+      const wait = gapMs - (Date.now() - last);
+      if (wait > 0) await sleep(wait);
+    }
+    lastByKey.set(key, Date.now());
+  };
+}
+
 /** The persist transaction's budget. It holds the subscription's row lock —
  *  the same lock every inbound webhook for that reader waits on — so it needs
  *  room for contention, not just for its own writes. */
@@ -91,7 +109,7 @@ const PERSIST_TIMEOUT_MS = 30_000;
 // every minute, so leftovers are picked up immediately.
 const MAX_ITEMS_PER_DRAIN = 50;
 
-const eventsSchema = z.array(wakeEventSchema).min(1);
+const eventsSchema = wakeEventsSchema.min(1);
 
 /** How long a paused item sleeps before the claim looks at it again. */
 export const PAUSE_DEFER_MS = 15 * 60_000;
@@ -222,7 +240,7 @@ async function runOneWake(
   // finish. The batch lane (and every deliver-less caller: playground,
   // dry-run, fixtures) keeps batch delivery at the boundary.
   const incrementalIds: string[] = [];
-  let lastDeliverAt = 0;
+  const pace = makeSendPacer();
   // Everything absorb has consumed so far: if the wake later fails BEFORE
   // any delivery (the retry path), these must be re-enqueued or the
   // messages die with rows nobody will ever run.
@@ -285,29 +303,23 @@ async function runOneWake(
           // Same-turn tool calls arrive back-to-back; without a gap Bird
           // accepts them in the same second and the handset may show them
           // inverted. Cross-turn gaps already exceed the spacing.
-          const sinceLast = Date.now() - lastDeliverAt;
-          if (lastDeliverAt > 0 && sinceLast < SEND_SPACING_MS) {
-            await sleep(SEND_SPACING_MS - sinceLast);
-          }
-          lastDeliverAt = Date.now();
+          await pace(sub.id);
+          let outcome: SendOutcome | undefined;
           try {
-            await deliverPendingMessage(db, bird, message.id, sub, alert);
+            outcome = await deliverPendingMessage(db, bird, message.id, sub, alert);
           } catch (error) {
             return {
               ok: false,
               detail: error instanceof Error ? error.message : String(error),
             };
           }
-          const after = await db.notisMessage.findUnique({
-            where: { id: message.id },
-            select: { status: true, failureReason: true },
-          });
-          // delivered/read can land between applySendResult and this read
-          // (Bird's status webhook) — they are success, not failure.
-          if (after && ["sent", "delivered", "read"].includes(after.status ?? "")) {
-            return { ok: true };
+          if (outcome?.status === "sent") return { ok: true };
+          if (outcome?.status === "failed" && outcome.smsFallback === "sent") {
+            // The conversation continued on its second leg — tell the model
+            // which channel carried it.
+            return { ok: true, detail: "delivered over SMS (WhatsApp failed)" };
           }
-          if (after?.status === "suppressed") {
+          if (outcome?.status === "suppressed") {
             return {
               ok: false,
               detail:
@@ -315,9 +327,15 @@ async function runOneWake(
                 "finish the wake silently",
             };
           }
+          if (outcome?.status === "pending") {
+            return {
+              ok: false,
+              detail: "transient delivery failure — the sweeper retries it shortly",
+            };
+          }
           return {
             ok: false,
-            detail: after?.failureReason ?? `status: ${after?.status ?? "unknown"}`,
+            detail: outcome?.failureReason ?? `status: ${outcome?.status ?? "unknown"}`,
           };
         },
       }
@@ -546,15 +564,23 @@ async function runOneWake(
   await sendProactiveMessages(db, bird, outboundIds, sub, alert);
 }
 
+/** The outcome a send path reports upward — what the row now says, plus
+ *  what the SMS fallback did when WhatsApp failed terminally. */
+export interface SendOutcome {
+  status: "sent" | "pending" | "failed" | "suppressed";
+  failureReason?: string | null;
+  smsFallback?: "sent" | "held" | "failed" | "skipped";
+}
+
 /** Record a Bird send result on the message row: sent, stay-pending
  *  (transient — the sweeper retries under the same idempotency key), or
- *  terminal failed with an alert. */
+ *  terminal failed with an alert. Returns what it wrote. */
 async function applySendResult(
   db: PrismaClient,
   id: string,
   result: { success: boolean; messageId?: string; retryable?: boolean; error?: string },
   alert: (message: string) => Promise<void>,
-): Promise<void> {
+): Promise<SendOutcome> {
   if (result.success) {
     await db.notisMessage.update({
       where: { id },
@@ -569,6 +595,7 @@ async function applySendResult(
         failureReason: null,
       },
     });
+    return { status: "sent" };
   } else if (result.retryable) {
     // Transient (network, 5xx): the row STAYS pending so the sweeper
     // retries it under the same idempotency key once Bird recovers. The
@@ -581,6 +608,7 @@ async function applySendResult(
       },
     });
     console.warn(`[notis:queue] transient Bird failure for message ${id}, will retry:`, result.error);
+    return { status: "pending", failureReason: result.error ?? "unknown error" };
   } else {
     await db.notisMessage.update({
       where: { id },
@@ -591,7 +619,125 @@ async function applySendResult(
       },
     });
     await alert(`Bird send failed for message ${id}: ${result.error ?? "unknown error"}`);
+    return { status: "failed", failureReason: result.error ?? "unknown error" };
   }
+}
+
+/**
+ * One-shot SMS with the outcome recorded on the row. No idempotency key —
+ * the channels API has none — so every caller must guarantee single-fire
+ * (the fallback's unique fallbackForId, the held release's claim fence).
+ */
+export async function sendSmsAndRecord(
+  db: PrismaClient,
+  bird: BirdLike,
+  messageId: string,
+  phone: string,
+  text: string,
+  alert: (message: string) => Promise<void>,
+  context: string,
+): Promise<boolean> {
+  const result = await bird.sendSms({ phone, text });
+  if (result.success) {
+    await db.notisMessage.update({
+      where: { id: messageId },
+      data: { status: "sent", birdMessageId: result.messageId },
+    });
+    return true;
+  }
+  await db.notisMessage.update({
+    where: { id: messageId },
+    data: { status: "failed", failureReason: (result.error ?? "unknown error").slice(0, 300) },
+  });
+  await alert(`${context}: ${result.error ?? "unknown error"}`);
+  return false;
+}
+
+/**
+ * SMS as the conversation's second leg (PRD update): when a WhatsApp send
+ * fails TERMINALLY, the same content goes out once as an SMS — templates in
+ * their rendered shell with the footer, replies as the raw body (SMS has no
+ * formatting, links work as text). The sms row's unique fallbackForId makes
+ * every trigger path replay-proof.
+ *
+ * The rails follow the ROW's class: a railed row's fallback obeys pause and
+ * quiet hours (held to the 09:00 release) and never goes to an unsubscribed
+ * reader; a reply's fallback bypasses pause and quiet like the reply itself
+ * would, and only the unsubscribed check stands — consent outranks
+ * deliverability.
+ */
+export async function maybeSendSmsFallback(
+  db: PrismaClient,
+  bird: BirdLike,
+  failed: Pick<
+    NotisMessage,
+    | "id"
+    | "subscriptionId"
+    | "wakeId"
+    | "channel"
+    | "deliveryMode"
+    | "template"
+    | "proactive"
+    | "railed"
+    | "body"
+  >,
+  alert: (message: string) => Promise<void>,
+): Promise<"sent" | "held" | "failed" | "skipped"> {
+  if (failed.channel !== "whatsapp") return "skipped";
+
+  const sub = await db.notisSubscription.findUnique({ where: { id: failed.subscriptionId } });
+  if (!sub?.phone || sub.status === "unsubscribed") return "skipped";
+
+  if (failed.railed) {
+    const settings = await getProactiveSettings(db);
+    if (settings.paused) return "skipped";
+  }
+
+  const text =
+    failed.deliveryMode === "template" && failed.template
+      ? (() => {
+          const rendered = renderTemplate(failed.template as TemplateName, failed.body);
+          return `${rendered.body}\n\n${rendered.footer}`;
+        })()
+      : failed.body;
+  const held = failed.railed && isQuietHour(new Date());
+
+  let smsId: string;
+  try {
+    const sms = await db.notisMessage.create({
+      data: {
+        subscriptionId: failed.subscriptionId,
+        wakeId: failed.wakeId,
+        direction: "outbound",
+        body: text,
+        channel: "sms",
+        proactive: failed.proactive,
+        railed: failed.railed,
+        fallbackForId: failed.id,
+        status: "pending",
+        ...(held ? { failureReason: SMS_HELD_FOR_QUIET_HOURS } : {}),
+      },
+      select: { id: true },
+    });
+    smsId = sms.id;
+  } catch (error) {
+    if ((error as { code?: string }).code === "P2002") return "skipped"; // replayed trigger
+    throw error;
+  }
+
+  // Held rows leave here pending; the sweeper sends them at the release.
+  if (held) return "held";
+
+  const ok = await sendSmsAndRecord(
+    db,
+    bird,
+    smsId,
+    sub.phone,
+    text,
+    alert,
+    `SMS fallback failed for message ${failed.id}`,
+  );
+  return ok ? "sent" : "failed";
 }
 
 /** The rails' own vocabulary, Greek names included — one closed set shared
@@ -716,23 +862,22 @@ async function sendFreeform(
   message: { id: string; body: string },
   sub: Pick<NotisSubscription, "id" | "birdConversationId">,
   alert: (message: string) => Promise<void>,
-): Promise<void> {
+): Promise<SendOutcome> {
   if (!sub.birdConversationId) {
-    await applySendResult(
+    const outcome = await applySendResult(
       db,
       message.id,
       { success: false, retryable: false, error: "no birdConversationId on subscription" },
       alert,
     );
-    await alert(`subscription ${sub.id} has no birdConversationId — cannot deliver a reply`);
-    return;
+    return outcome;
   }
   const result = await bird.sendText({
     conversationId: sub.birdConversationId,
     text: message.body,
     idempotencyKey: message.id,
   });
-  await applySendResult(db, message.id, result, alert);
+  return applySendResult(db, message.id, result, alert);
 }
 
 /** Send `pending` outbound rows into the subscription's conversation. Also
@@ -748,14 +893,18 @@ export async function sendPendingMessages(
   sub: Pick<NotisSubscription, "id" | "birdConversationId">,
   alert: (message: string) => Promise<void>,
 ): Promise<void> {
-  let sentAny = false;
+  const pace = makeSendPacer();
   for (const id of messageIds) {
     const message = await db.notisMessage.findUnique({ where: { id } });
     if (!message || message.status !== "pending") continue;
-    if (sentAny) await sleep(SEND_SPACING_MS);
+    await pace(sub.id);
     if (!(await claimForSend(db, id))) continue;
-    await sendFreeform(db, bird, message, sub, alert);
-    sentAny = true;
+    const outcome = await sendFreeform(db, bird, message, sub, alert);
+    // The conversation's second leg applies to the deterministic replies
+    // too (the ΣΤΟΠ confirmation rides this path).
+    if (outcome.status === "failed" && message.channel === "whatsapp") {
+      await maybeSendSmsFallback(db, bird, message, alert);
+    }
   }
 }
 
@@ -784,9 +933,18 @@ export async function deliverPendingMessage(
   messageId: string,
   sub: Pick<NotisSubscription, "id" | "phone" | "userName" | "birdConversationId">,
   alert: (message: string) => Promise<void>,
-): Promise<void> {
+): Promise<SendOutcome | undefined> {
   const message = await db.notisMessage.findUnique({ where: { id: messageId } });
-  if (!message || message.status !== "pending") return;
+  if (!message || message.status !== "pending") return undefined;
+
+  // Terminal WhatsApp failures fall through to SMS here, in ONE place, so
+  // every trigger path (boundary, sweeper, incremental closure) gets the
+  // conversation's second leg for free.
+  const finish = async (outcome: SendOutcome): Promise<SendOutcome> => {
+    if (outcome.status !== "failed" || message.channel !== "whatsapp") return outcome;
+    const smsFallback = await maybeSendSmsFallback(db, bird, message, alert);
+    return { ...outcome, smsFallback };
+  };
 
   // The union keeps the deploy window safe: rows written by OLD code after
   // the backfill carry railed=false but still say proactive/template.
@@ -794,28 +952,28 @@ export async function deliverPendingMessage(
     const blocked = await proactiveBlockReason(db, sub.id);
     if (blocked) {
       await suppressMessages(db, [messageId], blocked);
-      return;
+      return { status: "suppressed", failureReason: blocked };
     }
   }
 
-  if (!(await claimForSend(db, messageId))) return;
+  if (!(await claimForSend(db, messageId))) return undefined;
 
   if (message.deliveryMode !== "template") {
-    await sendFreeform(db, bird, message, sub, alert);
-    return;
+    return finish(await sendFreeform(db, bird, message, sub, alert));
   }
 
   const template = message.template as TemplateName;
   // Every template send names its recipient, so a row without a phone is a
   // failure on both paths, not just the cold one.
   if (!sub.phone) {
-    await applySendResult(
-      db,
-      messageId,
-      { success: false, retryable: false, error: "no phone on subscription for a template send" },
-      alert,
+    return finish(
+      await applySendResult(
+        db,
+        messageId,
+        { success: false, retryable: false, error: "no phone on subscription for a template send" },
+        alert,
+      ),
     );
-    return;
   }
 
   if (sub.birdConversationId) {
@@ -826,8 +984,7 @@ export async function deliverPendingMessage(
       text: message.body,
       idempotencyKey: message.id,
     });
-    await applySendResult(db, messageId, result, alert);
-    return;
+    return finish(await applySendResult(db, messageId, result, alert));
   }
   const created = await bird.createConversationWithTemplate({
     phone: sub.phone,
@@ -849,8 +1006,7 @@ export async function deliverPendingMessage(
       text: message.body,
       idempotencyKey: message.id,
     });
-    await applySendResult(db, messageId, result, alert);
-    return;
+    return finish(await applySendResult(db, messageId, result, alert));
   }
   if (created.success && created.conversationId) {
     await db.notisSubscription.update({
@@ -866,7 +1022,7 @@ export async function deliverPendingMessage(
       `cold send ${messageId} got no Bird message id — delivery status for it cannot be tracked`,
     );
   }
-  await applySendResult(db, messageId, created, alert);
+  return finish(await applySendResult(db, messageId, created, alert));
 }
 
 /**
@@ -922,7 +1078,7 @@ export async function sendProactiveMessages(
     remaining = Math.max(0, WEEKLY_CAP - (await capUsage(db, sub.id, messageIds)));
   }
 
-  let sentAny = false;
+  const pace = makeSendPacer();
   for (const id of messageIds) {
     const row = byId.get(id);
     if (!row) continue;
@@ -933,9 +1089,8 @@ export async function sendProactiveMessages(
       }
       remaining--;
     }
-    if (sentAny) await sleep(SEND_SPACING_MS);
+    await pace(sub.id);
     await deliverPendingMessage(db, bird, id, sub, alert);
-    sentAny = true;
   }
 }
 
@@ -1145,19 +1300,15 @@ async function releaseHeldSms(
   });
   if (claimed.count !== 1) return;
 
-  const result = await bird.sendSms({ phone: sub.phone, text: message.body });
-  if (result.success) {
-    await db.notisMessage.update({
-      where: { id: message.id },
-      data: { status: "sent", birdMessageId: result.messageId },
-    });
-    return;
-  }
-  await db.notisMessage.update({
-    where: { id: message.id },
-    data: { status: "failed", failureReason: (result.error ?? "unknown error").slice(0, 300) },
-  });
-  await alert(`held SMS ${message.id} failed on release: ${result.error ?? "unknown error"}`);
+  await sendSmsAndRecord(
+    db,
+    bird,
+    message.id,
+    sub.phone,
+    message.body,
+    alert,
+    `held SMS ${message.id} failed on release`,
+  );
 }
 
 /**
@@ -1194,12 +1345,19 @@ export async function resendStalePendingMessages(overrides: DrainDeps = {}): Pro
       createdAt: true,
       channel: true,
       failureReason: true,
+      subscriptionId: true,
+      wakeId: true,
+      deliveryMode: true,
+      template: true,
+      proactive: true,
+      railed: true,
       subscription: {
         select: { id: true, phone: true, userName: true, birdConversationId: true },
       },
     },
     take: 50,
   });
+  const pace = makeSendPacer();
 
   const giveUpBefore = now - RESEND_GIVE_UP_MS;
   for (const message of stale) {
@@ -1217,6 +1375,11 @@ export async function resendStalePendingMessages(overrides: DrainDeps = {}): Pro
       });
       if (gaveUp.count !== 1) continue;
       await alert(`message ${message.id}: undeliverable for over an hour — giving up`);
+      // Give-up is a terminal WhatsApp failure like any other: the content
+      // still deserves its second leg.
+      if (message.channel === "whatsapp") {
+        await maybeSendSmsFallback(db, bird, message, alert);
+      }
       continue;
     }
     // SMS rows are never re-sent: the channels API has no idempotency key,
@@ -1234,6 +1397,7 @@ export async function resendStalePendingMessages(overrides: DrainDeps = {}): Pro
     // Bird never gets two simultaneous requests for one row under its
     // idempotency key. The stale filter above only avoids picking a row whose
     // claim is still fresh; the claim inside is the authoritative fence.
+    await pace(message.subscriptionId);
     await deliverPendingMessage(db, bird, message.id, message.subscription, alert);
   }
   return stale.length;

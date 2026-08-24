@@ -163,6 +163,10 @@ export const wakeEventSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("heartbeat"), at: z.string() }),
 ]);
 
+/** The wake-events array, everywhere one is parsed (queue items, absorb,
+ *  panel projections) — one schema so a refinement lands once. */
+export const wakeEventsSchema = z.array(wakeEventSchema);
+
 /**
  * Which of a coalesced wake's events leads: the meatiest content wins the
  * template shell and the decision-log label, and user_message dominating keeps

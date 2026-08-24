@@ -395,6 +395,7 @@ describe("SMS fallback on failed proactive templates", () => {
         status: "sent",
         channel: "whatsapp",
         proactive: true,
+        railed: true,
         deliveryMode: "template",
         template: "demos_update_news",
         wakeId: "wake1",
@@ -460,22 +461,37 @@ describe("SMS fallback on failed proactive templates", () => {
     }
   });
 
-  it("no fallback while paused (the default), for freeform sends, or for reactive messages", async () => {
-    const cases: Array<{ settings?: Row[]; overrides: Row }> = [
-      { settings: undefined, overrides: {} }, // paused (the default)
-      { settings: LIVE, overrides: { deliveryMode: "freeform", template: null } },
-      { settings: LIVE, overrides: { proactive: false } },
-    ];
-    for (const [i, c] of cases.entries()) {
-      const db = makeFakeDb({ subscriptions: [{ ...SUB }], settings: c.settings });
-      await seedFailedCandidate(db, { ...c.overrides, birdMessageId: `bm-${i}` });
-      const bird = new FakeBird();
-      await handleOutboundStatus(
-        inbound({ birdMessageId: `bm-${i}`, direction: "outbound", status: "failed" }),
-        { db, bird },
-      );
-      expect(bird.smsSends).toHaveLength(0);
-    }
+  it("pause blocks only railed fallbacks — a reply's rides through, raw", async () => {
+    // Railed news while paused (the default): no fallback.
+    const db1 = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    await seedFailedCandidate(db1, { birdMessageId: "bm-r" });
+    const bird1 = new FakeBird();
+    await handleOutboundStatus(
+      inbound({ birdMessageId: "bm-r", direction: "outbound", status: "failed" }),
+      { db: db1, bird: bird1 },
+    );
+    expect(bird1.smsSends).toHaveLength(0);
+
+    // A freeform REPLY while paused: the conversation continues on its
+    // second leg — raw body, no template shell, no footer.
+    const db2 = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    await seedFailedCandidate(db2, {
+      birdMessageId: "bm-f",
+      deliveryMode: "freeform",
+      template: null,
+      proactive: false,
+      railed: false,
+    });
+    const bird2 = new FakeBird();
+    await handleOutboundStatus(
+      inbound({ birdMessageId: "bm-f", direction: "outbound", status: "failed" }),
+      { db: db2, bird: bird2 },
+    );
+    expect(bird2.smsSends).toHaveLength(1);
+    expect(bird2.smsSends[0].text).toBe("Νέα από τον δήμο.");
+    const fallback = db2.store.messages.find((m) => m.channel === "sms")!;
+    expect(fallback.status).toBe("sent");
+    expect(fallback.railed).toBe(false);
   });
 
   it("no fallback for an unsubscribed reader", async () => {

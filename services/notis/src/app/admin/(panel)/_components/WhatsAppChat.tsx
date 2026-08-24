@@ -536,6 +536,32 @@ export function WhatsAppChat({
           const chip = day !== lastDay;
           lastDay = day;
           const selected = selectedId === item.id;
+          // One chronological stream per record: an absorbed conversation
+          // really went reader → answer → correction → answer, and the
+          // thread must show that order, not all readers first.
+          const readerBubbles =
+            item.readerMessages ??
+            (item.event.type === "user_message"
+              ? [{ at: item.event.at, text: item.event.text }]
+              : []);
+          const timeline = [
+            ...readerBubbles.map((r) => ({
+              kind: "reader" as const,
+              at: r.at,
+              text: r.text,
+              i: -1,
+            })),
+            ...(item.outcome?.messages ?? []).map((text, i) => ({
+              kind: "send" as const,
+              at: item.deliveries?.[i]?.at ?? item.event.at,
+              text,
+              i,
+            })),
+          ].sort(
+            (a, b) =>
+              a.at.localeCompare(b.at) ||
+              (a.kind === b.kind ? 0 : a.kind === "reader" ? -1 : 1),
+          );
           return (
             <div key={item.id} className="space-y-1.5">
               {chip && (
@@ -545,23 +571,43 @@ export function WhatsAppChat({
                   </span>
                 </div>
               )}
-              {(
-                item.readerMessages ??
-                (item.event.type === "user_message"
-                  ? [{ at: item.event.at, text: item.event.text }]
-                  : [])
-              ).map((reader, readerIdx) => (
-                <Bubble
-                  key={readerIdx}
-                  side="out"
-                  first
-                  time={fmtTime(reader.at)}
-                  selected={selected}
-                  onClick={() => onSelect(item.id)}
-                  text={reader.text}
-                  ticks={item.id === busyItemId ? "live" : "read"}
-                />
-              ))}
+              {timeline.map((entry, k) =>
+                entry.kind === "reader" ? (
+                  <Bubble
+                    key={`r${k}`}
+                    side="out"
+                    first
+                    time={fmtTime(entry.at)}
+                    selected={selected}
+                    onClick={() => onSelect(item.id)}
+                    text={entry.text}
+                    ticks={item.id === busyItemId ? "live" : "read"}
+                  />
+                ) : item.delivery?.mode === "template" ? (
+                  <TemplateBubble
+                    key={`s${entry.i}`}
+                    rendered={renderTemplate(item.delivery.template, entry.text)}
+                    time={fmtTime(entry.at)}
+                    first={entry.i === 0}
+                    selected={selected}
+                    busy={busy || autoRun}
+                    onClick={() => onSelect(item.id)}
+                    onQuickReply={sim?.onUserMessage}
+                  />
+                ) : (
+                  <Bubble
+                    key={`s${entry.i}`}
+                    side="in"
+                    first={entry.i === 0}
+                    time={fmtTime(entry.at)}
+                    caption={entry.i === 0 ? eventCaption(item) || undefined : undefined}
+                    selected={selected}
+                    onClick={() => onSelect(item.id)}
+                    text={entry.text}
+                    delivery={item.deliveries?.[entry.i]}
+                  />
+                ),
+              )}
               {item.status === "skipped" && (
                 <div className="flex justify-center px-4">
                   <span className="rounded-md bg-[#ffffff99] px-3 py-1 text-[11px] text-[#8696a0] shadow-sm">
@@ -631,32 +677,6 @@ export function WhatsAppChat({
                     Ο Νότης σταμάτησε τις ειδοποιήσεις (unsubscribe)
                   </button>
                 </div>
-              )}
-              {item.outcome?.messages.map((m, i) =>
-                item.delivery?.mode === "template" ? (
-                  <TemplateBubble
-                    key={i}
-                    rendered={renderTemplate(item.delivery.template, m)}
-                    time={fmtTime(item.deliveries?.[i]?.at ?? item.event.at)}
-                    first={i === 0}
-                    selected={selected}
-                    busy={busy || autoRun}
-                    onClick={() => onSelect(item.id)}
-                    onQuickReply={sim?.onUserMessage}
-                  />
-                ) : (
-                  <Bubble
-                    key={i}
-                    side="in"
-                    first={i === 0}
-                    time={fmtTime(item.deliveries?.[i]?.at ?? item.event.at)}
-                    caption={i === 0 ? eventCaption(item) || undefined : undefined}
-                    selected={selected}
-                    onClick={() => onSelect(item.id)}
-                    text={m}
-                    delivery={item.deliveries?.[i]}
-                  />
-                ),
               )}
             </div>
           );

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasNotisDb, notisDb } from "@/lib/db";
 import { requireAdmin } from "@/lib/session-auth";
+import { LIVE_QUEUE_STATUSES } from "@/lib/queue-core";
 
 /**
  * Everything notis knows about one conversation, as a single JSON file — the
@@ -73,7 +74,7 @@ export async function GET(
     // Live rows only: done rows duplicate the wakes above, and failed rows
     // older than the janitor window are gone anyway.
     db.notisWakeQueue.findMany({
-      where: { subscriptionId: id, status: { in: ["pending", "running", "failed"] } },
+      where: { subscriptionId: id, status: { in: [...LIVE_QUEUE_STATUSES] } },
       orderBy: { createdAt: "asc" },
     }),
     db.notisScheduledWake.findMany({
