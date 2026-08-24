@@ -310,6 +310,10 @@ async function reconcileSubscriptions(
           // sweeper would deliver a leftover pending row after the phone
           // was removed.
           await suppressPendingOutbound(tx, sub.id);
+          await tx.notisCommitment.updateMany({
+            where: { subscriptionId: sub.id, resolvedAt: null },
+            data: { resolvedAt: at },
+          });
           // A model-less wake row: why this reader went silent must survive in
           // the decision log (the audit answer to "who unsubscribed them").
           const rationale =

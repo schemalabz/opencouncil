@@ -32,6 +32,7 @@ import {
   markFailed,
   touchClaim,
 } from "./queue-core";
+import { maybeCompact } from "./compaction";
 import { getProactiveSettings } from "./settings";
 
 /**
@@ -116,6 +117,9 @@ export const PAUSE_DEFER_MS = 15 * 60_000;
 /** Claim-time margin: a wake this close to quiet hours defers instead of
  *  racing the boundary with a 30-60s model run. */
 const QUIET_MARGIN_MS = 10 * 60_000;
+/** How many promises the agent may carry for one reader. The block has to stay
+ *  readable, and a reader with twenty open promises effectively has none. */
+export const MAX_OPEN_COMMITMENTS = 5;
 /** The hard rail: at most this many unprompted messages per rolling week. */
 export const WEEKLY_CAP = 3;
 const WEEK_MS = 7 * 24 * 60 * 60_000;
@@ -174,8 +178,11 @@ async function runOneWake(
   // wake, including the shell's own model-less decisions (a ΣΤΟΠ pre-step, a
   // cap skip). eventAt orders on the world's timeline; id breaks same-instant
   // ties in insertion order.
+  // Everything at or before the watermark is already folded into `memory`;
+  // reading those rows again would say the same thing twice.
+  const past = sub.memoryThrough ? { gt: sub.memoryThrough } : undefined;
   const wakeRows = await db.notisWake.findMany({
-    where: { subscriptionId: sub.id },
+    where: { subscriptionId: sub.id, ...(past ? { eventAt: past } : {}) },
     orderBy: [{ eventAt: "desc" }, { id: "desc" }],
     take: DECISION_WINDOW,
     select: { eventType: true, eventAt: true, decision: true, rationale: true, outcome: true, truncated: true },
@@ -210,6 +217,7 @@ async function runOneWake(
   const messageRows = await db.notisMessage.findMany({
     where: {
       subscriptionId: sub.id,
+      ...(past ? { createdAt: past } : {}),
       OR: [
         { direction: "inbound" },
         { direction: "outbound", status: { in: ["sent", "delivered", "read"] } },
@@ -226,11 +234,24 @@ async function runOneWake(
   }));
 
   const cities = await assembleCities(sub);
+  // Open promises never age out: unlike the two windows above, a commitment
+  // leaves only when the agent resolves it.
+  const openCommitments = await db.notisCommitment.findMany({
+    where: { subscriptionId: sub.id, resolvedAt: null },
+    orderBy: { createdAt: "asc" },
+    select: { slug: true, what: true, createdAt: true },
+  });
   const state = {
     user: { name: sub.userName ?? "", cities },
     profile: sub.profileText,
     conversation,
     decisions,
+    commitments: openCommitments.map((c) => ({
+      slug: c.slug,
+      what: c.what,
+      since: c.createdAt.toISOString().slice(0, 10),
+    })),
+    ...(sub.memory ? { memory: sub.memory } : {}),
   };
 
   // Incremental delivery, reactive wakes only: someone is waiting and no
@@ -402,6 +423,47 @@ async function runOneWake(
     // id; batch rows are created after this statement).
     if (outcome.unsubscribe) {
       await suppressPendingOutbound(tx, sub.id, incrementalIds);
+      // A promise cannot outlive the reader's departure any more than a queued
+      // message can — the same rule, applied to the other durable store.
+      await tx.notisCommitment.updateMany({
+        where: { subscriptionId: sub.id, resolvedAt: null },
+        data: { resolvedAt: new Date() },
+      });
+    }
+
+    // Commitments ride the wake's transaction: atomic with the record that
+    // explains them. A wake whose persist fails twice loses both, which is the
+    // accepted trade — a promise attached to a wake that never landed is not
+    // worth a second write path.
+    for (const slug of outcome.commitments?.resolve ?? []) {
+      await tx.notisCommitment.updateMany({
+        where: { subscriptionId: sub.id, slug, resolvedAt: null },
+        data: { resolvedAt: new Date() },
+      });
+    }
+    for (const c of outcome.commitments?.record ?? []) {
+      // Re-recording a slug replaces what it says and reopens it if it had
+      // been closed: the reader raised it again.
+      await tx.notisCommitment.upsert({
+        where: { subscriptionId_slug: { subscriptionId: sub.id, slug: c.slug } },
+        create: { subscriptionId: sub.id, slug: c.slug, what: c.what },
+        update: { what: c.what, resolvedAt: null },
+      });
+    }
+    if ((outcome.commitments?.record ?? []).length > 0) {
+      // Cap the open list: the prompt block has to stay readable, and a reader
+      // with twenty open promises has none. Oldest wins the eviction.
+      const open = await tx.notisCommitment.findMany({
+        where: { subscriptionId: sub.id, resolvedAt: null },
+        orderBy: { createdAt: "asc" },
+        select: { id: true },
+      });
+      if (open.length > MAX_OPEN_COMMITMENTS) {
+        await tx.notisCommitment.updateMany({
+          where: { id: { in: open.slice(0, open.length - MAX_OPEN_COMMITMENTS).map((c) => c.id) } },
+          data: { resolvedAt: new Date() },
+        });
+      }
     }
 
     const wake = await tx.notisWake.create({
@@ -1221,6 +1283,15 @@ export async function processItem(item: ClaimedItem, overrides: DrainDeps = {}):
       return;
     }
     await runOneWake(db, item, sub, events, overrides);
+    // The wake is done and its messages are already on the reader's handset,
+    // so nobody waits for this: fold whatever has aged out of the windows.
+    // Re-read the row — runOneWake may have moved the watermark's neighbours
+    // and the status (a ΣΤΟΠ mid-wake). maybeCompact never throws.
+    const after = await db.notisSubscription.findUnique({
+      where: { id: sub.id },
+      select: { id: true, status: true, memory: true, memoryThrough: true },
+    });
+    if (after) await maybeCompact(db, after, { deps: overrides.deps, alert });
   } catch (error) {
     if (error instanceof ClaimLostError) {
       // A reclaiming worker owns the item now; this run's persist rolled

@@ -85,7 +85,7 @@ describe('notis wake queue (live lane)', () => {
 
     beforeEach(async () => {
         await notisDb.$executeRawUnsafe(
-            'TRUNCATE TABLE "NotisWakeQueue", "NotisSubscription" RESTART IDENTITY CASCADE',
+            'TRUNCATE TABLE "NotisWakeQueue", "NotisCommitment", "NotisSubscription" RESTART IDENTITY CASCADE',
         )
     })
 
@@ -263,6 +263,53 @@ describe('notis wake queue (live lane)', () => {
                 data: { subscriptionId: sub, direction: 'inbound', body: 'b', birdMessageId: 'dup' },
             }),
         ).rejects.toMatchObject({ code: 'P2002' })
+    })
+
+    test('the commitments migration enforces one row per (subscription, slug)', async () => {
+        const sub = await createSubscription('c1')
+        await notisDb.notisCommitment.create({
+            data: { subscriptionId: sub, slug: 'metro', what: 'πρώτο' },
+        })
+        await expect(
+            notisDb.notisCommitment.create({
+                data: { subscriptionId: sub, slug: 'metro', what: 'δεύτερο' },
+            }),
+        ).rejects.toMatchObject({ code: 'P2002' })
+
+        // The same slug for a different reader is a different promise.
+        const other = await createSubscription('c2')
+        await expect(
+            notisDb.notisCommitment.create({
+                data: { subscriptionId: other, slug: 'metro', what: 'άλλου αναγνώστη' },
+            }),
+        ).resolves.toBeDefined()
+    })
+
+    test('commitments cascade with the subscription — the janitor purge needs it', async () => {
+        const sub = await createSubscription('c3')
+        await notisDb.notisCommitment.create({
+            data: { subscriptionId: sub, slug: 'plateia', what: 'κάτι' },
+        })
+
+        // A bare deleteMany, exactly as the janitor's orphan purge does it.
+        await notisDb.notisSubscription.deleteMany({ where: { id: sub } })
+
+        expect(await notisDb.notisCommitment.count({ where: { subscriptionId: sub } })).toBe(0)
+    })
+
+    test('the memory watermark columns exist and round-trip', async () => {
+        const sub = await createSubscription('c4')
+        const through = new Date('2026-03-01T00:00:00.000Z')
+        await notisDb.notisSubscription.update({
+            where: { id: sub },
+            data: { memory: 'Ρώτησε για την Κυψέλη.', memoryThrough: through },
+        })
+        const row = await notisDb.notisSubscription.findUnique({
+            where: { id: sub },
+            select: { memory: true, memoryThrough: true },
+        })
+        expect(row?.memory).toBe('Ρώτησε για την Κυψέλη.')
+        expect(row?.memoryThrough).toEqual(through)
     })
 
     test('batch enqueue coalesces into the pending row: events append, earliest runAfter wins', async () => {

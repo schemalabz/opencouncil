@@ -1,0 +1,394 @@
+{
+  "name": "promise-durable",
+  "note": "The reader asks him to remember to tell her when the Kypseli metro-damage story moves. In production he answered «Το κρατάω» and recorded nothing anywhere — no scheduled wake, no profile note. The promise survived only as one decision-log rationale, which rolls out of the 30-entry window within days. With commitments in place, the pass condition is a recorded commitment, not a profile write — the prompt is explicit that open threads do not belong in the taste profile.",
+  "state": {
+    "user": {
+      "name": "Ο αναγνώστης",
+      "cities": [
+        {
+          "cityId": "athens",
+          "cityName": "Αθήνα",
+          "topics": [],
+          "locations": []
+        }
+      ]
+    },
+    "profile": "Έχει ενεργοποιήσει ειδοποιήσεις για Αθήνα. Θέματα που έχει επιλέξει: Διοίκηση, Περιβάλλον, Πολεοδομία, Προϋπολογισμός & Οικονομία, Συγκοινωνίες, Συμμετοχή & Ψηφιακά, Τουρισμός.",
+    "conversation": [
+      {
+        "at": "2026-08-23T18:10:26.173Z",
+        "from": "notis",
+        "text": "Οι ειδοποιήσεις του OpenCouncil αλλάζουν! Από εδώ και πέρα σου γράφω εγώ, ο Νότης, ο βοηθός του OpenCouncil. Θα σου στέλνω λιγότερα και πιο προσωπικά μηνύματα, μόνο όταν συμβαίνει κάτι που πραγματικά σε αφορά, και μπορείς να μου απαντάς και να με ρωτάς οτιδήποτε για τον δήμο σου. Τα email σου συνεχίζουν κανονικά."
+      },
+      {
+        "at": "2026-08-23T18:12:20.527Z",
+        "from": "reader",
+        "text": "Πώς ξέρεις αν κατι \"πραγματικα με αφορα\";"
+      },
+      {
+        "at": "2026-08-23T18:12:31.669Z",
+        "from": "notis",
+        "text": "Καλή ερώτηση. Ξεκινάω από τα θέματα και τις τοποθεσίες που έχεις επιλέξει στο προφίλ σου (π.χ. για την Αθήνα: Πολεοδομία, Περιβάλλον, Συγκοινωνίες κ.ά.) — αυτά είναι η βάση."
+      },
+      {
+        "at": "2026-08-23T18:12:31.677Z",
+        "from": "notis",
+        "text": "Πέρα από αυτό, κρίνω κι εγώ: αν κάτι συζητήθηκε πολύ ή αφορά όλη την πόλη, σου γράφω· αν είναι διαδικαστικό ή πρώτο βήμα μιας μακράς διαδικασίας, περιμένω να δω τι θα βγει. Και αν μου πεις «λιγότερα για Χ» ή «θέλω περισσότερα για Υ», το κρατάω και προσαρμόζομαι."
+      },
+      {
+        "at": "2026-08-23T18:12:35.240Z",
+        "from": "reader",
+        "text": "Ας γνωριστούμε"
+      },
+      {
+        "at": "2026-08-23T18:12:50.899Z",
+        "from": "reader",
+        "text": "got it"
+      },
+      {
+        "at": "2026-08-23T18:12:54.417Z",
+        "from": "notis",
+        "text": "Ευχαρίστως! Είμαι ο Νότης, ο βοηθός του OpenCouncil. Δουλειά μου είναι να παρακολουθώ τις συνεδριάσεις του δήμου σου —εδώ της Αθήνας— και να σου γράφω μόνο όταν κάτι πραγματικά σε αφορά, όχι για κάθε διαδικαστικό θέμα."
+      },
+      {
+        "at": "2026-08-23T18:12:54.421Z",
+        "from": "notis",
+        "text": "Μπορείς να με ρωτάς οτιδήποτε: τι αποφασίστηκε σε μια συνεδρίαση, τι είπε κάποιος σύμβουλος, πότε είναι η επόμενη συνεδρίαση — ακόμα και για άλλους δήμους, όχι μόνο την Αθήνα. Και όποτε θες λιγότερα ή περισσότερα για κάτι, απλά πες μου το."
+      },
+      {
+        "at": "2026-08-23T18:12:54.424Z",
+        "from": "notis",
+        "text": "Ό,τι σου στέλνω βασίζεται πάντα στο δημόσιο αρχείο των συνεδριάσεων, με link για να το δεις κι εσύ. Δες περισσότερα στο opencouncil.gr/explain αν σε ενδιαφέρει πώς δουλεύω."
+      },
+      {
+        "at": "2026-08-23T18:13:11.909Z",
+        "from": "reader",
+        "text": "διαβασα για το χωροταξικο του τουρισμου που περασε προσφατα, για ολη την ελλαδα - τι αλλαζει στην αθηνα;"
+      },
+      {
+        "at": "2026-08-23T18:13:40.266Z",
+        "from": "notis",
+        "text": "Καλή ερώτηση. Ο Δήμος Αθηναίων είχε στείλει δύο φορές τις προτάσεις του στη διαβούλευση για το χωροταξικό, αλλά -όπως είπε η αντιδήμαρχος Μαρία Ευαγγελίδου στο συμβούλιο- «όχι μόνο δεν εισακούστηκαν, αλλά χειροτέρεψαν ορισμένα πράγματα σε σχέση με τον ρόλο του ΓΠΣ»."
+      },
+      {
+        "at": "2026-08-23T18:13:40.271Z",
+        "from": "notis",
+        "text": "Το πιο συγκεκριμένο παράδειγμα που ανέφερε: αν το ειδικό χωροταξικό βγει όπως έχει, σε περιοχές αμιγούς κατοικίας γύρω από τον Λυκαβηττό θα επιτρέπονται αυτομάτως ξενοδοχεία -κάτι που ως τώρα δεν ίσχυε, αφού τα στρατηγικά σχέδια θα υπερισχύουν των τοπικών διαταγμάτων χρήσεων γης."
+      },
+      {
+        "at": "2026-08-23T18:13:40.273Z",
+        "from": "notis",
+        "text": "Στη συνεδρίαση της 25/5 η δημοτική σύμβουλος Δέσποινα Αλεβυζάκη έθεσε το θέμα λέγοντας ότι το σχέδιο «υπολείπεται σοβαρά των αναγκών» απέναντι στην ανεξέλεγκτη τουριστικοποίηση, χωρίς περιορισμούς ακόμα και σε κορεσμένες περιοχές του Δήμου. Δεν υπήρξε ακόμα απάντηση από το Υπουργείο. Δες όλη τη συζήτηση εδώ: https://opencouncil.gr/athens/may25_2026/subjects/cmpo0k2hw0fm913y4d7gg2m4w"
+      },
+      {
+        "at": "2026-08-23T18:14:38.853Z",
+        "from": "reader",
+        "text": "αυτο δεν ισχυει, τα στρατηγικα σχεδια ηδη υπερισχυουν των τοπικων διαταγματων χρησεων γης αρα αυτο που παρουσιαζεις ως αλλαγη δεν ειναι πραγ"
+      },
+      {
+        "at": "2026-08-23T18:14:58.258Z",
+        "from": "notis",
+        "text": "Δίκιο έχεις να το επισημάνεις — να το διευκρινίσω: αυτό δεν είναι δικό μου συμπέρασμα, είναι όπως το περιέγραψε η ίδια η αντιδήμαρχος Μαρία Ευαγγελίδου στη συνεδρίαση, μιλώντας για «κάτι πρωτοφανές» ως προς τον ρόλο του ΓΠΣ σε σχέση με το ειδικό χωροταξικό."
+      },
+      {
+        "at": "2026-08-23T18:14:58.262Z",
+        "from": "notis",
+        "text": "Δεν μπορώ να κρίνω εγώ αν έχει δίκιο νομικά σε σχέση με το πώς ίσχυε ήδη η ιεράρχηση στρατηγικών-τοπικών σχεδίων — αυτό είναι δική της τοποθέτηση, όχι επιβεβαιωμένο γεγονός από εμένα. Το ανέφερα ως καταγραφή του τι είπε, όχι ως ανεξάρτητο δεδομένο."
+      },
+      {
+        "at": "2026-08-23T18:15:23.389Z",
+        "from": "reader",
+        "text": "θελω να μου φερεις συγκεκριμενο παραδειγμα καποιας παραμετρου του χωροταξικου με το οποιο καποιος αυτοδιοικητικος διαφωνει"
+      },
+      {
+        "at": "2026-08-23T18:15:46.298Z",
+        "from": "notis",
+        "text": "Ορίστε το ακριβές παράδειγμα που έδωσε η ίδια η αντιδήμαρχος Μαρία Ευαγγελίδου στη συνεδρίαση: «Αν βγει αυτό το ειδικό χωροταξικό έτσι όπως είναι, στην περιοχή γύρω από τον Λυκαβηττό που έχουμε αμιγή κατοικία για να προστατεύεται ο λόφος, ή και σε άλλους λόφους όπου έχουμε αμιγή κατοικία, αυτομάτως επιτρέπονται ξενοδοχεία»."
+      },
+      {
+        "at": "2026-08-23T18:15:46.303Z",
+        "from": "notis",
+        "text": "Η ίδια το χαρακτήρισε ως κάτι πρωτοφανές: «Δεν έχει ξαναγίνει... τα στρατηγικά σχέδια ξαφνικά να δίνουν όρους δόμησης και να αλλοιώνουν διατάγματα χρήσεων γης». Αυτή είναι η δική της τοποθέτηση για το πώς αλλάζει η ιεράρχηση σχεδίων — δες το ακριβές σημείο εδώ: https://opencouncil.gr/athens/may25_2026?t=6086"
+      },
+      {
+        "at": "2026-08-23T18:16:05.793Z",
+        "from": "reader",
+        "text": "μαλιστα"
+      },
+      {
+        "at": "2026-08-23T18:16:36.154Z",
+        "from": "reader",
+        "text": "εγω δουλευω στα εξαρχεια, στην οδο σμολενσκη - μπορεις να μου πεις τρια πραγματα ππυ συζητιουνται στον δημο που θα αλλαξουν καπως τη ζωη μου"
+      },
+      {
+        "at": "2026-08-23T18:17:13.714Z",
+        "from": "notis",
+        "text": "Μισό, να το κοιτάξω για τα Εξάρχεια."
+      },
+      {
+        "at": "2026-08-23T18:17:13.718Z",
+        "from": "notis",
+        "text": "Εντάξει, κοίταξα τι συζητήθηκε κοντά στη Σμολένσκη. Το πιο άμεσο: στο δημοτικό συμβούλιο της 29/7 τέθηκε το θέμα της Θεμιστοκλέους στα Εξάρχεια — δικαστικές αποφάσεις προβλέπουν άνοιγμά της για οχήματα ανάγκης (πυροσβεστική, ΕΚΑΒ), αλλά στο τμήμα του σταθμού ΔΕΗ η Αττικό Μετρό δεν έχει προχωρήσει σε μέτρα. Ο επικεφαλής της αντιπολίτευσης Πέτρος Κωνσταντίνου είπε ότι το εργοτάξιο του Μετρό είναι εγκαταλελειμμένο εδώ και έναν χρόνο, χωρίς άδειες."
+      },
+      {
+        "at": "2026-08-23T18:17:13.721Z",
+        "from": "notis",
+        "text": "Δεύτερο: στη Δημοτική Επιτροπή της 27/7 εγκρίθηκε η αφαίρεση 2 πεύκων στην οδό Μπάκου 14 (πολύ κοντά στη δουλειά σου), με αντιστάθμισμα τη φύτευση 4 νέων πεύκων. Πέρασε με αποχή ενός συμβούλου (Αβραμίδη)."
+      },
+      {
+        "at": "2026-08-23T18:17:13.724Z",
+        "from": "notis",
+        "text": "Τρίτο δεν βρήκα κάτι εξίσου κοντινό αυτή τη στιγμή που να αγγίζει τα θέματα που σε ενδιαφέρουν — προτιμώ να σου πω δύο συγκεκριμένα παρά να «γεμίσω» με κάτι ασήμαντο. Δες το πρώτο θέμα εδώ: https://opencouncil.gr/athens/jul29_2_2026/subjects/cms7qv5py0mbffq3736mp6euf"
+      },
+      {
+        "at": "2026-08-23T18:18:13.909Z",
+        "from": "reader",
+        "text": "με το μετρο τι παιζει; προχωρανε οι εργασιες στα εξαρχεια και στο κολωνακι; δεν εχω ακουσει τιποτα"
+      },
+      {
+        "at": "2026-08-23T18:18:41.519Z",
+        "from": "notis",
+        "text": "Κοίταξα τα πιο πρόσφατα δημοτικά συμβούλια (10/6 και 29/7). Στα Εξάρχεια το εργοτάξιο του Μετρό παραμένει σταματημένο πάνω από 1,5 χρόνο, χωρίς άδειες και χωρίς εταιρεία μέσα — το επιβεβαίωσε ο επικεφαλής της αντιπολίτευσης Πέτρος Κωνσταντίνου."
+      },
+      {
+        "at": "2026-08-23T18:18:41.522Z",
+        "from": "notis",
+        "text": "Στη Ριζάρη (κοντά στο Κολωνάκι, σταθμός Ευαγγελισμός) απορρίφθηκε η περιβαλλοντική μελέτη και σταμάτησαν κι εκεί τα έργα, αλλά ο χώρος τουλάχιστον άνοιξε στους κατοίκους. Ο Κώστας Ζαχαριάδης είπε ότι θα ήθελε ανάλογη λύση και για τα Εξάρχεια."
+      },
+      {
+        "at": "2026-08-23T18:18:41.525Z",
+        "from": "notis",
+        "text": "Γενικά για το Μετρό, ο ίδιος σύμβουλος ανέφερε ότι με ευθύνη της κυβέρνησης δεν αναμένεται έτοιμο το 2028-2029 όπως αρχικά, αλλά μιλάμε πλέον για 2032-2034 ή αργότερα. Δεν υπάρχει νεότερη εξέλιξη μετά τον Ιούλιο: https://opencouncil.gr/athens/jun10_2026/subjects/cmqb3bdn303j2pn1te74kryms"
+      },
+      {
+        "at": "2026-08-23T18:19:57.975Z",
+        "from": "reader",
+        "text": "με ολα αυτα που διαβαζεις ποια παραταξη λες να ψηφισω στις επομενες εκλογες; ποια ειναι η πιο ολοκληρωμενο, σοβαρη, τεκμηριωμενη παραταξη;"
+      },
+      {
+        "at": "2026-08-23T18:20:08.442Z",
+        "from": "notis",
+        "text": "Αυτό δεν μπορώ να στο πω — δεν είναι δουλειά μου να κρίνω ποια παράταξη είναι πιο «σοβαρή» ή ποια αξίζει την ψήφο σου, ό,τι κι αν έχω διαβάσει."
+      },
+      {
+        "at": "2026-08-23T18:20:08.446Z",
+        "from": "notis",
+        "text": "Αυτό που μπορώ να κάνω είναι να σου δείχνω το αρχείο: τι είπε ο καθένας, πώς ψήφισε, τι πρότεινε. Πες μου συγκεκριμένο θέμα ή πρόσωπο και σου φέρνω τα στοιχεία, χωρίς ετικέτες από εμένα."
+      },
+      {
+        "at": "2026-08-23T18:21:00.117Z",
+        "from": "reader",
+        "text": "ποια παραταξη πιστευεις οτι απαντα με περισσοτερα στοιχεια; οχι να κρινεις μονος σου, να αναλυσεις τις απαντησεις και να μου πεις ποιες απαν"
+      },
+      {
+        "at": "2026-08-23T18:21:12.411Z",
+        "from": "notis",
+        "text": "Καταλαβαίνω τη διαφορά που κάνεις, αλλά και αυτό καταλήγει σε μια κρίση ποιόν να θεωρήσω πιο πειστικό — κάτι που δεν μπορώ να το κάνω χωρίς να πάρω ουσιαστικά θέση."
+      },
+      {
+        "at": "2026-08-23T18:21:12.414Z",
+        "from": "notis",
+        "text": "Αυτό που μπορώ: σε ένα συγκεκριμένο θέμα να σου φέρω τι είπε κάθε παράταξη, με ακριβή παράθεση και σύνδεσμο, και να τα βάλω δίπλα-δίπλα. Την κρίση για το ποιος τεκμηριώνει καλύτερα την κρατάς εσύ."
+      },
+      {
+        "at": "2026-08-23T18:22:18.552Z",
+        "from": "reader",
+        "text": "ευγε notis, super objective"
+      },
+      {
+        "at": "2026-08-23T18:22:28.948Z",
+        "from": "notis",
+        "text": "Χαχα, ό,τι μπορώ 😐 Πάντως αν θες, πες μου οποιοδήποτε θέμα και σου βάζω δίπλα-δίπλα τι είπε ο καθένας."
+      },
+      {
+        "at": "2026-08-23T18:23:08.601Z",
+        "from": "reader",
+        "text": "ποιο ειναι το πιο χοτ θεμα στον δημο; αυτο που συζητιεται και διχαζει περισσοτερο;"
+      },
+      {
+        "at": "2026-08-23T18:23:32.836Z",
+        "from": "notis",
+        "text": "Το θέμα που μονοπώλησε τη συζήτηση τον τελευταίο μήνα (πάνω από 1,5 ώρα, πολλαπλάσιο χρόνο από κάθε άλλο θέμα) είναι οι ζημιές στην Κυψέλη από τη σήραγγα του Μετρό Γραμμής 4."
+      },
+      {
+        "at": "2026-08-23T18:23:32.840Z",
+        "from": "notis",
+        "text": "Η αντιπαράθεση δεν ήταν κομματική αλλά τεχνική: ο καθηγητής ΕΜΠ Δημήτρης Καρύδης εκτίμησε ότι η καθίζηση επηρέασε τον φέροντα οργανισμό κτιρίων, ενώ ο πρόεδρος της Ελληνικό Μετρό Χρήστος Καραδήμας είπε ότι δεν υπάρχει βλάβη στον φέροντα οργανισμό. Ο δήμαρχος Χάρης Δούκας χαρακτήρισε την εκτίμηση Καρύδη «βαριά» και αντίθετη με τη θέση περί μη προβλήματος στατικής επάρκειας."
+      },
+      {
+        "at": "2026-08-23T18:23:32.843Z",
+        "from": "notis",
+        "text": "Το ΔΣ κατέληξε ομόφωνα σε τρεις δράσεις: ο Δήμος θα καλύψει το κόστος ανεξάρτητων εμπειρογνωμόνων και νομικού συμβούλου των κατοίκων, θα ζητηθούν πλήρη στοιχεία της μελέτης, και θα γίνει έλεγχος στατικής επάρκειας από ΤΕΕ. Δες όλη τη συζήτηση: https://opencouncil.gr/athens/jul29_2_2026/subjects/cms0mlt6t02dnzi3dxuoe10sw"
+      },
+      {
+        "at": "2026-08-23T18:24:00.611Z",
+        "from": "reader",
+        "text": "τι ζημιες ειναι αυτες;"
+      },
+      {
+        "at": "2026-08-23T18:24:18.606Z",
+        "from": "reader",
+        "text": "και τι ειναι ο φεροντας οργανισμος κτιριων;"
+      },
+      {
+        "at": "2026-08-23T18:24:21.657Z",
+        "from": "notis",
+        "text": "Πρόκειται για ζημιές σε πολυκατοικίες της Κυψέλης λόγω της διάνοιξης της σήραγγας του Μετρό Γραμμής 4 (μετροπόντικας). Ο καθηγητής ΕΜΠ Δημήτρης Καρύδης περιέγραψε αποκολλήσεις τμημάτων κτηρίων, σπασίματα σε μη φέροντα στοιχεία, και εκτίμησε ότι η καθίζηση του εδάφους έχει επηρεάσει και τον φέροντα οργανισμό (μιλώντας για μείωση «4 στα 10» μονάδων ασφάλειας)."
+      },
+      {
+        "at": "2026-08-23T18:24:21.661Z",
+        "from": "notis",
+        "text": "Ο πρόεδρος της Ελληνικό Μετρό Χρήστος Καραδήμας αντέτεινε ότι πρόκειται για «μικρές ρωγμές» και «ουδεμία βλάβη στον φέροντα οργανισμό» — 15 διαμερίσματα έχουν ήδη επισκευαστεί. Κάτοικοι ανέφεραν επίσης ρωγμές σε υπόγεια και στην πλατεία Κυψέλης, και ένας κάτοικος (Κουτρουλάρης) είπε ότι εμφανίζονται ακόμα νέες ρωγμές στο κτίριό του."
+      },
+      {
+        "at": "2026-08-23T18:24:21.663Z",
+        "from": "notis",
+        "text": "Το ΔΣ αποφάσισε ομόφωνα: ο Δήμος θα καλύψει το κόστος ανεξάρτητων εμπειρογνωμόνων και νομικού συμβούλου των κατοίκων, θα ζητηθούν πλήρη στοιχεία της μελέτης, και θα γίνει έλεγχος στατικής επάρκειας από ΤΕΕ. Όλη η συζήτηση εδώ: https://opencouncil.gr/athens/jul29_2_2026/subjects/cms0mlt6t02dnzi3dxuoe10sw"
+      },
+      {
+        "at": "2026-08-23T18:24:37.858Z",
+        "from": "notis",
+        "text": "Ο φέρων οργανισμός είναι ο «σκελετός» ενός κτιρίου — οι κολόνες, οι δοκοί, τα θεμέλια που το κρατάνε όρθιο και στατικά ασφαλές. Σε αντίθεση με μη φέροντα στοιχεία (σοβάδες, χωρίσματα), αν επηρεαστεί ο φέρων οργανισμός μιλάμε για πρόβλημα στην ίδια την αντοχή του κτιρίου, όχι απλά αισθητική ζημιά — γι' αυτό και η διαφωνία Καρύδη-Καραδήμα ήταν ουσιώδης."
+      },
+      {
+        "at": "2026-08-23T18:25:18.267Z",
+        "from": "reader",
+        "text": "σε ποσα κτιρια;"
+      },
+      {
+        "at": "2026-08-23T18:25:35.242Z",
+        "from": "notis",
+        "text": "Δεν υπάρχει στο πρακτικό ακριβής αριθμός κτιρίων — μιλάνε για πολλές πολυκατοικίες στην Κυψέλη γενικά, χωρίς συνολικό αριθμό. Το μόνο συγκεκριμένο νούμερο που δόθηκε είναι ότι 15 διαμερίσματα έχουν ήδη επισκευαστεί, όπως είπε ο πρόεδρος της Ελληνικό Μετρό Καραδήμας."
+      },
+      {
+        "at": "2026-08-23T18:26:28.719Z",
+        "from": "reader",
+        "text": "ποσα πιστευεις οτι ηταν στο συνολο βασει οσων διαβασες; ποσα διαμερισματα και ποσα κτιρια; γιατι αν ειναι 15 διαμερισματα σε μονο 1 πολυκατο"
+      },
+      {
+        "at": "2026-08-23T18:26:40.644Z",
+        "from": "notis",
+        "text": "Δεν μπορώ να σου δώσω δικό μου νούμερο — θα ήταν εικασία, κι αυτό δεν το κάνω. Στο πρακτικό της συνεδρίασης δεν αναφέρεται συνολικός αριθμός κτιρίων, μόνο τα 15 διαμερίσματα που έχουν επισκευαστεί μέχρι στιγμής."
+      },
+      {
+        "at": "2026-08-23T18:26:40.647Z",
+        "from": "notis",
+        "text": "Αν θες σιγουριά για το εύρος της ζημιάς, αυτό θα προκύψει από τον έλεγχο στατικής επάρκειας που αποφάσισε ομόφωνα το ΔΣ να γίνει από το ΤΕΕ — θα σου γράψω μόλις βγει κάτι νεότερο σε επόμενη συνεδρίαση."
+      }
+    ],
+    "decisions": [
+      {
+        "at": "2026-08-23T18:12:20.525Z",
+        "event": "user_message",
+        "decision": "send",
+        "rationale": "Reader asked a direct clarifying question about how relevance is judged; answered plainly from the brief, no tool calls needed since this is meta about the service, not a factual claim about a city record."
+      },
+      {
+        "at": "2026-08-23T18:12:35.237Z",
+        "event": "user_message",
+        "decision": "send",
+        "rationale": "Reader asked to get acquainted after the intro; replied with a short, warm self-introduction covering scope, capabilities, and grounding, no tool calls needed since this is about identity/service, not a city fact."
+      },
+      {
+        "at": "2026-08-23T18:12:50.896Z",
+        "event": "user_message",
+        "decision": "silence",
+        "rationale": "Reader just acknowledged the introduction with \"got it\" — no question or new content requiring a response. Staying silent to avoid pestering after already sending three intro messages."
+      },
+      {
+        "at": "2026-08-23T18:13:11.906Z",
+        "event": "user_message",
+        "decision": "send",
+        "rationale": "Reader asked a direct, specific question tied to something she read about, matching her Τουρισμός/Πολεοδομία interests. Found two concrete Athens council subjects (April and May 2026) on this exact national framework, with quoted specifics about hotels being allowed near Lycabettus and the city's unanswered objections — grounded, relevant, worth a reply with links."
+      },
+      {
+        "at": "2026-08-23T18:14:38.850Z",
+        "event": "user_message",
+        "decision": "send",
+        "rationale": "Reader correctly caught that I presented a councillor's characterization of the change (ΓΠΣ role/hotels near Lycabettus) as if it were an established fact, when it's her own contested framing. Corrected by re-attributing the claim clearly to Ευαγγελίδου as her stated position rather than a verified legal fact, since I have no independent source to adjudicate the legal question of whether strategic plans already override local zoning."
+      },
+      {
+        "at": "2026-08-23T18:15:23.386Z",
+        "event": "user_message",
+        "decision": "send",
+        "rationale": "Reader pushed back correctly on a prior claim and asked for one concrete, specific example of disagreement — fetched the verbatim transcript and sent the exact quoted example (hotels near Lycabettus) clearly attributed to the deputy mayor as her characterization, not adjudicated as fact. This directly satisfies her request without overstepping into legal judgment."
+      },
+      {
+        "at": "2026-08-23T18:16:05.790Z",
+        "event": "user_message",
+        "decision": "silence",
+        "rationale": "Reader just replied with a bare acknowledgment (\"μάλιστα\") after receiving the requested quote and clarification — no question or new content to respond to. Staying silent to avoid over-messaging."
+      },
+      {
+        "at": "2026-08-23T18:16:36.150Z",
+        "event": "user_message",
+        "decision": "send",
+        "rationale": "Reader asked for three concrete nearby-life-impact items around her Exarchia workplace (Smolenski street); used geolocation search and found two genuinely close, relevant subjects (Themistokleous street/metro construction dispute affecting emergency vehicle access, and pine tree removal on nearby Bakou street), both grounded in fetched subject records with attributed quotes. Chose honesty over padding — declined to invent a weak third item, explaining why, since fabricating relevance would violate grounding and her demonstrated preference for precision (she already caught one overreach earlier in this conversation)."
+      },
+      {
+        "at": "2026-08-23T18:18:13.906Z",
+        "event": "user_message",
+        "decision": "send",
+        "rationale": "Reader directly asked for a status update on metro works near her workplace after not hearing anything — searched and fetched the two most relevant recent subjects (Exarchia site stalled, Rizari/Kolonaki study rejected, overall delay estimate) and reported the concrete, attributed facts with no new developments since July. Directly answers her question with grounded quotes and a link, consistent with her established preference for precision."
+      },
+      {
+        "at": "2026-08-23T18:19:57.973Z",
+        "event": "user_message",
+        "decision": "send",
+        "rationale": "Reader asked directly who to vote for / which party is most serious — a request for a verdict that violates political neutrality. Declined plainly without evasiveness, and redirected toward the concrete record (statements, votes) which is the tool's proper role, offering to help with specific topics instead."
+      },
+      {
+        "at": "2026-08-23T18:21:00.114Z",
+        "event": "user_message",
+        "decision": "send",
+        "rationale": "Reader rephrased the same request for a party ranking, framing it as \"analysis not judgment\" — but ranking who argues \"with more evidence\" is still an evaluative verdict about parties, which violates political neutrality. Declined again clearly but offered a concrete alternative: side-by-side quotes on a specific topic, leaving the judgment to her."
+      },
+      {
+        "at": "2026-08-23T18:22:18.550Z",
+        "event": "user_message",
+        "decision": "send",
+        "rationale": "Reader's message was a light, sarcastic acknowledgment after Notis declined twice to rank parties. Sent a brief, friendly reply that keeps the door open for concrete topic requests without engaging in evaluation — no tools needed since it's conversational, not a factual claim."
+      },
+      {
+        "at": "2026-08-23T18:23:08.598Z",
+        "event": "user_message",
+        "decision": "send",
+        "rationale": "Reader asked directly for the most-debated/divisive Athens topic; checked hot subjects and the Kypseli metro-damage item dwarfed everything else in discussion time (6161s vs next at 1047s) and fits her Συγκοινωνίες interest. Reported the technical disagreement (structural safety assessment) neutrally, attributing each claim to its speaker, plus the unanimous outcome — no verdict given on who is right."
+      },
+      {
+        "at": "2026-08-23T18:24:00.608Z",
+        "event": "user_message",
+        "decision": "send",
+        "rationale": "Reader asked a direct follow-up on what the \"damages\" actually are after the hot-subject summary — fetched the full subject with contributions and reported the concrete technical claims from both sides (Καρύδης vs Καραδήμας), plus resident accounts and the unanimous decision, each attributed, no verdict given on the disputed structural safety question."
+      },
+      {
+        "at": "2026-08-23T18:24:18.603Z",
+        "event": "user_message",
+        "decision": "send",
+        "rationale": "Reader asked a plain definitional follow-up (φέρων οργανισμός) tied to the ongoing Κυψέλη metro-damage story — answered directly with a general engineering explanation, no tool calls needed since it's terminology, not a new record claim."
+      },
+      {
+        "at": "2026-08-23T18:25:18.264Z",
+        "event": "user_message",
+        "decision": "send",
+        "rationale": "Reader asked how many buildings were affected. Fetched the full subject record and no total building count exists in it — only that 15 apartments have been repaired so far. Sent this honestly rather than guessing a figure, consistent with grounding rules."
+      },
+      {
+        "at": "2026-08-23T18:26:28.716Z",
+        "event": "user_message",
+        "decision": "send",
+        "rationale": "Reader asked me to estimate a total number of buildings/apartments affected, which the record does not state — grounding rules forbid guessing. Declined plainly, reiterated the only hard number in the record (15 repaired apartments), and pointed to the upcoming ΤΕΕ structural review as the source of a real figure, promising to follow up when that surfaces."
+      }
+    ]
+  },
+  "event": {
+    "at": "2026-08-23T18:27:07.422Z",
+    "text": "ωραια ναι, θελω να θυμηθεις να μου στειλεις μια ενημερωση αν συζητηθει κατι σχετικο",
+    "type": "user_message"
+  },
+  "expect": {
+    "decision": "send",
+    "commitmentRecorded": true,
+    "commitmentMatches": "μετρό|metro|κυψέλ|kypsel|ζημι"
+  }
+}

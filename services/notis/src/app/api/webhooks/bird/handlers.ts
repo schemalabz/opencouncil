@@ -310,6 +310,12 @@ async function handleBareStop(
     // below, after this statement, so it is the one outbound row that
     // survives.
     await suppressPendingOutbound(tx, sub.id);
+    // Promises die with the subscription too, or the panel shows live
+    // commitments to someone who left.
+    await tx.notisCommitment.updateMany({
+      where: { subscriptionId: sub.id, resolvedAt: null },
+      data: { resolvedAt: at },
+    });
     // A model-less wake row records the decision (the reader's text lives on
     // the inbound message row, the reply on its own row below — this is only
     // the "what happened and why"). model/trace stay null: no model ran.

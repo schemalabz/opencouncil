@@ -2,7 +2,7 @@ import { assembleSystem, assembleUserTurn } from "../prompt";
 import { DECISION_WINDOW, DecisionEntry } from "../types";
 import { FIXED_NOW, makeState, meetingEvent } from "./helpers";
 
-const prompts = { system: "SYSTEM", contextPack: "PACK", editorial: "ED" };
+const prompts = { system: "SYSTEM", contextPack: "PACK", editorial: "ED", compaction: "COMPACT" };
 
 describe("assembleSystem", () => {
   it("orders system prompt then context pack, with the single cache breakpoint on the last block", () => {

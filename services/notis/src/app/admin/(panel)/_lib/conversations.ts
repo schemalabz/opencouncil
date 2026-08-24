@@ -56,6 +56,15 @@ export interface UpcomingWake {
   createdAt: string;
 }
 
+/** One thing the agent owes this reader. Open ones are what it reads on every wake. */
+export interface CommitmentNote {
+  id: string;
+  slug: string;
+  what: string;
+  createdAt: string;
+  resolvedAt?: string;
+}
+
 export interface ConversationDetail {
   summary: ConversationSummary;
   records: WakeRecord[];
@@ -63,6 +72,10 @@ export interface ConversationDetail {
   profile: string;
   /** The agent's un-fired scheduled wakes for this reader, due-first. */
   upcoming: UpcomingWake[];
+  /** Open promises first, then recently resolved ones. */
+  commitments: CommitmentNote[];
+  /** The compacted past — everything older than the two live windows. */
+  memory?: string;
 }
 
 interface SubscriptionRow {
@@ -397,6 +410,19 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     createdAt: note.createdAt.toISOString(),
   }));
 
+  const commitmentRows = await db.notisCommitment.findMany({
+    where: { subscriptionId: id },
+    orderBy: [{ resolvedAt: "asc" }, { createdAt: "desc" }],
+    select: { id: true, slug: true, what: true, createdAt: true, resolvedAt: true },
+  });
+  const commitments: CommitmentNote[] = commitmentRows.map((c) => ({
+    id: c.id,
+    slug: c.slug,
+    what: c.what,
+    createdAt: c.createdAt.toISOString(),
+    ...(c.resolvedAt ? { resolvedAt: c.resolvedAt.toISOString() } : {}),
+  }));
+
   const cities = (await liveCities([sub.userId])).get(sub.userId) ?? [];
 
   return {
@@ -412,6 +438,8 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     cityMeta: Object.fromEntries(cities.map((c) => [c.cityId, { name: c.cityName }])),
     profile: sub.profileText,
     upcoming,
+    commitments,
+    ...(sub.memory ? { memory: sub.memory } : {}),
   };
 }
 
