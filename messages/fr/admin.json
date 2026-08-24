@@ -277,7 +277,17 @@
       "removeDecision": "Supprimer la décision",
       "removeDecisionDescription": "Dissociez la décision et effacez toutes les données extraites.",
       "extractionReset": "Extraction réinitialisée",
-      "decisionRemoved": "Décision supprimée"
+      "decisionRemoved": "Décision supprimée",
+      "unplacedTitle": "Décisions non placées",
+      "unplacedDescription": "Décisions dont le document déclare cette séance, sans sujet lié. Affectez-les à leur sujet ou rejetez celles qui ne relèvent pas de cette séance.",
+      "unplacedSuggestion": "Sujet suggéré",
+      "unplacedConflict": "Déjà liée à",
+      "unplacedChooseSubject": "Choisir un sujet…",
+      "unplacedAssign": "Affecter",
+      "unplacedDismiss": "Rejeter",
+      "unplacedAssigned": "Décision affectée",
+      "unplacedDismissed": "Candidate rejetée",
+      "unplacedNoFreeSubjects": "Tous les sujets ont déjà des décisions"
     },
     "export": {
       "docx": "Exporter en DOCX",
