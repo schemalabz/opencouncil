@@ -61,8 +61,40 @@ export interface DigestedMeetingView {
   briefCostUsd: number | null;
   headline: string | null;
   subjectCount: number | null;
+  /** Wakes whose primary event named this meeting. */
   wakes: number;
+  /** What those wakes produced: messages written, and wakes that ended in
+   *  silence or in an error. Message counts come from the recorded outcome,
+   *  the same source the wake feed counts. */
+  messages: number;
+  silences: number;
+  errors: number;
+  /** Per subject of the brief, how far it travelled: the messages that
+   *  carried its link, and how many wakes wrote one. Keyed by subjectId. */
+  subjectFanout: Record<string, SubjectFanout>;
   brief: EditorialBrief | null;
+}
+
+export interface SubjectFanout {
+  messages: number;
+  wakes: number;
+}
+
+interface MeetingFanout {
+  wakes: number;
+  messages: number;
+  silences: number;
+  errors: number;
+}
+
+/** One row of the fan-out query. `kind` says what `key` names: a wake
+ *  decision for a meeting total, or a subjectId for a subject total. */
+interface FanoutRow {
+  kind: "meeting" | "subject";
+  meetingId: string;
+  key: string;
+  wakes: number;
+  messages: number;
 }
 
 export interface SystemSnapshot {
@@ -264,18 +296,78 @@ export async function getSystemSnapshot(digestedPage = 1): Promise<SystemSnapsho
     take: DIGESTED_PAGE_SIZE,
   });
 
-  // Fan-out width per digested meeting: wakes whose primary event named it.
+  // Fan-out per digested meeting, and per subject inside it.
   const meetingIds = [...new Set(digestedRows.map((r) => r.meetingId))];
-  const wakeCounts =
+  const briefs = digestedRows.map((r) => (r.brief as unknown as EditorialBrief | null) ?? null);
+  // (meeting, subject) pairs to attribute messages to. Deduped: the agenda
+  // row and the summary row of one meeting carry the same subject ids.
+  const subjectPairs = [
+    ...new Set(
+      digestedRows.flatMap((row, i) =>
+        (briefs[i]?.subjects ?? []).map((s) => `${row.meetingId}\u0000${s.subjectId}`),
+      ),
+    ),
+  ].map((pair) => pair.split("\u0000"));
+  const pairMeetingIds = subjectPairs.map((pair) => pair[0]);
+  const pairSubjectIds = subjectPairs.map((pair) => pair[1]);
+  const fanoutRows =
     meetingIds.length === 0
       ? []
-      : await db.$queryRaw<Array<{ meetingId: string; count: bigint }>>`
-          SELECT event->>'meetingId' AS "meetingId", count(*) AS count
-          FROM "NotisWake"
-          WHERE event->>'meetingId' = ANY(${meetingIds}::text[])
-          GROUP BY 1
+      : await db.$queryRaw<FanoutRow[]>`
+          WITH scoped AS (
+            SELECT
+              w.id,
+              w.event->>'meetingId' AS "meetingId",
+              w.decision::text      AS decision,
+              CASE WHEN jsonb_typeof(w.outcome->'messages') = 'array'
+                   THEN w.outcome->'messages'
+                   ELSE '[]'::jsonb END AS messages
+            FROM "NotisWake" w
+            WHERE w.event->>'meetingId' = ANY(${meetingIds}::text[])
+          )
+          SELECT 'meeting' AS kind,
+                 s."meetingId",
+                 s.decision AS key,
+                 count(*)::int AS wakes,
+                 coalesce(sum(jsonb_array_length(s.messages)), 0)::int AS messages
+          FROM scoped s
+          GROUP BY s."meetingId", s.decision
+          UNION ALL
+          SELECT 'subject' AS kind,
+                 t."meetingId",
+                 t."subjectId" AS key,
+                 count(DISTINCT s.id)::int AS wakes,
+                 count(*)::int AS messages
+          FROM scoped s
+          CROSS JOIN LATERAL jsonb_array_elements_text(s.messages) AS m(body)
+          JOIN unnest(${pairMeetingIds}::text[], ${pairSubjectIds}::text[])
+            AS t("meetingId", "subjectId") ON t."meetingId" = s."meetingId"
+          WHERE strpos(m.body, '/subjects/' || t."subjectId") > 0
+          GROUP BY t."meetingId", t."subjectId"
         `;
-  const wakesByMeeting = new Map(wakeCounts.map((r) => [r.meetingId, Number(r.count)]));
+
+  const fanoutByMeeting = new Map<string, MeetingFanout>();
+  const fanoutBySubject = new Map<string, SubjectFanout>();
+  for (const row of fanoutRows) {
+    if (row.kind === "subject") {
+      fanoutBySubject.set(`${row.meetingId}\u0000${row.key}`, {
+        messages: row.messages,
+        wakes: row.wakes,
+      });
+      continue;
+    }
+    const agg = fanoutByMeeting.get(row.meetingId) ?? {
+      wakes: 0,
+      messages: 0,
+      silences: 0,
+      errors: 0,
+    };
+    agg.wakes += row.wakes;
+    agg.messages += row.messages;
+    if (row.key === "silence") agg.silences += row.wakes;
+    if (row.key === "error") agg.errors += row.wakes;
+    fanoutByMeeting.set(row.meetingId, agg);
+  }
 
   const statusMap = Object.fromEntries(statusCounts.map((r) => [r.status, r._count._all]));
   const queueItems = activeItems.slice(0, QUEUE_LIST_LIMIT).map((item) => ({
@@ -349,8 +441,9 @@ export async function getSystemSnapshot(digestedPage = 1): Promise<SystemSnapsho
     digested: {
       page: digestedCurrent,
       pages: digestedPages,
-      items: digestedRows.map((row) => {
-        const brief = (row.brief as unknown as EditorialBrief | null) ?? null;
+      items: digestedRows.map((row, i) => {
+        const brief = briefs[i];
+        const fanout = fanoutByMeeting.get(row.meetingId);
         return {
           id: row.id,
           taskId: row.taskId,
@@ -364,7 +457,19 @@ export async function getSystemSnapshot(digestedPage = 1): Promise<SystemSnapsho
           briefCostUsd: row.briefCostUsd,
           headline: brief?.headline ?? null,
           subjectCount: brief?.subjects.length ?? null,
-          wakes: wakesByMeeting.get(row.meetingId) ?? 0,
+          wakes: fanout?.wakes ?? 0,
+          messages: fanout?.messages ?? 0,
+          silences: fanout?.silences ?? 0,
+          errors: fanout?.errors ?? 0,
+          subjectFanout: Object.fromEntries(
+            (brief?.subjects ?? []).map((s) => [
+              s.subjectId,
+              fanoutBySubject.get(`${row.meetingId}\u0000${s.subjectId}`) ?? {
+                messages: 0,
+                wakes: 0,
+              },
+            ]),
+          ),
           brief,
         };
       }),

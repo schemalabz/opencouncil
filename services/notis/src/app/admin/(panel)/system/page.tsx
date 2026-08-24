@@ -8,6 +8,7 @@ import {
   CircleDot,
   ExternalLink,
   FileSearch,
+  MessageSquare,
   Moon,
   OctagonAlert,
   Sun,
@@ -15,7 +16,7 @@ import {
 } from "lucide-react";
 import { env } from "@/env.mjs";
 import { EVENT_LABELS } from "../_lib/records";
-import { getSystemSnapshot } from "../_lib/system";
+import { DigestedMeetingView, SubjectFanout, getSystemSnapshot } from "../_lib/system";
 import { parsePage } from "../_lib/paging";
 import { Pager } from "../_components/Pager";
 import { AutoRefresh } from "../_components/AutoRefresh";
@@ -129,6 +130,49 @@ function ScoreBars({ scores }: { scores: Record<string, number> }) {
           </span>
         );
       })}
+    </span>
+  );
+}
+
+/** What a digested meeting's wakes produced. Silence is a wake-level
+ *  decision — a wake stays quiet about the whole meeting — so the send/
+ *  silence split belongs here, on the meeting, not on the subjects below. */
+function FanoutLine({ item }: { item: DigestedMeetingView }) {
+  if (item.wakes === 0) return null;
+  return (
+    <span className="mt-0.5 block text-[10px]">
+      {item.wakes} wakes
+      {item.messages > 0 && ` · ${item.messages} ${item.messages === 1 ? "μήνυμα" : "μηνύματα"}`}
+      {item.silences > 0 && ` · ${item.silences} ${item.silences === 1 ? "σιωπή" : "σιωπές"}`}
+      {item.errors > 0 && (
+        <span className="text-destructive">
+          {" "}
+          · {item.errors} {item.errors === 1 ? "σφάλμα" : "σφάλματα"}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** How far one subject travelled. Every message carries exactly one
+ *  opencouncil.gr link, so a message counts for the subject it points at —
+ *  and a message that linked the meeting page instead counts for none. That
+ *  is why these totals can fall short of the meeting's own. */
+function SubjectReach({ fanout, wakes }: { fanout?: SubjectFanout; wakes: number }) {
+  const messages = fanout?.messages ?? 0;
+  return (
+    <span
+      title={
+        messages === 0
+          ? `Κανένα από τα ${wakes} wakes δεν παρέπεμψε σε αυτό το θέμα`
+          : `${messages} ${messages === 1 ? "μήνυμα" : "μηνύματα"} σε ${fanout?.wakes} από τα ${wakes} wakes`
+      }
+      className={`flex w-9 cursor-default items-center justify-end gap-1 text-[11px] tabular-nums ${
+        messages > 0 ? "font-medium text-orange" : "text-muted-foreground/40"
+      }`}
+    >
+      <MessageSquare className="h-3 w-3 shrink-0" />
+      {messages}
     </span>
   );
 }
@@ -467,11 +511,13 @@ export default async function SystemPage(props: {
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
                         </a>
-                        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                          {item.subjectCount !== null ? `${item.subjectCount} θέματα · ` : ""}
-                          {item.wakes > 0 ? `${item.wakes} wakes · ` : ""}
-                          {item.briefCostUsd ? `${fmtUsd(item.briefCostUsd)} · ` : ""}
-                          {timeAgo(item.processedAt, now)}
+                        <span className="shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+                          <span className="block">
+                            {item.subjectCount !== null ? `${item.subjectCount} θέματα · ` : ""}
+                            {item.briefCostUsd ? `${fmtUsd(item.briefCostUsd)} · ` : ""}
+                            {timeAgo(item.processedAt, now)}
+                          </span>
+                          <FanoutLine item={item} />
                         </span>
                       </summary>
                       {item.brief && (
@@ -485,7 +531,7 @@ export default async function SystemPage(props: {
                             {item.brief.subjects.map((s, rank) => (
                               <li
                                 key={s.subjectId}
-                                className="grid grid-cols-[auto_1fr_auto] items-center gap-x-3 px-4 py-2"
+                                className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-x-3 px-4 py-2"
                               >
                                 <span className="w-4 text-right text-[11px] tabular-nums text-muted-foreground/60">
                                   {rank + 1}
@@ -517,6 +563,10 @@ export default async function SystemPage(props: {
                                   )}
                                 </span>
                                 <ScoreBars scores={s.scores as unknown as Record<string, number>} />
+                                <SubjectReach
+                                  fanout={item.subjectFanout[s.subjectId]}
+                                  wakes={item.wakes}
+                                />
                               </li>
                             ))}
                           </ol>
