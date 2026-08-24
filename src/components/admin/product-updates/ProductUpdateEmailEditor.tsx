@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { SANITIZE_CONFIG } from '@/lib/email/templates/productUpdateDefault';
@@ -48,6 +48,8 @@ interface ProductUpdateEmailEditorProps {
     initialContent?: string;
     /** id assigned to the underlying textarea so an external <label htmlFor=...> can target it. */
     textareaId?: string;
+    /** Called with the current markdown whenever it changes (typing or toolbar edits). */
+    onChange?: (markdown: string) => void;
 }
 
 interface TransformResult {
@@ -281,7 +283,7 @@ const Divider = () => <div className="w-px self-stretch bg-border mx-1" />;
 export const ProductUpdateEmailEditor = forwardRef<
     ProductUpdateEmailEditorHandle,
     ProductUpdateEmailEditorProps
->(({ initialContent = '', textareaId }, ref) => {
+>(({ initialContent = '', textareaId, onChange }, ref) => {
     const [markdown, setMarkdown] = useState(initialContent);
     const [openPanel, setOpenPanel] = useState<'colors' | 'fontSize' | 'components' | null>(null);
     const [activeTab, setActiveTab] = useState<'compose' | 'preview'>('compose');
@@ -368,6 +370,13 @@ export const ProductUpdateEmailEditor = forwardRef<
         getMarkdown: () => markdown,
         getSanitizedHtml: () => sanitizedHtml,
     }), [markdown, sanitizedHtml]);
+
+    // Notify the parent on every markdown change so it can persist a draft.
+    // This covers typed edits and toolbar/image inserts alike, because both
+    // route through setMarkdown.
+    useEffect(() => {
+        onChange?.(markdown);
+    }, [markdown, onChange]);
 
     /**
      * Continue list / quote markers when Enter is pressed inside one of them.
