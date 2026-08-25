@@ -4,6 +4,16 @@ import { CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
+export function ReviewsOverviewSkeleton() {
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {Array.from({ length: 4 }, (_, i) => (
+        <div key={i} className="h-28 rounded-lg border animate-pulse bg-muted/40" />
+      ))}
+    </div>
+  );
+}
+
 export async function ReviewsOverviewWidget() {
   const stats = await getReviewStats();
   

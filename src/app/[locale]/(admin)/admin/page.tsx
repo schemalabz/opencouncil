@@ -1,6 +1,8 @@
 import { Bell, Clock, FileText, Landmark, MessageCircle, Search, Send, Users } from 'lucide-react';
 import { StatsCard } from '@/components/ui/stats-card';
-import { ReviewsOverviewWidget } from '@/components/admin/reviews/ReviewsOverviewWidget';
+import { Suspense } from 'react';
+import { ReviewsOverviewWidget, ReviewsOverviewSkeleton } from '@/components/admin/reviews/ReviewsOverviewWidget';
+import AdminWidgetErrorBoundary from '@/components/admin/AdminWidgetErrorBoundary';
 import { NotificationSubscribersChart } from '@/components/admin/NotificationSubscribersChart';
 import { getAdminDashboardStats, getNotificationSubscribersByCity } from '@/lib/db/adminStats';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
@@ -126,8 +128,15 @@ export default async function Page() {
                 />
             </section>
 
+            {/* Boundary + Suspense: the widget's queries stream in without
+                blocking the dashboard, and a widget failure degrades to one
+                card instead of the whole route (issue #560's blast radius). */}
             <section>
-                <ReviewsOverviewWidget />
+                <AdminWidgetErrorBoundary label="Transcript reviews">
+                    <Suspense fallback={<ReviewsOverviewSkeleton />}>
+                        <ReviewsOverviewWidget />
+                    </Suspense>
+                </AdminWidgetErrorBoundary>
             </section>
         </div>
     );
