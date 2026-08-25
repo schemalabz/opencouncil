@@ -153,18 +153,22 @@ function BadgeButtons<T extends string>({
     inline: boolean;
 }) {
     const isAllSelected = selectedValues.length === 0;
+    // Explicit radii: the theme sets --radius to 0, so `rounded-md` renders square
+    // chips beside cards that are rounded-2xl.
     const badgeClass = inline
-        ? "h-9 px-3 rounded-md shadow-sm text-xs"
-        : "h-7 px-2.5 rounded-full shadow-sm text-xs";
+        ? "h-8 px-3 rounded-full text-xs"
+        : "h-7 px-2.5 rounded-full text-xs";
 
     return (
         <div className="flex flex-wrap gap-1.5">
             <Button
-                variant={isAllSelected ? "default" : "outline"}
+                variant={isAllSelected ? "default" : "ghost"}
                 size="sm"
                 className={cn(
                     badgeClass,
-                    isAllSelected ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted/50"
+                    isAllSelected
+                        ? "bg-foreground text-background hover:bg-foreground"
+                        : "text-muted-foreground hover:!bg-foreground/[0.06] hover:text-foreground"
                 )}
                 onClick={onSelectAll}
                 aria-pressed={isAllSelected}
@@ -176,14 +180,14 @@ function BadgeButtons<T extends string>({
                 return (
                     <Button
                         key={option.value}
-                        variant={isSelected ? "default" : "outline"}
+                        variant={isSelected ? "default" : "ghost"}
                         size="sm"
                         className={cn(
                             badgeClass,
                             "flex items-center gap-1.5",
                             isSelected
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-background hover:bg-muted/50"
+                                ? "bg-foreground text-background hover:bg-foreground"
+                                : "text-muted-foreground hover:!bg-foreground/[0.06] hover:text-foreground"
                         )}
                         onClick={() => onToggle(option.value)}
                         aria-pressed={isSelected}
