@@ -93,7 +93,7 @@ export function CityIdentityBand({
                     </div>
                 </div>
 
-                <div className="flex flex-col items-end gap-3">
+                <div className="flex flex-col gap-3">
                     {/* Operator controls sit in the corner, above everything a
                         citizen is here for. */}
                     <CityAdminTools
@@ -103,18 +103,14 @@ export function CityIdentityBand({
                         isSuperAdmin={isSuperAdmin}
                         hasNoData={hasNoData}
                     />
-                    <div className="w-full">
-                        <CityMeetingsModule
-                            next={nextMeeting}
-                            latest={latestMeeting}
-                            cityId={city.id}
-                            timezone={city.timezone}
-                            locale={locale}
-                        />
-                    </div>
-                    <div className="w-full">
-                        <CityHeaderActions city={city as City} hasNotifications={hasNotifications} />
-                    </div>
+                    <CityMeetingsModule
+                        next={nextMeeting}
+                        latest={latestMeeting}
+                        cityId={city.id}
+                        timezone={city.timezone}
+                        locale={locale}
+                    />
+                    <CityHeaderActions city={city as City} hasNotifications={hasNotifications} />
                 </div>
             </div>
 

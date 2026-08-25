@@ -75,11 +75,14 @@ export function CityAdminTools({ city, cityMessage, canEdit, isSuperAdmin, hasNo
         }
     };
 
-    const toolClassName = 'h-8 px-2.5 text-xs text-muted-foreground hover:bg-background hover:text-foreground';
+    // The hover tints rather than greys: a neutral wash over 7%-alpha stripes
+    // reads as a patch covering them, where staying in the stripe's own hue reads
+    // as the same surface, warmer.
+    const toolClassName = 'h-8 rounded-[6px] px-2.5 text-xs text-muted-foreground hover:!bg-[hsl(var(--orange))]/[0.14] hover:text-foreground';
 
     return (
         <div
-            className="flex w-fit flex-wrap items-center gap-1.5 rounded-xl border border-[hsl(var(--orange))]/20 p-1.5"
+            className="flex w-full flex-wrap items-center gap-1.5 rounded-xl border border-[hsl(var(--orange))]/20 p-1.5"
             style={{
                 // Hazard stripes, at the lowest alpha that still reads as a pattern
                 // rather than as a rendering artefact.
@@ -138,7 +141,7 @@ export function CityAdminTools({ city, cityMessage, canEdit, isSuperAdmin, hasNo
                     size="sm"
                     onClick={handleResetCity}
                     disabled={isResetting}
-                    className="h-8 px-2.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    className="h-8 rounded-[6px] px-2.5 text-xs text-destructive hover:!bg-destructive/10 hover:text-destructive"
                 >
                     <Database className={`w-3.5 h-3.5 mr-1.5 ${isResetting ? 'animate-spin' : ''}`} />
                     Reset City
