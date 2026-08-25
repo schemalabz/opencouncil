@@ -19,5 +19,8 @@
   "speakerCount": "{count, plural, =1 {1 говорник} few {# говорника} other {# говорника}}",
   "recentMeetingsEyebrow": "Седнице",
   "recentMeetingsTitle": "Недавне седнице",
-  "allMeetings": "Све седнице"
+  "allMeetings": "Све седнице",
+  "scopeCouncil": "Скупштина",
+  "scopeAll": "Све",
+  "noMeetingsForScope": "Још нема седница овог тела."
 }
