@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { ArrowRight } from "lucide-react";
-import MeetingCard from "@/components/meetings/MeetingCard";
+import MeetingCardV2 from "@/components/meetings/MeetingCardV2";
 import { HotTopicsCard } from "@/components/cities/overview/HotTopicsCard";
 import { getCityCached, getCouncilMeetingsForCityPublicCached } from "@/lib/cache";
 import { getHotSubjectCards } from "@/lib/hotSubjectCards";
@@ -121,7 +121,7 @@ export default async function CityOverviewPage(
 
                     <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                         {recentMeetings.map(meeting => (
-                            <MeetingCard
+                            <MeetingCardV2
                                 key={meeting.id}
                                 item={meeting}
                                 editable={false}
