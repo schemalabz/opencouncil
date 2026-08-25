@@ -26,6 +26,8 @@ import { getTranslations } from 'next-intl/server';
 import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { buildOgImageUrl } from '@/lib/og/locale';
+import { getRealm } from '@/lib/realm.server';
+import { hasExplainPage } from '@/lib/explain/availability';
 
 export async function generateImageMetadata(
     props: {
@@ -133,13 +135,14 @@ export default async function CouncilMeetingPage(
     } = props;
 
     const currentUserPromise = getCurrentUser();
-    const [currentUser, editable, data, notificationPreference] = await Promise.all([
+    const [currentUser, editable, data, notificationPreference, realm] = await Promise.all([
         currentUserPromise,
         isUserAuthorizedToEdit({ cityId }),
         getMeetingDataCached(cityId, meetingId),
         currentUserPromise.then(user =>
             user ? getNotificationPreferenceForCity(user.id, cityId) : null
         ),
+        getRealm(),
     ]);
 
     if (!data || !data.city) {
@@ -196,6 +199,7 @@ export default async function CouncilMeetingPage(
                                     showSidebarTrigger={true}
                                     currentEntity={{ cityId: data.city.id }}
                                     noContainer={true}
+                                    showExplain={hasExplainPage(realm)}
                                     className="relative z-10 bg-white dark:bg-gray-950"
                                 >
                                     <div className="flex items-center space-x-2">

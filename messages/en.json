@@ -82,7 +82,9 @@
         "mcpShort": "MCP",
         "login": "Sign in",
         "notificationsBreadcrumb": "Notifications",
-        "petitionBreadcrumb": "Support your municipality"
+        "petitionBreadcrumb": "Support your municipality",
+        "explain": "Guide to local government",
+        "explainShort": "Guide"
     },
     "Footer": {
         "tagline": "Built with respect and appreciation for local government.",
