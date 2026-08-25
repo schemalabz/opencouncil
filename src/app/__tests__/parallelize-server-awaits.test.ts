@@ -34,7 +34,7 @@ jest.mock('@/lib/cache', () => ({
     getAdministrativeBodiesForCityCached: jest.fn(),
     getCityCached: jest.fn(),
     getCityMessageCached: jest.fn(),
-    getCouncilMeetingsForCityPublicCached: jest.fn(),
+    getCouncilMeetingsPreviewPublicCached: jest.fn(),
     getSubjectCountForCityCached: jest.fn(),
 }));
 
@@ -61,7 +61,7 @@ jest.mock('@/components/cities/CityParties', () => ({ __esModule: true, default:
 jest.mock('@/components/cities/CityIdentityBand', () => ({ CityIdentityBand: () => null }));
 jest.mock('@/components/cities/overview/HotTopicsCard', () => ({ HotTopicsCard: () => null }));
 jest.mock('@/components/meetings/MeetingCardV2', () => ({ __esModule: true, default: () => null }));
-jest.mock('@/lib/hotSubjectCards', () => ({ getHotSubjectCards: jest.fn() }));
+jest.mock('@/lib/hotSubjectCards', () => ({ getHotSubjectCardsCached: jest.fn() }));
 // next-intl ships ESM that jest's CJS sandbox can't parse; the overview page
 // reaches it only for <Link>.
 jest.mock('@/i18n/routing', () => ({ Link: () => null }));
@@ -228,8 +228,6 @@ describe('PR1: server-side awaits run concurrently', () => {
 
         const cityD = deferred<any>();
         const messageD = deferred<any>();
-        const partiesD = deferred<any[]>();
-        const peopleD = deferred<any[]>();
         const userD = deferred<any>();
         const canEditD = deferred<boolean>();
         const upcomingD = deferred<any[]>();
@@ -240,11 +238,9 @@ describe('PR1: server-side awaits run concurrently', () => {
 
         cache.getCityCached.mockReturnValue(cityD.promise);
         cache.getCityMessageCached.mockReturnValue(messageD.promise);
-        cache.getPartiesForCityCached.mockReturnValue(partiesD.promise);
-        cache.getPeopleForCityCached.mockReturnValue(peopleD.promise);
         auth.getCurrentUser.mockReturnValue(userD.promise);
         auth.isUserAuthorizedToEdit.mockReturnValue(canEditD.promise);
-        cache.getCouncilMeetingsForCityPublicCached
+        cache.getCouncilMeetingsPreviewPublicCached
             .mockReturnValueOnce(upcomingD.promise)
             .mockReturnValueOnce(pastD.promise)
             .mockReturnValueOnce(councilUpcomingD.promise)
@@ -259,13 +255,14 @@ describe('PR1: server-side awaits run concurrently', () => {
 
         expect(cache.getCityCached).toHaveBeenCalledTimes(1);
         expect(cache.getCityMessageCached).toHaveBeenCalledTimes(1);
-        expect(cache.getPartiesForCityCached).toHaveBeenCalledTimes(1);
-        expect(cache.getPeopleForCityCached).toHaveBeenCalledTimes(1);
+        // The roster answers nothing the city's own counts don't.
+        expect(cache.getPartiesForCityCached).not.toHaveBeenCalled();
+        expect(cache.getPeopleForCityCached).not.toHaveBeenCalled();
         expect(auth.getCurrentUser).toHaveBeenCalledTimes(1);
         expect(auth.isUserAuthorizedToEdit).toHaveBeenCalledTimes(1);
         // Both scopes of both bookends: the band's scope switch must not refetch.
-        expect(cache.getCouncilMeetingsForCityPublicCached).toHaveBeenCalledTimes(4);
-        expect(cache.getCouncilMeetingsForCityPublicCached).toHaveBeenCalledWith('athens', {
+        expect(cache.getCouncilMeetingsPreviewPublicCached).toHaveBeenCalledTimes(4);
+        expect(cache.getCouncilMeetingsPreviewPublicCached).toHaveBeenCalledWith('athens', {
             timeFilter: 'past', limit: 1, administrativeBodyTypes: ['council'],
         });
         expect(cache.getSubjectCountForCityCached).toHaveBeenCalledTimes(1);
@@ -274,8 +271,6 @@ describe('PR1: server-side awaits run concurrently', () => {
 
         cityD.resolve({ id: 'athens', timezone: 'Europe/Athens', _count: { councilMeetings: 1, persons: 1, parties: 1 } });
         messageD.resolve(null);
-        partiesD.resolve([]);
-        peopleD.resolve([]);
         userD.resolve(null);
         canEditD.resolve(false);
         upcomingD.resolve([]);
@@ -297,8 +292,8 @@ describe('PR1: server-side awaits run concurrently', () => {
         const meetingsD = deferred<any[]>();
 
         cache.getCityCached.mockReturnValue(cityD.promise);
-        hotCards.getHotSubjectCards.mockReturnValue(hotD.promise);
-        cache.getCouncilMeetingsForCityPublicCached.mockReturnValue(meetingsD.promise);
+        hotCards.getHotSubjectCardsCached.mockReturnValue(hotD.promise);
+        cache.getCouncilMeetingsPreviewPublicCached.mockReturnValue(meetingsD.promise);
 
         const { default: OverviewPage } = require('@/app/[locale]/(city)/[cityId]/(other)/(tabs)/page');
 
@@ -307,8 +302,8 @@ describe('PR1: server-side awaits run concurrently', () => {
         await flushMicrotasks();
 
         expect(cache.getCityCached).toHaveBeenCalledTimes(1);
-        expect(hotCards.getHotSubjectCards).toHaveBeenCalledTimes(1);
-        expect(cache.getCouncilMeetingsForCityPublicCached).toHaveBeenCalledTimes(1);
+        expect(hotCards.getHotSubjectCardsCached).toHaveBeenCalledTimes(1);
+        expect(cache.getCouncilMeetingsPreviewPublicCached).toHaveBeenCalledTimes(1);
         expect(intl.getTranslations).toHaveBeenCalled();
 
         cityD.resolve({ id: 'athens', timezone: 'Europe/Athens' });
