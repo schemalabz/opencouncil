@@ -1,6 +1,6 @@
 import type { EditorialBrief } from "../../agent/types";
-import { MAX_EVENTS_PER_TICK, runPollerTick } from "../poller";
-import { PROACTIVE_PAUSED_KEY } from "../settings";
+import { MAX_EVENTS_PER_TICK, classifyEvent, runPollerTick } from "../poller";
+import { PROACTIVE_PAUSED_KEY, futureSummaryAlertKey } from "../settings";
 import { type FakeDb, type Row, eventIdentity, makeFakeDb } from "./fake-db";
 import { FakeBird } from "./fake-bird";
 
@@ -443,6 +443,200 @@ describe("meeting events", () => {
     });
   }
 
+  // The whole disposition table in one place, straight off classifyEvent.
+  // The poller tests below prove the wiring; this proves the rule.
+  describe("classifyEvent", () => {
+    const at = new Date(NOW);
+    const staleBefore = new Date(NOW.getTime() - 30 * 24 * 60 * 60_000);
+    const on = (type: string, meetingDate: string) =>
+      classifyEvent({ type, meetingDate: new Date(meetingDate) }, at, staleBefore);
+
+    it.each([
+      ["processAgenda", "2026-08-20T18:00:00.000Z", "fanout", "meeting still ahead"],
+      ["processAgenda", "2026-08-15T18:00:00.000Z", "late-agenda", "held four days ago"],
+      ["processAgenda", "2026-01-10T18:00:00.000Z", "stale", "held months ago"],
+      ["summarize", "2026-08-20T18:00:00.000Z", "future-summary", "cannot be summarized yet"],
+      ["summarize", "2026-08-15T18:00:00.000Z", "fanout", "held four days ago"],
+      ["summarize", "2026-08-04T18:00:00.000Z", "fanout", "held two weeks ago"],
+      ["summarize", "2026-01-10T18:00:00.000Z", "stale", "held months ago"],
+    ])("%s dated %s → %s (%s)", (type, meetingDate, expected) => {
+      expect(on(type, meetingDate)).toBe(expected);
+    });
+  });
+
+  it("consumes a late agenda without editorial spend or a wake", async () => {
+    // processAgenda succeeding AFTER the meeting was held: a late upload or a
+    // backfill. Previewing it would describe a meeting the archive already
+    // has the transcript of. Its summarize event is the real news.
+    const db = seededDb();
+    const main = makeFakeMain({
+      users: [{ id: "user1", name: "Μαρία", phone: "+306900000001" }],
+      targets: [target("user1", "athens")],
+      events: [
+        meetingRow("task-late-agenda", {
+          type: "processAgenda",
+          meetingId: "m-held",
+          meetingDate: new Date("2026-08-15T18:00:00.000Z"),
+        }),
+      ],
+    });
+
+    const result = await runPollerTick({
+      db,
+      main,
+      bird: new FakeBird(),
+      alert: async () => {},
+      now,
+      editorial: editorialOk,
+    });
+
+    expect(editorialOk).not.toHaveBeenCalled();
+    expect(result.lateAgendaConsumed).toBe(1);
+    expect(result.wakesEnqueued).toBe(0);
+    expect(db.store.queue.size).toBe(0);
+    // Recorded, so it stops re-surfacing — and so the dedup identity is taken.
+    expect(processedFor(db, "athens", "m-held", "processAgenda")).toBeDefined();
+  });
+
+  it("fans out an agenda for a meeting that has not happened yet", async () => {
+    const db = seededDb();
+    const main = makeFakeMain({
+      users: [{ id: "user1", name: "Μαρία", phone: "+306900000001" }],
+      targets: [target("user1", "athens")],
+      events: [
+        meetingRow("task-agenda", {
+          type: "processAgenda",
+          meetingId: "m-upcoming",
+          meetingDate: new Date("2026-08-20T18:00:00.000Z"),
+        }),
+      ],
+    });
+
+    const result = await runPollerTick({
+      db,
+      main,
+      bird: new FakeBird(),
+      alert: async () => {},
+      now,
+      editorial: editorialOk,
+    });
+
+    expect(result.lateAgendaConsumed).toBe(0);
+    expect(result.wakesEnqueued).toBe(1);
+    const [event] = [...db.store.queue.values()][0].events as Array<{ type: string }>;
+    expect(event.type).toBe("agenda_processed");
+  });
+
+  it("holds a summary for a future-dated meeting, alarms once, and never consumes it", async () => {
+    // A meeting cannot be summarized before it happens: the dateTime is
+    // wrong. Nobody is woken, ops hears about it once rather than every
+    // five-minute tick, and the event stays available for a corrected date.
+    const db = seededDb();
+    const events = [
+      meetingRow("task-future", {
+        meetingId: "m-future",
+        meetingDate: new Date("2026-08-20T18:00:00.000Z"),
+      }),
+    ];
+    const main = makeFakeMain({
+      users: [{ id: "user1", name: "Μαρία", phone: "+306900000001" }],
+      targets: [target("user1", "athens")],
+      events,
+    });
+    const alerts: string[] = [];
+    const opts = {
+      db,
+      main,
+      bird: new FakeBird(),
+      alert: async (m: string) => {
+        alerts.push(m);
+      },
+      now,
+      editorial: editorialOk,
+    };
+
+    const result = await runPollerTick(opts);
+
+    expect(editorialOk).not.toHaveBeenCalled();
+    expect(result.futureSummaryHeld).toBe(1);
+    expect(result.wakesEnqueued).toBe(0);
+    expect(db.store.queue.size).toBe(0);
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toContain("athens/m-future");
+    // Not consumed: the dedup identity stays free.
+    expect(processedFor(db, "athens", "m-future", "summarize")).toBeUndefined();
+    expect(db.store.settings.get(futureSummaryAlertKey("athens", "m-future"))).toBeDefined();
+
+    // Second tick: still held, but the alarm does not repeat.
+    const again = await runPollerTick(opts);
+    expect(again.futureSummaryHeld).toBe(1);
+    expect(alerts).toHaveLength(1);
+
+    // The date is corrected — the same event now fans out.
+    events[0].meetingDate = new Date("2026-08-17T18:00:00.000Z");
+    const fixed = await runPollerTick(opts);
+    expect(fixed.futureSummaryHeld).toBe(0);
+    expect(fixed.wakesEnqueued).toBe(1);
+    expect(processedFor(db, "athens", "m-future", "summarize")).toBeDefined();
+  });
+
+  it("wakes for a summary of a meeting held two weeks ago", async () => {
+    // Transcription and summarization take time; age alone must not suppress
+    // a meeting's first and only summary.
+    const db = seededDb();
+    const main = makeFakeMain({
+      users: [{ id: "user1", name: "Μαρία", phone: "+306900000001" }],
+      targets: [target("user1", "athens")],
+      events: [
+        meetingRow("task-old-summary", {
+          meetingId: "m-fortnight",
+          meetingDate: new Date("2026-08-04T18:00:00.000Z"),
+        }),
+      ],
+    });
+
+    const result = await runPollerTick({
+      db,
+      main,
+      bird: new FakeBird(),
+      alert: async () => {},
+      now,
+      editorial: editorialOk,
+    });
+
+    expect(result.staleConsumed).toBe(0);
+    expect(result.wakesEnqueued).toBe(1);
+  });
+
+  it("never wakes twice for the same meeting and event type", async () => {
+    // The dedup identity is (cityId, meetingId, type) — never the task. A
+    // re-run writes a NEW TaskStatus row, and that must not read as news.
+    const db = seededDb();
+    const main = makeFakeMain({
+      users: [{ id: "user1", name: "Μαρία", phone: "+306900000001" }],
+      targets: [target("user1", "athens")],
+      events: [
+        meetingRow("task1", { meetingId: "m-dedup" }),
+        meetingRow("task1-rerun", { meetingId: "m-dedup" }),
+      ],
+    });
+    const opts = {
+      db,
+      main,
+      bird: new FakeBird(),
+      alert: async () => {},
+      now,
+      editorial: editorialOk,
+    };
+
+    const first = await runPollerTick(opts);
+    expect(first.wakesEnqueued).toBe(1);
+
+    const second = await runPollerTick(opts);
+    expect(second.wakesEnqueued).toBe(0);
+    expect(editorialOk).toHaveBeenCalledTimes(1);
+  });
+
   it("consumes a stale meeting's event without editorial spend or a wake", async () => {
     // completedAt is TaskStatus.updatedAt underneath: a re-run (batchRerun
     // --force) or a bulk touch of old rows makes a years-old meeting look
@@ -719,5 +913,71 @@ describe("meeting events", () => {
     expect(result.eventsProcessed).toBe(MAX_EVENTS_PER_TICK + 3);
     expect(editorialOk).not.toHaveBeenCalled();
     expect(db.store.queue.size).toBe(0);
+  });
+
+  it("seedOnly consumes every disposition, data errors included, and alarms about none", async () => {
+    // A row left unconsumed by the quiet start fans out to the whole cohort
+    // on some later tick — the one thing seedOnly exists to prevent. The
+    // future-dated summary is the case that used to survive it.
+    const db = seededDb();
+    const main = makeFakeMain({
+      users: [{ id: "user1", name: "Μαρία", phone: "+306900000001" }],
+      targets: [target("user1", "athens")],
+      events: [
+        meetingRow("task-future", {
+          meetingId: "m-future",
+          meetingDate: new Date("2026-08-20T18:00:00.000Z"),
+        }),
+        meetingRow("task-late-agenda", {
+          type: "processAgenda",
+          meetingId: "m-held",
+          meetingDate: new Date("2026-08-15T18:00:00.000Z"),
+        }),
+        meetingRow("task-stale", {
+          meetingId: "m-old",
+          meetingDate: new Date("2024-03-10T18:00:00.000Z"),
+        }),
+        meetingRow("task-normal", { meetingId: "m-normal" }),
+      ],
+    });
+    const alerts: string[] = [];
+
+    const result = await runPollerTick(
+      {
+        db,
+        main,
+        bird: new FakeBird(),
+        alert: async (m: string) => {
+          alerts.push(m);
+        },
+        now,
+        editorial: editorialOk,
+      },
+      { seedOnly: true },
+    );
+
+    expect(result.eventsProcessed).toBe(4);
+    expect(result.futureSummaryHeld).toBe(0);
+    expect(alerts).toHaveLength(0);
+    expect(editorialOk).not.toHaveBeenCalled();
+    expect(db.store.queue.size).toBe(0);
+    expect(processedFor(db, "athens", "m-future", "summarize")).toBeDefined();
+    expect(processedFor(db, "athens", "m-held", "processAgenda")).toBeDefined();
+    expect(processedFor(db, "athens", "m-old", "summarize")).toBeDefined();
+    expect(processedFor(db, "athens", "m-normal", "summarize")).toBeDefined();
+
+    // The seeded deployment stays quiet on the next tick too.
+    const again = await runPollerTick({
+      db,
+      main,
+      bird: new FakeBird(),
+      alert: async (m: string) => {
+        alerts.push(m);
+      },
+      now,
+      editorial: editorialOk,
+    });
+    expect(again.wakesEnqueued).toBe(0);
+    expect(alerts).toHaveLength(0);
   });
 });

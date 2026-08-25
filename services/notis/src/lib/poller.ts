@@ -1,4 +1,4 @@
-import type { PrismaClient as MainViewsClient } from "../../generated/main-client";
+import type { MeetingEventRow, PrismaClient as MainViewsClient } from "../../generated/main-client";
 import type { Prisma, PrismaClient } from "../../generated/client";
 import { editorialPass } from "@/agent/editorialPass";
 import { seedProfileFromPreferences } from "@/agent/profileSeed";
@@ -14,7 +14,13 @@ import { hasMainDb, mainDb } from "./main-db";
 import { normalizePhone } from "./phone";
 import { deliverPendingMessage, suppressPendingOutbound } from "./queue";
 import { enqueueBatchWake, isUniqueViolation } from "./queue-core";
-import { POLLER_STATUS_KEY, getProactiveSettings, putSetting } from "./settings";
+import {
+  POLLER_STATUS_KEY,
+  futureSummaryAlertKey,
+  getProactiveSettings,
+  hasSetting,
+  putSetting,
+} from "./settings";
 
 /**
  * The five-minute poller — every link between OpenCouncil and notis is a
@@ -58,6 +64,10 @@ export interface PollerResult {
   wakesEnqueued: number;
   /** Events consumed without a wake because the meeting itself is old news. */
   staleConsumed: number;
+  /** Agenda events consumed without a wake because the meeting already happened. */
+  lateAgendaConsumed: number;
+  /** Summarize events held back because the meeting is still dated in the future. */
+  futureSummaryHeld: number;
   editorialCostUsd: number;
 }
 
@@ -93,6 +103,8 @@ const emptyResult = (ran: boolean, reason?: string): PollerResult => ({
   eventsProcessed: 0,
   wakesEnqueued: 0,
   staleConsumed: 0,
+  lateAgendaConsumed: 0,
+  futureSummaryHeld: 0,
   editorialCostUsd: 0,
 });
 
@@ -426,6 +438,73 @@ async function fireScheduledWakes(
 }
 
 /**
+ * What the poller does with one meeting event, decided by its type and the
+ * MEETING's own date — never by when the task finished. The table:
+ *
+ * | event          | meeting ahead | meeting past      |
+ * |----------------|---------------|-------------------|
+ * | processAgenda  | fanout        | late-agenda       |
+ * | summarize      | future-summary| fanout            |
+ *
+ * `stale` overrides both for a meeting older than STALE_MEETING_MS. That is
+ * a blast-radius floor, not part of the semantics above: completedAt is
+ * TaskStatus.updatedAt, so one `batchRerun --force` over the archive would
+ * otherwise pay an editorial pass per meeting and WhatsApp whole cohorts
+ * about years-old news. Dedup does not cover it — a meeting notis never
+ * recorded (pre-launch history) has no processed row to match.
+ *
+ * - `late-agenda`: a processAgenda task that succeeded after the meeting was
+ *   held (a late upload, a backfill, batchRerun --force). Fanning it out
+ *   would preview a meeting that already happened, against an archive that
+ *   by then carries the transcript. The summarize event is that meeting's
+ *   real news and arrives on its own.
+ * - `future-summary`: a meeting cannot be summarized before it happens, so
+ *   this is a data error — almost always a wrong CouncilMeeting.dateTime.
+ *   The poller alarms and sends nothing. Unlike the other two it is NOT
+ *   consumed, so correcting the date lets the same event fan out — but only
+ *   while the task row is still inside EVENT_LOOKBACK_MS. completedAt is
+ *   TaskStatus.updatedAt and does not move when CouncilMeeting.dateTime is
+ *   fixed, so a later fix needs the summarize task re-run. The alarm says so.
+ */
+export type EventDisposition = "fanout" | "stale" | "late-agenda" | "future-summary";
+
+export function classifyEvent(
+  row: Pick<MeetingEventRow, "type" | "meetingDate">,
+  at: Date,
+  staleBefore: Date,
+): EventDisposition {
+  if (row.meetingDate < staleBefore) return "stale";
+  const ahead = row.meetingDate > at;
+  if (row.type === "processAgenda") return ahead ? "fanout" : "late-agenda";
+  return ahead ? "future-summary" : "fanout";
+}
+
+/**
+ * Record an event as consumed without a wake — the same row seedOnly writes,
+ * with no brief and no fan-out. Returns false when a concurrent tick got
+ * there first.
+ */
+async function consumeEvent(db: PrismaClient, row: MeetingEventRow): Promise<boolean> {
+  try {
+    await db.notisProcessedEvent.create({
+      data: {
+        taskId: row.taskId,
+        type: row.type,
+        cityId: row.cityId,
+        meetingId: row.meetingId,
+        meetingName: row.meetingName,
+        meetingDate: row.meetingDate,
+        adminBodyName: row.adminBodyName,
+      },
+    });
+    return true;
+  } catch {
+    // Raced by a concurrent tick — already recorded.
+    return false;
+  }
+}
+
+/**
  * Phase (d) — meeting events: only released meetings (the public MCP gates
  * on released, so an early wake cannot ground; unreleased events are NOT
  * recorded, and a later release fires naturally). Dedup by (cityId,
@@ -471,58 +550,63 @@ async function processMeetingEvents(
     select: { cityId: true, meetingId: true, type: true },
   });
   const processedIds = new Set(processed.map(identity));
-  const unprocessed = candidates.filter((c) => !processedIds.has(identity(c)));
-
-  // Consume stale meetings without a wake: record them like seedOnly does so
-  // they stop re-surfacing every tick, but pay no editorial pass and enqueue
-  // nothing. Agenda events for upcoming meetings have future dates and are
-  // untouched.
-  const staleBefore = new Date(now().getTime() - STALE_MEETING_MS);
-  const stale = unprocessed.filter((c) => c.meetingDate < staleBefore);
-  for (const row of stale) {
-    try {
-      await db.notisProcessedEvent.create({
-        data: {
-          taskId: row.taskId,
-          type: row.type,
-          cityId: row.cityId,
-          meetingId: row.meetingId,
-          meetingName: row.meetingName,
-          meetingDate: row.meetingDate,
-          adminBodyName: row.adminBodyName,
-        },
-      });
-      result.staleConsumed++;
-    } catch {
-      // Raced by a concurrent tick — already recorded.
-    }
+  // Collapse duplicates WITHIN the tick too. A re-run leaves two succeeded
+  // task rows for the same meeting and phase, and both land in one lookback
+  // window. The processed row only exists after the first one commits, so
+  // without this the second pays a full editorial pass and then throws it
+  // away on the unique violation — and burns a MAX_EVENTS_PER_TICK slot
+  // doing it. Candidates arrive ordered completedAt asc, so the first wins.
+  const byIdentity = new Map<string, MeetingEventRow>();
+  for (const c of candidates) {
+    const id = identity(c);
+    if (!processedIds.has(id) && !byIdentity.has(id)) byIdentity.set(id, c);
   }
-
-  const fresh = unprocessed.filter((c) => c.meetingDate >= staleBefore);
-  if (fresh.length === 0) return;
+  const unprocessed = [...byIdentity.values()];
 
   if (opts.seedOnly) {
-    // Quiet start: mark the whole backlog consumed, wake nobody.
-    for (const row of fresh) {
-      try {
-        await db.notisProcessedEvent.create({
-          data: {
-            taskId: row.taskId,
-            type: row.type,
-            cityId: row.cityId,
-            meetingId: row.meetingId,
-            meetingName: row.meetingName,
-            meetingDate: row.meetingDate,
-            adminBodyName: row.adminBodyName,
-          },
-        });
-        result.eventsProcessed++;
-      } catch {
-        // Raced by a concurrent tick — already recorded.
-      }
+    // Quiet start: mark the whole backlog consumed, wake nobody, alarm about
+    // nothing. Every disposition is the same here, data errors included — a
+    // seeded deployment must not act on anything it finds, and a row left
+    // unconsumed would fan out to the whole cohort on some later tick.
+    for (const row of unprocessed) {
+      if (await consumeEvent(db, row)) result.eventsProcessed++;
     }
     return;
   }
+
+  // Sort every unprocessed event by classifyEvent's table, then act on each
+  // bucket. Consuming records the row the same way seedOnly does, so it stops
+  // re-surfacing every tick, with no editorial pass and nothing enqueued.
+  const staleBefore = new Date(now().getTime() - STALE_MEETING_MS);
+  const at = now();
+  const byDisposition = new Map<EventDisposition, MeetingEventRow[]>();
+  for (const row of unprocessed) {
+    const disposition = classifyEvent(row, at, staleBefore);
+    byDisposition.set(disposition, [...(byDisposition.get(disposition) ?? []), row]);
+  }
+
+  for (const row of byDisposition.get("stale") ?? []) {
+    if (await consumeEvent(db, row)) result.staleConsumed++;
+  }
+  for (const row of byDisposition.get("late-agenda") ?? []) {
+    if (await consumeEvent(db, row)) result.lateAgendaConsumed++;
+  }
+  // Deliberately NOT consumed — see classifyEvent. The settings key holds the
+  // alarm to once per meeting instead of once per five-minute tick, so the
+  // alarm has to carry the whole remedy: it is the only one ops gets.
+  for (const row of byDisposition.get("future-summary") ?? []) {
+    result.futureSummaryHeld++;
+    const key = futureSummaryAlertKey(row.cityId, row.meetingId);
+    if (await hasSetting(db, key)) continue;
+    await alert(
+      `summarize completed for ${row.cityId}/${row.meetingId} (${row.taskId}) but the meeting is dated ${row.meetingDate.toISOString()}, in the future — nobody was woken. ` +
+        `Fix CouncilMeeting.dateTime. Do it within ${EVENT_LOOKBACK_MS / 86_400_000} days of the task completing and the next tick fans the event out by itself; after that the row leaves the event feed, so re-run the summarize task to bring it back.`,
+    );
+    await putSetting(db, key, { at: at.toISOString(), taskId: row.taskId });
+  }
+
+  const fresh = byDisposition.get("fanout") ?? [];
+  if (fresh.length === 0) return;
 
   const subs = await db.notisSubscription.findMany({
     where: { status: "active" },
@@ -553,22 +637,7 @@ async function processMeetingEvents(
     // Nobody to wake: record the event as consumed without paying for an
     // editorial pass. A subscriber arriving later gets the NEXT event.
     if (audience.length === 0) {
-      try {
-        await db.notisProcessedEvent.create({
-          data: {
-            taskId: row.taskId,
-            type: row.type,
-            cityId: row.cityId,
-            meetingId: row.meetingId,
-            meetingName: row.meetingName,
-            meetingDate: row.meetingDate,
-            adminBodyName: row.adminBodyName,
-          },
-        });
-        result.eventsProcessed++;
-      } catch {
-        /* raced — already recorded */
-      }
+      if (await consumeEvent(db, row)) result.eventsProcessed++;
       continue;
     }
 
