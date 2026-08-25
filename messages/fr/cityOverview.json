@@ -1,5 +1,12 @@
 {
   "nextMeeting": "Prochaine séance",
-  "latestMeeting": "Dernière séance",
-  "adminBodyUnknown": "Organe non renseigné"
+  "latestMeeting": "Séance la plus récente",
+  "adminBodyUnknown": "Organe non renseigné",
+  "searchSubjects": {
+    "municipality": "Rechercher parmi {count, number} points à {qualifier}",
+    "region": "Rechercher parmi {count, number} points en {qualifier}"
+  },
+  "statMeetings": "{count, plural, =0 {Aucune séance} =1 {<n>1</n> séance} other {<n>#</n> séances}}",
+  "statPeople": "{count, plural, =0 {Aucune personne} =1 {<n>1</n> personne} other {<n>#</n> personnes}}",
+  "statParties": "{count, plural, =0 {Aucun groupe} =1 {<n>1</n> groupe} other {<n>#</n> groupes}}"
 }

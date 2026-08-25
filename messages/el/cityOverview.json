@@ -1,5 +1,12 @@
 {
   "nextMeeting": "Επόμενη συνεδρίαση",
-  "latestMeeting": "Τελευταία συνεδρίαση",
-  "adminBodyUnknown": "Μη καταχωρημένο όργανο"
+  "latestMeeting": "Πιο πρόσφατη συνεδρίαση",
+  "adminBodyUnknown": "Μη καταχωρημένο όργανο",
+  "searchSubjects": {
+    "municipality": "Αναζήτηση σε {count, number} θέματα στον δήμο {qualifier}",
+    "region": "Αναζήτηση σε {count, number} θέματα στην περιφέρεια {qualifier}"
+  },
+  "statMeetings": "{count, plural, =0 {Καμία συνεδρίαση} =1 {<n>1</n> συνεδρίαση} other {<n>#</n> συνεδριάσεις}}",
+  "statPeople": "{count, plural, =0 {Κανένα πρόσωπο} =1 {<n>1</n> πρόσωπο} other {<n>#</n> πρόσωπα}}",
+  "statParties": "{count, plural, =0 {Καμία παράταξη} =1 {<n>1</n> παράταξη} other {<n>#</n> παρατάξεις}}"
 }

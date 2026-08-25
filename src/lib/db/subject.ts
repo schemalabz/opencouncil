@@ -112,6 +112,29 @@ export type SubjectWithRelations = Subject & {
 };
 
 /**
+ * All-time total subjects for one city — the figure the city page quotes when it
+ * says how much there is to search.
+ *
+ * Deliberately the same visibility rule as {@link getSubjectCountsByCityCached}
+ * (released, past-dated, actually discussed), so the number a δήμος shows on its
+ * own page matches the one it shows in the landing directory. It differs only in
+ * scope: the city is already known here, so there is no realm to resolve and no
+ * whole-realm groupBy to compute.
+ */
+export async function getSubjectCountForCity(cityId: string): Promise<number> {
+    return prisma.subject.count({
+        where: {
+            cityId,
+            contributions: { some: {} },
+            councilMeeting: {
+                released: true,
+                dateTime: { lte: new Date() },
+            },
+        },
+    });
+}
+
+/**
  * All-time total subjects per city ({ cityId: count }) for the Δήμοι *directory* tab, shown
  * next to each city's all-time meetings/persons totals (MunicipalitiesList). It is deliberately
  * independent of the map's date range/filters — it is NOT the count of pins currently on the

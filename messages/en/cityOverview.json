@@ -1,5 +1,12 @@
 {
   "nextMeeting": "Next meeting",
-  "latestMeeting": "Latest meeting",
-  "adminBodyUnknown": "Body not recorded"
+  "latestMeeting": "Most recent meeting",
+  "adminBodyUnknown": "Body not recorded",
+  "searchSubjects": {
+    "municipality": "Search {count, number} subjects in {qualifier}",
+    "region": "Search {count, number} subjects in {qualifier}"
+  },
+  "statMeetings": "{count, plural, =0 {No meetings} =1 {<n>1</n> meeting} other {<n>#</n> meetings}}",
+  "statPeople": "{count, plural, =0 {No people} =1 {<n>1</n> person} other {<n>#</n> people}}",
+  "statParties": "{count, plural, =0 {No parties} =1 {<n>1</n> party} other {<n>#</n> parties}}"
 }
