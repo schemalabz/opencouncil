@@ -23,7 +23,8 @@ interface CityRailProps {
  * the operator's tools.
  *
  * These are facts about the municipality rather than about the tab in front of
- * you, so they stay put while the tabs change beneath them. They used to sit in
+ * you, so they stay put while the tabs change beneath them — and, on a wide
+ * screen, while the tab's own content scrolls past. They used to sit in
  * a band above the tabs, which meant the page could not start until the tallest
  * of them had finished — two cards there ran twice as tall as the identity
  * beside them and left a hole the width of the page.
@@ -40,7 +41,11 @@ export function CityRail({
     locale,
 }: CityRailProps) {
     return (
-        <aside className="flex flex-col gap-3">
+        // Sticky below lg is pointless — the rail is above the tabs there, not
+        // beside them. top-24 clears the sticky header; the max-height keeps a
+        // rail taller than the window reachable instead of pinning its top and
+        // cutting off everything under the fold.
+        <aside className="flex flex-col gap-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
             {/* Operator controls sit above everything a citizen is here for. */}
             <CityAdminTools
                 city={city as City}
