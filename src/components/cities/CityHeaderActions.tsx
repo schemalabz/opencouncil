@@ -4,36 +4,27 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { BadgeCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { NotificationCTAButton } from '@/components/cities/NotificationCTAButton';
 import { Button } from '@/components/ui/button';
 import { isPetitionable } from '@/lib/cityStatus';
 
 type CityHeaderActionsProps = {
     city: City;
-    hasNotifications: boolean;
 };
 
 /**
- * The band's public calls to action — notifications, and the petition when the
- * city is not yet covered.
+ * The band's public call to action: the petition, when the city is not yet
+ * covered. Notifications used to live here too, and are now their own card.
  *
  * Kept apart from the band itself so the band stays a Server Component, and
  * apart from CityAdminTools so the two are not read as one control group: these
  * are addressed to citizens, those to operators.
  */
-export function CityHeaderActions({ city, hasNotifications }: CityHeaderActionsProps) {
+export function CityHeaderActions({ city }: CityHeaderActionsProps) {
     const t = useTranslations('City');
     const router = useRouter();
 
     return (
         <div className="flex flex-col gap-3">
-            {city.supportsNotifications && (
-                <NotificationCTAButton
-                    onClick={() => router.push(`/${city.id}/notifications`)}
-                    isSubscribed={hasNotifications}
-                />
-            )}
-
             {isPetitionable(city.status) && (
                 <Button
                     onClick={() => router.push(`/${city.id}/petition`)}

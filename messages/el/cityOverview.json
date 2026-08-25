@@ -31,5 +31,18 @@
   "seatsInCouncil": "{count, plural, =1 {έδρα στο δημοτικό συμβούλιο} other {έδρες στο δημοτικό συμβούλιο}}",
   "partyMembers": "{count, plural, =1 {μέλος} other {μέλη}}",
   "inCommittees": "{count} σε επιτροπές",
-  "governingParty": "Δημοτική Αρχή"
+  "governingParty": "Δημοτική Αρχή",
+  "notisName": "Νότης",
+  "notisIntro": "Σου γράφει στο WhatsApp για τον {city}",
+  "notisExample": "Η ανάπλαση της πλατείας στη γειτονιά σου εγκρίθηκε ομόφωνα χθες. Τα έργα ξεκινούν το φθινόπωρο.",
+  "notisExampleLabel": "παράδειγμα",
+  "notisPitch": "Διαβάζει κάθε συνεδρίαση του δήμου και σου γράφει μόνο όταν κάτι αγγίζει τη γειτονιά ή τα θέματα που διάλεξες. Τις περισσότερες εβδομάδες δεν θα λάβεις τίποτα.",
+  "notisCta": "Θέλω ενημερώσεις",
+  "notisChannels": "Email, WhatsApp ή SMS · Σταματάς όποτε θέλεις",
+  "subscribedTitle": "Ο Νότης σου γράφει για τον {city}",
+  "allTopics": "Όλα τα θέματα",
+  "channelEmail": "Email",
+  "channelPhone": "WhatsApp και SMS",
+  "changePreferences": "Αλλαγή προτιμήσεων",
+  "allMyCities": "Όλοι οι δήμοι μου"
 }
