@@ -132,6 +132,7 @@ export default function MeetingSidebar() {
         { ...meetingPageSegments.transcript, url: `/${city.id}/${meeting.id}/transcript` },
         ...(canCreateHighlights ? [{ ...meetingPageSegments.highlights, url: `/${city.id}/${meeting.id}/highlights` }] : []),
         { ...meetingPageSegments.settings, url: `/${city.id}/${meeting.id}/settings` },
+        ...(canEdit ? [{ ...meetingPageSegments.decisions, url: `/${city.id}/${meeting.id}/decisions` }] : []),
         ...(canEdit ? [{ ...meetingPageSegments.admin, url: `/${city.id}/${meeting.id}/admin` }] : []),
     ]
 
