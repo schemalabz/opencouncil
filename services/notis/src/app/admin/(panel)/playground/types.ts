@@ -69,7 +69,14 @@ export interface Snapshot {
 }
 
 export interface PlaygroundStore {
-  version: 4;
+  /**
+   * Bumped to 5 when the queue stopped carrying pre-meeting agenda wakes.
+   * A version-4 store was built by the old derivation, so its queue still
+   * holds agenda items that this build must never run — and no partial
+   * cleanup survives a rewind, which can turn a completed item back into a
+   * pending one. loadStore stashes such a store aside instead.
+   */
+  version: 5;
   setup: { done: boolean; from: string };
   sim: Sim;
   traces: Record<string, WakeTrace>;

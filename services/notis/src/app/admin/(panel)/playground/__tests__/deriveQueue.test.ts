@@ -8,32 +8,29 @@ const meetings = [
 ];
 
 describe("deriveQueue", () => {
-  it("emits agenda (−3d) and summary (+1d) events per meeting, merged chronologically", () => {
+  it("emits one summary event (+1d) per meeting, merged chronologically", () => {
     const queue = deriveQueue(meetings, "2026-05-01");
     expect(queue.map((q) => q.id)).toEqual([
-      "athens:m1:agenda",
       "athens:m1:summary",
-      "patras:p1:agenda",
       "patras:p1:summary",
-      "athens:m2:agenda",
       "athens:m2:summary",
     ]);
-    expect(queue[0].event.at).toBe("2026-05-07T18:00:00.000Z");
-    expect(queue[1].event.at).toBe("2026-05-11T18:00:00.000Z");
+    expect(queue[0].event.at).toBe("2026-05-11T18:00:00.000Z");
     expect(queue.every((q) => q.status === "pending")).toBe(true);
     expect(queue.every((q) => "brief" in q.event && (q.event.brief as { pending: boolean }).pending)).toBe(true);
   });
 
+  // The archive holds only the post-meeting state, so a simulated agenda wake
+  // would preview a meeting whose outcomes it can already read.
+  it("never emits a pre-meeting agenda event", () => {
+    const queue = deriveQueue(meetings, "2020-01-01");
+    expect(queue.every((q) => q.event.type === "meeting_summarized")).toBe(true);
+  });
+
   it("clips events before the start date but has no end bound", () => {
-    const queue = deriveQueue(meetings, "2026-05-09");
-    // m1 agenda (05-07) is before the start; everything later stays.
-    expect(queue.map((q) => q.id)).toEqual([
-      "athens:m1:summary",
-      "patras:p1:agenda",
-      "patras:p1:summary",
-      "athens:m2:agenda",
-      "athens:m2:summary",
-    ]);
+    const queue = deriveQueue(meetings, "2026-05-12");
+    // m1's summary (05-11) is before the start; everything later stays.
+    expect(queue.map((q) => q.id)).toEqual(["patras:p1:summary", "athens:m2:summary"]);
   });
 
   it("insertChronological places items before later pending events", () => {
@@ -46,6 +43,6 @@ describe("deriveQueue", () => {
     const next = insertChronological(queue, item);
     const idx = next.findIndex((q) => q.id === "sched-1");
     expect(next[idx - 1].id).toBe("athens:m1:summary");
-    expect(next[idx + 1].id).toBe("patras:p1:agenda");
+    expect(next[idx + 1].id).toBe("patras:p1:summary");
   });
 });
