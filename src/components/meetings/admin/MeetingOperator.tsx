@@ -47,6 +47,7 @@ function MeetingOperatorInner({
     const [operator, setOperator] = useState<OperatorUser | null>(null);
     const [superadmins, setSuperadmins] = useState<OperatorUser[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
 
     const fetchData = useCallback(async () => {
         try {
@@ -86,6 +87,10 @@ function MeetingOperatorInner({
     const handleChange = async (value: string) => {
         const userId = value === NOT_ATTENDED ? null : value;
 
+        // The request also mirrors the change to Google Calendar, so it can take
+        // a second or more. The select shows the old value until the response
+        // lands, so it must not accept another change in the meantime.
+        setIsSaving(true);
         try {
             const res = await fetch(
                 `/api/cities/${cityId}/meetings/${meetingId}/operator`,
@@ -120,6 +125,8 @@ function MeetingOperatorInner({
                 description: t("updateFailed"),
                 variant: "destructive",
             });
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -132,6 +139,7 @@ function MeetingOperatorInner({
             <Select
                 value={operator?.id ?? NOT_ATTENDED}
                 onValueChange={handleChange}
+                disabled={isSaving}
             >
                 <SelectTrigger className="w-[280px]">
                     <SelectValue />
