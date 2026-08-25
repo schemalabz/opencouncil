@@ -59,6 +59,7 @@ jest.mock('@/lib/realm.server', () => ({
 // Mock heavy React component trees — we only care about the data-fetch ordering.
 jest.mock('@/components/cities/CityParties', () => ({ __esModule: true, default: () => null }));
 jest.mock('@/components/cities/CityIdentityBand', () => ({ CityIdentityBand: () => null }));
+jest.mock('@/components/cities/CityRail', () => ({ CityRail: () => null }));
 jest.mock('@/components/cities/overview/HotTopicsCard', () => ({ HotTopicsCard: () => null }));
 jest.mock('@/components/cities/overview/CouncilBand', () => ({ CouncilBand: () => null }));
 jest.mock('@/components/meetings/MeetingCardV2', () => ({ __esModule: true, default: () => null }));
