@@ -1,13 +1,21 @@
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
-import { isUserAuthorizedToEdit } from "@/lib/auth";
-import CityMeetings from "@/components/cities/CityMeetings";
-import { getCityCached, getCouncilMeetingsForCityCached } from "@/lib/cache";
+import { ArrowRight } from "lucide-react";
+import MeetingCard from "@/components/meetings/MeetingCard";
+import { HotTopicsCard } from "@/components/cities/overview/HotTopicsCard";
+import { getCityCached, getCouncilMeetingsForCityPublicCached } from "@/lib/cache";
+import { getHotSubjectCards } from "@/lib/hotSubjectCards";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { getOgLocale } from '@/i18n/config';
 import { getTranslations } from 'next-intl/server';
 import { buildOgImageUrl } from '@/lib/og/locale';
+import { Link } from '@/i18n/routing';
+
+/** How far down the ranking the overview goes before it stops being a summary. */
+const HOT_SUBJECTS = 7;
+/** Enough recent meetings to show the council's rhythm; the rest are one click away. */
+const RECENT_MEETINGS = 6;
 
 export async function generateMetadata(
     props: {
@@ -66,42 +74,63 @@ export async function generateMetadata(
     };
 }
 
-export default async function MeetingsPage(
+export default async function CityOverviewPage(
     props: {
-        params: Promise<{ cityId: string }>;
-        searchParams: Promise<{ page?: string }>;
+        params: Promise<{ cityId: string; locale: string }>;
     }
 ) {
-    const searchParams = await props.searchParams;
     const params = await props.params;
 
     const {
-        cityId
+        cityId,
+        locale
     } = params;
 
-    const pageNumber = parseInt(searchParams.page || '1', 10);
-    const currentPage = isNaN(pageNumber) || pageNumber < 1 ? 1 : pageNumber;
-    const pageSize = 12;
-
-    const [city, councilMeetings] = await Promise.all([
+    const [city, hotCards, recentMeetings, t] = await Promise.all([
         getCityCached(cityId),
-        getCouncilMeetingsForCityCached(cityId, {}),
+        getHotSubjectCards(cityId, { limit: HOT_SUBJECTS }),
+        getCouncilMeetingsForCityPublicCached(cityId, { limit: RECENT_MEETINGS, timeFilter: 'past' }),
+        getTranslations({ locale, namespace: 'cityOverview' }),
     ]);
 
     if (!city) {
         notFound();
     }
 
-    const canEdit = await isUserAuthorizedToEdit({ cityId });
-
     return (
-        <CityMeetings
-            councilMeetings={councilMeetings}
-            cityId={cityId}
-            timezone={city.timezone}
-            canEdit={canEdit}
-            currentPage={currentPage}
-            pageSize={pageSize}
-        />
+        <div className="space-y-12">
+            <HotTopicsCard cards={hotCards} cityId={cityId} timezone={city.timezone} locale={locale} />
+
+            {recentMeetings.length > 0 && (
+                <section>
+                    <div className="flex flex-wrap items-end justify-between gap-4">
+                        <div>
+                            <span className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">
+                                {t('recentMeetingsEyebrow')}
+                            </span>
+                            <h2 className="mt-2.5 !text-left text-2xl tracking-tight md:text-3xl">{t('recentMeetingsTitle')}</h2>
+                        </div>
+                        <Link
+                            href={`/${cityId}/meetings`}
+                            className="inline-flex items-center gap-1.5 text-sm font-semibold text-[hsl(var(--orange))]"
+                        >
+                            {t('allMeetings')}
+                            <ArrowRight className="h-4 w-4" aria-hidden />
+                        </Link>
+                    </div>
+
+                    <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                        {recentMeetings.map(meeting => (
+                            <MeetingCard
+                                key={meeting.id}
+                                item={meeting}
+                                editable={false}
+                                cityTimezone={city.timezone}
+                            />
+                        ))}
+                    </div>
+                </section>
+            )}
+        </div>
     );
-} 
+}

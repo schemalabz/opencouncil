@@ -9,5 +9,15 @@
   },
   "statMeetings": "{count, plural, =0 {Καμία συνεδρίαση} =1 {<n>1</n> συνεδρίαση} other {<n>#</n> συνεδριάσεις}}",
   "statPeople": "{count, plural, =0 {Κανένα πρόσωπο} =1 {<n>1</n> πρόσωπο} other {<n>#</n> πρόσωπα}}",
-  "statParties": "{count, plural, =0 {Καμία παράταξη} =1 {<n>1</n> παράταξη} other {<n>#</n> παρατάξεις}}"
+  "statParties": "{count, plural, =0 {Καμία παράταξη} =1 {<n>1</n> παράταξη} other {<n>#</n> παρατάξεις}}",
+  "hotTopicsEyebrow": "Θέματα",
+  "hotTopicsTitle": "Πρόσφατα πολυσυζητημένα θέματα",
+  "hotTopicsExplainer": "Κατάταξη με βάση τον χρόνο συζήτησης, τη χρονική εγγύτητα και το όργανο.",
+  "noHotTopics": "Δεν έχει συζητηθεί ακόμη κάτι στις πιο πρόσφατες συνεδριάσεις.",
+  "viewSubject": "Προβολή θέματος",
+  "discussionMinutes": "{minutes, number}′ συζήτηση",
+  "speakerCount": "{count, plural, =1 {1 ομιλητής} other {# ομιλητές}}",
+  "recentMeetingsEyebrow": "Συνεδριάσεις",
+  "recentMeetingsTitle": "Πρόσφατες συνεδριάσεις",
+  "allMeetings": "Όλες οι συνεδριάσεις"
 }

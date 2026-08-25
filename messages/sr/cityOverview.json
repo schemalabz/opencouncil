@@ -9,5 +9,15 @@
   },
   "statMeetings": "{count, plural, =0 {Нема седница} =1 {<n>1</n> седница} few {<n>#</n> седнице} other {<n>#</n> седница}}",
   "statPeople": "{count, plural, =0 {Нема особа} =1 {<n>1</n> особа} few {<n>#</n> особе} other {<n>#</n> особа}}",
-  "statParties": "{count, plural, =0 {Нема група} =1 {<n>1</n> група} few {<n>#</n> групе} other {<n>#</n> група}}"
+  "statParties": "{count, plural, =0 {Нема група} =1 {<n>1</n> група} few {<n>#</n> групе} other {<n>#</n> група}}",
+  "hotTopicsEyebrow": "Теме",
+  "hotTopicsTitle": "Недавно највише расправљано",
+  "hotTopicsExplainer": "Рангирано према трајању расправе, актуелности и телу које ју је водило.",
+  "noHotTopics": "На најновијим седницама још ништа није расправљано.",
+  "viewSubject": "Погледајте тачку",
+  "discussionMinutes": "{minutes, number}′ расправе",
+  "speakerCount": "{count, plural, =1 {1 говорник} few {# говорника} other {# говорника}}",
+  "recentMeetingsEyebrow": "Седнице",
+  "recentMeetingsTitle": "Недавне седнице",
+  "allMeetings": "Све седнице"
 }

@@ -22,7 +22,7 @@ jest.mock('../db/location', () => ({
     getLocationDistancesFromPoint: (...args: unknown[]) => mockGetLocationDistancesFromPoint(...args),
 }));
 
-import { getHotSubjectsNearPoint, withDistances, type HotSubject } from '../hotSubjects';
+import { getRecentHotSubjects, getHotSubjectsNearPoint, withDistances, type HotSubject } from '../hotSubjects';
 
 const CENTER: [number, number] = [23.72, 37.98];
 
@@ -32,7 +32,11 @@ const CENTER: [number, number] = [23.72, 37.98];
  * ranking must survive both (regression for the 500 this caused in the MCP
  * nearby tool).
  */
-function meeting(id: string, dateTime: Date | string, subjects: Array<{ id: string; locationId: string | null }>) {
+function meeting(
+    id: string,
+    dateTime: Date | string,
+    subjects: Array<{ id: string; locationId: string | null; contributions?: number; withdrawn?: boolean }>,
+) {
     return {
         id,
         cityId: 'athens',
@@ -46,10 +50,44 @@ function meeting(id: string, dateTime: Date | string, subjects: Array<{ id: stri
             locationId: subject.locationId,
             topic: null,
             speakerSegments: [],
-            _count: { contributions: 1 },
+            withdrawn: subject.withdrawn ?? false,
+            _count: { contributions: subject.contributions ?? 1 },
         })),
     };
 }
+
+describe('getRecentHotSubjects', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('leaves out subjects nobody spoke to, and withdrawn ones', async () => {
+        // Both would otherwise rank on recency alone, and a subject with no
+        // discussion time behind it makes nonsense of any comparison drawn
+        // against it.
+        mockGetCouncilMeetingsForCityPublicCached.mockResolvedValue([
+            meeting('m1', new Date('2026-08-01T18:00:00Z'), [
+                { id: 'debated', locationId: null, contributions: 4 },
+                { id: 'untouched', locationId: null, contributions: 0 },
+                { id: 'withdrawn', locationId: null, contributions: 9, withdrawn: true },
+            ]),
+        ]);
+
+        const hot = await getRecentHotSubjects('athens', { limit: 10 });
+
+        expect(hot.map(h => h.subject.id)).toEqual(['debated']);
+    });
+
+    it('returns nothing rather than falling back when the window holds no discussion', async () => {
+        mockGetCouncilMeetingsForCityPublicCached.mockResolvedValue([
+            meeting('m1', new Date('2026-08-01T18:00:00Z'), [
+                { id: 'untouched', locationId: null, contributions: 0 },
+            ]),
+        ]);
+
+        await expect(getRecentHotSubjects('athens', { limit: 10 })).resolves.toEqual([]);
+    });
+});
 
 describe('getHotSubjectsNearPoint', () => {
     beforeEach(() => {
