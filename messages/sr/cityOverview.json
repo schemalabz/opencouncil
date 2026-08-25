@@ -1,5 +1,12 @@
 {
   "nextMeeting": "Следећа седница",
-  "latestMeeting": "Последња седница",
-  "adminBodyUnknown": "Тело није уписано"
+  "latestMeeting": "Најскорија седница",
+  "adminBodyUnknown": "Тело није уписано",
+  "searchSubjects": {
+    "municipality": "Претражите {count, number} тачака у граду {qualifier}",
+    "region": "Претражите {count, number} тачака у региону {qualifier}"
+  },
+  "statMeetings": "{count, plural, =0 {Нема седница} =1 {<n>1</n> седница} few {<n>#</n> седнице} other {<n>#</n> седница}}",
+  "statPeople": "{count, plural, =0 {Нема особа} =1 {<n>1</n> особа} few {<n>#</n> особе} other {<n>#</n> особа}}",
+  "statParties": "{count, plural, =0 {Нема група} =1 {<n>1</n> група} few {<n>#</n> групе} other {<n>#</n> група}}"
 }

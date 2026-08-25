@@ -35,6 +35,7 @@ jest.mock('@/lib/cache', () => ({
     getCityCached: jest.fn(),
     getCityMessageCached: jest.fn(),
     getCouncilMeetingsForCityPublicCached: jest.fn(),
+    getSubjectCountForCityCached: jest.fn(),
 }));
 
 jest.mock('@/lib/auth', () => ({
@@ -222,6 +223,7 @@ describe('PR1: server-side awaits run concurrently', () => {
         const canEditD = deferred<boolean>();
         const upcomingD = deferred<any[]>();
         const pastD = deferred<any[]>();
+        const subjectCountD = deferred<number>();
 
         cache.getCityCached.mockReturnValue(cityD.promise);
         cache.getCityMessageCached.mockReturnValue(messageD.promise);
@@ -232,6 +234,7 @@ describe('PR1: server-side awaits run concurrently', () => {
         cache.getCouncilMeetingsForCityPublicCached
             .mockReturnValueOnce(upcomingD.promise)
             .mockReturnValueOnce(pastD.promise);
+        cache.getSubjectCountForCityCached.mockReturnValue(subjectCountD.promise);
 
         const { default: TabsLayout } = require('@/app/[locale]/(city)/[cityId]/(other)/(tabs)/layout');
 
@@ -246,6 +249,7 @@ describe('PR1: server-side awaits run concurrently', () => {
         expect(auth.getCurrentUser).toHaveBeenCalledTimes(1);
         expect(auth.isUserAuthorizedToEdit).toHaveBeenCalledTimes(1);
         expect(cache.getCouncilMeetingsForCityPublicCached).toHaveBeenCalledTimes(2);
+        expect(cache.getSubjectCountForCityCached).toHaveBeenCalledTimes(1);
         // The notification preference needs the user, so it must NOT be in the batch.
         expect(notifications.getNotificationPreferenceForCity).not.toHaveBeenCalled();
 
@@ -257,6 +261,7 @@ describe('PR1: server-side awaits run concurrently', () => {
         canEditD.resolve(false);
         upcomingD.resolve([]);
         pastD.resolve([]);
+        subjectCountD.resolve(0);
 
         await pending;
     });

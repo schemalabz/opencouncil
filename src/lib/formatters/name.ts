@@ -29,6 +29,28 @@ export function getLocalizedMunicipalityName(
 }
 
 /**
+ * The part of a municipality's name that a sentence interpolates after a
+ * preposition: "…στον δήμο **Αθηναίων**", "…in **Athens**".
+ *
+ * Greek and Serbian inflect the authority noun with the preposition ("στον δήμο",
+ * "στην περιφέρεια"), so the stored nominative long name cannot be dropped into a
+ * sentence. For those locales the message carries the article and the noun, and
+ * only the invariant tail of the long name is interpolated ("Δήμος Αθηναίων" →
+ * "Αθηναίων"). Everywhere else the city's own name reads correctly on its own.
+ */
+export function getMunicipalityQualifier(
+    city: LocalizedNamed & { name_municipality: string; name_municipality_en?: string | null },
+    locale: string,
+): string {
+    if (!locale.startsWith('el') && !locale.startsWith('sr')) {
+        return getLocalizedName(city, locale);
+    }
+    const full = getLocalizedMunicipalityName(city, locale);
+    const firstSpace = full.indexOf(' ');
+    return firstSpace === -1 ? full : full.slice(firstSpace + 1);
+}
+
+/**
  * `getLocalizedName` for the `name_short`/`name_short_en` pair (Person,
  * Party), falling back to the long-name pair when no short form is stored.
  */

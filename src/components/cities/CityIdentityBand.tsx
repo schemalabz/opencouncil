@@ -2,7 +2,7 @@ import { City, CityMessage as CityMessageType } from '@prisma/client';
 import { useTranslations } from 'next-intl';
 import type { CityWithCounts } from '@/lib/db/cities';
 import type { CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
-import { getLocalizedName, getLocalizedMunicipalityName } from '@/lib/formatters/name';
+import { getLocalizedMunicipalityName } from '@/lib/formatters/name';
 import { CityMessage } from '@/components/cities/CityMessage';
 import { CityHeaderActions } from '@/components/cities/CityHeaderActions';
 import { CitySearchForm } from '@/components/cities/CitySearchForm';
@@ -19,6 +19,7 @@ type CityIdentityBandProps = {
     hasNotifications: boolean;
     nextMeeting: CouncilMeetingWithAdminBodyAndSubjects | null;
     latestMeeting: CouncilMeetingWithAdminBodyAndSubjects | null;
+    subjectCount: number;
     locale: string;
 };
 
@@ -44,14 +45,20 @@ export function CityIdentityBand({
     hasNotifications,
     nextMeeting,
     latestMeeting,
+    subjectCount,
     locale,
 }: CityIdentityBandProps) {
-    const t = useTranslations();
+    const t = useTranslations('cityOverview');
 
+    // Rich text so the figure carries the weight and the noun stays quiet — the
+    // three counts are read as numbers first.
+    const numeral = (chunks: React.ReactNode) => (
+        <span className="font-medium text-foreground">{chunks}</span>
+    );
     const stats = [
-        t('CouncilMeeting.items', { count: city._count.councilMeetings }),
-        t('Person.items', { count: city._count.persons }),
-        t('Party.items', { count: city._count.parties }),
+        t.rich('statMeetings', { count: city._count.councilMeetings, n: numeral }),
+        t.rich('statPeople', { count: city._count.persons, n: numeral }),
+        t.rich('statParties', { count: city._count.parties, n: numeral }),
     ];
 
     return (
@@ -59,13 +66,10 @@ export function CityIdentityBand({
             <div className="grid items-start gap-8 lg:grid-cols-[1fr_minmax(320px,392px)] lg:gap-14">
                 <div className="min-w-0">
                     <h1 className="text-4xl leading-none tracking-tight md:text-5xl">
-                        {getLocalizedName(city, locale)}
+                        {getLocalizedMunicipalityName(city, locale)}
                     </h1>
 
-                    <div className="mt-3.5 flex flex-wrap items-center gap-x-3 gap-y-2">
-                        <span className="text-base text-muted-foreground">
-                            {getLocalizedMunicipalityName(city, locale)}
-                        </span>
+                    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
                         <OfficialSupportBadge
                             status={city.status}
                             authorityType={city.authorityType}
@@ -74,12 +78,17 @@ export function CityIdentityBand({
                         />
                     </div>
 
-                    <p className="mt-4 text-sm text-muted-foreground">
-                        {stats.join(' · ')}
+                    <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                        {stats.map((stat, i) => (
+                            <span key={i} className="flex items-center gap-2">
+                                {i > 0 && <span className="text-muted-foreground/40" aria-hidden>·</span>}
+                                {stat}
+                            </span>
+                        ))}
                     </p>
 
                     <div className="mt-6">
-                        <CitySearchForm cityId={city.id} locale={locale} />
+                        <CitySearchForm city={city} subjectCount={subjectCount} locale={locale} />
                     </div>
                 </div>
 
