@@ -2,6 +2,7 @@ import { useTranslations } from 'next-intl';
 import type { HotSubjectCard } from '@/lib/hotSubjectCards';
 import { formatDate } from '@/lib/formatters/time';
 import { localizeText } from '@/lib/serbian';
+import { TopicIcon } from '@/components/TopicIcon';
 import { topicStyle } from '@/lib/topicStyle';
 import { hotTopicBarWidth } from '@/lib/utils/subjects';
 import { AdminBodyLabel } from './AdminBodyLabel';
@@ -55,10 +56,11 @@ export function HotTopicRow({ card, rank, maxSeconds, timezone, locale, onOpen }
             <span className="relative z-10 w-6 shrink-0 text-xs font-bold tabular-nums text-muted-foreground">
                 {String(rank).padStart(2, '0')}
             </span>
-            <span
-                className="relative z-10 h-2.5 w-2.5 shrink-0 rounded-full"
-                style={{ backgroundColor: topic.border }}
-                aria-hidden
+            <TopicIcon
+                color={subject.topic?.colorHex}
+                icon={subject.topic?.icon}
+                size="sm"
+                className="relative z-10"
             />
             <span className="relative z-10 min-w-0 flex-1">
                 <span className="block truncate text-[15px] leading-snug">
