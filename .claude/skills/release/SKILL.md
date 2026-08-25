@@ -223,7 +223,13 @@ for pr in $(git log --format="%s" $RANGE | grep -oE '#[0-9]+' | tr -d '#' | sort
 done | sort -u
 ```
 
-For commits without a PR reference (e.g. direct pushes, hotfixes), check `git log --format='%an <%ae>' $RANGE` for authors not already covered. GitHub noreply emails (`12345+username@users.noreply.github.com`) contain the username directly; otherwise resolve via `gh api "search/users?q=<email>+in:email" -q '.items[].login'` or ask the user — **never guess a username from a display name**, since a wrong @mention credits a stranger.
+For commits without a PR reference (e.g. direct pushes, hotfixes), list both identities:
+
+```bash
+git log --format='%h | A: %an <%ae> | C: %cn <%ce>' $RANGE
+```
+
+Credit the author; a differing committer usually just rebased. The exception is a bot author — an agent-written commit that a person pushed carries `Claude <noreply@anthropic.com>` as the author and the real person as the committer, and the miscredit is silent because that address resolves to the `claude` account like any other login. Resolve a login from the commit, never from a display name: `gh api repos/<owner>/<repo>/commits/<sha> -q '.author.login, .committer.login'`. **Never @mention a bot**, and ask the user when a human stays unresolved — a wrong mention credits a stranger.
 
 ## Step 3: Determine Version
 
