@@ -54,9 +54,11 @@ export default async function TabsLayout(
     // answer the same question.
     const hasNoData = city._count.councilMeetings === 0 && city._count.parties === 0 && city._count.persons === 0;
 
-    const hasNotifications = currentUser
-        ? !!(await getNotificationPreferenceForCity(currentUser.id, cityId))
-        : false;
+    // The whole preference, not just whether one exists: the notification card
+    // shows the reader which topics and places they signed up for.
+    const notificationPreference = currentUser
+        ? await getNotificationPreferenceForCity(currentUser.id, cityId)
+        : null;
 
     const isSuperAdmin = !!currentUser?.isSuperAdmin;
     // An inactive message is a draft: only superadmins see it, to preview it.
@@ -72,7 +74,7 @@ export default async function TabsLayout(
                     canEdit={canEdit}
                     isSuperAdmin={isSuperAdmin}
                     hasNoData={hasNoData}
-                    hasNotifications={hasNotifications}
+                    notificationPreference={notificationPreference}
                     allMeetings={{ next: upcoming[0] ?? null, latest: past[0] ?? null }}
                     councilMeetings={{ next: councilUpcoming[0] ?? null, latest: councilPast[0] ?? null }}
                     subjectCount={subjectCount}

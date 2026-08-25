@@ -31,5 +31,18 @@
   "seatsInCouncil": "{count, plural, =1 {место у скупштини} other {места у скупштини}}",
   "partyMembers": "{count, plural, =1 {члан} other {чланова}}",
   "inCommittees": "{count} у одборима",
-  "governingParty": "Владајућа група"
+  "governingParty": "Владајућа група",
+  "notisName": "Нотис",
+  "notisIntro": "Пише ти на Вотсапу о граду {city}",
+  "notisExample": "Обнова трга у твом крају усвојена је синоћ једногласно. Радови почињу на јесен.",
+  "notisExampleLabel": "пример",
+  "notisPitch": "Чита сваку седницу скупштине и пише ти само када нешто дотиче твој крај или тему коју си изабрао. Већину недеља нећеш добити ништа.",
+  "notisCta": "Желим обавештења",
+  "notisChannels": "Мејл, Вотсап или СМС · Прекидаш кад год желиш",
+  "subscribedTitle": "Нотис ти пише о граду {city}",
+  "allTopics": "Све теме",
+  "channelEmail": "Мејл",
+  "channelPhone": "Вотсап и СМС",
+  "changePreferences": "Промени подешавања",
+  "allMyCities": "Сви моји градови"
 }
