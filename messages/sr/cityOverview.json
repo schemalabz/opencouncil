@@ -30,6 +30,6 @@
   "peopleEyebrow": "{count, plural, =1 {1 члан} other {# чланова}}",
   "seatsInCouncil": "{count, plural, =1 {место у скупштини} other {места у скупштини}}",
   "partyMembers": "{count, plural, =1 {члан} other {чланова}}",
-  "mayorsParty": "Група градоначелника",
-  "inCommittees": "{count} у одборима"
+  "inCommittees": "{count} у одборима",
+  "governingParty": "Владајућа група"
 }

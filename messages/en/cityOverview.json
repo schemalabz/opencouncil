@@ -30,6 +30,6 @@
   "peopleEyebrow": "{count, plural, =1 {1 member} other {# members}}",
   "seatsInCouncil": "{count, plural, =1 {seat on the council} other {seats on the council}}",
   "partyMembers": "{count, plural, =1 {member} other {members}}",
-  "mayorsParty": "The mayor's party",
-  "inCommittees": "{count} on committees"
+  "inCommittees": "{count} on committees",
+  "governingParty": "Governing group"
 }

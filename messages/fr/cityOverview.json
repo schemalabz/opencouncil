@@ -30,6 +30,6 @@
   "peopleEyebrow": "{count, plural, =1 {1 membre} other {# membres}}",
   "seatsInCouncil": "{count, plural, =1 {siège au conseil} other {sièges au conseil}}",
   "partyMembers": "{count, plural, =1 {membre} other {membres}}",
-  "mayorsParty": "Groupe du maire",
-  "inCommittees": "{count} en commissions"
+  "inCommittees": "{count} en commissions",
+  "governingParty": "Majorité municipale"
 }
