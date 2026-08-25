@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { CityIdentityBand } from "@/components/cities/CityIdentityBand";
 import { CityNavigation } from "@/components/cities/CityNavigation";
-import { getCityCached, getCityMessageCached, getCouncilMeetingsForCityPublicCached, getPartiesForCityCached, getPeopleForCityCached } from "@/lib/cache";
+import { getCityCached, getCityMessageCached, getCouncilMeetingsForCityPublicCached, getPartiesForCityCached, getPeopleForCityCached, getSubjectCountForCityCached } from "@/lib/cache";
 import { getCurrentUser, isUserAuthorizedToEdit } from "@/lib/auth";
 import { getNotificationPreferenceForCity } from "@/lib/db/notifications";
 
@@ -27,7 +27,7 @@ export default async function TabsLayout(
     // The two bookend meetings are queried separately rather than sliced from one
     // list: 'upcoming' sorts ascending and 'past' descending, so a single ordering
     // cannot put both at the front.
-    const [city, cityMessage, parties, people, currentUser, canEdit, upcoming, past] = await Promise.all([
+    const [city, cityMessage, parties, people, currentUser, canEdit, upcoming, past, subjectCount] = await Promise.all([
         getCityCached(cityId),
         getCityMessageCached(cityId),
         getPartiesForCityCached(cityId),
@@ -36,6 +36,7 @@ export default async function TabsLayout(
         isUserAuthorizedToEdit({ cityId }),
         getCouncilMeetingsForCityPublicCached(cityId, { timeFilter: 'upcoming', limit: 1 }),
         getCouncilMeetingsForCityPublicCached(cityId, { timeFilter: 'past', limit: 1 }),
+        getSubjectCountForCityCached(cityId),
     ]);
 
     if (!city) {
@@ -66,6 +67,7 @@ export default async function TabsLayout(
                     hasNotifications={hasNotifications}
                     nextMeeting={upcoming[0] ?? null}
                     latestMeeting={past[0] ?? null}
+                    subjectCount={subjectCount}
                     locale={locale}
                 />
 

@@ -106,7 +106,12 @@ export function CityHeaderActions({
             )}
 
             {(canEdit || isSuperAdmin) && (
-                <div className="flex flex-wrap gap-2">
+                // Admin tools, deliberately quiet: they sit under a public CTA, so
+                // they share one small ghost treatment rather than each arriving at
+                // its own size and colour. Reset City keeps a destructive tint but
+                // not a solid fill — it is a dev-only tool, not the loudest control
+                // on the page.
+                <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border/70 bg-muted/30 p-1.5">
                     {canEdit && (
                         <>
                             <FormSheet
@@ -114,10 +119,13 @@ export function CityHeaderActions({
                                 formProps={{ city, cityMessage }}
                                 title={t('editCity')}
                                 type="edit"
+                                triggerVariant="ghost"
+                                triggerSize="sm"
+                                triggerClassName="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-background"
                             />
-                            <Button asChild variant="outline" size="sm">
-                                <Link href={`/${city.id}/widget`}>
-                                    <Code className="w-4 h-4 mr-2" />
+                            <Button asChild variant="ghost" size="sm" className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-background">
+                                <Link href={`/${city.id}/widget`} className="hover:no-underline">
+                                    <Code className="w-3.5 h-3.5 mr-1.5" />
                                     {t('widget')}
                                 </Link>
                             </Button>
@@ -126,8 +134,8 @@ export function CityHeaderActions({
                     {isSuperAdmin && (isOutOfNetwork(city.status) || hasNoData) && (
                         <Sheet open={isCityCreatorOpen} onOpenChange={setIsCityCreatorOpen}>
                             <SheetTrigger asChild>
-                                <Button variant="outline" size="sm">
-                                    <Database className="w-4 h-4 mr-2" />
+                                <Button variant="ghost" size="sm" className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-background">
+                                    <Database className="w-3.5 h-3.5 mr-1.5" />
                                     Import Data
                                 </Button>
                             </SheetTrigger>
@@ -151,12 +159,13 @@ export function CityHeaderActions({
                     )}
                     {IS_DEV && isSuperAdmin && !isOutOfNetwork(city.status) && (
                         <Button
-                            variant="destructive"
+                            variant="ghost"
                             size="sm"
                             onClick={handleResetCity}
                             disabled={isResetting}
+                            className="h-8 px-2.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
                         >
-                            <Database className={`w-4 h-4 mr-2 ${isResetting ? 'animate-spin' : ''}`} />
+                            <Database className={`w-3.5 h-3.5 mr-1.5 ${isResetting ? 'animate-spin' : ''}`} />
                             Reset City
                         </Button>
                     )}

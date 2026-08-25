@@ -1,9 +1,13 @@
-import { Search, ArrowRight } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { routing, urlPrefixForLocale } from '@/i18n/routing';
+import { getMunicipalityQualifier } from '@/lib/formatters/name';
+import type { CityWithCounts } from '@/lib/db/cities';
 
 interface CitySearchFormProps {
-    cityId: string;
+    city: CityWithCounts;
+    /** All-time subjects this city has on record — what the field promises to search. */
+    subjectCount: number;
     locale: string;
 }
 
@@ -18,32 +22,37 @@ interface CitySearchFormProps {
  * `as-needed`, so a bare "/search" would drop the visitor from /en/chania back
  * to the default locale.
  */
-export function CitySearchForm({ cityId, locale }: CitySearchFormProps) {
-    const t = useTranslations();
+export function CitySearchForm({ city, subjectCount, locale }: CitySearchFormProps) {
+    const t = useTranslations('cityOverview');
+    const tCommon = useTranslations('Common');
     const localePrefix = locale === routing.defaultLocale ? '' : `/${urlPrefixForLocale(locale)}`;
+
+    const placeholder = t(city.authorityType === 'region' ? 'searchSubjects.region' : 'searchSubjects.municipality', {
+        count: subjectCount,
+        qualifier: getMunicipalityQualifier(city, locale),
+    });
 
     return (
         <form
             action={`${localePrefix}/search`}
             method="get"
             role="search"
-            className="flex items-center gap-2.5 rounded-xl border border-foreground/60 bg-card py-1.5 pl-4 pr-1.5 shadow-sm focus-within:border-[hsl(var(--orange))] focus-within:ring-[3px] focus-within:ring-[hsl(var(--orange))]/20"
+            className="group flex items-center gap-3 rounded-xl border border-border bg-card py-1.5 pl-4 pr-1.5 shadow-sm transition-colors focus-within:border-[hsl(var(--orange))]/70 focus-within:shadow-md hover:border-foreground/25"
         >
-            <input type="hidden" name="cityId" value={cityId} />
-            <Search className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+            <input type="hidden" name="cityId" value={city.id} />
+            <Search className="h-[18px] w-[18px] shrink-0 text-muted-foreground transition-colors group-focus-within:text-[hsl(var(--orange))]" aria-hidden />
             <input
                 type="search"
                 name="query"
-                placeholder={t('City.searchInCity')}
-                aria-label={t('City.searchInCity')}
-                className="h-10 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
+                placeholder={placeholder}
+                aria-label={placeholder}
+                className="h-10 min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted-foreground"
             />
             <button
                 type="submit"
-                className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-foreground px-4 text-sm font-medium text-background transition-opacity hover:opacity-90"
+                className="inline-flex h-10 shrink-0 items-center rounded-[6px] bg-foreground px-4 text-sm font-medium text-background transition-opacity hover:opacity-85"
             >
-                {t('Common.search')}
-                <ArrowRight className="h-4 w-4" aria-hidden />
+                {tCommon('search')}
             </button>
         </form>
     );

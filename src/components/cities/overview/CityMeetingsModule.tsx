@@ -77,7 +77,7 @@ export function CityMeetingsModule({ next, latest, cityId, timezone, locale }: C
                         </div>
                         <Link
                             href={`/${cityId}/${latest.id}`}
-                            className="mt-4 flex h-10 items-center justify-center gap-2 rounded-lg bg-foreground text-sm font-medium text-background transition-opacity hover:opacity-90 hover:no-underline"
+                            className="mt-4 flex h-10 items-center justify-center gap-2 rounded-[10px] bg-foreground text-sm font-medium text-background transition-opacity hover:opacity-90 hover:no-underline"
                         >
                             <Play className="h-3.5 w-3.5 fill-current" aria-hidden />
                             {tMeeting('watchMeeting')}

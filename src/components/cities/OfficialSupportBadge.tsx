@@ -23,16 +23,18 @@ export function OfficialSupportBadge({
     size = 'md'
 }: OfficialSupportBadgeProps) {
     const t = useTranslations('City');
+    // Tighter than the default badge: this sits beside a 48px city name and must
+    // read as a caption, not as a second heading.
     const sizeClasses = {
-        sm: 'text-xs px-2 py-0.5',
-        md: 'text-xs px-2 py-1',
-        lg: 'text-sm px-2.5 py-1'
+        sm: 'h-[22px] px-2 text-[11px] gap-1',
+        md: 'h-6 px-2.5 text-[11px] gap-1.5',
+        lg: 'h-7 px-3 text-xs gap-1.5'
     };
 
     const iconSizes = {
         sm: 'w-3 h-3',
-        md: 'w-3 h-3',
-        lg: 'w-3.5 h-3.5'
+        md: 'w-3.5 h-3.5',
+        lg: 'w-4 h-4'
     };
 
     const officialSupport = isCustomer(status);
@@ -53,27 +55,32 @@ export function OfficialSupportBadge({
         return (
             <Badge
                 className={cn(
-                    "gap-1.5 border-0 bg-muted hover:bg-muted text-muted-foreground font-normal",
+                    // A soft wash ringed in the same hue, the way topic chips are
+                    // built elsewhere in the app — quiet enough to sit under the
+                    // city name, definite enough to read as a mark of standing.
+                    'border-emerald-600/25 bg-emerald-600/[0.07] font-medium text-emerald-800 hover:bg-emerald-600/[0.07] dark:text-emerald-300',
                     sizeClasses[size],
                     className
                 )}
             >
-                <BadgeCheck className={cn(iconSizes[size], "shrink-0 text-green-600/50")} />
+                <BadgeCheck className={cn(iconSizes[size], 'shrink-0 text-emerald-600')} />
                 <span>{getSupportText()}</span>
             </Badge>
         );
     }
 
+    // Not a warning — most municipalities are here without a formal agreement, and
+    // the badge only states that. Neutral outline, no colour, no alarm icon.
     return (
         <Badge
             variant="outline"
             className={cn(
-                "gap-1.5 border-muted-foreground/20 text-muted-foreground/60 font-normal",
+                'border-border font-normal text-muted-foreground',
                 sizeClasses[size],
                 className
             )}
         >
-            <BadgeX className={cn(iconSizes[size], "text-muted-foreground/50")} />
+            <BadgeX className={cn(iconSizes[size], 'shrink-0 text-muted-foreground/50')} />
             <span>{getSupportText()}</span>
         </Badge>
     );

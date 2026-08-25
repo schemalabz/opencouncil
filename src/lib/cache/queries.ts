@@ -7,7 +7,7 @@ import { getCityMessage } from "@/lib/db/cityMessages";
 import { getCouncilMeetingsForCity } from "@/lib/db/meetings";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { getPeopleForCity } from "@/lib/db/people";
-import { getSubjectsForMeeting, SubjectWithRelations } from "@/lib/db/subject";
+import { getSubjectCountForCity, getSubjectsForMeeting, SubjectWithRelations } from "@/lib/db/subject";
 import { getAdministrativeBodiesForCity, getAdministrativeBodiesWithPublicMeetings } from "@/lib/db/administrativeBodies";
 import { getMeetingStatus } from "@/lib/meetingStatus";
 import { getBatchStatisticsForSubjects, Statistics } from "@/lib/statistics";
@@ -182,6 +182,20 @@ export async function getCityMessageCached(cityId: string) {
     () => getCityMessage(cityId),
     ['city', cityId, 'message'],
     { tags: ['city', `city:${cityId}`, `city:${cityId}:message`] }
+  )();
+}
+
+export async function getSubjectCountForCityCached(cityId: string) {
+  return createCache(
+    () => getSubjectCountForCity(cityId),
+    ['city', cityId, 'subjectCount'],
+    {
+      tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`],
+      // The count only includes meetings already held, so it grows with the clock
+      // as well as with the data — the same reason the time-filtered meeting
+      // queries carry a TTL.
+      revalidate: 900,
+    }
   )();
 }
 

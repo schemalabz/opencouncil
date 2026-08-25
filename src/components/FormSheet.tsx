@@ -1,5 +1,5 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet"
-import { Button } from "./ui/button"
+import { Button, type ButtonProps } from "./ui/button"
 import React, { useState } from "react";
 import { Plus, Pencil } from 'lucide-react';
 interface FormSheetProps<T> {
@@ -8,9 +8,22 @@ interface FormSheetProps<T> {
     title: string;
     type: "add" | "edit";
     closeOnSuccess?: boolean;
+    /** Restyle the trigger to sit alongside other controls (e.g. a quiet admin row). */
+    triggerVariant?: ButtonProps["variant"];
+    triggerSize?: ButtonProps["size"];
+    triggerClassName?: string;
 }
 
-export default function FormSheet<T>({ FormComponent, formProps, title, type, closeOnSuccess = false }: FormSheetProps<T>) {
+export default function FormSheet<T>({
+    FormComponent,
+    formProps,
+    title,
+    type,
+    closeOnSuccess = false,
+    triggerVariant = "outline",
+    triggerSize,
+    triggerClassName,
+}: FormSheetProps<T>) {
     const [isSheetOpen, setIsSheetOpen] = useState(false);
 
     const handleSuccess = () => {
@@ -25,7 +38,7 @@ export default function FormSheet<T>({ FormComponent, formProps, title, type, cl
     return (
         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
             <SheetTrigger asChild>
-                <Button className="" variant="outline">
+                <Button variant={triggerVariant} size={triggerSize} className={triggerClassName}>
                     <span className="hidden md:inline">{title}</span>
                     <span className="md:hidden">
                         {type === "add" ? <Plus size={24} /> : <Pencil size={24} />}

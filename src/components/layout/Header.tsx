@@ -273,21 +273,28 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
             {children}
             <div className="flex items-center gap-1 sm:gap-2">
                 <ScriptSwitcher className="mr-1" />
+                {/* The labels are the first thing to go when the bar tightens: an
+                    unlabelled magnifier is still understood, whereas the city name
+                    and the user menu beside them are not recoverable from an icon.
+                    aria-label stays on regardless, so the accessible name never
+                    depends on the viewport. */}
                 <button
                     onClick={() => setIsSearchOpen(true)}
-                    className="flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 rounded-full hover:bg-accent transition-colors"
+                    className="flex items-center justify-center gap-1.5 h-8 sm:h-9 w-8 sm:w-auto sm:px-2.5 lg:px-3 rounded-full text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
                     aria-label={t('search')}
                     title={t('search')}
                 >
-                    <Search className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                    <Search className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
+                    <span className="hidden lg:inline text-sm">{t('search')}</span>
                 </button>
                 <Link
                     href="/mcp"
-                    className="flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 rounded-full hover:bg-accent transition-colors"
+                    className="flex items-center justify-center gap-1.5 h-8 sm:h-9 w-8 sm:w-auto sm:px-2.5 lg:px-3 rounded-full text-muted-foreground hover:bg-accent hover:text-foreground hover:no-underline transition-colors"
                     aria-label={t('mcp')}
                     title={t('mcp')}
                 >
-                    <Bot className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                    <Bot className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
+                    <span className="hidden lg:inline text-sm">{t('mcpShort')}</span>
                 </Link>
                 <UserDropdown currentEntity={currentEntity} />
             </div>
