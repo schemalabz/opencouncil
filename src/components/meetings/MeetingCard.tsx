@@ -25,9 +25,7 @@ const logDev = (message: string, data?: any) => {
 interface MeetingCardProps {
     item: CouncilMeetingWithAdminBodyAndSubjects;
     editable: boolean;
-    mostRecent?: boolean;
     cityTimezone: string;
-    headingLevel?: 'h2' | 'h3';
 }
 
 const LoadingDots = () => (
@@ -50,7 +48,7 @@ const LoadingDots = () => (
     </div>
 );
 
-export default function MeetingCard({ item: meeting, editable, mostRecent, cityTimezone, headingLevel: Heading = 'h2' }: MeetingCardProps) {
+export default function MeetingCard({ item: meeting, editable, cityTimezone }: MeetingCardProps) {
     const t = useTranslations('MeetingCard');
     const router = useRouter();
     const locale = useLocale();
@@ -110,7 +108,7 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                 className={cn(
                     "relative h-full overflow-hidden transition-all duration-300 group flex flex-col",
                     "hover:shadow-lg hover:shadow-[#a4c0e1]/20 cursor-pointer",
-                    mostRecent ? "border-0" : "border-0"
+                    "border-0"
                 )}
                 onClick={handleClick}
             >
@@ -134,19 +132,6 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                     <div className="px-5 flex flex-col h-full">
                         {/* Card header - Status badges */}
                         <div className="pt-4 pb-1 flex flex-wrap items-center gap-2">
-                            {mostRecent && (
-                                <motion.div
-                                    initial={{ opacity: 0, scale: 0.8 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    className="inline-flex items-center gap-1 text-xs font-medium relative overflow-hidden rounded-md px-2 py-1"
-                                >
-                                    <span className="absolute inset-0 bg-gradient-to-r from-[#fc550a] to-[#a4c0e1] opacity-20"></span>
-                                    <span className="relative z-10 flex items-center gap-1">
-                                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                                        {t('mostRecent')}
-                                    </span>
-                                </motion.div>
-                            )}
                             {(isUpcoming || (isTodayWithoutVideo && !isUpcoming)) && (
                                 <Badge variant="default" className="shrink-0 w-fit flex items-center gap-1.5 relative overflow-hidden">
                                     <span className="absolute inset-0 bg-gradient-to-r from-[#fc550a] to-[#a4c0e1] opacity-50"></span>
@@ -169,14 +154,14 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
 
                         {/* Meeting title */}
                         <div className="pb-1">
-                            <Heading
+                            <h2
                                 className={cn(
                                     "text-xl sm:text-2xl text-foreground/90 line-clamp-2 tracking-tight transition-colors duration-200",
                                     isHovered ? "text-primary" : ""
                                 )}
                             >
                                 {getLocalizedName(meeting, locale)}
-                            </Heading>
+                            </h2>
                         </div>
 
                         {/* Meeting metadata - more compact */}

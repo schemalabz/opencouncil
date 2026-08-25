@@ -38,7 +38,6 @@ export function PetitionMunicipalitySelector({ cities }: PetitionMunicipalitySel
             value={selectedCity}
             onCitySelect={handleCitySelect}
             isNavigating={isNavigating}
-            hideQuickSelection
         />
     );
 } 

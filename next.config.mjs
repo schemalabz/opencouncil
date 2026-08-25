@@ -97,6 +97,20 @@ const nextConfig = {
                 destination: '/:locale/mcp',
                 permanent: true,
             },
+            {
+                // The previous landing page stayed reachable at /old-landing
+                // after the immersive landing took over /. It is now removed.
+                // The route was locale-parameterized, so redirect both bare
+                // and locale-prefixed forms, like /map and /chat above.
+                source: '/old-landing',
+                destination: '/',
+                permanent: true,
+            },
+            {
+                source: '/:locale(en|el|fr|sr|lat)/old-landing',
+                destination: '/:locale',
+                permanent: true,
+            },
             // The sitemap wrongly emitted a phantom /meetings/ segment until
             // 2026-05-29 (real routes are /{cityId}/{meetingId}, no /meetings/),
             // leaving ~1.9K GSC 404s that Google keeps recrawling. 301 them to

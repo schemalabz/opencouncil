@@ -162,14 +162,6 @@ const preset: Omit<Config, "content"> = {
 						'background-position': '0% 50%'
 					}
 				},
-				'fade-in': {
-					'0%': {
-						opacity: '0'
-					},
-					'100%': {
-						opacity: '1'
-					}
-				},
 				bounce: {
 					'0%, 100%': {
 						transform: 'translateY(0)'
@@ -250,7 +242,6 @@ const preset: Omit<Config, "content"> = {
 				marquee: 'marquee var(--duration) infinite linear',
 				'marquee-vertical': 'marquee-vertical var(--duration) linear infinite',
 				'gradientFlow': 'gradientFlow 3s ease infinite',
-				'fade-in': 'fade-in 0.5s ease-out forwards',
 				'bounce': 'bounce 2s ease-in-out infinite',
 				'aurora': 'aurora 60s linear infinite',
 				'auto-scroll': 'auto-scroll var(--duration, 8s) ease-in-out infinite',

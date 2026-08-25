@@ -2,7 +2,6 @@ import { MapPin, Search, Bell } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { motion } from 'framer-motion';
 import Combobox from '@/components/Combobox';
 import { CityMinimalWithCounts } from '@/lib/db/cities';
 import { isPublic } from "@/lib/cityStatus";
@@ -12,7 +11,6 @@ interface MunicipalitySelectorProps {
     value: CityMinimalWithCounts | null;
     onCitySelect: (city: CityMinimalWithCounts | null) => void;
     isNavigating?: boolean;
-    hideQuickSelection?: boolean;
 }
 
 export function MunicipalitySelector({
@@ -20,7 +18,6 @@ export function MunicipalitySelector({
     value,
     onCitySelect,
     isNavigating = false,
-    hideQuickSelection = false,
 }: MunicipalitySelectorProps) {
     const t = useTranslations('MunicipalitySelector');
     // Group cities
@@ -126,36 +123,6 @@ export function MunicipalitySelector({
                     clearable
                     emptyMessage={t('emptyMessage')}
                 />
-
-                {/* Quick Selection for Listed Cities */}
-                {!hideQuickSelection && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
-                        className="mt-4 flex flex-wrap justify-center gap-2"
-                    >
-                        {cities
-                            .filter(city => isPublic(city.status))
-                            .map((city) => (
-                                <motion.div
-                                    key={city.id}
-                                    initial={{ opacity: 0, scale: 0.9 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ delay: 0.4 + cities.indexOf(city) * 0.1 }}
-                                >
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="text-xs sm:text-sm rounded-xl"
-                                        onClick={() => onCitySelect(city)}
-                                    >
-                                        {city.name}
-                                    </Button>
-                                </motion.div>
-                            ))}
-                    </motion.div>
-                )}
 
                 {/* Decorative elements */}
                 <div className="absolute -z-10 -top-6 -left-6 w-12 h-12 rounded-full bg-orange-100 opacity-50" />

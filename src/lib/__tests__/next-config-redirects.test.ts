@@ -63,6 +63,15 @@ describe('next.config.mjs redirect sources', () => {
         expect(matchesAnyRedirect('/athens/jan15_2024/subjects/abc')).toBe(false);
     });
 
+    it('redirects the removed /old-landing page (bare and locale-prefixed)', () => {
+        expect(matchesAnyRedirect('/old-landing')).toBe(true);
+        expect(matchesAnyRedirect('/el/old-landing')).toBe(true);
+        expect(matchesAnyRedirect('/en/old-landing')).toBe(true);
+        expect(matchesAnyRedirect('/fr/old-landing')).toBe(true);
+        expect(matchesAnyRedirect('/sr/old-landing')).toBe(true);
+        expect(matchesAnyRedirect('/lat/old-landing')).toBe(true);
+    });
+
     it('redirects the removed /chat page (bare and locale-prefixed)', () => {
         expect(matchesAnyRedirect('/chat')).toBe(true);
         expect(matchesAnyRedirect('/el/chat')).toBe(true);
