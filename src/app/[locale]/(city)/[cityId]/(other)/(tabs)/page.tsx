@@ -3,8 +3,8 @@ import { Metadata } from "next";
 import { ArrowRight } from "lucide-react";
 import MeetingCardV2 from "@/components/meetings/MeetingCardV2";
 import { HotTopicsCard } from "@/components/cities/overview/HotTopicsCard";
-import { getCityCached, getCouncilMeetingsForCityPublicCached } from "@/lib/cache";
-import { getHotSubjectCards } from "@/lib/hotSubjectCards";
+import { getCityCached, getCouncilMeetingsPreviewPublicCached } from "@/lib/cache";
+import { getHotSubjectCardsCached } from "@/lib/hotSubjectCards";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { getOgLocale } from '@/i18n/config';
@@ -88,8 +88,8 @@ export default async function CityOverviewPage(
 
     const [city, hotCards, recentMeetings, t] = await Promise.all([
         getCityCached(cityId),
-        getHotSubjectCards(cityId, { limit: HOT_SUBJECTS }),
-        getCouncilMeetingsForCityPublicCached(cityId, { limit: RECENT_MEETINGS, timeFilter: 'past' }),
+        getHotSubjectCardsCached(cityId, { limit: HOT_SUBJECTS }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { limit: RECENT_MEETINGS, timeFilter: 'past' }),
         getTranslations({ locale, namespace: 'cityOverview' }),
     ]);
 

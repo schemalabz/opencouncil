@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import CityMeetings from "@/components/cities/CityMeetings";
-import { getCityCached, getCouncilMeetingsForCityCached } from "@/lib/cache";
+import { getCityCached, getCouncilMeetingsPreviewCached } from "@/lib/cache";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { getOgLocale } from '@/i18n/config';
@@ -86,7 +86,7 @@ export default async function MeetingsPage(
 
     const [city, councilMeetings, canEdit] = await Promise.all([
         getCityCached(cityId),
-        getCouncilMeetingsForCityCached(cityId, {}),
+        getCouncilMeetingsPreviewCached(cityId, {}),
         isUserAuthorizedToEdit({ cityId }),
     ]);
 

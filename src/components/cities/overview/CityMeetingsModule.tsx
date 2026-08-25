@@ -3,13 +3,13 @@ import { useState } from 'react';
 import { ArrowRight, ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
-import type { CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
+import type { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { formatDateStamp, formatDateTime } from '@/lib/formatters/time';
 import { cn } from '@/lib/utils';
 import { AdminBodyLabel } from './AdminBodyLabel';
 
-type Meeting = CouncilMeetingWithAdminBodyAndSubjects;
+type Meeting = CouncilMeetingWithSubjectPreview;
 
 /** The soonest scheduled meeting and the most recent one held, for one scope. */
 export interface MeetingBookends {
@@ -114,7 +114,7 @@ export function CityMeetingsModule({ all, council, cityId, timezone, locale }: C
                             <p className="mt-1 text-xs text-muted-foreground">
                                 {formatDateTime(scoped.latest.dateTime, timezone, 'medium', locale)}
                                 {' · '}
-                                {tMeeting('subjectsCount', { count: scoped.latest.subjects.length })}
+                                {tMeeting('subjectsCount', { count: scoped.latest._count.subjects })}
                             </p>
                         </div>
                     </div>

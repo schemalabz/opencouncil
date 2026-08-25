@@ -4,6 +4,7 @@ import { revalidateTag, revalidatePath } from 'next/cache';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit, isUserAuthorizedToEdit } from '../auth';
 import { buildDateFilter } from './reviews/dateFilters';
+import { SUBJECT_PREVIEW_COUNT } from '@/lib/utils/subjects';
 import { formatDateAsMeetingId } from '../utils/meetingId';
 import { landingSubjectsTag } from './subject';
 import { CUSTOMER_CITY_WHERE, PUBLIC_CITY_WHERE } from '../cityStatus';
@@ -38,6 +39,44 @@ const meetingWithSubjectsInclude = {
 
 export type CouncilMeetingWithAdminBodyAndSubjects = Prisma.CouncilMeetingGetPayload<{
     include: typeof meetingWithSubjectsInclude
+}>;
+
+/**
+ * Rows fetched beyond the preview.
+ *
+ * The database can order by contribution count but not by the importance sort's
+ * first rule, which demotes items taken up before the agenda. Fetching a margin
+ * and re-sorting in the app keeps that rule authoritative: it only changes the
+ * preview if more than {@link SUBJECT_PREVIEW_COUNT} of the most-discussed items
+ * are pre-agenda ones, which does not happen — they are the least discussed.
+ */
+const SUBJECT_PREVIEW_MARGIN = 9;
+
+const meetingWithSubjectPreviewInclude = {
+    subjects: {
+        // Contribution count is the importance sort's primary signal, so the rows
+        // dropped here are the ones it would have ranked last anyway.
+        orderBy: [
+            { contributions: { _count: 'desc' as const } },
+            { agendaItemIndex: 'asc' as const },
+            { name: 'asc' as const },
+        ],
+        take: SUBJECT_PREVIEW_COUNT + SUBJECT_PREVIEW_MARGIN,
+        select: {
+            id: true,
+            name: true,
+            agendaItemIndex: true,
+            nonAgendaReason: true,
+            topic: { select: { colorHex: true, icon: true } },
+            _count: { select: { contributions: true } },
+        },
+    },
+    administrativeBody: true,
+    _count: { select: { subjects: true } },
+} satisfies Prisma.CouncilMeetingInclude;
+
+export type CouncilMeetingWithSubjectPreview = Prisma.CouncilMeetingGetPayload<{
+    include: typeof meetingWithSubjectPreviewInclude
 }>;
 
 export async function deleteCouncilMeeting(cityId: string, id: string): Promise<void> {
@@ -123,55 +162,106 @@ export async function getCouncilMeeting(cityId: string, id: string): Promise<Cou
     }
 }
 
-export async function getCouncilMeetingsForCity(cityId: string, { includeUnreleased, limit, page, pageSize = 12, from, to, administrativeBodyTypes, administrativeBodyIds, timeFilter }: { includeUnreleased?: boolean; limit?: number; page?: number; pageSize?: number; from?: Date; to?: Date; administrativeBodyTypes?: AdministrativeBodyType[]; administrativeBodyIds?: string[]; timeFilter?: 'upcoming' | 'past' } = {}): Promise<CouncilMeetingWithAdminBodyAndSubjects[]> {
+export interface MeetingListOptions {
+    includeUnreleased?: boolean;
+    limit?: number;
+    page?: number;
+    pageSize?: number;
+    from?: Date;
+    to?: Date;
+    administrativeBodyTypes?: AdministrativeBodyType[];
+    administrativeBodyIds?: string[];
+    timeFilter?: 'upcoming' | 'past';
+}
 
+/**
+ * The `where`, ordering and window every list query over a city's meetings
+ * shares, so the two projections below and the count cannot answer for
+ * different sets of meetings.
+ */
+function meetingListQuery(
+    cityId: string,
+    { includeUnreleased, limit, page, pageSize = 12, from, to, administrativeBodyTypes, administrativeBodyIds, timeFilter }: MeetingListOptions,
+) {
+    // Calculate pagination
+    const skip = page ? (page - 1) * pageSize : undefined;
+    const take = page ? pageSize : limit;
+
+    // Build dateTime filter. An explicit from/to range and timeFilter are
+    // independent constraints, so they intersect. Only `past` and `to` set
+    // the same bound, and there the earlier of the two wins.
+    const now = new Date();
+    const upperBound = timeFilter === 'past'
+        ? (to && to < now ? to : now)
+        : to;
+    const dateTimeFilter = {
+        ...(timeFilter === 'upcoming' && { gt: now }),
+        ...(from && { gte: from }),
+        ...(upperBound && { lte: upperBound }),
+    };
+
+    // Specific bodies (ids) take precedence over the broader type filter.
+    let bodyFilter: Prisma.CouncilMeetingWhereInput = {};
+    if (administrativeBodyIds && administrativeBodyIds.length > 0) {
+        bodyFilter = { administrativeBodyId: { in: administrativeBodyIds } };
+    } else if (administrativeBodyTypes && administrativeBodyTypes.length > 0) {
+        bodyFilter = { administrativeBody: { type: { in: administrativeBodyTypes } } };
+    }
+
+    const where: Prisma.CouncilMeetingWhereInput = {
+        cityId,
+        released: includeUnreleased ? undefined : true,
+        ...(Object.keys(dateTimeFilter).length > 0 && { dateTime: dateTimeFilter }),
+        ...bodyFilter,
+    };
+
+    return {
+        where,
+        orderBy: (timeFilter === 'upcoming'
+            ? [{ dateTime: 'asc' }, { createdAt: 'asc' }]
+            : [{ dateTime: 'desc' }, { createdAt: 'desc' }]) as Prisma.CouncilMeetingOrderByWithRelationInput[],
+        ...(skip !== undefined && { skip }),
+        ...(take && { take }),
+    };
+}
+
+export async function getCouncilMeetingsForCity(cityId: string, options: MeetingListOptions = {}): Promise<CouncilMeetingWithAdminBodyAndSubjects[]> {
     try {
-        // Calculate pagination
-        const skip = page ? (page - 1) * pageSize : undefined;
-        const take = page ? pageSize : limit;
-
-        // Build dateTime filter. An explicit from/to range and timeFilter are
-        // independent constraints, so they intersect. Only `past` and `to` set
-        // the same bound, and there the earlier of the two wins.
-        const now = new Date();
-        const upperBound = timeFilter === 'past'
-            ? (to && to < now ? to : now)
-            : to;
-        const dateTimeFilter = {
-            ...(timeFilter === 'upcoming' && { gt: now }),
-            ...(from && { gte: from }),
-            ...(upperBound && { lte: upperBound }),
-        };
-
-        // Specific bodies (ids) take precedence over the broader type filter.
-        let bodyFilter: Prisma.CouncilMeetingWhereInput = {};
-        if (administrativeBodyIds && administrativeBodyIds.length > 0) {
-            bodyFilter = { administrativeBodyId: { in: administrativeBodyIds } };
-        } else if (administrativeBodyTypes && administrativeBodyTypes.length > 0) {
-            bodyFilter = { administrativeBody: { type: { in: administrativeBodyTypes } } };
-        }
-
-        // First, get meetings with subjects and basic relationships
-        const meetings = await prisma.councilMeeting.findMany({
-            where: {
-                cityId,
-                released: includeUnreleased ? undefined : true,
-                ...(Object.keys(dateTimeFilter).length > 0 && { dateTime: dateTimeFilter }),
-                ...bodyFilter,
-            },
-            orderBy: timeFilter === 'upcoming'
-                ? [{ dateTime: 'asc' }, { createdAt: 'asc' }]
-                : [{ dateTime: 'desc' }, { createdAt: 'desc' }],
-            ...(skip !== undefined && { skip }),
-            ...(take && { take }),
+        return await prisma.councilMeeting.findMany({
+            ...meetingListQuery(cityId, options),
             include: meetingWithSubjectsInclude,
         });
-
-        return meetings;
     } catch (error) {
         console.error('Error fetching council meetings for city:', error);
         throw new Error('Failed to fetch council meetings for city');
     }
+}
+
+/**
+ * The same meetings, carrying only what a card in a list draws.
+ *
+ * A `Subject` row is mostly prose — its description and context averaged 3.1 kB
+ * on the largest city we run — and the full include hands every one of them to
+ * a client component to render three titles. This one selects the scalars the
+ * card and the importance sort read, and reports the agenda's real size through
+ * `_count` rather than through the length of the preview.
+ */
+export async function getCouncilMeetingsWithSubjectPreview(cityId: string, options: MeetingListOptions = {}): Promise<CouncilMeetingWithSubjectPreview[]> {
+    try {
+        return await prisma.councilMeeting.findMany({
+            ...meetingListQuery(cityId, options),
+            include: meetingWithSubjectPreviewInclude,
+        });
+    } catch (error) {
+        console.error('Error fetching council meeting previews for city:', error);
+        throw new Error('Failed to fetch council meetings for city');
+    }
+}
+
+/** How many meetings match, for a pager over the same filters. */
+export async function countCouncilMeetingsForCity(cityId: string, options: MeetingListOptions = {}): Promise<number> {
+    const { where } = meetingListQuery(cityId, options);
+    return prisma.councilMeeting.count({ where });
 }
 
 const upcomingMeetingInclude = {

@@ -4,7 +4,7 @@ import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogo
 import { decodeGeohashToCenter } from "@/lib/geo";
 import { getGitHubStats } from "@/lib/github";
 import { getCityMessage } from "@/lib/db/cityMessages";
-import { getCouncilMeetingsForCity } from "@/lib/db/meetings";
+import { countCouncilMeetingsForCity, getCouncilMeetingsForCity, getCouncilMeetingsWithSubjectPreview, type MeetingListOptions } from "@/lib/db/meetings";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { getPeopleForCity } from "@/lib/db/people";
 import { getSubjectCountForCity, getSubjectsForMeeting, SubjectWithRelations } from "@/lib/db/subject";
@@ -13,6 +13,16 @@ import { getMeetingStatus } from "@/lib/meetingStatus";
 import { getBatchStatisticsForSubjects, Statistics } from "@/lib/statistics";
 import { createCache } from "./index";
 import { getCityCoverage } from "@/lib/db/coverage";
+
+/**
+ * How long a time-filtered meeting query may go stale.
+ *
+ * Such a result is a function of `now`, which getCouncilMeetingsForCity reads
+ * inside the cached call. No tag can express "a meeting has since happened", so
+ * without a TTL an 'upcoming' entry keeps serving a meeting that is already
+ * over. Time-independent queries stay purely tag-driven.
+ */
+const TIME_FILTERED_TTL = 900;
 
 /**
  * Cached list of all city ids (single shared cache key, tag `cities:all`).
@@ -87,11 +97,60 @@ export async function getCouncilMeetingsForCityPublicCached(
     ['city', cityId, 'meetings', 'onlyReleased', limit ? `limit:${limit}` : 'all', typeKey, idKey, timeKey],
     {
       tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`],
-      // A timeFilter result is a function of `now`, which getCouncilMeetingsForCity
-      // reads inside the cached call. No tag can express "a meeting has since
-      // happened", so without a TTL an 'upcoming' entry keeps serving a meeting
-      // that is already over. Time-independent queries stay purely tag-driven.
-      ...(timeFilter ? { revalidate: 900 } : {}),
+      ...(timeFilter ? { revalidate: TIME_FILTERED_TTL } : {}),
+    }
+  )();
+}
+
+/** Cache-key fragments for the filters a meeting list query accepts. */
+function meetingListKey({ limit, page, pageSize = 12, administrativeBodyTypes, administrativeBodyIds, timeFilter }: MeetingListOptions): string[] {
+  return [
+    page ? `page:${page}:${pageSize}` : (limit ? `limit:${limit}` : 'all'),
+    administrativeBodyTypes?.length ? `types:${[...administrativeBodyTypes].sort().join(',')}` : 'types:all',
+    administrativeBodyIds?.length ? `ids:${[...administrativeBodyIds].sort().join(',')}` : 'ids:all',
+    timeFilter ?? 'all',
+  ];
+}
+
+/**
+ * Meetings carrying only what a card draws — see getCouncilMeetingsWithSubjectPreview.
+ *
+ * Authorization is resolved outside the cached call, as in
+ * getCouncilMeetingsForCityCached: headers() cannot be read inside one.
+ */
+export async function getCouncilMeetingsPreviewCached(cityId: string, options: MeetingListOptions = {}) {
+  const includeUnreleased = await isUserAuthorizedToEdit({ cityId });
+  return createCache(
+    () => getCouncilMeetingsWithSubjectPreview(cityId, { ...options, includeUnreleased }),
+    ['city', cityId, 'meetingPreviews', includeUnreleased ? 'withUnreleased' : 'onlyReleased', ...meetingListKey(options)],
+    {
+      tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`],
+      ...(options.timeFilter ? { revalidate: TIME_FILTERED_TTL } : {}),
+    }
+  )();
+}
+
+/** Public (no-auth) counterpart, safe for static pages. */
+export async function getCouncilMeetingsPreviewPublicCached(cityId: string, options: MeetingListOptions = {}) {
+  return createCache(
+    () => getCouncilMeetingsWithSubjectPreview(cityId, { ...options, includeUnreleased: false }),
+    ['city', cityId, 'meetingPreviews', 'onlyReleased', ...meetingListKey(options)],
+    {
+      tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`],
+      ...(options.timeFilter ? { revalidate: TIME_FILTERED_TTL } : {}),
+    }
+  )();
+}
+
+/** How many meetings a pager over the same filters has to cover. */
+export async function countCouncilMeetingsForCityCached(cityId: string, options: MeetingListOptions = {}) {
+  const includeUnreleased = await isUserAuthorizedToEdit({ cityId });
+  return createCache(
+    () => countCouncilMeetingsForCity(cityId, { ...options, includeUnreleased }),
+    ['city', cityId, 'meetingCount', includeUnreleased ? 'withUnreleased' : 'onlyReleased', ...meetingListKey({ ...options, page: undefined, limit: undefined })],
+    {
+      tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`],
+      ...(options.timeFilter ? { revalidate: TIME_FILTERED_TTL } : {}),
     }
   )();
 }
