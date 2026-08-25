@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { getCurrentUser, withUserAuthorizedToEdit } from '@/lib/auth';
 import { getDecisionsForMeeting, getExtractedDataForMeeting, getMeetingAttendance, upsertDecision, deleteDecision, clearExtractedDataForMeeting, resetExtractionForSubject } from '@/lib/db/decisions';
 import { getUnresolvedCandidatesForMeeting, assignCandidate, dismissCandidate, getBackedDecisionIds } from '@/lib/db/decisionCandidates';
 import prisma from '@/lib/db/prisma';
@@ -135,6 +135,15 @@ export async function POST(
 
     if (!parsed.success) {
         return NextResponse.json({ error: 'Invalid action', details: parsed.error.errors }, { status: 400 });
+    }
+
+    // Destructive extraction operations are superadmin-only; the city-admin
+    // tier only manages links (assign/dismiss, and PUT/DELETE above).
+    if (parsed.data.action === 'clearExtractedData' || parsed.data.action === 'resetExtraction') {
+        const user = await getCurrentUser();
+        if (!user?.isSuperAdmin) {
+            return NextResponse.json({ error: 'Superadmin required' }, { status: 403 });
+        }
     }
 
     if (parsed.data.action === 'clearExtractedData') {
