@@ -33,6 +33,8 @@ jest.mock('@/lib/cache', () => ({
     getPeopleForCityCached: jest.fn(),
     getAdministrativeBodiesForCityCached: jest.fn(),
     getCityCached: jest.fn(),
+    getCityMessageCached: jest.fn(),
+    getCouncilMeetingsForCityPublicCached: jest.fn(),
 }));
 
 jest.mock('@/lib/auth', () => ({
@@ -50,6 +52,8 @@ jest.mock('@/lib/db/notifications', () => ({
 
 // Mock heavy React component trees — we only care about the data-fetch ordering.
 jest.mock('@/components/cities/CityParties', () => ({ __esModule: true, default: () => null }));
+jest.mock('@/components/cities/CityIdentityBand', () => ({ CityIdentityBand: () => null }));
+jest.mock('@/components/cities/CityNavigation', () => ({ CityNavigation: () => null }));
 jest.mock('@/components/cities/CityPeople', () => ({ __esModule: true, default: () => null }));
 jest.mock('@/components/meetings/CouncilMeetingWrapper', () => ({ __esModule: true, default: ({ children }: any) => children }));
 jest.mock('@/components/meetings/sidebar', () => ({ __esModule: true, default: () => null }));
@@ -201,6 +205,58 @@ describe('PR1: server-side awaits run concurrently', () => {
             speakerTags: [],
         });
         notifD.resolve(null);
+
+        await pending;
+    });
+
+    it('city (tabs)/layout.tsx batches the identity band\'s data, including both bookend meetings', async () => {
+        const cache = require('@/lib/cache');
+        const auth = require('@/lib/auth');
+        const notifications = require('@/lib/db/notifications');
+
+        const cityD = deferred<any>();
+        const messageD = deferred<any>();
+        const partiesD = deferred<any[]>();
+        const peopleD = deferred<any[]>();
+        const userD = deferred<any>();
+        const canEditD = deferred<boolean>();
+        const upcomingD = deferred<any[]>();
+        const pastD = deferred<any[]>();
+
+        cache.getCityCached.mockReturnValue(cityD.promise);
+        cache.getCityMessageCached.mockReturnValue(messageD.promise);
+        cache.getPartiesForCityCached.mockReturnValue(partiesD.promise);
+        cache.getPeopleForCityCached.mockReturnValue(peopleD.promise);
+        auth.getCurrentUser.mockReturnValue(userD.promise);
+        auth.isUserAuthorizedToEdit.mockReturnValue(canEditD.promise);
+        cache.getCouncilMeetingsForCityPublicCached
+            .mockReturnValueOnce(upcomingD.promise)
+            .mockReturnValueOnce(pastD.promise);
+
+        const { default: TabsLayout } = require('@/app/[locale]/(city)/[cityId]/(other)/(tabs)/layout');
+
+        const pending = TabsLayout({ children: null, params: { locale: 'el', cityId: 'athens' } });
+
+        await flushMicrotasks();
+
+        expect(cache.getCityCached).toHaveBeenCalledTimes(1);
+        expect(cache.getCityMessageCached).toHaveBeenCalledTimes(1);
+        expect(cache.getPartiesForCityCached).toHaveBeenCalledTimes(1);
+        expect(cache.getPeopleForCityCached).toHaveBeenCalledTimes(1);
+        expect(auth.getCurrentUser).toHaveBeenCalledTimes(1);
+        expect(auth.isUserAuthorizedToEdit).toHaveBeenCalledTimes(1);
+        expect(cache.getCouncilMeetingsForCityPublicCached).toHaveBeenCalledTimes(2);
+        // The notification preference needs the user, so it must NOT be in the batch.
+        expect(notifications.getNotificationPreferenceForCity).not.toHaveBeenCalled();
+
+        cityD.resolve({ id: 'athens', timezone: 'Europe/Athens', _count: { councilMeetings: 1, persons: 1, parties: 1 } });
+        messageD.resolve(null);
+        partiesD.resolve([]);
+        peopleD.resolve([]);
+        userD.resolve(null);
+        canEditD.resolve(false);
+        upcomingD.resolve([]);
+        pastD.resolve([]);
 
         await pending;
     });

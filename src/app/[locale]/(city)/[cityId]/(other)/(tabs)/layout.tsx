@@ -1,21 +1,22 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
-import { CityHeader } from "@/components/cities/CityHeader";
+import { CityIdentityBand } from "@/components/cities/CityIdentityBand";
 import { CityNavigation } from "@/components/cities/CityNavigation";
-import { getCityCached, getCityMessageCached, getPartiesForCityCached, getPeopleForCityCached } from "@/lib/cache";
-import { getCurrentUser } from "@/lib/auth";
+import { getCityCached, getCityMessageCached, getCouncilMeetingsForCityPublicCached, getPartiesForCityCached, getPeopleForCityCached } from "@/lib/cache";
+import { getCurrentUser, isUserAuthorizedToEdit } from "@/lib/auth";
 import { getNotificationPreferenceForCity } from "@/lib/db/notifications";
 
 export default async function TabsLayout(
     props: {
         children: React.ReactNode,
-        params: Promise<{ cityId: string }>
+        params: Promise<{ locale: string, cityId: string }>
     }
 ) {
     const params = await props.params;
 
     const {
+        locale,
         cityId
     } = params;
 
@@ -23,12 +24,18 @@ export default async function TabsLayout(
         children
     } = props;
 
-    const [city, cityMessage, parties, people, currentUser] = await Promise.all([
+    // The two bookend meetings are queried separately rather than sliced from one
+    // list: 'upcoming' sorts ascending and 'past' descending, so a single ordering
+    // cannot put both at the front.
+    const [city, cityMessage, parties, people, currentUser, canEdit, upcoming, past] = await Promise.all([
         getCityCached(cityId),
         getCityMessageCached(cityId),
         getPartiesForCityCached(cityId),
         getPeopleForCityCached(cityId),
-        getCurrentUser()
+        getCurrentUser(),
+        isUserAuthorizedToEdit({ cityId }),
+        getCouncilMeetingsForCityPublicCached(cityId, { timeFilter: 'upcoming', limit: 1 }),
+        getCouncilMeetingsForCityPublicCached(cityId, { timeFilter: 'past', limit: 1 }),
     ]);
 
     if (!city) {
@@ -42,18 +49,27 @@ export default async function TabsLayout(
         ? !!(await getNotificationPreferenceForCity(currentUser.id, cityId))
         : false;
 
+    const isSuperAdmin = !!currentUser?.isSuperAdmin;
+    // An inactive message is a draft: only superadmins see it, to preview it.
+    const showMessage = !!cityMessage && (cityMessage.isActive || isSuperAdmin);
+
     return (
         <div className="relative md:container md:mx-auto py-8 px-4 md:px-8 space-y-8 z-0">
             <div className="space-y-8">
-                <CityHeader
+                <CityIdentityBand
                     city={city}
-                    councilMeetingsCount={city._count.councilMeetings}
                     cityMessage={cityMessage}
+                    showMessage={showMessage}
+                    canEdit={canEdit}
+                    isSuperAdmin={isSuperAdmin}
                     hasNoData={hasNoData}
                     hasNotifications={hasNotifications}
+                    nextMeeting={upcoming[0] ?? null}
+                    latestMeeting={past[0] ?? null}
+                    locale={locale}
                 />
 
-                <CityNavigation cityId={cityId} city={city as any} />
+                <CityNavigation cityId={cityId} city={city} />
 
                 <Suspense fallback={
                     <div className="flex justify-center items-center h-32">
@@ -67,4 +83,4 @@ export default async function TabsLayout(
             </div>
         </div>
     );
-} 
+}

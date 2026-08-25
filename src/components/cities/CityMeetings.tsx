@@ -103,6 +103,10 @@ export default function CityMeetings({
                     />
                 );
             }}
+            // The page has one search, in the identity band; this list keeps only
+            // its count, which reports the filtered total the band cannot.
+            showSearch={false}
+            showCount
             smColumns={1}
             mdColumns={2}
             lgColumns={3}
