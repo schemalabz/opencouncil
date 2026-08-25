@@ -212,7 +212,13 @@
             "externalLink": "Спољашња веза (отвара се у новој картици)",
             "activeLabel": "Активна (видљива свим корисницима)",
             "inactiveDescription": "Неактивне поруке видљиве су само суперадминистраторима ради прегледа."
-        }
+        },
+        "sectionIdentity": "Подаци о граду",
+        "sectionIdentityHint": "Назив, тип власти и логотип",
+        "sectionSettings": "Подешавања",
+        "sectionSettingsHint": "Адреса, временска зона, обавештења, јавне расправе, Диавгеиа",
+        "administrativeBodiesHint": "Скупштина, одбори и месне заједнице",
+        "adminSettingsHint": "Статус, дозволе, држава и језик"
     },
     "City": {
         "addCouncilMeeting": "Додај седницу скупштине",
@@ -885,7 +891,8 @@
         "tryDifferentFilter": "Покушајте да промените филтере",
         "breadcrumbHome": "Почетна",
         "independentCouncilMember": "Независни одборник",
-        "biography": "Биографија"
+        "biography": "Биографија",
+        "moreRoles": "+{count} још"
     },
     "Party": {
         "currentMembers": "Тренутни чланови",
@@ -975,7 +982,8 @@
         "failedToSave": "Чување није успело",
         "unexpectedError": "Дошло је до неочекиване грешке",
         "confirmDelete": "Да ли сте сигурни да желите да обришете ово административно тело?",
-        "failedToDelete": "Брисање није успело"
+        "failedToDelete": "Брисање није успело",
+        "delete": "Обриши"
     },
     "RSS": {
         "title": "Најновија ажурирања - {city}",

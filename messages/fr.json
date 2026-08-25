@@ -226,7 +226,13 @@
       "externalLink": "Lien externe (s'ouvre dans un nouvel onglet)",
       "activeLabel": "Actif (visible par tous les utilisateurs)",
       "inactiveDescription": "Les messages inactifs ne sont visibles que par les administrateurs système à des fins de prévisualisation."
-    }
+    },
+    "sectionIdentity": "Informations sur la commune",
+    "sectionIdentityHint": "Nom, type de collectivité et logo",
+    "sectionSettings": "Paramètres",
+    "sectionSettingsHint": "Adresse, fuseau horaire, notifications, consultations, Diavgeia",
+    "administrativeBodiesHint": "Conseil, commissions et communes déléguées",
+    "adminSettingsHint": "Statut, autorisations, pays et langue"
   },
   "City": {
     "addCouncilMeeting": "Ajouter une séance",
@@ -490,7 +496,8 @@
     "tryDifferentFilter": "Essayez de modifier les filtres",
     "breadcrumbHome": "Accueil",
     "independentCouncilMember": "Conseiller municipal indépendant",
-    "biography": "Biographie"
+    "biography": "Biographie",
+    "moreRoles": "+{count} autres"
   },
   "Party": {
     "currentMembers": "Membres",
@@ -971,7 +978,8 @@
     "failedToSave": "Échec de l'enregistrement",
     "unexpectedError": "Une erreur inattendue s'est produite",
     "confirmDelete": "Êtes-vous sûr de vouloir supprimer cet organe administratif ?",
-    "failedToDelete": "Échec de la suppression"
+    "failedToDelete": "Échec de la suppression",
+    "delete": "Supprimer"
   },
   "RSS": {
     "title": "Dernières mises à jour - {city}",

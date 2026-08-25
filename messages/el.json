@@ -226,7 +226,13 @@
             "externalLink": "Εξωτερικός σύνδεσμος (ανοίγει σε νέα καρτέλα)",
             "activeLabel": "Ενεργό (ορατό σε όλους τους χρήστες)",
             "inactiveDescription": "Τα ανενεργά μηνύματα είναι ορατά μόνο στους διαχειριστές συστήματος για προεπισκόπηση."
-        }
+        },
+        "sectionIdentity": "Στοιχεία δήμου",
+        "sectionIdentityHint": "Ονομασία, τύπος αρχής και λογότυπο",
+        "sectionSettings": "Ρυθμίσεις",
+        "sectionSettingsHint": "Διεύθυνση, ζώνη ώρας, ειδοποιήσεις, διαβουλεύσεις, Διαύγεια",
+        "administrativeBodiesHint": "Δημοτικό συμβούλιο, επιτροπές και κοινότητες",
+        "adminSettingsHint": "Κατάσταση, δικαιώματα, χώρα και γλώσσα"
     },
     "City": {
         "addCouncilMeeting": "Προσθήκη Συνεδρίασης",
@@ -490,7 +496,8 @@
         "tryDifferentFilter": "Προσπαθήστε να αλλάξετε τα φίλτρα",
         "breadcrumbHome": "Αρχική",
         "independentCouncilMember": "Ανεξάρτητος Δημοτικός Σύμβουλος",
-        "biography": "Βιογραφικό"
+        "biography": "Βιογραφικό",
+        "moreRoles": "+{count} ακόμη"
     },
     "Party": {
         "currentMembers": "Μέλη",
@@ -971,7 +978,8 @@
         "failedToSave": "Αποτυχία αποθήκευσης",
         "unexpectedError": "Προέκυψε ένα απρόσμενο σφάλμα",
         "confirmDelete": "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το διοικητικό όργανο;",
-        "failedToDelete": "Αποτυχία διαγραφής"
+        "failedToDelete": "Αποτυχία διαγραφής",
+        "delete": "Διαγραφή"
     },
     "RSS": {
         "title": "Τελευταίες Ενημερώσεις - {city}",

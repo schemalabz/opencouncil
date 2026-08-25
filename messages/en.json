@@ -212,7 +212,13 @@
             "externalLink": "External link (opens in new tab)",
             "activeLabel": "Active (visible to all users)",
             "inactiveDescription": "Inactive messages are only visible to superadmins for preview purposes."
-        }
+        },
+        "sectionIdentity": "City details",
+        "sectionIdentityHint": "Name, authority type and logo",
+        "sectionSettings": "Settings",
+        "sectionSettingsHint": "Address, time zone, notifications, consultations, Diavgeia",
+        "administrativeBodiesHint": "Council, committees and communities",
+        "adminSettingsHint": "Status, permissions, realm and language"
     },
     "City": {
         "addCouncilMeeting": "Add Council Meeting",
@@ -885,7 +891,8 @@
         "tryDifferentFilter": "Try changing the filters",
         "breadcrumbHome": "Home",
         "independentCouncilMember": "Independent Council Member",
-        "biography": "Biography"
+        "biography": "Biography",
+        "moreRoles": "+{count} more"
     },
     "Party": {
         "currentMembers": "Current Members",
@@ -975,7 +982,8 @@
         "failedToSave": "Failed to save",
         "unexpectedError": "An unexpected error occurred",
         "confirmDelete": "Are you sure you want to delete this administrative body?",
-        "failedToDelete": "Failed to delete"
+        "failedToDelete": "Failed to delete",
+        "delete": "Delete"
     },
     "RSS": {
         "title": "Latest Updates - {city}",
