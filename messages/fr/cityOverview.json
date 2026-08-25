@@ -31,5 +31,18 @@
   "seatsInCouncil": "{count, plural, =1 {siège au conseil} other {sièges au conseil}}",
   "partyMembers": "{count, plural, =1 {membre} other {membres}}",
   "inCommittees": "{count} en commissions",
-  "governingParty": "Majorité municipale"
+  "governingParty": "Majorité municipale",
+  "notisName": "Notis",
+  "notisIntro": "Vous écrit sur WhatsApp au sujet de {city}",
+  "notisExample": "Le réaménagement de la place de votre quartier a été approuvé hier à l'unanimité. Les travaux commencent à l'automne.",
+  "notisExampleLabel": "exemple",
+  "notisPitch": "Il lit chaque séance du conseil et ne vous écrit que lorsque quelque chose touche votre quartier ou un sujet que vous avez choisi. La plupart des semaines, vous ne recevrez rien.",
+  "notisCta": "Je veux être informé",
+  "notisChannels": "E-mail, WhatsApp ou SMS · Vous arrêtez quand vous voulez",
+  "subscribedTitle": "Notis vous écrit au sujet de {city}",
+  "allTopics": "Tous les sujets",
+  "channelEmail": "E-mail",
+  "channelPhone": "WhatsApp et SMS",
+  "changePreferences": "Modifier les préférences",
+  "allMyCities": "Toutes mes communes"
 }

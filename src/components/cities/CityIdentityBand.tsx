@@ -1,12 +1,14 @@
 import { City, CityMessage as CityMessageType } from '@prisma/client';
 import { useTranslations } from 'next-intl';
 import type { CityWithCounts } from '@/lib/db/cities';
+import type { CityNotificationPreference } from '@/lib/db/notifications';
 import { getLocalizedMunicipalityName } from '@/lib/formatters/name';
 import { CityMessage } from '@/components/cities/CityMessage';
 import { CityAdminTools } from '@/components/cities/CityAdminTools';
 import { CityHeaderActions } from '@/components/cities/CityHeaderActions';
 import { CitySearchForm } from '@/components/cities/CitySearchForm';
 import { CityMeetingsModule, type MeetingBookends } from '@/components/cities/overview/CityMeetingsModule';
+import { CityNotificationCard } from '@/components/cities/overview/CityNotificationCard';
 import { OfficialSupportBadge } from '@/components/cities/OfficialSupportBadge';
 
 type CityIdentityBandProps = {
@@ -16,7 +18,7 @@ type CityIdentityBandProps = {
     canEdit: boolean;
     isSuperAdmin: boolean;
     hasNoData: boolean;
-    hasNotifications: boolean;
+    notificationPreference: CityNotificationPreference | null;
     allMeetings: MeetingBookends;
     councilMeetings: MeetingBookends;
     subjectCount: number;
@@ -42,7 +44,7 @@ export function CityIdentityBand({
     canEdit,
     isSuperAdmin,
     hasNoData,
-    hasNotifications,
+    notificationPreference,
     allMeetings,
     councilMeetings,
     subjectCount,
@@ -63,8 +65,13 @@ export function CityIdentityBand({
 
     return (
         <div className="space-y-6">
-            <div className="grid items-start gap-8 lg:grid-cols-[1fr_minmax(320px,392px)] lg:gap-14">
-                <div className="min-w-0">
+            {/* The identity takes the full width and the two cards share the row
+                below it. They used to sit stacked in a 392px rail, which ran twice
+                as tall as the identity beside it and left a hole the width of the
+                page — and the container caps at 1400px, so a third column would
+                only have squeezed the search box to buy that rail back. */}
+            <div className="grid items-start gap-6 lg:grid-cols-2 lg:gap-8">
+                <div className="min-w-0 lg:col-span-2">
                     <h1 className="text-4xl leading-none tracking-tight md:text-5xl">
                         {getLocalizedMunicipalityName(city, locale)}
                     </h1>
@@ -93,6 +100,17 @@ export function CityIdentityBand({
                 </div>
 
                 <div className="flex flex-col gap-3">
+                    <CityMeetingsModule
+                        all={allMeetings}
+                        council={councilMeetings}
+                        cityId={city.id}
+                        timezone={city.timezone}
+                        locale={locale}
+                    />
+                    <CityHeaderActions city={city as City} />
+                </div>
+
+                <div className="flex flex-col gap-3">
                     {/* Operator controls sit in the corner, above everything a
                         citizen is here for. */}
                     <CityAdminTools
@@ -102,14 +120,7 @@ export function CityIdentityBand({
                         isSuperAdmin={isSuperAdmin}
                         hasNoData={hasNoData}
                     />
-                    <CityMeetingsModule
-                        all={allMeetings}
-                        council={councilMeetings}
-                        cityId={city.id}
-                        timezone={city.timezone}
-                        locale={locale}
-                    />
-                    <CityHeaderActions city={city as City} hasNotifications={hasNotifications} />
+                    <CityNotificationCard city={city} preference={notificationPreference} locale={locale} />
                 </div>
             </div>
 

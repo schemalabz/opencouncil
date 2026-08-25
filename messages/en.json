@@ -240,13 +240,6 @@
         "filterByAdminBody": "Filter by Administrative Body",
         "citySections": "City sections",
         "widget": "Widget",
-        "notificationsCta": {
-            "title": "Stay informed",
-            "subtitle": "We can send you a message whenever the council discusses something about your neighborhood!",
-            "manageTitle": "Manage notifications",
-            "manageSubtitle": "You're already receiving notifications from this council. You can update your preferences or stop notifications anytime.",
-            "manageAction": "Go to the notification management page"
-        },
         "petitionCta": "Request your municipality's support",
         "supportBadgeOfficialAthens": "With the support of the municipality and DAEM S.A.",
         "supportBadgeOfficialMunicipality": "With the municipality's support",
