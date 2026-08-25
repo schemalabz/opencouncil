@@ -80,7 +80,10 @@ export default async function TabsLayout(
                     locale={locale}
                 />
 
-                <div className="lg:col-start-2 lg:row-start-1 lg:row-span-2">
+                {/* self-stretch is what gives the rail inside room to stick: the grid
+                    is items-start, so without it this wrapper would be exactly as tall
+                    as its contents and there would be nothing to travel through. */}
+                <div className="lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:self-stretch">
                     <CityRail
                         city={city}
                         cityMessage={cityMessage}
