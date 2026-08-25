@@ -6,8 +6,8 @@ import { AdminBodyLabel } from '@/components/cities/overview/AdminBodyLabel';
 import type { CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { formatDateStamp, formatDateTime } from '@/lib/formatters/time';
+import { TopicIcon } from '@/components/TopicIcon';
 import { localizeText } from '@/lib/serbian';
-import { topicStyle } from '@/lib/topicStyle';
 import { sortSubjectsByImportance } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
@@ -103,10 +103,10 @@ export default function MeetingCardV2({ item: meeting, cityTimezone }: MeetingCa
                         <ul className="mt-3 flex flex-col gap-1.5 border-t border-border py-3">
                             {subjects.slice(0, PREVIEW_SUBJECTS).map(subject => (
                                 <li key={subject.id} className="flex items-center gap-2.5 text-[13px] leading-snug">
-                                    <span
-                                        className="h-2 w-2 shrink-0 rounded-full"
-                                        style={{ backgroundColor: topicStyle(subject.topic?.colorHex).border }}
-                                        aria-hidden
+                                    <TopicIcon
+                                        color={subject.topic?.colorHex}
+                                        icon={subject.topic?.icon}
+                                        size="sm"
                                     />
                                     <span className="min-w-0 truncate text-foreground/85">
                                         {localizeText(subject.name, locale)}
