@@ -22,5 +22,14 @@
   "allMeetings": "All meetings",
   "scopeCouncil": "Council",
   "scopeAll": "All",
-  "noMeetingsForScope": "No meetings from this body yet."
+  "noMeetingsForScope": "No meetings from this body yet.",
+  "councilEyebrow": "The council",
+  "councilTitle": "Parties and people",
+  "allParties": "All parties",
+  "allPeople": "All people",
+  "peopleEyebrow": "{count, plural, =1 {1 member} other {# members}}",
+  "seatsInCouncil": "{count, plural, =1 {seat on the council} other {seats on the council}}",
+  "partyMembers": "{count, plural, =1 {member} other {members}}",
+  "mayorsParty": "The mayor's party",
+  "inCommittees": "{count} on committees"
 }

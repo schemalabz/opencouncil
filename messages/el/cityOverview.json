@@ -22,5 +22,14 @@
   "allMeetings": "Όλες οι συνεδριάσεις",
   "scopeCouncil": "ΔΣ",
   "scopeAll": "Όλα",
-  "noMeetingsForScope": "Καμία συνεδρίαση από αυτό το όργανο ακόμη."
+  "noMeetingsForScope": "Καμία συνεδρίαση από αυτό το όργανο ακόμη.",
+  "councilEyebrow": "Το δημοτικό συμβούλιο",
+  "councilTitle": "Παρατάξεις και πρόσωπα",
+  "allParties": "Όλες οι παρατάξεις",
+  "allPeople": "Όλα τα πρόσωπα",
+  "peopleEyebrow": "{count, plural, =1 {1 μέλος} other {# μέλη}}",
+  "seatsInCouncil": "{count, plural, =1 {έδρα στο δημοτικό συμβούλιο} other {έδρες στο δημοτικό συμβούλιο}}",
+  "partyMembers": "{count, plural, =1 {μέλος} other {μέλη}}",
+  "mayorsParty": "Παράταξη του δημάρχου",
+  "inCommittees": "{count} σε επιτροπές"
 }

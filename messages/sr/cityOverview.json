@@ -22,5 +22,14 @@
   "allMeetings": "Све седнице",
   "scopeCouncil": "Скупштина",
   "scopeAll": "Све",
-  "noMeetingsForScope": "Још нема седница овог тела."
+  "noMeetingsForScope": "Још нема седница овог тела.",
+  "councilEyebrow": "Скупштина",
+  "councilTitle": "Одборничке групе и људи",
+  "allParties": "Све групе",
+  "allPeople": "Сви људи",
+  "peopleEyebrow": "{count, plural, =1 {1 члан} other {# чланова}}",
+  "seatsInCouncil": "{count, plural, =1 {место у скупштини} other {места у скупштини}}",
+  "partyMembers": "{count, plural, =1 {члан} other {чланова}}",
+  "mayorsParty": "Група градоначелника",
+  "inCommittees": "{count} у одборима"
 }

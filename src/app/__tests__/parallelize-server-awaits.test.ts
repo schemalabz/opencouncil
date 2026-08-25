@@ -60,6 +60,7 @@ jest.mock('@/lib/realm.server', () => ({
 jest.mock('@/components/cities/CityParties', () => ({ __esModule: true, default: () => null }));
 jest.mock('@/components/cities/CityIdentityBand', () => ({ CityIdentityBand: () => null }));
 jest.mock('@/components/cities/overview/HotTopicsCard', () => ({ HotTopicsCard: () => null }));
+jest.mock('@/components/cities/overview/CouncilBand', () => ({ CouncilBand: () => null }));
 jest.mock('@/components/meetings/MeetingCardV2', () => ({ __esModule: true, default: () => null }));
 jest.mock('@/lib/hotSubjectCards', () => ({ getHotSubjectCardsCached: jest.fn() }));
 // next-intl ships ESM that jest's CJS sandbox can't parse; the overview page
@@ -290,10 +291,14 @@ describe('PR1: server-side awaits run concurrently', () => {
         const cityD = deferred<any>();
         const hotD = deferred<any[]>();
         const meetingsD = deferred<any[]>();
+        const partiesD = deferred<any[]>();
+        const peopleD = deferred<any[]>();
 
         cache.getCityCached.mockReturnValue(cityD.promise);
         hotCards.getHotSubjectCardsCached.mockReturnValue(hotD.promise);
         cache.getCouncilMeetingsPreviewPublicCached.mockReturnValue(meetingsD.promise);
+        cache.getPartiesForCityCached.mockReturnValue(partiesD.promise);
+        cache.getPeopleForCityCached.mockReturnValue(peopleD.promise);
 
         const { default: OverviewPage } = require('@/app/[locale]/(city)/[cityId]/(other)/(tabs)/page');
 
@@ -304,11 +309,16 @@ describe('PR1: server-side awaits run concurrently', () => {
         expect(cache.getCityCached).toHaveBeenCalledTimes(1);
         expect(hotCards.getHotSubjectCardsCached).toHaveBeenCalledTimes(1);
         expect(cache.getCouncilMeetingsPreviewPublicCached).toHaveBeenCalledTimes(1);
+        // The council band's roster batches with the rest, not after it.
+        expect(cache.getPartiesForCityCached).toHaveBeenCalledTimes(1);
+        expect(cache.getPeopleForCityCached).toHaveBeenCalledTimes(1);
         expect(intl.getTranslations).toHaveBeenCalled();
 
         cityD.resolve({ id: 'athens', timezone: 'Europe/Athens' });
         hotD.resolve([]);
         meetingsD.resolve([]);
+        partiesD.resolve([]);
+        peopleD.resolve([]);
 
         await pending;
     });
