@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { CityIdentityBand } from "@/components/cities/CityIdentityBand";
+import { CityRail } from "@/components/cities/CityRail";
 import { CityNavigation } from "@/components/cities/CityNavigation";
 import { getCityCached, getCityMessageCached, getCouncilMeetingsPreviewPublicCached, getSubjectCountForCityCached } from "@/lib/cache";
 import { getCurrentUser, isUserAuthorizedToEdit } from "@/lib/auth";
@@ -65,33 +66,47 @@ export default async function TabsLayout(
     const showMessage = !!cityMessage && (cityMessage.isActive || isSuperAdmin);
 
     return (
-        <div className="relative md:container md:mx-auto py-8 px-4 md:px-8 space-y-8 z-0">
-            <div className="space-y-8">
+        <div className="relative md:container md:mx-auto py-8 px-4 md:px-8 z-0">
+            {/* The rail is placed explicitly into the second column across both
+                rows, so on a phone the DOM order still reads identity → rail →
+                tabs. Its own column means the tabs below start immediately
+                rather than after the tallest thing in a band above them. */}
+            <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)] lg:gap-10">
                 <CityIdentityBand
                     city={city}
                     cityMessage={cityMessage}
                     showMessage={showMessage}
-                    canEdit={canEdit}
-                    isSuperAdmin={isSuperAdmin}
-                    hasNoData={hasNoData}
-                    notificationPreference={notificationPreference}
-                    allMeetings={{ next: upcoming[0] ?? null, latest: past[0] ?? null }}
-                    councilMeetings={{ next: councilUpcoming[0] ?? null, latest: councilPast[0] ?? null }}
                     subjectCount={subjectCount}
                     locale={locale}
                 />
 
-                <CityNavigation cityId={cityId} city={city} />
+                <div className="lg:col-start-2 lg:row-start-1 lg:row-span-2">
+                    <CityRail
+                        city={city}
+                        cityMessage={cityMessage}
+                        canEdit={canEdit}
+                        isSuperAdmin={isSuperAdmin}
+                        hasNoData={hasNoData}
+                        notificationPreference={notificationPreference}
+                        allMeetings={{ next: upcoming[0] ?? null, latest: past[0] ?? null }}
+                        councilMeetings={{ next: councilUpcoming[0] ?? null, latest: councilPast[0] ?? null }}
+                        locale={locale}
+                    />
+                </div>
 
-                <Suspense fallback={
-                    <div className="flex justify-center items-center h-32">
-                        <Loader2 className="w-6 h-6 animate-spin" />
-                    </div>
-                }>
-                    <div className="space-y-4 md:space-y-6">
-                        {children}
-                    </div>
-                </Suspense>
+                <div className="min-w-0 space-y-8 lg:col-start-1 lg:row-start-2">
+                    <CityNavigation cityId={cityId} city={city} />
+
+                    <Suspense fallback={
+                        <div className="flex justify-center items-center h-32">
+                            <Loader2 className="w-6 h-6 animate-spin" />
+                        </div>
+                    }>
+                        <div className="space-y-4 md:space-y-6">
+                            {children}
+                        </div>
+                    </Suspense>
+                </div>
             </div>
         </div>
     );
