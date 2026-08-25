@@ -2,6 +2,7 @@ import { AdministrativeBodyType } from '@prisma/client';
 import { createCache, getCouncilMeetingsForCityPublicCached } from '@/lib/cache';
 import { getCouncilMeetingsForCity, type CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
 import { getContributionCount } from '@/lib/utils';
+import { getDiscussionSecondsForSubjects } from '@/lib/db/subject';
 import { sortByRanking, type RankableSubject } from '@/lib/ranking/subjects';
 import { filterLocationIdsWithinRadius, getLocationDistancesFromPoint } from '@/lib/db/location';
 import { decodeGeohashToCenter } from '@/lib/geo';
@@ -38,16 +39,33 @@ function flatten(meetings: Meeting[]): HotSubject[] {
     );
 }
 
-function adapt(item: HotSubject): RankableSubject {
-    return {
+/**
+ * The ranker's view of a candidate, built against the same signals the landing
+ * map ranks on (useFilteredSubjects' toRankable) so the two surfaces agree on
+ * what "hot" means.
+ *
+ * `discussionSignal` is minutes of debate, not a contribution count: the two
+ * disagree often — a subject can draw many short interventions or one long one —
+ * and it carries the heaviest weight in the blend, so using a different signal
+ * here produced a visibly different order for the same subjects.
+ */
+function adapter(discussionSeconds: Map<string, number>) {
+    return (item: HotSubject): RankableSubject => ({
         cityId: item.meeting.cityId,
         meetingDate: item.meeting.dateTime,
-        discussionSignal: getContributionCount(item.subject),
+        // Rounded to minutes exactly as toLandingSubjects does: the signal is
+        // log-damped, so the unit changes the spacing between candidates.
+        discussionSignal: Math.round((discussionSeconds.get(item.subject.id) ?? 0) / 60),
         adminBodyType: item.meeting.administrativeBody?.type ?? null,
         // Weak location tiebreaker in the non-geo widget; a no-op within the
         // geo variant's homogeneous near/wide groups.
         hasLocation: item.subject.locationId != null,
-    };
+    });
+}
+
+/** Debate time for a candidate set — one query, whatever its size. */
+function discussionSecondsFor(candidates: HotSubject[]): Promise<Map<string, number>> {
+    return getDiscussionSecondsForSubjects(candidates.map(c => c.subject.id));
 }
 
 /** Recent hottest subjects across a city's recent past meetings (no location filter). */
@@ -58,7 +76,9 @@ export async function getRecentHotSubjects(
     const meetings = await getCouncilMeetingsForCityPublicCached(cityId, {
         limit: HOT_MEETING_WINDOW, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
     });
-    return sortByRanking(flatten(meetings), adapt).slice(0, limit);
+    const candidates = flatten(meetings);
+    const seconds = await discussionSecondsFor(candidates);
+    return sortByRanking(candidates, adapter(seconds)).slice(0, limit);
 }
 
 async function rankSubjectsNearPoint(
@@ -71,7 +91,12 @@ async function rankSubjectsNearPoint(
     const locatedIds = candidates
         .map(c => c.subject.locationId)
         .filter((id): id is string => id != null);
-    const nearby = new Set(await filterLocationIdsWithinRadius(locatedIds, center, radiusMeters));
+    const [nearbyIds, seconds] = await Promise.all([
+        filterLocationIdsWithinRadius(locatedIds, center, radiusMeters),
+        discussionSecondsFor(candidates),
+    ]);
+    const nearby = new Set(nearbyIds);
+    const adapt = adapter(seconds);
 
     // Location-targeted ordering: subjects within the radius come first
     // (that's the whole point of asking near a point), then municipality-wide
@@ -101,7 +126,7 @@ async function computeHotSubjectsNearGeohash(
         // nearby tool) use getHotSubjectsNearPoint, which propagates instead.
         console.error('Radius filter failed; falling back to municipality-wide subjects:', error);
         const wide = flatten(meetings).filter(c => c.subject.locationId == null);
-        return sortByRanking(wide, adapt).slice(0, limit);
+        return sortByRanking(wide, adapter(await discussionSecondsFor(wide))).slice(0, limit);
     }
 }
 

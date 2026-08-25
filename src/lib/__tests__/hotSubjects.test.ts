@@ -3,6 +3,7 @@
 const mockGetCouncilMeetingsForCityPublicCached = jest.fn();
 const mockFilterLocationIdsWithinRadius = jest.fn();
 const mockGetLocationDistancesFromPoint = jest.fn();
+const mockGetDiscussionSecondsForSubjects = jest.fn();
 
 jest.mock('../cache', () => ({
     __esModule: true,
@@ -14,6 +15,11 @@ jest.mock('../cache', () => ({
 jest.mock('../db/meetings', () => ({
     __esModule: true,
     getCouncilMeetingsForCity: jest.fn(),
+}));
+
+jest.mock('../db/subject', () => ({
+    __esModule: true,
+    getDiscussionSecondsForSubjects: (...args: unknown[]) => mockGetDiscussionSecondsForSubjects(...args),
 }));
 
 jest.mock('../db/location', () => ({
@@ -59,6 +65,7 @@ function meeting(
 describe('getRecentHotSubjects', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        mockGetDiscussionSecondsForSubjects.mockResolvedValue(new Map());
     });
 
     it('leaves out subjects nobody spoke to, and withdrawn ones', async () => {
@@ -78,6 +85,24 @@ describe('getRecentHotSubjects', () => {
         expect(hot.map(h => h.subject.id)).toEqual(['debated']);
     });
 
+    it('ranks on debate minutes, not on how many times people spoke', async () => {
+        // The two signals disagree: one long intervention outweighs many short
+        // ones. The landing map ranks on minutes, and this must agree with it.
+        mockGetCouncilMeetingsForCityPublicCached.mockResolvedValue([
+            meeting('m1', new Date('2026-08-01T18:00:00Z'), [
+                { id: 'manyShort', locationId: null, contributions: 40 },
+                { id: 'oneLong', locationId: null, contributions: 2 },
+            ]),
+        ]);
+        mockGetDiscussionSecondsForSubjects.mockResolvedValue(
+            new Map([['manyShort', 120], ['oneLong', 3600]]),
+        );
+
+        const hot = await getRecentHotSubjects('athens', { limit: 10 });
+
+        expect(hot.map(h => h.subject.id)).toEqual(['oneLong', 'manyShort']);
+    });
+
     it('returns nothing rather than falling back when the window holds no discussion', async () => {
         mockGetCouncilMeetingsForCityPublicCached.mockResolvedValue([
             meeting('m1', new Date('2026-08-01T18:00:00Z'), [
@@ -92,6 +117,7 @@ describe('getRecentHotSubjects', () => {
 describe('getHotSubjectsNearPoint', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        mockGetDiscussionSecondsForSubjects.mockResolvedValue(new Map());
     });
 
     it('orders in-radius subjects first, fills with municipality-wide ones, and drops located subjects outside the radius', async () => {
@@ -170,6 +196,7 @@ describe('getHotSubjectsNearPoint', () => {
 describe('withDistances', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        mockGetDiscussionSecondsForSubjects.mockResolvedValue(new Map());
     });
 
     const items = meeting('m1', new Date('2026-08-01T18:00:00Z'), [
