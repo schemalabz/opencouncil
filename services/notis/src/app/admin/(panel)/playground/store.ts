@@ -13,7 +13,7 @@ import { insertChronological } from "./deriveQueue";
 
 export function emptyStore(): PlaygroundStore {
   return {
-    version: 4,
+    version: 5,
     setup: { done: false, from: "" },
     sim: {
       state: {
@@ -41,7 +41,7 @@ export function loadStore(): PlaygroundStore {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return emptyStore();
     const parsed = JSON.parse(raw) as PlaygroundStore;
-    if (parsed.version !== 4) {
+    if (parsed.version !== 5) {
       // Never destroy a store this build cannot read (a newer deploy's data,
       // or corruption): stash it aside so the session's saves cannot clobber it.
       window.localStorage.setItem(`${STORAGE_KEY}:incompatible`, raw);
