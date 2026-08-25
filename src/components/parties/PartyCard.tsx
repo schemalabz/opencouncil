@@ -1,124 +1,127 @@
-'use client'
-import { useRouter } from '@/i18n/routing';
-import { Card, CardContent } from "../ui/card";
-import { useTranslations } from 'next-intl';
-import { ImageOrInitials } from '../ImageOrInitials';
-import { PersonAvatarList } from '../persons/PersonAvatarList';
-import { cn } from '@/lib/utils';
-import { PartyWithPersons } from '@/lib/db/parties';
-import { useMemo } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
+import { Link } from '@/i18n/routing';
+import { ImageOrInitials } from '@/components/ImageOrInitials';
+import type { PartyWithPersons } from '@/lib/db/parties';
+import { getLocalizedName } from '@/lib/formatters/name';
 import { partyComposition } from '@/lib/party/composition';
 
+/** Faces before the stack becomes a crowd. */
+const FACES = 4;
+
 interface PartyCardProps {
-    item: PartyWithPersons
+    item: PartyWithPersons;
     editable: boolean;
 }
 
-export default function PartyCard({ item: party, editable }: PartyCardProps) {
-    const t = useTranslations('Party');
-    const router = useRouter();
+/**
+ * A party in a list.
+ *
+ * Leads with council seats, because seat share is what a reader compares. The
+ * faces and the "+N" beside them are drawn from whichever set the numeral
+ * counts, so the two cannot describe different groups, and a party holding no
+ * council seat at all falls back to its roster rather than reading as zero.
+ *
+ * The party colour is a filled band down the whole left edge, clipped by the
+ * card's radius so it follows the curve into the corners.
+ *
+ * Deliberately hook-light so it renders in a Server Component (the city
+ * overview) and inside List, which is a client component.
+ */
+export default function PartyCard({ item: party }: PartyCardProps) {
+    const t = useTranslations('cityOverview');
+    const locale = useLocale();
+    const { members, councilMembers, council, committee, hasMayor } = partyComposition(party);
 
-    const composition = useMemo(() => partyComposition(party), [party]);
-    const activePeople = composition.members;
-
-    // Build member breakdown by administrative body
-    const memberBreakdownText = useMemo(() => {
-        const breakdownParts: string[] = [];
-
-        if (composition.council > 0) {
-            breakdownParts.push(t('breakdownCouncil', { count: composition.council }));
-        }
-        if (composition.committee > 0) {
-            breakdownParts.push(t('breakdownCommittees', { count: composition.committee }));
-        }
-        if (composition.community > 0) {
-            breakdownParts.push(t('breakdownCommunities', { count: composition.community }));
-        }
-        if (composition.unassigned > 0) {
-            breakdownParts.push(t('breakdownOthers', { count: composition.unassigned }));
-        }
-
-        if (breakdownParts.length === 0) {
-            return composition.hasMayor ? t('breakdownMayor') : '';
-        }
-
-        if (composition.hasMayor) {
-            return `${t('breakdownMayor')}, ${breakdownParts.join(', ')}`;
-        }
-
-        return breakdownParts.join(', ');
-    }, [composition, t]);
-
-    // Transform people into PersonWithRelations for PersonAvatarList
-    const activePersonsForAvatarList = useMemo(() =>
-        activePeople.map(person => ({
-            ...person,
-            party,
-            roles: person.roles.filter(role => role.partyId === party.id)
-        }))
-        , [activePeople, party]);
-
-    const handleClick = () => {
-        router.push(`/${party.cityId}/parties/${party.id}`);
-    };
+    const roster = council > 0 ? councilMembers : members;
+    const seatsLabel = council > 0
+        ? t('seatsInCouncil', { count: roster.length })
+        : t('partyMembers', { count: roster.length });
+    const faces = roster.slice(0, FACES);
+    const rest = roster.length - faces.length;
 
     return (
-        <Card
-            className={cn(
-                "group relative overflow-hidden transition-all duration-300 cursor-pointer h-full",
-                "hover:shadow-md hover:shadow-primary/5 hover:-translate-y-0.5"
-            )}
-            onClick={handleClick}
+        <Link
+            href={`/${party.cityId}/parties/${party.id}`}
+            className="group relative flex h-full overflow-hidden rounded-2xl border border-foreground/60 bg-card transition-shadow hover:shadow-md hover:no-underline"
         >
-            <CardContent className="p-4 sm:p-5 h-full flex flex-col relative">
-                {/* Colored left bar */}
-                <div
-                    className="absolute left-0 top-0 bottom-0 w-[3px] sm:w-1"
-                    style={{
-                        backgroundColor: party.colorHex,
-                        borderTopLeftRadius: 'calc(0.5rem - 1.5px)',
-                        borderBottomLeftRadius: 'calc(0.5rem - 1.5px)'
-                    }}
-                />
-                <div className="flex-1 space-y-4 pl-3 sm:pl-4">
-                    {/* Header with logo and title - properly aligned */}
-                    <div className="flex items-center gap-3 sm:gap-4">
-                        <div className="w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0">
+            {/* A filled band, not a border: a border renders as a stroke that thins
+                into the 1px sides at the corners. Full height and clipped by the
+                card's own radius, so the colour runs the whole left edge and
+                follows the curve into the corners instead of stopping short of
+                them — hence overflow-hidden on the card. */}
+            <span className="absolute inset-y-0 left-0 w-[7px]" style={{ backgroundColor: party.colorHex }} aria-hidden />
+            <span className="flex min-w-0 flex-1 flex-col p-4">
+                <span className="flex min-w-0 items-start gap-3">
+                    {party.logo && (
+                        <span className="h-10 w-10 shrink-0">
                             <ImageOrInitials
                                 imageUrl={party.logo}
-                                width={56}
-                                height={56}
                                 name={party.name_short}
-                                color={party.colorHex}
-                                square={true}
+                                width={40}
+                                height={40}
+                                color={party.colorHex ?? undefined}
+                                square
                             />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <h3 className="text-sm sm:text-base font-semibold line-clamp-2 leading-tight group-hover:text-primary transition-colors">
-                                {party.name}
-                            </h3>
-                        </div>
-                    </div>
-
-                    {/* Members avatars */}
-                    {activePersonsForAvatarList.length > 0 && (
-                        <div onClick={(e) => e.stopPropagation()}>
-                            <PersonAvatarList
-                                users={activePersonsForAvatarList}
-                                maxDisplayed={3}
-                                numMore={activePersonsForAvatarList.length > 3 ? activePersonsForAvatarList.length - 3 : 0}
-                            />
-                        </div>
+                        </span>
                     )}
-                </div>
+                    <span className="min-w-0 flex-1 text-[17px] leading-snug transition-colors group-hover:text-[hsl(var(--orange))]">
+                        {getLocalizedName(party, locale)}
+                    </span>
+                </span>
 
-                {/* Footer with member breakdown by administrative body */}
-                <div className="pt-3 border-t border-border/50 mt-4 pl-3 sm:pl-4">
-                    <div className="text-xs text-muted-foreground font-medium">
-                        {memberBreakdownText}
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
+                <span className="mt-2.5 flex items-baseline gap-1.5 tabular-nums">
+                    <span className="text-3xl leading-none tracking-tight" style={{ color: party.colorHex }}>
+                        {roster.length}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{seatsLabel}</span>
+                </span>
+
+                {/* Only the governing party is named as such. Which of the others are
+                    in opposition and which support the mayor is not in the data, and
+                    inferring it would put a political claim on the page.
+
+                    A chip rather than a bold line: it is a standing, not another
+                    figure, and the only thing on the card that is not a count. The
+                    wash is the party's own colour at low alpha and the text stays
+                    foreground, so it reads on a pale παράταξη as well as a dark one. */}
+                {(hasMayor || committee > 0) && (
+                    <span className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                        {hasMayor && (
+                            <span
+                                className="inline-flex items-center rounded-full px-2 py-[3px] text-[11px] font-semibold leading-none text-foreground"
+                                style={{ backgroundColor: `color-mix(in srgb, ${party.colorHex} 22%, transparent)` }}
+                            >
+                                {t('governingParty')}
+                            </span>
+                        )}
+                        {committee > 0 && (
+                            <span className="text-xs text-muted-foreground">{t('inCommittees', { count: committee })}</span>
+                        )}
+                    </span>
+                )}
+
+                {faces.length > 0 && (
+                    <span className="mt-auto flex items-center gap-2.5 pt-3.5">
+                        {/* Ringed against the card: every face here shares the party's
+                            colour, so without a gap between them the stack reads as one
+                            shape rather than as four people. */}
+                        <span className="flex -space-x-2.5">
+                            {faces.map(person => (
+                                <span key={person.id} className="h-8 w-8 rounded-full ring-2 ring-card">
+                                    <ImageOrInitials
+                                        imageUrl={person.image}
+                                        name={person.name}
+                                        width={32}
+                                        height={32}
+                                        color={party.colorHex ?? undefined}
+                                    />
+                                </span>
+                            ))}
+                        </span>
+                        {rest > 0 && <span className="text-xs tabular-nums text-muted-foreground">+{rest}</span>}
+                    </span>
+                )}
+            </span>
+        </Link>
     );
 }

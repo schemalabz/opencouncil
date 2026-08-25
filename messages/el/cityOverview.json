@@ -30,6 +30,6 @@
   "peopleEyebrow": "{count, plural, =1 {1 μέλος} other {# μέλη}}",
   "seatsInCouncil": "{count, plural, =1 {έδρα στο δημοτικό συμβούλιο} other {έδρες στο δημοτικό συμβούλιο}}",
   "partyMembers": "{count, plural, =1 {μέλος} other {μέλη}}",
-  "mayorsParty": "Παράταξη του δημάρχου",
-  "inCommittees": "{count} σε επιτροπές"
+  "inCommittees": "{count} σε επιτροπές",
+  "governingParty": "Δημοτική Αρχή"
 }
