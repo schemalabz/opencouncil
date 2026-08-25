@@ -18,6 +18,7 @@ import { useSubjectHeaderOptional, SubjectHeaderInfo } from "@/contexts/SubjectH
 import { AutoScrollText } from "@/components/ui/auto-scroll-text"
 import { getMeetingPageSegments } from "@/lib/utils/meetingPages"
 import { TopicIcon } from '@/components/TopicIcon';
+import { headerControlClass } from './headerControl';
 
 export interface PathElement {
     name: string
@@ -108,6 +109,9 @@ function PageIconBadge({ icon: IconComponent }: { icon: LucideIcon }) {
         </div>
     )
 }
+
+/** Icon alone until `sm`, label from `lg` — shared by the three icon-first controls. */
+const iconControlWidth = 'w-8 sm:w-auto sm:px-2.5 lg:px-3';
 
 const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noContainer = false, className, showExplain = false }: HeaderProps) => {
     const t = useTranslations("Header");
@@ -286,7 +290,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                     depends on the viewport. */}
                 <button
                     onClick={() => setIsSearchOpen(true)}
-                    className="flex items-center justify-center gap-1.5 h-8 sm:h-9 w-8 sm:w-auto sm:px-2.5 lg:px-3 rounded-full text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                    className={cn(headerControlClass, iconControlWidth)}
                     aria-label={t('search')}
                     title={t('search')}
                 >
@@ -295,24 +299,26 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                 </button>
                 <Link
                     href="/mcp"
-                    className="flex items-center justify-center gap-1.5 h-8 sm:h-9 w-8 sm:w-auto sm:px-2.5 lg:px-3 rounded-full text-muted-foreground hover:bg-accent hover:text-foreground hover:no-underline transition-colors"
+                    className={cn(headerControlClass, iconControlWidth)}
                     aria-label={t('mcp')}
                     title={t('mcp')}
                 >
                     <Bot className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
                     <span className="hidden lg:inline text-sm">{t('mcpShort')}</span>
                 </Link>
-                {/* Filled rather than muted like its two neighbours: the guide is
-                    the one control here that nobody goes looking for, so it has to
-                    be the one that reads as a button. */}
+                {/* Outlined, with the icon in brand orange: its two neighbours are
+                    things a reader arrives already looking for, and the guide is
+                    not, so it is the one that has to read as a button. The border
+                    and the warm icon do that without a second filled colour in a
+                    bar that is otherwise chrome. */}
                 {showExplain && (
                     <Link
                         href="/explain"
-                        className="flex items-center justify-center gap-1.5 h-8 sm:h-9 w-8 sm:w-auto sm:px-2.5 lg:px-3 rounded-full bg-accent text-foreground hover:bg-accent/70 hover:no-underline transition-colors"
+                        className={cn(headerControlClass, iconControlWidth, 'text-foreground ring-1 ring-border')}
                         aria-label={t('explain')}
                         title={t('explain')}
                     >
-                        <HelpCircle className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
+                        <HelpCircle className="h-3 w-3 sm:h-4 sm:w-4 shrink-0 text-[hsl(var(--orange))]" />
                         <span className="hidden lg:inline text-sm">{t('explainShort')}</span>
                     </Link>
                 )}
