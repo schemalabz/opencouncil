@@ -3,7 +3,8 @@ import { isFuture, isToday } from 'date-fns';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { AdminBodyLabel } from '@/components/cities/overview/AdminBodyLabel';
-import type { CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
+import type { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
+import { SUBJECT_PREVIEW_COUNT } from '@/lib/utils/subjects';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { formatDateStamp, formatDateTime } from '@/lib/formatters/time';
 import { TopicIcon } from '@/components/TopicIcon';
@@ -11,11 +12,12 @@ import { localizeText } from '@/lib/serbian';
 import { sortSubjectsByImportance } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
-/** How many agenda items fit before the card stops being a summary. */
-const PREVIEW_SUBJECTS = 3;
-
 interface MeetingCardV2Props {
-    item: CouncilMeetingWithAdminBodyAndSubjects;
+    /**
+     * The preview projection, not the full meeting: the card draws three titles
+     * and a count, and the full one carries every subject's prose to do it.
+     */
+    item: CouncilMeetingWithSubjectPreview;
     editable: boolean;
     cityTimezone: string;
 }
@@ -43,8 +45,11 @@ export default function MeetingCardV2({ item: meeting, cityTimezone }: MeetingCa
     const { day, monthYear } = formatDateStamp(date, cityTimezone, locale);
     const upcoming = isFuture(date);
     const today = isToday(date);
+    // The query fetches a margin beyond the preview so this sort's agenda rules
+    // stay authoritative; the count is the agenda's real size, not the margin's.
     const subjects = sortSubjectsByImportance(meeting.subjects, 'importance');
-    const remaining = meeting.subjects.length - PREVIEW_SUBJECTS;
+    const subjectCount = meeting._count.subjects;
+    const remaining = subjectCount - SUBJECT_PREVIEW_COUNT;
 
     return (
         <Link
@@ -93,15 +98,15 @@ export default function MeetingCardV2({ item: meeting, cityTimezone }: MeetingCa
                 </h3>
                 <p className="mt-1.5 text-xs text-muted-foreground">
                     {formatDateTime(date, cityTimezone, 'medium', locale)}
-                    {meeting.subjects.length > 0 && (
-                        <> · {tMeeting('subjectsCount', { count: meeting.subjects.length })}</>
+                    {subjectCount > 0 && (
+                        <> · {tMeeting('subjectsCount', { count: subjectCount })}</>
                     )}
                 </p>
 
                 {subjects.length > 0 ? (
                     <>
                         <ul className="mt-3 flex flex-col gap-1.5 border-t border-border py-3">
-                            {subjects.slice(0, PREVIEW_SUBJECTS).map(subject => (
+                            {subjects.slice(0, SUBJECT_PREVIEW_COUNT).map(subject => (
                                 <li key={subject.id} className="flex items-center gap-2.5 text-[13px] leading-snug">
                                     <TopicIcon
                                         color={subject.topic?.colorHex}

@@ -1,4 +1,12 @@
 import { sortSubjectsBySpeakerContributionCount, sortSubjectsByImportance } from "@/lib/utils";
+
+/**
+ * How many agenda items a meeting card previews.
+ *
+ * Lives here rather than beside the query that honours it: `src/lib/db/meetings.ts`
+ * is a "use server" module, which may export nothing but async functions.
+ */
+export const SUBJECT_PREVIEW_COUNT = 3;
 import type { Statistics } from "@/lib/statistics";
 
 interface CategorizableSubject {
