@@ -82,7 +82,9 @@
         "mcpShort": "MCP",
         "login": "Пријавите се",
         "notificationsBreadcrumb": "Обавештења",
-        "petitionBreadcrumb": "Подржите своју општину"
+        "petitionBreadcrumb": "Подржите своју општину",
+        "explain": "Водич кроз локалну самоуправу",
+        "explainShort": "Водич"
     },
     "Footer": {
         "tagline": "Изграђено са поштовањем и уважавањем локалне самоуправе.",

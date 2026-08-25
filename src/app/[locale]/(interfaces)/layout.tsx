@@ -15,7 +15,7 @@ export default async function Layout({
 
   return (
     <div className="min-h-screen">
-      <Header path={[]} noContainer={true} />
+      <Header path={[]} noContainer={true} showExplain={hasExplainPage(realm)} />
       <main id="main-content" className="min-h-[70vh]">
         {children}
       </main>

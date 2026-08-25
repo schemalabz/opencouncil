@@ -10,7 +10,7 @@ import { SidebarTrigger } from '../ui/sidebar'
 import { City } from '@prisma/client'
 import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
-import { Search, Bot, Building2, ChevronRight, type LucideIcon } from "lucide-react"
+import { Search, Bot, Building2, ChevronRight, HelpCircle, type LucideIcon } from "lucide-react"
 import { useRouter, useSelectedLayoutSegment } from "next/navigation"
 import { useState, useRef, useEffect } from "react"
 import { createPortal } from "react-dom"
@@ -33,6 +33,12 @@ interface HeaderProps {
     children?: React.ReactNode
     noContainer?: boolean
     className?: string
+    /**
+     * Whether to offer the /explain guide. Resolved by the server parent with
+     * `hasExplainPage(await getRealm())` — the page 404s outside the Greek realm,
+     * and this component is a client one, so it cannot read the realm itself.
+     */
+    showExplain?: boolean
 }
 
 function CityElement({ element }: { element: PathElement }) {
@@ -103,7 +109,7 @@ function PageIconBadge({ icon: IconComponent }: { icon: LucideIcon }) {
     )
 }
 
-const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noContainer = false, className }: HeaderProps) => {
+const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noContainer = false, className, showExplain = false }: HeaderProps) => {
     const t = useTranslations("Header");
     const tCommon = useTranslations("Common");
     const meetingPageSegments = getMeetingPageSegments(useTranslations("CouncilMeeting"));
@@ -296,6 +302,20 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                     <Bot className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
                     <span className="hidden lg:inline text-sm">{t('mcpShort')}</span>
                 </Link>
+                {/* Filled rather than muted like its two neighbours: the guide is
+                    the one control here that nobody goes looking for, so it has to
+                    be the one that reads as a button. */}
+                {showExplain && (
+                    <Link
+                        href="/explain"
+                        className="flex items-center justify-center gap-1.5 h-8 sm:h-9 w-8 sm:w-auto sm:px-2.5 lg:px-3 rounded-full bg-accent text-foreground hover:bg-accent/70 hover:no-underline transition-colors"
+                        aria-label={t('explain')}
+                        title={t('explain')}
+                    >
+                        <HelpCircle className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
+                        <span className="hidden lg:inline text-sm">{t('explainShort')}</span>
+                    </Link>
+                )}
                 <UserDropdown currentEntity={currentEntity} />
             </div>
         </div>

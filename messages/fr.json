@@ -96,7 +96,9 @@
     "mcpShort": "MCP",
     "login": "Connexion",
     "notificationsBreadcrumb": "Notifications",
-    "petitionBreadcrumb": "Soutenez votre commune"
+    "petitionBreadcrumb": "Soutenez votre commune",
+    "explain": "Guide des collectivités locales",
+    "explainShort": "Guide"
   },
   "Footer": {
     "tagline": "Conçu avec respect et considération pour les collectivités locales.",
