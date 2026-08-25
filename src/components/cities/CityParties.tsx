@@ -4,6 +4,7 @@ import List from '@/components/List';
 import PartyCard from '@/components/parties/PartyCard';
 import PartyForm from '@/components/parties/PartyForm';
 import { PartyWithPersons } from '@/lib/db/parties';
+import { sortParties } from '@/lib/sorting/parties';
 import { useMemo } from 'react';
 import { Person } from '@prisma/client';
 
@@ -22,28 +23,7 @@ export default function CityParties({
 }: CityPartiesProps) {
     const t = useTranslations('Party');
 
-    // Sort parties by member count, heads, and alphabetically
-    const orderedParties = useMemo(() => {
-        return [...partiesWithPersons]
-            .sort((a, b) => {
-                // Sort by member count first
-                const memberCountDiff = b.people.length - a.people.length;
-                if (memberCountDiff !== 0) return memberCountDiff;
-
-                // If same member count, sort by party head
-                const aHasHead = a.people.some(person =>
-                    person.roles.some(role => role.partyId === a.id && role.isHead)
-                );
-                const bHasHead = b.people.some(person =>
-                    person.roles.some(role => role.partyId === b.id && role.isHead)
-                );
-                if (aHasHead && !bHasHead) return -1;
-                if (!aHasHead && bHasHead) return 1;
-
-                // If still tied, sort alphabetically
-                return a.name.localeCompare(b.name);
-            });
-    }, [partiesWithPersons]);
+    const orderedParties = useMemo(() => sortParties(partiesWithPersons), [partiesWithPersons]);
     return (
         <div>
             <List
