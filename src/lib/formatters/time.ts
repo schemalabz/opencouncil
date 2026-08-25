@@ -267,6 +267,45 @@ export function formatDateTime(date: Date, timezone?: string, dateStyle: 'long' 
   }
 }
 
+/** The parts of a date-stamp: a large day numeral over a short month and year. */
+export interface DateStampParts {
+    day: string;
+    /** Abbreviated month and two-digit year, e.g. "ΑΥΓ 26" — already uppercased. */
+    monthYear: string;
+}
+
+/**
+ * Splits a date into the parts a calendar-style stamp renders separately, so a
+ * card can size the day numeral independently of the month.
+ *
+ * The month is abbreviated and uppercased because the stamp is read as a glance
+ * target, not as prose; a full month name would compete with the title beside it.
+ *
+ * @param date - The date to format
+ * @param timezone - The city's timezone; a meeting's local date is the one that matters
+ * @param locale - Defaults to 'el' to match the app's default locale
+ */
+export function formatDateStamp(date: Date | string, timezone?: string, locale: string = 'el'): DateStampParts {
+    // Dates that have been through unstable_cache come back as ISO strings, so
+    // anything read from a cached query can be either. The sibling formatters
+    // accept both for the same reason.
+    const value = date instanceof Date ? date : new Date(date);
+    if (Number.isNaN(value.getTime())) {
+        throw new Error(`Invalid date: ${String(date)}`);
+    }
+
+    const intlLocale = getIntlLocale(locale);
+    const withTz = (options: Intl.DateTimeFormatOptions): Intl.DateTimeFormatOptions =>
+        timezone ? { ...options, timeZone: timezone } : options;
+
+    const day = new Intl.DateTimeFormat(intlLocale, withTz({ day: '2-digit' })).format(value);
+    const monthYear = new Intl.DateTimeFormat(intlLocale, withTz({ month: 'short', year: '2-digit' }))
+        .format(value)
+        .toLocaleUpperCase(intlLocale);
+
+    return { day, monthYear };
+}
+
 /**
  * Formats a gap duration in seconds to a Greek human-readable string
  * @param seconds - Gap duration in seconds

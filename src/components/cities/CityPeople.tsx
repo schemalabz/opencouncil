@@ -115,6 +115,9 @@ export default function CityPeople({
                     />
                 );
             }}
+            // One search per page: the identity band owns it. The count stays.
+            showSearch={false}
+            showCount
             smColumns={1}
             mdColumns={2}
             lgColumns={3}

@@ -2,7 +2,6 @@
 import { useTranslations } from 'next-intl';
 import { useSelectedLayoutSegment } from 'next/navigation';
 import { Link } from '@/i18n/routing';
-import { motion } from 'framer-motion';
 import { ReactNode } from 'react';
 import { City } from '@prisma/client';
 
@@ -49,12 +48,10 @@ export function CityNavigation({ cityId, city }: CityNavigationProps) {
     const currentSegment = segment || 'overview';
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-            className="flex justify-center mb-6 md:mb-8"
-        >
+        // No entrance animation: this used to fade in on a 0.7s delay as the tail
+        // of the old hero's choreography, which left the page's primary navigation
+        // invisible on arrival — and permanently so if hydration was slow.
+        <div className="flex justify-center mb-6 md:mb-8">
             <nav aria-label={t('citySections')} className="gap-1 sm:gap-2 md:gap-8 p-1 bg-background/80 backdrop-blur-sm w-full max-w-4xl flex justify-center rounded-lg overflow-x-auto scrollbar-hide">
                 <NavLink
                     href={`/${cityId}`}
@@ -94,6 +91,6 @@ export function CityNavigation({ cityId, city }: CityNavigationProps) {
                     </NavLink>
                 )}
             </nav>
-        </motion.div>
+        </div>
     );
 } 
