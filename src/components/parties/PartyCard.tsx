@@ -4,11 +4,10 @@ import { Card, CardContent } from "../ui/card";
 import { useTranslations } from 'next-intl';
 import { ImageOrInitials } from '../ImageOrInitials';
 import { PersonAvatarList } from '../persons/PersonAvatarList';
-import { cn, isRoleActive } from '@/lib/utils';
-import { isMayorRole } from '@/lib/utils/roles';
+import { cn } from '@/lib/utils';
 import { PartyWithPersons } from '@/lib/db/parties';
 import { useMemo } from 'react';
-import { sortPartyMembers } from '@/lib/sorting/people';
+import { partyComposition } from '@/lib/party/composition';
 
 interface PartyCardProps {
     item: PartyWithPersons
@@ -19,79 +18,36 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
     const t = useTranslations('Party');
     const router = useRouter();
 
-    // Get active people with party roles, sorted with council members first
-    const activePeople = useMemo(() => {
-        const filtered = party.people.filter(person =>
-            person.roles.some(role =>
-                role.partyId === party.id &&
-                isRoleActive(role)
-            )
-        );
-        return sortPartyMembers(filtered, party.id, true);
-    }, [party.people, party.id]);
+    const composition = useMemo(() => partyComposition(party), [party]);
+    const activePeople = composition.members;
 
-    // Count members by administrative body type
-    const memberCountsByType = useMemo(() => {
-        const counts = {
-            council: 0,
-            committee: 0,
-            community: 0
-        };
-
-        activePeople.forEach(person => {
-            const adminBodyTypes = new Set(
-                person.roles
-                    .filter(role => role.administrativeBody)
-                    .map(role => role.administrativeBody!.type)
-            );
-
-            // Count each person only once per type
-            if (adminBodyTypes.has('council')) counts.council++;
-            if (adminBodyTypes.has('committee')) counts.committee++;
-            if (adminBodyTypes.has('community')) counts.community++;
-        });
-
-        return counts;
-    }, [activePeople]);
-
-    // Build member breakdown text
+    // Build member breakdown by administrative body
     const memberBreakdownText = useMemo(() => {
         const breakdownParts: string[] = [];
 
-        if (memberCountsByType.council > 0) {
-            breakdownParts.push(t('breakdownCouncil', { count: memberCountsByType.council }));
+        if (composition.council > 0) {
+            breakdownParts.push(t('breakdownCouncil', { count: composition.council }));
         }
-        if (memberCountsByType.committee > 0) {
-            breakdownParts.push(t('breakdownCommittees', { count: memberCountsByType.committee }));
+        if (composition.committee > 0) {
+            breakdownParts.push(t('breakdownCommittees', { count: composition.committee }));
         }
-        if (memberCountsByType.community > 0) {
-            breakdownParts.push(t('breakdownCommunities', { count: memberCountsByType.community }));
+        if (composition.community > 0) {
+            breakdownParts.push(t('breakdownCommunities', { count: composition.community }));
         }
-
-        const mayorCount = activePeople.filter(person =>
-            person.roles.some(isMayorRole)
-        ).length;
-
-        const peopleWithoutAdminCount = activePeople.filter(person =>
-            !person.roles.some(role => role.administrativeBodyId)
-        ).length;
-
-        const othersCount = Math.max(0, peopleWithoutAdminCount - mayorCount);
-
-        if (othersCount > 0) {
-            breakdownParts.push(t('breakdownOthers', { count: othersCount }));
+        if (composition.unassigned > 0) {
+            breakdownParts.push(t('breakdownOthers', { count: composition.unassigned }));
         }
 
         if (breakdownParts.length === 0) {
-            return mayorCount > 0 ? t('breakdownMayor') : '';
+            return composition.hasMayor ? t('breakdownMayor') : '';
         }
 
-        if (mayorCount > 0) {
+        if (composition.hasMayor) {
             return `${t('breakdownMayor')}, ${breakdownParts.join(', ')}`;
         }
 
         return breakdownParts.join(', ');
-    }, [activePeople, memberCountsByType, t]);
+    }, [composition, t]);
 
     // Transform people into PersonWithRelations for PersonAvatarList
     const activePersonsForAvatarList = useMemo(() =>

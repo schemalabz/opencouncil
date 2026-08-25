@@ -1,0 +1,59 @@
+import type { PartyWithPersons, PersonWithRoles } from '@/lib/db/parties';
+import { isMayorRole, isRoleActive } from '@/lib/utils/roles';
+import { sortPartyMembers } from '@/lib/sorting/people';
+
+/**
+ * What a party is made of, as the surfaces that show one describe it.
+ *
+ * The counts are per person, not per role: a councillor who also sits on two
+ * committees is one member of the council and one member of the committees, not
+ * three of anything. A person with no administrative body at all is counted in
+ * `unassigned` — except the mayor, who has no body by construction (see
+ * {@link isMayorRole}) and would otherwise read as an unplaced member.
+ */
+export interface PartyComposition {
+    /** Members with an active role in the party, council members first. */
+    members: PersonWithRoles[];
+    /** The subset holding a seat on the council — `council` is its size. */
+    councilMembers: PersonWithRoles[];
+    council: number;
+    committee: number;
+    community: number;
+    /** Members holding no administrative-body seat, the mayor excluded. */
+    unassigned: number;
+    /** Whether the city's mayor sits in this party — what makes it the governing one. */
+    hasMayor: boolean;
+}
+
+export function partyComposition(party: PartyWithPersons): PartyComposition {
+    const members = sortPartyMembers(
+        party.people.filter(person =>
+            person.roles.some(role => role.partyId === party.id && isRoleActive(role))
+        ),
+        party.id,
+        true,
+    );
+
+    const counts = { committee: 0, community: 0 };
+    const councilMembers: PersonWithRoles[] = [];
+    for (const person of members) {
+        const bodyTypes = new Set(
+            person.roles.filter(role => role.administrativeBody).map(role => role.administrativeBody!.type)
+        );
+        if (bodyTypes.has('council')) councilMembers.push(person);
+        if (bodyTypes.has('committee')) counts.committee++;
+        if (bodyTypes.has('community')) counts.community++;
+    }
+
+    const mayors = members.filter(person => person.roles.some(isMayorRole)).length;
+    const withoutBody = members.filter(person => !person.roles.some(role => role.administrativeBodyId)).length;
+
+    return {
+        members,
+        councilMembers,
+        council: councilMembers.length,
+        ...counts,
+        unassigned: Math.max(0, withoutBody - mayors),
+        hasMayor: mayors > 0,
+    };
+}
