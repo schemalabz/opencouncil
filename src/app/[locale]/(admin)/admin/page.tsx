@@ -1,3 +1,4 @@
+import { Link } from '@/i18n/routing';
 import { Bell, Clock, FileText, Landmark, MessageCircle, Search, Send, Users } from 'lucide-react';
 import { StatsCard } from '@/components/ui/stats-card';
 import { Suspense } from 'react';
@@ -132,6 +133,17 @@ export default async function Page() {
                 blocking the dashboard, and a widget failure degrades to one
                 card instead of the whole route (issue #560's blast radius). */}
             <section>
+                <div className="flex items-baseline justify-between mb-3">
+                    <h2 className="w-fit">Transcript Reviews</h2>
+                    {/* last30Days=false: the list then shows the same all-time
+                        population the widget counts. */}
+                    <Link
+                        href="/admin/reviews?last30Days=false"
+                        className="text-sm text-muted-foreground hover:text-foreground"
+                    >
+                        View all →
+                    </Link>
+                </div>
                 <AdminWidgetErrorBoundary label="Transcript reviews">
                     <Suspense fallback={<ReviewsOverviewSkeleton />}>
                         <ReviewsOverviewWidget />
