@@ -63,7 +63,10 @@ const includePattern = {
     administrativeBody: { select: { id: true, name: true } },
     taskStatuses: {
       where: whereClause.reviewTaskStatuses(),
-      orderBy: { createdAt: 'desc' as const }
+      // Only the fields hasSucceededTask reads. The full rows carry the
+      // request/response payloads (~1.7 GB across production), which
+      // overflow the engine's result buffer on unfiltered lists (#303).
+      select: { type: true, status: true }
     }
   }),
 
@@ -1051,7 +1054,11 @@ export async function getReviewStats(): Promise<ReviewStats> {
       createdAt: {
         gte: startOfWeek
       }
-    }
+    },
+    // Guard, not an optimization: humanReview payloads are ~30 bytes today,
+    // but a full-row read here puts #303 back on /admin the day the task
+    // grows a real payload.
+    select: { createdAt: true }
   });
 
   const completedToday = completedReviews.filter(
