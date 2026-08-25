@@ -44,8 +44,9 @@ export function CityNavigation({ cityId, city }: CityNavigationProps) {
     const t = useTranslations('City');
     const segment = useSelectedLayoutSegment();
 
-    // Convert segment to our view types
-    const currentSegment = segment || 'meetings';
+    // The overview lives at the tab group's index route, so it has no segment of
+    // its own. Every other tab is a folder and reports its own name.
+    const currentSegment = segment || 'overview';
 
     return (
         <motion.div
@@ -57,6 +58,13 @@ export function CityNavigation({ cityId, city }: CityNavigationProps) {
             <nav aria-label={t('citySections')} className="gap-1 sm:gap-2 md:gap-8 p-1 bg-background/80 backdrop-blur-sm w-full max-w-4xl flex justify-center rounded-lg overflow-x-auto scrollbar-hide">
                 <NavLink
                     href={`/${cityId}`}
+                    segment={currentSegment}
+                    matchSegment="overview"
+                >
+                    {t('overview')}
+                </NavLink>
+                <NavLink
+                    href={`/${cityId}/meetings`}
                     segment={currentSegment}
                     matchSegment="meetings"
                 >

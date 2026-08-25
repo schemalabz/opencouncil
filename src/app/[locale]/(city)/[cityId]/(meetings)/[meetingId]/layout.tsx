@@ -164,7 +164,7 @@ export default async function CouncilMeetingPage(
     // filters against stored values.
     const adminBodyPath = adminBody ? {
         name: getLocalizedName(adminBody, locale),
-        link: `/${cityId}?filters=${encodeURIComponent(tCommon(`adminBodyType_${adminBody.type}`))}&body=${encodeURIComponent(adminBody.name)}`
+        link: `/${cityId}/meetings?filters=${encodeURIComponent(tCommon(`adminBodyType_${adminBody.type}`))}&body=${encodeURIComponent(adminBody.name)}`
     } : null;
 
     return (

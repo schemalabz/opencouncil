@@ -229,6 +229,7 @@
         "addCouncilMeeting": "Προσθήκη Συνεδρίασης",
         "councilMeetingsTracked": "{count, plural, =0 {Καμία συνεδρίαση στο OpenCouncil} =1 {1 συνεδρίαση στο OpenCouncil} other {# συνεδριάσεις στο OpenCouncil}}",
         "councilMeetings": "Συνεδριάσεις",
+        "overview": "Επισκόπηση",
         "people": "Πρόσωπα",
         "parties": "Παρατάξεις",
         "consultations": "Διαβουλεύσεις",

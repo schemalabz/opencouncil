@@ -229,6 +229,7 @@
     "addCouncilMeeting": "Ajouter une séance",
     "councilMeetingsTracked": "{count, plural, =0 {Aucune séance sur OpenCouncil} =1 {1 séance sur OpenCouncil} other {# séances sur OpenCouncil}}",
     "councilMeetings": "Séances",
+    "overview": "Aperçu",
     "people": "Personnes",
     "parties": "Groupes",
     "consultations": "Consultations",

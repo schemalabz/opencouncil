@@ -11,6 +11,22 @@
       "local government"
     ]
   },
+  "meetings": {
+    "title": "Council meetings | {cityName} | OpenCouncil",
+    "shortTitle": "Council meetings | {cityName}",
+    "notFoundTitle": "Council meetings not found | OpenCouncil",
+    "notFoundDescription": "The list of council meetings is not available.",
+    "description": "All {meetingsCount} recorded council meetings of {cityName}: video, transcripts, agenda items and decisions, in date order.",
+    "ogAlt": "Council meetings of {cityName}",
+    "author": "Municipality of {cityName}",
+    "keywords": [
+      "council meetings",
+      "agenda",
+      "minutes",
+      "city council",
+      "local government"
+    ]
+  },
   "people": {
     "title": "Councillors | {cityName} | OpenCouncil",
     "shortTitle": "Councillors | {cityName}",

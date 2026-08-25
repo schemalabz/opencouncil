@@ -11,6 +11,22 @@
       "collectivités locales"
     ]
   },
+  "meetings": {
+    "title": "Séances | {cityName} | OpenCouncil",
+    "shortTitle": "Séances | {cityName}",
+    "notFoundTitle": "Séances introuvables | OpenCouncil",
+    "notFoundDescription": "La liste des séances n'est pas disponible.",
+    "description": "Les {meetingsCount} séances enregistrées du conseil municipal de {cityName} : vidéos, transcriptions, points à l'ordre du jour et décisions, par ordre chronologique.",
+    "ogAlt": "Séances du conseil municipal de {cityName}",
+    "author": "Commune de {cityName}",
+    "keywords": [
+      "séances",
+      "ordre du jour",
+      "procès-verbaux",
+      "conseil municipal",
+      "collectivités locales"
+    ]
+  },
   "people": {
     "title": "Conseillers municipaux | {cityName} | OpenCouncil",
     "shortTitle": "Conseillers municipaux | {cityName}",
