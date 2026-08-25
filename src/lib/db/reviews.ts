@@ -681,6 +681,42 @@ function combineWhereConditions(
 
 
 /**
+ * Count how many of the given meetings have at least one user transcript edit.
+ *
+ * Candidate-first (issue #560): the caller supplies a small candidate list,
+ * and each candidate is probed through the UtteranceEdit(utteranceId) index.
+ * The LATERAL ... LIMIT 1 probe cannot be flattened into a join, so the
+ * planner cannot fall back to the whole-table parallel hash shape that
+ * exhausts shared memory at production scale — a plain EXISTS keeps that
+ * shape in the plan search space, held off only by a cost margin.
+ */
+async function countMeetingsWithUserEdits(meetings: MeetingId[]): Promise<number> {
+  if (meetings.length === 0) return 0;
+
+  const meetingPairs = Prisma.join(
+    meetings.map((m) => Prisma.sql`(${m.cityId}::text, ${m.meetingId}::text)`)
+  );
+
+  const [row] = await prisma.$queryRaw<[{ count: number }]>`
+    WITH candidates("cityId","meetingId") AS (VALUES ${meetingPairs})
+    SELECT count(*)::int AS "count"
+    FROM candidates c
+    JOIN LATERAL (
+      SELECT 1
+      FROM "SpeakerSegment" ss
+      JOIN "Utterance" u ON u."speakerSegmentId" = ss.id
+      JOIN "UtteranceEdit" ue ON ue."utteranceId" = u.id
+      WHERE ss."cityId" = c."cityId"
+        AND ss."meetingId" = c."meetingId"
+        AND ue."editedBy" = 'user'
+      LIMIT 1
+    ) hit ON true
+  `;
+
+  return row.count;
+}
+
+/**
  * Get aggregated stats for a meeting without loading full nested data
  * Used for efficient list views
  */
@@ -998,57 +1034,30 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
  */
 export async function getReviewStats(): Promise<ReviewStats> {
   await withUserAuthorizedToEdit({});
-  // We can derive needsReview/inProgress from presence of any user edits.
-  const baseNeedsAttentionWhere: Prisma.CouncilMeetingWhereInput = buildStatusWhereConditions('needsAttention');
+  // Candidate-first (issue #560): pick the needs-attention meetings via the
+  // small, indexed TaskStatus relation, then split them by presence of user
+  // edits with an indexed probe per candidate. Expressing that split as
+  // nested relation filters on CouncilMeeting made Postgres anti-join the
+  // full Utterance/UtteranceEdit tables on every /admin visit.
+  //
+  // The counts cover the all-time backlog of past meetings: a meeting only
+  // leaves the set when its humanReview succeeds, and future meetings are
+  // excluded because they cannot need review yet. The widget states the
+  // window and links the list with last30Days=false to show the same set.
+  const candidates = await prisma.councilMeeting.findMany({
+    where: {
+      AND: [
+        { city: CUSTOMER_CITY_WHERE },
+        buildStatusWhereConditions('needsAttention'),
+        buildDateFilter(false),
+      ],
+    },
+    select: { cityId: true, id: true },
+  });
 
-  const [needsReview, inProgress] = await Promise.all([
-    // Needs review = has transcribe, no humanReview, and NO user edits
-    prisma.councilMeeting.count({
-      where: {
-        AND: [
-          { city: CUSTOMER_CITY_WHERE },
-          baseNeedsAttentionWhere,
-          {
-            NOT: {
-              speakerSegments: {
-                some: {
-                  utterances: {
-                    some: {
-                      utteranceEdits: {
-                        some: { editedBy: 'user' },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        ],
-      },
-    }),
-    // In progress = has transcribe, no humanReview, and HAS user edits
-    prisma.councilMeeting.count({
-      where: {
-        AND: [
-          { city: CUSTOMER_CITY_WHERE },
-          baseNeedsAttentionWhere,
-          {
-            speakerSegments: {
-              some: {
-                utterances: {
-                  some: {
-                    utteranceEdits: {
-                      some: { editedBy: 'user' },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        ],
-      },
-    }),
-  ]);
+  const meetingIds: MeetingId[] = candidates.map((m) => ({ cityId: m.cityId, meetingId: m.id }));
+  const inProgress = await countMeetingsWithUserEdits(meetingIds);
+  const needsReview = meetingIds.length - inProgress;
 
   // Get completed reviews
   const now = new Date();
