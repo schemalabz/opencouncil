@@ -4,6 +4,7 @@ import type { CityWithCounts } from '@/lib/db/cities';
 import type { CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
 import { getLocalizedMunicipalityName } from '@/lib/formatters/name';
 import { CityMessage } from '@/components/cities/CityMessage';
+import { CityAdminTools } from '@/components/cities/CityAdminTools';
 import { CityHeaderActions } from '@/components/cities/CityHeaderActions';
 import { CitySearchForm } from '@/components/cities/CitySearchForm';
 import { CityMeetingsModule } from '@/components/cities/overview/CityMeetingsModule';
@@ -92,22 +93,28 @@ export function CityIdentityBand({
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-3">
-                    <CityMeetingsModule
-                        next={nextMeeting}
-                        latest={latestMeeting}
-                        cityId={city.id}
-                        timezone={city.timezone}
-                        locale={locale}
-                    />
-                    <CityHeaderActions
+                <div className="flex flex-col items-end gap-3">
+                    {/* Operator controls sit in the corner, above everything a
+                        citizen is here for. */}
+                    <CityAdminTools
                         city={city as City}
                         cityMessage={cityMessage}
                         canEdit={canEdit}
                         isSuperAdmin={isSuperAdmin}
                         hasNoData={hasNoData}
-                        hasNotifications={hasNotifications}
                     />
+                    <div className="w-full">
+                        <CityMeetingsModule
+                            next={nextMeeting}
+                            latest={latestMeeting}
+                            cityId={city.id}
+                            timezone={city.timezone}
+                            locale={locale}
+                        />
+                    </div>
+                    <div className="w-full">
+                        <CityHeaderActions city={city as City} hasNotifications={hasNotifications} />
+                    </div>
                 </div>
             </div>
 
