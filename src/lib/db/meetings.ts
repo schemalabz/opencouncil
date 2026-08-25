@@ -4,7 +4,6 @@ import { revalidateTag, revalidatePath } from 'next/cache';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit, isUserAuthorizedToEdit } from '../auth';
 import { buildDateFilter } from './reviews/dateFilters';
-import { SUBJECT_PREVIEW_COUNT } from '@/lib/utils/subjects';
 import { formatDateAsMeetingId } from '../utils/meetingId';
 import { landingSubjectsTag } from './subject';
 import { CUSTOMER_CITY_WHERE, PUBLIC_CITY_WHERE } from '../cityStatus';
@@ -41,27 +40,18 @@ export type CouncilMeetingWithAdminBodyAndSubjects = Prisma.CouncilMeetingGetPay
     include: typeof meetingWithSubjectsInclude
 }>;
 
-/**
- * Rows fetched beyond the preview.
- *
- * The database can order by contribution count but not by the importance sort's
- * first rule, which demotes items taken up before the agenda. Fetching a margin
- * and re-sorting in the app keeps that rule authoritative: it only changes the
- * preview if more than {@link SUBJECT_PREVIEW_COUNT} of the most-discussed items
- * are pre-agenda ones, which does not happen — they are the least discussed.
- */
-const SUBJECT_PREVIEW_MARGIN = 9;
-
 const meetingWithSubjectPreviewInclude = {
     subjects: {
-        // Contribution count is the importance sort's primary signal, so the rows
-        // dropped here are the ones it would have ranked last anyway.
+        // Deliberately NOT ordered by `contributions._count` and NOT limited with
+        // `take`. Prisma compiles a nested relation order-by into an unfiltered
+        // `GROUP BY` over the whole SpeakerContribution table, and emits no LIMIT
+        // for a nested take — so both bought three full-table aggregates and read
+        // every row anyway. The app already re-sorts by importance, so ordering
+        // here only has to match the projection this replaced.
         orderBy: [
-            { contributions: { _count: 'desc' as const } },
             { agendaItemIndex: 'asc' as const },
             { name: 'asc' as const },
         ],
-        take: SUBJECT_PREVIEW_COUNT + SUBJECT_PREVIEW_MARGIN,
         select: {
             id: true,
             name: true,
@@ -72,7 +62,6 @@ const meetingWithSubjectPreviewInclude = {
         },
     },
     administrativeBody: true,
-    _count: { select: { subjects: true } },
 } satisfies Prisma.CouncilMeetingInclude;
 
 export type CouncilMeetingWithSubjectPreview = Prisma.CouncilMeetingGetPayload<{
@@ -243,8 +232,8 @@ export async function getCouncilMeetingsForCity(cityId: string, options: Meeting
  * A `Subject` row is mostly prose — its description and context averaged 3.1 kB
  * on the largest city we run — and the full include hands every one of them to
  * a client component to render three titles. This one selects the scalars the
- * card and the importance sort read, and reports the agenda's real size through
- * `_count` rather than through the length of the preview.
+ * card and the importance sort read. Same rows, same query cost; a tenth of the
+ * bytes.
  */
 export async function getCouncilMeetingsWithSubjectPreview(cityId: string, options: MeetingListOptions = {}): Promise<CouncilMeetingWithSubjectPreview[]> {
     try {

@@ -232,7 +232,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
                 {formError && (
-                    <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                    <div className="rounded-[8px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                         {formError}
                     </div>
                 )}
@@ -423,7 +423,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                         control={form.control}
                         name="supportsNotifications"
                         render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between gap-4 rounded-lg border border-border p-3">
+                            <FormItem className="flex flex-row items-center justify-between gap-4 rounded-[8px] border border-border p-3">
                                 <div className="space-y-0.5">
                                     <FormLabel>{t('supportsNotifications')}</FormLabel>
                                     <FormDescription>
@@ -443,7 +443,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                         control={form.control}
                         name="consultationsEnabled"
                         render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between gap-4 rounded-lg border border-border p-3">
+                            <FormItem className="flex flex-row items-center justify-between gap-4 rounded-[8px] border border-border p-3">
                                 <div className="space-y-0.5">
                                     <FormLabel>{t('consultationsEnabled')}</FormLabel>
                                     <FormDescription>

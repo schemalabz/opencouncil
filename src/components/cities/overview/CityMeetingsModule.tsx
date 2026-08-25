@@ -114,7 +114,7 @@ export function CityMeetingsModule({ all, council, cityId, timezone, locale }: C
                             <p className="mt-1 text-xs text-muted-foreground">
                                 {formatDateTime(scoped.latest.dateTime, timezone, 'medium', locale)}
                                 {' · '}
-                                {tMeeting('subjectsCount', { count: scoped.latest._count.subjects })}
+                                {tMeeting('subjectsCount', { count: scoped.latest.subjects.length })}
                             </p>
                         </div>
                     </div>
