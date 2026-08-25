@@ -6,6 +6,7 @@ import type { CityWithCounts } from '@/lib/db/cities';
 import type { CityNotificationPreference } from '@/lib/db/notifications';
 import { getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
+import { NotisConversation } from './NotisConversation';
 
 /** Topic chips before the row stops being scannable; the rest become "+N". */
 const TOPICS_SHOWN = 2;
@@ -22,8 +23,8 @@ interface CityNotificationCardProps {
  *
  * Two states of one card. A reader who already gets them wants to know what
  * they are getting — the old control was a dropdown that said only "manage".
- * A reader who does not needs to be told what these are, and the fastest way
- * to explain a message is to show one.
+ * A reader who does not gets an exchange they can play through, because the
+ * fastest way to explain what Νότης is, is to let him do it.
  *
  * A Server Component: everything here is text the server already has, and the
  * card sits above the fold on every city page.
@@ -56,34 +57,9 @@ function InviteCard({ city, locale }: { city: CityWithCounts; locale: string }) 
                 </span>
             </div>
 
-            {/* The chat surface is the one on the About page's NotificationDemo — same
-                wallpaper, same bubble, same palette — so a reader who has seen one
-                recognises the other. Labelled as an example: it is written to show
-                the shape of a message, and claims nothing about this municipality. */}
-            <div
-                className="p-3"
-                style={{
-                    backgroundColor: '#ECE5DD',
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c9c2b7' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-                }}
-            >
-                <div className="relative max-w-[min(92%,26rem)] rounded-lg rounded-tl-none bg-white px-2.5 pb-1.5 pt-2 shadow-[0_1px_1px_rgba(0,0,0,0.09)]">
-                    <span
-                        className="absolute -left-[7px] top-0 h-0 w-0 border-l-[7px] border-t-[8px] border-l-transparent border-t-white"
-                        aria-hidden
-                    />
-                    <span className="block text-[12px] text-[#075E54]">{t('notisName')}</span>
-                    <span className="mt-0.5 block text-[13px] leading-[18px] text-[#111B21]">
-                        {t('notisExample')}
-                    </span>
-                    <span className="mt-0.5 block text-right text-[10.5px] text-[#667781]">
-                        {t('notisExampleLabel')}
-                    </span>
-                </div>
-            </div>
+            <NotisConversation />
 
-            <div className="flex flex-col gap-3 p-4">
-                <p className="max-w-[46ch] text-[13px] leading-relaxed text-foreground/80">{t('notisPitch')}</p>
+            <div className="flex flex-col gap-3 px-4 pb-4 pt-3">
                 <Link
                     href={`/${city.id}/notifications`}
                     className="group/cta flex h-10 max-w-sm items-center justify-center gap-2 rounded-[10px] bg-foreground text-sm font-medium text-background transition-opacity hover:opacity-90 hover:no-underline"
