@@ -54,6 +54,12 @@ jest.mock('@/lib/db/notifications', () => ({
 // Mock heavy React component trees — we only care about the data-fetch ordering.
 jest.mock('@/components/cities/CityParties', () => ({ __esModule: true, default: () => null }));
 jest.mock('@/components/cities/CityIdentityBand', () => ({ CityIdentityBand: () => null }));
+jest.mock('@/components/cities/overview/HotTopicsCard', () => ({ HotTopicsCard: () => null }));
+jest.mock('@/components/meetings/MeetingCard', () => ({ __esModule: true, default: () => null }));
+jest.mock('@/lib/hotSubjectCards', () => ({ getHotSubjectCards: jest.fn() }));
+// next-intl ships ESM that jest's CJS sandbox can't parse; the overview page
+// reaches it only for <Link>.
+jest.mock('@/i18n/routing', () => ({ Link: () => null }));
 jest.mock('@/components/cities/CityNavigation', () => ({ CityNavigation: () => null }));
 jest.mock('@/components/cities/CityPeople', () => ({ __esModule: true, default: () => null }));
 jest.mock('@/components/meetings/CouncilMeetingWrapper', () => ({ __esModule: true, default: ({ children }: any) => children }));
@@ -262,6 +268,37 @@ describe('PR1: server-side awaits run concurrently', () => {
         upcomingD.resolve([]);
         pastD.resolve([]);
         subjectCountD.resolve(0);
+
+        await pending;
+    });
+
+    it('city overview page.tsx batches hot subjects with the city and its recent meetings', async () => {
+        const cache = require('@/lib/cache');
+        const hotCards = require('@/lib/hotSubjectCards');
+        const intl = require('next-intl/server');
+
+        const cityD = deferred<any>();
+        const hotD = deferred<any[]>();
+        const meetingsD = deferred<any[]>();
+
+        cache.getCityCached.mockReturnValue(cityD.promise);
+        hotCards.getHotSubjectCards.mockReturnValue(hotD.promise);
+        cache.getCouncilMeetingsForCityPublicCached.mockReturnValue(meetingsD.promise);
+
+        const { default: OverviewPage } = require('@/app/[locale]/(city)/[cityId]/(other)/(tabs)/page');
+
+        const pending = OverviewPage({ params: { cityId: 'athens', locale: 'el' } });
+
+        await flushMicrotasks();
+
+        expect(cache.getCityCached).toHaveBeenCalledTimes(1);
+        expect(hotCards.getHotSubjectCards).toHaveBeenCalledTimes(1);
+        expect(cache.getCouncilMeetingsForCityPublicCached).toHaveBeenCalledTimes(1);
+        expect(intl.getTranslations).toHaveBeenCalled();
+
+        cityD.resolve({ id: 'athens', timezone: 'Europe/Athens' });
+        hotD.resolve([]);
+        meetingsD.resolve([]);
 
         await pending;
     });

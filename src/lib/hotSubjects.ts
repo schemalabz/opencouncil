@@ -21,8 +21,21 @@ interface BodyFilter {
     administrativeBodyIds?: string[];
 }
 
+/**
+ * Every subject of the given meetings, minus the ones that cannot be "hot".
+ *
+ * A subject nobody spoke to has no claim on a list of what was discussed, and a
+ * withdrawn one was pulled before it could be. Both would otherwise rank on
+ * recency alone, so a single freshly-released meeting can put an untouched
+ * agenda item at the top — and with zero discussion time behind it, every
+ * comparison drawn against it collapses.
+ */
 function flatten(meetings: Meeting[]): HotSubject[] {
-    return meetings.flatMap(meeting => meeting.subjects.map(subject => ({ subject, meeting })));
+    return meetings.flatMap(meeting =>
+        meeting.subjects
+            .filter(subject => !subject.withdrawn && getContributionCount(subject) > 0)
+            .map(subject => ({ subject, meeting })),
+    );
 }
 
 function adapt(item: HotSubject): RankableSubject {
