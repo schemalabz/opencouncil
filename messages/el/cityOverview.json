@@ -1,6 +1,7 @@
 {
   "nextMeeting": "Επόμενη συνεδρίαση",
   "latestMeeting": "Πιο πρόσφατη συνεδρίαση",
+  "viewMeeting": "Δείτε τη συνεδρίαση",
   "adminBodyUnknown": "Μη καταχωρημένο όργανο",
   "searchSubjects": {
     "municipality": "Αναζήτηση σε {count, number} θέματα στον δήμο {qualifier}",

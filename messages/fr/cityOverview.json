@@ -1,6 +1,7 @@
 {
   "nextMeeting": "Prochaine séance",
   "latestMeeting": "Séance la plus récente",
+  "viewMeeting": "Voir la séance",
   "adminBodyUnknown": "Organe non renseigné",
   "searchSubjects": {
     "municipality": "Rechercher parmi {count, number} points à {qualifier}",

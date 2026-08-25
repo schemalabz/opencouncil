@@ -1,4 +1,4 @@
-import { ChevronRight, Play } from 'lucide-react';
+import { ArrowRight, ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import type { CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
@@ -77,10 +77,12 @@ export function CityMeetingsModule({ next, latest, cityId, timezone, locale }: C
                         </div>
                         <Link
                             href={`/${cityId}/${latest.id}`}
-                            className="mt-4 flex h-10 items-center justify-center gap-2 rounded-[10px] bg-foreground text-sm font-medium text-background transition-opacity hover:opacity-90 hover:no-underline"
+                            // Not a play button: this opens the meeting's record — agenda,
+                            // subjects, transcript — and a video may not exist at all.
+                            className="group/cta mt-4 flex h-10 items-center justify-center gap-2 rounded-[10px] bg-foreground text-sm font-medium text-background transition-opacity hover:opacity-90 hover:no-underline"
                         >
-                            <Play className="h-3.5 w-3.5 fill-current" aria-hidden />
-                            {tMeeting('watchMeeting')}
+                            {t('viewMeeting')}
+                            <ArrowRight className="h-4 w-4 transition-transform group-hover/cta:translate-x-0.5" aria-hidden />
                         </Link>
                     </div>
                 </>
