@@ -15,6 +15,7 @@ CONTENT_TABLES=(
     "SpeakerTag"
     "Subject"
     "Decision"
+    "DecisionCandidate"
     "SubjectAttendance"
     "SubjectVote"
     "MeetingAttendance"
