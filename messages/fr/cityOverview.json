@@ -9,5 +9,15 @@
   },
   "statMeetings": "{count, plural, =0 {Aucune séance} =1 {<n>1</n> séance} other {<n>#</n> séances}}",
   "statPeople": "{count, plural, =0 {Aucune personne} =1 {<n>1</n> personne} other {<n>#</n> personnes}}",
-  "statParties": "{count, plural, =0 {Aucun groupe} =1 {<n>1</n> groupe} other {<n>#</n> groupes}}"
+  "statParties": "{count, plural, =0 {Aucun groupe} =1 {<n>1</n> groupe} other {<n>#</n> groupes}}",
+  "hotTopicsEyebrow": "Sujets",
+  "hotTopicsTitle": "Récemment très débattus",
+  "hotTopicsExplainer": "Classement selon la durée du débat, l'ancienneté et l'organe concerné.",
+  "noHotTopics": "Rien n'a encore été débattu lors des séances les plus récentes.",
+  "viewSubject": "Voir le point",
+  "discussionMinutes": "{minutes, number}′ de débat",
+  "speakerCount": "{count, plural, =1 {1 intervenant} other {# intervenants}}",
+  "recentMeetingsEyebrow": "Séances",
+  "recentMeetingsTitle": "Séances récentes",
+  "allMeetings": "Toutes les séances"
 }
