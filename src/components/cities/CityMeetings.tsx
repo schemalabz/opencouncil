@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { AdministrativeBodyType } from '@prisma/client';
 import List from '@/components/List';
-import MeetingCard from '@/components/meetings/MeetingCard';
+import MeetingCardV2 from '@/components/meetings/MeetingCardV2';
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
 import { CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
 import { getAdministrativeBodyTypesForMeetings, filterMeetingByAdminBodyTypes, getBodiesOfTypeFromMeetings } from '@/lib/utils/administrativeBodies';
@@ -69,7 +69,7 @@ export default function CityMeetings({
         <List<CouncilMeetingWithAdminBodyAndSubjects, { cityTimezone: string }, AdministrativeBodyType>
             items={councilMeetings}
             editable={canEdit}
-            ItemComponent={MeetingCard}
+            ItemComponent={MeetingCardV2}
             itemProps={{ cityTimezone: timezone }}
             FormComponent={AddMeetingForm}
             formProps={{ cityId }}
