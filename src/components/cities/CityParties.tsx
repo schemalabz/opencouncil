@@ -33,6 +33,9 @@ export default function CityParties({
                 FormComponent={PartyForm}
                 formProps={{ cityId }}
                 t={t}
+                // One search per page: the identity band owns it. The count stays.
+                showSearch={false}
+                showCount
                 smColumns={1}
                 mdColumns={2}
                 lgColumns={3}
