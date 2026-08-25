@@ -3,7 +3,8 @@ import { Metadata } from "next";
 import { ArrowRight } from "lucide-react";
 import MeetingCardV2 from "@/components/meetings/MeetingCardV2";
 import { HotTopicsCard } from "@/components/cities/overview/HotTopicsCard";
-import { getCityCached, getCouncilMeetingsPreviewPublicCached } from "@/lib/cache";
+import { CouncilBand } from "@/components/cities/overview/CouncilBand";
+import { getCityCached, getCouncilMeetingsPreviewPublicCached, getPartiesForCityCached, getPeopleForCityCached } from "@/lib/cache";
 import { getHotSubjectCardsCached } from "@/lib/hotSubjectCards";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getLocalizedName } from "@/lib/formatters/name";
@@ -86,10 +87,14 @@ export default async function CityOverviewPage(
         locale
     } = params;
 
-    const [city, hotCards, recentMeetings, t] = await Promise.all([
+    // The roster is read here rather than in the layout: only this tab renders it,
+    // and CouncilBand is a Server Component, so none of it reaches the client.
+    const [city, hotCards, recentMeetings, parties, people, t] = await Promise.all([
         getCityCached(cityId),
         getHotSubjectCardsCached(cityId, { limit: HOT_SUBJECTS }),
         getCouncilMeetingsPreviewPublicCached(cityId, { limit: RECENT_MEETINGS, timeFilter: 'past' }),
+        getPartiesForCityCached(cityId),
+        getPeopleForCityCached(cityId),
         getTranslations({ locale, namespace: 'cityOverview' }),
     ]);
 
@@ -131,6 +136,8 @@ export default async function CityOverviewPage(
                     </div>
                 </section>
             )}
+
+            <CouncilBand parties={parties} people={people} city={city} locale={locale} />
         </div>
     );
 }

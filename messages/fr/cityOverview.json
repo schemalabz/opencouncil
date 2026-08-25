@@ -22,5 +22,14 @@
   "allMeetings": "Toutes les séances",
   "scopeCouncil": "Conseil",
   "scopeAll": "Tous",
-  "noMeetingsForScope": "Aucune séance de cet organe pour l'instant."
+  "noMeetingsForScope": "Aucune séance de cet organe pour l'instant.",
+  "councilEyebrow": "Le conseil municipal",
+  "councilTitle": "Groupes et élus",
+  "allParties": "Tous les groupes",
+  "allPeople": "Tous les élus",
+  "peopleEyebrow": "{count, plural, =1 {1 membre} other {# membres}}",
+  "seatsInCouncil": "{count, plural, =1 {siège au conseil} other {sièges au conseil}}",
+  "partyMembers": "{count, plural, =1 {membre} other {membres}}",
+  "mayorsParty": "Groupe du maire",
+  "inCommittees": "{count} en commissions"
 }
