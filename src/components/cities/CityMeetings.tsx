@@ -6,14 +6,14 @@ import { AdministrativeBodyType } from '@prisma/client';
 import List from '@/components/List';
 import MeetingCardV2 from '@/components/meetings/MeetingCardV2';
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
-import { CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
+import { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 import { getAdministrativeBodyTypesForMeetings, filterMeetingByAdminBodyTypes, getBodiesOfTypeFromMeetings } from '@/lib/utils/administrativeBodies';
 import { PaginationParams } from '@/lib/db/types';
 import { AdminBodyPicker, type AdminBodyGroup } from '@/components/ui/admin-body-picker';
 import { updateBodyFilterURL, resolveBodyFromURL } from '@/lib/utils/filterURL';
 
 type CityMeetingsProps = {
-    councilMeetings: CouncilMeetingWithAdminBodyAndSubjects[],
+    councilMeetings: CouncilMeetingWithSubjectPreview[],
     cityId: string,
     timezone: string,
     canEdit: boolean,
@@ -66,7 +66,7 @@ export default function CityMeetings({
     }, [searchParams, councilMeetings, typeOptions]);
 
     return (
-        <List<CouncilMeetingWithAdminBodyAndSubjects, { cityTimezone: string }, AdministrativeBodyType>
+        <List<CouncilMeetingWithSubjectPreview, { cityTimezone: string }, AdministrativeBodyType>
             items={councilMeetings}
             editable={canEdit}
             ItemComponent={MeetingCardV2}
