@@ -8,7 +8,7 @@ import { sortSubjectsByDiscussionOrder } from "../minutes/builders";
 
 import { upsertDecision, deleteDecision, getDecisionForSubject, DECISION_ELIGIBLE_SUBJECT_WHERE } from "../db/decisions";
 export { getDecisionForSubject };
-import { withUserAuthorizedToEdit } from "../auth";
+import { getCurrentUser, withUserAuthorizedToEdit } from "../auth";
 import { getPeopleForMeeting } from "../db/people";
 import { deriveWindowDays, localCalendarDate } from "./decisionWindow";
 import { getConflictingCandidates, applyCandidateConflictResolution } from "../db/decisionCandidates";
@@ -22,6 +22,16 @@ export async function requestPollDecisions(
     options?: { forceExtract?: boolean },
 ) {
     await withUserAuthorizedToEdit({ cityId });
+
+    // The plain poll stays city-admin: a manual link starts extraction
+    // automatically through this path. Cache-busting re-extraction is a
+    // superadmin cost operation, matching the decisions-page UI tiering.
+    if (options?.forceExtract) {
+        const user = await getCurrentUser();
+        if (!user?.isSuperAdmin) {
+            throw new Error('Superadmin required for forced re-extraction');
+        }
+    }
 
     return pollDecisionsForMeeting(cityId, councilMeetingId, options);
 }
@@ -713,7 +723,7 @@ export async function requestPollDecisionForSubject(subjectId: string): Promise<
 
 /**
  * Returns polling history and current backoff state for a specific meeting.
- * Used by the DecisionsPanel to show polling status.
+ * Used by the meeting decisions page to show polling status.
  */
 export async function getPollingHistoryForMeeting(
     cityId: string,
@@ -1261,7 +1271,7 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
 
                     // TODO: Re-enable once the codebase stops using `agendaItemIndex !== null`
                     // as a proxy for "is a regular agenda item". Currently, most display
-                    // and categorization logic (categorizeSubjects, sidebar, DecisionsPanel,
+                    // and categorization logic (categorizeSubjects, sidebar, the meeting decisions page,
                     // subject-card, MinutesPreviewContent, subject-helpers upsert matching,
                     // etc.) assumes outOfAgenda subjects have agendaItemIndex === null.
                     // Setting it here causes them to be miscategorized as regular agenda

@@ -13,6 +13,16 @@ export { shapeCandidates, type MeetingCandidate, type AdaHolder } from "./decisi
  * assignment through onDelete: SetNull — no code needed here for revert.
  */
 
+/** The decision ids among `decisionIds` that a candidate row backs (unlink is reversible for these). */
+export async function getBackedDecisionIds(decisionIds: string[]): Promise<Set<string>> {
+    if (decisionIds.length === 0) return new Set();
+    const backed = await prisma.decisionCandidate.findMany({
+        where: { decisionId: { in: decisionIds } },
+        select: { decisionId: true },
+    });
+    return new Set(backed.map(b => b.decisionId).filter((id): id is string => id !== null));
+}
+
 export async function getUnresolvedCandidatesForMeeting(cityId: string, meetingId: string): Promise<MeetingCandidate[]> {
     const rows = await prisma.decisionCandidate.findMany({
         where: {

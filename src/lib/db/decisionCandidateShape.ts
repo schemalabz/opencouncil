@@ -35,7 +35,11 @@ export interface AdaHolder {
 export function shapeCandidates(rows: CandidateRow[], holders: AdaHolder[]): MeetingCandidate[] {
     const holderByAda = new Map(holders.map(h => [h.ada, h]));
     return rows.map(r => {
-        const holder = holderByAda.get(r.ada);
+        // A holder that IS the candidate's own suggested subject is a stale
+        // claim (the admin linked it manually), not an actionable conflict —
+        // parity with getConflictingCandidates in decisionCandidates.ts.
+        const rawHolder = holderByAda.get(r.ada);
+        const holder = rawHolder && rawHolder.subjectId !== r.subjectId ? rawHolder : undefined;
         return {
             id: r.id,
             ada: r.ada,

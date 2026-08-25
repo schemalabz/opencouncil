@@ -11,13 +11,15 @@ import { UploadConfig } from "@/types/upload"
 
 export interface LinkOrDropProps
     extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onProgress'> {
+    /** Styles the inner Input (the outer className styles the wrapper). */
+    inputClassName?: string;
     onUrlChange?: (url: string) => void
     onProgress?: (percentage: number) => void
     config?: UploadConfig
 }
 
 const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
-    ({ className, onUrlChange, onProgress, config, ...props }, ref) => {
+    ({ className, inputClassName, onUrlChange, onProgress, config, ...props }, ref) => {
         const [isDragging, setIsDragging] = React.useState(false)
         const [isUploading, setIsUploading] = React.useState(false)
         const [showCheck, setShowCheck] = React.useState(false)
@@ -197,6 +199,7 @@ const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
                         {...props}
                         className={cn(
                             "pr-20",
+                            inputClassName,
                             uploadError && "border-destructive focus-visible:ring-destructive"
                         )}
                     />
@@ -232,7 +235,7 @@ const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
                         </AnimatePresence>
                         <button
                             type="button"
-                            className="h-6 w-6 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+                            className="inline-flex h-6 w-6 items-center justify-center rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
                             onClick={() => fileInputRef.current?.click()}
                         >
                             <Upload className="h-4 w-4" />

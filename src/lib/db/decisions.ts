@@ -20,6 +20,8 @@ export const DECISION_ELIGIBLE_SUBJECT_WHERE = {
 export type DecisionWithSource = Decision & {
     task: TaskStatus | null;
     createdBy: User | null;
+    /** True when a DecisionCandidate row backs this decision, making unlink reversible. Set by the meeting decisions GET route. */
+    candidateBacked?: boolean;
 };
 
 export async function getDecisionsForMeeting(cityId: string, meetingId: string): Promise<DecisionWithSource[]> {
@@ -40,6 +42,7 @@ export async function getDecisionsForMeeting(cityId: string, meetingId: string):
 export interface UpsertDecisionData {
     subjectId: string;
     pdfUrl: string;
+    decisionNumber?: string;
     protocolNumber?: string;
     ada?: string;
     title?: string;
@@ -54,6 +57,7 @@ export async function upsertDecision(data: UpsertDecisionData): Promise<Decision
         create: {
             subjectId: data.subjectId,
             pdfUrl: data.pdfUrl,
+            decisionNumber: data.decisionNumber ?? null,
             protocolNumber: data.protocolNumber ?? null,
             ada: data.ada ?? null,
             title: data.title ?? null,
@@ -63,6 +67,7 @@ export async function upsertDecision(data: UpsertDecisionData): Promise<Decision
         },
         update: {
             pdfUrl: data.pdfUrl,
+            decisionNumber: data.decisionNumber ?? null,
             protocolNumber: data.protocolNumber ?? null,
             ada: data.ada ?? null,
             title: data.title ?? null,

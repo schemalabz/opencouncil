@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { getCurrentUser, withUserAuthorizedToEdit } from '@/lib/auth';
 import { getDecisionsForMeeting, getExtractedDataForMeeting, getMeetingAttendance, upsertDecision, deleteDecision, clearExtractedDataForMeeting, resetExtractionForSubject } from '@/lib/db/decisions';
-import { getUnresolvedCandidatesForMeeting, assignCandidate, dismissCandidate } from '@/lib/db/decisionCandidates';
+import { getUnresolvedCandidatesForMeeting, assignCandidate, dismissCandidate, getBackedDecisionIds } from '@/lib/db/decisionCandidates';
 import prisma from '@/lib/db/prisma';
 import { revalidateTag } from 'next/cache';
 import { z } from 'zod';
@@ -20,12 +20,20 @@ export async function GET(
         getMeetingAttendance(params.cityId, params.meetingId),
         getUnresolvedCandidatesForMeeting(params.cityId, params.meetingId),
     ]);
-    return NextResponse.json({ decisions, extractedData, meetingAttendance, candidates });
+
+    // Unlink is only reversible when a candidate row backs the decision
+    // (onDelete: SetNull returns it to the unplaced pool). The UI warns
+    // before unlinking the unbacked rest (legacy ADA-less decisions).
+    const backedIds = await getBackedDecisionIds(decisions.map((d) => d.id));
+    const decisionsWithBacking = decisions.map((d) => ({ ...d, candidateBacked: backedIds.has(d.id) }));
+
+    return NextResponse.json({ decisions: decisionsWithBacking, extractedData, meetingAttendance, candidates });
 }
 
 const upsertSchema = z.object({
     subjectId: z.string().min(1),
-    pdfUrl: z.string().url(),
+    pdfUrl: z.string().url().refine(u => /^https?:\/\//.test(u), 'pdfUrl must be http(s)'),
+    decisionNumber: z.string().optional(),
     protocolNumber: z.string().optional(),
     ada: z.string().optional(),
     title: z.string().optional(),
@@ -42,8 +50,21 @@ export async function PUT(
     const session = await auth();
     const userId = session?.user?.id;
 
-    const body = await request.json();
-    const parsed = upsertSchema.parse(body);
+    const body = await request.json().catch(() => null);
+    const result = upsertSchema.safeParse(body);
+    if (!result.success) {
+        return NextResponse.json({ error: 'Invalid decision', details: result.error.errors }, { status: 400 });
+    }
+    const parsed = result.data;
+
+    // Decision.ada is unique: an ADA already linked to another subject must
+    // surface as a readable conflict, not a Prisma P2002 500.
+    if (parsed.ada) {
+        const holder = await prisma.decision.findUnique({ where: { ada: parsed.ada }, select: { subjectId: true } });
+        if (holder && holder.subjectId !== parsed.subjectId) {
+            return NextResponse.json({ error: 'This decision is already linked to another subject' }, { status: 409 });
+        }
+    }
 
     // Verify the subject belongs to this city and meeting
     const subject = await prisma.subject.findFirst({
@@ -64,6 +85,7 @@ export async function PUT(
     const decision = await upsertDecision({
         subjectId: parsed.subjectId,
         pdfUrl: parsed.pdfUrl,
+        decisionNumber: parsed.decisionNumber,
         protocolNumber: parsed.protocolNumber,
         ada: parsed.ada,
         title: parsed.title,
@@ -123,11 +145,20 @@ export async function POST(
     const params = await props.params;
     await withUserAuthorizedToEdit({ cityId: params.cityId });
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
     const parsed = postSchema.safeParse(body);
 
     if (!parsed.success) {
         return NextResponse.json({ error: 'Invalid action', details: parsed.error.errors }, { status: 400 });
+    }
+
+    // Destructive extraction operations are superadmin-only; the city-admin
+    // tier only manages links (assign/dismiss, and PUT/DELETE above).
+    if (parsed.data.action === 'clearExtractedData' || parsed.data.action === 'resetExtraction') {
+        const user = await getCurrentUser();
+        if (!user?.isSuperAdmin) {
+            return NextResponse.json({ error: 'Superadmin required' }, { status: 403 });
+        }
     }
 
     if (parsed.data.action === 'clearExtractedData') {
