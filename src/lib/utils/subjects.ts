@@ -88,3 +88,25 @@ export function getWithdrawnLabel(t: Translate, subject: { nonAgendaReason: stri
     return mode === 'short' ? t('withdrawnShort') : t('withdrawnLong');
 }
 
+/**
+ * The floor for a discussion-time bar, as a percentage. A subject that was
+ * discussed for seconds still gets a visible mark: a hairline reads as a
+ * rendering fault rather than as "barely discussed".
+ */
+const HOT_TOPIC_BAR_MIN_PCT = 6;
+
+/**
+ * Width of a subject's discussion-time bar, as a percentage of the most-discussed
+ * subject in the same list. Ranking is relative by design — the bar answers "how
+ * does this compare with the one at the top", not "how long in absolute terms",
+ * which the minutes label already says.
+ *
+ * `maxSeconds <= 0` means nothing in the list has been transcribed yet, so there is
+ * no ratio to draw; every bar sits at the floor.
+ */
+export function hotTopicBarWidth(seconds: number, maxSeconds: number): number {
+    if (maxSeconds <= 0) return HOT_TOPIC_BAR_MIN_PCT;
+    const pct = (100 * Math.max(0, seconds)) / maxSeconds;
+    return Math.min(100, Math.max(HOT_TOPIC_BAR_MIN_PCT, pct));
+}
+

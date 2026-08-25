@@ -34,6 +34,14 @@ interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
     filter?: (selectedValues: F[], item: T) => boolean;
     allText?: string;
     showSearch?: boolean;
+    /**
+     * The "N items" line. Defaults to `showSearch`, which used to gate it too.
+     * Split out because a list can want one without the other: the city tabs drop
+     * the search box in favour of the page's single search, but still need the
+     * count — it reports the *filtered* total, which the page header (a city-wide
+     * total) cannot stand in for once a filter is applied.
+     */
+    showCount?: boolean;
     defaultFilterValues?: F[];
     pagination?: Omit<PaginationParams, 'totalPages'>;
     renderFilter?: (props: { selectedValues: F[], onChange: (values: F[]) => void }) => React.ReactNode;
@@ -55,6 +63,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     lgColumns = 3,
     allText,
     showSearch = true,
+    showCount,
     layout = 'grid',
     carouselItemWidth = 300,
     carouselGap = 16,
@@ -149,6 +158,8 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
         return true;
     });
 
+    const countVisible = showCount ?? showSearch;
+
     // Client-side pagination — read current page from URL to avoid
     // depending on server component re-renders for page changes.
     const urlPage = parseInt(searchParams.get('page') || '1', 10);
@@ -214,9 +225,9 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
 
     return (
         <div ref={listRef} className="space-y-6">
-            {(showSearch || editable) && (
+            {(countVisible || editable) && (
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    {showSearch && (
+                    {countVisible && (
                         <p className="text-sm text-muted-foreground">{t('items', { count: filteredItems.length })}</p>
                     )}
                     {editable && (
