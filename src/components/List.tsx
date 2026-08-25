@@ -225,17 +225,10 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
 
     return (
         <div ref={listRef} className="space-y-6">
-            {(countVisible || editable) && (
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    {countVisible && (
-                        <p className="text-sm text-muted-foreground">{t('items', { count: filteredItems.length })}</p>
-                    )}
-                    {editable && (
-                        <FormSheet FormComponent={FormComponent} formProps={formProps} title={t('addItem', { title: t('item') })} type="add" closeOnSuccess={true} />
-                    )}
-                </div>
-            )}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            {/* One toolbar, not two stacked rows. The filter, the total it produces
+                and the control that adds to it are the same thought, and splitting
+                them put the count above a row it was describing. */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
                 {renderFilter ? (
                     renderFilter({ selectedValues: selectedFilters, onChange: handleFilterChange })
                 ) : filterAvailableValues && filterAvailableValues.length > 0 ? (
@@ -248,8 +241,8 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                     />
                 ) : null}
                 {showSearch && (
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                    <div className="relative min-w-[12rem] flex-1">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder={t('searchItems')}
                             className="pl-10 w-full h-9"
@@ -258,6 +251,23 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                         />
                     </div>
                 )}
+                <div className="ml-auto flex items-center gap-3">
+                    {countVisible && (
+                        <p className="text-sm text-muted-foreground">{t('items', { count: filteredItems.length })}</p>
+                    )}
+                    {editable && (
+                        <FormSheet
+                            FormComponent={FormComponent}
+                            formProps={formProps}
+                            title={t('addItem', { title: t('item') })}
+                            type="add"
+                            closeOnSuccess={true}
+                            triggerVariant="outline"
+                            triggerSize="sm"
+                            triggerClassName="h-8 rounded-full px-3 text-xs"
+                        />
+                    )}
+                </div>
             </div>
             {typeof renderAfterFilters === 'function' ? renderAfterFilters(selectedFilters) : renderAfterFilters}
             {filteredItems.length > 0 ? (
