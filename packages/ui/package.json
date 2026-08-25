@@ -40,7 +40,7 @@
     "date-fns": "^3.6.0",
     "framer-motion": "^12.40.0",
     "lucide-react": "^0.436.0",
-    "react-day-picker": "^8.10.1",
+    "react-day-picker": "^10.0.1",
     "react-hook-form": "^7.53.0",
     "react-international-phone": "^4.4.0",
     "recharts": "^2.15.0",
