@@ -68,6 +68,13 @@ function discussionSecondsFor(candidates: HotSubject[]): Promise<Map<string, num
     return getDiscussionSecondsForSubjects(candidates.map(c => c.subject.id));
 }
 
+/** Rank the subjects of an already-fetched window of meetings. */
+async function rankSubjectsOf(meetings: Meeting[], limit: number): Promise<HotSubject[]> {
+    const candidates = flatten(meetings);
+    const seconds = await discussionSecondsFor(candidates);
+    return sortByRanking(candidates, adapter(seconds)).slice(0, limit);
+}
+
 /** Recent hottest subjects across a city's recent past meetings (no location filter). */
 export async function getRecentHotSubjects(
     cityId: string,
@@ -76,9 +83,21 @@ export async function getRecentHotSubjects(
     const meetings = await getCouncilMeetingsForCityPublicCached(cityId, {
         limit: HOT_MEETING_WINDOW, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
     });
-    const candidates = flatten(meetings);
-    const seconds = await discussionSecondsFor(candidates);
-    return sortByRanking(candidates, adapter(seconds)).slice(0, limit);
+    return rankSubjectsOf(meetings, limit);
+}
+
+/**
+ * {@link getRecentHotSubjects} off the uncached meetings query, for callers that
+ * run inside createCache — unstable_cache must never nest.
+ */
+export async function computeRecentHotSubjects(
+    cityId: string,
+    { limit, administrativeBodyTypes, administrativeBodyIds }: BodyFilter & { limit: number }
+): Promise<HotSubject[]> {
+    const meetings = await getCouncilMeetingsForCity(cityId, {
+        includeUnreleased: false, limit: HOT_MEETING_WINDOW, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
+    });
+    return rankSubjectsOf(meetings, limit);
 }
 
 async function rankSubjectsNearPoint(
