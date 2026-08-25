@@ -71,8 +71,6 @@
             "notificationsSubtitle": "Креирајте обавештења за кориснике заинтересоване за теме ове седнице.",
             "cacheManagement": "Управљање кешом",
             "cacheManagementSubtitle": "Принудно освежите кеширане податке да бисте одмах видели најновије измене.",
-            "decisions": "Одлуке",
-            "decisionsSubtitle": "Повежите одлуке из система Diavgeia са темама седнице.",
             "minutes": "Преглед записника",
             "minutesSubtitle": "Прегледајте и извезите записник седнице као DOCX из података у бази.",
             "export": "Извоз",
@@ -92,7 +90,6 @@
             "starting": "Покретање...",
             "syncing": "Синхронизација...",
             "process": "Обради",
-            "manageDecisions": "Управљај одлукама",
             "extractDecisions": "Издвоји одлуке",
             "previewMinutes": "Преглед записника",
             "exportMinutesDocx": "Извези DOCX"

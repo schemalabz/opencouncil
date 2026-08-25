@@ -71,8 +71,6 @@
       "notificationsSubtitle": "Create notifications for users interested in this meeting's subjects.",
       "cacheManagement": "Cache Management",
       "cacheManagementSubtitle": "Force refresh of cached data to see latest changes immediately.",
-      "decisions": "Decisions",
-      "decisionsSubtitle": "Link Diavgeia decisions to meeting subjects.",
       "minutes": "Minutes Preview",
       "minutesSubtitle": "Preview and export meeting minutes as DOCX from database data.",
       "export": "Export",
@@ -92,7 +90,6 @@
       "starting": "Starting...",
       "syncing": "Syncing...",
       "process": "Process",
-      "manageDecisions": "Manage Decisions",
       "extractDecisions": "Extract Decisions",
       "previewMinutes": "Preview Minutes",
       "exportMinutesDocx": "Export DOCX"

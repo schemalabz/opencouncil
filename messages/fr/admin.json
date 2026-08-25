@@ -71,8 +71,6 @@
       "notificationsSubtitle": "Créez des notifications pour les utilisateurs intéressés par les sujets de cette séance.",
       "cacheManagement": "Gestion du cache",
       "cacheManagementSubtitle": "Forcez l'actualisation des données en cache pour voir immédiatement les dernières modifications.",
-      "decisions": "Décisions",
-      "decisionsSubtitle": "Associez les décisions Diavgeia aux sujets de la séance.",
       "minutes": "Aperçu des procès-verbaux",
       "minutesSubtitle": "Prévisualisez et exportez les procès-verbaux de la séance au format DOCX à partir des données de la base.",
       "export": "Exporter",
@@ -92,7 +90,6 @@
       "starting": "Démarrage...",
       "syncing": "Synchronisation...",
       "process": "Traiter",
-      "manageDecisions": "Gérer les décisions",
       "extractDecisions": "Extraire les décisions",
       "previewMinutes": "Aperçu des procès-verbaux",
       "exportMinutesDocx": "Exporter en DOCX"
