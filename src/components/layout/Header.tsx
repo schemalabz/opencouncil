@@ -368,7 +368,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
     );
 
     const renderLogo = () => (
-        <div className="flex items-center gap-1 sm:gap-2 md:gap-4 z-10 h-full">
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2 md:gap-4 z-10 h-full">
             {showSidebarTrigger && <SidebarTrigger className={cn("h-5 w-5 text-muted-foreground/60", isMeetingContext && "hidden sm:flex")} />}
             <Link href="/" className="flex items-center gap-1 sm:gap-2 md:gap-3 shrink-0 h-full py-0 sm:py-2">
                 <Image
@@ -376,7 +376,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                     alt='logo'
                     width={120}
                     height={120}
-                    className="h-14 sm:h-12 md:h-14 w-auto object-contain transition-transform"
+                    className="h-10 sm:h-12 md:h-14 w-auto object-contain transition-transform"
                 />
                 {dynamicPath.length === 0 && (
                     <span className="text-sm sm:text-lg md:text-xl md:hidden">OpenCouncil</span>
