@@ -55,7 +55,7 @@ jest.mock('@/lib/db/notifications', () => ({
 jest.mock('@/components/cities/CityParties', () => ({ __esModule: true, default: () => null }));
 jest.mock('@/components/cities/CityIdentityBand', () => ({ CityIdentityBand: () => null }));
 jest.mock('@/components/cities/overview/HotTopicsCard', () => ({ HotTopicsCard: () => null }));
-jest.mock('@/components/meetings/MeetingCard', () => ({ __esModule: true, default: () => null }));
+jest.mock('@/components/meetings/MeetingCardV2', () => ({ __esModule: true, default: () => null }));
 jest.mock('@/lib/hotSubjectCards', () => ({ getHotSubjectCards: jest.fn() }));
 // next-intl ships ESM that jest's CJS sandbox can't parse; the overview page
 // reaches it only for <Link>.
