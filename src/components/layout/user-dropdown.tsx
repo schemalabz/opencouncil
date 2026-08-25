@@ -75,7 +75,7 @@ export default function UserDropdown({ currentEntity }: { currentEntity?: { city
                     <span className="hidden md:inline">
                         {greeting}
                     </span>
-                    {canEdit && <ShieldCheck className="h-4 w-4 ml-4 text-blue-500" />}
+                    {canEdit && <ShieldCheck className="h-4 w-4 md:ml-4 text-blue-500" />}
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end">
