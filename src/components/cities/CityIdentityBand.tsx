@@ -1,13 +1,12 @@
 import { City, CityMessage as CityMessageType } from '@prisma/client';
 import { useTranslations } from 'next-intl';
 import type { CityWithCounts } from '@/lib/db/cities';
-import type { CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
 import { getLocalizedMunicipalityName } from '@/lib/formatters/name';
 import { CityMessage } from '@/components/cities/CityMessage';
 import { CityAdminTools } from '@/components/cities/CityAdminTools';
 import { CityHeaderActions } from '@/components/cities/CityHeaderActions';
 import { CitySearchForm } from '@/components/cities/CitySearchForm';
-import { CityMeetingsModule } from '@/components/cities/overview/CityMeetingsModule';
+import { CityMeetingsModule, type MeetingBookends } from '@/components/cities/overview/CityMeetingsModule';
 import { OfficialSupportBadge } from '@/components/cities/OfficialSupportBadge';
 
 type CityIdentityBandProps = {
@@ -18,8 +17,8 @@ type CityIdentityBandProps = {
     isSuperAdmin: boolean;
     hasNoData: boolean;
     hasNotifications: boolean;
-    nextMeeting: CouncilMeetingWithAdminBodyAndSubjects | null;
-    latestMeeting: CouncilMeetingWithAdminBodyAndSubjects | null;
+    allMeetings: MeetingBookends;
+    councilMeetings: MeetingBookends;
     subjectCount: number;
     locale: string;
 };
@@ -44,8 +43,8 @@ export function CityIdentityBand({
     isSuperAdmin,
     hasNoData,
     hasNotifications,
-    nextMeeting,
-    latestMeeting,
+    allMeetings,
+    councilMeetings,
     subjectCount,
     locale,
 }: CityIdentityBandProps) {
@@ -104,8 +103,8 @@ export function CityIdentityBand({
                         hasNoData={hasNoData}
                     />
                     <CityMeetingsModule
-                        next={nextMeeting}
-                        latest={latestMeeting}
+                        all={allMeetings}
+                        council={councilMeetings}
                         cityId={city.id}
                         timezone={city.timezone}
                         locale={locale}

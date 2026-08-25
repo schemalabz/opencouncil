@@ -19,5 +19,8 @@
   "speakerCount": "{count, plural, =1 {1 speaker} other {# speakers}}",
   "recentMeetingsEyebrow": "Meetings",
   "recentMeetingsTitle": "Recent meetings",
-  "allMeetings": "All meetings"
+  "allMeetings": "All meetings",
+  "scopeCouncil": "Council",
+  "scopeAll": "All",
+  "noMeetingsForScope": "No meetings from this body yet."
 }

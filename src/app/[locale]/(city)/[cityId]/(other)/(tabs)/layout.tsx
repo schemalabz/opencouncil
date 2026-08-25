@@ -27,7 +27,11 @@ export default async function TabsLayout(
     // The two bookend meetings are queried separately rather than sliced from one
     // list: 'upcoming' sorts ascending and 'past' descending, so a single ordering
     // cannot put both at the front.
-    const [city, cityMessage, parties, people, currentUser, canEdit, upcoming, past, subjectCount] = await Promise.all([
+    //
+    // Both scopes are fetched up front so the band's scope switch is instant. All
+    // four are cached and narrow (limit 1), and the council-only pair is what the
+    // page shows for cities whose committees meet far more often than the council.
+    const [city, cityMessage, parties, people, currentUser, canEdit, upcoming, past, councilUpcoming, councilPast, subjectCount] = await Promise.all([
         getCityCached(cityId),
         getCityMessageCached(cityId),
         getPartiesForCityCached(cityId),
@@ -36,6 +40,8 @@ export default async function TabsLayout(
         isUserAuthorizedToEdit({ cityId }),
         getCouncilMeetingsForCityPublicCached(cityId, { timeFilter: 'upcoming', limit: 1 }),
         getCouncilMeetingsForCityPublicCached(cityId, { timeFilter: 'past', limit: 1 }),
+        getCouncilMeetingsForCityPublicCached(cityId, { timeFilter: 'upcoming', limit: 1, administrativeBodyTypes: ['council'] }),
+        getCouncilMeetingsForCityPublicCached(cityId, { timeFilter: 'past', limit: 1, administrativeBodyTypes: ['council'] }),
         getSubjectCountForCityCached(cityId),
     ]);
 
@@ -65,8 +71,8 @@ export default async function TabsLayout(
                     isSuperAdmin={isSuperAdmin}
                     hasNoData={hasNoData}
                     hasNotifications={hasNotifications}
-                    nextMeeting={upcoming[0] ?? null}
-                    latestMeeting={past[0] ?? null}
+                    allMeetings={{ next: upcoming[0] ?? null, latest: past[0] ?? null }}
+                    councilMeetings={{ next: councilUpcoming[0] ?? null, latest: councilPast[0] ?? null }}
                     subjectCount={subjectCount}
                     locale={locale}
                 />

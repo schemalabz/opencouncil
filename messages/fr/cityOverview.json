@@ -19,5 +19,8 @@
   "speakerCount": "{count, plural, =1 {1 intervenant} other {# intervenants}}",
   "recentMeetingsEyebrow": "Séances",
   "recentMeetingsTitle": "Séances récentes",
-  "allMeetings": "Toutes les séances"
+  "allMeetings": "Toutes les séances",
+  "scopeCouncil": "Conseil",
+  "scopeAll": "Tous",
+  "noMeetingsForScope": "Aucune séance de cet organe pour l'instant."
 }

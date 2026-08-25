@@ -229,6 +229,8 @@ describe('PR1: server-side awaits run concurrently', () => {
         const canEditD = deferred<boolean>();
         const upcomingD = deferred<any[]>();
         const pastD = deferred<any[]>();
+        const councilUpcomingD = deferred<any[]>();
+        const councilPastD = deferred<any[]>();
         const subjectCountD = deferred<number>();
 
         cache.getCityCached.mockReturnValue(cityD.promise);
@@ -239,7 +241,9 @@ describe('PR1: server-side awaits run concurrently', () => {
         auth.isUserAuthorizedToEdit.mockReturnValue(canEditD.promise);
         cache.getCouncilMeetingsForCityPublicCached
             .mockReturnValueOnce(upcomingD.promise)
-            .mockReturnValueOnce(pastD.promise);
+            .mockReturnValueOnce(pastD.promise)
+            .mockReturnValueOnce(councilUpcomingD.promise)
+            .mockReturnValueOnce(councilPastD.promise);
         cache.getSubjectCountForCityCached.mockReturnValue(subjectCountD.promise);
 
         const { default: TabsLayout } = require('@/app/[locale]/(city)/[cityId]/(other)/(tabs)/layout');
@@ -254,7 +258,11 @@ describe('PR1: server-side awaits run concurrently', () => {
         expect(cache.getPeopleForCityCached).toHaveBeenCalledTimes(1);
         expect(auth.getCurrentUser).toHaveBeenCalledTimes(1);
         expect(auth.isUserAuthorizedToEdit).toHaveBeenCalledTimes(1);
-        expect(cache.getCouncilMeetingsForCityPublicCached).toHaveBeenCalledTimes(2);
+        // Both scopes of both bookends: the band's scope switch must not refetch.
+        expect(cache.getCouncilMeetingsForCityPublicCached).toHaveBeenCalledTimes(4);
+        expect(cache.getCouncilMeetingsForCityPublicCached).toHaveBeenCalledWith('athens', {
+            timeFilter: 'past', limit: 1, administrativeBodyTypes: ['council'],
+        });
         expect(cache.getSubjectCountForCityCached).toHaveBeenCalledTimes(1);
         // The notification preference needs the user, so it must NOT be in the batch.
         expect(notifications.getNotificationPreferenceForCity).not.toHaveBeenCalled();
@@ -267,6 +275,8 @@ describe('PR1: server-side awaits run concurrently', () => {
         canEditD.resolve(false);
         upcomingD.resolve([]);
         pastD.resolve([]);
+        councilUpcomingD.resolve([]);
+        councilPastD.resolve([]);
         subjectCountD.resolve(0);
 
         await pending;

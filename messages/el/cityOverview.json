@@ -19,5 +19,8 @@
   "speakerCount": "{count, plural, =1 {1 ομιλητής} other {# ομιλητές}}",
   "recentMeetingsEyebrow": "Συνεδριάσεις",
   "recentMeetingsTitle": "Πρόσφατες συνεδριάσεις",
-  "allMeetings": "Όλες οι συνεδριάσεις"
+  "allMeetings": "Όλες οι συνεδριάσεις",
+  "scopeCouncil": "ΔΣ",
+  "scopeAll": "Όλα",
+  "noMeetingsForScope": "Καμία συνεδρίαση από αυτό το όργανο ακόμη."
 }
