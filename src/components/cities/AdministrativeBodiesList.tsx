@@ -16,12 +16,11 @@ import { useTranslations } from 'next-intl'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { Loader2, Pencil, Trash2, XCircle, Send, CheckCircle } from "lucide-react"
+import { Loader2, Pencil, Plus, Trash2, XCircle, Send, CheckCircle } from "lucide-react"
 import { AdministrativeBodyType, NotificationBehavior } from '@prisma/client'
 import { Switch } from "@/components/ui/switch"
 import { TripleToggle } from "@/components/ui/triple-toggle"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 // @ts-ignore
 import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 import InputWithDerivatives from '@/components/InputWithDerivatives'
@@ -170,18 +169,8 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
     }
 
     return (
-        <div className="space-y-4">
+        <div>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                    <Button onClick={(e) => {
-                        e.preventDefault();
-                        setEditingBody(null)
-                        form.reset(getFormDefaults())
-                        setIsDialogOpen(true)
-                    }}>
-                        {t('addNew')}
-                    </Button>
-                </DialogTrigger>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>
@@ -380,48 +369,72 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                         </form>
                     </Form>
                 </DialogContent>
-            </Dialog>
 
-            <div className="grid gap-4">
-                {bodies.map((body) => (
-                    <Card key={body.id}>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">
-                                {body.name}
-                            </CardTitle>
-                            <div className="flex space-x-2">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        setEditingBody(body)
-                                        form.reset(getFormDefaults(body))
-                                        setIsDialogOpen(true)
-                                    }}
-                                >
-                                    <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        handleDelete(body.id)
-                                    }}
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-xs text-muted-foreground">
-                                {body.name_en} ({t(`types.${body.type.toLowerCase()}`)})
-                            </p>
-                        </CardContent>
-                    </Card>
-                ))}
+            {/* A divided list, not a card each: this already sits inside the form's
+                own section card, and a card per body nested a third frame around
+                two lines of text. */}
+            <div className="overflow-hidden rounded-lg border border-border">
+                <div className="flex items-center justify-end border-b border-border bg-muted/40 px-2 py-1.5">
+                    <DialogTrigger asChild>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 gap-1.5 rounded-[6px] px-2 text-xs"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                setEditingBody(null)
+                                form.reset(getFormDefaults())
+                                setIsDialogOpen(true)
+                            }}
+                        >
+                            <Plus className="h-3.5 w-3.5" />
+                            {t('addNew')}
+                        </Button>
+                    </DialogTrigger>
+                </div>
+                <ul className="divide-y divide-border">
+                    {bodies.map((body) => (
+                        <li key={body.id} className="flex items-center gap-2 px-3 py-2">
+                            <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm">{body.name}</span>
+                                <span className="block truncate text-xs text-muted-foreground">
+                                    {t(`types.${body.type.toLowerCase()}`)} · {body.name_en}
+                                </span>
+                            </span>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 shrink-0 rounded-[6px] text-muted-foreground"
+                                aria-label={t('editBody')}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    setEditingBody(body)
+                                    form.reset(getFormDefaults(body))
+                                    setIsDialogOpen(true)
+                                }}
+                            >
+                                <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 shrink-0 rounded-[6px] text-muted-foreground hover:text-destructive"
+                                aria-label={t('delete')}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    handleDelete(body.id)
+                                }}
+                            >
+                                <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                        </li>
+                    ))}
+                </ul>
             </div>
+            </Dialog>
         </div>
     )
 } 
