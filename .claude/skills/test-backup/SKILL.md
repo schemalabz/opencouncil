@@ -50,12 +50,12 @@ Resolve the backup into a single local file that the rest of the steps operate o
 
 ### 1a: Fetch or locate the file
 
-**S3 fetch mode** (no argument, or `latest`) — confirm the remote exists, find the newest dump, and download it. The date-partitioned paths (`.../YYYY/MM/DD/HH-MM/production.sql.gz`) sort lexicographically, so the greatest path is the latest:
+**S3 fetch mode** (no argument, or `latest`) — confirm the remote exists, find the newest dump, and download it. Paths follow `snapshooter/<target>/YYYY/MM/DD/HH-MM/production.sql.gz`. Sort on the date fields (field 3 onward), not the whole path: the bucket holds more than one `<target>` directory (Snapshooter targets get renamed), and a whole-path sort silently picks a stale dump from the alphabetically-last target:
 
 ```bash
 nix develop --command bash -c '
   rclone listremotes | grep -qx "oc-backups:" || { echo "Missing '\''oc-backups'\'' rclone remote. Run: nix develop --command bash .claude/skills/test-backup/setup-remote.sh"; exit 1; }
-  LATEST=$(rclone lsf -R --files-only --include "production.sql.gz" oc-backups:opencouncil-db-backups/ | sort | tail -1)
+  LATEST=$(rclone lsf -R --files-only --include "production.sql.gz" oc-backups:opencouncil-db-backups/ | sort -t/ -k3 | tail -1)
   [ -n "$LATEST" ] || { echo "No production.sql.gz found in bucket"; exit 1; }
   echo "Latest backup: $LATEST"
   rclone copyto "oc-backups:opencouncil-db-backups/$LATEST" /tmp/oc-test-backup.sql.gz
