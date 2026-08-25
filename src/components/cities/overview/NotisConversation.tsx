@@ -53,7 +53,7 @@ export function NotisConversation() {
     const [nudged, setNudged] = useState(false);
     const [awake, setAwake] = useState(false);
     const paneRef = useRef<HTMLDivElement>(null);
-    const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+    const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [reduced, setReduced] = useState(false);
 
     useEffect(() => {
@@ -64,23 +64,33 @@ export function NotisConversation() {
         }
     }, []);
 
-    useEffect(() => () => timers.current.forEach(clearTimeout), []);
+    useEffect(() => () => {
+        if (typingTimer.current) clearTimeout(typingTimer.current);
+    }, []);
 
+    // Reads `shown` rather than driving it from inside a setState updater: an
+    // updater must be pure, and scheduling the typing timer inside one meant a
+    // second tap during the 700ms window saw the same `current` and queued a
+    // second timer, so one tap advanced two bubbles. React double-invokes
+    // updaters under StrictMode, which would have done the same on every tap.
     const advance = useCallback(() => {
         setNudged(true);
-        setShown(current => {
-            if (current >= STEPS.length) return 1;
-            if (STEPS[current].from === 'notis' && !reduced) {
-                setTyping(true);
-                timers.current.push(setTimeout(() => {
-                    setTyping(false);
-                    setShown(next => Math.min(next + 1, STEPS.length));
-                }, TYPING_MS));
-                return current;
-            }
-            return current + 1;
-        });
-    }, [reduced]);
+        if (typing) return;
+        if (shown >= STEPS.length) {
+            setShown(1);
+            return;
+        }
+        if (STEPS[shown].from === 'notis' && !reduced) {
+            setTyping(true);
+            typingTimer.current = setTimeout(() => {
+                typingTimer.current = null;
+                setTyping(false);
+                setShown(next => Math.min(next + 1, STEPS.length));
+            }, TYPING_MS);
+            return;
+        }
+        setShown(shown + 1);
+    }, [reduced, shown, typing]);
 
     // The nudge is cancelled by any interaction, including one that lands first.
     useEffect(() => {
@@ -194,7 +204,7 @@ function Bubble({ from, text, animate }: { from: 'notis' | 'user'; text: string;
     return (
         <div
             className={cn(
-                'relative max-w-[86%] rounded-lg px-2.5 pb-1.5 pt-1.5 shadow-[0_1px_1px_rgba(0,0,0,0.09)]',
+                'relative max-w-[86%] rounded-[8px] px-2.5 pb-1.5 pt-1.5 shadow-[0_1px_1px_rgba(0,0,0,0.09)]',
                 notis ? 'self-start rounded-tl-none bg-white' : 'self-end rounded-tr-none bg-[#d9fdd3]',
                 animate && 'animate-in fade-in slide-in-from-bottom-1 duration-300',
             )}
@@ -215,7 +225,7 @@ function Bubble({ from, text, animate }: { from: 'notis' | 'user'; text: string;
 
 function TypingBubble() {
     return (
-        <div className="relative max-w-[86%] self-start rounded-lg rounded-tl-none bg-white px-3 py-2.5 shadow-[0_1px_1px_rgba(0,0,0,0.09)]">
+        <div className="relative max-w-[86%] self-start rounded-[8px] rounded-tl-none bg-white px-3 py-2.5 shadow-[0_1px_1px_rgba(0,0,0,0.09)]">
             <span
                 className="absolute -left-[7px] top-0 h-0 w-0 border-l-[7px] border-t-[8px] border-l-transparent border-t-white"
                 aria-hidden

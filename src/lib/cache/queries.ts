@@ -103,12 +103,15 @@ export async function getCouncilMeetingsForCityPublicCached(
 }
 
 /** Cache-key fragments for the filters a meeting list query accepts. */
-function meetingListKey({ limit, page, pageSize = 12, administrativeBodyTypes, administrativeBodyIds, timeFilter }: MeetingListOptions): string[] {
+function meetingListKey({ limit, page, pageSize = 12, from, to, administrativeBodyTypes, administrativeBodyIds, timeFilter }: MeetingListOptions): string[] {
   return [
     page ? `page:${page}:${pageSize}` : (limit ? `limit:${limit}` : 'all'),
     administrativeBodyTypes?.length ? `types:${[...administrativeBodyTypes].sort().join(',')}` : 'types:all',
     administrativeBodyIds?.length ? `ids:${[...administrativeBodyIds].sort().join(',')}` : 'ids:all',
     timeFilter ?? 'all',
+    // from/to go into the where, so they have to go into the key — without them
+    // two different date ranges are one cache entry.
+    `range:${from?.toISOString() ?? ''}:${to?.toISOString() ?? ''}`,
   ];
 }
 

@@ -34,19 +34,25 @@ export function partyComposition(party: PartyWithPersons): PartyComposition {
         true,
     );
 
+    // Only active roles count. `getPartiesForCity` filters the party's own roles
+    // relation but not the nested `person.roles`, so a councillor whose seat ended
+    // last term is still on the record — counting those inflated the seat numeral
+    // and left the governing-party chip on a previous mayor's party.
+    const activeRoles = (person: PersonWithRoles) => person.roles.filter(isRoleActive);
+
     const counts = { committee: 0, community: 0 };
     const councilMembers: PersonWithRoles[] = [];
     for (const person of members) {
         const bodyTypes = new Set(
-            person.roles.filter(role => role.administrativeBody).map(role => role.administrativeBody!.type)
+            activeRoles(person).filter(role => role.administrativeBody).map(role => role.administrativeBody!.type)
         );
         if (bodyTypes.has('council')) councilMembers.push(person);
         if (bodyTypes.has('committee')) counts.committee++;
         if (bodyTypes.has('community')) counts.community++;
     }
 
-    const mayors = members.filter(person => person.roles.some(isMayorRole)).length;
-    const withoutBody = members.filter(person => !person.roles.some(role => role.administrativeBodyId)).length;
+    const mayors = members.filter(person => activeRoles(person).some(isMayorRole)).length;
+    const withoutBody = members.filter(person => !activeRoles(person).some(role => role.administrativeBodyId)).length;
 
     return {
         members,

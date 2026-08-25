@@ -5,7 +5,7 @@ import type { PersonWithRelations } from '@/lib/db/people';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
 import { filterActiveRoles } from '@/lib/utils';
-import { getPartyFromRoles } from '@/lib/utils/roles';
+import { getPartyFromRoles, getRoleText } from '@/lib/utils/roles';
 
 /** Titled roles before the card stops being a summary. */
 const ROLES_SHOWN = 2;
@@ -33,9 +33,14 @@ export default function PersonCard({ item: person }: PersonCardProps) {
     const t = useTranslations('Person');
     const locale = useLocale();
     const party = getPartyFromRoles(person.roles);
-    const titled = filterActiveRoles(person.roles).filter(role => role.name);
-    const shown = titled.slice(0, ROLES_SHOWN);
-    const rest = titled.length - shown.length;
+    // getRoleText, not `role.name`: two thirds of councillors hold no titled
+    // role, and filtering on the name column left their cards with an empty role
+    // area. The helper falls back to the administrative body, or to "member".
+    const roles = filterActiveRoles(person.roles)
+        .filter(role => !role.partyId)
+        .map(role => getRoleText(role, t));
+    const shown = roles.slice(0, ROLES_SHOWN);
+    const rest = roles.length - shown.length;
 
     return (
         <Link
@@ -73,8 +78,8 @@ export default function PersonCard({ item: person }: PersonCardProps) {
                     {shown.length > 0 && (
                         <span className="mt-2 flex flex-col gap-0.5">
                             {shown.map(role => (
-                                <span key={role.id} className="truncate text-xs text-foreground/80">
-                                    {getLocalizedName(role as { name: string; name_en: string | null }, locale)}
+                                <span key={role} className="truncate text-xs text-foreground/80">
+                                    {localizeText(role, locale)}
                                 </span>
                             ))}
                             {rest > 0 && (

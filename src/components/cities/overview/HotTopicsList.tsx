@@ -35,12 +35,16 @@ interface HotTopicsListProps {
 export function HotTopicsList({ cards, cityId, timezone, locale }: HotTopicsListProps) {
     const [openId, setOpenId] = useState(cards[0]?.subject.id ?? null);
     const maxSeconds = Math.max(0, ...cards.map(c => c.stats.speakingSeconds));
+    // The ranking re-computes every 15 minutes, so a refresh can drop the open
+    // subject out of the set while this instance survives. Falling back to the
+    // leader keeps the section's one invariant — something is always open.
+    const open = cards.some(card => card.subject.id === openId) ? openId : cards[0]?.subject.id ?? null;
 
     return (
         <div className="overflow-hidden rounded-2xl border border-foreground/60 bg-card">
             {cards.map((card, i) => (
                 <motion.div key={card.subject.id} layout transition={SWAP}>
-                    {card.subject.id === openId ? (
+                    {card.subject.id === open ? (
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={SWAP}>
                             <HotTopicLead
                                 card={card}

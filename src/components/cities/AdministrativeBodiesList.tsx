@@ -373,7 +373,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
             {/* A divided list, not a card each: this already sits inside the form's
                 own section card, and a card per body nested a third frame around
                 two lines of text. */}
-            <div className="overflow-hidden rounded-lg border border-border">
+            <div className="overflow-hidden rounded-[8px] border border-border">
                 <div className="flex items-center justify-end border-b border-border bg-muted/40 px-2 py-1.5">
                     <DialogTrigger asChild>
                         <Button

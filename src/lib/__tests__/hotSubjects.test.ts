@@ -103,14 +103,20 @@ describe('getRecentHotSubjects', () => {
         expect(hot.map(h => h.subject.id)).toEqual(['oneLong', 'manyShort']);
     });
 
-    it('returns nothing rather than falling back when the window holds no discussion', async () => {
+    it('falls back to recency when nothing in the window has been discussed yet', async () => {
+        // Contributions are written at summarization, so a city whose meetings
+        // are released but not yet summarized has zero everywhere. Dropping them
+        // unconditionally emptied the embed widget municipalities host on their
+        // own sites; the filter only applies when there is something to prefer.
         mockGetCouncilMeetingsForCityPublicCached.mockResolvedValue([
             meeting('m1', new Date('2026-08-01T18:00:00Z'), [
                 { id: 'untouched', locationId: null, contributions: 0 },
+                { id: 'also-untouched', locationId: null, contributions: 0 },
             ]),
         ]);
 
-        await expect(getRecentHotSubjects('athens', { limit: 10 })).resolves.toEqual([]);
+        const hot = await getRecentHotSubjects('athens', { limit: 10 });
+        expect(hot.map(h => h.subject.id).sort()).toEqual(['also-untouched', 'untouched']);
     });
 });
 

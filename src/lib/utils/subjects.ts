@@ -1,3 +1,6 @@
+import { sortSubjectsBySpeakerContributionCount } from "@/lib/utils";
+import type { Statistics } from "@/lib/statistics";
+
 /**
  * How many agenda items a meeting card previews.
  *
@@ -5,9 +8,6 @@
  * is a "use server" module, which may export nothing but async functions.
  */
 export const SUBJECT_PREVIEW_COUNT = 3;
-
-import { sortSubjectsBySpeakerContributionCount } from "@/lib/utils";
-import type { Statistics } from "@/lib/statistics";
 
 interface CategorizableSubject {
     name: string;

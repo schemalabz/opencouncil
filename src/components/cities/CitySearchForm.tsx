@@ -1,6 +1,7 @@
+import { headers } from 'next/headers';
 import { Search } from 'lucide-react';
-import { useTranslations } from 'next-intl';
-import { routing, urlPrefixForLocale } from '@/i18n/routing';
+import { getTranslations } from 'next-intl/server';
+import { routing, urlPrefixForLocale, LOCALE_OVERRIDE_HEADER } from '@/i18n/routing';
 import { getMunicipalityQualifier } from '@/lib/formatters/name';
 import type { CityWithCounts } from '@/lib/db/cities';
 
@@ -20,12 +21,20 @@ interface CitySearchFormProps {
  *
  * The action carries the locale prefix explicitly. next-intl prefixes
  * `as-needed`, so a bare "/search" would drop the visitor from /en/chania back
- * to the default locale.
+ * to the default locale — except on a realm host, where the prefix is the
+ * proxy's and never appears in the URL.
  */
-export function CitySearchForm({ city, subjectCount, locale }: CitySearchFormProps) {
-    const t = useTranslations('cityOverview');
-    const tCommon = useTranslations('Common');
-    const localePrefix = locale === routing.defaultLocale ? '' : `/${urlPrefixForLocale(locale)}`;
+export async function CitySearchForm({ city, subjectCount, locale }: CitySearchFormProps) {
+    const t = await getTranslations('cityOverview');
+    const tCommon = await getTranslations('Common');
+    // On a realm host the proxy rewrites /chania to /fr/chania while the visible
+    // URL stays prefix-less, and sets this header when it does. Adding a prefix
+    // there moves the visitor into a duplicate prefixed tree that nothing
+    // redirects back — so the prefix is only right when the path already has one.
+    const rewritten = (await headers()).get(LOCALE_OVERRIDE_HEADER) === locale;
+    const localePrefix = locale === routing.defaultLocale || rewritten
+        ? ''
+        : `/${urlPrefixForLocale(locale)}`;
 
     const placeholder = t(city.authorityType === 'region' ? 'searchSubjects.region' : 'searchSubjects.municipality', {
         count: subjectCount,
