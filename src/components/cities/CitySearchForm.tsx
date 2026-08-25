@@ -37,22 +37,29 @@ export function CitySearchForm({ city, subjectCount, locale }: CitySearchFormPro
             action={`${localePrefix}/search`}
             method="get"
             role="search"
-            className="group flex items-center gap-3 rounded-xl border border-border bg-card py-1.5 pl-4 pr-1.5 shadow-sm transition-colors focus-within:border-[hsl(var(--orange))]/70 focus-within:shadow-md hover:border-foreground/25"
+            className="group flex items-center gap-2 rounded-xl border border-border bg-card py-1.5 pl-3.5 pr-1.5 shadow-sm sm:gap-3 sm:pl-4 transition-colors focus-within:border-[hsl(var(--orange))]/70 focus-within:shadow-md hover:border-foreground/25"
         >
             <input type="hidden" name="cityId" value={city.id} />
-            <Search className="h-[18px] w-[18px] shrink-0 text-muted-foreground transition-colors group-focus-within:text-[hsl(var(--orange))]" aria-hidden />
+            {/* One magnifier at a time: below `sm` the submit button carries it, and
+                a decorative second one would cost the field 30px it does not have. */}
+            <Search className="hidden h-[18px] w-[18px] shrink-0 text-muted-foreground transition-colors group-focus-within:text-[hsl(var(--orange))] sm:block" aria-hidden />
             <input
                 type="search"
                 name="query"
                 placeholder={placeholder}
                 aria-label={placeholder}
-                className="h-10 min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted-foreground"
+                // The placeholder names the city and its subject count, which no
+                // phone-width field can hold. Ellipsis truncation reads as a long
+                // sentence continuing; a hard clip reads as a broken layout.
+                className="h-10 min-w-0 flex-1 truncate bg-transparent text-[15px] outline-none placeholder:text-muted-foreground"
             />
             <button
                 type="submit"
-                className="inline-flex h-10 shrink-0 items-center rounded-[6px] bg-foreground px-4 text-sm font-medium text-background transition-opacity hover:opacity-85"
+                aria-label={tCommon('search')}
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[6px] bg-foreground text-sm font-medium text-background transition-opacity hover:opacity-85 sm:w-auto sm:px-4"
             >
-                {tCommon('search')}
+                <Search className="h-[18px] w-[18px] sm:hidden" aria-hidden />
+                <span className="hidden sm:inline">{tCommon('search')}</span>
             </button>
         </form>
     );
