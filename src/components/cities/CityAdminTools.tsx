@@ -1,6 +1,6 @@
 "use client";
 import { City, CityMessage } from '@prisma/client';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { Code, Database } from 'lucide-react';
 import FormSheet from '@/components/FormSheet';
@@ -12,6 +12,7 @@ import { Link } from '@/i18n/routing';
 import { IS_DEV } from '@/lib/utils';
 import { isOutOfNetwork } from '@/lib/cityStatus';
 import { useToast } from '@/hooks/use-toast';
+import { getLocalizedName } from '@/lib/formatters/name';
 
 type CityAdminToolsProps = {
     city: City;
@@ -36,6 +37,7 @@ type CityAdminToolsProps = {
  */
 export function CityAdminTools({ city, cityMessage, canEdit, isSuperAdmin, hasNoData }: CityAdminToolsProps) {
     const t = useTranslations('City');
+    const locale = useLocale();
     const { toast } = useToast();
     const [isCityCreatorOpen, setIsCityCreatorOpen] = useState(false);
     const [isResetting, setIsResetting] = useState(false);
@@ -96,10 +98,14 @@ export function CityAdminTools({ city, cityMessage, canEdit, isSuperAdmin, hasNo
                         FormComponent={CityForm}
                         formProps={{ city, cityMessage }}
                         title={t('editCity')}
+                        description={getLocalizedName(city, locale)}
                         type="edit"
                         triggerVariant="ghost"
                         triggerSize="sm"
                         triggerClassName={toolClassName}
+                        // The form carries a boundary map and a nested bodies list;
+                        // the sheet's default 384px column cannot hold either.
+                        contentClassName="w-full sm:max-w-2xl" 
                     />
                     <Button asChild variant="ghost" size="sm" className={toolClassName}>
                         <Link href={`/${city.id}/widget`} className="hover:no-underline">
