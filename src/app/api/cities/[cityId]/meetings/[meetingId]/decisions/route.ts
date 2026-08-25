@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { getDecisionsForMeeting, getExtractedDataForMeeting, getMeetingAttendance, upsertDecision, deleteDecision, clearExtractedDataForMeeting, resetExtractionForSubject } from '@/lib/db/decisions';
-import { getUnresolvedCandidatesForMeeting, assignCandidate, dismissCandidate } from '@/lib/db/decisionCandidates';
+import { getUnresolvedCandidatesForMeeting, assignCandidate, dismissCandidate, getBackedDecisionIds } from '@/lib/db/decisionCandidates';
 import prisma from '@/lib/db/prisma';
 import { revalidateTag } from 'next/cache';
 import { z } from 'zod';
@@ -20,7 +20,14 @@ export async function GET(
         getMeetingAttendance(params.cityId, params.meetingId),
         getUnresolvedCandidatesForMeeting(params.cityId, params.meetingId),
     ]);
-    return NextResponse.json({ decisions, extractedData, meetingAttendance, candidates });
+
+    // Unlink is only reversible when a candidate row backs the decision
+    // (onDelete: SetNull returns it to the unplaced pool). The UI warns
+    // before unlinking the unbacked rest (legacy ADA-less decisions).
+    const backedIds = await getBackedDecisionIds(decisions.map((d) => d.id));
+    const decisionsWithBacking = decisions.map((d) => ({ ...d, candidateBacked: backedIds.has(d.id) }));
+
+    return NextResponse.json({ decisions: decisionsWithBacking, extractedData, meetingAttendance, candidates });
 }
 
 const upsertSchema = z.object({

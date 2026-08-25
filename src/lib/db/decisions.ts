@@ -20,6 +20,8 @@ export const DECISION_ELIGIBLE_SUBJECT_WHERE = {
 export type DecisionWithSource = Decision & {
     task: TaskStatus | null;
     createdBy: User | null;
+    /** True when a DecisionCandidate row backs this decision, making unlink reversible. Set by the meeting decisions GET route. */
+    candidateBacked?: boolean;
 };
 
 export async function getDecisionsForMeeting(cityId: string, meetingId: string): Promise<DecisionWithSource[]> {
