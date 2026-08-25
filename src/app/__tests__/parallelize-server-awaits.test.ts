@@ -51,6 +51,11 @@ jest.mock('@/lib/db/notifications', () => ({
     getNotificationPreferenceForCity: jest.fn(),
 }));
 
+// Reads headers(), which needs a request scope jest has no way to open.
+jest.mock('@/lib/realm.server', () => ({
+    getRealm: jest.fn(async () => 'greece'),
+}));
+
 // Mock heavy React component trees — we only care about the data-fetch ordering.
 jest.mock('@/components/cities/CityParties', () => ({ __esModule: true, default: () => null }));
 jest.mock('@/components/cities/CityIdentityBand', () => ({ CityIdentityBand: () => null }));

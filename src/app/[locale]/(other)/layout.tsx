@@ -2,6 +2,7 @@ import React from "react"
 import Header from "@/components/layout/Header"
 import Footer from "@/components/layout/Footer"
 import { getRealm } from "@/lib/realm.server";
+import { hasExplainPage } from "@/lib/explain/availability";
 
 export default async function Layout(
   props: {
@@ -10,14 +11,15 @@ export default async function Layout(
   }
 ) {
   const { children } = props;
+  const realm = await getRealm();
 
   return (
     <div className="min-h-screen">
-      <Header path={[]} />
+      <Header path={[]} showExplain={hasExplainPage(realm)} />
       <main id="main-content" className="min-h-[70vh] mt-[65px]">
         {children}
       </main>
-      <Footer realm={await getRealm()} />
+      <Footer realm={realm} />
     </div>
   );
 }

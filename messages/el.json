@@ -96,7 +96,9 @@
         "mcpShort": "MCP",
         "login": "Σύνδεση",
         "notificationsBreadcrumb": "Ενημερώσεις",
-        "petitionBreadcrumb": "Υποστήριξη Δήμου"
+        "petitionBreadcrumb": "Υποστήριξη Δήμου",
+        "explain": "Οδηγός τοπικής αυτοδιοίκησης",
+        "explainShort": "Οδηγός"
     },
     "Footer": {
         "tagline": "Φτιαγμένο με σεβασμό και εκτίμηση για την τοπική αυτοδιοίκηση.",
