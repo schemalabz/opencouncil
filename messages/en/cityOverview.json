@@ -1,6 +1,7 @@
 {
   "nextMeeting": "Next meeting",
   "latestMeeting": "Most recent meeting",
+  "viewMeeting": "View the meeting",
   "adminBodyUnknown": "Body not recorded",
   "searchSubjects": {
     "municipality": "Search {count, number} subjects in {qualifier}",

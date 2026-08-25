@@ -1,6 +1,7 @@
 {
   "nextMeeting": "Следећа седница",
   "latestMeeting": "Најскорија седница",
+  "viewMeeting": "Погледајте седницу",
   "adminBodyUnknown": "Тело није уписано",
   "searchSubjects": {
     "municipality": "Претражите {count, number} тачака у граду {qualifier}",
