@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { CityIdentityBand } from "@/components/cities/CityIdentityBand";
 import { CityNavigation } from "@/components/cities/CityNavigation";
-import { getCityCached, getCityMessageCached, getCouncilMeetingsForCityPublicCached, getPartiesForCityCached, getPeopleForCityCached, getSubjectCountForCityCached } from "@/lib/cache";
+import { getCityCached, getCityMessageCached, getCouncilMeetingsPreviewPublicCached, getSubjectCountForCityCached } from "@/lib/cache";
 import { getCurrentUser, isUserAuthorizedToEdit } from "@/lib/auth";
 import { getNotificationPreferenceForCity } from "@/lib/db/notifications";
 
@@ -31,17 +31,15 @@ export default async function TabsLayout(
     // Both scopes are fetched up front so the band's scope switch is instant. All
     // four are cached and narrow (limit 1), and the council-only pair is what the
     // page shows for cities whose committees meet far more often than the council.
-    const [city, cityMessage, parties, people, currentUser, canEdit, upcoming, past, councilUpcoming, councilPast, subjectCount] = await Promise.all([
+    const [city, cityMessage, currentUser, canEdit, upcoming, past, councilUpcoming, councilPast, subjectCount] = await Promise.all([
         getCityCached(cityId),
         getCityMessageCached(cityId),
-        getPartiesForCityCached(cityId),
-        getPeopleForCityCached(cityId),
         getCurrentUser(),
         isUserAuthorizedToEdit({ cityId }),
-        getCouncilMeetingsForCityPublicCached(cityId, { timeFilter: 'upcoming', limit: 1 }),
-        getCouncilMeetingsForCityPublicCached(cityId, { timeFilter: 'past', limit: 1 }),
-        getCouncilMeetingsForCityPublicCached(cityId, { timeFilter: 'upcoming', limit: 1, administrativeBodyTypes: ['council'] }),
-        getCouncilMeetingsForCityPublicCached(cityId, { timeFilter: 'past', limit: 1, administrativeBodyTypes: ['council'] }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'upcoming', limit: 1 }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'past', limit: 1 }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'upcoming', limit: 1, administrativeBodyTypes: ['council'] }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'past', limit: 1, administrativeBodyTypes: ['council'] }),
         getSubjectCountForCityCached(cityId),
     ]);
 
@@ -49,8 +47,12 @@ export default async function TabsLayout(
         notFound();
     }
 
-    // Check if city has no data (eligible for city creator)
-    const hasNoData = city._count.councilMeetings === 0 && parties.length === 0 && people.length === 0;
+    // Whether the city is eligible for the city creator. Read off the counts the
+    // city query already carries: this used to load every party and every person
+    // — each role dragging a full City row behind it — to compare two lengths
+    // against zero. Neither query filters by anything but cityId, so the counts
+    // answer the same question.
+    const hasNoData = city._count.councilMeetings === 0 && city._count.parties === 0 && city._count.persons === 0;
 
     const hasNotifications = currentUser
         ? !!(await getNotificationPreferenceForCity(currentUser.id, cityId))
