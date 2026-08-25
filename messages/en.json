@@ -1182,7 +1182,9 @@
         "successTitle": "Send complete",
         "successSummary": "Sent: {sent}, failed: {failed}.",
         "failedListWithCount": "Failed addresses ({count})",
-        "errorTitle": "Send failed"
+        "errorTitle": "Send failed",
+        "draftRestored": "Restored your unsaved draft.",
+        "discardDraftButton": "Discard"
     },
     "SignIn": {
         "title": "Sign in to OpenCouncil",

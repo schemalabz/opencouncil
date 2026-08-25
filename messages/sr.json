@@ -1182,7 +1182,9 @@
         "successTitle": "Слање је завршено",
         "successSummary": "Послато: {sent}, неуспешно: {failed}.",
         "failedListWithCount": "Неуспешне адресе ({count})",
-        "errorTitle": "Слање није успело"
+        "errorTitle": "Слање није успело",
+        "draftRestored": "Враћен је ваш несачувани нацрт.",
+        "discardDraftButton": "Одбаци"
     },
     "SignIn": {
         "title": "Пријава на OpenCouncil",

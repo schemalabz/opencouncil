@@ -1182,7 +1182,9 @@
     "successTitle": "Envoi terminé",
     "successSummary": "Envoyés : {sent}, échecs : {failed}.",
     "failedListWithCount": "Adresses en échec ({count})",
-    "errorTitle": "Échec de l'envoi"
+    "errorTitle": "Échec de l'envoi",
+    "draftRestored": "Brouillon non enregistré restauré.",
+    "discardDraftButton": "Supprimer"
   },
   "SignIn": {
     "title": "Connexion à OpenCouncil",

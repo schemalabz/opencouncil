@@ -14,13 +14,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Mail, Loader2, CheckCircle, XCircle, AlertTriangle, X } from 'lucide-react';
+import { Mail, Loader2, CheckCircle, XCircle, AlertTriangle, X, RotateCcw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
     ProductUpdateEmailEditor,
     type ProductUpdateEmailEditorHandle,
 } from './ProductUpdateEmailEditor';
 import { DEFAULT_PRODUCT_UPDATE_TEMPLATE_MARKDOWN } from '@/lib/email/templates/productUpdateDefault';
+import { loadDraft, saveDraft, clearDraft } from './draftStorage';
 
 interface SendResult {
     sent: number;
@@ -51,6 +52,36 @@ export function SendProductUpdateDialog() {
     const [customTags, setCustomTags] = useState<string[]>([]);
     const [tagInput, setTagInput] = useState('');
     const [tagError, setTagError] = useState<string | null>(null);
+    const [body, setBody] = useState(DEFAULT_PRODUCT_UPDATE_TEMPLATE_MARKDOWN);
+    // Bumping this remounts the editor so it re-seeds from `body` on restore/discard.
+    const [editorSeed, setEditorSeed] = useState(0);
+    const [draftRestored, setDraftRestored] = useState(false);
+
+    // A pristine compose state is the default template with no subject and no tags.
+    // We never persist it, so opening the dialog does not create a junk draft.
+    const isPristine =
+        subject === '' &&
+        customTags.length === 0 &&
+        body === DEFAULT_PRODUCT_UPDATE_TEMPLATE_MARKDOWN;
+
+    // Restore an unsaved draft when the dialog opens.
+    useEffect(() => {
+        if (!open) return;
+        const draft = loadDraft();
+        if (!draft) return;
+        setSubject(draft.subject);
+        setCustomTags(draft.tags);
+        setBody(draft.body);
+        setEditorSeed((n) => n + 1);
+        setDraftRestored(true);
+    }, [open]);
+
+    // Auto-save the draft as the admin edits, so an accidental close does not lose it.
+    useEffect(() => {
+        if (!open || isPristine) return;
+        const timer = setTimeout(() => saveDraft({ subject, body, tags: customTags }), 500);
+        return () => clearTimeout(timer);
+    }, [open, isPristine, subject, body, customTags]);
 
     // Fetch the live recipient counts (opted-in + total registered) when the dialog opens.
     useEffect(() => {
@@ -82,13 +113,31 @@ export function SendProductUpdateDialog() {
     const handleOpenChange = (next: boolean) => {
         setOpen(next);
         if (!next) {
+            // Flush the latest state to storage before closing, so edits made
+            // inside the autosave debounce window are not lost on a fast close.
+            // Skip after a successful send: a bulk send already cleared the draft,
+            // and re-saving would restore an update that already went out.
+            if (status !== 'success' && !isPristine) saveDraft({ subject, body, tags: customTags });
             setSubject('');
             setTestEmail('');
             setCustomTags([]);
             setTagInput('');
             setTagError(null);
+            setBody(DEFAULT_PRODUCT_UPDATE_TEMPLATE_MARKDOWN);
+            setEditorSeed((n) => n + 1);
+            setDraftRestored(false);
             reset();
         }
+    };
+
+    const handleDiscardDraft = () => {
+        clearDraft();
+        setSubject('');
+        setCustomTags([]);
+        setTagInput('');
+        setBody(DEFAULT_PRODUCT_UPDATE_TEMPLATE_MARKDOWN);
+        setEditorSeed((n) => n + 1);
+        setDraftRestored(false);
     };
 
     const addTagFromInput = () => {
@@ -149,6 +198,12 @@ export function SendProductUpdateDialog() {
             const data: SendResult = await res.json();
             setResult(data);
             setStatus('success');
+            // The update went out to everyone — drop the saved draft so the next
+            // compose starts clean. A test send keeps the draft for more editing.
+            if (nextStatus === 'sending-all') {
+                clearDraft();
+                setDraftRestored(false);
+            }
         } catch (error) {
             console.error('Product update send error:', error);
             setErrorMessage(error instanceof Error ? error.message : String(error));
@@ -184,6 +239,21 @@ export function SendProductUpdateDialog() {
                 </DialogHeader>
 
                 <div className="space-y-4 w-full">
+                    {draftRestored && (
+                        <div className="flex items-center justify-between gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                            <span>{t('draftRestored')}</span>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 gap-1 text-blue-800 hover:bg-blue-100"
+                                onClick={handleDiscardDraft}
+                            >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                                {t('discardDraftButton')}
+                            </Button>
+                        </div>
+                    )}
+
                     <div className="space-y-2">
                         <Label htmlFor="product-update-subject">{t('subjectLabel')}</Label>
                         <Input
@@ -200,8 +270,10 @@ export function SendProductUpdateDialog() {
                         <Label htmlFor="product-update-body">{t('bodyLabel')}</Label>
                         <div className="rounded-md border bg-background">
                             <ProductUpdateEmailEditor
+                                key={editorSeed}
                                 ref={editorRef}
-                                initialContent={DEFAULT_PRODUCT_UPDATE_TEMPLATE_MARKDOWN}
+                                initialContent={body}
+                                onChange={setBody}
                                 textareaId="product-update-body"
                             />
                         </div>

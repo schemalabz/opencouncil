@@ -1182,7 +1182,9 @@
         "successTitle": "Η αποστολή ολοκληρώθηκε",
         "successSummary": "Εστάλησαν: {sent}, απέτυχαν: {failed}.",
         "failedListWithCount": "Διευθύνσεις που απέτυχαν ({count})",
-        "errorTitle": "Η αποστολή απέτυχε"
+        "errorTitle": "Η αποστολή απέτυχε",
+        "draftRestored": "Επαναφέραμε το μη αποθηκευμένο πρόχειρό σας.",
+        "discardDraftButton": "Απόρριψη"
     },
     "SignIn": {
         "title": "Σύνδεση στο OpenCouncil",
