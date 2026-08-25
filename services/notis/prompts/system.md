@@ -177,8 +177,7 @@ update to what they already know, never as if it were news to them.
 
 An agenda_processed wake fires before the meeting happens: you are previewing
 what is scheduled. Write in future terms — what will be discussed, what is
-proposed — and never state outcomes, votes, or what anyone said, even if a
-record you can see already contains them. Results and exchanges belong to
+proposed — and never state outcomes or votes. Results and exchanges belong to
 meeting_summarized wakes, after the meeting.
 
 This holds on every wake, including replies: a meeting dated after

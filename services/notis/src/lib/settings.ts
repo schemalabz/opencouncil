@@ -19,10 +19,23 @@ export interface ProactiveSettings {
 export const PROACTIVE_PAUSED_KEY = "proactivePaused";
 export const POLLER_STATUS_KEY = "pollerStatus";
 
+/**
+ * One key per meeting whose summarize event arrived while the meeting was
+ * still dated in the future — a data error the poller alarms on. The key
+ * makes the alarm fire once instead of every five-minute tick; the event
+ * itself stays unconsumed, so correcting the date still fans it out.
+ */
+export const futureSummaryAlertKey = (cityId: string, meetingId: string) =>
+  `futureSummaryAlerted:${cityId}:${meetingId}`;
+
 export async function getProactiveSettings(db: Db): Promise<ProactiveSettings> {
   const row = await db.notisSetting.findUnique({ where: { key: PROACTIVE_PAUSED_KEY } });
   // Absent means paused: deployments start dark on purpose.
   return { paused: row === null ? true : row.value === true };
+}
+
+export async function hasSetting(db: Db, key: string): Promise<boolean> {
+  return (await db.notisSetting.findUnique({ where: { key } })) !== null;
 }
 
 export async function putSetting(db: Db, key: string, value: unknown): Promise<void> {
