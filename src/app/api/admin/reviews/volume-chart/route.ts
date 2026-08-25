@@ -33,7 +33,11 @@ export async function GET() {
           where: {
             type: { in: ['transcribe', 'fixTranscript', 'humanReview'] },
             status: 'succeeded'
-          }
+          },
+          // Only the fields the categorization reads. transcribe and
+          // fixTranscript rows carry the serialized transcript in their
+          // responseBody; 12 weeks of full rows is the #303 overflow again.
+          select: { type: true, status: true }
         },
         speakerSegments: {
           include: {
