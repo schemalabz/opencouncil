@@ -154,6 +154,7 @@ export async function createTaskStatus(meetingId: string, cityId: string, data?:
     status?: string
     requestBody?: string
     responseBody?: string | null
+    createdAt?: Date
 }) {
     return prisma.taskStatus.create({
         data: {
@@ -161,8 +162,26 @@ export async function createTaskStatus(meetingId: string, cityId: string, data?:
             status: data?.status ?? 'pending',
             requestBody: data?.requestBody ?? '{}',
             responseBody: data?.responseBody ?? null,
+            createdAt: data?.createdAt,
             councilMeetingId: meetingId,
             cityId,
+        },
+    })
+}
+
+export async function createUtteranceEdit(utteranceId: string, data?: {
+    editedBy?: 'user' | 'task'
+    userId?: string | null
+    beforeText?: string
+    afterText?: string
+}) {
+    return prisma.utteranceEdit.create({
+        data: {
+            utteranceId,
+            beforeText: data?.beforeText ?? 'before',
+            afterText: data?.afterText ?? 'after',
+            editedBy: data?.editedBy ?? 'user',
+            userId: data?.userId ?? null,
         },
     })
 }
