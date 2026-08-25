@@ -972,6 +972,8 @@ model UtteranceEdit {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([utteranceId])
 }
 
 model Role {
