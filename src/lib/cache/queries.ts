@@ -85,7 +85,14 @@ export async function getCouncilMeetingsForCityPublicCached(
   return createCache(
     () => getCouncilMeetingsForCity(cityId, { includeUnreleased: false, limit, administrativeBodyTypes, administrativeBodyIds, timeFilter }),
     ['city', cityId, 'meetings', 'onlyReleased', limit ? `limit:${limit}` : 'all', typeKey, idKey, timeKey],
-    { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
+    {
+      tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`],
+      // A timeFilter result is a function of `now`, which getCouncilMeetingsForCity
+      // reads inside the cached call. No tag can express "a meeting has since
+      // happened", so without a TTL an 'upcoming' entry keeps serving a meeting
+      // that is already over. Time-independent queries stay purely tag-driven.
+      ...(timeFilter ? { revalidate: 900 } : {}),
+    }
   )();
 }
 
