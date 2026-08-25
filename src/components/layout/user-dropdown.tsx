@@ -22,6 +22,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import klitiki from "greek-name-klitiki"
 import { useEffect, useState } from "react"
 import { isUserAuthorizedToEdit } from "@/lib/actions/auth"
+import { cn } from "@/lib/utils"
+import { headerControlClass } from "./headerControl"
 
 export default function UserDropdown({ currentEntity }: { currentEntity?: { cityId: string } }) {
     const { data: session, status } = useSession()
@@ -53,7 +55,7 @@ export default function UserDropdown({ currentEntity }: { currentEntity?: { city
 
     if (!session?.user) {
         return (
-            <Button variant="link" onClick={() => router.push('/sign-in')} className="cursor-pointer text-muted-foreground hover:text-foreground">
+            <Button variant="ghost" onClick={() => router.push('/sign-in')} className={cn(headerControlClass, 'cursor-pointer px-2.5 lg:px-3')}>
                 <LogIn className="h-4 w-4 md:mr-2" />
                 <span className="hidden md:inline">{t("login")}</span>
             </Button>
@@ -69,7 +71,7 @@ export default function UserDropdown({ currentEntity }: { currentEntity?: { city
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative cursor-pointer hover:text-accent">
+                <Button variant="ghost" className={cn(headerControlClass, 'relative cursor-pointer px-2.5 lg:px-3')}>
                     <span className="hidden md:inline">
                         {greeting}
                     </span>
