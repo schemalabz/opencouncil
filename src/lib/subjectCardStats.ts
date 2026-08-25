@@ -19,7 +19,10 @@ export function subjectCardStats(statistics: Statistics | undefined, fallbackSpe
     return {
         minutes: statistics?.speakingSeconds ? Math.round(statistics.speakingSeconds / 60) : 0,
         speakingSeconds: statistics?.speakingSeconds ?? 0,
-        speakerCount: statistics?.people?.length || fallbackSpeakerCount || 0,
+        // `??`, not `||`: a subject whose segments have no resolved speaker has a
+        // people list of length 0, and that is the answer — falling through would
+        // report its contribution count as a speaker count.
+        speakerCount: statistics?.people?.length ?? fallbackSpeakerCount,
         partyDots: (statistics?.parties ?? []).map(p => ({ id: p.item.id, colorHex: p.item.colorHex, name: p.item.name })),
     };
 }

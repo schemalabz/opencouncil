@@ -1,12 +1,12 @@
 import { ChevronRight } from 'lucide-react';
-import { isFuture, isToday } from 'date-fns';
+import { isFuture } from 'date-fns';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { AdminBodyLabel } from '@/components/cities/overview/AdminBodyLabel';
 import type { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 import { SUBJECT_PREVIEW_COUNT } from '@/lib/utils/subjects';
 import { getLocalizedName } from '@/lib/formatters/name';
-import { formatDateStamp, formatDateTime } from '@/lib/formatters/time';
+import { formatDateStamp, formatDateTime, sameCalendarDay } from '@/lib/formatters/time';
 import { TopicIcon } from '@/components/TopicIcon';
 import { localizeText } from '@/lib/serbian';
 import { sortSubjectsByImportance } from '@/lib/utils';
@@ -44,11 +44,13 @@ export default function MeetingCardV2({ item: meeting, cityTimezone }: MeetingCa
     const date = meeting.dateTime instanceof Date ? meeting.dateTime : new Date(meeting.dateTime);
     const { day, monthYear } = formatDateStamp(date, cityTimezone, locale);
     const upcoming = isFuture(date);
-    const today = isToday(date);
-    // The query fetches a margin beyond the preview so this sort's agenda rules
-    // stay authoritative; the count is the agenda's real size, not the margin's.
+    // "Today" has to mean today in the council's timezone, not the reader's or
+    // the server's: comparing calendar days in the runtime zone made a UTC server
+    // and an Athens browser disagree for the first hours of every local day, so
+    // the badge contradicted the date stamp beside it and vanished on hydration.
+    const today = !upcoming && sameCalendarDay(date, new Date(), cityTimezone);
     const subjects = sortSubjectsByImportance(meeting.subjects, 'importance');
-    const subjectCount = meeting._count.subjects;
+    const subjectCount = meeting.subjects.length;
     const remaining = subjectCount - SUBJECT_PREVIEW_COUNT;
 
     return (

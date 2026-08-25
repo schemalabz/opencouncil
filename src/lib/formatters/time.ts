@@ -338,3 +338,20 @@ export function formatDateRange(startDate: Date | null, endDate: Date | null, t:
   return '';
 }
 
+
+/**
+ * Whether two instants fall on the same calendar day in a given timezone.
+ *
+ * date-fns' `isToday` compares in the runtime's zone, which is the server's in
+ * an RSC render and the reader's after hydration — neither is the council's. A
+ * meeting is "today" when the municipality says it is.
+ */
+export function sameCalendarDay(a: Date | string, b: Date | string, timezone?: string): boolean {
+  const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: '2-digit', day: '2-digit' };
+  if (timezone) {
+    options.timeZone = timezone;
+  }
+  const format = new Intl.DateTimeFormat('en-CA', options);
+  const toDate = (value: Date | string) => (value instanceof Date ? value : new Date(value));
+  return format.format(toDate(a)) === format.format(toDate(b));
+}

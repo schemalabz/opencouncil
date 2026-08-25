@@ -12,7 +12,7 @@ const HOT_MEETING_WINDOW = 8;
 /** Radius (m) around the geohash cell center for the location-filtered variant. */
 const GEO_RADIUS_METERS = 500;
 /** Bump when the ranking/selection logic changes so cached results don't go stale. */
-const GEO_CACHE_VERSION = 'v2';
+const GEO_CACHE_VERSION = 'v3';
 
 type Meeting = CouncilMeetingWithAdminBodyAndSubjects;
 export type HotSubject = { subject: Meeting['subjects'][number]; meeting: Meeting };
@@ -25,18 +25,22 @@ interface BodyFilter {
 /**
  * Every subject of the given meetings, minus the ones that cannot be "hot".
  *
- * A subject nobody spoke to has no claim on a list of what was discussed, and a
- * withdrawn one was pulled before it could be. Both would otherwise rank on
- * recency alone, so a single freshly-released meeting can put an untouched
- * agenda item at the top — and with zero discussion time behind it, every
- * comparison drawn against it collapses.
+ * A withdrawn subject was pulled before it could be discussed, so it never
+ * qualifies. A subject nobody spoke to is dropped only when the window holds
+ * something that was: contributions are written at summarization, so a city
+ * whose meetings are released but not yet summarized has zero everywhere —
+ * filtering unconditionally would empty the embed widget municipalities put on
+ * their own sites rather than fall back to recency, which is the ranking those
+ * subjects can still support.
  */
 function flatten(meetings: Meeting[]): HotSubject[] {
-    return meetings.flatMap(meeting =>
+    const candidates = meetings.flatMap(meeting =>
         meeting.subjects
-            .filter(subject => !subject.withdrawn && getContributionCount(subject) > 0)
+            .filter(subject => !subject.withdrawn)
             .map(subject => ({ subject, meeting })),
     );
+    const discussed = candidates.filter(c => getContributionCount(c.subject) > 0);
+    return discussed.length > 0 ? discussed : candidates;
 }
 
 /**
@@ -232,6 +236,11 @@ export async function getHotSubjectsNearGeohash(
     return createCache(
         () => computeHotSubjectsNearGeohash(cityId, geohash, filter),
         ['city', cityId, 'hotSubjectsGeo', GEO_CACHE_VERSION, geohash, typeKey, idKey, `limit:${filter.limit}`],
-        { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`, `geohash:${geohash}`] }
+        {
+            tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`, `geohash:${geohash}`],
+            // The window is the last N *past* meetings, a function of `now` that
+            // no tag can express — the same reason the meeting queries carry one.
+            revalidate: 900,
+        }
     )();
 }
