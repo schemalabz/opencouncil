@@ -182,7 +182,12 @@ export default async function CouncilMeetingPage(
                     <SubjectHeaderProvider>
                         <SidebarProvider>
                             <NavigationEvents />
-                            <div className="h-screen w-full flex flex-col overflow-hidden">
+                            {/* The nav owns the left column top to bottom, so its
+                                edge is the page's one vertical rule and the header
+                                sits beside it rather than above it. */}
+                            <div className="h-screen w-full flex overflow-hidden">
+                                <MeetingSidebar />
+                                <div className="flex min-w-0 flex-1 flex-col">
                                 <Header
                                     path={[
                                         {
@@ -197,6 +202,7 @@ export default async function CouncilMeetingPage(
                                         }
                                     ]}
                                     showSidebarTrigger={true}
+                                    inset={true}
                                     currentEntity={{ cityId: data.city.id }}
                                     noContainer={true}
                                     showExplain={hasExplainPage(realm)}
@@ -211,16 +217,14 @@ export default async function CouncilMeetingPage(
                                 </Header>
                                 <HighlightModeBar />
                                 <EditingModeBar />
-                                <div className="flex-1 flex min-h-0">
-                                    <MeetingSidebar />
-                                    <div className="relative flex-1 overflow-auto" data-scroll-container>
-                                        <div className='pb-20'>
-                                            <Suspense>
-                                                {children}
-                                            </Suspense>
-                                        </div>
-                                        {data.meeting.muxPlaybackId && <TranscriptControls />}
+                                <div className="relative flex-1 overflow-auto" data-scroll-container>
+                                    <div className='pb-20'>
+                                        <Suspense>
+                                            {children}
+                                        </Suspense>
                                     </div>
+                                    {data.meeting.muxPlaybackId && <TranscriptControls />}
+                                </div>
                                 </div>
                             </div>
                         </SidebarProvider>
