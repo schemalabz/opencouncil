@@ -11,7 +11,7 @@ export { getDecisionForSubject };
 import { getCurrentUser, withUserAuthorizedToEdit } from "../auth";
 import { getPeopleForMeeting } from "../db/people";
 import { deriveWindowDays, localCalendarDate } from "./decisionWindow";
-import { getConflictingCandidates, applyCandidateConflictResolution } from "../db/decisionCandidates";
+import { getConflictingCandidates, applyCandidateConflictResolution, getUnresolvedCandidatesForMeeting } from "../db/decisionCandidates";
 import { isRoleActiveAt, isMayorRole } from "../utils/roles";
 import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, BACKOFF_SCHEDULE, MAX_POLLING_DAYS, LOGODOSIA_NAME_PATTERN } from "./pollDecisionsBackoff";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "../discord";
@@ -816,6 +816,14 @@ export interface PollDecisionsMeetingResult {
     reassignments: number;
     conflicts: number;
     extractions: number;
+    /** Session candidates left without a subject after this run — the admin triage pile. */
+    unplaced: number;
+    /** Unplaced candidates that carry a resolver suggestion — one click confirms them. */
+    suggested: number;
+    /** Subjects the resolver looked at and left without a decision. */
+    unmatchedSubjects: number;
+    /** Documents the reader could not use: unreadable + missing meeting date. */
+    readIssues: number;
     status: 'succeeded' | 'failed';
     error?: string;
 }
@@ -883,6 +891,10 @@ export async function checkBatchCompletionAndAlert(
     let totalReassignments = 0;
     let totalConflicts = 0;
     let totalExtractions = 0;
+    let totalUnplaced = 0;
+    let totalSuggested = 0;
+    let totalUnmatchedSubjects = 0;
+    let totalReadIssues = 0;
     let succeededCount = 0;
     let failedCount = 0;
     const meetingBreakdown: PollDecisionsMeetingResult[] = [];
@@ -900,6 +912,10 @@ export async function checkBatchCompletionAndAlert(
                 reassignments: 0,
                 conflicts: 0,
                 extractions: 0,
+                unplaced: 0,
+                suggested: 0,
+                unmatchedSubjects: 0,
+                readIssues: 0,
                 status: 'failed',
                 error: sibling.responseBody?.substring(0, ERROR_PREVIEW_LENGTH) ?? undefined,
             });
@@ -915,6 +931,10 @@ export async function checkBatchCompletionAndAlert(
         let reassignments = 0;
         let conflicts = 0;
         let extractions = 0;
+        let unplaced = 0;
+        let suggested = 0;
+        let unmatchedSubjects = 0;
+        let readIssues = 0;
         if (sibling.responseBody) {
             try {
                 const parsed = JSON.parse(sibling.responseBody);
@@ -923,6 +943,10 @@ export async function checkBatchCompletionAndAlert(
                     reassignments = parsed._processedCounts.reassignments ?? 0;
                     conflicts = parsed._processedCounts.conflicts ?? 0;
                     extractions = parsed._processedCounts.extractions ?? 0;
+                    unplaced = parsed._processedCounts.unplaced ?? 0;
+                    suggested = parsed._processedCounts.suggested ?? 0;
+                    unmatchedSubjects = parsed._processedCounts.unmatchedSubjects ?? 0;
+                    readIssues = parsed._processedCounts.readIssues ?? 0;
                 } else {
                     matches = Array.isArray(parsed.matches) ? parsed.matches.length : 0;
                     reassignments = Array.isArray(parsed.reassignments) ? parsed.reassignments.length : 0;
@@ -933,6 +957,10 @@ export async function checkBatchCompletionAndAlert(
         totalReassignments += reassignments;
         totalConflicts += conflicts;
         totalExtractions += extractions;
+        totalUnplaced += unplaced;
+        totalSuggested += suggested;
+        totalUnmatchedSubjects += unmatchedSubjects;
+        totalReadIssues += readIssues;
         meetingBreakdown.push({
             cityId,
             meetingId,
@@ -940,6 +968,10 @@ export async function checkBatchCompletionAndAlert(
             reassignments,
             conflicts,
             extractions,
+            unplaced,
+            suggested,
+            unmatchedSubjects,
+            readIssues,
             status: 'succeeded',
         });
     }
@@ -951,6 +983,10 @@ export async function checkBatchCompletionAndAlert(
         totalReassignments,
         totalConflicts,
         totalExtractions,
+        totalUnplaced,
+        totalSuggested,
+        totalUnmatchedSubjects,
+        totalReadIssues,
         meetingBreakdown,
     }).catch(err => console.error('Failed to send pollDecisions batch completed alert:', err));
 }
@@ -1402,6 +1438,10 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
     // Wrapped in try/catch because this runs after the main transaction committed —
     // a failure here should not mark the task as failed when decisions were already persisted.
     try {
+        // Same query the decisions page uses, so the alert and the UI agree on
+        // what needs triage after this run.
+        const unresolved = await getUnresolvedCandidatesForMeeting(task.cityId, task.councilMeetingId);
+        const reads = result.decisions ?? [];
         await prisma.taskStatus.update({
             where: { id: taskId },
             data: {
@@ -1412,6 +1452,10 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
                         reassignments: reassignmentCount,
                         conflicts: conflictCount,
                         extractions: extractedCount,
+                        unplaced: unresolved.length,
+                        suggested: unresolved.filter(c => c.subjectId !== null).length,
+                        unmatchedSubjects: result.unmatchedSubjects.length,
+                        readIssues: reads.filter(d => d.readStatus === 'unreadable' || d.readStatus === 'no_meeting_date').length,
                     },
                 }),
             },
