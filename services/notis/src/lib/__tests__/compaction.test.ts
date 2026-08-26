@@ -339,4 +339,53 @@ describe("maybeCompact", () => {
     expect(sent).toContain("already_tracked_do_not_repeat");
     expect(sent).toContain("kypseli-metro");
   });
+
+  test("a send the proactive limit held back folds as NOT SENT, never as delivered", async () => {
+    // `memory` never ages out, so a message the reader never received must
+    // not be summarised into it as one they were told. The live prompt
+    // labels these rows; the fold has to label them the same way.
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    // Older than anything seed() writes, so it is inside the folded range
+    // rather than the live window the prompt still renders itself.
+    db.store.messages.push({
+      id: "held",
+      subscriptionId: "sub1",
+      direction: "outbound",
+      status: "suppressed",
+      failureReason: "proactive limit",
+      body: "ΚΡΑΤΗΜΕΝΟ ΚΕΙΜΕΝΟ",
+      createdAt: new Date(SETTLED.getTime() - 24 * 60 * 60_000),
+    });
+    seed(db, COMPACT_WAKES_AT + 20, COMPACT_MESSAGES_AT + 20);
+    const fake = new FakeAnthropic([{ content: [text("Σύνοψη.")], stop_reason: "end_turn" }]);
+
+    await maybeCompact(db, { ...SUB_ARG }, { deps: makeDeps(fake), now: () => NOW });
+
+    const input = String((fake.requests[0].messages[0] as { content: unknown }).content);
+    const held = input.split("\n").find((line) => line.includes("ΚΡΑΤΗΜΕΝΟ ΚΕΙΜΕΝΟ"));
+    expect(held).toBeDefined();
+    expect(held).toContain("NOT SENT (proactive limit");
+    // The marker REPLACES the delivered label; it does not sit beside it.
+    expect(held).not.toContain("you sent");
+  });
+
+  test("a send another rail stopped never reaches the summariser at all", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    db.store.messages.push({
+      id: "paused",
+      subscriptionId: "sub1",
+      direction: "outbound",
+      status: "suppressed",
+      failureReason: "paused",
+      body: "ΠΑΥΜΕΝΟ ΚΕΙΜΕΝΟ",
+      createdAt: new Date(SETTLED.getTime() - 24 * 60 * 60_000),
+    });
+    seed(db, COMPACT_WAKES_AT + 20, COMPACT_MESSAGES_AT + 20);
+    const fake = new FakeAnthropic([{ content: [text("Σύνοψη.")], stop_reason: "end_turn" }]);
+
+    await maybeCompact(db, { ...SUB_ARG }, { deps: makeDeps(fake), now: () => NOW });
+
+    const input = String((fake.requests[0].messages[0] as { content: unknown }).content);
+    expect(input).not.toContain("ΠΑΥΜΕΝΟ ΚΕΙΜΕΝΟ");
+  });
 });

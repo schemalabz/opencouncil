@@ -8,10 +8,15 @@ import {
   Deps,
   MEMORY_MAX_CHARS,
 } from "@/agent/types";
+import { conversationLine } from "@/agent/prompt";
 import { normalizeUsage, usageToCost } from "@/agent/pricing";
 import { alert as sendAlert } from "./alert";
 import { buildDeps } from "./deps";
-import { conversationMessageFilter } from "./queue-core";
+import {
+  CONVERSATION_ROW_SELECT,
+  conversationMessageFilter,
+  toConversationMessage,
+} from "./conversation";
 import { putSetting } from "./settings";
 
 /**
@@ -128,9 +133,11 @@ export async function maybeCompact(
 
     const past = sub.memoryThrough ? { gt: sub.memoryThrough } : undefined;
     // Every message query here — counting, edge-finding and folding — uses the
-    // SAME filter the live conversation uses. A boundary computed over rows the
-    // agent never sees (suppressed, failed, still pending) lands in the wrong
-    // place and folds visible messages out of the window behind it.
+    // SAME filter the live conversation uses, and folds through the same
+    // renderer. A boundary computed over rows the agent never sees (failed,
+    // still pending) lands in the wrong place and folds visible messages out
+    // of the window behind it; a renderer that disagrees puts a message the
+    // reader never received into `memory` as one they did.
     const wakeWhere = { subscriptionId: sub.id, ...(past ? { eventAt: past } : {}) };
     const messageWhere = {
       subscriptionId: sub.id,
@@ -183,7 +190,7 @@ export async function maybeCompact(
       db.notisMessage.findMany({
         where: { ...messageWhere, createdAt: range },
         orderBy: { createdAt: "asc" },
-        select: { direction: true, body: true, createdAt: true },
+        select: CONVERSATION_ROW_SELECT,
       }),
       db.notisCommitment.findMany({
         where: { subscriptionId: sub.id, resolvedAt: null },
@@ -213,14 +220,11 @@ export async function maybeCompact(
       `</already_tracked_do_not_repeat>`,
       ``,
       `<aged_out_messages>`,
-      messages
-        .map(
-          (m) =>
-            `[${m.createdAt.toISOString()}] ${
-              m.direction === "inbound" ? "they wrote" : "you sent"
-            }: «${m.body}»`,
-        )
-        .join("\n") || "(none)",
+      // The live prompt's own renderer. A send the proactive limit held back
+      // is in this range like any other row, and folding it as "you sent"
+      // would write into `memory` — which never ages out — that the reader
+      // was told something they never received.
+      messages.map((m) => conversationLine(toConversationMessage(m))).join("\n") || "(none)",
       `</aged_out_messages>`,
       ``,
       `<aged_out_decisions>`,

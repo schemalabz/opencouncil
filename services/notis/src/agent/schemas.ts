@@ -66,13 +66,20 @@ export const commitmentSchema = z.object({
 });
 
 /** One turn of the real WhatsApp thread — what actually reached the reader
- *  (sent/delivered/read outbound) and what they wrote (inbound). A suppressed
- *  or failed message never appears, so the agent cannot mistake a stopped send
- *  for a delivered one. */
+ *  (sent/delivered/read outbound) and what they wrote (inbound). A failed
+ *  message never appears, so the agent cannot mistake a stopped send for a
+ *  delivered one. */
 export const conversationMessageSchema = z.object({
   at: z.string(),
   from: z.enum(["reader", "notis"]),
   text: z.string(),
+  /**
+   * Set when the agent wrote this text for the reader and a rail stopped it
+   * before it left. The proactive limit is the only rail that shows its work
+   * this way — every other stopped send is simply absent. The prompt renders
+   * it as NOT SENT, so the agent knows the reader has not heard this.
+   */
+  notSent: z.literal("proactive limit").optional(),
 });
 
 export const wakeStateSchema = z.object({

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { CalendarClock, EyeOff, Gauge, Moon, OctagonAlert, Sun, TriangleAlert } from "lucide-react";
 import { EVENT_LABELS } from "./_lib/records";
+import { suppressionLabel } from "@/lib/queue";
 import { getRailsNow } from "./_lib/system";
 import { Countdown } from "./_components/Countdown";
 import { DeltaChip } from "./_components/DeltaChip";
@@ -373,12 +374,6 @@ function RecentInboundList({ stats }: { stats: OverviewStats }) {
   );
 }
 
-const SUPPRESSION_LABELS: Record<string, string> = {
-  "weekly cap": "όριο εβδομάδας",
-  paused: "παύση",
-  unsubscribed: "απεγγραφή",
-};
-
 async function RailsStrip({ suppressions }: { suppressions: Array<{ reason: string; count: number }> }) {
   const rails = await getRailsNow();
   if (!rails) return null;
@@ -473,7 +468,7 @@ async function RailsStrip({ suppressions }: { suppressions: Array<{ reason: stri
             <p className="text-sm font-semibold tabular-nums">{suppressedTotal}</p>
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
               {suppressions
-                .map((r) => `${SUPPRESSION_LABELS[r.reason] ?? r.reason} ${r.count}`)
+                .map((r) => `${suppressionLabel(r.reason)} ${r.count}`)
                 .join(" · ")}
             </p>
           </div>

@@ -3,7 +3,7 @@ import { EditorialBrief } from "@/agent/types";
 import { ActivePhase, activePhase, clampToActiveHours } from "@/lib/active-hours";
 import { hasNotisDb, notisDb } from "@/lib/db";
 import { POLLER_STATUS_KEY, getProactiveSettings } from "@/lib/settings";
-import { WEEKLY_CAP } from "@/lib/queue";
+import { subscriptionsAtTemplateCap } from "@/lib/queue";
 
 /**
  * The system page's snapshot: queue state with per-item deadlines, the
@@ -135,33 +135,22 @@ const EMPTY: SystemSnapshot = {
   atCap: [],
 };
 
-/** Users whose rolling-week unprompted budget is spent — the same countable
- *  rule the send boundary applies. */
+/** Readers whose rolling-week budget of cold pushes is spent — measured by
+ *  the same code the send boundary enforces, so the two cannot drift. */
 async function usersAtCap(db: ReturnType<typeof notisDb>) {
-  const counts = await db.notisMessage.groupBy({
-    by: ["subscriptionId"],
-    where: {
-      proactive: true,
-      createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60_000) },
-      status: { in: ["pending", "sent", "delivered", "read"] },
-    },
-    _count: { _all: true },
-  });
-  const capped = counts.filter((c) => c._count._all >= WEEKLY_CAP);
+  const capped = await subscriptionsAtTemplateCap(db);
   if (capped.length === 0) return [];
   const subs = await db.notisSubscription.findMany({
     where: { id: { in: capped.map((c) => c.subscriptionId) } },
     select: { id: true, userId: true, userName: true },
   });
   const byId = new Map(subs.map((s) => [s.id, s]));
-  return capped
-    .map((c) => ({
-      subscriptionId: c.subscriptionId,
-      userId: byId.get(c.subscriptionId)?.userId ?? c.subscriptionId,
-      userName: byId.get(c.subscriptionId)?.userName ?? "—",
-      count: c._count._all,
-    }))
-    .sort((a, b) => b.count - a.count);
+  return capped.map((c) => ({
+    subscriptionId: c.subscriptionId,
+    userId: byId.get(c.subscriptionId)?.userId ?? c.subscriptionId,
+    userName: byId.get(c.subscriptionId)?.userName ?? "—",
+    count: c.count,
+  }));
 }
 
 export interface RailsNow {
