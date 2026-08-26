@@ -33,10 +33,16 @@
   "inCommittees": "{count} on committees",
   "governingParty": "Governing group",
   "notisName": "Notis",
-  "notisIntro": "Writes to you on WhatsApp about {city}",
+  "notisIntro": {
+    "municipality": "Writes to you on WhatsApp about {qualifier}",
+    "region": "Writes to you on WhatsApp about {qualifier}"
+  },
   "notisCta": "Send me updates",
   "notisChannels": "Email, WhatsApp or SMS · Most weeks, nothing",
-  "subscribedTitle": "Notis writes to you about {city}",
+  "subscribedTitle": {
+    "municipality": "Notis writes to you about {qualifier}",
+    "region": "Notis writes to you about {qualifier}"
+  },
   "allTopics": "All topics",
   "channelEmail": "Email",
   "channelPhone": "WhatsApp and SMS",

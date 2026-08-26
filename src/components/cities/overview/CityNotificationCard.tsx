@@ -4,12 +4,21 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import type { CityWithCounts } from '@/lib/db/cities';
 import type { CityNotificationPreference } from '@/lib/db/notifications';
-import { getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters/name';
+import { getLocalizedName, getMunicipalityQualifier } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
 import { NotisConversation } from './NotisConversation';
 
 /** Topic chips before the row stops being scannable; the rest become "+N". */
 const TOPICS_SHOWN = 2;
+
+/**
+ * The variant of a message that names the authority. Greek and Serbian inflect
+ * the noun with its article ("για τον δήμο", "για την περιφέρεια"), so each
+ * message carries both forms and the city picks one.
+ */
+function authorityKey(key: string, city: { authorityType: string }) {
+    return `${key}.${city.authorityType === 'region' ? 'region' : 'municipality'}`;
+}
 
 interface CityNotificationCardProps {
     city: CityWithCounts;
@@ -52,7 +61,7 @@ function InviteCard({ city, locale }: { city: CityWithCounts; locale: string }) 
                 <span className="min-w-0 flex-1">
                     <span className="block text-[15px] leading-tight">{t('notisName')}</span>
                     <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
-                        {t('notisIntro', { city: getLocalizedMunicipalityName(city, locale) })}
+                        {t(authorityKey('notisIntro', city), { qualifier: getMunicipalityQualifier(city, locale) })}
                     </span>
                 </span>
             </div>
@@ -104,7 +113,7 @@ function SubscribedCard({
                 />
                 <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                     <p className="text-sm leading-snug">
-                        {t('subscribedTitle', { city: getLocalizedMunicipalityName(city, locale) })}
+                        {t(authorityKey('subscribedTitle', city), { qualifier: getMunicipalityQualifier(city, locale) })}
                     </p>
 
                     {/* What they will actually be told about. The old control said
