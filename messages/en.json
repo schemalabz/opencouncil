@@ -85,8 +85,11 @@
         "petitionBreadcrumb": "Support your municipality",
         "explain": "Guide to local government",
         "explainShort": "Guide",
-        "canEdit": "You can edit",
-        "canEditHint": "Whatever you change is published at once."
+        "canEditHint": "Whatever you change is published at once.",
+        "canEditAuthority": {
+            "municipality": "You can edit {qualifier}",
+            "region": "You can edit {qualifier}"
+        }
     },
     "Footer": {
         "tagline": "Built with respect and appreciation for local government.",
