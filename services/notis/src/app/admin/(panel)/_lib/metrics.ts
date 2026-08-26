@@ -110,7 +110,7 @@ export interface PeriodStats {
   /** Shared editorial passes in the period — once per meeting event, on top
    *  of the per-wake model cost. */
   editorialCostUsd: number;
-  /** Rail-stopped sends in the period, by reason (weekly cap, παύση, …). */
+  /** Rail-stopped sends in the period, by reason (όριο μηνυμάτων, παύση, …). */
   suppressions: Array<{ reason: string; count: number }>;
 }
 

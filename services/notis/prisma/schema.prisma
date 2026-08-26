@@ -199,14 +199,15 @@ model NotisMessage {
   direction MessageDirection
   body      String
   channel   MessageChannel   @default(whatsapp)
-  // Cap-countable (unprompted) send: the wake had no user_message event and
-  // was not purely a reply-continuation follow-up. Not the same as
-  // deliveryMode=template — a scheduled wake inside the 24h window sends
-  // freeform yet is unprompted.
+  // Unprompted send: the wake had no user_message event and was not purely a
+  // reply-continuation follow-up. Not the same as deliveryMode=template — a
+  // scheduled wake inside the 24h window sends freeform yet is unprompted.
+  // The panel reads it. It does NOT decide the proactive limit: that rail
+  // counts unreplied TEMPLATE sends, one per wake.
   proactive Boolean          @default(false)
   // The delivery-instant rails (unsubscribed / paused / shadow) apply to
   // this row. Distinct from `proactive`: a reply-continuation follow-up is
-  // railed but cap-exempt, and a reactive reply (including the ΣΤΟΠ
+  // railed but not unprompted, and a reactive reply (including the ΣΤΟΠ
   // confirmation) is neither. Stamped at creation from the wake class, so
   // every delivery path — boundary, sweeper, incremental — asks one flag
   // instead of re-deriving the class per call site.
@@ -241,7 +242,8 @@ model NotisMessage {
 // Why the schedule exists decides the template shell when it fires outside
 // the 24h window: a promised answer to a reader question rides
 // demos_followup; a self-scheduled follow-up to proactive news rides
-// demos_update_news. Reply-origin fires are also cap-exempt.
+// demos_update_news. That is all it decides — the proactive limit counts
+// both, because outside the window both are cold pushes.
 enum ScheduledWakeOrigin {
   reply
   proactive

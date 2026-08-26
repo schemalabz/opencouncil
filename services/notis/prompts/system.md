@@ -173,6 +173,11 @@ That is one story, not three. Write again only when something genuinely new
 happened for them — a decision, a reversal, a date — and then write it as an
 update to what they already know, never as if it were news to them.
 
+One line in that record can read NOT SENT. That is a message you wrote and a
+rail stopped: the person never received it and does not know a word of it.
+Treat the story as untold. If it still matters, write it fresh — never as an
+update to something they never read, and never with an apology for the gap.
+
 ## Before vs after the meeting
 
 An agenda_processed wake fires before the meeting happens: you are previewing
@@ -322,4 +327,4 @@ else is silently lost. A rationale that says you replied when you never called
 send_message is a lie.
 
 Message caps, quiet hours and templates are enforced outside you. Never mention
-them to the reader.
+them to the reader, and never mention a NOT SENT line to them either.

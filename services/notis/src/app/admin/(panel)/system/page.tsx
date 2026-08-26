@@ -292,8 +292,9 @@ export default async function SystemPage(props: {
             <section className="rounded-lg border border-amber-500/40 bg-background p-4">
               <p className="text-sm font-medium">Στο εβδομαδιαίο όριο</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Οι χρήστες αυτοί δεν λαμβάνουν άλλα αυθόρμητα μηνύματα μέχρι να κυλήσει η
-                εβδομάδα· οι απαντήσεις δεν περιορίζονται.
+                Οι χρήστες αυτοί έχουν λάβει μηνύματα προτύπου που δεν απάντησαν μέσα σε
+                24 ώρες. Δεν λαμβάνουν άλλο μέχρι να κυλήσουν αυτά από την εβδομάδα· οι
+                απαντήσεις τους δεν περιορίζονται ποτέ.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {snap.atCap.map((u) => (

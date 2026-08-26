@@ -25,29 +25,6 @@ export const MAX_ATTEMPTS = 3;
  *  and the evaluation export both mean by "still in the queue". */
 export const LIVE_QUEUE_STATUSES = ["pending", "running", "failed"] as const;
 
-/**
- * Which message rows count as "what was actually said" — everything the
- * reader wrote, and only the outbound rows that reached them. A suppressed,
- * failed or still-pending send never appears, so the agent cannot mistake a
- * stopped message for a delivered one.
- *
- * A function rather than a shared literal: the return annotation supplies the
- * Prisma types the inline form used to get from context, and every caller gets
- * its own object.
- *
- * Exported because three readers must agree exactly: the live conversation
- * window, and both the counting and the folding sides of compaction. When
- * they drift, compaction computes a boundary from rows the agent never sees
- * and folds visible messages out of the window behind it.
- */
-export function conversationMessageFilter(): Prisma.NotisMessageWhereInput {
-  return {
-    OR: [
-      { direction: "inbound" },
-      { direction: "outbound", status: { in: ["sent", "delivered", "read"] } },
-    ],
-  };
-}
 // Reclaim threshold for crash recovery. With the Anthropic client capped at
 // 3 minutes per call (lib/anthropic.ts), a single hung turn cannot push an
 // alive wake past this on its own; a pathological full-length wake that

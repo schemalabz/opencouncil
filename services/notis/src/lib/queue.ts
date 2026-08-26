@@ -26,7 +26,6 @@ import { hasNotisDb, notisDb } from "./db";
 import { citiesForUser } from "./fanout";
 import { hasMainDb } from "./main-db";
 import {
-  conversationMessageFilter,
   ClaimLostError,
   ClaimedItem,
   MAX_ATTEMPTS,
@@ -40,6 +39,12 @@ import {
   touchClaim,
 } from "./queue-core";
 import { maybeCompact } from "./compaction";
+import {
+  CONVERSATION_ROW_SELECT,
+  PROACTIVE_LIMIT_REASON,
+  conversationMessageFilter,
+  toConversationMessage,
+} from "./conversation";
 import { getProactiveSettings } from "./settings";
 
 /**
@@ -127,19 +132,48 @@ const QUIET_MARGIN_MS = 10 * 60_000;
 /** How many promises the agent may carry for one reader. The block has to stay
  *  readable, and a reader with twenty open promises effectively has none. */
 export const MAX_OPEN_COMMITMENTS = 5;
-/** The hard rail: at most this many unprompted messages per rolling week. */
-export const WEEKLY_CAP = 3;
+/**
+ * The hard rail: at most this many UNREPLIED template sends per rolling week.
+ *
+ * A template send is a cold push. It reaches a reader whose 24h WhatsApp
+ * window is shut, so nothing they did invited it. Once this many have gone
+ * unanswered the reader is not reading, and the next one does not go out.
+ *
+ * The unit is the WAKE, not the message row: one wake is one occasion the
+ * handset buzzed, however many bubbles the agent wrote for it. Counting rows
+ * let a three-bubble wake spend a whole week, and let the boundary deliver
+ * half a wake once the budget ran out mid-batch.
+ *
+ * Freeform sends are never capped. They happen only inside the 24h window,
+ * which only the reader can open, so a freeform send answers someone who is
+ * already in the conversation.
+ */
+export const WEEKLY_TEMPLATE_CAP = 5;
 const WEEK_MS = 7 * 24 * 60 * 60_000;
+/** How long a template send has to draw an answer before it counts against
+ *  the cap for good. A send inside this window with no answer yet already
+ *  counts — the rail has to stop a burst on the day it happens — and stops
+ *  counting if the reader answers in time. Answer later and the send stays
+ *  counted: the window is the reader's chance to show that push landed, and
+ *  it does not reopen. */
+const REPLY_WINDOW_MS = 24 * 60 * 60_000;
+/** Delivery states that mean the row reached the reader, or still will.
+ *  `failed` and `suppressed` never arrived, so they never count. */
+const REACHED_STATUSES = ["pending", "sent", "delivered", "read"];
 
 /** Reactive = the reader spoke; bypasses every rail. */
 export function isReactiveWake(events: WakeEvent[]): boolean {
   return events.some((e) => e.type === "user_message");
 }
 
-/** Cap-countable (unprompted): not reactive, and not purely a promised
- *  follow-up to a reader question. A mixed coalesced wake counts,
- *  conservatively. */
-export function isCapCountable(events: WakeEvent[]): boolean {
+/** Unprompted: not reactive, and not purely a promised follow-up to a reader
+ *  question. A mixed coalesced wake counts, conservatively. Stamped on the
+ *  message row as `proactive`, which the panel reads.
+ *
+ *  It does NOT decide the template cap. That rail counts cold pushes, and a
+ *  promised follow-up that lands outside the 24h window is as cold as any
+ *  other — the reader asked days ago and has heard nothing since. */
+export function isUnprompted(events: WakeEvent[]): boolean {
   if (isReactiveWake(events)) return false;
   const allReplyFollowups = events.every(
     (e) => e.type === "scheduled" && (e.origin ?? "reply") === "reply",
@@ -179,7 +213,7 @@ async function runOneWake(
   const primary = primaryEvent(ordered);
   const lastAt = ordered[ordered.length - 1].at;
   const reactive = isReactiveWake(ordered);
-  const capCountable = isCapCountable(ordered);
+  const unprompted = isUnprompted(ordered);
 
   // The decision log comes from the wake records themselves — one row per
   // wake, including the shell's own model-less decisions (a ΣΤΟΠ pre-step, a
@@ -207,20 +241,18 @@ async function runOneWake(
     };
   });
 
-  const lastInbound = await db.notisMessage.findFirst({
-    // WhatsApp only: Meta's 24h customer-service window opens on WhatsApp
-    // inbound alone — an SMS reply must not steer decideDelivery into a
-    // freeform send the platform will reject.
-    where: { subscriptionId: sub.id, direction: "inbound", channel: "whatsapp" },
-    orderBy: { createdAt: "desc" },
-    select: { createdAt: true },
-  });
+  const windowOpenedAt = await lastWhatsAppInboundAt(db, sub.id);
 
   // The conversation the agent sees is the real message record: inbound
   // messages, and outbound messages that actually reached the reader. A
-  // suppressed or failed send is excluded, so the agent never treats a
-  // stopped message as delivered — the delivery status is the source of
-  // truth, not a claim written before the send.
+  // failed send is excluded, so the agent never treats a stopped message as
+  // delivered — the delivery status is the source of truth, not a claim
+  // written before the send.
+  //
+  // The one exception is a send the proactive limit held back. That text was
+  // written FOR this reader and never left, so it is shown with notSent set:
+  // hiding it would have the next wake write the same news again, believing
+  // it was never said.
   const messageRows = await db.notisMessage.findMany({
     where: {
       subscriptionId: sub.id,
@@ -229,13 +261,9 @@ async function runOneWake(
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: CONVERSATION_WINDOW,
-    select: { direction: true, body: true, createdAt: true },
+    select: CONVERSATION_ROW_SELECT,
   });
-  const conversation = messageRows.reverse().map((m) => ({
-    at: m.createdAt.toISOString(),
-    from: m.direction === "inbound" ? ("reader" as const) : ("notis" as const),
-    text: m.body,
-  }));
+  const conversation = messageRows.reverse().map(toConversationMessage);
 
   const cities = await assembleCities(sub);
   // Open promises never age out: unlike the two windows above, a commitment
@@ -315,7 +343,7 @@ async function runOneWake(
               direction: "outbound",
               body: text,
               channel: "whatsapp",
-              proactive: capCountable,
+              proactive: unprompted,
               // Reactive by construction: the closure exists only on
               // reactive wakes, and a reply is never railed.
               railed: false,
@@ -400,7 +428,7 @@ async function runOneWake(
   // send has no SMS fallback (that covers template rows only).
   const delivery =
     outcome.messages.length > 0
-      ? decideDelivery(primary, lastInbound?.createdAt.toISOString(), new Date())
+      ? decideDelivery(primary, windowOpenedAt, new Date())
       : undefined;
 
   const unparseableSchedules: string[] = [];
@@ -516,9 +544,10 @@ async function runOneWake(
         unparseableSchedules.push(scheduled.at);
         continue;
       }
-      // The poller fires these. Origin decides the eventual template shell
-      // and the cap exemption: a schedule made while answering the reader
-      // is a promised reply; one made after proactive news is not.
+      // The poller fires these. Origin decides the eventual template shell:
+      // a schedule made while answering the reader is a promised reply; one
+      // made after proactive news is not. It no longer decides anything about
+      // the cap — outside the 24h window both are cold pushes.
       await tx.notisScheduledWake.create({
         data: {
           subscriptionId: sub.id,
@@ -546,7 +575,7 @@ async function runOneWake(
             direction: "outbound",
             body: text,
             channel: "whatsapp",
-            proactive: capCountable,
+            proactive: unprompted,
             railed: !reactive,
             deliveryMode: delivery?.mode,
             template: delivery?.mode === "template" ? delivery.template : undefined,
@@ -818,10 +847,20 @@ export async function maybeSendSmsFallback(
 export const SUPPRESSION_REASONS = {
   unsubscribed: "απεγγραφή",
   paused: "παύση",
+  [PROACTIVE_LIMIT_REASON]: "όριο μηνυμάτων",
+  // Written by the per-message weekly cap the template cap replaced. Nothing
+  // writes it any more; the entry stays so the panel still labels old rows.
   "weekly cap": "όριο εβδομάδας",
 } as const;
 
 export type SuppressionReason = keyof typeof SUPPRESSION_REASONS;
+
+/** The Greek name for a reason read off a message row. A reason the set does
+ *  not name — a Bird error string, a rail added without a label — reads
+ *  through as itself rather than disappearing from the panel. */
+export function suppressionLabel(reason: string): string {
+  return (SUPPRESSION_REASONS as Record<string, string>)[reason] ?? reason;
+}
 
 /**
  * Kill every pending outbound row of a subscription — the unsubscribe
@@ -862,26 +901,193 @@ export async function suppressMessages(
   });
 }
 
+/** One outbound row, as the cap rule reads it. */
+interface CapRow {
+  id: string;
+  wakeId: string | null;
+  fallbackForId: string | null;
+  deliveryMode: string | null;
+  status: string | null;
+  createdAt: Date;
+}
+
+const CAP_ROW_SELECT = {
+  id: true,
+  wakeId: true,
+  fallbackForId: true,
+  deliveryMode: true,
+  status: true,
+  createdAt: true,
+} as const;
+
 /**
- * Countable history for the weekly cap: unprompted rows from the rolling
- * week that reached or will reach the reader. Suppressed rows never arrived
- * and never count. Exported so the panel and the pre-model check measure
- * exactly what the send boundary enforces.
+ * The only outbound rows an occasion can be built from: the template send
+ * itself, and the SMS fallback that carries it when WhatsApp fails. A
+ * freeform row can never make an occasion countable — decideDelivery gives
+ * every row of a wake the same mode — so leaving it in the database keeps
+ * both reads proportional to the pushes made, not to how much anyone talks.
  */
-export async function capUsage(
+function countableOutboundFilter(): Prisma.NotisMessageWhereInput {
+  return {
+    direction: "outbound",
+    OR: [{ deliveryMode: "template" }, { fallbackForId: { not: null } }],
+  };
+}
+
+/**
+ * The occasion a row belongs to. `wakeId` is the real answer; two rows have
+ * none and fall back:
+ * - the enrollment intro is written by the poller with no wake at all, so it
+ *   is its own occasion;
+ * - an SMS fallback of a wake-less row points at the row it replaces, which
+ *   keeps the two legs of one push on a single key.
+ * A fallback of a row that HAS a wake already carries that same wakeId, so
+ * it groups correctly without the second clause.
+ */
+function capGroupKey(row: CapRow): string {
+  return row.wakeId ?? row.fallbackForId ?? row.id;
+}
+
+/**
+ * The rule itself, over one reader's rows: how many of the rolling week's
+ * template sends drew no answer.
+ *
+ * An occasion counts when it pushed a template AND something in it reached
+ * the reader. The WhatsApp row and its SMS fallback share an occasion, so a
+ * template that failed on WhatsApp and arrived as an SMS counts once — the
+ * handset still buzzed with it, and the reader still owes no answer twice.
+ *
+ * Replied means any inbound message, on either channel, inside
+ * REPLY_WINDOW_MS of the moment the push reached them. An SMS reply is an
+ * answer like any other here; only decideDelivery cares which channel opened
+ * Meta's 24h window.
+ */
+function countUnrepliedTemplateSends(outbound: CapRow[], inboundAt: Date[]): number {
+  const occasions = new Map<string, { template: boolean; reachedAt: Date | null }>();
+  for (const row of outbound) {
+    const key = capGroupKey(row);
+    const occasion = occasions.get(key) ?? { template: false, reachedAt: null };
+    if (row.deliveryMode === "template") occasion.template = true;
+    if (row.status !== null && REACHED_STATUSES.includes(row.status)) {
+      if (occasion.reachedAt === null || row.createdAt < occasion.reachedAt) {
+        occasion.reachedAt = row.createdAt;
+      }
+    }
+    occasions.set(key, occasion);
+  }
+
+  let unreplied = 0;
+  for (const { template, reachedAt } of occasions.values()) {
+    if (!template || reachedAt === null) continue;
+    const deadline = reachedAt.getTime() + REPLY_WINDOW_MS;
+    const replied = inboundAt.some((at) => at > reachedAt && at.getTime() <= deadline);
+    if (!replied) unreplied++;
+  }
+  return unreplied;
+}
+
+/**
+ * The reader's spent budget: unreplied template sends in the rolling week.
+ * Exported so the pre-model check, the send boundary and the panel all
+ * measure exactly the same thing.
+ *
+ * `excludeIds` drops the rows of the wake being decided right now. They are
+ * already written and pending by the time the boundary asks, and a wake must
+ * not count against itself.
+ */
+export async function unrepliedTemplateSends(
   db: PrismaClient,
   subscriptionId: string,
   excludeIds: string[] = [],
 ): Promise<number> {
-  return db.notisMessage.count({
-    where: {
-      subscriptionId,
-      proactive: true,
-      ...(excludeIds.length > 0 ? { id: { notIn: excludeIds } } : {}),
-      createdAt: { gte: new Date(Date.now() - WEEK_MS) },
-      status: { in: ["pending", "sent", "delivered", "read"] },
-    },
+  const since = new Date(Date.now() - WEEK_MS);
+  const [outbound, inbound] = await Promise.all([
+    db.notisMessage.findMany({
+      where: {
+        subscriptionId,
+        createdAt: { gte: since },
+        ...(excludeIds.length > 0 ? { id: { notIn: excludeIds } } : {}),
+        ...countableOutboundFilter(),
+      },
+      select: CAP_ROW_SELECT,
+    }),
+    db.notisMessage.findMany({
+      where: { subscriptionId, direction: "inbound", createdAt: { gte: since } },
+      select: { createdAt: true },
+    }),
+  ]);
+  return countUnrepliedTemplateSends(
+    outbound,
+    inbound.map((m) => m.createdAt),
+  );
+}
+
+/**
+ * Every reader whose budget is spent. The panel needs this for its at-cap
+ * warning; a second implementation there would drift from the one the
+ * boundary enforces, so it calls here instead.
+ *
+ * Two narrow reads rather than one wide one: the first is bounded by the
+ * pushes actually made this week, and the second only asks about the readers
+ * that first one found. Everything else — a chatty reader's replies, every
+ * freeform send — never reaches Node.
+ */
+export async function subscriptionsAtTemplateCap(
+  db: PrismaClient,
+): Promise<Array<{ subscriptionId: string; count: number }>> {
+  const since = new Date(Date.now() - WEEK_MS);
+  const pushes = await db.notisMessage.findMany({
+    where: { createdAt: { gte: since }, ...countableOutboundFilter() },
+    select: { ...CAP_ROW_SELECT, subscriptionId: true },
   });
+  if (pushes.length === 0) return [];
+
+  const outbound = new Map<string, CapRow[]>();
+  for (const row of pushes) {
+    const rows = outbound.get(row.subscriptionId) ?? [];
+    rows.push(row);
+    outbound.set(row.subscriptionId, rows);
+  }
+
+  const replies = await db.notisMessage.findMany({
+    where: {
+      subscriptionId: { in: [...outbound.keys()] },
+      direction: "inbound",
+      createdAt: { gte: since },
+    },
+    select: { subscriptionId: true, createdAt: true },
+  });
+  const inbound = new Map<string, Date[]>();
+  for (const row of replies) {
+    const times = inbound.get(row.subscriptionId) ?? [];
+    times.push(row.createdAt);
+    inbound.set(row.subscriptionId, times);
+  }
+
+  const spent: Array<{ subscriptionId: string; count: number }> = [];
+  for (const [subscriptionId, rows] of outbound) {
+    const count = countUnrepliedTemplateSends(rows, inbound.get(subscriptionId) ?? []);
+    if (count >= WEEKLY_TEMPLATE_CAP) spent.push({ subscriptionId, count });
+  }
+  return spent.sort((a, b) => b.count - a.count);
+}
+
+/**
+ * The instant Meta's 24h customer-service window last opened: the reader's
+ * last WhatsApp inbound. WhatsApp only — an SMS reply does not open the
+ * window, so it must not steer decideDelivery into a freeform send the
+ * platform rejects.
+ */
+async function lastWhatsAppInboundAt(
+  db: PrismaClient,
+  subscriptionId: string,
+): Promise<string | undefined> {
+  const row = await db.notisMessage.findFirst({
+    where: { subscriptionId, direction: "inbound", channel: "whatsapp" },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+  return row?.createdAt.toISOString();
 }
 
 /**
@@ -1028,8 +1234,8 @@ async function linkPathForMessage(
  *
  * The rails apply to UNPROMPTED sends — a proactive row, or any template
  * send. `proactive` alone was the wrong key: a reply-continuation follow-up
- * is a template send but `proactive: false` (cap-exempt), and it must still
- * respect a ΣΤΟΠ. A free-form row is a reactive reply (decideDelivery
+ * is a template send but `proactive: false`, and it must still respect a
+ * ΣΤΟΠ. A free-form row is a reactive reply (decideDelivery
  * guarantees free-form for those), so it bypasses the rails — which is what
  * lets a ΣΤΟΠ confirmation still reach a reader who just unsubscribed.
  */
@@ -1152,15 +1358,16 @@ export async function deliverPendingMessage(
 
 /**
  * The proactive send boundary — the rails in order, per PRD §6:
- * unsubscribed race → kill switch → weekly cap → send. Suppressions land
- * as status `suppressed` with the reason in failureReason, so the panel
+ * unsubscribed race → kill switch → proactive limit → send. Suppressions
+ * land as status `suppressed` with the reason in failureReason, so the panel
  * shows exactly what a rail stopped and why.
  *
  * The unsubscribed and paused rails are enforced per row inside
  * deliverPendingMessage against live state; the batch-level checks here read
  * the same state once so a whole wake short-circuits with a single alert
- * instead of per message. The weekly cap belongs here, where the batch is
- * visible: the rows of one wake share the remaining budget.
+ * instead of per message. The proactive limit belongs here, where the whole
+ * wake is visible: it counts occasions, so it stops all of a wake's rows or
+ * none of them.
  */
 export async function sendProactiveMessages(
   db: PrismaClient,
@@ -1191,37 +1398,34 @@ export async function sendProactiveMessages(
 
   const rows = await db.notisMessage.findMany({
     where: { id: { in: messageIds } },
-    select: { id: true, proactive: true },
+    select: { id: true, deliveryMode: true },
   });
-  const byId = new Map(rows.map((r) => [r.id, r]));
 
-  // The weekly cap covers unprompted messages only. processItem checks it
-  // before the model too; this pass catches the wake that filled the budget
-  // while it ran.
-  let remaining = Number.POSITIVE_INFINITY;
-  if (rows.some((r) => r.proactive)) {
-    remaining = Math.max(0, WEEKLY_CAP - (await capUsage(db, sub.id, messageIds)));
+  // The proactive limit covers cold pushes only — template sends. processItem
+  // checks it before the model too; this pass catches the reader whose window
+  // shut, or whose budget filled, while the model ran.
+  //
+  // All of the wake or none of it. One wake is one occasion against the cap,
+  // so there is no partial budget to spend, and half a story on the reader's
+  // handset is worse than the whole story next week. decideDelivery gives
+  // every row of a wake the same mode, so the template rows ARE the wake.
+  if (rows.some((r) => r.deliveryMode === "template")) {
+    const spent = await unrepliedTemplateSends(db, sub.id, messageIds);
+    if (spent >= WEEKLY_TEMPLATE_CAP) {
+      await suppressMessages(db, messageIds, PROACTIVE_LIMIT_REASON);
+      return;
+    }
   }
 
+  const known = new Set(rows.map((r) => r.id));
   const pace = makeSendPacer();
   for (const id of messageIds) {
-    const row = byId.get(id);
-    if (!row) continue;
-    if (row.proactive) {
-      if (remaining <= 0) {
-        await suppressMessages(db, [id], "weekly cap");
-        continue;
-      }
-      remaining--;
-    }
+    if (!known.has(id)) continue;
     await pace(sub.id);
     await deliverPendingMessage(db, bird, id, sub, alert);
   }
 }
 
-/** Close a wake the weekly cap makes pointless, before any model spend. The
- *  events are consumed — a slot opens only as the week rolls, by which time
- *  this news is old — so a model-less wake row records what went unexamined. */
 /** Close an item without a model run, leaving a model-less wake row so the
  *  decision log shows what went unexamined and why. */
 async function completeModelLessWake(
@@ -1261,10 +1465,20 @@ async function completeModelLessWake(
   });
 }
 
+/**
+ * Close a wake the proactive limit makes pointless, before any model spend.
+ * The events are consumed: a slot opens only as the week rolls, and by then
+ * this news is old — so a model-less wake row records what went unexamined.
+ *
+ * `spent` is the count that was actually measured, not the cap. A reader can
+ * be past it (an enrollment intro, or a wake the boundary let through on a
+ * race), and the rationale is read back by the next wake's decision log.
+ */
 async function skipCappedWake(
   db: PrismaClient,
   item: ClaimedItem,
   events: WakeEvent[],
+  spent: number,
 ): Promise<void> {
   const what =
     events.length === 1
@@ -1274,7 +1488,8 @@ async function skipCappedWake(
     db,
     item,
     events,
-    `(σύστημα) ${what} — ο χρήστης έχει ήδη ${WEEKLY_CAP} αυθόρμητα μηνύματα αυτή την εβδομάδα.`,
+    `(σύστημα) ${what} — ο χρήστης έχει ${spent} αναπάντητα μηνύματα προτύπου ` +
+      `αυτή την εβδομάδα (όριο ${WEEKLY_TEMPLATE_CAP}), οπότε δεν στέλνουμε άλλο.`,
   );
 }
 
@@ -1323,13 +1538,25 @@ export async function processItem(item: ClaimedItem, overrides: DrainDeps = {}):
         await deferItem(db, item.id, item.attempts, clamped);
         return;
       }
-      // The weekly cap, before the model for the same reason: a saturated
-      // reader's unprompted wake can only produce messages the boundary
-      // suppresses, so running it buys a decision entry the rails then have
-      // to contradict — and pays for it. Reply-continuations are exempt.
-      if (isCapCountable(events) && (await capUsage(db, item.subscriptionId)) >= WEEKLY_CAP) {
-        await skipCappedWake(db, item, events);
-        return;
+      // The proactive limit, before the model for the same reason: a wake
+      // the boundary would suppress whole can only buy a decision entry the
+      // rails then have to contradict — and pays for it.
+      //
+      // Only a cold push is capped, so the delivery mode decides whether to
+      // even ask. The window can shut between here and the boundary (a
+      // 30-60s model run, or an hour of sweeper retries), which is why the
+      // boundary re-reads both halves rather than trusting this.
+      const delivery = decideDelivery(
+        primaryEvent(events),
+        await lastWhatsAppInboundAt(db, item.subscriptionId),
+        new Date(),
+      );
+      if (delivery.mode === "template") {
+        const spent = await unrepliedTemplateSends(db, item.subscriptionId);
+        if (spent >= WEEKLY_TEMPLATE_CAP) {
+          await skipCappedWake(db, item, events, spent);
+          return;
+        }
       }
     }
 

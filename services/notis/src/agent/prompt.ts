@@ -1,6 +1,7 @@
 import { distanceLine, locationPoints, locationText } from "./geo";
 import {
   CONVERSATION_WINDOW,
+  ConversationMessage,
   DECISION_WINDOW,
   EditorialBrief,
   Prompts,
@@ -83,6 +84,21 @@ export function neutralizeFences(text: string): string {
   );
 }
 
+/**
+ * One conversation turn, rendered. Compaction folds aged-out turns into
+ * `memory` through this same function: a held-back message rendered as "you
+ * sent" on that side would put the falsehood somewhere that never ages out,
+ * and every later wake would read it as delivered.
+ */
+export function conversationLine(m: ConversationMessage): string {
+  const label = m.notSent
+    ? `NOT SENT (${m.notSent} — they never received this, so they do not know it)`
+    : m.from === "reader"
+      ? "they wrote"
+      : "you sent";
+  return `[${m.at}] ${label}: «${neutralizeFences(m.text)}»`;
+}
+
 export function renderEvent(event: WakeEvent, state: WakeState): string {
   switch (event.type) {
     case "agenda_processed":
@@ -127,21 +143,21 @@ export function assembleUserTurn(state: WakeState, events: WakeEvent[], now: Dat
 
   // The conversation is the record of what actually reached this reader —
   // in production, drawn from the message table's own delivery status, so a
-  // suppressed or failed send is absent and the model never treats a stopped
-  // message as delivered.
+  // failed send is absent and the model never treats a stopped message as
+  // delivered. A send the proactive limit held back is the one exception: it
+  // is present and labelled, because the agent wrote that text and needs to
+  // know the reader never got it.
   const turnsOmitted = Math.max(0, state.conversation.length - CONVERSATION_WINDOW);
   const conversation = state.conversation
     .slice(-CONVERSATION_WINDOW)
-    .map(
-      (m) =>
-        `[${m.at}] ${m.from === "reader" ? "they wrote" : "you sent"}: «${neutralizeFences(m.text)}»`,
-    )
+    .map(conversationLine)
     .join("\n");
   const conversationHeader = turnsOmitted > 0 ? `(${turnsOmitted} older messages omitted)\n` : "";
 
   // The decision log — why the agent acted, silences included. A send
   // decision whose text is absent from the conversation was stopped or
-  // failed before it reached the reader.
+  // failed before it reached the reader; when the proactive limit stopped
+  // it, the text is present and marked NOT SENT instead.
   const decisionsOmitted = Math.max(0, state.decisions.length - DECISION_WINDOW);
   const decisions = state.decisions
     .slice(-DECISION_WINDOW)
