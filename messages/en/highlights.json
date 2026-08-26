@@ -99,7 +99,8 @@
     "createNewHighlight": "Create New Highlight",
     "creating": "Creating highlight...",
     "currentlyEditing": "Currently editing a highlight",
-    "addHighlight": "Add Highlight"
+    "addHighlight": "Add Highlight",
+    "highlightShort": "Highlight"
   },
   "toasts": {
     "highlightCreated": "Highlight Created",

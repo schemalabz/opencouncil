@@ -4,13 +4,11 @@ import { Link } from '@/i18n/routing'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import UserDropdown from "./user-dropdown"
-import ScriptSwitcher from "./ScriptSwitcher"
 import { motion, AnimatePresence } from 'framer-motion'
 import { SidebarTrigger } from '../ui/sidebar'
 import { City } from '@prisma/client'
-import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
-import { Search, Bot, Building2, ChevronRight, HelpCircle, type LucideIcon } from "lucide-react"
+import { Search, Building2, ChevronRight, type LucideIcon } from "lucide-react"
 import { useRouter, useSelectedLayoutSegment } from "next/navigation"
 import { useState, useRef, useEffect } from "react"
 import { createPortal } from "react-dom"
@@ -31,6 +29,10 @@ interface HeaderProps {
     path: PathElement[]
     showSidebarTrigger?: boolean
     currentEntity?: { cityId: string }
+    /**
+     * What this page can do — rendered in the action bar below the header, not
+     * beside the search box. See {@link Header}.
+     */
     children?: React.ReactNode
     noContainer?: boolean
     className?: string
@@ -42,87 +44,50 @@ interface HeaderProps {
     showExplain?: boolean
 }
 
-function CityElement({ element }: { element: PathElement }) {
-    return (
-        <Link
-            href={element.link}
-            className="hover:text-primary transition-colors text-foreground text-sm sm:text-base md:text-lg font-medium"
-        >
-            <div className="flex items-center gap-1 sm:gap-2 md:gap-4">
-                {element.city && (
-                    element.city.logoImage ? (
-                        <Image
-                            src={element.city.logoImage}
-                            alt={element.city.name}
-                            width={120}
-                            height={120}
-                            className="h-14 sm:h-12 md:h-14 w-auto max-w-24 sm:max-w-20 md:max-w-28 object-contain flex-shrink-0"
-                            priority
-                        />
-                    ) : (
-                        <Building2 className="h-14 w-14 sm:h-12 sm:w-12 md:h-14 md:w-14 text-gray-400 flex-shrink-0" />
-                    )
-                )}
-                <span className={cn(
-                    "truncate text-xs sm:text-sm md:text-base",
-                    element.city && "hidden sm:inline"
-                )}>{element.name}</span>
-            </div>
-        </Link>
-    )
-}
-
-function CurrentPageTitle({ element, autoScroll }: {
-    element: PathElement
-    autoScroll?: boolean
-}) {
-    if (autoScroll) {
-        return (
-            <AutoScrollText>
-                <span className="text-sm sm:text-base font-medium leading-tight">{element.name}</span>
-            </AutoScrollText>
-        )
-    }
-
-    return (
-        <span className="text-sm sm:text-base font-medium truncate">{element.name}</span>
-    )
-}
-
-function TopicIconBadge({ subjectInfo }: {
-    subjectInfo: SubjectHeaderInfo
-}) {
+function TopicIconBadge({ subjectInfo }: { subjectInfo: SubjectHeaderInfo }) {
     return (
         <TopicIcon
             color={subjectInfo.topicColor}
             icon={subjectInfo.topicIcon}
             size="lg"
-            className="h-9 w-9 p-0 sm:h-10 sm:w-10"
+            className="h-7 w-7 shrink-0 p-0"
         />
     )
 }
 
 function PageIconBadge({ icon: IconComponent }: { icon: LucideIcon }) {
     return (
-        <div className="h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-full shrink-0 bg-gray-100">
-            <IconComponent className="h-[18px] w-[18px] text-gray-400" />
-        </div>
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground/70">
+            <IconComponent className="h-[15px] w-[15px]" />
+        </span>
     )
 }
 
-/** Icon alone until `sm`, label from `lg` — shared by the three icon-first controls. */
-const iconControlWidth = 'w-8 sm:w-auto sm:px-2.5 lg:px-3';
-
+/**
+ * The app header: where you are, search, you — and nothing else, on every screen.
+ *
+ * The bar used to carry three unrelated classes of thing at identical weight:
+ * orientation (two marks and a breadcrumb), app-wide utilities (search, MCP, the
+ * guide, the script switch) and whatever the current page could do (edit,
+ * highlight, present, share). On a meeting page that was eight controls and two
+ * marks in one 390px row. Only the third class varies by page, so only it moves:
+ * page actions arrive as `children` and render in the action bar below, and the
+ * rarely-wanted utilities moved inside the account menu, which can name them.
+ *
+ * On a phone the action bar is not a new row — it is the second row the meeting
+ * page already rendered (`sm:hidden`, sidebar toggle + page title), now shown at
+ * every width and carrying the actions on its right.
+ */
 const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noContainer = false, className, showExplain = false }: HeaderProps) => {
     const t = useTranslations("Header");
     const tCommon = useTranslations("Common");
     const meetingPageSegments = getMeetingPageSegments(useTranslations("CouncilMeeting"));
     const [isScrolled, setIsScrolled] = useState(false);
+    const [isContentScrolled, setIsContentScrolled] = useState(false);
     const router = useRouter();
     const segment = useSelectedLayoutSegment();
     const [searchQuery, setSearchQuery] = useState("");
     const [isSearchOpen, setIsSearchOpen] = useState(false);
-    const [isContentScrolled, setIsContentScrolled] = useState(false);
     const searchOverlayRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -156,10 +121,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
 
     if (showSidebarTrigger) {
         if (subjectHeader) {
-            dynamicPath.push({
-                name: subjectHeader.name,
-                link: '',
-            });
+            dynamicPath.push({ name: subjectHeader.name, link: '' });
         } else {
             const pageConfig = segment ? meetingPageSegments[segment] : null;
             if (pageConfig) {
@@ -167,6 +129,28 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
             }
         }
     }
+
+    const isMeetingContext = showSidebarTrigger && dynamicPath.length >= 2 && Boolean(path[0]?.city);
+    const cityElement: PathElement | undefined = dynamicPath[0];
+    const isCurrentSubject = subjectHeader !== null;
+    const pageIcon = (showSidebarTrigger && !subjectHeader)
+        ? meetingPageSegments[segment ?? 'overview']?.icon
+        : null;
+
+    // In a meeting the last crumb is the page (or the subject) and belongs to the
+    // action bar; the meeting itself titles the header. Everywhere else the last
+    // crumb titles the header and there is nothing below it.
+    const titleElement = isMeetingContext
+        ? dynamicPath[dynamicPath.length - 2]
+        : dynamicPath[dynamicPath.length - 1];
+    const trailElements = isMeetingContext
+        ? dynamicPath.slice(0, -2)
+        : dynamicPath.slice(0, -1);
+    const pageElement = isMeetingContext ? dynamicPath[dynamicPath.length - 1] : null;
+
+    // The bar exists when the page has something to say about itself: a meeting
+    // page always does, and any caller passing actions does by definition.
+    const hasActionBar = isMeetingContext || Boolean(children);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -193,6 +177,20 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
     }, []);
 
     useEffect(() => {
+        if (!hasActionBar) return;
+        // `data-scroll-container`, set by the meeting layout on its scroll pane.
+        // This listener used to look for `data-meeting-scroll`, which nothing in
+        // the app has ever set, so the collapse below never once fired.
+        const scrollContainer = document.querySelector('[data-scroll-container]');
+        if (!scrollContainer) return;
+
+        const handleScroll = () => setIsContentScrolled(scrollContainer.scrollTop > 20);
+        handleScroll();
+        scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+        return () => scrollContainer.removeEventListener('scroll', handleScroll);
+    }, [hasActionBar]);
+
+    useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (searchOverlayRef.current && !searchOverlayRef.current.contains(event.target as Node)) {
                 setIsSearchOpen(false);
@@ -209,198 +207,160 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
         };
     }, [isSearchOpen]);
 
-    useEffect(() => {
-        if (!showSidebarTrigger) return;
-
-        const scrollContainer = document.querySelector('[data-meeting-scroll]');
-        if (!scrollContainer) return;
-
-        const handleScroll = () => {
-            setIsContentScrolled(scrollContainer.scrollTop > 20);
-        };
-
-        scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
-        return () => scrollContainer.removeEventListener('scroll', handleScroll);
-    }, [showSidebarTrigger]);
-
-    const isMeetingContext = showSidebarTrigger && dynamicPath.length >= 2;
-    const cityElement = dynamicPath[0];
-    const currentPageElement = isMeetingContext ? dynamicPath[dynamicPath.length - 1] : null;
-    const middleElements = isMeetingContext ? dynamicPath.slice(1, -1) : dynamicPath.slice(1);
-    const isCurrentSubject = subjectHeader !== null;
-    const pageIcon = (showSidebarTrigger && !subjectHeader)
-        ? meetingPageSegments[segment ?? 'overview']?.icon
-        : null;
-
-    const renderBreadcrumbs = () => {
-        if (dynamicPath.length === 0) return null;
-
-        return (
-            <>
-                <Separator orientation="vertical" className="h-8 sm:h-12 mx-2 sm:mx-2 md:mx-6" />
-
-                <div className="shrink-0">
-                    <CityElement element={cityElement} />
-                </div>
-
-                {isMeetingContext ? (
-                    <>
-                        <Separator orientation="vertical" className="h-8 sm:h-12 mx-1 sm:mx-2 md:mx-4 hidden sm:block" />
-
-                        <div className="hidden sm:flex items-center min-w-0 flex-1 gap-2">
-                            {isCurrentSubject && subjectHeader ? (
-                                <TopicIconBadge subjectInfo={subjectHeader} />
-                            ) : pageIcon && (
-                                <PageIconBadge icon={pageIcon} />
-                            )}
-                            {renderMeetingBreadcrumbContent()}
-                        </div>
-                    </>
-                ) : (
-                    middleElements.map((element, index) => (
-                        <div key={element.link || `path-${index}`} className="flex items-center min-w-0">
-                            <Separator orientation="vertical" className="h-6 sm:h-8 mx-1 sm:mx-2 md:mx-4" />
-                            <Link
-                                href={element.link}
-                                className="hover:text-primary transition-colors text-muted-foreground truncate text-xs sm:text-sm md:text-base"
-                            >
-                                {element.name}
-                            </Link>
-                            {element.description && (
-                                <span className="text-xs text-muted-foreground truncate hidden sm:block ml-2">
-                                    {element.description}
-                                </span>
-                            )}
-                        </div>
-                    ))
-                )}
-            </>
-        );
-    };
-
-    const renderControls = () => (
-        <div className={cn("flex items-center gap-1 sm:gap-2 md:gap-4 flex-shrink-0 ml-auto", isMeetingContext && "sm:ml-1 md:ml-4")}>
-            {children}
-            <div className="flex items-center gap-1 sm:gap-2">
-                <ScriptSwitcher className="mr-1" />
-                {/* The labels are the first thing to go when the bar tightens: an
-                    unlabelled magnifier is still understood, whereas the city name
-                    and the user menu beside them are not recoverable from an icon.
-                    aria-label stays on regardless, so the accessible name never
-                    depends on the viewport. */}
-                <button
-                    onClick={() => setIsSearchOpen(true)}
-                    className={cn(headerControlClass, iconControlWidth)}
-                    aria-label={t('search')}
-                    title={t('search')}
-                >
-                    <Search className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
-                    <span className="hidden lg:inline text-sm">{t('search')}</span>
-                </button>
-                <Link
-                    href="/mcp"
-                    className={cn(headerControlClass, iconControlWidth)}
-                    aria-label={t('mcp')}
-                    title={t('mcp')}
-                >
-                    <Bot className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
-                    <span className="hidden lg:inline text-sm">{t('mcpShort')}</span>
-                </Link>
-                {/* Outlined, with the icon in brand orange: its two neighbours are
-                    things a reader arrives already looking for, and the guide is
-                    not, so it is the one that has to read as a button. The border
-                    and the warm icon do that without a second filled colour in a
-                    bar that is otherwise chrome. */}
-                {showExplain && (
-                    <Link
-                        href="/explain"
-                        className={cn(headerControlClass, iconControlWidth, 'text-foreground ring-1 ring-border')}
-                        aria-label={t('explain')}
-                        title={t('explain')}
-                    >
-                        <HelpCircle className="h-3 w-3 sm:h-4 sm:w-4 shrink-0 text-[hsl(var(--orange))]" />
-                        <span className="hidden lg:inline text-sm">{t('explainShort')}</span>
-                    </Link>
-                )}
-                <UserDropdown currentEntity={currentEntity} />
-            </div>
-        </div>
-    );
-
-    const renderMeetingBreadcrumbContent = () => (
-        <div className="flex flex-col justify-center min-w-0 flex-1">
-            {middleElements.length > 0 && (
-                <div className="flex items-center gap-1 min-w-0">
-                    {middleElements.map((element, index) => (
-                        <div key={element.link || `mid-${index}`} className="flex items-center gap-1 min-w-0">
-                            {index > 0 && (
-                                <ChevronRight className="h-2.5 w-2.5 text-muted-foreground/60 shrink-0" />
-                            )}
-                            <Link
-                                href={element.link}
-                                className="text-[11px] sm:text-xs text-muted-foreground hover:text-foreground transition-colors truncate"
-                            >
-                                {element.name}
-                            </Link>
-                        </div>
-                    ))}
-                </div>
+    // A meeting always carries its city on the first crumb. Without that test
+    // `/admin/settings/...` qualified too: `settings` is both an admin segment and
+    // a key in getMeetingPageSegments, so the segment crumb pushed the path to
+    // length 2 and the admin shell inherited a meeting's header.
+    const renderIdentity = () => (
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+            {showSidebarTrigger && !hasActionBar && (
+                <SidebarTrigger className="h-5 w-5 shrink-0 text-muted-foreground/60" />
             )}
-            {currentPageElement && (
-                <CurrentPageTitle
-                    element={currentPageElement}
-                    autoScroll={isCurrentSubject}
-                />
-            )}
-        </div>
-    );
-
-    const renderMobileBreadcrumbRow = () => (
-        <div className="sm:hidden flex items-center min-w-0 px-2 pb-1 gap-2">
-            {showSidebarTrigger && <SidebarTrigger className="shrink-0 h-5 w-5 text-muted-foreground/60" />}
-            {isCurrentSubject && subjectHeader ? (
-                <TopicIconBadge subjectInfo={subjectHeader} />
-            ) : pageIcon && (
-                <PageIconBadge icon={pageIcon} />
-            )}
-            {renderMeetingBreadcrumbContent()}
-        </div>
-    );
-
-    const renderLogo = () => (
-        <div className="flex shrink-0 items-center gap-1 sm:gap-2 md:gap-4 z-10 h-full">
-            {showSidebarTrigger && <SidebarTrigger className={cn("h-5 w-5 text-muted-foreground/60", isMeetingContext && "hidden sm:flex")} />}
-            <Link href="/" className="flex items-center gap-1 sm:gap-2 md:gap-3 shrink-0 h-full py-0 sm:py-2">
+            <Link href="/" className="flex shrink-0 items-center gap-2 hover:no-underline">
                 <Image
                     src='/logo.png'
-                    alt='logo'
+                    alt='OpenCouncil'
                     width={120}
                     height={120}
-                    className="h-10 sm:h-12 md:h-14 w-auto object-contain transition-transform"
+                    className="h-9 w-auto object-contain sm:h-10 md:h-11"
                 />
                 {dynamicPath.length === 0 && (
-                    <span className="text-sm sm:text-lg md:text-xl md:hidden">OpenCouncil</span>
+                    <span className="text-base font-medium sm:text-lg">OpenCouncil</span>
                 )}
             </Link>
+
+            {titleElement && (
+                <>
+                    <span className="h-7 w-px shrink-0 bg-border sm:h-9" aria-hidden />
+                    {/* The seal is a lockup, not a mark: the Athens one is 492×200,
+                        so at a height a phone bar can spare its wordmark cannot be
+                        read and it still costs ~70px of width. Below `sm` the
+                        municipality is written instead; the seal returns where it
+                        fits. */}
+                    {cityElement?.city && (
+                        <Link href={cityElement.link} className="hidden shrink-0 sm:block" aria-hidden tabIndex={-1}>
+                            {cityElement.city.logoImage ? (
+                                <Image
+                                    src={cityElement.city.logoImage}
+                                    alt=""
+                                    width={120}
+                                    height={120}
+                                    className="h-8 w-auto max-w-[84px] object-contain md:h-10 md:max-w-[112px]"
+                                    priority
+                                />
+                            ) : (
+                                <Building2 className="h-8 w-8 text-muted-foreground/50 md:h-10 md:w-10" />
+                            )}
+                        </Link>
+                    )}
+                    <div className="flex min-w-0 flex-1 flex-col justify-center">
+                        {trailElements.length > 0 && (
+                            <div className="flex min-w-0 items-center gap-1">
+                                {trailElements.map((element, index) => (
+                                    <div key={element.link || `trail-${index}`} className="flex min-w-0 items-center gap-1">
+                                        {index > 0 && (
+                                            <ChevronRight className="h-2.5 w-2.5 shrink-0 text-muted-foreground/60" aria-hidden />
+                                        )}
+                                        <Link
+                                            href={element.link}
+                                            className="truncate text-[11px] text-muted-foreground transition-colors hover:text-foreground sm:text-xs"
+                                        >
+                                            {element.name}
+                                        </Link>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {titleElement.link ? (
+                            <Link href={titleElement.link} className="truncate text-sm font-medium hover:no-underline sm:text-base">
+                                {titleElement.name}
+                            </Link>
+                        ) : (
+                            <span className="truncate text-sm font-medium sm:text-base">{titleElement.name}</span>
+                        )}
+                    </div>
+                </>
+            )}
         </div>
     );
 
-    const renderCenteredTitle = () => {
-        if (dynamicPath.length > 0) return null;
-        return (
-            <div className="absolute left-0 right-0 hidden md:flex justify-center items-center pointer-events-none">
-                <Link href="/" className={cn("pointer-events-auto", noContainer ? "hover:no-underline" : "hover:underline")}>
-                    <span className="text-xl font-medium">OpenCouncil</span>
-                </Link>
-            </div>
-        );
-    };
+    const renderControls = () => (
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+            <button
+                onClick={() => setIsSearchOpen(true)}
+                className={cn(headerControlClass, 'w-9 sm:w-auto sm:px-3')}
+                aria-label={t('search')}
+                title={t('search')}
+            >
+                <Search className="h-4 w-4 shrink-0" />
+                <span className="hidden lg:inline text-sm">{t('search')}</span>
+            </button>
+            <UserDropdown
+                currentEntity={currentEntity}
+                entityLabel={cityElement?.name}
+                showExplain={showExplain}
+            />
+        </div>
+    );
+
+    /**
+     * What this page is, and what it can do — one titled toolbar, one owner.
+     *
+     * The four meeting buttons arrive as `children` and are always rendered:
+     * ShareDropdown is a controlled surface the transcript opens through
+     * ShareContext, so hiding it behind a condition would break "copy link at
+     * this timestamp" rather than just hide a button.
+     */
+    const renderActionBar = () => (
+        <div className="flex h-12 items-center gap-2 border-t border-border/70 bg-muted/40 px-2 sm:h-[54px] sm:px-4">
+            {showSidebarTrigger && <SidebarTrigger className="h-5 w-5 shrink-0 text-muted-foreground/60" />}
+            {isCurrentSubject && subjectHeader ? (
+                <TopicIconBadge subjectInfo={subjectHeader} />
+            ) : pageIcon ? (
+                <PageIconBadge icon={pageIcon} />
+            ) : null}
+            {pageElement && (
+                <div className="min-w-0 flex-1 text-[13px] font-medium text-foreground/80 sm:text-sm">
+                    {isCurrentSubject ? (
+                        <AutoScrollText>
+                            <span className="leading-tight">{pageElement.name}</span>
+                        </AutoScrollText>
+                    ) : (
+                        <span className="block truncate">{pageElement.name}</span>
+                    )}
+                </div>
+            )}
+            <div className="ml-auto flex shrink-0 items-center gap-1">{children}</div>
+        </div>
+    );
+
+    const renderRow = () => (
+        <div className={cn(
+            "flex items-center px-2 sm:px-4",
+            noContainer ? "" : "w-full",
+            // Folds away once the meeting's own pane scrolls, leaving the action
+            // bar: deep in a transcript the useful row is the one holding the
+            // page and its tools, not the one holding the logo. Phones only —
+            // a desktop has the room, and hiding the account there is worse.
+            hasActionBar && isContentScrolled
+                ? "h-0 overflow-hidden opacity-0 sm:h-20 sm:overflow-visible sm:opacity-100"
+                : "h-16 opacity-100 sm:h-20",
+            "transition-all duration-300 ease-in-out",
+        )}>
+            {renderIdentity()}
+            {renderControls()}
+        </div>
+    );
 
     return (
         <motion.header
             className={cn(
-                "sticky top-0 z-50 w-full flex justify-between items-stretch relative",
-                isMeetingContext ? "min-h-0 sm:min-h-[80px] h-auto sm:h-20" : "min-h-[64px] sm:min-h-[80px] h-16 sm:h-20",
+                // `relative` last would delete `sticky`: cn is twMerge, and both
+                // are position utilities. That is why the header was never
+                // actually sticky. Callers that want it in flow (the meeting and
+                // admin shells, which pin it with their own h-screen layout) still
+                // win, because their className is merged after this one.
+                "sticky top-0 z-50 w-full",
                 className
             )}
             initial={{ opacity: 0, y: -20 }}
@@ -413,32 +373,10 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                     isScrolled ? "opacity-100" : "opacity-0"
                 )}
             />
-            {noContainer ? (
-                <div className="flex flex-col w-full px-2 sm:px-4 relative">
-                    <div className={cn(
-                        "flex items-center flex-1 transition-all duration-300 ease-in-out",
-                        isMeetingContext && isContentScrolled
-                            ? "max-h-0 opacity-0 overflow-hidden sm:max-h-none sm:opacity-100 sm:overflow-visible"
-                            : "max-h-40 sm:max-h-20 opacity-100",
-                        isMeetingContext && "py-1.5 sm:py-0"
-                    )}>
-                        {renderLogo()}
-                        {renderCenteredTitle()}
-                        {renderBreadcrumbs()}
-                        {renderControls()}
-                    </div>
-                    {isMeetingContext && renderMobileBreadcrumbRow()}
-                </div>
-            ) : (
-                <div className="container mx-auto h-full">
-                    <div className="flex items-center w-full px-2 sm:px-4 relative h-full">
-                        {renderLogo()}
-                        {renderCenteredTitle()}
-                        {renderBreadcrumbs()}
-                        {renderControls()}
-                    </div>
-                </div>
-            )}
+            <div className="relative">
+                {noContainer ? renderRow() : <div className="container mx-auto">{renderRow()}</div>}
+                {hasActionBar && renderActionBar()}
+            </div>
 
             {/* Search Modal */}
             {mounted && createPortal(<AnimatePresence>

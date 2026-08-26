@@ -181,10 +181,11 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                 <Button
                     variant="ghost"
                     size="icon"
-                    className={`w-9 h-9 rounded-full hover:bg-accent transition-colors shrink-0 ${className || ''}`}
+                    className={`h-9 w-9 lg:w-auto lg:px-3 gap-1.5 rounded-full text-foreground/80 transition-colors hover:bg-foreground/[0.06] hover:text-foreground shrink-0 ${className || ''}`}
                     title={t('title')}
                 >
-                    <Share className="h-4 w-4" />
+                    <Share className="h-4 w-4 shrink-0" />
+                    <span className="hidden text-sm lg:inline">{t('title')}</span>
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-80 sm:w-96" align="end">
