@@ -220,7 +220,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                     className="h-9 w-auto object-contain sm:h-10 md:h-11"
                 />
                 {dynamicPath.length === 0 && (
-                    <span className="text-base font-medium sm:text-lg">OpenCouncil</span>
+                    <span className="text-base sm:text-lg">OpenCouncil</span>
                 )}
             </Link>
             {inset && renderSeal()}
