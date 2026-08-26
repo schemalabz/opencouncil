@@ -32,6 +32,7 @@ jest.mock('@/lib/cache', () => ({
     getPartiesForCityCached: jest.fn(),
     getPeopleForCityCached: jest.fn(),
     getAdministrativeBodiesForCityCached: jest.fn(),
+    getAdministrativeBodiesWithPublicMeetingsCached: jest.fn(),
     getCityCached: jest.fn(),
     getCityMessageCached: jest.fn(),
     getCouncilMeetingsPreviewPublicCached: jest.fn(),
@@ -294,25 +295,29 @@ describe('PR1: server-side awaits run concurrently', () => {
         const meetingsD = deferred<any[]>();
         const partiesD = deferred<any[]>();
         const peopleD = deferred<any[]>();
+        const bodiesD = deferred<any[]>();
 
         cache.getCityCached.mockReturnValue(cityD.promise);
         hotCards.getHotSubjectCardsCached.mockReturnValue(hotD.promise);
         cache.getCouncilMeetingsPreviewPublicCached.mockReturnValue(meetingsD.promise);
         cache.getPartiesForCityCached.mockReturnValue(partiesD.promise);
         cache.getPeopleForCityCached.mockReturnValue(peopleD.promise);
+        cache.getAdministrativeBodiesWithPublicMeetingsCached.mockReturnValue(bodiesD.promise);
 
         const { default: OverviewPage } = require('@/app/[locale]/(city)/[cityId]/(other)/(tabs)/page');
 
-        const pending = OverviewPage({ params: { cityId: 'athens', locale: 'el' } });
+        const pending = OverviewPage({ params: { cityId: 'athens', locale: 'el' }, searchParams: {} });
 
         await flushMicrotasks();
 
         expect(cache.getCityCached).toHaveBeenCalledTimes(1);
         expect(hotCards.getHotSubjectCardsCached).toHaveBeenCalledTimes(1);
         expect(cache.getCouncilMeetingsPreviewPublicCached).toHaveBeenCalledTimes(1);
-        // The council band's roster batches with the rest, not after it.
+        // The council band's roster and the ranking's scope options batch with the
+        // rest, not after it.
         expect(cache.getPartiesForCityCached).toHaveBeenCalledTimes(1);
         expect(cache.getPeopleForCityCached).toHaveBeenCalledTimes(1);
+        expect(cache.getAdministrativeBodiesWithPublicMeetingsCached).toHaveBeenCalledTimes(1);
         expect(intl.getTranslations).toHaveBeenCalled();
 
         cityD.resolve({ id: 'athens', timezone: 'Europe/Athens' });
@@ -320,6 +325,7 @@ describe('PR1: server-side awaits run concurrently', () => {
         meetingsD.resolve([]);
         partiesD.resolve([]);
         peopleD.resolve([]);
+        bodiesD.resolve([]);
 
         await pending;
     });
