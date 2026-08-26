@@ -16,7 +16,7 @@ export default async function Layout(
   return (
     <div className="min-h-screen">
       <Header path={[]} showExplain={hasExplainPage(realm)} />
-      <main id="main-content" className="min-h-[70vh] mt-[65px]">
+      <main id="main-content" className="min-h-[70vh]">
         {children}
       </main>
       <Footer realm={realm} />
