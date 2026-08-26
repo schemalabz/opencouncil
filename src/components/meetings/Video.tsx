@@ -1,13 +1,27 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import MuxVideo from '@mux/mux-video-react';
 import { useVideo } from './VideoProvider';
 import { cn } from '@/lib/utils';
 import { ArrowDownLeft, ArrowUpRight, Minimize2, Move, ArrowDownLeftSquare, Scaling } from 'lucide-react';
 import { motion, useAnimation } from 'framer-motion';
 
+// MuxErrorCode.NETWORK_NOT_READY. playback-core reaches us as a transitive
+// dependency, so importing the enum would mean pinning it directly.
+const MUX_NETWORK_NOT_READY = 2412000;
+
+// Mux publishes the manifest the moment the asset can play, so re-checking on a
+// slow interval costs little and only delays the handover by that much.
+const MUX_READY_POLL_MS = 30_000;
+
+type MuxErrorDetail = {
+    muxCode?: number;
+    data?: { response?: { code?: number } };
+};
+
 export const Video: React.FC<{ className?: string, expandable?: boolean, onExpandChange?: (expanded: boolean) => void }> = ({ className, expandable = false, onExpandChange }) => {
     const { playerRef, meeting, isPlaying, currentTime, setIsPlaying, seekTo } = useVideo();
     const [muxFailed, setMuxFailed] = useState(false);
+    const [muxStillEncoding, setMuxStillEncoding] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
     const [dimensions, setDimensions] = useState({ width: 320, height: 180 });
@@ -87,13 +101,43 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, onExpan
     // (e.g. the asset was deleted or never provisioned on Mux).
     const fallbackSrc = meeting.videoUrl ?? meeting.audioUrl ?? null;
 
+    // The original is a single bitrate served straight off storage, so it is only
+    // ever a stopgap. While the asset is merely encoding its manifest answers 412
+    // and turns 200 the moment it can play: watch for that and hand back, rather
+    // than stranding the whole visit on the stopgap.
+    useEffect(() => {
+        const playbackId = meeting.muxPlaybackId;
+        if (!muxFailed || !muxStillEncoding || !playbackId) return;
+
+        let cancelled = false;
+        const timer = setInterval(async () => {
+            try {
+                const res = await fetch(`https://stream.mux.com/${playbackId}.m3u8`, { method: 'HEAD' });
+                if (!cancelled && res.ok) {
+                    setMuxStillEncoding(false);
+                    setMuxFailed(false);
+                }
+            } catch {
+                // Offline or blocked; the next tick tries again.
+            }
+        }, MUX_READY_POLL_MS);
+
+        return () => {
+            cancelled = true;
+            clearInterval(timer);
+        };
+    }, [muxFailed, muxStillEncoding, meeting.muxPlaybackId]);
+
     const renderVideoElement = () => {
         return <VideoElement
             id={meeting.id}
             title={meeting.name}
             playbackId={!muxFailed ? meeting.muxPlaybackId : null}
             fallbackSrc={fallbackSrc}
-            onMuxError={() => setMuxFailed(true)}
+            onMuxError={(stillEncoding) => {
+                setMuxStillEncoding(stillEncoding);
+                setMuxFailed(true);
+            }}
             isExpanded={isExpanded}
         />
     };
@@ -186,10 +230,20 @@ const VideoElement = ({ id, title, playbackId, fallbackSrc, onMuxError, isExpand
     title: string;
     playbackId: string | null;
     fallbackSrc: string | null;
-    onMuxError: () => void;
+    onMuxError: (retryable: boolean) => void;
     isExpanded?: boolean;
 }) => {
     const { onSeeked, onSeeking, onTimeUpdate, onLoadedMetadata, playerRef, currentTimeRef } = useVideo();
+
+    // Resume where the swapped-out element left off. This runs in both directions:
+    // Mux erroring onto the original, and the asset finishing its encode and
+    // taking over again.
+    const resumeFromLastPosition = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+        if (currentTimeRef.current > 0) {
+            e.currentTarget.currentTime = currentTimeRef.current;
+        }
+        onLoadedMetadata();
+    };
 
     const sharedProps = {
         playsInline: true,
@@ -205,7 +259,7 @@ const VideoElement = ({ id, title, playbackId, fallbackSrc, onMuxError, isExpand
         onSeeked,
         onSeeking,
         onTimeUpdate,
-        onLoadedMetadata,
+        onLoadedMetadata: resumeFromLastPosition,
     };
 
     return (
@@ -226,18 +280,18 @@ const VideoElement = ({ id, title, playbackId, fallbackSrc, onMuxError, isExpand
                         video_title: title,
                     }}
                     onError={(e) => {
-                        // playback-core retries a not-yet-ready Mux asset on its own, and
-                        // announces every attempt as a fatal error. Falling back on those
-                        // would strand us on the S3 original while Mux was still coming up.
-                        // MuxErrorCode.NETWORK_NOT_READY; playback-core is a transitive
-                        // dependency, so we can't import the enum without pinning it.
-                        const NETWORK_NOT_READY = 2412000;
-                        const detail = (e.nativeEvent as CustomEvent<{ muxCode?: number }>).detail;
-                        if (detail?.muxCode === NETWORK_NOT_READY) return;
+                        // playback-core only surfaces fatal errors, so there is nothing
+                        // transient to wait out: leave for the original rather than sit
+                        // on a black player. A 412 means the asset is still encoding, so
+                        // it is worth coming back for once it lands. Only the hls.js path
+                        // sets muxCode; the native one carries the bare HTTP status.
+                        const detail = (e.nativeEvent as CustomEvent<MuxErrorDetail | undefined>).detail;
+                        const stillEncoding = detail?.muxCode === MUX_NETWORK_NOT_READY
+                            || detail?.data?.response?.code === 412;
 
                         if (fallbackSrc) {
-                            console.warn(`Mux playback failed for meeting ${id}, falling back to ${fallbackSrc}`);
-                            onMuxError();
+                            console.warn(`Mux playback failed for meeting ${id}, falling back to ${fallbackSrc}`, e.nativeEvent);
+                            onMuxError(stillEncoding);
                         }
                     }}
                     {...sharedProps}
@@ -249,13 +303,6 @@ const VideoElement = ({ id, title, playbackId, fallbackSrc, onMuxError, isExpand
                     title={title}
                     preload="metadata"
                     {...sharedProps}
-                    onLoadedMetadata={(e) => {
-                        // Resume from where the Mux player left off before it errored
-                        if (currentTimeRef.current > 0) {
-                            e.currentTarget.currentTime = currentTimeRef.current;
-                        }
-                        onLoadedMetadata();
-                    }}
                 />
             )}
         </div>
