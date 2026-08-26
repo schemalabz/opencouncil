@@ -6,9 +6,15 @@ import { getDiscussionSecondsForSubjects } from '@/lib/db/subject';
 import { sortByRanking, type RankableSubject } from '@/lib/ranking/subjects';
 import { filterLocationIdsWithinRadius, getLocationDistancesFromPoint } from '@/lib/db/location';
 import { decodeGeohashToCenter } from '@/lib/geo';
+import { monthsAgo } from '@/lib/utils/hotTopicFilters';
 
-/** Recent past meetings to draw "hot" subjects from. */
+/** Recent past meetings to draw "hot" subjects from when no period is given. */
 const HOT_MEETING_WINDOW = 8;
+/**
+ * Safety bound when a period IS given: the window is then the period, and this
+ * only stops a very busy council from ranking a year of agendas in one request.
+ */
+const HOT_PERIOD_MEETING_CAP = 60;
 /** Radius (m) around the geohash cell center for the location-filtered variant. */
 const GEO_RADIUS_METERS = 500;
 /** Bump when the ranking/selection logic changes so cached results don't go stale. */
@@ -20,6 +26,34 @@ export type HotSubject = { subject: Meeting['subjects'][number]; meeting: Meetin
 interface BodyFilter {
     administrativeBodyTypes?: AdministrativeBodyType[];
     administrativeBodyIds?: string[];
+    /** How far back to look. Omitted means the last {@link HOT_MEETING_WINDOW} meetings. */
+    months?: number;
+}
+
+/** The meetings query's window for a filter — a period when one is asked for. */
+function windowFor({ months }: BodyFilter) {
+    if (!months) return { limit: HOT_MEETING_WINDOW };
+    return { limit: HOT_PERIOD_MEETING_CAP, from: monthsAgo(months) };
+}
+
+type Window = ReturnType<typeof windowFor>;
+
+/**
+ * The window's meetings, or the most recent ones when the window holds none.
+ *
+ * A period can legitimately be empty — a council in summer recess, a city whose
+ * releases lag — and this ranking is the city page's lead content, so an empty
+ * period must not empty the page. The caller can tell the fallback happened:
+ * every meeting it gets back then predates the window.
+ */
+async function meetingsFor(
+    filter: BodyFilter,
+    fetch: (window: Window) => Promise<Meeting[]>,
+): Promise<Meeting[]> {
+    const window = windowFor(filter);
+    const meetings = await fetch(window);
+    if (meetings.length > 0 || !('from' in window)) return meetings;
+    return fetch({ limit: HOT_MEETING_WINDOW });
 }
 
 /**
@@ -82,11 +116,13 @@ async function rankSubjectsOf(meetings: Meeting[], limit: number): Promise<HotSu
 /** Recent hottest subjects across a city's recent past meetings (no location filter). */
 export async function getRecentHotSubjects(
     cityId: string,
-    { limit, administrativeBodyTypes, administrativeBodyIds }: BodyFilter & { limit: number }
+    { limit, administrativeBodyTypes, administrativeBodyIds, months }: BodyFilter & { limit: number }
 ): Promise<HotSubject[]> {
-    const meetings = await getCouncilMeetingsForCityPublicCached(cityId, {
-        limit: HOT_MEETING_WINDOW, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
-    });
+    const meetings = await meetingsFor({ months }, window =>
+        getCouncilMeetingsForCityPublicCached(cityId, {
+            ...window, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
+        }),
+    );
     return rankSubjectsOf(meetings, limit);
 }
 
@@ -96,11 +132,13 @@ export async function getRecentHotSubjects(
  */
 export async function computeRecentHotSubjects(
     cityId: string,
-    { limit, administrativeBodyTypes, administrativeBodyIds }: BodyFilter & { limit: number }
+    { limit, administrativeBodyTypes, administrativeBodyIds, months }: BodyFilter & { limit: number }
 ): Promise<HotSubject[]> {
-    const meetings = await getCouncilMeetingsForCity(cityId, {
-        includeUnreleased: false, limit: HOT_MEETING_WINDOW, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
-    });
+    const meetings = await meetingsFor({ months }, window =>
+        getCouncilMeetingsForCity(cityId, {
+            includeUnreleased: false, ...window, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
+        }),
+    );
     return rankSubjectsOf(meetings, limit);
 }
 

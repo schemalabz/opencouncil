@@ -56,5 +56,12 @@
   "notisBeat5": "Un mot suffit pour arrêter. Sans petits caractères.",
   "notisAdvance": "Message suivant",
   "notisReplay": "Revoir",
-  "notisExampleLabel": "exemple"
+  "notisExampleLabel": "exemple",
+  "scopeCommittee": "Commissions",
+  "scopeCommunity": "Communes déléguées",
+  "period3m": "3 mois",
+  "period6m": "6 mois",
+  "period12m": "12 mois",
+  "periodAll": "Tout",
+  "hotTopicsBeyondPeriod": "Aucune séance sur cette période. Voici les plus récentes."
 }

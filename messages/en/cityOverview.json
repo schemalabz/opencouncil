@@ -56,5 +56,12 @@
   "notisBeat5": "One word stops it. No small print.",
   "notisAdvance": "Next message",
   "notisReplay": "Play again",
-  "notisExampleLabel": "example"
+  "notisExampleLabel": "example",
+  "scopeCommittee": "Committees",
+  "scopeCommunity": "Communities",
+  "period3m": "3 months",
+  "period6m": "6 months",
+  "period12m": "12 months",
+  "periodAll": "All",
+  "hotTopicsBeyondPeriod": "No meetings took place in this period. These are the most recent ones."
 }
