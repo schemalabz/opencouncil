@@ -20,15 +20,16 @@ import { Skeleton } from "@/components/ui/skeleton"
 import klitiki from "greek-name-klitiki"
 import { useEffect, useState } from "react"
 import { isUserAuthorizedToEdit } from "@/lib/actions/auth"
-import { getInitials } from "@/lib/formatters/name"
+import { getInitials, getMunicipalityQualifier } from "@/lib/formatters/name"
 import { cn } from "@/lib/utils"
 import { headerControlClass } from "./headerControl"
 import ScriptSwitcher from "./ScriptSwitcher"
+import type { City } from "@prisma/client"
 
 interface UserDropdownProps {
     currentEntity?: { cityId: string }
-    /** What the edit right is over, named — the city whose page this is. */
-    entityLabel?: string
+    /** What the edit right is over — the city whose page this is. */
+    city?: City
     /** Offer the /explain guide; the page 404s outside the Greek realm. */
     showExplain?: boolean
 }
@@ -45,7 +46,7 @@ interface UserDropdownProps {
  * menu rather than in the bar. Both are things a reader looks for once; a menu
  * can name them, and a 16px icon in a phone header cannot.
  */
-export default function UserDropdown({ currentEntity, entityLabel, showExplain = false }: UserDropdownProps) {
+export default function UserDropdown({ currentEntity, city, showExplain = false }: UserDropdownProps) {
     const { data: session, status } = useSession()
     const t = useTranslations("Header")
     const tAccount = useTranslations("account")
@@ -83,18 +84,21 @@ export default function UserDropdown({ currentEntity, entityLabel, showExplain =
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30',
     );
 
-    // MCP, the guide and the script switch: app-wide, rarely wanted, and named
-    // here rather than shown as unlabelled icons in a phone-width bar.
+    // MCP, the guide and the script switch: app-wide and rarely wanted, so a
+    // phone-width bar names them here instead of showing two more glyphs. From
+    // `lg` the bar has room for the first two itself, and drops them here to
+    // avoid offering the same link twice on one screen.
     const appLinks = (
         <>
-            <DropdownMenuItem asChild>
+            <DropdownMenuSeparator className="lg:hidden" />
+            <DropdownMenuItem asChild className="lg:hidden">
                 <Link href="/mcp" className="cursor-pointer">
                     <Bot className="mr-2 h-4 w-4" />
                     {t("mcp")}
                 </Link>
             </DropdownMenuItem>
             {showExplain && (
-                <DropdownMenuItem asChild>
+                <DropdownMenuItem asChild className="lg:hidden">
                     <Link href="/explain" className="cursor-pointer">
                         <HelpCircle className="mr-2 h-4 w-4 text-[hsl(var(--orange))]" />
                         {t("explainShort")}
@@ -130,7 +134,6 @@ export default function UserDropdown({ currentEntity, entityLabel, showExplain =
                         <LogIn className="mr-2 h-4 w-4" />
                         {t("login")}
                     </DropdownMenuItem>
-                    <DropdownMenuSeparator />
                     {appLinks}
                 </DropdownMenuContent>
             </DropdownMenu>
@@ -156,9 +159,10 @@ export default function UserDropdown({ currentEntity, entityLabel, showExplain =
                     <span className="block truncate text-xs text-muted-foreground">{session.user.email}</span>
                 </DropdownMenuLabel>
 
-                {/* What the badge on the avatar means, in words. The name sits on
-                    its own line rather than inside the sentence: the label would
-                    otherwise have to decline it, and `Αθήνα` arrives nominative. */}
+                {/* What the badge on the avatar means, in words. The authority
+                    noun inflects with its article in Greek and Serbian, so the
+                    message carries both and only the invariant tail of the long
+                    name is interpolated — the shape `searchSubjects` uses. */}
                 {canEdit && (
                     <div className="mx-1 mb-1 flex items-start gap-2.5 rounded-[8px] bg-[hsl(var(--orange))]/[0.07] px-2.5 py-2">
                         <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--orange))]">
@@ -166,11 +170,13 @@ export default function UserDropdown({ currentEntity, entityLabel, showExplain =
                         </span>
                         <span className="min-w-0">
                             <span className="block text-[13px] font-medium leading-snug">
-                                {entityLabel ? t("canEdit") : t("canEditPage")}
+                                {city
+                                    ? t(city.authorityType === 'region'
+                                        ? 'canEditAuthority.region'
+                                        : 'canEditAuthority.municipality',
+                                        { qualifier: getMunicipalityQualifier(city, locale) })
+                                    : t('canEditPage')}
                             </span>
-                            {entityLabel && (
-                                <span className="block truncate text-[13px] font-semibold leading-snug">{entityLabel}</span>
-                            )}
                             <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">{t("canEditHint")}</span>
                         </span>
                     </div>
@@ -186,7 +192,6 @@ export default function UserDropdown({ currentEntity, entityLabel, showExplain =
                     </DropdownMenuItem>
                 ))}
 
-                <DropdownMenuSeparator />
                 {appLinks}
 
                 <DropdownMenuSeparator />

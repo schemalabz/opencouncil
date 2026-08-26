@@ -99,8 +99,11 @@
     "petitionBreadcrumb": "Soutenez votre commune",
     "explain": "Guide des collectivités locales",
     "explainShort": "Guide",
-    "canEdit": "Vous pouvez modifier",
-    "canEditHint": "Ce que vous changez est publié aussitôt."
+    "canEditHint": "Ce que vous changez est publié aussitôt.",
+    "canEditAuthority": {
+      "municipality": "Vous pouvez modifier {qualifier}",
+      "region": "Vous pouvez modifier {qualifier}"
+    }
   },
   "Footer": {
     "tagline": "Conçu avec respect et considération pour les collectivités locales.",
