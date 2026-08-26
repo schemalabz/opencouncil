@@ -214,12 +214,27 @@ const VideoElement = ({ id, title, playbackId, fallbackSrc, onMuxError, isExpand
                 <MuxVideo
                     ref={playerRef as any}
                     streamType="on-demand"
+                    // Chrome 151 reports canPlayType('application/vnd.apple.mpegurl') as
+                    // "maybe" but cannot play HLS: a native <video> on the manifest fails
+                    // with MEDIA_ERR_SRC_NOT_SUPPORTED. Mux trusts canPlayType, picks
+                    // native playback, errors, and drops us to the multi-GB S3 mp4.
+                    // Force hls.js wherever MSE exists; iOS Safari still gets native.
+                    preferPlayback="mse"
                     playbackId={playbackId}
                     metadata={{
                         video_id: id,
                         video_title: title,
                     }}
-                    onError={() => {
+                    onError={(e) => {
+                        // playback-core retries a not-yet-ready Mux asset on its own, and
+                        // announces every attempt as a fatal error. Falling back on those
+                        // would strand us on the S3 original while Mux was still coming up.
+                        // MuxErrorCode.NETWORK_NOT_READY; playback-core is a transitive
+                        // dependency, so we can't import the enum without pinning it.
+                        const NETWORK_NOT_READY = 2412000;
+                        const detail = (e.nativeEvent as CustomEvent<{ muxCode?: number }>).detail;
+                        if (detail?.muxCode === NETWORK_NOT_READY) return;
+
                         if (fallbackSrc) {
                             console.warn(`Mux playback failed for meeting ${id}, falling back to ${fallbackSrc}`);
                             onMuxError();

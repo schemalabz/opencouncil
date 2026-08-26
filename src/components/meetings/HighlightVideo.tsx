@@ -50,6 +50,7 @@ const MuxVideoPlayer: React.FC<HighlightVideoProps> = ({ id, title, playbackId, 
             <MuxVideo
                 ref={playerRef}
                 streamType="on-demand"
+                preferPlayback="mse"
                 playbackId={playbackId}
                 metadata={{
                     video_id: id,
