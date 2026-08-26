@@ -145,7 +145,7 @@ export function LandingAside({
                     >
                         {/* brand header */}
                         <div className="flex items-center gap-2 px-2 pb-1.5 pt-1">
-                            <Image src="/logo.png" alt="" width={40} height={40} className="h-8 w-auto object-contain" />
+                            <Image src="/logo.png" alt="" width={40} height={40} className="h-10 w-auto object-contain" />
                             <span className="text-[18px] text-foreground">OpenCouncil</span>
                         </div>
                         <DropdownMenuSeparator className="bg-muted" />
