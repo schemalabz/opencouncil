@@ -51,25 +51,6 @@ interface HeaderProps {
     showExplain?: boolean
 }
 
-function TopicIconBadge({ subjectInfo }: { subjectInfo: SubjectHeaderInfo }) {
-    return (
-        <TopicIcon
-            color={subjectInfo.topicColor}
-            icon={subjectInfo.topicIcon}
-            size="lg"
-            className="h-7 w-7 shrink-0 p-0"
-        />
-    )
-}
-
-function PageIconBadge({ icon: IconComponent }: { icon: LucideIcon }) {
-    return (
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground/70">
-            <IconComponent className="h-[15px] w-[15px]" />
-        </span>
-    )
-}
-
 /**
  * The app header: where you are, search, you — and nothing else, on every screen.
  *
@@ -147,7 +128,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
     const isMeetingContext = showSidebarTrigger && dynamicPath.length >= 2 && Boolean(path[0]?.city);
     const cityElement: PathElement | undefined = dynamicPath[0];
     const isCurrentSubject = subjectHeader !== null;
-    const pageIcon = (showSidebarTrigger && !subjectHeader)
+    const PageIcon = (showSidebarTrigger && !subjectHeader)
         ? meetingPageSegments[segment ?? 'overview']?.icon
         : null;
 
@@ -227,7 +208,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
     // length 2 and the admin shell inherited a meeting's header.
     const renderMarks = () => (
         <div className={cn('flex items-center gap-2 sm:gap-3', inset && 'md:hidden')}>
-            {showSidebarTrigger && !hasActionBar && (
+            {showSidebarTrigger && (
                 <SidebarTrigger className="h-5 w-5 shrink-0 text-muted-foreground/60" />
             )}
             <Link href="/" className="flex shrink-0 items-center gap-2 hover:no-underline">
@@ -242,7 +223,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                     <span className="text-base font-medium sm:text-lg">OpenCouncil</span>
                 )}
             </Link>
-
+            {renderSeal()}
         </div>
     );
 
@@ -279,11 +260,11 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
     );
 
     /**
-     * Row 1, column 2: the municipality's seal, in a column of its own.
+     * The municipality's seal, beside the app's mark.
      *
-     * Its own column because the page badge sits under it in row 2, which is what
-     * keeps the page label aligned with the meeting name rather than with the
-     * seal's left edge. It is a lockup, not a mark — the Athens one is 492×200,
+     * From `md` the nav carries it in its own head, so this renders only below
+     * that — where the nav is an overlay and the header is the only chrome there
+     * is. It is a lockup, not a mark — the Athens one is 492×200,
      * so at a height a phone bar can spare its wordmark cannot be read and it
      * still costs ~70px of width. Below `sm` the municipality is written instead.
      */
@@ -353,18 +334,23 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
      * The page badge sits here rather than beside its label so the label itself
      * starts on the column rule, directly under the meeting name it belongs to.
      */
-    const renderPageToggle = () => (
-        showSidebarTrigger ? (
-            <SidebarTrigger className={cn('h-5 w-5 shrink-0 text-muted-foreground/60', inset && 'md:hidden')} />
-        ) : null
-    );
-
-    /** Row 2, column 2 — under the seal, so the label lands under the meeting. */
-    const renderPageBadge = () => (
+    /**
+     * The page's icon, set with its name rather than alone in a column.
+     *
+     * A filled badge in a column of its own read as a stray control with a gap
+     * after it. At this size the glyph is a piece of the label's typography, so
+     * it takes the label's weight and sits on its line.
+     */
+    const renderPageIcon = () => (
         isCurrentSubject && subjectHeader ? (
-            <TopicIconBadge subjectInfo={subjectHeader} />
-        ) : pageIcon ? (
-            <PageIconBadge icon={pageIcon} />
+            <TopicIcon
+                color={subjectHeader.topicColor}
+                icon={subjectHeader.topicIcon}
+                size="sm"
+                className="h-[18px] w-[18px] shrink-0 p-0"
+            />
+        ) : PageIcon ? (
+            <PageIcon className="h-[17px] w-[17px] shrink-0 text-muted-foreground/70" />
         ) : null
     );
 
@@ -374,14 +360,17 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
        page name is no more readable than a truncated subject. */
     const renderPageLabel = () => (
         pageElement ? (
-            <div className="flex min-w-0 flex-col justify-center text-[13px] font-medium text-foreground/80 sm:text-sm">
-                {isCurrentSubject ? (
-                    <AutoScrollText>
-                        <span className="leading-tight">{pageElement.name}</span>
-                    </AutoScrollText>
-                ) : (
-                    <span className="block truncate">{pageElement.name}</span>
-                )}
+            <div className="flex min-w-0 items-center gap-2 text-[13px] font-medium text-foreground/80 sm:text-sm">
+                {renderPageIcon()}
+                <div className="min-w-0 flex-1">
+                    {isCurrentSubject ? (
+                        <AutoScrollText>
+                            <span className="leading-tight">{pageElement.name}</span>
+                        </AutoScrollText>
+                    ) : (
+                        <span className="block truncate">{pageElement.name}</span>
+                    )}
+                </div>
             </div>
         ) : null
     );
@@ -410,7 +399,6 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
     // nav's edge — so the header draws none and its path starts on it.
     const rule = titleElement && !inset ? 'border-l border-border' : '';
     const pad = titleElement ? (inset ? 'pl-2.5 md:pl-0' : 'pl-2.5 sm:pl-4') : '';
-    const gap = titleElement ? 'pr-2 sm:pr-3' : '';
     const rowOne = cn(
         // Folds away once the meeting's own pane scrolls, leaving the action
         // bar: deep in a transcript the useful row is the one holding the page
@@ -425,22 +413,20 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
 
     const renderGrid = () => (
         <div className={cn(
-            'grid grid-cols-[auto_auto_minmax(0,1fr)_auto] px-2 sm:px-4',
+            'grid grid-cols-[auto_minmax(0,1fr)_auto] px-2 sm:px-4',
             // Collapsed explicitly rather than left to `auto`: the mark's cell is
             // display:none from `md` when a nav owns the column, but an auto track
             // still reserved 28px, which pushed the path off the nav's edge.
-            inset && 'md:grid-cols-[0px_auto_minmax(0,1fr)_auto]',
+            inset && 'md:grid-cols-[0px_minmax(0,1fr)_auto]',
         )}>
             <div className={cn('flex items-center', rowOne)}>{renderMarks()}</div>
-            <div className={cn('flex items-center', rowOne, rule, pad, gap)}>{renderSeal()}</div>
-            <div className={cn('flex min-w-0', rowOne)}>{renderPath()}</div>
+            <div className={cn('flex min-w-0', rowOne, rule, pad)}>{renderPath()}</div>
             <div className={cn('ml-auto flex items-center', rowOne)}>{renderControls()}</div>
 
             {hasActionBar && (
                 <>
-                    <div className={cn('flex items-center', rowTwo)}>{renderPageToggle()}</div>
-                    <div className={cn('flex items-center', rowTwo, rule, pad, gap)}>{renderPageBadge()}</div>
-                    <div className={cn('flex min-w-0', rowTwo)}>{renderPageLabel()}</div>
+                    <div className={cn(rowTwo)} />
+                    <div className={cn('flex min-w-0 items-center', rowTwo, rule, pad)}>{renderPageLabel()}</div>
                     <div className={cn('ml-auto flex', rowTwo)}>{renderPageActions()}</div>
                 </>
             )}

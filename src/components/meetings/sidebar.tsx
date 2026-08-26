@@ -152,6 +152,14 @@ export default function MeetingSidebar() {
                 <Link href="/" className="flex shrink-0 items-center hover:no-underline">
                     <Image src="/logo.png" alt="OpenCouncil" width={120} height={120} className="h-9 w-auto object-contain sm:h-10 md:h-11 group-data-[collapsible=icon]:h-6" />
                 </Link>
+                {/* The municipality sits left of the rule with everything else that
+                    is not the page: a lockup needs width, and there is none at
+                    48px, so it goes rather than shrinking into illegibility. */}
+                {city.logoImage && (
+                    <Link href={`/${city.id}`} className="flex min-w-0 shrink items-center hover:no-underline group-data-[collapsible=icon]:hidden" aria-hidden tabIndex={-1}>
+                        <Image src={city.logoImage} alt="" width={120} height={120} className="h-8 w-auto max-w-[96px] object-contain" />
+                    </Link>
+                )}
             </div>
                 <div className="px-4 pb-4 group-data-[collapsible=icon]:hidden">
                     <ControlsWidget />
