@@ -33,10 +33,16 @@
   "inCommittees": "{count} у одборима",
   "governingParty": "Владајућа група",
   "notisName": "Нотис",
-  "notisIntro": "Пише ти на Вотсапу о граду {city}",
+  "notisIntro": {
+    "municipality": "Пише ти на Вотсапу о граду {qualifier}",
+    "region": "Пише ти на Вотсапу о региону {qualifier}"
+  },
   "notisCta": "Желим обавештења",
   "notisChannels": "Мејл, Вотсап или СМС · Већину недеља, ништа",
-  "subscribedTitle": "Нотис ти пише о граду {city}",
+  "subscribedTitle": {
+    "municipality": "Нотис ти пише о граду {qualifier}",
+    "region": "Нотис ти пише о региону {qualifier}"
+  },
   "allTopics": "Све теме",
   "channelEmail": "Мејл",
   "channelPhone": "Вотсап и СМС",
