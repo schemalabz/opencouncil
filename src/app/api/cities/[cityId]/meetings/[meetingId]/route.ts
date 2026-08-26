@@ -5,6 +5,7 @@ import { editCouncilMeeting } from '@/lib/db/meetings';
 import { z } from 'zod';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { meetingSchema } from '@/lib/zod-schemas/meeting';
+import { syncMeetingToCalendar } from '@/lib/google-calendar';
 
 export async function GET(
     request: Request,
@@ -55,6 +56,10 @@ export async function PUT(
 
         revalidateTag(`city:${params.cityId}:meetings`, 'max');
         revalidatePath(`/${params.cityId}`, "layout");
+
+        // Propagate date, administrative body, and agenda changes to the
+        // Google Calendar event. The meeting name is not on the event.
+        await syncMeetingToCalendar(params.cityId, params.meetingId);
 
         return NextResponse.json(meeting);
     } catch (error) {

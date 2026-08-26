@@ -208,6 +208,10 @@ model CouncilMeeting {
   videoUrl String?
   audioUrl String?
   muxPlaybackId String?
+  // Google Calendar event ID on the shared OpenCouncil calendar; set when the
+  // event is created at meeting creation. Meetings from before this field
+  // existed keep null and are never synced (their events stay manual).
+  calendarEventId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   released  Boolean  @default(false)

@@ -52,7 +52,7 @@ export async function deleteCouncilMeeting(cityId: string, id: string): Promise<
     }
 }
 
-export async function createCouncilMeeting(meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl'> & { audioUrl?: string, videoUrl?: string }): Promise<CouncilMeetingWithAdminBody> {
+export async function createCouncilMeeting(meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl' | 'calendarEventId'> & { audioUrl?: string, videoUrl?: string }): Promise<CouncilMeetingWithAdminBody> {
     await withUserAuthorizedToEdit({ cityId: meetingData.cityId });
     return createCouncilMeetingDirect(meetingData);
 }

@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
 import prisma from "@/lib/db/prisma";
 import { NextResponse } from "next/server";
+import { syncMeetingToCalendar } from "@/lib/google-calendar";
 
 export async function GET(
     request: Request,
@@ -52,6 +53,8 @@ export async function PUT(
                 meetingId: params.meetingId,
             },
         });
+        // Remove the operator from the calendar event's attendees
+        await syncMeetingToCalendar(params.cityId, params.meetingId);
         return NextResponse.json({ operator: null });
     }
 
@@ -84,6 +87,9 @@ export async function PUT(
             userId,
         },
     });
+
+    // Invite the assigned operator to the calendar event
+    await syncMeetingToCalendar(params.cityId, params.meetingId);
 
     const { isSuperAdmin: _, ...operatorInfo } = targetUser;
     return NextResponse.json({ operator: operatorInfo });

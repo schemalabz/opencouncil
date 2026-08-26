@@ -16,7 +16,7 @@ import type { CouncilMeetingWithAdminBody } from "./meetings";
  * (e.g., via withServiceOrUserAuth in API route handlers).
  */
 export async function createCouncilMeetingDirect(
-    meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl'> & { audioUrl?: string; videoUrl?: string },
+    meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl' | 'calendarEventId'> & { audioUrl?: string; videoUrl?: string },
 ): Promise<CouncilMeetingWithAdminBody> {
     return prisma.councilMeeting.create({
         data: meetingData,
