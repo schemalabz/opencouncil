@@ -40,8 +40,10 @@ export default function EditButton() {
             size="icon"
             onClick={handleEnableEdit}
             title={t('actions.enableEdit')}
+            className="h-9 w-9 lg:w-auto lg:px-3 gap-1.5 rounded-full text-foreground/80 transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
         >
-            <Edit className="h-5 w-5" />
+            <Edit className="h-[18px] w-[18px] shrink-0" />
+            <span className="hidden text-sm lg:inline">{t('actions.editShort')}</span>
             <span className="sr-only">{t('actions.enableEdit')}</span>
         </Button>
     );

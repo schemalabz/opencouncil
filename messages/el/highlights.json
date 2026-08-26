@@ -99,7 +99,8 @@
     "createNewHighlight": "Δημιουργία Νέου Στιγμιότυπου",
     "creating": "Δημιουργία στιγμιότυπου...",
     "currentlyEditing": "Επεξεργασία στιγμιότυπου σε εξέλιξη",
-    "addHighlight": "Προσθήκη Στιγμιότυπου"
+    "addHighlight": "Προσθήκη Στιγμιότυπου",
+    "highlightShort": "Στιγμιότυπο"
   },
   "toasts": {
     "highlightCreated": "Το Στιγμιότυπο Δημιουργήθηκε",

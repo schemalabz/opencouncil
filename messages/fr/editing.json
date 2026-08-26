@@ -14,7 +14,8 @@
     "enableEdit": "Activer le mode édition",
     "guide": "Guide",
     "speakers": "Intervenants",
-    "completeReview": "Terminer la révision"
+    "completeReview": "Terminer la révision",
+    "editShort": "Modifier"
   },
   "stats": {
     "title": "Intervenants"
