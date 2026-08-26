@@ -12,6 +12,7 @@ type Role = {
 type PartyFixture = {
     id: string;
     name: string;
+    name_en?: string;
     people: { id: string; roles: Role[] }[];
 };
 
@@ -42,8 +43,8 @@ function partyWithoutSeats(id: string, name: string, memberCount: number): Party
     };
 }
 
-const sort = (parties: PartyFixture[]) =>
-    sortParties(parties as unknown as PartyWithPersons[]).map(p => p.id);
+const sort = (parties: PartyFixture[], locale?: string) =>
+    sortParties(parties as unknown as PartyWithPersons[], locale).map(p => p.id);
 
 describe('sortParties', () => {
     it('puts the largest party first', () => {
@@ -69,6 +70,16 @@ describe('sortParties', () => {
     it('falls back to alphabetical order when both are tied', () => {
         expect(sort([party('z', 'Ωμέγα', 5, 0), party('a', 'Άλφα', 5, 0)]))
             .toEqual(['a', 'z']);
+    });
+
+    it('breaks the tie on the name the card prints, not the stored Greek one', () => {
+        // Two parties tied on seats and on having a head. Under /en the card
+        // renders name_en, so ordering by `name` sorted them by a string the
+        // reader never sees.
+        const vrilissia = { ...party('v', 'Βριλήσσια: Πορεία Ευθύνης', 3, 0), name_en: 'Vrilissia: Poreia Efthynis' };
+        const drasi = { ...party('d', 'Δράση για μια Άλλη Πόλη', 3, 0), name_en: 'Drasi gia mia Alli Poli' };
+        expect(sort([vrilissia, drasi], 'el')).toEqual(['v', 'd']);
+        expect(sort([vrilissia, drasi], 'en')).toEqual(['d', 'v']);
     });
 
     it('ignores a head role that belongs to another party', () => {

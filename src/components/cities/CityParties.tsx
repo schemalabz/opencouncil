@@ -1,5 +1,5 @@
 "use client";
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import List from '@/components/List';
 import PartyCard from '@/components/parties/PartyCard';
 import PartyForm from '@/components/parties/PartyForm';
@@ -23,8 +23,9 @@ export default function CityParties({
     peopleWithoutParties
 }: CityPartiesProps) {
     const t = useTranslations('Party');
+    const locale = useLocale();
 
-    const orderedParties = useMemo(() => sortParties(partiesWithPersons), [partiesWithPersons]);
+    const orderedParties = useMemo(() => sortParties(partiesWithPersons, locale), [partiesWithPersons, locale]);
     // Decided across every party, not per card: the figures are there to be
     // read against each other.
     const columns = useMemo(() => partyBodyColumns(partiesWithPersons), [partiesWithPersons]);
