@@ -24,8 +24,7 @@ export type LandingMapCity = MapCityRow;
 /** An out-of-network municipality with enough petitions to show on the Δήμοι map. */
 export type LandingPetitionedCity = PetitionedMapCityRow;
 
-/** Cities the landing lists — a subset of CityMinimalWithCounts. Named to avoid colliding with
- *  src/lib/db/landing.ts's LandingCity. */
+/** Cities the landing lists — a subset of CityMinimalWithCounts. */
 export type LandingListCity = Pick<
     CityMinimalWithCounts,
     'id' | 'name' | 'name_en' | 'name_municipality' | 'logoImage' | '_count'

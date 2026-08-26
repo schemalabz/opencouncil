@@ -3,10 +3,9 @@ import { useTranslations } from 'next-intl';
 
 interface OpenCouncilDescriptionProps {
     className?: string;
-    animate?: boolean;
 }
 
-export function OpenCouncilDescription({ className = "", animate = false }: OpenCouncilDescriptionProps) {
+export function OpenCouncilDescription({ className = "" }: OpenCouncilDescriptionProps) {
     const t = useTranslations('Landing');
     return (
         <p className={`text-sm sm:text-lg md:text-xl lg:text-2xl text-muted-foreground mx-auto leading-relaxed ${className}`}>

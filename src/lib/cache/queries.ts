@@ -12,7 +12,6 @@ import { getAdministrativeBodiesForCity, getAdministrativeBodiesWithPublicMeetin
 import { getMeetingStatus } from "@/lib/meetingStatus";
 import { getBatchStatisticsForSubjects, Statistics } from "@/lib/statistics";
 import { createCache } from "./index";
-import { fetchLatestSubstackPost } from "@/lib/db/landing";
 import { getCityCoverage } from "@/lib/db/coverage";
 
 /**
@@ -144,17 +143,6 @@ export async function getAdministrativeBodiesWithPublicMeetingsCached(cityId: st
     () => getAdministrativeBodiesWithPublicMeetings(cityId),
     ['city', cityId, 'administrativeBodies', 'withPublicMeetings'],
     { tags: ['city', `city:${cityId}`, `city:${cityId}:administrativeBodies`, `city:${cityId}:meetings`] }
-  )();
-}
-
-/**
- * Cached version of fetchLatestSubstackPost that fetches and caches the latest Substack post
- */
-export async function fetchLatestSubstackPostCached() {
-  return createCache(
-    () => fetchLatestSubstackPost(),
-    ['substack', 'latest-post'],
-    { tags: ['substack', 'substack:latest-post'] }
   )();
 }
 
