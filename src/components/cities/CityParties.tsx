@@ -4,8 +4,9 @@ import List from '@/components/List';
 import PartyCard from '@/components/parties/PartyCard';
 import PartyForm from '@/components/parties/PartyForm';
 import { PartyWithPersons } from '@/lib/db/parties';
+import { partyBodyColumns } from '@/lib/party/composition';
 import { sortParties } from '@/lib/sorting/parties';
-import { useMemo } from 'react';
+import { Fragment, useMemo } from 'react';
 import { Person } from '@prisma/client';
 
 type CityPartiesProps = {
@@ -24,12 +25,16 @@ export default function CityParties({
     const t = useTranslations('Party');
 
     const orderedParties = useMemo(() => sortParties(partiesWithPersons), [partiesWithPersons]);
+    // Decided across every party, not per card: the figures are there to be
+    // read against each other.
+    const columns = useMemo(() => partyBodyColumns(partiesWithPersons), [partiesWithPersons]);
     return (
         <div>
             <List
                 items={orderedParties}
                 editable={canEdit}
                 ItemComponent={PartyCard}
+                itemProps={{ columns }}
                 FormComponent={PartyForm}
                 formProps={{ cityId }}
                 t={t}
@@ -45,16 +50,17 @@ export default function CityParties({
                     <p className="text-gray-600 dark:text-gray-400">
                         {t('peopleWithoutParties')}{' '}
                         {peopleWithoutParties.map((person, index) => (
-                            <>
+                            // The key belongs on the mapped child, which is the
+                            // fragment — on the anchor inside it React never saw it.
+                            <Fragment key={person.id}>
                                 <a
-                                    key={person.id}
                                     href={`/${cityId}/people/${person.id}`}
                                     className="hover:underline text-blue-600 dark:text-blue-400"
                                 >
                                     {person.name}
                                 </a>
                                 {index < peopleWithoutParties.length - 1 ? ', ' : ''}
-                            </>
+                            </Fragment>
                         ))}
                     </p>
                 </div>

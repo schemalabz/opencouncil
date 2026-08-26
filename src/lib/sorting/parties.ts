@@ -2,21 +2,22 @@ import type { PartyWithPersons } from '@/lib/db/parties';
 import { isRoleActive } from '@/lib/utils/roles';
 
 /**
- * Display order for a city's parties: largest first, then the ones that have a
- * head, then alphabetically.
+ * Display order for a city's parties: most council seats first, then the ones
+ * that have a head, then alphabetically.
  *
- * Member count leads because seat share is what a reader is comparing; the head
+ * Seats lead because seat share is what a reader is comparing; the head
  * tiebreak separates a real παράταξη from a group of independents that happens to
  * hold the same number of seats.
  */
 export function sortParties<T extends PartyWithPersons>(parties: T[]): T[] {
-    // Ranked on the figure the card prints — council seats where a party holds
-    // any, its roster otherwise. Ordering by roster size while the cards showed
-    // seats put a card reading "2 έδρες" above one reading "8 έδρες", and could
-    // cut the largest council group out of the overview's top three.
+    // Strictly council seats — no roster fallback. A party whose councillors
+    // have all resigned holds none, and ranking it on the people still on its
+    // books put a card reading "0 έδρες" third in a list led by 26 and 9. A
+    // party with no seat now sorts below every party that has one, which is
+    // what the numeral on its card says.
     // Measured once per party rather than inside the comparator, which runs
     // O(n log n) times.
-    const sizes = new Map(parties.map(party => [party.id, displayedSize(party)]));
+    const sizes = new Map(parties.map(party => [party.id, councilSeats(party)]));
     return [...parties].sort((a, b) => {
         const memberCountDiff = (sizes.get(b.id) ?? 0) - (sizes.get(a.id) ?? 0);
         if (memberCountDiff !== 0) return memberCountDiff;
@@ -30,12 +31,11 @@ export function sortParties<T extends PartyWithPersons>(parties: T[]): T[] {
     });
 }
 
-/** The number PartyCard shows: active council seats, or the roster when it holds none. */
-function displayedSize(party: PartyWithPersons): number {
-    const seats = party.people.filter(person =>
+/** The number PartyCard shows: people holding an active council seat. */
+function councilSeats(party: PartyWithPersons): number {
+    return party.people.filter(person =>
         person.roles.some(role => role.administrativeBody?.type === 'council' && isRoleActive(role)),
     ).length;
-    return seats > 0 ? seats : party.people.length;
 }
 
 function partyHasHead(party: PartyWithPersons): boolean {
