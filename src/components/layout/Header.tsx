@@ -416,7 +416,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
             : 'h-16 opacity-100 sm:h-20',
         'transition-all duration-300 ease-in-out',
     );
-    const rowTwo = 'h-12 items-center border-t border-border/60 bg-muted/40 sm:h-[54px]';
+    const rowTwo = 'row-start-2 h-12 items-center sm:h-[54px]';
 
     const renderGrid = () => (
         <div className={cn(
@@ -426,15 +426,21 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
             // still reserved 28px, which pushed the path off the nav's edge.
             inset && 'md:grid-cols-[0px_minmax(0,1fr)_auto]',
         )}>
-            <div className={cn('flex items-center', rowOne)}>{renderMarks()}</div>
-            <div className={cn('flex min-w-0', rowOne, rule, pad)}>{renderPath()}</div>
-            <div className={cn('ml-auto flex items-center', rowOne)}>{renderControls()}</div>
+            <div className={cn('col-start-1 row-start-1 flex items-center', rowOne)}>{renderMarks()}</div>
+            <div className={cn('col-start-2 row-start-1 flex min-w-0', rowOne, rule, pad)}>{renderPath()}</div>
+            <div className={cn('col-start-3 row-start-1 ml-auto flex items-center', rowOne)}>{renderControls()}</div>
 
             {hasActionBar && (
                 <>
-                    <div className={cn(rowTwo)} />
-                    <div className={cn('flex min-w-0 items-center', rowTwo, rule, pad)}>{renderPageLabel()}</div>
-                    <div className={cn('ml-auto flex', rowTwo)}>{renderPageActions()}</div>
+                    {/* The band is its own item spanning every column, pulled out
+                        past the grid's padding: carried on the cells it stopped
+                        16px short of the nav's edge, so a white gap ran down
+                        between the rule and the row it belongs to. The cells above
+                        keep the padding, so only the fill bleeds. */}
+                    <div className="col-start-1 col-span-3 row-start-2 -mx-2 border-t border-border/60 bg-muted/40 sm:-mx-4" />
+                    <div className={cn('col-start-1', rowTwo)} />
+                    <div className={cn('col-start-2 flex min-w-0 items-center', rowTwo, rule, pad)}>{renderPageLabel()}</div>
+                    <div className={cn('col-start-3 ml-auto flex', rowTwo)}>{renderPageActions()}</div>
                 </>
             )}
         </div>
