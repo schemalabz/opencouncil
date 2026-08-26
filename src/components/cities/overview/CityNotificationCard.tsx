@@ -7,6 +7,7 @@ import type { CityNotificationPreference } from '@/lib/db/notifications';
 import { getLocalizedName, getMunicipalityQualifier } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
 import { NotisConversation } from './NotisConversation';
+import { RailDisclosure } from './RailDisclosure';
 
 /** Topic chips before the row stops being scannable; the rest become "+N". */
 const TOPICS_SHOWN = 2;
@@ -49,8 +50,8 @@ function InviteCard({ city, locale }: { city: CityWithCounts; locale: string }) 
     const t = useTranslations('cityOverview');
 
     return (
-        <div className="overflow-hidden rounded-2xl border border-foreground/60 bg-card">
-            <div className="flex items-center gap-3 border-b border-border px-3.5 py-2.5">
+        <RailDisclosure summary={t('notisTeaser')}>
+            <div className="flex items-center gap-3 border-b border-border px-3.5 py-2.5 max-lg:border-t">
                 <Image
                     src="/logo.png"
                     alt="OpenCouncil"
@@ -78,7 +79,7 @@ function InviteCard({ city, locale }: { city: CityWithCounts; locale: string }) 
                 </Link>
                 <p className="max-w-sm text-center text-[11px] text-muted-foreground">{t('notisChannels')}</p>
             </div>
-        </div>
+        </RailDisclosure>
     );
 }
 
@@ -102,8 +103,8 @@ function SubscribedCard({
     ].filter(Boolean);
 
     return (
-        <div className="overflow-hidden rounded-2xl border border-foreground/60 bg-card">
-            <div className="flex items-start gap-3 p-4">
+        <RailDisclosure summary={t('subscribedSummary')}>
+            <div className="flex items-start gap-3 p-4 max-lg:border-t max-lg:border-border">
                 <Image
                     src="/logo.png"
                     alt="OpenCouncil"
@@ -173,6 +174,6 @@ function SubscribedCard({
                     {t('allMyCities')}
                 </Link>
             </div>
-        </div>
+        </RailDisclosure>
     );
 }

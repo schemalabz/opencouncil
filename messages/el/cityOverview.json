@@ -69,5 +69,7 @@
   "period12m": "12 μήνες",
   "periodAll": "Όλα",
   "hotTopicsBeyondPeriod": "Δεν υπάρχουν συνεδριάσεις σε αυτό το διάστημα. Δείχνουμε τις πιο πρόσφατες.",
-  "inCommunities": "{count} σε κοινότητες"
+  "inCommunities": "{count} σε κοινότητες",
+  "notisTeaser": "Είναι εύκολο να μένεις ενημερωμένος.",
+  "subscribedSummary": "Λαμβάνεις ενημερώσεις για τον δήμο"
 }

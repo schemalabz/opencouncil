@@ -69,5 +69,7 @@
   "period12m": "12 месеци",
   "periodAll": "Све",
   "hotTopicsBeyondPeriod": "У овом периоду није било седница. Приказујемо најновије.",
-  "inCommunities": "{count} у заједницама"
+  "inCommunities": "{count} у заједницама",
+  "notisTeaser": "Лако је бити у току.",
+  "subscribedSummary": "Примате обавештења о граду"
 }
