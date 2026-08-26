@@ -223,14 +223,16 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                     <span className="text-base font-medium sm:text-lg">OpenCouncil</span>
                 )}
             </Link>
-            {renderSeal()}
+            {inset && renderSeal()}
         </div>
     );
 
     /** Row 1, column 2: where you are, down to the meeting. */
     const renderPath = () => (
         titleElement ? (
-            <div className="flex min-w-0 flex-col justify-center">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+                {!inset && renderSeal()}
+                <div className="flex min-w-0 flex-1 flex-col justify-center">
                         {trailElements.length > 0 && (
                             <div className="flex min-w-0 items-center gap-1">
                                 {trailElements.map((element, index) => (
@@ -255,16 +257,21 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                 ) : (
                     <span className="truncate text-sm font-medium sm:text-base">{titleElement.name}</span>
                 )}
+                </div>
             </div>
         ) : null
     );
 
     /**
-     * The municipality's seal, beside the app's mark.
+     * The municipality's seal, which sits with whatever else names the city.
      *
-     * From `md` the nav carries it in its own head, so this renders only below
-     * that — where the nav is an overlay and the header is the only chrome there
-     * is. It is a lockup, not a mark — the Athens one is 492×200,
+     * Beside a nav that is the nav's head, left of the rule with the app's mark —
+     * from `md`, since below that the nav is an overlay with no head to sit in.
+     * With no nav there is no head, so it goes right of the rule with the city's
+     * name: the rule then separates OpenCouncil from the municipality rather than
+     * cutting between the municipality's seal and its name.
+     *
+     * It is a lockup, not a mark — the Athens one is 492×200,
      * so at a height a phone bar can spare its wordmark cannot be read and it
      * still costs ~70px of width. Below `sm` the municipality is written instead.
      */
