@@ -77,7 +77,9 @@ export default function UserDropdown({ currentEntity, entityLabel, showExplain =
 
     const triggerClass = cn(
         headerControlClass,
-        'cursor-pointer pl-1 pr-1 md:pr-3',
+        // The avatar is the last thing in the header, so the greeting reads into
+        // it rather than out of it.
+        'cursor-pointer pr-1 md:pl-3',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30',
     );
 
@@ -95,7 +97,7 @@ export default function UserDropdown({ currentEntity, entityLabel, showExplain =
                 <DropdownMenuItem asChild>
                     <Link href="/explain" className="cursor-pointer">
                         <HelpCircle className="mr-2 h-4 w-4 text-[hsl(var(--orange))]" />
-                        {t("explain")}
+                        {t("explainShort")}
                     </Link>
                 </DropdownMenuItem>
             )}
@@ -107,8 +109,8 @@ export default function UserDropdown({ currentEntity, entityLabel, showExplain =
     if (status === "loading") {
         return (
             <div className="flex items-center gap-2">
-                <Skeleton className="h-8 w-8 rounded-full" />
                 <Skeleton className="hidden h-4 w-28 md:block" />
+                <Skeleton className="h-8 w-8 rounded-full" />
             </div>
         )
     }
@@ -120,8 +122,8 @@ export default function UserDropdown({ currentEntity, entityLabel, showExplain =
         return (
             <DropdownMenu>
                 <DropdownMenuTrigger className={triggerClass} aria-label={t("login")}>
-                    <Avatar name={null} imageUrl={null} />
                     <span className="hidden md:inline text-sm">{t("login")}</span>
+                    <Avatar name={null} imageUrl={null} />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-64" align="end">
                     <DropdownMenuItem className="cursor-pointer font-medium" onClick={() => router.push('/sign-in')}>
@@ -145,8 +147,8 @@ export default function UserDropdown({ currentEntity, entityLabel, showExplain =
     return (
         <DropdownMenu>
             <DropdownMenuTrigger className={triggerClass} aria-label={greeting}>
-                <Avatar name={session.user.name ?? null} imageUrl={session.user.image ?? null} canEdit={canEdit} />
                 <span className="hidden md:inline text-sm">{greeting}</span>
+                <Avatar name={session.user.name ?? null} imageUrl={session.user.image ?? null} canEdit={canEdit} />
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-64" align="end">
                 <DropdownMenuLabel className="font-normal">
