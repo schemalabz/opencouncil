@@ -18,6 +18,8 @@ import { AIGeneratedBadge } from "@/components/AIGeneratedBadge";
 import { GroupedDiscussionNotice } from "./grouped-discussion-notice";
 import { ContributionCard } from "./ContributionCard";
 import { VotingSection } from "./VotingSection";
+import { SubjectSubscribeButton } from "./SubjectSubscribeButton";
+import { SubjectSubscribeProvider } from "./SubjectSubscribeContext";
 import { formatDate, formatRelativeTime } from "@/lib/formatters/time";
 import { calculateVoteResult } from "@/lib/utils/votes";
 import { useTranslations, useLocale } from "next-intl";
@@ -148,7 +150,10 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
         }
     }, [subject.id]);
 
+    const subscribeLocation = location ? { id: location.id, text: location.text, coordinates: location.coordinates } : null;
+
     return (
+        <SubjectSubscribeProvider topic={topic ?? null} location={subscribeLocation} cityId={meeting.cityId}>
         <div className="min-h-screen bg-background">
             {/* Main Content */}
             <div className="max-w-4xl mx-auto px-3 py-4 md:px-4 md:py-6 space-y-6">
@@ -179,6 +184,12 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                     </Link>
                     <span className="text-muted-foreground">
                         {formatDate(new Date(meeting.dateTime), undefined, locale)}
+                    </span>
+                    <span className="ml-auto flex items-center">
+                        <SubjectSubscribeButton
+                            topic={topic ?? null}
+                            location={subscribeLocation}
+                        />
                     </span>
                 </nav>
                 {isSuperAdmin && (
@@ -509,5 +520,6 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                 )}
             </div>
         </div>
+        </SubjectSubscribeProvider>
     );
 }
