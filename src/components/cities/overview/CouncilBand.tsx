@@ -40,7 +40,7 @@ export function CouncilBand({ parties, people, city, locale }: CouncilBandProps)
 
     if (parties.length === 0 && people.length === 0) return null;
 
-    const shown = sortParties(parties).slice(0, PARTIES_SHOWN);
+    const shown = sortParties(parties, locale).slice(0, PARTIES_SHOWN);
     // Over every party, not just the three shown, so the band and the Παρατάξεις
     // tab never carry different figures on the same card.
     const columns = partyBodyColumns(parties);

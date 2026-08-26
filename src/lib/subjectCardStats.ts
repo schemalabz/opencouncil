@@ -22,7 +22,11 @@ export function subjectCardStats(statistics: Statistics | undefined, fallbackSpe
         // `??`, not `||`: a subject whose segments have no resolved speaker has a
         // people list of length 0, and that is the answer — falling through would
         // report its contribution count as a speaker count.
-        speakerCount: statistics?.people?.length ?? fallbackSpeakerCount,
+        // `||`, not `??`: an empty people array means the statistics have not been
+        // computed, which is exactly when the contribution count has to stand in.
+        // `??` treated a length of 0 as an answer, and HotTopicRow prints the
+        // number ungated — every such row read "0 ομιλητές".
+        speakerCount: statistics?.people?.length || fallbackSpeakerCount || 0,
         partyDots: (statistics?.parties ?? []).map(p => ({ id: p.item.id, colorHex: p.item.colorHex, name: p.item.name })),
     };
 }

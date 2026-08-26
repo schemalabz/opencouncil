@@ -5,7 +5,7 @@ import type { PersonWithRelations } from '@/lib/db/people';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
 import { filterActiveRoles } from '@/lib/utils';
-import { getPartyFromRoles, getRoleText } from '@/lib/utils/roles';
+import { getPartyFromRoles, getRoleText, sortRolesByPriority } from '@/lib/utils/roles';
 
 /** Titled roles before the card stops being a summary. */
 const ROLES_SHOWN = 2;
@@ -36,8 +36,12 @@ export default function PersonCard({ item: person }: PersonCardProps) {
     // getRoleText, not `role.name`: two thirds of councillors hold no titled
     // role, and filtering on the name column left their cards with an empty role
     // area. The helper falls back to the administrative body, or to "member".
-    const roles = filterActiveRoles(person.roles)
-        .filter(role => !role.partyId)
+    // Sorted before the slice, and before the map that would throw the sort key
+    // away: `sortRolesByPriority` puts a mayor first, then a deputy mayor, then a
+    // body chair, then plain membership. Slicing the raw relation order instead
+    // hid an αντιδήμαρχος behind "+1" while showing two committee seats — the
+    // Prisma include carries no `orderBy`.
+    const roles = sortRolesByPriority(filterActiveRoles(person.roles).filter(role => !role.partyId))
         .map(role => getRoleText(role, t));
     const shown = roles.slice(0, ROLES_SHOWN);
     const rest = roles.length - shown.length;
