@@ -69,5 +69,7 @@
   "period12m": "12 mois",
   "periodAll": "Tout",
   "hotTopicsBeyondPeriod": "Aucune séance sur cette période. Voici les plus récentes.",
-  "inCommunities": "{count} en communautés"
+  "inCommunities": "{count} en communautés",
+  "notisTeaser": "Rester informé, c'est simple.",
+  "subscribedSummary": "Vous recevez des mises à jour"
 }

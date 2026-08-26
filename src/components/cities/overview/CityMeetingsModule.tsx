@@ -1,6 +1,6 @@
 "use client";
 import { useState } from 'react';
-import { ArrowRight, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import type { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
@@ -105,27 +105,28 @@ export function CityMeetingsModule({ all, council, cityId, timezone, locale }: C
             </div>
 
             {scoped.latest ? (
-                <div className="p-4">
-                    <div className="flex items-start gap-4">
-                        <DateStamp date={scoped.latest.dateTime} timezone={timezone} locale={locale} />
-                        <div className="min-w-0">
-                            <h3 className="!text-left text-lg leading-snug">{getLocalizedName(scoped.latest, locale)}</h3>
-                            <AdminBodyLabel body={scoped.latest.administrativeBody} locale={locale} className="mt-1.5" />
-                            <p className="mt-1 text-xs text-muted-foreground">
-                                {formatDateTime(scoped.latest.dateTime, timezone, 'medium', locale)}
-                                {' · '}
-                                {tMeeting('subjectsCount', { count: scoped.latest.subjects.length })}
-                            </p>
-                        </div>
-                    </div>
-                    <Link
-                        href={`/${cityId}/${scoped.latest.id}`}
-                        className="group/cta mt-4 flex h-10 items-center justify-center gap-2 rounded-[10px] bg-foreground text-sm font-medium text-background transition-opacity hover:opacity-90 hover:no-underline"
-                    >
-                        {t('viewMeeting')}
-                        <ArrowRight className="h-4 w-4 transition-transform group-hover/cta:translate-x-0.5" aria-hidden />
-                    </Link>
-                </div>
+                // The row is the link, the way the next-meeting row above already
+                // is. A filled button under it repeated the same target and cost
+                // 56px of a phone screen that the tabs needed more.
+                <Link
+                    href={`/${cityId}/${scoped.latest.id}`}
+                    className="group/latest flex items-start gap-4 p-4 transition-colors hover:bg-foreground/[0.02] hover:no-underline"
+                    aria-label={t('viewMeeting')}
+                >
+                    <DateStamp date={scoped.latest.dateTime} timezone={timezone} locale={locale} />
+                    <span className="min-w-0 flex-1">
+                        <span className="block text-lg leading-snug transition-colors group-hover/latest:text-[hsl(var(--orange))]">
+                            {getLocalizedName(scoped.latest, locale)}
+                        </span>
+                        <AdminBodyLabel body={scoped.latest.administrativeBody} locale={locale} className="mt-1.5" />
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                            {formatDateTime(scoped.latest.dateTime, timezone, 'medium', locale)}
+                            {' · '}
+                            {tMeeting('subjectsCount', { count: scoped.latest.subjects.length })}
+                        </span>
+                    </span>
+                    <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                </Link>
             ) : (
                 <p className="px-4 py-6 text-center text-xs text-muted-foreground">{t('noMeetingsForScope')}</p>
             )}

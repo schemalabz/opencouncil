@@ -66,9 +66,9 @@ export function MobileHeader({
                     <button
                         type="button"
                         aria-label={t('nav.menu')}
-                        className="flex shrink-0 items-center gap-0.5 rounded-xl px-1 py-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        className="flex shrink-0 items-center gap-2 rounded-xl px-1.5 py-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     >
-                        <Menu className="h-3.5 w-3.5 shrink-0" />
+                        <Menu className="h-4 w-4 shrink-0" />
                         <Image src="/logo.png" alt="" width={120} height={120} className="h-9 w-9 shrink-0 object-contain" priority />
                     </button>
                 </SheetTrigger>
@@ -84,7 +84,7 @@ export function MobileHeader({
                     {/* brand */}
                     <div className="flex shrink-0 items-center gap-2.5 border-b border-border px-5 py-4">
                         <Image src="/logo.png" alt="" width={96} height={96} className="h-8 w-auto object-contain" priority />
-                        <span className="text-lg font-bold tracking-tight text-foreground">OpenCouncil</span>
+                        <span className="text-lg font-medium tracking-tight text-foreground">OpenCouncil</span>
                     </div>
 
                     {/* primary nav + expandable link groups */}
@@ -191,7 +191,7 @@ export function MobileHeader({
                 </SheetContent>
             </Sheet>
 
-            <span className="truncate text-lg font-bold tracking-tight text-foreground">OpenCouncil</span>
+            <span className="truncate text-lg font-medium tracking-tight text-foreground">OpenCouncil</span>
             </div>
 
             {/* keyword search — a SEPARATE bordered box beside the header pill; turns orange with a

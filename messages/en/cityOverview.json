@@ -69,5 +69,7 @@
   "period12m": "12 months",
   "periodAll": "All",
   "hotTopicsBeyondPeriod": "No meetings took place in this period. These are the most recent ones.",
-  "inCommunities": "{count} on communities"
+  "inCommunities": "{count} on communities",
+  "notisTeaser": "Staying informed is easy.",
+  "subscribedSummary": "You get updates about this municipality"
 }
