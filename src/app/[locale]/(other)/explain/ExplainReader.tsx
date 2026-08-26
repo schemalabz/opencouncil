@@ -33,14 +33,10 @@ export function ExplainReader({
     // on mobile so the current subtitle stays visible while reading the content.
     const [stickyIdx, setStickyIdx] = useState(-1);
 
-    // Track the section in view and pin the desktop table of contents.
+    // Track the section in view. The ToC itself pins with CSS position: sticky.
     useEffect(() => {
         const els = sections.map((s) => document.getElementById(s.id));
-        const aside = document.querySelector<HTMLElement>("[data-toc]");
-        const grid = aside?.parentElement ?? null;
         const OFFSET = 120; // spy threshold, below the fixed header
-        const PIN_TOP = 96; // where the ToC pins (matches the header offset)
-        const LG = 1024;
         let raf = 0;
 
         const compute = () => {
@@ -60,19 +56,6 @@ export function ExplainReader({
             // the Substack "further reading" section shouldn't pin its title
             const show = idx >= 0 && passed && sections[idx].id !== "substack";
             setStickyIdx(show ? idx : -1);
-
-            // pin the ToC: position: sticky is broken by an overflow-hidden
-            // ancestor, so translate it to hold PIN_TOP while it's in range.
-            if (aside && grid) {
-                if (window.innerWidth < LG) {
-                    aside.style.transform = "";
-                } else {
-                    const gridTop = grid.getBoundingClientRect().top;
-                    const max = Math.max(0, grid.offsetHeight - aside.offsetHeight);
-                    const t = Math.min(Math.max(0, PIN_TOP - gridTop), max);
-                    aside.style.transform = `translateY(${t}px)`;
-                }
-            }
         };
         const onScroll = () => {
             if (!raf) raf = requestAnimationFrame(compute);
@@ -85,7 +68,6 @@ export function ExplainReader({
             window.removeEventListener("scroll", onScroll);
             window.removeEventListener("resize", onScroll);
             if (raf) cancelAnimationFrame(raf);
-            if (aside) aside.style.transform = "";
         };
     }, [sections]);
 
