@@ -1,3 +1,4 @@
+import type { AdministrativeBodyType } from '@prisma/client';
 import type { PartyWithPersons, PersonWithRoles } from '@/lib/db/parties';
 import { isMayorRole, isRoleActive } from '@/lib/utils/roles';
 import { sortPartyMembers } from '@/lib/sorting/people';
@@ -62,4 +63,37 @@ export function partyComposition(party: PartyWithPersons): PartyComposition {
         unassigned: Math.max(0, withoutBody - mayors),
         hasMayor: mayors > 0,
     };
+}
+
+/** The bodies beyond the council that every card in a city should count. */
+export interface PartyBodyColumns {
+    committee: boolean;
+    community: boolean;
+}
+
+/**
+ * Which extra bodies are worth a figure on every card in this city.
+ *
+ * A type nobody holds an active seat on tells a reader nothing and costs a line
+ * on every card — which also covers a municipality with no επιτροπές or no
+ * κοινότητες at all, and a municipality whose committee exists on paper but
+ * seats no one from any παράταξη.
+ *
+ * Computed across every party rather than per card, so the overview's top three
+ * and the full tab never disagree about which figures a card carries. The seat
+ * test matches {@link partyComposition}: an active role on a body, held by
+ * someone with an active role in the party.
+ */
+export function partyBodyColumns(parties: PartyWithPersons[]): PartyBodyColumns {
+    const present = new Set<AdministrativeBodyType>();
+    for (const party of parties) {
+        for (const person of party.people) {
+            const inParty = person.roles.some(role => role.partyId === party.id && isRoleActive(role));
+            if (!inParty) continue;
+            for (const role of person.roles) {
+                if (isRoleActive(role) && role.administrativeBody) present.add(role.administrativeBody.type);
+            }
+        }
+    }
+    return { committee: present.has('committee'), community: present.has('community') };
 }

@@ -3,7 +3,7 @@ import { Link } from '@/i18n/routing';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
 import type { PartyWithPersons } from '@/lib/db/parties';
 import { getLocalizedName } from '@/lib/formatters/name';
-import { partyComposition } from '@/lib/party/composition';
+import { partyComposition, type PartyBodyColumns } from '@/lib/party/composition';
 
 /** Faces before the stack becomes a crowd. */
 const FACES = 4;
@@ -11,15 +11,26 @@ const FACES = 4;
 interface PartyCardProps {
     item: PartyWithPersons;
     editable: boolean;
+    /**
+     * Which bodies beyond the council every card in this city counts, from
+     * {@link partyBodyColumns}. Decided for the city, not the party, so a
+     * reader can compare one card against the next.
+     */
+    columns?: PartyBodyColumns;
 }
 
 /**
  * A party in a list.
  *
- * Leads with council seats, because seat share is what a reader compares. The
- * faces and the "+N" beside them are drawn from whichever set the numeral
- * counts, so the two cannot describe different groups, and a party holding no
- * council seat at all falls back to its roster rather than reading as zero.
+ * Leads with council seats, because seat share is what a reader compares —
+ * including none. A party whose councillors have resigned holds no seat, and
+ * printing its roster in their place put "5 μέλη" where every other card had a
+ * seat count, and floated it above parties that actually hold the room.
+ *
+ * Where else the party sits is the line underneath: the same bodies on every
+ * card in the city, so the cards can be read against each other. The faces stay
+ * with the councillors where there are any, and fall back to the roster where
+ * there are none — a card with a name and a zero is not a card.
  *
  * The party colour is a filled band down the whole left edge, clipped by the
  * card's radius so it follows the curve into the corners.
@@ -27,17 +38,18 @@ interface PartyCardProps {
  * Deliberately hook-light so it renders in a Server Component (the city
  * overview) and inside List, which is a client component.
  */
-export default function PartyCard({ item: party }: PartyCardProps) {
+export default function PartyCard({ item: party, columns }: PartyCardProps) {
     const t = useTranslations('cityOverview');
     const locale = useLocale();
-    const { members, councilMembers, council, committee, hasMayor } = partyComposition(party);
+    const { members, councilMembers, council, committee, community, hasMayor } = partyComposition(party);
 
     const roster = council > 0 ? councilMembers : members;
-    const seatsLabel = council > 0
-        ? t('seatsInCouncil', { count: roster.length })
-        : t('partyMembers', { count: roster.length });
     const faces = roster.slice(0, FACES);
     const rest = roster.length - faces.length;
+    const elsewhere = [
+        columns?.committee ? t('inCommittees', { count: committee }) : null,
+        columns?.community ? t('inCommunities', { count: community }) : null,
+    ].filter(Boolean);
 
     return (
         <Link
@@ -71,10 +83,14 @@ export default function PartyCard({ item: party }: PartyCardProps) {
 
                 <span className="mt-2.5 flex items-baseline gap-1.5 tabular-nums">
                     <span className="text-3xl leading-none tracking-tight" style={{ color: party.colorHex }}>
-                        {roster.length}
+                        {council}
                     </span>
-                    <span className="text-xs text-muted-foreground">{seatsLabel}</span>
+                    <span className="text-xs text-muted-foreground">{t('seatsInCouncil', { count: council })}</span>
                 </span>
+
+                {elsewhere.length > 0 && (
+                    <span className="mt-1 text-xs text-muted-foreground">{elsewhere.join(' · ')}</span>
+                )}
 
                 {/* Only the governing party is named as such. Which of the others are
                     in opposition and which support the mayor is not in the data, and
@@ -84,19 +100,14 @@ export default function PartyCard({ item: party }: PartyCardProps) {
                     figure, and the only thing on the card that is not a count. The
                     wash is the party's own colour at low alpha and the text stays
                     foreground, so it reads on a pale παράταξη as well as a dark one. */}
-                {(hasMayor || committee > 0) && (
+                {hasMayor && (
                     <span className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-                        {hasMayor && (
-                            <span
-                                className="inline-flex items-center rounded-full px-2 py-[3px] text-[11px] font-semibold leading-none text-foreground"
-                                style={{ backgroundColor: `color-mix(in srgb, ${party.colorHex} 22%, transparent)` }}
-                            >
-                                {t('governingParty')}
-                            </span>
-                        )}
-                        {committee > 0 && (
-                            <span className="text-xs text-muted-foreground">{t('inCommittees', { count: committee })}</span>
-                        )}
+                        <span
+                            className="inline-flex items-center rounded-full px-2 py-[3px] text-[11px] font-semibold leading-none text-foreground"
+                            style={{ backgroundColor: `color-mix(in srgb, ${party.colorHex} 22%, transparent)` }}
+                        >
+                            {t('governingParty')}
+                        </span>
                     </span>
                 )}
 
