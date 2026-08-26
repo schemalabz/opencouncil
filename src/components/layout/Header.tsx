@@ -123,7 +123,14 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
         if (subjectHeader) {
             dynamicPath.push({ name: subjectHeader.name, link: '' });
         } else {
-            const pageConfig = segment ? meetingPageSegments[segment] : null;
+            // `/{cityId}/{meetingId}` is the overview and renders with no child
+            // segment, so fall back to it exactly as `pageIcon` below does.
+            // Without the fallback nothing is pushed, and the action bar ends up
+            // holding the meeting name while the header holds the administrative
+            // body. Only inside a meeting: the admin shell also sets
+            // `showSidebarTrigger` and must not gain a page crumb of its own.
+            const key = path[0]?.city ? (segment ?? 'overview') : segment;
+            const pageConfig = key ? meetingPageSegments[key] : null;
             if (pageConfig) {
                 dynamicPath.push({ name: pageConfig.title, link: '' });
             }
