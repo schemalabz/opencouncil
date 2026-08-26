@@ -85,13 +85,14 @@ export function AdminSidebar() {
                 the left column top to bottom, so this is where the column starts.
                 Same height as the header's first row across the edge, so the two
                 bottom borders meet. */}
-            <div className="flex h-16 items-center gap-2 px-3 sm:h-20 sm:px-4 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-1.5 group-data-[collapsible=icon]:px-0">
+            <div className="flex h-16 items-center gap-2 px-3 sm:h-20 sm:px-4 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2.5">
                 <SidebarTrigger className="h-5 w-5 shrink-0 text-muted-foreground/60" />
-                {/* Stacked under the toggle rather than dropped when the nav is at
-                    48px: this is the only mark on a page people sit with for an
-                    hour, and there is room for both. */}
-                <Link href="/" className="flex shrink-0 items-center hover:no-underline">
-                    <Image src="/logo.png" alt="OpenCouncil" width={120} height={120} className="h-9 w-auto object-contain sm:h-10 md:h-11 group-data-[collapsible=icon]:h-6" />
+                {/* Gone at 48px, with the seal. Stacked under the toggle it made the
+                    head two nav-items tall for 50px of content, and that slack read
+                    as a gap above the first item — at this width the rail is a tool
+                    strip, and the mark is back the moment it opens. */}
+                <Link href="/" className="flex shrink-0 items-center hover:no-underline group-data-[collapsible=icon]:hidden">
+                    <Image src="/logo.png" alt="OpenCouncil" width={120} height={120} className="h-9 w-auto object-contain sm:h-10 md:h-11" />
                 </Link>
             </div>
             <SidebarHeader className="flex-none p-4 group-data-[collapsible=icon]:hidden">
