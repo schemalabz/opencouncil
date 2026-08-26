@@ -106,6 +106,7 @@ export function AgendaViewer({
                         <iframe
                             src={`${pdf}#view=FitH`}
                             title={title}
+                            loading="lazy"
                             className={`h-[600px] w-full border-0 bg-muted/40 ${
                                 mobileImage ? "hidden sm:block" : "block"
                             }`}
