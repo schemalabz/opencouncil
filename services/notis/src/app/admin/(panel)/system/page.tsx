@@ -15,6 +15,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { env } from "@/env.mjs";
+import { WEEKLY_TEMPLATE_CAP } from "@/lib/queue";
 import { EVENT_LABELS } from "../_lib/records";
 import { DigestedMeetingView, SubjectFanout, getSystemSnapshot } from "../_lib/system";
 import { parsePage } from "../_lib/paging";
@@ -305,7 +306,9 @@ export default async function SystemPage(props: {
                   >
                     <UserAvatar seed={u.userId} size={20} />
                     {u.userName}
-                    <span className="tabular-nums text-muted-foreground">{u.count}/3</span>
+                    <span className="tabular-nums text-muted-foreground">
+                      {u.count}/{WEEKLY_TEMPLATE_CAP}
+                    </span>
                   </Link>
                 ))}
               </div>
