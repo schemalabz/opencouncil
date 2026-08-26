@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { SidebarTrigger } from '../ui/sidebar'
 import { City } from '@prisma/client'
 import { Input } from "@/components/ui/input"
-import { Search, Building2, ChevronRight, type LucideIcon } from "lucide-react"
+import { Search, Bot, Building2, ChevronRight, HelpCircle, type LucideIcon } from "lucide-react"
 import { useRouter, useSelectedLayoutSegment } from "next/navigation"
 import { useState, useRef, useEffect } from "react"
 import { createPortal } from "react-dom"
@@ -295,9 +295,31 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                 <Search className="h-4 w-4 shrink-0" />
                 <span className="hidden lg:inline text-sm">{t('search')}</span>
             </button>
+            {/* From `lg` the bar has room to name these, so they come back out of
+                the account menu — which hides them at the same width. Below it
+                they would be two more unlabelled glyphs, which is what the
+                redesign moved them out of. */}
+            <Link
+                href="/mcp"
+                className={cn(headerControlClass, 'hidden px-3 lg:flex')}
+                title={t('mcp')}
+            >
+                <Bot className="h-4 w-4 shrink-0" />
+                <span className="text-sm">{t('mcpShort')}</span>
+            </Link>
+            {showExplain && (
+                <Link
+                    href="/explain"
+                    className={cn(headerControlClass, 'hidden px-3 text-foreground ring-1 ring-border lg:flex')}
+                    title={t('explain')}
+                >
+                    <HelpCircle className="h-4 w-4 shrink-0 text-[hsl(var(--orange))]" />
+                    <span className="text-sm">{t('explainShort')}</span>
+                </Link>
+            )}
             <UserDropdown
                 currentEntity={currentEntity}
-                entityLabel={cityElement?.name}
+                city={cityElement?.city}
                 showExplain={showExplain}
             />
         </div>
@@ -319,15 +341,16 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
             ) : pageIcon ? (
                 <PageIconBadge icon={pageIcon} />
             ) : null}
+            {/* Scrolls when it does not fit rather than ending in an ellipsis:
+                page and subject names are long in Greek, and the bar holds the
+                actions at a fixed width, so the title is what gives. Same
+                treatment for both — a truncated page name is no more readable
+                than a truncated subject. */}
             {pageElement && (
                 <div className="min-w-0 flex-1 text-[13px] font-medium text-foreground/80 sm:text-sm">
-                    {isCurrentSubject ? (
-                        <AutoScrollText>
-                            <span className="leading-tight">{pageElement.name}</span>
-                        </AutoScrollText>
-                    ) : (
-                        <span className="block truncate">{pageElement.name}</span>
-                    )}
+                    <AutoScrollText>
+                        <span className="leading-tight">{pageElement.name}</span>
+                    </AutoScrollText>
                 </div>
             )}
             <div className="ml-auto flex shrink-0 items-center gap-1">{children}</div>
