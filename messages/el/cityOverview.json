@@ -33,10 +33,16 @@
   "inCommittees": "{count} σε επιτροπές",
   "governingParty": "Δημοτική Αρχή",
   "notisName": "Νότης",
-  "notisIntro": "Σου γράφει στο WhatsApp για τον {city}",
+  "notisIntro": {
+    "municipality": "Σου γράφει στο WhatsApp για τον δήμο {qualifier}",
+    "region": "Σου γράφει στο WhatsApp για την περιφέρεια {qualifier}"
+  },
   "notisCta": "Θέλω ενημερώσεις",
   "notisChannels": "Email, WhatsApp ή SMS · Τις περισσότερες εβδομάδες, τίποτα",
-  "subscribedTitle": "Ο Νότης σου γράφει για τον {city}",
+  "subscribedTitle": {
+    "municipality": "Ο Νότης σου γράφει για τον δήμο {qualifier}",
+    "region": "Ο Νότης σου γράφει για την περιφέρεια {qualifier}"
+  },
   "allTopics": "Όλα τα θέματα",
   "channelEmail": "Email",
   "channelPhone": "WhatsApp και SMS",
