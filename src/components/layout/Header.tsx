@@ -37,6 +37,13 @@ interface HeaderProps {
     noContainer?: boolean
     className?: string
     /**
+     * A persistent nav owns the left column of this page, so its edge is the
+     * page's one vertical rule. The header sits beside it: no mark, no rule of
+     * its own, and the path starts on that edge. Below `md` the nav is an
+     * overlay with no edge, so the mark and the toggle come back to the header.
+     */
+    inset?: boolean
+    /**
      * Whether to offer the /explain guide. Resolved by the server parent with
      * `hasExplainPage(await getRealm())` — the page 404s outside the Greek realm,
      * and this component is a client one, so it cannot read the realm itself.
@@ -78,7 +85,7 @@ function PageIconBadge({ icon: IconComponent }: { icon: LucideIcon }) {
  * page already rendered (`sm:hidden`, sidebar toggle + page title), now shown at
  * every width and carrying the actions on its right.
  */
-const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noContainer = false, className, showExplain = false }: HeaderProps) => {
+const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noContainer = false, className, showExplain = false, inset = false }: HeaderProps) => {
     const t = useTranslations("Header");
     const tCommon = useTranslations("Common");
     const meetingPageSegments = getMeetingPageSegments(useTranslations("CouncilMeeting"));
@@ -219,7 +226,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
     // a key in getMeetingPageSegments, so the segment crumb pushed the path to
     // length 2 and the admin shell inherited a meeting's header.
     const renderMarks = () => (
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className={cn('flex items-center gap-2 sm:gap-3', inset && 'md:hidden')}>
             {showSidebarTrigger && !hasActionBar && (
                 <SidebarTrigger className="h-5 w-5 shrink-0 text-muted-foreground/60" />
             )}
@@ -236,29 +243,6 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                 )}
             </Link>
 
-            {titleElement && cityElement?.city && (
-                <>
-                    {/* The seal is a lockup, not a mark: the Athens one is 492×200,
-                        so at a height a phone bar can spare its wordmark cannot be
-                        read and it still costs ~70px of width. Below `sm` the
-                        municipality is written instead; the seal returns where it
-                        fits. */}
-                    <Link href={cityElement.link} className="hidden shrink-0 sm:block" aria-hidden tabIndex={-1}>
-                        {cityElement.city.logoImage ? (
-                            <Image
-                                src={cityElement.city.logoImage}
-                                alt=""
-                                width={120}
-                                height={120}
-                                className="h-8 w-auto max-w-[84px] object-contain md:h-10 md:max-w-[112px]"
-                                priority
-                            />
-                        ) : (
-                            <Building2 className="h-8 w-8 text-muted-foreground/50 md:h-10 md:w-10" />
-                        )}
-                    </Link>
-                </>
-            )}
         </div>
     );
 
@@ -291,6 +275,34 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                     <span className="truncate text-sm font-medium sm:text-base">{titleElement.name}</span>
                 )}
             </div>
+        ) : null
+    );
+
+    /**
+     * Row 1, column 2: the municipality's seal, in a column of its own.
+     *
+     * Its own column because the page badge sits under it in row 2, which is what
+     * keeps the page label aligned with the meeting name rather than with the
+     * seal's left edge. It is a lockup, not a mark — the Athens one is 492×200,
+     * so at a height a phone bar can spare its wordmark cannot be read and it
+     * still costs ~70px of width. Below `sm` the municipality is written instead.
+     */
+    const renderSeal = () => (
+        cityElement?.city ? (
+            <Link href={cityElement.link} className="hidden shrink-0 items-center sm:flex" aria-hidden tabIndex={-1}>
+                {cityElement.city.logoImage ? (
+                    <Image
+                        src={cityElement.city.logoImage}
+                        alt=""
+                        width={120}
+                        height={120}
+                        className="h-8 w-auto max-w-[84px] object-contain md:h-10 md:max-w-[112px]"
+                        priority
+                    />
+                ) : (
+                    <Building2 className="h-8 w-8 text-muted-foreground/50 md:h-10 md:w-10" />
+                )}
+            </Link>
         ) : null
     );
 
@@ -341,15 +353,19 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
      * The page badge sits here rather than beside its label so the label itself
      * starts on the column rule, directly under the meeting name it belongs to.
      */
-    const renderPageMarks = () => (
-        <div className="flex items-center gap-2">
-            {showSidebarTrigger && <SidebarTrigger className="h-5 w-5 shrink-0 text-muted-foreground/60" />}
-            {isCurrentSubject && subjectHeader ? (
-                <TopicIconBadge subjectInfo={subjectHeader} />
-            ) : pageIcon ? (
-                <PageIconBadge icon={pageIcon} />
-            ) : null}
-        </div>
+    const renderPageToggle = () => (
+        showSidebarTrigger ? (
+            <SidebarTrigger className={cn('h-5 w-5 shrink-0 text-muted-foreground/60', inset && 'md:hidden')} />
+        ) : null
+    );
+
+    /** Row 2, column 2 — under the seal, so the label lands under the meeting. */
+    const renderPageBadge = () => (
+        isCurrentSubject && subjectHeader ? (
+            <TopicIconBadge subjectInfo={subjectHeader} />
+        ) : pageIcon ? (
+            <PageIconBadge icon={pageIcon} />
+        ) : null
     );
 
     /* Scrolls when it does not fit rather than ending in an ellipsis: page and
@@ -390,8 +406,11 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
     // line, not a hairline in each, which is what makes the rows read as one
     // block. Cells carry it rather than a wrapper so it disappears with the
     // identity row when that folds away on a phone.
-    const rule = titleElement ? 'border-l border-border' : '';
-    const pad = titleElement ? 'pl-2.5 sm:pl-4' : '';
+    // Beside a persistent nav the page already has its one vertical rule — the
+    // nav's edge — so the header draws none and its path starts on it.
+    const rule = titleElement && !inset ? 'border-l border-border' : '';
+    const pad = titleElement ? (inset ? 'pl-2.5 md:pl-0' : 'pl-2.5 sm:pl-4') : '';
+    const gap = titleElement ? 'pr-2 sm:pr-3' : '';
     const rowOne = cn(
         // Folds away once the meeting's own pane scrolls, leaving the action
         // bar: deep in a transcript the useful row is the one holding the page
@@ -405,15 +424,23 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
     const rowTwo = 'h-12 items-center border-t border-border/60 bg-muted/40 sm:h-[54px]';
 
     const renderGrid = () => (
-        <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] px-2 sm:px-4">
+        <div className={cn(
+            'grid grid-cols-[auto_auto_minmax(0,1fr)_auto] px-2 sm:px-4',
+            // Collapsed explicitly rather than left to `auto`: the mark's cell is
+            // display:none from `md` when a nav owns the column, but an auto track
+            // still reserved 28px, which pushed the path off the nav's edge.
+            inset && 'md:grid-cols-[0px_auto_minmax(0,1fr)_auto]',
+        )}>
             <div className={cn('flex items-center', rowOne)}>{renderMarks()}</div>
-            <div className={cn('flex min-w-0', rowOne, rule, pad)}>{renderPath()}</div>
+            <div className={cn('flex items-center', rowOne, rule, pad, gap)}>{renderSeal()}</div>
+            <div className={cn('flex min-w-0', rowOne)}>{renderPath()}</div>
             <div className={cn('ml-auto flex items-center', rowOne)}>{renderControls()}</div>
 
             {hasActionBar && (
                 <>
-                    <div className={cn('flex', rowTwo)}>{renderPageMarks()}</div>
-                    <div className={cn('flex min-w-0', rowTwo, rule, pad)}>{renderPageLabel()}</div>
+                    <div className={cn('flex items-center', rowTwo)}>{renderPageToggle()}</div>
+                    <div className={cn('flex items-center', rowTwo, rule, pad, gap)}>{renderPageBadge()}</div>
+                    <div className={cn('flex min-w-0', rowTwo)}>{renderPageLabel()}</div>
                     <div className={cn('ml-auto flex', rowTwo)}>{renderPageActions()}</div>
                 </>
             )}
