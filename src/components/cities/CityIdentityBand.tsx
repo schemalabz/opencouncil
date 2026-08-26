@@ -50,29 +50,31 @@ export function CityIdentityBand({
     return (
         <div className="space-y-6">
             <div className="min-w-0">
-                <h1 className="text-4xl leading-none tracking-tight md:text-5xl">
+                <h1 className="text-3xl leading-none tracking-tight sm:text-4xl md:text-5xl">
                     {getLocalizedMunicipalityName(city, locale)}
                 </h1>
 
-                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+                {/* One row, not two. And the counts stand down on a phone: the tab
+                    bar a few hundred pixels below names the same three things, and
+                    the row cost more than it told anyone. */}
+                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
                     <OfficialSupportBadge
                         status={city.status}
                         authorityType={city.authorityType}
                         cityId={city.id}
                         size="sm"
                     />
+                    <span className="hidden flex-wrap items-center gap-x-2 gap-y-1 sm:flex">
+                        {stats.map((stat, i) => (
+                            <span key={i} className="flex items-center gap-2">
+                                {i > 0 && <span className="text-muted-foreground/40" aria-hidden>·</span>}
+                                {stat}
+                            </span>
+                        ))}
+                    </span>
                 </div>
 
-                <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-                    {stats.map((stat, i) => (
-                        <span key={i} className="flex items-center gap-2">
-                            {i > 0 && <span className="text-muted-foreground/40" aria-hidden>·</span>}
-                            {stat}
-                        </span>
-                    ))}
-                </p>
-
-                <div className="mt-6">
+                <div className="mt-5">
                     <CitySearchForm city={city} subjectCount={subjectCount} locale={locale} />
                 </div>
             </div>

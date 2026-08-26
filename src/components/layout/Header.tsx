@@ -438,8 +438,11 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                         between the rule and the row it belongs to. The cells above
                         keep the padding, so only the fill bleeds. */}
                     <div className="col-start-1 col-span-3 row-start-2 -mx-2 border-t border-border/60 bg-muted/40 sm:-mx-4" />
-                    <div className={cn('col-start-1', rowTwo)} />
-                    <div className={cn('col-start-2 flex min-w-0 items-center', rowTwo, rule, pad)}>{renderPageLabel()}</div>
+                    {/* From column one: below `md` the marks column holds the mark
+                        and the toggle, and indenting the page behind them left it
+                        floating in the middle of a row it owns. From `md` that
+                        column is zero wide, so this lands on the crumb's x anyway. */}
+                    <div className={cn('col-start-1 col-span-2 flex min-w-0 items-center', rowTwo)}>{renderPageLabel()}</div>
                     <div className={cn('col-start-3 ml-auto flex', rowTwo)}>{renderPageActions()}</div>
                 </>
             )}
