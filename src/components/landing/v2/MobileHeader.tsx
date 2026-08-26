@@ -68,13 +68,12 @@ export function MobileHeader({
                         aria-label={t('nav.menu')}
                         className="flex shrink-0 items-center gap-2 rounded-xl px-1.5 py-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     >
-                        {/* Sized to the butterfly's ink, not to its box. logo.png is 1606x1354
-                            with the glyph occupying 777x646 of it, so inside a 36px
-                            object-contain square the butterfly draws 14.5px tall. Menu's
-                            lines sit at y=6 and y=18 of a 24 viewBox, so a 25px box puts
-                            its ink at 12/24 x 25 + stroke = the same 14.5px. */}
-                        <Menu className="h-[25px] w-[25px] shrink-0" />
-                        <Image src="/logo.png" alt="" width={120} height={120} className="h-9 w-9 shrink-0 object-contain" priority />
+                        {/* Matched to the butterfly beside it on both counts — see the
+                            lockup rule in Logo.tsx. The mark's ink is 19.1px tall with a
+                            1.49px stroke; Menu's lines sit at y=6 and y=18 of a 24 viewBox,
+                            so a 35px box at stroke-width 1 draws 19.0px of ink at 1.46px. */}
+                        <Menu className="h-[35px] w-[35px] shrink-0" strokeWidth={1} />
+                        <Image src="/logo.png" alt="" width={120} height={120} className="h-10 w-auto shrink-0 object-contain" priority />
                     </button>
                 </SheetTrigger>
                 <SheetContent

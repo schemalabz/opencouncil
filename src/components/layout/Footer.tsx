@@ -36,8 +36,8 @@ export default function Footer({ className, realm }: FooterProps) {
                     <div className="flex flex-col items-center md:items-start space-y-4">
                         <Logo
                             className="flex-shrink-0"
-                            imageClassName="w-20 h-14"
-                            textClassName="text-lg"
+                            imageClassName="w-20 h-[53px]"
+                            textClassName="text-2xl"
                         />
                         <p className="text-xs text-muted-foreground md:text-left text-center max-w-sm">
                             {t("tagline")}
