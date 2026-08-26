@@ -126,6 +126,11 @@ const eventsSchema = wakeEventsSchema.min(1);
 
 /** How long a paused item sleeps before the claim looks at it again. */
 export const PAUSE_DEFER_MS = 15 * 60_000;
+/** How long a wake waits when the proactive limit is only spent because
+ *  earlier sends have not settled. Shorter than the sweeper's hour-long
+ *  give-up, so the wake re-reads a few times before those rows resolve one
+ *  way or the other. */
+export const UNSETTLED_DEFER_MS = 5 * 60_000;
 /** Claim-time margin: a wake this close to quiet hours defers instead of
  *  racing the boundary with a 30-60s model run. */
 const QUIET_MARGIN_MS = 10 * 60_000;
@@ -948,42 +953,69 @@ function capGroupKey(row: CapRow): string {
   return row.wakeId ?? row.fallbackForId ?? row.id;
 }
 
+/** What the rule found for one reader. `unsettled` is the part of `unreplied`
+ *  that is only pending — written and not yet on any handset. */
+export interface CapUsage {
+  unreplied: number;
+  unsettled: number;
+}
+
 /**
  * The rule itself, over one reader's rows: how many of the rolling week's
  * template sends drew no answer.
  *
  * An occasion counts when it pushed a template AND something in it reached
- * the reader. The WhatsApp row and its SMS fallback share an occasion, so a
- * template that failed on WhatsApp and arrived as an SMS counts once — the
- * handset still buzzed with it, and the reader still owes no answer twice.
+ * the reader, or still will. The WhatsApp row and its SMS fallback share an
+ * occasion, so a template that failed on WhatsApp and arrived as an SMS
+ * counts once — the handset still buzzed with it, and the reader still owes
+ * no answer twice.
+ *
+ * A pending row counts. It is written, it holds an idempotency key, and the
+ * sweeper will deliver it: excluding it would let a Bird outage bank wake
+ * after wake, and the reader would get every one of them at once when Bird
+ * came back. But a pending occasion is not yet EVIDENCE of anything — the
+ * reader cannot ignore what has not arrived — so it is reported separately
+ * and the pre-model rail waits for it to settle rather than dropping a wake
+ * on it. Within the hour it is either `sent`, or `failed` and no longer
+ * counted at all.
  *
  * Replied means any inbound message, on either channel, inside
  * REPLY_WINDOW_MS of the moment the push reached them. An SMS reply is an
  * answer like any other here; only decideDelivery cares which channel opened
  * Meta's 24h window.
  */
-function countUnrepliedTemplateSends(outbound: CapRow[], inboundAt: Date[]): number {
-  const occasions = new Map<string, { template: boolean; reachedAt: Date | null }>();
+function countUnrepliedTemplateSends(outbound: CapRow[], inboundAt: Date[]): CapUsage {
+  interface Occasion {
+    template: boolean;
+    /** Earliest row that is on the handset. */
+    arrivedAt: Date | null;
+    /** Earliest row still in flight, used only when nothing has arrived. */
+    pendingAt: Date | null;
+  }
+  const occasions = new Map<string, Occasion>();
+  const earlier = (a: Date | null, b: Date) => (a === null || b < a ? b : a);
   for (const row of outbound) {
     const key = capGroupKey(row);
-    const occasion = occasions.get(key) ?? { template: false, reachedAt: null };
+    const occasion = occasions.get(key) ?? { template: false, arrivedAt: null, pendingAt: null };
     if (row.deliveryMode === "template") occasion.template = true;
-    if (row.status !== null && REACHED_STATUSES.includes(row.status)) {
-      if (occasion.reachedAt === null || row.createdAt < occasion.reachedAt) {
-        occasion.reachedAt = row.createdAt;
-      }
+    if (row.status === "pending") occasion.pendingAt = earlier(occasion.pendingAt, row.createdAt);
+    else if (row.status !== null && REACHED_STATUSES.includes(row.status)) {
+      occasion.arrivedAt = earlier(occasion.arrivedAt, row.createdAt);
     }
     occasions.set(key, occasion);
   }
 
-  let unreplied = 0;
-  for (const { template, reachedAt } of occasions.values()) {
+  const usage: CapUsage = { unreplied: 0, unsettled: 0 };
+  for (const { template, arrivedAt, pendingAt } of occasions.values()) {
+    const reachedAt = arrivedAt ?? pendingAt;
     if (!template || reachedAt === null) continue;
     const deadline = reachedAt.getTime() + REPLY_WINDOW_MS;
     const replied = inboundAt.some((at) => at > reachedAt && at.getTime() <= deadline);
-    if (!replied) unreplied++;
+    if (replied) continue;
+    usage.unreplied++;
+    if (arrivedAt === null) usage.unsettled++;
   }
-  return unreplied;
+  return usage;
 }
 
 /**
@@ -999,7 +1031,7 @@ export async function unrepliedTemplateSends(
   db: PrismaClient,
   subscriptionId: string,
   excludeIds: string[] = [],
-): Promise<number> {
+): Promise<CapUsage> {
   const since = new Date(Date.now() - WEEK_MS);
   const [outbound, inbound] = await Promise.all([
     db.notisMessage.findMany({
@@ -1066,8 +1098,8 @@ export async function subscriptionsAtTemplateCap(
 
   const spent: Array<{ subscriptionId: string; count: number }> = [];
   for (const [subscriptionId, rows] of outbound) {
-    const count = countUnrepliedTemplateSends(rows, inbound.get(subscriptionId) ?? []);
-    if (count >= WEEKLY_TEMPLATE_CAP) spent.push({ subscriptionId, count });
+    const { unreplied } = countUnrepliedTemplateSends(rows, inbound.get(subscriptionId) ?? []);
+    if (unreplied >= WEEKLY_TEMPLATE_CAP) spent.push({ subscriptionId, count: unreplied });
   }
   return spent.sort((a, b) => b.count - a.count);
 }
@@ -1410,8 +1442,8 @@ export async function sendProactiveMessages(
   // handset is worse than the whole story next week. decideDelivery gives
   // every row of a wake the same mode, so the template rows ARE the wake.
   if (rows.some((r) => r.deliveryMode === "template")) {
-    const spent = await unrepliedTemplateSends(db, sub.id, messageIds);
-    if (spent >= WEEKLY_TEMPLATE_CAP) {
+    const { unreplied } = await unrepliedTemplateSends(db, sub.id, messageIds);
+    if (unreplied >= WEEKLY_TEMPLATE_CAP) {
       await suppressMessages(db, messageIds, PROACTIVE_LIMIT_REASON);
       return;
     }
@@ -1552,9 +1584,19 @@ export async function processItem(item: ClaimedItem, overrides: DrainDeps = {}):
         new Date(),
       );
       if (delivery.mode === "template") {
-        const spent = await unrepliedTemplateSends(db, item.subscriptionId);
-        if (spent >= WEEKLY_TEMPLATE_CAP) {
-          await skipCappedWake(db, item, events, spent);
+        const { unreplied, unsettled } = await unrepliedTemplateSends(db, item.subscriptionId);
+        if (unreplied >= WEEKLY_TEMPLATE_CAP) {
+          // Dropping a wake is permanent — its events are consumed — so it
+          // must not rest on sends that are still in flight. A reader cannot
+          // ignore what has not arrived. When the budget only holds because
+          // of those, wait: within the hour each one is either on the handset
+          // (the budget was real) or failed (the slot is free and this wake
+          // runs). Every other rail already defers on transient state.
+          if (unreplied - unsettled < WEEKLY_TEMPLATE_CAP) {
+            await deferItem(db, item.id, item.attempts, new Date(Date.now() + UNSETTLED_DEFER_MS));
+            return;
+          }
+          await skipCappedWake(db, item, events, unreplied);
           return;
         }
       }

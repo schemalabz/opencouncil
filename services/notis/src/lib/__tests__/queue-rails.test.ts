@@ -3,7 +3,12 @@ import { WakeEvent } from "../../agent/types";
 import type { NotisSubscription } from "../../../generated/client";
 import { type ClaimedItem } from "../queue-core";
 import { PROACTIVE_PAUSED_KEY } from "../settings";
-import { WEEKLY_TEMPLATE_CAP, deliverPendingMessage, processItem } from "../queue";
+import {
+  UNSETTLED_DEFER_MS,
+  WEEKLY_TEMPLATE_CAP,
+  deliverPendingMessage,
+  processItem,
+} from "../queue";
 import { type Row, makeFakeDb } from "./fake-db";
 import { FakeBird } from "./fake-bird";
 
@@ -479,6 +484,61 @@ describe("proactive rails", () => {
       expect(row.failureReason).toBe("proactive limit");
     }
     expect(bird.templateSends).toHaveLength(0);
+  });
+
+  it("a limit spent on sends still in flight defers the wake instead of dropping it", async () => {
+    // Dropping is permanent: the events are consumed. A reader cannot ignore
+    // a push that has not arrived, so the wake waits for those rows to
+    // settle rather than dying on them.
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }], settings: liveSettings() });
+    seedClaim(db);
+    seedTemplateSends(db, WEEKLY_TEMPLATE_CAP);
+    // One is a transient Bird failure the sweeper is still retrying.
+    db.store.messages.find((m) => m.id === "old0-0")!.status = "pending";
+    const bird = new FakeBird();
+    const anthropic = new FakeAnthropic(sendTurn);
+
+    await processItem(batchItem([meetingEvent()]), {
+      db,
+      bird,
+      deps: makeDeps(anthropic),
+      alert: async () => {},
+    });
+
+    expect(anthropic.requests).toHaveLength(0);
+    expect(bird.templateSends).toHaveLength(0);
+    const item = db.store.queue.get("q1")!;
+    expect(item.status).toBe("pending");
+    // deferItem undoes the attempt, so waiting is never a retry.
+    expect(item.attempts).toBe(0);
+    expect((item.runAfter as Date).getTime()).toBeGreaterThan(Date.now());
+    expect((item.runAfter as Date).getTime()).toBeLessThanOrEqual(Date.now() + UNSETTLED_DEFER_MS);
+    // Nothing was recorded as unexamined: the wake has not been decided yet.
+    expect(db.store.wakes.every((w) => w.decision !== "silence")).toBe(true);
+  });
+
+  it("a limit spent on sends that arrived still drops the wake", async () => {
+    // The other half of the rule: pending rows are the only reason to wait.
+    // Once they are on the handset the budget is real and the wake is closed.
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }], settings: liveSettings() });
+    seedClaim(db);
+    seedTemplateSends(db, WEEKLY_TEMPLATE_CAP);
+    db.store.messages.find((m) => m.id === "old0-0")!.status = "pending";
+    // One more that DID arrive, so the cap holds without the pending one.
+    seedTemplateSend(db, "arrived", 5);
+    const bird = new FakeBird();
+    const anthropic = new FakeAnthropic(sendTurn);
+
+    await processItem(batchItem([meetingEvent()]), {
+      db,
+      bird,
+      deps: makeDeps(anthropic),
+      alert: async () => {},
+    });
+
+    expect(anthropic.requests).toHaveLength(0);
+    expect(db.store.queue.get("q1")?.status).toBe("done");
+    expect(String(db.store.wakes.at(-1)!.rationale)).toContain("δεν εξετάστηκε");
   });
 
   it("a send the limit held back reaches the next wake's prompt as NOT SENT", async () => {
