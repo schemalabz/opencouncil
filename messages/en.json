@@ -84,7 +84,9 @@
         "notificationsBreadcrumb": "Notifications",
         "petitionBreadcrumb": "Support your municipality",
         "explain": "Guide to local government",
-        "explainShort": "Guide"
+        "explainShort": "Guide",
+        "canEdit": "You can edit",
+        "canEditHint": "Whatever you change is published at once."
     },
     "Footer": {
         "tagline": "Built with respect and appreciation for local government.",
