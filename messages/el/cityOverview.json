@@ -29,7 +29,6 @@
   "allPeople": "Όλα τα πρόσωπα",
   "peopleEyebrow": "{count, plural, =1 {1 μέλος} other {# μέλη}}",
   "seatsInCouncil": "{count, plural, =1 {έδρα στο δημοτικό συμβούλιο} other {έδρες στο δημοτικό συμβούλιο}}",
-  "partyMembers": "{count, plural, =1 {μέλος} other {μέλη}}",
   "inCommittees": "{count} σε επιτροπές",
   "governingParty": "Δημοτική Αρχή",
   "notisName": "Νότης",
@@ -69,5 +68,6 @@
   "period6m": "6 μήνες",
   "period12m": "12 μήνες",
   "periodAll": "Όλα",
-  "hotTopicsBeyondPeriod": "Δεν υπάρχουν συνεδριάσεις σε αυτό το διάστημα. Δείχνουμε τις πιο πρόσφατες."
+  "hotTopicsBeyondPeriod": "Δεν υπάρχουν συνεδριάσεις σε αυτό το διάστημα. Δείχνουμε τις πιο πρόσφατες.",
+  "inCommunities": "{count} σε κοινότητες"
 }

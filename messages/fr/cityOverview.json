@@ -29,7 +29,6 @@
   "allPeople": "Tous les élus",
   "peopleEyebrow": "{count, plural, =1 {1 membre} other {# membres}}",
   "seatsInCouncil": "{count, plural, =1 {siège au conseil} other {sièges au conseil}}",
-  "partyMembers": "{count, plural, =1 {membre} other {membres}}",
   "inCommittees": "{count} en commissions",
   "governingParty": "Majorité municipale",
   "notisName": "Notis",
@@ -69,5 +68,6 @@
   "period6m": "6 mois",
   "period12m": "12 mois",
   "periodAll": "Tout",
-  "hotTopicsBeyondPeriod": "Aucune séance sur cette période. Voici les plus récentes."
+  "hotTopicsBeyondPeriod": "Aucune séance sur cette période. Voici les plus récentes.",
+  "inCommunities": "{count} en communautés"
 }

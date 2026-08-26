@@ -7,6 +7,7 @@ import type { CityWithCounts } from '@/lib/db/cities';
 import type { PartyWithPersons } from '@/lib/db/parties';
 import type { PersonWithRelations } from '@/lib/db/people';
 import { getLocalizedName } from '@/lib/formatters/name';
+import { partyBodyColumns } from '@/lib/party/composition';
 import { sortParties } from '@/lib/sorting/parties';
 import { sortPeople } from '@/lib/sorting/people';
 import { getPartyFromRoles, isRoleActive } from '@/lib/utils/roles';
@@ -40,6 +41,9 @@ export function CouncilBand({ parties, people, city, locale }: CouncilBandProps)
     if (parties.length === 0 && people.length === 0) return null;
 
     const shown = sortParties(parties).slice(0, PARTIES_SHOWN);
+    // Over every party, not just the three shown, so the band and the Παρατάξεις
+    // tab never carry different figures on the same card.
+    const columns = partyBodyColumns(parties);
     const ordered = sortPeople(people, parties, city.peopleOrdering).slice(0, PEOPLE_SHOWN);
 
     return (
@@ -65,7 +69,7 @@ export function CouncilBand({ parties, people, city, locale }: CouncilBandProps)
             {shown.length > 0 && (
                 <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     {shown.map(party => (
-                        <PartyCard key={party.id} item={party} editable={false} />
+                        <PartyCard key={party.id} item={party} editable={false} columns={columns} />
                     ))}
                 </div>
             )}

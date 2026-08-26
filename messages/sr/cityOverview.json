@@ -29,7 +29,6 @@
   "allPeople": "Сви људи",
   "peopleEyebrow": "{count, plural, =1 {1 члан} other {# чланова}}",
   "seatsInCouncil": "{count, plural, =1 {место у скупштини} other {места у скупштини}}",
-  "partyMembers": "{count, plural, =1 {члан} other {чланова}}",
   "inCommittees": "{count} у одборима",
   "governingParty": "Владајућа група",
   "notisName": "Нотис",
@@ -69,5 +68,6 @@
   "period6m": "6 месеци",
   "period12m": "12 месеци",
   "periodAll": "Све",
-  "hotTopicsBeyondPeriod": "У овом периоду није било седница. Приказујемо најновије."
+  "hotTopicsBeyondPeriod": "У овом периоду није било седница. Приказујемо најновије.",
+  "inCommunities": "{count} у заједницама"
 }
