@@ -4,7 +4,8 @@ import { ArrowRight } from "lucide-react";
 import MeetingCardV2 from "@/components/meetings/MeetingCardV2";
 import { HotTopicsCard } from "@/components/cities/overview/HotTopicsCard";
 import { CouncilBand } from "@/components/cities/overview/CouncilBand";
-import { getCityCached, getCouncilMeetingsPreviewPublicCached, getPartiesForCityCached, getPeopleForCityCached } from "@/lib/cache";
+import { getAdministrativeBodiesWithPublicMeetingsCached, getCityCached, getCouncilMeetingsPreviewPublicCached, getPartiesForCityCached, getPeopleForCityCached } from "@/lib/cache";
+import { HOT_PERIODS, HOT_SCOPES, periodStart, readPeriod, readScope, type HotScope } from "@/lib/utils/hotTopicFilters";
 import { getHotSubjectCardsCached } from "@/lib/hotSubjectCards";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getLocalizedName } from "@/lib/formatters/name";
@@ -78,23 +79,32 @@ export async function generateMetadata(
 export default async function CityOverviewPage(
     props: {
         params: Promise<{ cityId: string; locale: string }>;
+        searchParams: Promise<{ scope?: string; period?: string }>;
     }
 ) {
-    const params = await props.params;
+    const [params, search] = await Promise.all([props.params, props.searchParams]);
 
     const {
         cityId,
         locale
     } = params;
 
+    const requestedScope = readScope(search.scope);
+    const period = readPeriod(search.period);
+
     // The roster is read here rather than in the layout: only this tab renders it,
     // and CouncilBand is a Server Component, so none of it reaches the client.
-    const [city, hotCards, recentMeetings, parties, people, t] = await Promise.all([
+    const [city, hotCards, recentMeetings, parties, people, bodies, t] = await Promise.all([
         getCityCached(cityId),
-        getHotSubjectCardsCached(cityId, { limit: HOT_SUBJECTS }),
+        getHotSubjectCardsCached(cityId, {
+            limit: HOT_SUBJECTS,
+            administrativeBodyTypes: HOT_SCOPES[requestedScope].types,
+            months: HOT_PERIODS[period].months,
+        }),
         getCouncilMeetingsPreviewPublicCached(cityId, { limit: RECENT_MEETINGS, timeFilter: 'past' }),
         getPartiesForCityCached(cityId),
         getPeopleForCityCached(cityId),
+        getAdministrativeBodiesWithPublicMeetingsCached(cityId),
         getTranslations({ locale, namespace: 'cityOverview' }),
     ]);
 
@@ -102,9 +112,43 @@ export default async function CityOverviewPage(
         notFound();
     }
 
+    // Offer only the scopes this municipality has bodies for — a picker that can
+    // select an always-empty ranking is worse than no picker.
+    const presentTypes = new Set(bodies.map(body => body.type));
+    const availableScopes = (Object.keys(HOT_SCOPES) as HotScope[]).filter(value => {
+        const types = HOT_SCOPES[value].types;
+        return !types || types.some(type => presentTypes.has(type));
+    });
+
+    // `CouncilMeeting.administrativeBodyId` is nullable, so a city can have public
+    // meetings and still no body of the default scope's type — which would rank
+    // nothing at all. Widen to every body and let the picker show what applies.
+    const scope = availableScopes.includes(requestedScope) ? requestedScope : 'all';
+    const hotSubjects = scope === requestedScope
+        ? hotCards
+        : await getHotSubjectCardsCached(cityId, { limit: HOT_SUBJECTS, months: HOT_PERIODS[period].months });
+
+    // The ranking falls back to the most recent meetings when the chosen period
+    // holds none — say so rather than letting the dates quietly contradict the
+    // picker.
+    const windowStart = periodStart(period);
+    const beyondPeriod =
+        windowStart !== null &&
+        hotSubjects.length > 0 &&
+        hotSubjects.every(card => new Date(card.meeting.dateTime) < windowStart);
+
     return (
         <div className="space-y-12">
-            <HotTopicsCard cards={hotCards} cityId={cityId} timezone={city.timezone} locale={locale} />
+            <HotTopicsCard
+                cards={hotSubjects}
+                cityId={cityId}
+                timezone={city.timezone}
+                locale={locale}
+                scope={scope}
+                period={period}
+                availableScopes={availableScopes}
+                beyondPeriod={beyondPeriod}
+            />
 
             {recentMeetings.length > 0 && (
                 <section>

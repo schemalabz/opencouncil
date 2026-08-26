@@ -56,5 +56,12 @@
   "notisBeat5": "Једна реч и престаје. Без ситних слова.",
   "notisAdvance": "Следећа порука",
   "notisReplay": "Погледај поново",
-  "notisExampleLabel": "пример"
+  "notisExampleLabel": "пример",
+  "scopeCommittee": "Одбори",
+  "scopeCommunity": "Месне заједнице",
+  "period3m": "3 месеца",
+  "period6m": "6 месеци",
+  "period12m": "12 месеци",
+  "periodAll": "Све",
+  "hotTopicsBeyondPeriod": "У овом периоду није било седница. Приказујемо најновије."
 }

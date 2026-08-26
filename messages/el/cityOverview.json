@@ -56,5 +56,12 @@
   "notisBeat5": "Σταματάς με μία λέξη. Χωρίς ψιλά γράμματα.",
   "notisAdvance": "Επόμενο μήνυμα",
   "notisReplay": "Ξαναδές",
-  "notisExampleLabel": "παράδειγμα"
+  "notisExampleLabel": "παράδειγμα",
+  "scopeCommittee": "Επιτροπές",
+  "scopeCommunity": "Κοινότητες",
+  "period3m": "3 μήνες",
+  "period6m": "6 μήνες",
+  "period12m": "12 μήνες",
+  "periodAll": "Όλα",
+  "hotTopicsBeyondPeriod": "Δεν υπάρχουν συνεδριάσεις σε αυτό το διάστημα. Δείχνουμε τις πιο πρόσφατες."
 }

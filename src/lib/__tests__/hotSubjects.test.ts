@@ -118,6 +118,46 @@ describe('getRecentHotSubjects', () => {
         const hot = await getRecentHotSubjects('athens', { limit: 10 });
         expect(hot.map(h => h.subject.id).sort()).toEqual(['also-untouched', 'untouched']);
     });
+
+    it('asks only for meetings inside the period it is given', async () => {
+        mockGetCouncilMeetingsForCityPublicCached.mockResolvedValue([
+            meeting('m1', new Date('2026-08-01T18:00:00Z'), [{ id: 'a', locationId: null }]),
+        ]);
+
+        await getRecentHotSubjects('athens', { limit: 10, months: 3 });
+
+        expect(mockGetCouncilMeetingsForCityPublicCached).toHaveBeenCalledTimes(1);
+        const [, options] = mockGetCouncilMeetingsForCityPublicCached.mock.calls[0];
+        expect(options.from).toBeInstanceOf(Date);
+    });
+
+    it('falls back to the most recent meetings when the period holds none', async () => {
+        // A council in summer recess, or a city whose releases lag, leaves the
+        // period legitimately empty — and this ranking is the city page's lead
+        // content, so an empty period must not empty the page.
+        mockGetCouncilMeetingsForCityPublicCached
+            .mockResolvedValueOnce([])
+            .mockResolvedValueOnce([
+                meeting('old', new Date('2026-01-11T18:00:00Z'), [{ id: 'a', locationId: null }]),
+            ]);
+
+        const hot = await getRecentHotSubjects('athens', { limit: 10, months: 3 });
+
+        expect(hot.map(h => h.subject.id)).toEqual(['a']);
+        // The retry drops the date bound — the page tells the fallback happened
+        // by every meeting it gets back predating the window.
+        const [, second] = mockGetCouncilMeetingsForCityPublicCached.mock.calls[1];
+        expect(second.from).toBeUndefined();
+    });
+
+    it('does not retry an empty result when no period was asked for', async () => {
+        mockGetCouncilMeetingsForCityPublicCached.mockResolvedValue([]);
+
+        const hot = await getRecentHotSubjects('athens', { limit: 10 });
+
+        expect(hot).toEqual([]);
+        expect(mockGetCouncilMeetingsForCityPublicCached).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe('getHotSubjectsNearPoint', () => {

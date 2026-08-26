@@ -50,12 +50,14 @@ export interface HotSubjectCard {
 }
 
 /** Bump when the ranking or the card shape changes, so entries don't go stale. */
-const HOT_CARDS_CACHE_VERSION = 'v1';
+const HOT_CARDS_CACHE_VERSION = 'v2';
 
 interface Args {
     limit: number;
     administrativeBodyTypes?: AdministrativeBodyType[];
     administrativeBodyIds?: string[];
+    /** How far back to rank. Omitted means the last few meetings. */
+    months?: number;
     geohash?: string | null;
 }
 
@@ -134,12 +136,14 @@ export async function getHotSubjectCards(cityId: string, args: Args): Promise<Ho
  * cities × body filters.
  */
 export async function getHotSubjectCardsCached(cityId: string, args: Omit<Args, 'geohash'>): Promise<HotSubjectCard[]> {
-    const { limit, administrativeBodyTypes, administrativeBodyIds } = args;
+    const { limit, administrativeBodyTypes, administrativeBodyIds, months } = args;
     const typeKey = administrativeBodyTypes?.length ? `types:${[...administrativeBodyTypes].sort().join(',')}` : 'types:all';
     const idKey = administrativeBodyIds?.length ? `ids:${[...administrativeBodyIds].sort().join(',')}` : 'ids:all';
     return createCache(
         async () => buildCards(await computeRecentHotSubjects(cityId, args)),
-        ['city', cityId, 'hotSubjectCards', HOT_CARDS_CACHE_VERSION, `limit:${limit}`, typeKey, idKey],
+        // `months`, not the date it resolves to: the window moves with `now`, and
+        // the TTL below is what bounds that drift.
+        ['city', cityId, 'hotSubjectCards', HOT_CARDS_CACHE_VERSION, `limit:${limit}`, typeKey, idKey, `months:${months ?? 'default'}`],
         {
             tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`],
             // The ranking window is the last N *past* meetings, which is a
