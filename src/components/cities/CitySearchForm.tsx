@@ -1,5 +1,6 @@
 import { headers } from 'next/headers';
 import { Search } from 'lucide-react';
+import { SearchSpinIcon } from '@/components/ui/search-spin-icon';
 import { getTranslations } from 'next-intl/server';
 import { routing, urlPrefixForLocale, LOCALE_OVERRIDE_HEADER } from '@/i18n/routing';
 import { getMunicipalityQualifier } from '@/lib/formatters/name';
@@ -51,7 +52,7 @@ export async function CitySearchForm({ city, subjectCount, locale }: CitySearchF
             <input type="hidden" name="cityId" value={city.id} />
             {/* One magnifier at a time: below `sm` the submit button carries it, and
                 a decorative second one would cost the field 30px it does not have. */}
-            <Search className="hidden h-[18px] w-[18px] shrink-0 text-muted-foreground transition-colors group-focus-within:text-[hsl(var(--orange))] sm:block" aria-hidden />
+            <SearchSpinIcon className="hidden h-[18px] w-[18px] shrink-0 text-muted-foreground transition-colors group-focus-within:text-[hsl(var(--orange))] sm:block" />
             <input
                 type="search"
                 name="query"

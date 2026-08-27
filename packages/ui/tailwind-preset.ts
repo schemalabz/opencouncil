@@ -84,6 +84,17 @@ const preset: Omit<Config, "content"> = {
 				sm: 'calc(var(--radius) - 4px)'
 			},
 			keyframes: {
+				// The magnifier's spin when a search field takes focus. Uneven
+				// stops rather than an even sweep: it hangs, whips round, goes
+				// past the mark and settles back.
+				'search-spin': {
+					'0%': { transform: 'rotate(0deg)' },
+					'30%': { transform: 'rotate(80deg)' },
+					'55%': { transform: 'rotate(290deg)' },
+					'75%': { transform: 'rotate(385deg)' },
+					'88%': { transform: 'rotate(348deg)' },
+					'100%': { transform: 'rotate(360deg)' }
+				},
 				'accordion-down': {
 					from: {
 						height: '0'
@@ -234,6 +245,7 @@ const preset: Omit<Config, "content"> = {
 				}
 			},
 			animation: {
+				'search-spin': 'search-spin 0.85s cubic-bezier(0.4, 0, 0.2, 1)',
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'collapsible-down': 'collapsible-down 0.2s ease-out',
