@@ -224,6 +224,9 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                 )}
             </Link>
             {inset && renderSeal()}
+            {titleElement && !inset && (
+                <span className="h-7 w-px shrink-0 bg-border sm:h-9" aria-hidden />
+            )}
         </div>
     );
 
@@ -403,8 +406,10 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
     // block. Cells carry it rather than a wrapper so it disappears with the
     // identity row when that folds away on a phone.
     // Beside a persistent nav the page already has its one vertical rule — the
-    // nav's edge — so the header draws none and its path starts on it.
-    const rule = titleElement && !inset ? 'border-l border-border' : '';
+    // nav's edge — so the header draws none of its own and its path starts on
+    // it. With no nav a hairline sits in the marks column instead: there it
+    // separates the app from the municipality rather than edging a column, so
+    // it is centred and short rather than running the header's full height.
     const pad = titleElement ? (inset ? 'pl-2.5 md:pl-0' : 'pl-2.5 sm:pl-4') : '';
     const rowOne = cn(
         // Folds away once the meeting's own pane scrolls, leaving the action
@@ -427,7 +432,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
             inset && 'md:grid-cols-[0px_minmax(0,1fr)_auto]',
         )}>
             <div className={cn('col-start-1 row-start-1 flex items-center', rowOne)}>{renderMarks()}</div>
-            <div className={cn('col-start-2 row-start-1 flex min-w-0', rowOne, rule, pad)}>{renderPath()}</div>
+            <div className={cn('col-start-2 row-start-1 flex min-w-0', rowOne, pad)}>{renderPath()}</div>
             <div className={cn('col-start-3 row-start-1 ml-auto flex items-center', rowOne)}>{renderControls()}</div>
 
             {hasActionBar && (
