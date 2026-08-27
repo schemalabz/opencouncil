@@ -250,7 +250,10 @@
         "supportBadgeOfficialMunicipality": "Уз подршку општине/града",
         "supportBadgeOfficialRegion": "Уз подршку округа",
         "supportBadgeUnofficialMunicipality": "Без званичне подршке општине/града",
-        "supportBadgeUnofficialRegion": "Без званичне подршке округа"
+        "supportBadgeUnofficialRegion": "Без званичне подршке округа",
+        "supportBadgeShortOfficial": "Званична подршка",
+        "supportBadgeShortUnofficial": "Без званичне подршке",
+        "supportBadgeLearnMore": "Ко плаћа OpenCouncil?"
     },
     "EmbedConfigurator": {
         "title": "Виџет за ваш веб-сајт",

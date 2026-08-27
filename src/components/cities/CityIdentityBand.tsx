@@ -62,6 +62,7 @@ export function CityIdentityBand({
                         status={city.status}
                         authorityType={city.authorityType}
                         cityId={city.id}
+                        realm={city.realm}
                         size="sm"
                     />
                     <span className="hidden flex-wrap items-center gap-x-2 gap-y-1 sm:flex">

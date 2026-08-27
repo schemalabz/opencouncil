@@ -264,7 +264,10 @@
         "supportBadgeOfficialMunicipality": "Με την υποστήριξη του δήμου",
         "supportBadgeOfficialRegion": "Με την υποστήριξη της περιφέρειας",
         "supportBadgeUnofficialMunicipality": "Χωρίς επίσημη υποστήριξη του δήμου",
-        "supportBadgeUnofficialRegion": "Χωρίς επίσημη υποστήριξη της περιφέρειας"
+        "supportBadgeUnofficialRegion": "Χωρίς επίσημη υποστήριξη της περιφέρειας",
+        "supportBadgeShortOfficial": "Επίσημη υποστήριξη",
+        "supportBadgeShortUnofficial": "Χωρίς επίσημη υποστήριξη",
+        "supportBadgeLearnMore": "Ποιος πληρώνει για το OpenCouncil;"
     },
     "EmbedConfigurator": {
         "title": "Widget για την ιστοσελίδα σας",

@@ -264,7 +264,10 @@
     "supportBadgeOfficialMunicipality": "Avec le soutien de la municipalité",
     "supportBadgeOfficialRegion": "Avec le soutien de la région",
     "supportBadgeUnofficialMunicipality": "Sans soutien officiel de la municipalité",
-    "supportBadgeUnofficialRegion": "Sans soutien officiel de la région"
+    "supportBadgeUnofficialRegion": "Sans soutien officiel de la région",
+    "supportBadgeShortOfficial": "Soutien officiel",
+    "supportBadgeShortUnofficial": "Sans soutien officiel",
+    "supportBadgeLearnMore": "Qui paie pour OpenCouncil ?"
   },
   "EmbedConfigurator": {
     "title": "Widget pour votre site web",
