@@ -66,10 +66,10 @@ export function MobileHeader({
                     <button
                         type="button"
                         aria-label={t('nav.menu')}
-                        className="flex shrink-0 items-center gap-2 rounded-xl px-1.5 py-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        className="flex shrink-0 items-center gap-2 rounded-xl px-1.5 text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
                     >
                         <Menu className="h-5 w-5 shrink-0" />
-                        <Image src="/logo.png" alt="" width={120} height={120} className="h-10 w-auto shrink-0 object-contain" priority />
+                        <Image src="/logo.png" alt="" width={120} height={120} className="h-9 w-auto shrink-0 object-contain" priority />
                     </button>
                 </SheetTrigger>
                 <SheetContent
@@ -191,7 +191,7 @@ export function MobileHeader({
                 </SheetContent>
             </Sheet>
 
-            <span className="truncate text-lg text-foreground">OpenCouncil</span>
+            <span className="truncate text-base text-foreground">OpenCouncil</span>
             </div>
 
             {/* keyword search — a SEPARATE bordered box beside the header pill; turns orange with a
