@@ -56,6 +56,7 @@ export function CityCard({ city }: CityCardProps) {
                                 <OfficialSupportBadge
                                     status={city.status}
                                     authorityType={city.authorityType}
+                                    realm={city.realm}
                                     size="sm"
                                 />
                             </div>
