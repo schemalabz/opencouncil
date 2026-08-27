@@ -54,9 +54,7 @@ export function CityIdentityBand({
                     {getLocalizedMunicipalityName(city, locale)}
                 </h1>
 
-                {/* One row, not two. And the counts stand down on a phone: the tab
-                    bar a few hundred pixels below names the same three things, and
-                    the row cost more than it told anyone. */}
+                {/* One row, not two — the badge and the counts wrap together. */}
                 <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
                     <OfficialSupportBadge
                         status={city.status}
@@ -65,7 +63,7 @@ export function CityIdentityBand({
                         realm={city.realm}
                         size="sm"
                     />
-                    <span className="hidden flex-wrap items-center gap-x-2 gap-y-1 sm:flex">
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                         {stats.map((stat, i) => (
                             <span key={i} className="flex items-center gap-2">
                                 {i > 0 && <span className="text-muted-foreground/40" aria-hidden>·</span>}

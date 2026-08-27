@@ -63,10 +63,18 @@ export function HotTopicRow({ card, rank, maxSeconds, timezone, locale, onOpen }
                 className="relative z-10"
             />
             <span className="relative z-10 min-w-0 flex-1">
-                <span className="block truncate text-[15px] leading-snug">
+                <span className="line-clamp-2 text-[15px] leading-snug sm:block sm:truncate">
                     {localizeText(subject.name, locale)}
                 </span>
                 <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                    {/* The debate time keeps its own column where there is width for
+                        one. On a phone that column took two thirds of the title, so
+                        it joins the facts underneath instead — still the loudest of
+                        them, since it is what the list is ranked on. */}
+                    <span className="font-bold text-foreground sm:hidden">
+                        {t('discussionMinutes', { minutes: stats.minutes })}
+                    </span>
+                    <span className="sm:hidden" aria-hidden>·</span>
                     <AdminBodyLabel body={meeting.administrativeBody} locale={locale} className="text-[11px]" />
                     <span aria-hidden>·</span>
                     <span>{formatDate(meeting.dateTime, timezone, locale)}</span>
@@ -74,7 +82,7 @@ export function HotTopicRow({ card, rank, maxSeconds, timezone, locale, onOpen }
                     <span>{t('speakerCount', { count: stats.speakerCount })}</span>
                 </span>
             </span>
-            <span className="relative z-10 shrink-0 text-sm font-bold tabular-nums">
+            <span className="relative z-10 hidden shrink-0 text-sm font-bold tabular-nums sm:block">
                 {t('discussionMinutes', { minutes: stats.minutes })}
             </span>
         </button>
