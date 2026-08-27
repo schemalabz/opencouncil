@@ -238,7 +238,14 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                 }
             } catch (error) {
                 console.error(`Error processing result for task ${taskId}:`, error);
-                const err = error as Error;
+                // A processor can reject with a non-Error (a string, a plain
+                // object, undefined). Reading .stack/.message off one of those
+                // throws, which would skip the failed-status write and the alert
+                // below and leave the task marked succeeded.
+                const failureMessage = error instanceof Error ? error.message : String(error);
+                const failureDetail = error instanceof Error
+                    ? (error.stack ?? error.message).trim()
+                    : failureMessage;
                 // Keep responseBody untouched — it already holds the raw task
                 // server payload from the pre-processing write above, so the
                 // task can be replayed via processTaskResponse once the bug
@@ -247,7 +254,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                     where: { id: taskId },
                     data: {
                         status: 'failed',
-                        processingError: (err.stack ?? err.message).trim(),
+                        processingError: failureDetail,
                         version: update.version,
                     }
                 });
@@ -262,7 +269,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                         taskId: task.id,
                         cityId: task.cityId,
                         meetingId: task.councilMeetingId,
-                        error: (error as Error).message,
+                        error: failureMessage,
                     });
                 }
             }
