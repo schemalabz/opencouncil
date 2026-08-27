@@ -1,6 +1,7 @@
 "use client";
 
-import { Search, X } from "lucide-react";
+import { X } from "lucide-react";
+import { SearchSpinIcon } from "@/components/ui/search-spin-icon";
 import type { CSSProperties, KeyboardEvent, RefObject } from "react";
 import { cn } from "@/lib/utils";
 
@@ -66,13 +67,13 @@ export function SearchInputPill({
         <label
             style={style}
             className={cn(
-                "flex flex-1 items-center rounded-2xl border focus-within:ring-2 focus-within:ring-[hsl(var(--orange))]/25",
+                "group flex flex-1 items-center rounded-2xl border focus-within:ring-2 focus-within:ring-[hsl(var(--orange))]/25",
                 sizeStyles.wrapper,
                 disabled && "opacity-60",
                 className,
             )}
         >
-            <Search className={cn("shrink-0 text-[hsl(var(--orange))]", sizeStyles.icon)} />
+            <SearchSpinIcon className={cn("shrink-0 text-[hsl(var(--orange))]", sizeStyles.icon)} />
             <input
                 ref={inputRef}
                 autoFocus={autoFocus}
