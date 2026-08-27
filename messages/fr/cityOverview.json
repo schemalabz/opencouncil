@@ -39,8 +39,8 @@
   "notisCta": "Je veux être informé",
   "notisChannels": "E-mail, WhatsApp ou SMS · La plupart des semaines, rien",
   "subscribedTitle": {
-    "municipality": "Notis vous écrit au sujet de {qualifier}",
-    "region": "Notis vous écrit au sujet de {qualifier}"
+    "municipality": "Vous êtes abonné aux notifications concernant {qualifier}",
+    "region": "Vous êtes abonné aux notifications concernant {qualifier}"
   },
   "allTopics": "Tous les sujets",
   "channelEmail": "E-mail",
@@ -71,7 +71,7 @@
   "hotTopicsBeyondPeriod": "Aucune séance sur cette période. Voici les plus récentes.",
   "inCommunities": "{count} en communautés",
   "notisTeaser": "Rester informé, c'est simple.",
-  "subscribedSummary": "Vous recevez des mises à jour",
+  "subscribedSummary": "Vous êtes abonné aux notifications",
   "scopeCouncilFull": "Conseil municipal",
   "scopeCommitteeFull": "Commission municipale",
   "scopeCommunityFull": "Communes déléguées",

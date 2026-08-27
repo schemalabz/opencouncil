@@ -39,8 +39,8 @@
   "notisCta": "Send me updates",
   "notisChannels": "Email, WhatsApp or SMS · Most weeks, nothing",
   "subscribedTitle": {
-    "municipality": "Notis writes to you about {qualifier}",
-    "region": "Notis writes to you about {qualifier}"
+    "municipality": "You're subscribed to updates about {qualifier}",
+    "region": "You're subscribed to updates about {qualifier}"
   },
   "allTopics": "All topics",
   "channelEmail": "Email",
@@ -71,7 +71,7 @@
   "hotTopicsBeyondPeriod": "No meetings took place in this period. These are the most recent ones.",
   "inCommunities": "{count} on communities",
   "notisTeaser": "Staying informed is easy.",
-  "subscribedSummary": "You get updates about this municipality",
+  "subscribedSummary": "You're subscribed to updates",
   "scopeCouncilFull": "City council",
   "scopeCommitteeFull": "City committee",
   "scopeCommunityFull": "Communities",
