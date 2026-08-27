@@ -27,7 +27,7 @@ function NavLink({
     matchSegment,
     // An underline rather than a pill: the bar now sits left-aligned on a rule
     // under the identity band, where a floating pill reads as a separate control.
-    activeClassName = 'text-foreground border-[hsl(var(--orange))]',
+    activeClassName = 'text-foreground border-[hsl(var(--orange-deep))]',
     inactiveClassName = 'text-muted-foreground border-transparent hover:text-foreground',
 }: NavLinkProps) {
     const isActive = segment === matchSegment;

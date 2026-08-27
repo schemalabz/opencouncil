@@ -71,7 +71,7 @@ export function CityMeetingsModule({ all, council, cityId, timezone, locale }: C
                         </span>
                         <AdminBodyLabel body={scoped.next.administrativeBody} locale={locale} className="mt-1" />
                     </span>
-                    <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-[hsl(var(--orange))]" aria-hidden />
+                    <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-[hsl(var(--orange-deep))]" aria-hidden />
                 </Link>
             )}
 
