@@ -54,7 +54,10 @@ export function HotTopicsFilters({ scope, period, availableScopes }: HotTopicsFi
                 label={t(HOT_SCOPES[scope].label)}
                 options={availableScopes.map(value => ({
                     value,
-                    label: t(HOT_SCOPES[value].label),
+                    // Abbreviated on the closed picker, named in the open menu:
+                    // the trigger sits beside a heading and has room for two
+                    // letters, the menu has room to say what they stand for.
+                    label: t(HOT_SCOPES[value].fullLabel),
                     selected: value === scope,
                     onSelect: () => choose('scope', value, HOT_SCOPES[value].isDefault),
                 }))}

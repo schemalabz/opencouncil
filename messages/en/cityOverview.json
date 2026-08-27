@@ -62,7 +62,7 @@
   "notisAdvance": "Next message",
   "notisReplay": "Play again",
   "notisExampleLabel": "example",
-  "scopeCommittee": "Committees",
+  "scopeCommittee": "Committee",
   "scopeCommunity": "Communities",
   "period3m": "3 months",
   "period6m": "6 months",
@@ -71,5 +71,9 @@
   "hotTopicsBeyondPeriod": "No meetings took place in this period. These are the most recent ones.",
   "inCommunities": "{count} on communities",
   "notisTeaser": "Staying informed is easy.",
-  "subscribedSummary": "You get updates about this municipality"
+  "subscribedSummary": "You get updates about this municipality",
+  "scopeCouncilFull": "City council",
+  "scopeCommitteeFull": "City committee",
+  "scopeCommunityFull": "Communities",
+  "scopeAllFull": "All bodies"
 }
