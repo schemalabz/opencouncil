@@ -72,7 +72,7 @@ function InviteCard({ city, locale }: { city: CityWithCounts; locale: string }) 
             <div className="flex flex-col gap-3 px-4 pb-4 pt-3">
                 <Link
                     href={`/${city.id}/notifications`}
-                    className="group/cta flex h-10 max-w-sm items-center justify-center gap-2 rounded-[10px] bg-foreground text-sm font-medium text-background transition-opacity hover:opacity-90 hover:no-underline"
+                    className="group/cta flex h-10 max-w-sm items-center justify-center gap-2 rounded-[10px] bg-[hsl(var(--orange))] text-sm font-medium text-foreground transition-opacity hover:opacity-90 hover:no-underline"
                 >
                     {t('notisCta')}
                     <ArrowRight className="h-4 w-4 transition-transform group-hover/cta:translate-x-0.5" aria-hidden />
