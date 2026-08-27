@@ -65,7 +65,7 @@ export async function CitySearchForm({ city, subjectCount, locale }: CitySearchF
             <button
                 type="submit"
                 aria-label={tCommon('search')}
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[6px] bg-foreground text-sm font-medium text-background transition-opacity hover:opacity-85 sm:w-auto sm:px-4"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[6px] bg-[hsl(var(--orange))] text-sm font-medium text-foreground transition-opacity hover:opacity-85 sm:w-auto sm:px-4"
             >
                 <Search className="h-[18px] w-[18px] sm:hidden" aria-hidden />
                 <span className="hidden sm:inline">{tCommon('search')}</span>
