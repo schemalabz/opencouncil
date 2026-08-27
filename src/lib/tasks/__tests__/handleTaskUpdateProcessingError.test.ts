@@ -113,6 +113,25 @@ describe('handleTaskUpdate — persist raw payload before processing', () => {
     });
   });
 
+  it('still marks the task failed when the processor rejects with a non-Error', async () => {
+    // A processor that rejects with a string (or a plain object, or undefined)
+    // has no .stack/.message. Reading those off it throws inside the catch, so
+    // the failed-status write below never runs and the task stays 'succeeded'.
+    const processResult = jest.fn().mockRejectedValue('plain string failure');
+
+    const update: TaskUpdate<{ foo: string }> = { status: 'success', stage: '', progressPercent: 100, result: { foo: 'bar' }, version: 13 };
+    await handleTaskUpdate(TASK_ID, update, processResult);
+
+    expect(mockUpdate).toHaveBeenNthCalledWith(2, {
+      where: { id: TASK_ID },
+      data: expect.objectContaining({
+        status: 'failed',
+        processingError: 'plain string failure',
+        version: 13,
+      }),
+    });
+  });
+
   it('clears stale processingError when backend reports an error', async () => {
     const processResult = jest.fn();
     const update: TaskUpdate<never> = { status: 'error', stage: '', progressPercent: 100, error: 'backend failed', version: 11 };
