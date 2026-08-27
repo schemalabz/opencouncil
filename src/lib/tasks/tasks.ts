@@ -201,10 +201,17 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
         // Persist the raw task server payload BEFORE running our processor.
         // If processing throws, responseBody stays intact and the task can be
         // replayed without re-running the (paid) backend job.
+        //
+        // The status stays non-terminal while the processor runs. Tasks in the
+        // same batch finish concurrently, and a sibling's terminal hook reads
+        // every task's status: flipping to 'succeeded' up here would let that
+        // hook report a clean batch while this processor is still running (and
+        // possibly about to fail). Only a task with nothing to process is
+        // terminal at this point.
         const updatedTask = await prisma.taskStatus.update({
             where: { id: taskId },
             data: {
-                status: 'succeeded',
+                ...(update.result ? {} : { status: 'succeeded' as const }),
                 responseBody: JSON.stringify(update.result),
                 processingError: null,
                 version: update.version,
@@ -214,6 +221,12 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
         if (update.result) {
             try {
                 await processResult(taskId, update.result, options);
+
+                // Processing is done, so the task is terminal now.
+                await prisma.taskStatus.update({
+                    where: { id: taskId },
+                    data: { status: 'succeeded', version: update.version },
+                });
 
                 // Send Discord admin alert for successful completion AFTER processing succeeds
                 if (sendGenericAlerts) {

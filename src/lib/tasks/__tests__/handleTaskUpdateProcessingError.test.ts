@@ -52,11 +52,12 @@ describe('handleTaskUpdate — persist raw payload before processing', () => {
     const update: TaskUpdate<typeof result> = { status: 'success', stage: '', progressPercent: 100, result, version: 7 };
     await handleTaskUpdate(TASK_ID, update, processResult);
 
-    // First update: success branch persists raw payload BEFORE processing.
+    // First update: success branch persists raw payload BEFORE processing, and
+    // deliberately leaves the status non-terminal so a sibling task's terminal
+    // hook can't read this one as succeeded mid-processing.
     expect(mockUpdate).toHaveBeenNthCalledWith(1, {
       where: { id: TASK_ID },
       data: {
-        status: 'succeeded',
         responseBody: JSON.stringify(result),
         processingError: null,
         version: 7,
@@ -84,15 +85,46 @@ describe('handleTaskUpdate — persist raw payload before processing', () => {
     const update: TaskUpdate<{ ok: number }> = { status: 'success', stage: '', progressPercent: 100, result: { ok: 1 }, version: 3 };
     await handleTaskUpdate(TASK_ID, update, processResult);
 
-    expect(mockUpdate).toHaveBeenCalledTimes(1);
-    expect(mockUpdate).toHaveBeenCalledWith({
+    expect(mockUpdate).toHaveBeenCalledTimes(2);
+    expect(mockUpdate).toHaveBeenNthCalledWith(1, {
       where: { id: TASK_ID },
       data: {
-        status: 'succeeded',
         responseBody: JSON.stringify({ ok: 1 }),
         processingError: null,
         version: 3,
       },
+    });
+    expect(mockUpdate).toHaveBeenNthCalledWith(2, {
+      where: { id: TASK_ID },
+      data: { status: 'succeeded', version: 3 },
+    });
+  });
+
+  it('marks the task succeeded only after the processor returns', async () => {
+    const order: string[] = [];
+    mockUpdate.mockImplementation((args: { data: Record<string, unknown> }) => {
+      if (args.data.status === 'succeeded') order.push('terminal-write');
+      return Promise.resolve({ ...baseTask, status: 'succeeded' });
+    });
+    const processResult = jest.fn().mockImplementation(async () => { order.push('processor'); });
+
+    const update: TaskUpdate<{ ok: number }> = { status: 'success', stage: '', progressPercent: 100, result: { ok: 1 }, version: 5 };
+    await handleTaskUpdate(TASK_ID, update, processResult);
+
+    expect(order).toEqual(['processor', 'terminal-write']);
+  });
+
+  it('marks a result-less success terminal straight away', async () => {
+    const processResult = jest.fn();
+    const update: TaskUpdate<undefined> = { status: 'success', stage: '', progressPercent: 100, result: undefined, version: 4 };
+
+    await handleTaskUpdate(TASK_ID, update, processResult);
+
+    expect(processResult).not.toHaveBeenCalled();
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: TASK_ID },
+      data: expect.objectContaining({ status: 'succeeded', version: 4 }),
     });
   });
 
