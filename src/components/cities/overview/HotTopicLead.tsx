@@ -74,13 +74,20 @@ export function HotTopicLead({ card, rank, maxSeconds, cityId, timezone, locale 
                     </span>
 
                     <div className="min-w-0 flex-1">
-                        <h3 className="!text-left text-xl leading-tight">
+                        <h3 className="!text-left text-lg leading-tight sm:text-xl">
                             <Link href={href} prefetch={false} className="hover:no-underline">
                                 {localizeText(subject.name, locale)}
                             </Link>
                         </h3>
 
-                        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                        <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
+                            {/* The debate time keeps its own column where there is
+                                width for one; on a phone it joins the facts here,
+                                still the loudest of them. */}
+                            <span className="font-bold text-foreground sm:hidden">
+                                {t('discussionMinutes', { minutes: stats.minutes })}
+                            </span>
+                            <span className="sm:hidden" aria-hidden>·</span>
                             <AdminBodyLabel body={meeting.administrativeBody} locale={locale} />
                             <span aria-hidden>·</span>
                             <span>{formatDate(meeting.dateTime, timezone, locale)}</span>
@@ -94,19 +101,28 @@ export function HotTopicLead({ card, rank, maxSeconds, cityId, timezone, locale 
                             </p>
                         )}
 
-                        <Link
-                            href={href}
-                            prefetch={false}
-                            className="mt-2.5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[hsl(var(--orange))]"
-                        >
-                            {t('viewSubject')}
-                            <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-                        </Link>
+                        {/* The faces come down here on a phone, where the metrics
+                            column would leave the title a third of the row. */}
+                        <div className="mt-3 flex items-center justify-between gap-3 sm:mt-2.5 sm:justify-start">
+                            <Link
+                                href={href}
+                                prefetch={false}
+                                className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[13px] font-semibold text-[hsl(var(--orange))]"
+                            >
+                                {t('viewSubject')}
+                                <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                            </Link>
+                            {speakers.length > 0 && (
+                                <span className="sm:hidden">
+                                    <PersonAvatarList users={speakers} size="sm" maxDisplayed={4} stacked />
+                                </span>
+                            )}
+                        </div>
                     </div>
 
                     {/* Minutes and faces share the column the description leaves empty,
                         which is what made this entry twice as tall as it needed to be. */}
-                    <div className="flex shrink-0 flex-col items-end gap-3 pl-2">
+                    <div className="hidden shrink-0 flex-col items-end gap-3 pl-2 sm:flex">
                         <span className="text-sm font-bold tabular-nums">
                             {t('discussionMinutes', { minutes: stats.minutes })}
                         </span>
