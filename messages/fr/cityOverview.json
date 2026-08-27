@@ -21,7 +21,7 @@
   "recentMeetingsTitle": "Séances récentes",
   "allMeetings": "Toutes les séances",
   "scopeCouncil": "Conseil",
-  "scopeAll": "Tous",
+  "scopeAll": "Tout",
   "noMeetingsForScope": "Aucune séance de cet organe pour l'instant.",
   "councilEyebrow": "Le conseil municipal",
   "councilTitle": "Groupes et élus",
@@ -62,8 +62,8 @@
   "notisAdvance": "Message suivant",
   "notisReplay": "Revoir",
   "notisExampleLabel": "exemple",
-  "scopeCommittee": "Commissions",
-  "scopeCommunity": "Communes déléguées",
+  "scopeCommittee": "Commission",
+  "scopeCommunity": "Communes",
   "period3m": "3 mois",
   "period6m": "6 mois",
   "period12m": "12 mois",
@@ -71,5 +71,9 @@
   "hotTopicsBeyondPeriod": "Aucune séance sur cette période. Voici les plus récentes.",
   "inCommunities": "{count} en communautés",
   "notisTeaser": "Rester informé, c'est simple.",
-  "subscribedSummary": "Vous recevez des mises à jour"
+  "subscribedSummary": "Vous recevez des mises à jour",
+  "scopeCouncilFull": "Conseil municipal",
+  "scopeCommitteeFull": "Commission municipale",
+  "scopeCommunityFull": "Communes déléguées",
+  "scopeAllFull": "Tous les organes"
 }

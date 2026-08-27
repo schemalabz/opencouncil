@@ -62,8 +62,8 @@
   "notisAdvance": "Следећа порука",
   "notisReplay": "Погледај поново",
   "notisExampleLabel": "пример",
-  "scopeCommittee": "Одбори",
-  "scopeCommunity": "Месне заједнице",
+  "scopeCommittee": "Одбор",
+  "scopeCommunity": "МЗ",
   "period3m": "3 месеца",
   "period6m": "6 месеци",
   "period12m": "12 месеци",
@@ -71,5 +71,9 @@
   "hotTopicsBeyondPeriod": "У овом периоду није било седница. Приказујемо најновије.",
   "inCommunities": "{count} у заједницама",
   "notisTeaser": "Лако је бити у току.",
-  "subscribedSummary": "Примате обавештења о граду"
+  "subscribedSummary": "Примате обавештења о граду",
+  "scopeCouncilFull": "Градска скупштина",
+  "scopeCommitteeFull": "Градски одбор",
+  "scopeCommunityFull": "Месне заједнице",
+  "scopeAllFull": "Сва тела"
 }
