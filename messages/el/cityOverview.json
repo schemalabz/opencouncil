@@ -39,8 +39,8 @@
   "notisCta": "Θέλω ενημερώσεις",
   "notisChannels": "Email, WhatsApp ή SMS · Τις περισσότερες εβδομάδες, τίποτα",
   "subscribedTitle": {
-    "municipality": "Ο Νότης σου γράφει για τον δήμο {qualifier}",
-    "region": "Ο Νότης σου γράφει για την περιφέρεια {qualifier}"
+    "municipality": "Είστε γραμμένοι στις ειδοποιήσεις για τον δήμο {qualifier}",
+    "region": "Είστε γραμμένοι στις ειδοποιήσεις για την περιφέρεια {qualifier}"
   },
   "allTopics": "Όλα τα θέματα",
   "channelEmail": "Email",
@@ -71,7 +71,7 @@
   "hotTopicsBeyondPeriod": "Δεν υπάρχουν συνεδριάσεις σε αυτό το διάστημα. Δείχνουμε τις πιο πρόσφατες.",
   "inCommunities": "{count} σε κοινότητες",
   "notisTeaser": "Είναι εύκολο να μένεις ενημερωμένος.",
-  "subscribedSummary": "Λαμβάνεις ενημερώσεις για τον δήμο",
+  "subscribedSummary": "Είστε γραμμένοι στις ειδοποιήσεις",
   "scopeCouncilFull": "Δημοτικό Συμβούλιο",
   "scopeCommitteeFull": "Δημοτική Επιτροπή",
   "scopeCommunityFull": "Δημοτικές Κοινότητες",

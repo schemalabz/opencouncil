@@ -11,6 +11,7 @@ import { MultiSelectDropdown } from './ui/multi-select-dropdown';
 import { Button } from './ui/button';
 import { updateFilterURL } from '@/lib/utils/filterURL';
 import { Pagination } from './ui/pagination';
+import { AdminStrip, adminToolClass } from '@/components/admin/AdminStrip';
 
 export interface BaseListProps {
     layout?: 'grid' | 'list' | 'carousel';
@@ -255,17 +256,22 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                     {countVisible && (
                         <p className="text-sm text-muted-foreground">{t('items', { count: filteredItems.length })}</p>
                     )}
+                    {/* Marked as back-of-house, the way the city page's own tools
+                        are: an outlined pill beside a citizen's list read as part
+                        of the product. */}
                     {editable && (
-                        <FormSheet
-                            FormComponent={FormComponent}
-                            formProps={formProps}
-                            title={t('addItem', { title: t('item') })}
-                            type="add"
-                            closeOnSuccess={true}
-                            triggerVariant="outline"
-                            triggerSize="sm"
-                            triggerClassName="h-8 rounded-full px-3 text-xs"
-                        />
+                        <AdminStrip>
+                            <FormSheet
+                                FormComponent={FormComponent}
+                                formProps={formProps}
+                                title={t('addItem', { title: t('item') })}
+                                type="add"
+                                closeOnSuccess={true}
+                                triggerVariant="ghost"
+                                triggerSize="sm"
+                                triggerClassName={adminToolClass}
+                            />
+                        </AdminStrip>
                     )}
                 </div>
             </div>

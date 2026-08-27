@@ -39,8 +39,8 @@
   "notisCta": "Желим обавештења",
   "notisChannels": "Мејл, Вотсап или СМС · Већину недеља, ништа",
   "subscribedTitle": {
-    "municipality": "Нотис ти пише о граду {qualifier}",
-    "region": "Нотис ти пише о региону {qualifier}"
+    "municipality": "Пријављени сте на обавештења о граду {qualifier}",
+    "region": "Пријављени сте на обавештења о региону {qualifier}"
   },
   "allTopics": "Све теме",
   "channelEmail": "Мејл",
@@ -71,7 +71,7 @@
   "hotTopicsBeyondPeriod": "У овом периоду није било седница. Приказујемо најновије.",
   "inCommunities": "{count} у заједницама",
   "notisTeaser": "Лако је бити у току.",
-  "subscribedSummary": "Примате обавештења о граду",
+  "subscribedSummary": "Пријављени сте на обавештења",
   "scopeCouncilFull": "Градска скупштина",
   "scopeCommitteeFull": "Градски одбор",
   "scopeCommunityFull": "Месне заједнице",
