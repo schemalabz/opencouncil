@@ -88,6 +88,17 @@ export function extractYouTubeVideoId(url: string): string | null {
 }
 
 /**
+ * True when `url` is a YouTube URL whose video id is exactly `videoId`.
+ * Used to confirm a database candidate: a SQL substring match can also hit an
+ * id that sits inside a playlist parameter or at the start of a longer path
+ * segment, so the stored URL has to be parsed before it counts as the match.
+ */
+export function urlHasYouTubeVideoId(url: string | null | undefined, videoId: string): boolean {
+  if (!url) return false
+  return extractYouTubeVideoId(url) === videoId
+}
+
+/**
  * Parses a YouTube `t=` / `start=` timestamp value into total seconds.
  * Accepts both plain seconds (`90`, `90s`) and the `1h2m3s` notation.
  * Returns null when the value is missing or cannot be parsed.

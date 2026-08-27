@@ -1,5 +1,5 @@
 /** @jest-environment node */
-import { parseChannelRef, isValidYouTubeUrl, extractYouTubeVideoId, extractYouTubeTimestamp } from '../youtube';
+import { parseChannelRef, isValidYouTubeUrl, extractYouTubeVideoId, extractYouTubeTimestamp, urlHasYouTubeVideoId } from '../youtube';
 
 describe('parseChannelRef', () => {
     it('extracts a canonical channel id from /channel/UC… URLs', () => {
@@ -155,5 +155,40 @@ describe('extractYouTubeTimestamp', () => {
 
   it('returns null for a composite timestamp beyond the upper bound', () => {
     expect(extractYouTubeTimestamp('https://www.youtube.com/watch?v=abc&t=25h')).toBeNull();
+  });
+});
+
+describe('urlHasYouTubeVideoId', () => {
+  const ID = 'dQw4w9WgXcQ';
+
+  it('matches the id in the v= parameter', () => {
+    expect(urlHasYouTubeVideoId(`https://www.youtube.com/watch?v=${ID}`, ID)).toBe(true);
+  });
+
+  it('matches the id in a youtu.be, live and shorts path', () => {
+    expect(urlHasYouTubeVideoId(`https://youtu.be/${ID}`, ID)).toBe(true);
+    expect(urlHasYouTubeVideoId(`https://www.youtube.com/live/${ID}`, ID)).toBe(true);
+    expect(urlHasYouTubeVideoId(`https://www.youtube.com/shorts/${ID}`, ID)).toBe(true);
+  });
+
+  it('rejects an id that only appears inside another parameter', () => {
+    // A SQL `contains: 'v=<id>'` prefilter hits this row, but the actual video
+    // is a different one.
+    const url = `https://www.youtube.com/watch?v=OTHERvideo1&list=PLxxv=${ID}`;
+    expect(urlHasYouTubeVideoId(url, ID)).toBe(false);
+  });
+
+  it('rejects an id that is only the prefix of a longer path segment', () => {
+    expect(urlHasYouTubeVideoId(`https://youtu.be/${ID}extra`, ID)).toBe(false);
+  });
+
+  it('returns false for a null, undefined or empty url', () => {
+    expect(urlHasYouTubeVideoId(null, ID)).toBe(false);
+    expect(urlHasYouTubeVideoId(undefined, ID)).toBe(false);
+    expect(urlHasYouTubeVideoId('', ID)).toBe(false);
+  });
+
+  it('returns false for a non-YouTube url', () => {
+    expect(urlHasYouTubeVideoId(`https://vimeo.com/${ID}`, ID)).toBe(false);
   });
 });

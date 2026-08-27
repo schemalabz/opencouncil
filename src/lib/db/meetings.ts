@@ -5,6 +5,7 @@ import prisma from "./prisma";
 import { withUserAuthorizedToEdit, isUserAuthorizedToEdit } from '../auth';
 import { buildDateFilter } from './reviews/dateFilters';
 import { formatDateAsMeetingId } from '../utils/meetingId';
+import { urlHasYouTubeVideoId } from '../utils/youtube';
 import { landingSubjectsTag } from './subject';
 import { CUSTOMER_CITY_WHERE, PUBLIC_CITY_WHERE } from '../cityStatus';
 // Import from the cache leaf (see the note in subject.ts) to keep the barrel's heavy chain out.
@@ -124,12 +125,11 @@ export async function getCouncilMeeting(cityId: string, id: string): Promise<Cou
 }
 
 /**
- * Finds a released council meeting whose stored youtubeUrl references the given
- * YouTube video id. Matching anchors the id to the positions where YouTube
- * places it (`watch?v=<id>`, `youtu.be/<id>`, `live/<id>`, `shorts/<id>`) so it
- * cannot match an id that merely appears inside a playlist or other parameter.
- * When several meetings share the same video (e.g. re-uploads), the most recent
- * one is returned.
+ * Finds a released council meeting whose stored youtubeUrl carries the given
+ * YouTube video id. The SQL predicates only narrow the candidate set; each
+ * candidate URL is then parsed, so an id sitting inside a playlist parameter or
+ * at the start of a longer path segment never counts as a match. When several
+ * meetings share the same video (e.g. re-uploads), the most recent one wins.
  */
 export async function findCouncilMeetingByYouTubeVideoId(
     videoId: string
@@ -138,7 +138,7 @@ export async function findCouncilMeetingByYouTubeVideoId(
     if (!videoId || !/^[A-Za-z0-9_-]{11}$/.test(videoId)) return null;
 
     try {
-        const meeting = await prisma.councilMeeting.findFirst({
+        const candidates = await prisma.councilMeeting.findMany({
             where: {
                 released: true,
                 OR: [
@@ -147,9 +147,11 @@ export async function findCouncilMeetingByYouTubeVideoId(
                 ],
             },
             orderBy: [{ dateTime: 'desc' }, { createdAt: 'desc' }],
-            select: { cityId: true, id: true },
+            select: { cityId: true, id: true, youtubeUrl: true },
         });
-        return meeting;
+
+        const meeting = candidates.find(candidate => urlHasYouTubeVideoId(candidate.youtubeUrl, videoId));
+        return meeting ? { cityId: meeting.cityId, id: meeting.id } : null;
     } catch (error) {
         console.error('Error finding council meeting by YouTube video id:', error);
         throw new Error('Failed to find council meeting by YouTube video id');
