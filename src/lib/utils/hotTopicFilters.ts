@@ -10,7 +10,10 @@ export type HotScope = 'council' | 'committee' | 'community' | 'all';
 export type HotPeriod = '3m' | '6m' | '12m' | 'all';
 
 export const HOT_SCOPES: Record<HotScope, {
+    /** The abbreviation the closed picker wears — ΔΣ, ΔΕ, ΔΚ. */
     label: string;
+    /** What the body is called, for the open menu where there is room to say it. */
+    fullLabel: string;
     /** Undefined means every body — the meetings query reads it as no filter. */
     types?: AdministrativeBodyType[];
     isDefault: boolean;
@@ -18,10 +21,10 @@ export const HOT_SCOPES: Record<HotScope, {
     // The council is what a reader means by "the council decided", and the
     // committees and κοινότητες of a busy municipality would otherwise crowd it
     // out of its own ranking.
-    council: { label: 'scopeCouncil', types: ['council'], isDefault: true },
-    committee: { label: 'scopeCommittee', types: ['committee'], isDefault: false },
-    community: { label: 'scopeCommunity', types: ['community'], isDefault: false },
-    all: { label: 'scopeAll', isDefault: false },
+    council: { label: 'scopeCouncil', fullLabel: 'scopeCouncilFull', types: ['council'], isDefault: true },
+    committee: { label: 'scopeCommittee', fullLabel: 'scopeCommitteeFull', types: ['committee'], isDefault: false },
+    community: { label: 'scopeCommunity', fullLabel: 'scopeCommunityFull', types: ['community'], isDefault: false },
+    all: { label: 'scopeAll', fullLabel: 'scopeAllFull', isDefault: false },
 };
 
 export const HOT_PERIODS: Record<HotPeriod, {
