@@ -283,6 +283,35 @@ export async function mcpGetParty(partyId: string) {
 
 // --- Meetings -------------------------------------------------------------
 
+/**
+ * A meeting is summarized into subjects only after it is transcribed, so a
+ * meeting with no subjects can still carry the full verbatim record — and an
+ * agent that reads an empty agenda as "nothing here" misses it. Both helpers
+ * answer only whether any segment exists, never how many.
+ */
+async function hasTranscript(cityId: string, meetingId: string): Promise<boolean> {
+    const segment = await prisma.speakerSegment.findFirst({
+        where: { cityId, meetingId },
+        select: { id: true },
+    });
+    return segment !== null;
+}
+
+/**
+ * The same question for a page of meetings, in one query rather than per row.
+ * `some` is a semi-join, so it stops at each meeting's first segment; grouping
+ * or counting would read every segment row on the page to reach the same
+ * booleans.
+ */
+async function meetingsWithTranscript(cityId: string, meetingIds: string[]): Promise<Set<string>> {
+    if (meetingIds.length === 0) return new Set();
+    const transcribed = await prisma.councilMeeting.findMany({
+        where: { cityId, id: { in: meetingIds }, speakerSegments: { some: {} } },
+        select: { id: true },
+    });
+    return new Set(transcribed.map(meeting => meeting.id));
+}
+
 export async function mcpListMeetings(
     cityId: string,
     options: {
@@ -315,6 +344,8 @@ export async function mcpListMeetings(
         administrativeBodyTypes: options.administrativeBodyTypes,
     });
 
+    const transcribed = await meetingsWithTranscript(cityId, meetings.map(meeting => meeting.id));
+
     return {
         meetings: meetings.map(meeting => ({
             id: meeting.id,
@@ -323,6 +354,7 @@ export async function mcpListMeetings(
             administrativeBody: meeting.administrativeBody?.name ?? null,
             released: meeting.released,
             subjectCount: meeting.subjects.length,
+            hasTranscript: transcribed.has(meeting.id),
             url: urls.meeting(cityId, meeting.id),
         })),
         page: options.page,
@@ -346,7 +378,10 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
 
     // How long each subject was actually debated — the best available proxy for
     // how significant it was, since agenda order says nothing about weight.
-    const discussionSeconds = await getDiscussionSecondsForSubjects(meeting.subjects.map(s => s.id));
+    const [discussionSeconds, transcribed] = await Promise.all([
+        getDiscussionSecondsForSubjects(meeting.subjects.map(s => s.id)),
+        hasTranscript(cityId, meetingId),
+    ]);
 
     // Location coordinates for mapped subjects. Centroids, not ST_X/ST_Y of
     // the raw geometry: locations can be lines or polygons. Raw SQL because
@@ -368,6 +403,21 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
         administrativeBody: meeting.administrativeBody?.name ?? null,
         youtubeUrl: meeting.youtubeUrl,
         agendaUrl: meeting.agendaUrl,
+        hasTranscript: transcribed,
+        // An empty agenda is the one shape an agent reads wrongly: it looks
+        // like an empty meeting, when in fact the transcript is usually there
+        // and only the summarization step has not run. Say so in the payload.
+        ...(meeting.subjects.length === 0 && {
+            note: transcribed
+                ? 'This meeting has no subjects because it has not been summarized yet — not because nothing was said. '
+                + 'The full verbatim transcript is available: read it with get_transcript (add includeUtteranceIds to '
+                + 'pick utterances for a highlight). Summarize it yourself from the transcript rather than reporting '
+                + 'the meeting as empty.'
+                : meeting.dateTime > new Date()
+                    ? 'This meeting has not been held yet, so there is nothing to read beyond the agenda document at agendaUrl.'
+                    : 'This meeting was held, but no transcript has been produced for it. Its recording may still be '
+                    + 'processing, or the meeting may never have been recorded.',
+        }),
         subjects: meeting.subjects.map(subject => ({
             id: subject.id,
             name: subject.name,
