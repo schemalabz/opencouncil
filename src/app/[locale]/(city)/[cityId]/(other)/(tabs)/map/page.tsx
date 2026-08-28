@@ -36,7 +36,11 @@ export default async function CityMapPage(props: { params: Promise<{ cityId: str
 
     // A δήμος whose council last met more than a year ago would otherwise get an empty map. Its
     // whole record is a better answer than nothing, and costs a second query only in that case.
-    if (subjects.length === 0) {
+    //
+    // Both lists have to be empty. A δήμος can discuss plenty and locate none of it: the pins are
+    // then empty while generalRows is not, and the map still has its city-hall marker and its list.
+    // Widening on the pins alone replaced a current year with an old one for such a δήμος.
+    if (subjects.length === 0 && generalRows.length === 0) {
         const all = scoped({ allTime: true });
         [subjects, generalRows] = await Promise.all([
             getMapSubjectsCached(realm, all),
