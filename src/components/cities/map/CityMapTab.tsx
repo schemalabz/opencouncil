@@ -31,6 +31,7 @@ export function CityMapTab({
     subjects,
     generalRows,
     geometry,
+    months,
     moreHref,
 }: {
     cityId: string;
@@ -40,6 +41,8 @@ export function CityMapTab({
     generalRows: GeneralCityRow[];
     /** the δήμος boundary — frames the map and draws its outline */
     geometry: GeoJSON.Geometry | null;
+    /** how many months the server loaded — the empty state names the window it searched */
+    months: number;
     /** the whole map, already filtered to this δήμος: where date/body filtering lives */
     moreHref: string;
 }) {
@@ -103,6 +106,9 @@ export function CityMapTab({
                 : [],
         [cityId, geometry],
     );
+
+    // Nothing at all in the window — not "nothing located", which is what SubjectList would say.
+    const empty = listSubjects.length === 0;
 
     const clearSelection = useCallback(() => setSelectedId(null), [setSelectedId]);
 
@@ -173,6 +179,11 @@ export function CityMapTab({
                         <h2 className="text-sm font-bold">{tc('mapSubjectsHeading')}</h2>
                         <span className="text-sm text-muted-foreground">({listSubjects.length})</span>
                     </div>
+                    {empty ? (
+                        <div className="px-4 py-4">
+                            <EmptyWindowCard months={months} />
+                        </div>
+                    ) : (
                     <SubjectList
                         subjects={listSubjects}
                         selectedId={selectedId}
@@ -182,6 +193,7 @@ export function CityMapTab({
                         // from the map, so the panel ground the landing needs would only add a layer.
                         variant="mobile"
                     />
+                    )}
                 </aside>
 
                 <div className="relative min-w-0 flex-1">
@@ -240,6 +252,7 @@ export function CityMapTab({
                                     previewId={previewId}
                                     onPreview={(id) => previewSubject(id ? findSubject(id) : null)}
                                     onSelect={setSelectedId}
+                                    trailing={empty ? <EmptyWindowCard months={months} /> : null}
                                 />
                             </div>
                         )}
@@ -247,6 +260,19 @@ export function CityMapTab({
                 </div>
             </div>
         </div>
+    );
+}
+
+/**
+ * What the tab says when its window holds nothing. It names the window rather than apologising:
+ * the δήμος may simply not have met, and the header band above already offers the whole record.
+ */
+function EmptyWindowCard({ months }: { months: number }) {
+    const tc = useTranslations('City');
+    return (
+        <span className="block rounded-[10px] border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-md">
+            {tc('mapEmptyWindow', { months })}
+        </span>
     );
 }
 
