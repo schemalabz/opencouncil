@@ -52,16 +52,22 @@ export function partyComposition(party: PartyWithPersons): PartyComposition {
         if (bodyTypes.has('community')) counts.community++;
     }
 
-    const mayors = members.filter(person => activeRoles(person).some(isMayorRole)).length;
-    const withoutBody = members.filter(person => !activeRoles(person).some(role => role.administrativeBodyId)).length;
+    const hasMayor = members.some(person => activeRoles(person).some(isMayorRole));
+    // Excluded per person, not subtracted as a total: a mayor who also holds a council seat is
+    // already outside `withoutBody`, so subtracting one for them dropped a genuinely unplaced
+    // member from the count.
+    const unassigned = members.filter(person => {
+        const active = activeRoles(person);
+        return !active.some(role => role.administrativeBodyId) && !active.some(isMayorRole);
+    }).length;
 
     return {
         members,
         councilMembers,
         council: councilMembers.length,
         ...counts,
-        unassigned: Math.max(0, withoutBody - mayors),
-        hasMayor: mayors > 0,
+        unassigned,
+        hasMayor,
     };
 }
 

@@ -2,7 +2,7 @@ import { sortParties } from '../parties';
 import type { PartyWithPersons } from '@/lib/db/parties';
 
 type Role = {
-    partyId: string;
+    partyId: string | null;
     isHead: boolean;
     startDate: Date | null;
     endDate: Date | null;
@@ -28,6 +28,21 @@ function party(id: string, name: string, seats: number, headIndex: number | null
             id: `${id}-p${i}`,
             roles: [{ partyId: id, isHead: i === headIndex, ...OPEN, administrativeBody: COUNCIL }],
         })),
+    };
+}
+
+/**
+ * A defector: the council seat is still held, the party role has ended. Real roles are one or the
+ * other — validateRoles forbids a role carrying both a partyId and an administrativeBodyId — so a
+ * member is two roles, and only one of them lapses when someone leaves the παράταξη.
+ */
+function defector(id: string, partyId: string) {
+    return {
+        id,
+        roles: [
+            { partyId, isHead: false, startDate: null, endDate: new Date('2020-01-01'), administrativeBody: null },
+            { partyId: null, isHead: false, ...OPEN, administrativeBody: COUNCIL },
+        ],
     };
 }
 
@@ -89,6 +104,16 @@ describe('sortParties', () => {
             people: [{ id: 'x', roles: [{ partyId: 'somewhere-else', isHead: true, ...OPEN, administrativeBody: COUNCIL }] }],
         };
         expect(sort([foreignHead, party('own', 'Zeta', 1, 0)])).toEqual(['own', 'foreign']);
+    });
+
+    it('ranks a party on the seats its card prints, not on defectors it still lists', () => {
+        // A councillor who left the παράταξη keeps their seat but is no longer a member.
+        // getPartiesForCity filters the party's own roles relation, not the nested person.roles,
+        // so they are still in party.people — PartyCard excludes them from its numeral, and the
+        // sort must agree or a card reading 2 outranks a card reading 3.
+        const withDefector = party('defected', 'Alpha', 2);
+        withDefector.people.push(defector('defected-x', 'defected') as PartyFixture['people'][number]);
+        expect(sort([withDefector, party('intact', 'Beta', 3)])).toEqual(['intact', 'defected']);
     });
 
     it('does not mutate the input', () => {
