@@ -19,9 +19,6 @@ export function subjectCardStats(statistics: Statistics | undefined, fallbackSpe
     return {
         minutes: statistics?.speakingSeconds ? Math.round(statistics.speakingSeconds / 60) : 0,
         speakingSeconds: statistics?.speakingSeconds ?? 0,
-        // `??`, not `||`: a subject whose segments have no resolved speaker has a
-        // people list of length 0, and that is the answer — falling through would
-        // report its contribution count as a speaker count.
         // `||`, not `??`: an empty people array means the statistics have not been
         // computed, which is exactly when the contribution count has to stand in.
         // `??` treated a length of 0 as an answer, and HotTopicRow prints the

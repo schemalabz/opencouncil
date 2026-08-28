@@ -146,6 +146,9 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
         try {
             revalidateTag(`city:${params.cityId}:basic`, 'max');
             revalidateTag(`city:${params.cityId}:message`, 'max');
+            // The boundary is cached apart from the row (getCityWithGeometryCached) and carries no
+            // TTL, so a redrawn δήμος would keep framing the city map on its old outline.
+            revalidateTag(`city:${params.cityId}:geometry`, 'max');
             revalidateTag('cities:all', 'max');
             revalidatePath(`/${params.cityId}`, "layout");
         } catch (error) {

@@ -128,7 +128,10 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
     const isMeetingContext = showSidebarTrigger && dynamicPath.length >= 2 && Boolean(path[0]?.city);
     const cityElement: PathElement | undefined = dynamicPath[0];
     const isCurrentSubject = subjectHeader !== null;
-    const PageIcon = (showSidebarTrigger && !subjectHeader)
+    // Same 'overview' fallback as the page crumb above, under the same guard: the admin shell also
+    // sets showSidebarTrigger, and `settings` is a segment of both, so without `path[0]?.city` an
+    // admin page resolves a meeting icon.
+    const PageIcon = (showSidebarTrigger && !subjectHeader && path[0]?.city)
         ? meetingPageSegments[segment ?? 'overview']?.icon
         : null;
 
