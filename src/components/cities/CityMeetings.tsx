@@ -109,7 +109,8 @@ export default function CityMeetings({
             showCount
             smColumns={1}
             mdColumns={2}
-            lgColumns={3}
+            // Two at the widest as well: the same card truncates at a third of this column.
+            lgColumns={2}
             pagination={currentPage && pageSize ? { currentPage, pageSize } : undefined}
         />
     );
