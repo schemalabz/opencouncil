@@ -41,9 +41,17 @@ function displayName(party: PartyWithPersons, locale?: string): string {
     return locale ? getLocalizedName(party, locale) : party.name;
 }
 
-/** The number PartyCard shows: people holding an active council seat. */
+/**
+ * The number PartyCard shows: members of this party holding an active council seat.
+ *
+ * Both halves are load-bearing, and they are the same two tests partyComposition applies — a
+ * councillor who left the παράταξη keeps their seat, and `getPartiesForCity` filters the party's
+ * own roles relation but not the nested `person.roles`, so they are still listed here. Counting
+ * their seat ranked a party above one whose card prints a larger numeral.
+ */
 function councilSeats(party: PartyWithPersons): number {
     return party.people.filter(person =>
+        person.roles.some(role => role.partyId === party.id && isRoleActive(role)) &&
         person.roles.some(role => role.administrativeBody?.type === 'council' && isRoleActive(role)),
     ).length;
 }

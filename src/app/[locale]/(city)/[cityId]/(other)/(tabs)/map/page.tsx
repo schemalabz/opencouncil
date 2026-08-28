@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import type { Metadata } from 'next';
 import { CityMapTab } from '@/components/cities/map/CityMapTab';
-import { getCityWithGeometryCached } from '@/lib/cache';
+import { getCityCached, getCityWithGeometryCached } from '@/lib/cache';
 import { getGeneralSubjectsCached, getMapSubjectsCached, type MapSubjectFilters } from '@/lib/db/subject';
 import { getRealm } from '@/lib/realm.server';
 
@@ -15,7 +15,7 @@ export async function generateMetadata(props: {
 }): Promise<Metadata> {
     const { locale, cityId } = await props.params;
     const [city, t] = await Promise.all([
-        getCityWithGeometryCached(cityId),
+        getCityCached(cityId),
         getTranslations({ locale, namespace: 'City' }),
     ]);
     if (!city) return {};
@@ -24,8 +24,7 @@ export async function generateMetadata(props: {
 
 export default async function CityMapPage(props: { params: Promise<{ cityId: string }> }) {
     const { cityId } = await props.params;
-    const realm = await getRealm();
-    const city = await getCityWithGeometryCached(cityId);
+    const [realm, city] = await Promise.all([getRealm(), getCityWithGeometryCached(cityId)]);
     if (!city) notFound();
 
     const scoped = (extra: MapSubjectFilters): MapSubjectFilters => ({ cityIds: [cityId], ...extra });
