@@ -149,12 +149,15 @@ export function CityMapTab({
     });
 
     return (
-        <div className="space-y-3">
-            <CategoryFilterBar topics={topics} selected={cats} onToggle={toggleIn(setCats)} onClear={() => setCats([])} />
+        // One object: the topics that narrow the map, the map, and the way out of it. The card owns
+        // the height so the map takes whatever the bands above and below it leave. Full-bleed on a
+        // phone, where the page's own padding would only shrink the map.
+        <div className="-mx-4 flex h-[82dvh] min-h-[520px] flex-col overflow-hidden border-y border-border bg-card md:mx-0 md:rounded-[10px] md:border lg:h-[76dvh]">
+            <div className="shrink-0 border-b border-border bg-muted/40 px-3 py-2.5">
+                <CategoryFilterBar topics={topics} selected={cats} onToggle={toggleIn(setCats)} onClear={() => setCats([])} />
+            </div>
 
-            {/* Full-bleed on a phone, and tall enough that reaching it hands the screen to the map.
-                A card inside the page's padding on a desktop, where the panel sits over it. */}
-            <div className="relative -mx-4 h-[78dvh] min-h-[460px] overflow-hidden border-y border-border md:mx-0 md:rounded-[10px] md:border lg:h-[70dvh]">
+            <div className="relative min-h-0 flex-1">
                 <Map
                     className="absolute inset-0 h-full w-full"
                     center={center}
@@ -233,12 +236,18 @@ export function CityMapTab({
                 </div>
             </div>
 
-            <p className="text-sm text-muted-foreground">
-                <Link href={moreHref} className="inline-flex items-center gap-1 font-medium hover:underline">
-                    {tc('mapSeeWholeMap')}
-                    <ArrowUpRight className="h-4 w-4" />
+            {/* The way out. This map is one δήμος over one year with topics for filtering; dates,
+                bodies and every other δήμος live on the whole map, so the card ends by saying so. */}
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-border bg-muted/40 px-3 py-2.5">
+                <p className="min-w-0 text-xs text-muted-foreground sm:text-sm">{tc('mapFooterPrompt')}</p>
+                <Link
+                    href={moreHref}
+                    className="group inline-flex shrink-0 items-center gap-1.5 rounded-[8px] border border-[hsl(var(--orange-deep))]/40 bg-card px-3 py-1.5 text-sm font-semibold text-[hsl(var(--orange-deep))] no-underline transition-colors hover:border-[hsl(var(--orange-deep))] hover:bg-[hsl(var(--orange-deep))] hover:text-white hover:no-underline"
+                >
+                    {tc('mapOpenFullMap')}
+                    <ArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                 </Link>
-            </p>
+            </div>
         </div>
     );
 }
