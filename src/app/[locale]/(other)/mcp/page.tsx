@@ -32,6 +32,10 @@ export async function generateMetadata(props: {
     };
 }
 
+// Both the embed and the fallback link address the same recording; keeping the
+// id in one place stops a replacement updating only one of them.
+const LOOM_VIDEO_ID = "14194bb035464ce6abcd76b8b8faf873";
+
 function mcpBaseUrl(): string {
     return `${env.NEXTAUTH_URL.replace(/\/$/, "")}/mcp`;
 }
@@ -102,13 +106,25 @@ export default async function McpPage(props: { params: Promise<{ locale: string 
                     <p className="mt-2 leading-relaxed text-muted-foreground">{t("video.caption")}</p>
                     <div className="mt-4 aspect-[100/65] overflow-hidden rounded-xl border bg-muted/40">
                         <iframe
-                            src="https://www.loom.com/embed/14194bb035464ce6abcd76b8b8faf873"
+                            src={`https://www.loom.com/embed/${LOOM_VIDEO_ID}`}
                             title={t("video.iframeTitle")}
                             loading="lazy"
                             allowFullScreen
                             className="h-full w-full"
                         />
                     </div>
+                    {/* Browsers that block third-party storage render the embed
+                        as a blank frame, with no error the page can detect —
+                        so the way out is always offered, not offered on failure. */}
+                    <a
+                        href={`https://www.loom.com/share/${LOOM_VIDEO_ID}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="unstyled group mt-3 inline-flex items-center gap-1 text-sm text-orange hover:text-orange/80"
+                    >
+                        {t("video.fallback")}
+                        <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                    </a>
                 </div>
 
                 <div className="mt-10 grid gap-x-12 gap-y-10 sm:grid-cols-2">
@@ -142,6 +158,11 @@ export default async function McpPage(props: { params: Promise<{ locale: string 
                                 {t(`clients.${client}.openSettings`)}
                                 <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                             </a>
+                            {client === "claude" && (
+                                <p className="mt-4 rounded-lg border border-orange/30 bg-orange/[0.06] px-3.5 py-2.5 text-sm leading-relaxed text-muted-foreground">
+                                    {t("clients.claude.mobileNotice")}
+                                </p>
+                            )}
                         </div>
                     ))}
                 </div>
