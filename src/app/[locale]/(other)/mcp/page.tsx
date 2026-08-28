@@ -1,14 +1,14 @@
 import { Metadata } from "next";
-import Image from "next/image";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/routing";
 import { env } from "@/env.mjs";
 import { getCurrentUser } from "@/lib/auth";
 import { listUserMcpTokens } from "@/lib/db/mcpTokens";
 import { CopyButton } from "@/components/mcp/CopyButton";
+import { ConnectPanel } from "@/components/mcp/ConnectPanel";
 import { McpTokenManager } from "@/components/mcp/McpTokenManager";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 // Both entry points read the locale from params and pass it explicitly:
 // without it, getTranslations races the [locale] layout's setRequestLocale
@@ -32,20 +32,16 @@ export async function generateMetadata(props: {
     };
 }
 
-// Both the embed and the fallback link address the same recording; keeping the
-// id in one place stops a replacement updating only one of them.
-const LOOM_VIDEO_ID = "14194bb035464ce6abcd76b8b8faf873";
+// The walkthrough is linked rather than embedded: an embed sits between the
+// reader and the address they came for, and browsers that block third-party
+// storage render it as a blank frame with no error the page can detect.
+const LOOM_VIDEO_URL = "https://www.loom.com/share/14194bb035464ce6abcd76b8b8faf873";
 
 function mcpBaseUrl(): string {
     return `${env.NEXTAUTH_URL.replace(/\/$/, "")}/mcp`;
 }
 
-/** Section heading — overrides the global centered h2 style, like /explain. */
-function SectionHeading({ children }: { children: React.ReactNode }) {
-    return (
-        <h2 className="!text-left !text-2xl !font-bold tracking-tight sm:!text-3xl">{children}</h2>
-    );
-}
+const EXAMPLES = ["example1", "example2", "example3", "example4"] as const;
 
 export default async function McpPage(props: { params: Promise<{ locale: string }> }) {
     const { locale } = await props.params;
@@ -66,114 +62,54 @@ export default async function McpPage(props: { params: Promise<{ locale: string 
             </nav>
 
             {/* title + lead */}
-            <header className="mt-5">
-                <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl">{t("hero.title")}</h1>
-                <p className="mt-4 text-lg leading-relaxed text-muted-foreground">{t("hero.lead")}</p>
-                <p className="mt-3 text-sm leading-relaxed text-muted-foreground/80">{t("hero.standard")}</p>
+            <header className="mt-9">
+                <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">{t("hero.title")}</h1>
+                {/* 17px, not text-lg: the Greek lead measures 736px at 18px against a
+                    720px column, so it missed a single line by one word. `pretty` keeps
+                    the last line from stranding a word where it does wrap. */}
+                <p className="mt-5 text-pretty text-[17px] leading-relaxed text-muted-foreground">
+                    {t("hero.lead")}
+                </p>
             </header>
 
-            {/* example questions */}
-            <div className="mt-10">
-                <h2 className="!text-left !text-xs !font-bold uppercase tracking-wider text-muted-foreground">
-                    {t("hero.examplesTitle")}
+            {/* the address — the first thing on the page a reader can act on */}
+            <section className="mt-12">
+                <p className="text-sm font-medium text-muted-foreground">{t("url.label")}</p>
+                {/* Stacked below sm: the address and the button side by side leave
+                    too little width for the URL, which then breaks mid-token. */}
+                <div className="mt-3 rounded-xl border p-3.5 shadow-sm sm:flex sm:items-center sm:gap-3 sm:py-2.5 sm:pl-5 sm:pr-2.5">
+                    <code className="block min-w-0 flex-1 break-all font-mono text-base text-foreground sm:text-lg">
+                        {serverUrl}
+                    </code>
+                    <CopyButton
+                        value={serverUrl}
+                        className="mt-3 w-full justify-center sm:mt-0 sm:w-auto"
+                    />
+                </div>
+
+                <div className="mt-10">
+                    <ConnectPanel serverUrl={serverUrl} videoUrl={LOOM_VIDEO_URL} />
+                </div>
+            </section>
+
+            {/* what it is for, once the reader knows how to get it */}
+            <section className="mt-20 border-t pt-14">
+                <h2 className="!text-left !text-2xl !font-bold tracking-tight sm:!text-3xl">
+                    {t("examples.title")}
                 </h2>
-                <ul className="mt-4 space-y-3">
-                    {(["example1", "example2", "example3", "example4"] as const).map(key => (
+                <p className="mt-3 leading-relaxed text-muted-foreground">{t("examples.lead")}</p>
+                <ul className="mt-7 space-y-3.5">
+                    {EXAMPLES.map((key, index) => (
                         <li
                             key={key}
-                            className="border-l-2 border-orange/70 pl-4 leading-relaxed text-foreground/80"
+                            className={`border-l-2 pl-4 leading-relaxed ${
+                                index === 0 ? "border-orange text-foreground/90" : "border-border text-foreground/70"
+                            }`}
                         >
-                            «{t(`hero.${key}`)}»
+                            «{t(`examples.${key}`)}»
                         </li>
                     ))}
                 </ul>
-            </div>
-
-            {/* connect */}
-            <section className="mt-16">
-                <SectionHeading>{t("url.title")}</SectionHeading>
-                <p className="mt-3 leading-relaxed text-muted-foreground">{t("url.intro")}</p>
-                <div className="mt-4 flex items-center gap-3 rounded-xl border bg-muted/40 py-2 pl-4 pr-2">
-                    <code className="min-w-0 flex-1 break-all font-mono text-sm text-foreground/90">
-                        {serverUrl}
-                    </code>
-                    <CopyButton value={serverUrl} />
-                </div>
-
-                {/* video walkthrough */}
-                <div className="mt-10">
-                    <h3 className="!text-left text-lg font-semibold">{t("video.title")}</h3>
-                    <p className="mt-2 leading-relaxed text-muted-foreground">{t("video.caption")}</p>
-                    <div className="mt-4 aspect-[100/65] overflow-hidden rounded-xl border bg-muted/40">
-                        <iframe
-                            src={`https://www.loom.com/embed/${LOOM_VIDEO_ID}`}
-                            title={t("video.iframeTitle")}
-                            loading="lazy"
-                            allowFullScreen
-                            className="h-full w-full"
-                        />
-                    </div>
-                    {/* Browsers that block third-party storage render the embed
-                        as a blank frame, with no error the page can detect —
-                        so the way out is always offered, not offered on failure. */}
-                    <a
-                        href={`https://www.loom.com/share/${LOOM_VIDEO_ID}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="unstyled group mt-3 inline-flex items-center gap-1 text-sm text-orange hover:text-orange/80"
-                    >
-                        {t("video.fallback")}
-                        <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                    </a>
-                </div>
-
-                <div className="mt-10 grid gap-x-12 gap-y-10 sm:grid-cols-2">
-                    {(["claude", "chatgpt"] as const).map(client => (
-                        <div key={client}>
-                            <h3 className="!text-left flex items-center gap-2.5 text-lg font-semibold">
-                                <Image
-                                    src={client === "claude" ? "/logos/claude.svg" : "/logos/openai.svg"}
-                                    alt=""
-                                    width={20}
-                                    height={20}
-                                    className="shrink-0"
-                                />
-                                {t(`clients.${client}.title`)}
-                            </h3>
-                            <ol className="mt-3 list-decimal space-y-2 pl-5 leading-relaxed text-muted-foreground marker:text-orange">
-                                {(["step1", "step2", "step3", "step4"] as const).map(step => (
-                                    <li key={step}>{t(`clients.${client}.${step}`)}</li>
-                                ))}
-                            </ol>
-                            <a
-                                href={
-                                    client === "claude"
-                                        ? "https://claude.ai/settings/connectors"
-                                        : "https://chatgpt.com/#settings/Connectors"
-                                }
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="unstyled group mt-3 inline-flex items-center gap-1 text-sm text-orange hover:text-orange/80"
-                            >
-                                {t(`clients.${client}.openSettings`)}
-                                <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                            </a>
-                            {client === "claude" && (
-                                <p className="mt-4 rounded-lg border border-orange/30 bg-orange/[0.06] px-3.5 py-2.5 text-sm leading-relaxed text-muted-foreground">
-                                    {t("clients.claude.mobileNotice")}
-                                </p>
-                            )}
-                        </div>
-                    ))}
-                </div>
-
-                <div className="mt-10">
-                    <h3 className="!text-left text-lg font-semibold">{t("clients.claudeCode.title")}</h3>
-                    <p className="mt-3 leading-relaxed text-muted-foreground">{t("clients.claudeCode.description")}</p>
-                    <code className="mt-3 block overflow-x-auto rounded-xl border bg-muted/40 px-4 py-3 font-mono text-sm text-foreground/90">
-                        claude mcp add --transport http opencouncil {serverUrl}
-                    </code>
-                </div>
             </section>
 
             {/* personal access */}

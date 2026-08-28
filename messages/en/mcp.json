@@ -7,25 +7,15 @@
     "breadcrumb": "OpenCouncil MCP",
     "hero": {
         "title": "Ask your AI assistant about your municipality",
-        "lead": "Connect Claude, ChatGPT or any AI assistant you use to OpenCouncil. Your assistant gains access to search, municipalities, people and the full transcribed records of council meetings — and answers with references to the source.",
-        "standard": "Works over MCP (Model Context Protocol), the open standard AI assistants use to connect to external sources.",
-        "examplesTitle": "For example",
-        "example1": "What were the most important topics in Attica's municipalities last week?",
-        "example2": "What has the municipal administration said about childcare centres? Show me exactly what was said.",
-        "example3": "Draft a social media post with the key positions from the latest council meeting.",
-        "example4": "What has the council discussed about my neighbourhood?"
+        "lead": "Give ChatGPT or Claude access to OpenCouncil, and ask where you already ask."
     },
     "url": {
-        "title": "Connect",
-        "intro": "The MCP server address is public — no account needed for reading:",
         "copy": "Copy",
-        "copied": "Copied"
+        "copied": "Copied",
+        "label": "Your assistant needs one address."
     },
     "video": {
-        "title": "Video walkthrough",
-        "caption": "Four minutes: how to connect Claude and ChatGPT, and what you can ask afterwards. The video is in Greek.",
-        "iframeTitle": "How to connect Claude and ChatGPT with OpenCouncil",
-        "fallback": "Video not playing? Watch it on Loom"
+        "watch": "Watch the video (4 min, in Greek)"
     },
     "clients": {
         "claude": {
@@ -48,7 +38,8 @@
         "claudeCode": {
             "title": "Claude Code and other tools",
             "description": "Any MCP client that speaks streamable HTTP connects with one command — for example in Claude Code:"
-        }
+        },
+        "pickLabel": "Paste it into…"
     },
     "tokens": {
         "title": "Personal access",
@@ -67,5 +58,13 @@
         "revoked": "Revoked",
         "empty": "You have not created a personal address yet.",
         "addressLabel": "Address {index}"
+    },
+    "examples": {
+        "title": "Then just ask",
+        "lead": "Your assistant reads the same public record the site shows, and cites where every answer came from.",
+        "example1": "What were the most important topics in Attica's municipalities last week?",
+        "example2": "What has the municipal administration said about childcare centres? Show me exactly what was said.",
+        "example3": "Draft a social media post with the key positions from the latest council meeting.",
+        "example4": "What has the council discussed about my neighbourhood?"
     }
 }
