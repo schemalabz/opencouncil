@@ -63,6 +63,18 @@ export async function getCityCached(cityId: string) {
 }
 
 /**
+ * The same city row plus its boundary polygon — what a map needs to frame the δήμος. Kept apart
+ * from getCityCached so the pages that only want identity never carry a polygon through the cache.
+ */
+export async function getCityWithGeometryCached(cityId: string) {
+  return createCache(
+    () => getCity(cityId, { includeGeometry: true }),
+    ['city', cityId, 'geometry'],
+    { tags: ['city', `city:${cityId}`, `city:${cityId}:geometry`] }
+  )();
+}
+
+/**
  * Cached version of getCouncilMeetingsForCity that fetches and caches all meetings for a city
  */
 export async function getCouncilMeetingsForCityCached(cityId: string, { limit, page, pageSize = 12 }: { limit?: number; page?: number; pageSize?: number } = {}) {

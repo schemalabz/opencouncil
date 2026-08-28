@@ -83,6 +83,13 @@ export function CityNavigation({ cityId, city }: CityNavigationProps) {
                 >
                     {t('parties')}
                 </NavLink>
+                <NavLink
+                    href={`/${cityId}/map`}
+                    segment={currentSegment}
+                    matchSegment="map"
+                >
+                    {t('map')}
+                </NavLink>
                 {city?.consultationsEnabled && (
                     <NavLink
                         href={`/${cityId}/consultations`}
