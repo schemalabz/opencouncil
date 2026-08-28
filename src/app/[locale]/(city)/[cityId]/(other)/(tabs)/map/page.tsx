@@ -6,9 +6,14 @@ import { getCityCached, getCityWithGeometryCached } from '@/lib/cache';
 import { getGeneralSubjectsCached, getMapSubjectsCached, type MapSubjectFilters } from '@/lib/db/subject';
 import { getRealm } from '@/lib/realm.server';
 
-/** How far back a δήμος's map reaches by default. Wider than the landing's three months: one
- *  municipality produces far fewer subjects than a whole realm, so a year still reads as a map. */
-const CITY_MAP_MONTHS = 12;
+/**
+ * How far back a δήμος's map reaches. Fixed, and the same three months the landing opens on.
+ *
+ * A tab has no room to argue about its own window, and a year of one δήμος put more on the map
+ * than a reader can take in. Every other period, and every other filter, is the full map's job —
+ * which the card's header band links to.
+ */
+const CITY_MAP_MONTHS = 3;
 
 export async function generateMetadata(props: {
     params: Promise<{ locale: string; cityId: string }>;
@@ -27,26 +32,13 @@ export default async function CityMapPage(props: { params: Promise<{ cityId: str
     const [realm, city] = await Promise.all([getRealm(), getCityWithGeometryCached(cityId)]);
     if (!city) notFound();
 
-    const scoped = (extra: MapSubjectFilters): MapSubjectFilters => ({ cityIds: [cityId], ...extra });
-    const recent = scoped({ monthsBack: CITY_MAP_MONTHS });
-    let [subjects, generalRows] = await Promise.all([
-        getMapSubjectsCached(realm, recent),
-        getGeneralSubjectsCached(realm, recent),
+    // No widening when the window comes up empty: a δήμος that has not met in three months says
+    // so, and the header band is the way to the record that goes further back.
+    const filters: MapSubjectFilters = { cityIds: [cityId], monthsBack: CITY_MAP_MONTHS };
+    const [subjects, generalRows] = await Promise.all([
+        getMapSubjectsCached(realm, filters),
+        getGeneralSubjectsCached(realm, filters),
     ]);
-
-    // A δήμος whose council last met more than a year ago would otherwise get an empty map. Its
-    // whole record is a better answer than nothing, and costs a second query only in that case.
-    //
-    // Both lists have to be empty. A δήμος can discuss plenty and locate none of it: the pins are
-    // then empty while generalRows is not, and the map still has its city-hall marker and its list.
-    // Widening on the pins alone replaced a current year with an old one for such a δήμος.
-    if (subjects.length === 0 && generalRows.length === 0) {
-        const all = scoped({ allTime: true });
-        [subjects, generalRows] = await Promise.all([
-            getMapSubjectsCached(realm, all),
-            getGeneralSubjectsCached(realm, all),
-        ]);
-    }
 
     return (
         <CityMapTab
@@ -54,6 +46,7 @@ export default async function CityMapPage(props: { params: Promise<{ cityId: str
             subjects={subjects}
             generalRows={generalRows}
             geometry={city.geometry ?? null}
+            months={CITY_MAP_MONTHS}
             moreHref={`/?city=${cityId}`}
         />
     );
