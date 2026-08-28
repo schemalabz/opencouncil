@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 /**
  * Verifies independent server-side data fetches in three page/layout files
  * are kicked off concurrently rather than sequentially. Each mock returns a
@@ -70,7 +72,7 @@ jest.mock('@/lib/hotSubjectCards', () => ({ getHotSubjectCardsCached: jest.fn() 
 jest.mock('@/i18n/routing', () => ({ Link: () => null }));
 jest.mock('@/components/cities/CityNavigation', () => ({ CityNavigation: () => null }));
 jest.mock('@/components/cities/CityPeople', () => ({ __esModule: true, default: () => null }));
-jest.mock('@/components/meetings/CouncilMeetingWrapper', () => ({ __esModule: true, default: ({ children }: any) => children }));
+jest.mock('@/components/meetings/CouncilMeetingWrapper', () => ({ __esModule: true, default: ({ children }: { children: ReactNode }) => children }));
 jest.mock('@/components/meetings/sidebar', () => ({ __esModule: true, default: () => null }));
 jest.mock('@/components/meetings/TranscriptControls', () => ({ __esModule: true, default: () => null }));
 jest.mock('@/components/layout/Header', () => ({ __esModule: true, default: () => null }));
@@ -80,12 +82,12 @@ jest.mock('@/components/meetings/ShareDropdown', () => ({ __esModule: true, defa
 jest.mock('@/components/meetings/NavigationEvents', () => ({ NavigationEvents: () => null }));
 jest.mock('@/components/meetings/HighlightModeBar', () => ({ HighlightModeBar: () => null }));
 jest.mock('@/components/meetings/CreateHighlightButton', () => ({ CreateHighlightButton: () => null }));
-jest.mock('@/components/meetings/HighlightContext', () => ({ HighlightProvider: ({ children }: any) => children }));
+jest.mock('@/components/meetings/HighlightContext', () => ({ HighlightProvider: ({ children }: { children: ReactNode }) => children }));
 jest.mock('@/components/meetings/EditingModeBar', () => ({ EditingModeBar: () => null }));
-jest.mock('@/contexts/ShareContext', () => ({ ShareProvider: ({ children }: any) => children }));
-jest.mock('@/contexts/SubjectHeaderContext', () => ({ SubjectHeaderProvider: ({ children }: any) => children }));
-jest.mock('@/contexts/NotificationPreferenceContext', () => ({ NotificationPreferenceProvider: ({ children }: any) => children }));
-jest.mock('@/components/ui/sidebar', () => ({ SidebarProvider: ({ children }: any) => children }));
+jest.mock('@/contexts/ShareContext', () => ({ ShareProvider: ({ children }: { children: ReactNode }) => children }));
+jest.mock('@/contexts/SubjectHeaderContext', () => ({ SubjectHeaderProvider: ({ children }: { children: ReactNode }) => children }));
+jest.mock('@/contexts/NotificationPreferenceContext', () => ({ NotificationPreferenceProvider: ({ children }: { children: ReactNode }) => children }));
+jest.mock('@/components/ui/sidebar', () => ({ SidebarProvider: ({ children }: { children: ReactNode }) => children }));
 jest.mock('@/env.mjs', () => ({ env: { NEXTAUTH_URL: 'http://localhost' } }));
 
 // Tick the microtask queue a few times so any chained .then(...) handlers run
@@ -105,8 +107,8 @@ describe('PR1: server-side awaits run concurrently', () => {
         const cache = require('@/lib/cache');
         const auth = require('@/lib/auth');
 
-        const peopleD = deferred<any[]>();
-        const partiesD = deferred<any[]>();
+        const peopleD = deferred<unknown[]>();
+        const partiesD = deferred<unknown[]>();
         const authD = deferred<boolean>();
 
         cache.getPeopleForCityCached.mockReturnValue(peopleD.promise);
@@ -135,9 +137,9 @@ describe('PR1: server-side awaits run concurrently', () => {
         const meetingData = require('@/lib/getMeetingData');
         const notifications = require('@/lib/db/notifications');
 
-        const userD = deferred<any>();
+        const userD = deferred<unknown>();
         const authD = deferred<boolean>();
-        const dataD = deferred<any>();
+        const dataD = deferred<unknown>();
 
         auth.getCurrentUser.mockReturnValue(userD.promise);
         auth.isUserAuthorizedToEdit.mockReturnValue(authD.promise);
@@ -176,10 +178,10 @@ describe('PR1: server-side awaits run concurrently', () => {
         const meetingData = require('@/lib/getMeetingData');
         const notifications = require('@/lib/db/notifications');
 
-        const userD = deferred<any>();
+        const userD = deferred<unknown>();
         const authD = deferred<boolean>();
-        const dataD = deferred<any>();
-        const notifD = deferred<any>();
+        const dataD = deferred<unknown>();
+        const notifD = deferred<unknown>();
 
         auth.getCurrentUser.mockReturnValue(userD.promise);
         auth.isUserAuthorizedToEdit.mockReturnValue(authD.promise);
@@ -229,14 +231,14 @@ describe('PR1: server-side awaits run concurrently', () => {
         const auth = require('@/lib/auth');
         const notifications = require('@/lib/db/notifications');
 
-        const cityD = deferred<any>();
-        const messageD = deferred<any>();
-        const userD = deferred<any>();
+        const cityD = deferred<unknown>();
+        const messageD = deferred<unknown>();
+        const userD = deferred<unknown>();
         const canEditD = deferred<boolean>();
-        const upcomingD = deferred<any[]>();
-        const pastD = deferred<any[]>();
-        const councilUpcomingD = deferred<any[]>();
-        const councilPastD = deferred<any[]>();
+        const upcomingD = deferred<unknown[]>();
+        const pastD = deferred<unknown[]>();
+        const councilUpcomingD = deferred<unknown[]>();
+        const councilPastD = deferred<unknown[]>();
         const subjectCountD = deferred<number>();
 
         cache.getCityCached.mockReturnValue(cityD.promise);
@@ -290,12 +292,12 @@ describe('PR1: server-side awaits run concurrently', () => {
         const hotCards = require('@/lib/hotSubjectCards');
         const intl = require('next-intl/server');
 
-        const cityD = deferred<any>();
-        const hotD = deferred<any[]>();
-        const meetingsD = deferred<any[]>();
-        const partiesD = deferred<any[]>();
-        const peopleD = deferred<any[]>();
-        const bodiesD = deferred<any[]>();
+        const cityD = deferred<unknown>();
+        const hotD = deferred<unknown[]>();
+        const meetingsD = deferred<unknown[]>();
+        const partiesD = deferred<unknown[]>();
+        const peopleD = deferred<unknown[]>();
+        const bodiesD = deferred<unknown[]>();
 
         cache.getCityCached.mockReturnValue(cityD.promise);
         hotCards.getHotSubjectCardsCached.mockReturnValue(hotD.promise);
@@ -334,10 +336,10 @@ describe('PR1: server-side awaits run concurrently', () => {
         const cache = require('@/lib/cache');
         const auth = require('@/lib/auth');
 
-        const partiesD = deferred<any[]>();
-        const adminD = deferred<any[]>();
-        const peopleD = deferred<any[]>();
-        const cityD = deferred<any>();
+        const partiesD = deferred<unknown[]>();
+        const adminD = deferred<unknown[]>();
+        const peopleD = deferred<unknown[]>();
+        const cityD = deferred<unknown>();
         const authD = deferred<boolean>();
 
         cache.getPartiesForCityCached.mockReturnValue(partiesD.promise);
