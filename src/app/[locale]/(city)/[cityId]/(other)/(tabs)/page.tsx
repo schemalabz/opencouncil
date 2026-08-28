@@ -168,7 +168,11 @@ export default async function CityOverviewPage(
                         </Link>
                     </div>
 
-                    <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    {/* Two columns, and no third. A meeting card carries a body name, a title, a
+                        date line and three subject rows; at a third of this column — which the
+                        rail already narrows — every one of them truncated. Six cards read as
+                        three rows rather than two, which is the better trade. */}
+                    <div className="mt-6 grid gap-6 sm:grid-cols-2">
                         {recentMeetings.map(meeting => (
                             <MeetingCardV2
                                 key={meeting.id}
