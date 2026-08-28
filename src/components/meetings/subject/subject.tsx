@@ -29,6 +29,7 @@ import { SubjectAdminControls } from "./SubjectAdminControls";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { useLocalizeText } from "@/hooks/useLocalizeText";
 import { getLocalizedName } from "@/lib/formatters/name";
+import { TopicIcon } from "@/components/TopicIcon";
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
     const { subjects, getPerson, getParty, meeting, city } = useCouncilMeetingData();
@@ -181,9 +182,24 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                         {formatDate(new Date(meeting.dateTime), undefined, locale)}
                     </span>
                 </nav>
-                <h1 className="text-left text-3xl font-bold tracking-tight text-foreground md:text-4xl">
-                    {localize(name)}
-                </h1>
+                {/* The subject's own title, and the page's h1.
+                    It used to live only in the header bar, at the size that bar gives a page
+                    label — so the meeting's name was set above the thing the page is about, and
+                    the document had no h1 at all. The topic names itself above it, and its icon
+                    takes the size TopicIcon reserves for a page header. */}
+                <header className="flex items-start gap-3">
+                    <TopicIcon color={topic?.colorHex} icon={topic?.icon} size="lg" className="mt-1" />
+                    <div className="min-w-0 space-y-1">
+                        {topic && (
+                            <span className="block text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">
+                                {getLocalizedName(topic, locale)}
+                            </span>
+                        )}
+                        <h1 className="text-balance text-2xl font-bold leading-tight tracking-tight md:text-3xl">
+                            {localize(name)}
+                        </h1>
+                    </div>
+                </header>
                 {isSuperAdmin && (
                     <div className="flex justify-end">
                         <SubjectAdminControls
