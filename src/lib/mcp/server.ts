@@ -82,7 +82,9 @@ export function registerOpenCouncilServer(server: McpServer) {
                 'Returns compact results with URLs; ' +
                 'use get_subject / get_subject_transcript with a result id for details. `total` is ' +
                 'the search index\'s own match count — report it as approximate ("about N"), and ' +
-                'note it is omitted entirely when results had to be withheld.',
+                'note it is omitted entirely when results had to be withheld. It searches subjects, so ' +
+                'a meeting that is transcribed but not yet summarized has nothing here to match — use ' +
+                'list_meetings before you report that a topic was never discussed.',
             inputSchema: z.object({
                 query: z.string().optional().describe('Search query (Greek works best). Omit for a filter-only listing sorted by date'),
                 cityIds: z.array(z.string()).optional().describe('Restrict to these city IDs (see list_cities)'),
@@ -109,7 +111,9 @@ export function registerOpenCouncilServer(server: McpServer) {
                 'The most-discussed subjects across all municipalities over a recent period, ranked ' +
                 'by debate time — start here for "what is happening in the councils", a weekly ' +
                 'roundup, or picking topics worth clipping. Covers every municipality at once (no ' +
-                'city id needed) and does not depend on the search index.',
+                'city id needed) and does not depend on the search index. It ranks summarized ' +
+                'meetings only — a meeting that is transcribed but not yet summarized has no ' +
+                'subjects to rank, so use list_meetings to find those.',
             inputSchema: z.object({
                 daysBack: z.number().int().min(1).max(365).default(7)
                     .describe('How far back to look, in days'),
@@ -244,7 +248,10 @@ export function registerOpenCouncilServer(server: McpServer) {
                 'upcoming). Unfiltered it mixes scheduled meetings in with held ones, and a ' +
                 'scheduled meeting sorts ahead of every held one — pass timeFilter to separate ' +
                 'them. administrativeBodyIds answers "when did this body last meet": pair it ' +
-                'with timeFilter "past" for the last held session, "upcoming" for the next one.',
+                'with timeFilter "past" for the last held session, "upcoming" for the next one. ' +
+                'Each row carries subjectCount and hasTranscript: `subjectCount: 0` with ' +
+                '`hasTranscript: true` is a meeting that is transcribed but not yet summarized, ' +
+                'and get_transcript still holds everything that was said in it.',
             inputSchema: z.object({
                 cityId: z.string().min(1),
                 from: z.iso.date().optional().describe('ISO date (YYYY-MM-DD), inclusive'),
@@ -286,7 +293,12 @@ export function registerOpenCouncilServer(server: McpServer) {
             description:
                 'Get a council meeting with its agenda. Each subject carries discussionSeconds — how ' +
                 'long it was actually debated, the best proxy for which subjects mattered, since ' +
-                'agenda order does not reflect weight. Subjects are returned in agenda order.',
+                'agenda order does not reflect weight. Subjects are returned in agenda order. ' +
+                'An empty `subjects` list does not mean an empty meeting: subjects come from a ' +
+                'summarization step that runs after transcription, so a meeting can hold the full ' +
+                'verbatim record and no agenda yet. Read `hasTranscript` — when it is true, work ' +
+                'from get_transcript instead (summarize it yourself, quote it, or clip a highlight ' +
+                'from it) rather than reporting that there is nothing to show.',
             inputSchema: z.object({
                 cityId: z.string().min(1),
                 meetingId: z.string().min(1),
@@ -343,7 +355,12 @@ export function registerOpenCouncilServer(server: McpServer) {
                 'resolved as of the meeting date. Long — prefer ' +
                 'get_subject_transcript when you care about one subject. Pass personId for ' +
                 'everything one councillor said in the meeting (the way to gather their own ' +
-                'moments). Set includeUtteranceIds to get utterance ids for highlight creation.',
+                'moments). Set includeUtteranceIds to get utterance ids for highlight creation. ' +
+                'This is also the whole record of a meeting that get_meeting reports with ' +
+                '`hasTranscript: true` and no subjects — one that is transcribed but not yet ' +
+                'summarized. For such a meeting this is the only record — summarize it, quote it, ' +
+                'and pick highlight utterances from it. It carries no agenda, decision or vote ' +
+                'tally, so never report those from a transcript alone.',
             inputSchema: z.object({
                 cityId: z.string().min(1),
                 meetingId: z.string().min(1),
