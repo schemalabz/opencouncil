@@ -2,13 +2,11 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { Map as MapboxMap } from 'mapbox-gl';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, Globe } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { useMediaQuery } from '@/hooks/use-media-query';
-import { useTopics } from '@/hooks/useTopics';
 import Map, { type MapFeature } from '@/components/map/map';
-import { CategoryFilterBar } from '@/components/landing/v2/controls';
 import { CoLocatedBox, GeneralSubjectsBox } from '@/components/landing/v2/mapMarkers';
 import { SubjectList } from '@/components/landing/v2/SubjectList';
 import { useFilteredSubjects } from '@/components/landing/v2/hooks/useFilteredSubjects';
@@ -46,11 +44,11 @@ export function CityMapTab({
     moreHref: string;
 }) {
     const tc = useTranslations('City');
-    const isMobile = useMediaQuery('(max-width: 1023px)');
-    const { topics } = useTopics();
+    // The split is xl, not lg: this map sits in a column the city rail already narrows, so a
+    // floating panel at 1024px would leave less map than list. Below xl the strip has the map.
+    const isMobile = useMediaQuery('(max-width: 1279px)');
     const [mapInstance, setMapInstance] = useState<MapboxMap | null>(null);
     const handleMapReady = useCallback((m: MapboxMap) => setMapInstance(m), []);
-    const [cats, setCats] = useState<string[]>([]);
     // The general-city markers can close an OpenCouncil badge popup; this map never opens one.
     const closeExplainPopupRef = useRef<(() => void) | null>(null);
 
@@ -75,7 +73,7 @@ export function CityMapTab({
     const { visibleSubjects, visibleGeneralCities, listSubjects, findSubject, selectedSubject } = useFilteredSubjects({
         mapSubjects: subjects,
         generalRows,
-        cats,
+        cats: NO_CATS,
         filters: EMPTY_FILTERS,
         addressPoint: null,
         mapView,
@@ -149,13 +147,22 @@ export function CityMapTab({
     });
 
     return (
-        // One object: the topics that narrow the map, the map, and the way out of it. The card owns
-        // the height so the map takes whatever the bands above and below it leave. Full-bleed on a
-        // phone, where the page's own padding would only shrink the map.
+        // One object: the way out of this map, then the map. The card owns the height so the map
+        // takes whatever the band above it leaves. Full-bleed on a phone, where the page's own
+        // padding would only shrink the map.
         <div className="-mx-4 flex h-[82dvh] min-h-[520px] flex-col overflow-hidden border-y border-border bg-card md:mx-0 md:rounded-[10px] md:border lg:h-[76dvh]">
-            <div className="shrink-0 border-b border-border bg-muted/40 px-3 py-2.5">
-                <CategoryFilterBar topics={topics} selected={cats} onToggle={toggleIn(setCats)} onClear={() => setCats([])} />
-            </div>
+            {/* The whole band is the way out. This map is one δήμος; the full one carries every
+                other δήμος and the date/body filters, so the card opens by pointing at it. */}
+            <Link
+                href={moreHref}
+                className="group flex shrink-0 items-center justify-between gap-3 border-b border-border bg-muted/40 px-4 py-3 no-underline transition-colors hover:bg-[hsl(var(--orange-deep))]/[0.07] hover:no-underline"
+            >
+                <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[hsl(var(--orange-deep))]">
+                    <Globe className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{tc('mapOpenFullMap')}</span>
+                </span>
+                <ArrowUpRight className="h-4 w-4 shrink-0 text-[hsl(var(--orange-deep))] transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+            </Link>
 
             <div className="relative min-h-0 flex-1">
                 <Map
@@ -173,8 +180,8 @@ export function CityMapTab({
                     cooperativeGestures
                 />
 
-                {/* desktop: the subject list floats over the map, as on the landing */}
-                <div className="pointer-events-none absolute inset-y-4 left-4 hidden w-[340px] lg:block">
+                {/* wide: the subject list floats over the map, as on the landing */}
+                <div className="pointer-events-none absolute inset-y-4 left-4 hidden w-[320px] xl:block">
                     <div className="pointer-events-auto flex h-full flex-col overflow-hidden rounded-[10px] border border-border bg-card shadow-lg">
                         <div className="flex items-baseline gap-2 border-b border-border px-4 py-3">
                             <h2 className="text-sm font-bold">{tc('mapSubjectsHeading')}</h2>
@@ -211,8 +218,8 @@ export function CityMapTab({
                     />
                 )}
 
-                {/* phone: the strip of subject cards over the map — or the opened one over it */}
-                <div className="lg:hidden">
+                {/* narrow: the strip of subject cards over the map — or the opened one over it */}
+                <div className="xl:hidden">
                     {selectedSubject ? (
                         <SubjectExpandedCard
                             subject={selectedSubject}
@@ -235,19 +242,6 @@ export function CityMapTab({
                     )}
                 </div>
             </div>
-
-            {/* The way out. This map is one δήμος over one year with topics for filtering; dates,
-                bodies and every other δήμος live on the whole map, so the card ends by saying so. */}
-            <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-border bg-muted/40 px-3 py-2.5">
-                <p className="min-w-0 text-xs text-muted-foreground sm:text-sm">{tc('mapFooterPrompt')}</p>
-                <Link
-                    href={moreHref}
-                    className="group inline-flex shrink-0 items-center gap-1.5 rounded-[8px] border border-[hsl(var(--orange-deep))]/40 bg-card px-3 py-1.5 text-sm font-semibold text-[hsl(var(--orange-deep))] no-underline transition-colors hover:border-[hsl(var(--orange-deep))] hover:bg-[hsl(var(--orange-deep))] hover:text-white hover:no-underline"
-                >
-                    {tc('mapOpenFullMap')}
-                    <ArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                </Link>
-            </div>
         </div>
     );
 }
@@ -256,6 +250,6 @@ export function CityMapTab({
 const INITIAL_ZOOM = 12;
 const noop = () => {};
 
-/** Toggle an id in a string-array state setter. */
-const toggleIn = (set: (fn: (prev: string[]) => string[]) => void) => (id: string) =>
-    set((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+/** Topics are not filtered here (that is the full map's job). Module-level so the identity is
+ *  stable — a fresh [] each render would rebuild every marker on the map. */
+const NO_CATS: string[] = [];
