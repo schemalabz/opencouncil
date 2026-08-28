@@ -24,7 +24,8 @@
     "video": {
         "title": "Видео упутство",
         "caption": "Четири минута: како да повежете Claude и ChatGPT и шта затим можете да питате. Видео је на грчком.",
-        "iframeTitle": "Како да повежете Claude и ChatGPT са OpenCouncil-ом"
+        "iframeTitle": "Како да повежете Claude и ChatGPT са OpenCouncil-ом",
+        "fallback": "Видео се не покреће? Погледајте га на Loom-у"
     },
     "clients": {
         "claude": {
@@ -33,7 +34,8 @@
             "step2": "Кликните на „Add custom connector“.",
             "step3": "Назовите га OpenCouncil и налепите адресу. Остала поља оставите празна.",
             "step4": "Кликните на „Add“, па на „Connect“ — конектор се приказује као повезан.",
-            "openSettings": "Отвори подешавања claude.ai"
+            "openSettings": "Отвори подешавања claude.ai",
+            "mobileNotice": "Прилагођени конектор не можете додати из мобилне апликације Claude — само са claude.ai у прегледачу или из десктоп апликације. Када га додате, ради и на мобилном телефону, докле год сте пријављени на исти налог."
         },
         "chatgpt": {
             "title": "ChatGPT",

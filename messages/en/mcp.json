@@ -24,7 +24,8 @@
     "video": {
         "title": "Video walkthrough",
         "caption": "Four minutes: how to connect Claude and ChatGPT, and what you can ask afterwards. The video is in Greek.",
-        "iframeTitle": "How to connect Claude and ChatGPT with OpenCouncil"
+        "iframeTitle": "How to connect Claude and ChatGPT with OpenCouncil",
+        "fallback": "Video not playing? Watch it on Loom"
     },
     "clients": {
         "claude": {
@@ -33,7 +34,8 @@
             "step2": "Click \"Add custom connector\".",
             "step3": "Name it OpenCouncil and paste the address. Leave the other fields empty.",
             "step4": "Click \"Add\", then \"Connect\" — the connector shows as connected.",
-            "openSettings": "Open claude.ai settings"
+            "openSettings": "Open claude.ai settings",
+            "mobileNotice": "You cannot add a custom connector from the Claude mobile app — only from claude.ai in a browser or the desktop app. Once added, it works on mobile too, as long as you are signed in to the same account."
         },
         "chatgpt": {
             "title": "ChatGPT",
