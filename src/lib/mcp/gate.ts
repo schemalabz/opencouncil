@@ -33,6 +33,7 @@ export async function requireVisibleMeeting(
     released: boolean;
     dateTime: Date;
     name: string;
+    videoUrl: string | null;
     administrativeBody: { name: string } | null;
 }> {
     const meeting = await prisma.councilMeeting.findFirst({
@@ -41,11 +42,14 @@ export async function requireVisibleMeeting(
         // all pass through here.
         where: { cityId, id: meetingId, city: { realm: currentRealm() } },
         // name + administrativeBody ride along so subject-scoped tools can
-        // state which body met, and when, without a second lookup.
+        // state which body met, and when, without a second lookup. videoUrl
+        // rides along for the same reason: creating a highlight with a render
+        // in one call has to know whether there is anything to render from.
         select: {
             released: true,
             dateTime: true,
             name: true,
+            videoUrl: true,
             administrativeBody: { select: { name: true } },
         },
     });

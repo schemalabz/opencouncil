@@ -63,6 +63,18 @@ const paginationShape = {
     page: z.number().int().min(1).default(1).describe('Page number, starting at 1'),
 };
 
+/**
+ * The render settings both highlight write tools accept. Shared so the two
+ * never advertise different capabilities for the one renderer.
+ */
+const renderOptionsShape = {
+    aspectRatio: z.enum(['default', 'social-9x16']).default('default')
+        .describe('"default" is landscape (16:9); "social-9x16" is vertical, for Reels/TikTok/Stories'),
+    includeCaptions: z.boolean().default(true).describe('Burn subtitles into the video'),
+    includeSpeakerOverlay: z.boolean().default(true)
+        .describe('Show the speaker\'s name, role and party on screen'),
+};
+
 export function registerOpenCouncilServer(server: McpServer) {
     server.registerTool(
         'search',
@@ -469,17 +481,21 @@ function registerHighlightTools(server: McpServer) {
             _meta: category('highlights'),
             description:
                 'Create a highlight from a selection of a meeting\'s utterances (get utterance ids ' +
-                'from get_subject_transcript). The utterances need not be consecutive — skip filler ' +
+                'from get_subject_transcript, or from get_transcript with includeUtteranceIds when the ' +
+                'meeting has no subjects yet). The utterances need not be consecutive — skip filler ' +
                 'and interruptions, or cut together moments like a question and its answer; playback ' +
                 'is always in meeting order. Requires a personal MCP URL or bearer token, created on ' +
-                "this site's /mcp page. Confirm the selection with the user before calling. " +
-                'A shareable video can then be rendered with generate_highlight_video.',
+                "this site's /mcp page. Confirm the selection with the user once, before calling — " +
+                'and if they want a video, pass `video` here to render it in the same call, rather ' +
+                'than asking them to confirm a second time for generate_highlight_video.',
             inputSchema: z.object({
                 cityId: z.string().min(1),
                 meetingId: z.string().min(1),
                 name: z.string().min(1).describe('Short human-readable title for the highlight'),
                 utteranceIds: z.array(z.string()).min(1).describe('Utterance ids, in order'),
                 subjectId: z.string().optional().describe('Subject to attach the highlight to'),
+                video: z.object(renderOptionsShape).optional()
+                    .describe('Render the clip in this same call — pass {} for the default landscape format. Include it only when the user has asked for a video; omitting it saves the selection alone'),
             }),
         },
         (args, ctx: ServerContext) => run(() => mcpCreateHighlight(identityFromContext(ctx), args))
@@ -492,20 +508,20 @@ function registerHighlightTools(server: McpServer) {
             annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
             _meta: category('highlights'),
             description:
-                'Start rendering a highlight into a shareable video clip, in landscape or vertical ' +
-                '(9:16) format, with optional burnt-in subtitles and speaker name/party overlays — ' +
-                'the same options the website offers. Generation is asynchronous and takes a few ' +
-                'minutes: poll get_highlight for the result. Calling this again with different ' +
-                'options re-renders the clip in the new format; calling it with the same options ' +
-                'returns the existing video. Requires the same authentication as create_highlight; ' +
-                'ask the user before starting a render.',
+                'Start rendering an existing highlight into a shareable video clip, in landscape or ' +
+                'vertical (9:16) format, with optional burnt-in subtitles and speaker name/party ' +
+                'overlays — the same options the website offers. Use it for a highlight created ' +
+                'without `video`, or to re-render one in another format: for a new highlight, pass ' +
+                '`video` to create_highlight instead and save the user a second confirmation. ' +
+                'Generation is asynchronous and takes a few minutes: poll get_highlight for the ' +
+                'result. Calling this again with different options re-renders the clip in the new ' +
+                'format; calling it with the same options returns the existing video. Requires the ' +
+                'same authentication as create_highlight. Rendering spends real capacity, so ask the ' +
+                'user before a render they have not requested — but never ask twice for the same clip: ' +
+                'a user who already agreed to this video has confirmed it.',
             inputSchema: z.object({
                 highlightId: z.string().min(1),
-                aspectRatio: z.enum(['default', 'social-9x16']).default('default')
-                    .describe('"default" is landscape (16:9); "social-9x16" is vertical, for Reels/TikTok/Stories'),
-                includeCaptions: z.boolean().default(true).describe('Burn subtitles into the video'),
-                includeSpeakerOverlay: z.boolean().default(true)
-                    .describe('Show the speaker\'s name, role and party on screen'),
+                ...renderOptionsShape,
             }),
         },
         (args, ctx: ServerContext) =>
@@ -594,8 +610,12 @@ function registerHighlightTools(server: McpServer) {
                             `(list_cities, list_meetings), pick the 3 most important subjects from get_meeting — rank them ` +
                             `by discussionSeconds, not agenda order — and for each ` +
                             `use get_subject_transcript to select the utterances that best capture ` +
-                            `the moment. Show me your proposed highlights (subject, speakers, quoted text) and, once I ` +
-                            `confirm, create them with create_highlight.`,
+                            `the moment. If the meeting has no subjects yet but hasTranscript is true, read ` +
+                            `get_transcript with includeUtteranceIds and pick the moments from there instead. ` +
+                            `Show me your proposed highlights (subject, speakers, quoted text) and ask me once ` +
+                            `whether I want videos. Then create them with create_highlight in a single pass — ` +
+                            `pass \`video\` in the same call if I said yes — and do not ask me to confirm each ` +
+                            `render separately.`,
                     },
                 },
             ],

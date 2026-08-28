@@ -960,6 +960,14 @@ export async function mcpFetch(id: string, identity: McpIdentity) {
 
 // --- Highlights -----------------------------------------------------------
 
+const RENDER_STARTED_MESSAGE =
+    'Video generation started — it takes a few minutes. Poll get_highlight for the result; '
+    + 'the creator is also emailed when it finishes.';
+
+type CreatedHighlightVideo =
+    | { status: 'not_generated' }
+    | { status: 'generating'; format: HighlightRenderOptions };
+
 export async function mcpCreateHighlight(
     identity: McpIdentity,
     args: {
@@ -968,6 +976,8 @@ export async function mcpCreateHighlight(
         name: string;
         utteranceIds: string[];
         subjectId?: string;
+        /** Render the clip in the same call, instead of a second round trip. */
+        video?: Partial<HighlightRenderOptions>;
     }
 ) {
     if (!identity) {
@@ -976,7 +986,7 @@ export async function mcpCreateHighlight(
 
     // Same visibility as the read tools: released, or a draft the identity
     // may see (city editors, service keys).
-    await requireVisibleMeeting(args.cityId, args.meetingId, identity);
+    const meeting = await requireVisibleMeeting(args.cityId, args.meetingId, identity);
 
     // Agents assemble utterance ids by hand, so a wrong one is routine. Say
     // which ids are wrong instead of letting the insert fail opaquely.
@@ -1009,6 +1019,10 @@ export async function mcpCreateHighlight(
     // this: `destructiveHint: false` on create_highlight AND on
     // generate_highlight_video (a re-render can only reformat content that
     // cannot change). Adding a highlightId parameter would falsify both.
+    // The `video` argument below does not: it queues a render of this new
+    // highlight, which destroys nothing. It does mean a retried call costs a
+    // second render, so the render failure path returns the id rather than
+    // throwing — see the catch below.
     const highlight = await upsertHighlightCore(identity, {
         name: args.name,
         meetingId: args.meetingId,
@@ -1017,14 +1031,45 @@ export async function mcpCreateHighlight(
         subjectId: args.subjectId,
     });
 
-    return {
+    const created = {
         id: highlight.id,
         name: highlight.name,
+        cityId: args.cityId,
+        meetingId: args.meetingId,
         utteranceCount: highlight.highlightedUtterances.length,
-        video: { status: 'not_generated' as const },
-        next: 'Render a shareable video with generate_highlight_video, then poll get_highlight until the video is ready.',
         url: urls.highlights(args.cityId, args.meetingId),
     };
+
+    // One return, so callers read `video` and `next` off one shape rather than
+    // narrowing a union of branches.
+    let video: CreatedHighlightVideo = { status: 'not_generated' };
+    let next: string;
+
+    if (!args.video) {
+        next = 'The selection is saved without a video. Render one with generate_highlight_video only if the user asks for a clip.';
+    } else if (!meeting.videoUrl) {
+        // The highlight is already saved, so everything below reports back
+        // instead of throwing: an error here would lose a selection the user
+        // has approved, over a video they can still do without.
+        next = 'The highlight is saved, but this meeting has no video, so no clip can be rendered from it.';
+    } else {
+        const requested = resolveRenderOptions(args.video);
+        try {
+            await requestGenerateHighlightCore(highlight.id, toGenerateOptions(requested));
+            video = { status: 'generating', format: requested };
+            next = RENDER_STARTED_MESSAGE;
+        } catch (error) {
+            // The render runs on a separate service, so it fails for reasons
+            // the highlight does not share. Name the id the caller retries
+            // with: a bare error would read as "nothing was saved" and earn a
+            // second create_highlight, and a second highlight.
+            console.error('MCP highlight render request failed:', error);
+            next = 'The highlight is saved, but the video render could not be started. '
+                + 'Retry it with generate_highlight_video and this highlight id.';
+        }
+    }
+
+    return { ...created, video, next };
 }
 
 export async function mcpListHighlights(
@@ -1280,6 +1325,6 @@ export async function mcpGenerateHighlightVideo(
         id: highlight.id,
         name: highlight.name,
         video: { status: 'generating' as const, format: requested },
-        note: 'Video generation started — it takes a few minutes. Poll get_highlight for the result; the creator is also emailed when it finishes.',
+        note: RENDER_STARTED_MESSAGE,
     };
 }
