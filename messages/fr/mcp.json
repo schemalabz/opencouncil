@@ -55,7 +55,6 @@
         "description": "Avec un compte OpenCouncil, votre assistant peut en plus enregistrer des moments forts en votre nom : des extraits choisis des transcriptions d'une séance. Créez une adresse MCP personnelle et utilisez-la à la place de l'adresse publique.",
         "signInPrompt": "Connectez-vous pour créer votre adresse personnelle.",
         "signIn": "Se connecter",
-        "namePlaceholder": "Nom, p. ex. « Claude »",
         "create": "Créer l'adresse",
         "creating": "Création…",
         "createdTitle": "Votre adresse MCP personnelle",
@@ -66,6 +65,7 @@
         "never": "jamais",
         "revoke": "Révoquer",
         "revoked": "Révoquée",
-        "empty": "Vous n'avez pas encore créé d'adresse personnelle."
+        "empty": "Vous n'avez pas encore créé d'adresse personnelle.",
+        "addressLabel": "Adresse {index}"
     }
 }

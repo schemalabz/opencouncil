@@ -4,11 +4,11 @@ import { getCurrentUser } from "@/lib/auth";
 import { UnauthorizedError } from "@/lib/api/errors";
 import { createUserMcpToken, listUserMcpTokens, revokeUserMcpToken } from "@/lib/db/mcpTokens";
 
-export async function createMcpToken(name: string) {
+export async function createMcpToken() {
     const user = await getCurrentUser();
     if (!user) throw new UnauthorizedError();
 
-    const token = await createUserMcpToken(user.id, name.trim() || "MCP token");
+    const token = await createUserMcpToken(user.id);
     return {
         id: token.id,
         name: token.name,
