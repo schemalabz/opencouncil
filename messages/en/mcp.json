@@ -55,7 +55,6 @@
         "description": "With an OpenCouncil account, your assistant can additionally save highlights in your name: selected excerpts from a meeting's records. Create a personal MCP address and use it instead of the public one.",
         "signInPrompt": "Sign in to create your personal address.",
         "signIn": "Sign in",
-        "namePlaceholder": "Name, e.g. \"Claude\"",
         "create": "Create address",
         "creating": "Creating…",
         "createdTitle": "Your personal MCP address",
@@ -66,6 +65,7 @@
         "never": "never",
         "revoke": "Revoke",
         "revoked": "Revoked",
-        "empty": "You have not created a personal address yet."
+        "empty": "You have not created a personal address yet.",
+        "addressLabel": "Address {index}"
     }
 }
