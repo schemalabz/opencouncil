@@ -1,16 +1,15 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, HelpCircle, Loader2, LocateFixed, CalendarDays, MapPin, Bell, Clock, Landmark } from 'lucide-react';
+import { ArrowRight, ChevronDown, ChevronUp, X, HelpCircle, Loader2, LocateFixed, CalendarDays, Bell } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
-import Icon from '@/components/icon';
-import { formatDate, formatDateTime } from '@/lib/formatters/time';
+import { formatDateTime } from '@/lib/formatters/time';
 import { captureLandingAction } from '@/lib/landing/analytics';
 import { ListHeader, RankedListHint } from './conceptShared';
 import { landingSearchHref, SearchErrorPill, SearchResultsCard } from './searchSummary';
-import { subjectLocationLine, type LandingSubject, type LandingListCity, type LandingPetitionedCity, type UpcomingMeeting } from '@/lib/landing/landingData';
+import { type LandingSubject, type LandingListCity, type LandingPetitionedCity, type UpcomingMeeting } from '@/lib/landing/landingData';
 import { PETITION_DISPLAY_THRESHOLD } from '@/lib/landing/petitions';
 import { hasActiveFilters, type LayoutProps } from '@/lib/landing/landingCore';
 import { DateRangePill, FilterIconButton, MapStyleToggle, CityAvatar } from './controls';
@@ -19,7 +18,8 @@ import { CoLocatedBox, GeneralSubjectsBox } from './mapMarkers';
 import { MobileHeader } from './MobileHeader';
 import { InfoPanel } from './InfoPanel';
 import { PetitionCta, PetitionedRow } from './MunicipalitiesList';
-import { topicStyle } from '@/lib/topicStyle';
+import { SubjectStrip } from '@/components/map/subjects/SubjectStrip';
+import { SubjectExpandedCard } from '@/components/map/subjects/SubjectExpandedCard';
 
 /* ============================ MOBILE LAYOUT ============================ */
 export function MobileLayout({
@@ -248,7 +248,7 @@ export function MobileLayout({
 
                     {/* bottom band: an expanded subject · the OpenCouncil card · else the list + tabs */}
                     {selectedSubject ? (
-                        <MobileSubjectExpanded
+                        <SubjectExpandedCard
                             subject={selectedSubject}
                             // × → return to previewing this subject (re-centres the map, undoing the
                             // select up-scroll, and keeps it highlighted in the strip)
@@ -283,7 +283,7 @@ export function MobileLayout({
                                         </div>
                                     )}
                                     {tab === 'subjects' ? (
-                                        <MobileSubjectStrip
+                                        <SubjectStrip
                                             subjects={trending}
                                             previewId={previewId}
                                             onPreview={previewSubject}
@@ -353,65 +353,6 @@ export function MobileLayout({
                     }}
                 />
             )}
-        </div>
-    );
-}
-
-/* Bottom horizontal-scroll strip of compact subject cards. Two modes: the first tap on a card
-   previews it (highlighted in its category colour, brought to the front); tapping the previewed
-   card selects it (the expanded box takes over). A subject tapped on the map also previews here. */
-function MobileSubjectStrip({
-    subjects,
-    previewId,
-    onPreview,
-    onSelect,
-    trailing,
-}: {
-    subjects: LandingSubject[];
-    previewId: string | null;
-    onPreview: (id: string | null) => void;
-    onSelect: (id: string) => void;
-    /** A last card after the subjects — what the search found and where the rest of it is. */
-    trailing?: ReactNode;
-}) {
-    const scrollRef = useRef<HTMLDivElement>(null);
-
-    // The previewed subject keeps its position in the list — the strip just scrolls it into view
-    // (centred), without reordering. When the preview clears (e.g. zooming out drops it), the strip
-    // resets to the start so the list reads from the top again.
-    useEffect(() => {
-        const root = scrollRef.current;
-        if (!root) return;
-        if (!previewId) {
-            root.scrollTo({ left: 0, behavior: 'instant' });
-            return;
-        }
-        const el = root.querySelector<HTMLElement>(`[data-id="${CSS.escape(previewId)}"]`);
-        if (!el) return;
-        const target = el.offsetLeft - (root.clientWidth - el.offsetWidth) / 2;
-        root.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
-    }, [previewId]);
-
-    // An empty strip used to render nothing at all. Under a search that is the
-    // one case the reader most needs a card for: the matches are real, they are
-    // simply not in view, and the trailing card is what says so.
-    if (!subjects.length && !trailing) return null;
-    return (
-        <div
-            ref={scrollRef}
-            className="flex items-end gap-3 overflow-x-auto px-3 pb-1 [&::-webkit-scrollbar]:hidden"
-            style={{ scrollbarWidth: 'none' }}
-        >
-            {subjects.map((s) => (
-                <StripCard
-                    key={s.id}
-                    subject={s}
-                    active={s.id === previewId}
-                    // first tap previews; tapping the already-previewed card selects it
-                    onClick={() => (s.id === previewId ? onSelect(s.id) : onPreview(s.id))}
-                />
-            ))}
-            {trailing}
         </div>
     );
 }
@@ -663,186 +604,6 @@ function MuniStat({ label, value }: { label: string; value: number }) {
     );
 }
 
-/* One card in the strip: a full-width category bar, then the municipality logo + title, then
-   discussion time · date · address. The previewed card (`active`) gets an outline in its category
-   colour. Fixed height, so every card matches: the title clamps to two lines ("…") and the meta
-   sits at the bottom. */
-function StripCard({ subject, active, onClick }: { subject: LandingSubject; active: boolean; onClick: () => void }) {
-    const t = useTranslations('landingV2');
-    const locale = useLocale();
-    const locationLine = subjectLocationLine(subject);
-    const topicBar = topicStyle(subject.topic.color);
-    return (
-        <button
-            type="button"
-            data-id={subject.id}
-            onClick={onClick}
-            className={cn(
-                'flex h-[150px] w-[248px] shrink-0 flex-col overflow-hidden rounded-2xl border bg-card text-left shadow-md transition-colors',
-                !active && 'border-black/20',
-                active && 'border-2'
-            )}
-            style={active ? { borderColor: subject.topic.color } : undefined}
-        >
-            {/* full-width category bar */}
-            <div
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold"
-                style={{ backgroundColor: topicBar.background, color: topicBar.icon }}
-            >
-                <Icon name={subject.topic.icon || 'hash'} color={topicBar.icon} size={12} />
-                <span className="min-w-0 truncate">{subject.topic.name}</span>
-                {/* previewed card: a right chevron hints "tap again to open", on the same disc the
-                    expanded card's × sits on so the two read as one control in two states */}
-                {active && (
-                    <span className="ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-card/80 text-muted-foreground backdrop-blur">
-                        <ChevronRight className="h-3.5 w-3.5" />
-                    </span>
-                )}
-            </div>
-
-            <div className="flex min-h-0 flex-1 flex-col gap-1.5 p-3">
-                {/* municipality logo + title (clamped — the card keeps a fixed height) */}
-                <div className="flex items-start gap-2">
-                    {subject.cityLogo && (
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded bg-card">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={subject.cityLogo} alt="" loading="lazy" className="h-full w-full object-contain" />
-                        </span>
-                    )}
-                    <span className="line-clamp-2 min-w-0 text-sm font-bold leading-snug text-foreground">{subject.title}</span>
-                </div>
-                {/* pinned to the bottom so the meta lines up across cards */}
-                <span className="mt-auto flex flex-col gap-0.5 text-[11px] text-muted-foreground">
-                    {subject.durationMin > 0 && (
-                        <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3 shrink-0" /> {t('subject.discussionMinutes', { min: subject.durationMin })}
-                        </span>
-                    )}
-                    {subject.date && (
-                        <span className="flex items-center gap-1">
-                            <CalendarDays className="h-3 w-3 shrink-0" /> {formatDate(new Date(subject.date), subject.cityTimezone, locale)}
-                        </span>
-                    )}
-                    {locationLine && (
-                        <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3 shrink-0" /> <span className="truncate">{locationLine}</span>
-                        </span>
-                    )}
-                </span>
-            </div>
-        </button>
-    );
-}
-
-/* Expanded subject (mobile). The category bar (back · category), the title + municipality logo, the
-   meta, and the "Προβολή θέματος" link are all pinned; only the description scrolls between the meta
-   and the link. The map has already flown to the subject. */
-function MobileSubjectExpanded({
-    subject,
-    onClose,
-}: {
-    subject: LandingSubject;
-    /** × / title / logo → return to previewing this subject */
-    onClose: () => void;
-}) {
-    const t = useTranslations('landingV2');
-    const locale = useLocale();
-    const locationLine = subjectLocationLine(subject);
-    const topicBar = topicStyle(subject.topic.color);
-    return (
-        <div
-            className="absolute inset-x-3 bottom-[10px] z-[9] flex max-h-[68dvh] animate-in flex-col overflow-hidden rounded-2xl border-2 bg-card shadow-xl duration-300 fade-in slide-in-from-bottom-4"
-            style={{ borderColor: subject.topic.color }}
-        >
-            {/* full-width category bar: back · category */}
-            <div
-                className="flex shrink-0 items-center gap-2 border-b border-border px-2 py-2 text-xs font-bold"
-                style={{ backgroundColor: topicBar.background, color: topicBar.icon }}
-            >
-                <Icon name={subject.topic.icon || 'hash'} color={topicBar.icon} size={16} />
-                <span className="min-w-0 flex-1 truncate">{subject.topic.name}</span>
-                {/* one control, not two: the × collapses back to previewing this subject (what the
-                    back arrow used to do). Dropping the subject entirely is a tap on the map. */}
-                <button
-                    type="button"
-                    onClick={onClose}
-                    aria-label={t('common.back')}
-                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-card/80 text-muted-foreground backdrop-blur transition-colors hover:bg-card hover:text-foreground"
-                >
-                    <X className="h-4 w-4" />
-                </button>
-            </div>
-
-            {/* title + municipality logo (pinned) — tapping it returns to the preview, like the back arrow */}
-            <button
-                type="button"
-                onClick={onClose}
-                aria-label={t('common.back')}
-                className="flex shrink-0 items-start gap-2 px-4 pt-2.5 pb-1 text-left"
-            >
-                {subject.cityLogo && (
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-card">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={subject.cityLogo} alt="" loading="lazy" className="h-full w-full object-contain" />
-                    </span>
-                )}
-                <h3 className="text-balance text-lg font-bold leading-tight text-foreground">{subject.title}</h3>
-            </button>
-
-            {/* scrollable region — meta + description; the title above stays pinned */}
-            <div className="min-h-0 flex-1 overflow-y-auto">
-                {/* meta — discussion time · date · location · admin body, like the desktop card */}
-                <div className="mx-4 mt-2 flex flex-col gap-1.5 rounded-xl bg-muted/60 px-3 py-2.5">
-                    {subject.durationMin > 0 && (
-                        <div className="flex items-center gap-1 text-xs font-medium text-foreground/80">
-                            <Clock className="h-3 w-3 shrink-0" /> {t('subject.discussionMinutes', { min: subject.durationMin })}
-                        </div>
-                    )}
-                    {subject.date && (
-                        <div className="flex items-center gap-1 text-xs font-medium text-foreground/80">
-                            <CalendarDays className="h-3 w-3 shrink-0" /> {formatDate(new Date(subject.date), subject.cityTimezone, locale)}
-                        </div>
-                    )}
-                    {locationLine && (
-                        <div className="flex items-start gap-1 text-xs font-medium text-foreground/80">
-                            <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                            <span className="min-w-0">{locationLine}</span>
-                        </div>
-                    )}
-                    {subject.bodyName && (
-                        <div className="flex items-center gap-1 text-xs font-medium text-foreground/80">
-                            <Landmark className="h-3.5 w-3.5 shrink-0" />
-                            <span className="min-w-0">{subject.bodyName}</span>
-                        </div>
-                    )}
-                </div>
-
-                {/* description */}
-                {subject.summary && (
-                    <p className="px-4 py-3 text-sm leading-relaxed text-foreground/80">{subject.summary}</p>
-                )}
-            </div>
-
-            {/* Δες τη συζήτηση (pinned) — an ombré fade above it hints the content scrolls beneath */}
-            <div className="relative shrink-0">
-                <div className="pointer-events-none absolute inset-x-0 -top-6 h-6 bg-gradient-to-t from-card to-transparent" />
-                <Link
-                    href={subject.href}
-                    onClick={() =>
-                        captureLandingAction('subject_opened', {
-                            source: 'map_preview',
-                            subject_id: subject.id,
-                            city_id: subject.cityId,
-                        })
-                    }
-                    className="mx-4 mb-3 mt-1 inline-flex items-center gap-1.5 text-sm font-semibold text-[hsl(var(--orange))] no-underline hover:underline"
-                >
-                    {t('subject.view')} <ArrowRight className="h-4 w-4" />
-                </Link>
-            </div>
-        </div>
-    );
-}
 
 /* OpenCouncil preview (mobile) — the "this is our office" card from the map badge. */
 function MobileExplainPreview({ onClose }: { onClose: () => void }) {
