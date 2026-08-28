@@ -180,3 +180,53 @@ describe('administrative-body filtering', () => {
         expect(data.mcpGetCity).toHaveBeenCalledWith('athens', SERVICE);
     });
 });
+
+describe('creating a highlight and its video in one call', () => {
+    // The two-step flow made an agent ask the user to confirm twice for one
+    // clip. create_highlight now carries the render options itself, so the
+    // second confirmation is only for a re-render — keep the argument reaching
+    // the data layer, and keep it optional for a selection saved without video.
+    beforeEach(() => jest.clearAllMocks());
+
+    it('defaults the render options when video is passed empty', () => {
+        const schema = advertised(USER).meta.create_highlight.inputSchema!;
+        expect(schema.parse({
+            cityId: 'athens', meetingId: 'm1', name: 'Clip', utteranceIds: ['u1'], video: {},
+        })).toMatchObject({
+            video: { aspectRatio: 'default', includeCaptions: true, includeSpeakerOverlay: true },
+        });
+    });
+
+    it('leaves video undefined when it is omitted', () => {
+        const schema = advertised(USER).meta.create_highlight.inputSchema!;
+        expect(schema.parse({
+            cityId: 'athens', meetingId: 'm1', name: 'Clip', utteranceIds: ['u1'],
+        })).not.toHaveProperty('video');
+    });
+
+    it('rejects an aspect ratio the renderer does not know', () => {
+        const schema = advertised(USER).meta.create_highlight.inputSchema!;
+        expect(() => schema.parse({
+            cityId: 'athens', meetingId: 'm1', name: 'Clip', utteranceIds: ['u1'],
+            video: { aspectRatio: 'square' },
+        })).toThrow();
+    });
+
+    it('forwards the render options to the data layer', async () => {
+        const { handlers } = advertised(USER);
+        await handlers.create_highlight(
+            {
+                cityId: 'athens', meetingId: 'm1', name: 'Clip', utteranceIds: ['u1'],
+                video: { aspectRatio: 'social-9x16', includeCaptions: false, includeSpeakerOverlay: true },
+            } as never,
+            ctxFor(USER)
+        );
+
+        expect(data.mcpCreateHighlight).toHaveBeenCalledWith(
+            USER,
+            expect.objectContaining({
+                video: { aspectRatio: 'social-9x16', includeCaptions: false, includeSpeakerOverlay: true },
+            })
+        );
+    });
+});
