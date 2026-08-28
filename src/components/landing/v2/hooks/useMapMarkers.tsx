@@ -69,7 +69,9 @@ export function useMapViewCapture({
     pendingCoLocatedRef: MutableRefObject<LandingSubject[] | null>;
     pendingGeneralRef: MutableRefObject<LandingGeneralCity | null>;
     setMapZoom: (v: number) => void;
-    setCenterMunicipality: (v: CenterMunicipality | null) => void;
+    /** Resolve the δήμος under the center on every meaningful move. Omitted by a map whose
+     *  δήμος is fixed — then no /api/cities/at call is made at all. */
+    setCenterMunicipality?: (v: CenterMunicipality | null) => void;
     setCoLocated: (v: CoLocatedBox | null) => void;
     setGeneralBox: (v: GeneralBox | null) => void;
     setMapView: (v: MapViewport) => void;
@@ -90,7 +92,7 @@ export function useMapViewCapture({
             // Municipality under the center → drives the "view its page" button. Skip the lookup
             // unless the center moved > CENTER_QUERY_MOVE_RATIO of the viewport since the last
             // query, so a pure zoom or tiny pan makes no network call. Threshold scales with zoom.
-            if (bounds) {
+            if (bounds && setCenterMunicipality) {
                 const spanLng = Math.abs(bounds.getEast() - bounds.getWest());
                 const spanLat = Math.abs(bounds.getNorth() - bounds.getSouth());
                 const last = lastCenterQueryRef.current;
