@@ -164,82 +164,86 @@ export function CityMapTab({
                 <ArrowUpRight className="h-4 w-4 shrink-0 text-[hsl(var(--orange-deep))] transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
             </Link>
 
-            <div className="relative min-h-0 flex-1">
-                <Map
-                    className="absolute inset-0 h-full w-full"
-                    center={center}
-                    zoom={INITIAL_ZOOM}
-                    pitch={0}
-                    animateRotation={false}
-                    features={features}
-                    onMapReady={handleMapReady}
-                    zoomToGeometry={geometry}
-                    zoomPadding={isMobile ? 24 : 48}
-                    // The map sits in a scrolling page, so a plain wheel scrolls past it; zooming
-                    // asks for ⌘/ctrl (and two fingers on a phone).
-                    cooperativeGestures
-                />
-
-                {/* wide: the subject list floats over the map, as on the landing */}
-                <div className="pointer-events-none absolute inset-y-4 left-4 hidden w-[320px] xl:block">
-                    <div className="pointer-events-auto flex h-full flex-col overflow-hidden rounded-[10px] border border-border bg-card shadow-lg">
-                        <div className="flex items-baseline gap-2 border-b border-border px-4 py-3">
-                            <h2 className="text-sm font-bold">{tc('mapSubjectsHeading')}</h2>
-                            <span className="text-sm text-muted-foreground">({listSubjects.length})</span>
-                        </div>
-                        <SubjectList
-                            subjects={listSubjects}
-                            selectedId={selectedId}
-                            onSelect={setSelectedId}
-                            loading={false}
-                            variant="desktop"
-                        />
+            <div className="flex min-h-0 flex-1">
+                {/* Wide: the list is a column of the card, not a card floating on the map. The
+                    landing floats it because the map is the whole window there; here the map is
+                    already inside a card, and a card over a card over the page reads as clutter. */}
+                <aside className="hidden w-[320px] shrink-0 flex-col border-r border-border xl:flex">
+                    <div className="flex shrink-0 items-baseline gap-2 border-b border-border px-4 py-3">
+                        <h2 className="text-sm font-bold">{tc('mapSubjectsHeading')}</h2>
+                        <span className="text-sm text-muted-foreground">({listSubjects.length})</span>
                     </div>
-                </div>
-
-                {coLocated && (
-                    <CoLocatedBox
-                        data={coLocated}
-                        onSelect={(id) => {
-                            onMarkerSelect(id);
-                            setCoLocated(null);
-                        }}
-                        onClose={() => setCoLocated(null)}
+                    <SubjectList
+                        subjects={listSubjects}
+                        selectedId={selectedId}
+                        onSelect={setSelectedId}
+                        loading={false}
+                        // 'mobile' is the untinted variant. The column's own border already parts it
+                        // from the map, so the panel ground the landing needs would only add a layer.
+                        variant="mobile"
                     />
-                )}
-                {generalBox && (
-                    <GeneralSubjectsBox
-                        data={generalBox}
-                        onSelect={(id) => {
-                            onMarkerSelect(id);
-                            setGeneralBox(null);
-                        }}
-                        onClose={() => setGeneralBox(null)}
-                    />
-                )}
+                </aside>
 
-                {/* narrow: the strip of subject cards over the map — or the opened one over it */}
-                <div className="xl:hidden">
-                    {selectedSubject ? (
-                        <SubjectExpandedCard
-                            subject={selectedSubject}
-                            openSource="city_map"
-                            onClose={() => {
-                                const s = selectedSubject;
-                                clearSelection();
-                                previewSubject(s);
+                <div className="relative min-w-0 flex-1">
+                    <Map
+                        className="absolute inset-0 h-full w-full"
+                        center={center}
+                        zoom={INITIAL_ZOOM}
+                        pitch={0}
+                        animateRotation={false}
+                        features={features}
+                        onMapReady={handleMapReady}
+                        zoomToGeometry={geometry}
+                        zoomPadding={isMobile ? 24 : 48}
+                        // The map sits in a scrolling page, so a plain wheel scrolls past it; zooming
+                        // asks for ⌘/ctrl (and two fingers on a phone).
+                        cooperativeGestures
+                    />
+
+                    {coLocated && (
+                        <CoLocatedBox
+                            data={coLocated}
+                            onSelect={(id) => {
+                                onMarkerSelect(id);
+                                setCoLocated(null);
                             }}
+                            onClose={() => setCoLocated(null)}
                         />
-                    ) : (
-                        <div className="absolute inset-x-0 bottom-3">
-                            <SubjectStrip
-                                subjects={listSubjects}
-                                previewId={previewId}
-                                onPreview={(id) => previewSubject(id ? findSubject(id) : null)}
-                                onSelect={setSelectedId}
-                            />
-                        </div>
                     )}
+                    {generalBox && (
+                        <GeneralSubjectsBox
+                            data={generalBox}
+                            onSelect={(id) => {
+                                onMarkerSelect(id);
+                                setGeneralBox(null);
+                            }}
+                            onClose={() => setGeneralBox(null)}
+                        />
+                    )}
+
+                    {/* narrow: the strip of subject cards over the map — or the opened one over it */}
+                    <div className="xl:hidden">
+                        {selectedSubject ? (
+                            <SubjectExpandedCard
+                                subject={selectedSubject}
+                                openSource="city_map"
+                                onClose={() => {
+                                    const s = selectedSubject;
+                                    clearSelection();
+                                    previewSubject(s);
+                                }}
+                            />
+                        ) : (
+                            <div className="absolute inset-x-0 bottom-3">
+                                <SubjectStrip
+                                    subjects={listSubjects}
+                                    previewId={previewId}
+                                    onPreview={(id) => previewSubject(id ? findSubject(id) : null)}
+                                    onSelect={setSelectedId}
+                                />
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
