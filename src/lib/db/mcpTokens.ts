@@ -48,11 +48,15 @@ export async function createUserMcpToken(userId: string) {
 
 /**
  * List a user's MCP tokens (without revealing the actual token).
+ *
+ * The id breaks a tie on createdAt. The token manager numbers the rows by
+ * position, so two addresses created in the same instant would otherwise be
+ * free to swap labels between page loads — and a user revokes by label.
  */
 export async function listUserMcpTokens(userId: string) {
     return prisma.userMcpToken.findMany({
         where: { userId },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         select: {
             id: true,
             name: true,

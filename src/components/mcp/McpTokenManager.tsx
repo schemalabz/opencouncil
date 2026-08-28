@@ -25,35 +25,23 @@ export function McpTokenManager({ initialTokens, mcpBaseUrl }: { initialTokens: 
     // than in a box above the list, detached from the entry it belongs to.
     const [created, setCreated] = useState<{ id: string; url: string } | null>(null);
 
+    // Both writes answer with the whole list, so the rendered order always
+    // matches the one a reload produces. Patching a local copy instead would
+    // have to guess where a new row sorts, and the labels below are derived
+    // from that order.
     const create = async () => {
         setCreating(true);
         try {
-            const token = await createMcpToken();
-            setCreated({ id: token.id, url: `${mcpBaseUrl}/${token.rawToken}` });
-            // Functional updates throughout: a revoke resolving after a create
-            // would otherwise write back a snapshot without the new row, and
-            // the raw URL renders inside that row and is shown only once.
-            setTokens(previous => [
-                {
-                    id: token.id,
-                    name: token.name,
-                    keyPrefix: token.rawToken.substring(0, 10),
-                    createdAt: new Date(),
-                    lastUsedAt: null,
-                    revokedAt: null,
-                },
-                ...previous,
-            ]);
+            const result = await createMcpToken();
+            setCreated({ id: result.id, url: `${mcpBaseUrl}/${result.rawToken}` });
+            setTokens(result.tokens);
         } finally {
             setCreating(false);
         }
     };
 
     const revoke = async (tokenId: string) => {
-        await revokeMcpToken(tokenId);
-        setTokens(previous =>
-            previous.map(token => (token.id === tokenId ? { ...token, revokedAt: new Date() } : token))
-        );
+        setTokens(await revokeMcpToken(tokenId));
         // A revoked address is a dead credential, and the panel below tells the
         // reader to keep it like a password. Stop showing it.
         setCreated(previous => (previous?.id === tokenId ? null : previous));

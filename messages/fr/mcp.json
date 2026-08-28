@@ -7,25 +7,15 @@
     "breadcrumb": "OpenCouncil MCP",
     "hero": {
         "title": "Interrogez votre assistant IA sur votre commune",
-        "lead": "Connectez Claude, ChatGPT ou tout assistant IA que vous utilisez à OpenCouncil. Votre assistant accède à la recherche, aux communes, aux élus et aux transcriptions complètes des séances — et répond avec des références à la source.",
-        "standard": "Fonctionne via MCP (Model Context Protocol), le standard ouvert par lequel les assistants IA se connectent à des sources externes.",
-        "examplesTitle": "Par exemple",
-        "example1": "Quels ont été les sujets les plus importants dans les communes la semaine dernière ?",
-        "example2": "Qu'a dit la municipalité au sujet des crèches ? Montre-moi exactement ce qui a été dit.",
-        "example3": "Rédige un post pour les réseaux sociaux avec les positions clés de la dernière séance du conseil.",
-        "example4": "Qu'a discuté le conseil au sujet de mon quartier ?"
+        "lead": "Donnez à ChatGPT ou Claude accès à OpenCouncil, et posez vos questions là où vous les posez déjà."
     },
     "url": {
-        "title": "Connexion",
-        "intro": "L'adresse du serveur MCP est publique — aucun compte n'est nécessaire pour la lecture :",
         "copy": "Copier",
-        "copied": "Copié"
+        "copied": "Copié",
+        "label": "Votre assistant a besoin d’une seule adresse."
     },
     "video": {
-        "title": "Guide en vidéo",
-        "caption": "Quatre minutes : comment connecter Claude et ChatGPT, et ce que vous pouvez demander ensuite. La vidéo est en grec.",
-        "iframeTitle": "Comment connecter Claude et ChatGPT à OpenCouncil",
-        "fallback": "La vidéo ne démarre pas ? Regardez-la sur Loom"
+        "watch": "Voir la vidéo (4 min, en grec)"
     },
     "clients": {
         "claude": {
@@ -48,7 +38,8 @@
         "claudeCode": {
             "title": "Claude Code et autres outils",
             "description": "Tout client MCP compatible streamable HTTP se connecte en une commande — par exemple dans Claude Code :"
-        }
+        },
+        "pickLabel": "Collez-la dans…"
     },
     "tokens": {
         "title": "Accès personnel",
@@ -67,5 +58,13 @@
         "revoked": "Révoquée",
         "empty": "Vous n'avez pas encore créé d'adresse personnelle.",
         "addressLabel": "Adresse {index}"
+    },
+    "examples": {
+        "title": "Ensuite, demandez",
+        "lead": "Votre assistant lit les mêmes archives publiques que le site affiche, et cite la source de chaque réponse.",
+        "example1": "Quels ont été les sujets les plus importants dans les communes la semaine dernière ?",
+        "example2": "Qu'a dit la municipalité au sujet des crèches ? Montre-moi exactement ce qui a été dit.",
+        "example3": "Rédige un post pour les réseaux sociaux avec les positions clés de la dernière séance du conseil.",
+        "example4": "Qu'a discuté le conseil au sujet de mon quartier ?"
     }
 }
