@@ -23,6 +23,9 @@ const ACTION_MODULES: Record<string, string[]> = {
     ],
 };
 
+const ACTION_ROOT = 'src/lib/actions';
+const PRIVATE_ACTION_ROOTS = ['src/lib/notifications'];
+
 const CLIENT_ROOTS = [
     'src/app',
     'src/components',
@@ -58,6 +61,10 @@ function isClientModule(source: string): boolean {
     return source.split('\n').slice(0, 3).some(line => /^\s*['"]use client['"];?/.test(line));
 }
 
+function isServerActionModule(source: string): boolean {
+    return source.split('\n').slice(0, 3).some(line => /^\s*['"]use server['"];?/.test(line));
+}
+
 describe('Server Action boundaries', () => {
     it.each(PRIVATE_MODULES)('%s stays private and server-only', relativePath => {
         const source = read(relativePath);
@@ -78,6 +85,21 @@ describe('Server Action boundaries', () => {
             expect([...exports].sort()).toEqual([...expectedExports].sort());
         },
     );
+
+    it('reviews every action module in the dedicated action directory', () => {
+        const actionModules = findSourceFiles(ACTION_ROOT)
+            .filter(relativePath => isServerActionModule(read(relativePath)))
+            .sort();
+
+        expect(actionModules).toEqual(Object.keys(ACTION_MODULES).sort());
+    });
+
+    it.each(PRIVATE_ACTION_ROOTS)('%s contains no Server Action modules', relativeRoot => {
+        const actionModules = findSourceFiles(relativeRoot)
+            .filter(relativePath => isServerActionModule(read(relativePath)));
+
+        expect(actionModules).toEqual([]);
+    });
 
     it('keeps private modules out of client runtime imports', () => {
         const violations: string[] = [];
