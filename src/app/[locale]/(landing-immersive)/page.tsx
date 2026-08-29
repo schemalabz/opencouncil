@@ -10,6 +10,7 @@ import { getMapSubjectsCached, getGeneralSubjectsCached, getSubjectCountsByCityC
 import { getListedCitiesCached, getMapCitiesCached, getPetitionedMapCitiesCached } from '@/lib/db/cities';
 import { getUpcomingMeetingsCached } from '@/lib/db/meetings';
 import { DEFAULT_RANGE, rangeToSubjectFilters } from '@/lib/landing/landingCore';
+import { toLandingSubjectPreview } from '@/lib/landing/payload';
 
 export async function generateMetadata(props: {
     params: Promise<{ locale: string }>;
@@ -72,8 +73,13 @@ export default async function HomePage() {
             realm={realm}
             defaultView={getRealmDefaultMapView(realm)}
             initial={{
-                subjects,
-                generalRows,
+                // Cards never render the full transcript-linked markdown. Serialize a bounded
+                // plain-text preview instead, while cached DB rows retain their full descriptions.
+                subjects: subjects.map(toLandingSubjectPreview),
+                generalRows: generalRows.map((row) => ({
+                    ...row,
+                    subjects: row.subjects.map(toLandingSubjectPreview),
+                })),
                 cities: cities.map((c) => ({
                     id: c.id,
                     name: c.name,

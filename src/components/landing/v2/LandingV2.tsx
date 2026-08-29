@@ -63,7 +63,8 @@ import { MobileLayout } from './MobileLayout';
 
 /**
  * The consolidated landing redesign (issue #208). Desktop (≥ lg): split-screen map + tabbed
- * side panel; mobile: immersive map-first layout. Only one <Map> is mounted at a time.
+ * side panel; mobile: immersive map-first layout. Only one <Map> is mounted at a time, after
+ * hydration has resolved which responsive tree owns it.
  *
  * Initial data is server-resolved in page.tsx (realm-scoped) and passed as typed props, so the
  * map renders real data on first paint. Only filter/geocode/cities-at lookups stay client-side.
@@ -128,6 +129,12 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
     // Default to desktop during SSR (matches=false until mounted) so desktop has no layout
     // flash; mobile flips in after hydration.
     const isMobile = useMediaQuery('(max-width: 1023px)');
+    // The server and first client render intentionally use the desktop tree. Do not put Mapbox in
+    // that temporary tree: on mobile it would initialize, immediately unmount, then initialize
+    // again inside MobileLayout after useMediaQuery resolves. The media-query effect is registered
+    // first, so React batches the responsive flip and this mount-ready update into one render.
+    const [mapMountReady, setMapMountReady] = useState(false);
+    useEffect(() => setMapMountReady(true), []);
 
     // On breakpoint cross, remap any stray 'home' (mobile-only leftover) to 'subjects' for
     // desktop; mobile keeps it. First run skipped — parseInitialUrlState already picked the view.
@@ -686,7 +693,7 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         petitionBucketFor: (cityId) => petitionedCities.find((c) => c.id === cityId)?.bucket ?? null,
     });
 
-    const mapNode = (
+    const mapNode = mapMountReady ? (
         <Map
             // remount on basemap switch; the camera is restored from cameraRef
             key={mapStyle}
@@ -705,7 +712,7 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
             zoomToGeometry={flyTo}
             zoomPadding={isMobile ? 120 : 80}
         />
-    );
+    ) : null;
 
     /**
      * Frame every result of the committed search.
