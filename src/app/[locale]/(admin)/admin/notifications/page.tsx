@@ -9,7 +9,7 @@ import { Bell, Filter, Loader2, RefreshCw, ChevronLeft, ChevronRight } from 'luc
 import { NotificationMeetingRow } from '@/components/admin/notifications/NotificationMeetingRow';
 import { NotificationBulkActions } from '@/components/admin/notifications/NotificationBulkActions';
 import { releaseNotificationsForMeeting, createMeetingKey } from '@/components/admin/notifications/utils';
-import { MeetingNotificationStats } from '@/lib/db/notifications';
+import type { MeetingNotificationStats } from '@/lib/db/notifications';
 import { useToast } from '@/hooks/use-toast';
 import { SendProductUpdateDialog } from '@/components/admin/product-updates/SendProductUpdateDialog';
 

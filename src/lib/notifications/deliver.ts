@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 
 import { sendEmail } from '@/lib/email/resend';
 import { getPendingDeliveries, updateDeliveryStatus } from '@/lib/db/notifications';
@@ -202,4 +202,3 @@ async function sendMessageDelivery(delivery: any): Promise<boolean> {
         return false;
     }
 }
-

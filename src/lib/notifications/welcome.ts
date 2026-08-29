@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 
 import { sendEmail } from '@/lib/email/resend';
 import { renderReactEmailToHtml } from '@/lib/email/render';
@@ -81,4 +81,3 @@ export async function sendWelcomeMessages(userId: string, city: City, phone?: st
         // Don't throw - welcome messages are nice-to-have, not critical
     }
 }
-

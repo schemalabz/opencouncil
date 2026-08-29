@@ -16,7 +16,7 @@ import { Link } from '@/i18n/routing';
 import { getLatestContributionsForParty } from '@/lib/db/contributions';
 import { ContributionForPerson } from '@/lib/db/types';
 import { ContributionCard } from '@/components/meetings/subject/ContributionCard';
-import { isUserAuthorizedToEdit } from '@/lib/auth';
+import { isUserAuthorizedToEdit } from '@/lib/actions/auth';
 import { getAdministrativeBodyTypesForPeople, filterPersonByAdminBodyTypes } from '@/lib/utils/administrativeBodies';
 import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';

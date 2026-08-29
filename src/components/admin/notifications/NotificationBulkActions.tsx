@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Send, Trash2, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { MeetingNotificationStats } from "@/lib/db/notifications";
+import type { MeetingNotificationStats } from "@/lib/db/notifications";
 import { releaseNotificationsForMeeting, parseMeetingKey, createMeetingKey } from "./utils";
 
 interface NotificationBulkActionsProps {

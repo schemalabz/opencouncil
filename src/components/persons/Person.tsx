@@ -15,7 +15,7 @@ import { Statistics } from "@/lib/statistics";
 import { getLatestContributionsForSpeaker } from '@/lib/db/contributions';
 import { ContributionForPerson } from '@/lib/db/types';
 import { ContributionCard } from '@/components/meetings/subject/ContributionCard';
-import { isUserAuthorizedToEdit } from '@/lib/auth';
+import { isUserAuthorizedToEdit } from '@/lib/actions/auth';
 import { motion } from 'framer-motion';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
 import { PersonWithRelations } from '@/lib/db/people';

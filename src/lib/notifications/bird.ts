@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 
 import { env } from '@/env.mjs';
 import { findRecentConversationIdByPhone } from '@/lib/db/messages';
@@ -533,4 +533,3 @@ export async function sendSMSMessage(
         'SMS'
     );
 }
-

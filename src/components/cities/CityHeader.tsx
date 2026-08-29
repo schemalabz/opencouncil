@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 import { Link } from '@/i18n/routing';
 import Image from 'next/image';
 import { Input } from '@/components/ui/input';
-import { isUserAuthorizedToEdit } from '@/lib/auth';
+import { isUserAuthorizedToEdit } from '@/lib/actions/auth';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -299,4 +299,4 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage, hasNoData 
             </motion.form>
         </>
     );
-} 
+}
