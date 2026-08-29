@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 
 import { NotificationPreference, Petition, City, Topic, User, Location, Prisma } from '@prisma/client';
 import { auth, signIn } from "@/auth";
@@ -52,11 +52,10 @@ async function getServerSession() {
 }
 
 /**
- * Ownership guard for the userId-parameterised functions below. Every export
- * in this "use server" module is a directly POST-able Server Action, so a
- * function that takes a userId cannot trust it — the caller could pass anyone's
- * id. Require the current session to own that id, or be a superadmin. This must
- * NOT be used by the token-authorised unsubscribe path (which has no session).
+ * Ownership guard for the userId-parameterised functions below.
+ * A browser-facing action or route can supply an arbitrary userId.
+ * Require the current session to own that id, or be a superadmin.
+ * Do not use this guard for the token-authorised unsubscribe path.
  */
 async function requireSelfOrSuperadmin(userId: string): Promise<void> {
     const actor = await getCurrentUser();
@@ -651,8 +650,8 @@ export async function calculateProximityMatches(
 // Caller-gated: invoked by the processAgenda/summarize tasks (no user session)
 // as well as the per-city notifications route and the superadmin conversations
 // action. Because a task caller has no session, this cannot take an inner auth
-// gate; its user-facing callers authorize first. Moving it off the "use server"
-// surface is a tracked follow-up.
+// gate; its user-facing callers authorize first. This server-only module keeps
+// the function off the Server Action surface.
 export async function createNotificationsForMeeting(
     cityId: string,
     meetingId: string,
@@ -1403,10 +1402,8 @@ export async function getUnsubscribeContext(userId: string, cityId?: string): Pr
 
 // The three unsubscribe functions below take a userId but are authorized by a
 // signed unsubscribe token at the route/page (no session), so they cannot use
-// requireSelfOrSuperadmin. They only ever clear a subscription flag or read the
-// unsubscribe context, so a POST with a guessed userId can at worst opt someone
-// out of email — never read protected data or escalate. Moving them to a
-// server-only module (off the action surface) is a tracked follow-up.
+// requireSelfOrSuperadmin. This server-only module prevents direct browser
+// calls that bypass the token check.
 export async function disableAllNotificationPreferences(userId: string) {
     await prisma.notificationPreference.updateMany({
         where: { userId },

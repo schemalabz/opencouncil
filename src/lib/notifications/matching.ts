@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 
 import { calculateProximityMatches } from '@/lib/db/notifications';
 
@@ -143,4 +143,3 @@ export async function calculateNotificationImpact(
         subjectImpact: Object.fromEntries(subjectImpact)
     };
 }
-

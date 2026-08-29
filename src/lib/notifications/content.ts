@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 
 import { render } from '@react-email/render';
 import { NotificationEmail } from '@/lib/email/templates/NotificationEmail';
@@ -93,4 +93,3 @@ export async function generateWelcomeSmsContent(
 ): Promise<string> {
     return `Γεια σας ${userName}! Εγγραφήκατε επιτυχώς για ειδοποιήσεις από το OpenCouncil για ${cityName}. Θα λαμβάνετε ενημερώσεις για θέματα που σας αφορούν.`;
 }
-

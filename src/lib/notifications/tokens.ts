@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 import { createHmac, timingSafeEqual } from 'crypto';
 import { env } from '@/env.mjs';
 

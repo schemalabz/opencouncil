@@ -1,5 +1,5 @@
-"use server";
-import { type City, type Party, type Person, type CouncilMeeting, type User } from "@prisma/client";
+import "server-only";
+import { type City, type Party, type Person, type CouncilMeeting } from "@prisma/client";
 import { cache } from "react";
 import { auth } from "@/auth";
 import prisma from "@/lib/db/prisma";
@@ -113,17 +113,19 @@ async function checkUserAuthorization({
     return false;
 }
 
+export type AuthorizationScope = {
+    cityId?: City["id"],
+    partyId?: Party["id"],
+    personId?: Person["id"],
+    councilMeetingId?: CouncilMeeting["id"]
+};
+
 export async function withUserAuthorizedToEdit({
     cityId,
     partyId,
     personId,
     councilMeetingId
-}: {
-    cityId?: City["id"],
-    partyId?: Party["id"],
-    personId?: Person["id"],
-    councilMeetingId?: CouncilMeeting["id"]
-}) {
+}: AuthorizationScope) {
     const isAuthorized = await checkUserAuthorization({
         cityId,
         partyId,
@@ -143,12 +145,7 @@ export async function isUserAuthorizedToEdit({
     partyId,
     personId,
     councilMeetingId
-}: {
-    cityId?: City["id"],
-    partyId?: Party["id"],
-    personId?: Person["id"],
-    councilMeetingId?: CouncilMeeting["id"]
-}) {
+}: AuthorizationScope) {
     return checkUserAuthorization({
         cityId,
         partyId,
@@ -206,37 +203,4 @@ export async function withServiceOrUserAuth(
     // still a second DB call. TODO: refactor checkUserAuthorization to return the user.
     const user = await getCurrentUser();
     return { type: 'user', userId: user!.id };
-}
-
-export async function getOrCreateUserFromRequest(
-    email?: string | null,
-    name?: string | null,
-    phone?: string | null
-) {
-    let user: User | null = await getCurrentUser()
-
-    if (!user) {
-        if (!email) {
-            return null
-        }
-        user = await prisma.user.upsert({
-            where: { email },
-            update: {},
-            create: {
-                email,
-                name,
-                phone,
-                allowProductUpdates: true,
-                onboarded: true,
-            },
-        })
-    } else if (phone) {
-        // If phone is provided, update the user's phone
-        user = await prisma.user.update({
-            where: { id: user.id },
-            data: { phone },
-        })
-    }
-
-    return user
 }

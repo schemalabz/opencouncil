@@ -31,7 +31,7 @@ import {
     Trash2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { MeetingNotificationStats, NotificationStatusCounts } from "@/lib/db/notifications";
+import type { MeetingNotificationStats, NotificationStatusCounts } from "@/lib/db/notifications";
 import { createMeetingKey } from "./utils";
 
 interface NotificationMeetingRowProps {

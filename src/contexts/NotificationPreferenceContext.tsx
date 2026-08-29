@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext } from 'react';
-import { CityNotificationPreference } from '@/lib/db/notifications';
+import type { CityNotificationPreference } from '@/lib/db/notifications';
 
 type NotificationPreferenceContextValue = {
     notificationPreference: CityNotificationPreference | null;

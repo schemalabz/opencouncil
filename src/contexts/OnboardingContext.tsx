@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { CityWithGeometry } from '@/lib/db/cities';
 import { OnboardingContextType, OnboardingStage } from '@/lib/types/onboarding';
-import { saveNotificationPreferences, savePetition, getUserPreferences } from '@/lib/db/notifications';
+import { saveNotificationPreferences, savePetition, getUserPreferences } from '@/lib/actions/notifications';
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import posthog from "posthog-js";
@@ -329,4 +329,4 @@ export function useOnboarding() {
         throw new Error('useOnboarding must be used within an OnboardingProvider');
     }
     return context;
-} 
+}

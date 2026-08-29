@@ -21,7 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 // @ts-ignore
 import klitiki from "greek-name-klitiki"
 import { useEffect, useState } from "react"
-import { isUserAuthorizedToEdit } from "@/lib/auth"
+import { isUserAuthorizedToEdit } from "@/lib/actions/auth"
 
 export default function UserDropdown({ currentEntity }: { currentEntity?: { cityId: string } }) {
     const { data: session, status } = useSession()
