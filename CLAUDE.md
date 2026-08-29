@@ -136,9 +136,17 @@ src/
 
 ### Authentication Patterns
 
-**Always use methods from `src/lib/auth.ts`**:
+**Server code must use methods from `src/lib/auth.ts`**:
 - `isUserAuthorizedToEdit()` - Returns boolean (for conditional UI)
 - `withUserAuthorizedToEdit()` - Throws if not authorized (for API routes)
+
+`src/lib/auth.ts` is a `server-only` module. A Client Component must import
+`isUserAuthorizedToEdit()` from `src/lib/actions/auth.ts`. This file is the
+reviewed Server Action wrapper for client-side edit controls.
+
+Keep private data access and service functions in `server-only` modules. Put
+browser-callable functions in a dedicated `src/lib/actions/` module. Do not add
+`"use server"` to a data access or service module.
 
 **CRITICAL**: Both methods are async and must be await-ed to prevent auth bypass bugs.
 
