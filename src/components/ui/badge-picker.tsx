@@ -198,7 +198,7 @@ function BadgeButtons<T extends string>({
                         style={
                             option.color
                                 ? isSelected
-                                    ? { backgroundColor: option.color, borderColor: option.color, color: '#fff' }
+                                    ? { backgroundColor: option.color, borderColor: option.color, color: topicStyle(option.color, 'solid').icon }
                                     : { borderColor: `${option.color}40` }
                                 : undefined
                         }
@@ -209,14 +209,14 @@ function BadgeButtons<T extends string>({
                             <Icon
                                 name={option.icon}
                                 size={14}
-                                color={isSelected ? '#fff' : topicStyle(option.color).icon}
+                                color={isSelected ? topicStyle(option.color, 'solid').icon : topicStyle(option.color).icon}
                             />
                         ) : option.color && (
                             <div
                                 className="w-1.5 h-1.5 rounded-full"
                                 aria-hidden="true"
                                 style={{
-                                    backgroundColor: isSelected ? '#fff' : option.color
+                                    backgroundColor: isSelected ? topicStyle(option.color, 'solid').icon : option.color
                                 }}
                             />
                         )}
