@@ -14,7 +14,7 @@ import { cn, filterActiveRoles, getPartyFromRoles } from "@/lib/utils";
 import useSWR from "swr";
 import { TopicIcon } from '@/components/TopicIcon';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
-import { getAgendaFullLabel } from '@/lib/utils/subjects';
+import { AgendaStateChip } from "@/components/subject/AgendaStateChip";
 import { surfaceCardClass } from '@/components/ui/surface-card';
 
 interface UtteranceTimeRange {
@@ -38,6 +38,7 @@ interface ContributionCardProps {
         topic: { name: string; colorHex: string; icon: string | null } | null;
         agendaItemIndex?: number | null;
         nonAgendaReason?: string | null;
+        withdrawn?: boolean;
     };
     /** Render the in-page play button. Disable on pages without a VideoProvider (e.g. Person page). */
     showPlayButton?: boolean;
@@ -201,10 +202,6 @@ export const ContributionCard = memo(function ContributionCard({
     }
 
     // Subject-lead: the subject heads the card; the party keeps the left edge.
-    const agendaLabel = getAgendaFullLabel(t, {
-        agendaItemIndex: contextHeader.agendaItemIndex ?? null,
-        nonAgendaReason: contextHeader.nonAgendaReason ?? null,
-    });
     const subjectUrl = `/${meeting.cityId}/${meeting.id}/subjects/${subjectId}`;
     return (
         <article
@@ -225,11 +222,14 @@ export const ContributionCard = memo(function ContributionCard({
                         <ArrowUpRight className="mb-0.5 ml-1 inline h-3.5 w-3.5 shrink-0 text-muted-foreground transition-colors group-hover/subject:text-[hsl(var(--orange))]" aria-hidden />
                     </Link>
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-                        {agendaLabel !== null && (
-                            <span className="inline-flex h-[18px] items-center rounded bg-muted px-1.5 text-[10px] font-bold text-muted-foreground">
-                                {agendaLabel}
-                            </span>
-                        )}
+                        <AgendaStateChip
+                            subject={{
+                                withdrawn: contextHeader.withdrawn ?? false,
+                                agendaItemIndex: contextHeader.agendaItemIndex ?? null,
+                                nonAgendaReason: contextHeader.nonAgendaReason ?? null,
+                            }}
+                            t={t}
+                        />
                         <span className="text-[11px] text-muted-foreground">
                             {contextHeader.adminBodyName ?? contextHeader.meetingName}
                             {' · '}
