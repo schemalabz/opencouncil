@@ -13,7 +13,7 @@ import { IS_DEV } from '@/lib/utils';
 import { isOutOfNetwork } from '@/lib/cityStatus';
 import { useToast } from '@/hooks/use-toast';
 import { getLocalizedName } from '@/lib/formatters/name';
-import { AdminStrip, adminToolClass } from '@/components/admin/AdminStrip';
+import { AdminStrip, AdminToolButton, adminToolClass } from '@/components/admin/AdminStrip';
 
 type CityAdminToolsProps = {
     city: City;
@@ -78,7 +78,6 @@ export function CityAdminTools({ city, cityMessage, canEdit, isSuperAdmin, hasNo
         }
     };
 
-    const toolClassName = adminToolClass;
 
     return (
         <AdminStrip className="w-full">
@@ -92,26 +91,26 @@ export function CityAdminTools({ city, cityMessage, canEdit, isSuperAdmin, hasNo
                         type="edit"
                         triggerVariant="ghost"
                         triggerSize="sm"
-                        triggerClassName={toolClassName}
+                        triggerClassName={adminToolClass}
                         // The form carries a boundary map and a nested bodies list;
                         // the sheet's default 384px column cannot hold either.
                         contentClassName="w-full sm:max-w-2xl" 
                     />
-                    <Button asChild variant="ghost" size="sm" className={toolClassName}>
+                    <AdminToolButton asChild>
                         <Link href={`/${city.id}/widget`} className="hover:no-underline">
                             <Code className="w-3.5 h-3.5 mr-1.5" />
                             {t('widget')}
                         </Link>
-                    </Button>
+                    </AdminToolButton>
                 </>
             )}
             {canImport && (
                 <Sheet open={isCityCreatorOpen} onOpenChange={setIsCityCreatorOpen}>
                     <SheetTrigger asChild>
-                        <Button variant="ghost" size="sm" className={toolClassName}>
+                        <AdminToolButton>
                             <Database className="w-3.5 h-3.5 mr-1.5" />
                             Import Data
-                        </Button>
+                        </AdminToolButton>
                     </SheetTrigger>
                     <SheetContent className="max-w-4xl w-full sm:max-w-4xl overflow-y-auto">
                         <SheetHeader>
@@ -132,16 +131,14 @@ export function CityAdminTools({ city, cityMessage, canEdit, isSuperAdmin, hasNo
                 </Sheet>
             )}
             {canReset && (
-                <Button
-                    variant="ghost"
-                    size="sm"
+                <AdminToolButton
+                    destructive
                     onClick={handleResetCity}
                     disabled={isResetting}
-                    className="h-8 rounded-[6px] px-2.5 text-xs text-destructive hover:!bg-destructive/10 hover:text-destructive"
                 >
                     <Database className={`w-3.5 h-3.5 mr-1.5 ${isResetting ? 'animate-spin' : ''}`} />
                     Reset City
-                </Button>
+                </AdminToolButton>
             )}
         </AdminStrip>
     );

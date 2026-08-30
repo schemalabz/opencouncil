@@ -6,8 +6,7 @@ import FormSheet from '../FormSheet';
 import PersonForm from './PersonForm';
 import { toast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { Search, ExternalLink, FileText } from "lucide-react";
-import { Input } from '../ui/input';
+import { ExternalLink, FileText, Star, Landmark, ChevronDown } from "lucide-react";
 import { useState, useEffect, useMemo } from 'react';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from '@/i18n/routing';
@@ -19,17 +18,16 @@ import { isUserAuthorizedToEdit } from '@/lib/actions/auth';
 import { motion } from 'framer-motion';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
 import { PersonWithRelations } from '@/lib/db/people';
-import { cn, filterActiveRoles, filterInactiveRoles, formatDateRange, getRoleText } from '@/lib/utils';
+import { filterActiveRoles, filterInactiveRoles, formatDateRange, getPartyFromRoles, getRoleText } from '@/lib/utils';
 import { TopicFilter } from '@/components/TopicFilter';
 import { RoleWithRelations } from '@/lib/db/types';
 import { useSession } from 'next-auth/react';
 import { DebugMetadataButton } from '../ui/debug-metadata-button';
-import { AdminStrip, adminToolClass } from '@/components/admin/AdminStrip';
-import { RailCard } from '@/components/ui/rail-card';
-import { AIGeneratedBadge } from '@/components/AIGeneratedBadge';
+import { AdminStrip, AdminToolButton, adminToolClass } from '@/components/admin/AdminStrip';
+import { RailCard, RailMeterRow } from '@/components/ui/rail-card';
+import { EntityHeader, FactDot } from '@/components/EntityHeader';
+import { ContributionsHead } from '@/components/ContributionsHead';
 import Icon from '@/components/icon';
-import { Star, Landmark, ChevronDown } from 'lucide-react';
-import { getPartyFromRoles } from '@/lib/utils';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { topicStyle } from '@/lib/topicStyle';
 
@@ -49,6 +47,9 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
     const [contributions, setContributions] = useState<ContributionForPerson[]>([]);
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
+    // The identity band's fact: the career-wide total, untouched by the list's
+    // topic filter — totalCount tracks whatever the list currently shows.
+    const [careerCount, setCareerCount] = useState(0);
     const [canEdit, setCanEdit] = useState(false);
     const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
     const [isLoadingContributions, setIsLoadingContributions] = useState(false);
@@ -103,6 +104,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                 );
                 setContributions(results);
                 setTotalCount(totalCount);
+                if (!selectedTopicId) setCareerCount(totalCount);
                 setPage(1);
             } catch (error) {
                 console.error('Error fetching contributions:', error);
@@ -211,8 +213,9 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                         the app's chip language, and a line of countable facts — the old hero
                         said nothing a reader could compare. Admin controls live in the
                         hazard-striped corner every back-of-house control now uses. */}
-                    <header className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
-                        <span className="block h-[84px] w-[84px] shrink-0">
+                    <EntityHeader
+                        avatar={(
+                            <span className="block h-[84px] w-[84px] shrink-0">
                             <ImageOrInitials
                                 imageUrl={person.image}
                                 name={person.name}
@@ -221,86 +224,89 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                 height={84}
                             />
                         </span>
-                        <div className="min-w-0 flex-1">
-                            <h1 className="!text-left text-2xl leading-tight tracking-tight sm:text-3xl">{person.name}</h1>
-                            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                                {activeRoles.map(role => {
-                                    if (role.partyId && role.party) {
-                                        const style = topicStyle(role.party.colorHex);
-                                        return (
-                                            <Link
-                                                key={role.id}
-                                                href={`/${city.id}/parties/${role.partyId}`}
-                                                className="inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-[11.5px] font-bold hover:no-underline"
-                                                style={{ backgroundColor: style.background, borderColor: style.border, color: style.icon }}
-                                            >
-                                                {role.isHead && <Star className="h-3 w-3 shrink-0" aria-hidden />}
-                                                {getLocalizedName(role.party, locale)}
-                                                {role.isHead && ` · ${t('partyLeaderShort')}`}
-                                            </Link>
-                                        );
-                                    }
-                                    const cityLevel = role.cityId && !role.administrativeBodyId;
-                                    return (
-                                        <span
-                                            key={role.id}
-                                            className="inline-flex h-6 items-center gap-1.5 rounded-full bg-muted px-2.5 text-[11.5px] font-bold text-muted-foreground"
-                                        >
-                                            {cityLevel && role.isHead
-                                                ? <Star className="h-3 w-3 shrink-0 text-[hsl(var(--orange-deep))]" aria-hidden />
-                                                : <Landmark className="h-3 w-3 shrink-0" aria-hidden />}
-                                            {role.name || (role.administrativeBody ? getLocalizedName(role.administrativeBody, locale) : t('member'))}
-                                        </span>
-                                    );
-                                })}
-                                {isIndependentCouncilMember && (
-                                    <span className="text-sm italic text-muted-foreground">{t('independentCouncilMember')}</span>
-                                )}
-                            </div>
-                            <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-muted-foreground">
-                                {totalCount > 0 && <span>{t('statementsFact', { count: totalCount })}</span>}
-                                {totalCount > 0 && speakingMinutes > 0 && <span aria-hidden>·</span>}
-                                {speakingMinutes > 0 && <span>{t('speakingFact', { minutes: speakingMinutes })}</span>}
-                                {person.profileUrl && (
-                                    <>
-                                        {(totalCount > 0 || speakingMinutes > 0) && <span aria-hidden>·</span>}
-                                        <a
-                                            href={person.profileUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
-                                        >
-                                            <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-                                            {t('biography')}
-                                        </a>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                        {(canEdit || isSuperAdmin) && (
-                            <AdminStrip className="shrink-0 self-start">
-                                {canEdit && (
-                                    <>
-                                        <FormSheet
-                                            FormComponent={PersonForm}
-                                            formProps={{ person, cityId: person.cityId, parties, administrativeBodies }}
-                                            title={t('editPerson')}
-                                            type="edit"
-                                            triggerVariant="ghost"
-                                            triggerSize="sm"
-                                            triggerClassName={adminToolClass}
-                                        />
-                                        <Button variant="ghost" size="sm" onClick={onDelete} className={cn(adminToolClass, 'text-destructive hover:!text-destructive')}>
-                                            {t('deletePerson')}
-                                        </Button>
-                                    </>
-                                )}
-                                {isSuperAdmin && (
-                                    <DebugMetadataButton data={person} title="Person Metadata" tooltip="View person metadata" />
-                                )}
-                            </AdminStrip>
                         )}
-                    </header>
+                        name={person.name}
+                        badges={(
+                            <>
+                            {activeRoles.map(role => {
+                                if (role.partyId && role.party) {
+                                    const style = topicStyle(role.party.colorHex);
+                                    return (
+                                        <Link
+                                            key={role.id}
+                                            href={`/${city.id}/parties/${role.partyId}`}
+                                            className="inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-[11.5px] font-bold hover:no-underline"
+                                            style={{ backgroundColor: style.background, borderColor: style.border, color: style.icon }}
+                                        >
+                                            {role.isHead && <Star className="h-3 w-3 shrink-0" aria-hidden />}
+                                            {getLocalizedName(role.party, locale)}
+                                            {role.isHead && ` · ${t('partyLeaderShort')}`}
+                                        </Link>
+                                    );
+                                }
+                                const cityLevel = role.cityId && !role.administrativeBodyId;
+                                return (
+                                    <span
+                                        key={role.id}
+                                        className="inline-flex h-6 items-center gap-1.5 rounded-full bg-muted px-2.5 text-[11.5px] font-bold text-muted-foreground"
+                                    >
+                                        {cityLevel && role.isHead
+                                            ? <Star className="h-3 w-3 shrink-0 text-[hsl(var(--orange-deep))]" aria-hidden />
+                                            : <Landmark className="h-3 w-3 shrink-0" aria-hidden />}
+                                        {getRoleText(role, t)}
+                                    </span>
+                                );
+                            })}
+                            {isIndependentCouncilMember && (
+                                <span className="text-sm italic text-muted-foreground">{t('independentCouncilMember')}</span>
+                            )}
+                            </>
+                        )}
+                        facts={(
+                            <>
+                            {careerCount > 0 && <span>{t('statementsFact', { count: careerCount })}</span>}
+                            {careerCount > 0 && speakingMinutes > 0 && <FactDot />}
+                            {speakingMinutes > 0 && <span>{t('speakingFact', { minutes: speakingMinutes })}</span>}
+                            {person.profileUrl && (
+                                <>
+                                    {(careerCount > 0 || speakingMinutes > 0) && <FactDot />}
+                                    <a
+                                        href={person.profileUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                                    >
+                                        <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                                        {t('biography')}
+                                    </a>
+                                </>
+                            )}
+                            </>
+                        )}
+                        admin={(canEdit || isSuperAdmin) && (
+                        <AdminStrip className="shrink-0 self-start">
+                            {canEdit && (
+                                <>
+                                    <FormSheet
+                                        FormComponent={PersonForm}
+                                        formProps={{ person, cityId: person.cityId, parties, administrativeBodies }}
+                                        title={t('editPerson')}
+                                        type="edit"
+                                        triggerVariant="ghost"
+                                        triggerSize="sm"
+                                        triggerClassName={adminToolClass}
+                                    />
+                                    <AdminToolButton destructive onClick={onDelete}>
+                                        {t('deletePerson')}
+                                    </AdminToolButton>
+                                </>
+                            )}
+                            {isSuperAdmin && (
+                                <DebugMetadataButton data={person} title="Person Metadata" tooltip="View person metadata" />
+                            )}
+                        </AdminStrip>
+                        )}
+                    />
 
                     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_316px] lg:gap-10">
                     <motion.div
@@ -309,22 +315,15 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                         transition={{ delay: 0.4 }}
                         className="relative min-w-0"
                     >
-                        <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-                            <h2 className="!m-0 !text-left text-[15px] font-extrabold tracking-[.01em]">
-                                {t('recentContributions')}
-                                {totalCount > 0 && <span className="ml-1.5 font-normal text-muted-foreground">({totalCount})</span>}
-                            </h2>
-                            <AIGeneratedBadge />
-                            <form onSubmit={handleSearch} className="relative ml-auto w-full sm:w-[260px]">
-                                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
-                                <Input
-                                    placeholder={tCommon('search')}
-                                    className="h-8 rounded-full pl-9 text-xs"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
-                            </form>
-                        </div>
+                        <ContributionsHead
+                            className="mb-3"
+                            title={t('recentContributions')}
+                            count={totalCount}
+                            placeholder={tCommon('search')}
+                            searchValue={searchQuery}
+                            onSearchChange={setSearchQuery}
+                            onSearchSubmit={handleSearch}
+                        />
 
                         {relevantTopics.length > 0 && (
                             <TopicFilter 
@@ -362,6 +361,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                                 subjectName: contribution.subject.name,
                                                 agendaItemIndex: contribution.subject.agendaItemIndex,
                                                 nonAgendaReason: contribution.subject.nonAgendaReason,
+                                                withdrawn: contribution.subject.withdrawn,
                                                 topic: contribution.subject.topic
                                                     ? {
                                                         name: contribution.subject.topic.name,
@@ -442,30 +442,20 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                         {topTopics.length > 0 && (
                             <RailCard title={t('topTopicsCard')}>
                                 <ul className="space-y-3">
-                                    {topTopics.map(({ item: topic, speakingSeconds }) => {
-                                        const style = topicStyle(topic.colorHex);
-                                        const minutes = Math.max(1, Math.round(speakingSeconds / 60));
-                                        return (
-                                            <li key={topic.id}>
-                                                <div className="flex items-baseline justify-between gap-2">
-                                                    <span className="inline-flex min-w-0 items-center gap-1.5 text-[13px] font-semibold">
-                                                        <span className="flex shrink-0" aria-hidden><Icon name={topic.icon ?? 'tag'} size={14} color={style.icon} /></span>
-                                                        <span className="truncate">{topic.name}</span>
-                                                    </span>
-                                                    <span className="shrink-0 text-[12px] tabular-nums text-muted-foreground">{minutes}′</span>
-                                                </div>
-                                                <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
-                                                    <div
-                                                        className="h-full rounded-full"
-                                                        style={{
-                                                            width: `${Math.max(6, Math.round((speakingSeconds / topTopics[0].speakingSeconds) * 100))}%`,
-                                                            backgroundColor: topic.colorHex,
-                                                        }}
-                                                    />
-                                                </div>
-                                            </li>
-                                        );
-                                    })}
+                                    {topTopics.map(({ item: topic, speakingSeconds }) => (
+                                        <RailMeterRow
+                                            key={topic.id}
+                                            icon={(
+                                                <span className="flex shrink-0" aria-hidden>
+                                                    <Icon name={topic.icon ?? 'tag'} size={14} color={topicStyle(topic.colorHex).icon} />
+                                                </span>
+                                            )}
+                                            label={getLocalizedName(topic, locale)}
+                                            value={`${Math.max(1, Math.round(speakingSeconds / 60))}′`}
+                                            ratio={speakingSeconds / topTopics[0].speakingSeconds}
+                                            color={topic.colorHex}
+                                        />
+                                    ))}
                                 </ul>
                             </RailCard>
                         )}

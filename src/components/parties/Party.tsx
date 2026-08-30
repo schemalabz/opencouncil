@@ -9,26 +9,26 @@ import { Button } from '../ui/button';
 import { PartyWithPersons } from '@/lib/db/parties';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from '@/hooks/use-toast';
-import { Search } from "lucide-react";
-import { Input } from '../ui/input';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from '@/i18n/routing';
 import { getLatestContributionsForParty } from '@/lib/db/contributions';
 import { ContributionForPerson } from '@/lib/db/types';
 import { ContributionCard, ContributionCardSkeleton } from '@/components/meetings/subject/ContributionCard';
-import { AIGeneratedBadge } from '@/components/AIGeneratedBadge';
 import { isUserAuthorizedToEdit } from '@/lib/actions/auth';
 import { getAdministrativeBodyTypesForPeople, filterPersonByAdminBodyTypes } from '@/lib/utils/administrativeBodies';
 import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';
-import { cn, filterActiveRoles, filterInactiveRoles, formatDateRange, isRoleActive, getActivePartyRole, getDateRangeFromRoles } from '@/lib/utils';
+import { filterActiveRoles, filterInactiveRoles, formatDateRange, isRoleActive, getActivePartyRole, getDateRangeFromRoles } from '@/lib/utils';
 import { sortPartyMembers, sortInactivePartyMembers } from '@/lib/sorting/people';
 import { BadgePicker } from '../ui/badge-picker';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PersonWithRelations } from '@/lib/db/people';
 import PartyMemberRankingSheet from './PartyMemberRankingSheet';
-import { AdminStrip, adminToolClass } from '@/components/admin/AdminStrip';
-import { RailCard } from '@/components/ui/rail-card';
+import { AdminStrip, AdminToolButton, adminToolClass } from '@/components/admin/AdminStrip';
+import { RailCard, RailMeterRow } from '@/components/ui/rail-card';
+import { EntityHeader, FactDot } from '@/components/EntityHeader';
+import { ContributionsHead } from '@/components/ContributionsHead';
+import { GoverningPartyChip } from '@/components/parties/GoverningPartyChip';
 import { partyComposition } from '@/lib/party/composition';
 import { topicStyle } from '@/lib/topicStyle';
 import { getInitials } from '@/lib/formatters/name';
@@ -256,22 +256,15 @@ function SegmentsTab({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="flex flex-wrap items-center gap-x-3 gap-y-2"
             >
-                <h2 className="!m-0 !text-left text-lg font-semibold sm:text-xl">
-                    {t('recentContributions')}
-                    {totalCount > 0 && <span className="ml-1.5 text-sm font-normal text-muted-foreground">({totalCount})</span>}
-                </h2>
-                <AIGeneratedBadge />
-                <form onSubmit={handleSearch} className="relative ml-auto w-full sm:w-[260px]">
-                    <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
-                    <Input
-                        placeholder={tCommon('search')}
-                        className="h-8 rounded-full pl-9 text-xs"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                </form>
+                <ContributionsHead
+                    title={t('recentContributions')}
+                    count={totalCount}
+                    placeholder={tCommon('search')}
+                    searchValue={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    onSearchSubmit={handleSearch}
+                />
             </motion.div>
 
             {typeOptions.length > 1 && (
@@ -317,6 +310,7 @@ function SegmentsTab({
                                         subjectName: contribution.subject.name,
                                         agendaItemIndex: contribution.subject.agendaItemIndex,
                                         nonAgendaReason: contribution.subject.nonAgendaReason,
+                                        withdrawn: contribution.subject.withdrawn,
                                         topic: contribution.subject.topic
                                             ? {
                                                 name: contribution.subject.topic.name,
@@ -550,8 +544,8 @@ export default function PartyC({ city, party, administrativeBodies }: {
                         chips use — then its standing and the seat facts a reader can
                         compare across parties. Admin controls sit in the hazard-striped
                         corner every back-of-house control now uses. */}
-                    <header className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
-                        {party.logo ? (
+                    <EntityHeader
+                        avatar={party.logo ? (
                             <span className="block h-[84px] w-[84px] shrink-0">
                                 <ImageOrInitials
                                     imageUrl={party.logo}
@@ -571,32 +565,25 @@ export default function PartyC({ city, party, administrativeBodies }: {
                                 {getInitials(party.name_short || party.name)}
                             </span>
                         )}
-                        <div className="min-w-0 flex-1">
-                            <h1 className="!text-left text-2xl leading-tight tracking-tight sm:text-3xl">{party.name}</h1>
-                            {(composition.hasMayor || partyLeader) && (
-                                <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                                    {composition.hasMayor && (
-                                        <span
-                                            className="inline-flex items-center rounded-full px-2 py-[3px] text-[11px] font-semibold leading-none text-foreground"
-                                            style={{ backgroundColor: `color-mix(in srgb, ${party.colorHex} 22%, transparent)` }}
+                        name={party.name}
+                        badges={(composition.hasMayor || partyLeader) && (
+                            <>
+                                {composition.hasMayor && <GoverningPartyChip colorHex={party.colorHex} />}
+                                {partyLeader && (
+                                    <span className="inline-flex items-center gap-1.5 text-sm">
+                                        <span className="text-muted-foreground">{t('leaderLabel')}</span>
+                                        <Link
+                                            href={`/${city.id}/people/${partyLeader.person.id}`}
+                                            className="font-medium hover:underline"
                                         >
-                                            {tOverview('governingParty')}
-                                        </span>
-                                    )}
-                                    {partyLeader && (
-                                        <span className="inline-flex items-center gap-1.5 text-sm">
-                                            <span className="text-muted-foreground">{t('leaderLabel')}</span>
-                                            <Link
-                                                href={`/${city.id}/people/${partyLeader.person.id}`}
-                                                className="font-medium hover:underline"
-                                            >
-                                                {partyLeader.person.name}
-                                            </Link>
-                                        </span>
-                                    )}
-                                </div>
-                            )}
-                            <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-muted-foreground">
+                                            {partyLeader.person.name}
+                                        </Link>
+                                    </span>
+                                )}
+                            </>
+                        )}
+                        facts={(
+                            <>
                                 <span>
                                     <span className="font-bold tabular-nums" style={{ color: party.colorHex }}>{composition.council}</span>
                                     {' '}
@@ -604,21 +591,21 @@ export default function PartyC({ city, party, administrativeBodies }: {
                                 </span>
                                 {composition.committee > 0 && (
                                     <>
-                                        <span aria-hidden>·</span>
+                                        <FactDot />
                                         <span>{tOverview('inCommittees', { count: composition.committee })}</span>
                                     </>
                                 )}
                                 {composition.community > 0 && (
                                     <>
-                                        <span aria-hidden>·</span>
+                                        <FactDot />
                                         <span>{tOverview('inCommunities', { count: composition.community })}</span>
                                     </>
                                 )}
-                                <span aria-hidden>·</span>
+                                <FactDot />
                                 <span>{t('membersCount', { count: composition.members.length })}</span>
-                            </div>
-                        </div>
-                        {canEdit && (
+                            </>
+                        )}
+                        admin={canEdit && (
                             <AdminStrip className="shrink-0 self-start">
                                 <FormSheet
                                     FormComponent={PartyForm}
@@ -629,12 +616,12 @@ export default function PartyC({ city, party, administrativeBodies }: {
                                     triggerSize="sm"
                                     triggerClassName={adminToolClass}
                                 />
-                                <Button variant="ghost" size="sm" onClick={onDelete} className={cn(adminToolClass, 'text-destructive hover:!text-destructive')}>
+                                <AdminToolButton destructive onClick={onDelete}>
                                     {t('deleteParty')}
-                                </Button>
+                                </AdminToolButton>
                             </AdminStrip>
                         )}
-                    </header>
+                    />
 
                     {/* Main and rail: the tabs carry the roster and the record, the
                         rail keeps the party's composition and its επικεφαλής in view
@@ -684,21 +671,13 @@ export default function PartyC({ city, party, administrativeBodies }: {
                             <RailCard title={t('compositionCard')}>
                                 <ul className="space-y-3">
                                     {compositionRows.map(row => (
-                                        <li key={row.key}>
-                                            <div className="flex items-baseline justify-between gap-2">
-                                                <span className="min-w-0 truncate text-[13px] font-semibold">{row.label}</span>
-                                                <span className="shrink-0 text-[12px] tabular-nums text-muted-foreground">{row.count}</span>
-                                            </div>
-                                            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
-                                                <div
-                                                    className="h-full rounded-full"
-                                                    style={{
-                                                        width: `${Math.max(6, Math.round((row.count / compositionMax) * 100))}%`,
-                                                        backgroundColor: party.colorHex,
-                                                    }}
-                                                />
-                                            </div>
-                                        </li>
+                                        <RailMeterRow
+                                            key={row.key}
+                                            label={row.label}
+                                            value={row.count}
+                                            ratio={row.count / compositionMax}
+                                            color={party.colorHex}
+                                        />
                                     ))}
                                 </ul>
                                 <div className="mt-3 border-t border-border pt-2.5 text-[12px] text-muted-foreground">

@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { Button, type ButtonProps } from '@/components/ui/button';
 
 /**
  * The container that marks a row of back-of-house controls.
@@ -39,3 +40,19 @@ export function AdminStrip({ className, children }: { className?: string; childr
  */
 export const adminToolClass =
     'h-8 rounded-[6px] px-2.5 text-xs text-muted-foreground hover:!bg-[hsl(var(--orange))]/[0.14] hover:text-foreground';
+
+/**
+ * A control inside {@link AdminStrip}, wearing {@link adminToolClass} so no
+ * call site re-assembles the ghost/sm/quiet recipe by hand. `destructive`
+ * keeps the text red through adminToolClass's own hover-to-foreground.
+ */
+export function AdminToolButton({ destructive, className, ...props }: ButtonProps & { destructive?: boolean }) {
+    return (
+        <Button
+            variant="ghost"
+            size="sm"
+            className={cn(adminToolClass, destructive && 'text-destructive hover:!text-destructive', className)}
+            {...props}
+        />
+    );
+}
