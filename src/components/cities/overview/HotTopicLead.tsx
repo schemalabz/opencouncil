@@ -1,13 +1,13 @@
 import { ArrowRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
-import Icon from '@/components/icon';
 import { PersonAvatarList } from '@/components/persons/PersonAvatarList';
 import type { HotSubjectCard } from '@/lib/hotSubjectCards';
 import { formatDate } from '@/lib/formatters/time';
 import { stripMarkdown } from '@/lib/formatters/markdown';
 import { localizeText } from '@/lib/serbian';
 import { topicStyle } from '@/lib/topicStyle';
+import { TopicPill } from '@/components/TopicPill';
 import { hotTopicBarWidth } from '@/lib/utils/subjects';
 import { AdminBodyLabel } from './AdminBodyLabel';
 
@@ -70,13 +70,12 @@ export function HotTopicLead({ card, rank, maxSeconds, cityId, timezone, locale 
                             column. As a band across the container top it read as a heading for
                             the whole ranking — seven subjects under one topic. */}
                         {subject.topic && (
-                            <span
-                                className="mb-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold leading-none"
-                                style={{ backgroundColor: topic.background, borderColor: topic.border, color: topic.icon }}
-                            >
-                                <Icon name={subject.topic.icon || 'hash'} color="currentColor" size={13} />
-                                {localizeText(subject.topic.name, locale)}
-                            </span>
+                            <TopicPill
+                                className="mb-2"
+                                label={localizeText(subject.topic.name, locale)}
+                                icon={subject.topic.icon}
+                                colorHex={subject.topic.colorHex}
+                            />
                         )}
                         <h3 className="!text-left text-lg leading-tight sm:text-xl">
                             <Link href={href} prefetch={false} className="hover:no-underline">

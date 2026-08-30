@@ -25,11 +25,10 @@ import { requestPollDecisionForSubject, getLastPollTimeForMeeting, getDecisionFo
 import { useSubjectHeader } from "@/contexts/SubjectHeaderContext";
 import { useVideo } from "@/components/meetings/VideoProvider";
 import type { Statistics } from "@/lib/statistics";
-import Icon from "@/components/icon";
-import { topicStyle } from "@/lib/topicStyle";
+import { TopicPill } from "@/components/TopicPill";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
-import { getAgendaLabel, getWithdrawnLabel } from "@/lib/utils/subjects";
+import { getAgendaFullLabel, getWithdrawnLabel } from "@/lib/utils/subjects";
 import { SubjectAdminControls } from "./SubjectAdminControls";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { useLocalizeText } from "@/hooks/useLocalizeText";
@@ -85,7 +84,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     })) || [];
 
     const totalMinutes = Math.round(subject.statistics?.speakingSeconds ? subject.statistics.speakingSeconds / 60 : 0);
-    const agendaLabel = getAgendaLabel(t, subject);
+    const agendaLabel = getAgendaFullLabel(t, subject);
 
     // Where the subject's discussion starts in the video — the first identified
     // speaker's first utterance, the same lookup every card makes for its own chip.
@@ -206,17 +205,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                 <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between md:gap-6">
                     <div className="min-w-0">
                         {topic && (
-                            <span
-                                className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-extrabold"
-                                style={{
-                                    backgroundColor: topicStyle(topic.colorHex).background,
-                                    borderColor: topicStyle(topic.colorHex).border,
-                                    color: topicStyle(topic.colorHex).icon,
-                                }}
-                            >
-                                <Icon name={topic.icon || 'hash'} color="currentColor" size={13} />
-                                {getLocalizedName(topic, locale)}
-                            </span>
+                            <TopicPill label={getLocalizedName(topic, locale)} icon={topic.icon} colorHex={topic.colorHex} />
                         )}
                         <h1 className="mt-3 text-balance text-2xl leading-tight tracking-tight md:text-3xl">
                             {localize(name)}
@@ -224,7 +213,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                         <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
                             {agendaLabel !== null && (
                                 <span className="inline-flex h-5 items-center rounded bg-muted px-2 text-[10.5px] font-bold text-muted-foreground">
-                                    {agendaItemIndex ? `${t('categories.agenda.shortLabel')} ${agendaLabel}` : agendaLabel}
+                                    {agendaLabel}
                                 </span>
                             )}
                             {meeting.administrativeBody && (
@@ -337,7 +326,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
 
                     <aside className="flex min-w-0 flex-col gap-3.5">
                         {totalMinutes > 0 && (
-                            <RailCard title={t("discussionCard")}>
+                            <RailCard title={t("discussionCard")} className="hidden lg:block">
                                 <DiscussionStats statistics={subject.statistics} totalMinutes={totalMinutes} colorPercentages={colorPercentages} locale={locale} />
                             </RailCard>
                         )}
@@ -529,8 +518,6 @@ function SectionHead({ title, count }: { title: string; count?: number }) {
         </div>
     );
 }
-
-/** One quiet card of the facts rail. */
 
 /**
  * The discussion at a glance: the party-split ring around the total, and each
