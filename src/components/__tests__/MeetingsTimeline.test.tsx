@@ -108,6 +108,19 @@ describe('MeetingsTimeline', () => {
         expect(screen.queryByText('#4')).toBeNull();
     });
 
+    it('never shows a community meeting, and vanishes when only communities met', () => {
+        const { container } = renderTimeline([], [
+            past(1, { bodyType: 'council', subjects: [{ agendaItemIndex: 1 }] }),
+            past(2, { bodyType: 'community', subjects: [{ agendaItemIndex: 1 }] }),
+        ]);
+        // The council meeting renders in both variants; the community one in neither.
+        expect(container.querySelectorAll('a[href="/athens/m' + (nextId - 2) + '"]').length).toBeGreaterThan(0);
+        expect(container.querySelectorAll('a[href="/athens/m' + (nextId - 1) + '"]').length).toBe(0);
+
+        const onlyCommunities = renderTimeline([], [past(3, { bodyType: 'community' })]);
+        expect(onlyCommunities.container.innerHTML).toBe('');
+    });
+
     it('goes two-sided only when both sides have meetings', () => {
         const both = renderTimeline([], [past(1, { bodyType: 'council' }), past(2, { bodyType: 'committee' })]);
         expect(both.container.querySelector('.hidden.xl\\:block')).not.toBeNull();

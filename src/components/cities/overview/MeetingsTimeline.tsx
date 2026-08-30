@@ -51,13 +51,18 @@ interface Entry {
 export function MeetingsTimeline({ upcoming, recent, timezone, locale }: MeetingsTimelineProps) {
     // One strictly-descending chronology: the furthest-out meeting first, down
     // through the nearest, then the past. The spine reads top-to-bottom as
-    // future-to-past, so "now" is where the dashes end.
-    const entries: Entry[] = [...upcoming].reverse().concat(recent).map(meeting => ({
-        meeting,
-        side: timelineSide(meeting.administrativeBody?.type),
-        upcoming: isFuture(new Date(meeting.dateTime)),
-        height: timelineCardHeight(meeting.subjects.length),
-    }));
+    // future-to-past, so "now" is where the dashes end. Meetings the timeline
+    // excludes — the κοινότητες, see timelineSide — drop out here.
+    const entries: Entry[] = [...upcoming].reverse().concat(recent).flatMap(meeting => {
+        const side = timelineSide(meeting.administrativeBody?.type);
+        if (side === null) return [];
+        return [{
+            meeting,
+            side,
+            upcoming: isFuture(new Date(meeting.dateTime)),
+            height: timelineCardHeight(meeting.subjects.length),
+        }];
+    });
     if (entries.length === 0) return null;
 
     // The split earns its keep only when both sides have meetings — a δήμος with
@@ -101,7 +106,7 @@ function TwoSided({ entries, timezone, locale }: { entries: Entry[]; timezone: s
         <div className="hidden xl:block">
             <div className="mb-4 flex items-baseline">
                 <div className="w-[calc(50%-3.25rem)] pr-1 text-right">
-                    <ColumnLabel entries={entries} side="left" fallback={t('timelineOtherBodies')} locale={locale} />
+                    <ColumnLabel entries={entries} side="left" fallback={t('scopeCommitteeFull')} locale={locale} />
                 </div>
                 <div className="w-[6.5rem]" />
                 <div className="flex-1 pl-1">
