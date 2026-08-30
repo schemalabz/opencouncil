@@ -25,7 +25,7 @@ export type SubjectCategoryKey = typeof SUBJECT_CATEGORY_KEYS[number];
  *
  * @translationNamespace Subject
  */
-type Translate = (key: string) => string;
+export type Translate = (key: string) => string;
 
 /**
  * Translated labels for the three agenda categories. Pass a translator scoped to

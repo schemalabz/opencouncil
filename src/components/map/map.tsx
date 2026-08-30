@@ -18,7 +18,10 @@ mapboxgl.accessToken = env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 export interface MapFeature {
     id: string
     geometry: any // GeoJSON geometry
-    properties?: Record<string, any>
+    /** `labelAnchor` is the one key the base map interprets: only 'left' has a
+     * matching offset/justify treatment in the label layer, so only 'left' is
+     * accepted. Everything else rides through to the GeoJSON source untouched. */
+    properties?: Record<string, any> & { labelAnchor?: 'left' }
     style?: {
         fillColor?: string
         fillOpacity?: number
