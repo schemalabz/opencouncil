@@ -8,7 +8,6 @@ import { formatDate } from '@/lib/formatters/time';
 import { captureLandingAction } from '@/lib/landing/analytics';
 import { subjectLocationLine, type LandingSubject } from '@/lib/landing/landingData';
 import { topicStyle } from '@/lib/topicStyle';
-import { cn } from '@/lib/utils';
 
 /* Expanded subject (mobile). The category bar (back · category), the title + municipality logo, the
    meta, and the "Προβολή θέματος" link are all pinned; only the description scrolls between the meta
@@ -17,15 +16,12 @@ export function SubjectExpandedCard({
     subject,
     onClose,
     openSource = 'map_preview',
-    className,
 }: {
     subject: LandingSubject;
     /** × / title / logo → return to previewing this subject */
     onClose: () => void;
     /** what the 'Δες τη συζήτηση' click reports as its source */
     openSource?: string;
-    /** overrides the positioning (e.g. docked left on a wide meeting map) */
-    className?: string;
 }) {
     const t = useTranslations('landingV2');
     const locale = useLocale();
@@ -33,10 +29,7 @@ export function SubjectExpandedCard({
     const topicBar = topicStyle(subject.topic.color);
     return (
         <div
-            className={cn(
-                'absolute inset-x-3 bottom-[10px] z-[9] flex max-h-[68dvh] animate-in flex-col overflow-hidden rounded-2xl border-2 bg-card shadow-xl duration-300 fade-in slide-in-from-bottom-4',
-                className,
-            )}
+            className="absolute inset-x-3 bottom-[10px] z-[9] flex max-h-[68dvh] animate-in flex-col overflow-hidden rounded-2xl border-2 bg-card shadow-xl duration-300 fade-in slide-in-from-bottom-4"
             style={{ borderColor: subject.topic.color }}
         >
             {/* full-width category bar: back · category */}

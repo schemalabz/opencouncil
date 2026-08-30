@@ -1,5 +1,6 @@
 "use client"
 import MapView from "@/components/map/map";
+import { cityBoundaryFeature } from '@/components/map/cityBoundary';
 import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataContext";
 import { SubjectSection } from "@/components/meetings/subject-section";
 import { TopicFilter } from "@/components/TopicFilter";
@@ -26,17 +27,22 @@ export default function MeetingPage() {
     // dots — what the landing draws when pins crowd. The band is decorative (a
     // gradient and the meeting info sit over it); the interactive map is the
     // Χάρτης tab.
-    const subjectFeatures = subjects.flatMap(subject => {
-        const point = subject.location?.coordinates;
-        if (!point) return [];
-        const color = subject.topic?.colorHex ?? '#9ca3af';
-        return [{
-            id: `subject-${subject.id}`,
-            geometry: { type: 'Point' as const, coordinates: [point.x, point.y] },
-            properties: { interactive: false },
-            style: { fillColor: color, fillOpacity: 0.85, strokeColor: color, strokeWidth: 5 },
-        }];
-    });
+    // Memoized: the map effect re-uploads its source whenever the array's
+    // identity changes, and this component re-renders on every filter click.
+    const mapFeatures = useMemo(() => [
+        cityBoundaryFeature(city.id, city.geometry),
+        ...subjects.flatMap(subject => {
+            const point = subject.location?.coordinates;
+            if (!point) return [];
+            const color = subject.topic?.colorHex ?? '#9ca3af';
+            return [{
+                id: `subject-${subject.id}`,
+                geometry: { type: 'Point' as const, coordinates: [point.x, point.y] },
+                properties: { interactive: false },
+                style: { fillColor: color, fillOpacity: 0.85, strokeColor: color, strokeWidth: 5 },
+            }];
+        }),
+    ], [city.id, city.geometry, subjects]);
 
     // Center on city geometry for the decorative header map
     const cityCenter = useMemo((): [number, number] => {
@@ -77,22 +83,7 @@ export default function MeetingPage() {
     return (
         <div className="flex flex-col w-full">
             <div className="relative h-[200px] sm:h-[300px] w-full">
-                <MapView className="w-full h-full" features={[
-                    {
-                        id: city.id,
-                        geometry: city.geometry,
-                        properties: { interactive: false },
-                        // the boundary outline every subject map shares
-                        style: {
-                            fillColor: 'hsl(24, 100%, 50%)',
-                            fillOpacity: 0.04,
-                            strokeColor: 'hsl(24, 100%, 50%)',
-                            strokeWidth: 1.5,
-                            strokeOpacity: 0.9,
-                        }
-                    },
-                    ...subjectFeatures
-                ]}
+                <MapView className="w-full h-full" features={mapFeatures}
                     center={cityCenter}
                     zoom={12}
                 />
