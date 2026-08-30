@@ -74,6 +74,18 @@ export function getNonAgendaLabel(t: Translate, reason: 'beforeAgenda' | 'outOfA
     return t(`categories.${reason}.shortLabel`);
 }
 
+/**
+ * The agenda marker with its register named: "Ημερησίας διάταξης #24" for an
+ * agenda item, the προ/εκτός shortLabel otherwise. Three surfaces compose this
+ * (meeting timeline, subject rows, contribution cards) — a bare "#24" told a
+ * reader nothing.
+ */
+export function getAgendaFullLabel(t: Translate, subject: { agendaItemIndex: number | null; nonAgendaReason: string | null }): string | null {
+    const label = getAgendaLabel(t, subject);
+    if (label === null) return null;
+    return subject.agendaItemIndex ? `${t('categories.agenda.shortLabel')} ${label}` : label;
+}
+
 /** The agenda marker shown on a subject card: "#index", the non-agenda label, or none. */
 export function getAgendaLabel(t: Translate, subject: { agendaItemIndex: number | null; nonAgendaReason: string | null }): string | null {
     if (subject.agendaItemIndex) return `#${subject.agendaItemIndex}`;
