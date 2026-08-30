@@ -53,6 +53,8 @@ interface PersonAvatarListProps {
     stacked?: boolean;
     /** Marks this person as the subject's introducer with a pen badge. */
     introducerId?: string;
+    /** Analytics hook: called with the person opened via their avatar. */
+    onPersonOpen?: (personId: string) => void;
 }
 
 export function PersonAvatarList({
@@ -65,6 +67,7 @@ export function PersonAvatarList({
     size = 'md',
     stacked = false,
     introducerId,
+    onPersonOpen,
 }: PersonAvatarListProps) {
     const displayCount = Math.min(users.length, maxDisplayed);
     const remainingCount = numMore ?? (users.length - displayCount);
@@ -178,7 +181,7 @@ export function PersonAvatarList({
                         // The list often sits inside a card-wide <a>. stopPropagation alone keeps
                         // the card's React onClick (which calls preventDefault) from running, so
                         // the anchor's native navigation would override the badge's router.push.
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPersonOpen?.(user.id); }}
                         className={cn("relative shrink-0", stacked && stackedItem)}
                     >
                         <PersonBadge

@@ -2,6 +2,7 @@ import { ChevronRight } from 'lucide-react';
 import { isFuture } from 'date-fns';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
+import { TrackedLink } from '@/components/analytics/TrackedLink';
 import { AdminBodyLabel } from '@/components/cities/overview/AdminBodyLabel';
 import { TopicIcon } from '@/components/TopicIcon';
 import type { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
@@ -278,8 +279,17 @@ function MeetingBlock({ entry, locale }: { entry: Entry; locale: string }) {
     const remaining = meeting.subjects.length - shown.length;
 
     return (
-        <Link
+        <TrackedLink
             href={`/${meeting.cityId}/${meeting.id}`}
+            prefetch={false}
+            event="meeting_opened"
+            eventProps={{
+                surface: 'timeline',
+                city_id: meeting.cityId,
+                meeting_id: meeting.id,
+                upcoming: entry.upcoming,
+                subject_count: meeting.subjects.length,
+            }}
             className={cn(
                 surfaceCardClass,
                 'block h-full px-4 pb-2.5 pt-3 text-foreground transition-shadow hover:shadow-md hover:no-underline',
@@ -319,7 +329,7 @@ function MeetingBlock({ entry, locale }: { entry: Entry; locale: string }) {
                     <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 </span>
             )}
-        </Link>
+        </TrackedLink>
     );
 }
 

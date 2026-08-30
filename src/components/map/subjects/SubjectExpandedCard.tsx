@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import Icon from '@/components/icon';
 import { formatDate } from '@/lib/formatters/time';
-import { captureLandingAction } from '@/lib/landing/analytics';
+import { captureMapAction, type MapSurface } from '@/lib/analytics/capture';
 import { subjectLocationLine, type LandingSubject } from '@/lib/landing/landingData';
 import { topicStyle } from '@/lib/topicStyle';
 
@@ -16,12 +16,15 @@ export function SubjectExpandedCard({
     subject,
     onClose,
     openSource = 'map_preview',
+    surface = 'landing',
 }: {
     subject: LandingSubject;
     /** × / title / logo → return to previewing this subject */
     onClose: () => void;
     /** what the 'Δες τη συζήτηση' click reports as its source */
     openSource?: string;
+    /** Which page the card renders on — off-landing the event leaves the landing_* family. */
+    surface?: MapSurface;
 }) {
     const t = useTranslations('landingV2');
     const locale = useLocale();
@@ -107,7 +110,7 @@ export function SubjectExpandedCard({
                 <Link
                     href={subject.href}
                     onClick={() =>
-                        captureLandingAction('subject_opened', {
+                        captureMapAction(surface, 'subject_opened', {
                             source: openSource,
                             subject_id: subject.id,
                             city_id: subject.cityId,

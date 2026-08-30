@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useRef, useState, type MutableRefObject } from 'react';
+import type { MapSurface } from '@/lib/analytics/capture';
 import type { Map as MapboxMap } from 'mapbox-gl';
 import { useMapViewCapture } from '@/components/landing/v2/hooks/useMapMarkers';
 import { SUBJECT_FOCUS_ZOOM } from '@/lib/landing/landingCore';
@@ -53,9 +54,12 @@ export function useSubjectMapState({
     initialZoom,
     trackCenterMunicipality = false,
     onUserNavigate,
+    surface = 'landing',
 }: {
     mapInstance: MapboxMap | null;
     initialZoom: number;
+    /** Which page the map runs on — off-landing the analytics leave the landing_* family. */
+    surface?: MapSurface;
     /** Resolve the δήμος under the map center on every move (one /api/cities/at call per
      *  meaningful pan). Only the landing needs it — a city map already knows its δήμος. */
     trackCenterMunicipality?: boolean;
@@ -77,6 +81,7 @@ export function useSubjectMapState({
 
     useMapViewCapture({
         mapInstance,
+        surface,
         suppressViewCaptureRef,
         pendingCoLocatedRef,
         pendingGeneralRef,

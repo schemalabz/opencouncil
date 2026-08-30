@@ -1,5 +1,6 @@
 "use client";
 import { useState } from 'react';
+import { captureEvent } from '@/lib/analytics/capture';
 import { ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
@@ -146,6 +147,8 @@ function MeetingRow({
     return (
         <Link
             href={`/${cityId}/${meeting.id}`}
+            prefetch={false}
+            onClick={() => captureEvent('meeting_opened', { surface: 'city_rail', city_id: cityId, meeting_id: meeting.id, upcoming })}
             aria-label={ariaLabel}
             className={cn(
                 'group/row flex items-start gap-4 p-4 transition-colors hover:bg-foreground/[0.02] hover:no-underline',
