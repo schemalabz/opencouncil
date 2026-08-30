@@ -35,6 +35,7 @@ const CATEGORIES = ['discovery', 'directory', 'meetings', 'highlights'];
 type RecordedToolConfig = {
     annotations?: { readOnlyHint?: boolean };
     _meta?: { category?: string };
+    description?: string;
     inputSchema?: { parse: (value: unknown) => unknown };
 };
 type ToolHandler = (args: never, ctx: ServerContext) => Promise<unknown>;
@@ -112,6 +113,13 @@ describe('tool metadata', () => {
             typeof meta[name].annotations?.readOnlyHint !== 'boolean'
             || !CATEGORIES.includes(meta[name]._meta?.category ?? '')
         )).toEqual([]);
+    });
+
+    it('distinguishes rejected urgent subjects from withdrawn agenda subjects', () => {
+        const description = advertised(USER).meta.get_subject.description;
+
+        expect(description).toContain('did not approve it as urgent');
+        expect(description).toContain('withdrawn or postponed without discussion');
     });
 });
 
