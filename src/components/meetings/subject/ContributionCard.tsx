@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { FileText, Users } from "lucide-react";
+import { ArrowUpRight, FileText, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "@/i18n/routing";
 import { FormattedTextDisplay } from "@/components/FormattedTextDisplay";
@@ -214,12 +214,15 @@ export const ContributionCard = memo(function ContributionCard({
             <div className="flex items-start gap-2.5">
                 <TopicIcon color={contextHeader.topic?.colorHex} icon={contextHeader.topic?.icon} size="md" />
                 <div className="min-w-0 flex-1">
+                    {/* The title is the way into the subject — say so: a standing
+                        arrow at its tail, and the site's orange on hover. */}
                     <Link
                         href={subjectUrl}
-                        className="block text-[15.5px] font-bold leading-tight text-foreground hover:no-underline"
+                        className="group/subject block text-[15.5px] font-bold leading-tight text-foreground transition-colors hover:text-[hsl(var(--orange))] hover:no-underline"
                         style={{ textWrap: 'pretty' }}
                     >
                         {contextHeader.subjectName}
+                        <ArrowUpRight className="mb-0.5 ml-1 inline h-3.5 w-3.5 shrink-0 text-muted-foreground transition-colors group-hover/subject:text-[hsl(var(--orange))]" aria-hidden />
                     </Link>
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                         {agendaLabel !== null && (
