@@ -897,7 +897,13 @@
         "breadcrumbHome": "Home",
         "independentCouncilMember": "Independent Council Member",
         "biography": "Biography",
-        "moreRoles": "+{count} more"
+        "moreRoles": "+{count} more",
+        "present": "present",
+        "statementsFact": "{count, plural, one {# statement} other {# statements}}",
+        "speakingFact": "{minutes}′ of speaking time",
+        "rolesCard": "Roles",
+        "topTopicsCard": "Most frequent topics",
+        "pastTerms": "Past terms ({count})"
     },
     "Party": {
         "currentMembers": "Current Members",
@@ -930,7 +936,9 @@
         "breakdownCommittees": "{count} on committees",
         "breakdownCommunities": "{count} in communities",
         "breakdownOthers": "{count} others",
-        "peopleWithoutParties": "People not in a group:"
+        "peopleWithoutParties": "People not in a group:",
+        "compositionCard": "Composition",
+        "membersTotal": "{count, plural, one {# member in total} other {# members in total}}"
     },
     "MeetingStatus": {
         "scheduled": "Scheduled",

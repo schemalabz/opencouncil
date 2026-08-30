@@ -1,12 +1,12 @@
 "use client";
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { City, Party, AdministrativeBody, Topic } from '@prisma/client';
 import { Button } from '../ui/button';
 import FormSheet from '../FormSheet';
 import PersonForm from './PersonForm';
 import { toast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { Search, ExternalLink, FileText, Clock } from "lucide-react";
+import { Search, ExternalLink, FileText } from "lucide-react";
 import { Input } from '../ui/input';
 import { useState, useEffect, useMemo } from 'react';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
@@ -14,17 +14,24 @@ import { Link } from '@/i18n/routing';
 import { Statistics } from "@/lib/statistics";
 import { getLatestContributionsForSpeaker } from '@/lib/db/contributions';
 import { ContributionForPerson } from '@/lib/db/types';
-import { ContributionCard } from '@/components/meetings/subject/ContributionCard';
+import { ContributionCard, ContributionCardSkeleton } from '@/components/meetings/subject/ContributionCard';
 import { isUserAuthorizedToEdit } from '@/lib/actions/auth';
 import { motion } from 'framer-motion';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
 import { PersonWithRelations } from '@/lib/db/people';
-import { filterActiveRoles, filterInactiveRoles, formatDateRange } from '@/lib/utils';
-import { RoleDisplay } from './RoleDisplay';
+import { cn, filterActiveRoles, filterInactiveRoles, formatDateRange, getRoleText } from '@/lib/utils';
 import { TopicFilter } from '@/components/TopicFilter';
 import { RoleWithRelations } from '@/lib/db/types';
 import { useSession } from 'next-auth/react';
 import { DebugMetadataButton } from '../ui/debug-metadata-button';
+import { AdminStrip, adminToolClass } from '@/components/admin/AdminStrip';
+import { RailCard } from '@/components/ui/rail-card';
+import { AIGeneratedBadge } from '@/components/AIGeneratedBadge';
+import Icon from '@/components/icon';
+import { Star, Landmark, ChevronDown } from 'lucide-react';
+import { getPartyFromRoles } from '@/lib/utils';
+import { getLocalizedName } from '@/lib/formatters/name';
+import { topicStyle } from '@/lib/topicStyle';
 
 export default function PersonC({ city, person, parties, administrativeBodies, statistics, contributionTopics }: {
     city: City,
@@ -36,6 +43,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
 }) {
     const t = useTranslations('Person');
     const tCommon = useTranslations('Common');
+    const tCity = useTranslations('City');
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
     const [contributions, setContributions] = useState<ContributionForPerson[]>([]);
@@ -46,6 +54,18 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
     const [isLoadingContributions, setIsLoadingContributions] = useState(false);
     const { data: session } = useSession();
     const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
+    const locale = useLocale();
+    const activeRoles = filterActiveRoles(person.roles as RoleWithRelations[]);
+    const personParty = getPartyFromRoles(person.roles);
+    const speakingMinutes = Math.round((statistics?.speakingSeconds ?? 0) / 60);
+    const inactiveRoles = filterInactiveRoles(person.roles as RoleWithRelations[]);
+    const topTopics = useMemo(
+        () => (statistics?.topics ?? [])
+            .filter(stat => stat.speakingSeconds > 0)
+            .sort((a, b) => b.speakingSeconds - a.speakingSeconds)
+            .slice(0, 5),
+        [statistics],
+    );
 
     // Topic chips reflect the actual contributions list (already sorted server-side).
     const relevantTopics = contributionTopics;
@@ -176,187 +196,136 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                             </BreadcrumbItem>
                             <BreadcrumbSeparator />
                             <BreadcrumbItem>
+                                <BreadcrumbLink asChild>
+                                    <Link href={`/${city.id}/people`}>{tCity('people')}</Link>
+                                </BreadcrumbLink>
+                            </BreadcrumbItem>
+                            <BreadcrumbSeparator />
+                            <BreadcrumbItem>
                                 <BreadcrumbLink href={`/${city.id}/persons/${person.id}`}>{person.name}</BreadcrumbLink>
                             </BreadcrumbItem>
                         </BreadcrumbList>
                     </Breadcrumb>
 
-                    {/* Hero Section */}
-                    <div className="flex flex-col gap-6 sm:gap-8 pb-6 sm:pb-8 border-b">
-                        <div className="flex items-start justify-between gap-4">
-                            <motion.div
-                                className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 flex-1"
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ duration: 0.5 }}
-                            >
-                            <div className="relative w-24 h-24 sm:w-28 sm:h-28 lg:w-40 lg:h-40 xl:w-48 xl:h-48 flex-shrink-0 overflow-hidden rounded-full">
-                                <div className="w-full h-full [&>div]:!border-0">
-                                    <ImageOrInitials
-                                        imageUrl={person.image}
-                                        name={person.name}
-                                        width={192}
-                                        height={192}
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex-1 space-y-3 sm:space-y-4 text-center sm:text-left min-w-0">
-                                <motion.h1
-                                    className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight"
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.2 }}
-                                >
-                                    {person.name}
-                                </motion.h1>
-
-                                {/* Active Roles - Enhanced Display */}
-                                <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    transition={{ delay: 0.3 }}
-                                    className="space-y-3"
-                                >
-                                    <RoleDisplay
-                                        roles={filterActiveRoles(person.roles)}
-                                        size="lg"
-                                        layout="inline"
-                                        showIcons
-                                        borderless={true}
-                                        fullText
-                                        className="items-start"
-                                    />
-
-                                    {/* Independent Council Member */}
-                                    {isIndependentCouncilMember && (
-                                        <div className="text-sm sm:text-base text-muted-foreground italic">
-                                            {t('independentCouncilMember')}
-                                        </div>
-                                    )}
-                                </motion.div>
-
-                                {person.profileUrl && (
-                                    <motion.a
-                                        href={person.profileUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm"
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ delay: 0.5 }}
-                                    >
-                                        <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4" />
-                                        <span>{t('biography')}</span>
-                                    </motion.a>
+                    {/* Identity band: the party-ringed face beside the name, the roles as
+                        the app's chip language, and a line of countable facts — the old hero
+                        said nothing a reader could compare. Admin controls live in the
+                        hazard-striped corner every back-of-house control now uses. */}
+                    <header className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
+                        <span className="block h-[84px] w-[84px] shrink-0">
+                            <ImageOrInitials
+                                imageUrl={person.image}
+                                name={person.name}
+                                color={personParty?.colorHex}
+                                width={84}
+                                height={84}
+                            />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                            <h1 className="!text-left text-2xl leading-tight tracking-tight sm:text-3xl">{person.name}</h1>
+                            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                                {activeRoles.map(role => {
+                                    if (role.partyId && role.party) {
+                                        const style = topicStyle(role.party.colorHex);
+                                        return (
+                                            <Link
+                                                key={role.id}
+                                                href={`/${city.id}/parties/${role.partyId}`}
+                                                className="inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-[11.5px] font-bold hover:no-underline"
+                                                style={{ backgroundColor: style.background, borderColor: style.border, color: style.icon }}
+                                            >
+                                                {role.isHead && <Star className="h-3 w-3 shrink-0" aria-hidden />}
+                                                {getLocalizedName(role.party, locale)}
+                                                {role.isHead && ` · ${t('partyLeaderShort')}`}
+                                            </Link>
+                                        );
+                                    }
+                                    const cityLevel = role.cityId && !role.administrativeBodyId;
+                                    return (
+                                        <span
+                                            key={role.id}
+                                            className="inline-flex h-6 items-center gap-1.5 rounded-full bg-muted px-2.5 text-[11.5px] font-bold text-muted-foreground"
+                                        >
+                                            {cityLevel && role.isHead
+                                                ? <Star className="h-3 w-3 shrink-0 text-[hsl(var(--orange-deep))]" aria-hidden />
+                                                : <Landmark className="h-3 w-3 shrink-0" aria-hidden />}
+                                            {role.name || (role.administrativeBody ? getLocalizedName(role.administrativeBody, locale) : t('member'))}
+                                        </span>
+                                    );
+                                })}
+                                {isIndependentCouncilMember && (
+                                    <span className="text-sm italic text-muted-foreground">{t('independentCouncilMember')}</span>
                                 )}
                             </div>
-                            </motion.div>
-                            {isSuperAdmin && (
-                                <div className="flex-shrink-0">
-                                    <DebugMetadataButton
-                                        data={person}
-                                        title="Person Metadata"
-                                        tooltip="View person metadata"
-                                    />
-                                </div>
-                            )}
+                            <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-muted-foreground">
+                                {totalCount > 0 && <span>{t('statementsFact', { count: totalCount })}</span>}
+                                {totalCount > 0 && speakingMinutes > 0 && <span aria-hidden>·</span>}
+                                {speakingMinutes > 0 && <span>{t('speakingFact', { minutes: speakingMinutes })}</span>}
+                                {person.profileUrl && (
+                                    <>
+                                        {(totalCount > 0 || speakingMinutes > 0) && <span aria-hidden>·</span>}
+                                        <a
+                                            href={person.profileUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                                        >
+                                            <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                                            {t('biography')}
+                                        </a>
+                                    </>
+                                )}
+                            </div>
                         </div>
-
-                        {canEdit && (
-                            <motion.div
-                                className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4"
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 0.5 }}
-                            >
-                                <FormSheet
-                                    FormComponent={PersonForm}
-                                    formProps={{
-                                        person,
-                                        cityId: person.cityId,
-                                        parties,
-                                        administrativeBodies
-                                    }}
-                                    title={t('editPerson')}
-                                    type="edit"
-                                />
-                                <Button variant="destructive" onClick={onDelete} className="sm:w-auto">
-                                    {t('deletePerson')}
-                                </Button>
-                            </motion.div>
+                        {(canEdit || isSuperAdmin) && (
+                            <AdminStrip className="shrink-0 self-start">
+                                {canEdit && (
+                                    <>
+                                        <FormSheet
+                                            FormComponent={PersonForm}
+                                            formProps={{ person, cityId: person.cityId, parties, administrativeBodies }}
+                                            title={t('editPerson')}
+                                            type="edit"
+                                            triggerVariant="ghost"
+                                            triggerSize="sm"
+                                            triggerClassName={adminToolClass}
+                                        />
+                                        <Button variant="ghost" size="sm" onClick={onDelete} className={cn(adminToolClass, 'text-destructive hover:!text-destructive')}>
+                                            {t('deletePerson')}
+                                        </Button>
+                                    </>
+                                )}
+                                {isSuperAdmin && (
+                                    <DebugMetadataButton data={person} title="Person Metadata" tooltip="View person metadata" />
+                                )}
+                            </AdminStrip>
                         )}
-                    </div>
+                    </header>
 
-                    {/* Search Section */}
-                    <motion.form
-                        onSubmit={handleSearch}
-                        className="relative"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.6 }}
-                    >
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder={t('searchForPerson', { personName: person.name })}
-                            className="pl-10 h-10 sm:h-12 text-sm sm:text-base"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                    </motion.form>
-
-                    {/* History Section - only show if there are inactive roles */}
-                    {filterInactiveRoles(person.roles).length > 0 && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.7 }}
-                        >
-                            <div className="flex items-center gap-2 mb-6">
-                                <Clock className="h-5 w-5 text-primary" />
-                                <h2 className="text-lg sm:text-xl font-semibold">{t('history')}</h2>
-                            </div>
-
-                            <div className="grid gap-4">
-                                {filterInactiveRoles(person.roles).map((role) => (
-                                    <motion.div
-                                        key={role.id}
-                                        className="p-4 border rounded-lg bg-card/50"
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                    >
-                                        <div className="flex items-center justify-between gap-4">
-                                            <div className="flex-1 min-w-0">
-                                                <RoleDisplay
-                                                    roles={[role]}
-                                                    size="md"
-                                                    layout="inline"
-                                                    showIcons
-                                                />
-                                            </div>
-                                            <span className="text-xs text-muted-foreground flex-shrink-0 font-medium">
-                                                {formatDateRange(
-                                                    role.startDate ? new Date(role.startDate) : null,
-                                                    role.endDate ? new Date(role.endDate) : null,
-                                                    tCommon
-                                                )}
-                                            </span>
-                                        </div>
-                                    </motion.div>
-                                ))}
-                            </div>
-                        </motion.div>
-                    )}
-
-                    {/* Recent Segments Section */}
+                    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_316px] lg:gap-10">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.8 }}
-                        className="relative"
+                        transition={{ delay: 0.4 }}
+                        className="relative min-w-0"
                     >
-                        <h2 className="text-lg sm:text-xl font-semibold mb-4">{t('recentContributions')}</h2>
+                        <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+                            <h2 className="!m-0 !text-left text-[15px] font-extrabold tracking-[.01em]">
+                                {t('recentContributions')}
+                                {totalCount > 0 && <span className="ml-1.5 font-normal text-muted-foreground">({totalCount})</span>}
+                            </h2>
+                            <AIGeneratedBadge />
+                            <form onSubmit={handleSearch} className="relative ml-auto w-full sm:w-[260px]">
+                                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                                <Input
+                                    placeholder={tCommon('search')}
+                                    className="h-8 rounded-full pl-9 text-xs"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </form>
+                        </div>
 
-                        {/* Topic Filter */}
                         {relevantTopics.length > 0 && (
                             <TopicFilter 
                                 topics={relevantTopics}
@@ -366,16 +335,11 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                         )}
 
                         {isLoadingContributions && contributions.length === 0 ? (
-                            <div className="flex justify-center items-center py-12 border rounded-lg bg-card/50">
-                                <div className="flex flex-col items-center space-y-4">
-                                    <div className="h-6 w-6 sm:h-8 sm:w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-                                    <p className="text-xs sm:text-sm text-muted-foreground">{t('loadingSegments')}</p>
-                                </div>
+                            <div className="space-y-3 sm:space-y-4" aria-busy>
+                                {[0, 1, 2].map(i => <ContributionCardSkeleton key={i} />)}
                             </div>
                         ) : (
-                            // A reading column, not the full tab: the card takes its measure from
-                            // this width, so a wide screen gets margins, not a half-empty card.
-                            <div className="max-w-[42rem] space-y-3 sm:space-y-4">
+                            <div className="space-y-3 sm:space-y-4">
                                 {contributions.map((contribution, index) => (
                                     <motion.div
                                         key={contribution.id}
@@ -447,8 +411,101 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                             </Button>
                         )}
                     </motion.div>
+
+                    {/* The rail answers the two questions the old page buried: what is
+                        this person's seat, and what do they actually talk about. The
+                        topic bars use the real per-topic speaking time from statistics —
+                        each bar is scaled against the person's own top topic. */}
+                    <aside className="min-w-0 space-y-4 lg:pt-[3.25rem]">
+                        <RailCard title={t('rolesCard')}>
+                            <ul className="space-y-2.5">
+                                {activeRoles.map(role => <RoleRow key={role.id} role={role} t={t} />)}
+                                {activeRoles.length === 0 && (
+                                    <li className="text-sm text-muted-foreground">
+                                        {isIndependentCouncilMember ? t('independentCouncilMember') : '—'}
+                                    </li>
+                                )}
+                            </ul>
+                            {inactiveRoles.length > 0 && (
+                                <details className="group mt-3 border-t border-border pt-3">
+                                    <summary className="cursor-pointer list-none text-[12.5px] font-semibold text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+                                        {t('pastTerms', { count: inactiveRoles.length })}
+                                        <ChevronDown className="ml-1 inline h-3.5 w-3.5 transition-transform group-open:rotate-180" aria-hidden />
+                                    </summary>
+                                    <ul className="mt-2.5 space-y-2.5 opacity-70">
+                                        {inactiveRoles.map(role => <RoleRow key={role.id} role={role} t={t} />)}
+                                    </ul>
+                                </details>
+                            )}
+                        </RailCard>
+
+                        {topTopics.length > 0 && (
+                            <RailCard title={t('topTopicsCard')}>
+                                <ul className="space-y-3">
+                                    {topTopics.map(({ item: topic, speakingSeconds }) => {
+                                        const style = topicStyle(topic.colorHex);
+                                        const minutes = Math.max(1, Math.round(speakingSeconds / 60));
+                                        return (
+                                            <li key={topic.id}>
+                                                <div className="flex items-baseline justify-between gap-2">
+                                                    <span className="inline-flex min-w-0 items-center gap-1.5 text-[13px] font-semibold">
+                                                        <span className="flex shrink-0" aria-hidden><Icon name={topic.icon ?? 'tag'} size={14} color={style.icon} /></span>
+                                                        <span className="truncate">{topic.name}</span>
+                                                    </span>
+                                                    <span className="shrink-0 text-[12px] tabular-nums text-muted-foreground">{minutes}′</span>
+                                                </div>
+                                                <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
+                                                    <div
+                                                        className="h-full rounded-full"
+                                                        style={{
+                                                            width: `${Math.max(6, Math.round((speakingSeconds / topTopics[0].speakingSeconds) * 100))}%`,
+                                                            backgroundColor: topic.colorHex,
+                                                        }}
+                                                    />
+                                                </div>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            </RailCard>
+                        )}
+                    </aside>
+                    </div>
                 </motion.div>
             </div>
         </div>
+    );
+}
+
+/**
+ * One row of the roles rail: a glyph for the arena the role lives in — the
+ * orange star for leading the city, the party's colour dot, a landmark for an
+ * administrative body — then the same label the site's role badges render,
+ * with the term's dates underneath.
+ */
+function RoleRow({ role, t }: { role: RoleWithRelations; t: ReturnType<typeof useTranslations> }) {
+    const dates = formatDateRange(
+        role.startDate ? new Date(role.startDate) : null,
+        role.endDate ? new Date(role.endDate) : null,
+        t,
+    );
+    return (
+        <li className="flex items-start gap-2">
+            {role.party ? (
+                <span
+                    className="mt-[5px] h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: role.party.colorHex }}
+                    aria-hidden
+                />
+            ) : role.cityId && !role.administrativeBodyId && role.isHead ? (
+                <Star className="mt-[3px] h-3.5 w-3.5 shrink-0 text-[hsl(var(--orange-deep))]" aria-hidden />
+            ) : (
+                <Landmark className="mt-[3px] h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+            )}
+            <span className="min-w-0 flex-1">
+                <span className="block text-[13px] font-semibold leading-snug">{getRoleText(role, t)}</span>
+                {dates && <span className="block text-[11.5px] text-muted-foreground">{dates}</span>}
+            </span>
+        </li>
     );
 }

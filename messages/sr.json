@@ -897,7 +897,13 @@
         "breadcrumbHome": "Почетна",
         "independentCouncilMember": "Независни одборник",
         "biography": "Биографија",
-        "moreRoles": "+{count} још"
+        "moreRoles": "+{count} још",
+        "present": "данас",
+        "statementsFact": "{count, plural, one {# излагање} few {# излагања} other {# излагања}}",
+        "speakingFact": "{minutes}′ укупног говора",
+        "rolesCard": "Улоге",
+        "topTopicsCard": "Најчешће теме",
+        "pastTerms": "Претходни мандати ({count})"
     },
     "Party": {
         "currentMembers": "Тренутни чланови",
@@ -930,7 +936,9 @@
         "breakdownCommittees": "{count} у одборима",
         "breakdownCommunities": "{count} у месним заједницама",
         "breakdownOthers": "{count, plural, one {# остали} few {# остала} other {# осталих}}",
-        "peopleWithoutParties": "Особе изван одборничких група:"
+        "peopleWithoutParties": "Особе изван одборничких група:",
+        "compositionCard": "Састав",
+        "membersTotal": "{count, plural, one {# члан укупно} few {# члана укупно} other {# чланова укупно}}"
     },
     "MeetingStatus": {
         "scheduled": "Заказана",

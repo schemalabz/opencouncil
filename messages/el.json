@@ -502,7 +502,13 @@
         "breadcrumbHome": "Αρχική",
         "independentCouncilMember": "Ανεξάρτητος Δημοτικός Σύμβουλος",
         "biography": "Βιογραφικό",
-        "moreRoles": "+{count} ακόμη"
+        "moreRoles": "+{count} ακόμη",
+        "present": "σήμερα",
+        "statementsFact": "{count, plural, one {# τοποθέτηση} other {# τοποθετήσεις}}",
+        "speakingFact": "{minutes}′ συνολικής ομιλίας",
+        "rolesCard": "Ρόλοι",
+        "topTopicsCard": "Θέματα που μιλά συχνότερα",
+        "pastTerms": "Προηγούμενες θητείες ({count})"
     },
     "Party": {
         "currentMembers": "Μέλη",
@@ -535,7 +541,9 @@
         "breakdownCommittees": "{count} σε επιτροπές",
         "breakdownCommunities": "{count} σε κοινότητες",
         "breakdownOthers": "{count} άλλοι",
-        "peopleWithoutParties": "Πρόσωπα εκτός παρατάξεων:"
+        "peopleWithoutParties": "Πρόσωπα εκτός παρατάξεων:",
+        "compositionCard": "Σύνθεση",
+        "membersTotal": "{count, plural, one {# μέλος συνολικά} other {# μέλη συνολικά}}"
     },
     "ImageCropDialog": {
         "title": "Προσαρμογή εικόνας",

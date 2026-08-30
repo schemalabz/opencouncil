@@ -502,7 +502,13 @@
     "breadcrumbHome": "Accueil",
     "independentCouncilMember": "Conseiller municipal indépendant",
     "biography": "Biographie",
-    "moreRoles": "+{count} autres"
+    "moreRoles": "+{count} autres",
+    "present": "aujourd’hui",
+    "statementsFact": "{count, plural, one {# intervention} other {# interventions}}",
+    "speakingFact": "{minutes}′ de temps de parole",
+    "rolesCard": "Rôles",
+    "topTopicsCard": "Sujets les plus fréquents",
+    "pastTerms": "Mandats précédents ({count})"
   },
   "Party": {
     "currentMembers": "Membres",
@@ -535,7 +541,9 @@
     "breakdownCommittees": "{count} en commissions",
     "breakdownCommunities": "{count} en communautés",
     "breakdownOthers": "{count} autres",
-    "peopleWithoutParties": "Personnes sans groupe :"
+    "peopleWithoutParties": "Personnes sans groupe :",
+    "compositionCard": "Composition",
+    "membersTotal": "{count, plural, one {# membre au total} other {# membres au total}}"
   },
   "ImageCropDialog": {
     "title": "Ajuster l'image",
