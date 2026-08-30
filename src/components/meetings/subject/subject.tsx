@@ -35,6 +35,7 @@ import { useTranscriptOptions } from "../options/OptionsContext";
 import { useLocalizeText } from "@/hooks/useLocalizeText";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { surfaceCardClass } from '@/components/ui/surface-card';
+import { RailCard } from '@/components/ui/rail-card';
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
     const { subjects, getPerson, getParty, meeting, city } = useCouncilMeetingData();
@@ -530,14 +531,6 @@ function SectionHead({ title, count }: { title: string; count?: number }) {
 }
 
 /** One quiet card of the facts rail. */
-function RailCard({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
-    return (
-        <div className={cn(surfaceCardClass, "px-4 py-3.5")}>
-            <div className="mb-2.5 text-[11px] font-extrabold tracking-[.04em] text-muted-foreground">{title}</div>
-            {children}
-        </div>
-    );
-}
 
 /**
  * The discussion at a glance: the party-split ring around the total, and each

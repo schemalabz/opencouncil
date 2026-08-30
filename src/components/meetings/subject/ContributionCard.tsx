@@ -2,6 +2,7 @@
 
 import { memo } from "react";
 import { FileText, Users } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "@/i18n/routing";
 import { FormattedTextDisplay } from "@/components/FormattedTextDisplay";
 import { useTranslations } from "next-intl";
@@ -240,3 +241,32 @@ export const ContributionCard = memo(function ContributionCard({
         </article>
     );
 });
+
+/**
+ * The subject-led card's shape while it loads: topic dot, title and meta
+ * lines, a speaker row, three lines of quote. Pages render a few of these
+ * instead of a spinner, so the list doesn't jump when the real cards land.
+ */
+export function ContributionCardSkeleton() {
+    return (
+        <div className={cn(surfaceCardClass, 'border-l-[3px] px-[18px] py-4')}>
+            <div className="flex items-start gap-2.5">
+                <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+                <div className="min-w-0 flex-1 space-y-2">
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-3 w-2/5" />
+                </div>
+                <Skeleton className="h-7 w-20 shrink-0 rounded-full" />
+            </div>
+            <div className="mt-3.5 flex items-center gap-2.5">
+                <Skeleton className="h-7 w-7 rounded-full" />
+                <Skeleton className="h-3 w-44" />
+            </div>
+            <div className="mt-3 space-y-2">
+                <Skeleton className="h-3.5 w-full" />
+                <Skeleton className="h-3.5 w-full" />
+                <Skeleton className="h-3.5 w-3/5" />
+            </div>
+        </div>
+    );
+}
