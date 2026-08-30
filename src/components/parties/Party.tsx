@@ -313,6 +313,8 @@ function SegmentsTab({
                                         adminBodyName: contribution.subject.councilMeeting.administrativeBody?.name ?? null,
                                         meetingDate: contribution.subject.councilMeeting.dateTime,
                                         subjectName: contribution.subject.name,
+                                        agendaItemIndex: contribution.subject.agendaItemIndex,
+                                        nonAgendaReason: contribution.subject.nonAgendaReason,
                                         topic: contribution.subject.topic
                                             ? {
                                                 name: contribution.subject.topic.name,

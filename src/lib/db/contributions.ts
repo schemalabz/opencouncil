@@ -101,6 +101,8 @@ export async function getLatestContributionsForSpeaker(
                         name: true,
                         cityId: true,
                         councilMeetingId: true,
+                        agendaItemIndex: true,
+                        nonAgendaReason: true,
                         topic: true,
                         councilMeeting: {
                             include: { administrativeBody: true },
@@ -156,6 +158,8 @@ export async function getLatestContributionsForParty(
                         name: true,
                         cityId: true,
                         councilMeetingId: true,
+                        agendaItemIndex: true,
+                        nonAgendaReason: true,
                         topic: true,
                         councilMeeting: {
                             include: { administrativeBody: true },
