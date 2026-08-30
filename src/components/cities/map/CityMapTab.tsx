@@ -15,6 +15,7 @@ import { useGeneralCityMarkers, useSubjectMarkers } from '@/components/landing/v
 import { SubjectExpandedCard } from '@/components/map/subjects/SubjectExpandedCard';
 import { SubjectStrip } from '@/components/map/subjects/SubjectStrip';
 import { useSubjectMapState } from '@/components/map/subjects/useSubjectMapState';
+import { captureEvent } from '@/lib/analytics/capture';
 import { EMPTY_FILTERS } from '@/lib/landing/landingCore';
 import type { GeneralCityRow, MapSubject } from '@/lib/landing/landingData';
 import { calculateGeometryBounds } from '@/lib/geo';
@@ -72,7 +73,7 @@ export function CityMapTab({
         pendingCoLocatedRef,
         pendingGeneralRef,
         previewSubject,
-    } = useSubjectMapState({ mapInstance, initialZoom: INITIAL_ZOOM });
+    } = useSubjectMapState({ mapInstance, initialZoom: INITIAL_ZOOM, surface: 'city_map' });
 
     const { visibleSubjects, visibleGeneralCities, listSubjects, findSubject, selectedSubject } = useFilteredSubjects({
         mapSubjects: subjects,
@@ -110,6 +111,7 @@ export function CityMapTab({
 
     useSubjectMarkers({
         mapInstance,
+        surface: 'city_map',
         active: true,
         visibleSubjects,
         selectedId,
@@ -123,6 +125,7 @@ export function CityMapTab({
 
     useGeneralCityMarkers({
         mapInstance,
+        surface: 'city_map',
         active: true,
         visibleGeneralCities,
         isMobile,
@@ -147,6 +150,7 @@ export function CityMapTab({
                 other δήμος and the date/body filters, so the card opens by pointing at it. */}
             <Link
                 href={moreHref}
+                onClick={() => captureEvent('map_handoff', { from: 'city_map', city_id: cityId })}
                 className="group flex shrink-0 items-center justify-between gap-3 border-b border-border bg-muted/40 px-4 py-3 no-underline transition-colors hover:bg-[hsl(var(--orange-deep))]/[0.07] hover:no-underline"
             >
                 <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[hsl(var(--orange-deep))]">
@@ -171,6 +175,7 @@ export function CityMapTab({
                         </div>
                     ) : (
                     <SubjectList
+                        surface="city_map"
                         subjects={listSubjects}
                         selectedId={selectedId}
                         onSelect={setSelectedId}
@@ -223,6 +228,7 @@ export function CityMapTab({
                     <div className="xl:hidden">
                         {selectedSubject ? (
                             <SubjectExpandedCard
+                                surface="city_map"
                                 subject={selectedSubject}
                                 openSource="city_map"
                                 onClose={() => {

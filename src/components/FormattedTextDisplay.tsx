@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useMemo } from "react";
+import { captureEvent } from '@/lib/analytics/capture';
 import { useLocale } from "next-intl";
 import { ReferenceType } from "@/lib/utils/references";
 import { Badge } from "./ui/badge";
@@ -66,6 +67,12 @@ export const FormattedTextDisplay = memo(function FormattedTextDisplay({
         return (
             <a
                 href={href}
+                onClick={() => captureEvent('subject_action', {
+                    action: entityType === 'people' ? 'ref_person' : 'ref_subject',
+                    ref_id: id,
+                    city_id: cityId,
+                    meeting_id: meetingId ?? null,
+                })}
                 className={`${linkClassName} inline`}
                 style={linkStyle}
             >

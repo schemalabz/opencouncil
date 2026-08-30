@@ -1,5 +1,6 @@
 "use client"
 import { SubjectWithRelations } from "@/lib/db/subject";
+import { captureEvent } from '@/lib/analytics/capture';
 import { Statistics } from "@/lib/statistics";
 import { SubjectRow } from "../subject/SubjectRow";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
@@ -61,7 +62,10 @@ export function SubjectSection({
                     {showSortToggle && onSortModeChange && (
                         <div className="flex items-center gap-2 text-xs sm:text-sm mt-1">
                             <button
-                                onClick={() => onSortModeChange('speakingTime')}
+                                onClick={() => {
+                                    captureEvent('meeting_page_action', { action: 'sort_discussed', city_id: city.id, meeting_id: meeting.id });
+                                    onSortModeChange('speakingTime');
+                                }}
                                 className={cn(
                                     "transition-colors",
                                     sortMode === 'speakingTime'
@@ -73,7 +77,10 @@ export function SubjectSection({
                             </button>
                             <span className="text-muted-foreground/40">|</span>
                             <button
-                                onClick={() => onSortModeChange('agendaIndex')}
+                                onClick={() => {
+                                    captureEvent('meeting_page_action', { action: 'sort_agenda', city_id: city.id, meeting_id: meeting.id });
+                                    onSortModeChange('agendaIndex');
+                                }}
                                 className={cn(
                                     "transition-colors",
                                     sortMode === 'agendaIndex'
@@ -107,6 +114,13 @@ export function SubjectSection({
                         meeting={meeting}
                         persons={people}
                         showContext={false}
+                        onOpen={() => captureEvent('subject_opened', {
+                            surface: 'meeting_rows',
+                            subject_id: subject.id,
+                            city_id: city.id,
+                            meeting_id: meeting.id,
+                            sort_mode: sortMode ?? null,
+                        })}
                     />
                 ))}
             </div>
@@ -114,7 +128,10 @@ export function SubjectSection({
             {hasMore && !showAll && (
                 <div className="flex justify-center mt-4">
                     <button
-                        onClick={() => setShowAll(true)}
+                        onClick={() => {
+                            captureEvent('meeting_page_action', { action: 'show_all_subjects', city_id: city.id, meeting_id: meeting.id, count: subjects.length });
+                            setShowAll(true);
+                        }}
                         className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                     >
                         {t("showAll", { count: subjects.length })}

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, memo } from "react";
+import { captureEvent } from '@/lib/analytics/capture';
 import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataContext";
 import { useUtteranceExpansion } from "./UtteranceExpansionContext";
 import { UtteranceMiniTranscript } from "./UtteranceMiniTranscript";
@@ -54,6 +55,7 @@ const UtteranceReferenceLinkComponent = function UtteranceReferenceLink({
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    captureEvent('subject_action', { action: 'ref_utterance_expanded', ref_id: utteranceId });
     toggleExpansion(utteranceId);
   };
 

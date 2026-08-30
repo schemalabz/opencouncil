@@ -1,6 +1,7 @@
 "use client";
 
 import { memo } from "react";
+import { captureEvent } from '@/lib/analytics/capture';
 import { ArrowUpRight, FileText, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "@/i18n/routing";
@@ -51,6 +52,8 @@ interface ContributionCardProps {
     showSpeaker?: boolean;
     /** Tag this τοποθέτηση as the εισηγητής's (the subject page knows who introduced it). */
     isIntroducer?: boolean;
+    /** Which page renders the card — the analytics discriminator. */
+    sourcePage?: 'subject' | 'person' | 'party';
 }
 
 /**
@@ -70,6 +73,7 @@ export const ContributionCard = memo(function ContributionCard({
     disableSpeakerNavigation = false,
     showSpeaker = true,
     isIntroducer = false,
+    sourcePage = 'subject',
 }: ContributionCardProps) {
     const t = useTranslations("Subject");
 
@@ -86,6 +90,15 @@ export const ContributionCard = memo(function ContributionCard({
 
     const party = speaker ? getPartyFromRoles(speaker.roles) : null;
 
+    const captureCardAction = (action: string) =>
+        captureEvent('subject_action', {
+            action,
+            surface: sourcePage,
+            subject_id: subjectId,
+            city_id: meeting.cityId,
+            meeting_id: meeting.id,
+        });
+
     // "Εντεταλμένος Νεολαίας · Αθήνα Τώρα": the speaker's city-level role, then their party.
     const cityRoleName = speaker
         ? filterActiveRoles(speaker.roles).find(r => r.cityId && !r.partyId && !r.administrativeBodyId)?.name ?? null
@@ -101,6 +114,7 @@ export const ContributionCard = memo(function ContributionCard({
                 <PlayPauseButton
                     startTimestamp={utteranceInfo.startTimestamp}
                     endTimestamp={utteranceInfo.endTimestamp}
+                    onPressPlay={() => captureCardAction('contribution_play')}
                     className="h-7 gap-1.5 rounded-full border-border bg-card px-2.5 text-[11px] font-semibold tabular-nums text-foreground shadow-none hover:!bg-muted hover:!text-foreground [&_svg]:!h-3 [&_svg]:!w-3"
                 >
                     {formatTimestamp(utteranceInfo.startTimestamp)}
@@ -108,6 +122,7 @@ export const ContributionCard = memo(function ContributionCard({
             ) : transcriptUrl && (
                 <Link
                     href={transcriptUrl}
+                    onClick={() => captureCardAction('contribution_transcript')}
                     className="inline-flex h-7 items-center rounded-full border border-border bg-card px-2.5 text-[11px] tabular-nums text-muted-foreground transition-colors hover:text-foreground hover:no-underline"
                 >
                     {formatTimestamp(utteranceInfo.startTimestamp)}
@@ -118,6 +133,7 @@ export const ContributionCard = memo(function ContributionCard({
             {showPlayButton && transcriptUrl && (
                 <Link
                     href={transcriptUrl}
+                    onClick={() => captureCardAction('contribution_transcript')}
                     title={t("transcript")}
                     aria-label={t("transcript")}
                     className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
@@ -153,6 +169,7 @@ export const ContributionCard = memo(function ContributionCard({
                     ) : (
                         <Link
                             href={`/${meeting.cityId}/people/${speaker.id}`}
+                            onClick={() => captureEvent('person_opened', { surface: 'contribution_speaker', city_id: meeting.cityId, person_id: speaker.id, page: sourcePage })}
                             className="text-sm font-bold text-foreground hover:no-underline"
                         >
                             {speaker.name}
@@ -217,6 +234,14 @@ export const ContributionCard = memo(function ContributionCard({
                         arrow at its tail, and the site's orange on hover. */}
                     <Link
                         href={subjectUrl}
+                        prefetch={false}
+                        onClick={() => captureEvent('subject_opened', {
+                            surface: 'contribution_card',
+                            subject_id: subjectId,
+                            city_id: meeting.cityId,
+                            meeting_id: meeting.id,
+                            page: sourcePage,
+                        })}
                         className="group/subject block text-[15.5px] font-bold leading-tight text-foreground transition-colors hover:text-[hsl(var(--orange))] hover:no-underline"
                         style={{ textWrap: 'pretty' }}
                     >

@@ -1,5 +1,6 @@
 "use client";
 import { useState } from 'react';
+import { captureEvent } from '@/lib/analytics/capture';
 import { motion } from 'framer-motion';
 import type { HotSubjectCard } from '@/lib/hotSubjectCards';
 import { HotTopicLead } from './HotTopicLead';
@@ -64,7 +65,10 @@ export function HotTopicsList({ cards, cityId, timezone, locale }: HotTopicsList
                             maxSeconds={maxSeconds}
                             timezone={timezone}
                             locale={locale}
-                            onOpen={() => setOpenId(card.subject.id)}
+                            onOpen={() => {
+                                captureEvent('hot_topic_expanded', { subject_id: card.subject.id, city_id: cityId, rank: i + 1 });
+                                setOpenId(card.subject.id);
+                            }}
                         />
                     )}
                 </motion.div>

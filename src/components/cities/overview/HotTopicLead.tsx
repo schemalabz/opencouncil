@@ -1,4 +1,5 @@
 import { ArrowRight } from 'lucide-react';
+import { captureEvent } from '@/lib/analytics/capture';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { PersonAvatarList } from '@/components/persons/PersonAvatarList';
@@ -37,6 +38,8 @@ interface HotTopicLeadProps {
 export function HotTopicLead({ card, rank, maxSeconds, cityId, timezone, locale }: HotTopicLeadProps) {
     const t = useTranslations('cityOverview');
     const { subject, meeting, stats, speakers } = card;
+    const captureOpen = () =>
+        captureEvent('subject_opened', { surface: 'hot_topics', subject_id: subject.id, city_id: cityId, rank });
     const topic = topicStyle(subject.topic?.colorHex);
     const href = `/${cityId}/${meeting.id}/subjects/${subject.id}`;
     const width = hotTopicBarWidth(stats.speakingSeconds, maxSeconds);
@@ -78,7 +81,7 @@ export function HotTopicLead({ card, rank, maxSeconds, cityId, timezone, locale 
                             />
                         )}
                         <h3 className="!text-left text-lg leading-tight sm:text-xl">
-                            <Link href={href} prefetch={false} className="hover:no-underline">
+                            <Link href={href} prefetch={false} onClick={captureOpen} className="hover:no-underline">
                                 {localizeText(subject.name, locale)}
                             </Link>
                         </h3>
@@ -110,6 +113,7 @@ export function HotTopicLead({ card, rank, maxSeconds, cityId, timezone, locale 
                             <Link
                                 href={href}
                                 prefetch={false}
+                                onClick={captureOpen}
                                 className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[13px] font-semibold text-[hsl(var(--orange))]"
                             >
                                 {t('viewSubject')}
@@ -117,7 +121,13 @@ export function HotTopicLead({ card, rank, maxSeconds, cityId, timezone, locale 
                             </Link>
                             {speakers.length > 0 && (
                                 <span className="sm:hidden">
-                                    <PersonAvatarList users={speakers} size="sm" maxDisplayed={4} stacked />
+                                    <PersonAvatarList
+                                        users={speakers}
+                                        size="sm"
+                                        maxDisplayed={4}
+                                        stacked
+                                        onPersonOpen={personId => captureEvent('person_opened', { surface: 'avatar_stack', city_id: cityId, person_id: personId })}
+                                    />
                                 </span>
                             )}
                         </div>
@@ -130,7 +140,13 @@ export function HotTopicLead({ card, rank, maxSeconds, cityId, timezone, locale 
                             {t('discussionMinutes', { minutes: stats.minutes })}
                         </span>
                         {speakers.length > 0 && (
-                            <PersonAvatarList users={speakers} size="sm" maxDisplayed={4} stacked />
+                            <PersonAvatarList
+                                        users={speakers}
+                                        size="sm"
+                                        maxDisplayed={4}
+                                        stacked
+                                        onPersonOpen={personId => captureEvent('person_opened', { surface: 'avatar_stack', city_id: cityId, person_id: personId })}
+                                    />
                         )}
                     </div>
                 </div>

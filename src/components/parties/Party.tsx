@@ -1,5 +1,6 @@
 'use client';
 import { useTranslations } from 'next-intl';
+import { captureEvent } from '@/lib/analytics/capture';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import FormSheet from '../FormSheet';
 import PartyForm from './PartyForm';
@@ -118,7 +119,10 @@ function PartyMembersTab({
                             <BadgePicker
                                 options={typeOptions}
                                 selectedValues={selectedTypes}
-                                onSelectionChange={setSelectedTypes}
+                                onSelectionChange={values => {
+                                    captureEvent('profile_filter', { page: 'party', kind: 'body_scope', value_id: values[0] ?? null, active: values.length > 0, city_id: city.id });
+                                    setSelectedTypes(values);
+                                }}
                                 allLabel={tCommon('allPeople')}
                             />
                         )}
@@ -149,6 +153,7 @@ function PartyMembersTab({
                                 key={person.id}
                                 item={person}
                                 editable={canEdit}
+                                analyticsSurface="party_members"
                             />
                         ))}
                 </div>
@@ -318,6 +323,7 @@ function SegmentsTab({
                                             : null,
                                     }}
                                     showPlayButton={false}
+                                    sourcePage="party"
                                 />
                             </motion.div>
                         ))}
@@ -338,7 +344,10 @@ function SegmentsTab({
 
                 {!isLoadingContributions && contributions.length < totalCount && (
                     <Button
-                        onClick={() => setPage(prevPage => prevPage + 1)}
+                        onClick={() => {
+                            captureEvent('profile_load_more', { page: 'party', loaded_count: contributions.length, total_count: totalCount });
+                            setPage(prevPage => prevPage + 1);
+                        }}
                         variant="outline"
                         className="mt-6 w-full sm:w-auto"
                         disabled={isLoadingContributions}
@@ -466,6 +475,7 @@ export default function PartyC({ city, party, administrativeBodies }: {
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
+        captureEvent('profile_search', { page: 'party', query_length: searchQuery.length, city_id: city.id });
         const params = new URLSearchParams();
         params.set('query', searchQuery);
         params.set('partyId', party.id);
@@ -498,6 +508,7 @@ export default function PartyC({ city, party, administrativeBodies }: {
 
     // Handler for admin body type selection
     const handleAdminBodyTypeSelect = (type: AdministrativeBodyType | null) => {
+        captureEvent('profile_filter', { page: 'party', kind: 'body_scope', value_id: type, active: type !== null, city_id: city.id });
         setSelectedAdminBodyType(type);
     };
 
@@ -679,6 +690,7 @@ export default function PartyC({ city, party, administrativeBodies }: {
                                 <RailCard title={t('partyLeader')}>
                                     <Link
                                         href={`/${city.id}/people/${partyLeader.person.id}`}
+                                        onClick={() => captureEvent('person_opened', { surface: 'party_leader', city_id: city.id, person_id: partyLeader.person.id })}
                                         className="group flex items-center gap-3 hover:no-underline"
                                     >
                                         <span className="block h-11 w-11 shrink-0">

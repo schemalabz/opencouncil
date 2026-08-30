@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import Map, { type MapFeature } from '@/components/map/map';
 import { cityBoundaryFeature } from '@/components/map/cityBoundary';
 import { TOPICLESS_COLOR } from '@/lib/topicStyle';
+import { captureEvent } from '@/lib/analytics/capture';
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
 import { CoLocatedBox } from '@/components/landing/v2/mapMarkers';
 import { useSubjectMarkers } from '@/components/landing/v2/hooks/useMapMarkers';
@@ -69,7 +70,7 @@ export function MeetingMap() {
 
     const router = useRouter();
     const { setCoLocated, coLocated, suppressViewCaptureRef, pendingCoLocatedRef } =
-        useSubjectMapState({ mapInstance, initialZoom: fallbackView.zoom });
+        useSubjectMapState({ mapInstance, initialZoom: fallbackView.zoom, surface: 'meeting_map' });
 
     const t = useTranslations('landingV2');
     const landingSubjects = useMemo(
@@ -80,13 +81,16 @@ export function MeetingMap() {
     const open = useCallback(
         (id: string) => {
             const subject = landingSubjects.find(s => s.id === id);
-            if (subject) router.push(subject.href);
+            if (!subject) return;
+            captureEvent('subject_opened', { surface: 'meeting_map', subject_id: id, city_id: city.id, meeting_id: meeting.id });
+            router.push(subject.href);
         },
-        [landingSubjects, router],
+        [landingSubjects, router, city.id, meeting.id],
     );
 
     useSubjectMarkers({
         mapInstance,
+        surface: 'meeting_map',
         active: true,
         visibleSubjects: landingSubjects,
         selectedId: null,

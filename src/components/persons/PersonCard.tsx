@@ -1,4 +1,5 @@
 import { useLocale, useTranslations } from 'next-intl';
+import { TrackedLink } from '@/components/analytics/TrackedLink';
 import { Link } from '@/i18n/routing';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
 import type { PersonWithRelations } from '@/lib/db/people';
@@ -13,6 +14,8 @@ const ROLES_SHOWN = 2;
 
 interface PersonCardProps {
     item: PersonWithRelations;
+    /** Which surface renders the card — the person_opened analytics discriminator. */
+    analyticsSurface?: string;
     editable: boolean;
 }
 
@@ -30,7 +33,7 @@ interface PersonCardProps {
  * Deliberately hook-light so it renders in a Server Component and inside List,
  * which is a client component.
  */
-export default function PersonCard({ item: person }: PersonCardProps) {
+export default function PersonCard({ item: person, analyticsSurface = 'people_list' }: PersonCardProps) {
     const t = useTranslations('Person');
     const locale = useLocale();
     const party = getPartyFromRoles(person.roles);
@@ -48,8 +51,10 @@ export default function PersonCard({ item: person }: PersonCardProps) {
     const rest = roles.length - shown.length;
 
     return (
-        <Link
+        <TrackedLink
             href={`/${person.cityId}/people/${person.id}`}
+            event="person_opened"
+            eventProps={{ surface: analyticsSurface, city_id: person.cityId, person_id: person.id }}
             className={cn(surfaceCardClass, "group relative flex h-full overflow-hidden transition-shadow hover:shadow-md hover:no-underline")}
         >
             {/* A filled band, not a border: a border renders as a stroke that thins
@@ -94,6 +99,6 @@ export default function PersonCard({ item: person }: PersonCardProps) {
                     )}
                 </span>
             </span>
-        </Link>
+        </TrackedLink>
     );
 }

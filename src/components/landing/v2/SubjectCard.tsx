@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import Icon from '@/components/icon';
 import { formatDate } from '@/lib/formatters/time';
 import { subjectLocationLine, type LandingSubject } from '@/lib/landing/landingData';
-import { captureLandingAction } from '@/lib/landing/analytics';
+import { captureMapAction, type MapSurface } from '@/lib/analytics/capture';
 import { topicStyle } from '@/lib/topicStyle';
 
 /* "view the subject's page" affordance. A Link by default; renders a button when `onView` is
@@ -18,18 +18,21 @@ export function SubjectPageLink({
     source,
     subjectId,
     cityId,
+    surface = 'landing',
     className,
 }: {
     href?: string;
     onView?: () => void;
     source?: 'list' | 'map_preview';
+    /** Which page the card renders on — off-landing the event leaves the landing_* family. */
+    surface?: MapSurface;
     subjectId?: string;
     cityId?: string;
     className?: string;
 }) {
     const t = useTranslations('landingV2');
     const track = () =>
-        captureLandingAction('subject_opened', { source: source ?? null, subject_id: subjectId, city_id: cityId });
+        captureMapAction(surface, 'subject_opened', { source: source ?? null, subject_id: subjectId, city_id: cityId });
     const cls = cn(
         'inline-flex w-fit items-center gap-1 self-start text-[13px] font-semibold text-[hsl(var(--orange))] underline',
         className,
@@ -81,10 +84,13 @@ export function SubjectCard({
     onClose,
     onView,
     selected,
+    surface = 'landing',
     className,
 }: {
     subject: LandingSubject;
     variant?: 'expanded' | 'preview';
+    /** Which page the card renders on — passed through to the view link's analytics. */
+    surface?: MapSurface;
     onClick?: () => void;
     /** preview only — renders the × close control */
     onClose?: () => void;
@@ -222,6 +228,7 @@ export function SubjectCard({
                 )}
 
                 <SubjectPageLink
+                    surface={surface}
                     href={subject.href}
                     onView={onView}
                     source={preview ? 'map_preview' : 'list'}

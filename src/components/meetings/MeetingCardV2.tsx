@@ -1,4 +1,5 @@
 import { ChevronRight } from 'lucide-react';
+import { TrackedLink } from '@/components/analytics/TrackedLink';
 import { isFuture } from 'date-fns';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
@@ -55,8 +56,17 @@ export default function MeetingCardV2({ item: meeting, cityTimezone }: MeetingCa
     const remaining = subjectCount - SUBJECT_PREVIEW_COUNT;
 
     return (
-        <Link
+        <TrackedLink
             href={`/${meeting.cityId}/${meeting.id}`}
+            prefetch={false}
+            event="meeting_opened"
+            eventProps={{
+                surface: 'meeting_card',
+                city_id: meeting.cityId,
+                meeting_id: meeting.id,
+                upcoming,
+                subject_count: subjectCount,
+            }}
             className={cn(
                 surfaceCardClass,
                 'group flex h-full flex-col overflow-hidden transition-shadow hover:shadow-md hover:no-underline',
@@ -138,6 +148,6 @@ export default function MeetingCardV2({ item: meeting, cityTimezone }: MeetingCa
                     </span>
                 )}
             </div>
-        </Link>
+        </TrackedLink>
     );
 }
