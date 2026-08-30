@@ -650,8 +650,8 @@ export async function calculateProximityMatches(
 // Caller-gated: invoked by the processAgenda/summarize tasks (no user session)
 // as well as the per-city notifications route and the superadmin conversations
 // action. Because a task caller has no session, this cannot take an inner auth
-// gate; its user-facing callers authorize first. This server-only module keeps
-// the function off the Server Action surface.
+// gate; its user-facing callers authorize first. This module intentionally has
+// no `"use server"` directive, so this function is not a Server Action.
 export async function createNotificationsForMeeting(
     cityId: string,
     meetingId: string,
@@ -1402,8 +1402,9 @@ export async function getUnsubscribeContext(userId: string, cityId?: string): Pr
 
 // The three unsubscribe functions below take a userId but are authorized by a
 // signed unsubscribe token at the route/page (no session), so they cannot use
-// requireSelfOrSuperadmin. This server-only module prevents direct browser
-// calls that bypass the token check.
+// requireSelfOrSuperadmin. They only clear subscription state or read the
+// unsubscribe context. This module intentionally has no `"use server"`
+// directive, so clients cannot call them directly and bypass the token check.
 export async function disableAllNotificationPreferences(userId: string) {
     await prisma.notificationPreference.updateMany({
         where: { userId },
