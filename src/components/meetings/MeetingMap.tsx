@@ -104,7 +104,7 @@ export function MeetingMap() {
         ...landingSubjects.map(subject => ({
             id: `label-${subject.id}`,
             geometry: { type: 'Point' as const, coordinates: [subject.lng, subject.lat] },
-            properties: { interactive: false },
+            properties: { interactive: false, labelAnchor: 'left' },
             style: {
                 fillOpacity: 0,
                 strokeWidth: 0,
