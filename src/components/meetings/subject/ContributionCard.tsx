@@ -113,7 +113,9 @@ export const ContributionCard = memo(function ContributionCard({
                     {formatTimestamp(utteranceInfo.startTimestamp)}
                 </Link>
             ))}
-            {transcriptUrl && (
+            {/* Only beside a play control: without a video the timestamp pill IS
+                the transcript link, and a second pill to the same URL said nothing. */}
+            {showPlayButton && transcriptUrl && (
                 <Link
                     href={transcriptUrl}
                     title={t("transcript")}
