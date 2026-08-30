@@ -1,12 +1,12 @@
 import { AdministrativeBody, City, CouncilMeeting } from "@prisma/client";
 import { Statistics } from "@/lib/statistics";
 import { SubjectWithRelations } from "@/lib/db/subject";
-import { Card } from "@/components/ui/card";
+import { surfaceCardClass } from "@/components/ui/surface-card";
 import { TopicIcon } from "@/components/TopicIcon";
 import { PersonAvatarList } from "@/components/persons/PersonAvatarList";
 import { subjectCardStats } from "@/lib/subjectCardStats";
 import { subjectDisplayedSpeakers } from "@/lib/subjectSpeakers";
-import { getAgendaLabel, getWithdrawnLabel } from "@/lib/utils/subjects";
+import { getAgendaFullLabel, getWithdrawnLabel } from "@/lib/utils/subjects";
 import { Link, useRouter } from "@/i18n/routing";
 import { PersonWithRelations } from "@/lib/db/people";
 import { stripMarkdown } from "@/lib/formatters/markdown";
@@ -72,7 +72,7 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
 
     const speakers = subjectDisplayedSpeakers(subject, persons);
     const stats = subjectCardStats(subject.statistics, subject.contributions?.length);
-    const agendaLabel = getAgendaLabel(t, subject);
+    const agendaLabel = getAgendaFullLabel(t, subject);
     const description = subject.description ? localize(stripMarkdown(subject.description)) : null;
     const locationText = subject.location?.text ? localize(subject.location.text) : null;
     const rail = topicStyle(subject.topic?.colorHex).border;
@@ -89,14 +89,15 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
             onClick={handleClick}
             {...(openInNewTab && { target: "_blank", rel: "noopener noreferrer" })}
         >
-            <Card
+            <div
                 className={cn(
-                    "group/row w-full transition-shadow duration-300 hover:shadow-md",
+                    surfaceCardClass,
+                    "group/row relative w-full overflow-hidden transition-shadow duration-300 hover:shadow-md",
                     subject.withdrawn && "opacity-60",
                 )}
             >
                 {isLoading && (
-                    <div className="absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-background/90 backdrop-blur-sm">
+                    <div className="absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-background/90 backdrop-blur-sm">
                         <Loader2 className="h-6 w-6 animate-spin text-primary" />
                     </div>
                 )}
@@ -106,11 +107,11 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
                     outline. A radius on the rail itself cannot do that: the rail is 4px wide, so
                     the browser clamps an 8px corner down to 4px and the corner ends up outside the
                     card. The rail is square instead, and this wrapper clips it to the outline.
-                    The radius is the literal 0.5rem the card paints its own corners with —
+                    The radius is the literal 1rem of the shared card surface —
                     `rounded-lg` resolves to --radius, which is 0 in this theme. */}
                 <div
                     className="pointer-events-none absolute inset-0 overflow-hidden"
-                    style={{ borderRadius: "0.5rem" }}
+                    style={{ borderRadius: "1rem" }}
                     aria-hidden="true"
                 >
                     <div className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: rail }} />
@@ -139,7 +140,7 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
                                 )}
                             </div>
 
-                            <h3 className="line-clamp-2 text-[15px] font-semibold leading-snug transition-colors duration-300 group-hover/row:text-accent-foreground sm:text-base">
+                            <h3 className="line-clamp-2 text-[15px] font-semibold leading-snug transition-colors duration-300 group-hover/row:text-[hsl(var(--orange))] sm:text-base">
                                 {localize(subject.name)}
                             </h3>
 
@@ -206,7 +207,7 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
                         )}
                     </div>
                 </div>
-            </Card>
+            </div>
         </Link>
     );
 }
