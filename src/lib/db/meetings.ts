@@ -40,6 +40,9 @@ export type CouncilMeetingWithAdminBodyAndSubjects = Prisma.CouncilMeetingGetPay
     include: typeof meetingWithSubjectsInclude
 }>;
 
+// Cache keys over this projection carry MEETING_PREVIEW_CACHE_VERSION (in
+// lib/db/types/meeting.ts — this file's "use server" pragma forbids constant
+// exports). Bump it in the same edit that changes this include.
 const meetingWithSubjectPreviewInclude = {
     subjects: {
         // Deliberately NOT ordered by `contributions._count` and NOT limited with

@@ -44,3 +44,4 @@ export interface SeedData {
     topics: Topic[];
     administrativeBodies: AdministrativeBody[];
 }
+export * from './meeting';
