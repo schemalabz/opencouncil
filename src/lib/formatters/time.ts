@@ -274,6 +274,38 @@ export interface DateStampParts {
     monthYear: string;
 }
 
+
+/** A timeline node's stamp — the day and short month, no year. */
+export interface DayMonthStampParts {
+    day: string;
+    /** Abbreviated month, uppercased with the locale's own rules — Greek capitals drop their tonos. */
+    month: string;
+}
+
+/**
+ * The date-stamp without its year, for surfaces where every date is recent — a
+ * year on each node of a meetings timeline would repeat itself down the page.
+ * Same normalization and timezone handling as {@link formatDateStamp}.
+ */
+export function formatDayMonthStamp(date: Date | string, timezone?: string, locale: string = 'el'): DayMonthStampParts {
+    const value = date instanceof Date ? date : new Date(date);
+    if (Number.isNaN(value.getTime())) {
+        throw new Error(`Invalid date: ${String(date)}`);
+    }
+
+    const intlLocale = getIntlLocale(locale);
+    const withTz = (options: Intl.DateTimeFormatOptions): Intl.DateTimeFormatOptions =>
+        timezone ? { ...options, timeZone: timezone } : options;
+
+    return {
+        day: new Intl.DateTimeFormat(intlLocale, withTz({ day: 'numeric' })).format(value),
+        month: new Intl.DateTimeFormat(intlLocale, withTz({ month: 'short' }))
+            .format(value)
+            .replace(/\./g, '')
+            .toLocaleUpperCase(intlLocale),
+    };
+}
+
 /**
  * Splits a date into the parts a calendar-style stamp renders separately, so a
  * card can size the day numeral independently of the month.

@@ -11,7 +11,7 @@
     },
     "MunicipalitySelector": {
         "groupSupported": "ΥΠΟΣΤΗΡΙΖΟΜΕΝΟΙ ΔΗΜΟΙ",
-        "groupAll": "ΌΛΟΙ ΟΙ ΔΗΜΟΙ",
+        "groupAll": "ΟΛΟΙ ΟΙ ΔΗΜΟΙ",
         "placeholder": "Επιλέξτε τον Δήμο σας...",
         "searchPlaceholder": "Αναζητήστε τον Δήμο σας...",
         "emptyMessage": "Δεν βρέθηκε Δήμος με αυτό το όνομα."
