@@ -113,6 +113,7 @@ export default function MeetingSidebar() {
                             >
                                 <Link
                                     href={subjectUrl}
+                                    prefetch={false}
                                     className={cn(
                                         activeItem === subjectUrl && "text-primary font-medium"
                                     )}
