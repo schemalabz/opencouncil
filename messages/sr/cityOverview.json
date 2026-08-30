@@ -31,7 +31,7 @@
   "allPeople": "Сви људи",
   "peopleEyebrow": "{count, plural, =1 {1 члан} other {# чланова}}",
   "seatsInCouncil": "{count, plural, =1 {место у скупштини} other {места у скупштини}}",
-  "inCommittees": "{count} у одборима",
+  "inCommittees": "{count} у одбору",
   "governingParty": "Владајућа група",
   "notisName": "Нотис",
   "notisIntro": {

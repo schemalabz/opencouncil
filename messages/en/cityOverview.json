@@ -31,7 +31,7 @@
   "allPeople": "All people",
   "peopleEyebrow": "{count, plural, =1 {1 member} other {# members}}",
   "seatsInCouncil": "{count, plural, =1 {seat on the council} other {seats on the council}}",
-  "inCommittees": "{count} on committees",
+  "inCommittees": "{count} on the municipal committee",
   "governingParty": "Governing group",
   "notisName": "Notis",
   "notisIntro": {
