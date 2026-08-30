@@ -5,6 +5,7 @@ import type { Map as MapboxMap } from 'mapbox-gl';
 import { useTranslations } from 'next-intl';
 import Map, { type MapFeature } from '@/components/map/map';
 import { cityBoundaryFeature } from '@/components/map/cityBoundary';
+import { TOPICLESS_COLOR } from '@/lib/topicStyle';
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
 import { CoLocatedBox } from '@/components/landing/v2/mapMarkers';
 import { useSubjectMarkers } from '@/components/landing/v2/hooks/useMapMarkers';
@@ -56,7 +57,7 @@ export function MeetingMap() {
                 locationText: subject.location?.text ?? undefined,
                 topicId: subject.topicId,
                 topicName: subject.topic?.name,
-                topicColor: subject.topic?.colorHex ?? '#9ca3af',
+                topicColor: subject.topic?.colorHex ?? TOPICLESS_COLOR,
                 topicIcon: subject.topic?.icon ?? null,
                 discussionTimeSeconds: subject.statistics?.speakingSeconds ?? 0,
                 speakerCount: subject.statistics?.people?.length ?? 0,

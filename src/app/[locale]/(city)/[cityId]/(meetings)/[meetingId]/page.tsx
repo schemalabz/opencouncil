@@ -1,6 +1,7 @@
 "use client"
 import MapView from "@/components/map/map";
 import { cityBoundaryFeature } from '@/components/map/cityBoundary';
+import { TOPICLESS_COLOR } from '@/lib/topicStyle';
 import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataContext";
 import { SubjectSection } from "@/components/meetings/subject-section";
 import { TopicFilter } from "@/components/TopicFilter";
@@ -34,7 +35,7 @@ export default function MeetingPage() {
         ...subjects.flatMap(subject => {
             const point = subject.location?.coordinates;
             if (!point) return [];
-            const color = subject.topic?.colorHex ?? '#9ca3af';
+            const color = subject.topic?.colorHex ?? TOPICLESS_COLOR;
             return [{
                 id: `subject-${subject.id}`,
                 geometry: { type: 'Point' as const, coordinates: [point.x, point.y] },
