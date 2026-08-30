@@ -150,14 +150,22 @@ export default function Combobox<T>({
             filter={(value, search, keywords) =>
                 relevanceScore(keywords?.length ? `${value} ${keywords.join(" ")}` : value, search)
             }
-            className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
-            <div className="flex items-center px-3 border-b">
-                <CommandInput
-                    placeholder={searchPlaceholder || placeholder}
-                    className="h-12 flex-1"
-                />
-            </div>
-            <CommandList>
+            className={cn(
+                "[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5",
+                // Fill the sheet rather than size to content, so the list keeps
+                // every pixel the software keyboard leaves.
+                isMobile && "h-auto min-h-0 flex-1",
+            )}
+        >
+            <CommandInput
+                placeholder={searchPlaceholder || placeholder}
+                // 16px on mobile. Under that, iOS Safari zooms the page in when the
+                // field takes focus, and the user cannot zoom back out.
+                className={cn("h-12", isMobile && "text-base")}
+            />
+            {/* max-h-full, not max-h-none: tailwind-merge only drops the list's
+                own 300px cap for a value it recognises as a length. */}
+            <CommandList className={cn(isMobile && "max-h-full flex-1")}>
                 <CommandEmpty>
                     <div className="py-6 text-center">
                         <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-orange-100 text-orange-600 mb-3">
@@ -225,8 +233,25 @@ export default function Combobox<T>({
             <>
                 {trigger}
                 <Dialog open={open} onOpenChange={setOpen}>
-                    <DialogContent className="sm:max-w-[425px] overflow-hidden p-0">
-                        <DialogHeader className="px-4 pt-4">
+                    {/*
+                      * A full-height sheet anchored to the top of the screen. The
+                      * centred box this replaces put the results behind the software
+                      * keyboard, and only the top few rows of a list capped at 300px
+                      * stayed on screen.
+                      */}
+                    <DialogContent
+                        align="start"
+                        // The title names the task and the field carries its own
+                        // placeholder, so there is nothing left for a description.
+                        aria-describedby={undefined}
+                        className="top-0 flex h-[100dvh] max-h-[100dvh] max-w-none translate-y-0 flex-col gap-0 overflow-y-hidden rounded-none border-0 p-0 sm:rounded-none"
+                        // The sheet is the full screen, so this is the only way out
+                        // of it. The negative margin pulls the box back by the same
+                        // amount as the padding, so the icon stays where it is.
+                        closeClassName="-m-3 p-3"
+                    >
+                        {/* pr-14 keeps the title clear of the close button. */}
+                        <DialogHeader className="px-4 pb-3 pr-14 pt-4 text-left">
                             <DialogTitle>{placeholder}</DialogTitle>
                         </DialogHeader>
                         {renderContent()}

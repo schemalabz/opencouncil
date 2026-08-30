@@ -17,8 +17,15 @@ beforeAll(() => {
         unobserve() {}
         disconnect() {}
     };
-    window.innerWidth = 1024; // desktop -> Popover path (not the mobile Dialog)
 });
+
+// Combobox picks its presentation from window.innerWidth on mount.
+const DESKTOP_WIDTH = 1024; // -> Popover
+const PHONE_WIDTH = 390; // -> full-height Dialog
+
+function setViewportWidth(width: number) {
+    window.innerWidth = width;
+}
 
 type City = { name: string; muni: string };
 
@@ -55,6 +62,8 @@ function openAndSearch(query: string) {
 }
 
 describe('Combobox accent-insensitive search (#402)', () => {
+    beforeEach(() => setViewportWidth(DESKTOP_WIDTH));
+
     // Documents *why* the query below is a valid guard: on the previous
     // implementation (cmdk default filter, no keywords) it scored 0 -> hidden.
     // If someone later swaps in a query the old filter would have matched,
@@ -75,5 +84,31 @@ describe('Combobox accent-insensitive search (#402)', () => {
         openAndSearch('ζζζζζ');
         expect(screen.queryByText(ACCENTED)).not.toBeInTheDocument();
         expect(screen.queryByText('Θεσσαλονίκη')).not.toBeInTheDocument();
+    });
+});
+
+describe('Combobox on a phone', () => {
+    beforeEach(() => setViewportWidth(PHONE_WIDTH));
+
+    it('opens a dialog titled with the placeholder', () => {
+        renderCombobox();
+        fireEvent.click(screen.getByRole('combobox'));
+        expect(screen.getByRole('dialog', { name: 'Επιλέξτε δήμο' })).toBeInTheDocument();
+    });
+
+    it('filters the same way it does on desktop', () => {
+        openAndSearch(DEACCENTED_QUERY);
+        const list = screen.getByRole('listbox');
+        expect(within(list).getByText(ACCENTED)).toBeInTheDocument();
+        expect(within(list).queryByText('Θεσσαλονίκη')).not.toBeInTheDocument();
+    });
+
+    // The dialog used to be a centred box holding a list capped at 300px, so the
+    // software keyboard covered most of the results. The list now fills a
+    // full-height sheet instead; drop the cap and this regresses.
+    it('does not cap the results list at 300px', () => {
+        renderCombobox();
+        fireEvent.click(screen.getByRole('combobox'));
+        expect(screen.getByRole('listbox').className).not.toMatch(/max-h-\[300px\]/);
     });
 });
