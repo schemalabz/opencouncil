@@ -181,6 +181,9 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                         {formatDate(new Date(meeting.dateTime), undefined, locale)}
                     </span>
                 </nav>
+                <h1 className="text-left text-3xl font-bold tracking-tight text-foreground md:text-4xl">
+                    {localize(name)}
+                </h1>
                 {isSuperAdmin && (
                     <div className="flex justify-end">
                         <SubjectAdminControls
@@ -282,6 +285,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                 {subject.nonAgendaReason !== 'beforeAgenda' && !subject.withdrawn && (
                     <CollapsibleCard
                         id="decision"
+                        ssrContent
                         icon={<Landmark className="w-4 h-4" />}
                         title={
                             decision ? (

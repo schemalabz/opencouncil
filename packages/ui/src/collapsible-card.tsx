@@ -16,6 +16,8 @@ interface CollapsibleCardProps {
   defaultOpen?: boolean
   /** When set, the card gets an anchor id and auto-opens when the URL hash matches */
   id?: string
+  /** Server-render children while closed (hidden via CSS) so crawlers read the text */
+  ssrContent?: boolean
   className?: string
 }
 
@@ -28,6 +30,7 @@ export function CollapsibleCard({
   children,
   defaultOpen = false,
   id,
+  ssrContent = false,
   className,
 }: CollapsibleCardProps) {
   const [open, setOpen] = React.useState(defaultOpen)
@@ -88,7 +91,10 @@ export function CollapsibleCard({
                 )} />
               </button>
             </CollapsibleTrigger>
-            <CollapsibleContent className="border-t border-border">
+            <CollapsibleContent
+              forceMount={ssrContent ? true : undefined}
+              className={cn("border-t border-border", ssrContent && "data-[state=closed]:hidden")}
+            >
               {children}
             </CollapsibleContent>
           </div>

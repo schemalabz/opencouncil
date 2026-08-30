@@ -123,6 +123,7 @@ export function SubjectContext({ subject }: { subject: Subject }) {
         <CollapsibleCard
             icon={<Globe className="w-4 h-4" />}
             title={t("webInfo")}
+            ssrContent
         >
             <div className="space-y-3 p-4">
                 {subject.context && (
