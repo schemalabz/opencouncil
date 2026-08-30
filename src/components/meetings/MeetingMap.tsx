@@ -2,11 +2,9 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import type { Map as MapboxMap } from 'mapbox-gl';
-import { useTranslations } from 'next-intl';
 import Map, { type MapFeature } from '@/components/map/map';
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
 import { CoLocatedBox } from '@/components/landing/v2/mapMarkers';
-import { SubjectList } from '@/components/landing/v2/SubjectList';
 import { useFilteredSubjects } from '@/components/landing/v2/hooks/useFilteredSubjects';
 import { useSubjectMarkers } from '@/components/landing/v2/hooks/useMapMarkers';
 import { SubjectExpandedCard } from '@/components/map/subjects/SubjectExpandedCard';
@@ -27,7 +25,6 @@ import { getRealmDefaultMapView } from '@/lib/realm';
  */
 export function MeetingMap() {
     const { city, meeting, subjects } = useCouncilMeetingData();
-    const tc = useTranslations('City');
     const isMobile = useMediaQuery('(max-width: 1023px)');
     const [mapInstance, setMapInstance] = useState<MapboxMap | null>(null);
     const handleMapReady = useCallback((m: MapboxMap) => setMapInstance(m), []);
@@ -96,12 +93,15 @@ export function MeetingMap() {
     });
 
     const clearSelection = useCallback(() => setSelectedId(null), [setSelectedId]);
+    // The strip's contract, applied to the pins too: first click previews (highlight
+    // + centre), clicking the previewed pin opens its card. One behaviour at every
+    // width — the panel that used to double as the desktop affordance is gone.
     const onMarkerSelect = useCallback(
         (id: string) => {
-            if (isMobile) previewSubject(findSubject(id));
-            else setSelectedId(id);
+            if (previewId === id) setSelectedId(id);
+            else previewSubject(findSubject(id));
         },
-        [isMobile, previewSubject, findSubject, setSelectedId],
+        [previewId, previewSubject, findSubject, setSelectedId],
     );
 
     useSubjectMarkers({
@@ -149,23 +149,6 @@ export function MeetingMap() {
                 onMapReady={handleMapReady}
             />
 
-            {/* desktop: the floating subject list, as on the landing */}
-            <div className="pointer-events-none absolute bottom-4 left-4 top-4 hidden w-[320px] lg:block">
-                <div className="pointer-events-auto flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
-                    <div className="flex shrink-0 items-baseline gap-2 border-b border-border px-4 py-3">
-                        <h2 className="!m-0 !text-left text-sm font-bold">{tc('mapSubjectsHeading')}</h2>
-                        <span className="text-sm text-muted-foreground">({listSubjects.length})</span>
-                    </div>
-                    <SubjectList
-                        subjects={listSubjects}
-                        selectedId={selectedId}
-                        onSelect={setSelectedId}
-                        loading={false}
-                        variant="desktop"
-                    />
-                </div>
-            </div>
-
             {coLocated && (
                 <CoLocatedBox
                     data={coLocated}
@@ -177,29 +160,29 @@ export function MeetingMap() {
                 />
             )}
 
-            {/* phone: the strip of subject cards over the map — or the opened one */}
-            <div className="lg:hidden">
-                {selectedSubject ? (
-                    <SubjectExpandedCard
-                        subject={selectedSubject}
-                        openSource="meeting_map"
-                        onClose={() => {
-                            const s = selectedSubject;
-                            clearSelection();
-                            previewSubject(s);
-                        }}
+            {/* the strip of subject cards over the map — or the opened one, docked
+                left where there is width for the map to stay visible beside it */}
+            {selectedSubject ? (
+                <SubjectExpandedCard
+                    subject={selectedSubject}
+                    openSource="meeting_map"
+                    className="lg:inset-x-auto lg:left-4 lg:w-[400px]"
+                    onClose={() => {
+                        const s = selectedSubject;
+                        clearSelection();
+                        previewSubject(s);
+                    }}
+                />
+            ) : (
+                <div className="absolute inset-x-0 bottom-3">
+                    <SubjectStrip
+                        subjects={listSubjects}
+                        previewId={previewId}
+                        onPreview={(id) => previewSubject(id ? findSubject(id) : null)}
+                        onSelect={setSelectedId}
                     />
-                ) : (
-                    <div className="absolute inset-x-0 bottom-3">
-                        <SubjectStrip
-                            subjects={listSubjects}
-                            previewId={previewId}
-                            onPreview={(id) => previewSubject(id ? findSubject(id) : null)}
-                            onSelect={setSelectedId}
-                        />
-                    </div>
-                )}
-            </div>
+                </div>
+            )}
         </div>
     );
 }

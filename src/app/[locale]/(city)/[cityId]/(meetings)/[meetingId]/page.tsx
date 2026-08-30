@@ -6,7 +6,7 @@ import { TopicFilter } from "@/components/TopicFilter";
 import { CalendarIcon, ExternalLink, FileIcon, FileText, Youtube } from "lucide-react";
 import { useNotificationPreference } from "@/contexts/NotificationPreferenceContext";
 import { formatDate, formatDateTime, formatRelativeTime } from "@/lib/formatters/time";
-import { sortSubjectsBySpeakerContributionCount, sortSubjectsByAgendaIndex, subjectToMapFeature } from "@/lib/utils";
+import { sortSubjectsBySpeakerContributionCount, sortSubjectsByAgendaIndex } from "@/lib/utils";
 import { categorizeSubjects, getSubjectCategories } from "@/lib/utils/subjects";
 import { calculateGeometryBounds } from "@/lib/geo";
 import { Link } from "@/i18n/routing";
@@ -22,10 +22,21 @@ export default function MeetingPage() {
     const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
     const [agendaSortMode, setAgendaSortMode] = useState<'speakingTime' | 'agendaIndex'>('speakingTime');
 
-    // Convert all subjects with locations to map features
-    const subjectFeatures = subjects
-        .map(subjectToMapFeature)
-        .filter((f): f is NonNullable<ReturnType<typeof subjectToMapFeature>> => f !== null);
+    // The subjects as the shared map language's dense mode: plain topic-coloured
+    // dots — what the landing draws when pins crowd. The band is decorative (a
+    // gradient and the meeting info sit over it); the interactive map is the
+    // Χάρτης tab.
+    const subjectFeatures = subjects.flatMap(subject => {
+        const point = subject.location?.coordinates;
+        if (!point) return [];
+        const color = subject.topic?.colorHex ?? '#9ca3af';
+        return [{
+            id: `subject-${subject.id}`,
+            geometry: { type: 'Point' as const, coordinates: [point.x, point.y] },
+            properties: { interactive: false },
+            style: { fillColor: color, fillOpacity: 0.85, strokeColor: color, strokeWidth: 5 },
+        }];
+    });
 
     // Center on city geometry for the decorative header map
     const cityCenter = useMemo((): [number, number] => {
@@ -70,15 +81,14 @@ export default function MeetingPage() {
                     {
                         id: city.id,
                         geometry: city.geometry,
-                        properties: {
-                            name: city.name,
-                            name_en: city.name_en
-                        },
+                        properties: { interactive: false },
+                        // the boundary outline every subject map shares
                         style: {
-                            fillColor: '#627BBC',
-                            fillOpacity: 0.2,
-                            strokeColor: '#627BBC',
-                            strokeWidth: 2,
+                            fillColor: 'hsl(24, 100%, 50%)',
+                            fillOpacity: 0.04,
+                            strokeColor: 'hsl(24, 100%, 50%)',
+                            strokeWidth: 1.5,
+                            strokeOpacity: 0.9,
                         }
                     },
                     ...subjectFeatures
