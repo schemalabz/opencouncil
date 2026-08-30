@@ -31,7 +31,7 @@
   "allPeople": "Tous les élus",
   "peopleEyebrow": "{count, plural, =1 {1 membre} other {# membres}}",
   "seatsInCouncil": "{count, plural, =1 {siège au conseil} other {sièges au conseil}}",
-  "inCommittees": "{count} en commissions",
+  "inCommittees": "{count} en commission municipale",
   "governingParty": "Majorité municipale",
   "notisName": "Notis",
   "notisIntro": {
