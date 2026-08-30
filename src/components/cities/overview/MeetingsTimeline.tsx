@@ -352,7 +352,13 @@ function AgendaChip({ subject, t }: { subject: PreviewSubject; t: ReturnType<typ
     const label = getAgendaLabel(t, subject);
     if (label === null) return null;
     if (subject.agendaItemIndex) {
-        return <span className={cn(base, 'bg-muted text-muted-foreground')}>{label}</span>;
+        // A bare "#24" said nothing to a reader who has not met the ημερήσια διάταξη;
+        // the chip names it, in the same genitive register as the προ/εκτός chips.
+        return (
+            <span className={cn(base, 'bg-muted text-muted-foreground')}>
+                {t('categories.agenda.shortLabel')} {label}
+            </span>
+        );
     }
     return (
         <span
