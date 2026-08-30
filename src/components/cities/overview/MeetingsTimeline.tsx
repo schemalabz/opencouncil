@@ -9,7 +9,7 @@ import { getLocalizedName } from '@/lib/formatters/name';
 import { formatDayMonthStamp, formatRelativeTime } from '@/lib/formatters/time';
 import { localizeText } from '@/lib/serbian';
 import { cn, sortSubjectsByImportance } from '@/lib/utils';
-import { getAgendaLabel, getWithdrawnLabel } from '@/lib/utils/subjects';
+import { getAgendaFullLabel, getWithdrawnLabel } from '@/lib/utils/subjects';
 import { surfaceCardClass } from '@/components/ui/surface-card';
 import {
     packTimeline,
@@ -351,16 +351,10 @@ function AgendaChip({ subject, t }: { subject: PreviewSubject; t: ReturnType<typ
     if (subject.withdrawn) {
         return <span className={cn(base, 'border border-border italic text-muted-foreground')}>{getWithdrawnLabel(t, subject)}</span>;
     }
-    const label = getAgendaLabel(t, subject);
+    const label = getAgendaFullLabel(t, subject);
     if (label === null) return null;
     if (subject.agendaItemIndex) {
-        // A bare "#24" said nothing to a reader who has not met the ημερήσια διάταξη;
-        // the chip names it, in the same genitive register as the προ/εκτός chips.
-        return (
-            <span className={cn(base, 'bg-muted text-muted-foreground')}>
-                {t('categories.agenda.shortLabel')} {label}
-            </span>
-        );
+        return <span className={cn(base, 'bg-muted text-muted-foreground')}>{label}</span>;
     }
     return (
         <span
