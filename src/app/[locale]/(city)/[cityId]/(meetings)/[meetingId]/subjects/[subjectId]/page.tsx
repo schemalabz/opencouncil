@@ -7,6 +7,8 @@ import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { localizeText } from "@/lib/serbian";
 import { compactMetadataDescription } from "@/lib/seo/metadataDescription";
+import { getRealmBaseUrlFromRequest } from "@/lib/realm.server";
+import { buildSubjectStructuredData, serializeStructuredData } from "@/lib/seo/subjectStructuredData";
 
 export async function generateMetadata(
     props: {
@@ -75,7 +77,7 @@ export async function generateMetadata(
 
 // Server component that renders the Subject component
 export default async function SubjectPage(
-    props: { params: Promise<{ cityId: string; meetingId: string; subjectId: string }> }
+    props: { params: Promise<{ cityId: string; meetingId: string; subjectId: string; locale: string }> }
 ) {
     const params = await props.params;
 
@@ -86,8 +88,41 @@ export default async function SubjectPage(
         notFound();
     }
 
+    const [meetingData, baseUrl] = await Promise.all([
+        getMeetingDataCached(params.cityId, params.meetingId),
+        getRealmBaseUrlFromRequest(),
+    ]);
+    if (!meetingData) {
+        notFound();
+    }
+
+    const structuredData = buildSubjectStructuredData({
+        canonicalUrl: `${baseUrl}/${params.cityId}/${params.meetingId}/subjects/${params.subjectId}`,
+        siteUrl: baseUrl,
+        locale: params.locale,
+        subjectName: localizeText(subject.name, params.locale),
+        subjectDescription: compactMetadataDescription(
+            localizeText(subject.description, params.locale),
+            500
+        ),
+        subjectCreatedAt: subject.createdAt,
+        subjectUpdatedAt: subject.updatedAt,
+        cityName: getLocalizedName(meetingData.city, params.locale),
+        meetingName: getLocalizedName(meetingData.meeting, params.locale),
+        meetingDate: meetingData.meeting.dateTime,
+        administrativeBodyName: meetingData.meeting.administrativeBody
+            ? getLocalizedName(meetingData.meeting.administrativeBody, params.locale)
+            : null,
+        topicName: subject.topic ? getLocalizedName(subject.topic, params.locale) : null,
+        citations: [...new Set(subject.contextCitationUrls)],
+    });
+
     return (
         <>
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: serializeStructuredData(structuredData) }}
+            />
             <SubjectReadTracker
                 cityId={params.cityId}
                 meetingId={params.meetingId}
