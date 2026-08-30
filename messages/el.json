@@ -674,6 +674,8 @@
         "selectCityPlaceholder": "Επιλέξτε Δήμο...",
         "searchCityPlaceholder": "Αναζητήστε Δήμο...",
         "cityNotFound": "Δεν βρέθηκε Δήμος.",
+        "groupAvailable": "Δήμοι με ειδοποιήσεις",
+        "groupUnavailable": "Δεν υποστηρίζονται ακόμα",
         "selectCityButton": "Επιλέξτε Πόλη",
         "preferencesTitle": "Προτιμήσεις ειδοποιήσεων",
         "sendTiming": "Στέλνουμε μια ενημέρωση πριν από μια συνεδρίαση και μια ενημέρωση μετά από αυτήν.",
