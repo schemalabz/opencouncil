@@ -16,7 +16,7 @@ export function EntityHeader({ avatar, name, badges, facts, admin }: {
         <header className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
             {avatar}
             <div className="min-w-0 flex-1">
-                <h1 className="!text-left text-2xl leading-tight tracking-tight sm:text-3xl">{name}</h1>
+                <h1 className="text-2xl leading-tight tracking-tight sm:text-3xl">{name}</h1>
                 {badges && <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5">{badges}</div>}
                 {facts && (
                     <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-muted-foreground">
