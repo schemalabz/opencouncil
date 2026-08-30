@@ -12,7 +12,14 @@
  */
 
 /** Topic-less subjects still need a colour; grey reads as "uncategorised" rather than as a topic. */
-const NEUTRAL = '#9ca3af';
+/**
+ * The colour of a subject with no topic, everywhere one renders — pins, dots,
+ * chips. Grey reads as 'uncategorised' rather than as a topic; the landing's
+ * wire rows and the meeting surfaces must agree on it.
+ */
+export const TOPICLESS_COLOR = '#9ca3af';
+
+const NEUTRAL = TOPICLESS_COLOR;
 
 /**
  * Black or white — whichever stays readable on `hex`. The topic palette runs from near-black browns

@@ -1,4 +1,5 @@
 import prisma from './prisma';
+import { TOPICLESS_COLOR } from '@/lib/topicStyle';
 import {
     Subject,
     SpeakerContribution,
@@ -385,7 +386,7 @@ function toGeneralSubjectRow(s: MapSubjectPayload, discussionSeconds: Map<string
         adminBodyType: s.councilMeeting?.administrativeBody?.type ?? null,
         topicId: s.topicId,
         topicName: s.topic?.name,
-        topicColor: s.topic?.colorHex || '#627BBC',
+        topicColor: s.topic?.colorHex || TOPICLESS_COLOR,
         topicIcon: s.topic?.icon,
         discussionTimeSeconds: Math.round(discussionSeconds.get(s.id) ?? 0),
         speakerCount: getContributionCount(s),
