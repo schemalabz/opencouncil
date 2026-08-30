@@ -4,6 +4,7 @@ import { ImageOrInitials } from '@/components/ImageOrInitials';
 import type { PartyWithPersons } from '@/lib/db/parties';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { partyComposition, type PartyBodyColumns } from '@/lib/party/composition';
+import { GoverningPartyChip } from '@/components/parties/GoverningPartyChip';
 import { surfaceCardClass } from '@/components/ui/surface-card';
 import { cn } from '@/lib/utils';
 
@@ -94,22 +95,10 @@ export default function PartyCard({ item: party, columns }: PartyCardProps) {
                     <span className="mt-1 text-xs text-muted-foreground">{elsewhere.join(' · ')}</span>
                 )}
 
-                {/* Only the governing party is named as such. Which of the others are
-                    in opposition and which support the mayor is not in the data, and
-                    inferring it would put a political claim on the page.
-
-                    A chip rather than a bold line: it is a standing, not another
-                    figure, and the only thing on the card that is not a count. The
-                    wash is the party's own colour at low alpha and the text stays
-                    foreground, so it reads on a pale παράταξη as well as a dark one. */}
+                {/* The only thing on the card that is not a count — see GoverningPartyChip. */}
                 {hasMayor && (
                     <span className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span
-                            className="inline-flex items-center rounded-full px-2 py-[3px] text-[11px] font-semibold leading-none text-foreground"
-                            style={{ backgroundColor: `color-mix(in srgb, ${party.colorHex} 22%, transparent)` }}
-                        >
-                            {t('governingParty')}
-                        </span>
+                        <GoverningPartyChip colorHex={party.colorHex} />
                     </span>
                 )}
 
