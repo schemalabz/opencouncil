@@ -31,7 +31,7 @@
   "allPeople": "Όλα τα πρόσωπα",
   "peopleEyebrow": "{count, plural, =1 {1 μέλος} other {# μέλη}}",
   "seatsInCouncil": "{count, plural, =1 {έδρα στο δημοτικό συμβούλιο} other {έδρες στο δημοτικό συμβούλιο}}",
-  "inCommittees": "{count} σε επιτροπές",
+  "inCommittees": "{count} στη δημοτική επιτροπή",
   "governingParty": "Δημοτική Αρχή",
   "notisName": "Νότης",
   "notisIntro": {
