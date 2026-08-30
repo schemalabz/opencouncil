@@ -12,10 +12,16 @@ export const dynamic = 'force-dynamic'
 
 type SitemapCity = {
     id: string
+    updatedAt: Date
     councilMeetings: Array<{
         id: string
-        subjects: Array<{ id: string }>
+        updatedAt: Date
+        subjects: Array<{ id: string; updatedAt: Date }>
     }>
+}
+
+function latestDate(first: Date, ...rest: Date[]): Date {
+    return rest.reduce((max, date) => (date > max ? date : max), first)
 }
 
 async function fetchSitemapData(realm: Realm): Promise<SitemapCity[]> {
@@ -26,12 +32,14 @@ async function fetchSitemapData(realm: Realm): Promise<SitemapCity[]> {
         },
         select: {
             id: true,
+            updatedAt: true,
             councilMeetings: {
                 where: { released: true },
                 select: {
                     id: true,
+                    updatedAt: true,
                     subjects: {
-                        select: { id: true }
+                        select: { id: true, updatedAt: true }
                     }
                 }
             }
@@ -83,6 +91,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     const cityEntries: MetadataRoute.Sitemap = cities.map(city => ({
         url: `${baseUrl}/${city.id}`,
+        lastModified: latestDate(city.updatedAt, ...city.councilMeetings.map(meeting => meeting.updatedAt)),
         changeFrequency: 'daily',
         priority: 0.9,
     }))
@@ -90,6 +99,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const meetingEntries: MetadataRoute.Sitemap = cities.flatMap(city =>
         city.councilMeetings.map(meeting => ({
             url: `${baseUrl}/${city.id}/${meeting.id}`,
+            lastModified: latestDate(meeting.updatedAt, ...meeting.subjects.map(subject => subject.updatedAt)),
             changeFrequency: 'weekly',
             priority: 0.7,
         }))
@@ -99,6 +109,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         city.councilMeetings.flatMap(meeting =>
             meeting.subjects.map(subject => ({
                 url: `${baseUrl}/${city.id}/${meeting.id}/subjects/${subject.id}`,
+                lastModified: subject.updatedAt,
                 changeFrequency: 'weekly',
                 priority: 0.6,
             }))
