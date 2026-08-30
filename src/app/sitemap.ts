@@ -91,7 +91,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     const cityEntries: MetadataRoute.Sitemap = cities.map(city => ({
         url: `${baseUrl}/${city.id}`,
-        lastModified: latestDate(city.updatedAt, ...city.councilMeetings.map(meeting => meeting.updatedAt)),
+        lastModified: latestDate(city.updatedAt, ...city.councilMeetings.flatMap(meeting => [meeting.updatedAt, ...meeting.subjects.map(subject => subject.updatedAt)])),
         changeFrequency: 'daily',
         priority: 0.9,
     }))
