@@ -9,7 +9,7 @@ import { getLocalizedName } from '@/lib/formatters/name';
 import { formatDayMonthStamp, formatRelativeTime } from '@/lib/formatters/time';
 import { localizeText } from '@/lib/serbian';
 import { cn, sortSubjectsByImportance } from '@/lib/utils';
-import { getAgendaFullLabel, getWithdrawnLabel } from '@/lib/utils/subjects';
+import { AgendaStateChip } from '@/components/subject/AgendaStateChip';
 import { surfaceCardClass } from '@/components/ui/surface-card';
 import {
     packTimeline,
@@ -33,6 +33,9 @@ interface Entry {
     side: TimelineSide;
     upcoming: boolean;
     height: number;
+    /** The card's subject rows, importance-sorted once here — both layout
+     * variants render every entry, so the sort must not live in the card. */
+    preview: PreviewSubject[];
 }
 
 /**
@@ -54,14 +57,20 @@ export function MeetingsTimeline({ upcoming, recent, timezone, locale }: Meeting
     // through the nearest, then the past. The spine reads top-to-bottom as
     // future-to-past, so "now" is where the dashes end. Meetings the timeline
     // excludes — the κοινότητες, see timelineSide — drop out here.
+    // The two lists come from separately revalidated cache entries, so a
+    // meeting crossing its start time during the skew can sit in both — drop
+    // the second copy or React sees duplicate keys and the spine a double card.
+    const seen = new Set<string>();
     const entries: Entry[] = [...upcoming].reverse().concat(recent).flatMap(meeting => {
         const side = timelineSide(meeting.administrativeBody?.type);
-        if (side === null) return [];
+        if (side === null || seen.has(meeting.id)) return [];
+        seen.add(meeting.id);
         return [{
             meeting,
             side,
             upcoming: isFuture(new Date(meeting.dateTime)),
             height: timelineCardHeight(meeting.subjects.length),
+            preview: sortSubjectsByImportance(meeting.subjects, 'importance').slice(0, TL.PREVIEW_ROWS),
         }];
     });
     if (entries.length === 0) return null;
@@ -72,19 +81,10 @@ export function MeetingsTimeline({ upcoming, recent, timezone, locale }: Meeting
 
     return (
         <div>
-            {twoSided && (
-                <>
-                    <TwoSided entries={entries} timezone={timezone} locale={locale} />
-                    <div className="xl:hidden">
-                        <Rail entries={entries} timezone={timezone} locale={locale} />
-                    </div>
-                </>
-            )}
-            {!twoSided && (
-                <div className="max-w-2xl">
-                    <Rail entries={entries} timezone={timezone} locale={locale} />
-                </div>
-            )}
+            {twoSided && <TwoSided entries={entries} timezone={timezone} locale={locale} />}
+            <div className={twoSided ? 'xl:hidden' : 'max-w-2xl'}>
+                <Rail entries={entries} timezone={timezone} locale={locale} />
+            </div>
         </div>
     );
 }
@@ -130,11 +130,13 @@ function TwoSided({ entries, timezone, locale }: { entries: Entry[]; timezone: s
                         style={{ top: dashEnd, height: height - 36 - dashEnd }}
                     />
                 )}
-                <span
-                    aria-hidden
-                    className="absolute left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-border to-transparent"
-                    style={{ top: Math.max(dashEnd, height - 36), height: 36 }}
-                />
+                {dashEnd < height && (
+                    <span
+                        aria-hidden
+                        className="absolute left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-border to-transparent"
+                        style={{ top: Math.max(dashEnd, height - 36), height: 36 }}
+                    />
+                )}
 
                 {entries.map((entry, i) => {
                     const { top, height: cardHeight } = placements[i];
@@ -243,11 +245,11 @@ function DatePill({
     return (
         <span
             className={cn(
-                'inline-flex h-[30px] shrink-0 items-center gap-1.5 rounded-full border bg-card px-2.5 shadow-sm',
+                'inline-flex shrink-0 items-center gap-1.5 rounded-full border bg-card px-2.5 shadow-sm',
                 entry.upcoming ? 'border-dashed border-[hsl(var(--orange))]/60' : 'border-border',
                 className,
             )}
-            style={style}
+            style={{ height: TL.NODE_H, ...style }}
         >
             <span
                 aria-hidden
@@ -272,8 +274,7 @@ function MeetingBlock({ entry, locale }: { entry: Entry; locale: string }) {
     const tCard = useTranslations('MeetingCard');
     const tMeeting = useTranslations('CouncilMeeting');
     const { meeting } = entry;
-    const subjects = sortSubjectsByImportance(meeting.subjects, 'importance');
-    const shown = subjects.slice(0, TL.PREVIEW_ROWS);
+    const shown = entry.preview;
     const remaining = meeting.subjects.length - shown.length;
 
     return (
@@ -307,13 +308,13 @@ function MeetingBlock({ entry, locale }: { entry: Entry; locale: string }) {
                     ))}
                 </ul>
             ) : (
-                <div className="flex h-[38px] items-center border-t border-border text-xs italic text-muted-foreground">
+                <div className="flex items-center border-t border-border text-xs italic text-muted-foreground" style={{ height: TL.EMPTY_H }}>
                     {entry.upcoming ? t('timelineNoAgendaYet') : tCard('noSubjects')}
                 </div>
             )}
 
             {remaining > 0 && (
-                <span className="flex h-[30px] items-center justify-between gap-2 border-t border-border pt-2 text-xs text-muted-foreground">
+                <span className="flex items-center justify-between gap-2 border-t border-border pt-2 text-xs text-muted-foreground" style={{ height: TL.FOOTER_H }}>
                     {tCard('moreSubjects', { count: remaining })}
                     <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 </span>
@@ -327,44 +328,18 @@ type PreviewSubject = CouncilMeetingWithSubjectPreview['subjects'][number];
 function SubjectRow({ subject, locale }: { subject: PreviewSubject; locale: string }) {
     const tSubject = useTranslations('Subject');
     return (
-        <li className="flex h-[59px] items-start gap-2.5 overflow-hidden border-t border-border py-2">
+        <li className="flex items-start gap-2.5 overflow-hidden border-t border-border py-2" style={{ height: TL.ROW_H }}>
             <TopicIcon color={subject.topic?.colorHex} icon={subject.topic?.icon} size="sm" />
             <span className="min-w-0 flex-1">
                 <span className="block truncate text-[13px] leading-[18px] text-foreground/85">
                     {localizeText(subject.name, locale)}
                 </span>
                 <span className="mt-1 flex h-5 items-center gap-1.5 overflow-hidden">
-                    <AgendaChip subject={subject} t={tSubject} />
+                    <AgendaStateChip subject={subject} t={tSubject} />
                 </span>
             </span>
         </li>
     );
 }
 
-/**
- * The agenda-state chip: an item's place on the ημερήσια διάταξη, or the state
- * that kept it off it. Withdrawn wins — a pulled item's number no longer means
- * anything. Text stays in its written case; no uppercase transform touches it.
- */
-function AgendaChip({ subject, t }: { subject: PreviewSubject; t: ReturnType<typeof useTranslations> }) {
-    const base = 'inline-flex h-5 shrink-0 items-center rounded px-1.5 text-[10px] font-semibold leading-none';
-    if (subject.withdrawn) {
-        return <span className={cn(base, 'border border-border italic text-muted-foreground')}>{getWithdrawnLabel(t, subject)}</span>;
-    }
-    const label = getAgendaFullLabel(t, subject);
-    if (label === null) return null;
-    if (subject.agendaItemIndex) {
-        return <span className={cn(base, 'bg-muted text-muted-foreground')}>{label}</span>;
-    }
-    return (
-        <span
-            className={cn(
-                base,
-                'border text-muted-foreground',
-                subject.nonAgendaReason === 'beforeAgenda' ? 'border-dashed border-muted-foreground/40' : 'border-border',
-            )}
-        >
-            {label}
-        </span>
-    );
-}
+

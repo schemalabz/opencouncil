@@ -137,3 +137,33 @@ describe('MeetingsTimeline', () => {
         expect(screen.getAllByText('moreSubjects:2').length).toBeGreaterThan(0);
     });
 });
+
+describe('chronology', () => {
+    it('renders furthest-future first, down through the past', () => {
+        const now = Date.now();
+        const farFuture = meeting({ dateTime: new Date(now + 10 * DAY) });
+        const nearFuture = meeting({ dateTime: new Date(now + 2 * DAY) });
+        const recentPast = meeting({ dateTime: new Date(now - 1 * DAY) });
+        const olderPast = meeting({ dateTime: new Date(now - 8 * DAY) });
+
+        // The query serves upcoming ascending and recent descending; the spine
+        // must read top-to-bottom as future-to-past regardless.
+        const { container } = renderTimeline([nearFuture, farFuture], [recentPast, olderPast]);
+
+        const hrefs = Array.from(container.querySelectorAll('a[href]')).map(a => a.getAttribute('href'));
+        const order = [farFuture, nearFuture, recentPast, olderPast].map(m => `/athens/${m.id}`);
+        const firstIndexes = order.map(href => hrefs.indexOf(href));
+        expect(firstIndexes.every(i => i >= 0)).toBe(true);
+        expect([...firstIndexes].sort((a, b) => a - b)).toEqual(firstIndexes);
+    });
+
+    it('renders a meeting present in both lists once', () => {
+        const now = Date.now();
+        const crossing = meeting({ dateTime: new Date(now - 60 * 1000) });
+        const { container } = renderTimeline([crossing], [crossing]);
+        const cards = Array.from(container.querySelectorAll('a[href]'))
+            .filter(a => a.getAttribute('href') === `/athens/${crossing.id}`);
+        // Council-only entries render the single rail, so exactly one card.
+        expect(cards.length).toBe(1);
+    });
+});
