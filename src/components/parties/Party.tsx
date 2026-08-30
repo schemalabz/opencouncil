@@ -9,27 +9,41 @@ import { Button } from '../ui/button';
 import { PartyWithPersons } from '@/lib/db/parties';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from '@/hooks/use-toast';
-import { Search, Users, FileText } from "lucide-react";
+import { Search } from "lucide-react";
 import { Input } from '../ui/input';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from '@/i18n/routing';
 import { getLatestContributionsForParty } from '@/lib/db/contributions';
 import { ContributionForPerson } from '@/lib/db/types';
-import { ContributionCard } from '@/components/meetings/subject/ContributionCard';
+import { ContributionCard, ContributionCardSkeleton } from '@/components/meetings/subject/ContributionCard';
+import { AIGeneratedBadge } from '@/components/AIGeneratedBadge';
 import { isUserAuthorizedToEdit } from '@/lib/actions/auth';
 import { getAdministrativeBodyTypesForPeople, filterPersonByAdminBodyTypes } from '@/lib/utils/administrativeBodies';
 import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';
-import { filterActiveRoles, filterInactiveRoles, formatDateRange, isRoleActive, getActivePartyRole, getDateRangeFromRoles } from '@/lib/utils';
+import { cn, filterActiveRoles, filterInactiveRoles, formatDateRange, isRoleActive, getActivePartyRole, getDateRangeFromRoles } from '@/lib/utils';
 import { sortPartyMembers, sortInactivePartyMembers } from '@/lib/sorting/people';
 import { BadgePicker } from '../ui/badge-picker';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PersonWithRelations } from '@/lib/db/people';
 import PartyMemberRankingSheet from './PartyMemberRankingSheet';
+import { AdminStrip, adminToolClass } from '@/components/admin/AdminStrip';
+import { RailCard } from '@/components/ui/rail-card';
+import { partyComposition } from '@/lib/party/composition';
+import { topicStyle } from '@/lib/topicStyle';
+import { getInitials } from '@/lib/formatters/name';
 
 type RoleWithPerson = Role & {
     person: Person;
 };
+
+/**
+ * An underline tab trigger: no box, no fill — a 2px rule in the site's deep
+ * orange under the active label. Overrides the boxed default of ui/tabs.
+ */
+const underlineTabClass =
+    '-mb-px rounded-none no-underline hover:no-underline border-b-2 border-transparent bg-transparent px-0 pb-2.5 pt-0 text-sm font-semibold text-muted-foreground shadow-none ' +
+    'data-[state=active]:border-[hsl(var(--orange-deep))] data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none';
 
 // Party Members Tab Component
 function PartyMembersTab({
@@ -90,53 +104,45 @@ function PartyMembersTab({
 
     return (
         <div className="space-y-8">
-            {/* Administrative Body Type Filter - only show if there's more than one */}
-            {typeOptions.length > 1 && (
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                >
-                    <BadgePicker
-                        options={typeOptions}
-                        selectedValues={selectedTypes}
-                        onSelectionChange={setSelectedTypes}
-                        allLabel={tCommon('allPeople')}
-                        className="items-center"
-                    />
-                </motion.div>
-            )}
-
             {/* Current Members Section */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
             >
-                <div className="flex items-center justify-between mb-4">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
-                        <Users className="h-5 w-5 text-primary" />
-                        <h2 className="text-lg sm:text-xl font-semibold">{t('currentMembers')}</h2>
+                        <h2 className="!m-0 !text-left text-lg font-semibold sm:text-xl">{t('currentMembers')}</h2>
                         <span className="text-sm text-muted-foreground">({activePeople.length})</span>
                     </div>
-                    {canEdit && city.peopleOrdering === 'partyRank' && (
-                        <>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setIsRankingSheetOpen(true)}
-                            >
-                                {t('changeMemberOrdering')}
-                            </Button>
-                            <PartyMemberRankingSheet
-                                open={isRankingSheetOpen}
-                                onOpenChange={setIsRankingSheetOpen}
-                                party={party}
-                                people={people}
-                                cityId={city.id}
+                    <div className="flex flex-wrap items-center gap-3">
+                        {typeOptions.length > 1 && (
+                            <BadgePicker
+                                options={typeOptions}
+                                selectedValues={selectedTypes}
+                                onSelectionChange={setSelectedTypes}
+                                allLabel={tCommon('allPeople')}
                             />
-                        </>
-                    )}
+                        )}
+                        {canEdit && city.peopleOrdering === 'partyRank' && (
+                            <>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setIsRankingSheetOpen(true)}
+                                >
+                                    {t('changeMemberOrdering')}
+                                </Button>
+                                <PartyMemberRankingSheet
+                                    open={isRankingSheetOpen}
+                                    onOpenChange={setIsRankingSheetOpen}
+                                    party={party}
+                                    people={people}
+                                    cityId={city.id}
+                                />
+                            </>
+                        )}
+                    </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {sortPartyMembers(activePeople, party.id, true)
@@ -212,7 +218,6 @@ function PartyMembersTab({
 
 // Segments Tab Component
 function SegmentsTab({
-    party,
     typeOptions,
     selectedType,
     onSelectType,
@@ -225,7 +230,6 @@ function SegmentsTab({
     handleSearch,
     allLabel
 }: {
-    party: PartyWithPersons,
     typeOptions: { value: AdministrativeBodyType; label: string }[],
     selectedType: AdministrativeBodyType | null,
     onSelectType: (type: AdministrativeBodyType | null) => void,
@@ -239,6 +243,7 @@ function SegmentsTab({
     allLabel: string
 }) {
     const t = useTranslations('Party');
+    const tCommon = useTranslations('Common');
 
     const selectedValues = selectedType ? [selectedType] : [];
     const handleSelectionChange = (values: AdministrativeBodyType[]) => {
@@ -246,53 +251,50 @@ function SegmentsTab({
     };
 
     return (
-        <div className="space-y-8">
-            {/* Search Section */}
-            <motion.form
-                onSubmit={handleSearch}
-                className="relative"
+        <div className="space-y-4">
+            <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
+                transition={{ delay: 0.1 }}
+                className="flex flex-wrap items-center gap-x-3 gap-y-2"
             >
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    placeholder={t('searchInParty', { partyName: party.name })}
-                    className="pl-10 h-10 sm:h-12 text-sm sm:text-base"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                />
-            </motion.form>
+                <h2 className="!m-0 !text-left text-lg font-semibold sm:text-xl">
+                    {t('recentContributions')}
+                    {totalCount > 0 && <span className="ml-1.5 text-sm font-normal text-muted-foreground">({totalCount})</span>}
+                </h2>
+                <AIGeneratedBadge />
+                <form onSubmit={handleSearch} className="relative ml-auto w-full sm:w-[260px]">
+                    <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                    <Input
+                        placeholder={tCommon('search')}
+                        className="h-8 rounded-full pl-9 text-xs"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                </form>
+            </motion.div>
 
-            {/* Administrative Body Type Filter - only show if there's more than one */}
             {typeOptions.length > 1 && (
                 <BadgePicker
                     options={typeOptions}
                     selectedValues={selectedValues}
                     onSelectionChange={handleSelectionChange}
                     allLabel={allLabel}
-                    className="items-center"
                 />
             )}
 
-            {/* Recent Segments Section */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
+                transition={{ delay: 0.3 }}
                 className="relative"
             >
-                <h2 className="text-lg sm:text-xl font-semibold mb-4">{t('recentContributions')}</h2>
-
                 {isLoadingContributions && contributions.length === 0 ? (
-                    <div className="flex justify-center items-center py-12 border rounded-lg bg-card/50">
-                        <div className="flex flex-col items-center space-y-4">
-                            <div className="h-6 w-6 sm:h-8 sm:w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-                            <p className="text-xs sm:text-sm text-muted-foreground">{t('loadingSegments')}</p>
-                        </div>
+                    <div className="space-y-3 sm:space-y-4" aria-busy>
+                        {[0, 1, 2].map(i => <ContributionCardSkeleton key={i} />)}
                     </div>
                 ) : (
-                    <div className="max-w-[42rem] space-y-3 sm:space-y-4">
+                    <div className="space-y-3 sm:space-y-4">
                         {contributions.map((contribution, index) => (
                             <motion.div
                                 key={contribution.id}
@@ -369,6 +371,8 @@ export default function PartyC({ city, party, administrativeBodies }: {
 }) {
     const t = useTranslations('Party');
     const tCommon = useTranslations('Common');
+    const tOverview = useTranslations('cityOverview');
+    const tCity = useTranslations('City');
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
     const [contributions, setContributions] = useState<ContributionForPerson[]>([]);
@@ -405,6 +409,17 @@ export default function PartyC({ city, party, administrativeBodies }: {
 
     // Find the current party leader
     const partyLeader = useMemo(() => activeRoles.find((role: RoleWithPerson) => role.isHead), [activeRoles]);
+
+    // Seats per body and the governing-party standing — the same derivation the
+    // city overview's cards run, so the two surfaces can never disagree.
+    const composition = useMemo(() => partyComposition(party), [party]);
+    const tile = topicStyle(party.colorHex);
+    const compositionRows = useMemo(() => [
+        { key: 'council', label: tCommon('adminBodyType_council'), count: composition.council },
+        { key: 'committee', label: tCommon('adminBodyType_committee'), count: composition.committee },
+        { key: 'community', label: tCommon('adminBodyType_community'), count: composition.community },
+    ].filter(row => row.count > 0), [composition, tCommon]);
+    const compositionMax = Math.max(1, ...compositionRows.map(row => row.count));
 
     useEffect(() => {
         const checkEditPermissions = async () => {
@@ -519,131 +534,201 @@ export default function PartyC({ city, party, administrativeBodies }: {
                             </BreadcrumbItem>
                             <BreadcrumbSeparator />
                             <BreadcrumbItem>
+                                <BreadcrumbLink asChild>
+                                    <Link href={`/${city.id}/parties`}>{tCity('parties')}</Link>
+                                </BreadcrumbLink>
+                            </BreadcrumbItem>
+                            <BreadcrumbSeparator />
+                            <BreadcrumbItem>
                                 <BreadcrumbLink href={`/${city.id}/parties/${party.id}`}>{party.name}</BreadcrumbLink>
                             </BreadcrumbItem>
                         </BreadcrumbList>
                     </Breadcrumb>
 
-                    {/* Hero Section */}
-                    <div className="flex flex-col gap-6 sm:gap-8 pb-6 sm:pb-8 border-b">
-                        <motion.div
-                            className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-8"
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 0.5 }}
-                        >
-                            <div className="flex-shrink-0">
-                                <div className="relative w-20 h-20 sm:w-24 sm:h-24 mx-auto">
-                                    <ImageOrInitials
-                                        imageUrl={party.logo}
-                                        name={party.name_short}
-                                        color={party.colorHex}
-                                        width={96}
-                                        height={96}
-                                        square={true}
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex-1 min-w-0 space-y-3 text-center sm:text-left">
-                                <motion.h1
-                                    className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight break-words"
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.2 }}
-                                >
-                                    {party.name}
-                                </motion.h1>
-                                {partyLeader && (
-                                    <motion.div
-                                        className="text-sm sm:text-base"
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ delay: 0.25 }}
-                                    >
-                                        <span className="text-muted-foreground">{t('leaderLabel')}</span>
-                                        <Link
-                                            href={`/${city.id}/people/${partyLeader.person.id}`}
-                                            className="hover:underline text-primary font-medium"
-                                        >
-                                            {partyLeader.person.name}
-                                        </Link>
-                                    </motion.div>
-                                )}
-                                <motion.div
-                                    className="text-sm sm:text-base text-muted-foreground"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    transition={{ delay: 0.3 }}
-                                >
-                                    {t('membersCount', { count: persons.length })}
-                                </motion.div>
-                            </div>
-                        </motion.div>
-
-                        {canEdit && (
-                            <motion.div
-                                className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4"
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 0.5 }}
+                    {/* Identity band: the party as a colour — its logo, or a washed
+                        tile of its initials in the same wash/ink derivation the topic
+                        chips use — then its standing and the seat facts a reader can
+                        compare across parties. Admin controls sit in the hazard-striped
+                        corner every back-of-house control now uses. */}
+                    <header className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
+                        {party.logo ? (
+                            <span className="block h-[84px] w-[84px] shrink-0">
+                                <ImageOrInitials
+                                    imageUrl={party.logo}
+                                    name={party.name_short}
+                                    color={party.colorHex}
+                                    width={84}
+                                    height={84}
+                                    square
+                                />
+                            </span>
+                        ) : (
+                            <span
+                                className="flex h-[84px] w-[84px] shrink-0 items-center justify-center rounded-[18px] text-[26px] font-bold"
+                                style={{ backgroundColor: tile.background, boxShadow: `inset 0 0 0 1.5px ${tile.border}`, color: tile.icon }}
+                                aria-hidden
                             >
+                                {getInitials(party.name_short || party.name)}
+                            </span>
+                        )}
+                        <div className="min-w-0 flex-1">
+                            <h1 className="!text-left text-2xl leading-tight tracking-tight sm:text-3xl">{party.name}</h1>
+                            {(composition.hasMayor || partyLeader) && (
+                                <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                                    {composition.hasMayor && (
+                                        <span
+                                            className="inline-flex items-center rounded-full px-2 py-[3px] text-[11px] font-semibold leading-none text-foreground"
+                                            style={{ backgroundColor: `color-mix(in srgb, ${party.colorHex} 22%, transparent)` }}
+                                        >
+                                            {tOverview('governingParty')}
+                                        </span>
+                                    )}
+                                    {partyLeader && (
+                                        <span className="inline-flex items-center gap-1.5 text-sm">
+                                            <span className="text-muted-foreground">{t('leaderLabel')}</span>
+                                            <Link
+                                                href={`/${city.id}/people/${partyLeader.person.id}`}
+                                                className="font-medium hover:underline"
+                                            >
+                                                {partyLeader.person.name}
+                                            </Link>
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                            <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-muted-foreground">
+                                <span>
+                                    <span className="font-bold tabular-nums" style={{ color: party.colorHex }}>{composition.council}</span>
+                                    {' '}
+                                    {tOverview('seatsInCouncil', { count: composition.council })}
+                                </span>
+                                {composition.committee > 0 && (
+                                    <>
+                                        <span aria-hidden>·</span>
+                                        <span>{tOverview('inCommittees', { count: composition.committee })}</span>
+                                    </>
+                                )}
+                                {composition.community > 0 && (
+                                    <>
+                                        <span aria-hidden>·</span>
+                                        <span>{tOverview('inCommunities', { count: composition.community })}</span>
+                                    </>
+                                )}
+                                <span aria-hidden>·</span>
+                                <span>{t('membersCount', { count: composition.members.length })}</span>
+                            </div>
+                        </div>
+                        {canEdit && (
+                            <AdminStrip className="shrink-0 self-start">
                                 <FormSheet
                                     FormComponent={PartyForm}
                                     formProps={{ party, cityId: city.id }}
                                     title={t('editParty')}
                                     type="edit"
+                                    triggerVariant="ghost"
+                                    triggerSize="sm"
+                                    triggerClassName={adminToolClass}
                                 />
-                                <Button variant="destructive" onClick={onDelete} className="sm:w-auto">
+                                <Button variant="ghost" size="sm" onClick={onDelete} className={cn(adminToolClass, 'text-destructive hover:!text-destructive')}>
                                     {t('deleteParty')}
                                 </Button>
-                            </motion.div>
+                            </AdminStrip>
                         )}
-                    </div>
+                    </header>
 
-                    {/* Tabs */}
-                    <Tabs defaultValue="people" className="space-y-6">
-                        <div className="flex justify-center">
-                            <TabsList className="grid w-full max-w-md grid-cols-2 h-auto p-1 bg-muted/50">
-                                <TabsTrigger value="people" className="text-xs sm:text-sm py-2 px-3">
-                                    <Users className="h-4 w-4 mr-1 sm:mr-2" />
-                                    <span className="hidden xs:inline">{t('tabPeople')}</span>
-                                    <span className="xs:hidden">{t('tabPeopleShort')}</span>
+                    {/* Main and rail: the tabs carry the roster and the record, the
+                        rail keeps the party's composition and its επικεφαλής in view
+                        whichever tab is open. Underline triggers, not boxed ones — the
+                        two views are peers, not modes. */}
+                    <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_316px] lg:gap-10">
+                        <Tabs defaultValue="people" className="min-w-0">
+                            <TabsList className="h-auto w-full justify-start gap-6 overflow-x-visible rounded-none border-b border-border bg-transparent p-0">
+                                <TabsTrigger value="people" className={underlineTabClass}>
+                                    {t('tabPeople')}
+                                    <span className="ml-1.5 font-normal text-muted-foreground">({composition.members.length})</span>
                                 </TabsTrigger>
-                                <TabsTrigger value="contributions" className="text-xs sm:text-sm py-2 px-3">
-                                    <FileText className="h-4 w-4 mr-1 sm:mr-2" />
-                                    <span className="hidden sm:inline">{t('tabSegments')}</span>
-                                    <span className="sm:hidden">{t('tabSegmentsShort')}</span>
+                                <TabsTrigger value="contributions" className={underlineTabClass}>
+                                    {t('tabSegments')}
+                                    {totalCount > 0 && <span className="ml-1.5 font-normal text-muted-foreground">({totalCount})</span>}
                                 </TabsTrigger>
                             </TabsList>
-                        </div>
 
-                        <TabsContent value="people" className="mt-6">
-                            <PartyMembersTab
-                                city={city}
-                                party={party}
-                                people={persons}
-                                canEdit={canEdit}
-                                administrativeBodies={administrativeBodies}
-                            />
-                        </TabsContent>
+                            <TabsContent value="people" className="mt-6">
+                                <PartyMembersTab
+                                    city={city}
+                                    party={party}
+                                    people={persons}
+                                    canEdit={canEdit}
+                                    administrativeBodies={administrativeBodies}
+                                />
+                            </TabsContent>
 
-                        <TabsContent value="contributions" className="mt-6">
-                            <SegmentsTab
-                                party={party}
-                                typeOptions={typeOptions}
-                                selectedType={selectedAdminBodyType}
-                                onSelectType={handleAdminBodyTypeSelect}
-                                contributions={contributions}
-                                isLoadingContributions={isLoadingContributions}
-                                totalCount={totalCount}
-                                setPage={setPage}
-                                searchQuery={searchQuery}
-                                setSearchQuery={setSearchQuery}
-                                handleSearch={handleSearch}
-                                allLabel={tCommon('allMeetings')}
-                            />
-                        </TabsContent>
-                    </Tabs>
+                            <TabsContent value="contributions" className="mt-6">
+                                <SegmentsTab
+                                    typeOptions={typeOptions}
+                                    selectedType={selectedAdminBodyType}
+                                    onSelectType={handleAdminBodyTypeSelect}
+                                    contributions={contributions}
+                                    isLoadingContributions={isLoadingContributions}
+                                    totalCount={totalCount}
+                                    setPage={setPage}
+                                    searchQuery={searchQuery}
+                                    setSearchQuery={setSearchQuery}
+                                    handleSearch={handleSearch}
+                                    allLabel={tCommon('allMeetings')}
+                                />
+                            </TabsContent>
+                        </Tabs>
+
+                        <aside className="min-w-0 space-y-4 lg:pt-[2.6rem]">
+                            <RailCard title={t('compositionCard')}>
+                                <ul className="space-y-3">
+                                    {compositionRows.map(row => (
+                                        <li key={row.key}>
+                                            <div className="flex items-baseline justify-between gap-2">
+                                                <span className="min-w-0 truncate text-[13px] font-semibold">{row.label}</span>
+                                                <span className="shrink-0 text-[12px] tabular-nums text-muted-foreground">{row.count}</span>
+                                            </div>
+                                            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
+                                                <div
+                                                    className="h-full rounded-full"
+                                                    style={{
+                                                        width: `${Math.max(6, Math.round((row.count / compositionMax) * 100))}%`,
+                                                        backgroundColor: party.colorHex,
+                                                    }}
+                                                />
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <div className="mt-3 border-t border-border pt-2.5 text-[12px] text-muted-foreground">
+                                    {t('membersTotal', { count: composition.members.length })}
+                                </div>
+                            </RailCard>
+
+                            {partyLeader && (
+                                <RailCard title={t('partyLeader')}>
+                                    <Link
+                                        href={`/${city.id}/people/${partyLeader.person.id}`}
+                                        className="group flex items-center gap-3 hover:no-underline"
+                                    >
+                                        <span className="block h-11 w-11 shrink-0">
+                                            <ImageOrInitials
+                                                imageUrl={partyLeader.person.image}
+                                                name={partyLeader.person.name}
+                                                color={party.colorHex}
+                                                width={44}
+                                                height={44}
+                                            />
+                                        </span>
+                                        <span className="min-w-0 text-sm font-semibold transition-colors group-hover:text-[hsl(var(--orange))]">
+                                            {partyLeader.person.name}
+                                        </span>
+                                    </Link>
+                                </RailCard>
+                            )}
+                        </aside>
+                    </div>
                 </motion.div>
             </div>
         </div>
