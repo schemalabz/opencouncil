@@ -4,6 +4,8 @@ import { motion } from 'framer-motion';
 import type { HotSubjectCard } from '@/lib/hotSubjectCards';
 import { HotTopicLead } from './HotTopicLead';
 import { HotTopicRow } from './HotTopicRow';
+import { surfaceCardClass } from '@/components/ui/surface-card';
+import { cn } from '@/lib/utils';
 
 /** Long enough to read as the list re-flowing, short enough not to sit between
  *  a click and the answer. */
@@ -41,7 +43,7 @@ export function HotTopicsList({ cards, cityId, timezone, locale }: HotTopicsList
     const open = cards.some(card => card.subject.id === openId) ? openId : cards[0]?.subject.id ?? null;
 
     return (
-        <div className="overflow-hidden rounded-2xl border border-foreground/60 bg-card">
+        <div className={cn(surfaceCardClass, "overflow-hidden")}>
             {cards.map((card, i) => (
                 <motion.div key={card.subject.id} layout transition={SWAP}>
                     {card.subject.id === open ? (

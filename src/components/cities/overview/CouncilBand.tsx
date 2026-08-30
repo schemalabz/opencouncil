@@ -12,6 +12,8 @@ import { sortParties } from '@/lib/sorting/parties';
 import { sortPeople } from '@/lib/sorting/people';
 import { getPartyFromRoles, isRoleActive } from '@/lib/utils/roles';
 import { localizeText } from '@/lib/serbian';
+import { surfaceCardClass } from '@/components/ui/surface-card';
+import { cn } from '@/lib/utils';
 
 /** Parties shown before the list stops being a summary of who holds the room. */
 const PARTIES_SHOWN = 3;
@@ -75,7 +77,7 @@ export function CouncilBand({ parties, people, city, locale }: CouncilBandProps)
             )}
 
             {ordered.length > 0 && (
-                <div className="mt-6 rounded-2xl border border-foreground/60 bg-card p-5">
+                <div className={cn(surfaceCardClass, "mt-6 p-5")}>
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <span className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">
                             {t('peopleEyebrow', { count: city._count.persons })}
