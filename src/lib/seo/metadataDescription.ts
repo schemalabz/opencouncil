@@ -1,14 +1,16 @@
+import { stripMarkdown } from "@/lib/formatters/markdown";
+
 /**
- * Compact a markdown text (a subject description) into a metadata
- * description: keep link labels, drop link targets (including internal
- * REF:UTTERANCE markers), strip markdown tokens, collapse whitespace,
- * and cap the length with an ellipsis.
+ * Flatten a markdown subject description into a metadata description:
+ * strip markdown via the shared helper, then cap the length with an
+ * ellipsis. The cap counts code points, so an emoji at the boundary
+ * cannot leave a lone surrogate in the output.
  */
 export function compactMetadataDescription(value: string, maxLength = 180): string {
-    const compact = value
-        .replace(/\[([^\]]+)]\([^)]+\)/g, "$1")
-        .replace(/[#*_>`]/g, "")
-        .replace(/\s+/g, " ")
-        .trim();
-    return compact.length > maxLength ? `${compact.slice(0, maxLength - 1).trimEnd()}…` : compact;
+    const stripped = stripMarkdown(value);
+    const chars = Array.from(stripped);
+    if (chars.length <= maxLength) {
+        return stripped;
+    }
+    return `${chars.slice(0, maxLength - 1).join("").trimEnd()}…`;
 }
