@@ -154,7 +154,9 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
                             )}
 
                             <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                                <MetaItem icon={ScrollText}>{getLocalizedName(meeting, locale)}</MetaItem>
+                                {/* The meeting name is context too: on the meeting's own page
+                                    the h1 already says it, N rows repeating it said nothing. */}
+                                {showContext && <MetaItem icon={ScrollText}>{getLocalizedName(meeting, locale)}</MetaItem>}
                                 <MetaItem icon={MapPin}>{locationText ?? t("noLocation")}</MetaItem>
                             </div>
                         </div>
