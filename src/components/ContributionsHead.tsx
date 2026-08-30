@@ -21,7 +21,7 @@ export function ContributionsHead({ title, count, placeholder, searchValue, onSe
 }) {
     return (
         <div className={cn('flex flex-wrap items-center gap-x-3 gap-y-2', className)}>
-            <h2 className="!m-0 !text-left text-lg font-semibold sm:text-xl">
+            <h2 className="!m-0 !text-left">
                 {title}
                 {count > 0 && <span className="ml-1.5 text-sm font-normal text-muted-foreground">({count})</span>}
             </h2>

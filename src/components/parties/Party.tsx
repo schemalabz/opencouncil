@@ -30,8 +30,6 @@ import { EntityHeader, FactDot } from '@/components/EntityHeader';
 import { ContributionsHead } from '@/components/ContributionsHead';
 import { GoverningPartyChip } from '@/components/parties/GoverningPartyChip';
 import { partyComposition } from '@/lib/party/composition';
-import { topicStyle } from '@/lib/topicStyle';
-import { getInitials } from '@/lib/formatters/name';
 
 type RoleWithPerson = Role & {
     person: Person;
@@ -112,7 +110,7 @@ function PartyMembersTab({
             >
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
-                        <h2 className="!m-0 !text-left text-lg font-semibold sm:text-xl">{t('currentMembers')}</h2>
+                        <h2 className="!m-0 !text-left">{t('currentMembers')}</h2>
                         <span className="text-sm text-muted-foreground">({activePeople.length})</span>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
@@ -163,7 +161,7 @@ function PartyMembersTab({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
                 >
-                    <h2 className="text-lg sm:text-xl font-semibold mb-4">{t('pastMembers')} ({inactivePeople.length})</h2>
+                    <h2 className="mb-4">{t('pastMembers')} ({inactivePeople.length})</h2>
                     <div className="space-y-3">
                         {sortInactivePartyMembers(inactivePeople, party.id)
                             .map(person => (
@@ -407,7 +405,6 @@ export default function PartyC({ city, party, administrativeBodies }: {
     // Seats per body and the governing-party standing — the same derivation the
     // city overview's cards run, so the two surfaces can never disagree.
     const composition = useMemo(() => partyComposition(party), [party]);
-    const tile = topicStyle(party.colorHex);
     const compositionRows = useMemo(() => [
         { key: 'council', label: tCommon('adminBodyType_council'), count: composition.council },
         { key: 'committee', label: tCommon('adminBodyType_committee'), count: composition.committee },
@@ -545,24 +542,17 @@ export default function PartyC({ city, party, administrativeBodies }: {
                         compare across parties. Admin controls sit in the hazard-striped
                         corner every back-of-house control now uses. */}
                     <EntityHeader
-                        avatar={party.logo ? (
+                        avatar={(
                             <span className="block h-[84px] w-[84px] shrink-0">
                                 <ImageOrInitials
                                     imageUrl={party.logo}
-                                    name={party.name_short}
+                                    name={party.name_short || party.name}
                                     color={party.colorHex}
                                     width={84}
                                     height={84}
                                     square
+                                    variant="wash"
                                 />
-                            </span>
-                        ) : (
-                            <span
-                                className="flex h-[84px] w-[84px] shrink-0 items-center justify-center rounded-[18px] text-[26px] font-bold"
-                                style={{ backgroundColor: tile.background, boxShadow: `inset 0 0 0 1.5px ${tile.border}`, color: tile.icon }}
-                                aria-hidden
-                            >
-                                {getInitials(party.name_short || party.name)}
                             </span>
                         )}
                         name={party.name}
