@@ -2,26 +2,24 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import type { Map as MapboxMap } from 'mapbox-gl';
+import { useTranslations } from 'next-intl';
 import Map, { type MapFeature } from '@/components/map/map';
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
 import { CoLocatedBox } from '@/components/landing/v2/mapMarkers';
-import { useFilteredSubjects } from '@/components/landing/v2/hooks/useFilteredSubjects';
 import { useSubjectMarkers } from '@/components/landing/v2/hooks/useMapMarkers';
-import { SubjectExpandedCard } from '@/components/map/subjects/SubjectExpandedCard';
-import { SubjectStrip } from '@/components/map/subjects/SubjectStrip';
 import { useSubjectMapState } from '@/components/map/subjects/useSubjectMapState';
 import { useMediaQuery } from '@/hooks/use-media-query';
-import { EMPTY_FILTERS } from '@/lib/landing/landingCore';
-import type { MapSubject } from '@/lib/landing/landingData';
+import { toLandingSubjects, type MapSubject } from '@/lib/landing/landingData';
 import { getRealmDefaultMapView } from '@/lib/realm';
+import { useRouter } from '@/i18n/routing';
 
 /**
- * The meeting's subjects on the map — the same subject layer the landing and
- * the city page's map tab run, fed entirely from the meeting data the shell has
- * already loaded: no fetch of its own, and none of the landing's extra layers
- * (δήμοι donuts, petitions, filters). This replaces the page's bespoke map,
- * whose flat dots navigated away on click; a pin now behaves as it does
- * everywhere else — preview on a phone, an opening card on a desktop.
+ * The meeting's subjects on the map — the same pin layer the landing and the
+ * city map run, fed entirely from the meeting data the shell already holds: no
+ * fetch of its own, and none of the landing's extra layers. No list rides the
+ * map either: zoomed in, the base map's collision-managed label layer sets each
+ * subject's title beside its pin, and a click goes straight to the subject —
+ * the map is an index here, not a reading surface.
  */
 export function MeetingMap() {
     const { city, meeting, subjects } = useCouncilMeetingData();
@@ -67,59 +65,54 @@ export function MeetingMap() {
         [subjects, city, meeting],
     );
 
-    const {
-        selectedId,
-        setSelectedId,
-        previewId,
-        mapView,
-        mapZoom,
-        coLocated,
-        setCoLocated,
-        suppressViewCaptureRef,
-        pendingCoLocatedRef,
-        previewSubject,
-    } = useSubjectMapState({ mapInstance, initialZoom: fallbackView.zoom });
+    const router = useRouter();
+    const { setCoLocated, coLocated, suppressViewCaptureRef, pendingCoLocatedRef } =
+        useSubjectMapState({ mapInstance, initialZoom: fallbackView.zoom });
 
-    const { visibleSubjects, listSubjects, findSubject, selectedSubject } = useFilteredSubjects({
-        mapSubjects,
-        generalRows: [],
-        cats: NO_CATS,
-        filters: EMPTY_FILTERS,
-        addressPoint: null,
-        mapView,
-        mapZoom,
-        selectedId,
-        previewId,
-    });
-
-    const clearSelection = useCallback(() => setSelectedId(null), [setSelectedId]);
-    // The strip's contract, applied to the pins too: first click previews (highlight
-    // + centre), clicking the previewed pin opens its card. One behaviour at every
-    // width — the panel that used to double as the desktop affordance is gone.
-    const onMarkerSelect = useCallback(
+    const t = useTranslations('landingV2');
+    const landingSubjects = useMemo(
+        () => toLandingSubjects(mapSubjects, t('topic.general')),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [mapSubjects],
+    );
+    const open = useCallback(
         (id: string) => {
-            if (previewId === id) setSelectedId(id);
-            else previewSubject(findSubject(id));
+            const subject = landingSubjects.find(s => s.id === id);
+            if (subject) router.push(subject.href);
         },
-        [previewId, previewSubject, findSubject, setSelectedId],
+        [landingSubjects, router],
     );
 
     useSubjectMarkers({
         mapInstance,
         active: true,
-        visibleSubjects,
-        selectedId,
-        previewId,
-        onSelect: onMarkerSelect,
-        onClearSelection: clearSelection,
+        visibleSubjects: landingSubjects,
+        selectedId: null,
+        previewId: null,
+        onSelect: open,
+        onClearSelection: NOOP,
         suppressViewCaptureRef,
         pendingCoLocatedRef,
         setCoLocated,
     });
 
-    // The δήμος boundary, in the outline the subject maps share.
-    const features = useMemo<MapFeature[]>(() =>
-        city.geometry
+    // The δήμος boundary in the shared outline, plus one invisible point per
+    // subject whose only job is its `label`: the base map's symbol layer picks
+    // those up past zoom 12 with collision handling, so titles appear exactly
+    // when the pins have spread enough to own them.
+    const features = useMemo<MapFeature[]>(() => [
+        ...landingSubjects.map(subject => ({
+            id: `label-${subject.id}`,
+            geometry: { type: 'Point' as const, coordinates: [subject.lng, subject.lat] },
+            properties: { interactive: false },
+            style: {
+                fillOpacity: 0,
+                strokeWidth: 0,
+                strokeOpacity: 0,
+                label: subject.title,
+            },
+        })),
+        ...(city.geometry
             ? [{
                 id: `__city__${city.id}`,
                 geometry: city.geometry,
@@ -132,9 +125,8 @@ export function MeetingMap() {
                     strokeOpacity: 0.9,
                 },
             }]
-            : [],
-        [city.id, city.geometry],
-    );
+            : []),
+    ], [city.id, city.geometry, landingSubjects]);
 
     return (
         <div className="absolute inset-0">
@@ -152,41 +144,12 @@ export function MeetingMap() {
             {coLocated && (
                 <CoLocatedBox
                     data={coLocated}
-                    onSelect={(id) => {
-                        onMarkerSelect(id);
-                        setCoLocated(null);
-                    }}
+                    onSelect={open}
                     onClose={() => setCoLocated(null)}
                 />
-            )}
-
-            {/* the strip of subject cards over the map — or the opened one, docked
-                left where there is width for the map to stay visible beside it */}
-            {selectedSubject ? (
-                <SubjectExpandedCard
-                    subject={selectedSubject}
-                    openSource="meeting_map"
-                    className="lg:inset-x-auto lg:left-4 lg:w-[400px]"
-                    onClose={() => {
-                        const s = selectedSubject;
-                        clearSelection();
-                        previewSubject(s);
-                    }}
-                />
-            ) : (
-                <div className="absolute inset-x-0 bottom-3">
-                    <SubjectStrip
-                        subjects={listSubjects}
-                        previewId={previewId}
-                        onPreview={(id) => previewSubject(id ? findSubject(id) : null)}
-                        onSelect={setSelectedId}
-                    />
-                </div>
             )}
         </div>
     );
 }
 
-/** No topic filtering on a meeting's map. Module-level so the identity is stable —
- *  a fresh [] each render would rebuild every marker. */
-const NO_CATS: string[] = [];
+const NOOP = () => {};
