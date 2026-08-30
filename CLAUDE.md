@@ -144,9 +144,11 @@ src/
 `isUserAuthorizedToEdit()` from `src/lib/actions/auth.ts`. This file is the
 reviewed Server Action wrapper for client-side edit controls.
 
-Keep private data access and service functions in `server-only` modules. Put
-browser-callable functions in a dedicated `src/lib/actions/` module. Do not add
-`"use server"` to a data access or service module.
+For new code, keep private data access and service functions in `server-only`
+modules. Put browser-callable functions in a dedicated `src/lib/actions/`
+module. Do not add `"use server"` to a new data access or service module.
+Legacy `"use server"` modules elsewhere in `src/lib/` predate this convention
+and should be migrated rather than copied.
 
 **CRITICAL**: Both methods are async and must be await-ed to prevent auth bypass bugs.
 
