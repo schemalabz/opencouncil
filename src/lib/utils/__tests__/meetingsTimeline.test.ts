@@ -1,10 +1,10 @@
 import { packTimeline, timelineCardHeight, timelineSide, TL } from '../meetingsTimeline';
 
 describe('timelineSide', () => {
-    it('puts the council right and every other body left', () => {
+    it('puts the council right, committees left, and communities nowhere', () => {
         expect(timelineSide('council')).toBe('right');
         expect(timelineSide('committee')).toBe('left');
-        expect(timelineSide('community')).toBe('left');
+        expect(timelineSide('community')).toBeNull();
     });
 
     it('treats a body-less meeting as the council', () => {
