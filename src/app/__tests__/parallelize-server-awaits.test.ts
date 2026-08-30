@@ -313,11 +313,22 @@ describe('PR1: server-side awaits run concurrently', () => {
 
         await flushMicrotasks();
 
+        // The city deliberately comes first: its realm decides what the meetings
+        // section fetches (the Greek timeline scopes to δήμος-wide bodies and is
+        // the only realm with an upcoming module). Everything else still batches.
         expect(cache.getCityCached).toHaveBeenCalledTimes(1);
+        expect(hotCards.getHotSubjectCardsCached).not.toHaveBeenCalled();
+
+        cityD.resolve({ id: 'athens', timezone: 'Europe/Athens', realm: 'greece' });
+        await flushMicrotasks();
+
         expect(hotCards.getHotSubjectCardsCached).toHaveBeenCalledTimes(1);
         // Once for the recent meetings, once for the scheduled ones the Greek
-        // realm's timeline shows — both kicked off inside the same batch.
+        // realm's timeline shows — both scoped to the bodies the timeline draws.
         expect(cache.getCouncilMeetingsPreviewPublicCached).toHaveBeenCalledTimes(2);
+        for (const call of cache.getCouncilMeetingsPreviewPublicCached.mock.calls) {
+            expect(call[1]?.administrativeBodyTypes).toEqual(['council', 'committee']);
+        }
         const timeFilters = cache.getCouncilMeetingsPreviewPublicCached.mock.calls.map(
             (call: [string, { timeFilter?: string }]) => call[1]?.timeFilter,
         );
@@ -329,7 +340,6 @@ describe('PR1: server-side awaits run concurrently', () => {
         expect(cache.getAdministrativeBodiesWithPublicMeetingsCached).toHaveBeenCalledTimes(1);
         expect(intl.getTranslations).toHaveBeenCalled();
 
-        cityD.resolve({ id: 'athens', timezone: 'Europe/Athens' });
         hotD.resolve([]);
         meetingsD.resolve([]);
         partiesD.resolve([]);
