@@ -84,14 +84,14 @@ export function ConfirmSheet({ open, onOpenChange, action, destructive, decision
                         <button
                             type="button"
                             onClick={() => setPane('document')}
-                            className={`pb-2 -mb-px ${pane === 'document' ? 'font-semibold border-b-2 border-[#fc550a]' : 'text-muted-foreground'}`}
+                            className={`pb-2 -mb-px ${pane === 'document' ? 'font-semibold border-b-2 border-[hsl(var(--orange-deep))]' : 'text-muted-foreground'}`}
                         >
                             {t('tabDocument')}
                         </button>
                         <button
                             type="button"
                             onClick={() => setPane('extraction')}
-                            className={`pb-2 -mb-px ${pane === 'extraction' ? 'font-semibold border-b-2 border-[#fc550a]' : 'text-muted-foreground'}`}
+                            className={`pb-2 -mb-px ${pane === 'extraction' ? 'font-semibold border-b-2 border-[hsl(var(--orange-deep))]' : 'text-muted-foreground'}`}
                         >
                             {t('tabExtraction')}
                         </button>
