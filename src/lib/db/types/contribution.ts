@@ -8,6 +8,8 @@ export type ContributionForPerson = SpeakerContribution & {
         name: string;
         cityId: string;
         councilMeetingId: string;
+        agendaItemIndex: number | null;
+        nonAgendaReason: string | null;
         topic: Topic | null;
         councilMeeting: CouncilMeeting & {
             administrativeBody: AdministrativeBody | null;
