@@ -91,20 +91,25 @@ export const ContributionCard = memo(function ContributionCard({
 
     const chips = (
         <span className="flex shrink-0 items-center gap-1.5">
-            {utteranceInfo && (
-                <span className="inline-flex h-7 items-center gap-0.5 rounded-full border border-border bg-card pl-0.5 pr-2.5 text-[11px] font-semibold tabular-nums">
-                    {showPlayButton && (
-                        <PlayPauseButton
-                            startTimestamp={utteranceInfo.startTimestamp}
-                            endTimestamp={utteranceInfo.endTimestamp}
-                            className="h-6 w-6 shrink-0 rounded-full border-0 bg-transparent p-0 shadow-none"
-                        />
-                    )}
-                    <span className={cn(!showPlayButton && 'pl-2 font-normal text-muted-foreground')}>
-                        {formatTimestamp(utteranceInfo.startTimestamp)}
-                    </span>
-                </span>
-            )}
+            {/* The whole chip is the control — a pill you can only hit on its glyph is a
+                fiddle. With a video it plays from here; without one it opens the
+                transcript at the same second. */}
+            {utteranceInfo && (showPlayButton ? (
+                <PlayPauseButton
+                    startTimestamp={utteranceInfo.startTimestamp}
+                    endTimestamp={utteranceInfo.endTimestamp}
+                    className="h-7 gap-1.5 rounded-full border-border bg-card px-2.5 text-[11px] font-semibold tabular-nums text-foreground shadow-none hover:!bg-muted hover:!text-foreground [&_svg]:!h-3 [&_svg]:!w-3"
+                >
+                    {formatTimestamp(utteranceInfo.startTimestamp)}
+                </PlayPauseButton>
+            ) : transcriptUrl && (
+                <Link
+                    href={transcriptUrl}
+                    className="inline-flex h-7 items-center rounded-full border border-border bg-card px-2.5 text-[11px] tabular-nums text-muted-foreground transition-colors hover:text-foreground hover:no-underline"
+                >
+                    {formatTimestamp(utteranceInfo.startTimestamp)}
+                </Link>
+            ))}
             {transcriptUrl && (
                 <Link
                     href={transcriptUrl}

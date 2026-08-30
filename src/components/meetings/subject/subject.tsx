@@ -166,7 +166,9 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     return (
         <div className="min-h-screen bg-background">
             {/* Main Content */}
-            <div className="max-w-4xl mx-auto px-3 py-4 md:px-4 md:py-6 space-y-6">
+            {/* max-w-4xl was the old single-column reading width; the two-column layout
+                earns more — the rail takes 316px and the prose caps itself in ch. */}
+            <div className="mx-auto max-w-6xl space-y-6 px-3 py-4 md:px-6 md:py-6">
                 {/* On-page context + back affordance.
                     The breadcrumb in the header is the only other place that
                     shows which meeting/council this subject belongs to and the
@@ -290,7 +292,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                         <DiscussionStats statistics={subject.statistics} totalMinutes={totalMinutes} colorPercentages={colorPercentages} locale={locale} compact />
                     </div>
                 )}
-                <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_316px] lg:gap-10">
+                <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_316px] lg:gap-10 xl:grid-cols-[minmax(0,1fr)_336px] xl:gap-14">
                     <div className="min-w-0 space-y-9">
                         {description && (
                             <section>
@@ -357,53 +359,45 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                             >
                         {decision ? (
                             <div className="space-y-3">
-                                <table className="w-full text-sm">
-                                    <tbody>
-                                        {decision.title && (
-                                            <tr>
-                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap align-top">{t("decisionTitle")}</td>
-                                                <td className="py-1.5">{decision.title}</td>
-                                            </tr>
-                                        )}
-                                        {decision.ada && (
-                                            <tr>
-                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">ΑΔΑ</td>
-                                                <td className="py-1.5">{decision.ada}</td>
-                                            </tr>
-                                        )}
-                                        {decision.decisionNumber && (
-                                            <tr>
-                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">{t("decisionNumber")}</td>
-                                                <td className="py-1.5">{decision.decisionNumber}</td>
-                                            </tr>
-                                        )}
-                                        {decision.protocolNumber && (
-                                            <tr>
-                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">{t("protocolNumber")}</td>
-                                                <td className="py-1.5">{decision.protocolNumber}</td>
-                                            </tr>
-                                        )}
-                                        {decision.publishDate && (
-                                            <tr>
-                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">{t("publishDate")}</td>
-                                                <td className="py-1.5">{formatDate(new Date(decision.publishDate))}</td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                                <div className="flex items-center justify-between pt-2 border-t border-border">
+                                {/* Stacked, not a table: a label column beside a long Diavgeia
+                                    title in a 316px rail broke the title one word per line. The
+                                    ΑΔΑ already sits in the card's own head. */}
+                                {decision.title && (
+                                    <p className="text-[12.5px] leading-relaxed text-foreground/85">{decision.title}</p>
+                                )}
+                                <dl className="space-y-1.5 text-xs">
+                                    {decision.decisionNumber && (
+                                        <div className="flex items-baseline justify-between gap-3">
+                                            <dt className="shrink-0 text-muted-foreground">{t("decisionNumber")}</dt>
+                                            <dd className="text-right tabular-nums">{decision.decisionNumber}</dd>
+                                        </div>
+                                    )}
+                                    {decision.protocolNumber && (
+                                        <div className="flex items-baseline justify-between gap-3">
+                                            <dt className="shrink-0 text-muted-foreground">{t("protocolNumber")}</dt>
+                                            <dd className="text-right tabular-nums">{decision.protocolNumber}</dd>
+                                        </div>
+                                    )}
+                                    {decision.publishDate && (
+                                        <div className="flex items-baseline justify-between gap-3">
+                                            <dt className="shrink-0 text-muted-foreground">{t("publishDate")}</dt>
+                                            <dd className="text-right">{formatDate(new Date(decision.publishDate))}</dd>
+                                        </div>
+                                    )}
+                                </dl>
+                                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border pt-2.5">
                                     <a
                                         href={decision.pdfUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-[hsl(var(--orange-deep))] hover:underline"
                                     >
-                                        <ExternalLink className="w-3.5 h-3.5" />
+                                        <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
                                         {t("viewDecision")}
                                     </a>
                                     {decision.updatedAt && (
                                         // Clock-relative text — see formatRelativeTime.
-                                        <span className="text-xs text-muted-foreground" suppressHydrationWarning>
+                                        <span className="text-[10.5px] text-muted-foreground" suppressHydrationWarning>
                                             {t("lastUpdated", { time: formatRelativeTime(new Date(decision.updatedAt), locale) })}
                                         </span>
                                     )}
