@@ -1,4 +1,5 @@
 import { useLocale, useTranslations } from 'next-intl';
+import { TrackedLink } from '@/components/analytics/TrackedLink';
 import { Link } from '@/i18n/routing';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
 import type { PartyWithPersons } from '@/lib/db/parties';
@@ -14,6 +15,8 @@ const FACES = 4;
 interface PartyCardProps {
     item: PartyWithPersons;
     editable: boolean;
+    /** Which surface renders the card — the party_opened analytics discriminator. */
+    analyticsSurface?: string;
     /**
      * Which bodies beyond the council every card in this city counts, from
      * {@link partyBodyColumns}. Decided for the city, not the party, so a
@@ -41,7 +44,7 @@ interface PartyCardProps {
  * Deliberately hook-light so it renders in a Server Component (the city
  * overview) and inside List, which is a client component.
  */
-export default function PartyCard({ item: party, columns }: PartyCardProps) {
+export default function PartyCard({ item: party, columns, analyticsSurface = 'parties_list' }: PartyCardProps) {
     const t = useTranslations('cityOverview');
     const locale = useLocale();
     const { members, councilMembers, council, committee, community, hasMayor } = partyComposition(party);
@@ -55,8 +58,10 @@ export default function PartyCard({ item: party, columns }: PartyCardProps) {
     ].filter(Boolean);
 
     return (
-        <Link
+        <TrackedLink
             href={`/${party.cityId}/parties/${party.id}`}
+            event="party_opened"
+            eventProps={{ surface: analyticsSurface, city_id: party.cityId, party_id: party.id }}
             className={cn(surfaceCardClass, "group relative flex h-full overflow-hidden transition-shadow hover:shadow-md hover:no-underline")}
         >
             {/* A filled band, not a border: a border renders as a stroke that thins
@@ -124,6 +129,6 @@ export default function PartyCard({ item: party, columns }: PartyCardProps) {
                     </span>
                 )}
             </span>
-        </Link>
+        </TrackedLink>
     );
 }

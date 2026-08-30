@@ -1,5 +1,6 @@
 "use client"
 import MapView from "@/components/map/map";
+import { captureEvent } from '@/lib/analytics/capture';
 import { cityBoundaryFeature } from '@/components/map/cityBoundary';
 import { TOPICLESS_COLOR } from '@/lib/topicStyle';
 import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataContext";
@@ -157,7 +158,7 @@ function MeetingInfo() {
                     {meeting.agendaUrl && (
                         <div className="flex items-center">
                             <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />
-                            <Link href={meeting.agendaUrl} target="_blank" className="hover:text-primary transition-colors inline-flex items-center">
+                            <Link href={meeting.agendaUrl} target="_blank" onClick={() => captureEvent('meeting_page_action', { action: 'agenda_pdf', city_id: meeting.cityId, meeting_id: meeting.id })} className="hover:text-primary transition-colors inline-flex items-center">
                                 {tMeeting('agendaDocument')}
                                 <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1.5" />
                             </Link>
@@ -239,6 +240,7 @@ function UpcomingMeetingCard() {
             {meeting.agendaUrl && (
                 <Link
                     href={meeting.agendaUrl}
+                    onClick={() => captureEvent('meeting_page_action', { action: 'agenda_pdf', city_id: meeting.cityId, meeting_id: meeting.id })}
                     target="_blank"
                     className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border font-medium transition-colors hover:bg-accent"
                 >

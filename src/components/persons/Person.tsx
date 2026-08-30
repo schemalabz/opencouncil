@@ -1,5 +1,6 @@
 "use client";
 import { useLocale, useTranslations } from 'next-intl';
+import { captureEvent } from '@/lib/analytics/capture';
 import { City, Party, AdministrativeBody, Topic } from '@prisma/client';
 import { Button } from '../ui/button';
 import FormSheet from '../FormSheet';
@@ -138,6 +139,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
+        captureEvent('profile_search', { page: 'person', query_length: searchQuery.length, city_id: city.id });
         const params = new URLSearchParams();
         params.set('query', searchQuery);
         params.set('personId', person.id);
@@ -170,6 +172,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
 
     // Handler for topic selection
     const handleTopicSelect = (topicId: string | null) => {
+        captureEvent('profile_filter', { page: 'person', kind: 'topic', value_id: topicId, active: topicId !== null, city_id: city.id });
         setSelectedTopicId(topicId);
     };
 
@@ -235,6 +238,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                         <Link
                                             key={role.id}
                                             href={`/${city.id}/parties/${role.partyId}`}
+                                            onClick={() => captureEvent('party_opened', { surface: 'person_chip', city_id: city.id, party_id: role.partyId })}
                                             className="inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-[11.5px] font-bold hover:no-underline"
                                             style={{ backgroundColor: style.background, borderColor: style.border, color: style.icon }}
                                         >
@@ -373,6 +377,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                             showPlayButton={false}
                                             showSpeaker={false}
                                             disableSpeakerNavigation
+                                            sourcePage="person"
                                         />
                                     </motion.div>
                                 ))}
@@ -397,7 +402,10 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
 
                         {!isLoadingContributions && contributions.length < totalCount && (
                             <Button
-                                onClick={() => setPage(prevPage => prevPage + 1)}
+                                onClick={() => {
+                                    captureEvent('profile_load_more', { page: 'person', next_page: page + 1, city_id: city.id });
+                                    setPage(prevPage => prevPage + 1);
+                                }}
                                 variant="outline"
                                 className="mt-6 w-full sm:w-auto"
                                 disabled={isLoadingContributions}

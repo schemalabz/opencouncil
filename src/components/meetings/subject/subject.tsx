@@ -1,5 +1,6 @@
 "use client";
 import Map from "@/components/map/map";
+import { captureEvent } from '@/lib/analytics/capture';
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -90,6 +91,16 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     // Where the subject's discussion starts in the video — the first identified
     // speaker's first utterance, the same lookup every card makes for its own chip.
     const { seekToAndPlay } = useVideo();
+
+    // Every action on this page carries the same identity triple.
+    const captureSubjectAction = (action: string, extra: Record<string, unknown> = {}) =>
+        captureEvent('subject_action', {
+            action,
+            subject_id: subject.id,
+            city_id: meeting.cityId,
+            meeting_id: meeting.id,
+            ...extra,
+        });
     const firstSpeakerId = contributions?.find(c => c.speakerId)?.speakerId ?? null;
     const { data: subjectStart } = useSWR<{ startTimestamp: number; endTimestamp: number }>(
         firstSpeakerId ? `/api/subject/${subject.id}/first-utterance/${firstSpeakerId}` : null,
@@ -130,6 +141,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     }, [agendaItemIndex, subject.decision, subject.withdrawn, meeting.id, meeting.cityId]);
 
     const handleFetchDecision = useCallback(async () => {
+        captureSubjectAction('fetch_decision');
         setIsFetchingDecision(true);
         try {
             const result = await requestPollDecisionForSubject(subject.id);
@@ -183,6 +195,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                 >
                     <Link
                         href={`/${meeting.cityId}/${meeting.id}`}
+                        prefetch={false}
                         aria-label={t("backToMeetingNamed", { meeting: getLocalizedName(meeting, locale) })}
                         className="inline-flex items-center gap-1.5 font-medium text-foreground hover:text-primary transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
@@ -238,7 +251,10 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                         <div className="flex shrink-0 gap-2 md:pt-8">
                             <button
                                 type="button"
-                                onClick={() => seekToAndPlay(subjectStart.startTimestamp)}
+                                onClick={() => {
+                                    captureSubjectAction('play_discussion');
+                                    seekToAndPlay(subjectStart.startTimestamp);
+                                }}
                                 className="inline-flex h-9 items-center gap-2 rounded-full bg-foreground px-4 text-[13px] font-bold text-background transition-opacity hover:opacity-90"
                             >
                                 <Play className="h-3.5 w-3.5" aria-hidden />
@@ -246,6 +262,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                             </button>
                             <Link
                                 href={`/${meeting.cityId}/${meeting.id}/transcript?t=${Math.floor(subjectStart.startTimestamp)}`}
+                                onClick={() => captureSubjectAction('open_transcript')}
                                 className="inline-flex h-9 items-center gap-2 rounded-full border border-border px-3.5 text-[13px] font-semibold text-foreground hover:no-underline"
                             >
                                 <FileText className="h-4 w-4" aria-hidden />
@@ -294,6 +311,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                         href={decision.pdfUrl}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={() => captureSubjectAction('decision_pdf', { surface: 'mobile_strip' })}
                         className={cn(surfaceCardClass, "flex items-center justify-between gap-3 p-3.5 text-foreground hover:no-underline lg:hidden")}
                     >
                         <span className="flex min-w-0 flex-wrap items-center gap-2">
@@ -408,6 +426,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                         href={decision.pdfUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
+                                        onClick={() => captureSubjectAction('decision_pdf', { surface: 'rail' })}
                                         className="inline-flex items-center gap-1.5 text-xs font-semibold text-[hsl(var(--orange-deep))] hover:underline"
                                     >
                                         <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />

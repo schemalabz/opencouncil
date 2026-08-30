@@ -1,4 +1,5 @@
 import { ArrowRight } from 'lucide-react';
+import { TrackedLink } from '@/components/analytics/TrackedLink';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
@@ -71,7 +72,7 @@ export function CouncilBand({ parties, people, city, locale }: CouncilBandProps)
             {shown.length > 0 && (
                 <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     {shown.map(party => (
-                        <PartyCard key={party.id} item={party} editable={false} columns={columns} />
+                        <PartyCard key={party.id} item={party} editable={false} columns={columns} analyticsSurface="council_band" />
                     ))}
                 </div>
             )}
@@ -114,8 +115,10 @@ function PersonRow({ person, cityId, locale }: { person: PersonWithRelations; ci
         : party && getLocalizedName(party, locale);
 
     return (
-        <Link
+        <TrackedLink
             href={`/${cityId}/people/${person.id}`}
+            event="person_opened"
+            eventProps={{ surface: 'council_band', city_id: cityId, person_id: person.id }}
             className="group flex min-w-0 items-start gap-3 hover:no-underline"
         >
             <span className="mt-0.5 h-10 w-10 shrink-0">
@@ -135,6 +138,6 @@ function PersonRow({ person, cityId, locale }: { person: PersonWithRelations; ci
                     <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{caption}</span>
                 )}
             </span>
-        </Link>
+        </TrackedLink>
     );
 }

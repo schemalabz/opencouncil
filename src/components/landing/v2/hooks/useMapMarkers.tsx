@@ -36,7 +36,7 @@ import {
     MUNICIPALITY_VIEW_MARKER_DIAMETER,
     MUNICIPALITY_VIEW_MARKER_RING_SPREAD,
 } from '../mapMarkers';
-import { captureLandingAction } from '@/lib/landing/analytics';
+import { captureMapAction, type MapSurface } from '@/lib/analytics/capture';
 import {
     packMunicipalityMarkers,
     type MarkerExtent,
@@ -54,6 +54,7 @@ import type { CityAtPoint } from "@/lib/db/cities";
  */
 export function useMapViewCapture({
     mapInstance,
+    surface = 'landing',
     suppressViewCaptureRef,
     pendingCoLocatedRef,
     pendingGeneralRef,
@@ -65,6 +66,8 @@ export function useMapViewCapture({
     onUserNavigate,
 }: {
     mapInstance: MapboxMap | null;
+    /** Which page the map runs on — off-landing the events leave the landing_* family. */
+    surface?: MapSurface;
     suppressViewCaptureRef: MutableRefObject<boolean>;
     pendingCoLocatedRef: MutableRefObject<LandingSubject[] | null>;
     pendingGeneralRef: MutableRefObject<LandingGeneralCity | null>;
@@ -173,7 +176,7 @@ export function useMapViewCapture({
             movedKind = kind === 'zoom' ? 'zoom' : movedKind ?? 'pan'; // zoom wins over pan in a burst
             if (moveDebounce) clearTimeout(moveDebounce);
             moveDebounce = setTimeout(() => {
-                captureLandingAction('map_moved', { kind: movedKind, zoom: Math.round(mapInstance.getZoom()) });
+                captureMapAction(surface, 'map_moved', { kind: movedKind, zoom: Math.round(mapInstance.getZoom()) });
                 movedKind = null;
             }, 1000);
         };
@@ -204,6 +207,7 @@ export function useMapViewCapture({
  */
 export function useSubjectMarkers({
     mapInstance,
+    surface = 'landing',
     active,
     visibleSubjects,
     selectedId,
@@ -215,6 +219,8 @@ export function useSubjectMarkers({
     setCoLocated,
 }: {
     mapInstance: MapboxMap | null;
+    /** Which page the map runs on — off-landing the events leave the landing_* family. */
+    surface?: MapSurface;
     /** gates the whole layer — off while the zoomed-out δήμος donuts have the map */
     active: boolean;
     visibleSubjects: LandingSubject[];
@@ -245,7 +251,7 @@ export function useSubjectMarkers({
         if (!mapInstance || !active) return;
 
         const openCoLocated = (group: LandingSubject[]) => {
-            captureLandingAction('cluster_opened', { kind: 'co_located', size: group.length });
+            captureMapAction(surface, 'cluster_opened', { kind: 'co_located', size: group.length });
             // opening a "+N" box deselects any subject so its preview closes
             onClearSelectionRef.current();
             const lng = group[0].lng;
@@ -353,6 +359,7 @@ export function useSubjectMarkers({
  */
 export function useGeneralCityMarkers({
     mapInstance,
+    surface = 'landing',
     active,
     visibleGeneralCities,
     isMobile,
@@ -366,6 +373,8 @@ export function useGeneralCityMarkers({
     setGeneralBox,
 }: {
     mapInstance: MapboxMap | null;
+    /** Which page the map runs on — off-landing the events leave the landing_* family. */
+    surface?: MapSurface;
     /** gates the whole layer — off while the zoomed-out δήμος donuts have the map */
     active: boolean;
     visibleGeneralCities: LandingGeneralCity[];
@@ -392,7 +401,7 @@ export function useGeneralCityMarkers({
         const markers: { marker: Marker; root: Root }[] = [];
         for (const city of visibleGeneralCities) {
             const { marker, root } = createGeneralCityMarker(mapInstance, city, () => {
-                captureLandingAction('cluster_opened', { kind: 'city_hall', size: city.subjects.length, city_id: city.cityId });
+                captureMapAction(surface, 'cluster_opened', { kind: 'city_hall', size: city.subjects.length, city_id: city.cityId });
                 // opening the general box clears the other map previews
                 onClearSelectionRef.current();
                 closeExplainPopupRef.current?.();
