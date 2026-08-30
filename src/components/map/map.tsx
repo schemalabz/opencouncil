@@ -515,8 +515,12 @@ const Map = memo(function Map({
                         12, 10,
                         17, 13
                     ],
-                    'text-anchor': 'top',
-                    'text-offset': [0, 0.8],
+                    // Per-feature placement: a small dot reads best labelled beneath
+                    // (the default), a 28px HTML pin hides that — such features pass
+                    // properties.labelAnchor 'left' and the text sits beside the icon.
+                    'text-anchor': ['coalesce', ['get', 'labelAnchor'], 'top'],
+                    'text-offset': ['case', ['==', ['get', 'labelAnchor'], 'left'], ['literal', [1.6, 0]], ['literal', [0, 0.8]]],
+                    'text-justify': ['case', ['==', ['get', 'labelAnchor'], 'left'], 'left', 'center'],
                     'text-padding': 3,
                     'text-optional': false,
                     'text-max-width': 16,
