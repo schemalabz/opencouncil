@@ -373,7 +373,9 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                 </div>
                             </div>
                         ) : (
-                            <div className="space-y-3 sm:space-y-4">
+                            // A reading column, not the full tab: the card takes its measure from
+                            // this width, so a wide screen gets margins, not a half-empty card.
+                            <div className="max-w-[42rem] space-y-3 sm:space-y-4">
                                 {contributions.map((contribution, index) => (
                                     <motion.div
                                         key={contribution.id}
