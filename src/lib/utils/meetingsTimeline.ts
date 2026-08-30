@@ -34,12 +34,15 @@ export const TL = {
 export type TimelineSide = 'left' | 'right';
 
 /**
- * Which side of the spine a meeting belongs to: the council right, everything
- * else — committees, communities — left. A meeting with no administrative body
- * (cities imported before bodies existed) reads as the council's, which is the
- * default body everywhere else in the app.
+ * Which side of the spine a meeting belongs to: committees left, the council
+ * right — and a κοινότητα nowhere. Community meetings are neighbourhood-level;
+ * on the δήμος's own overview they would crowd out the meetings that speak for
+ * the whole municipality, so the timeline excludes them (null). A meeting with
+ * no administrative body (cities imported before bodies existed) reads as the
+ * council's, which is the default body everywhere else in the app.
  */
-export function timelineSide(type: AdministrativeBodyType | null | undefined): TimelineSide {
+export function timelineSide(type: AdministrativeBodyType | null | undefined): TimelineSide | null {
+    if (type === 'community') return null;
     return type == null || type === 'council' ? 'right' : 'left';
 }
 

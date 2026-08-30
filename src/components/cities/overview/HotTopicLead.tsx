@@ -44,14 +44,6 @@ export function HotTopicLead({ card, rank, maxSeconds, cityId, timezone, locale 
 
     return (
         <div>
-            <div
-                className="flex items-center gap-2 border-b border-border px-4 py-2.5 text-xs font-bold"
-                style={{ backgroundColor: topic.background, color: topic.icon }}
-            >
-                <Icon name={subject.topic?.icon || 'hash'} color="currentColor" size={16} />
-                <span>{subject.topic ? localizeText(subject.topic.name, locale) : ''}</span>
-            </div>
-
             {/* The stacked avatars ring themselves against whatever they sit on, or the
                 ring turns into a halo around every circle. They sit in the metrics column,
                 which is roughly the last eighth of the row, so the bar covers them only
@@ -74,6 +66,18 @@ export function HotTopicLead({ card, rank, maxSeconds, cityId, timezone, locale 
                     </span>
 
                     <div className="min-w-0 flex-1">
+                        {/* The topic names the leader only, so it sits inside the leader's own
+                            column. As a band across the container top it read as a heading for
+                            the whole ranking — seven subjects under one topic. */}
+                        {subject.topic && (
+                            <span
+                                className="mb-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold leading-none"
+                                style={{ backgroundColor: topic.background, borderColor: topic.border, color: topic.icon }}
+                            >
+                                <Icon name={subject.topic.icon || 'hash'} color="currentColor" size={13} />
+                                {localizeText(subject.topic.name, locale)}
+                            </span>
+                        )}
                         <h3 className="!text-left text-lg leading-tight sm:text-xl">
                             <Link href={href} prefetch={false} className="hover:no-underline">
                                 {localizeText(subject.name, locale)}
