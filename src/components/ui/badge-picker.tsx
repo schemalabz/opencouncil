@@ -6,6 +6,8 @@ import { cn } from '@/lib/utils';
 import { useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronDown, Filter } from 'lucide-react';
+import Icon from '@/components/icon';
+import { topicStyle } from '@/lib/topicStyle';
 
 export interface BadgePickerOption<T extends string> {
     value: T;
@@ -17,6 +19,8 @@ export interface BadgePickerOption<T extends string> {
      * the filled badge.
      */
     hint?: ReactNode | ((selected: boolean) => ReactNode);
+    /** A lucide glyph for the option (topics have one); options without keep the plain dot. */
+    icon?: string | null;
 }
 
 interface BadgePickerProps<T extends string> {
@@ -205,7 +209,15 @@ function BadgeButtons<T extends string>({
                                 : undefined
                         }
                     >
-                        {option.color && (
+                        {option.icon ? (
+                            // The topic's own glyph, inked the way every TopicIcon inks it —
+                            // the raw hex is too light for a 14px stroke on white.
+                            <Icon
+                                name={option.icon}
+                                size={14}
+                                color={isSelected ? '#fff' : topicStyle(option.color).icon}
+                            />
+                        ) : option.color && (
                             <div
                                 className="w-1.5 h-1.5 rounded-full"
                                 aria-hidden="true"

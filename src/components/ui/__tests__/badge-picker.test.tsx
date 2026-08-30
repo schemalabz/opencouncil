@@ -2,6 +2,9 @@ import { render, screen } from '@testing-library/react';
 import { BadgePicker } from '../badge-picker';
 
 jest.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
+// The option glyphs reach lucide's ESM icon map through @/components/icon,
+// which ts-jest cannot transform. The hints under test do not need it.
+jest.mock('@/components/icon', () => ({ __esModule: true, default: () => null }));
 jest.mock('framer-motion', () => ({
     motion: { div: ({ children, className }: { children: React.ReactNode; className?: string }) => <div className={className}>{children}</div> },
     AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
