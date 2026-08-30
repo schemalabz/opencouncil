@@ -292,7 +292,7 @@ function SegmentsTab({
                         </div>
                     </div>
                 ) : (
-                    <div className="space-y-3 sm:space-y-4">
+                    <div className="max-w-[42rem] space-y-3 sm:space-y-4">
                         {contributions.map((contribution, index) => (
                             <motion.div
                                 key={contribution.id}

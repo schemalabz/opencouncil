@@ -13,7 +13,7 @@ import { cn, filterActiveRoles, getPartyFromRoles } from "@/lib/utils";
 import useSWR from "swr";
 import { TopicIcon } from '@/components/TopicIcon';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
-import { getAgendaLabel } from '@/lib/utils/subjects';
+import { getAgendaFullLabel } from '@/lib/utils/subjects';
 import { surfaceCardClass } from '@/components/ui/surface-card';
 
 interface UtteranceTimeRange {
@@ -174,7 +174,9 @@ export const ContributionCard = memo(function ContributionCard({
     );
 
     const body = (
-        <div className="mt-2 max-w-[66ch] text-[14.5px] leading-[1.62] text-foreground/85">
+        // The measure comes from the column on context pages (the card fills it);
+        // only the subject page's wide main column needs the card to cap itself.
+        <div className={cn('mt-2 text-[14.5px] leading-[1.62] text-foreground/85', !contextHeader && 'max-w-[66ch]')}>
             <FormattedTextDisplay
                 text={contribution.text}
                 meetingId={meeting.id}
@@ -198,7 +200,7 @@ export const ContributionCard = memo(function ContributionCard({
     }
 
     // Subject-lead: the subject heads the card; the party keeps the left edge.
-    const agendaLabel = getAgendaLabel(t, {
+    const agendaLabel = getAgendaFullLabel(t, {
         agendaItemIndex: contextHeader.agendaItemIndex ?? null,
         nonAgendaReason: contextHeader.nonAgendaReason ?? null,
     });
@@ -221,9 +223,7 @@ export const ContributionCard = memo(function ContributionCard({
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                         {agendaLabel !== null && (
                             <span className="inline-flex h-[18px] items-center rounded bg-muted px-1.5 text-[10px] font-bold text-muted-foreground">
-                                {contextHeader.agendaItemIndex
-                                    ? `${t('categories.agenda.shortLabel')} ${agendaLabel}`
-                                    : agendaLabel}
+                                {agendaLabel}
                             </span>
                         )}
                         <span className="text-[11px] text-muted-foreground">
