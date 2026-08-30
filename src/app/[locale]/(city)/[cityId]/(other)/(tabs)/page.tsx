@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { ArrowRight } from "lucide-react";
 import MeetingCardV2 from "@/components/meetings/MeetingCardV2";
+import { MeetingsTimeline } from "@/components/cities/overview/MeetingsTimeline";
 import { HotTopicsCard } from "@/components/cities/overview/HotTopicsCard";
 import { CouncilBand } from "@/components/cities/overview/CouncilBand";
 import { getAdministrativeBodiesWithPublicMeetingsCached, getCityCached, getCouncilMeetingsPreviewPublicCached, getPartiesForCityCached, getPeopleForCityCached } from "@/lib/cache";
@@ -18,6 +19,8 @@ import { Link } from '@/i18n/routing';
 const HOT_SUBJECTS = 7;
 /** Enough recent meetings to show the council's rhythm; the rest are one click away. */
 const RECENT_MEETINGS = 6;
+/** Scheduled meetings the timeline shows above "now" — their agendas are already published. */
+const UPCOMING_MEETINGS = 2;
 
 export async function generateMetadata(
     props: {
@@ -94,7 +97,7 @@ export default async function CityOverviewPage(
 
     // The roster is read here rather than in the layout: only this tab renders it,
     // and CouncilBand is a Server Component, so none of it reaches the client.
-    const [city, hotCards, recentMeetings, parties, people, bodies, t] = await Promise.all([
+    const [city, hotCards, recentMeetings, upcomingMeetings, parties, people, bodies, t] = await Promise.all([
         getCityCached(cityId),
         getHotSubjectCardsCached(cityId, {
             limit: HOT_SUBJECTS,
@@ -102,6 +105,7 @@ export default async function CityOverviewPage(
             months: HOT_PERIODS[period].months,
         }),
         getCouncilMeetingsPreviewPublicCached(cityId, { limit: RECENT_MEETINGS, timeFilter: 'past' }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { limit: UPCOMING_MEETINGS, timeFilter: 'upcoming' }),
         getPartiesForCityCached(cityId),
         getPeopleForCityCached(cityId),
         getAdministrativeBodiesWithPublicMeetingsCached(cityId),
@@ -111,6 +115,10 @@ export default async function CityOverviewPage(
     if (!city) {
         notFound();
     }
+
+    // The two-sided timeline is the ΔΕ/ΔΣ shape of Greek local government;
+    // other realms keep the meeting cards.
+    const meetingsAsTimeline = city.realm === 'greece';
 
     // Offer only the scopes this municipality has bodies for — a picker that can
     // select an always-empty ranking is worse than no picker.
@@ -150,14 +158,16 @@ export default async function CityOverviewPage(
                 beyondPeriod={beyondPeriod}
             />
 
-            {recentMeetings.length > 0 && (
+            {(recentMeetings.length > 0 || (meetingsAsTimeline && upcomingMeetings.length > 0)) && (
                 <section>
                     <div className="flex flex-wrap items-end justify-between gap-4">
                         <div>
                             <span className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">
                                 {t('recentMeetingsEyebrow')}
                             </span>
-                            <h2 className="mt-2.5 !text-left text-2xl tracking-tight md:text-3xl">{t('recentMeetingsTitle')}</h2>
+                            <h2 className="mt-2.5 !text-left text-2xl tracking-tight md:text-3xl">
+                                {meetingsAsTimeline ? t('timelineTitle') : t('recentMeetingsTitle')}
+                            </h2>
                         </div>
                         <Link
                             href={`/${cityId}/meetings`}
@@ -168,20 +178,31 @@ export default async function CityOverviewPage(
                         </Link>
                     </div>
 
-                    {/* Two columns, and no third. A meeting card carries a body name, a title, a
-                        date line and three subject rows; at a third of this column — which the
-                        rail already narrows — every one of them truncated. Six cards read as
-                        three rows rather than two, which is the better trade. */}
-                    <div className="mt-6 grid gap-6 sm:grid-cols-2">
-                        {recentMeetings.map(meeting => (
-                            <MeetingCardV2
-                                key={meeting.id}
-                                item={meeting}
-                                editable={false}
-                                cityTimezone={city.timezone}
+                    {meetingsAsTimeline ? (
+                        <div className="mt-6">
+                            <MeetingsTimeline
+                                upcoming={upcomingMeetings}
+                                recent={recentMeetings}
+                                timezone={city.timezone}
+                                locale={locale}
                             />
-                        ))}
-                    </div>
+                        </div>
+                    ) : (
+                        /* Two columns, and no third. A meeting card carries a body name, a title, a
+                           date line and three subject rows; at a third of this column — which the
+                           rail already narrows — every one of them truncated. Six cards read as
+                           three rows rather than two, which is the better trade. */
+                        <div className="mt-6 grid gap-6 sm:grid-cols-2">
+                            {recentMeetings.map(meeting => (
+                                <MeetingCardV2
+                                    key={meeting.id}
+                                    item={meeting}
+                                    editable={false}
+                                    cityTimezone={city.timezone}
+                                />
+                            ))}
+                        </div>
+                    )}
                 </section>
             )}
 

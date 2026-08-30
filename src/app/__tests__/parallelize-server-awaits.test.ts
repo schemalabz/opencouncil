@@ -66,6 +66,7 @@ jest.mock('@/components/cities/CityRail', () => ({ CityRail: () => null }));
 jest.mock('@/components/cities/overview/HotTopicsCard', () => ({ HotTopicsCard: () => null }));
 jest.mock('@/components/cities/overview/CouncilBand', () => ({ CouncilBand: () => null }));
 jest.mock('@/components/meetings/MeetingCardV2', () => ({ __esModule: true, default: () => null }));
+jest.mock('@/components/cities/overview/MeetingsTimeline', () => ({ MeetingsTimeline: () => null }));
 jest.mock('@/lib/hotSubjectCards', () => ({ getHotSubjectCardsCached: jest.fn() }));
 // next-intl ships ESM that jest's CJS sandbox can't parse; the overview page
 // reaches it only for <Link>.
@@ -314,7 +315,13 @@ describe('PR1: server-side awaits run concurrently', () => {
 
         expect(cache.getCityCached).toHaveBeenCalledTimes(1);
         expect(hotCards.getHotSubjectCardsCached).toHaveBeenCalledTimes(1);
-        expect(cache.getCouncilMeetingsPreviewPublicCached).toHaveBeenCalledTimes(1);
+        // Once for the recent meetings, once for the scheduled ones the Greek
+        // realm's timeline shows — both kicked off inside the same batch.
+        expect(cache.getCouncilMeetingsPreviewPublicCached).toHaveBeenCalledTimes(2);
+        const timeFilters = cache.getCouncilMeetingsPreviewPublicCached.mock.calls.map(
+            (call: [string, { timeFilter?: string }]) => call[1]?.timeFilter,
+        );
+        expect(timeFilters.sort()).toEqual(['past', 'upcoming']);
         // The council band's roster and the ranking's scope options batch with the
         // rest, not after it.
         expect(cache.getPartiesForCityCached).toHaveBeenCalledTimes(1);

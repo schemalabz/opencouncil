@@ -137,7 +137,7 @@ export async function getCouncilMeetingsPreviewCached(cityId: string, options: M
   const includeUnreleased = await isUserAuthorizedToEdit({ cityId });
   return createCache(
     () => getCouncilMeetingsWithSubjectPreview(cityId, { ...options, includeUnreleased }),
-    ['city', cityId, 'meetingPreviews', includeUnreleased ? 'withUnreleased' : 'onlyReleased', ...meetingListKey(options)],
+    ['city', cityId, 'meetingPreviews', 'v2', includeUnreleased ? 'withUnreleased' : 'onlyReleased', ...meetingListKey(options)],
     {
       tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`],
       ...(options.timeFilter ? { revalidate: TIME_FILTERED_TTL } : {}),
@@ -149,7 +149,7 @@ export async function getCouncilMeetingsPreviewCached(cityId: string, options: M
 export async function getCouncilMeetingsPreviewPublicCached(cityId: string, options: MeetingListOptions = {}) {
   return createCache(
     () => getCouncilMeetingsWithSubjectPreview(cityId, { ...options, includeUnreleased: false }),
-    ['city', cityId, 'meetingPreviews', 'onlyReleased', ...meetingListKey(options)],
+    ['city', cityId, 'meetingPreviews', 'v2', 'onlyReleased', ...meetingListKey(options)],
     {
       tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`],
       ...(options.timeFilter ? { revalidate: TIME_FILTERED_TTL } : {}),

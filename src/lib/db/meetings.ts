@@ -57,6 +57,7 @@ const meetingWithSubjectPreviewInclude = {
             name: true,
             agendaItemIndex: true,
             nonAgendaReason: true,
+            withdrawn: true,
             topic: { select: { colorHex: true, icon: true } },
             _count: { select: { contributions: true } },
         },
