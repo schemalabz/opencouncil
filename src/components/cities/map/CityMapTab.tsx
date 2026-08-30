@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import Map, { type MapFeature } from '@/components/map/map';
+import { cityBoundaryFeature } from '@/components/map/cityBoundary';
 import { CoLocatedBox, GeneralSubjectsBox } from '@/components/landing/v2/mapMarkers';
 import { SubjectList } from '@/components/landing/v2/SubjectList';
 import { useFilteredSubjects } from '@/components/landing/v2/hooks/useFilteredSubjects';
@@ -88,22 +89,7 @@ export function CityMapTab({
     // The δήμος's own boundary, in the brand outline the landing gives a covered municipality.
     const features = useMemo<MapFeature[]>(
         () =>
-            geometry
-                ? [
-                      {
-                          id: `__city__${cityId}`,
-                          geometry,
-                          properties: { featureType: 'city', interactive: false },
-                          style: {
-                              fillColor: 'hsl(24, 100%, 50%)',
-                              fillOpacity: 0.04,
-                              strokeColor: 'hsl(24, 100%, 50%)',
-                              strokeWidth: 1.5,
-                              strokeOpacity: 0.9,
-                          },
-                      },
-                  ]
-                : [],
+            geometry ? [cityBoundaryFeature(`__city__${cityId}`, geometry)] : [],
         [cityId, geometry],
     );
 

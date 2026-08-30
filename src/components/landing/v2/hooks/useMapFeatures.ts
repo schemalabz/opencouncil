@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { MapFeature } from '@/components/map/map';
+import { cityBoundaryFeature } from '@/components/map/cityBoundary';
 import type { LatLng } from '@/lib/google-maps';
 import { PETITION_BLUE } from '@/lib/landing/petitions';
 import type { ClickedMunicipality, LandingMapCity, LandingPetitionedCity } from '@/lib/landing/landingData';
@@ -45,18 +46,7 @@ export function useMapFeatures({
         if (!filterCityId) {
             for (const c of mapCities) {
                 if (!c.geometry) continue;
-                list.push({
-                    id: `__oc-border__${c.id}`,
-                    geometry: c.geometry,
-                    properties: { featureType: 'city', interactive: false },
-                    style: {
-                        fillColor: 'hsl(24, 100%, 50%)',
-                        fillOpacity: 0.03,
-                        strokeColor: 'hsl(24, 100%, 50%)',
-                        strokeWidth: 1.5,
-                        strokeOpacity: 0.9,
-                    },
-                });
+                list.push(cityBoundaryFeature(`__oc-border__${c.id}`, c.geometry));
             }
         }
         const cityGeom = filterCityId ? cityGeometries[filterCityId] : null;
