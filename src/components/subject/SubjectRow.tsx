@@ -85,6 +85,7 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
     return (
         <Link
             href={href}
+            prefetch={false}
             className="block hover:no-underline"
             onClick={handleClick}
             {...(openInNewTab && { target: "_blank", rel: "noopener noreferrer" })}
