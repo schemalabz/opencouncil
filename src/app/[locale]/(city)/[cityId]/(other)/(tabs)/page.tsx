@@ -180,7 +180,7 @@ export default async function CityOverviewPage(
                             <span className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">
                                 {t('recentMeetingsEyebrow')}
                             </span>
-                            <h2 className="mt-2.5 !text-left text-2xl tracking-tight md:text-3xl">
+                            <h2 className="mt-2.5 !text-left tracking-tight">
                                 {meetingsAsTimeline ? t('timelineTitle') : t('recentMeetingsTitle')}
                             </h2>
                         </div>
