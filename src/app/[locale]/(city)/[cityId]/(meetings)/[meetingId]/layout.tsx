@@ -8,6 +8,7 @@ import TranscriptControls from '@/components/meetings/TranscriptControls';
 import { Suspense } from 'react'
 import Header from '@/components/layout/Header';
 import EditButton from '@/components/meetings/EditButton';
+import { SegmentOnly } from '@/components/meetings/SegmentOnly';
 import PresentationViewButton from '@/components/meetings/PresentationViewButton';
 import ShareDropdown from '@/components/meetings/ShareDropdown';
 import { getMeetingDataCached } from '@/lib/getMeetingData';
@@ -209,9 +210,17 @@ export default async function CouncilMeetingPage(
                                     className="relative z-10 bg-white dark:bg-gray-950"
                                 >
                                     <div className="flex items-center space-x-2">
-                                        <EditButton />
+                                        {/* Each action shows where it acts: editing belongs to the
+                                            transcript, presenting to the overview. */}
+                                        <SegmentOnly segment="transcript">
+                                            <EditButton />
+                                        </SegmentOnly>
                                         <CreateHighlightButton />
-                                        {editable && <PresentationViewButton cityId={cityId} meetingId={meetingId} />}
+                                        {editable && (
+                                            <SegmentOnly segment={null}>
+                                                <PresentationViewButton cityId={cityId} meetingId={meetingId} />
+                                            </SegmentOnly>
+                                        )}
                                         <ShareDropdown meetingId={meetingId} cityId={cityId} />
                                     </div>
                                 </Header>
