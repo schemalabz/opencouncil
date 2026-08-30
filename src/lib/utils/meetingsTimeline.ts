@@ -81,9 +81,8 @@ export function packTimeline(
         else yLeft = top + entry.height + TL.CARD_GAP;
     }
 
-    const height = placements.reduce(
-        (max, p) => Math.max(max, p.top + p.height),
-        placements.length ? placements[placements.length - 1].top + TL.NODE_H : 0,
-    );
+    // Cards alone set the height: the shortest card (92px) always outreaches
+    // the date pill hanging at its own top, so the pill needs no term here.
+    const height = placements.reduce((max, p) => Math.max(max, p.top + p.height), 0);
     return { placements, height };
 }

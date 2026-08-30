@@ -275,6 +275,23 @@ export interface DateStampParts {
 }
 
 
+/**
+ * The stamp formatters' shared prologue: normalize (dates that have been
+ * through unstable_cache come back as ISO strings), refuse garbage, and bind
+ * the locale and timezone once. Both stamp formats compose from this so their
+ * handling cannot drift.
+ */
+function stampContext(date: Date | string, timezone: string | undefined, locale: string) {
+    const value = date instanceof Date ? date : new Date(date);
+    if (Number.isNaN(value.getTime())) {
+        throw new Error(`Invalid date: ${String(date)}`);
+    }
+    const intlLocale = getIntlLocale(locale);
+    const part = (options: Intl.DateTimeFormatOptions): string =>
+        new Intl.DateTimeFormat(intlLocale, timezone ? { ...options, timeZone: timezone } : options).format(value);
+    return { intlLocale, part };
+}
+
 /** A timeline node's stamp — the day and short month, no year. */
 export interface DayMonthStampParts {
     day: string;
@@ -288,21 +305,10 @@ export interface DayMonthStampParts {
  * Same normalization and timezone handling as {@link formatDateStamp}.
  */
 export function formatDayMonthStamp(date: Date | string, timezone?: string, locale: string = 'el'): DayMonthStampParts {
-    const value = date instanceof Date ? date : new Date(date);
-    if (Number.isNaN(value.getTime())) {
-        throw new Error(`Invalid date: ${String(date)}`);
-    }
-
-    const intlLocale = getIntlLocale(locale);
-    const withTz = (options: Intl.DateTimeFormatOptions): Intl.DateTimeFormatOptions =>
-        timezone ? { ...options, timeZone: timezone } : options;
-
+    const { intlLocale, part } = stampContext(date, timezone, locale);
     return {
-        day: new Intl.DateTimeFormat(intlLocale, withTz({ day: 'numeric' })).format(value),
-        month: new Intl.DateTimeFormat(intlLocale, withTz({ month: 'short' }))
-            .format(value)
-            .replace(/\./g, '')
-            .toLocaleUpperCase(intlLocale),
+        day: part({ day: 'numeric' }),
+        month: part({ month: 'short' }).replace(/\./g, '').toLocaleUpperCase(intlLocale),
     };
 }
 
@@ -318,23 +324,9 @@ export function formatDayMonthStamp(date: Date | string, timezone?: string, loca
  * @param locale - Defaults to 'el' to match the app's default locale
  */
 export function formatDateStamp(date: Date | string, timezone?: string, locale: string = 'el'): DateStampParts {
-    // Dates that have been through unstable_cache come back as ISO strings, so
-    // anything read from a cached query can be either. The sibling formatters
-    // accept both for the same reason.
-    const value = date instanceof Date ? date : new Date(date);
-    if (Number.isNaN(value.getTime())) {
-        throw new Error(`Invalid date: ${String(date)}`);
-    }
-
-    const intlLocale = getIntlLocale(locale);
-    const withTz = (options: Intl.DateTimeFormatOptions): Intl.DateTimeFormatOptions =>
-        timezone ? { ...options, timeZone: timezone } : options;
-
-    const day = new Intl.DateTimeFormat(intlLocale, withTz({ day: '2-digit' })).format(value);
-    const monthYear = new Intl.DateTimeFormat(intlLocale, withTz({ month: 'short', year: '2-digit' }))
-        .format(value)
-        .toLocaleUpperCase(intlLocale);
-
+    const { intlLocale, part } = stampContext(date, timezone, locale);
+    const day = part({ day: '2-digit' });
+    const monthYear = part({ month: 'short', year: '2-digit' }).toLocaleUpperCase(intlLocale);
     return { day, monthYear };
 }
 
