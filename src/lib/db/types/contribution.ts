@@ -10,6 +10,7 @@ export type ContributionForPerson = SpeakerContribution & {
         councilMeetingId: string;
         agendaItemIndex: number | null;
         nonAgendaReason: string | null;
+        withdrawn: boolean;
         topic: Topic | null;
         councilMeeting: CouncilMeeting & {
             administrativeBody: AdministrativeBody | null;
