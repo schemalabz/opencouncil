@@ -102,10 +102,10 @@ describe('MeetingsTimeline', () => {
                 { agendaItemIndex: 4, withdrawn: true },
             ],
         })]);
-        expect(screen.getAllByText('#12').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('categories.agenda.shortLabel #12').length).toBeGreaterThan(0);
         expect(screen.getAllByText('categories.beforeAgenda.shortLabel').length).toBeGreaterThan(0);
         expect(screen.getAllByText('withdrawnShort').length).toBeGreaterThan(0);
-        expect(screen.queryByText('#4')).toBeNull();
+        expect(screen.queryByText('categories.agenda.shortLabel #4')).toBeNull();
     });
 
     it('never shows a community meeting, and vanishes when only communities met', () => {
