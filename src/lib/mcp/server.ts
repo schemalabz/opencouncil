@@ -326,10 +326,13 @@ export function registerOpenCouncilServer(server: McpServer) {
             annotations: { readOnlyHint: true, openWorldHint: false },
             _meta: category('meetings'),
             description:
-                'Get a subject (agenda item) in detail: description, per-speaker contribution summaries, ' +
+                'Get a subject (agenda item) in detail: status, description, per-speaker contribution summaries, ' +
                 'decision. Carries its meeting context (meetingName, meetingDate, and ' +
                 'administrativeBody — the body that met, e.g. «Δημοτική Επιτροπή», or null when the ' +
-                'record names none). Speaker `role` labels are resolved as of the meeting date (get_person ' +
+                'record names none). `withdrawn` means the subject did not proceed: when `nonAgendaReason` ' +
+                'is "outOfAgenda", the body did not approve it as urgent; otherwise the subject was ' +
+                'withdrawn or postponed without discussion. ' +
+                'Speaker `role` labels are resolved as of the meeting date (get_person ' +
                 'lists roles across all time). This tool does not report the vote tally; the subject page ' +
                 'at `url` shows it. For the verbatim discussion use get_subject_transcript.',
             inputSchema: z.object({ subjectId: z.string().min(1) }),

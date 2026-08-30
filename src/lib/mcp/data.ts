@@ -463,6 +463,8 @@ export async function mcpGetSubject(subjectId: string, identity: McpIdentity) {
         meetingDate: isoDate(meetingDate),
         administrativeBody: meeting.administrativeBody?.name ?? null,
         agendaItemIndex: subject.agendaItemIndex,
+        withdrawn: subject.withdrawn,
+        nonAgendaReason: subject.nonAgendaReason,
         topic: subject.topic?.name ?? null,
         location: subject.location?.text ?? null,
         introducedBy: subject.introducedBy
