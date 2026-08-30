@@ -1,10 +1,11 @@
-import { MapPin, Search, Bell } from 'lucide-react';
+import { MapPin, Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import Combobox from '@/components/Combobox';
 import { CityMinimalWithCounts } from '@/lib/db/cities';
 import { isPublic } from "@/lib/cityStatus";
+import { CityComboboxItem } from '@/components/cities/CityComboboxItem';
 
 interface MunicipalitySelectorProps {
     cities: CityMinimalWithCounts[];
@@ -84,28 +85,6 @@ export function MunicipalitySelector({
         </Button>
     );
 
-    // Custom item component
-    const CityItem: React.ComponentType<{
-        item: CityMinimalWithCounts;
-    }> = ({ item }) => (
-        <div className="flex items-center">
-            <div className={cn(
-                "w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center mr-2",
-                item.supportsNotifications ? "bg-orange-100" : "bg-gray-100"
-            )}>
-                {item.supportsNotifications ? (
-                    <Bell className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                ) : (
-                    <MapPin className="h-4 w-4" />
-                )}
-            </div>
-            <div>
-                <div className="font-medium text-sm sm:text-base">{item.name}</div>
-                <div className="text-[10px] sm:text-xs text-gray-500">{item.name_municipality}</div>
-            </div>
-        </div>
-    );
-
     return (
         <div className="space-y-6 w-full max-w-md mx-auto px-4 sm:px-0">
             <div>
@@ -116,7 +95,7 @@ export function MunicipalitySelector({
                     placeholder={t('placeholder')}
                     searchPlaceholder={t('searchPlaceholder')}
                     groups={groups}
-                    ItemComponent={CityItem}
+                    ItemComponent={CityComboboxItem}
                     TriggerComponent={CityTrigger}
                     getItemLabel={(city) => city.name}
                     getItemValue={(city) => `${city.name} ${city.name_municipality}`}
