@@ -7,7 +7,7 @@ import { FileText, MapPin, ScrollText, CheckSquare, Landmark, ExternalLink, Load
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
-import { subjectToMapFeature } from "@/lib/utils";
+import { cn, subjectToMapFeature } from "@/lib/utils";
 import { notFound } from "next/navigation";
 import { SubjectContext } from "./context";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -34,6 +34,7 @@ import { SubjectAdminControls } from "./SubjectAdminControls";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { useLocalizeText } from "@/hooks/useLocalizeText";
 import { getLocalizedName } from "@/lib/formatters/name";
+import { surfaceCardClass } from '@/components/ui/surface-card';
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
     const { subjects, getPerson, getParty, meeting, city } = useCouncilMeetingData();
@@ -288,7 +289,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                     stacked everything as identical collapsibles, which buried the
                     discussion (the actual meat) under closed boxes. */}
                 {totalMinutes > 0 && (
-                    <div className="rounded-2xl border border-border p-3.5 lg:hidden">
+                    <div className={cn(surfaceCardClass, "p-3.5 lg:hidden")}>
                         <DiscussionStats statistics={subject.statistics} totalMinutes={totalMinutes} colorPercentages={colorPercentages} locale={locale} compact />
                     </div>
                 )}
@@ -531,7 +532,7 @@ function SectionHead({ title, count }: { title: string; count?: number }) {
 /** One quiet card of the facts rail. */
 function RailCard({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
     return (
-        <div className="rounded-2xl border border-border bg-card px-4 py-3.5">
+        <div className={cn(surfaceCardClass, "px-4 py-3.5")}>
             <div className="mb-2.5 text-[11px] font-extrabold tracking-[.04em] text-muted-foreground">{title}</div>
             {children}
         </div>

@@ -8,6 +8,7 @@ import { getLocalizedName } from '@/lib/formatters/name';
 import { formatDateStamp, formatDateTime } from '@/lib/formatters/time';
 import { cn } from '@/lib/utils';
 import { AdminBodyLabel } from './AdminBodyLabel';
+import { surfaceCardClass } from '@/components/ui/surface-card';
 
 type Meeting = CouncilMeetingWithSubjectPreview;
 
@@ -52,7 +53,7 @@ export function CityMeetingsModule({ all, council, cityId, timezone, locale }: C
     if (!all.next && !all.latest) return null;
 
     return (
-        <div className="overflow-hidden rounded-2xl border border-foreground/60 bg-card">
+        <div className={cn(surfaceCardClass, "overflow-hidden")}>
             {/* The two halves are the same anatomy on purpose — a header band, then a
                 stamp-led row — so "next" and "latest" read as the same kind of fact.
                 Orange is the one thing that says which of them is still ahead. */}

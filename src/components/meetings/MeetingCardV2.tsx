@@ -11,6 +11,7 @@ import { TopicIcon } from '@/components/TopicIcon';
 import { localizeText } from '@/lib/serbian';
 import { sortSubjectsByImportance } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { surfaceCardClass } from '@/components/ui/surface-card';
 
 interface MeetingCardV2Props {
     /**
@@ -57,8 +58,9 @@ export default function MeetingCardV2({ item: meeting, cityTimezone }: MeetingCa
         <Link
             href={`/${meeting.cityId}/${meeting.id}`}
             className={cn(
-                'group flex h-full flex-col overflow-hidden rounded-2xl border bg-card transition-shadow hover:shadow-md hover:no-underline',
-                upcoming ? 'border-[hsl(var(--orange))]/50' : 'border-foreground/60',
+                surfaceCardClass,
+                'group flex h-full flex-col overflow-hidden transition-shadow hover:shadow-md hover:no-underline',
+                upcoming && 'border-[hsl(var(--orange))]/50',
                 !meeting.released && 'border-dashed',
             )}
         >

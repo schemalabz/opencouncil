@@ -4,6 +4,8 @@ import { ImageOrInitials } from '@/components/ImageOrInitials';
 import type { PartyWithPersons } from '@/lib/db/parties';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { partyComposition, type PartyBodyColumns } from '@/lib/party/composition';
+import { surfaceCardClass } from '@/components/ui/surface-card';
+import { cn } from '@/lib/utils';
 
 /** Faces before the stack becomes a crowd. */
 const FACES = 4;
@@ -54,7 +56,7 @@ export default function PartyCard({ item: party, columns }: PartyCardProps) {
     return (
         <Link
             href={`/${party.cityId}/parties/${party.id}`}
-            className="group relative flex h-full overflow-hidden rounded-2xl border border-foreground/60 bg-card transition-shadow hover:shadow-md hover:no-underline"
+            className={cn(surfaceCardClass, "group relative flex h-full overflow-hidden transition-shadow hover:shadow-md hover:no-underline")}
         >
             {/* A filled band, not a border: a border renders as a stroke that thins
                 into the 1px sides at the corners. Full height and clipped by the

@@ -4,8 +4,9 @@ import { ImageOrInitials } from '@/components/ImageOrInitials';
 import type { PersonWithRelations } from '@/lib/db/people';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
-import { filterActiveRoles } from '@/lib/utils';
+import { cn, filterActiveRoles } from '@/lib/utils';
 import { getPartyFromRoles, getRoleText, sortRolesByPriority } from '@/lib/utils/roles';
+import { surfaceCardClass } from '@/components/ui/surface-card';
 
 /** Titled roles before the card stops being a summary. */
 const ROLES_SHOWN = 2;
@@ -49,7 +50,7 @@ export default function PersonCard({ item: person }: PersonCardProps) {
     return (
         <Link
             href={`/${person.cityId}/people/${person.id}`}
-            className="group relative flex h-full overflow-hidden rounded-2xl border border-foreground/60 bg-card transition-shadow hover:shadow-md hover:no-underline"
+            className={cn(surfaceCardClass, "group relative flex h-full overflow-hidden transition-shadow hover:shadow-md hover:no-underline")}
         >
             {/* A filled band, not a border: a border renders as a stroke that thins
                 into the 1px sides at the corners. Full height and clipped by the
