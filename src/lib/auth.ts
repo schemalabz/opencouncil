@@ -31,17 +31,19 @@ export async function getCurrentUser() {
     return currentUser();
 }
 
+export type AuthorizationScope = {
+    cityId?: City["id"],
+    partyId?: Party["id"],
+    personId?: Person["id"],
+    councilMeetingId?: CouncilMeeting["id"]
+};
+
 async function checkUserAuthorization({
     cityId,
     partyId,
     personId,
     councilMeetingId
-}: {
-    cityId?: City["id"],
-    partyId?: Party["id"],
-    personId?: Person["id"],
-    councilMeetingId?: CouncilMeeting["id"]
-}) {
+}: AuthorizationScope) {
     // Count defined parameters, but allow cityId + councilMeetingId combination
     const definedParams = [partyId, personId].filter(Boolean);
     const hasCityId = Boolean(cityId);
@@ -112,13 +114,6 @@ async function checkUserAuthorization({
 
     return false;
 }
-
-export type AuthorizationScope = {
-    cityId?: City["id"],
-    partyId?: Party["id"],
-    personId?: Person["id"],
-    councilMeetingId?: CouncilMeeting["id"]
-};
 
 export async function withUserAuthorizedToEdit({
     cityId,
