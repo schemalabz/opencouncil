@@ -2,8 +2,8 @@ import type { MessageStatus } from '@prisma/client';
 
 /**
  * Translate Bird's message status strings into our local `MessageStatus` enum.
- * Pure helper, intentionally outside `bird.ts` so it isn't exposed as a
- * server action (the bird module has `"use server"`).
+ * Pure helper, intentionally outside `bird.ts` so callers can use it without
+ * importing the server-only Bird integration.
  *
  * Bird's vocabulary observed so far:
  *   - `delivered`, `read`        → delivered
