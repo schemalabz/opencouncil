@@ -14,6 +14,7 @@ import useSWR from "swr";
 import { TopicIcon } from '@/components/TopicIcon';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
 import { getAgendaLabel } from '@/lib/utils/subjects';
+import { surfaceCardClass } from '@/components/ui/surface-card';
 
 interface UtteranceTimeRange {
     startTimestamp: number;
@@ -204,7 +205,7 @@ export const ContributionCard = memo(function ContributionCard({
     const subjectUrl = `/${meeting.cityId}/${meeting.id}/subjects/${subjectId}`;
     return (
         <article
-            className="rounded-2xl border border-border bg-card px-[18px] py-4 transition-shadow hover:shadow-md"
+            className={cn(surfaceCardClass, "px-[18px] py-4 transition-shadow hover:shadow-md")}
             style={{ borderLeft: `3px solid ${party?.colorHex ?? 'hsl(var(--border))'}` }}
         >
             <div className="flex items-start gap-2.5">

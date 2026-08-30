@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import { surfaceCardClass } from '@/components/ui/surface-card';
 
 interface RailDisclosureProps {
     /** The one line that stands for the card while it is shut. */
@@ -25,7 +26,7 @@ export function RailDisclosure({ summary, children }: RailDisclosureProps) {
     const [open, setOpen] = useState(false);
 
     return (
-        <div className="overflow-hidden rounded-2xl border border-foreground/60 bg-card">
+        <div className={cn(surfaceCardClass, "overflow-hidden")}>
             <button
                 type="button"
                 onClick={() => setOpen(value => !value)}

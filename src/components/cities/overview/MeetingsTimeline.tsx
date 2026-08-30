@@ -10,6 +10,7 @@ import { formatDayMonthStamp, formatRelativeTime } from '@/lib/formatters/time';
 import { localizeText } from '@/lib/serbian';
 import { cn, sortSubjectsByImportance } from '@/lib/utils';
 import { getAgendaLabel, getWithdrawnLabel } from '@/lib/utils/subjects';
+import { surfaceCardClass } from '@/components/ui/surface-card';
 import {
     packTimeline,
     timelineCardHeight,
@@ -279,8 +280,9 @@ function MeetingBlock({ entry, locale }: { entry: Entry; locale: string }) {
         <Link
             href={`/${meeting.cityId}/${meeting.id}`}
             className={cn(
-                'block h-full rounded-xl border bg-card px-4 pb-2.5 pt-3 text-foreground transition-shadow hover:shadow-md hover:no-underline',
-                entry.upcoming ? 'border-dashed border-[hsl(var(--orange))]/50' : 'border-border shadow-sm',
+                surfaceCardClass,
+                'block h-full px-4 pb-2.5 pt-3 text-foreground transition-shadow hover:shadow-md hover:no-underline',
+                entry.upcoming ? 'border-dashed border-[hsl(var(--orange))]/50' : 'shadow-sm',
             )}
         >
             <div className="mb-1.5 flex h-6 items-center justify-between gap-2">
