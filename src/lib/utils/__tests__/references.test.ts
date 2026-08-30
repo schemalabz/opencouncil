@@ -20,6 +20,10 @@ describe('stripMarkdown', () => {
         expect(stripMarkdown('Δες [εδώ](https://example.com) για λεπτομέρειες.')).toBe('Δες εδώ για λεπτομέρειες.');
     });
 
+    it('handles link destinations with balanced parentheses', () => {
+        expect(stripMarkdown('Κατά το [άρθρο](https://el.wikipedia.org/wiki/Νόμος_(δίκαιο)) ισχύει.')).toBe('Κατά το άρθρο ισχύει.');
+    });
+
     it('strips bold, italic and inline code', () => {
         expect(stripMarkdown('**bold** and _italic_ and `code`')).toBe('bold and italic and code');
     });
