@@ -35,6 +35,7 @@ import { useLocalizeText } from "@/hooks/useLocalizeText";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { surfaceCardClass } from '@/components/ui/surface-card';
 import { RailCard } from '@/components/ui/rail-card';
+import { MountOnVisible } from '@/components/MountOnVisible';
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
     const { subjects, getPerson, getParty, meeting, city } = useCouncilMeetingData();
@@ -283,6 +284,31 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                         <DiscussionStats statistics={subject.statistics} totalMinutes={totalMinutes} colorPercentages={colorPercentages} locale={locale} compact />
                     </div>
                 )}
+
+                {/* The page's key record must not sit below every statement on a
+                    phone: the rail stacks last there, so the decision gets the same
+                    compact top slot the stats do — the ΑΔΑ and the way to the full
+                    card (which keeps the PDF link and the details). */}
+                {decision && (
+                    <a
+                        href={decision.pdfUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={cn(surfaceCardClass, "flex items-center justify-between gap-3 p-3.5 text-foreground hover:no-underline lg:hidden")}
+                    >
+                        <span className="flex min-w-0 flex-wrap items-center gap-2">
+                            <span className="text-[11px] font-extrabold tracking-[.04em] text-muted-foreground">{t("decision")}</span>
+                            {decision.ada && (
+                                <Badge variant="secondary" className="text-[10px]">{`ΑΔΑ: ${decision.ada}`}</Badge>
+                            )}
+                        </span>
+                        <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-[hsl(var(--orange-deep))]">
+                            {t("viewDecision")}
+                            <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                        </span>
+                    </a>
+                )}
+
                 <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_316px] lg:gap-10 xl:grid-cols-[minmax(0,1fr)_336px] xl:gap-14">
                     <div className="min-w-0 space-y-9">
                         {description && (
@@ -339,6 +365,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
 
                         {subject.nonAgendaReason !== 'beforeAgenda' && !subject.withdrawn && (
                             <RailCard
+                                id="decision"
                                 title={decision ? (
                                     <span className="flex flex-wrap items-center gap-2">
                                         {t("decision")}
@@ -424,6 +451,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
 
                         {location && (
                             <RailCard title={t("locationCardTitle")}>
+                                <MountOnVisible>
                                 <div className="h-[150px] overflow-hidden rounded-[10px] border border-border">
                                     <Map
                                         center={location.coordinates ? [location.coordinates.x, location.coordinates.y] : undefined}
@@ -432,6 +460,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                         animateRotation={false}
                                     />
                                 </div>
+                                </MountOnVisible>
                                 <p className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
                                     <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                                     {location.text}
@@ -510,7 +539,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
 function SectionHead({ title, count }: { title: string; count?: number }) {
     return (
         <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-            <h2 className="!m-0 !text-left text-[15px] font-extrabold tracking-[.01em]">
+            <h2 className="!m-0 !text-left tracking-[.01em]">
                 {title}
                 {count !== undefined && <span className="ml-1.5 font-normal text-muted-foreground">({count})</span>}
             </h2>

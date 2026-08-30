@@ -7,13 +7,15 @@ import { surfaceCardClass } from '@/components/ui/surface-card';
  * is a div, not a heading element, so the global `h2` rule (2xl, centered)
  * cannot reach it.
  */
-export function RailCard({ title, children, className }: {
+export function RailCard({ title, children, className, id }: {
     title: React.ReactNode;
     children: React.ReactNode;
     className?: string;
+    /** Anchor target — e.g. the subject page's #decision deep link. */
+    id?: string;
 }) {
     return (
-        <div className={cn(surfaceCardClass, 'px-4 py-3.5', className)}>
+        <div id={id} className={cn(surfaceCardClass, 'px-4 py-3.5', className)}>
             <div className="mb-2.5 text-[11px] font-extrabold tracking-[.04em] text-muted-foreground">{title}</div>
             {children}
         </div>
