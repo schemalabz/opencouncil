@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import type { Map as MapboxMap } from 'mapbox-gl';
 import { useTranslations } from 'next-intl';
 import Map, { type MapFeature } from '@/components/map/map';
+import { cityBoundaryFeature } from '@/components/map/cityBoundary';
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
 import { CoLocatedBox } from '@/components/landing/v2/mapMarkers';
 import { useSubjectMarkers } from '@/components/landing/v2/hooks/useMapMarkers';
@@ -104,7 +105,7 @@ export function MeetingMap() {
         ...landingSubjects.map(subject => ({
             id: `label-${subject.id}`,
             geometry: { type: 'Point' as const, coordinates: [subject.lng, subject.lat] },
-            properties: { interactive: false, labelAnchor: 'left' },
+            properties: { interactive: false, labelAnchor: 'left' as const },
             style: {
                 fillOpacity: 0,
                 strokeWidth: 0,
@@ -112,20 +113,7 @@ export function MeetingMap() {
                 label: subject.title,
             },
         })),
-        ...(city.geometry
-            ? [{
-                id: `__city__${city.id}`,
-                geometry: city.geometry,
-                properties: { featureType: 'city', interactive: false },
-                style: {
-                    fillColor: 'hsl(24, 100%, 50%)',
-                    fillOpacity: 0.04,
-                    strokeColor: 'hsl(24, 100%, 50%)',
-                    strokeWidth: 1.5,
-                    strokeOpacity: 0.9,
-                },
-            }]
-            : []),
+        ...(city.geometry ? [cityBoundaryFeature(`__city__${city.id}`, city.geometry)] : []),
     ], [city.id, city.geometry, landingSubjects]);
 
     return (
