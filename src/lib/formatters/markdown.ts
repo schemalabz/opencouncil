@@ -7,8 +7,9 @@ export function stripMarkdown(markdown: string): string {
     return markdown
         // Remove reference links [text](REF:TYPE:ID)
         .replace(/\[([^\]]+)\]\(REF:[^)]+\)/g, '$1')
-        // Remove regular links [text](url)
-        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        // Remove regular links [text](url); the destination may contain one
+        // nesting level of balanced parentheses (e.g. Wikipedia URLs)
+        .replace(/\[([^\]]+)\]\((?:[^()]|\([^()]*\))*\)/g, '$1')
         // Remove bold **text** or __text__
         .replace(/\*\*([^*]+)\*\*/g, '$1')
         .replace(/__([^_]+)__/g, '$1')
