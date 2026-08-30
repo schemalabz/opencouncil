@@ -97,11 +97,9 @@ export const FormattedTextDisplay = memo(function FormattedTextDisplay({
                         switch (refType) {
                             case 'utterance':
                                 if (disableUtteranceExpansion) {
-                                    return (
-                                        <span className={`${linkClassName} inline`} style={linkStyle}>
-                                            {children}
-                                        </span>
-                                    );
+                                    // No expansion here means the ref is inert — plain text,
+                                    // not an underline promising a click that does nothing.
+                                    return <span className="inline">{children}</span>;
                                 }
                                 return (
                                     <UtteranceReferenceLink
