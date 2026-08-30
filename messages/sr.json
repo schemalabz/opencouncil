@@ -684,6 +684,8 @@
         "selectCityPlaceholder": "Изаберите општину...",
         "searchCityPlaceholder": "Претражите општину...",
         "cityNotFound": "Није пронађена ниједна општина.",
+        "groupAvailable": "Општине са обавештењима",
+        "groupUnavailable": "Још нису доступне",
         "selectCityButton": "Изаберите град",
         "preferencesTitle": "Подешавања обавештења",
         "sendTiming": "Шаљемо најаву пре седнице и извештај након ње.",

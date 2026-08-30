@@ -1,23 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Bell, MapPin, Tag, Edit, Trash2, Loader2, Mail, Phone, MoreVertical, ChevronDown, ExternalLink } from 'lucide-react';
+import { Bell, MapPin, Tag, Edit, Trash2, Loader2, Mail, Phone, MoreVertical, ChevronDown, ExternalLink, Plus } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import Combobox from '@/components/Combobox';
 import { CityMinimalWithCounts } from '@/lib/db/cities';
+import { CityComboboxItem } from '@/components/cities/CityComboboxItem';
 import { Link } from '@/i18n/routing';
 import { format } from 'date-fns';
 import { getDateFnsLocale } from '@/lib/formatters/time';
 
 interface CitySelectorProps {
     label: string;
-    size?: 'default' | 'sm';
     cities: CityMinimalWithCounts[];
     loading: boolean;
     onFetchCities: () => void;
@@ -25,11 +25,12 @@ interface CitySelectorProps {
     placeholder: string;
     searchPlaceholder: string;
     emptyMessage: string;
+    groupAvailableLabel: string;
+    groupUnavailableLabel: string;
 }
 
 function CitySelector({
     label,
-    size = 'default',
     cities,
     loading,
     onFetchCities,
@@ -37,23 +38,47 @@ function CitySelector({
     placeholder,
     searchPlaceholder,
     emptyMessage,
+    groupAvailableLabel,
+    groupUnavailableLabel,
 }: CitySelectorProps) {
+    // Every municipality we know about is in this list, but only a small part of
+    // them can send notifications; the rest lead to the petition page. One flat
+    // run of ~375 rows buries the handful this control can subscribe you to.
+    const groups = useMemo(() => [
+        {
+            key: 'available',
+            label: groupAvailableLabel,
+            items: cities.filter(city => city.supportsNotifications),
+        },
+        {
+            key: 'unavailable',
+            label: groupUnavailableLabel,
+            items: cities.filter(city => !city.supportsNotifications),
+        },
+    ], [cities, groupAvailableLabel, groupUnavailableLabel]);
+
     return (
-        <div className="w-fit">
+        <div className="w-full sm:w-fit">
             <Combobox
                 items={cities}
+                groups={groups}
                 value={null}
                 onChange={onSelect}
                 placeholder={placeholder}
                 searchPlaceholder={searchPlaceholder}
                 getItemLabel={(city) => city.name}
                 getItemValue={(city) => `${city.name} ${city.name_municipality}`}
+                ItemComponent={CityComboboxItem}
                 emptyMessage={emptyMessage}
                 loading={loading}
-                className="w-64"
+                className="w-80"
                 TriggerComponent={() => (
-                    <Button variant="outline" size={size} onClick={onFetchCities}>
-                        <Bell className="mr-2 h-4 w-4" />
+                    <Button
+                        variant="outline"
+                        className="h-11 w-full justify-start sm:h-10 sm:w-auto"
+                        onClick={onFetchCities}
+                    >
+                        <Plus className="mr-2 h-4 w-4" />
                         {label}
                     </Button>
                 )}
@@ -244,6 +269,8 @@ export function NotificationPreferencesSection() {
         placeholder: t('selectCityPlaceholder'),
         searchPlaceholder: t('searchCityPlaceholder'),
         emptyMessage: t('cityNotFound'),
+        groupAvailableLabel: t('groupAvailable'),
+        groupUnavailableLabel: t('groupUnavailable'),
     };
 
     if (loading) {
@@ -494,7 +521,7 @@ export function NotificationPreferencesSection() {
                     )}
                 </div>
 
-                <CitySelector label={t('addCity')} size="sm" {...citySelectorProps} />
+                <CitySelector label={t('addCity')} {...citySelectorProps} />
             </div>
 
             {/* Notifications history table */}

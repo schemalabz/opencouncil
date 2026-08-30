@@ -674,6 +674,8 @@
     "selectCityPlaceholder": "Sélectionnez une commune...",
     "searchCityPlaceholder": "Rechercher une commune...",
     "cityNotFound": "Aucune commune trouvée.",
+    "groupAvailable": "Communes avec notifications",
+    "groupUnavailable": "Pas encore disponibles",
     "selectCityButton": "Sélectionnez une ville",
     "preferencesTitle": "Préférences de notification",
     "sendTiming": "Nous envoyons une information avant une séance et une autre après celle-ci.",

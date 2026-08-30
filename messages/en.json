@@ -684,6 +684,8 @@
         "selectCityPlaceholder": "Select Municipality...",
         "searchCityPlaceholder": "Search Municipality...",
         "cityNotFound": "No municipality found.",
+        "groupAvailable": "Municipalities with notifications",
+        "groupUnavailable": "Not available yet",
         "selectCityButton": "Select City",
         "preferencesTitle": "Notification preferences",
         "sendTiming": "We send a heads-up before a meeting and a follow-up after it.",
