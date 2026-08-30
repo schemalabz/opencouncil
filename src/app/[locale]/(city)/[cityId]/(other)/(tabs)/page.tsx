@@ -97,21 +97,11 @@ export default async function CityOverviewPage(
 
     // The roster is read here rather than in the layout: only this tab renders it,
     // and CouncilBand is a Server Component, so none of it reaches the client.
-    const [city, hotCards, recentMeetings, upcomingMeetings, parties, people, bodies, t] = await Promise.all([
-        getCityCached(cityId),
-        getHotSubjectCardsCached(cityId, {
-            limit: HOT_SUBJECTS,
-            administrativeBodyTypes: HOT_SCOPES[requestedScope].types,
-            months: HOT_PERIODS[period].months,
-        }),
-        getCouncilMeetingsPreviewPublicCached(cityId, { limit: RECENT_MEETINGS, timeFilter: 'past' }),
-        getCouncilMeetingsPreviewPublicCached(cityId, { limit: UPCOMING_MEETINGS, timeFilter: 'upcoming' }),
-        getPartiesForCityCached(cityId),
-        getPeopleForCityCached(cityId),
-        getAdministrativeBodiesWithPublicMeetingsCached(cityId),
-        getTranslations({ locale, namespace: 'cityOverview' }),
-    ]);
-
+    // The city comes first (a warm cached read — generateMetadata has already
+    // primed it): the realm decides what the meetings section fetches. The
+    // Greek timeline shows only δήμος-wide bodies, so κοινότητες must not eat
+    // window slots — and it alone has an upcoming module to fetch for.
+    const city = await getCityCached(cityId);
     if (!city) {
         notFound();
     }
@@ -119,6 +109,31 @@ export default async function CityOverviewPage(
     // The two-sided timeline is the ΔΕ/ΔΣ shape of Greek local government;
     // other realms keep the meeting cards.
     const meetingsAsTimeline = city.realm === 'greece';
+    const timelineBodyTypes = meetingsAsTimeline ? (['council', 'committee'] as const) : undefined;
+
+    const [hotCards, recentMeetings, upcomingMeetings, parties, people, bodies, t] = await Promise.all([
+        getHotSubjectCardsCached(cityId, {
+            limit: HOT_SUBJECTS,
+            administrativeBodyTypes: HOT_SCOPES[requestedScope].types,
+            months: HOT_PERIODS[period].months,
+        }),
+        getCouncilMeetingsPreviewPublicCached(cityId, {
+            limit: RECENT_MEETINGS,
+            timeFilter: 'past',
+            ...(timelineBodyTypes && { administrativeBodyTypes: [...timelineBodyTypes] }),
+        }),
+        meetingsAsTimeline
+            ? getCouncilMeetingsPreviewPublicCached(cityId, {
+                limit: UPCOMING_MEETINGS,
+                timeFilter: 'upcoming',
+                administrativeBodyTypes: [...timelineBodyTypes!],
+            })
+            : Promise.resolve([]),
+        getPartiesForCityCached(cityId),
+        getPeopleForCityCached(cityId),
+        getAdministrativeBodiesWithPublicMeetingsCached(cityId),
+        getTranslations({ locale, namespace: 'cityOverview' }),
+    ]);
 
     // Offer only the scopes this municipality has bodies for — a picker that can
     // select an always-empty ranking is worse than no picker.
