@@ -151,7 +151,10 @@ const nextConfig = {
     // streamed 404 still reaches it as HTTP 200.
     // Copied from next@16.2.6 (next/dist/shared/lib/router/utils/html-bots.js);
     // resync when upgrading Next in case upstream adds new crawlers.
-    htmlLimitedBots: /Googlebot|[\w-]+-Google|Google-[\w-]+|Chrome-Lighthouse|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|Yeti|googleweblight/i,
+    // The AI-crawler section (GPTBot onward) is appended on purpose: these
+    // agents run no JavaScript, so they need blocking, fully rendered HTML
+    // and real 404s. Keep that section when resyncing with upstream.
+    htmlLimitedBots: /Googlebot|[\w-]+-Google|Google-[\w-]+|Chrome-Lighthouse|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|Yeti|googleweblight|GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Amazonbot|Bytespider|meta-externalagent|DuckAssistBot/i,
 };
 
 export default withPostHogConfig(withNextIntl(nextConfig), {
