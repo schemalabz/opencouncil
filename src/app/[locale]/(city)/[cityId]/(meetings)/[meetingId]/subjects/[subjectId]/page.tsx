@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { localizeText } from "@/lib/serbian";
+import { compactMetadataDescription } from "@/lib/seo/metadataDescription";
 
 export async function generateMetadata(
     props: {
@@ -51,7 +52,7 @@ export async function generateMetadata(
 
     // Create a meaningful description
     const description = subject.description
-        ? localizeText(subject.description, params.locale)
+        ? compactMetadataDescription(localizeText(subject.description, params.locale))
         : `Θέμα που συζητήθηκε | ${cityName} | ${new Date(meetingData.meeting.dateTime).toLocaleDateString("el-GR")}`;
 
     return {
