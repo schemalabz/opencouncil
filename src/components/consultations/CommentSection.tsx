@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { getSafeHtmlContent } from "@/lib/utils/sanitize";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 import posthog from "posthog-js";
+import { formatDateTime } from '@/lib/formatters/time';
 
 // Dynamically import ReactQuill to avoid SSR issues
 const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
@@ -282,13 +283,7 @@ export default function CommentSection({
                                                                     {comment.user.name || 'Ανώνυμος'}
                                                                 </span>
                                                                 <span className="text-xs text-muted-foreground">
-                                                                    {new Date(comment.createdAt).toLocaleDateString('el-GR', {
-                                                                        day: 'numeric',
-                                                                        month: 'short',
-                                                                        year: 'numeric',
-                                                                        hour: '2-digit',
-                                                                        minute: '2-digit'
-                                                                    })}
+                                                                    {formatDateTime(new Date(comment.createdAt), undefined, 'medium')}
                                                                 </span>
                                                             </div>
 

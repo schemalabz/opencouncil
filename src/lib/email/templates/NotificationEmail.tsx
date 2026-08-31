@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Section, Heading, Text, Button, Container } from '@react-email/components';
 import { BaseTemplate } from '../components/BaseTemplate';
+import { formatDate } from '@/lib/formatters/time';
 
 interface NotificationSubject {
     id: string;
@@ -35,11 +36,7 @@ export const NotificationEmail = ({
         ? 'Ειδοποίηση επερχόμενης συνεδρίασης'
         : 'Ειδοποίηση πρόσφατης συνεδρίασης';
 
-    const meetingDateFormatted = meetingDate.toLocaleDateString('el-GR', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-    });
+    const meetingDateFormatted = formatDate(meetingDate);
 
     return (
         <BaseTemplate previewText={typeLabel}>

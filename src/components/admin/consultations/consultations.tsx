@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Upload, ExternalLink, Pencil, Check, X } from 'lucide-react';
 import { ConsultationForAdmin } from '@/lib/db/consultations';
+import { formatDateTime } from '@/lib/formatters/time';
 
 type CityOption = { id: string; name: string };
 
@@ -396,13 +397,7 @@ export default function Consultations({ initialConsultations, initialCities }: C
                                             )}
                                         </TableCell>
                                         <TableCell className="text-sm text-muted-foreground">
-                                            {new Date(c.endDate).toLocaleDateString('en-US', {
-                                                year: 'numeric',
-                                                month: 'short',
-                                                day: 'numeric',
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                            })}
+                                            {formatDateTime(new Date(c.endDate), undefined, 'medium', 'en')}
                                         </TableCell>
                                         <TableCell className="text-sm">{c._count.comments}</TableCell>
                                         <TableCell className="text-center">

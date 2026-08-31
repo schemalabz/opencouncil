@@ -33,7 +33,7 @@ import {
 import { Search, Clock, Activity, CalendarClock, ArrowUpDown, ChevronDown, Eye, Copy, Check, ExternalLink, Loader2, AlertTriangle } from 'lucide-react';
 import { resolveCandidateConflict } from '@/lib/tasks/pollDecisions';
 import { useUrlParams } from '@/hooks/useUrlParams';
-import { formatRelativeTime } from '@/lib/formatters/time';
+import { formatNumericDate, formatRelativeTime } from '@/lib/formatters/time';
 
 interface BackoffTier {
   afterDays: number;
@@ -654,7 +654,7 @@ export function PollingStats({ stats, pollCities, cityFilter, pollMeetings, meet
                       {m.firstPollAt ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="block cursor-default">{new Date(m.firstPollAt).toLocaleDateString()}</span>
+                            <span className="block cursor-default">{formatNumericDate(new Date(m.firstPollAt))}</span>
                           </TooltipTrigger>
                           <TooltipContent side="bottom">{new Date(m.firstPollAt).toLocaleString()}</TooltipContent>
                         </Tooltip>
@@ -826,7 +826,7 @@ export function PollingStats({ stats, pollCities, cityFilter, pollMeetings, meet
                       <td className="px-4 py-2 whitespace-nowrap font-mono text-xs">{d.ada ?? '—'}</td>
                       <td className="px-4 py-2 whitespace-nowrap">{d.publishDate ?? '—'}</td>
                       <td className="px-4 py-2 whitespace-nowrap">
-                        {new Date(d.discoveredAt).toLocaleDateString()}
+                        {formatNumericDate(new Date(d.discoveredAt))}
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap">{formatDays(d.discoveryDelayDays)}</td>
                       <td className="px-4 py-2 whitespace-nowrap">{formatDays(d.publishDelayDays)}</td>

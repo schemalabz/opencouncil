@@ -71,4 +71,25 @@ export default defineConfig([{
             }],
         }],
     },
+}, {
+    // Date text must render identically on the server (UTC machine) and in the
+    // visitor's browser, or hydration breaks (React error #418) and printed
+    // days go wrong near midnight. Raw toLocaleDateString/Intl.DateTimeFormat
+    // default to the machine's timezone and locale, so they are confined to
+    // src/lib/formatters — everything else calls its helpers, which pin a
+    // timezone and an hour cycle.
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/lib/formatters/**"],
+    rules: {
+        "no-restricted-syntax": ["error", {
+            selector: "CallExpression[callee.property.name='toLocaleDateString']",
+            message: "toLocaleDateString renders in the machine's timezone and locale, which differ between server and browser. Use formatDate/formatNumericDate/localCalendarDate from @/lib/formatters/time.",
+        }, {
+            selector: "CallExpression[callee.property.name='toLocaleTimeString']",
+            message: "toLocaleTimeString renders in the machine's timezone and locale, which differ between server and browser. Use formatDateTime/formatNumericDateTime from @/lib/formatters/time.",
+        }, {
+            selector: "NewExpression[callee.object.name='Intl'][callee.property.name='DateTimeFormat']",
+            message: "Intl.DateTimeFormat defaults to the machine's timezone, which differs between server and browser. Use a formatter from @/lib/formatters/time.",
+        }],
+    },
 }]);

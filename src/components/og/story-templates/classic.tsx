@@ -1,14 +1,15 @@
-import { format } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 import { OpenCouncilWatermark } from "../shared-components";
-import { formatDate } from "@/lib/formatters/time";
+import { DEFAULT_TIMEZONE, formatDate, formatWeekday } from "@/lib/formatters/time";
 import type { PreviewData } from "./types";
 import { SectionLabel, SubjectRow, RemainderLine, STORY_FONT_FAMILY } from "./shared";
 
 // T1 — Classic (cream / clean)
 export const Template1Classic = (data: PreviewData) => {
     const { preAgenda, agenda, preAgendaShown, agendaShown, preAgendaRemaining, agendaRemaining } = data;
-    // Greek long-form weekday name, e.g. "Δευτέρα", "Τρίτη", ...
-    const weekday = data.meetingDate.toLocaleDateString("el-GR", { weekday: "long" });
+    // Greek long-form weekday name, e.g. "Δευτέρα", "Τρίτη", ... All the dates
+    // on the image render in the same timezone so weekday and date agree.
+    const weekday = formatWeekday(data.meetingDate);
 
     return (
         <div
@@ -62,7 +63,7 @@ export const Template1Classic = (data: PreviewData) => {
                     Συνεδρίαση
                 </span>
                 <span style={{ display: "flex", fontSize: 92, fontWeight: 800, color: "#111827", lineHeight: 1.05 }}>
-                    {format(data.meetingDate, "dd.MM.yy")}
+                    {formatInTimeZone(data.meetingDate, DEFAULT_TIMEZONE, "dd.MM.yy")}
                 </span>
             </div>
 

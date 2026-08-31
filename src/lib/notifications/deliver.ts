@@ -7,6 +7,7 @@ import {
     sendSMSMessage,
 } from './bird';
 import { sendAndPersistOutbound } from './outbound';
+import { formatDate } from '@/lib/formatters/time';
 import { env } from '@/env.mjs';
 
 /**
@@ -144,7 +145,7 @@ async function sendMessageDelivery(delivery: any): Promise<boolean> {
 
         // Prepare WhatsApp template parameters
         const templateParams = {
-            date: meeting.dateTime.toLocaleDateString('el-GR', { day: 'numeric', month: 'long', year: 'numeric' }),
+            date: formatDate(meeting.dateTime),
             cityName: notification.city.name,
             subjectsSummary: notification.subjects.slice(0, 3).map((ns: any) => ns.subject.name).join(', '),
             adminBody: meeting.administrativeBody?.name || 'Συνεδρίαση',

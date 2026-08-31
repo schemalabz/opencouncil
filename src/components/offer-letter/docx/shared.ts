@@ -28,6 +28,7 @@ import {
 } from "docx";
 import type { Offer } from "@prisma/client";
 import { offerGrammar, type ProcurementLine } from "@/lib/offers/display";
+import { formatDate, formatWeekday } from "@/lib/formatters/time";
 
 // ─── Typography ─────────────────────────────────────────────────────────────
 
@@ -135,13 +136,7 @@ export const LOGO_H = Math.round((LOGO_W * 1354) / 1606);
 
 /** "Τρίτη, 21 Ιουλίου 2026" */
 function greekLetterheadDate(d: Date = new Date()): string {
-    const weekday = new Intl.DateTimeFormat("el-GR", { weekday: "long" }).format(d);
-    const rest = new Intl.DateTimeFormat("el-GR", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-    }).format(d);
-    return `${weekday}, ${rest}`;
+    return `${formatWeekday(d)}, ${formatDate(d)}`;
 }
 
 const letterheadLine = (text: string) =>

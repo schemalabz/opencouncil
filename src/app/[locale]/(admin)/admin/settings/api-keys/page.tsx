@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { PlusIcon, Copy, Check, AlertTriangle } from "lucide-react"
 import { useState, useEffect } from "react"
 import { toast } from "@/hooks/use-toast"
+import { formatNumericDate } from '@/lib/formatters/time';
 
 interface ApiKey {
     id: string
@@ -149,10 +150,10 @@ export default function ApiKeysPage() {
                                         <TableCell>
                                             <code className="text-sm bg-muted px-2 py-1 rounded">{key.keyPrefix}...</code>
                                         </TableCell>
-                                        <TableCell>{new Date(key.createdAt).toLocaleDateString()}</TableCell>
+                                        <TableCell>{formatNumericDate(new Date(key.createdAt))}</TableCell>
                                         <TableCell>
                                             {key.lastUsedAt
-                                                ? new Date(key.lastUsedAt).toLocaleDateString()
+                                                ? formatNumericDate(new Date(key.lastUsedAt))
                                                 : <span className="text-muted-foreground">Never</span>
                                             }
                                         </TableCell>
@@ -197,8 +198,8 @@ export default function ApiKeysPage() {
                                         <TableCell>
                                             <code className="text-sm bg-muted px-2 py-1 rounded">{key.keyPrefix}...</code>
                                         </TableCell>
-                                        <TableCell>{new Date(key.createdAt).toLocaleDateString()}</TableCell>
-                                        <TableCell>{key.revokedAt ? new Date(key.revokedAt).toLocaleDateString() : '-'}</TableCell>
+                                        <TableCell>{formatNumericDate(new Date(key.createdAt))}</TableCell>
+                                        <TableCell>{key.revokedAt ? formatNumericDate(new Date(key.revokedAt)) : '-'}</TableCell>
                                         <TableCell><Badge variant="secondary">Revoked</Badge></TableCell>
                                     </TableRow>
                                 ))}

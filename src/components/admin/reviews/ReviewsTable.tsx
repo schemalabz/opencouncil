@@ -6,7 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
-import { formatDurationMs } from '@/lib/formatters/time';
+import { formatDurationMs, formatNumericDate } from '@/lib/formatters/time';
 import { ExternalLink, AlertCircle, Clock, Info, Eye, CheckCircle, Loader2 } from 'lucide-react';
 import {
   Table,
@@ -135,7 +135,7 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
                 <div>
                   <div className="font-medium">{review.meetingName}</div>
                   <div className="text-sm text-muted-foreground">
-                    {new Date(review.meetingDate).toLocaleDateString()}
+                    {formatNumericDate(new Date(review.meetingDate))}
                   </div>
                 </div>
               </TableCell>
@@ -299,7 +299,7 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <div className="text-sm text-muted-foreground mb-1">Meeting Date</div>
-                <div className="font-medium">{new Date(selectedReviewDetail.meetingDate).toLocaleDateString()}</div>
+                <div className="font-medium">{formatNumericDate(new Date(selectedReviewDetail.meetingDate))}</div>
               </div>
               <div>
                 <div className="text-sm text-muted-foreground mb-1">Status</div>

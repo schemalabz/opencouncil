@@ -1,6 +1,7 @@
-import { format } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 import { el } from "date-fns/locale";
 import { OpenCouncilWatermark } from "../shared-components";
+import { DEFAULT_TIMEZONE, formatWeekday } from "@/lib/formatters/time";
 import type { PreviewData } from "./types";
 import { SectionLabel, SubjectRow, RemainderLine, STORY_FONT_FAMILY, uppercaseGreek } from "./shared";
 
@@ -8,9 +9,11 @@ import { SectionLabel, SubjectRow, RemainderLine, STORY_FONT_FAMILY, uppercaseGr
 export const Template2Dark = (data: PreviewData) => {
     const { preAgenda, agenda, preAgendaShown, agendaShown, preAgendaRemaining, agendaRemaining } = data;
 
-    const month = format(data.meetingDate, "LLLL", { locale: el });
+    // All the dates on the image render in the same timezone so weekday,
+    // day number, month and year agree.
+    const month = formatInTimeZone(data.meetingDate, DEFAULT_TIMEZONE, "LLLL", { locale: el });
     // Greek long-form weekday name, e.g. "Δευτέρα", "Τρίτη", ...
-    const weekday = data.meetingDate.toLocaleDateString("el-GR", { weekday: "long" });
+    const weekday = formatWeekday(data.meetingDate);
 
     return (
         <div
@@ -87,7 +90,7 @@ export const Template2Dark = (data: PreviewData) => {
                         letterSpacing: "-0.04em",
                     }}
                 >
-                    {String(data.meetingDate.getDate()).padStart(2, "0")}
+                    {formatInTimeZone(data.meetingDate, DEFAULT_TIMEZONE, "dd")}
                 </span>
                 <div style={{ display: "flex", flexDirection: "column", marginLeft: 28, marginBottom: 18 }}>
                     <span
@@ -115,7 +118,7 @@ export const Template2Dark = (data: PreviewData) => {
                         {month}
                     </span>
                     <span style={{ display: "flex", fontSize: 36, color: "#9CA3AF", marginTop: 8, whiteSpace: "nowrap" }}>
-                        {data.meetingDate.getFullYear()}
+                        {formatInTimeZone(data.meetingDate, DEFAULT_TIMEZONE, "yyyy")}
                     </span>
                 </div>
             </div>
