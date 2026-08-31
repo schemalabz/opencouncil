@@ -423,6 +423,9 @@ function FlapPanel({ data }: { data: BrochureData }) {
 // ─── Outside: back cover ────────────────────────────────────────────────────
 
 function BackPanel({ data }: { data: BrochureData }) {
+    // The city variant adds the ΑΔΑΜ paragraph; shrink the collage so the
+    // fixed-height panel never overflows (react-pdf silently clips overflow).
+    const photoHeight = (PANEL_W - PANEL_PAD * 2) / (data.city?.adam ? 2.8 : 1.6);
     return (
         <Panel>
             <PanelTitle kicker="Η ομάδα" title="Οι άνθρωποι πίσω από το OpenCouncil" />
@@ -464,21 +467,21 @@ function BackPanel({ data }: { data: BrochureData }) {
                 src={`${ASSET_BASE}/brochure/office.jpg`}
                 style={{
                     width: PANEL_W - PANEL_PAD * 2,
-                    height: (PANEL_W - PANEL_PAD * 2) / 1.6,
+                    height: photoHeight,
                     borderRadius: 6,
                     objectFit: "cover",
                     marginBottom: 12,
                 }}
             />
 
-            <Text style={{ fontSize: 9, color: C.mid, lineHeight: 1.5, marginBottom: 16 }}>
+            <Text style={{ fontSize: 9, color: C.mid, lineHeight: 1.5, marginBottom: 12 }}>
                 Η OpenCouncil Μονοπρόσωπη Ι.Κ.Ε. ανήκει εξ ολοκλήρου στη Schema Labs,
                 μη-κερδοσκοπική εταιρεία. Ο κώδικάς μας είναι ανοιχτός, με άδεια GPL v3 —
                 κάθε γραμμή είναι δημόσια.
             </Text>
 
             {data.city?.adam && (
-                <Text style={{ fontSize: 9, color: C.mid, lineHeight: 1.5, marginBottom: 16 }}>
+                <Text style={{ fontSize: 9, color: C.mid, lineHeight: 1.5, marginBottom: 12 }}>
                     Το OpenCouncil λειτουργεί στον{" "}
                     {municipalityAccusative(data.city.nameMunicipality)} με σύμβαση με ΑΔΑΜ{" "}
                     {data.city.adam}. Ο τρόπος τιμολόγησης είναι δημόσια διαθέσιμος στο
