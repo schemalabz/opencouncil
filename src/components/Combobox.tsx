@@ -138,10 +138,15 @@ export default function Combobox<T>({
                 items: items.filter(item => item != null)
             }];
         }
-        return groups.map(group => ({
-            ...group,
-            items: group.items.filter(item => item != null)
-        }));
+        // cmdk hides a group whose items the search filtered out, but not one
+        // that never had any. Without this, a caller that groups a list it is
+        // still fetching shows its headings above the empty message.
+        return groups
+            .map(group => ({
+                ...group,
+                items: group.items.filter(item => item != null)
+            }))
+            .filter(group => group.items.length > 0);
     }, [groups, items]);
 
 
