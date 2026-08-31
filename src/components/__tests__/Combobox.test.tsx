@@ -103,9 +103,17 @@ describe('Combobox on a phone', () => {
         expect(within(list).queryByText('Θεσσαλονίκη')).not.toBeInTheDocument();
     });
 
-    // The dialog used to be a centred box holding a list capped at 300px, so the
-    // software keyboard covered most of the results. The list now fills a
-    // full-height sheet instead; drop the cap and this regresses.
+    // A sheet anchored to the bottom would be half covered by the keyboard, and
+    // the list is what the user opens this for. The field is one tap away.
+    it('leaves the keyboard down by not focusing the field on open', () => {
+        renderCombobox();
+        fireEvent.click(screen.getByRole('combobox'));
+        expect(screen.getByPlaceholderText('Αναζήτηση δήμου')).not.toHaveFocus();
+    });
+
+    // The sheet used to be a centred box holding a list capped at 300px, so the
+    // software keyboard covered most of the results. The list now fills the
+    // sheet instead; drop the cap and this regresses.
     it('does not cap the results list at 300px', () => {
         renderCombobox();
         fireEvent.click(screen.getByRole('combobox'));
