@@ -3,12 +3,18 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, ChevronUp, Loader, Pause, Play } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useVideo } from '@/components/meetings/VideoProvider';
+import { useVideo, useVideoActions } from '@/components/meetings/VideoProvider';
 import { useHighlight } from '@/components/meetings/HighlightContext';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { useBarData } from './BarDataContext';
 import { useBarHighlight } from './BarHighlightContext';
 import { BarTimeline, type ModeAnnounce } from './BarTimeline';
+import { useLiveTime } from './useLiveTime';
+import { TopicIcon } from '@/components/TopicIcon';
+import { captureEvent } from '@/lib/analytics/capture';
+import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
+import { Link } from '@/i18n/routing';
+import { bandAt } from '@/lib/utils/barTimeline';
 import { MiniVideo } from './MiniVideo';
 import { ModePicker, type BarMode } from './ModePicker';
 import { intersectsAny } from '@/lib/utils/barTimeline';
@@ -70,15 +76,19 @@ export function PlaybackBar() {
 
     const effectiveMode: BarMode = hasSubjectData ? mode : 'speakers';
 
-    if (isMobile && collapsed) {
-        return <BarPill mode={effectiveMode} onExpand={() => setCollapsedPersisted(false)} />;
-    }
+    const pill = isMobile && collapsed;
 
+    // The pill never replaces the dock in the tree — it only covers it. A
+    // hidden dock keeps the media element mounted, so play works from the
+    // pill and expanding is a visibility flip, not a remount mid-playback.
     return (
+        <>
+            {pill && <BarPill mode={effectiveMode} onExpand={() => setCollapsedPersisted(false)} />}
         <div
             className={cn(
                 'fixed inset-x-2 z-50',
                 isMobile ? 'bottom-0 -mx-2 border-t-2 border-border bg-background px-2.5 pt-1.5' : 'bottom-2',
+                pill && 'hidden',
             )}
             style={isMobile ? { paddingBottom: 'calc(env(safe-area-inset-bottom) + 8px)' } : undefined}
         >
@@ -92,15 +102,19 @@ export function PlaybackBar() {
                     <span className="mx-auto block h-1 w-9 rounded-full bg-border" aria-hidden />
                 </button>
             )}
-            <div className="flex items-center gap-2">
-                <PlayButton compact={isMobile} />
+            <div className="flex items-end gap-2">
+                <div className="relative shrink-0">
+                    {!isMobile && <NowBubble />}
+                    <PlayButton compact={isMobile} />
+                </div>
                 <MiniVideo compact={isMobile} />
                 <BarTimeline mode={effectiveMode} compact={isMobile} announce={announce} />
                 {hasSubjectData && <ModePicker mode={effectiveMode} onModeChange={switchMode} compact={isMobile} />}
-                <ClipNav />
+                <div className="self-center"><ClipNav /></div>
             </div>
             {isMobile && <TimeReadout />}
         </div>
+        </>
     );
 }
 
@@ -115,7 +129,7 @@ function PlayButton({ compact }: { compact: boolean }) {
             aria-label={isPlaying ? t('pause') : t('play')}
             className={cn(
                 'flex shrink-0 items-center justify-center rounded-[10px] border-2 border-border bg-card hover:bg-muted',
-                compact ? 'h-[42px] w-[42px]' : 'h-[50px] w-[50px]',
+                compact ? 'h-[42px] w-[42px]' : 'h-[62px] w-[62px]',
             )}
         >
             {isPlaying
@@ -126,11 +140,51 @@ function PlayButton({ compact }: { compact: boolean }) {
 }
 
 function TimeReadout() {
-    const { currentTime, duration } = useVideo();
+    const { currentTime, duration, isPlaying } = useVideo();
+    const { bands } = useBarData();
+    const { city, meeting } = useCouncilMeetingData();
+    const idx = isPlaying ? bandAt(bands, currentTime) : -1;
+    const band = idx >= 0 ? bands[idx] : null;
     return (
-        <div className="mt-1 flex justify-between text-[10px] tabular-nums text-muted-foreground">
-            <span>{formatTimestamp(currentTime)}</span>
-            <span>{duration > 0 ? formatTimestamp(duration) : '—'}</span>
+        <div className="mt-1 flex items-center gap-2 text-[10px] tabular-nums text-muted-foreground">
+            <span className="shrink-0 font-bold text-foreground">{formatTimestamp(currentTime)}</span>
+            <span className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
+                {band && band.speakerName && (
+                    <>
+                        <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: band.speakerColor }} aria-hidden />
+                        <span className="shrink-0 font-bold text-foreground">{band.speakerName}</span>
+                    </>
+                )}
+                {band && band.subjectId && band.subjectName && (
+                    <Link
+                        href={`/${city.id}/${meeting.id}/subjects/${band.subjectId}`}
+                        prefetch={false}
+                        onClick={() => captureEvent('subject_opened', {
+                            surface: 'playback_bar',
+                            subject_id: band.subjectId,
+                            city_id: city.id,
+                            meeting_id: meeting.id,
+                        })}
+                        className="truncate"
+                    >
+                        &middot; {band.subjectName}
+                    </Link>
+                )}
+            </span>
+            <span className="shrink-0">{duration > 0 ? formatTimestamp(duration) : '\u2014'}</span>
+        </div>
+    );
+}
+
+/** The clock over the play button — polls the ref, so it ticks like a clock. */
+function NowBubble() {
+    const { duration } = useVideo();
+    const { currentTimeRef } = useVideoActions();
+    const time = useLiveTime(currentTimeRef);
+    return (
+        <div className="pointer-events-none absolute -top-9 left-0 flex h-8 w-max items-center gap-1 rounded-full border-2 border-border bg-card px-3 shadow-sm text-[11px] tabular-nums">
+            <span className="font-extrabold">{formatTimestamp(time)}</span>
+            <span className="text-muted-foreground">/ {duration > 0 ? formatTimestamp(duration) : '\u2014'}</span>
         </div>
     );
 }
@@ -197,14 +251,14 @@ function BarPill({ mode, onExpand }: { mode: BarMode; onExpand: () => void }) {
 
     return (
         <div
-            className="fixed inset-x-3 z-50 flex items-center gap-2.5 rounded-full border-2 border-border bg-card py-2 pl-3 pr-2 shadow-lg"
+            className="fixed inset-x-3 z-50 flex items-center gap-2.5 rounded-full border-2 border-border bg-card py-1 pl-2.5 pr-1.5 shadow-lg"
             style={{ bottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
         >
             <button
                 type="button"
                 onClick={togglePlayPause}
                 aria-label={isPlaying ? t('pause') : t('play')}
-                className="flex h-8 w-8 shrink-0 items-center justify-center"
+                className="flex h-6 w-6 shrink-0 items-center justify-center"
             >
                 {isPlaying
                     ? (isSeeking ? <Loader className="h-4 w-4 animate-spin" aria-hidden /> : <Pause className="h-4 w-4" aria-hidden />)
@@ -216,6 +270,13 @@ function BarPill({ mode, onExpand }: { mode: BarMode; onExpand: () => void }) {
                 aria-label={t('expandBar')}
                 className="relative h-1.5 min-w-0 flex-1 overflow-hidden rounded-full"
             >
+                {duration > 0 && (
+                    <span
+                        aria-hidden
+                        className="absolute inset-y-0 z-10 w-[3px] rounded-full bg-foreground shadow-[0_0_0_1px_hsl(var(--card))]"
+                        style={{ left: `${Math.min((currentTime / duration) * 100, 99.5)}%` }}
+                    />
+                )}
                 {duration > 0 && sliverSpans.map((span, i) => (
                     <span
                         key={i}
@@ -235,7 +296,7 @@ function BarPill({ mode, onExpand }: { mode: BarMode; onExpand: () => void }) {
                 type="button"
                 onClick={onExpand}
                 aria-label={t('expandBar')}
-                className="flex h-8 w-8 shrink-0 items-center justify-center text-muted-foreground"
+                className="flex h-6 w-6 shrink-0 items-center justify-center text-muted-foreground"
             >
                 <ChevronUp className="h-4 w-4" aria-hidden />
             </button>

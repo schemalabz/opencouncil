@@ -62,7 +62,7 @@ export function MiniVideo({ compact = false }: { compact?: boolean }) {
         return () => window.removeEventListener('pointerdown', close);
     }, [menuOpen]);
 
-    const size = compact ? 'h-[42px] w-[70px]' : 'h-[50px] w-[92px]';
+    const size = compact ? 'h-[42px] w-[70px]' : 'h-[62px] w-[110px]';
 
     return (
         <div ref={wrapRef} className={cn('relative shrink-0', size)}>

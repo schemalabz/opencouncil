@@ -4,7 +4,7 @@ import React, { createContext, useContext, useMemo } from 'react';
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
 import { getPartyFromRoles } from '@/lib/utils';
 import { TOPICLESS_COLOR } from '@/lib/topicStyle';
-import { utteranceRuns, mergeIntervals, type BarBand, type Interval } from '@/lib/utils/barTimeline';
+import { utteranceRuns, mergeIntervals, chapterStarts, type BarBand, type Chapter, type ChapterKey, type Interval } from '@/lib/utils/barTimeline';
 
 export interface BarData {
     bands: BarBand[];
@@ -18,6 +18,8 @@ export interface BarData {
     hasSubjectData: boolean;
     /** where the transcript ends — stands in for the media duration until metadata loads */
     contentDuration: number;
+    /** agenda chapters in time order; empty when fewer than two exist */
+    chapters: Chapter[];
 }
 
 const EMPTY: BarData = {
@@ -27,6 +29,7 @@ const EMPTY: BarData = {
     intervalsBySubjectSpeaker: new Map(),
     hasSubjectData: false,
     contentDuration: 0,
+    chapters: [],
 };
 
 const BarDataContext = createContext<BarData>(EMPTY);
@@ -53,6 +56,7 @@ export function BarDataProvider({ children }: { children: React.ReactNode }) {
         const subjectById = new Map(subjects.map(s => [s.id, s]));
 
         const bands: BarBand[] = [];
+        const chapterItems: { category: ChapterKey; start: number }[] = [];
         const bySubject = new Map<string, Interval[]>();
         const bySpeaker = new Map<string, Interval[]>();
         const byPair = new Map<string, Interval[]>();
@@ -83,6 +87,11 @@ export function BarDataProvider({ children }: { children: React.ReactNode }) {
                 if (subject && run.subjectId) {
                     pushInterval(bySubject, run.subjectId, [run.start, run.end]);
                     if (person) pushInterval(byPair, `${run.subjectId}:${person.id}`, [run.start, run.end]);
+                    const category: ChapterKey | null =
+                        subject.nonAgendaReason === 'beforeAgenda' ? 'beforeAgenda'
+                        : subject.nonAgendaReason === 'outOfAgenda' ? 'outOfAgenda'
+                        : subject.agendaItemIndex !== null ? 'agenda' : null;
+                    if (category) chapterItems.push({ category, start: run.start });
                 }
             }
             // A speaker's highlight is their whole turn, procedural asides included.
@@ -102,6 +111,7 @@ export function BarDataProvider({ children }: { children: React.ReactNode }) {
             intervalsBySubjectSpeaker: byPair,
             hasSubjectData: bySubject.size > 0,
             contentDuration: bands.length ? bands[bands.length - 1].end : 0,
+            chapters: chapterStarts(chapterItems),
         };
     // getters are identity-stable (ref-backed useCallbacks in the data context)
     // eslint-disable-next-line react-hooks/exhaustive-deps
