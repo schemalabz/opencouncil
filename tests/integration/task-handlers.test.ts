@@ -15,6 +15,7 @@ import prisma from '@/lib/db/prisma'
 import { handleProcessAgendaResult } from '@/lib/tasks/processAgenda'
 import { handleSummarizeResult } from '@/lib/tasks/summarize'
 import { handlePollDecisionsResult, resolveCandidateConflict } from '@/lib/tasks/pollDecisions'
+import { getConflictingCandidates, applyCandidateConflictResolution } from '@/lib/db/decisionCandidates'
 import { resetDatabase } from '../helpers/test-db'
 import {
     createAdministrativeBody,
@@ -35,7 +36,7 @@ describe('handleProcessAgendaResult', () => {
     let meetingId: string
 
     beforeEach(async () => {
-        await resetDatabase(prisma as any)
+        await resetDatabase(prisma)
 
         const city = await createCity({ id: 'c1' })
         cityId = city.id
@@ -255,7 +256,7 @@ describe('handleSummarizeResult', () => {
     let utteranceId2: string
 
     beforeEach(async () => {
-        await resetDatabase(prisma as any)
+        await resetDatabase(prisma)
 
         const city = await createCity({ id: 'c1' })
         cityId = city.id
@@ -528,7 +529,7 @@ describe('Pipeline: processAgenda → summarize', () => {
     let meetingId: string
 
     beforeEach(async () => {
-        await resetDatabase(prisma as any)
+        await resetDatabase(prisma)
 
         const city = await createCity({ id: 'c1' })
         cityId = city.id
@@ -645,7 +646,7 @@ describe('handlePollDecisionsResult', () => {
     let meetingId2: string
 
     beforeEach(async () => {
-        await resetDatabase(prisma as any)
+        await resetDatabase(prisma)
 
         const city = await createCity({ id: 'c1' })
         cityId = city.id
@@ -874,7 +875,7 @@ describe('resolveCandidateConflict', () => {
     let meetingId2: string
 
     beforeEach(async () => {
-        await resetDatabase(prisma as any)
+        await resetDatabase(prisma)
 
         const city = await createCity({ id: 'c1' })
         cityId = city.id
@@ -1001,7 +1002,7 @@ describe('pollDecisions extraction processing', () => {
     let personC: { id: string }
 
     beforeEach(async () => {
-        await resetDatabase(prisma as any)
+        await resetDatabase(prisma)
 
         const city = await createCity({ id: 'c1' })
         cityId = city.id
@@ -1300,5 +1301,205 @@ describe('pollDecisions extraction processing', () => {
         // But attendance is still created
         const attendance = await prisma.subjectAttendance.findMany({ where: { subjectId: subject.id } })
         expect(attendance).toHaveLength(2)
+    })
+})
+
+describe('handlePollDecisionsResult — conflict evidence rule', () => {
+    let cityId: string
+    let meetingId1: string
+    let meetingId2: string
+
+    // Meeting dates are Athens-local: m1 = 2025-01-10, m2 = 2025-01-17
+    beforeEach(async () => {
+        await resetDatabase(prisma)
+        const city = await createCity({ id: 'c1' })
+        cityId = city.id
+        const body = await createAdministrativeBody(cityId, {
+            notificationBehavior: 'NOTIFICATIONS_DISABLED',
+        })
+        meetingId1 = (await createMeeting(cityId, {
+            id: 'm1', administrativeBodyId: body.id, dateTime: new Date('2025-01-10T10:00:00Z'),
+        })).id
+        meetingId2 = (await createMeeting(cityId, {
+            id: 'm2', administrativeBodyId: body.id, dateTime: new Date('2025-01-17T10:00:00Z'),
+        })).id
+    })
+
+    test('a conflict against a backed decision records a counter-proposal on the backing row', async () => {
+        // SubjectA (m2) holds ADA-X, with an unread backing candidate —
+        // the tier-1 backfill shape that used to swallow every later proposal.
+        const subjectA = await createSubject(meetingId2, cityId, { name: 'Subject A', agendaItemIndex: 1 })
+        const held = await prisma.decision.create({
+            data: { subjectId: subjectA.id, ada: 'ADA-X', pdfUrl: 'https://example.com/x.pdf' },
+        })
+        await prisma.decisionCandidate.create({
+            data: {
+                cityId, ada: 'ADA-X', pdfUrl: 'https://example.com/x.pdf',
+                readStatus: 'unread', councilMeetingId: meetingId2, decisionId: held.id,
+            },
+        })
+
+        // Polling m1, the resolver claims ADA-X for subjectB
+        const subjectB = await createSubject(meetingId1, cityId, { name: 'Subject B', agendaItemIndex: 1 })
+        const task = await createTaskStatus(meetingId1, cityId, { type: 'pollDecisions' })
+        await handlePollDecisionsResult(task.id, makePollDecisionsResult({
+            matches: [makePollDecisionsMatch({ subjectId: subjectB.id, ada: 'ADA-X', matchConfidence: 0.8, reasoning: 'better fit' })],
+        }))
+
+        // The proposal is recorded on the backing row; the assignment stands
+        const row = await prisma.decisionCandidate.findUnique({ where: { cityId_ada: { cityId, ada: 'ADA-X' } } })
+        expect(row!.subjectId).toBe(subjectB.id)
+        expect(row!.confidence).toBe(0.8)
+        expect(row!.reasoning).toBe('better fit')
+        expect(row!.decisionId).toBe(held.id)
+
+        // ...and it surfaces as an actionable conflict
+        const conflicts = await getConflictingCandidates({ cityId })
+        expect(conflicts).toHaveLength(1)
+        expect(conflicts[0].claimingSubject.id).toBe(subjectB.id)
+        expect(conflicts[0].existingDecision!.currentSubject.id).toBe(subjectA.id)
+    })
+
+    test('a fresh conflict creates the candidate with the full proposal', async () => {
+        const subjectA = await createSubject(meetingId2, cityId, { name: 'Subject A', agendaItemIndex: 1 })
+        await prisma.decision.create({
+            data: { subjectId: subjectA.id, ada: 'ADA-X', pdfUrl: 'https://example.com/x.pdf' },
+        })
+        const subjectB = await createSubject(meetingId1, cityId, { name: 'Subject B', agendaItemIndex: 1 })
+        const task = await createTaskStatus(meetingId1, cityId, { type: 'pollDecisions' })
+        await handlePollDecisionsResult(task.id, makePollDecisionsResult({
+            matches: [makePollDecisionsMatch({ subjectId: subjectB.id, ada: 'ADA-X', matchConfidence: 0.66, reasoning: 'fresh claim' })],
+        }))
+
+        const row = await prisma.decisionCandidate.findUnique({ where: { cityId_ada: { cityId, ada: 'ADA-X' } } })
+        expect(row!.subjectId).toBe(subjectB.id)
+        expect(row!.confidence).toBe(0.66)
+        expect(row!.reasoning).toBe('fresh claim')
+        expect(row!.title).toBe('Decision Title')
+        expect(row!.councilMeetingId).toBe(meetingId1)
+        expect(row!.readStatus).toBe('unread')
+    })
+
+    test('a conflict against an unassigned read row that declares the polled session is recorded', async () => {
+        // ADA-X is held by subjectA (m2), but its candidate row is unassigned
+        // and declares m1's session — the reader saw it while polling m1.
+        const subjectA = await createSubject(meetingId2, cityId, { name: 'Subject A', agendaItemIndex: 1 })
+        await prisma.decision.create({
+            data: { subjectId: subjectA.id, ada: 'ADA-X', pdfUrl: 'https://example.com/x.pdf' },
+        })
+        await prisma.decisionCandidate.create({
+            data: {
+                cityId, ada: 'ADA-X', pdfUrl: 'https://example.com/x.pdf',
+                readStatus: 'ok', meetingDate: new Date('2025-01-10T00:00:00Z'),
+                councilMeetingId: meetingId1,
+            },
+        })
+
+        const subjectB = await createSubject(meetingId1, cityId, { name: 'Subject B', agendaItemIndex: 1 })
+        const task = await createTaskStatus(meetingId1, cityId, { type: 'pollDecisions' })
+        await handlePollDecisionsResult(task.id, makePollDecisionsResult({
+            matches: [makePollDecisionsMatch({ subjectId: subjectB.id, ada: 'ADA-X' })],
+        }))
+
+        const row = await prisma.decisionCandidate.findUnique({ where: { cityId_ada: { cityId, ada: 'ADA-X' } } })
+        expect(row!.subjectId).toBe(subjectB.id)
+    })
+
+    test('a claim contradicting the document\'s own declared session is dropped', async () => {
+        // The candidate declares m2's session; polling m1 claims it anyway.
+        const subjectA = await createSubject(meetingId2, cityId, { name: 'Subject A', agendaItemIndex: 1 })
+        await prisma.decision.create({
+            data: { subjectId: subjectA.id, ada: 'ADA-X', pdfUrl: 'https://example.com/x.pdf' },
+        })
+        await prisma.decisionCandidate.create({
+            data: {
+                cityId, ada: 'ADA-X', pdfUrl: 'https://example.com/x.pdf',
+                readStatus: 'ok', meetingDate: new Date('2025-01-17T00:00:00Z'),
+                councilMeetingId: meetingId2,
+            },
+        })
+
+        const subjectB = await createSubject(meetingId1, cityId, { name: 'Subject B', agendaItemIndex: 1 })
+        const task = await createTaskStatus(meetingId1, cityId, { type: 'pollDecisions' })
+        await handlePollDecisionsResult(task.id, makePollDecisionsResult({
+            matches: [makePollDecisionsMatch({ subjectId: subjectB.id, ada: 'ADA-X' })],
+        }))
+
+        const row = await prisma.decisionCandidate.findUnique({ where: { cityId_ada: { cityId, ada: 'ADA-X' } } })
+        expect(row!.subjectId).toBeNull()
+    })
+
+    test('a dismissed candidate is never resurrected by a new proposal', async () => {
+        const subjectA = await createSubject(meetingId2, cityId, { name: 'Subject A', agendaItemIndex: 1 })
+        await prisma.decision.create({
+            data: { subjectId: subjectA.id, ada: 'ADA-X', pdfUrl: 'https://example.com/x.pdf' },
+        })
+        await prisma.decisionCandidate.create({
+            data: {
+                cityId, ada: 'ADA-X', pdfUrl: 'https://example.com/x.pdf',
+                readStatus: 'unread', councilMeetingId: meetingId1, dismissedAt: new Date(),
+            },
+        })
+
+        const subjectB = await createSubject(meetingId1, cityId, { name: 'Subject B', agendaItemIndex: 1 })
+        const task = await createTaskStatus(meetingId1, cityId, { type: 'pollDecisions' })
+        await handlePollDecisionsResult(task.id, makePollDecisionsResult({
+            matches: [makePollDecisionsMatch({ subjectId: subjectB.id, ada: 'ADA-X' })],
+        }))
+
+        const row = await prisma.decisionCandidate.findUnique({ where: { cityId_ada: { cityId, ada: 'ADA-X' } } })
+        expect(row!.subjectId).toBeNull()
+        expect(row!.dismissedAt).not.toBeNull()
+    })
+
+    test('dismissing a counter-proposal restores the backing row to its assignment', async () => {
+        const subjectA = await createSubject(meetingId2, cityId, { name: 'Subject A', agendaItemIndex: 1 })
+        const subjectB = await createSubject(meetingId1, cityId, { name: 'Subject B', agendaItemIndex: 1 })
+        const held = await prisma.decision.create({
+            data: { subjectId: subjectA.id, ada: 'ADA-X', pdfUrl: 'https://example.com/x.pdf' },
+        })
+        const row = await prisma.decisionCandidate.create({
+            data: {
+                cityId, ada: 'ADA-X', pdfUrl: 'https://example.com/x.pdf',
+                readStatus: 'unread', councilMeetingId: meetingId2, decisionId: held.id,
+                subjectId: subjectB.id, confidence: 0.8, reasoning: 'counter',
+            },
+        })
+
+        await applyCandidateConflictResolution(row.id, 'dismiss')
+
+        const after = await prisma.decisionCandidate.findUnique({ where: { id: row.id } })
+        expect(after!.subjectId).toBe(subjectA.id)
+        expect(after!.confidence).toBeNull()
+        expect(after!.reasoning).toBeNull()
+        expect(after!.decisionId).toBe(held.id)
+        expect(after!.dismissedAt).toBeNull()
+        expect(await prisma.decision.count()).toBe(1)
+    })
+
+    test('reassigning a counter-proposal moves the decision to the claiming subject', async () => {
+        const subjectA = await createSubject(meetingId2, cityId, { name: 'Subject A', agendaItemIndex: 1 })
+        const subjectB = await createSubject(meetingId1, cityId, { name: 'Subject B', agendaItemIndex: 1 })
+        const held = await prisma.decision.create({
+            data: { subjectId: subjectA.id, ada: 'ADA-X', pdfUrl: 'https://example.com/x.pdf' },
+        })
+        const row = await prisma.decisionCandidate.create({
+            data: {
+                cityId, ada: 'ADA-X', pdfUrl: 'https://example.com/x.pdf',
+                readStatus: 'unread', councilMeetingId: meetingId2, decisionId: held.id,
+                subjectId: subjectB.id, confidence: 0.8, reasoning: 'counter',
+            },
+        })
+
+        await applyCandidateConflictResolution(row.id, 'reassign')
+
+        const moved = await prisma.decision.findUnique({ where: { subjectId: subjectB.id } })
+        expect(moved).not.toBeNull()
+        expect(moved!.ada).toBe('ADA-X')
+        expect(await prisma.decision.findUnique({ where: { subjectId: subjectA.id } })).toBeNull()
+        const after = await prisma.decisionCandidate.findUnique({ where: { id: row.id } })
+        expect(after!.decisionId).toBe(moved!.id)
+        expect(after!.subjectId).toBe(subjectB.id)
+        expect(await getConflictingCandidates({ cityId })).toHaveLength(0)
     })
 })

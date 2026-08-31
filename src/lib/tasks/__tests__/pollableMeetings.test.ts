@@ -1,4 +1,4 @@
-import { partitionMeetingsForPolling } from "../pollableMeetings";
+import { partitionMeetingsForPolling, interleaveByCity } from "../pollableMeetings";
 
 describe("partitionMeetingsForPolling", () => {
     it("marks a meeting with unlinked eligible subjects as pollable, not complete", () => {
@@ -49,5 +49,33 @@ describe("partitionMeetingsForPolling", () => {
         );
         expect(result.skipped).toHaveLength(1);
         expect(result.skipped[0].skipReason).toBe("noEligibleSubjects");
+    });
+});
+
+describe("interleaveByCity", () => {
+    const m = (cityId: string, id: string) => ({ cityId, id });
+
+    it("round-robins across cities, preserving per-city order", () => {
+        const result = interleaveByCity([
+            m("a", "a1"), m("a", "a2"), m("a", "a3"),
+            m("b", "b1"), m("b", "b2"),
+            m("c", "c1"),
+        ]);
+        expect(result.map(x => x.id)).toEqual(["a1", "b1", "c1", "a2", "b2", "a3"]);
+    });
+
+    it("keeps a single-city list unchanged", () => {
+        const result = interleaveByCity([m("a", "a1"), m("a", "a2")]);
+        expect(result.map(x => x.id)).toEqual(["a1", "a2"]);
+    });
+
+    it("handles an empty list", () => {
+        expect(interleaveByCity([])).toEqual([]);
+    });
+
+    it("starts city order from the first appearance in the input", () => {
+        // Input is newest-first: city b has the newest meeting, so b leads.
+        const result = interleaveByCity([m("b", "b1"), m("a", "a1"), m("b", "b2")]);
+        expect(result.map(x => x.id)).toEqual(["b1", "a1", "b2"]);
     });
 });

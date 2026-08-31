@@ -1,5 +1,6 @@
 import prisma from "./prisma";
 import { DataSource } from "@prisma/client";
+import { localCalendarDate } from "@/lib/formatters/time";
 import { shapeCandidates, type MeetingCandidate } from "./decisionCandidateShape";
 
 export { shapeCandidates, type MeetingCandidate, type AdaHolder } from "./decisionCandidateShape";
@@ -120,7 +121,8 @@ export async function dismissCandidate(cityId: string, meetingId: string, candid
 export interface CandidateConflict {
     candidateId: string;
     ada: string;
-    claimingSubject: { id: string; name: string; cityId: string; councilMeetingId: string };
+    /** sessionDate is the meeting's city-local calendar date, for grouping. */
+    claimingSubject: { id: string; name: string; cityId: string; councilMeetingId: string; sessionDate: string };
     existingDecision: {
         title: string | null;
         pdfUrl: string;
@@ -129,21 +131,31 @@ export interface CandidateConflict {
 }
 
 /**
- * Conflicting candidates: unresolved, with a proposed subject, whose ADA a
+ * Conflicting candidates: not dismissed, with a proposed subject, whose ADA a
  * Decision on a DIFFERENT subject already holds. Replaces the old
  * Subject.claimedAda listing — same shape, plus candidateId for resolution.
+ *
+ * Assigned rows are included: a poll can record a counter-proposal on the
+ * holding decision's own backing row (see recordConflictClaim in
+ * tasks/pollDecisions), which leaves subjectId pointing away from the
+ * decision's subject. Backing rows that agree with their decision fall out
+ * of the same-subject filter below. A row whose admin assignment overrode
+ * the pipeline suggestion also surfaces here — the same disagreement, put
+ * on record by a human instead of a poll; dismissing it aligns the record.
  */
 export async function getConflictingCandidates(filter?: { cityId?: string; councilMeetingId?: string }): Promise<CandidateConflict[]> {
-    const candidates = await prisma.decisionCandidate.findMany({
+    // Suggested rows are a small triage queue; the cross-column disagreement
+    // check (own decision on a different subject) happens over the fetch.
+    const suggested = await prisma.decisionCandidate.findMany({
         where: {
-            decisionId: null,
             dismissedAt: null,
             subjectId: { not: null },
-            ...(filter?.cityId && { cityId: filter.cityId }),
-            ...(filter?.councilMeetingId && { councilMeetingId: filter.councilMeetingId }),
+            ...(filter?.cityId ? { cityId: filter.cityId } : {}),
+            ...(filter?.councilMeetingId ? { councilMeetingId: filter.councilMeetingId } : {}),
         },
-        select: { id: true, ada: true, subjectId: true },
+        select: { id: true, ada: true, subjectId: true, decisionId: true, decision: { select: { subjectId: true } } },
     });
+    const candidates = suggested.filter(c => c.decisionId === null || c.decision?.subjectId !== c.subjectId);
     if (candidates.length === 0) return [];
 
     const [holders, claimingSubjects] = await Promise.all([
@@ -156,7 +168,11 @@ export async function getConflictingCandidates(filter?: { cityId?: string; counc
         }),
         prisma.subject.findMany({
             where: { id: { in: candidates.map(c => c.subjectId!).filter(Boolean) } },
-            select: { id: true, name: true, cityId: true, councilMeetingId: true, decision: { select: { id: true } } },
+            select: {
+                id: true, name: true, cityId: true, councilMeetingId: true,
+                decision: { select: { id: true } },
+                councilMeeting: { select: { dateTime: true, city: { select: { timezone: true } } } },
+            },
         }),
     ]);
     const holderByAda = new Map(holders.filter(h => h.ada).map(h => [h.ada!, h]));
@@ -173,7 +189,11 @@ export async function getConflictingCandidates(filter?: { cityId?: string; counc
         conflicts.push({
             candidateId: c.id,
             ada: c.ada,
-            claimingSubject: { id: claiming.id, name: claiming.name, cityId: claiming.cityId, councilMeetingId: claiming.councilMeetingId },
+            claimingSubject: {
+                id: claiming.id, name: claiming.name, cityId: claiming.cityId,
+                councilMeetingId: claiming.councilMeetingId,
+                sessionDate: localCalendarDate(claiming.councilMeeting.dateTime, claiming.councilMeeting.city.timezone),
+            },
             existingDecision: {
                 title: holder.title,
                 pdfUrl: holder.pdfUrl,
@@ -184,6 +204,11 @@ export async function getConflictingCandidates(filter?: { cityId?: string; counc
     return conflicts;
 }
 
+/** What a conflict resolution actually did — a 'reassign' downgrades to a
+ * rejection when the claiming subject already has a decision, and resolves to
+ * 'noop' when the row was resolved concurrently. */
+export type ConflictResolutionOutcome = 'reassigned' | 'dismissed' | 'noop';
+
 /**
  * Admin resolution of a conflicting candidate. 'dismiss' rejects the claim;
  * 'reassign' moves the Decision from its current subject to the claiming one —
@@ -192,27 +217,54 @@ export async function getConflictingCandidates(filter?: { cityId?: string; counc
 export async function applyCandidateConflictResolution(
     candidateId: string,
     resolution: 'reassign' | 'dismiss',
-): Promise<void> {
-    await prisma.$transaction(async (tx) => {
+): Promise<ConflictResolutionOutcome> {
+    return prisma.$transaction(async (tx): Promise<ConflictResolutionOutcome> => {
         const candidate = await tx.decisionCandidate.findUnique({ where: { id: candidateId } });
         if (!candidate) throw new Error('Candidate not found');
-        if (candidate.decisionId || candidate.dismissedAt) return; // resolved concurrently — nothing to do
+        if (candidate.dismissedAt) return 'noop'; // resolved concurrently — nothing to do
+
+        // An assigned row is resolvable only when it carries a counter-proposal:
+        // a suggestion pointing away from its own decision's subject. Any other
+        // assigned row is already resolved.
+        let counterProposalOf: string | null = null;
+        if (candidate.decisionId) {
+            const own = await tx.decision.findUnique({
+                where: { id: candidate.decisionId },
+                select: { subjectId: true },
+            });
+            if (!own || !candidate.subjectId || own.subjectId === candidate.subjectId) return 'noop';
+            counterProposalOf = own.subjectId;
+        }
 
         // Terminal writes below are conditional on the row still being
         // unresolved: a dismissal or assignment that commits between the read
         // above and the write must win, not be overwritten.
         const unresolved = { id: candidateId, decisionId: null, dismissedAt: null };
 
+        // Rejecting a counter-proposal restores the record to the assignment —
+        // the accepted placement is the decision's own subject. Rejecting an
+        // unassigned claim dismisses the candidate.
+        const rejectClaim = async (): Promise<ConflictResolutionOutcome> => {
+            // Guarded like the terminal writes: a resolution that committed
+            // since the read above wins, and the caller hears 'noop', not a
+            // false 'dismissed'.
+            const written = counterProposalOf
+                ? await tx.decisionCandidate.updateMany({
+                    where: { id: candidateId, dismissedAt: null, decisionId: candidate.decisionId },
+                    data: { subjectId: counterProposalOf, confidence: null, reasoning: null },
+                })
+                : await tx.decisionCandidate.updateMany({ where: unresolved, data: { dismissedAt: new Date() } });
+            return written.count === 0 ? 'noop' : 'dismissed';
+        };
+
         if (resolution === 'dismiss' || !candidate.subjectId) {
-            await tx.decisionCandidate.updateMany({ where: unresolved, data: { dismissedAt: new Date() } });
-            return;
+            return rejectClaim();
         }
 
         // Only move the decision if the claiming subject doesn't already have one
         const existingOnClaiming = await tx.decision.findUnique({ where: { subjectId: candidate.subjectId } });
         if (existingOnClaiming) {
-            await tx.decisionCandidate.updateMany({ where: unresolved, data: { dismissedAt: new Date() } });
-            return;
+            return rejectClaim();
         }
 
         const holding = await tx.decision.findUnique({
@@ -251,6 +303,7 @@ export async function applyCandidateConflictResolution(
             });
             const linkedMoved = await tx.decisionCandidate.updateMany({ where: unresolved, data: { decisionId: moved.id } });
             if (linkedMoved.count === 0) throw new Error('Candidate was resolved concurrently');
+            return 'reassigned';
         } else {
             // Holder vanished concurrently — plain assignment
             const created = await tx.decision.create({
@@ -267,6 +320,7 @@ export async function applyCandidateConflictResolution(
             });
             const linkedCreated = await tx.decisionCandidate.updateMany({ where: unresolved, data: { decisionId: created.id } });
             if (linkedCreated.count === 0) throw new Error('Candidate was resolved concurrently');
+            return 'reassigned';
         }
     });
 }
