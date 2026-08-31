@@ -146,7 +146,7 @@ function Panel({
 
 function PanelTitle({ kicker, title }: { kicker: string; title: string }) {
     return (
-        <View style={{ marginBottom: 16 }}>
+        <View style={{ marginBottom: 14 }}>
             <Text style={{ fontSize: 7.5, color: C.accent, letterSpacing: 1, marginBottom: 5 }}>
                 {greekUpper(kicker)}
             </Text>
@@ -169,7 +169,7 @@ function Feature({
     badge?: string;
 }) {
     return (
-        <View style={{ flexDirection: "row", gap: 10, marginBottom: 17 }}>
+        <View style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
             <View
                 style={{
                     width: 27,
@@ -232,6 +232,7 @@ function BrowserFrame({
         <View
             style={{
                 width,
+                flexShrink: 0,
                 borderWidth: 0.75,
                 borderColor: C.line,
                 borderRadius: 6,
@@ -280,7 +281,7 @@ function BrowserFrame({
                 <View style={{ width: 12 }} />
             </View>
             {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image */}
-            <Image src={src} style={{ width: "100%", height: width / aspect }} />
+            <Image src={src} style={{ width: "100%", height: width / aspect, flexShrink: 0, objectFit: "cover" }} />
         </View>
     );
 }
@@ -625,7 +626,7 @@ function CitizensPanel() {
     return (
         <Panel>
             <PanelTitle kicker="Για δημότες και αιρετούς" title="Κάθε συνεδρίαση, ανοιχτή σε όλους" />
-            <Text style={{ fontSize: 9.5, color: C.mid, lineHeight: 1.55, marginBottom: 17 }}>
+            <Text style={{ fontSize: 9.5, color: C.mid, lineHeight: 1.55, marginBottom: 13 }}>
                 Το OpenCouncil μετατρέπει πολύωρες συνεδριάσεις σε κατανοητό, αναζητήσιμο
                 και προσβάσιμο περιεχόμενο — αυτόματα.
             </Text>
@@ -652,7 +653,7 @@ function CitizensPanel() {
             />
 
             <View style={{ flex: 1 }} />
-            <View style={{ alignItems: "center" }}>
+            <View style={{ alignItems: "center", flexShrink: 0 }}>
                 <BrowserFrame
                     src={`${ASSET_BASE}/brochure/subject.jpg`}
                     url="opencouncil.gr/chania"
@@ -663,7 +664,7 @@ function CitizensPanel() {
                         fontSize: 8,
                         color: C.light,
                         lineHeight: 1.4,
-                        marginTop: 8,
+                        marginTop: 6,
                         textAlign: "center",
                     }}
                 >
@@ -681,7 +682,7 @@ function ServicesPanel({ data }: { data: BrochureData }) {
                 kicker="Για τις υπηρεσίες του δήμου"
                 title="Ό,τι γινόταν σε μέρες, τώρα γίνεται σε ώρες"
             />
-            <Text style={{ fontSize: 9.5, color: C.mid, lineHeight: 1.55, marginBottom: 17 }}>
+            <Text style={{ fontSize: 9.5, color: C.mid, lineHeight: 1.55, marginBottom: 13 }}>
                 Απομαγνητοφωνήσεις, πρακτικά, αποφάσεις — αυτόματα ή με ελάχιστη ανθρώπινη
                 παρέμβαση.
             </Text>
