@@ -125,6 +125,14 @@ h2:not(.prose h2) {
   100% { stroke: #d4d4d8; }
 }
 
+/* Playback dock geometry shared across files: the layout's bottom reservation
+   and the floating player's anchor must clear the dock exactly. The dock's own
+   internal heights live in src/components/meetings/bar/geometry.ts. */
+:root {
+  --playback-dock-clearance: 112px;
+  --playback-dock-clearance-mobile: 104px;
+}
+
 /* Playback bar: the mode name shown over the bands after an explicit switch */
 @keyframes bar-mode-announce {
   0% { opacity: 0; }

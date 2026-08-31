@@ -62,6 +62,7 @@ interface VideoActionsContextType {
     seekTo: (time: number) => void;
     seekToWithoutScroll: (time: number) => void;
     togglePlayPause: () => void;
+    handleSpeedChange: (value: string) => void;
 }
 
 const VideoActionsContext = createContext<VideoActionsContextType | undefined>(undefined);
@@ -479,7 +480,8 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         seekTo: stableSeekTo,
         seekToWithoutScroll: stableSeekToWithoutScroll,
         togglePlayPause: stableTogglePlayPause,
-    }), [stableSeekTo, stableSeekToWithoutScroll, stableTogglePlayPause]);
+        handleSpeedChange: stableHandleSpeedChange,
+    }), [stableSeekTo, stableSeekToWithoutScroll, stableTogglePlayPause, stableHandleSpeedChange]);
 
     // Memoize the value so it only invalidates when the reactive fields it
     // exposes actually change. The function fields are now all stable refs,

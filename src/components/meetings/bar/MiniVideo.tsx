@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Video } from '@/components/meetings/Video';
-import { useVideo } from '@/components/meetings/VideoProvider';
+import { useVideoActions } from '@/components/meetings/VideoProvider';
 import { useHighlight } from '@/components/meetings/HighlightContext';
 import { useTranscriptOptions } from '@/components/meetings/options/OptionsContext';
+import { DOCK_ROW, DOCK_ROW_COMPACT } from './geometry';
 import { cn } from '@/lib/utils';
 
 const CYCLE = [1, 1.25, 1.5, 2];
@@ -20,7 +21,7 @@ const LONG_PRESS_MS = 450;
 export function MiniVideo({ compact = false }: { compact?: boolean }) {
     const t = useTranslations('transcript.controls');
     const { options, updateOptions } = useTranscriptOptions();
-    const { handleSpeedChange } = useVideo();
+    const { handleSpeedChange } = useVideoActions();
     const { isPreviewDialogOpen } = useHighlight();
     const [isExpanded, setIsExpanded] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
@@ -69,10 +70,12 @@ export function MiniVideo({ compact = false }: { compact?: boolean }) {
         return () => window.removeEventListener('pointerdown', close);
     }, [menuOpen]);
 
-    const size = compact ? 'h-[42px] w-[70px]' : 'h-[62px] w-[110px]';
+    const size = compact
+        ? { height: DOCK_ROW_COMPACT, width: 70 }
+        : { height: DOCK_ROW, width: 110 };
 
     return (
-        <div ref={wrapRef} className={cn('relative shrink-0', size)}>
+        <div ref={wrapRef} className="relative shrink-0" style={size}>
             {/* The floating expanded player stays a DOM child of this slot, so the
                 empty-tray look must come from the background alone — an opacity on
                 this wrapper would composite onto the fixed child too. */}

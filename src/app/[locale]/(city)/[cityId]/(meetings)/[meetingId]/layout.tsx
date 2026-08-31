@@ -230,7 +230,7 @@ export default async function CouncilMeetingPage(
                                 <div className="relative flex-1 overflow-auto" data-scroll-container>
                                     {/* Reserve the dock's height only when a dock renders; the
                                         phone dock also grows by the home-indicator inset. */}
-                                    <div className={hasPlayback ? 'pb-28 max-md:pb-[calc(104px+env(safe-area-inset-bottom))]' : undefined}>
+                                    <div className={hasPlayback ? 'pb-[var(--playback-dock-clearance)] max-md:pb-[calc(var(--playback-dock-clearance-mobile)+env(safe-area-inset-bottom))]' : undefined}>
                                         <Suspense>
                                             {children}
                                         </Suspense>
