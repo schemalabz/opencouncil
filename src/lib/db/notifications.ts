@@ -2,6 +2,7 @@ import "server-only";
 
 import { NotificationPreference, Petition, City, Topic, User, Location, Prisma } from '@prisma/client';
 import { auth, signIn } from "@/auth";
+import { signInFailurePath } from "@/lib/auth/signInResult";
 import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth";
 import { classifyDeliveries, deliveriesWhereForStatus } from '@/lib/notifications/deliveryStatus';
 import { attachGeometryToCities } from "./cities";
@@ -68,8 +69,16 @@ async function requireSelfOrSuperadmin(userId: string): Promise<void> {
 async function sendMagicLink(email: string) {
     try {
         // Use the existing signIn function with the resend provider
-        // This will create the user if they don't exist and send a magic link
-        await signIn("resend", { email }, { redirectTo: "/" });
+        // This will create the user if they don't exist and send a magic link.
+        // redirect: false — with the default, Auth.js throws NEXT_REDIRECT on
+        // success, so every sent magic link landed in the catch below and was
+        // logged as a failure.
+        const url: string = await signIn("resend", { email, redirect: false });
+        const failurePath = signInFailurePath(url);
+        if (failurePath) {
+            console.error(`Magic link not sent to ${email} (redirected to ${failurePath})`);
+            return false;
+        }
         console.log(`Magic link sent to ${email}`);
         return true;
     } catch (error) {
