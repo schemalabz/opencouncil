@@ -112,3 +112,32 @@ describe('Combobox on a phone', () => {
         expect(screen.getByRole('listbox').className).not.toMatch(/max-h-\[300px\]/);
     });
 });
+
+describe('Combobox groups', () => {
+    beforeEach(() => setViewportWidth(DESKTOP_WIDTH));
+
+    // The notification picker groups a city list it fetches on the first click,
+    // so both groups are empty until that request lands. cmdk renders a heading
+    // for a group that never had items, which put two headings above the empty
+    // message.
+    it('hides a heading for a group with no items', () => {
+        render(
+            <Combobox<City>
+                items={[]}
+                groups={[
+                    { key: 'a', label: 'WITH NOTIFICATIONS', items: [] },
+                    { key: 'b', label: 'NOT AVAILABLE YET', items: [cities[1]] },
+                ]}
+                value={null}
+                onChange={() => {}}
+                placeholder="Επιλέξτε δήμο"
+                searchPlaceholder="Αναζήτηση δήμου"
+                getItemLabel={(c) => c.name}
+                getItemValue={(c) => `${c.name} ${c.muni}`}
+            />,
+        );
+        fireEvent.click(screen.getByRole('combobox'));
+        expect(screen.queryByText('WITH NOTIFICATIONS')).not.toBeInTheDocument();
+        expect(screen.getByText('NOT AVAILABLE YET')).toBeInTheDocument();
+    });
+});
