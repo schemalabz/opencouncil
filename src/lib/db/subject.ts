@@ -217,6 +217,8 @@ export type MapSubjectRow = {
     cityName: string;
     nameMunicipality: string;
     logoImage: string | null;
+    /** IANA timezone of the city, so meeting dates render in the city's local day */
+    cityTimezone: string;
     councilMeetingId: string;
     meetingDate?: string;
     meetingName?: string;
@@ -258,7 +260,7 @@ const mapSubjectInclude = {
             administrativeBody: { select: { name: true, type: true } },
             // City display fields travel on every row so the client needn't reconcile against
             // the loaded city list (Subject reaches City only through councilMeeting).
-            city: { select: { name: true, name_municipality: true, logoImage: true } },
+            city: { select: { name: true, name_municipality: true, logoImage: true, timezone: true } },
         },
     },
     topic: { select: { name: true, name_en: true, colorHex: true, icon: true } },
@@ -320,6 +322,7 @@ function toGeneralSubjectRow(s: MapSubjectPayload, discussionSeconds: Map<string
         cityName: s.councilMeeting.city.name,
         nameMunicipality: s.councilMeeting.city.name_municipality,
         logoImage: s.councilMeeting.city.logoImage,
+        cityTimezone: s.councilMeeting.city.timezone,
         councilMeetingId: s.councilMeetingId,
         meetingDate: s.councilMeeting?.dateTime?.toISOString(),
         meetingName: s.councilMeeting?.name,

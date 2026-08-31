@@ -184,7 +184,7 @@ export function SubjectCard({
                     )}
                     {subject.date && (
                         <div className="flex items-center gap-1 text-xs font-medium text-foreground/80">
-                            <CalendarDays className="h-3 w-3 shrink-0" /> {formatDate(new Date(subject.date))}
+                            <CalendarDays className="h-3 w-3 shrink-0" /> {formatDate(new Date(subject.date), subject.cityTimezone)}
                         </div>
                     )}
 

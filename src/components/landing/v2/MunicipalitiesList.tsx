@@ -212,7 +212,7 @@ function MuniPanelCard({
                         <CalendarDays className="h-3.5 w-3.5 shrink-0" />
                         <span className="truncate">
                             <span className="font-medium text-foreground/80">{t('municipality.nextMeeting')}</span>{' '}
-                            {formatDateTime(new Date(next.dateTime), undefined, 'long', locale)}
+                            {formatDateTime(new Date(next.dateTime), next.city.timezone, 'long', locale)}
                         </span>
                     </div>
                 </>
