@@ -175,7 +175,7 @@ export async function getCouncilMeetingsForCity(cityId: string, { includeUnrelea
 }
 
 const upcomingMeetingInclude = {
-    city: { select: { id: true, name: true, name_municipality: true, logoImage: true } },
+    city: { select: { id: true, name: true, name_municipality: true, logoImage: true, timezone: true } },
     administrativeBody: true,
 } satisfies Prisma.CouncilMeetingInclude;
 

@@ -646,7 +646,7 @@ function MunicipalityCard({
                     <CalendarDays className="h-3 w-3 shrink-0" />
                     <span className="truncate">
                         <span className="font-medium text-foreground/80">{t('municipality.nextMeeting')}</span>{' '}
-                        {formatDateTime(new Date(next.dateTime), undefined, 'long', locale)}
+                        {formatDateTime(new Date(next.dateTime), next.city.timezone, 'long', locale)}
                     </span>
                 </div>
             )}
@@ -720,7 +720,7 @@ function StripCard({ subject, active, onClick }: { subject: LandingSubject; acti
                     )}
                     {subject.date && (
                         <span className="flex items-center gap-1">
-                            <CalendarDays className="h-3 w-3 shrink-0" /> {formatDate(new Date(subject.date), undefined, locale)}
+                            <CalendarDays className="h-3 w-3 shrink-0" /> {formatDate(new Date(subject.date), subject.cityTimezone, locale)}
                         </span>
                     )}
                     {locationLine && (
@@ -800,7 +800,7 @@ function MobileSubjectExpanded({
                     )}
                     {subject.date && (
                         <div className="flex items-center gap-1 text-xs font-medium text-foreground/80">
-                            <CalendarDays className="h-3 w-3 shrink-0" /> {formatDate(new Date(subject.date), undefined, locale)}
+                            <CalendarDays className="h-3 w-3 shrink-0" /> {formatDate(new Date(subject.date), subject.cityTimezone, locale)}
                         </div>
                     )}
                     {locationLine && (

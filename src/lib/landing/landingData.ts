@@ -33,7 +33,7 @@ export type LandingListCity = Pick<
 /** A serialized (Date → string) view of UpcomingMeetingWithCity, derived so it tracks the schema. */
 export type UpcomingMeeting = Pick<UpcomingMeetingWithCity, 'id' | 'cityId' | 'name'> & {
     dateTime: string;
-    city: Pick<UpcomingMeetingWithCity['city'], 'id' | 'name' | 'name_municipality' | 'logoImage'>;
+    city: Pick<UpcomingMeetingWithCity['city'], 'id' | 'name' | 'name_municipality' | 'logoImage' | 'timezone'>;
     administrativeBody: { name: string } | null;
 };
 
@@ -56,6 +56,8 @@ export type LandingSubject = {
     lng: number;
     /** meeting date as ISO string (missing for unscheduled data) */
     date: string | null;
+    /** IANA timezone of the city, so `date` renders as the city's local day */
+    cityTimezone: string;
     /** the street/area the subject refers to (Location.text) */
     where: string;
     /** the administrative body (όργανο) name, e.g. "Δημοτικό Συμβούλιο"; null when unknown */
@@ -227,6 +229,7 @@ export function toGeneralCities(
             lat: row.lat,
             lng: row.lng,
             date: s.meetingDate ?? null,
+            cityTimezone: s.cityTimezone,
             where: '',
             bodyName: s.bodyName ?? null,
             adminBodyType: s.adminBodyType ?? null,
@@ -275,6 +278,7 @@ export function toLandingSubjects(
                 lat,
                 lng,
                 date: s.meetingDate ?? null,
+                cityTimezone: s.cityTimezone,
                 where: s.locationText ?? '',
                 bodyName: s.bodyName ?? null,
                 adminBodyType: s.adminBodyType ?? null,

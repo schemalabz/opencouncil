@@ -95,6 +95,7 @@ export default async function HomePage() {
                         name: m.city.name,
                         name_municipality: m.city.name_municipality,
                         logoImage: m.city.logoImage,
+                        timezone: m.city.timezone,
                     },
                     administrativeBody: m.administrativeBody ? { name: m.administrativeBody.name } : null,
                 })),

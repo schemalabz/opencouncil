@@ -82,7 +82,7 @@ export function NotifyPrompt({
                         <CalendarDays className="h-5 w-5 shrink-0 text-primary" />
                         <span className="text-foreground/80">
                             <span className="font-semibold text-primary">{t('municipality.nextMeeting')}</span>{' '}
-                            {formatDateTime(new Date(nextMeeting.dateTime), undefined, 'long', locale)}
+                            {formatDateTime(new Date(nextMeeting.dateTime), nextMeeting.city.timezone, 'long', locale)}
                         </span>
                     </div>
                 )}
