@@ -37,7 +37,7 @@ export function ModePicker({ mode, onModeChange, compact = false }: {
         <div
             className={cn(
                 'flex shrink-0 flex-col overflow-hidden rounded-[10px] border-2 border-border bg-card',
-                compact ? 'h-[42px] w-9' : 'h-[50px] w-11',
+                compact ? 'h-[42px] w-9' : 'h-[62px] w-11',
             )}
             role="group"
             aria-label={t('modePicker')}

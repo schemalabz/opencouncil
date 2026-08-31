@@ -159,7 +159,7 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, /** a s
                     // Anchored above the playback dock: with no coordinates a fixed box
                     // keeps its in-flow offset, which for the dock's video slot is off
                     // the bottom of the viewport.
-                    style={{ width: dimensions.width, height: dimensions.height, left: 8, bottom: 96 }}
+                    style={{ width: dimensions.width, height: dimensions.height, left: 8, bottom: 112 }}
                     onMouseEnter={() => setIsHovered(true)}
                     onMouseLeave={() => setIsHovered(false)}
                 >

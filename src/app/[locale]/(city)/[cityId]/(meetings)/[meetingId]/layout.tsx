@@ -225,7 +225,7 @@ export default async function CouncilMeetingPage(
                                 <HighlightModeBar />
                                 <EditingModeBar />
                                 <div className="relative flex-1 overflow-auto" data-scroll-container>
-                                    <div className='pb-20 max-md:pb-28'>
+                                    <div className='pb-28'>
                                         <Suspense>
                                             {children}
                                         </Suspense>
