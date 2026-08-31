@@ -1,4 +1,4 @@
-import { bandAt, intersectsAny, mergeIntervals, utteranceRuns } from '../barTimeline';
+import { bandAt, chapterStarts, intersectsAny, mergeIntervals, utteranceRuns } from '../barTimeline';
 
 const u = (start: number, end: number, subjectId: string | null, status = 'SUBJECT_DISCUSSION') => ({
     startTimestamp: start,
@@ -83,5 +83,33 @@ describe('bandAt', () => {
     it('returns -1 in a gap and outside', () => {
         expect(bandAt(bands, 11)).toBe(-1);
         expect(bandAt(bands, 99)).toBe(-1);
+    });
+});
+
+describe('chapterStarts', () => {
+    it('is empty with fewer than two categories', () => {
+        expect(chapterStarts([])).toEqual([]);
+        expect(chapterStarts([{ category: 'agenda', start: 100 }, { category: 'agenda', start: 50 }])).toEqual([]);
+    });
+
+    it('takes the earliest start per category and sorts chapters', () => {
+        expect(chapterStarts([
+            { category: 'agenda', start: 2750 },
+            { category: 'beforeAgenda', start: 900 },
+            { category: 'beforeAgenda', start: 382 },
+            { category: 'agenda', start: 3000 },
+        ])).toEqual([
+            { key: 'beforeAgenda', start: 0 },
+            { key: 'agenda', start: 2750 },
+        ]);
+    });
+
+    it('folds the preamble into the first chapter', () => {
+        const chapters = chapterStarts([
+            { category: 'outOfAgenda', start: 5000 },
+            { category: 'agenda', start: 400 },
+        ]);
+        expect(chapters[0]).toEqual({ key: 'agenda', start: 0 });
+        expect(chapters[1]).toEqual({ key: 'outOfAgenda', start: 5000 });
     });
 });

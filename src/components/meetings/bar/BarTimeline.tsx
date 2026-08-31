@@ -8,7 +8,10 @@ import { useHighlight } from '@/components/meetings/HighlightContext';
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
 import { useBarData } from './BarDataContext';
 import { useBarHighlight } from './BarHighlightContext';
-import { bandAt, intersectsAny, type BarBand, type Interval } from '@/lib/utils/barTimeline';
+import { bandAt, intersectsAny, type BarBand, type Chapter, type Interval } from '@/lib/utils/barTimeline';
+import { useLiveTime } from './useLiveTime';
+import { captureEvent } from '@/lib/analytics/capture';
+import { Link } from '@/i18n/routing';
 import { TopicIcon } from '@/components/TopicIcon';
 import { Users, Shapes } from 'lucide-react';
 import type { BarMode } from './ModePicker';
@@ -32,9 +35,9 @@ export interface ModeAnnounce {
 export function BarTimeline({ mode, compact = false, announce = null }: { mode: BarMode; compact?: boolean; announce?: ModeAnnounce | null }) {
     const t = useTranslations('transcript.controls');
     const router = useRouter();
-    const { bands, contentDuration } = useBarData();
+    const { bands, contentDuration, chapters } = useBarData();
     const highlight = useBarHighlight();
-    const { duration: mediaDuration, currentScrollInterval } = useVideo();
+    const { duration: mediaDuration, currentScrollInterval, currentTime } = useVideo();
     // Until the media reports metadata its duration is 0; the transcript's own
     // extent keeps the strip painted and clickable in the meantime.
     const duration = mediaDuration > 0 ? mediaDuration : contentDuration;
@@ -103,6 +106,20 @@ export function BarTimeline({ mode, compact = false, announce = null }: { mode: 
 
     useEffect(() => () => { if (rafId.current !== null) cancelAnimationFrame(rafId.current); }, []);
 
+    // The rail decides label visibility in pixels, not fractions — a chapter
+    // that is generous in a wide window may not carry its name in a narrow one.
+    const [barWidth, setBarWidth] = useState(0);
+    useEffect(() => {
+        const el = barRef.current;
+        if (!el) return;
+        const observer = new ResizeObserver(entries => {
+            const width = Math.round(entries[0]?.contentRect.width ?? 0);
+            setBarWidth(prev => (Math.abs(prev - width) >= 1 ? width : prev));
+        });
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, []);
+
     const timeFromEvent = (e: React.MouseEvent): number | null => {
         const el = barRef.current;
         if (!el || duration <= 0) return null;
@@ -144,9 +161,13 @@ export function BarTimeline({ mode, compact = false, announce = null }: { mode: 
 
     const hovered = hoverBand >= 0 ? bands[hoverBand] : null;
     const scrollBand = currentScrollInterval[0] !== currentScrollInterval[1] && duration > 0 ? currentScrollInterval : null;
+    // The chapter rail rides inside the box on desktop only — at the phone's
+    // 42px it would be crumbs, so the phone shows no chapters at all.
+    const railed = !compact && chapters.length > 0;
 
     return (
         <div className="relative min-w-0 flex-1">
+            {!compact && <NowLane bands={bands} />}
             <div
                 ref={barRef}
                 role="slider"
@@ -163,13 +184,13 @@ export function BarTimeline({ mode, compact = false, announce = null }: { mode: 
                 onPointerLeave={onPointerLeave}
                 className={cn(
                     'relative w-full cursor-pointer overflow-hidden rounded-[10px] border-2 border-border bg-card',
-                    compact ? 'h-[42px]' : 'h-[50px]',
+                    compact ? 'h-[42px]' : 'h-[62px]',
                 )}
             >
                 {scrollBand && (
                     <div
                         aria-hidden
-                        className="absolute top-0 h-full bg-yellow-200"
+                        className={cn('absolute top-0 bg-yellow-200', railed ? 'h-[44px]' : 'h-full')}
                         style={{
                             left: `${(scrollBand[0] / duration) * 100}%`,
                             width: `${((scrollBand[1] - scrollBand[0]) / duration) * 100}%`,
@@ -178,6 +199,7 @@ export function BarTimeline({ mode, compact = false, announce = null }: { mode: 
                 )}
 
                 <SegmentsLayer
+                    railed={railed}
                     bands={bands}
                     mode={mode}
                     duration={duration}
@@ -194,7 +216,8 @@ export function BarTimeline({ mode, compact = false, announce = null }: { mode: 
                                 onClick={e => { e.stopPropagation(); seekTo(u.startTimestamp); }}
                                 title={`${u.speakerName}: ${u.text.substring(0, 50)}…`}
                                 className={cn(
-                                    'absolute top-0 h-full cursor-pointer transition-colors hover:bg-amber-500',
+                                    'absolute top-0 cursor-pointer transition-colors hover:bg-amber-500',
+                                    railed ? 'h-[44px]' : 'h-full',
                                     previewMode && index === currentHighlightIndex ? 'bg-amber-600' : 'bg-amber-400',
                                 )}
                                 style={{
@@ -207,6 +230,10 @@ export function BarTimeline({ mode, compact = false, announce = null }: { mode: 
                 )}
 
                 <Playhead playerRef={playerRef} currentTimeRef={currentTimeRef} duration={duration} barRef={barRef} />
+
+                {railed && (
+                    <ChapterRail chapters={chapters} duration={duration} currentTime={currentTime} barWidth={barWidth} />
+                )}
 
                 {announce && (
                     <div
@@ -267,13 +294,14 @@ export function BarTimeline({ mode, compact = false, announce = null }: { mode: 
  * The bands. Renders only when the transcript, the mode, or the highlight
  * changes — playback ticks and pointer moves never reach it.
  */
-const SegmentsLayer = memo(function SegmentsLayer({ bands, mode, duration, highlightKey, highlightRanges, dimAll }: {
+const SegmentsLayer = memo(function SegmentsLayer({ bands, mode, duration, highlightKey, highlightRanges, dimAll, railed }: {
     bands: BarBand[];
     mode: BarMode;
     duration: number;
     highlightKey: string | null;
     highlightRanges: Interval[] | null;
     dimAll: boolean;
+    railed: boolean;
 }) {
     if (duration <= 0) return null;
     return (
@@ -283,7 +311,12 @@ const SegmentsLayer = memo(function SegmentsLayer({ bands, mode, duration, highl
                 return (
                     <div
                         key={i}
-                        className="absolute top-[12.5%] h-3/4 transition-[opacity,top,height] duration-150 hover:top-0 hover:h-full"
+                        className={cn(
+                            'absolute transition-[opacity,top,height] duration-150',
+                            railed
+                                ? 'top-[6px] h-[38px] hover:top-[2px] hover:h-[42px]'
+                                : 'top-[12.5%] h-3/4 hover:top-0 hover:h-full',
+                        )}
                         style={{
                             left: `${(band.start / duration) * 100}%`,
                             width: `${Math.max(((band.end - band.start) / duration) * 100, 0.05)}%`,
@@ -301,8 +334,123 @@ const SegmentsLayer = memo(function SegmentsLayer({ bands, mode, duration, highl
     prev.duration === next.duration &&
     prev.dimAll === next.dimAll &&
     prev.highlightKey === next.highlightKey &&
-    prev.highlightRanges === next.highlightRanges
+    prev.highlightRanges === next.highlightRanges &&
+    prev.railed === next.railed
 );
+
+/**
+ * The line above the strip: who speaks and on what, centred over the timeline
+ * it points into — only while playing. The total duration keeps the right
+ * edge; the current time lives in the bubble over the play button. The
+ * subject is a link into its page.
+ */
+function NowLane({ bands }: { bands: BarBand[] }) {
+    const { city, meeting } = useCouncilMeetingData();
+    const { isPlaying } = useVideo();
+    const { currentTimeRef } = useVideoActions();
+    const time = useLiveTime(currentTimeRef);
+    const idx = isPlaying ? bandAt(bands, time) : -1;
+    const band = idx >= 0 ? bands[idx] : null;
+    // The dock floats over the page, so the line wears a capsule — same
+    // language as the time bubble over the play button. Left-aligned to the
+    // strip it annotates; on pause the lane simply empties.
+    return (
+        <div className="relative mb-1 h-8">
+            {band && (
+                <div className="absolute inset-x-0 top-0 flex h-8 justify-start">
+                    <div className="flex min-w-0 items-center gap-1.5 rounded-full border-2 border-border bg-card px-3 shadow-sm">
+                        {band.speakerName && (
+                            <>
+                                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: band.speakerColor }} aria-hidden />
+                                <span className="truncate text-xs font-extrabold">{band.speakerName}</span>
+                            </>
+                        )}
+                        {band.speakerName && band.subjectId && band.subjectName && (
+                            <span className="text-muted-foreground" aria-hidden>&middot;</span>
+                        )}
+                        {band.subjectId && band.subjectName && (
+                            <Link
+                                href={`/${city.id}/${meeting.id}/subjects/${band.subjectId}`}
+                                prefetch={false}
+                                onClick={() => captureEvent('subject_opened', {
+                                    surface: 'playback_bar',
+                                    subject_id: band.subjectId,
+                                    city_id: city.id,
+                                    meeting_id: meeting.id,
+                                })}
+                                className="flex min-w-0 items-center gap-1.5 hover:underline"
+                            >
+                                <TopicIcon color={band.subjectColor} icon={band.subjectIcon} size="sm" />
+                                <span className="truncate text-xs">{band.subjectName}</span>
+                            </Link>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+const CHAPTER_LABEL_KEY = {
+    beforeAgenda: 'chapterBeforeAgenda',
+    agenda: 'chapterAgenda',
+    outOfAgenda: 'chapterOutOfAgenda',
+} as const;
+
+/**
+ * The chapter rail inside the box, under the bands: one muted span per
+ * chapter, the one the playhead is in a shade darker, labels only where the
+ * chapter is wide enough to carry them.
+ */
+function ChapterRail({ chapters, duration, currentTime, barWidth }: {
+    chapters: Chapter[];
+    duration: number;
+    currentTime: number;
+    barWidth: number;
+}) {
+    const t = useTranslations('transcript.controls');
+    if (duration <= 0) return null;
+    return (
+        <div aria-hidden className="absolute inset-x-0 bottom-0 h-[18px]" style={{ zIndex: 5 }}>
+            {/* the lane reads as a track, so the empty width belongs to something */}
+            <div className="absolute inset-0 bg-muted/50" />
+            {chapters.map((chapter, i) => {
+                const end = i + 1 < chapters.length ? chapters[i + 1].start : duration;
+                const active = currentTime >= chapter.start && currentTime < end;
+                const fraction = (end - chapter.start) / duration;
+                const label = t(CHAPTER_LABEL_KEY[chapter.key]);
+                // ~7px per glyph at this size and tracking; the label renders
+                // only when the chapter's pixels can carry it whole.
+                const labelFits = fraction * barWidth >= label.length * 7 + 10;
+                return (
+                    <div
+                        key={chapter.key}
+                        className="absolute top-0 h-full"
+                        style={{
+                            left: `${(chapter.start / duration) * 100}%`,
+                            width: `${fraction * 100}%`,
+                        }}
+                    >
+                        {/* a stop line at the border, not a lane per chapter */}
+                        {i > 0 && (
+                            <div className="absolute bottom-[3px] left-0 h-[15px] w-[2px] -translate-x-1/2 rounded-full bg-muted-foreground/70" />
+                        )}
+                        {labelFits && (
+                            <div className={cn(
+                                'absolute top-1/2 flex -translate-y-1/2 items-center gap-1 whitespace-nowrap text-[8px] font-bold tracking-[0.07em]',
+                                i === 0 ? 'left-[8px]' : 'left-[10px]',
+                                active ? 'text-muted-foreground' : 'text-muted-foreground/60',
+                            )}>
+                                {label}
+                                <span aria-hidden>{'\u2192'}</span>
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
 
 /**
  * The playhead: a rAF loop reading the video element directly and writing a

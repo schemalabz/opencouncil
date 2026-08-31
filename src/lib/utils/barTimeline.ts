@@ -65,6 +65,31 @@ export function utteranceRuns(
     return runs;
 }
 
+export type ChapterKey = 'beforeAgenda' | 'agenda' | 'outOfAgenda';
+
+export interface Chapter {
+    key: ChapterKey;
+    start: number;
+}
+
+/**
+ * The bar's chapters: one per agenda category present, starting where the
+ * category's first subject starts. The preamble (roll call, housekeeping)
+ * belongs to the first chapter, so its start folds to 0. Fewer than two
+ * chapters means the meeting has no structure worth drawing — empty result.
+ */
+export function chapterStarts(items: { category: ChapterKey; start: number }[]): Chapter[] {
+    const min = new Map<ChapterKey, number>();
+    for (const item of items) {
+        const current = min.get(item.category);
+        if (current === undefined || item.start < current) min.set(item.category, item.start);
+    }
+    if (min.size < 2) return [];
+    const out = [...min.entries()].map(([key, start]) => ({ key, start })).sort((a, b) => a.start - b.start);
+    out[0] = { ...out[0], start: 0 };
+    return out;
+}
+
 /**
  * Merge sorted-by-start intervals, joining runs whose gap is below
  * `mergeGapSeconds` — a subject's discussion is fragmented at the utterance
