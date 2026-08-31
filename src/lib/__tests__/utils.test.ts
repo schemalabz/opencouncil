@@ -19,7 +19,11 @@ import {
 } from '../utils';
 import { calculateOfferTotals } from '../pricing';
 
-// Mock for Greek klitiki library
+// Mock for Greek klitiki library. Do not pass `{ virtual: true }` here: the
+// package is a real dependency, and a virtual mock registers under the bare
+// specifier while jest's per-worker resolver caches the resolved path per
+// importing file. When another test file loads ../utils first in the same
+// worker, a virtual mock misses that cache entry and the real package answers.
 jest.mock('greek-name-klitiki', () =>
   function mockKlitiki(name: string) {
     // Simple mock implementation for testing
@@ -44,8 +48,7 @@ jest.mock('greek-name-klitiki', () =>
     if (capitalized === 'Νικος') return 'Νίκο';
     
     return conversions[capitalized] || name;
-  },
-  { virtual: true }
+  }
 );
 
 describe('monthsBetween', () => {
