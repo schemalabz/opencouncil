@@ -264,7 +264,9 @@
       "tabDocument": "Document",
       "tabExtraction": "Decision details",
       "close": "Close",
-      "subjectDescriptionLabel": "Subject description:"
+      "subjectDescriptionLabel": "Subject description:",
+      "reassignTitle": "Move decision",
+      "reassignExplain": "The decision moves to “{subject}”. “{holder}” is left without a decision."
     },
     "extractionStarted": "Extraction started — attendance and votes will appear when the task completes.",
     "extractionStartFailed": "Could not start extraction — use the poll action or try again.",
@@ -354,5 +356,91 @@
       "stopped": "Automatic polling stopped"
     },
     "resetError": "Error resetting extraction"
+  },
+  "decisionsOverview": {
+    "title": "Decisions",
+    "subtitle": "Linking meeting subjects to the decisions published on Diavgeia",
+    "detailError": "Loading the details failed",
+    "loadingDetail": "Loading details…",
+    "openMeeting": "Open meeting",
+    "hero": {
+      "withDecision": "subjects with a decision",
+      "withContent": "with decision text",
+      "withoutDecision": "without a decision",
+      "unplaced": "unplaced decisions",
+      "unplaceable": "without a session",
+      "unplaceableExplain": "Read decisions that declare a session missing from our data — often an emergency one.",
+      "conflicts": "conflicts",
+      "pending": "Pending",
+      "nonePending": "Nothing pending"
+    },
+    "cities": {
+      "title": "Per municipality",
+      "notStarted": "Not started",
+      "outOfScope": "Out of scope",
+      "outOfScopeReason": "no Diavgeia organization"
+    },
+    "state": {
+      "blocked": "fetch failed",
+      "needsTriage": "needs review",
+      "draining": "in progress",
+      "drained": "complete",
+      "notStarted": "not started",
+      "outOfScope": "out of scope"
+    },
+    "row": {
+      "withDecision": "with a decision",
+      "quality": "{content} with decision text",
+      "meetings": "meetings",
+      "stuck": "{count, plural, one {# meeting failing} other {# meetings failing}}",
+      "conflicts": "{count, plural, one {# conflict} other {# conflicts}}",
+      "unplaced": "{count, plural, one {# unplaced decision} other {# unplaced decisions}}",
+      "unplaceable": "{count, plural, one {# decision without a session} other {# decisions without a session}}",
+      "lastPoll": "polled",
+      "noMeetingsInRange": "no meetings in this range — pending work only"
+    },
+    "sections": {
+      "withoutDecision": "Subjects without a decision",
+      "nothingWaiting": "Nothing waiting",
+      "unreadBackfill": "{count, plural, one {# unread row from the backfill — no action needed} other {# unread rows from the backfill — no action needed}}"
+    },
+    "missing": {
+      "sameDayOtherBody": "same day, other body",
+      "nearbySessionMissing": "nearby session",
+      "sessionUnknown": "unknown session",
+      "hint": "Once the session is added, the matching decisions link up on the next pollDecisions."
+    },
+    "taxonomy": {
+      "notProcessed": "in meetings the current pipeline has not processed",
+      "candidatesUnmatched": "candidates were present, none matched",
+      "nothingFetched": "no published act (probable)",
+      "duplicateSubject": "duplicate subject in the same meeting",
+      "subjectCount": "{count, plural, one {# subject} other {# subjects}}"
+    },
+    "conflict": {
+      "claims": "claimed by “{subject}”",
+      "claimantMeeting": "Claimant's meeting",
+      "holderMeeting": "Holder's meeting",
+      "reassigned": "Decision moved",
+      "dismissed": "Claim dismissed",
+      "noop": "Already resolved — nothing changed",
+      "failed": "Resolution failed"
+    },
+    "window": {
+      "d30": "Last 30 days",
+      "d90": "Last 90 days",
+      "all": "Full view",
+      "note": "Pending work always counts over all time."
+    },
+    "filters": {
+      "pending": "All",
+      "pendingDesc": "Everything waiting for action — conflicts, unplaced, and no-session decisions together.",
+      "conflicts": "Conflicts",
+      "conflictsDesc": "The same decision is claimed by one subject while already linked to another.",
+      "unplaced": "Unplaced",
+      "unplacedDesc": "Read decisions of the session that matched no subject automatically.",
+      "noSession": "No session",
+      "noSessionDesc": "Read decisions declaring a session missing from our data."
+    }
   }
 }

@@ -10,7 +10,7 @@ import { diavgeiaViewUrl, inlinePdfUrl } from './pdfUrl';
 interface ConfirmSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    action: 'assign' | 'link' | 'unlink' | 'dismiss' | 'inspect' | 'view';
+    action: 'assign' | 'link' | 'unlink' | 'dismiss' | 'inspect' | 'view' | 'reassign';
     /** Unlink of a decision with no backing candidate: data is lost permanently. */
     destructive: boolean;
     decisionTitle: string | null;
@@ -29,6 +29,10 @@ interface ConfirmSheetProps {
     onDismiss?: () => void;
     /** View mode: extraction results rendered in a second in-sheet tab. */
     extraContent?: React.ReactNode;
+    /** Cross-meeting callers (the decisions overview) link to the meeting here. */
+    meetingLink?: React.ReactNode;
+    /** Reassign mode: names the subject that loses the decision. */
+    holderName?: string | null;
 }
 
 /**
@@ -36,13 +40,13 @@ interface ConfirmSheetProps {
  * at the document itself, not only at metadata. Inspect mode uses the same
  * surface read-first: the admin opens the document, then assigns or dismisses.
  */
-export function ConfirmSheet({ open, onOpenChange, action, destructive, decisionTitle, decisionNumber, subjectName, pdfUrl, ada, subjectDescription, busy, onConfirm, confirmDisabled, onDismiss, extraContent }: ConfirmSheetProps) {
+export function ConfirmSheet({ open, onOpenChange, action, destructive, decisionTitle, decisionNumber, subjectName, pdfUrl, ada, subjectDescription, busy, onConfirm, confirmDisabled, onDismiss, extraContent, meetingLink, holderName }: ConfirmSheetProps) {
     const t = useTranslations('admin.decisionsPage.sheet');
     const [pane, setPane] = useState<'document' | 'extraction'>('document');
     useEffect(() => { if (open) setPane('document'); }, [open]);
     const explain = action === 'inspect'
         ? (subjectName ? t('inspectExplain', { subject: subjectName }) : t('inspectNoSubject'))
-        : t(`${action}Explain`, { subject: subjectName ?? '' });
+        : t(`${action}Explain`, { subject: subjectName ?? '', holder: holderName ?? '' });
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent side="right" className="flex w-full flex-col sm:max-w-xl">
@@ -58,16 +62,21 @@ export function ConfirmSheet({ open, onOpenChange, action, destructive, decision
                             <span className="line-clamp-4">{subjectDescription}</span>
                         </div>
                     )}
-                    {ada && (
-                        <a
-                            href={diavgeiaViewUrl(ada)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
-                        >
-                            {t('viewOnDiavgeia')}
-                            <ExternalLink className="h-3 w-3" />
-                        </a>
+                    {(ada || meetingLink) && (
+                        <div className="flex items-center gap-4">
+                            {ada && (
+                                <a
+                                    href={diavgeiaViewUrl(ada)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
+                                >
+                                    {t('viewOnDiavgeia')}
+                                    <ExternalLink className="h-3 w-3" />
+                                </a>
+                            )}
+                            {meetingLink}
+                        </div>
                     )}
                 </SheetHeader>
                 {extraContent && (

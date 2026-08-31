@@ -317,7 +317,7 @@ export async function pollDecisionsForRecentMeetings() {
  * when did we find it, and how many poll attempts it took.
  * Use this to fine-tune the BACKOFF_SCHEDULE.
  */
-export async function getPollingStats(cityId?: string, councilMeetingId?: string) {
+export async function getPollingStats() {
     // Decisions discovered by polling (have a taskId)
     const discoveries = await prisma.decision.findMany({
         where: { taskId: { not: null } },
@@ -436,8 +436,6 @@ export async function getPollingStats(cityId?: string, councilMeetingId?: string
                     decision: null,
                 },
             },
-            ...(cityId && { cityId }),
-            ...(councilMeetingId && { id: councilMeetingId }),
         },
         select: {
             id: true,
@@ -536,38 +534,9 @@ export async function getPollingStats(cityId?: string, councilMeetingId?: string
         ...stillPollingCityRows.map(r => r.cityId),
     ])].sort();
 
-    // Distinct meeting IDs for the selected city: union of meetings from both sources
-    let pollMeetings: string[] = [];
-    if (cityId) {
-        const [taskMeetingRows, stillPollingMeetingRows] = await Promise.all([
-            prisma.taskStatus.findMany({
-                where: { type: 'pollDecisions', cityId },
-                distinct: ['councilMeetingId'],
-                select: { councilMeetingId: true },
-            }),
-            prisma.councilMeeting.findMany({
-                where: {
-                    cityId,
-                    dateTime: pollableDateRange,
-                    city: { diavgeiaUid: { not: null } },
-                    subjects: { some: { agendaItemIndex: { not: null }, decision: null } },
-                },
-                select: { id: true },
-                orderBy: { dateTime: 'desc' },
-            }),
-        ]);
-        pollMeetings = [...new Set([
-            ...taskMeetingRows.map(r => r.councilMeetingId).filter((id): id is string => id !== null),
-            ...stillPollingMeetingRows.map(r => r.id),
-        ])];
-    }
-
     // ADA conflicts: unresolved candidates whose proposed subject collides with
     // an ADA already held by another subject's Decision (issue #617 phase 4).
-    const candidateConflicts = await getConflictingCandidates({
-        ...(cityId && { cityId }),
-        ...(councilMeetingId && { councilMeetingId }),
-    });
+    const candidateConflicts = await getConflictingCandidates();
     const conflicts = candidateConflicts.map(c => ({
         candidateId: c.candidateId,
         claimingSubject: c.claimingSubject,
@@ -577,11 +546,7 @@ export async function getPollingStats(cityId?: string, councilMeetingId?: string
 
     // Recent poll tasks for the "Recent Polls" table
     const recentPollTasks = await prisma.taskStatus.findMany({
-        where: {
-            type: 'pollDecisions',
-            ...(cityId && { cityId }),
-            ...(councilMeetingId && { councilMeetingId }),
-        },
+        where: { type: 'pollDecisions' },
         orderBy: { createdAt: 'desc' },
         take: 50,
         select: {
@@ -659,7 +624,6 @@ export async function getPollingStats(cityId?: string, councilMeetingId?: string
         discoveries: discoveryDetails,
         recentPolls,
         pollCities,
-        pollMeetings,
     };
 }
 
