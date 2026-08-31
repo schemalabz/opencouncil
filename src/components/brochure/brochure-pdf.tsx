@@ -146,11 +146,11 @@ function Panel({
 
 function PanelTitle({ kicker, title }: { kicker: string; title: string }) {
     return (
-        <View style={{ marginBottom: 14 }}>
-            <Text style={{ fontSize: 6.5, color: C.accent, letterSpacing: 1, marginBottom: 4 }}>
+        <View style={{ marginBottom: 16 }}>
+            <Text style={{ fontSize: 7.5, color: C.accent, letterSpacing: 1, marginBottom: 5 }}>
                 {greekUpper(kicker)}
             </Text>
-            <Text style={{ fontSize: 14, fontWeight: 600, color: C.ink, lineHeight: 1.25 }}>
+            <Text style={{ fontSize: 16, fontWeight: 600, color: C.ink, lineHeight: 1.25 }}>
                 {title}
             </Text>
         </View>
@@ -169,27 +169,27 @@ function Feature({
     badge?: string;
 }) {
     return (
-        <View style={{ flexDirection: "row", gap: 9, marginBottom: 16 }}>
+        <View style={{ flexDirection: "row", gap: 10, marginBottom: 17 }}>
             <View
                 style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 6,
+                    width: 27,
+                    height: 27,
+                    borderRadius: 7,
                     backgroundColor: C.accentSoft,
                     alignItems: "center",
                     justifyContent: "center",
                     marginTop: 1,
                 }}
             >
-                <LucideIcon name={icon} size={13} />
+                <LucideIcon name={icon} size={15} />
             </View>
             <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                    <Text style={{ fontSize: 9.5, fontWeight: 600, color: C.ink }}>{title}</Text>
+                    <Text style={{ fontSize: 11, fontWeight: 600, color: C.ink }}>{title}</Text>
                     {badge && (
                         <Text
                             style={{
-                                fontSize: 5.5,
+                                fontSize: 6.5,
                                 color: C.accent,
                                 borderWidth: 0.5,
                                 borderColor: C.accent,
@@ -202,7 +202,7 @@ function Feature({
                         </Text>
                     )}
                 </View>
-                <Text style={{ fontSize: 8, color: C.mid, lineHeight: 1.5, marginTop: 2.5 }}>
+                <Text style={{ fontSize: 9, color: C.mid, lineHeight: 1.5, marginTop: 3 }}>
                     {text}
                 </Text>
             </View>
@@ -293,11 +293,11 @@ function FlapPanel({ data }: { data: BrochureData }) {
             {data.partners.length > 0 && (
                 <View style={{ marginBottom: 10 }}>
                     <Text
-                        style={{ fontSize: 6.5, color: C.accent, letterSpacing: 1, marginBottom: 8 }}
+                        style={{ fontSize: 7.5, color: C.accent, letterSpacing: 1, marginBottom: 9 }}
                     >
                         {greekUpper(`Σε ${data.stats.municipalityCount} δήμους στην Ελλάδα`)}
                     </Text>
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", rowGap: 7 }}>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", rowGap: 8 }}>
                         {data.partners.map(partner => (
                             <View
                                 key={partner.name}
@@ -311,8 +311,8 @@ function FlapPanel({ data }: { data: BrochureData }) {
                             >
                                 <View
                                     style={{
-                                        width: 15,
-                                        height: 15,
+                                        width: 17,
+                                        height: 17,
                                         alignItems: "center",
                                         justifyContent: "center",
                                     }}
@@ -321,13 +321,13 @@ function FlapPanel({ data }: { data: BrochureData }) {
                                     <Image
                                         src={partner.logo}
                                         style={{
-                                            maxWidth: 15,
-                                            maxHeight: 15,
+                                            maxWidth: 17,
+                                            maxHeight: 17,
                                             objectFit: "contain",
                                         }}
                                     />
                                 </View>
-                                <Text style={{ flex: 1, fontSize: 6.5, color: C.body, lineHeight: 1.25 }}>
+                                <Text style={{ flex: 1, fontSize: 7.5, color: C.body, lineHeight: 1.25 }}>
                                     {partner.name}
                                 </Text>
                             </View>
@@ -337,14 +337,14 @@ function FlapPanel({ data }: { data: BrochureData }) {
             )}
 
             <View style={{ flex: 1, justifyContent: "center" }}>
-                <Text style={{ fontSize: 26, color: C.accent, marginBottom: 2 }}>“</Text>
-                <Text style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.45, fontWeight: 500 }}>
+                <Text style={{ fontSize: 30, color: C.accent, marginBottom: 2 }}>“</Text>
+                <Text style={{ fontSize: 14.5, color: C.ink, lineHeight: 1.45, fontWeight: 500 }}>
                     Μέσα στα πρώτα πέντε λεπτά κατάλαβα πως ήταν κάτι το διαφορετικό.
                 </Text>
-                <Text style={{ fontSize: 7.5, color: C.mid, marginTop: 8, lineHeight: 1.4 }}>
+                <Text style={{ fontSize: 8.5, color: C.mid, marginTop: 9, lineHeight: 1.4 }}>
                     Προϊσταμένη Δ/νσης Προγραμματισμού, Οργάνωσης και Πληροφορικής
                 </Text>
-                <Text style={{ fontSize: 7.5, color: C.light, marginTop: 1 }}>Δήμος Χανίων</Text>
+                <Text style={{ fontSize: 8.5, color: C.light, marginTop: 1.5 }}>Δήμος Χανίων</Text>
             </View>
 
             <View
@@ -357,11 +357,11 @@ function FlapPanel({ data }: { data: BrochureData }) {
                 {data.city ? (
                     <>
                         <Text
-                            style={{ fontSize: 10.5, fontWeight: 600, color: C.ink, lineHeight: 1.35 }}
+                            style={{ fontSize: 12, fontWeight: 600, color: C.ink, lineHeight: 1.35 }}
                         >
                             Η γνώμη σας μετράει.
                         </Text>
-                        <Text style={{ fontSize: 8, color: C.body, lineHeight: 1.5, marginTop: 6 }}>
+                        <Text style={{ fontSize: 9, color: C.body, lineHeight: 1.5, marginTop: 7 }}>
                             Το OpenCouncil διαμορφώνεται μαζί με τους ανθρώπους της
                             αυτοδιοίκησης. Πείτε μας τι λείπει, τι δεν δουλεύει και τι θα
                             θέλατε να δείτε — κάθε παρατήρηση φτάνει κατευθείαν στην ομάδα
@@ -371,27 +371,27 @@ function FlapPanel({ data }: { data: BrochureData }) {
                 ) : (
                     <>
                         <Text
-                            style={{ fontSize: 10.5, fontWeight: 600, color: C.ink, lineHeight: 1.35 }}
+                            style={{ fontSize: 12, fontWeight: 600, color: C.ink, lineHeight: 1.35 }}
                         >
                             Ξεκινά στον δήμο σας σε ημέρες — όχι μήνες.
                         </Text>
-                        <View style={{ marginTop: 8, gap: 5 }}>
+                        <View style={{ marginTop: 9, gap: 6 }}>
                             <View style={{ flexDirection: "row", gap: 6 }}>
-                                <Text style={{ fontSize: 8, color: C.accent }}>·</Text>
-                                <Text style={{ flex: 1, fontSize: 8, color: C.body, lineHeight: 1.45 }}>
+                                <Text style={{ fontSize: 9, color: C.accent }}>·</Text>
+                                <Text style={{ flex: 1, fontSize: 9, color: C.body, lineHeight: 1.45 }}>
                                     Δωρεάν δοκιμαστική περίοδος, για όσο χρόνο χρειάζεστε.
                                 </Text>
                             </View>
                             <View style={{ flexDirection: "row", gap: 6 }}>
-                                <Text style={{ fontSize: 8, color: C.accent }}>·</Text>
-                                <Text style={{ flex: 1, fontSize: 8, color: C.body, lineHeight: 1.45 }}>
+                                <Text style={{ fontSize: 9, color: C.accent }}>·</Text>
+                                <Text style={{ flex: 1, fontSize: 9, color: C.body, lineHeight: 1.45 }}>
                                     Κόστος συγκρίσιμο με τον σημερινό σας πάροχο
                                     απομαγνητοφώνησης — με δεκαπλάσια λειτουργικότητα.
                                 </Text>
                             </View>
                             <View style={{ flexDirection: "row", gap: 6 }}>
-                                <Text style={{ fontSize: 8, color: C.accent }}>·</Text>
-                                <Text style={{ flex: 1, fontSize: 8, color: C.body, lineHeight: 1.45 }}>
+                                <Text style={{ fontSize: 9, color: C.accent }}>·</Text>
+                                <Text style={{ flex: 1, fontSize: 9, color: C.body, lineHeight: 1.45 }}>
                                     Χωρίς κόστος ενσωμάτωσης — αρκεί ένα βίντεο ή ηχητικό
                                     αρχείο.
                                 </Text>
@@ -401,17 +401,17 @@ function FlapPanel({ data }: { data: BrochureData }) {
                 )}
                 <View
                     style={{
-                        marginTop: 12,
+                        marginTop: 13,
                         backgroundColor: C.ink,
                         borderRadius: 6,
-                        paddingVertical: 8,
-                        paddingHorizontal: 10,
+                        paddingVertical: 10,
+                        paddingHorizontal: 12,
                     }}
                 >
-                    <Text style={{ fontSize: 8.5, fontWeight: 600, color: "#ffffff" }}>
+                    <Text style={{ fontSize: 9.5, fontWeight: 600, color: "#ffffff" }}>
                         {data.city ? "Καλέστε μας ή γράψτε μας" : "Κλείστε μία παρουσίαση"}
                     </Text>
-                    <Text style={{ fontSize: 7.5, color: "#d4d4d4", marginTop: 2 }}>
+                    <Text style={{ fontSize: 8.5, color: "#d4d4d4", marginTop: 2.5 }}>
                         {data.contactEmail} · {data.contactPhone}
                     </Text>
                 </View>
@@ -427,25 +427,25 @@ function BackPanel({ data }: { data: BrochureData }) {
         <Panel>
             <PanelTitle kicker="Η ομάδα" title="Οι άνθρωποι πίσω από το OpenCouncil" />
 
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center" }}>
                 {BROCHURE_TEAM.map(member => (
-                    <View key={member.name} style={{ width: 50, alignItems: "center" }}>
+                    <View key={member.name} style={{ width: 66, alignItems: "center" }}>
                         {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image */}
                         <Image
                             src={`${ASSET_BASE}${member.image}`}
                             style={{
-                                width: 32,
-                                height: 32,
-                                borderRadius: 16,
+                                width: 52,
+                                height: 52,
+                                borderRadius: 26,
                                 objectFit: "cover",
                             }}
                         />
                         <Text
                             style={{
-                                fontSize: 6.5,
+                                fontSize: 8,
                                 color: C.body,
                                 textAlign: "center",
-                                marginTop: 3,
+                                marginTop: 4,
                                 lineHeight: 1.3,
                             }}
                         >
@@ -455,22 +455,34 @@ function BackPanel({ data }: { data: BrochureData }) {
                 ))}
             </View>
 
-            <Text style={{ fontSize: 7.5, color: C.mid, lineHeight: 1.5, marginTop: 12 }}>
+            <View style={{ flex: 1 }} />
+
+            {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image */}
+            <Image
+                src={`${ASSET_BASE}/brochure/office.jpg`}
+                style={{
+                    width: PANEL_W - PANEL_PAD * 2,
+                    height: (PANEL_W - PANEL_PAD * 2) / 1.6,
+                    borderRadius: 6,
+                    objectFit: "cover",
+                    marginBottom: 12,
+                }}
+            />
+
+            <Text style={{ fontSize: 9, color: C.mid, lineHeight: 1.5, marginBottom: 16 }}>
                 Η OpenCouncil Μονοπρόσωπη Ι.Κ.Ε. ανήκει εξ ολοκλήρου στη Schema Labs,
                 μη-κερδοσκοπική εταιρεία. Ο κώδικάς μας είναι ανοιχτός, με άδεια GPL v3 —
                 κάθε γραμμή είναι δημόσια.
             </Text>
 
             {data.city?.adam && (
-                <Text style={{ fontSize: 7.5, color: C.mid, lineHeight: 1.5, marginTop: 8 }}>
+                <Text style={{ fontSize: 9, color: C.mid, lineHeight: 1.5, marginBottom: 16 }}>
                     Το OpenCouncil λειτουργεί στον{" "}
                     {municipalityAccusative(data.city.nameMunicipality)} με σύμβαση με ΑΔΑΜ{" "}
                     {data.city.adam}. Ο τρόπος τιμολόγησης είναι δημόσια διαθέσιμος στο
                     opencouncil.gr/about.
                 </Text>
             )}
-
-            <View style={{ flex: 1 }} />
 
             <View
                 style={{
@@ -485,26 +497,26 @@ function BackPanel({ data }: { data: BrochureData }) {
                 <View style={{ alignItems: "center", gap: 3 }}>
                     <QRCode
                         value={data.city ? `${data.baseUrl}/${data.city.id}` : `${data.baseUrl}/about`}
-                        size={52}
+                        size={62}
                     />
                     {data.city && (
-                        <Text style={{ fontSize: 5, color: C.light }}>
+                        <Text style={{ fontSize: 6, color: C.light }}>
                             opencouncil.gr/{data.city.id}
                         </Text>
                     )}
                 </View>
-                <View style={{ flex: 1, gap: 3 }}>
+                <View style={{ flex: 1, gap: 5 }}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                        <LucideIcon name="mail" size={8} color={C.mid} />
-                        <Text style={{ fontSize: 7.5, color: C.body }}>{data.contactEmail}</Text>
+                        <LucideIcon name="mail" size={9.5} color={C.mid} />
+                        <Text style={{ fontSize: 9, color: C.body }}>{data.contactEmail}</Text>
                     </View>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                        <LucideIcon name="phone" size={8} color={C.mid} />
-                        <Text style={{ fontSize: 7.5, color: C.body }}>{data.contactPhone}</Text>
+                        <LucideIcon name="phone" size={9.5} color={C.mid} />
+                        <Text style={{ fontSize: 9, color: C.body }}>{data.contactPhone}</Text>
                     </View>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                        <LucideIcon name="mapPin" size={8} color={C.mid} />
-                        <Text style={{ fontSize: 7.5, color: C.body }}>
+                        <LucideIcon name="mapPin" size={9.5} color={C.mid} />
+                        <Text style={{ fontSize: 9, color: C.body }}>
                             Σμολένσκι 22, Αθήνα · opencouncil.gr
                         </Text>
                     </View>
@@ -525,29 +537,29 @@ function FrontPanel({ data }: { data: BrochureData }) {
 
     return (
         <Panel>
-            <Brand size={30} />
+            <Brand size={33} />
 
             <View style={{ flex: 1, justifyContent: "center" }}>
                 {data.city ? (
                     <>
-                        <Text style={{ fontSize: 20, fontWeight: 700, color: C.ink, lineHeight: 1.2 }}>
+                        <Text style={{ fontSize: 22, fontWeight: 700, color: C.ink, lineHeight: 1.2 }}>
                             Το OpenCouncil
                         </Text>
-                        <Text style={{ fontSize: 20, fontWeight: 700, color: C.accent, lineHeight: 1.2 }}>
+                        <Text style={{ fontSize: 22, fontWeight: 700, color: C.accent, lineHeight: 1.2 }}>
                             στον {municipalityAccusative(data.city.nameMunicipality)}
                         </Text>
                     </>
                 ) : (
                     <>
-                        <Text style={{ fontSize: 20, fontWeight: 700, color: C.ink, lineHeight: 1.2 }}>
+                        <Text style={{ fontSize: 22, fontWeight: 700, color: C.ink, lineHeight: 1.2 }}>
                             Το λειτουργικό σύστημα
                         </Text>
-                        <Text style={{ fontSize: 20, fontWeight: 700, color: C.accent, lineHeight: 1.2 }}>
+                        <Text style={{ fontSize: 22, fontWeight: 700, color: C.accent, lineHeight: 1.2 }}>
                             των συλλογικών οργάνων
                         </Text>
                     </>
                 )}
-                <Text style={{ fontSize: 9, color: C.mid, lineHeight: 1.55, marginTop: 10 }}>
+                <Text style={{ fontSize: 10.5, color: C.mid, lineHeight: 1.55, marginTop: 12 }}>
                     {coverSubtitle(data)}
                 </Text>
                 <View style={{ marginTop: 16 }}>
@@ -562,25 +574,34 @@ function FrontPanel({ data }: { data: BrochureData }) {
             <View
                 style={{
                     flexDirection: "row",
-                    borderTopWidth: 0.5,
-                    borderTopColor: C.line,
-                    paddingTop: 14,
+                    backgroundColor: C.accentSoft,
+                    borderRadius: 8,
+                    paddingVertical: 13,
+                    paddingHorizontal: 4,
                     marginBottom: 12,
                 }}
             >
-                {stats.map(stat => (
-                    <View key={stat.label} style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 15, fontWeight: 700, color: C.accent }}>
+                {stats.map((stat, i) => (
+                    <View
+                        key={stat.label}
+                        style={{
+                            flex: 1,
+                            alignItems: "center",
+                            borderLeftWidth: i === 0 ? 0 : 0.5,
+                            borderLeftColor: C.line,
+                        }}
+                    >
+                        <Text style={{ fontSize: 20, fontWeight: 700, color: C.accent }}>
                             {stat.value}
                         </Text>
-                        <Text style={{ fontSize: 6.5, color: C.mid, marginTop: 1 }}>
+                        <Text style={{ fontSize: 7, color: C.mid, marginTop: 3 }}>
                             {stat.label}
                         </Text>
                     </View>
                 ))}
             </View>
 
-            <Text style={{ fontSize: 7.5, color: C.light, lineHeight: 1.4 }}>
+            <Text style={{ fontSize: 8.5, color: C.light, lineHeight: 1.4 }}>
                 Από τον Δήμο Σαμοθράκης μέχρι τον Δήμο Αθηναίων ·{" "}
                 {data.city ? `opencouncil.gr/${data.city.id}` : "opencouncil.gr"}
             </Text>
@@ -594,7 +615,7 @@ function CitizensPanel() {
     return (
         <Panel>
             <PanelTitle kicker="Για δημότες και αιρετούς" title="Κάθε συνεδρίαση, ανοιχτή σε όλους" />
-            <Text style={{ fontSize: 8.5, color: C.mid, lineHeight: 1.55, marginBottom: 16 }}>
+            <Text style={{ fontSize: 9.5, color: C.mid, lineHeight: 1.55, marginBottom: 17 }}>
                 Το OpenCouncil μετατρέπει πολύωρες συνεδριάσεις σε κατανοητό, αναζητήσιμο
                 και προσβάσιμο περιεχόμενο — αυτόματα.
             </Text>
@@ -621,14 +642,24 @@ function CitizensPanel() {
             />
 
             <View style={{ flex: 1 }} />
-            <BrowserFrame
-                src={`${ASSET_BASE}/brochure/subject.jpg`}
-                url="opencouncil.gr/chania"
-                width={PANEL_W - PANEL_PAD * 2}
-            />
-            <Text style={{ fontSize: 7, color: C.light, lineHeight: 1.4, marginTop: 8 }}>
-                Η διαφάνεια ως υποδομή: όλα δημόσια, με ανοιχτά δεδομένα μέσω API.
-            </Text>
+            <View style={{ alignItems: "center" }}>
+                <BrowserFrame
+                    src={`${ASSET_BASE}/brochure/subject.jpg`}
+                    url="opencouncil.gr/chania"
+                    width={PANEL_W - PANEL_PAD * 2}
+                />
+                <Text
+                    style={{
+                        fontSize: 8,
+                        color: C.light,
+                        lineHeight: 1.4,
+                        marginTop: 8,
+                        textAlign: "center",
+                    }}
+                >
+                    Η διαφάνεια ως υποδομή: όλα δημόσια, με ανοιχτά δεδομένα μέσω API.
+                </Text>
+            </View>
         </Panel>
     );
 }
@@ -640,53 +671,54 @@ function ServicesPanel({ data }: { data: BrochureData }) {
                 kicker="Για τις υπηρεσίες του δήμου"
                 title="Ό,τι γινόταν σε μέρες, τώρα γίνεται σε ώρες"
             />
-            <Text style={{ fontSize: 8.5, color: C.mid, lineHeight: 1.55, marginBottom: 16 }}>
+            <Text style={{ fontSize: 9.5, color: C.mid, lineHeight: 1.55, marginBottom: 17 }}>
                 Απομαγνητοφωνήσεις, πρακτικά, αποφάσεις — αυτόματα ή με ελάχιστη ανθρώπινη
                 παρέμβαση.
             </Text>
 
-            <Feature
-                icon="mic"
-                title="Απομαγνητοφωνήσεις σε 48 ώρες"
-                text="Ακριβείς, ελεγμένες από άνθρωπο απομαγνητοφωνήσεις κάθε συνεδρίασης, με αυτόματη αναγνώριση ομιλητή."
-            />
-            <Feature
-                icon="fileCheck"
-                title="Αυτόματη παραγωγή πρακτικών"
-                text="Αυτόματα πρακτικά της συνεδρίασης, έτοιμα για έλεγχο και υπογραφή. Εξοικονόμηση ημερών εργασίας."
-            />
-            <Feature
-                icon="landmark"
-                title="Αποφάσεις για τη Διαύγεια"
-                text="Αυτόματη δημιουργία εγγράφων αποφάσεων, έτοιμων για ανάρτηση στη Διαύγεια."
-                badge="Σύντομα"
-            />
-            <Feature
-                icon="printer"
-                title="Έντυπο αρχείο"
-                text="Παράδοση αρχείου απομαγνητοφωνήσεων σε έντυπη μορφή, σύμφωνα με τις προδιαγραφές του κάθε δήμου."
-            />
+            <View style={{ flex: 1, justifyContent: "space-between" }}>
+                <Feature
+                    icon="mic"
+                    title="Απομαγνητοφωνήσεις σε 48 ώρες"
+                    text="Ακριβείς, ελεγμένες από άνθρωπο απομαγνητοφωνήσεις κάθε συνεδρίασης, με αυτόματη αναγνώριση ομιλητή."
+                />
+                <Feature
+                    icon="fileCheck"
+                    title="Αυτόματη παραγωγή πρακτικών"
+                    text="Αυτόματα πρακτικά της συνεδρίασης, έτοιμα για έλεγχο και υπογραφή. Εξοικονόμηση ημερών εργασίας."
+                />
+                <Feature
+                    icon="landmark"
+                    title="Αποφάσεις για τη Διαύγεια"
+                    text="Αυτόματη δημιουργία εγγράφων αποφάσεων, έτοιμων για ανάρτηση στη Διαύγεια."
+                    badge="Σύντομα"
+                />
+                <Feature
+                    icon="printer"
+                    title="Έντυπο αρχείο"
+                    text="Παράδοση αρχείου απομαγνητοφωνήσεων σε έντυπη μορφή, σύμφωνα με τις προδιαγραφές του κάθε δήμου."
+                />
+            </View>
 
-            <View style={{ flex: 1 }} />
             <View
                 style={{
                     backgroundColor: C.accentSoft,
                     borderRadius: 6,
-                    padding: 10,
+                    padding: 12,
                 }}
             >
                 {data.city ? (
                     <>
-                        <Text style={{ fontSize: 8, fontWeight: 600, color: C.ink }}>
+                        <Text style={{ fontSize: 9, fontWeight: 600, color: C.ink }}>
                             Θέλουμε τη γνώμη σας.
                         </Text>
-                        <Text style={{ fontSize: 7.5, color: C.body, lineHeight: 1.5, marginTop: 3 }}>
+                        <Text style={{ fontSize: 8.5, color: C.body, lineHeight: 1.5, marginTop: 3 }}>
                             Καλέστε μας στο {data.contactPhone} ή γράψτε μας στο{" "}
                             {data.contactEmail} — κάθε παρατήρηση διαμορφώνει το OpenCouncil.
                         </Text>
                     </>
                 ) : (
-                    <Text style={{ fontSize: 7.5, color: C.body, lineHeight: 1.5 }}>
+                    <Text style={{ fontSize: 8.5, color: C.body, lineHeight: 1.5 }}>
                         Το OpenCouncil μπορεί να αντικαταστήσει τον πάροχο των πρακτικών σας
                         για παρόμοιο κόστος — με δεκαπλάσια λειτουργικότητα και ταχύτητα.
                     </Text>
@@ -710,19 +742,19 @@ function Step({
     last?: boolean;
 }) {
     return (
-        <View style={{ flexDirection: "row", gap: 9 }}>
+        <View style={{ flexDirection: "row", gap: 9, flex: 1 }}>
             <View style={{ alignItems: "center" }}>
                 <View
                     style={{
-                        width: 20,
-                        height: 20,
-                        borderRadius: 10,
+                        width: 23,
+                        height: 23,
+                        borderRadius: 11.5,
                         backgroundColor: C.accent,
                         alignItems: "center",
                         justifyContent: "center",
                     }}
                 >
-                    <Text style={{ fontSize: 8.5, fontWeight: 700, color: "#ffffff" }}>
+                    <Text style={{ fontSize: 10, fontWeight: 700, color: "#ffffff" }}>
                         {number}
                     </Text>
                 </View>
@@ -730,12 +762,12 @@ function Step({
                     <View style={{ width: 0.5, flex: 1, backgroundColor: C.line, marginTop: 3 }} />
                 )}
             </View>
-            <View style={{ flex: 1, paddingBottom: last ? 0 : 16 }}>
+            <View style={{ flex: 1, paddingBottom: last ? 0 : 22 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                    <LucideIcon name={icon} size={9} />
-                    <Text style={{ fontSize: 9.5, fontWeight: 600, color: C.ink }}>{title}</Text>
+                    <LucideIcon name={icon} size={10.5} />
+                    <Text style={{ fontSize: 11, fontWeight: 600, color: C.ink }}>{title}</Text>
                 </View>
-                <Text style={{ fontSize: 8, color: C.mid, lineHeight: 1.5, marginTop: 2.5 }}>
+                <Text style={{ fontSize: 9, color: C.mid, lineHeight: 1.5, marginTop: 3 }}>
                     {text}
                 </Text>
             </View>
@@ -768,10 +800,8 @@ function HowItWorksPanel() {
                 last
             />
 
-            <View style={{ flex: 1 }} />
-
             <View style={{ borderTopWidth: 0.5, borderTopColor: C.line, paddingTop: 12 }}>
-                <Text style={{ fontSize: 6.5, color: C.accent, letterSpacing: 1, marginBottom: 7 }}>
+                <Text style={{ fontSize: 7.5, color: C.accent, letterSpacing: 1, marginBottom: 8 }}>
                     {greekUpper("Διακρίσεις & Αναφορές")}
                 </Text>
                 {[
@@ -782,10 +812,10 @@ function HowItWorksPanel() {
                 ].map(([title, subtitle]) => (
                     <View
                         key={title}
-                        style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 5 }}
+                        style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}
                     >
-                        <LucideIcon name="award" size={9} />
-                        <Text style={{ flex: 1, fontSize: 7.5, color: C.body, lineHeight: 1.3 }}>
+                        <LucideIcon name="award" size={10} />
+                        <Text style={{ flex: 1, fontSize: 8.5, color: C.body, lineHeight: 1.35 }}>
                             <Text style={{ fontWeight: 600, color: C.ink }}>{title}</Text>
                             {" — "}
                             {subtitle}
