@@ -170,6 +170,9 @@ export default async function CouncilMeetingPage(
         link: `/${cityId}/meetings?filters=${encodeURIComponent(tCommon(`adminBodyType_${adminBody.type}`))}&body=${encodeURIComponent(adminBody.name)}`
     } : null;
 
+    const hasPlayback = Boolean(data.meeting.muxPlaybackId || data.meeting.videoUrl || data.meeting.audioUrl);
+
+
     return (
         <ShareProvider>
             <NotificationPreferenceProvider notificationPreference={notificationPreference}>
@@ -225,12 +228,14 @@ export default async function CouncilMeetingPage(
                                 <HighlightModeBar />
                                 <EditingModeBar />
                                 <div className="relative flex-1 overflow-auto" data-scroll-container>
-                                    <div className='pb-28'>
+                                    {/* Reserve the dock's height only when a dock renders; the
+                                        phone dock also grows by the home-indicator inset. */}
+                                    <div className={hasPlayback ? 'pb-28 max-md:pb-[calc(104px+env(safe-area-inset-bottom))]' : undefined}>
                                         <Suspense>
                                             {children}
                                         </Suspense>
                                     </div>
-                                    {(data.meeting.muxPlaybackId || data.meeting.videoUrl || data.meeting.audioUrl) && <PlaybackBar />}
+                                    {hasPlayback && <PlaybackBar />}
                                 </div>
                                 </div>
                             </div>

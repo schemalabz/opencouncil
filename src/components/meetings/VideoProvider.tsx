@@ -163,6 +163,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
                 const targetTime = targetUtterance?.startTimestamp ?? seconds;
 
                 currentTimeRef.current = targetTime;
+                setCurrentTime(targetTime);
                 // Retry scrolling until the utterance DOM element is rendered
                 const scrollAttempt = (attemptsLeft: number) => {
                     setTimeout(() => {
@@ -234,6 +235,10 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     const pauseVideo = async () => {
         if (playerRef.current) {
             await playerRef.current.pause();
+            // Reconcile the throttled UI clock: paused readouts must not sit
+            // up to two seconds behind the playhead indefinitely.
+            currentTimeRef.current = playerRef.current.currentTime;
+            setCurrentTime(playerRef.current.currentTime);
             setIsPlaying(false);
         }
     };
@@ -276,8 +281,8 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     }
     
     // One store for speed: options.playbackSpeed (persisted there). This just
-    // applies it to the element immediately; the options effect re-applies on
-    // remounts and element swaps.
+    // applies it to the element immediately; a freshly mounted or swapped
+    // element gets the speed re-applied in Video's resumeFromLastPosition.
     const handleSpeedChange = (value: string) => {
         if (playerRef.current) {
             playerRef.current.playbackRate = parseFloat(value);

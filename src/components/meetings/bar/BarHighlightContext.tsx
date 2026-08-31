@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useBarData } from './BarDataContext';
 import type { Interval } from '@/lib/utils/barTimeline';
 
@@ -20,6 +20,8 @@ interface BarHighlightState {
 interface BarHighlightActions {
     setPageHighlight: (h: BarHighlight | null) => void;
     setHoverHighlight: (h: BarHighlight | null) => void;
+    /** Drops the hover only when it still belongs to `key` — the unmount cleanup. */
+    clearHoverIf: (key: string) => void;
 }
 
 const StateContext = createContext<BarHighlightState>({ page: null, hover: null });
@@ -30,6 +32,7 @@ const StateContext = createContext<BarHighlightState>({ page: null, hover: null 
 const NOOP_ACTIONS: BarHighlightActions = {
     setPageHighlight: () => {},
     setHoverHighlight: () => {},
+    clearHoverIf: () => {},
 };
 const ActionsContext = createContext<BarHighlightActions>(NOOP_ACTIONS);
 
@@ -45,8 +48,12 @@ export function BarHighlightProvider({ children }: { children: React.ReactNode }
     const actions = useMemo<BarHighlightActions>(() => ({
         setPageHighlight: page => setState(prev =>
             (prev.page?.key === page?.key && prev.page?.ranges === page?.ranges) ? prev : { ...prev, page }),
+        // A key's ranges come from one memoized map, so same key means same
+        // highlight — dedupe re-sets instead of re-rendering every consumer.
         setHoverHighlight: hover => setState(prev =>
-            (prev.hover?.key === hover?.key) ? (hover === null && prev.hover === null ? prev : { ...prev, hover }) : { ...prev, hover }),
+            prev.hover?.key === hover?.key ? prev : { ...prev, hover }),
+        clearHoverIf: key => setState(prev =>
+            prev.hover?.key === key ? { ...prev, hover: null } : prev),
     }), []);
 
     return (
@@ -74,16 +81,26 @@ type HoverHandlers = {
 };
 
 function useHoverHandlers(key: string | null, resolve: () => Interval[] | undefined): HoverHandlers {
-    const { setHoverHighlight } = useBarHighlightActions();
+    const { setHoverHighlight, clearHoverIf } = useBarHighlightActions();
     // resolve reads the freshest interval maps without being a dependency
     const resolveRef = useRef(resolve);
     resolveRef.current = resolve;
+
+    // Browsers fire no mouseleave for an element that unmounts under the
+    // pointer (a clicked row navigating away, a tapped header collapsing), so
+    // the leave must also run as unmount cleanup or the bar stays dimmed.
+    useEffect(() => {
+        if (!key) return;
+        return () => clearHoverIf(key);
+    }, [key, clearHoverIf]);
 
     return useMemo(() => {
         const enter = () => {
             if (!key) return;
             const ranges = resolveRef.current();
-            if (ranges && ranges.length > 0) setHoverHighlight({ key, ranges });
+            // Empty intervals still mean "this is what the pointer is on":
+            // clear, rather than keep a sibling's stale highlight alive.
+            setHoverHighlight(ranges && ranges.length > 0 ? { key, ranges } : null);
         };
         const leave = () => setHoverHighlight(null);
         return { onMouseEnter: enter, onMouseLeave: leave, onFocus: enter, onBlur: leave };
