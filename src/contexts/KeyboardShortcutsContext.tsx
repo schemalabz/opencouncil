@@ -95,6 +95,9 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
             if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
                 return;
             }
+            if (event.target instanceof HTMLElement && event.target.isContentEditable) {
+                return;
+            }
 
             // Check all definitions
             for (const action of Object.values(ACTION_DEFINITIONS)) {

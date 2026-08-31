@@ -18,7 +18,7 @@ type MuxErrorDetail = {
     data?: { response?: { code?: number } };
 };
 
-export const Video: React.FC<{ className?: string, expandable?: boolean, onExpandChange?: (expanded: boolean) => void }> = ({ className, expandable = false, onExpandChange }) => {
+export const Video: React.FC<{ className?: string, expandable?: boolean, /** a standing corner affordance instead of the hover-only overlay */ expandBadge?: boolean, onExpandChange?: (expanded: boolean) => void }> = ({ className, expandable = false, expandBadge = false, onExpandChange }) => {
     const { playerRef, meeting, isPlaying, currentTime, setIsPlaying, seekTo } = useVideo();
     const [muxFailed, setMuxFailed] = useState(false);
     const [muxStillEncoding, setMuxStillEncoding] = useState(false);
@@ -156,7 +156,10 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, onExpan
                     exit={{ opacity: 0, scale: 0.5 }}
                     transition={{ type: "spring", stiffness: 300, damping: 20 }}
                     className="fixed z-50 shadow-lg rounded-lg overflow-hidden"
-                    style={{ width: dimensions.width, height: dimensions.height }}
+                    // Anchored above the playback dock: with no coordinates a fixed box
+                    // keeps its in-flow offset, which for the dock's video slot is off
+                    // the bottom of the viewport.
+                    style={{ width: dimensions.width, height: dimensions.height, left: 8, bottom: 96 }}
                     onMouseEnter={() => setIsHovered(true)}
                     onMouseLeave={() => setIsHovered(false)}
                 >
@@ -208,19 +211,27 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, onExpan
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}>
             {renderVideoElement()}
-            {
-                expandable && isHovered && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="absolute top-0 left-0 w-full h-full bg-black opacity-50 flex items-center justify-center"
-                        onClick={toggleExpand}
-                    >
-                        <ArrowUpRight className="w-6 h-6 text-white" />
-                    </motion.div>
-                )
-            }
+            {expandable && expandBadge && (
+                <button
+                    type="button"
+                    onClick={toggleExpand}
+                    aria-label="expand"
+                    className="absolute bottom-[3px] right-[3px] z-10 flex h-[18px] w-[18px] items-center justify-center rounded bg-black/70 text-white hover:bg-black/85"
+                >
+                    <ArrowUpRight className="h-3 w-3" aria-hidden />
+                </button>
+            )}
+            {expandable && !expandBadge && isHovered && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute top-0 left-0 w-full h-full bg-black opacity-50 flex items-center justify-center"
+                    onClick={toggleExpand}
+                >
+                    <ArrowUpRight className="w-6 h-6 text-white" />
+                </motion.div>
+            )}
         </div>
     );
 };

@@ -1,10 +1,10 @@
 "use server";
 import { notFound } from 'next/navigation';
+import { PlaybackBar } from '@/components/meetings/bar/PlaybackBar';
 import { getCurrentUser, isUserAuthorizedToEdit } from '@/lib/auth';
 import CouncilMeetingWrapper from '@/components/meetings/CouncilMeetingWrapper';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import MeetingSidebar from '@/components/meetings/sidebar';
-import TranscriptControls from '@/components/meetings/TranscriptControls';
 import { Suspense } from 'react'
 import Header from '@/components/layout/Header';
 import EditButton from '@/components/meetings/EditButton';
@@ -18,7 +18,6 @@ import { NavigationEvents } from '@/components/meetings/NavigationEvents';
 import { HighlightModeBar } from '@/components/meetings/HighlightModeBar';
 import { ShareProvider } from '@/contexts/ShareContext';
 import { CreateHighlightButton } from '@/components/meetings/CreateHighlightButton';
-import { HighlightProvider } from '@/components/meetings/HighlightContext';
 import { EditingModeBar } from '@/components/meetings/EditingModeBar';
 import { HighlightCreationPermission } from '@prisma/client';
 import { SubjectHeaderProvider } from '@/contexts/SubjectHeaderContext';
@@ -179,8 +178,7 @@ export default async function CouncilMeetingPage(
                 editable={editable}
                 canCreateHighlights={highlightCreationAllowed}
             >
-                <HighlightProvider>
-                    <SubjectHeaderProvider>
+                <SubjectHeaderProvider>
                         <SidebarProvider>
                             <NavigationEvents />
                             {/* The nav owns the left column top to bottom, so its
@@ -227,18 +225,17 @@ export default async function CouncilMeetingPage(
                                 <HighlightModeBar />
                                 <EditingModeBar />
                                 <div className="relative flex-1 overflow-auto" data-scroll-container>
-                                    <div className='pb-20'>
+                                    <div className='pb-20 max-md:pb-28'>
                                         <Suspense>
                                             {children}
                                         </Suspense>
                                     </div>
-                                    {data.meeting.muxPlaybackId && <TranscriptControls />}
+                                    {(data.meeting.muxPlaybackId || data.meeting.videoUrl || data.meeting.audioUrl) && <PlaybackBar />}
                                 </div>
                                 </div>
                             </div>
                         </SidebarProvider>
-                    </SubjectHeaderProvider>
-                </HighlightProvider>
+                </SubjectHeaderProvider>
             </CouncilMeetingWrapper>
             </NotificationPreferenceProvider>
         </ShareProvider>

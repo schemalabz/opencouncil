@@ -1,6 +1,7 @@
 "use client";
 
 import { memo } from "react";
+import { useContributionBarHover, useSpeakerBarHover } from '@/components/meetings/bar/BarHighlightContext';
 import { captureEvent } from '@/lib/analytics/capture';
 import { ArrowUpRight, FileText, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -90,6 +91,19 @@ export const ContributionCard = memo(function ContributionCard({
 
     const party = speaker ? getPartyFromRoles(speaker.roles) : null;
 
+    // Bar highlighting: the whole card lights this speaker's share of the
+    // subject; the speaker's name narrows to everything they said all meeting.
+    // Leaving the name falls back to the card's own highlight (we are still
+    // inside the card), and both are no-ops on pages without a bar.
+    const cardBarHover = useContributionBarHover(subjectId, contribution.speakerId ?? null);
+    const speakerBarHover = useSpeakerBarHover(contribution.speakerId ?? null);
+    const speakerNameHover = {
+        onMouseEnter: speakerBarHover.onMouseEnter,
+        onMouseLeave: cardBarHover.onMouseEnter,
+        onFocus: speakerBarHover.onFocus,
+        onBlur: cardBarHover.onFocus,
+    };
+
     const captureCardAction = (action: string) =>
         captureEvent('subject_action', {
             action,
@@ -171,6 +185,7 @@ export const ContributionCard = memo(function ContributionCard({
                             href={`/${meeting.cityId}/people/${speaker.id}`}
                             onClick={() => captureEvent('person_opened', { surface: 'contribution_speaker', city_id: meeting.cityId, person_id: speaker.id, page: sourcePage })}
                             className="text-sm font-bold text-foreground hover:no-underline"
+                            {...speakerNameHover}
                         >
                             {speaker.name}
                         </Link>
@@ -211,7 +226,7 @@ export const ContributionCard = memo(function ContributionCard({
     if (!contextHeader) {
         // Plain: the speaker leads. The avatar spans the head; the quote hangs under it.
         return (
-            <article className="flex gap-3.5 py-[18px]">
+            <article className="flex gap-3.5 py-[18px]" {...cardBarHover}>
                 <div className="min-w-0 flex-1">
                     {speakerRow}
                     <div className={cn(showSpeaker && "pl-[54px]")}>{body}</div>
@@ -226,6 +241,7 @@ export const ContributionCard = memo(function ContributionCard({
         <article
             className={cn(surfaceCardClass, "px-[18px] py-4 transition-shadow hover:shadow-md")}
             style={{ borderLeft: `3px solid ${party?.colorHex ?? 'hsl(var(--border))'}` }}
+            {...cardBarHover}
         >
             <div className="flex items-start gap-2.5">
                 <TopicIcon color={contextHeader.topic?.colorHex} icon={contextHeader.topic?.icon} size="md" />

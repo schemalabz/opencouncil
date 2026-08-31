@@ -125,6 +125,14 @@ h2:not(.prose h2) {
   100% { stroke: #d4d4d8; }
 }
 
+/* Playback bar: the mode name shown over the bands after an explicit switch */
+@keyframes bar-mode-announce {
+  0% { opacity: 0; }
+  10% { opacity: 1; }
+  78% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 /* Transcript text styles */
 .transcript-text {
   font-family: var(--font-roboto), 'Roboto', sans-serif;

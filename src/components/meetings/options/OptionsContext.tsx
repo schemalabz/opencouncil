@@ -1,13 +1,10 @@
 "use client";
-import React, { createContext, useContext, useState } from 'react';
-import { SpeakerTag } from '@prisma/client';
+import React, { createContext, useContext, useMemo, useState } from 'react';
 
 export interface TranscriptOptions {
     editable: boolean;
     editsAllowed: boolean;
     canCreateHighlights: boolean;
-    selectedSpeakerTag: SpeakerTag["id"] | null;
-    highlightLowConfidenceWords: boolean;
     maxUtteranceDrift: number;
     playbackSpeed: number;
     skipInterval: number; // seconds to skip forward/backward
@@ -20,32 +17,46 @@ interface TranscriptOptionsContextType {
 
 const TranscriptOptionsContext = createContext<TranscriptOptionsContextType | undefined>(undefined);
 
-const defaultOptions: TranscriptOptions = {
+const SPEED_STORAGE_KEY = 'oc-playback-speed';
+
+/** The last chosen speed, surviving navigations — clamped to the player's range. */
+function storedPlaybackSpeed(): number {
+    if (typeof window === 'undefined') return 1;
+    try {
+        const value = parseFloat(window.localStorage.getItem(SPEED_STORAGE_KEY) ?? '');
+        if (Number.isFinite(value)) return Math.min(4, Math.max(0.5, value));
+    } catch { /* storage may be unavailable */ }
+    return 1;
+}
+
+const defaultOptions: Omit<TranscriptOptions, 'playbackSpeed'> = {
     editsAllowed: false,
     editable: false,
     canCreateHighlights: false,
-    selectedSpeakerTag: null,
-    highlightLowConfidenceWords: true,
     maxUtteranceDrift: 500,
-    playbackSpeed: 1,
-    skipInterval: 5 // default to 5 seconds
+    skipInterval: 5,
 };
 
-function useTranscriptOptionsProvider(initialOptions: TranscriptOptions) {
-    const [options, setOptions] = useState<TranscriptOptions>(initialOptions);
-
-    const updateOptions = (newOptions: Partial<TranscriptOptions>) => {
-        setOptions(prev => ({ ...prev, ...newOptions }));
-    };
-
-    return { options, updateOptions };
-}
-
 export function TranscriptOptionsProvider({ children, editable, canCreateHighlights }: { children: React.ReactNode, editable: boolean, canCreateHighlights: boolean }) {
-    const { options, updateOptions } = useTranscriptOptionsProvider({ ...defaultOptions, editsAllowed: editable, canCreateHighlights });
+    const [options, setOptions] = useState<TranscriptOptions>(() => ({
+        ...defaultOptions,
+        editsAllowed: editable,
+        canCreateHighlights,
+        playbackSpeed: storedPlaybackSpeed(),
+    }));
+
+    const value = useMemo<TranscriptOptionsContextType>(() => ({
+        options,
+        updateOptions: newOptions => {
+            if (newOptions.playbackSpeed !== undefined) {
+                try { window.localStorage.setItem(SPEED_STORAGE_KEY, String(newOptions.playbackSpeed)); } catch { /* ignore */ }
+            }
+            setOptions(prev => ({ ...prev, ...newOptions }));
+        },
+    }), [options]);
 
     return (
-        <TranscriptOptionsContext.Provider value={{ options, updateOptions }}>
+        <TranscriptOptionsContext.Provider value={value}>
             {children}
         </TranscriptOptionsContext.Provider>
     );

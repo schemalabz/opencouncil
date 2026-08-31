@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { useSpeakerBarHover } from '@/components/meetings/bar/BarHighlightContext';
 import { useCouncilMeetingActions, useCouncilMeetingMeta } from "../CouncilMeetingDataContext";
 import { Transcript as TranscriptType } from '@/lib/db/transcript';
 import TopicBadge from './Topic';
@@ -239,6 +240,9 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
     const segmentCount = speakerTag ? getSpeakerSegmentCount(speakerTag.id) : 0;
     const headerData = { speakerTag, person, party, borderColor, segmentCount };
 
+    // Hovering the speaker's header lights all their turns on the playback bar.
+    const speakerBarHover = useSpeakerBarHover(person?.id ?? null);
+
     const utterances = segment.utterances;
     if (!utterances) {
         return null;
@@ -289,6 +293,7 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
                                 {isCollapsed && (
                                     <button
                                         onClick={() => handleCollapseToggle(false)}
+                                        {...speakerBarHover}
                                         className='flex md:hidden items-center justify-between w-full px-2.5 py-1.5 hover:bg-accent/20 transition-colors bg-background border-b border-border/40'
                                     >
                                         <PersonBadge
@@ -310,7 +315,7 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
                                 {/* Full header (always on desktop, conditional on mobile) */}
                                 <div className={`${isCollapsed ? 'hidden md:flex' : 'flex'} flex-col w-full space-y-2 py-2`}>
                                     <div className='flex items-center justify-between w-full px-2.5 sm:px-4 gap-2'>
-                                        <div className='flex-grow overflow-hidden min-w-0'>
+                                        <div className='flex-grow overflow-hidden min-w-0' {...speakerBarHover}>
                                             {headerData.speakerTag && (
                                                 <PersonBadge
                                                     person={headerData.person}

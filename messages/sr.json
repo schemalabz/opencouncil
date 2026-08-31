@@ -455,27 +455,10 @@
         "derivedFields": "Изведени називи"
     },
     "TranscriptOptions": {
-        "title": "Опције транскрипта",
-        "editMode": {
-            "label": "Режим уређивања",
-            "description": "Омогућите режим уређивања текста транскрипта"
-        },
-        "highlightUncertain": {
-            "label": "Истакни несигурне речи",
-            "description": "Истакните речи са ниском поузданошћу препознавања"
-        },
         "maxUtteranceDrift": {
             "label": "Максимално одступање исказа",
             "description": "Максимално дозвољено временско одступање за сваки исказ, у секундама"
-        },
-        "playbackTitle": "Подешавања репродукције",
-        "playbackDescription": "Подешавања за репродукцију видеа",
-        "playbackSpeedLabel": "Брзина репродукције",
-        "playbackSpeedDescription": "Прилагодите брзину репродукције видеа",
-        "transcriptTitle": "Подешавања транскрипта",
-        "transcriptDescription": "Подешавања транскрипта",
-        "advancedTitle": "Напредна подешавања",
-        "advancedDescription": "Техничка подешавања за напредне кориснике"
+        }
     },
     "Chat": {
         "items": "Повезане теме о којима се расправљало ({count})"

@@ -1,6 +1,9 @@
 "use client"
 
 import { useState, useEffect, useMemo, createContext, useContext } from 'react'
+import { BarDataProvider } from '@/components/meetings/bar/BarDataContext';
+import { BarHighlightProvider } from '@/components/meetings/bar/BarHighlightContext';
+import { BarModeProvider } from '@/components/meetings/bar/PlaybackBar';
 import { VideoProvider } from './VideoProvider'
 import { TranscriptOptionsProvider } from './options/OptionsContext'
 import { CouncilMeetingDataProvider } from './CouncilMeetingDataContext'
@@ -47,6 +50,9 @@ export default function CouncilMeetingWrapper({ meetingData, editable, canCreate
             <CouncilMeetingDataProvider data={meetingData}>
                 <TranscriptOptionsProvider editable={editable} canCreateHighlights={canCreateHighlights}>
                     <VideoProvider meeting={memoizedMeeting} utterances={memoizedUtterances}>
+                        <BarDataProvider>
+                        <BarHighlightProvider>
+                        <BarModeProvider>
                         <UtteranceExpansionProvider>
                             <HighlightProvider>
                                 <KeyboardShortcutsProvider>
@@ -57,6 +63,9 @@ export default function CouncilMeetingWrapper({ meetingData, editable, canCreate
                                 </KeyboardShortcutsProvider>
                             </HighlightProvider>
                         </UtteranceExpansionProvider>
+                        </BarModeProvider>
+                        </BarHighlightProvider>
+                        </BarDataProvider>
                     </VideoProvider>
                 </TranscriptOptionsProvider>
             </CouncilMeetingDataProvider>

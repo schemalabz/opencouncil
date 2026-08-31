@@ -455,27 +455,10 @@
         "derivedFields": "Derived Names"
     },
     "TranscriptOptions": {
-        "title": "Transcript Options",
-        "editMode": {
-            "label": "Edit Mode",
-            "description": "Enable edit mode for transcript text"
-        },
-        "highlightUncertain": {
-            "label": "Highlight Uncertain Words",
-            "description": "Highlight words with low recognition confidence"
-        },
         "maxUtteranceDrift": {
             "label": "Maximum Utterance Drift",
             "description": "Maximum allowed time drift for each utterance in seconds"
-        },
-        "playbackTitle": "Playback settings",
-        "playbackDescription": "Settings for video playback",
-        "playbackSpeedLabel": "Playback speed",
-        "playbackSpeedDescription": "Adjust the video playback speed",
-        "transcriptTitle": "Transcript settings",
-        "transcriptDescription": "Transcript settings",
-        "advancedTitle": "Advanced settings",
-        "advancedDescription": "Technical settings for advanced users"
+        }
     },
     "Chat": {
         "items": "Related topics discussed ({count})"

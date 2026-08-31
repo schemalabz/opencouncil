@@ -822,27 +822,10 @@
     "hoursToGuaranteeDisabledDescription": "Activez la garantie d'exactitude pour définir le nombre d'heures"
   },
   "TranscriptOptions": {
-    "title": "Options de transcription",
-    "editMode": {
-      "label": "Mode édition",
-      "description": "Activer le mode édition pour le texte de la transcription"
-    },
-    "highlightUncertain": {
-      "label": "Surligner les mots incertains",
-      "description": "Surligner les mots dont la reconnaissance présente une faible certitude"
-    },
     "maxUtteranceDrift": {
       "label": "Décalage maximal des énoncés",
       "description": "Décalage temporel maximal autorisé pour chaque énoncé, en secondes"
-    },
-    "playbackTitle": "Paramètres de lecture",
-    "playbackDescription": "Paramètres de lecture de la vidéo",
-    "playbackSpeedLabel": "Vitesse de lecture",
-    "playbackSpeedDescription": "Ajustez la vitesse de lecture de la vidéo",
-    "transcriptTitle": "Paramètres de transcription",
-    "transcriptDescription": "Paramètres de la transcription",
-    "advancedTitle": "Paramètres avancés",
-    "advancedDescription": "Paramètres techniques pour utilisateurs avancés"
+    }
   },
   "Chat": {
     "items": "Sujets connexes abordés ({count})"

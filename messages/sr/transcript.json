@@ -40,14 +40,21 @@
         }
     },
     "controls": {
-        "hideControls": "Сакријте контроле",
-        "showControls": "Прикажите контроле",
         "pause": "Паузирајте",
         "play": "Пустите",
         "previousClip": "Претходни исечак",
         "nextClip": "Следећи исечак",
         "timeline": "Временска линија репродукције",
-        "playbackProgress": "Ток репродукције"
+        "modePicker": "Боје траке",
+        "modeSpeakers": "Боје по говорнику",
+        "modeSubjects": "Боје по теми",
+        "modeAnnounceSpeakers": "ГОВОРНИЦИ",
+        "modeAnnounceSubjects": "ТЕМЕ",
+        "playbackSpeed": "Брзина репродукције",
+        "expandVideo": "Повећај видео",
+        "collapseBar": "Скупи траку",
+        "expandBar": "Отвори траку",
+        "clip": "Исечак {current}/{total}"
     },
     "unverifiedBanner": {
         "title": "Аутоматски транскрипт",

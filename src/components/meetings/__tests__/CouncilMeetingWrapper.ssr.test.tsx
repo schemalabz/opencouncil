@@ -14,6 +14,11 @@ jest.mock('../subject/UtteranceExpansionContext', () => ({ UtteranceExpansionPro
 jest.mock('@/contexts/KeyboardShortcutsContext', () => ({ KeyboardShortcutsProvider: passthrough }));
 jest.mock('../EditingContext', () => ({ EditingProvider: passthrough }));
 jest.mock('../KeyboardShortcuts', () => ({ KeyboardShortcuts: () => null }));
+// The bar's providers read the (mocked) meeting data context, and the mode
+// provider pulls next-intl, which jest does not transform.
+jest.mock('../bar/BarDataContext', () => ({ BarDataProvider: passthrough }));
+jest.mock('../bar/BarHighlightContext', () => ({ BarHighlightProvider: passthrough }));
+jest.mock('../bar/PlaybackBar', () => ({ BarModeProvider: passthrough }));
 
 import CouncilMeetingWrapper from '../CouncilMeetingWrapper';
 
