@@ -9,13 +9,8 @@ import { AttendanceStatus, DataSource, Decision, Prisma, TaskStatus, User, VoteT
 
 /** Subjects eligible for decisions: agenda + out-of-agenda, excluding withdrawn.
  *  Shared between decision count queries and the polling pipeline. */
-export const DECISION_ELIGIBLE_SUBJECT_WHERE = {
-    withdrawn: false,
-    OR: [
-        { agendaItemIndex: { not: null } },
-        { nonAgendaReason: 'outOfAgenda' as const },
-    ],
-} satisfies Prisma.SubjectWhereInput;
+export { DECISION_ELIGIBLE_SUBJECT_WHERE } from './decisionEligibility';
+import { DECISION_ELIGIBLE_SUBJECT_WHERE } from './decisionEligibility';
 
 export type DecisionWithSource = Decision & {
     task: TaskStatus | null;
