@@ -547,7 +547,7 @@ function FrontPanel({ data }: { data: BrochureData }) {
 
     return (
         <Panel>
-            <Brand size={33} />
+            <Brand size={54} textScale={0.335} />
 
             <View style={{ flex: 1, justifyContent: "center" }}>
                 {data.city ? (
