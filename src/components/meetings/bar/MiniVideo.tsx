@@ -40,7 +40,12 @@ export function MiniVideo({ compact = false }: { compact?: boolean }) {
         setSpeed(CYCLE[(idx + 1) % CYCLE.length] ?? CYCLE[0]);
     };
 
-    const onPressStart = () => {
+    const pressStartedHere = useRef(false);
+    const onPressStart = (e: React.PointerEvent) => {
+        // Only a primary press cycles: right-click means the context menu
+        // (which on Windows fires after pointerup), middle-click means paste.
+        if (e.button !== 0) return;
+        pressStartedHere.current = true;
         longPressed.current = false;
         pressTimer.current = setTimeout(() => {
             longPressed.current = true;
@@ -48,6 +53,8 @@ export function MiniVideo({ compact = false }: { compact?: boolean }) {
         }, LONG_PRESS_MS);
     };
     const onPressEnd = () => {
+        if (!pressStartedHere.current) return;
+        pressStartedHere.current = false;
         if (pressTimer.current) clearTimeout(pressTimer.current);
         if (!longPressed.current && !menuOpen) cycleSpeed();
     };

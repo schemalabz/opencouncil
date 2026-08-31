@@ -54,10 +54,13 @@ export function utteranceRuns(
         const subjectId = u.discussionStatus === 'SUBJECT_DISCUSSION' ? (u.discussionSubjectId ?? null) : null;
         const last = runs[runs.length - 1];
         if (last && last.subjectId === subjectId) {
-            last.end = u.endTimestamp;
+            // max, not assignment: an utterance nested inside the previous one
+            // must not shrink the run and tear a phantom gap in the tiling
+            last.end = Math.max(last.end, u.endTimestamp);
         } else {
-            if (last) last.end = u.startTimestamp;
-            runs.push({ subjectId, start: last ? u.startTimestamp : segmentStart, end: u.endTimestamp });
+            if (last) last.end = Math.max(last.start, u.startTimestamp);
+            const start = last ? Math.max(u.startTimestamp, last.end) : segmentStart;
+            runs.push({ subjectId, start, end: Math.max(u.endTimestamp, start) });
         }
     }
     if (runs.length === 0) return [{ subjectId: null, start: segmentStart, end: segmentEnd }];
@@ -65,7 +68,45 @@ export function utteranceRuns(
     return runs;
 }
 
-export type ChapterKey = 'beforeAgenda' | 'agenda' | 'outOfAgenda';
+/**
+ * Flatten bands sorted by start into disjoint bands, the invariant `bandAt`'s
+ * binary search needs. Real transcripts contain nested and partially
+ * overlapping speaker segments (an interjection recorded inside a longer
+ * turn); the later-starting band wins its span — it is the interruption — and
+ * the earlier band resumes after it. Zero-width fragments are dropped.
+ */
+export function resolveOverlaps(bands: BarBand[]): BarBand[] {
+    const out: BarBand[] = [];
+    const stack: BarBand[] = [];
+    let cursor = -Infinity;
+
+    const emit = (band: BarBand, start: number, end: number) => {
+        if (end - start > 1e-6) out.push(start === band.start && end === band.end ? band : { ...band, start, end });
+    };
+    const drainUpTo = (limit: number) => {
+        while (stack.length > 0 && stack[stack.length - 1].end <= limit) {
+            const seg = stack.pop()!;
+            emit(seg, Math.max(seg.start, cursor), seg.end);
+            cursor = Math.max(cursor, seg.end);
+        }
+    };
+
+    for (const band of bands) {
+        drainUpTo(band.start);
+        const top = stack[stack.length - 1];
+        if (top) {
+            emit(top, Math.max(top.start, cursor), band.start);
+            cursor = Math.max(cursor, band.start);
+        }
+        stack.push(band);
+    }
+    drainUpTo(Infinity);
+    return out;
+}
+
+import type { SubjectCategoryKey } from './subjects';
+
+export type ChapterKey = SubjectCategoryKey;
 
 export interface Chapter {
     key: ChapterKey;

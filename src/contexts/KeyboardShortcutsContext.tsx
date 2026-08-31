@@ -91,11 +91,25 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
+            // A component that already handled this key (the timeline slider's
+            // arrows, for example) wins over the global shortcuts.
+            if (event.defaultPrevented) {
+                return;
+            }
             // Ignore if input/textarea is focused (unless it's a special modifier command we want to allow globally)
             if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
                 return;
             }
             if (event.target instanceof HTMLElement && event.target.isContentEditable) {
+                return;
+            }
+            // Keys mean something else on interactive controls: Space activates a
+            // focused button, arrows move menus, selects, sliders and tab lists.
+            if (event.target instanceof HTMLElement && (
+                event.target instanceof HTMLSelectElement ||
+                event.target instanceof HTMLButtonElement ||
+                event.target.closest('[role="menu"], [role="menubar"], [role="listbox"], [role="slider"], [role="tablist"], [role="combobox"]')
+            )) {
                 return;
             }
 

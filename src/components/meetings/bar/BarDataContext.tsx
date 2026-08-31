@@ -2,9 +2,10 @@
 
 import React, { createContext, useContext, useMemo } from 'react';
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
-import { getPartyFromRoles } from '@/lib/utils';
+import { getPartyFromRoles , UNKNOWN_SPEAKER_COLOR} from '@/lib/utils';
 import { TOPICLESS_COLOR } from '@/lib/topicStyle';
-import { utteranceRuns, mergeIntervals, chapterStarts, type BarBand, type Chapter, type ChapterKey, type Interval } from '@/lib/utils/barTimeline';
+import { utteranceRuns, mergeIntervals, chapterStarts, resolveOverlaps, type BarBand, type Chapter, type Interval } from '@/lib/utils/barTimeline';
+import { subjectCategory } from '@/lib/utils/subjects';
 
 export interface BarData {
     bands: BarBand[];
@@ -34,7 +35,6 @@ const EMPTY: BarData = {
 
 const BarDataContext = createContext<BarData>(EMPTY);
 
-const UNKNOWN_SPEAKER_COLOR = '#D3D3D3';
 
 function pushInterval(map: Map<string, Interval[]>, key: string, span: Interval) {
     const list = map.get(key);
@@ -48,7 +48,7 @@ function pushInterval(map: Map<string, Interval[]>, key: string, span: Interval)
  * data context's getters are ref-backed and identity-stable.
  */
 export function BarDataProvider({ children }: { children: React.ReactNode }) {
-    const { transcript, subjects, meeting, getSpeakerTag, getPerson } = useCouncilMeetingData();
+    const { transcript, subjects, meeting, speakerTags, getSpeakerTag, getPerson } = useCouncilMeetingData();
 
     const value = useMemo<BarData>(() => {
         if (transcript.length === 0) return EMPTY;
@@ -56,7 +56,7 @@ export function BarDataProvider({ children }: { children: React.ReactNode }) {
         const subjectById = new Map(subjects.map(s => [s.id, s]));
 
         const bands: BarBand[] = [];
-        const chapterItems: { category: ChapterKey; start: number }[] = [];
+        const chapterItems: { category: NonNullable<ReturnType<typeof subjectCategory>>; start: number }[] = [];
         const bySubject = new Map<string, Interval[]>();
         const bySpeaker = new Map<string, Interval[]>();
         const byPair = new Map<string, Interval[]>();
@@ -87,10 +87,7 @@ export function BarDataProvider({ children }: { children: React.ReactNode }) {
                 if (subject && run.subjectId) {
                     pushInterval(bySubject, run.subjectId, [run.start, run.end]);
                     if (person) pushInterval(byPair, `${run.subjectId}:${person.id}`, [run.start, run.end]);
-                    const category: ChapterKey | null =
-                        subject.nonAgendaReason === 'beforeAgenda' ? 'beforeAgenda'
-                        : subject.nonAgendaReason === 'outOfAgenda' ? 'outOfAgenda'
-                        : subject.agendaItemIndex !== null ? 'agenda' : null;
+                    const category = subjectCategory(subject);
                     if (category) chapterItems.push({ category, start: run.start });
                 }
             }
@@ -98,6 +95,8 @@ export function BarDataProvider({ children }: { children: React.ReactNode }) {
             if (person) pushInterval(bySpeaker, person.id, [segment.startTimestamp, segment.endTimestamp]);
         }
         bands.sort((a, b) => a.start - b.start);
+        // Overlapping segments exist in real data; bandAt needs disjoint bands.
+        const flatBands = resolveOverlaps(bands);
 
         const merge = (m: Map<string, Interval[]>) => {
             for (const [k, list] of m) m.set(k, mergeIntervals(list));
@@ -105,17 +104,18 @@ export function BarDataProvider({ children }: { children: React.ReactNode }) {
         merge(bySubject); merge(bySpeaker); merge(byPair);
 
         return {
-            bands,
+            bands: flatBands,
             intervalsBySubject: bySubject,
             intervalsBySpeaker: bySpeaker,
             intervalsBySubjectSpeaker: byPair,
             hasSubjectData: bySubject.size > 0,
-            contentDuration: bands.length ? bands[bands.length - 1].end : 0,
+            contentDuration: flatBands.length ? flatBands[flatBands.length - 1].end : 0,
             chapters: chapterStarts(chapterItems),
         };
-    // getters are identity-stable (ref-backed useCallbacks in the data context)
+    // The getters are identity-stable ref-backed reads, so they are not deps —
+    // but speakerTags is: reassigning a tag to a person must recolour the bar.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [transcript, subjects, meeting.dateTime]);
+    }, [transcript, subjects, meeting.dateTime, speakerTags]);
 
     return <BarDataContext.Provider value={value}>{children}</BarDataContext.Provider>;
 }
