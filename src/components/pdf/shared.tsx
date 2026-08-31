@@ -175,6 +175,14 @@ export const ICON_PATHS: Record<string, { paths: string[]; circles?: [number, nu
             ],
         },
         // lucide MapPin
+        // lucide Globe
+        globe: {
+            paths: [
+                "M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20",
+                "M2 12h20",
+            ],
+            circles: [[12, 12, 10]],
+        },
         mapPin: {
             paths: ["M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"],
             circles: [[12, 10, 3]],
