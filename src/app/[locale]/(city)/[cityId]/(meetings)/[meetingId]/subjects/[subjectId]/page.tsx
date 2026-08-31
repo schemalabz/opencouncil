@@ -9,6 +9,7 @@ import { localizeText } from "@/lib/serbian";
 import { compactMetadataDescription } from "@/lib/seo/metadataDescription";
 import { getRealmBaseUrlFromRequest } from "@/lib/realm.server";
 import { buildSubjectStructuredData, serializeStructuredData } from "@/lib/seo/subjectStructuredData";
+import { formatNumericDate } from '@/lib/formatters/time';
 
 export async function generateMetadata(
     props: {
@@ -55,7 +56,7 @@ export async function generateMetadata(
     // Create a meaningful description
     const description = subject.description
         ? compactMetadataDescription(localizeText(subject.description, params.locale))
-        : `Θέμα που συζητήθηκε | ${cityName} | ${new Date(meetingData.meeting.dateTime).toLocaleDateString("el-GR")}`;
+        : `Θέμα που συζητήθηκε | ${cityName} | ${formatNumericDate(new Date(meetingData.meeting.dateTime), meetingData.city.timezone)}`;
 
     return {
         title,

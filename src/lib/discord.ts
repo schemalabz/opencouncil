@@ -6,6 +6,7 @@
  */
 
 import { env } from '@/env.mjs';
+import { formatDate, formatDateTime, formatWeekday } from '@/lib/formatters/time';
 import { formatDurationMs } from '@/lib/formatters/time';
 import type { ReviewerInfo } from '@/lib/db/reviews';
 import type { PollDecisionsMeetingResult } from '@/lib/tasks/pollDecisions';
@@ -118,14 +119,7 @@ export async function sendMeetingCreatedAdminAlert(data: {
 }): Promise<void> {
     await sendAdminAlert({
         title: `🆕 ${data.cityId}: ${data.meetingId}`,
-        description: `Scheduled for ${data.meetingDate.toLocaleDateString('el-GR', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            weekday: 'long',
-            hour: '2-digit',
-            minute: '2-digit'
-        })}`,
+        description: `Scheduled for ${formatWeekday(data.meetingDate)}, ${formatDateTime(data.meetingDate)}`,
         color: 0x00ff00, // Green
         fields: [
             {
@@ -140,11 +134,7 @@ export async function sendMeetingCreatedAdminAlert(data: {
             },
             {
                 name: 'Date',
-                value: data.meetingDate.toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                }),
+                value: formatDate(data.meetingDate, undefined, 'en'),
                 inline: false,
             },
             {

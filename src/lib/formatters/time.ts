@@ -40,7 +40,7 @@ export function getIntlLocale(locale: string): string {
  * hydration (React error #418). Callers with a better zone in scope (a city's
  * timezone) should still pass it.
  */
-const DEFAULT_TIMEZONE = 'Europe/Athens';
+export const DEFAULT_TIMEZONE = 'Europe/Athens';
 
 /**
  * Formats time in seconds to a human-readable string
@@ -140,6 +140,41 @@ export function formatRelativeTime(date: Date, locale: string = 'el', options?: 
  */
 export function localCalendarDate(d: Date, timeZone: string): string {
     return d.toLocaleDateString('en-CA', { timeZone });
+}
+
+/**
+ * Numeric date, compact for tables and message strings: `DD/MM/YYYY`.
+ * The date-only counterpart of `formatNumericDateTime`.
+ *
+ * @param date - The date to format
+ * @param timezone - Optional timezone
+ * @param locale - 'el' (default) or 'en'; both produce day-first numeric output
+ * @returns e.g. "04/05/2026"
+ */
+export function formatNumericDate(date: Date, timezone?: string, locale: string = 'el'): string {
+    const options: Intl.DateTimeFormatOptions = {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        timeZone: timezone || DEFAULT_TIMEZONE,
+    };
+    // en-GB rather than en-US so English output stays day-first numeric.
+    const intlLocale = locale === 'en' ? 'en-GB' : getIntlLocale(locale);
+    return new Intl.DateTimeFormat(intlLocale, options).format(date);
+}
+
+/**
+ * The long weekday name of a moment ("Δευτέρα", "Monday").
+ *
+ * @param date - The date to format
+ * @param timezone - Optional timezone
+ * @param locale - Optional locale (defaults to 'el')
+ */
+export function formatWeekday(date: Date, timezone?: string, locale: string = 'el'): string {
+    return new Intl.DateTimeFormat(getIntlLocale(locale), {
+        weekday: 'long',
+        timeZone: timezone || DEFAULT_TIMEZONE,
+    }).format(date);
 }
 
 /**

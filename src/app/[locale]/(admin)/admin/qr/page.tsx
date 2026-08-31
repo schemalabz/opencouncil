@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { formatNumericDate } from '@/lib/formatters/time';
 
 type CampaignRow = { id: string; code: string; url: string; name: string | null; isActive: boolean; createdAt: Date };
 
@@ -203,11 +204,7 @@ export default function AdminQrPage() {
                                         )}
                                     </TableCell>
                                     <TableCell className="text-sm text-muted-foreground">
-                                        {new Date(c.createdAt).toLocaleDateString('en-US', { 
-                                            year: 'numeric', 
-                                            month: 'short', 
-                                            day: 'numeric' 
-                                        })}
+                                        {formatNumericDate(new Date(c.createdAt), undefined, 'en')}
                                     </TableCell>
                                     <TableCell className="text-center">
                                         <input

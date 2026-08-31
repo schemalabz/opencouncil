@@ -20,6 +20,7 @@ import {
     getOfferCostBreakdown,
 } from "@/lib/offers/display";
 import { ASSET_BASE, Brand, C, greekUpper, LucideIcon, QRCode } from "@/components/pdf/shared";
+import { formatDate } from "@/lib/formatters/time";
 
 const MARGIN_X = 48;
 
@@ -31,8 +32,7 @@ const fmtEur = (n: number) =>
         minimumFractionDigits: 2,
     }).format(n);
 
-const fmtDate = (d: Date) =>
-    new Intl.DateTimeFormat("el-GR", { day: "numeric", month: "long", year: "numeric" }).format(d);
+const fmtDate = (d: Date) => formatDate(d);
 
 // ─── Text styles (fontSize + lineHeight always paired) ──────────────────────
 const T = {

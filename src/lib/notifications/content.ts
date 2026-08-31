@@ -5,6 +5,7 @@ import { NotificationEmail } from '@/lib/email/templates/NotificationEmail';
 import { env } from '@/env.mjs';
 import { stripMarkdown } from '@/lib/formatters/markdown';
 import { buildUnsubscribeUrl } from '@/lib/notifications/tokens';
+import { formatNumericDate } from '@/lib/formatters/time';
 
 interface NotificationSubject {
     id: string;
@@ -41,7 +42,7 @@ export async function generateEmailContent(notification: NotificationData): Prom
     body: string;
 }> {
     const meetingDate = new Date(notification.meeting.dateTime);
-    const meetingDateFormatted = meetingDate.toLocaleDateString('el-GR');
+    const meetingDateFormatted = formatNumericDate(meetingDate);
 
     const title = `${notification.city.name_municipality}: ${notification.meeting.administrativeBody?.name || 'Συνεδρίαση'} - ${meetingDateFormatted}`;
 
@@ -70,7 +71,7 @@ export async function generateEmailContent(notification: NotificationData): Prom
  */
 export async function generateSmsContent(notification: NotificationData): Promise<string> {
     const meetingDate = new Date(notification.meeting.dateTime);
-    const meetingDateFormatted = meetingDate.toLocaleDateString('el-GR');
+    const meetingDateFormatted = formatNumericDate(meetingDate);
     const subjectCount = notification.subjects.length;
 
     const adminBody = notification.meeting.administrativeBody?.name || 'συνεδρίαση';

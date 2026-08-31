@@ -27,6 +27,7 @@ import { MeetingStatusBadge } from "@/components/meetings/MeetingStatusBadge";
 import Link from "next/link";
 import { MeetingTimeline } from "@/components/meetings/MeetingTimeline";
 import { getPollingHistoryForMeeting } from "@/lib/tasks/pollDecisions";
+import { formatNumericDate } from '@/lib/formatters/time';
 
 interface ExpandableMeetingRowProps {
     meeting: CouncilMeetingWithAdminBodyAndSubjects;
@@ -181,10 +182,10 @@ export function ExpandableMeetingRow({
                                 <div>{pollingStatus.currentTierLabel}</div>
                             )}
                             {pollingStatus.lastPollAt && (
-                                <div>Last: {new Date(pollingStatus.lastPollAt).toLocaleDateString()}</div>
+                                <div>Last: {formatNumericDate(new Date(pollingStatus.lastPollAt))}</div>
                             )}
                             {pollingStatus.nextPollEligible ? (
-                                <div>Next: {new Date(pollingStatus.nextPollEligible).toLocaleDateString()}</div>
+                                <div>Next: {formatNumericDate(new Date(pollingStatus.nextPollEligible))}</div>
                             ) : pollingStatus.currentTierLabel?.startsWith('Stopped') ? (
                                 <div>Automatic polling stopped</div>
                             ) : null}

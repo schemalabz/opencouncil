@@ -35,6 +35,7 @@ import {
     type MeetingOption,
 } from '@/app/[locale]/(admin)/admin/conversations/actions';
 import type { SendStatus } from './types';
+import { formatNumericDate } from '@/lib/formatters/time';
 
 /**
  * Top-right "Send test message" button on the admin Conversations page.
@@ -333,7 +334,7 @@ export function SendTemplateDialog() {
                                     <SelectContent>
                                         {meetings.map((m) => (
                                             <SelectItem key={m.id} value={m.id}>
-                                                {new Date(m.dateTime).toLocaleDateString('el-GR')} — {m.name}
+                                                {formatNumericDate(new Date(m.dateTime))} — {m.name}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
