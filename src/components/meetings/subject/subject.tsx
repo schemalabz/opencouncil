@@ -347,7 +347,8 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                         {t("viewDecision")}
                                     </a>
                                     {decision.updatedAt && (
-                                        <span className="text-xs text-muted-foreground">
+                                        // Clock-relative text — see formatRelativeTime.
+                                        <span className="text-xs text-muted-foreground" suppressHydrationWarning>
                                             {t("lastUpdated", { time: formatRelativeTime(new Date(decision.updatedAt), locale) })}
                                         </span>
                                     )}
