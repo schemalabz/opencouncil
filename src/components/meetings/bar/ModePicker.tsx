@@ -3,6 +3,7 @@
 import { Users, Shapes } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { DOCK_ROW, DOCK_ROW_COMPACT } from './geometry';
 
 export type BarMode = 'speakers' | 'subjects';
 
@@ -37,8 +38,9 @@ export function ModePicker({ mode, onModeChange, compact = false }: {
         <div
             className={cn(
                 'flex shrink-0 flex-col overflow-hidden rounded-[10px] border-2 border-border bg-card',
-                compact ? 'h-[42px] w-9' : 'h-[62px] w-11',
+                compact ? 'w-9' : 'w-11',
             )}
+            style={{ height: compact ? DOCK_ROW_COMPACT : DOCK_ROW }}
             role="group"
             aria-label={t('modePicker')}
         >

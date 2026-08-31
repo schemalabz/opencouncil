@@ -11,6 +11,7 @@ import { useBarHighlight } from './BarHighlightContext';
 import { bandAt, intersectsAny, type BarBand, type Chapter, type Interval } from '@/lib/utils/barTimeline';
 import { useLiveTime } from './useLiveTime';
 import { nowBand, NowPlayingSubjectLink } from './nowPlaying';
+import { BAND_ZONE, DOCK_ROW, DOCK_ROW_COMPACT, RAIL_HEIGHT } from './geometry';
 import { TopicIcon } from '@/components/TopicIcon';
 import { Users, Shapes } from 'lucide-react';
 import type { BarMode } from './ModePicker';
@@ -31,7 +32,7 @@ export interface ModeAnnounce {
  * element; the hover layer throttles pointer moves to one rAF and touches
  * React state only when the band under the cursor changes.
  */
-export function BarTimeline({ mode, compact = false, announce = null, onAnnounceEnd }: { mode: BarMode; compact?: boolean; announce?: ModeAnnounce | null; onAnnounceEnd?: () => void }) {
+export function BarTimeline({ mode, compact = false, announce = null, onAnnounceEnd, dormant = false }: { mode: BarMode; compact?: boolean; announce?: ModeAnnounce | null; onAnnounceEnd?: () => void; /** the pill covers a hidden dock: keep the slot, skip the machinery */ dormant?: boolean }) {
     const t = useTranslations('transcript.controls');
     const router = useRouter();
     const { bands, contentDuration, chapters } = useBarData();
@@ -194,6 +195,13 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
         }
     }, [duration, seekTo, currentTimeRef]);
 
+    // Under the collapsed pill the dock is display:none: rendering ~500 band
+    // divs and running the playhead there is pure waste. Hooks above still run
+    // (order-stable); the DOM and the rAF/observer consumers do not.
+    if (dormant) {
+        return <div className="relative min-w-0 flex-1" />;
+    }
+
     const hovered = hoverBand >= 0 ? bands[hoverBand] : null;
     const scrollBand = currentScrollInterval[0] !== currentScrollInterval[1] && duration > 0 ? currentScrollInterval : null;
     // The chapter rail rides inside the box on desktop only — at the phone's
@@ -221,16 +229,15 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
                 onPointerUp={onPointerUp}
                 onPointerMove={onPointerMove}
                 onPointerLeave={onPointerLeave}
-                className={cn(
-                    'relative w-full cursor-pointer touch-none overflow-hidden rounded-[10px] border-2 border-border bg-card',
-                    compact ? 'h-[42px]' : 'h-[62px]',
-                )}
+                className="relative w-full cursor-pointer touch-none overflow-hidden rounded-[10px] border-2 border-border bg-card"
+                style={{ height: compact ? DOCK_ROW_COMPACT : DOCK_ROW }}
             >
                 {scrollBand && (
                     <div
                         aria-hidden
-                        className={cn('absolute top-0 bg-yellow-200', railed ? 'h-[44px]' : 'h-full')}
+                        className="absolute top-0 bg-yellow-200"
                         style={{
+                            height: railed ? BAND_ZONE : '100%',
                             left: `${(scrollBand[0] / duration) * 100}%`,
                             width: `${((scrollBand[1] - scrollBand[0]) / duration) * 100}%`,
                         }}
@@ -248,24 +255,14 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
                 />
 
                 {editRows && duration > 0 && (
-                    <div aria-hidden className="absolute inset-0" style={{ zIndex: 10 }}>
-                        {editRows.map(({ u, index }) => (
-                            <div
-                                key={u.id}
-                                onClick={e => { e.stopPropagation(); seekTo(u.startTimestamp); }}
-                                title={`${u.speakerName}: ${u.text.substring(0, 50)}…`}
-                                className={cn(
-                                    'absolute top-0 cursor-pointer transition-colors hover:bg-amber-500',
-                                    railed ? 'h-[44px]' : 'h-full',
-                                    previewMode && index === currentHighlightIndex ? 'bg-amber-600' : 'bg-amber-400',
-                                )}
-                                style={{
-                                    left: `${(u.startTimestamp / duration) * 100}%`,
-                                    width: `${((u.endTimestamp - u.startTimestamp) / duration) * 100}%`,
-                                }}
-                            />
-                        ))}
-                    </div>
+                    <EditLayer
+                        editRows={editRows}
+                        duration={duration}
+                        railed={railed}
+                        previewMode={previewMode}
+                        currentHighlightIndex={currentHighlightIndex}
+                        seekTo={seekTo}
+                    />
                 )}
 
                 <Playhead playerRef={playerRef} currentTimeRef={currentTimeRef} duration={duration} barRef={barRef} isPlaying={isPlaying} pausedTick={currentTime} />
@@ -353,6 +350,8 @@ const SegmentsLayer = memo(function SegmentsLayer({ bands, mode, duration, highl
                         key={i}
                         className={cn(
                             'absolute transition-[opacity,top,height] duration-150',
+                            // literals because hover: variants need static classes —
+                            // they are BAND_ZONE (44) splits; see geometry.ts
                             railed
                                 ? 'top-[6px] h-[38px] hover:top-[2px] hover:h-[42px]'
                                 : 'top-[12.5%] h-3/4 hover:top-0 hover:h-full',
@@ -388,7 +387,7 @@ function NowLane({ bands }: { bands: BarBand[] }) {
     const { city, meeting } = useCouncilMeetingData();
     const { isPlaying } = useVideo();
     const { currentTimeRef } = useVideoActions();
-    const time = useLiveTime(currentTimeRef);
+    const time = useLiveTime(currentTimeRef, isPlaying);
     const band = nowBand(bands, time, isPlaying);
     // The dock floats over the page, so the line wears a capsule — same
     // language as the time bubble over the play button. Left-aligned to the
@@ -420,6 +419,40 @@ function NowLane({ bands }: { bands: BarBand[] }) {
     );
 }
 
+/**
+ * The amber highlight-editing rows. Like the bands, they change only when the
+ * edited set or the preview position does — never on ticks or hover sweeps.
+ */
+const EditLayer = memo(function EditLayer({ editRows, duration, railed, previewMode, currentHighlightIndex, seekTo }: {
+    editRows: { u: { id: string; startTimestamp: number; endTimestamp: number; speakerName: string; text: string }; index: number }[];
+    duration: number;
+    railed: boolean;
+    previewMode: boolean;
+    currentHighlightIndex: number;
+    seekTo: (time: number) => void;
+}) {
+    return (
+        <div aria-hidden className="absolute inset-0" style={{ zIndex: 10 }}>
+            {editRows.map(({ u, index }) => (
+                <div
+                    key={u.id}
+                    onClick={e => { e.stopPropagation(); seekTo(u.startTimestamp); }}
+                    title={`${u.speakerName}: ${u.text.substring(0, 50)}…`}
+                    className={cn(
+                        'absolute top-0 cursor-pointer transition-colors hover:bg-amber-500',
+                        previewMode && index === currentHighlightIndex ? 'bg-amber-600' : 'bg-amber-400',
+                    )}
+                    style={{
+                        height: railed ? BAND_ZONE : '100%',
+                        left: `${(u.startTimestamp / duration) * 100}%`,
+                        width: `${((u.endTimestamp - u.startTimestamp) / duration) * 100}%`,
+                    }}
+                />
+            ))}
+        </div>
+    );
+});
+
 const CHAPTER_LABEL_KEY = {
     beforeAgenda: 'chapterBeforeAgenda',
     agenda: 'chapterAgenda',
@@ -440,7 +473,7 @@ function ChapterRail({ chapters, duration, currentTime, barWidth }: {
     const t = useTranslations('transcript.controls');
     if (duration <= 0) return null;
     return (
-        <div aria-hidden className="absolute inset-x-0 bottom-0 h-[18px]" style={{ zIndex: 5 }}>
+        <div aria-hidden className="absolute inset-x-0 bottom-0" style={{ height: RAIL_HEIGHT, zIndex: 5 }}>
             {/* the lane reads as a track, so the empty width belongs to something */}
             <div className="absolute inset-0 bg-muted/50" />
             {chapters.map((chapter, i) => {

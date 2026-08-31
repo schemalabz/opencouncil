@@ -156,6 +156,7 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, /** a s
             <>
                 <motion.div
                     ref={containerRef}
+                    data-playback-focus=""
                     drag={!isResizing}
                     dragMomentum={false}
                     dragElastic={0.1}
@@ -168,7 +169,7 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, /** a s
                     // Anchored above the playback dock: with no coordinates a fixed box
                     // keeps its in-flow offset, which for the dock's video slot is off
                     // the bottom of the viewport.
-                    style={{ width: dimensions.width, height: dimensions.height, left: 8, bottom: 'calc(112px + env(safe-area-inset-bottom))' }}
+                    style={{ width: dimensions.width, height: dimensions.height, left: 8, bottom: 'calc(var(--playback-dock-clearance) + env(safe-area-inset-bottom))' }}
                     onMouseEnter={() => setIsHovered(true)}
                     onMouseLeave={() => setIsHovered(false)}
                 >

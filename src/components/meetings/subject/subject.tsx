@@ -2,7 +2,7 @@
 import Map from "@/components/map/map";
 import { useBarData } from '@/components/meetings/bar/BarDataContext';
 import { useBarHighlightActions } from '@/components/meetings/bar/BarHighlightContext';
-import { useBarMode } from '@/components/meetings/bar/PlaybackBar';
+import { useBarModeSetter } from '@/components/meetings/bar/PlaybackBar';
 import { captureEvent } from '@/lib/analytics/capture';
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { Button } from "@/components/ui/button";
@@ -100,7 +100,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     // meeting was this discussed" is one glance away.
     const { intervalsBySubject } = useBarData();
     const { setPageHighlight } = useBarHighlightActions();
-    const { setMode } = useBarMode();
+    const setMode = useBarModeSetter();
     // The mode presets once per subject visit; the highlight tracks interval
     // recomputations. Split, so a transcript edit does not silently snap a
     // reader's chosen mode back to subjects.

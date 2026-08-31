@@ -8,6 +8,8 @@ export interface KeyboardAction {
     description: string;
     keys: string[]; // e.g., ['Control+s', 'Meta+s']
     handler?: KeyboardActionHandler;
+    /** Bare arrows belong to reading (scroll) unless focus sits in the playback dock. */
+    requiresPlaybackFocus?: boolean;
 }
 
 interface KeyboardShortcutsContextType {
@@ -43,22 +45,26 @@ const ACTION_DEFINITIONS: Record<string, Omit<KeyboardAction, 'handler'>> = {
     SEEK_PREVIOUS: {
         id: 'SEEK_PREVIOUS',
         description: 'Seek to previous utterance or 5s back',
-        keys: ['ArrowLeft']
+        keys: ['ArrowLeft'],
+        requiresPlaybackFocus: true
     },
     SEEK_NEXT: {
         id: 'SEEK_NEXT',
         description: 'Seek to next utterance or 5s forward',
-        keys: ['ArrowRight']
+        keys: ['ArrowRight'],
+        requiresPlaybackFocus: true
     },
     SPEED_UP: {
         id: 'SPEED_UP',
         description: 'Increase playback speed',
-        keys: ['ArrowUp']
+        keys: ['ArrowUp'],
+        requiresPlaybackFocus: true
     },
     SPEED_DOWN: {
         id: 'SPEED_DOWN',
         description: 'Decrease playback speed',
-        keys: ['ArrowDown']
+        keys: ['ArrowDown'],
+        requiresPlaybackFocus: true
     },
     SKIP_BACKWARD: {
         id: 'SKIP_BACKWARD',
@@ -136,6 +142,14 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
                 });
 
                 if (isMatch) {
+                    // Bare arrows stay scroll keys while reading; they drive
+                    // playback only when focus sits inside the dock (or the
+                    // floating player). Space stays global.
+                    if (action.requiresPlaybackFocus && !(
+                        event.target instanceof HTMLElement && event.target.closest('[data-playback-focus]')
+                    )) {
+                        continue;
+                    }
                     const handler = handlers.current.get(action.id);
                     if (handler) {
                         event.preventDefault();

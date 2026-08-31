@@ -11,6 +11,7 @@ import { useBarHighlight } from './BarHighlightContext';
 import { BarTimeline, DIM_OPACITY, type ModeAnnounce } from './BarTimeline';
 import { useLiveTime } from './useLiveTime';
 import { nowBand, NowPlayingSubjectLink } from './nowPlaying';
+import { DOCK_ROW, DOCK_ROW_COMPACT } from './geometry';
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
 import { MiniVideo } from './MiniVideo';
 import { ModePicker, type BarMode } from './ModePicker';
@@ -22,17 +23,29 @@ interface BarModeContextType {
     setMode: (mode: BarMode) => void;
 }
 const BarModeContext = createContext<BarModeContextType | null>(null);
+const BarModeSetterContext = createContext<((mode: BarMode) => void) | null>(null);
 
 export function BarModeProvider({ children }: { children: React.ReactNode }) {
     const [mode, setMode] = useState<BarMode>('speakers');
     const value = useMemo(() => ({ mode, setMode }), [mode]);
-    return <BarModeContext.Provider value={value}>{children}</BarModeContext.Provider>;
+    return (
+        <BarModeSetterContext.Provider value={setMode}>
+            <BarModeContext.Provider value={value}>{children}</BarModeContext.Provider>
+        </BarModeSetterContext.Provider>
+    );
 }
 
 /** The subject page presets the subjects mode; anyone may flip it back. */
 export function useBarMode(): BarModeContextType {
     const ctx = useContext(BarModeContext);
     if (!ctx) throw new Error('useBarMode must be used within a BarModeProvider');
+    return ctx;
+}
+
+/** The setter alone — identity-stable, so a whole page can preset the mode without re-rendering on flips. */
+export function useBarModeSetter(): (mode: BarMode) => void {
+    const ctx = useContext(BarModeSetterContext);
+    if (!ctx) throw new Error('useBarModeSetter must be used within a BarModeProvider');
     return ctx;
 }
 
@@ -85,6 +98,7 @@ export function PlaybackBar() {
         <>
             {pill && <BarPill mode={effectiveMode} onExpand={() => setCollapsedPersisted(false)} />}
         <div
+            data-playback-focus=""
             className={cn(
                 'fixed inset-x-2 z-50',
                 isMobile ? 'bottom-0 -mx-2 border-t-2 border-border bg-background px-2.5 pt-1.5' : 'bottom-2',
@@ -108,11 +122,11 @@ export function PlaybackBar() {
                     <PlayButton compact={isMobile} />
                 </div>
                 <MiniVideo compact={isMobile} />
-                <BarTimeline mode={effectiveMode} compact={isMobile} announce={announce} onAnnounceEnd={() => setAnnounce(null)} />
+                <BarTimeline mode={effectiveMode} compact={isMobile} announce={announce} onAnnounceEnd={() => setAnnounce(null)} dormant={pill} />
                 {hasSubjectData && <ModePicker mode={effectiveMode} onModeChange={switchMode} compact={isMobile} />}
                 <div className="self-center"><ClipNav /></div>
             </div>
-            {isMobile && <TimeReadout />}
+            {isMobile && !pill && <TimeReadout />}
         </div>
         </>
     );
@@ -127,10 +141,8 @@ function PlayButton({ compact }: { compact: boolean }) {
             type="button"
             onClick={togglePlayPause}
             aria-label={isPlaying ? t('pause') : t('play')}
-            className={cn(
-                'flex shrink-0 items-center justify-center rounded-[10px] border-2 border-border bg-card hover:bg-muted',
-                compact ? 'h-[42px] w-[42px]' : 'h-[62px] w-[62px]',
-            )}
+            className="flex shrink-0 items-center justify-center rounded-[10px] border-2 border-border bg-card hover:bg-muted"
+            style={{ height: compact ? DOCK_ROW_COMPACT : DOCK_ROW, width: compact ? DOCK_ROW_COMPACT : DOCK_ROW }}
         >
             {isPlaying
                 ? (isSeeking ? <Loader className="h-5 w-5 animate-spin" aria-hidden /> : <Pause className="h-5 w-5" aria-hidden />)
@@ -167,9 +179,9 @@ function TimeReadout() {
 
 /** The clock over the play button — polls the ref, so it ticks like a clock. */
 function NowBubble() {
-    const { duration } = useVideo();
+    const { duration, isPlaying } = useVideo();
     const { currentTimeRef } = useVideoActions();
-    const time = useLiveTime(currentTimeRef);
+    const time = useLiveTime(currentTimeRef, isPlaying);
     return (
         <div className="pointer-events-none absolute -top-9 left-0 flex h-8 w-max items-center gap-1 rounded-full border-2 border-border bg-card px-3 shadow-sm text-[11px] tabular-nums">
             <span className="font-extrabold">{formatTimestamp(time)}</span>
@@ -240,6 +252,7 @@ function BarPill({ mode, onExpand }: { mode: BarMode; onExpand: () => void }) {
 
     return (
         <div
+            data-playback-focus=""
             className="fixed inset-x-3 z-50 flex items-center gap-2.5 rounded-full border-2 border-border bg-card py-1 pl-2.5 pr-1.5 shadow-lg"
             style={{ bottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
         >
