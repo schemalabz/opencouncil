@@ -457,6 +457,8 @@ function BackPanel({ data }: { data: BrochureData }) {
 
             <View style={{ flex: 1 }} />
 
+            {/* Office collage: storefront backdrop, the team inset — pre-composed
+                so the brochure and /about share the exact same artwork. */}
             {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image */}
             <Image
                 src={`${ASSET_BASE}/brochure/office.jpg`}
