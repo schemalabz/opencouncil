@@ -425,30 +425,30 @@ function FlapPanel({ data }: { data: BrochureData }) {
 function BackPanel({ data }: { data: BrochureData }) {
     // The city variant adds the ΑΔΑΜ paragraph; shrink the collage so the
     // fixed-height panel never overflows (react-pdf silently clips overflow).
-    const photoHeight = (PANEL_W - PANEL_PAD * 2) / (data.city?.adam ? 2.8 : 1.6);
+    const photoHeight = (PANEL_W - PANEL_PAD * 2) / (data.city?.adam ? 2.3 : 1.6);
     return (
         <Panel>
             <PanelTitle kicker="Η ομάδα" title="Οι άνθρωποι πίσω από το OpenCouncil" />
 
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center" }}>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
                 {BROCHURE_TEAM.map(member => (
-                    <View key={member.name} style={{ width: 66, alignItems: "center" }}>
+                    <View key={member.name} style={{ width: 60, alignItems: "center" }}>
                         {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image */}
                         <Image
                             src={`${ASSET_BASE}${member.image}`}
                             style={{
-                                width: 52,
-                                height: 52,
-                                borderRadius: 26,
+                                width: 40,
+                                height: 40,
+                                borderRadius: 20,
                                 objectFit: "cover",
                             }}
                         />
                         <Text
                             style={{
-                                fontSize: 8,
+                                fontSize: 7.5,
                                 color: C.body,
                                 textAlign: "center",
-                                marginTop: 4,
+                                marginTop: 3,
                                 lineHeight: 1.3,
                             }}
                         >
@@ -470,18 +470,22 @@ function BackPanel({ data }: { data: BrochureData }) {
                     height: photoHeight,
                     borderRadius: 6,
                     objectFit: "cover",
-                    marginBottom: 12,
+                    marginBottom: 5,
                 }}
             />
+            <Text style={{ fontSize: 8, color: C.mid, lineHeight: 1.4, marginBottom: 12 }}>
+                Τα γραφεία μας είναι ανοιχτά και μπορείτε να μας επισκεφτείτε —
+                Σμολένσκι 22, Εξάρχεια.
+            </Text>
 
-            <Text style={{ fontSize: 9, color: C.mid, lineHeight: 1.5, marginBottom: 12 }}>
+            <Text style={{ fontSize: 8, color: C.mid, lineHeight: 1.5, marginBottom: 10 }}>
                 Η OpenCouncil Μονοπρόσωπη Ι.Κ.Ε. ανήκει εξ ολοκλήρου στη Schema Labs,
                 μη-κερδοσκοπική εταιρεία. Ο κώδικάς μας είναι ανοιχτός, με άδεια GPL v3 —
                 κάθε γραμμή είναι δημόσια.
             </Text>
 
             {data.city?.adam && (
-                <Text style={{ fontSize: 9, color: C.mid, lineHeight: 1.5, marginBottom: 12 }}>
+                <Text style={{ fontSize: 8, color: C.mid, lineHeight: 1.5, marginBottom: 10 }}>
                     Το OpenCouncil λειτουργεί στον{" "}
                     {municipalityAccusative(data.city.nameMunicipality)} με σύμβαση με ΑΔΑΜ{" "}
                     {data.city.adam}. Ο τρόπος τιμολόγησης είναι δημόσια διαθέσιμος στο
@@ -502,7 +506,7 @@ function BackPanel({ data }: { data: BrochureData }) {
                 <View style={{ alignItems: "center", gap: 3 }}>
                     <QRCode
                         value={data.city ? `${data.baseUrl}/${data.city.id}` : `${data.baseUrl}/about`}
-                        size={62}
+                        size={54}
                     />
                     {data.city && (
                         <Text style={{ fontSize: 6, color: C.light }}>
@@ -520,10 +524,8 @@ function BackPanel({ data }: { data: BrochureData }) {
                         <Text style={{ fontSize: 9, color: C.body }}>{data.contactPhone}</Text>
                     </View>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                        <LucideIcon name="mapPin" size={9.5} color={C.mid} />
-                        <Text style={{ fontSize: 9, color: C.body }}>
-                            Σμολένσκι 22, Αθήνα · opencouncil.gr
-                        </Text>
+                        <LucideIcon name="globe" size={9.5} color={C.mid} />
+                        <Text style={{ fontSize: 9, color: C.body }}>opencouncil.gr</Text>
                     </View>
                 </View>
             </View>
