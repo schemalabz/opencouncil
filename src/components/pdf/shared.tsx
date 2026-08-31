@@ -74,15 +74,15 @@ export const LOGO_RATIO = 1354 / 1606;
  * regular weight — never bold the logo lockup — and the butterfly stays
  * visually dominant over the letters (text ≈ 0.55 × logo width).
  */
-export function Brand({ size = 18 }: { size?: number }) {
+export function Brand({ size = 18, textScale = 0.55 }: { size?: number; textScale?: number }) {
     return (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: size * 0.38 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: size * textScale * 0.69 }}>
             {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img */}
             <Image
                 src={`${ASSET_BASE}/logo.png`}
                 style={{ width: size, height: size * LOGO_RATIO }}
             />
-            <Text style={{ fontSize: size * 0.55, color: C.ink }}>OpenCouncil</Text>
+            <Text style={{ fontSize: size * textScale, color: C.ink }}>OpenCouncil</Text>
         </View>
     );
 }
