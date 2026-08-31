@@ -423,9 +423,12 @@ function FlapPanel({ data }: { data: BrochureData }) {
 // ─── Outside: back cover ────────────────────────────────────────────────────
 
 function BackPanel({ data }: { data: BrochureData }) {
-    // The city variant adds the ΑΔΑΜ paragraph; shrink the collage so the
-    // fixed-height panel never overflows (react-pdf silently clips overflow).
-    const photoHeight = (PANEL_W - PANEL_PAD * 2) / (data.city?.adam ? 2.3 : 1.6);
+    // The city variant adds the ΑΔΑΜ paragraph, which leaves less room for
+    // the collage. Each variant gets a collage pre-composed at its exact
+    // display aspect (1600×1000 and 1600×696), so nothing is ever cropped.
+    const hasAdam = Boolean(data.city?.adam);
+    const officeSrc = hasAdam ? "office-city.jpg" : "office.jpg";
+    const photoHeight = (PANEL_W - PANEL_PAD * 2) * (hasAdam ? 696 / 1600 : 1000 / 1600);
     return (
         <Panel>
             <PanelTitle kicker="Η ομάδα" title="Οι άνθρωποι πίσω από το OpenCouncil" />
@@ -464,7 +467,7 @@ function BackPanel({ data }: { data: BrochureData }) {
                 so the brochure and /about share the exact same artwork. */}
             {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image */}
             <Image
-                src={`${ASSET_BASE}/brochure/office.jpg`}
+                src={`${ASSET_BASE}/brochure/${officeSrc}`}
                 style={{
                     width: PANEL_W - PANEL_PAD * 2,
                     height: photoHeight,
