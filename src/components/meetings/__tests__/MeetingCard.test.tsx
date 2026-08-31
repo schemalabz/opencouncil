@@ -74,8 +74,8 @@ describe('MeetingCard date line (#514)', () => {
 
     it('shows the time on a past meeting, in the city timezone', () => {
         renderCard();
-        // 14:30Z -> 16:30 Athens. Greek formatting renders this as "4:30 μ.μ.".
-        expect(screen.getByText(/15 Ιανουαρίου 2024/)).toHaveTextContent(/4:30/);
+        // 14:30Z -> 16:30 Athens, rendered in the pinned 24-hour clock.
+        expect(screen.getByText(/15 Ιανουαρίου 2024/)).toHaveTextContent(/16:30/);
     });
 
     it('does not fall back to a date-only render', () => {
@@ -95,6 +95,6 @@ describe('MeetingCard date line (#514)', () => {
     it('follows the active locale', () => {
         mockLocale = 'en';
         renderCard();
-        expect(screen.getByText(/January 15, 2024/)).toHaveTextContent(/4:30/);
+        expect(screen.getByText(/January 15, 2024/)).toHaveTextContent(/16:30/);
     });
 });

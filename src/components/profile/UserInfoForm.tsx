@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations, useLocale } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import type { User } from "@prisma/client";
@@ -16,8 +16,7 @@ import { PhoneField, PhoneFieldValidity } from "@/components/ui/phone-field";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { NotificationPreferencesSection } from "@/components/profile/NotificationPreferencesSection";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
-import { getDateFnsLocale } from "@/lib/formatters/time";
+import { formatNumericDateTime } from "@/lib/formatters/time";
 
 interface UserInfoFormProps {
     user: User;
@@ -26,7 +25,6 @@ interface UserInfoFormProps {
 
 export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
     const t = useTranslations("Profile");
-    const dateLocale = getDateFnsLocale(useLocale());
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -173,7 +171,7 @@ export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
 
                                 <div className="flex flex-col justify-between gap-2">
                                     <p className="text-xs text-muted-foreground">
-                                        {t("lastUpdated", { date: format(new Date(user.updatedAt), 'dd/MM/yyyy HH:mm', { locale: dateLocale }) })}
+                                        {t("lastUpdated", { date: formatNumericDateTime(new Date(user.updatedAt), undefined, 'el', false) })}
                                     </p>
                                     <Button
                                         type="submit"
@@ -238,7 +236,7 @@ export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
                                 </div>
                                 <div className="flex flex-col gap-2">
                                     <p className="text-xs text-muted-foreground">
-                                        {t("lastUpdated", { date: format(new Date(user.updatedAt), 'dd/MM/yyyy HH:mm', { locale: dateLocale }) })}
+                                        {t("lastUpdated", { date: formatNumericDateTime(new Date(user.updatedAt), undefined, 'el', false) })}
                                     </p>
                                     <div className="flex items-center justify-between">
                                         <Button type="submit" disabled={isSubmitting} className="whitespace-normal h-auto">

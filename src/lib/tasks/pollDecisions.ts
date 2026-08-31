@@ -10,7 +10,8 @@ import { upsertDecision, deleteDecision, getDecisionForSubject, DECISION_ELIGIBL
 export { getDecisionForSubject };
 import { getCurrentUser, withUserAuthorizedToEdit } from "../auth";
 import { getPeopleForMeeting } from "../db/people";
-import { deriveWindowDays, localCalendarDate } from "./decisionWindow";
+import { deriveWindowDays } from "./decisionWindow";
+import { localCalendarDate } from "@/lib/formatters/time";
 import { getConflictingCandidates, applyCandidateConflictResolution, getUnresolvedCandidatesForMeeting } from "../db/decisionCandidates";
 import { isRoleActiveAt, isMayorRole } from "../utils/roles";
 import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, BACKOFF_SCHEDULE, MAX_POLLING_DAYS, LOGODOSIA_NAME_PATTERN } from "./pollDecisionsBackoff";

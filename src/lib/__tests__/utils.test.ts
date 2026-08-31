@@ -93,6 +93,13 @@ describe('formatDate', () => {
     expect(formatDate(new Date('2024-01-15'))).toMatch(/15.*Ιανουαρίου.*2024/);
   });
 
+  it('should default to the app timezone, not the machine timezone', () => {
+    // 23:30Z on the 15th is already the 16th in Europe/Athens. A machine-local
+    // default would make the server (UTC) and the browser render different
+    // dates and break hydration.
+    expect(formatDate(new Date('2024-01-15T23:30:00Z'))).toMatch(/16.*Ιανουαρίου.*2024/);
+  });
+
   it('should throw error for invalid date', () => {
     // @ts-ignore - Testing invalid input
     expect(() => formatDate(null)).toThrow('Invalid date');
@@ -101,17 +108,18 @@ describe('formatDate', () => {
 
 describe('formatDateTime', () => {
   it('should format date and time in Greek locale', () => {
-    const date = new Date('2024-01-15T14:30:00');
-    // The output might contain either 24-hour format or AM/PM (μ.μ.)
+    const date = new Date('2024-01-15T14:30:00Z');
+    // Without an explicit timezone the formatter renders the app default
+    // (Europe/Athens, UTC+2 in January), in the pinned 24-hour clock.
     expect(formatDateTime(date)).toMatch(/15.*Ιανουαρίου.*2024/);
-    expect(formatDateTime(date)).toMatch(/2:30|14:30/);
+    expect(formatDateTime(date)).toMatch(/16:30/);
   });
 
   it('should render the time in the given timezone', () => {
     const date = new Date('2024-01-15T14:30:00Z');
     // January is EET (UTC+2), so Athens runs two hours ahead of the UTC baseline.
-    expect(formatDateTime(date, 'Europe/Athens')).toMatch(/4:30/);
-    expect(formatDateTime(date, 'UTC')).toMatch(/2:30/);
+    expect(formatDateTime(date, 'Europe/Athens')).toMatch(/16:30/);
+    expect(formatDateTime(date, 'UTC')).toMatch(/14:30/);
   });
 
   it('should follow the locale parameter', () => {
@@ -121,12 +129,12 @@ describe('formatDateTime', () => {
   });
 
   it('should use a compact month with dateStyle medium', () => {
-    const date = new Date('2024-01-15T14:30:00');
+    const date = new Date('2024-01-15T14:30:00Z');
     const result = formatDateTime(date, undefined, 'medium');
     // The full month name only appears with the default 'long' dateStyle
     expect(result).not.toMatch(/Ιανουαρίου/);
     expect(result).toMatch(/2024/);
-    expect(result).toMatch(/2:30|14:30/);
+    expect(result).toMatch(/16:30/);
   });
 
   it('should throw error for invalid date', () => {
