@@ -73,7 +73,10 @@ export default async function NotificationPage(props: { params: Promise<{ id: st
                                     {delivery.sentAt && (
                                         <>
                                             <span className="mx-0.5">•</span>
-                                            <span className="whitespace-nowrap">
+                                            {/* Relative to the render clock, so the server and
+                                                the client can land either side of a minute
+                                                boundary. */}
+                                            <span className="whitespace-nowrap" suppressHydrationWarning>
                                                 {formatDistanceToNow(new Date(delivery.sentAt), { addSuffix: true, locale: el })}
                                             </span>
                                         </>

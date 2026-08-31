@@ -256,7 +256,9 @@ function UpcomingMeetingCard() {
                 <>
                     <div className="flex items-center justify-center gap-2 mb-3">
                         <CalendarIcon className="w-5 h-5 text-primary" />
-                        <p className="font-medium">
+                        {/* Relative to the render clock, so the server and the
+                            client can land either side of a minute boundary. */}
+                        <p className="font-medium" suppressHydrationWarning>
                             {tMeeting('scheduledFor', { when: formatRelativeTime(meetingDate, locale) })}
                         </p>
                     </div>

@@ -2,12 +2,13 @@
 import { useRouter, usePathname } from '../../i18n/routing';
 import { Card, CardContent } from "../ui/card";
 import { useLocale, useTranslations } from 'next-intl';
-import React, { useEffect, useState, useMemo } from 'react';
-import { format, formatDistanceToNow, isFuture } from 'date-fns';
+import React, { useEffect, useState, useMemo, useReducer } from 'react';
+import { isFuture } from 'date-fns';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { CalendarIcon, Clock, Loader2, ChevronRight, Building } from 'lucide-react';
 import { sortSubjectsByImportance, IS_DEV } from '@/lib/utils';
-import { formatDateTime, getDateFnsLocale } from '@/lib/formatters/time';
+import { formatDateTime, localCalendarDate } from '@/lib/formatters/time';
+import { RelativeTime } from '@/components/RelativeTime';
 import SubjectBadge from '../subject-badge';
 import { cn } from '@/lib/utils';
 import { Link } from '@/i18n/routing';
@@ -91,7 +92,34 @@ export default function MeetingCard({ item: meeting, editable, cityTimezone }: M
 
     const remainingSubjectsCount = meeting.subjects.length - 3;
     const isUpcoming = isFuture(meeting.dateTime);
-    const isToday = format(meeting.dateTime, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+    // Compare calendar days in the city's timezone: the machine's local day is
+    // UTC on the server and the visitor's zone in the browser, so the two ends
+    // disagreed on which meetings are "today" (and both could be wrong for the
+    // city).
+    const isToday = localCalendarDate(new Date(meeting.dateTime), cityTimezone)
+        === localCalendarDate(new Date(), cityTimezone);
+
+    // Re-render just after the start so the badge flips from the ticking
+    // countdown to the "today" label instead of counting upward into the past.
+    const [, rerenderAtStart] = useReducer((n: number) => n + 1, 0);
+    useEffect(() => {
+        if (!isUpcoming) return;
+        // setTimeout overflows (and fires immediately) past 2^31-1 ms, so for
+        // a meeting further out than that, chain timers until the start is
+        // within one timeout's range.
+        const startMs = new Date(meeting.dateTime).getTime() + 1000;
+        const MAX_DELAY = 2 ** 31 - 1;
+        let id: ReturnType<typeof setTimeout>;
+        const schedule = () => {
+            const remaining = Math.max(startMs - Date.now(), 0);
+            id = setTimeout(
+                remaining > MAX_DELAY ? schedule : rerenderAtStart,
+                Math.min(remaining, MAX_DELAY),
+            );
+        };
+        schedule();
+        return () => clearTimeout(id);
+    }, [isUpcoming, meeting.dateTime]);
     const isTodayWithoutVideo = isToday && !meeting.videoUrl;
 
     // Ensure we have subjects to display
@@ -138,7 +166,9 @@ export default function MeetingCard({ item: meeting, editable, cityTimezone }: M
                                     <span className="relative z-10 flex items-center gap-1.5">
                                         <Clock className="w-3.5 h-3.5" />
                                         {isUpcoming ? (
-                                            <>{t('upcoming')}: {formatDistanceToNow(meeting.dateTime, { locale: getDateFnsLocale(locale) })}</>
+                                            // One span, so the flex gap of the parent does not
+                                            // replace the space between label and countdown.
+                                            <span>{t('upcoming')}: <RelativeTime date={meeting.dateTime} addSuffix={false} /></span>
                                         ) : (
                                             t('today')
                                         )}
