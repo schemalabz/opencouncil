@@ -7,7 +7,7 @@ import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { useHighlight } from './HighlightContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Edit, Gauge, UserRoundSearch, X, CheckCircle, SkipForward } from 'lucide-react';
+import { Edit, UserRoundSearch, X, CheckCircle, SkipForward } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -20,7 +20,7 @@ import { useRouter } from 'next/navigation';
 
 export function EditingModeBar() {
     const { options, updateOptions } = useTranscriptOptions();
-    const { playbackSpeed, handleSpeedChange, seekTo, currentTime } = useVideo();
+    const { seekTo, currentTime } = useVideo();
     const { transcript: speakerSegments, getSpeakerTag, meeting } = useCouncilMeetingData();
     const { editingHighlight } = useHighlight(); // To check for exclusivity
     const t = useTranslations('editing');
@@ -129,31 +129,6 @@ export function EditingModeBar() {
                                     {/* Right Side: Actions */}
                                     <div className="flex items-center space-x-2">
                                         
-                                        {/* Playback Speed */}
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="flex items-center space-x-1"
-                                                >
-                                                    <Gauge className="h-4 w-4 mr-1" />
-                                                    <span>{parseFloat(playbackSpeed).toFixed(1)}x</span>
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                {[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((speed) => (
-                                                    <DropdownMenuItem
-                                                        key={speed}
-                                                        onClick={() => handleSpeedChange(speed.toString())}
-                                                        className={Math.abs(parseFloat(playbackSpeed) - speed) < 0.01 ? "bg-accent font-bold" : ""}
-                                                    >
-                                                        {speed}x
-                                                    </DropdownMenuItem>
-                                                ))}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-
                                         {/* Skip Interval */}
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>

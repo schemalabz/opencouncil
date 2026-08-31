@@ -12,9 +12,10 @@ export function KeyboardShortcuts() {
     const { transcript } = useCouncilMeetingData();
 
     // Play / Pause
+    // Playback belongs to every reader — only editing actions stay gated.
     useKeyboardShortcut(ACTIONS.PLAY_PAUSE.id, () => {
         togglePlayPause();
-    }, options.editable);
+    });
 
     // Edit Next Utterance (Enter)
     useKeyboardShortcut(ACTIONS.EDIT_NEXT_UTTERANCE.id, () => {
@@ -52,7 +53,7 @@ export function KeyboardShortcuts() {
             const targetUtterance = currentUtterance ? prevUtterances[1] || prevUtterances[0] : prevUtterances[0];
             seekTo(targetUtterance.startTimestamp);
         }
-    }, options.editable);
+    });
 
     // Seek Next (ArrowRight)
     useKeyboardShortcut(ACTIONS.SEEK_NEXT.id, () => {
@@ -64,32 +65,32 @@ export function KeyboardShortcuts() {
         if (nextUtterance) {
             seekTo(nextUtterance.startTimestamp);
         }
-    }, options.editable);
+    });
 
     // Speed Up (ArrowUp)
     useKeyboardShortcut(ACTIONS.SPEED_UP.id, () => {
-        const newSpeedUp = Math.min(4, options.playbackSpeed + 0.1);
-        handleSpeedChange(newSpeedUp.toString());
+        const newSpeedUp = Math.min(4, Math.round((options.playbackSpeed + 0.1) * 10) / 10);
         updateOptions({ playbackSpeed: newSpeedUp });
-    }, options.editable);
+        handleSpeedChange(newSpeedUp.toString());
+    });
 
     // Speed Down (ArrowDown)
     useKeyboardShortcut(ACTIONS.SPEED_DOWN.id, () => {
-        const newSpeedDown = Math.max(0.5, options.playbackSpeed - 0.1);
-        handleSpeedChange(newSpeedDown.toString());
+        const newSpeedDown = Math.max(0.5, Math.round((options.playbackSpeed - 0.1) * 10) / 10);
         updateOptions({ playbackSpeed: newSpeedDown });
-    }, options.editable);
+        handleSpeedChange(newSpeedDown.toString());
+    });
 
     // Skip Backward (Shift + ArrowLeft)
     useKeyboardShortcut(ACTIONS.SKIP_BACKWARD.id, () => {
         const newTime = Math.max(0, currentTimeRef.current - options.skipInterval);
         seekTo(newTime);
-    }, options.editable);
+    });
 
     // Skip Forward (Shift + ArrowRight)
     useKeyboardShortcut(ACTIONS.SKIP_FORWARD.id, () => {
         seekTo(currentTimeRef.current + options.skipInterval);
-    }, options.editable);
+    });
 
     return null;
 } 

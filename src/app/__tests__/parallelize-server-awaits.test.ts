@@ -75,7 +75,7 @@ jest.mock('@/components/cities/CityNavigation', () => ({ CityNavigation: () => n
 jest.mock('@/components/cities/CityPeople', () => ({ __esModule: true, default: () => null }));
 jest.mock('@/components/meetings/CouncilMeetingWrapper', () => ({ __esModule: true, default: ({ children }: { children: ReactNode }) => children }));
 jest.mock('@/components/meetings/sidebar', () => ({ __esModule: true, default: () => null }));
-jest.mock('@/components/meetings/TranscriptControls', () => ({ __esModule: true, default: () => null }));
+jest.mock('@/components/meetings/bar/PlaybackBar', () => ({ __esModule: true, PlaybackBar: () => null, BarModeProvider: ({ children }: { children: ReactNode }) => children, useBarMode: () => ({ mode: 'speakers', setMode: () => {} }) }));
 jest.mock('@/components/layout/Header', () => ({ __esModule: true, default: () => null }));
 jest.mock('@/components/meetings/EditButton', () => ({ __esModule: true, default: () => null }));
 jest.mock('@/components/meetings/PresentationViewButton', () => ({ __esModule: true, default: () => null }));
