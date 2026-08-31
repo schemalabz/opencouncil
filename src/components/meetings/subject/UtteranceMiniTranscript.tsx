@@ -11,6 +11,7 @@ import { cn, getPartyFromRoles } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { PlayPauseButton } from "@/components/meetings/PlayPauseButton";
+import { UNKNOWN_SPEAKER_COLOR } from '@/lib/utils';
 
 /**
  * Builds smart display segments from multiple target utterances.
@@ -162,7 +163,7 @@ export const UtteranceMiniTranscript = memo(function UtteranceMiniTranscript({
 
   // Get party color
   const party = person ? getPartyFromRoles(person.roles) : null;
-  const borderColor = party?.colorHex || '#D3D3D3';
+  const borderColor = party?.colorHex || UNKNOWN_SPEAKER_COLOR;
 
   // Use the utterance API endpoint which handles navigation with proper timestamp
   const transcriptLink = isMultiMode

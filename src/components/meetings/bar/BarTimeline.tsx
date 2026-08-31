@@ -1,7 +1,7 @@
 "use client";
 
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from '@/i18n/routing';
+import { useRouter, Link } from '@/i18n/routing';
 import { useTranslations } from 'next-intl';
 import { useVideo, useVideoActions } from '@/components/meetings/VideoProvider';
 import { useHighlight } from '@/components/meetings/HighlightContext';
@@ -10,14 +10,13 @@ import { useBarData } from './BarDataContext';
 import { useBarHighlight } from './BarHighlightContext';
 import { bandAt, intersectsAny, type BarBand, type Chapter, type Interval } from '@/lib/utils/barTimeline';
 import { useLiveTime } from './useLiveTime';
-import { captureEvent } from '@/lib/analytics/capture';
-import { Link } from '@/i18n/routing';
+import { nowBand, NowPlayingSubjectLink } from './nowPlaying';
 import { TopicIcon } from '@/components/TopicIcon';
 import { Users, Shapes } from 'lucide-react';
 import type { BarMode } from './ModePicker';
 import { cn, formatTimestamp } from '@/lib/utils';
 
-const DIM_OPACITY = 0.16;
+export const DIM_OPACITY = 0.16;
 
 /** One explicit mode switch — the key remounts the overlay so the animation replays. */
 export interface ModeAnnounce {
@@ -32,16 +31,16 @@ export interface ModeAnnounce {
  * element; the hover layer throttles pointer moves to one rAF and touches
  * React state only when the band under the cursor changes.
  */
-export function BarTimeline({ mode, compact = false, announce = null }: { mode: BarMode; compact?: boolean; announce?: ModeAnnounce | null }) {
+export function BarTimeline({ mode, compact = false, announce = null, onAnnounceEnd }: { mode: BarMode; compact?: boolean; announce?: ModeAnnounce | null; onAnnounceEnd?: () => void }) {
     const t = useTranslations('transcript.controls');
     const router = useRouter();
     const { bands, contentDuration, chapters } = useBarData();
     const highlight = useBarHighlight();
-    const { duration: mediaDuration, currentScrollInterval, currentTime } = useVideo();
+    const { duration: mediaDuration, currentScrollInterval, currentTime, isPlaying } = useVideo();
     // Until the media reports metadata its duration is 0; the transcript's own
     // extent keeps the strip painted and clickable in the meantime.
     const duration = mediaDuration > 0 ? mediaDuration : contentDuration;
-    const { seekTo, currentTimeRef } = useVideoActions();
+    const { seekTo, seekToWithoutScroll, currentTimeRef } = useVideoActions();
     const { playerRef } = useVideo();
     const { editingHighlight, highlightUtterances, previewMode, currentHighlightIndex } = useHighlight();
     const { city, meeting } = useCouncilMeetingData();
@@ -50,6 +49,7 @@ export function BarTimeline({ mode, compact = false, announce = null }: { mode: 
     const cursorRef = useRef<HTMLDivElement>(null);
     const tooltipRef = useRef<HTMLDivElement>(null);
     const [hoverBand, setHoverBand] = useState<number>(-1);
+    const [hovering, setHovering] = useState(false);
     const hoverBandRef = useRef(-1);
 
     const isHighlightMode = editingHighlight !== null;
@@ -79,7 +79,9 @@ export function BarTimeline({ mode, compact = false, announce = null }: { mode: 
             cursorRef.current.style.opacity = '1';
         }
         if (tooltipRef.current) {
-            const clamped = Math.min(Math.max(x, 110), rect.width - 110);
+            // On a strip narrower than the tooltip the clamp would invert and
+            // pin it part-way off; centring is the honest fallback.
+            const clamped = rect.width < 220 ? rect.width / 2 : Math.min(Math.max(x, 110), rect.width - 110);
             tooltipRef.current.style.transform = `translateX(${clamped}px) translateX(-50%)`;
             const timeEl = tooltipRef.current.querySelector('[data-bar-time]');
             if (timeEl) timeEl.textContent = formatTimestamp((x / rect.width) * duration);
@@ -94,6 +96,7 @@ export function BarTimeline({ mode, compact = false, announce = null }: { mode: 
 
     const onPointerMove = useCallback((e: React.PointerEvent) => {
         pointerX.current = e.clientX;
+        setHovering(true);
         if (rafId.current === null) rafId.current = requestAnimationFrame(applyPointer);
     }, [applyPointer]);
 
@@ -101,6 +104,7 @@ export function BarTimeline({ mode, compact = false, announce = null }: { mode: 
         pointerX.current = null;
         hoverBandRef.current = -1;
         setHoverBand(-1);
+        setHovering(false);
         if (cursorRef.current) cursorRef.current.style.opacity = '0';
     }, []);
 
@@ -120,16 +124,25 @@ export function BarTimeline({ mode, compact = false, announce = null }: { mode: 
         return () => observer.disconnect();
     }, []);
 
-    const timeFromEvent = (e: React.MouseEvent): number | null => {
+    const timeFromEvent = (e: { clientX: number }): number | null => {
         const el = barRef.current;
         if (!el || duration <= 0) return null;
         const rect = el.getBoundingClientRect();
-        return ((e.clientX - rect.left) / rect.width) * duration;
+        const x = Math.min(Math.max(e.clientX - rect.left, 0), rect.width);
+        return (x / rect.width) * duration;
     };
+
+    // Where playback stood before the last click-seek: a double-click means
+    // "open this subject", not "abandon my listening position" — the second
+    // click restores it before navigating.
+    const preSeekTime = useRef<number | null>(null);
 
     const onClick = (e: React.MouseEvent) => {
         const time = timeFromEvent(e);
-        if (time !== null) seekTo(time);
+        if (time !== null) {
+            preSeekTime.current = currentTimeRef.current;
+            seekTo(time);
+        }
     };
 
     const onDoubleClick = (e: React.MouseEvent) => {
@@ -138,7 +151,29 @@ export function BarTimeline({ mode, compact = false, announce = null }: { mode: 
         if (time === null) return;
         const idx = bandAt(bands, time);
         const subjectId = idx >= 0 ? bands[idx].subjectId : null;
-        if (subjectId) router.push(`/${city.id}/${meeting.id}/subjects/${subjectId}`);
+        if (subjectId) {
+            if (preSeekTime.current !== null) seekToWithoutScroll(preSeekTime.current);
+            router.push(`/${city.id}/${meeting.id}/subjects/${subjectId}`);
+        }
+    };
+
+    // Touch scrubbing: capture the pointer so the drag belongs to the strip
+    // (touch-action-none keeps the browser from claiming it for panning),
+    // preview along the way, seek where the finger lifts.
+    const scrubbing = useRef(false);
+    const onPointerDown = (e: React.PointerEvent) => {
+        if (e.pointerType === 'mouse' || !e.isPrimary) return;
+        scrubbing.current = true;
+        barRef.current?.setPointerCapture(e.pointerId);
+        pointerX.current = e.clientX;
+        if (rafId.current === null) rafId.current = requestAnimationFrame(applyPointer);
+    };
+    const onPointerUp = (e: React.PointerEvent) => {
+        if (!scrubbing.current) return;
+        scrubbing.current = false;
+        const time = timeFromEvent(e);
+        if (time !== null) seekTo(time);
+        onPointerLeave();
     };
 
     const onKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -175,15 +210,19 @@ export function BarTimeline({ mode, compact = false, announce = null }: { mode: 
                 aria-orientation="horizontal"
                 aria-valuemin={0}
                 aria-valuemax={Math.round(duration)}
+                // initial values only — the Playhead maintains both imperatively
                 aria-valuenow={Math.round(currentTimeRef.current)}
+                aria-valuetext={formatTimestamp(currentTimeRef.current)}
                 tabIndex={0}
                 onClick={onClick}
                 onDoubleClick={onDoubleClick}
                 onKeyDown={onKeyDown}
+                onPointerDown={onPointerDown}
+                onPointerUp={onPointerUp}
                 onPointerMove={onPointerMove}
                 onPointerLeave={onPointerLeave}
                 className={cn(
-                    'relative w-full cursor-pointer overflow-hidden rounded-[10px] border-2 border-border bg-card',
+                    'relative w-full cursor-pointer touch-none overflow-hidden rounded-[10px] border-2 border-border bg-card',
                     compact ? 'h-[42px]' : 'h-[62px]',
                 )}
             >
@@ -229,7 +268,7 @@ export function BarTimeline({ mode, compact = false, announce = null }: { mode: 
                     </div>
                 )}
 
-                <Playhead playerRef={playerRef} currentTimeRef={currentTimeRef} duration={duration} barRef={barRef} />
+                <Playhead playerRef={playerRef} currentTimeRef={currentTimeRef} duration={duration} barRef={barRef} isPlaying={isPlaying} pausedTick={currentTime} />
 
                 {railed && (
                     <ChapterRail chapters={chapters} duration={duration} currentTime={currentTime} barWidth={barWidth} />
@@ -238,6 +277,7 @@ export function BarTimeline({ mode, compact = false, announce = null }: { mode: 
                 {announce && (
                     <div
                         key={announce.key}
+                        onAnimationEnd={onAnnounceEnd}
                         aria-hidden
                         className="pointer-events-none absolute inset-0 flex animate-[bar-mode-announce_2.4s_ease-in-out_forwards] items-center justify-center gap-2 bg-card/85 opacity-0"
                         style={{ zIndex: 12 }}
@@ -265,7 +305,7 @@ export function BarTimeline({ mode, compact = false, announce = null }: { mode: 
                 aria-hidden
                 className={cn(
                     'pointer-events-none absolute bottom-[calc(100%+8px)] left-0 z-30 w-[220px] rounded-[10px] border-2 border-border bg-card p-2.5 shadow-lg',
-                    hovered ? 'block' : 'hidden',
+                    hovering ? 'block' : 'hidden',
                 )}
             >
                 <div data-bar-time className="border-b border-border/60 pb-1.5 text-xs font-extrabold tabular-nums" />
@@ -349,8 +389,7 @@ function NowLane({ bands }: { bands: BarBand[] }) {
     const { isPlaying } = useVideo();
     const { currentTimeRef } = useVideoActions();
     const time = useLiveTime(currentTimeRef);
-    const idx = isPlaying ? bandAt(bands, time) : -1;
-    const band = idx >= 0 ? bands[idx] : null;
+    const band = nowBand(bands, time, isPlaying);
     // The dock floats over the page, so the line wears a capsule — same
     // language as the time bubble over the play button. Left-aligned to the
     // strip it annotates; on pause the lane simply empties.
@@ -369,20 +408,10 @@ function NowLane({ bands }: { bands: BarBand[] }) {
                             <span className="text-muted-foreground" aria-hidden>&middot;</span>
                         )}
                         {band.subjectId && band.subjectName && (
-                            <Link
-                                href={`/${city.id}/${meeting.id}/subjects/${band.subjectId}`}
-                                prefetch={false}
-                                onClick={() => captureEvent('subject_opened', {
-                                    surface: 'playback_bar',
-                                    subject_id: band.subjectId,
-                                    city_id: city.id,
-                                    meeting_id: meeting.id,
-                                })}
-                                className="flex min-w-0 items-center gap-1.5 hover:underline"
-                            >
+                            <NowPlayingSubjectLink band={band} cityId={city.id} meetingId={meeting.id} className="flex min-w-0 items-center gap-1.5 hover:underline">
                                 <TopicIcon color={band.subjectColor} icon={band.subjectIcon} size="sm" />
                                 <span className="truncate text-xs">{band.subjectName}</span>
-                            </Link>
+                            </NowPlayingSubjectLink>
                         )}
                     </div>
                 </div>
@@ -456,37 +485,57 @@ function ChapterRail({ chapters, duration, currentTime, barWidth }: {
  * The playhead: a rAF loop reading the video element directly and writing a
  * transform — no React state, no 2-second jumps.
  */
-function Playhead({ playerRef, currentTimeRef, duration, barRef }: {
+function Playhead({ playerRef, currentTimeRef, duration, barRef, isPlaying, pausedTick }: {
     playerRef: React.MutableRefObject<HTMLVideoElement | null>;
     currentTimeRef: React.MutableRefObject<number>;
     duration: number;
     barRef: React.RefObject<HTMLDivElement | null>;
+    isPlaying: boolean;
+    /** the throttled clock — its changes reposition the paused playhead after seeks */
+    pausedTick: number;
 }) {
     const headRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        let raf = 0;
         let lastX = -1;
-        const tick = () => {
-            raf = requestAnimationFrame(tick);
+        let lastSecond = -1;
+        const apply = (time: number) => {
             const el = headRef.current;
             const bar = barRef.current;
             if (!el || !bar || duration <= 0) return;
-            // While playing, the media element advances between timeupdate events, so
-            // reading it directly is what makes the playhead glide. Paused (or before
-            // the first play, when seeks deliberately leave the element alone), the
-            // provider's ref is the canonical position.
-            const player = playerRef.current;
-            const time = player && !player.paused ? player.currentTime : currentTimeRef.current;
             const x = Math.min(Math.max(time / duration, 0), 1) * bar.clientWidth;
             if (Math.abs(x - lastX) >= 0.5) {
                 lastX = x;
                 el.style.transform = `translateX(${x}px)`;
             }
+            // The slider's announced value lives outside React so playback
+            // ticks never re-render the strip.
+            const second = Math.round(time);
+            if (second !== lastSecond) {
+                lastSecond = second;
+                bar.setAttribute('aria-valuenow', String(second));
+                bar.setAttribute('aria-valuetext', formatTimestamp(time));
+            }
+        };
+
+        // Paused, the ref is canonical and only changes through seeks, which
+        // also bump the throttled clock — one positioning per change, no loop.
+        if (!isPlaying) {
+            apply(currentTimeRef.current);
+            return;
+        }
+
+        // Playing, the media element advances between timeupdate events, so a
+        // rAF loop reading it directly is what makes the playhead glide.
+        let raf = 0;
+        const tick = () => {
+            raf = requestAnimationFrame(tick);
+            const player = playerRef.current;
+            apply(player && !player.paused ? player.currentTime : currentTimeRef.current);
         };
         raf = requestAnimationFrame(tick);
         return () => cancelAnimationFrame(raf);
-    }, [duration, playerRef, currentTimeRef, barRef]);
+    }, [duration, playerRef, currentTimeRef, barRef, isPlaying, pausedTick]);
 
     return (
         <div ref={headRef} aria-hidden className="pointer-events-none absolute left-0 top-0 h-full" style={{ zIndex: 11 }}>

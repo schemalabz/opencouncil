@@ -1,4 +1,4 @@
-import { bandAt, chapterStarts, intersectsAny, mergeIntervals, utteranceRuns } from '../barTimeline';
+import { bandAt, chapterStarts, intersectsAny, mergeIntervals, resolveOverlaps, utteranceRuns, type BarBand } from '../barTimeline';
 
 const u = (start: number, end: number, subjectId: string | null, status = 'SUBJECT_DISCUSSION') => ({
     startTimestamp: start,
@@ -111,5 +111,54 @@ describe('chapterStarts', () => {
         ]);
         expect(chapters[0]).toEqual({ key: 'agenda', start: 0 });
         expect(chapters[1]).toEqual({ key: 'outOfAgenda', start: 5000 });
+    });
+});
+
+const band = (start: number, end: number, name = ''): BarBand => ({
+    start, end, speakerColor: '#000', speakerName: name,
+    subjectId: null, subjectColor: '#000', subjectName: null, subjectIcon: null,
+});
+
+describe('resolveOverlaps', () => {
+    it('leaves disjoint bands untouched', () => {
+        const bands = [band(0, 10), band(10, 20), band(25, 30)];
+        expect(resolveOverlaps(bands)).toEqual(bands);
+    });
+
+    it('splits a band around a nested interjection, which wins its span', () => {
+        const out = resolveOverlaps([band(0, 100, 'a'), band(20, 30, 'b')]);
+        expect(out.map(b => [b.start, b.end, b.speakerName])).toEqual([
+            [0, 20, 'a'], [20, 30, 'b'], [30, 100, 'a'],
+        ]);
+    });
+
+    it('truncates a partial overlap in favour of the later band', () => {
+        const out = resolveOverlaps([band(0, 50, 'a'), band(40, 80, 'b')]);
+        expect(out.map(b => [b.start, b.end, b.speakerName])).toEqual([
+            [0, 40, 'a'], [40, 80, 'b'],
+        ]);
+    });
+
+    it('drops zero-width fragments and keeps bandAt searchable', () => {
+        const out = resolveOverlaps([band(100, 140, 'a'), band(120, 130, 'b'), band(140, 200, 'c')]);
+        expect(out.map(b => [b.start, b.end, b.speakerName])).toEqual([
+            [100, 120, 'a'], [120, 130, 'b'], [130, 140, 'a'], [140, 200, 'c'],
+        ]);
+        expect(bandAt(out, 135)).toBe(2);
+        expect(bandAt(out, 125)).toBe(1);
+    });
+});
+
+describe('utteranceRuns with overlapping utterances', () => {
+    it('does not shrink a run when a nested same-subject utterance follows', () => {
+        expect(utteranceRuns([u(10, 30, 'a'), u(12, 20, 'a'), u(30, 40, 'b')], 10, 40)).toEqual([
+            { subjectId: 'a', start: 10, end: 30 },
+            { subjectId: 'b', start: 30, end: 40 },
+        ]);
+    });
+
+    it('never produces a run whose end precedes its start', () => {
+        const runs = utteranceRuns([u(10, 30, 'a'), u(15, 25, 'b')], 10, 30);
+        for (const run of runs) expect(run.end).toBeGreaterThanOrEqual(run.start);
     });
 });

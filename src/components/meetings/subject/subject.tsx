@@ -101,13 +101,18 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     const { intervalsBySubject } = useBarData();
     const { setPageHighlight } = useBarHighlightActions();
     const { setMode } = useBarMode();
+    // The mode presets once per subject visit; the highlight tracks interval
+    // recomputations. Split, so a transcript edit does not silently snap a
+    // reader's chosen mode back to subjects.
+    useEffect(() => {
+        if (subjectId) setMode('subjects');
+    }, [subjectId, setMode]);
     useEffect(() => {
         if (!subjectId) return;
         const ranges = intervalsBySubject.get(subjectId);
         setPageHighlight(ranges && ranges.length > 0 ? { key: subjectId, ranges } : null);
-        setMode('subjects');
         return () => setPageHighlight(null);
-    }, [subjectId, intervalsBySubject, setPageHighlight, setMode]);
+    }, [subjectId, intervalsBySubject, setPageHighlight]);
 
     // Every action on this page carries the same identity triple.
     const captureSubjectAction = (action: string, extra: Record<string, unknown> = {}) =>

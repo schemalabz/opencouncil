@@ -18,6 +18,7 @@ import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useToast } from '@/hooks/use-toast';
 import { useMediaQuery } from '@/hooks/use-media-query';
+import { UNKNOWN_SPEAKER_COLOR } from '@/lib/utils';
 
 const AddSegmentButton = ({ segmentId }: { segmentId: string }) => {
     const { createEmptySegmentAfter } = useCouncilMeetingActions();
@@ -236,7 +237,7 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
     const speakerTag = getSpeakerTag(segment.speakerTagId);
     const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
     const party = person ? getPartyFromRoles(person.roles, meetingDate) : null;
-    const borderColor = party?.colorHex || '#D3D3D3';
+    const borderColor = party?.colorHex || UNKNOWN_SPEAKER_COLOR;
     const segmentCount = speakerTag ? getSpeakerSegmentCount(speakerTag.id) : 0;
     const headerData = { speakerTag, person, party, borderColor, segmentCount };
 

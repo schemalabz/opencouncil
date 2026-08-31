@@ -61,13 +61,29 @@ export function getSubjectCategories(
 export function categorizeSubjects<T extends CategorizableSubject>(subjects: T[]) {
     return {
         beforeAgenda: sortSubjectsBySpeakerContributionCount(
-            subjects.filter(s => s.nonAgendaReason === 'beforeAgenda' && s.agendaItemIndex === null)
+            subjects.filter(s => subjectCategory(s) === 'beforeAgenda')
         ),
         outOfAgenda: sortSubjectsBySpeakerContributionCount(
-            subjects.filter(s => s.nonAgendaReason === 'outOfAgenda' && s.agendaItemIndex === null)
+            subjects.filter(s => subjectCategory(s) === 'outOfAgenda')
         ),
-        agenda: subjects.filter(s => s.agendaItemIndex !== null),
+        agenda: subjects.filter(s => subjectCategory(s) === 'agenda'),
     };
+}
+
+/**
+ * The one agenda-category predicate. An assigned agendaItemIndex wins over a
+ * lingering nonAgendaReason, exactly as categorizeSubjects has always
+ * bucketed — every surface (TOC, chapter rail) must agree on this.
+ */
+export function subjectCategory(subject: {
+    nonAgendaReason: string | null;
+    agendaItemIndex: number | null;
+}): SubjectCategoryKey | null {
+    if (subject.agendaItemIndex !== null) return 'agenda';
+    if (subject.nonAgendaReason === 'beforeAgenda' || subject.nonAgendaReason === 'outOfAgenda') {
+        return subject.nonAgendaReason;
+    }
+    return null;
 }
 
 export function getNonAgendaLabel(t: Translate, reason: 'beforeAgenda' | 'outOfAgenda'): string {

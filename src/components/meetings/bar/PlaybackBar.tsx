@@ -8,13 +8,10 @@ import { useHighlight } from '@/components/meetings/HighlightContext';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { useBarData } from './BarDataContext';
 import { useBarHighlight } from './BarHighlightContext';
-import { BarTimeline, type ModeAnnounce } from './BarTimeline';
+import { BarTimeline, DIM_OPACITY, type ModeAnnounce } from './BarTimeline';
 import { useLiveTime } from './useLiveTime';
-import { TopicIcon } from '@/components/TopicIcon';
-import { captureEvent } from '@/lib/analytics/capture';
+import { nowBand, NowPlayingSubjectLink } from './nowPlaying';
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
-import { Link } from '@/i18n/routing';
-import { bandAt } from '@/lib/utils/barTimeline';
 import { MiniVideo } from './MiniVideo';
 import { ModePicker, type BarMode } from './ModePicker';
 import { intersectsAny } from '@/lib/utils/barTimeline';
@@ -71,6 +68,9 @@ export function PlaybackBar() {
 
     const setCollapsedPersisted = (value: boolean) => {
         setCollapsed(value);
+        // A display:none round-trip restarts CSS animations; a finished
+        // announcement must not replay on every expand.
+        if (value) setAnnounce(null);
         try { sessionStorage.setItem(COLLAPSED_KEY, value ? '1' : '0'); } catch { /* ignore */ }
     };
 
@@ -108,7 +108,7 @@ export function PlaybackBar() {
                     <PlayButton compact={isMobile} />
                 </div>
                 <MiniVideo compact={isMobile} />
-                <BarTimeline mode={effectiveMode} compact={isMobile} announce={announce} />
+                <BarTimeline mode={effectiveMode} compact={isMobile} announce={announce} onAnnounceEnd={() => setAnnounce(null)} />
                 {hasSubjectData && <ModePicker mode={effectiveMode} onModeChange={switchMode} compact={isMobile} />}
                 <div className="self-center"><ClipNav /></div>
             </div>
@@ -143,8 +143,7 @@ function TimeReadout() {
     const { currentTime, duration, isPlaying } = useVideo();
     const { bands } = useBarData();
     const { city, meeting } = useCouncilMeetingData();
-    const idx = isPlaying ? bandAt(bands, currentTime) : -1;
-    const band = idx >= 0 ? bands[idx] : null;
+    const band = nowBand(bands, currentTime, isPlaying);
     return (
         <div className="mt-1 flex items-center gap-2 text-[10px] tabular-nums text-muted-foreground">
             <span className="shrink-0 font-bold text-foreground">{formatTimestamp(currentTime)}</span>
@@ -156,19 +155,9 @@ function TimeReadout() {
                     </>
                 )}
                 {band && band.subjectId && band.subjectName && (
-                    <Link
-                        href={`/${city.id}/${meeting.id}/subjects/${band.subjectId}`}
-                        prefetch={false}
-                        onClick={() => captureEvent('subject_opened', {
-                            surface: 'playback_bar',
-                            subject_id: band.subjectId,
-                            city_id: city.id,
-                            meeting_id: meeting.id,
-                        })}
-                        className="truncate"
-                    >
+                    <NowPlayingSubjectLink band={band} cityId={city.id} meetingId={meeting.id} className="truncate">
                         &middot; {band.subjectName}
-                    </Link>
+                    </NowPlayingSubjectLink>
                 )}
             </span>
             <span className="shrink-0">{duration > 0 ? formatTimestamp(duration) : '\u2014'}</span>
@@ -286,7 +275,7 @@ function BarPill({ mode, onExpand }: { mode: BarMode; onExpand: () => void }) {
                             left: `${(span.start / duration) * 100}%`,
                             width: `${Math.max(((span.end - span.start) / duration) * 100, 0.4)}%`,
                             backgroundColor: span.color,
-                            opacity: span.lit ? 1 : 0.16,
+                            opacity: span.lit ? 1 : DIM_OPACITY,
                         }}
                     />
                 ))}

@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 export interface TranscriptOptions {
     editable: boolean;
@@ -21,7 +21,6 @@ const SPEED_STORAGE_KEY = 'oc-playback-speed';
 
 /** The last chosen speed, surviving navigations — clamped to the player's range. */
 function storedPlaybackSpeed(): number {
-    if (typeof window === 'undefined') return 1;
     try {
         const value = parseFloat(window.localStorage.getItem(SPEED_STORAGE_KEY) ?? '');
         if (Number.isFinite(value)) return Math.min(4, Math.max(0.5, value));
@@ -42,8 +41,16 @@ export function TranscriptOptionsProvider({ children, editable, canCreateHighlig
         ...defaultOptions,
         editsAllowed: editable,
         canCreateHighlights,
-        playbackSpeed: storedPlaybackSpeed(),
+        playbackSpeed: 1,
     }));
+
+    // The stored speed loads after mount: reading localStorage during the
+    // initial render makes the server HTML and the hydration render disagree
+    // for anyone whose stored speed is not 1.
+    useEffect(() => {
+        const stored = storedPlaybackSpeed();
+        if (stored !== 1) setOptions(prev => ({ ...prev, playbackSpeed: stored }));
+    }, []);
 
     const value = useMemo<TranscriptOptionsContextType>(() => ({
         options,
