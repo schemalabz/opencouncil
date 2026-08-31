@@ -2,8 +2,9 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { MapPin, Calendar, Building2, ChevronRight, Bell, Mail, MessageSquare, Clock, Youtube } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { el } from 'date-fns/locale';
+import { formatDate } from '@/lib/formatters/time';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ReasonBadge } from '@/components/notifications/ReasonBadge';
@@ -73,10 +74,7 @@ export default async function NotificationPage(props: { params: Promise<{ id: st
                                     {delivery.sentAt && (
                                         <>
                                             <span className="mx-0.5">•</span>
-                                            {/* Relative to the render clock, so the server and
-                                                the client can land either side of a minute
-                                                boundary. */}
-                                            <span className="whitespace-nowrap" suppressHydrationWarning>
+                                            <span className="whitespace-nowrap">
                                                 {formatDistanceToNow(new Date(delivery.sentAt), { addSuffix: true, locale: el })}
                                             </span>
                                         </>
@@ -108,7 +106,7 @@ export default async function NotificationPage(props: { params: Promise<{ id: st
                         </div>
                         <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-                            <span className="text-sm">{format(meetingDate, 'PPP', { locale: el })}</span>
+                            <span className="text-sm">{formatDate(meetingDate)}</span>
                         </div>
                     </div>
                 </div>
@@ -230,7 +228,7 @@ export default async function NotificationPage(props: { params: Promise<{ id: st
                         <Card className="bg-muted/30">
                             <CardContent className="pt-4 pb-4">
                                 <p className="text-center text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                                    Αυτή η συνεδρίαση είναι προγραμματισμένη για τις {format(meetingDate, 'PPP', { locale: el })}.
+                                    Αυτή η συνεδρίαση είναι προγραμματισμένη για τις {formatDate(meetingDate)}.
                                     {meeting.administrativeBody?.youtubeChannelUrl ? (
                                         <> Μπορείτε να τη δείτε{' '}
                                             <a
