@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { ChevronsUpDown, Search, X } from "lucide-react"
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList, CommandGroup } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Drawer, DrawerContent, DrawerTitle, DrawerDescription } from "@/components/ui/drawer"
 import { cn, relevanceScore } from "@/lib/utils";
 
 type ComboboxGroup<T> = {
@@ -170,7 +170,12 @@ export default function Combobox<T>({
             />
             {/* max-h-full, not max-h-none: tailwind-merge only drops the list's
                 own 300px cap for a value it recognises as a length. */}
-            <CommandList className={cn(isMobile && "max-h-full flex-1")}>
+            {/* min-h-0, because a flex item in a column defaults to min-height:auto,
+                and Safari has resolved that to the content height. The list then
+                grows past the sheet, which clips it, and nothing scrolls at all.
+                overscroll-contain stops the page from taking over the scroll when
+                the list reaches either end. */}
+            <CommandList className={cn(isMobile && "max-h-full min-h-0 flex-1 overscroll-contain")}>
                 <CommandEmpty>
                     <div className="py-6 text-center">
                         <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-orange-100 text-orange-600 mb-3">
@@ -237,31 +242,31 @@ export default function Combobox<T>({
         return (
             <>
                 {trigger}
-                <Dialog open={open} onOpenChange={setOpen}>
-                    {/*
-                      * A full-height sheet anchored to the top of the screen. The
-                      * centred box this replaces put the results behind the software
-                      * keyboard, and only the top few rows of a list capped at 300px
-                      * stayed on screen.
-                      */}
-                    <DialogContent
-                        align="start"
-                        // The title names the task and the field carries its own
-                        // placeholder, so there is nothing left for a description.
-                        aria-describedby={undefined}
-                        className="top-0 flex h-[100dvh] max-h-[100dvh] max-w-none translate-y-0 flex-col gap-0 overflow-y-hidden rounded-none border-0 p-0 sm:rounded-none"
-                        // The sheet is the full screen, so this is the only way out
-                        // of it. The negative margin pulls the box back by the same
-                        // amount as the padding, so the icon stays where it is.
-                        closeClassName="-m-3 p-3"
+                {/*
+                  * A drawer rather than a dialog, because vaul is the only thing
+                  * here that stops iOS Safari scrolling the page behind an
+                  * overlay. `overflow: hidden` on html and body does not: Safari
+                  * still scrolls the page once its toolbars collapse, and again
+                  * whenever the keyboard covers part of the viewport. vaul pins
+                  * the body and cancels the touch moves that would scroll it.
+                  */}
+                <Drawer open={open} onOpenChange={setOpen}>
+                    <DrawerContent
+                        className="h-[85vh] max-h-[85vh] flex flex-col"
+                        // Leave the keyboard down. It would cover half of a sheet
+                        // anchored to the bottom, and the list is what the user
+                        // came to read; the field is one tap away.
+                        onOpenAutoFocus={(event) => event.preventDefault()}
                     >
-                        {/* pr-14 keeps the title clear of the close button. */}
-                        <DialogHeader className="px-4 pb-3 pr-14 pt-4 text-left">
-                            <DialogTitle>{placeholder}</DialogTitle>
-                        </DialogHeader>
+                        <DrawerTitle className="px-4 pb-3 pt-2 text-left text-lg font-semibold">
+                            {placeholder}
+                        </DrawerTitle>
+                        <DrawerDescription className="sr-only">
+                            {searchPlaceholder || placeholder}
+                        </DrawerDescription>
                         {renderContent()}
-                    </DialogContent>
-                </Dialog>
+                    </DrawerContent>
+                </Drawer>
             </>
         );
     }
