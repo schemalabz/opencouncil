@@ -28,6 +28,7 @@ import { Offer } from "@prisma/client";
 import OfferForm from "./offer-form";
 import { getOffers } from "@/lib/db/offers";
 import { calculateOfferTotals, formatCurrency } from "@/lib/utils";
+import { formatDate } from "@/lib/formatters/time";
 import {
     categorizeCities,
     calculateARR,
@@ -172,8 +173,8 @@ function OfferLine({
                 {showMissingAdamWarning && <MissingAdamBadge />}
                 <DiscountBadge discount={offer.discountPercentage} />
                 <span className="text-xs text-muted-foreground">
-                    {offer.startDate.toLocaleDateString()} →{" "}
-                    {offer.endDate.toLocaleDateString()}
+                    {formatDate(offer.startDate)} →{" "}
+                    {formatDate(offer.endDate)}
                 </span>
             </div>
             <div className="flex items-center gap-3">

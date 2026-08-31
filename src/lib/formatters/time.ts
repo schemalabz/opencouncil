@@ -33,6 +33,16 @@ export function getIntlLocale(locale: string): string {
 }
 
 /**
+ * The timezone that `formatDate`/`formatDateTime`/`formatNumericDateTime` use
+ * when the caller does not pass one. An omitted timezone must never mean "the
+ * machine's": the server renders in UTC and the browser in the visitor's zone,
+ * so the same call would produce different text on each side and break
+ * hydration (React error #418). Callers with a better zone in scope (a city's
+ * timezone) should still pass it.
+ */
+const DEFAULT_TIMEZONE = 'Europe/Athens';
+
+/**
  * Formats time in seconds to a human-readable string
  * @param time - Time in seconds
  * @returns Formatted string like "5:30" or "1:23:45"
@@ -102,16 +112,34 @@ export function formatDurationMs(ms: number): string {
 }
 
 /**
- * Formats a date to a relative time string (e.g., "2 hours ago", "3 days ago")
+ * Formats a date to a relative time string (e.g., "2 hours ago", "3 days ago").
+ *
+ * The output depends on the clock at render time, so the server and the
+ * hydrating client routinely produce different strings. A server-rendered
+ * element whose text comes from this function needs `suppressHydrationWarning`
+ * (or the `RelativeTime` component, which also keeps the text fresh).
+ *
  * @param date - The date to format
  * @param locale - The locale to use for formatting (defaults to 'el')
+ * @param options - `addSuffix` controls the "ago"/"in" wording (defaults to true)
  * @returns Formatted relative time string in the specified locale
  */
-export function formatRelativeTime(date: Date, locale: string = 'el'): string {
+export function formatRelativeTime(date: Date, locale: string = 'el', options?: { addSuffix?: boolean }): string {
   return formatDistanceToNow(date, {
-    addSuffix: true,
+    addSuffix: options?.addSuffix ?? true,
     locale: getDateFnsLocale(locale)
   });
+}
+
+/**
+ * The calendar date of a moment in a timezone, as `YYYY-MM-DD`. Documents and
+ * badges work in local dates, and a meeting stored at local midnight is stored
+ * before midnight UTC — the UTC (or machine) date would off-by-one every
+ * comparison for it. Always pass City.timezone; realms make Athens an
+ * assumption, not a fact.
+ */
+export function localCalendarDate(d: Date, timeZone: string): string {
+    return d.toLocaleDateString('en-CA', { timeZone });
 }
 
 /**
@@ -123,9 +151,7 @@ export function formatRelativeTime(date: Date, locale: string = 'el'): string {
 export function formatDate(date: Date, timezone?: string, locale: string = 'el'): string {
   const options: Intl.DateTimeFormatOptions = { dateStyle: 'long' };
 
-  if (timezone) {
-    options.timeZone = timezone;
-  }
+  options.timeZone = timezone || DEFAULT_TIMEZONE;
 
   const intlLocale = getIntlLocale(locale);
   if (date instanceof Date) {
@@ -144,19 +170,20 @@ export function formatDate(date: Date, timezone?: string, locale: string = 'el')
  * @param date - The date to format
  * @param timezone - Optional timezone
  * @param locale - 'el' (default) or 'en'; both produce day-first numeric output
+ * @param withSeconds - Include the seconds component (default: true)
  * @returns e.g. "04/05/2026 10:07:30"
  */
-export function formatNumericDateTime(date: Date, timezone?: string, locale: string = 'el'): string {
+export function formatNumericDateTime(date: Date, timezone?: string, locale: string = 'el', withSeconds: boolean = true): string {
     const options: Intl.DateTimeFormatOptions = {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        second: '2-digit',
+        ...(withSeconds ? { second: '2-digit' as const } : {}),
         hour12: false,
     };
-    if (timezone) options.timeZone = timezone;
+    options.timeZone = timezone || DEFAULT_TIMEZONE;
 
     // en-GB rather than en-US so English output stays day-first numeric.
     const intlLocale = locale === 'en' ? 'en-GB' : getIntlLocale(locale);
@@ -174,12 +201,15 @@ export function formatNumericDateTime(date: Date, timezone?: string, locale: str
 export function formatDateTime(date: Date, timezone?: string, dateStyle: 'long' | 'medium' | 'short' = 'long', locale: string = 'el'): string {
   const options: Intl.DateTimeFormatOptions = {
     dateStyle,
-    timeStyle: 'short'
+    timeStyle: 'short',
+    // Pin the hour cycle. CLDR defaults Greek to 12-hour ("2:00 μ.μ."), but
+    // WebKit overrides the default with the device's 24-Hour Time setting, so
+    // server HTML and Safari/iOS in-app browsers disagreed on every rendered
+    // time and broke hydration (React error #418).
+    hour12: false,
   };
 
-  if (timezone) {
-    options.timeZone = timezone;
-  }
+  options.timeZone = timezone || DEFAULT_TIMEZONE;
 
   const intlLocale = getIntlLocale(locale);
   if (date instanceof Date) {
