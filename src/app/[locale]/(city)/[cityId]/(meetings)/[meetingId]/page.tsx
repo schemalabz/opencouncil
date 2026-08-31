@@ -3,17 +3,14 @@ import MapView from "@/components/map/map";
 import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataContext";
 import { SubjectSection } from "@/components/meetings/subject-section";
 import { TopicFilter } from "@/components/TopicFilter";
-import { formatDate } from "date-fns";
 import { CalendarIcon, ExternalLink, FileIcon, FileText, Youtube } from "lucide-react";
 import { useNotificationPreference } from "@/contexts/NotificationPreferenceContext";
-import { formatDateTime, formatRelativeTime } from "@/lib/formatters/time";
+import { formatDate, formatDateTime, formatRelativeTime } from "@/lib/formatters/time";
 import { sortSubjectsBySpeakerContributionCount, sortSubjectsByAgendaIndex, subjectToMapFeature } from "@/lib/utils";
 import { categorizeSubjects, getSubjectCategories } from "@/lib/utils/subjects";
 import { calculateGeometryBounds } from "@/lib/geo";
 import { Link } from "@/i18n/routing";
 import { HighlightCards } from "@/components/meetings/highlight-cards";
-import { el } from "date-fns/locale";
-import { enUS } from "date-fns/locale";
 import { useLocale, useTranslations } from "next-intl";
 import { useState, useMemo, useEffect } from "react";
 import type { Topic } from "@prisma/client";
@@ -143,7 +140,7 @@ export default function MeetingPage() {
 
 function MeetingInfo() {
     const tMeeting = useTranslations("CouncilMeeting");
-    const { meeting, subjects } = useCouncilMeetingData();
+    const { meeting, subjects, city } = useCouncilMeetingData();
     const locale = useLocale();
     return (
         <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
@@ -152,7 +149,7 @@ function MeetingInfo() {
                 <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-xs sm:text-sm text-gray-600">
                     <div className="flex items-center">
                         <CalendarIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />
-                        {formatDate(new Date(meeting.dateTime), 'PPP', { locale: locale === 'el' ? el : enUS })}
+                        {formatDate(new Date(meeting.dateTime), city.timezone, locale)}
                     </div>
 
                     {meeting.agendaUrl && (
@@ -256,8 +253,7 @@ function UpcomingMeetingCard() {
                 <>
                     <div className="flex items-center justify-center gap-2 mb-3">
                         <CalendarIcon className="w-5 h-5 text-primary" />
-                        {/* Relative to the render clock, so the server and the
-                            client can land either side of a minute boundary. */}
+                        {/* Clock-relative text — see formatRelativeTime. */}
                         <p className="font-medium" suppressHydrationWarning>
                             {tMeeting('scheduledFor', { when: formatRelativeTime(meetingDate, locale) })}
                         </p>
