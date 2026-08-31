@@ -1,5 +1,6 @@
 "use client"
-import { ChevronDown, ChevronRight, Play, Pause, Loader } from "lucide-react"
+import { ChevronDown, ChevronRight } from "lucide-react"
+import { useSubjectBarHover } from '@/components/meetings/bar/BarHighlightContext';
 import Image from "next/image";
 import { getMeetingPageSegments } from "@/lib/utils/meetingPages"
 import {
@@ -19,9 +20,8 @@ import {
 import Link from "next/link"
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext"
 import { useState, useEffect, useMemo } from "react"
-import { useVideo } from "./VideoProvider"
 import { usePathname } from "next/navigation"
-import { cn, formatTime, sortSubjectsByAgendaIndex } from "@/lib/utils"
+import { cn, sortSubjectsByAgendaIndex } from "@/lib/utils"
 import { categorizeSubjects, getSubjectCategories } from "@/lib/utils/subjects"
 import { useTranscriptOptions } from "./options/OptionsContext"
 import { useTranslations } from 'next-intl'
@@ -102,28 +102,16 @@ export default function MeetingSidebar() {
                         {title}
                     </span>
                 </SidebarMenuItem>
-                {sectionSubjects.map((subject, index) => {
-                    const subjectUrl = `/${city.id}/${meeting.id}/subjects/${subject.id}`
-                    return (
-                        <SidebarMenuItem key={subject.id} className="pl-8">
-                            <SidebarMenuButton
-                                asChild
-                                onClick={handleMenuItemClick}
-                                isActive={activeItem === subjectUrl}
-                            >
-                                <Link
-                                    href={subjectUrl}
-                                    prefetch={false}
-                                    className={cn(
-                                        activeItem === subjectUrl && "text-primary font-medium"
-                                    )}
-                                >
-                                    <span className="text-sm">{getPrefix ? `${getPrefix(subject, index)} ` : ''}{subject.name}</span>
-                                </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                    )
-                })}
+                {sectionSubjects.map((subject, index) => (
+                    <SidebarSubjectItem
+                        key={subject.id}
+                        subjectId={subject.id}
+                        href={`/${city.id}/${meeting.id}/subjects/${subject.id}`}
+                        label={`${getPrefix ? `${getPrefix(subject, index)} ` : ''}${subject.name}`}
+                        isActive={activeItem === `/${city.id}/${meeting.id}/subjects/${subject.id}`}
+                        onNavigate={handleMenuItemClick}
+                    />
+                ))}
             </>
         )
     }
@@ -133,7 +121,6 @@ export default function MeetingSidebar() {
         { ...meetingPageSegments.map, url: `/${city.id}/${meeting.id}/map` },
         { ...meetingPageSegments.transcript, url: `/${city.id}/${meeting.id}/transcript` },
         ...(canCreateHighlights ? [{ ...meetingPageSegments.highlights, url: `/${city.id}/${meeting.id}/highlights` }] : []),
-        { ...meetingPageSegments.settings, url: `/${city.id}/${meeting.id}/settings` },
         ...(canEdit ? [{ ...meetingPageSegments.decisions, url: `/${city.id}/${meeting.id}/decisions` }] : []),
         ...(canEdit ? [{ ...meetingPageSegments.admin, url: `/${city.id}/${meeting.id}/admin` }] : []),
     ]
@@ -163,9 +150,6 @@ export default function MeetingSidebar() {
                     </Link>
                 )}
             </div>
-                <div className="px-4 pb-4 group-data-[collapsible=icon]:hidden">
-                    <ControlsWidget />
-                </div>
             </SidebarHeader>
             <SidebarContent className="flex-1 min-h-0">
                 <SidebarGroup>
@@ -223,40 +207,25 @@ export default function MeetingSidebar() {
     )
 }
 
-function ControlsWidget() {
-    const { isPlaying, togglePlayPause, isSeeking, currentTime, duration } = useVideo();
-    const { state } = useSidebar();
-    const t = useTranslations('transcript.controls');
-
-    if (state === "collapsed") {
-        return (
-            <button onClick={togglePlayPause} className="flex items-center justify-center" aria-label={isPlaying ? t('pause') : t('play')}>
-                {isPlaying ?
-                    (isSeeking ? <Loader className="h-4 w-4 animate-spin" /> : <Pause className="h-4 w-4" />)
-                    : <Play className="h-4 w-4" />
-                }
-            </button>
-        );
-    }
-
+/**
+ * One subject in the nav. Its own component so hovering it can light the
+ * subject's runs on the playback bar (one hook per row).
+ */
+function SidebarSubjectItem({ subjectId, href, label, isActive, onNavigate }: {
+    subjectId: string;
+    href: string;
+    label: string;
+    isActive: boolean;
+    onNavigate: () => void;
+}) {
+    const barHover = useSubjectBarHover(subjectId);
     return (
-        <div className="w-full space-y-2">
-            <div className="flex items-center justify-between">
-                <button onClick={togglePlayPause} className="flex items-center gap-2" aria-label={isPlaying ? t('pause') : t('play')}>
-                    {isPlaying ?
-                        (isSeeking ? <Loader className="h-4 w-4 animate-spin" /> : <Pause className="h-4 w-4" />)
-                        : <Play className="h-4 w-4" />
-                    }
-                    <span className="text-sm">{formatTime(currentTime)}</span>
-                </button>
-                <span className="text-sm text-muted-foreground">{formatTime(duration)}</span>
-            </div>
-            <div className="h-1 w-full rounded-full bg-secondary" role="progressbar" aria-valuenow={Math.round(currentTime)} aria-valuemin={0} aria-valuemax={Math.round(duration)} aria-valuetext={formatTime(currentTime)} aria-label={t('playbackProgress')}>
-                <div
-                    className="h-full rounded-full bg-primary transition-all"
-                    style={{ width: `${(currentTime / duration) * 100}%` }}
-                />
-            </div>
-        </div>
+        <SidebarMenuItem className="pl-8" {...barHover}>
+            <SidebarMenuButton asChild onClick={onNavigate} isActive={isActive}>
+                <Link href={href} prefetch={false} className={cn(isActive && "text-primary font-medium")}>
+                    <span className="text-sm">{label}</span>
+                </Link>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
     );
 }

@@ -33,7 +33,6 @@ interface VideoContextType {
     duration: number;
     setCurrentScrollInterval: (interval: [number, number]) => void;
     currentScrollInterval: [number, number];
-    playbackSpeed: string;
     togglePlayPause: () => void;
     handleSpeedChange: (value: string) => void;
     seekTo: (time: number) => void;
@@ -114,7 +113,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     const [isPlaying, setIsPlaying] = useState(false); // React state for UI updates
     const currentTimeRef = useRef(0); // Ref for immediate access without re-renders
     const [duration, setDuration] = useState(0); // Total video duration
-    const [playbackSpeed, setPlaybackSpeed] = useState(options.playbackSpeed.toString());
     const [isSeeking, setIsSeeking] = useState(false); // True when user is dragging timeline
     const [hasStartedPlaying, setHasStartedPlaying] = useState(false); // First play flag
     const playerRef = useRef<HTMLVideoElement | null>(null); // Direct reference to video element
@@ -277,8 +275,10 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         }
     }
     
+    // One store for speed: options.playbackSpeed (persisted there). This just
+    // applies it to the element immediately; the options effect re-applies on
+    // remounts and element swaps.
     const handleSpeedChange = (value: string) => {
-        setPlaybackSpeed(value);
         if (playerRef.current) {
             playerRef.current.playbackRate = parseFloat(value);
         }
@@ -484,7 +484,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         currentTime: currentTimeRef.current,
         currentTimeRef,
         duration,
-        playbackSpeed,
         currentScrollInterval,
         setCurrentScrollInterval,
         togglePlayPause: stableTogglePlayPause,
@@ -510,7 +509,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         isPlaying,
         currentTime,
         duration,
-        playbackSpeed,
         currentScrollInterval,
         isSeeking,
         handleTimeUpdate,

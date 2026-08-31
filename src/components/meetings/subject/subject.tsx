@@ -1,5 +1,8 @@
 "use client";
 import Map from "@/components/map/map";
+import { useBarData } from '@/components/meetings/bar/BarDataContext';
+import { useBarHighlightActions } from '@/components/meetings/bar/BarHighlightContext';
+import { useBarMode } from '@/components/meetings/bar/PlaybackBar';
 import { captureEvent } from '@/lib/analytics/capture';
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { Button } from "@/components/ui/button";
@@ -91,6 +94,20 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     // Where the subject's discussion starts in the video — the first identified
     // speaker's first utterance, the same lookup every card makes for its own chip.
     const { seekToAndPlay } = useVideo();
+
+    // The bar scopes to this page's subject: its runs stay lit, the rest dims,
+    // and the colour language flips to subjects so the answer to "where in the
+    // meeting was this discussed" is one glance away.
+    const { intervalsBySubject } = useBarData();
+    const { setPageHighlight } = useBarHighlightActions();
+    const { setMode } = useBarMode();
+    useEffect(() => {
+        if (!subjectId) return;
+        const ranges = intervalsBySubject.get(subjectId);
+        setPageHighlight(ranges && ranges.length > 0 ? { key: subjectId, ranges } : null);
+        setMode('subjects');
+        return () => setPageHighlight(null);
+    }, [subjectId, intervalsBySubject, setPageHighlight, setMode]);
 
     // Every action on this page carries the same identity triple.
     const captureSubjectAction = (action: string, extra: Record<string, unknown> = {}) =>

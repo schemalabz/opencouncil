@@ -1,4 +1,5 @@
 import { AdministrativeBody, City, CouncilMeeting } from "@prisma/client";
+import { useSubjectBarHover } from '@/components/meetings/bar/BarHighlightContext';
 import { Statistics } from "@/lib/statistics";
 import { SubjectWithRelations } from "@/lib/db/subject";
 import { surfaceCardClass } from "@/components/ui/surface-card";
@@ -62,6 +63,9 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
 
     const href = `/${city.id}/${meeting.id}/subjects/${subject.id}`;
 
+    // Lights this subject's runs on the meeting playback bar; a no-op on
+    // pages without one (search, city tabs).
+    const barHover = useSubjectBarHover(subject.id);
     const handleClick = (e: React.MouseEvent) => {
         onOpen?.();
         if (openInNewTab) return; // let the Link handle it
@@ -88,6 +92,7 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
             prefetch={false}
             className="block hover:no-underline"
             onClick={handleClick}
+            {...barHover}
             {...(openInNewTab && { target: "_blank", rel: "noopener noreferrer" })}
         >
             <div

@@ -94,6 +94,11 @@ export default function Transcript() {
         []
     );
 
+    // The band marks what THIS page shows; leaving the page, the bar must not
+    // keep a stale reading-position stripe. Unmount-only — the observer effect
+    // below re-runs on edits and must not blank the band mid-read.
+    useEffect(() => () => setCurrentScrollIntervalRef.current([0, 0]), []);
+
     // IntersectionObserver ONLY for currentScrollInterval tracking (used by CurrentTimeButton).
     // No state updates — only refs and debounced callbacks. This means scrolling causes
     // ZERO React re-renders.
