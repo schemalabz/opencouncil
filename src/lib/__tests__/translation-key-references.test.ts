@@ -15,7 +15,10 @@
  * Namespace bindings are resolved to the nearest *preceding* `useTranslations` /
  * `getTranslations` of the same variable name, so the common pattern of several
  * `const t = useTranslations(...)` in one file — one per component — resolves to
- * the right namespace instead of collapsing to whichever came last.
+ * the right namespace instead of collapsing to whichever came last. A name bound
+ * only once in a file resolves wherever it is called, which reaches the helpers
+ * and sub-components that take the translator as a parameter and are declared
+ * above the binding that feeds them.
  */
 import fs from 'fs';
 import path from 'path';
@@ -104,6 +107,7 @@ function collectReferences(): { refs: Reference[]; groups: Reference[]; skipped:
         if (bindings.length === 0) continue;
 
         for (const name of new Set(bindings.map((b) => b.name))) {
+            const own = bindings.filter((b) => b.name === name);
             // t('key'), t.raw('key'), t.rich('key'), t.markup('key') — but not t.has('key'),
             // which is the deliberate "might not exist" escape hatch.
             const calls = new RegExp(
@@ -111,9 +115,14 @@ function collectReferences(): { refs: Reference[]; groups: Reference[]; skipped:
                 'g',
             );
             for (const call of text.matchAll(calls)) {
-                const binding = bindings.filter((b) => b.name === name && b.at < call.index!).pop();
-                // Root-namespace bindings (`useTranslations()`) take full paths we
-                // can't attribute, and template literals are computed at runtime.
+                // Nearest preceding binding, so several components in one file each
+                // resolve to their own namespace. When the name is bound exactly once,
+                // position stops carrying information: helpers and sub-components that
+                // take the translator as a parameter are declared above the single
+                // binding that feeds them.
+                const binding =
+                    own.filter((b) => b.at < call.index!).pop() ?? (own.length === 1 ? own[0] : null);
+                // A namespace assembled at runtime leaves nothing to resolve against.
                 if (!binding?.namespace) { skipped++; continue; }
                 const key = call[2];
                 if (key === '') { skipped++; continue; }
