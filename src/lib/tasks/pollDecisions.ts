@@ -1102,6 +1102,22 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
                 }
             }
 
+            // A match that changes a subject's ADA leaves the previous
+            // document's candidate back-linked to the decision. The unique
+            // decisionId constraint would then reject the new document's
+            // back-link in Step 3 and abort the whole poll. Release the stale
+            // link first; the old document returns to the unplaced queue.
+            if (match.ada) {
+                await tx.decisionCandidate.updateMany({
+                    where: {
+                        cityId: task.cityId,
+                        ada: { not: match.ada },
+                        decision: { subjectId: match.subjectId },
+                    },
+                    data: { decisionId: null },
+                });
+            }
+
             // The savepoint lets the fallback below run queries after a unique
             // violation — without it Postgres aborts the whole transaction and
             // every other match and candidate of this poll would roll back.

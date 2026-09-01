@@ -1503,3 +1503,57 @@ describe('handlePollDecisionsResult — conflict evidence rule', () => {
         expect(await getConflictingCandidates({ cityId })).toHaveLength(0)
     })
 })
+
+describe('handlePollDecisionsResult — ADA correction', () => {
+    let cityId: string
+    let meetingId: string
+
+    const readDecision = (ada: string) => ({
+        ada, title: `Decision ${ada}`, pdfUrl: `https://diavgeia.gov.gr/doc/${ada}`,
+        protocolNumber: null, publishDate: '2025-01-16', meetingDate: '2025-01-10',
+        decisionNumber: null, readStatus: 'ok' as const, fromKnown: false,
+        subjectId: null, confidence: null, reasoning: null,
+    })
+
+    beforeEach(async () => {
+        await resetDatabase(prisma)
+        const city = await createCity({ id: 'c1' })
+        cityId = city.id
+        const body = await createAdministrativeBody(cityId, {
+            notificationBehavior: 'NOTIFICATIONS_DISABLED',
+        })
+        meetingId = (await createMeeting(cityId, {
+            id: 'm1', administrativeBodyId: body.id, dateTime: new Date('2025-01-10T10:00:00Z'),
+        })).id
+    })
+
+    test('a re-poll that changes a subject ADA releases the old back-link instead of aborting', async () => {
+        const subject = await createSubject(meetingId, cityId, { name: 'S', agendaItemIndex: 1 })
+
+        // Poll 1: the subject matches ADA-OLD, and the read document backs it.
+        const task1 = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions' })
+        await handlePollDecisionsResult(task1.id, makePollDecisionsResult({
+            matches: [makePollDecisionsMatch({ subjectId: subject.id, ada: 'ADA-OLD' })],
+            decisions: [readDecision('ADA-OLD')],
+        }))
+        const oldRow = await prisma.decisionCandidate.findUnique({ where: { cityId_ada: { cityId, ada: 'ADA-OLD' } } })
+        expect(oldRow!.decisionId).not.toBeNull()
+
+        // Poll 2 corrects the match to ADA-NEW. Before the back-link release,
+        // the unique decisionId constraint aborted this whole poll.
+        const task2 = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions' })
+        await handlePollDecisionsResult(task2.id, makePollDecisionsResult({
+            matches: [makePollDecisionsMatch({ subjectId: subject.id, ada: 'ADA-NEW' })],
+            decisions: [readDecision('ADA-NEW')],
+        }))
+
+        const decision = await prisma.decision.findUnique({ where: { subjectId: subject.id } })
+        expect(decision!.ada).toBe('ADA-NEW')
+        const newRow = await prisma.decisionCandidate.findUnique({ where: { cityId_ada: { cityId, ada: 'ADA-NEW' } } })
+        expect(newRow!.decisionId).toBe(decision!.id)
+        // The old document is unplaced again, not lost and not still linked.
+        const released = await prisma.decisionCandidate.findUnique({ where: { cityId_ada: { cityId, ada: 'ADA-OLD' } } })
+        expect(released!.decisionId).toBeNull()
+        expect(released!.dismissedAt).toBeNull()
+    })
+})
