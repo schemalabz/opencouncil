@@ -91,6 +91,29 @@ function unionMembers(file: string, typeName: string): string[] {
     return [...decl[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
 }
 
+/** Members of an enum declared in `prisma/schema.prisma`. */
+function prismaEnumMembers(name: string): string[] {
+    const text = fs.readFileSync(path.join(ROOT, 'prisma', 'schema.prisma'), 'utf8');
+    const decl = new RegExp(`enum\\s+${name}\\s*\\{([^}]*)\\}`).exec(text);
+    if (!decl) throw new Error(`enum ${name} not found in prisma/schema.prisma — update this test`);
+    return decl[1]
+        .split('\n')
+        .map((line) => line.replace(/\/\/.*$/, '').trim())
+        .filter(Boolean);
+}
+
+/**
+ * The member names a computed group defines, for a group prefix that ends in
+ * either a dot (`audioFailure.`) or an underscore (`adminBodyType_`). Anything
+ * below the member — `clients.<id>.title` — belongs to the member, not to it.
+ */
+function memberLeaves(catalog: Record<string, unknown>, group: string): string[] {
+    const members = flatten(catalog)
+        .filter((leaf) => leaf.startsWith(group))
+        .map((leaf) => leaf.slice(group.length).split('.')[0]);
+    return [...new Set(members)];
+}
+
 // `const t = useTranslations('ns')` / `const t = await getTranslations({ locale, namespace: 'ns' })`
 const BINDING = /(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:await\s+)?(?:useTranslations|getTranslations)\s*\(([^;]{0,200}?)\)/g;
 const NAMESPACE_ARG = /^\s*['"]([^'"]+)['"]|namespace:\s*['"]([^'"]+)['"]/;
@@ -205,6 +228,69 @@ function collectReferences(): { refs: Reference[]; groups: Reference[]; skipped:
     return { refs, groups, skipped };
 }
 
+type MemberSource = { file?: string; type?: string; prismaEnum?: string };
+
+/**
+ * Every computed group the scan finds. `members` names the type that supplies
+ * the leaves, so a member added without its copy fails the test instead of
+ * rendering a dotted path. `why` records the groups where no type states the
+ * set, so the omission is a decision on the record rather than an oversight.
+ */
+const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[] = [
+    {
+        group: 'admin.adminActions.export.audioFailure.',
+        members: { file: 'src/lib/export/meetings.tsx', type: 'AudioExportFailure' },
+    },
+    {
+        group: 'CityForm.boundaryError_',
+        members: { file: 'src/lib/utils/geojson.ts', type: 'BoundaryParseError' },
+    },
+    { group: 'Common.adminBodyType_', members: { prismaEnum: 'AdministrativeBodyType' } },
+    { group: 'AddMeetingForm.administrativeBodyType.', members: { prismaEnum: 'AdministrativeBodyType' } },
+    { group: 'AdministrativeBodiesList.types.', members: { prismaEnum: 'AdministrativeBodyType' } },
+
+    {
+        group: 'Subject.categories.',
+        why: 'every member is also written as a literal key in the same file, so the key check covers them',
+    },
+    {
+        group: 'Subject.topicImportance.',
+        why: 'the column is a plain String? in the Prisma schema; the values live in a comment',
+    },
+    {
+        group: 'Subject.proximityImportance.',
+        why: 'the column is a plain String? in the Prisma schema; the values live in a comment',
+    },
+    { group: 'Onboarding.errors.', why: 'the error reaches the component as string | null; no type states the set' },
+    { group: 'Profile.admin', why: 'the leaf is an object key (city/party/person) capitalised in place' },
+    {
+        group: 'reviews.completeDialog.runSummarize.unavailable.',
+        why: "SummarizeAvailability has three members, but the branch runs only when it is not 'available', so the catalog holds two on purpose",
+    },
+
+    // The leaf comes from a const array declared beside the call, not from a
+    // type. Adding an entry without its copy stays possible; it shows up in the
+    // same diff as the array.
+    { group: 'about.demos.subject.contributionTexts.', why: 'const array in the component' },
+    { group: 'about.demos.subject.parties.', why: 'const array in the component' },
+    { group: 'about.demos.subject.people.', why: 'const array in the component' },
+    { group: 'about.internal.features.', why: 'const array in the component' },
+    { group: 'about.openness.features.', why: 'const array in the component' },
+    { group: 'about.recognition.items.', why: 'const array in the component' },
+    { group: 'about.team.members.', why: 'const array in the component' },
+    { group: 'about.team.roadmap.items.', why: 'const array in the component' },
+    { group: 'admin.adminActions.forms.forceDescription.', why: 'const array in the component' },
+    { group: 'highlights.sections.', why: 'const array in the component' },
+    { group: 'landingV2.bodyType.', why: 'const array in the component' },
+    { group: 'landingV2.dateRange.', why: 'const array in the component' },
+    { group: 'landingV2.dateRangeMenu.', why: 'const array in the component' },
+    { group: 'landingV2.nav.', why: 'const array in the component' },
+    { group: 'mcp.clients.', why: 'const array in the component' },
+    { group: 'mcp.examples.', why: 'const array in the component' },
+    { group: 'reviews.completeDialog.runSummarize.notifications.', why: 'const array in the component' },
+    { group: 'reviews.completeDialog.toasts.followUpFailed.actions.', why: 'const array in the component' },
+];
+
 describe('message keys referenced by the code', () => {
     const { refs, groups, skipped } = collectReferences();
     const catalog = loadCatalog(REFERENCE_LOCALE);
@@ -232,25 +318,30 @@ describe('message keys referenced by the code', () => {
             .map((g) => `${g.key}… (${g.location})`);
         expect([...new Set(missing)].sort()).toEqual([]);
     });
-
     /**
-     * A computed key's leaf is invisible to the scan above, so the union that
-     * supplies it is checked against the catalog directly. Adding a member
-     * without its copy fails here rather than rendering the dotted path in a
-     * toast. New computed groups belong in this table.
+     * The prefix check above says the group exists. It says nothing about the
+     * members, and a member is what actually renders. Every group the scan
+     * finds therefore has to appear in COMPUTED_GROUPS, either with the type
+     * that supplies its members or with a reason it needs no member check.
+     * A new `t(`group.${x}`)` fails here until someone decides which it is.
      */
-    describe.each([
-        {
-            group: 'admin.adminActions.export.audioFailure',
-            file: 'src/lib/export/meetings.tsx',
-            type: 'AudioExportFailure',
-        },
-    ])('$type supplies every leaf under $group', ({ group, file, type }) => {
-        it('has copy for every member', () => {
-            const node = resolve(catalog, group);
-            expect(typeof node).toBe('object');
-            const defined = Object.keys(node as Record<string, unknown>).sort();
-            expect(defined).toEqual(unionMembers(file, type).sort());
+    it('every computed group is registered in COMPUTED_GROUPS', () => {
+        const registered = new Set(COMPUTED_GROUPS.map((g) => g.group));
+        const found = [...new Set(groups.map((g) => g.key))];
+        expect(found.filter((g) => !registered.has(g)).sort()).toEqual([]);
+    });
+
+    it('no registration outlives the call site it describes', () => {
+        const found = new Set(groups.map((g) => g.key));
+        expect(COMPUTED_GROUPS.map((g) => g.group).filter((g) => !found.has(g)).sort()).toEqual([]);
+    });
+
+    describe.each(COMPUTED_GROUPS.filter((g) => g.members))('$group', ({ group, members }) => {
+        it('has copy for every member the type declares', () => {
+            const declared = members!.prismaEnum
+                ? prismaEnumMembers(members!.prismaEnum)
+                : unionMembers(members!.file!, members!.type!);
+            expect(memberLeaves(catalog, group).sort()).toEqual([...declared].sort());
         });
     });
 });
