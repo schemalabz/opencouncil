@@ -55,7 +55,10 @@
     "loadingError": "Erreur de chargement",
     "all": "Tout",
     "searchPlaceholder": "Rechercher...",
-    "genericError": "Une erreur s'est produite"
+    "genericError": "Une erreur s'est produite",
+    "from": "de",
+    "until": "à",
+    "present": "aujourd'hui"
   },
   "MeetingCard": {
     "noVideo": "Aucun média",
@@ -474,8 +477,6 @@
     "searchItems": "Rechercher des membres",
     "activeUntil": "Membre jusqu'à",
     "active": "Membre",
-    "from": "de",
-    "until": "à",
     "item": "membre",
     "loadingSegments": "Chargement des interventions récentes...",
     "noSegmentsFound": "Aucune intervention trouvée",
@@ -610,7 +611,6 @@
     "confirmDelete": "Êtes-vous sûr de vouloir supprimer ce rôle ?",
     "cityRole": "Conseiller municipal",
     "head": "Responsable",
-    "present": "aujourd'hui",
     "from": "de",
     "until": "à",
     "noEndDate": "Sans date de fin"

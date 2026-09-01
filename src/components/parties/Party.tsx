@@ -197,7 +197,7 @@ function PartyMembersTab({
                                             {(() => {
                                                 const partyRoles = person.roles.filter(role => role.partyId === party.id);
                                                 const { startDate, endDate } = getDateRangeFromRoles(partyRoles);
-                                                return formatDateRange(startDate, endDate, t);
+                                                return formatDateRange(startDate, endDate, tCommon);
                                             })()}
                                         </span>
                                     </div>

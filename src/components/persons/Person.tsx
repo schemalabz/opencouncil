@@ -35,6 +35,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
     contributionTopics: Topic[],
 }) {
     const t = useTranslations('Person');
+    const tCommon = useTranslations('Common');
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
     const [contributions, setContributions] = useState<ContributionForPerson[]>([]);
@@ -336,7 +337,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                                 {formatDateRange(
                                                     role.startDate ? new Date(role.startDate) : null,
                                                     role.endDate ? new Date(role.endDate) : null,
-                                                    t
+                                                    tCommon
                                                 )}
                                             </span>
                                         </div>

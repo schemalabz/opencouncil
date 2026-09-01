@@ -55,7 +55,10 @@
         "loadingError": "Σφάλμα φόρτωσης",
         "all": "Όλα",
         "searchPlaceholder": "Αναζήτηση...",
-        "genericError": "Παρουσιάστηκε σφάλμα"
+        "genericError": "Παρουσιάστηκε σφάλμα",
+        "from": "από",
+        "until": "έως",
+        "present": "σήμερα"
     },
     "MeetingCard": {
         "noVideo": "Χωρίς μέσα",
@@ -474,8 +477,6 @@
         "searchItems": "Αναζητήστε μέλη",
         "activeUntil": "Μέλος έως",
         "active": "Μέλος",
-        "from": "από",
-        "until": "έως",
         "item": "μέλος",
         "loadingSegments": "Φόρτωση πρόσφατων τοποθετήσεων...",
         "noSegmentsFound": "Δεν βρέθηκαν τοποθετήσεις",
@@ -610,7 +611,6 @@
         "confirmDelete": "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτόν τον ρόλο;",
         "cityRole": "Δημοτικός Σύμβουλος",
         "head": "Επικεφαλής",
-        "present": "σήμερα",
         "from": "από",
         "until": "έως",
         "noEndDate": "Χωρίς ημερομηνία λήξης"
