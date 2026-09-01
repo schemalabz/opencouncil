@@ -89,6 +89,31 @@ function unionMembers(file: string, typeName: string): string[] {
 const BINDING = /(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:await\s+)?(?:useTranslations|getTranslations)\s*\(([^;]{0,200}?)\)/g;
 const NAMESPACE_ARG = /^\s*['"]([^'"]+)['"]|namespace:\s*['"]([^'"]+)['"]/;
 
+// `const [t, tAccount] = await Promise.all([getTranslations('A'), getTranslations('B')])`
+// — the server pages bind several translators at once, and the names sit in the
+// array pattern rather than next to the call that supplies them.
+const DESTRUCTURED = /(?:const|let)\s*\[([^\]]*)\]\s*=\s*await\s+Promise\.all\(\s*\[([\s\S]{0,800}?)\]\s*\)/g;
+const TRANSLATOR_CALL = /^(?:await\s+)?(?:useTranslations|getTranslations)\s*\(([\s\S]*)\)$/;
+const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
+
+/** Split on commas that are not inside brackets, so nested calls stay whole. */
+function splitTopLevel(source: string): string[] {
+    const parts: string[] = [];
+    let depth = 0;
+    let start = 0;
+    for (let i = 0; i < source.length; i++) {
+        const c = source[i];
+        if ('([{'.includes(c)) depth++;
+        else if (')]}'.includes(c)) depth--;
+        else if (c === ',' && depth === 0) {
+            parts.push(source.slice(start, i));
+            start = i + 1;
+        }
+    }
+    parts.push(source.slice(start));
+    return parts.map((part) => part.trim());
+}
+
 type Reference = { location: string; key: string };
 
 function collectReferences(): { refs: Reference[]; groups: Reference[]; skipped: number } {
@@ -104,7 +129,18 @@ function collectReferences(): { refs: Reference[]; groups: Reference[]; skipped:
             const ns = NAMESPACE_ARG.exec(m[2] ?? '');
             return { name: m[1], namespace: ns ? (ns[1] ?? ns[2]) : null, at: m.index! };
         });
+        for (const destructuring of text.matchAll(DESTRUCTURED)) {
+            const names = splitTopLevel(destructuring[1]);
+            splitTopLevel(destructuring[2]).forEach((element, i) => {
+                const call = TRANSLATOR_CALL.exec(element);
+                const name = names[i];
+                if (!call || !name || !IDENTIFIER.test(name)) return;
+                const ns = NAMESPACE_ARG.exec(call[1]);
+                bindings.push({ name, namespace: ns ? (ns[1] ?? ns[2]) : null, at: destructuring.index! });
+            });
+        }
         if (bindings.length === 0) continue;
+        bindings.sort((a, b) => a.at - b.at);
 
         for (const name of new Set(bindings.map((b) => b.name))) {
             const own = bindings.filter((b) => b.name === name);
