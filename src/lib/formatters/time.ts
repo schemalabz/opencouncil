@@ -269,6 +269,12 @@ export function formatGapDuration(seconds: number): string {
     return `${Math.round(seconds)} δευτ.`;
 }
 
+/**
+ * A date range in words. Both callers pass a `Common`-scoped translator,
+ * because the copy belongs to this helper rather than to either page.
+ *
+ * @translationNamespace Common
+ */
 export function formatDateRange(startDate: Date | null, endDate: Date | null, t: any): string {
   if (startDate && endDate) {
     return `${t('from')} ${formatDate(startDate)} ${t('until')} ${formatDate(endDate)}`;

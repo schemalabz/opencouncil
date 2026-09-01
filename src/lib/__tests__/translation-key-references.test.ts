@@ -19,6 +19,12 @@
  * only once in a file resolves wherever it is called, which reaches the helpers
  * and sub-components that take the translator as a parameter and are declared
  * above the binding that feeds them.
+ *
+ * A shared helper that takes the translator as its `t` parameter has no binding
+ * at all. It declares the namespace its callers must supply with a
+ * `@translationNamespace <ns...>` JSDoc tag, which the scan reads as a binding
+ * of `t`. The tag states a contract against the catalog; nothing here checks
+ * that the callers honour it.
  */
 import fs from 'fs';
 import path from 'path';
@@ -94,6 +100,17 @@ const NAMESPACE_ARG = /^\s*['"]([^'"]+)['"]|namespace:\s*['"]([^'"]+)['"]/;
 // array pattern rather than next to the call that supplies them.
 const DESTRUCTURED = /(?:const|let)\s*\[([^\]]*)\]\s*=\s*await\s+Promise\.all\(\s*\[([\s\S]{0,800}?)\]\s*\)/g;
 const TRANSLATOR_CALL = /^(?:await\s+)?(?:useTranslations|getTranslations)\s*\(([\s\S]*)\)$/;
+
+// `@translationNamespace Subject` on a helper that takes the translator as its
+// `t` parameter. The helper has no binding of its own, so the tag is the only
+// statement of the namespace its callers must supply.
+//
+// A tag may name several namespaces, and then the key has to exist under every
+// one of them. No tag needs that today, and one needing it is worth a second
+// look: it says one string is being kept in two places because two callers
+// scope the same helper differently. `formatDateRange` read that way until its
+// copy moved to `Common`.
+const ANNOTATION = /@translationNamespace[ \t]+([A-Za-z0-9_.][A-Za-z0-9_. \t]*)/g;
 const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
 
 /** Split on commas that are not inside brackets, so nested calls stay whole. */
@@ -123,12 +140,16 @@ function collectReferences(): { refs: Reference[]; groups: Reference[]; skipped:
 
     for (const file of sourceFiles(path.join(ROOT, 'src'))) {
         const text = fs.readFileSync(file, 'utf8');
-        if (!text.includes('Translations')) continue;
+        if (!text.includes('Translations') && !text.includes('@translationNamespace')) continue;
 
         const bindings = [...text.matchAll(BINDING)].map((m) => {
             const ns = NAMESPACE_ARG.exec(m[2] ?? '');
-            return { name: m[1], namespace: ns ? (ns[1] ?? ns[2]) : null, at: m.index! };
+            const namespace = ns ? (ns[1] ?? ns[2]) : null;
+            return { name: m[1], namespaces: namespace ? [namespace] : [], at: m.index! };
         });
+        for (const annotation of text.matchAll(ANNOTATION)) {
+            bindings.push({ name: 't', namespaces: annotation[1].trim().split(/[ \t]+/), at: annotation.index! });
+        }
         for (const destructuring of text.matchAll(DESTRUCTURED)) {
             const names = splitTopLevel(destructuring[1]);
             splitTopLevel(destructuring[2]).forEach((element, i) => {
@@ -136,7 +157,8 @@ function collectReferences(): { refs: Reference[]; groups: Reference[]; skipped:
                 const name = names[i];
                 if (!call || !name || !IDENTIFIER.test(name)) return;
                 const ns = NAMESPACE_ARG.exec(call[1]);
-                bindings.push({ name, namespace: ns ? (ns[1] ?? ns[2]) : null, at: destructuring.index! });
+                const namespace = ns ? (ns[1] ?? ns[2]) : null;
+                bindings.push({ name, namespaces: namespace ? [namespace] : [], at: destructuring.index! });
             });
         }
         if (bindings.length === 0) continue;
@@ -159,7 +181,7 @@ function collectReferences(): { refs: Reference[]; groups: Reference[]; skipped:
                 const binding =
                     own.filter((b) => b.at < call.index!).pop() ?? (own.length === 1 ? own[0] : null);
                 // A namespace assembled at runtime leaves nothing to resolve against.
-                if (!binding?.namespace) { skipped++; continue; }
+                if (!binding?.namespaces.length) { skipped++; continue; }
                 const key = call[2];
                 if (key === '') { skipped++; continue; }
                 const line = text.slice(0, call.index!).split('\n').length;
@@ -172,11 +194,11 @@ function collectReferences(): { refs: Reference[]; groups: Reference[]; skipped:
                     // which is the failure a static scan can still see. Members are
                     // covered by the union checks below.
                     const prefix = key.slice(0, interpolated);
-                    if (prefix) groups.push({ location, key: `${binding.namespace}.${prefix}` });
+                    if (prefix) for (const ns of binding.namespaces) groups.push({ location, key: `${ns}.${prefix}` });
                     else skipped++;
                     continue;
                 }
-                refs.push({ location, key: `${binding.namespace}.${key}` });
+                for (const ns of binding.namespaces) refs.push({ location, key: `${ns}.${key}` });
             }
         }
     }

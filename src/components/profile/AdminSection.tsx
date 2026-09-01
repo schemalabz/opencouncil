@@ -13,6 +13,7 @@ type AdminSectionProps = {
             person?: { id: string; cityId: string; name: string } | null;
         }>;
     };
+    /** @translationNamespace Profile */
     t: (key: string, params?: Record<string, string>) => string;
 };
 

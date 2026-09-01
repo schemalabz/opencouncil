@@ -12,6 +12,11 @@ interface CategorizableSubject {
 export const SUBJECT_CATEGORY_KEYS = ['beforeAgenda', 'outOfAgenda', 'agenda'] as const;
 export type SubjectCategoryKey = typeof SUBJECT_CATEGORY_KEYS[number];
 
+/**
+ * The translator every helper here takes.
+ *
+ * @translationNamespace Subject
+ */
 type Translate = (key: string) => string;
 
 /**

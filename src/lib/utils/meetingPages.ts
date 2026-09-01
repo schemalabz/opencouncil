@@ -3,6 +3,8 @@ import { LayoutDashboard, FileText, Mic, Map, Clapperboard, Settings, Bolt, File
 /**
  * Meeting-page navigation segments with translated titles. Pass a translator
  * scoped to the `CouncilMeeting` namespace (e.g. `useTranslations('CouncilMeeting')`).
+ *
+ * @translationNamespace CouncilMeeting
  */
 export function getMeetingPageSegments(
     t: (key: string) => string,
