@@ -297,8 +297,13 @@ describe('message keys referenced by the code', () => {
 
     it('finds the call sites at all (guards the scan against silently matching nothing)', () => {
         expect(refs.length).toBeGreaterThan(1500);
-        // A refactor that made most keys dynamic would hollow out the check above.
-        expect(skipped).toBeLessThan(refs.length / 10);
+        // Calls the scan reads but cannot attribute. The count is 12 today, all of
+        // them on a translator whose namespace is built at runtime. A cap
+        // proportional to `refs` never bites: it would let every call in a large
+        // file go quiet without a word. An absolute one names what regressed —
+        // binding `t` a second time in `og/route.tsx`, for one, would put its 21
+        // keys back out of reach and fail here.
+        expect(skipped).toBeLessThan(25);
     });
 
     it(`every key a t() call asks for exists in messages/${REFERENCE_LOCALE}`, () => {
