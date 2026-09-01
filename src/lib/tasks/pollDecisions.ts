@@ -127,14 +127,12 @@ export async function pollDecisionsForMeeting(
 
     // Window from the city's measured publication lags; the declared session
     // date does the precise work, the window only has to be wide enough.
-    const lagRows = await prisma.$queryRaw<Array<{ lag: number }>>`
-        SELECT EXTRACT(EPOCH FROM (d."publishDate" - cm."dateTime")) / 86400 AS lag
-        FROM "Decision" d
-        JOIN "Subject" s ON s.id = d."subjectId"
-        JOIN "CouncilMeeting" cm ON cm.id = s."councilMeetingId" AND cm."cityId" = s."cityId"
-        WHERE s."cityId" = ${cityId} AND d."publishDate" IS NOT NULL
-    `;
-    const windowDays = deriveWindowDays(lagRows.map(r => Number(r.lag)));
+    const lagRows = await prisma.decision.findMany({
+        where: { publishDate: { not: null }, subject: { cityId } },
+        select: { publishDate: true, subject: { select: { councilMeeting: { select: { dateTime: true } } } } },
+    });
+    const windowDays = deriveWindowDays(lagRows.map(r =>
+        (r.publishDate!.getTime() - r.subject.councilMeeting.dateTime.getTime()) / 86_400_000));
     const cityTz = councilMeeting.city.timezone;
     const windowFromDate = localCalendarDate(councilMeeting.dateTime, cityTz);
     const windowToDate = localCalendarDate(new Date(councilMeeting.dateTime.getTime() + windowDays * 86400_000), cityTz);
