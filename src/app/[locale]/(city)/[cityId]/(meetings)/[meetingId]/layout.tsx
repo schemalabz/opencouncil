@@ -5,6 +5,7 @@ import { getCurrentUser, isUserAuthorizedToEdit } from '@/lib/auth';
 import CouncilMeetingWrapper from '@/components/meetings/CouncilMeetingWrapper';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import MeetingSidebar from '@/components/meetings/sidebar';
+import { MeetingHeaderStage } from '@/components/meetings/stage/MeetingHeaderStage';
 import { Suspense } from 'react'
 import Header from '@/components/layout/Header';
 import EditButton from '@/components/meetings/EditButton';
@@ -200,7 +201,8 @@ export default async function CouncilMeetingPage(
                                         ...(adminBodyPath ? [adminBodyPath] : []),
                                         {
                                             name: getLocalizedName(data.meeting, locale),
-                                            link: `/${cityId}/${meetingId}`
+                                            link: `/${cityId}/${meetingId}`,
+                                            addon: <MeetingHeaderStage />
                                         }
                                     ]}
                                     showSidebarTrigger={true}

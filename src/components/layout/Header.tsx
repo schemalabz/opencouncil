@@ -23,6 +23,8 @@ export interface PathElement {
     link: string
     description?: string
     city?: City
+    /** Rendered beside the name when this element titles the header: a meeting's stage chip. */
+    addon?: React.ReactNode
 }
 
 interface HeaderProps {
@@ -256,13 +258,16 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                                 ))}
                             </div>
                         )}
-                {titleElement.link ? (
-                    <Link href={titleElement.link} className="truncate text-sm font-medium hover:no-underline sm:text-base">
-                        {titleElement.name}
-                    </Link>
-                ) : (
-                    <span className="truncate text-sm font-medium sm:text-base">{titleElement.name}</span>
-                )}
+                <div className="flex min-w-0 items-center gap-2.5">
+                    {titleElement.link ? (
+                        <Link href={titleElement.link} className="min-w-0 truncate text-sm font-medium hover:no-underline sm:text-base">
+                            {titleElement.name}
+                        </Link>
+                    ) : (
+                        <span className="min-w-0 truncate text-sm font-medium sm:text-base">{titleElement.name}</span>
+                    )}
+                    {titleElement.addon}
+                </div>
                 </div>
             </div>
         ) : null
