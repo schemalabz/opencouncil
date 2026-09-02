@@ -2,7 +2,7 @@
 import { SubjectWithRelations } from "@/lib/db/subject";
 import { captureEvent } from '@/lib/analytics/capture';
 import { Statistics } from "@/lib/statistics";
-import { SubjectRow } from "../subject/SubjectRow";
+import { SubjectRow, type SubjectPending } from "../subject/SubjectRow";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
@@ -18,6 +18,8 @@ interface SubjectSectionProps {
     sortMode?: 'speakingTime' | 'agendaIndex';
     onSortModeChange?: (mode: 'speakingTime' | 'agendaIndex') => void;
     showSortToggle?: boolean;
+    /** What the rows say in place of the stats they do not have yet. */
+    pending?: SubjectPending;
     className?: string;
 }
 
@@ -28,6 +30,7 @@ export function SubjectSection({
     sortMode,
     onSortModeChange,
     showSortToggle,
+    pending,
     className,
 }: SubjectSectionProps) {
     const { city, meeting, people } = useCouncilMeetingData();
@@ -114,6 +117,7 @@ export function SubjectSection({
                         meeting={meeting}
                         persons={people}
                         showContext={false}
+                        pending={pending}
                         onOpen={() => captureEvent('subject_opened', {
                             surface: 'meeting_rows',
                             subject_id: subject.id,

@@ -2,7 +2,10 @@
 import { useState, useEffect } from 'react';
 import { Bot, X, ChevronDown } from "lucide-react";
 import { cn } from '@/lib/utils';
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
+import { formatDateTime, formatWeekday } from '@/lib/formatters/time';
+import { reviewDeadline } from '@/lib/meetingStage';
 
 // Banner height constants
 export const BANNER_HEIGHT_FULL = '5.5rem';
@@ -17,6 +20,15 @@ export function UnverifiedTranscriptBanner({ isScrolled, onBannerHeightChange }:
     const [isBannerExpanded, setIsBannerExpanded] = useState(false);
     const [isBannerDismissed, setIsBannerDismissed] = useState(false);
     const tTranscript = useTranslations('transcript');
+    const locale = useLocale();
+    const { meeting, city } = useCouncilMeetingData();
+    // The promise the meeting page's strip makes: 48 hours from the meeting, then "soon".
+    const deadline = reviewDeadline(new Date(meeting.dateTime));
+    const description = deadline
+        ? tTranscript('unverifiedBanner.descriptionUntil', {
+            deadline: `${formatWeekday(deadline, city.timezone, locale)} ${formatDateTime(deadline, city.timezone, 'long', locale)}`,
+        })
+        : tTranscript('unverifiedBanner.description');
 
     // Reset expanded state when scrolling back to top
     useEffect(() => {
@@ -84,7 +96,7 @@ export function UnverifiedTranscriptBanner({ isScrolled, onBannerHeightChange }:
                     </div>
                     {showFullBanner && (
                         <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                            {tTranscript('unverifiedBanner.description')}
+                            {description}
                         </p>
                     )}
                 </div>

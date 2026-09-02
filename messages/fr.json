@@ -652,11 +652,7 @@
     "next": "Suivant",
     "agendaDocument": "Ordre du jour",
     "subjectsCount": "{count, plural, =0 {Aucun sujet} one {# sujet} other {# sujets}}",
-    "availableSoon": "La séance sera bientôt disponible",
-    "notificationComing": "Vous recevrez bientôt une mise à jour sur les sujets abordés",
-    "subscribeForSubjects": "Abonnez-vous aux notifications pour recevoir les sujets abordés avant et après les séances",
-    "scheduledFor": "La séance aura lieu {when}",
-    "watchMeeting": "Regardez la séance"
+    "notificationComing": "Vous recevrez bientôt une mise à jour sur les sujets abordés"
   },
   "Unsubscribe": {
     "invalidLinkTitle": "Lien non valide",

@@ -1141,11 +1141,7 @@
         "next": "Следећа",
         "agendaDocument": "Дневни ред",
         "subjectsCount": "{count, plural, =0 {Нема тема} one {# тема} few {# теме} other {# тема}}",
-        "availableSoon": "Седница ће ускоро бити доступна",
-        "notificationComing": "Ускоро ћете добити обавештење о темама расправе",
-        "subscribeForSubjects": "Пријавите се на обавештења да бисте добијали теме расправе пре и после седница",
-        "scheduledFor": "Седница ће се одржати {when}",
-        "watchMeeting": "Пратите седницу"
+        "notificationComing": "Ускоро ћете добити обавештење о темама расправе"
     },
     "ProductUpdates": {
         "triggerButton": "Пошаљи новости о производу",

@@ -21,6 +21,9 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 
+/** What a row says in place of the stats it does not have yet — the meeting's stage decides. */
+export type SubjectPending = 'notDiscussed' | 'afterReview';
+
 interface SubjectRowProps {
     subject: SubjectWithRelations & { statistics?: Statistics };
     city: City;
@@ -28,6 +31,7 @@ interface SubjectRowProps {
     persons: PersonWithRelations[];
     /** Show the city / body / date line — off when the row already sits inside a meeting. */
     showContext?: boolean;
+    pending?: SubjectPending;
     openInNewTab?: boolean;
     /** The row was opened. Fires for a new tab too, where the Link navigates itself. */
     onOpen?: () => void;
@@ -49,10 +53,11 @@ function MetaItem({ icon: Icon, children }: { icon: typeof MapPin; children: Rea
  * speaking stats, speakers), laid out horizontally. A result list then reads top to bottom,
  * one result per line, instead of as a grid of tiles.
  */
-export function SubjectRow({ subject, city, meeting, persons, showContext = true, openInNewTab, onOpen }: SubjectRowProps) {
+export function SubjectRow({ subject, city, meeting, persons, showContext = true, pending, openInNewTab, onOpen }: SubjectRowProps) {
     const router = useRouter();
     const pathname = usePathname();
     const t = useTranslations("Subject");
+    const tStage = useTranslations("meetingStage");
     const locale = useLocale();
     const localize = useLocalizeText();
     const [isLoading, setIsLoading] = useState(false);
@@ -85,6 +90,9 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
         meeting.administrativeBody ? getLocalizedName(meeting.administrativeBody, locale) : null,
         formatDate(new Date(meeting.dateTime), undefined, locale),
     ].filter(Boolean).join(" · ");
+
+    const isPending = pending !== undefined && stats.minutes === 0 && stats.speakerCount === 0;
+    const showsNote = Boolean(subject.withdrawn) || isPending;
 
     return (
         <Link
@@ -179,10 +187,20 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
                         so that a subject with many speakers keeps the same shape as one with
                         two. Below that width the stats truncate rather than drop to a line of
                         their own. */}
-                    <div className="flex shrink-0 flex-row items-center justify-between gap-x-3 sm:flex-col sm:items-end sm:justify-start sm:gap-y-1.5">
+                    <div className={cn(
+                        'flex shrink-0 flex-row items-center justify-between gap-x-3 sm:flex-col sm:items-end sm:justify-start sm:gap-y-1.5',
+                        // A note has no avatar stack to make room for, so it takes the text
+                        // column's indent (the icon box and its gap) and reads as a line of it.
+                        showsNote && 'pl-[52px] sm:pl-0',
+                    )}>
                         {subject.withdrawn ? (
                             <span className="text-xs italic text-muted-foreground/70">
                                 {getWithdrawnLabel(t, subject)}
+                            </span>
+                        ) : isPending ? (
+                            <span className="flex items-center gap-1.5 text-xs italic text-muted-foreground/80">
+                                {pending === 'afterReview' && <Clock className="h-3.5 w-3.5 shrink-0 text-yellow-600" aria-hidden />}
+                                {tStage(`rows.${pending}`)}
                             </span>
                         ) : (
                             <>
