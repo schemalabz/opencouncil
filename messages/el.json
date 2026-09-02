@@ -1114,7 +1114,9 @@
         "withdrawnLong": "Το θέμα αποσύρθηκε και δεν συζητήθηκε.",
         "minutesCount": "{count, plural, one {# λεπτό} other {# λεπτά}}",
         "previousSubject": "Προηγούμενο θέμα",
-        "nextSubject": "Επόμενο θέμα"
+        "nextSubject": "Επόμενο θέμα",
+        "noDecisionBeforeAgenda": "Τα προ ημερησίας θέματα δεν έχουν ποτέ απόφαση.",
+        "learnWhy": "Μάθε γιατί"
     },
     "PersonCard": {
         "party": "Παράταξη",

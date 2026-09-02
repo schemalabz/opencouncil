@@ -13,6 +13,7 @@ import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
 import { cn, sortSubjectsByAgendaIndex, subjectToMapFeature } from "@/lib/utils";
 import { categorizeSubjects } from "@/lib/utils/subjects";
+import { hasExplainPage } from "@/lib/explain/availability";
 import { notFound } from "next/navigation";
 import { SubjectContext } from "./context";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -432,8 +433,9 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                             </RailCard>
                         )}
 
-                        {subject.nonAgendaReason !== 'beforeAgenda' && !subject.withdrawn && (
-                            <RailCard
+                        {/* Always present, so a reader learns where decisions live even on
+                            the subjects that never get one. */}
+                        <RailCard
                                 id="decision"
                                 title={decision ? (
                                     <span className="flex flex-wrap items-center gap-2">
@@ -491,6 +493,24 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                     )}
                                 </div>
                             </div>
+                        ) : subject.nonAgendaReason === 'beforeAgenda' ? (
+                            <p className="pt-1 text-sm text-muted-foreground">
+                                {t("noDecisionBeforeAgenda")}
+                                {hasExplainPage(city.realm) && (
+                                    <>
+                                        {' '}
+                                        <Link
+                                            href="/explain#domi-synedriasis"
+                                            onClick={() => captureSubjectAction('why_no_decision')}
+                                            className="font-semibold text-[hsl(var(--orange-deep))] hover:underline"
+                                        >
+                                            {t("learnWhy")}
+                                        </Link>
+                                    </>
+                                )}
+                            </p>
+                        ) : subject.withdrawn ? (
+                            <p className="pt-1 text-sm text-muted-foreground">{getWithdrawnLabel(t, subject, 'long')}</p>
                         ) : (
                             <div className="space-y-3 pt-1 text-center">
                                 <p className="text-sm text-muted-foreground">{t("noDecisionDescription")}</p>
@@ -516,8 +536,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                 )}
                             </div>
                         )}
-                            </RailCard>
-                        )}
+                        </RailCard>
 
                         {location && (
                             <RailCard title={t("locationCardTitle")}>

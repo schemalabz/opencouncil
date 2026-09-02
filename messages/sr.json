@@ -1120,7 +1120,9 @@
         "withdrawnLong": "Тема је повучена и није разматрана.",
         "minutesCount": "{count, plural, one {# минут} few {# минута} other {# минута}}",
         "previousSubject": "Претходна тачка",
-        "nextSubject": "Следећа тачка"
+        "nextSubject": "Следећа тачка",
+        "noDecisionBeforeAgenda": "Тачке покренуте пре дневног реда никада немају одлуку.",
+        "learnWhy": "Сазнајте зашто"
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {Нема седница} one {# седница} few {# седнице} other {# седница}}",

@@ -1120,7 +1120,9 @@
         "withdrawnLong": "The subject was withdrawn and not discussed.",
         "minutesCount": "{count, plural, one {# minute} other {# minutes}}",
         "previousSubject": "Previous subject",
-        "nextSubject": "Next subject"
+        "nextSubject": "Next subject",
+        "noDecisionBeforeAgenda": "Items raised before the agenda never have a decision.",
+        "learnWhy": "Learn why"
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {No meetings} =1 {1 meeting} other {# meetings}}",

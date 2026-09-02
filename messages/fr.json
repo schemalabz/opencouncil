@@ -1114,7 +1114,9 @@
     "withdrawnLong": "Le sujet a été retiré et n'a pas été discuté.",
     "minutesCount": "{count, plural, one {# minute} other {# minutes}}",
     "previousSubject": "Point précédent",
-    "nextSubject": "Point suivant"
+    "nextSubject": "Point suivant",
+    "noDecisionBeforeAgenda": "Les points soulevés avant l'ordre du jour n'ont jamais de décision.",
+    "learnWhy": "Pourquoi ?"
   },
   "PersonCard": {
     "party": "Groupe",
