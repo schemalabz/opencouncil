@@ -204,6 +204,31 @@ const preset: Omit<Config, "content"> = {
 					'0%, 100%': { transform: 'translate(0%, 0%)' },
 					'50%': { transform: 'translate(-30%, -25%)' },
 				},
+				// The edge fade that travels with auto-scroll's cut. Masks do not
+				// interpolate, so each state holds until a hair before the next
+				// keyframe of the text's own timing (20 / 45 / 65 / 90).
+				'auto-scroll-mask': {
+					'0%, 19.99%': {
+						'-webkit-mask-image': 'linear-gradient(to right, #000 0, #000 calc(100% - 14px), transparent 100%)',
+						'mask-image': 'linear-gradient(to right, #000 0, #000 calc(100% - 14px), transparent 100%)',
+					},
+					'20%, 44.99%': {
+						'-webkit-mask-image': 'linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)',
+						'mask-image': 'linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)',
+					},
+					'45%, 64.99%': {
+						'-webkit-mask-image': 'linear-gradient(to right, transparent 0, #000 14px, #000 100%)',
+						'mask-image': 'linear-gradient(to right, transparent 0, #000 14px, #000 100%)',
+					},
+					'65%, 89.99%': {
+						'-webkit-mask-image': 'linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)',
+						'mask-image': 'linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%)',
+					},
+					'90%, 100%': {
+						'-webkit-mask-image': 'linear-gradient(to right, #000 0, #000 calc(100% - 14px), transparent 100%)',
+						'mask-image': 'linear-gradient(to right, #000 0, #000 calc(100% - 14px), transparent 100%)',
+					},
+				},
 				'auto-scroll': {
 					'0%': {
 						transform: 'translateX(0)'
@@ -257,6 +282,7 @@ const preset: Omit<Config, "content"> = {
 				'bounce': 'bounce 2s ease-in-out infinite',
 				'aurora': 'aurora 60s linear infinite',
 				'auto-scroll': 'auto-scroll var(--duration, 8s) ease-in-out infinite',
+				'auto-scroll-mask': 'auto-scroll-mask var(--duration, 8s) linear infinite',
 				float: 'float 5s ease-in-out infinite',
 				flow: 'flow 2.5s ease-in-out infinite',
 				'arrow-pulse': 'arrow-pulse 2.5s ease-in-out infinite',
