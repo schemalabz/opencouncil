@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
-import { CalendarX2, ChevronDown, ChevronRight, ExternalLink, Inbox, Loader2, Swords, TriangleAlert } from 'lucide-react';
+import { CalendarX2, ChevronDown, ChevronRight, ExternalLink, Inbox, Loader2, Swords } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { useToast } from '@/hooks/use-toast';
 import { formatCalendarDate } from '@/lib/formatters/time';
@@ -12,11 +12,15 @@ import type { CityDecisionHealth, CityState } from '@/lib/db/decisionHealth';
 import type { CityDecisionDetail } from '@/lib/db/decisionHealthDetail';
 import type { CandidateConflict } from '@/lib/db/decisionCandidates';
 import { ConfirmSheet } from '@/components/meetings/decisions/ConfirmSheet';
-import { diavgeiaDocUrl } from '@/components/meetings/decisions/pdfUrl';
+import { diavgeiaDocUrl, diavgeiaSearchUrl } from '@/components/meetings/decisions/pdfUrl';
 import { resolveCandidateConflict } from '@/lib/tasks/pollDecisions';
 import { fetchCityDecisionDetail } from './actions';
 import { buildDateGroups, type ListFilter } from './dateGroups';
 import { CoverageStrip } from './CoverageStrip';
+import { narrowDetailToBody } from './bodyFilter';
+import { BodyRows, type BodySelection } from './BodyRows';
+import { QueueBadges } from './QueueBadges';
+import { ROW_GRID } from './rowLayout';
 
 const STATE_STYLE: Record<CityState, string> = {
     blocked: 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400',
@@ -60,12 +64,16 @@ export function CityRow({ city, state, label, openRequest }: {
     const [sheet, setSheet] = useState<SheetState | null>(null);
     const [filter, setFilter] = useState<ListFilter>('pending');
     const [subjectsOpen, setSubjectsOpen] = useState(false);
+    const [selectedBody, setSelectedBody] = useState<BodySelection | null>(null);
     const [resolving, startResolve] = useTransition();
 
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const realUnplaced = city.unplacedCandidates - city.unplacedUnread;
-    const unlinked = city.eligibleSubjects - city.linkedSubjects;
+    // The scope the expansion reads: the selected body's coverage, or the city's.
+    const scope = selectedBody === null
+        ? city
+        : city.bodies.find(b => (b.body?.id ?? null) === selectedBody.bodyId) ?? city;
+    const unlinked = scope.eligibleSubjects - scope.linkedSubjects;
 
     const ensureDetail = async () => {
         if (detail || loading) return;
@@ -83,24 +91,19 @@ export function CityRow({ city, state, label, openRequest }: {
         const next = !open;
         setOpen(next);
         if (next) await ensureDetail();
+        else setSelectedBody(null);
     };
 
     useEffect(() => {
         if (!openRequest) return;
         setOpen(true);
         setFilter(openRequest.filter);
+        // The hero promised a city-wide queue; a body selection would hide it.
+        setSelectedBody(null);
         containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         void ensureDetail();
         // eslint-disable-next-line react-hooks/exhaustive-deps -- runs only when the hero sends a new request
     }, [openRequest]);
-
-    // Icon + count; the text lives in the hover title and for screen readers.
-    const attention = [
-        { count: city.failedMeetings, Icon: TriangleAlert, label: t('row.stuck', { count: city.failedMeetings }), cls: 'text-red-600 dark:text-red-500' },
-        { count: city.conflicts, Icon: Swords, label: t('row.conflicts', { count: city.conflicts }), cls: 'text-amber-700 dark:text-amber-500' },
-        { count: realUnplaced, Icon: Inbox, label: t('row.unplaced', { count: realUnplaced }), cls: 'text-amber-700 dark:text-amber-500' },
-        { count: city.unplaceable.total, Icon: CalendarX2, label: t('row.unplaceable', { count: city.unplaceable.total }), cls: 'text-amber-700 dark:text-amber-500' },
-    ].filter(a => a.count > 0);
 
     const viewDoc = (doc: { title: string | null; decisionNumber: string | null; pdfUrl: string; ada: string }, meetingId?: string | null) =>
         setSheet({ action: 'view', title: doc.title, decisionNumber: doc.decisionNumber, pdfUrl: doc.pdfUrl, ada: doc.ada, meetingId });
@@ -135,16 +138,28 @@ export function CityRow({ city, state, label, openRequest }: {
 
     return (
         <div ref={containerRef} className="scroll-mt-4 border-b border-border/60">
-            <button
-                type="button"
+            {/* The row is the pointer target; the name button is the keyboard one, so the
+                Diavgeia id can be a real link beside it. */}
+            <div
                 onClick={toggle}
-                aria-expanded={open}
-                className="grid w-full grid-cols-[1rem_minmax(6rem,1fr)_minmax(8rem,1.6fr)_auto] items-center gap-2 px-1 py-2.5 text-left hover:bg-muted/40 sm:grid-cols-[1rem_minmax(8rem,1fr)_2fr_minmax(7rem,1fr)_minmax(10rem,1.4fr)] sm:gap-3"
+                className={`grid w-full ${ROW_GRID} cursor-pointer items-center gap-2 px-1 py-2.5 text-left hover:bg-muted/40 sm:gap-3`}
             >
                 {open ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
                 <span className="flex min-w-0 flex-col">
-                    <span className="truncate text-sm font-semibold">{label}</span>
-                    <span className={`mt-0.5 w-fit rounded px-1.5 py-px text-[10px] font-semibold ${STATE_STYLE[state]}`}>{t(`state.${state}`)}</span>
+                    <button type="button" aria-expanded={open} onClick={e => { e.stopPropagation(); void toggle(); }}
+                        className="truncate text-left text-sm font-semibold">
+                        {label}
+                    </button>
+                    <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <span className={`w-fit rounded px-1.5 py-px text-[10px] font-semibold ${STATE_STYLE[state]}`}>{t(`state.${state}`)}</span>
+                        {city.diavgeiaUid && (
+                            <a href={diavgeiaSearchUrl(city.diavgeiaUid)} target="_blank" rel="noopener noreferrer"
+                                title={t('bodies.openInDiavgeia')} onClick={e => e.stopPropagation()}
+                                className="font-mono text-[10px] text-muted-foreground hover:text-foreground hover:underline">
+                                {t('row.diavgeia')} {city.diavgeiaUid}
+                            </a>
+                        )}
+                    </span>
                 </span>
                 <span className="flex min-w-0 flex-col gap-1">
                     {city.eligibleSubjects === 0 ? (
@@ -176,26 +191,22 @@ export function CityRow({ city, state, label, openRequest }: {
                     )}
                 </span>
                 <span className="flex items-center justify-end gap-3 text-xs tabular-nums">
-                    {attention.length ? attention.map(({ Icon, count, label: itemLabel, cls }) => (
-                        <span key={itemLabel} title={itemLabel} className={`flex items-center gap-1 ${cls}`}>
-                            <Icon className="h-3.5 w-3.5" aria-hidden />
-                            <span className="sr-only">{itemLabel}</span>
-                            <span aria-hidden>{count.toLocaleString(locale)}</span>
-                        </span>
-                    )) : <span className="text-muted-foreground">—</span>}
+                    <QueueBadges queues={city} unplaceable={city.unplaceable.total} />
                 </span>
-            </button>
+            </div>
 
             {open && (
                 <div className="px-5 pb-4 pt-1">
+                    <BodyRows city={city} selected={selectedBody} onSelect={setSelectedBody} />
                     {loading && <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />{t('loadingDetail')}</div>}
                     {detail && (() => {
-                        const noSessionDocs = detail.missingSessions.reduce((n, g) => n + g.documents.length, 0);
-                        const pendingCount = detail.conflicts.length + detail.unplaced.length + noSessionDocs;
+                        const shown = selectedBody === null ? detail : narrowDetailToBody(detail, selectedBody.bodyId);
+                        const noSessionDocs = shown.missingSessions.reduce((n, g) => n + g.documents.length, 0);
+                        const pendingCount = shown.conflicts.length + shown.unplaced.length + noSessionDocs;
                         const filters = [
                             { key: 'pending' as const, Icon: null, label: t('filters.pending'), count: pendingCount },
-                            { key: 'conflicts' as const, Icon: Swords, label: t('filters.conflicts'), count: detail.conflicts.length },
-                            { key: 'unplaced' as const, Icon: Inbox, label: t('filters.unplaced'), count: detail.unplaced.length },
+                            { key: 'conflicts' as const, Icon: Swords, label: t('filters.conflicts'), count: shown.conflicts.length },
+                            { key: 'unplaced' as const, Icon: Inbox, label: t('filters.unplaced'), count: shown.unplaced.length },
                             { key: 'noSession' as const, Icon: CalendarX2, label: t('filters.noSession'), count: noSessionDocs },
                         ].filter(f => f.key === 'pending' || f.count > 0);
                         // The stored filter may point at a queue that emptied
@@ -203,13 +214,13 @@ export function CityRow({ city, state, label, openRequest }: {
                         const effective: ListFilter = filters.some(f => f.key === filter) ? filter : 'pending';
                         const showUnplaced = effective === 'pending' || effective === 'unplaced';
                         const showNoSession = effective === 'pending' || effective === 'noSession';
-                        const grouped = buildDateGroups(detail, effective);
+                        const grouped = buildDateGroups(shown, effective);
                         return (
                             <div>
-                                {detail.failedMeetings.length > 0 && (
+                                {shown.failedMeetings.length > 0 && (
                                     <div className="mb-2 rounded border border-red-200 bg-red-50/50 px-2 py-1.5 text-xs dark:border-red-900 dark:bg-red-950/20">
-                                        <span className="mr-1 font-semibold text-red-700 dark:text-red-400">{t('row.stuck', { count: detail.failedMeetings.length })}:</span>
-                                        {detail.failedMeetings.map((m, i) => (
+                                        <span className="mr-1 font-semibold text-red-700 dark:text-red-400">{t('row.stuck', { count: shown.failedMeetings.length })}:</span>
+                                        {shown.failedMeetings.map((m, i) => (
                                             <span key={m.id}>
                                                 {i > 0 && ' · '}
                                                 <Link className="hover:underline" href={`/${city.cityId}/${m.id}`}>
@@ -288,13 +299,17 @@ export function CityRow({ city, state, label, openRequest }: {
                                                 </li>
                                             ))}
                                         </ul>
-                                        {showUnplaced && city.unplacedUnread > 0 && (
+                                        {showUnplaced && selectedBody === null && city.unplacedUnread > 0 && (
                                             <p className="mt-2 text-xs text-muted-foreground">{t('sections.unreadBackfill', { count: city.unplacedUnread })}</p>
                                         )}
                                         {showNoSession && noSessionDocs > 0 && (
                                             <p className="mt-2 text-[11px] text-muted-foreground">{t('missing.hint')}</p>
                                         )}
                                     </>
+                                )}
+
+                                {selectedBody !== null && city.unplaceable.total > 0 && (
+                                    <p className="mt-1.5 text-[11px] text-muted-foreground">{t('bodies.orphansHidden')}</p>
                                 )}
 
                                 {/* The subject-side residue, tucked away exactly like the
@@ -309,17 +324,17 @@ export function CityRow({ city, state, label, openRequest }: {
                                         {subjectsOpen && (
                                             <div className="mt-2 max-w-xl pl-4">
                                                 <TaxonomyList label={t('taxonomy.notProcessed')} cityId={city.cityId}
-                                                    count={city.unmatchedTaxonomy.notProcessed}
-                                                    meetings={detail.unmatched.notProcessed} openLabel={t('openMeeting')} />
+                                                    count={scope.unmatchedTaxonomy.notProcessed}
+                                                    meetings={shown.unmatched.notProcessed} openLabel={t('openMeeting')} />
                                                 <TaxonomyList label={t('taxonomy.candidatesUnmatched')} cityId={city.cityId}
-                                                    count={city.unmatchedTaxonomy.candidatesUnmatched}
-                                                    meetings={groupSubjectsByMeeting(detail.unmatched.candidatesUnmatched)} openLabel={t('openMeeting')} />
+                                                    count={scope.unmatchedTaxonomy.candidatesUnmatched}
+                                                    meetings={groupSubjectsByMeeting(shown.unmatched.candidatesUnmatched)} openLabel={t('openMeeting')} />
                                                 <TaxonomyList label={t('taxonomy.nothingFetched')} cityId={city.cityId}
-                                                    count={city.unmatchedTaxonomy.nothingFetched}
-                                                    meetings={groupSubjectsByMeeting(detail.unmatched.nothingFetched)} openLabel={t('openMeeting')} />
+                                                    count={scope.unmatchedTaxonomy.nothingFetched}
+                                                    meetings={groupSubjectsByMeeting(shown.unmatched.nothingFetched)} openLabel={t('openMeeting')} />
                                                 <TaxonomyList label={t('taxonomy.duplicateSubject')} cityId={city.cityId}
-                                                    count={city.unmatchedTaxonomy.duplicateSubject}
-                                                    meetings={groupSubjectsByMeeting(detail.unmatched.duplicateSubject)} openLabel={t('openMeeting')} />
+                                                    count={scope.unmatchedTaxonomy.duplicateSubject}
+                                                    meetings={groupSubjectsByMeeting(shown.unmatched.duplicateSubject)} openLabel={t('openMeeting')} />
                                             </div>
                                         )}
                                     </div>

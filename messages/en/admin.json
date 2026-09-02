@@ -405,7 +405,8 @@
       "unplaced": "{count, plural, one {# unplaced decision} other {# unplaced decisions}}",
       "unplaceable": "{count, plural, one {# decision without a session} other {# decisions without a session}}",
       "lastPoll": "polled",
-      "noMeetingsInRange": "no meetings in this range — pending work only"
+      "noMeetingsInRange": "no meetings in this range — pending work only",
+      "diavgeia": "Diavgeia"
     },
     "sections": {
       "withoutDecision": "Subjects without a decision",
@@ -449,6 +450,16 @@
       "unplacedDesc": "Read decisions of the session that matched no subject automatically.",
       "noSession": "No session",
       "noSessionDesc": "Read decisions declaring a session missing from our data."
+    },
+    "bodies": {
+      "noBody": "(no body)",
+      "orgWide": "whole organization",
+      "orgWideExplain": "Without units, polling searches the whole organization: more unrelated results and more candidates that do not match.",
+      "noMeetingsInRange": "no meetings in this range",
+      "orphansHidden": "Decisions without a session belong to no body — they show only in the city view.",
+      "details": "Body details",
+      "openInDiavgeia": "Open in Diavgeia",
+      "all": "All bodies"
     }
   }
 }

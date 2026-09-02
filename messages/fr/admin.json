@@ -405,7 +405,8 @@
       "unplaced": "{count, plural, one {# décision non classée} other {# décisions non classées}}",
       "unplaceable": "{count, plural, one {# décision sans séance} other {# décisions sans séance}}",
       "lastPoll": "sondage",
-      "noMeetingsInRange": "aucune séance sur la période — travail en attente seulement"
+      "noMeetingsInRange": "aucune séance sur la période — travail en attente seulement",
+      "diavgeia": "Diavgeia"
     },
     "sections": {
       "withoutDecision": "Sujets sans décision",
@@ -449,6 +450,16 @@
       "unplacedDesc": "Décisions lues de la séance qu'aucun sujet n'a reprises automatiquement.",
       "noSession": "Sans séance",
       "noSessionDesc": "Décisions lues déclarant une séance absente de nos données."
+    },
+    "bodies": {
+      "noBody": "(sans organe)",
+      "orgWide": "organisme entier",
+      "orgWideExplain": "Sans unités, la recherche couvre tout l'organisme : plus de résultats sans rapport et plus de candidates sans correspondance.",
+      "noMeetingsInRange": "aucune séance sur la période",
+      "orphansHidden": "Les décisions sans séance n'appartiennent à aucun organe — elles n'apparaissent que dans la vue de la commune.",
+      "details": "Détails des organes",
+      "openInDiavgeia": "Ouvrir dans Diavgeia",
+      "all": "Tous les organes"
     }
   }
 }
