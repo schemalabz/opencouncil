@@ -3,6 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
+import { entriesForResolvedUnit } from '@/lib/utils/diavgeiaUnitScope'
 
 // Configuration (defaults match env.mjs)
 const DIAVGEIA_MUNICIPALITIES_PATH =
@@ -195,10 +196,30 @@ async function main() {
         console.log(`      ✓ Body "${body.name}" → unit uid ${unit.uid} ("${unit.label}")`)
         bodiesMatched++
 
+        // --force re-resolves the unit. Where it resolves to the unit already
+        // configured, keep the entries verbatim: they may carry hand-configured
+        // signer suffixes that this script cannot discover. See
+        // src/lib/utils/diavgeiaUnitScope.ts.
+        // A malformed stored entry throws in the parser. Skip the body and keep
+        // the run going: skipping narrows no poll — the body keeps its config.
+        let nextUnitIds: string[]
+        try {
+          nextUnitIds = entriesForResolvedUnit(body.diavgeiaUnitIds, unit.uid)
+        } catch (error) {
+          console.log(
+            `      ✗ Body "${body.name}" — ${error instanceof Error ? error.message : error}; skipping`
+          )
+          bodiesMissed++
+          continue
+        }
+        if (nextUnitIds.some((entry) => entry !== unit.uid)) {
+          console.log(`        · keeping signer-scoped entries [${nextUnitIds.join(', ')}]`)
+        }
+
         if (!dryRun) {
           await prisma.administrativeBody.update({
             where: { id: body.id },
-            data: { diavgeiaUnitIds: [unit.uid] },
+            data: { diavgeiaUnitIds: nextUnitIds },
           })
         }
       }
