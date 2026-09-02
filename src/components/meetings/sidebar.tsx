@@ -132,7 +132,7 @@ export default function MeetingSidebar() {
                 the left column top to bottom, so this is where the column starts.
                 Same height as the header's first row across the edge, so the two
                 bottom borders meet. */}
-            <div className="flex h-16 items-center gap-2 px-3 sm:h-20 sm:px-4 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2.5">
+            <div className="flex h-14 items-center gap-2 px-3 sm:h-20 sm:px-4 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2.5">
                 <SidebarTrigger className="h-5 w-5 shrink-0 text-muted-foreground/60" />
                 {/* Gone at 48px, with the seal. Stacked under the toggle it made the
                     head two nav-items tall for 50px of content, and that slack read
