@@ -651,7 +651,9 @@
         "next": "Επόμενο",
         "agendaDocument": "Ημερήσια Διάταξη",
         "subjectsCount": "{count, plural, =0 {Χωρίς θέματα} one {# θέμα} other {# θέματα}}",
-        "notificationComing": "Θα λάβετε σύντομα ενημέρωση για τα θέματα συζήτησης"
+        "notificationComing": "Θα λάβετε σύντομα ενημέρωση για τα θέματα συζήτησης",
+        "previousMeeting": "Προηγούμενη συνεδρίαση",
+        "nextMeeting": "Επόμενη συνεδρίαση"
     },
     "Unsubscribe": {
         "invalidLinkTitle": "Μη έγκυρος σύνδεσμος",
@@ -1110,7 +1112,9 @@
         "notApprovedLong": "Το θέμα δεν εγκρίθηκε ως έκτακτο.",
         "withdrawnShort": "Αποσύρθηκε",
         "withdrawnLong": "Το θέμα αποσύρθηκε και δεν συζητήθηκε.",
-        "minutesCount": "{count, plural, one {# λεπτό} other {# λεπτά}}"
+        "minutesCount": "{count, plural, one {# λεπτό} other {# λεπτά}}",
+        "previousSubject": "Προηγούμενο θέμα",
+        "nextSubject": "Επόμενο θέμα"
     },
     "PersonCard": {
         "party": "Παράταξη",

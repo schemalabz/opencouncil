@@ -11,7 +11,8 @@ import { FileText, MapPin, ScrollText, CheckSquare, Landmark, ExternalLink, Load
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
-import { cn, subjectToMapFeature } from "@/lib/utils";
+import { cn, sortSubjectsByAgendaIndex, subjectToMapFeature } from "@/lib/utils";
+import { categorizeSubjects } from "@/lib/utils/subjects";
 import { notFound } from "next/navigation";
 import { SubjectContext } from "./context";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -28,7 +29,8 @@ import { useTranslations, useLocale } from "next-intl";
 import { requestPollDecisionForSubject, getLastPollTimeForMeeting, getDecisionForSubject } from "@/lib/tasks/pollDecisions";
 import { useSubjectHeader } from "@/contexts/SubjectHeaderContext";
 import { useMeetingStage } from "@/components/meetings/stage/useMeetingStage";
-import { PendingNote, pendingKind } from "@/components/meetings/stage/PendingNote";
+import { PendingNote } from "@/components/meetings/stage/PendingNote";
+import { pendingKind } from "@/lib/meetingStage";
 import { useVideo } from "@/components/meetings/VideoProvider";
 import type { Statistics } from "@/lib/statistics";
 import { TopicPill } from "@/components/TopicPill";
@@ -150,15 +152,30 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     // The effective decision: local override (from polling) or server-rendered
     const decision = localDecision || subject.decision;
 
+    // The subjects either side of this one, in the order the sidebar lists them:
+    // before the agenda, outside it, then the agenda by its numbers.
+    const neighbours = useMemo(() => {
+        const grouped = categorizeSubjects(subjects);
+        const ordered = [...grouped.beforeAgenda, ...grouped.outOfAgenda, ...sortSubjectsByAgendaIndex(grouped.agenda)];
+        const index = ordered.findIndex(candidate => candidate.id === subject.id);
+        // A subject in no category is in no list to step through.
+        if (index === -1) return { previous: null, next: null };
+        const step = (candidate: (typeof ordered)[number] | undefined, key: 'previousSubject' | 'nextSubject') =>
+            candidate ? { href: `/${city.id}/${meeting.id}/subjects/${candidate.id}`, label: `${t(key)}: ${localize(candidate.name)}` } : null;
+        return { previous: step(ordered[index - 1], 'previousSubject'), next: step(ordered[index + 1], 'nextSubject') };
+    }, [subjects, subject.id, city.id, meeting.id, t, localize]);
+
     // Push subject info to the header breadcrumb (display-only, so localized)
     useEffect(() => {
         setSubjectHeader({
             name: localize(name),
             topicIcon: topic?.icon ?? undefined,
             topicColor: topic?.colorHex ?? undefined,
+            previous: neighbours.previous,
+            next: neighbours.next,
         });
         return () => setSubjectHeader(null);
-    }, [name, topic?.icon, topic?.colorHex, setSubjectHeader, localize]);
+    }, [name, topic?.icon, topic?.colorHex, neighbours, setSubjectHeader, localize]);
 
     // Fetch last poll time on mount when there's no decision
     useEffect(() => {

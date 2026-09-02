@@ -1118,7 +1118,9 @@
         "notApprovedLong": "The subject was not approved as urgent.",
         "withdrawnShort": "Withdrawn",
         "withdrawnLong": "The subject was withdrawn and not discussed.",
-        "minutesCount": "{count, plural, one {# minute} other {# minutes}}"
+        "minutesCount": "{count, plural, one {# minute} other {# minutes}}",
+        "previousSubject": "Previous subject",
+        "nextSubject": "Next subject"
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {No meetings} =1 {1 meeting} other {# meetings}}",
@@ -1140,7 +1142,9 @@
         "next": "Next",
         "agendaDocument": "Agenda",
         "subjectsCount": "{count, plural, =0 {No subjects} one {# subject} other {# subjects}}",
-        "notificationComing": "You will receive an update on the discussion subjects soon"
+        "notificationComing": "You will receive an update on the discussion subjects soon",
+        "previousMeeting": "Previous meeting",
+        "nextMeeting": "Next meeting"
     },
     "ProductUpdates": {
         "triggerButton": "Send product update",

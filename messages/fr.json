@@ -651,7 +651,9 @@
     "next": "Suivant",
     "agendaDocument": "Ordre du jour",
     "subjectsCount": "{count, plural, =0 {Aucun sujet} one {# sujet} other {# sujets}}",
-    "notificationComing": "Vous recevrez bientôt une mise à jour sur les sujets abordés"
+    "notificationComing": "Vous recevrez bientôt une mise à jour sur les sujets abordés",
+    "previousMeeting": "Séance précédente",
+    "nextMeeting": "Séance suivante"
   },
   "Unsubscribe": {
     "invalidLinkTitle": "Lien non valide",
@@ -1110,7 +1112,9 @@
     "notApprovedLong": "Le sujet n'a pas été approuvé comme urgent.",
     "withdrawnShort": "Retiré",
     "withdrawnLong": "Le sujet a été retiré et n'a pas été discuté.",
-    "minutesCount": "{count, plural, one {# minute} other {# minutes}}"
+    "minutesCount": "{count, plural, one {# minute} other {# minutes}}",
+    "previousSubject": "Point précédent",
+    "nextSubject": "Point suivant"
   },
   "PersonCard": {
     "party": "Groupe",

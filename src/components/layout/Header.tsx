@@ -8,11 +8,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { SidebarTrigger } from '../ui/sidebar'
 import { City } from '@prisma/client'
 import { Input } from "@/components/ui/input"
-import { Search, Bot, Building2, ChevronRight, HelpCircle, type LucideIcon } from "lucide-react"
+import { Search, Bot, Building2, ChevronLeft, ChevronRight, HelpCircle, type LucideIcon } from "lucide-react"
 import { useRouter, useSelectedLayoutSegment } from "next/navigation"
 import { useState, useRef, useEffect } from "react"
 import { createPortal } from "react-dom"
-import { useSubjectHeaderOptional, SubjectHeaderInfo } from "@/contexts/SubjectHeaderContext"
+import { useSubjectHeaderOptional, type HeaderNeighbour, SubjectHeaderInfo } from "@/contexts/SubjectHeaderContext"
 import { AutoScrollText } from "@/components/ui/auto-scroll-text"
 import { getMeetingPageSegments } from "@/lib/utils/meetingPages"
 import { TopicIcon } from '@/components/TopicIcon';
@@ -27,8 +27,54 @@ export interface PathElement {
     addon?: React.ReactNode
 }
 
+/** The meetings either side of the one the header names. */
+export interface HeaderNeighbours {
+    previous: HeaderNeighbour | null;
+    next: HeaderNeighbour | null;
+}
+
+/**
+ * One step of a previous/next pair, in the header's own control style: a bare
+ * glyph that gains a soft disc only on hover, like search and MCP beside it.
+ * A ring made it a button; this is a way through the list. A missing
+ * neighbour keeps its place as a faded glyph, so the name never shifts when a
+ * reader reaches an end.
+ */
+function NeighbourLink({ neighbour, direction }: { neighbour: HeaderNeighbour | null | undefined; direction: 'previous' | 'next' }) {
+    const Icon = direction === 'previous' ? ChevronLeft : ChevronRight;
+    // The glyph is a third of its box, so the box overlaps the gap on the name's side to
+    // sit next to the name rather than a box-width away. The previous arrow also hangs
+    // 9px out on the left — the glyph's tip is that far into the box — so the tip, not
+    // the box, lines up with the crumb above it. On a phone, where the row has about
+    // 160px for the name, the next arrow gives up part of its outer side as well.
+    const classes = cn(
+        'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors',
+        direction === 'previous' ? '-ml-[9px] -mr-2' : '-mr-1 -ml-2 sm:mr-0',
+    );
+    if (!neighbour) {
+        return (
+            <span aria-hidden className={cn(classes, 'opacity-30')}>
+                <Icon className="h-4 w-4" />
+            </span>
+        );
+    }
+    return (
+        <Link
+            href={neighbour.href}
+            prefetch={false}
+            title={neighbour.label}
+            aria-label={neighbour.label}
+            className={cn(classes, 'hover:bg-foreground/[0.06] hover:text-foreground hover:no-underline')}
+        >
+            <Icon className="h-4 w-4" />
+        </Link>
+    );
+}
+
 interface HeaderProps {
     path: PathElement[]
+    /** Previous/next around the element that titles the header; the meeting's neighbours. */
+    neighbours?: HeaderNeighbours
     showSidebarTrigger?: boolean
     currentEntity?: { cityId: string }
     /**
@@ -68,7 +114,7 @@ interface HeaderProps {
  * page already rendered (`sm:hidden`, sidebar toggle + page title), now shown at
  * every width and carrying the actions on its right.
  */
-const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noContainer = false, className, showExplain = false, inset = false }: HeaderProps) => {
+const Header = ({ path, neighbours, showSidebarTrigger = false, currentEntity, children, noContainer = false, className, showExplain = false, inset = false }: HeaderProps) => {
     const t = useTranslations("Header");
     const tCommon = useTranslations("Common");
     const meetingPageSegments = getMeetingPageSegments(useTranslations("CouncilMeeting"));
@@ -258,7 +304,9 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                                 ))}
                             </div>
                         )}
-                <div className="flex min-w-0 items-center gap-2.5">
+                <div className="flex min-w-0 items-center gap-1 sm:gap-1.5">
+                    {/* The pair flanks the name it steps through; the stage follows outside it. */}
+                    {neighbours && <NeighbourLink neighbour={neighbours.previous} direction="previous" />}
                     {titleElement.link ? (
                         <Link href={titleElement.link} className="min-w-0 truncate text-sm font-medium hover:no-underline sm:text-base">
                             {titleElement.name}
@@ -266,6 +314,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                     ) : (
                         <span className="min-w-0 truncate text-sm font-medium sm:text-base">{titleElement.name}</span>
                     )}
+                    {neighbours && <NeighbourLink neighbour={neighbours.next} direction="next" />}
                     {titleElement.addon}
                 </div>
                 </div>
@@ -378,7 +427,11 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
        page name is no more readable than a truncated subject. */
     const renderPageLabel = () => (
         pageElement ? (
-            <div className="flex min-w-0 items-center gap-2 text-[13px] font-medium text-foreground/80 sm:text-sm">
+            <div className="flex min-w-0 items-center gap-1.5 text-[13px] font-medium text-foreground/80 sm:gap-2 sm:text-sm">
+                {/* A subject steps through its meeting's subjects, in the sidebar's order. */}
+                {isCurrentSubject && subjectHeader?.previous !== undefined && (
+                    <NeighbourLink neighbour={subjectHeader.previous} direction="previous" />
+                )}
                 {renderPageIcon()}
                 <div className="min-w-0 flex-1">
                     {isCurrentSubject ? (
@@ -389,6 +442,9 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                         <span className="block truncate">{pageElement.name}</span>
                     )}
                 </div>
+                {isCurrentSubject && subjectHeader?.next !== undefined && (
+                    <NeighbourLink neighbour={subjectHeader.next} direction="next" />
+                )}
             </div>
         ) : null
     );
