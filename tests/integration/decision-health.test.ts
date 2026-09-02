@@ -288,3 +288,128 @@ describe('applyCandidateConflictResolution outcomes', () => {
         expect(after!.dismissedAt).toBeNull()
     })
 })
+
+describe('per-body breakdown', () => {
+    beforeEach(async () => {
+        await resetDatabase(prisma)
+    })
+
+    async function seedCityWithBodies() {
+        const city = await createCity({ id: 'c1', diavgeiaUid: 'DIAV-1' })
+        const council = await createAdministrativeBody(city.id, {
+            id: 'b-council', name: 'Δημοτικό Συμβούλιο', type: 'council', diavgeiaUnitIds: ['81689'],
+            notificationBehavior: 'NOTIFICATIONS_DISABLED',
+        })
+        const committee = await createAdministrativeBody(city.id, {
+            id: 'b-committee', name: 'Δημοτική Επιτροπή', type: 'committee',
+            notificationBehavior: 'NOTIFICATIONS_DISABLED',
+        })
+        // A community that never met: it must still appear, with zero coverage.
+        await createAdministrativeBody(city.id, {
+            id: 'b-community', name: '1η Κοινότητα', type: 'community',
+            notificationBehavior: 'NOTIFICATIONS_DISABLED',
+        })
+
+        const m1 = await createMeeting(city.id, {
+            id: 'm1', administrativeBodyId: council.id, dateTime: new Date('2025-01-10T10:00:00Z'),
+        })
+        const linked = await createSubject(m1.id, city.id, { name: 'L', agendaItemIndex: 1 })
+        await createSubject(m1.id, city.id, { name: 'U', agendaItemIndex: 2 })
+        await prisma.decision.create({
+            data: { subjectId: linked.id, ada: 'ADA-L', pdfUrl: 'https://example.com/l.pdf', excerpt: 'text' },
+        })
+        await createTaskStatus(m1.id, city.id, { type: 'pollDecisions', status: 'succeeded' })
+
+        // One read, unassigned candidate filed to the council meeting: unplaced work of that body.
+        await prisma.decisionCandidate.create({
+            data: {
+                cityId: city.id, ada: 'ADA-U1', pdfUrl: 'https://example.com/u1.pdf',
+                readStatus: 'ok', councilMeetingId: m1.id,
+                meetingDate: new Date('2025-01-10T00:00:00Z'),
+            },
+        })
+
+        const m2 = await createMeeting(city.id, {
+            id: 'm2', administrativeBodyId: committee.id, dateTime: new Date('2025-01-12T10:00:00Z'),
+        })
+        await createSubject(m2.id, city.id, { name: 'C', agendaItemIndex: 1 })
+        // The committee meeting's latest poll failed: that body is blocked.
+        await createTaskStatus(m2.id, city.id, { type: 'pollDecisions', status: 'failed' })
+
+        // A meeting with no administrative body at all.
+        const m3 = await createMeeting(city.id, {
+            id: 'm3', dateTime: new Date('2025-01-14T10:00:00Z'),
+        })
+        await createSubject(m3.id, city.id, { name: 'N', agendaItemIndex: 1 })
+        return city
+    }
+
+    test('one row per body plus the no-body row, in type order, summing to the city', async () => {
+        const city = await seedCityWithBodies()
+        const [row] = await getDecisionHealth(city.id)
+
+        expect(row.diavgeiaUid).toBe('DIAV-1')
+        expect(row.bodies.map(b => b.body?.id ?? null)).toEqual(['b-council', 'b-committee', 'b-community', null])
+        expect(row.bodies[0].body?.diavgeiaUnitIds).toEqual(['81689'])
+        expect(row.bodies[1].body?.diavgeiaUnitIds).toEqual([])
+
+        const sum = (f: (b: typeof row.bodies[number]) => number) => row.bodies.reduce((a, b) => a + f(b), 0)
+        expect(sum(b => b.meetings)).toBe(row.meetings)
+        expect(sum(b => b.polledMeetings)).toBe(row.polledMeetings)
+        expect(sum(b => b.eligibleSubjects)).toBe(row.eligibleSubjects)
+        expect(sum(b => b.linkedSubjects)).toBe(row.linkedSubjects)
+        expect(sum(b => b.contentLinks)).toBe(row.contentLinks)
+        expect(sum(b => b.unmatchedTaxonomy.notProcessed)).toBe(row.unmatchedTaxonomy.notProcessed)
+        expect(sum(b => b.unplacedCandidates)).toBe(row.unplacedCandidates)
+        expect(sum(b => b.conflicts)).toBe(row.conflicts)
+        expect(sum(b => b.failedMeetings)).toBe(row.failedMeetings)
+        expect(row.bodies[0]).toMatchObject({ unplacedCandidates: 1, failedMeetings: 0 })
+        expect(row.bodies[1]).toMatchObject({ unplacedCandidates: 0, failedMeetings: 1 })
+
+        expect(row.bodies[0]).toMatchObject({ meetings: 1, polledMeetings: 1, eligibleSubjects: 2, linkedSubjects: 1, contentLinks: 1 })
+        expect(row.bodies[1]).toMatchObject({ meetings: 1, polledMeetings: 0, eligibleSubjects: 1, linkedSubjects: 0 })
+        expect(row.bodies[2]).toMatchObject({ meetings: 0, eligibleSubjects: 0 })
+        expect(row.bodies[3]).toMatchObject({ body: null, meetings: 1, eligibleSubjects: 1 })
+    })
+
+    test('the window empties a body without removing it', async () => {
+        const city = await seedCityWithBodies()
+        // Queue work keeps the city visible when the window holds no meetings.
+        await prisma.decisionCandidate.create({
+            data: {
+                cityId: city.id, ada: 'ADA-Q', pdfUrl: 'https://example.com/q.pdf',
+                readStatus: 'ok', councilMeetingId: 'm1',
+                meetingDate: new Date('2025-01-10T00:00:00Z'),
+            },
+        })
+        const [row] = await getDecisionHealth(city.id, 30)
+        expect(row.eligibleSubjects).toBe(0)
+        expect(row.bodies).toHaveLength(4)
+        expect(row.bodies.every(b => b.meetings === 0 && b.eligibleSubjects === 0)).toBe(true)
+    })
+
+    test('a body-less meeting without eligible subjects earns no no-body row', async () => {
+        const city = await createCity({ id: 'c3', diavgeiaUid: 'DIAV-3', status: 'supported' })
+        const body = await createAdministrativeBody(city.id, { notificationBehavior: 'NOTIFICATIONS_DISABLED' })
+        const m = await createMeeting(city.id, {
+            id: 'm1', administrativeBodyId: body.id, dateTime: new Date('2025-01-10T10:00:00Z'),
+        })
+        await createSubject(m.id, city.id, { name: 'S', agendaItemIndex: 1 })
+        // A presentation: no agenda items, so nothing to poll and nothing to show.
+        const talk = await createMeeting(city.id, { id: 'm-talk', dateTime: new Date('2025-01-12T10:00:00Z') })
+        await createSubject(talk.id, city.id, { name: 'Slides', agendaItemIndex: null })
+        const [row] = await getDecisionHealth(city.id)
+        expect(row.bodies.map(b => b.body?.id ?? null)).toEqual([body.id])
+    })
+
+    test('a city whose meetings all carry a body has no no-body row', async () => {
+        const city = await createCity({ id: 'c2', diavgeiaUid: 'DIAV-2' })
+        const body = await createAdministrativeBody(city.id, { notificationBehavior: 'NOTIFICATIONS_DISABLED' })
+        const m = await createMeeting(city.id, {
+            id: 'm1', administrativeBodyId: body.id, dateTime: new Date('2025-01-10T10:00:00Z'),
+        })
+        await createSubject(m.id, city.id, { name: 'S', agendaItemIndex: 1 })
+        const [row] = await getDecisionHealth(city.id)
+        expect(row.bodies.map(b => b.body?.id ?? null)).toEqual([body.id])
+    })
+})
