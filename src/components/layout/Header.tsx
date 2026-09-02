@@ -289,8 +289,12 @@ const Header = ({ path, neighbours, showSidebarTrigger = false, currentEntity, c
                 <div className="flex min-w-0 flex-1 flex-col justify-center">
                         {trailElements.length > 0 && (
                             <div className="flex min-w-0 items-center gap-1">
+                                {/* In a meeting a phone has room for one crumb: the city. The body
+                                    crumb truncated the city to a few letters and repeated the meeting's
+                                    own name a line above it. Other trails keep every crumb — the
+                                    consultation page has no other way back to its list. */}
                                 {trailElements.map((element, index) => (
-                                    <div key={element.link || `trail-${index}`} className="flex min-w-0 items-center gap-1">
+                                    <div key={element.link || `trail-${index}`} className={cn('flex min-w-0 items-center gap-1', isMeetingContext && index > 0 && 'hidden sm:flex')}>
                                         {index > 0 && (
                                             <ChevronRight className="h-2.5 w-2.5 shrink-0 text-muted-foreground/60" aria-hidden />
                                         )}
@@ -486,10 +490,10 @@ const Header = ({ path, neighbours, showSidebarTrigger = false, currentEntity, c
         // has the room, and hiding the account there is worse.
         hasActionBar && isContentScrolled
             ? 'h-0 overflow-hidden opacity-0 sm:h-20 sm:overflow-visible sm:opacity-100'
-            : 'h-16 opacity-100 sm:h-20',
+            : 'h-14 opacity-100 sm:h-20',
         'transition-all duration-300 ease-in-out',
     );
-    const rowTwo = 'row-start-2 h-12 items-center sm:h-[54px]';
+    const rowTwo = 'row-start-2 h-11 items-center sm:h-[54px]';
 
     const renderGrid = () => (
         <div className={cn(
