@@ -67,18 +67,21 @@ const meetingWithSubjectPreviewInclude = {
     },
     administrativeBody: true,
     // The public stage (lib/meetingStage.ts) reads which pipeline tasks have
-    // succeeded, and whether segments exist at all — an imported transcript
-    // has no task row.
+    // succeeded. Whether segments exist at all — an imported transcript has no
+    // task row — is counted per listed meeting below, not as a relation
+    // `_count` here: Prisma compiles that into a GROUP BY over every segment
+    // of the city, whatever the list's limit.
     taskStatuses: {
         where: { status: 'succeeded', type: { in: ['transcribe', 'summarize'] } },
         select: { type: true },
     },
-    _count: { select: { speakerSegments: true } },
 } satisfies Prisma.CouncilMeetingInclude;
 
 export type CouncilMeetingWithSubjectPreview = Prisma.CouncilMeetingGetPayload<{
     include: typeof meetingWithSubjectPreviewInclude
-}>;
+}> & {
+    _count: { speakerSegments: number };
+};
 
 export async function deleteCouncilMeeting(cityId: string, id: string): Promise<void> {
     await withUserAuthorizedToEdit({ councilMeetingId: id, cityId: cityId });
@@ -249,14 +252,27 @@ export async function getCouncilMeetingsForCity(cityId: string, options: Meeting
  */
 export async function getCouncilMeetingsWithSubjectPreview(cityId: string, options: MeetingListOptions = {}): Promise<CouncilMeetingWithSubjectPreview[]> {
     try {
-        return await prisma.councilMeeting.findMany({
+        const meetings = await prisma.councilMeeting.findMany({
             ...meetingListQuery(cityId, options),
             include: meetingWithSubjectPreviewInclude,
         });
+        const segments = await countSpeakerSegments(cityId, meetings.map(meeting => meeting.id));
+        return meetings.map(meeting => ({ ...meeting, _count: { speakerSegments: segments.get(meeting.id) ?? 0 } }));
     } catch (error) {
         console.error('Error fetching council meeting previews for city:', error);
         throw new Error('Failed to fetch council meetings for city');
     }
+}
+
+/** Segments per listed meeting: one GROUP BY over those ids on the (meetingId, cityId) index. */
+async function countSpeakerSegments(cityId: string, meetingIds: string[]): Promise<Map<string, number>> {
+    if (meetingIds.length === 0) return new Map();
+    const rows = await prisma.speakerSegment.groupBy({
+        by: ['meetingId'],
+        where: { cityId, meetingId: { in: meetingIds } },
+        _count: { _all: true },
+    });
+    return new Map(rows.map(row => [row.meetingId, row._count._all]));
 }
 
 /** How many meetings match, for a pager over the same filters. */

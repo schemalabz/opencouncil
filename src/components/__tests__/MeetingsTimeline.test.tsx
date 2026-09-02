@@ -21,6 +21,7 @@ jest.mock('@/components/TopicIcon', () => ({
 jest.mock('@/i18n/routing', () => ({
     // eslint-disable-next-line @next/next/no-html-link-for-pages
     Link: ({ href, children, ...rest }: React.ComponentProps<'a'>) => <a href={String(href)} {...rest}>{children}</a>,
+    useRouter: () => ({ push: jest.fn() }),
 }));
 
 /** The dev database has no scheduled meetings, so the upcoming treatment — the
@@ -43,6 +44,12 @@ function meeting(overrides: {
         name_en: `Meeting ${id}`,
         dateTime,
         released: true,
+        youtubeUrl: null,
+        videoUrl: null,
+        audioUrl: null,
+        muxPlaybackId: null,
+        taskStatuses: [],
+        _count: { speakerSegments: 0 },
         administrativeBody: bodyType === null ? null : {
             id: `body-${bodyType}`,
             type: bodyType,
@@ -130,11 +137,11 @@ describe('MeetingsTimeline', () => {
         expect(councilOnly.container.querySelector('.hidden.xl\\:block')).toBeNull();
     });
 
-    it('caps a card at the preview count and reports the remainder', () => {
+    it('caps a card at the preview count and reports the total', () => {
         renderTimeline([], [past(2, {
             subjects: Array.from({ length: 5 }, (_, i) => ({ agendaItemIndex: i + 1 })),
         })]);
-        expect(screen.getAllByText('moreSubjects:2').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('subjectsCount:5').length).toBeGreaterThan(0);
     });
 });
 

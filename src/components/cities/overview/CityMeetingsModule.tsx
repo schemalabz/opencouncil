@@ -5,8 +5,11 @@ import { ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import type { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
+import { MeetingStageChip } from '@/components/meetings/stage/MeetingStageChip';
+import { stageChipDetail } from '@/components/meetings/stage/stageDetail';
+import { publicMeetingStage, stageSignalsFromPreview } from '@/lib/meetingStage';
 import { getLocalizedName } from '@/lib/formatters/name';
-import { formatDateStamp, formatDateTime } from '@/lib/formatters/time';
+import { formatClockTime, formatDateStamp } from '@/lib/formatters/time';
 import { cn } from '@/lib/utils';
 import { AdminBodyLabel } from './AdminBodyLabel';
 import { surfaceCardClass } from '@/components/ui/surface-card';
@@ -68,7 +71,6 @@ export function CityMeetingsModule({ all, council, cityId, timezone, locale }: C
                     </div>
                     <MeetingRow
                         meeting={scoped.next}
-                        upcoming
                         cityId={cityId}
                         timezone={timezone}
                         locale={locale}
@@ -131,7 +133,6 @@ function MeetingRow({
     cityId,
     timezone,
     locale,
-    upcoming = false,
     ariaLabel,
     className,
 }: {
@@ -139,11 +140,13 @@ function MeetingRow({
     cityId: string;
     timezone: string;
     locale: string;
-    upcoming?: boolean;
     ariaLabel?: string;
     className?: string;
 }) {
     const tMeeting = useTranslations('CouncilMeeting');
+    const tStage = useTranslations('meetingStage');
+    const stage = publicMeetingStage(stageSignalsFromPreview(meeting));
+    const upcoming = stage === 'upcoming';
     return (
         <Link
             href={`/${cityId}/${meeting.id}`}
@@ -151,36 +154,51 @@ function MeetingRow({
             onClick={() => captureEvent('meeting_opened', { surface: 'city_rail', city_id: cityId, meeting_id: meeting.id, upcoming })}
             aria-label={ariaLabel}
             className={cn(
-                'group/row flex items-start gap-4 p-4 transition-colors hover:bg-foreground/[0.02] hover:no-underline',
+                'group/row flex items-center gap-3 px-4 py-3 transition-colors hover:bg-foreground/[0.02] hover:no-underline',
                 className,
             )}
         >
             <DateStamp date={meeting.dateTime} timezone={timezone} locale={locale} upcoming={upcoming} />
+            {/* Three lines beside a three-line stamp: the name, the body with the
+                count, and the stage. The column is about 230px, so the name gives up
+                a size to fit on one line more often than not. */}
             <span className="min-w-0 flex-1">
-                <span className="block text-lg leading-snug transition-colors group-hover/row:text-[hsl(var(--orange))]">
+                <span className="block text-base leading-snug transition-colors group-hover/row:text-[hsl(var(--orange))]">
                     {getLocalizedName(meeting, locale)}
                 </span>
-                <AdminBodyLabel body={meeting.administrativeBody} locale={locale} className="mt-1.5" />
-                <span className="mt-1 block text-xs text-muted-foreground">
-                    {formatDateTime(meeting.dateTime, timezone, 'medium', locale)}
+                <span className="mt-1 flex min-w-0 items-center gap-x-2 text-xs text-muted-foreground">
+                    <AdminBodyLabel body={meeting.administrativeBody} locale={locale} className="min-w-0" />
                     {/* An upcoming meeting with no extracted agenda has no count worth
                         printing; once the διάταξη lands, the row says so like the latest's. */}
                     {meeting.subjects.length > 0 && (
-                        <> · {tMeeting('subjectsCount', { count: meeting.subjects.length })}</>
+                        <>
+                            <span aria-hidden>·</span>
+                            <span className="shrink-0">{tMeeting('subjectsCount', { count: meeting.subjects.length })}</span>
+                        </>
                     )}
                 </span>
+                {stage !== 'complete' && (
+                    <MeetingStageChip
+                        stage={stage}
+                        size="sm"
+                        className="mt-1"
+                        detail={stageChipDetail(tStage, stage, meeting.dateTime, timezone, locale)}
+                    />
+                )}
             </span>
-            <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
         </Link>
     );
 }
 
+/** The calendar facts together: day, month and year, and the time under them. */
 function DateStamp({ date, timezone, locale, upcoming = false }: { date: Date | string; timezone: string; locale: string; upcoming?: boolean }) {
     const { day, monthYear } = formatDateStamp(date, timezone, locale);
     return (
-        <div className="shrink-0 border-r border-border pr-4 text-center tabular-nums">
+        <div className="shrink-0 border-r border-border pr-3 text-center tabular-nums">
             <div className={cn('text-3xl leading-none tracking-tight', upcoming && 'text-[hsl(var(--orange))]')}>{day}</div>
             <div className="mt-1.5 text-[10px] font-extrabold tracking-[0.14em] text-muted-foreground">{monthYear}</div>
+            <div className="mt-1 text-[11px] leading-none text-muted-foreground">{formatClockTime(date, timezone, locale)}</div>
         </div>
     );
 }
