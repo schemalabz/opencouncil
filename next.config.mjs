@@ -37,7 +37,7 @@ const nextConfig = {
     images: {
         domains: ['townhalls-gr.fra1.digitaloceanspaces.com', 'data.opencouncil.gr', 'fra1.digitaloceanspaces.com'],
     },
-    transpilePackages: ['@opencouncil/ui'],
+    transpilePackages: ['@opencouncil/ui', '@opencouncil/subject-images'],
     // Next 16 answers /_next/* and /__nextjs* requests that carry an Origin
     // outside this list with 403 (Next 15 only warned). The mobile preview
     // opens the app through the LAN IP, so the phone's HMR socket and
